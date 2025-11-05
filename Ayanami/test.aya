@@ -1,0 +1,52 @@
+fn swap(ref int i, ref int j){
+	temp = i
+	i = j
+	j = temp
+}
+
+fn sort(int start, int end, int arr[]){
+	if (start > end) || (start == end) {
+		return
+	}
+
+	i = start
+	j = end
+	pivot = arr[(i + j) / 2]
+
+	while i+1<j {     
+		while arr[i] < pivot {
+			i = i + 1
+		}
+		while pivot < arr[j] { 
+			j = j - 1
+		}
+
+		if i+1<j {   
+			swap(arr[i], arr[j])
+			i = i + 1
+			j = j - 1
+		}
+	}
+
+	if start < j {
+		sort(start, j, arr)
+	}
+	if i < end {
+		sort(i, end, arr)
+	}
+}
+
+fn print(int arr[]){
+	for i in (9){
+		output(arr[i])
+		output(' ')
+	}
+}
+
+fn main(){
+	arr = [1,6,3,98,2,4,6,1,89]
+
+	sort(0,8,arr)
+
+	print(arr)
+}

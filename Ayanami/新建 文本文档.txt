@@ -1,0 +1,22 @@
+fn test(int a, float b,ref char c){
+	return a + b
+}
+
+fn test(int a){
+	return a+1-2
+}
+
+fn main(){
+	x=test(1,0.1,'C')
+	y=test(1)
+
+	for i in (1,2,3){
+		x=x+1
+	}
+
+	v=0
+
+	while true{
+		v=v+1
+	}
+}
