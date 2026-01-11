@@ -1,3 +1,5 @@
+use ayanami::tokenlize;
+
 fn main() {
-    println!("Hello, world!");
+    tokenlize();
 }
