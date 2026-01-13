@@ -1,2 +1,8 @@
-s = 1+"str"
-a=2
+fn foo(int a){
+    return 0.1
+}
+
+fn main(){
+    a=1.1
+    return a
+}

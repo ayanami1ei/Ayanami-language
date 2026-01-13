@@ -5,7 +5,7 @@ impl Tokenlizer {
         c.is_alphabetic()
     }
     fn is_num(c: char) -> bool {
-        c.is_ascii_digit()
+        c.is_ascii_digit() || c=='.'
     }
     fn is_operator(c: char) -> bool {
         c == '+'
@@ -24,6 +24,7 @@ impl Tokenlizer {
             || c == ']'
             || c == '\''
             || c == '\"'
+            || c == ','
     }
 
     fn is_keyword(s: String) -> bool {
@@ -38,6 +39,8 @@ impl Tokenlizer {
             || s == "fn"
             || s == "ref"
             || s == "return"
+            || s == "if"
+            || s == "else"
     }
 
     fn tokenlize_identifier(&mut self) -> Token {
@@ -80,10 +83,6 @@ impl Tokenlizer {
         let mut tokens = Vec::<Token>::new();
 
         while self.i < self.chars.len() {
-            #[cfg(debug_assertions)]
-            {
-                println!("i = {}", self.i)
-            }
             if Self::is_num(self.chars[self.i]) {
                 match self.tokenlize_num() {
                     Ok(x) => tokens.push(x),
@@ -96,7 +95,7 @@ impl Tokenlizer {
                     Ok(x) => tokens.push(x),
                     Err(mut e) => return Err(e.with_context_front(format!(""))),
                 };
-            } else if self.chars[self.i] == ' ' {
+            } else if self.chars[self.i] == ' ' || self.chars[self.i] == '\n' {
                 self.i += 1;
             } else {
                 return Err(Error::new_error(format!(

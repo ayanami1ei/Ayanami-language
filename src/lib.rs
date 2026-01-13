@@ -1,14 +1,20 @@
+use crate::parser::Parser;
+use crate::semantic_analysiser::SemanticAnalysiser;
+use crate::symbol_table::SymbolTable;
 use crate::tokenlizer::Tokenlizer;
 use crate::types::Token;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 pub mod error_type;
+pub mod parser;
+pub mod semantic_analysiser;
+pub mod symbol_table;
 pub mod tokenlizer;
 pub mod types;
+pub mod hir;
 
-#[test]
-fn test() {
+pub fn run() {
     let path = "test.aya";
 
     let input = File::open(path).unwrap();
@@ -26,15 +32,25 @@ fn test() {
                 return;
             }
         };
-
-        tokens.push(token);
-    }
-
-    for i in 0..tokens.len() {
-        for j in 0..tokens[i].len() {
-            println!("{}", tokens[i][j]);
+        if token.len() != 0 {
+            tokens.push(token);
         }
     }
+
+    let symbol_table = SymbolTable::new();
+
+    let mut parser = Parser::new(tokens, symbol_table.clone());
+    let stmts = match parser.parser() {
+        Ok(c) => c,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
+    };
+
+    let mut semantic_analysiser=SemanticAnalysiser::new(stmts, symbol_table);
+    semantic_analysiser.semantic_analysise().unwrap();
+
 }
 
 pub fn tokenlize() {

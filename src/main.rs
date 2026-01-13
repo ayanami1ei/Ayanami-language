@@ -1,5 +1,5 @@
-use ayanami::tokenlize;
+use ayanami::{run, tokenlize};
 
 fn main() {
-    tokenlize();
+    run();
 }
