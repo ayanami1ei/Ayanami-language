@@ -308,11 +308,11 @@ impl SemanticAnalysiser {
         }
     }
 
-    pub(crate) fn semantic_analysise(&mut self) -> Result<(), Error> {
+    pub(crate) fn semantic_analysise(&mut self) -> Result<Vec<Stmt>, Error> {
         self.symbol_table.reset();
         for stmt in self.stmts.clone() {
             self.semantic_analysise_stmt(stmt)?;
         }
-        Ok(())
+        Ok(self.stmts.clone())
     }
 }

@@ -4,50 +4,68 @@ use crate::{
 };
 use std::{cell::RefCell, rc::Rc, usize};
 
+static mut NEXT_ID: i32 = 0;
+
 impl Symbol {
     pub(crate) fn new_var(name: String, scope: Rc<RefCell<Scope>>) -> Symbol {
-        Symbol {
-            name: name,
-            is_func: false,
-            args: Vec::<Symbol>::new(),
-            is_argc: false,
-            is_ref: false,
-            is_var: true,
-            its_type: VarType::Unknown,
-            area: Rc::downgrade(&scope),
+        unsafe {
+            let res = Symbol {
+                name: name,
+                is_func: false,
+                args: Vec::<Symbol>::new(),
+                is_argc: false,
+                is_ref: false,
+                is_var: true,
+                its_type: VarType::Unknown,
+                id: NEXT_ID,
+                area: Rc::downgrade(&scope),
+            };
+            NEXT_ID += 1;
+            res
         }
     }
     pub(crate) fn new_func(name: String, args: Vec<Symbol>, scope: Rc<RefCell<Scope>>) -> Symbol {
-        Symbol {
-            name: name,
-            is_func: true,
-            args: args,
-            is_argc: false,
-            is_ref: false,
-            is_var: false,
-            its_type: VarType::Unknown,
-            area: Rc::downgrade(&scope),
+        unsafe {
+            let res = Symbol {
+                name: name,
+                is_func: true,
+                args: args,
+                is_argc: false,
+                is_ref: false,
+                is_var: false,
+                its_type: VarType::Unknown,
+                id: NEXT_ID,
+                area: Rc::downgrade(&scope),
+            };
+            NEXT_ID += 1;
+            res
         }
     }
     pub(crate) fn new_argc(name: String, is_ref: bool, scope: Rc<RefCell<Scope>>) -> Symbol {
-        Symbol {
-            name: name,
-            is_func: false,
-            args: Vec::<Symbol>::new(),
-            is_argc: true,
-            is_ref: is_ref,
-            is_var: false,
-            its_type: VarType::Unknown,
-            area: Rc::downgrade(&scope),
+        unsafe {
+            let res = Symbol {
+                name: name,
+                is_func: false,
+                args: Vec::<Symbol>::new(),
+                is_argc: true,
+                is_ref: is_ref,
+                is_var: false,
+                its_type: VarType::Unknown,
+                id:NEXT_ID,
+                area: Rc::downgrade(&scope),
+            };
+            NEXT_ID += 1;
+            res
         }
     }
 }
 
 impl Scope {
-    pub(super) fn new() -> Scope {
+    pub(super) fn new(id:i32) -> Scope {
         Scope {
             parent: None,
             sons: Vec::<Rc<RefCell<Scope>>>::new(),
+            id,
             symbol: Vec::<Symbol>::new(),
         }
     }
@@ -67,11 +85,12 @@ impl Scope {
 
 impl SymbolTable {
     pub(crate) fn new() -> SymbolTable {
-        let _area = Rc::new(RefCell::new(Scope::new()));
+        let _area = Rc::new(RefCell::new(Scope::new(0)));
         let _area_ptr = Rc::downgrade(&_area);
         SymbolTable {
             area: _area,
             area_ptr: _area_ptr,
+            next_scope_id:1,
         }
     }
 
@@ -87,7 +106,8 @@ impl SymbolTable {
     }
 
     pub(crate) fn into_new_scope(&mut self) {
-        let scope = Rc::new(RefCell::new(Scope::new()));
+        let scope = Rc::new(RefCell::new(Scope::new(self.next_scope_id)));
+        self.next_scope_id+=1;
 
         if let Some(scope_ptr) = self.area_ptr.upgrade() {
             let mut binding = scope_ptr.borrow_mut();
@@ -111,7 +131,7 @@ impl SymbolTable {
 
     fn find_in_vec(vec: &Vec<Symbol>, name: &String) -> usize {
         for i in 0..vec.len() {
-            if vec[i].name == *name  && vec[i].is_var{
+            if vec[i].name == *name {
                 return i;
             }
         }
@@ -160,6 +180,10 @@ impl SymbolTable {
                 let index = Self::find_in_vec(&binding.symbol, name);
                 if index != usize::MAX {
                     binding.symbol[index].its_type = ty.clone();
+                    #[cfg(debug_assertions)]
+                    {
+                        println!("new type:{}", ty);
+                    }
                     return;
                 }
                 cur_opt = binding.parent.as_ref().and_then(|w| w.upgrade());

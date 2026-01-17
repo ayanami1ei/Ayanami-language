@@ -40,6 +40,7 @@ impl Tokenlizer {
             || s == "ref"
             || s == "return"
             || s == "if"
+            || s == "elif"
             || s == "else"
     }
 

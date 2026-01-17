@@ -342,7 +342,7 @@ impl Parser {
         Ok(Stmt::While(Box::<Expr>::new(condition), block))
     }
     fn parser_if(&mut self) -> Result<Stmt, Error> {
-        let condition = self.parser_add_sub()?;
+        let mut condition = self.parser_add_sub()?;
 
         self.symbol_table.into_new_scope();
 
@@ -353,6 +353,31 @@ impl Parser {
         }
 
         self.symbol_table.ret_to_parent_scope();
+
+        while self.is(Token::Identifier("elif".to_string()))? {
+            condition = self.parser_add_sub()?;
+            self.symbol_table.into_new_scope();
+
+            self.expect(Token::Operator("{".to_string()))?;
+            let mut block = Block::new();
+            while !self.is(Token::Operator("}".to_string()))? {
+                block.add_stmt(self.parser_stmt()?);
+            }
+
+            self.symbol_table.ret_to_parent_scope();
+        }
+
+        if self.is(Token::Identifier("else".to_string()))?{
+            self.symbol_table.into_new_scope();
+
+            self.expect(Token::Operator("{".to_string()))?;
+            let mut block = Block::new();
+            while !self.is(Token::Operator("}".to_string()))? {
+                block.add_stmt(self.parser_stmt()?);
+            }
+
+            self.symbol_table.ret_to_parent_scope();
+        }
 
         Ok(Stmt::If(Box::<Expr>::new(condition), block))
     }

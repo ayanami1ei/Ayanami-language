@@ -1,3 +1,4 @@
+use crate::hir::HIR;
 use crate::parser::Parser;
 use crate::semantic_analysiser::SemanticAnalysiser;
 use crate::symbol_table::SymbolTable;
@@ -7,12 +8,12 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 pub mod error_type;
+pub mod hir;
 pub mod parser;
 pub mod semantic_analysiser;
 pub mod symbol_table;
 pub mod tokenlizer;
 pub mod types;
-pub mod hir;
 
 pub fn run() {
     let path = "test.aya";
@@ -40,7 +41,7 @@ pub fn run() {
     let symbol_table = SymbolTable::new();
 
     let mut parser = Parser::new(tokens, symbol_table.clone());
-    let stmts = match parser.parser() {
+    let mut stmts = match parser.parser() {
         Ok(c) => c,
         Err(e) => {
             println!("{}", e);
@@ -48,9 +49,14 @@ pub fn run() {
         }
     };
 
-    let mut semantic_analysiser=SemanticAnalysiser::new(stmts, symbol_table);
-    semantic_analysiser.semantic_analysise().unwrap();
+    let mut semantic_analysiser = SemanticAnalysiser::new(stmts, symbol_table.clone());
+    stmts = semantic_analysiser.semantic_analysise().unwrap();
 
+    let mut hir = HIR::new(stmts, symbol_table).unwrap();
+    let ins = hir.gen_ir().unwrap();
+    for i in ins {
+        println!("{}", i);
+    }
 }
 
 pub fn tokenlize() {
