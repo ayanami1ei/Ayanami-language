@@ -54,7 +54,7 @@ pub(crate) enum Stmt {
     Assign(Box<Expr>, Box<Expr>),
     For(Box<Expr>, Box<Expr>, Box<Expr>, Box<Expr>, Block),
     While(Box<Expr>, Block),
-    If(Box<Expr>, Block),
+    If(Box<Expr>, Block, Vec<(Box<Expr>, Block)>),
     Func(String, Vec<Argc>, VarType, Block),
     Return(Box<Expr>),
     Default,

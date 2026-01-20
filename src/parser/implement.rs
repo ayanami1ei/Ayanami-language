@@ -52,7 +52,8 @@ impl Parser {
     }
 
     fn is(&mut self, token: Token) -> Result<bool, Error> {
-        if self.tokens[self.i][self.j] == token {
+        let temp=&self.tokens[self.i][self.j];
+        if self.tokens[self.i][self.j].clone() == token.clone() {
             self.next()?;
             Ok(true)
         } else {
@@ -354,7 +355,9 @@ impl Parser {
 
         self.symbol_table.ret_to_parent_scope();
 
-        while self.is(Token::Identifier("elif".to_string()))? {
+        let mut elifs=Vec::<(Box<Expr>, Block)>::new();
+
+        while self.is(Token::Keyword("elif".to_string()))? {
             condition = self.parser_add_sub()?;
             self.symbol_table.into_new_scope();
 
@@ -364,10 +367,12 @@ impl Parser {
                 block.add_stmt(self.parser_stmt()?);
             }
 
+            elifs.push((Box::<Expr>::new(condition.clone()), block));
+
             self.symbol_table.ret_to_parent_scope();
         }
 
-        if self.is(Token::Identifier("else".to_string()))?{
+        if self.is(Token::Keyword("else".to_string()))?{
             self.symbol_table.into_new_scope();
 
             self.expect(Token::Operator("{".to_string()))?;
@@ -376,10 +381,17 @@ impl Parser {
                 block.add_stmt(self.parser_stmt()?);
             }
 
+            for i in 0..elifs.len(){
+                let (cond,blk)=elifs[i].clone();
+                elifs.push((cond,blk));
+            }
+
+            elifs.push((Box::<Expr>::new(Expr::ConstNum(1.0)), block));
+
             self.symbol_table.ret_to_parent_scope();
         }
 
-        Ok(Stmt::If(Box::<Expr>::new(condition), block))
+        Ok(Stmt::If(Box::<Expr>::new(condition), block, elifs))
     }
     fn parser_func(&mut self) -> Result<Stmt, Error> {
         if let Token::Identifier(ref name) = self.peek() {

@@ -1,4 +1,3 @@
-use crate::hir::HIR;
 use crate::parser::Parser;
 use crate::semantic_analysiser::SemanticAnalysiser;
 use crate::symbol_table::SymbolTable;
@@ -38,6 +37,10 @@ pub fn run() {
         }
     }
 
+    for i in 0..tokens.len() {
+        println!("{:?}", tokens[i]);
+    }
+
     let symbol_table = SymbolTable::new();
 
     let mut parser = Parser::new(tokens, symbol_table.clone());
@@ -52,11 +55,6 @@ pub fn run() {
     let mut semantic_analysiser = SemanticAnalysiser::new(stmts, symbol_table.clone());
     stmts = semantic_analysiser.semantic_analysise().unwrap();
 
-    let mut hir = HIR::new(stmts, symbol_table).unwrap();
-    let ins = hir.gen_ir().unwrap();
-    for i in ins {
-        println!("{}", i);
-    }
 }
 
 pub fn tokenlize() {

@@ -4,8 +4,14 @@ fn foo(int a){
 
 fn main(){
     a=1.1
+    b=1
     if 1>0{
         b=1
+    } elif 2<0{
+        b=2.0
+    }
+    else{
+        b=3
     }
 
     while 1>0{

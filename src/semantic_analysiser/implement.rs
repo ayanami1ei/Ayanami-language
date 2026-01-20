@@ -224,7 +224,7 @@ impl SemanticAnalysiser {
         Ok(())
     }
     fn semantic_analysise_if(&mut self) -> Result<(), Error> {
-        if let Stmt::If(ref _cond, block) = self.dummy.clone() {
+        if let Stmt::If(ref _cond, block, ref elifs) = self.dummy.clone() {
             let cond = _cond.as_ref().clone();
             if Self::infer_type(self.symbol_table.clone(), cond)? != VarType::Bool {
                 return Err(Error::new_error("condition must be type bool".to_string()));
@@ -237,6 +237,24 @@ impl SemanticAnalysiser {
             }
 
             self.symbol_table.ret_to_parent_scope();
+
+            for i in 0..elifs.len() {
+                let (ref _cond, ref block) = elifs[i];
+                let cond = _cond.as_ref().clone();
+                if Self::infer_type(self.symbol_table.clone(), cond.clone())? != VarType::Bool && 
+                Self::infer_type(self.symbol_table.clone(), cond.clone())? != VarType::Int &&
+                Self::infer_type(self.symbol_table.clone(), cond.clone())? != VarType::Float{
+                    return Err(Error::new_error("condition must be type bool".to_string()));
+                }
+
+                self.symbol_table.into_new_scope();
+
+                for stmt in block.body.clone() {
+                    self.semantic_analysise_stmt(stmt)?;
+                }
+
+                self.symbol_table.ret_to_parent_scope();
+            }
         }
 
         Ok(())
