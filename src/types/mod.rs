@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 pub(crate) mod implement;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -18,9 +20,10 @@ pub(crate) struct Argc {
 #[derive(Debug, Clone)]
 pub(crate) struct Block {
     pub(crate) body: Vec<Stmt>,
+    pub(crate) id:i32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) enum VarType {
     Int,
     Float,
@@ -33,7 +36,7 @@ pub(crate) enum VarType {
 pub(crate) enum Expr {
     ConstNum(f64),
     ConstChar(char),
-    Var(String, VarType),
+    Var(String, HashSet<VarType>),
     FuncCall(String, Vec<Argc>),
 
     Add(Box<Expr>, Box<Expr>),

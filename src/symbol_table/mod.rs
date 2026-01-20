@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::{Rc, Weak}};
+use std::{cell::RefCell, collections::HashSet, rc::{Rc, Weak}};
 
 use crate::types::VarType;
 pub(crate) mod implement;
@@ -14,7 +14,7 @@ pub(crate) struct Symbol{
     pub(crate) is_ref:bool,
 
     pub(crate) is_var:bool,
-    pub(crate) its_type:VarType,
+    pub(crate) its_type:HashSet<VarType>,
 
     pub(crate) id:i32,
 

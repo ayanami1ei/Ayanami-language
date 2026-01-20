@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     error_type::Error,
     parser::Parser,
@@ -5,9 +7,14 @@ use crate::{
     types::{Argc, Block, Expr, Stmt, Token, VarType},
 };
 
+static mut block_id:i32=-1;
+
 impl Block {
     pub(crate) fn new() -> Block {
-        Block { body: Vec::new() }
+        unsafe {
+        block_id+=1;
+        Block { body: Vec::new() ,id:block_id}
+        }
     }
 
     pub(crate) fn add_stmt(&mut self, stmt: Stmt) {
@@ -226,7 +233,7 @@ impl Parser {
 
         if let Token::Identifier(ref name) = peek {
             self.next()?;
-            return Ok(Expr::Var(name.to_string(), crate::types::VarType::Unknown));
+            return Ok(Expr::Var(name.to_string(), HashSet::new()));
         } else if let Token::Num(x) = peek {
             self.next()?;
             Ok(Expr::ConstNum(x))
@@ -302,7 +309,7 @@ impl Parser {
 
             self.symbol_table.into_new_scope();
             let mut i_sym = Symbol::new_var(i_name, self.symbol_table.get_scope());
-            i_sym.its_type = VarType::Int;
+            i_sym.its_type.insert(VarType::Int);
             self.symbol_table.add_symbol(i_sym);
             self.expect(Token::Operator("{".to_string()))?;
 

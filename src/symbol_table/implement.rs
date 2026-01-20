@@ -2,7 +2,7 @@ use crate::{
     symbol_table::{Scope, Symbol, SymbolTable},
     types::VarType,
 };
-use std::{cell::RefCell, rc::Rc, usize};
+use std::{cell::RefCell, collections::HashSet, rc::Rc, usize};
 
 static mut NEXT_ID: i32 = 0;
 
@@ -16,7 +16,7 @@ impl Symbol {
                 is_argc: false,
                 is_ref: false,
                 is_var: true,
-                its_type: VarType::Unknown,
+                its_type: HashSet::new(),
                 id: NEXT_ID,
                 area: Rc::downgrade(&scope),
             };
@@ -33,7 +33,7 @@ impl Symbol {
                 is_argc: false,
                 is_ref: false,
                 is_var: false,
-                its_type: VarType::Unknown,
+                its_type: HashSet::new(),
                 id: NEXT_ID,
                 area: Rc::downgrade(&scope),
             };
@@ -50,7 +50,7 @@ impl Symbol {
                 is_argc: true,
                 is_ref: is_ref,
                 is_var: false,
-                its_type: VarType::Unknown,
+                its_type: HashSet::new(),
                 id:NEXT_ID,
                 area: Rc::downgrade(&scope),
             };
@@ -96,10 +96,6 @@ impl SymbolTable {
 
     pub(crate) fn add_symbol(&mut self, symbol: Symbol) {
         if let Some(scope_ptr) = self.area_ptr.upgrade() {
-            #[cfg(debug_assertions)]
-            {
-                println!("add type {}", symbol.its_type);
-            }
             let mut binding = scope_ptr.borrow_mut();
             binding.add_symbol(symbol);
         }
@@ -171,7 +167,7 @@ impl SymbolTable {
         self.area_ptr = Rc::downgrade(&self.area)
     }
 
-    pub(crate) fn set_symbol_type(&mut self, name: &String, ty: VarType) {
+    pub(crate) fn add_symbol_type(&mut self, name: &String, ty: HashSet<VarType>) {
         let mut cur_opt = self.area_ptr.upgrade();
 
         while let Some(cur_rc) = cur_opt {
@@ -179,10 +175,10 @@ impl SymbolTable {
                 let mut binding = cur_rc.borrow_mut();
                 let index = Self::find_in_vec(&binding.symbol, name);
                 if index != usize::MAX {
-                    binding.symbol[index].its_type = ty.clone();
+                    binding.symbol[index].its_type = binding.symbol[index].its_type.union(&ty).cloned().collect();
                     #[cfg(debug_assertions)]
                     {
-                        println!("new type:{}", ty);
+                        println!("new type:{:?}", ty);
                     }
                     return;
                 }

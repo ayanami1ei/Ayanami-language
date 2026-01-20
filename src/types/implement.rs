@@ -1,4 +1,5 @@
 use core::fmt;
+use std::collections::HashSet;
 
 use crate::types::{Argc, Token, VarType};
 
@@ -39,3 +40,4 @@ impl fmt::Display for VarType{
         }
     }
 }
+
