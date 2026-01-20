@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 pub(crate) mod implement;
 
@@ -20,7 +20,7 @@ pub(crate) struct Argc {
 #[derive(Debug, Clone)]
 pub(crate) struct Block {
     pub(crate) body: Vec<Stmt>,
-    pub(crate) id:i32,
+    pub(crate) id: i32,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -34,31 +34,37 @@ pub(crate) enum VarType {
 
 #[derive(Debug, Clone)]
 pub(crate) enum Expr {
-    ConstNum(f64),
-    ConstChar(char),
+    ConstNum(f64, HashSet<VarType>),
+    ConstChar(char, HashSet<VarType>),
     Var(String, HashSet<VarType>),
-    FuncCall(String, Vec<Argc>),
+    FuncCall(String, Vec<Argc>, HashSet<VarType>),
 
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
+    Add(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
+    Sub(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
+    Mul(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
+    Div(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
 
-    Equal(Box<Expr>, Box<Expr>),
-    Greater(Box<Expr>, Box<Expr>),
-    Less(Box<Expr>, Box<Expr>),
-    GreaterEqual(Box<Expr>, Box<Expr>),
-    LessEqual(Box<Expr>, Box<Expr>),
-    Not(Box<Expr>),
+    Equal(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
+    Greater(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
+    Less(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
+    GreaterEqual(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
+    LessEqual(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
+    Not(Rc<RefCell<Expr>>, HashSet<VarType>),
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum Stmt {
-    Assign(Box<Expr>, Box<Expr>),
-    For(Box<Expr>, Box<Expr>, Box<Expr>, Box<Expr>, Block),
-    While(Box<Expr>, Block),
-    If(Box<Expr>, Block, Vec<(Box<Expr>, Block)>),
+    Assign(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>),
+    For(
+        Rc<RefCell<Expr>>,
+        Rc<RefCell<Expr>>,
+        Rc<RefCell<Expr>>,
+        Rc<RefCell<Expr>>,
+        Block,
+    ),
+    While(Rc<RefCell<Expr>>, Block),
+    If(Rc<RefCell<Expr>>, Block, Vec<(Rc<RefCell<Expr>>, Block)>),
     Func(String, Vec<Argc>, VarType, Block),
-    Return(Box<Expr>),
+    Return(Rc<RefCell<Expr>>),
     Default,
 }

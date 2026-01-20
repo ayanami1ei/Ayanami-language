@@ -1,9 +1,9 @@
-use std::{collections::HashSet, env::args};
+use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use crate::{
     error_type::Error,
     semantic_analysiser::SemanticAnalysiser,
-    symbol_table::{self, Symbol, SymbolTable},
+    symbol_table::{Symbol, SymbolTable},
     types::{Expr, Stmt, VarType},
 };
 
@@ -12,7 +12,7 @@ impl SemanticAnalysiser {
         SemanticAnalysiser {
             stmts,
             symbol_table,
-            dummy: Stmt::Default,
+            dummy: Rc::new(RefCell::new(Stmt::Default)),
         }
     }
 
@@ -20,240 +20,263 @@ impl SemanticAnalysiser {
         x.is_finite() && x.fract() == 0.0 && x.abs() <= (1_i64 << 53) as f64
     }
 
-    fn infer_type(symbol_table: SymbolTable, expr: Expr) -> Result<HashSet<VarType>, Error> {
-        if let Expr::ConstNum(x) = expr {
-            #[cfg(debug_assertions)]
-            {
-                println!("{}", x);
-            }
-            if Self::can_be_int(x) {
-                let mut set=HashSet::new();
-                set.insert(VarType::Int);
-                return Ok(set);
-            } else {
-                let mut set=HashSet::new();
-                set.insert(VarType::Float);
-                return Ok(set);
-            }
-        } else if let Expr::ConstChar(_) = expr {
-                let mut set=HashSet::new();
-                set.insert(VarType::Char);
-            return Ok(set);
-        } else if let Expr::Var(ref name, _) = expr {
-            if let Some(sym) = symbol_table.find_symbol(name) {
-                if sym.its_type.len()!=0{
-                    return Ok(sym.its_type)
+    fn infer_type(
+        symbol_table: SymbolTable,
+        expr: &Rc<RefCell<Expr>>,
+    ) -> Result<HashSet<VarType>, Error> {
+        let mut expr_ref = expr.borrow_mut();
+        match *expr_ref {
+            Expr::ConstNum(x, ref mut ty_set) => {
+                #[cfg(debug_assertions)]
+                {
+                    println!("{}", x);
                 }
-                return Err(Error::new_error(format!(
-                    "cannot infer the type of var {}",
-                    name
-                )));
-            } else {
-                return Err(Error::new_error(format!(
-                    "cannot infer the type of var {}",
-                    name
-                )));
+                *ty_set = if Self::can_be_int(x) {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Int);
+                    set
+                } else {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Float);
+                    set
+                };
+                Ok(ty_set.clone())
             }
-        } else if let Expr::FuncCall(name, args) = expr {
-            if let Some(_) = symbol_table.find_symbol(&name) {
-            } else {
-                return Err(Error::new_error("undefined function".to_string()));
+            Expr::ConstChar(_, ref mut ty_set) => {
+                *ty_set = {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Char);
+                    set
+                };
+                Ok(ty_set.clone())
             }
-
-            todo!()
-        } else if let Expr::Add(_a, _b) = expr {
-            let a = _a.as_ref();
-            let b = _b.as_ref();
-
-            let type_a = Self::infer_type(symbol_table.clone(), a.clone())?;
-            let type_b = Self::infer_type(symbol_table.clone(), b.clone())?;
-
-            if type_a.contains(&VarType::Float) || type_b.contains(&VarType::Float) {
-                let mut set=HashSet::new();
-                set.insert(VarType::Float);
-                return Ok(set);
-            } else if type_a.contains(&VarType::Char) || type_b.contains(&VarType::Char) {
-                let mut set=HashSet::new();
-                set.insert(VarType::Char);
-                return Ok(set);
-            } else {
-                let mut set=HashSet::new();
-                set.insert(VarType::Int);
-                return Ok(set);
+            Expr::Var(ref name, ref mut ty_set) => {
+                if let Some(sym) = symbol_table.find_symbol(name) {
+                    if sym.its_type.is_empty() {
+                        return Err(Error::new_error(format!(
+                            "cannot infer the type of var {}",
+                            name
+                        )));
+                    }
+                    *ty_set = sym.its_type.clone();
+                    Ok(sym.its_type.clone())
+                } else {
+                    Err(Error::new_error(format!(
+                        "cannot infer the type of var {}",
+                        name
+                    )))
+                }
             }
-        } else if let Expr::Sub(_a, _b) = expr {
-            let a = _a.as_ref();
-            let b = _b.as_ref();
+            Expr::FuncCall(ref name, _, ref mut ty_set) => {
+                if let Some(_) = symbol_table.find_symbol(name) {
+                } else {
+                    return Err(Error::new_error("undefined function".to_string()));
+                }
 
-            let type_a = Self::infer_type(symbol_table.clone(), a.clone())?;
-            let type_b = Self::infer_type(symbol_table.clone(), b.clone())?;
-
-            if type_a.contains(&VarType::Float) || type_b.contains(&VarType::Float) {
-                let mut set=HashSet::new();
-                set.insert(VarType::Float);
-                return Ok(set);
-            } else if type_a.contains(&VarType::Char) || type_b.contains(&VarType::Char) {
-                let mut set=HashSet::new();
-                set.insert(VarType::Char);
-                return Ok(set);
-            } else {
-                let mut set=HashSet::new();
-                set.insert(VarType::Int);
-                return Ok(set);
+                *ty_set = {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Unknown);
+                    set
+                };
+                Ok(ty_set.clone())
             }
-        } else if let Expr::Mul(_a, _b) = expr {
-            let a = _a.as_ref();
-            let b = _b.as_ref();
-
-            let type_a = Self::infer_type(symbol_table.clone(), a.clone())?;
-            let type_b = Self::infer_type(symbol_table.clone(), b.clone())?;
-
-            if type_a.contains(&VarType::Float) || type_b.contains(&VarType::Float) {
-                let mut set=HashSet::new();
-                set.insert(VarType::Float);
-                return Ok(set);
-            } else if type_a.contains(&VarType::Char) || type_b.contains(&VarType::Char) {
-                let mut set=HashSet::new();
-                set.insert(VarType::Char);
-                return Ok(set);
-            } else {
-                let mut set=HashSet::new();
-                set.insert(VarType::Int);
-                return Ok(set);
+            Expr::Add(ref a, ref b, ref mut ty_set) => {
+                let type_a = Self::infer_type(symbol_table.clone(), a)?;
+                let type_b = Self::infer_type(symbol_table.clone(), b)?;
+                *ty_set = if type_a.contains(&VarType::Float) || type_b.contains(&VarType::Float) {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Float);
+                    set
+                } else if type_a.contains(&VarType::Char) || type_b.contains(&VarType::Char) {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Char);
+                    set
+                } else {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Int);
+                    set
+                };
+                Ok(ty_set.clone())
             }
-        } else if let Expr::Div(_a, _b) = expr {
-            let a = _a.as_ref();
-            let b = _b.as_ref();
-
-            let type_a = Self::infer_type(symbol_table.clone(), a.clone())?;
-            let type_b = Self::infer_type(symbol_table.clone(), b.clone())?;
-
-            if type_a.contains(&VarType::Float) || type_b.contains(&VarType::Float) {
-                let mut set=HashSet::new();
-                set.insert(VarType::Float);
-                return Ok(set);
-            } else if type_a.contains(&VarType::Char) || type_b.contains(&VarType::Char) {
-                let mut set=HashSet::new();
-                set.insert(VarType::Char);
-                return Ok(set);
-            } else {
-                let mut set=HashSet::new();
-                set.insert(VarType::Int);
-                return Ok(set);
+            Expr::Sub(ref a, ref b, ref mut ty_set) => {
+                let type_a = Self::infer_type(symbol_table.clone(), a)?;
+                let type_b = Self::infer_type(symbol_table.clone(), b)?;
+                *ty_set = if type_a.contains(&VarType::Float) || type_b.contains(&VarType::Float) {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Float);
+                    set
+                } else if type_a.contains(&VarType::Char) || type_b.contains(&VarType::Char) {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Char);
+                    set
+                } else {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Int);
+                    set
+                };
+                Ok(ty_set.clone())
             }
-        } else if let Expr::Equal(_, _) = expr {
-            let mut set=HashSet::new();
-            set.insert(VarType::Bool);
-            return Ok(set);
-        } else if let Expr::Greater(_, _) = expr {
-            let mut set=HashSet::new();
-            set.insert(VarType::Bool);
-            return Ok(set);
-        } else if let Expr::Less(_, _) = expr {
-            let mut set=HashSet::new();
-            set.insert(VarType::Bool);
-            return Ok(set);
-        } else if let Expr::GreaterEqual(_, _) = expr {
-            let mut set=HashSet::new();
-            set.insert(VarType::Bool);
-            return Ok(set);
-        } else if let Expr::LessEqual(_, _) = expr {
-            let mut set=HashSet::new();
-            set.insert(VarType::Bool);
-            return Ok(set);
-        } else if let Expr::Not(_) = expr {
-            let mut set=HashSet::new();
-            set.insert(VarType::Bool);
-            return Ok(set);
-        } else {
-            Err(Error::new_error("cannot infer type".to_string()))
+            Expr::Mul(ref a, ref b, ref mut ty_set) => {
+                let type_a = Self::infer_type(symbol_table.clone(), a)?;
+                let type_b = Self::infer_type(symbol_table.clone(), b)?;
+                *ty_set = if type_a.contains(&VarType::Float) || type_b.contains(&VarType::Float) {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Float);
+                    set
+                } else if type_a.contains(&VarType::Char) || type_b.contains(&VarType::Char) {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Char);
+                    set
+                } else {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Int);
+                    set
+                };
+                Ok(ty_set.clone())
+            }
+            Expr::Div(ref a, ref b, ref mut ty_set) => {
+                let type_a = Self::infer_type(symbol_table.clone(), a)?;
+                let type_b = Self::infer_type(symbol_table.clone(), b)?;
+                *ty_set = if type_a.contains(&VarType::Float) || type_b.contains(&VarType::Float) {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Float);
+                    set
+                } else if type_a.contains(&VarType::Char) || type_b.contains(&VarType::Char) {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Char);
+                    set
+                } else {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Int);
+                    set
+                };
+                Ok(ty_set.clone())
+            }
+            Expr::Equal(_, _, ref mut ty_set) => {
+                *ty_set = {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Bool);
+                    set
+                };
+                Ok(ty_set.clone())
+            }
+            Expr::Greater(_, _, ref mut ty_set) => {
+                *ty_set = {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Bool);
+                    set
+                };
+                Ok(ty_set.clone())
+            }
+            Expr::Less(_, _, ref mut ty_set) => {
+                *ty_set = {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Bool);
+                    set
+                };
+                Ok(ty_set.clone())
+            }
+            Expr::GreaterEqual(_, _, ref mut ty_set) => {
+                *ty_set = {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Bool);
+                    set
+                };
+                Ok(ty_set.clone())
+            }
+            Expr::LessEqual(_, _, ref mut ty_set) => {
+                *ty_set = {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Bool);
+                    set
+                };
+                Ok(ty_set.clone())
+            }
+            Expr::Not(_, ref mut ty_set) => {
+                *ty_set = {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Bool);
+                    set
+                };
+                Ok(ty_set.clone())
+            }
         }
     }
 
     fn semantic_analysise_assign(&mut self) -> Result<(), Error> {
-        if let Stmt::Assign(ref _a, ref _b) = self.dummy {
-            let a = _a.as_ref().clone();
-            let b = _b.as_ref().clone();
-
-            let b_type = Self::infer_type(self.symbol_table.clone(), b.clone())?;
-
-            if let Expr::Var(name, _) = a {
-                if let Some(mut a_sym) = self.symbol_table.find_symbol(&name) {
-                    if a_sym.its_type.intersection(&b_type).collect::<Vec<&VarType>>().len()==0 {
-                      a_sym.its_type=a_sym.its_type.intersection(&b_type).cloned().collect();
-                    }
-                } else {
-                    self.dummy = Stmt::Assign(
-                        Box::<Expr>::new(Expr::Var(name.clone(), b_type.clone())),
-                        Box::<Expr>::new(b),
-                    );
-                    let mut a_sym = Symbol::new_var(name, self.symbol_table.get_scope());
-                    a_sym.its_type = b_type.clone();
-                    self.symbol_table.add_symbol(a_sym);
-                }
-                Ok(())
-            } else {
-                Err(Error::new_error(
-                    "illegal type of assign, must be var".to_string(),
-                ))
-            }
+        let (a, b) = if let Stmt::Assign(ref _a, ref _b) = *self.dummy.borrow() {
+            (_a.clone(), _b.clone())
         } else {
-            Err(Error::new_error("".to_string()))
+            return Err(Error::new_error("".to_string()));
+        };
+
+        let b_type = Self::infer_type(self.symbol_table.clone(), &b)?;
+
+        if let Expr::Var(ref name, _) = *a.borrow() {
+            if let Some(mut a_sym) = self.symbol_table.find_symbol(name) {
+                if a_sym
+                    .its_type
+                    .intersection(&b_type)
+                    .collect::<Vec<&VarType>>()
+                    .len()
+                    == 0
+                {
+                    a_sym.its_type = a_sym.its_type.intersection(&b_type).cloned().collect();
+                }
+            } else {
+                let new_a = Rc::new(RefCell::new(Expr::Var(name.clone(), b_type.clone())));
+                let new_b = b.clone();
+                *self.dummy.borrow_mut() = Stmt::Assign(new_a, new_b);
+                let mut a_sym = Symbol::new_var(name.clone(), self.symbol_table.get_scope());
+                a_sym.its_type = b_type.clone();
+                self.symbol_table.add_symbol(a_sym);
+            }
+            Ok(())
+        } else {
+            Err(Error::new_error(
+                "illegal type of assign, must be var".to_string(),
+            ))
         }
     }
     fn semantic_analysise_for(&mut self) -> Result<(), Error> {
-        if let Stmt::For(ref _itor, ref _start, ref _end, ref _step, ref block) = self.dummy {
-            let itor = _itor.as_ref().clone();
-            let start = _start.as_ref().clone();
-            let end = _end.as_ref().clone();
-            let step = _step.as_ref().clone();
+        let (itor, start, end, step, block) =
+            if let Stmt::For(ref _itor, ref _start, ref _end, ref _step, ref block) =
+                *self.dummy.borrow()
+            {
+                (
+                    _itor.clone(),
+                    _start.clone(),
+                    _end.clone(),
+                    _step.clone(),
+                    block.clone(),
+                )
+            } else {
+                return Err(Error::new_error("".to_string()));
+            };
 
-            if let Expr::Var(ref name, _) = itor {
-                self.symbol_table.into_new_scope();
-                if let Some(itor_sym) = self.symbol_table.find_symbol(name) {
-                    if !itor_sym.its_type.contains(&VarType::Int) {
-                        return Err(Error::new_error(format!(
-                            "the itor must be type int, but find {:?}",
-                            itor_sym.its_type
-                        )));
-                    }
-                } else {
-                    let mut itor_sym = Symbol::new_var(name.clone(), self.symbol_table.get_scope());
-                    itor_sym.its_type.insert(VarType::Int);
-                    self.symbol_table.add_symbol(itor_sym);
-                }
-
-                if !Self::infer_type(self.symbol_table.clone(), start)?.contains(&VarType::Int)
-                    || !Self::infer_type(self.symbol_table.clone(), end)?.contains(&VarType::Int)
-                    || !Self::infer_type(self.symbol_table.clone(), step)? .contains(&VarType::Int)
-                {
+        if let Expr::Var(ref name, _) = *itor.borrow() {
+            self.symbol_table.into_new_scope();
+            if let Some(itor_sym) = self.symbol_table.find_symbol(name) {
+                if !itor_sym.its_type.contains(&VarType::Int) {
                     return Err(Error::new_error(format!(
-                        "the elements of for must be type int",
+                        "the itor must be type int, but find {:?}",
+                        itor_sym.its_type
                     )));
                 }
-
-                for stmt in block.body.clone() {
-                    self.semantic_analysise_stmt(stmt)?;
-                }
-
-                self.symbol_table.ret_to_parent_scope();
+            } else {
+                let mut itor_sym = Symbol::new_var(name.clone(), self.symbol_table.get_scope());
+                itor_sym.its_type.insert(VarType::Int);
+                self.symbol_table.add_symbol(itor_sym);
             }
 
-            Ok(())
-        } else {
-            Err(Error::new_error("".to_string()))
-        }
-    }
-    fn semantic_analysise_while(&mut self) -> Result<(), Error> {
-        if let Stmt::While(_cond, block) = self.dummy.clone() {
-            let cond = _cond.as_ref().clone();
-            if !(Self::infer_type(self.symbol_table.clone(), cond.clone())?.contains(&VarType::Bool) || 
-                Self::infer_type(self.symbol_table.clone(), cond.clone())?.contains(&VarType::Int) ||
-                Self::infer_type(self.symbol_table.clone(), cond.clone())?.contains(&VarType::Float)) {
-                return Err(Error::new_error("condition must be type bool".to_string()));
+            if !Self::infer_type(self.symbol_table.clone(), &start)?.contains(&VarType::Int)
+                || !Self::infer_type(self.symbol_table.clone(), &end)?.contains(&VarType::Int)
+                || !Self::infer_type(self.symbol_table.clone(), &step)?.contains(&VarType::Int)
+            {
+                return Err(Error::new_error(format!(
+                    "the elements of for must be type int",
+                )));
             }
-
-            self.symbol_table.into_new_scope();
 
             for stmt in block.body.clone() {
                 self.semantic_analysise_stmt(stmt)?;
@@ -264,12 +287,60 @@ impl SemanticAnalysiser {
 
         Ok(())
     }
+    fn semantic_analysise_while(&mut self) -> Result<(), Error> {
+        let (cond, block) = if let Stmt::While(ref _cond, ref block) = *self.dummy.borrow() {
+            (_cond.clone(), block.clone())
+        } else {
+            return Err(Error::new_error("".to_string()));
+        };
+
+        if !(Self::infer_type(self.symbol_table.clone(), &cond)?.contains(&VarType::Bool)
+            || Self::infer_type(self.symbol_table.clone(), &cond)?.contains(&VarType::Int)
+            || Self::infer_type(self.symbol_table.clone(), &cond)?.contains(&VarType::Float))
+        {
+            return Err(Error::new_error("condition must be type bool".to_string()));
+        }
+
+        self.symbol_table.into_new_scope();
+
+        for stmt in block.body.clone() {
+            self.semantic_analysise_stmt(stmt)?;
+        }
+
+        self.symbol_table.ret_to_parent_scope();
+
+        Ok(())
+    }
     fn semantic_analysise_if(&mut self) -> Result<(), Error> {
-        if let Stmt::If(ref _cond, block, ref elifs) = self.dummy.clone() {
-            let cond = _cond.as_ref().clone();
-            if !(Self::infer_type(self.symbol_table.clone(), cond.clone())?.contains(&VarType::Bool) || 
-                Self::infer_type(self.symbol_table.clone(), cond.clone())?.contains(&VarType::Int) ||
-                Self::infer_type(self.symbol_table.clone(), cond.clone())?.contains(&VarType::Float)) {
+        let (cond, block, elifs) =
+            if let Stmt::If(ref _cond, ref block, ref elifs) = *self.dummy.borrow() {
+                (_cond.clone(), block.clone(), elifs.clone())
+            } else {
+                return Err(Error::new_error("".to_string()));
+            };
+
+        if !(Self::infer_type(self.symbol_table.clone(), &cond)?.contains(&VarType::Bool)
+            || Self::infer_type(self.symbol_table.clone(), &cond)?.contains(&VarType::Int)
+            || Self::infer_type(self.symbol_table.clone(), &cond)?.contains(&VarType::Float))
+        {
+            return Err(Error::new_error("condition must be type bool".to_string()));
+        }
+
+        self.symbol_table.into_new_scope();
+
+        for stmt in block.body.clone() {
+            self.semantic_analysise_stmt(stmt)?;
+        }
+
+        self.symbol_table.ret_to_parent_scope();
+
+        for i in 0..elifs.len() {
+            let (_cond, block) = &elifs[i];
+            let cond = _cond.clone();
+            if !(Self::infer_type(self.symbol_table.clone(), &cond)?.contains(&VarType::Bool)
+                || Self::infer_type(self.symbol_table.clone(), &cond)?.contains(&VarType::Int)
+                || Self::infer_type(self.symbol_table.clone(), &cond)?.contains(&VarType::Float))
+            {
                 return Err(Error::new_error("condition must be type bool".to_string()));
             }
 
@@ -280,64 +351,55 @@ impl SemanticAnalysiser {
             }
 
             self.symbol_table.ret_to_parent_scope();
-
-            for i in 0..elifs.len() {
-                let (ref _cond, ref block) = elifs[i];
-                let cond = _cond.as_ref().clone();
-                if !(Self::infer_type(self.symbol_table.clone(), cond.clone())?.contains(&VarType::Bool) || 
-                Self::infer_type(self.symbol_table.clone(), cond.clone())?.contains(&VarType::Int) ||
-                Self::infer_type(self.symbol_table.clone(), cond.clone())?.contains(&VarType::Float)){
-                    return Err(Error::new_error("condition must be type bool".to_string()));
-                }
-
-                self.symbol_table.into_new_scope();
-
-                for stmt in block.body.clone() {
-                    self.semantic_analysise_stmt(stmt)?;
-                }
-
-                self.symbol_table.ret_to_parent_scope();
-            }
         }
 
         Ok(())
     }
     fn semantic_analysise_func(&mut self) -> Result<(), Error> {
-        if let Stmt::Func(name, _args, ret_type, block) = self.dummy.clone() {
-            let mut args = Vec::<Symbol>::new();
-            for a in _args {
-                let mut t = Symbol::new_argc(a.var_name, a.is_ref, self.symbol_table.get_scope());
-                t.its_type.insert(a.arg_type);
-                args.push(t);
-            }
-            let fn_sym =
-                Symbol::new_func(name.clone(), args.clone(), self.symbol_table.get_scope());
+        let (name, _args, block) =
+            if let Stmt::Func(ref name, ref _args, _, ref block) = *self.dummy.borrow() {
+                (name.clone(), _args.clone(), block.clone())
+            } else {
+                return Err(Error::new_error("".to_string()));
+            };
 
-            self.symbol_table.add_symbol(fn_sym);
-            self.symbol_table.into_new_scope();
-
-            for a in args {
-                self.symbol_table.add_symbol(a);
-            }
-
-            for stmt in block.body.clone() {
-                if let Stmt::Return(_ret) = stmt {
-                    self.semantic_analysise_ret(&name, &_ret)?;
-                } else {
-                    self.semantic_analysise_stmt(stmt)?;
-                }
-            }
-
-            self.symbol_table.ret_to_parent_scope();
+        let mut args = Vec::<Symbol>::new();
+        for a in _args {
+            let mut t =
+                Symbol::new_argc(a.var_name.clone(), a.is_ref, self.symbol_table.get_scope());
+            t.its_type.insert(a.arg_type.clone());
+            args.push(t);
         }
+        let fn_sym = Symbol::new_func(name.clone(), args.clone(), self.symbol_table.get_scope());
+
+        self.symbol_table.add_symbol(fn_sym);
+        self.symbol_table.into_new_scope();
+
+        for a in args {
+            self.symbol_table.add_symbol(a);
+        }
+
+        for stmt in block.body.clone() {
+            if let Stmt::Return(ref _ret) = stmt {
+                self.semantic_analysise_ret(&name, _ret)?;
+            } else {
+                self.semantic_analysise_stmt(stmt)?;
+            }
+        }
+
+        self.symbol_table.ret_to_parent_scope();
 
         Ok(())
     }
-    fn semantic_analysise_ret(&mut self, name: &String, _ret: &Box<Expr>) -> Result<(), Error> {
-        let ret = _ret.as_ref().clone();
-        let ret_type = Self::infer_type(self.symbol_table.clone(), ret)?;
+    fn semantic_analysise_ret(
+        &mut self,
+        name: &String,
+        _ret: &Rc<RefCell<Expr>>,
+    ) -> Result<(), Error> {
+        let ret = _ret.clone();
+        let ret_type = Self::infer_type(self.symbol_table.clone(), &ret)?;
         if let Some(_fn_sym) = self.symbol_table.find_symbol(name) {
-            if ret_type != _fn_sym.its_type && _fn_sym.its_type.len()!=0 {
+            if ret_type != _fn_sym.its_type && _fn_sym.its_type.len() != 0 {
                 return Err(Error::new_error(format!(
                     "return expect type {:?},but find {:?}",
                     _fn_sym.its_type, ret_type
@@ -349,22 +411,34 @@ impl SemanticAnalysiser {
             self.symbol_table.add_symbol_type(&name, ret_type.clone());
         }
 
-        #[cfg(debug_assertions)]{
-            println!("{} ret type {:?}",name.clone(), ret_type);
+        #[cfg(debug_assertions)]
+        {
+            println!("{} ret type {:?}", name.clone(), ret_type);
         }
 
         Ok(())
     }
     fn semantic_analysise_stmt(&mut self, stmt: Stmt) -> Result<(), Error> {
-        self.dummy = stmt;
+        self.dummy = Rc::new(RefCell::new(stmt));
 
-        match self.dummy {
-            Stmt::Assign(..) => self.semantic_analysise_assign(),
-            Stmt::For(..) => self.semantic_analysise_for(),
-            Stmt::While(..) => self.semantic_analysise_while(),
-            Stmt::If(..) => self.semantic_analysise_if(),
-            Stmt::Func(..) => self.semantic_analysise_func(),
-            // 其他语句类型按需要补
+        let stmt_type = {
+            let borrowed = self.dummy.borrow();
+            match *borrowed {
+                Stmt::Assign(..) => 0,
+                Stmt::For(..) => 1,
+                Stmt::While(..) => 2,
+                Stmt::If(..) => 3,
+                Stmt::Func(..) => 4,
+                _ => 5,
+            }
+        };
+
+        match stmt_type {
+            0 => self.semantic_analysise_assign(),
+            1 => self.semantic_analysise_for(),
+            2 => self.semantic_analysise_while(),
+            3 => self.semantic_analysise_if(),
+            4 => self.semantic_analysise_func(),
             _ => Ok(()),
         }
     }

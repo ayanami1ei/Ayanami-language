@@ -1,19 +1,25 @@
 use std::collections::HashSet;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::{
     error_type::Error,
     parser::Parser,
-    symbol_table::{self, Symbol, SymbolTable},
+    symbol_table::{Symbol, SymbolTable},
     types::{Argc, Block, Expr, Stmt, Token, VarType},
 };
 
-static mut block_id:i32=-1;
+static mut block_id: i32 = -1;
 
 impl Block {
     pub(crate) fn new() -> Block {
         unsafe {
-        block_id+=1;
-        Block { body: Vec::new() ,id:block_id}
+            block_id += 1;
+            Block {
+                body: Vec::new(),
+                id: block_id,
+            }
         }
     }
 
@@ -59,7 +65,6 @@ impl Parser {
     }
 
     fn is(&mut self, token: Token) -> Result<bool, Error> {
-        let temp=&self.tokens[self.i][self.j];
         if self.tokens[self.i][self.j].clone() == token.clone() {
             self.next()?;
             Ok(true)
@@ -72,7 +77,7 @@ impl Parser {
         self.tokens[self.i][self.j].clone()
     }
 
-    fn parser_add_sub(&mut self) -> Result<Expr, Error> {
+    fn parser_add_sub(&mut self) -> Result<Rc<RefCell<Expr>>, Error> {
         let mut left = match self.parser_mul_div() {
             Ok(v) => v,
             Err(mut e) => {
@@ -94,7 +99,7 @@ impl Parser {
                         )));
                     }
                 };
-                left = Expr::Add(Box::new(left), Box::new(right));
+                left = Rc::new(RefCell::new(Expr::Add(left, right, HashSet::new())));
             } else if self.is(Token::Operator("-".to_string()))? {
                 let right = match self.parser_mul_div() {
                     Ok(v) => v,
@@ -105,7 +110,7 @@ impl Parser {
                         )));
                     }
                 };
-                left = Expr::Sub(Box::new(left), Box::new(right));
+                left = Rc::new(RefCell::new(Expr::Sub(left, right, HashSet::new())));
             } else {
                 break;
             }
@@ -113,7 +118,7 @@ impl Parser {
 
         Ok(left)
     }
-    fn parser_mul_div(&mut self) -> Result<Expr, Error> {
+    fn parser_mul_div(&mut self) -> Result<Rc<RefCell<Expr>>, Error> {
         let mut left = match self.parser_condition() {
             Ok(v) => v,
             Err(mut e) => {
@@ -135,7 +140,7 @@ impl Parser {
                         )));
                     }
                 };
-                left = Expr::Mul(Box::new(left), Box::new(right));
+                left = Rc::new(RefCell::new(Expr::Mul(left, right, HashSet::new())));
             } else if self.is(Token::Operator("/".to_string()))? {
                 let right = match self.parser_condition() {
                     Ok(v) => v,
@@ -146,7 +151,7 @@ impl Parser {
                         )));
                     }
                 };
-                left = Expr::Div(Box::new(left), Box::new(right));
+                left = Rc::new(RefCell::new(Expr::Div(left, right, HashSet::new())));
             } else {
                 break;
             }
@@ -154,7 +159,7 @@ impl Parser {
 
         Ok(left)
     }
-    fn parser_condition(&mut self) -> Result<Expr, Error> {
+    fn parser_condition(&mut self) -> Result<Rc<RefCell<Expr>>, Error> {
         let mut left = match self.parser_primary() {
             Ok(v) => v,
             Err(mut e) => {
@@ -176,7 +181,11 @@ impl Parser {
                         )));
                     }
                 };
-                left = Expr::Equal(Box::new(left), Box::new(right));
+                left = Rc::new(RefCell::new(Expr::Equal(left, right, {
+                    let mut s = HashSet::new();
+                    s.insert(VarType::Bool);
+                    s
+                })));
             } else if self.is(Token::Operator("<".to_string()))? {
                 let right = match self.parser_primary() {
                     Ok(v) => v,
@@ -187,7 +196,11 @@ impl Parser {
                         )));
                     }
                 };
-                left = Expr::Less(Box::new(left), Box::new(right));
+                left = Rc::new(RefCell::new(Expr::Less(left, right, {
+                    let mut s = HashSet::new();
+                    s.insert(VarType::Bool);
+                    s
+                })));
             } else if self.is(Token::Operator(">".to_string()))? {
                 let right = match self.parser_primary() {
                     Ok(v) => v,
@@ -198,7 +211,11 @@ impl Parser {
                         )));
                     }
                 };
-                left = Expr::Greater(Box::new(left), Box::new(right));
+                left = Rc::new(RefCell::new(Expr::Greater(left, right, {
+                    let mut s = HashSet::new();
+                    s.insert(VarType::Bool);
+                    s
+                })));
             } else if self.is(Token::Operator("<=".to_string()))? {
                 let right = match self.parser_primary() {
                     Ok(v) => v,
@@ -209,7 +226,11 @@ impl Parser {
                         )));
                     }
                 };
-                left = Expr::LessEqual(Box::new(left), Box::new(right));
+                left = Rc::new(RefCell::new(Expr::LessEqual(left, right, {
+                    let mut s = HashSet::new();
+                    s.insert(VarType::Bool);
+                    s
+                })));
             } else if self.is(Token::Operator(">=".to_string()))? {
                 let right = match self.parser_primary() {
                     Ok(v) => v,
@@ -220,7 +241,11 @@ impl Parser {
                         )));
                     }
                 };
-                left = Expr::GreaterEqual(Box::new(left), Box::new(right));
+                left = Rc::new(RefCell::new(Expr::GreaterEqual(left, right, {
+                    let mut s = HashSet::new();
+                    s.insert(VarType::Bool);
+                    s
+                })));
             } else {
                 break;
             }
@@ -228,15 +253,18 @@ impl Parser {
 
         Ok(left)
     }
-    fn parser_primary(&mut self) -> Result<Expr, Error> {
+    fn parser_primary(&mut self) -> Result<Rc<RefCell<Expr>>, Error> {
         let peek = self.peek().clone();
 
         if let Token::Identifier(ref name) = peek {
             self.next()?;
-            return Ok(Expr::Var(name.to_string(), HashSet::new()));
+            return Ok(Rc::new(RefCell::new(Expr::Var(
+                name.to_string(),
+                HashSet::new(),
+            ))));
         } else if let Token::Num(x) = peek {
             self.next()?;
-            Ok(Expr::ConstNum(x))
+            Ok(Rc::new(RefCell::new(Expr::ConstNum(x, HashSet::new()))))
         } else if let Token::Operator(ref op) = peek {
             if self.is(Token::Operator("(".to_string()))? {
                 let res = self.parser_add_sub()?;
@@ -270,13 +298,13 @@ impl Parser {
             )));
         }
 
-        Ok(Stmt::Assign(Box::<Expr>::new(var), Box::<Expr>::new(body)))
+        Ok(Stmt::Assign(var, body))
     }
     fn parser_for(&mut self) -> Result<Stmt, Error> {
         if let Token::Identifier(_) = self.peek() {
             let i = self.parser_add_sub()?;
             let i_name;
-            if let Expr::Var(ref _name, _) = i {
+            if let Expr::Var(ref _name, _) = *i.borrow() {
                 i_name = _name.clone();
             } else {
                 return Err(Error::new_error(format!("expect a var")));
@@ -286,21 +314,25 @@ impl Parser {
             self.expect(Token::Operator("(".to_string()))?;
 
             let start = self.parser_add_sub()?;
-            if let Expr::ConstNum(_) = start {
-            } else if let Expr::Var(_, _) = start {
+            if let Expr::ConstNum(_, _) = *start.borrow() {
+            } else if let Expr::Var(_, _) = *start.borrow() {
             } else {
                 return Err(Error::new_error(format!("expect a const or var")));
             }
 
             self.expect(Token::Operator(",".to_string()))?;
             let end = self.parser_add_sub()?;
-            if let Expr::ConstNum(_) = end {
-            } else if let Expr::Var(_, _) = end {
+            if let Expr::ConstNum(_, _) = *end.borrow() {
+            } else if let Expr::Var(_, _) = *end.borrow() {
             } else {
                 return Err(Error::new_error(format!("expect a const or var")));
             }
 
-            let mut step = Expr::ConstNum(1.0);
+            let mut step = Rc::new(RefCell::new(Expr::ConstNum(1.0, {
+                let mut s = HashSet::new();
+                s.insert(VarType::Int);
+                s
+            })));
             if self.is(Token::Operator(",".to_string()))? {
                 step = self.parser_add_sub()?;
             }
@@ -320,13 +352,7 @@ impl Parser {
 
             self.symbol_table.ret_to_parent_scope();
 
-            Ok(Stmt::For(
-                Box::<Expr>::new(i),
-                Box::<Expr>::new(start),
-                Box::<Expr>::new(end),
-                Box::<Expr>::new(step),
-                block,
-            ))
+            Ok(Stmt::For(i, start, end, step, block))
         } else {
             Err(Error::new_error(format!(
                 "expect an identifier, but find {}",
@@ -347,7 +373,7 @@ impl Parser {
 
         self.symbol_table.ret_to_parent_scope();
 
-        Ok(Stmt::While(Box::<Expr>::new(condition), block))
+        Ok(Stmt::While(condition, block))
     }
     fn parser_if(&mut self) -> Result<Stmt, Error> {
         let mut condition = self.parser_add_sub()?;
@@ -362,7 +388,7 @@ impl Parser {
 
         self.symbol_table.ret_to_parent_scope();
 
-        let mut elifs=Vec::<(Box<Expr>, Block)>::new();
+        let mut elifs = Vec::<(Rc<RefCell<Expr>>, Block)>::new();
 
         while self.is(Token::Keyword("elif".to_string()))? {
             condition = self.parser_add_sub()?;
@@ -374,12 +400,12 @@ impl Parser {
                 block.add_stmt(self.parser_stmt()?);
             }
 
-            elifs.push((Box::<Expr>::new(condition.clone()), block));
+            elifs.push((condition.clone(), block));
 
             self.symbol_table.ret_to_parent_scope();
         }
 
-        if self.is(Token::Keyword("else".to_string()))?{
+        if self.is(Token::Keyword("else".to_string()))? {
             self.symbol_table.into_new_scope();
 
             self.expect(Token::Operator("{".to_string()))?;
@@ -388,17 +414,24 @@ impl Parser {
                 block.add_stmt(self.parser_stmt()?);
             }
 
-            for i in 0..elifs.len(){
-                let (cond,blk)=elifs[i].clone();
-                elifs.push((cond,blk));
+            for i in 0..elifs.len() {
+                let (cond, blk) = elifs[i].clone();
+                elifs.push((cond, blk));
             }
 
-            elifs.push((Box::<Expr>::new(Expr::ConstNum(1.0)), block));
+            elifs.push((
+                Rc::new(RefCell::new(Expr::ConstNum(1.0, {
+                    let mut s = HashSet::new();
+                    s.insert(VarType::Bool);
+                    s
+                }))),
+                block,
+            ));
 
             self.symbol_table.ret_to_parent_scope();
         }
 
-        Ok(Stmt::If(Box::<Expr>::new(condition), block, elifs))
+        Ok(Stmt::If(condition, block, elifs))
     }
     fn parser_func(&mut self) -> Result<Stmt, Error> {
         if let Token::Identifier(ref name) = self.peek() {
@@ -456,7 +489,7 @@ impl Parser {
     }
     fn parser_return(&mut self) -> Result<Stmt, Error> {
         let ret = self.parser_add_sub()?;
-        Ok(Stmt::Return(Box::<Expr>::new(ret)))
+        Ok(Stmt::Return(ret))
     }
 
     fn parser_stmt(&mut self) -> Result<Stmt, Error> {

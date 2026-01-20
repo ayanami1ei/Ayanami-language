@@ -1,5 +1,4 @@
 use core::fmt;
-use std::collections::HashSet;
 
 use crate::types::{Argc, Token, VarType};
 
@@ -29,15 +28,14 @@ impl Argc {
     }
 }
 
-impl fmt::Display for VarType{
+impl fmt::Display for VarType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self{
-            VarType::Int=>write!(f,"int"),
-            VarType::Float=>write!(f,"float"),
-            VarType::Char=>write!(f,"char"),
-            VarType::Bool=>write!(f,"bool"),
-            VarType::Unknown=>write!(f,"unknown"),
+        match self {
+            VarType::Int => write!(f, "int"),
+            VarType::Float => write!(f, "float"),
+            VarType::Char => write!(f, "char"),
+            VarType::Bool => write!(f, "bool"),
+            VarType::Unknown => write!(f, "unknown"),
         }
     }
 }
-
