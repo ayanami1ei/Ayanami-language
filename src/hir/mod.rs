@@ -32,9 +32,11 @@ struct HirVarSymbol {
     pub(super) obj_id:ObjId,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct HirFuncSymbol {
     pub(super) ty_set: HashSet<VarType>, // 可能的返回值类型集合
+    pub(super) ret_obj_id:Vec<ObjId>,
+    pub(super) id:FuncId,
 }
 
 pub(crate) struct HirGenerator {
@@ -72,6 +74,10 @@ pub(crate) enum HIRInst {
     },
     Jmp {
         target: BlockId,
+    },
+    Call{
+        id:FuncId,
+        ret: Vec<ObjId>,
     },
     BinOp {
         left: ObjId,

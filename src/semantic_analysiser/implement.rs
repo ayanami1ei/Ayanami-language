@@ -67,17 +67,76 @@ impl SemanticAnalysiser {
                     )))
                 }
             }
-            Expr::FuncCall(ref name, _, ref mut ty_set) => {
-                if let Some(_) = symbol_table.find_symbol(name) {
+            Expr::FuncCall(ref name, ref argcs, ref mut ty_set) => {
+                // Check function symbol exists
+                let fn_sym = if let Some(s) = symbol_table.find_symbol(name) {
+                    s
                 } else {
                     return Err(Error::new_error("undefined function".to_string()));
+                };
+
+                if !fn_sym.is_func {
+                    return Err(Error::new_error(format!("{} is not a function", name)));
                 }
 
-                *ty_set = {
-                    let mut set = HashSet::new();
-                    set.insert(VarType::Unknown);
-                    set
-                };
+                // Check parameter count
+                if fn_sym.args.len() != argcs.len() {
+                    return Err(Error::new_error(format!(
+                        "argument count mismatch for function {}: expected {}, found {}",
+                        name,
+                        fn_sym.args.len(),
+                        argcs.len()
+                    )));
+                }
+
+                // Check each argument: argument must be an existing variable and its type must be compatible
+                for i in 0..argcs.len() {
+                    let call_arg = &argcs[i];
+                    let param_sym = &fn_sym.args[i];
+
+                    // find the passed variable
+                    if let Some(arg_sym) = symbol_table.find_symbol(&call_arg.var_name) {
+                        // ref-ness should match between declaration and call-site
+                        if param_sym.is_ref != call_arg.is_ref {
+                            return Err(Error::new_error(format!(
+                                "ref-ness mismatch for parameter {} of function {}",
+                                param_sym.name, name
+                            )));
+                        }
+
+                        // if parameter type is known, require intersection
+                        if !param_sym.its_type.is_empty() && !arg_sym.its_type.is_empty() {
+                            let inter = param_sym
+                                .its_type
+                                .intersection(&arg_sym.its_type)
+                                .cloned()
+                                .collect::<HashSet<VarType>>();
+                            if inter.is_empty() {
+                                return Err(Error::new_error(format!(
+                                    "type mismatch for parameter {} of function {}",
+                                    param_sym.name, name
+                                )));
+                            }
+                        }
+                    } else {
+                        return Err(Error::new_error(format!(
+                            "undefined variable {} in call to {}",
+                            call_arg.var_name, name
+                        )));
+                    }
+                }
+
+                // Use function symbol's return-type set if available
+                if fn_sym.its_type.is_empty() {
+                    *ty_set = {
+                        let mut set = HashSet::new();
+                        set.insert(VarType::Unknown);
+                        set
+                    };
+                } else {
+                    *ty_set = fn_sym.its_type.clone();
+                }
+
                 Ok(ty_set.clone())
             }
             Expr::Add(ref a, ref b, ref mut ty_set) => {

@@ -10,15 +10,15 @@ use crate::{
     types::{Argc, Block, Expr, Stmt, Token, VarType},
 };
 
-static mut block_id: i32 = -1;
+static mut BLOCK_ID: i32 = -1;
 
 impl Block {
     pub(crate) fn new() -> Block {
         unsafe {
-            block_id += 1;
+            BLOCK_ID += 1;
             Block {
                 body: Vec::new(),
-                id: block_id,
+                id: BLOCK_ID,
             }
         }
     }
@@ -257,11 +257,62 @@ impl Parser {
         let peek = self.peek().clone();
 
         if let Token::Identifier(ref name) = peek {
+            // 先吃掉标识符，再看是不是函数调用
             self.next()?;
-            return Ok(Rc::new(RefCell::new(Expr::Var(
-                name.to_string(),
-                HashSet::new(),
-            ))));
+            if self.is(Token::Operator("(".to_string()))? {
+                // 函数调用: name(<args>)，args 形如 [ref] ident, ...
+                let mut args = Vec::<Argc>::new();
+
+                loop {
+                    // 空参数列表: 立即遇到 ')'
+                    if self.is(Token::Operator(")".to_string()))? {
+                        break;
+                    }
+
+                    let mut arg = Argc::new();
+
+                    // 可选的 ref 关键字
+                    if self.is(Token::Keyword("ref".to_string()))? {
+                        arg.is_ref = true;
+                    }
+
+                    // 参数名必须是标识符
+                    if let Token::Identifier(ref arg_name) = self.peek() {
+                        arg.var_name = arg_name.clone();
+                        arg.arg_type = VarType::Unknown;
+                        self.next()?;
+                    } else {
+                        return Err(Error::new_error(format!(
+                            "expect argument name, but find {}",
+                            self.peek()
+                        )));
+                    }
+
+                    args.push(arg);
+
+                    if self.is(Token::Operator(",".to_string()))? {
+                        continue;
+                    } else if self.is(Token::Operator(")".to_string()))? {
+                        break;
+                    } else {
+                        return Err(Error::new_error(format!(
+                            "expect ',' or ')', but find {}",
+                            self.peek()
+                        )));
+                    }
+                }
+
+                return Ok(Rc::new(RefCell::new(Expr::FuncCall(
+                    name.to_string(),
+                    args,
+                    HashSet::new(),
+                ))));
+            } else {
+                return Ok(Rc::new(RefCell::new(Expr::Var(
+                    name.to_string(),
+                    HashSet::new(),
+                ))));
+            }
         } else if let Token::Num(x) = peek {
             self.next()?;
             Ok(Rc::new(RefCell::new(Expr::ConstNum(x, HashSet::new()))))
@@ -482,7 +533,12 @@ impl Parser {
 
             self.symbol_table.ret_to_parent_scope();
 
-            return Ok(Stmt::Func(name.to_string(), args, HashSet::<VarType>::new(), block));
+            return Ok(Stmt::Func(
+                name.to_string(),
+                args,
+                HashSet::<VarType>::new(),
+                block,
+            ));
         }
 
         Err(Error::new_error("".to_string()))
