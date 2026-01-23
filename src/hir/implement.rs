@@ -358,7 +358,9 @@ impl HirGenerator {
                     self.gen_if_hir(cond, inner_block, &mut elifs.clone());
                     self.ast_symbol_table.reset();
                 }
-                Stmt::Func(ref _name, ref _argcs, ref _var_type, ref _block, _) => todo!(),
+                Stmt::Func(ref name, ref argcs, ref var_type, ref _block, _) => {
+                    self.gen_func_hir(name, argcs, var_type, block)
+                }
                 Stmt::Call(ref name, ref argcs, scope_id) => {
                     self.ast_symbol_table.set_area_ptr_by_id(scope_id);
                     self.gen_call_hir(name, argcs);
@@ -457,9 +459,7 @@ impl HirGenerator {
                 },
             );
 
-            self.ast_symbol_table.into_new_scope();
             self.gen_block_ir(then_block_id, &elifs[elif_idx].1, &mut Vec::new());
-            self.ast_symbol_table.ret_to_parent_scope();
             elif_idx += 1;
             self.add_inst_to_block(then_block_id, HIRInst::Jmp { target: merge_id });
         }
@@ -519,9 +519,7 @@ impl HirGenerator {
         );
         self.emit_block(cond_block_id);
 
-        self.ast_symbol_table.into_new_scope();
         self.gen_block_ir(body_block_id, block, &mut Vec::new());
-        self.ast_symbol_table.ret_to_parent_scope();
         let temp_obj_id = self.next_objid;
         self.get_next_obj_id();
         self.add_inst_to_block(
@@ -564,9 +562,7 @@ impl HirGenerator {
         );
         self.emit_block(br_block_id);
 
-        self.ast_symbol_table.into_new_scope();
         self.gen_block_ir(body_block_id, block, &mut Vec::new());
-        self.ast_symbol_table.ret_to_parent_scope();
         self.emit_block(body_block_id);
         self.emit_block(merge_block_id);
     }
@@ -627,9 +623,7 @@ impl HirGenerator {
         );
         self.emit_block(entry_block_id);
 
-        self.ast_symbol_table.into_new_scope();
         self.gen_block_ir(body_block_id, block, &mut fn_sym.ret_obj_id);
-        self.ast_symbol_table.ret_to_parent_scope();
         self.emit_block(body_block_id);
     }
     fn gen_call_hir(&mut self, name: &String, argcs: &Vec<Argc>) {

@@ -583,6 +583,17 @@ impl Parser {
             let expr = self.parser_add_sub()?;
             if self.is(Token::Operator("=".to_string()))? {
                 let right = self.parser_add_sub()?;
+                let (name, _)=match expr.borrow().clone(){
+                    Expr::Var(name,ty)=>(name,ty),
+                    _=>return Err(Error::new_error(format!("must be var")))
+                };
+               let _sym= match self.symbol_table.find_symbol(&name){
+                    None=>{
+                        let sym=Symbol::new_var(name, self.symbol_table.get_scope());
+                        self.symbol_table.add_symbol(sym);
+                    },
+                    Some(_)=>(),
+                };
                 Ok(Stmt::Assign(expr, right))
             } else {
                 if let Expr::FuncCall(ref name, ref argcs, _, scope_id) = *expr.borrow() {

@@ -1,0 +1,53 @@
+thread 'rustc' panicked at /rustc-dev/1be6b13be73dc12e98e51b403add4c41a0b77759/library/alloc/src/vec/mod.rs:2796:36:
+slice index starts at 30 but ends at 29
+stack backtrace:
+   0:     0x7615f305236b - <std[f73caa43acb03b8c]::backtrace::Backtrace>::create
+   1:     0x7615f30522b5 - <std[f73caa43acb03b8c]::backtrace::Backtrace>::force_capture
+   2:     0x7615f20cdc4e - std[f73caa43acb03b8c]::panicking::update_hook::<alloc[31570ea252afb3e]::boxed::Box<rustc_driver_impl[a62c041d93dad5ac]::install_ice_hook::{closure#1}>>::{closure#0}
+   3:     0x7615f3066992 - std[f73caa43acb03b8c]::panicking::panic_with_hook
+   4:     0x7615f30470f8 - std[f73caa43acb03b8c]::panicking::panic_handler::{closure#0}
+   5:     0x7615f303e1a9 - std[f73caa43acb03b8c]::sys::backtrace::__rust_end_short_backtrace::<std[f73caa43acb03b8c]::panicking::panic_handler::{closure#0}, !>
+   6:     0x7615f3048c4d - __rustc[27ae4d5262416b66]::rust_begin_unwind
+   7:     0x7615f01ab92c - core[1f5c4c040b19307]::panicking::panic_fmt
+   8:     0x7615f1af4180 - core[1f5c4c040b19307]::slice::index::slice_index_fail::do_panic::runtime
+   9:     0x7615ef9d37c8 - core[1f5c4c040b19307]::slice::index::slice_index_fail
+  10:     0x7615f1ac4f95 - <annotate_snippets[92ca101617b74cb1]::renderer::styled_buffer::StyledBuffer>::replace
+  11:     0x7615f47fa98c - annotate_snippets[92ca101617b74cb1]::renderer::render::render
+  12:     0x7615f4a4b154 - <rustc_errors[e47345eadeff1cc0]::annotate_snippet_emitter_writer::AnnotateSnippetEmitter>::emit_messages_default
+  13:     0x7615f4a5692e - <rustc_errors[e47345eadeff1cc0]::annotate_snippet_emitter_writer::AnnotateSnippetEmitter as rustc_errors[e47345eadeff1cc0]::emitter::Emitter>::emit_diagnostic
+  14:     0x7615f4a5b007 - <rustc_errors[e47345eadeff1cc0]::json::Diagnostic>::from_errors_diagnostic
+  15:     0x7615f4a5a760 - <rustc_errors[e47345eadeff1cc0]::json::JsonEmitter as rustc_errors[e47345eadeff1cc0]::emitter::Emitter>::emit_diagnostic
+  16:     0x7615f4a602e6 - <rustc_errors[e47345eadeff1cc0]::DiagCtxtInner>::emit_diagnostic::{closure#3}
+  17:     0x7615f4a5ddb3 - rustc_interface[414c0bf7369858c6]::callbacks::track_diagnostic::<core[1f5c4c040b19307]::option::Option<rustc_span[4312f27e8c783d4a]::ErrorGuaranteed>>
+  18:     0x7615f4a5ce34 - <rustc_errors[e47345eadeff1cc0]::DiagCtxtInner>::emit_diagnostic
+  19:     0x7615f4a5cce1 - <rustc_errors[e47345eadeff1cc0]::DiagCtxtHandle>::emit_diagnostic
+  20:     0x7615f4a5cb95 - <() as rustc_errors[e47345eadeff1cc0]::diagnostic::EmissionGuarantee>::emit_producing_guarantee
+  21:     0x7615f45ee752 - rustc_middle[55db46a3a9e6fd01]::lint::lint_level::lint_level_impl
+  22:     0x7615f42d2ec5 - rustc_mir_transform[5720c28b0ae427a9]::liveness::check_liveness::{closure#0}
+  23:     0x7615f42cabc0 - rustc_query_impl[dd57941d79eef654]::plumbing::__rust_begin_short_backtrace::<rustc_query_impl[dd57941d79eef654]::query_impl::check_liveness::dynamic_query::{closure#2}::{closure#0}, rustc_middle[55db46a3a9e6fd01]::query::erase::Erased<[u8; 8usize]>>
+  24:     0x7615f37a3c72 - rustc_query_system[fbdf9c15bf535051]::query::plumbing::try_execute_query::<rustc_query_impl[dd57941d79eef654]::DynamicConfig<rustc_data_structures[734b602c71f49520]::vec_cache::VecCache<rustc_span[4312f27e8c783d4a]::def_id::LocalDefId, rustc_middle[55db46a3a9e6fd01]::query::erase::Erased<[u8; 8usize]>, rustc_query_system[fbdf9c15bf535051]::dep_graph::graph::DepNodeIndex>, false, false, false>, rustc_query_impl[dd57941d79eef654]::plumbing::QueryCtxt, true>
+  25:     0x7615f37beb90 - rustc_query_impl[dd57941d79eef654]::query_impl::check_liveness::get_query_incr::__rust_end_short_backtrace
+  26:     0x7615f386bb93 - <rustc_middle[55db46a3a9e6fd01]::ty::context::TyCtxt>::par_hir_body_owners::<rustc_interface[414c0bf7369858c6]::passes::run_required_analyses::{closure#1}::{closure#0}>::{closure#0}
+  27:     0x7615f38694e6 - rustc_interface[414c0bf7369858c6]::passes::analysis
+  28:     0x7615f3868973 - rustc_query_impl[dd57941d79eef654]::plumbing::__rust_begin_short_backtrace::<rustc_query_impl[dd57941d79eef654]::query_impl::analysis::dynamic_query::{closure#2}::{closure#0}, rustc_middle[55db46a3a9e6fd01]::query::erase::Erased<[u8; 0usize]>>
+  29:     0x7615f4935627 - rustc_query_system[fbdf9c15bf535051]::query::plumbing::try_execute_query::<rustc_query_impl[dd57941d79eef654]::DynamicConfig<rustc_query_system[fbdf9c15bf535051]::query::caches::SingleCache<rustc_middle[55db46a3a9e6fd01]::query::erase::Erased<[u8; 0usize]>>, false, false, false>, rustc_query_impl[dd57941d79eef654]::plumbing::QueryCtxt, true>
+  30:     0x7615f4934e23 - rustc_query_impl[dd57941d79eef654]::query_impl::analysis::get_query_incr::__rust_end_short_backtrace
+  31:     0x7615f48d9a53 - <rustc_interface[414c0bf7369858c6]::passes::create_and_enter_global_ctxt<core[1f5c4c040b19307]::option::Option<rustc_interface[414c0bf7369858c6]::queries::Linker>, rustc_driver_impl[a62c041d93dad5ac]::run_compiler::{closure#0}::{closure#2}>::{closure#2} as core[1f5c4c040b19307]::ops::function::FnOnce<(&rustc_session[349a198c03ceb088]::session::Session, rustc_middle[55db46a3a9e6fd01]::ty::context::CurrentGcx, alloc[31570ea252afb3e]::sync::Arc<rustc_data_structures[734b602c71f49520]::jobserver::Proxy>, &std[f73caa43acb03b8c]::sync::once_lock::OnceLock<rustc_middle[55db46a3a9e6fd01]::ty::context::GlobalCtxt>, &rustc_data_structures[734b602c71f49520]::sync::worker_local::WorkerLocal<rustc_middle[55db46a3a9e6fd01]::arena::Arena>, &rustc_data_structures[734b602c71f49520]::sync::worker_local::WorkerLocal<rustc_hir[81959f50af77ce73]::Arena>, rustc_driver_impl[a62c041d93dad5ac]::run_compiler::{closure#0}::{closure#2})>>::call_once::{shim:vtable#0}
+  32:     0x7615f4722e05 - rustc_interface[414c0bf7369858c6]::interface::run_compiler::<(), rustc_driver_impl[a62c041d93dad5ac]::run_compiler::{closure#0}>::{closure#1}
+  33:     0x7615f46dc914 - std[f73caa43acb03b8c]::sys::backtrace::__rust_begin_short_backtrace::<rustc_interface[414c0bf7369858c6]::util::run_in_thread_with_globals<rustc_interface[414c0bf7369858c6]::util::run_in_thread_pool_with_globals<rustc_interface[414c0bf7369858c6]::interface::run_compiler<(), rustc_driver_impl[a62c041d93dad5ac]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>
+  34:     0x7615f46dc61e - <<std[f73caa43acb03b8c]::thread::Builder>::spawn_unchecked_<rustc_interface[414c0bf7369858c6]::util::run_in_thread_with_globals<rustc_interface[414c0bf7369858c6]::util::run_in_thread_pool_with_globals<rustc_interface[414c0bf7369858c6]::interface::run_compiler<(), rustc_driver_impl[a62c041d93dad5ac]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>::{closure#1} as core[1f5c4c040b19307]::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}
+  35:     0x7615f46e242f - <std[f73caa43acb03b8c]::sys::thread::unix::Thread>::new::thread_start
+  36:     0x7615ee29caa4 - start_thread
+                               at ./nptl/pthread_create.c:447:8
+  37:     0x7615ee329c6c - clone3
+                               at ./misc/../sysdeps/unix/sysv/linux/x86_64/clone3.S:78:0
+  38:                0x0 - <unknown>
+
+
+rustc version: 1.93.0-nightly (1be6b13be 2025-11-26)
+platform: x86_64-unknown-linux-gnu
+
+query stack during panic:
+#0 [check_liveness] checking liveness of variables in `hir::implement::<impl at src/hir/implement.rs:43:1: 43:18>::gen_stmt_hir`
+#1 [analysis] running analysis passes on crate `ayanami`
+end of query stack
