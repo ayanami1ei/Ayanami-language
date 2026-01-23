@@ -6,7 +6,8 @@ use std::{
 
 use crate::{
     hir::{
-        BinOperator, BlockId, FuncId, HIR, HIRInst, HirFuncSymbol, HirGenerator, HirVarSymbol, ObjId, StorageClass, UnaryOperation, VarId
+        BinOperator, BlockId, FuncId, HIR, HIRInst, HirFuncSymbol, HirGenerator, HirVarSymbol,
+        ObjId, StorageClass, UnaryOperation, VarId,
     },
     symbol_table::{Symbol, SymbolTable},
     types::{Block, Expr, Stmt, VarType},
@@ -49,7 +50,7 @@ impl HirGenerator {
             next_blockid: BlockId(0),
 
             var_registry: HashMap::<VarId, HirVarSymbol>::new(),
-            func_registry:HashMap::<FuncId, HirFuncSymbol>::new(),
+            func_registry: HashMap::<FuncId, HirFuncSymbol>::new(),
             block_registry: HashMap::<BlockId, Vec<HIRInst>>::new(),
 
             ast_symbol_table,
@@ -297,27 +298,34 @@ impl HirGenerator {
 
         res
     }
-    fn gen_block_ir(&mut self, block_id:BlockId, block: &Block) -> Vec<HIRInst> {
-        let mut res = Vec::<HIRInst>::new();
-        for i in block.body.clone() {
+    fn gen_block_ir(&mut self, block_id: BlockId, block: &Block) {
+        for mut i in block.body.clone() {
             match i {
-            Stmt::Assign(ref left, ref right) => self.gen_assign_hir(left, right),
-            Stmt::For(ref itor, ref start, ref end, ref step, ref block) => {
-                self.gen_for_hir(itor, start, end, step, block)
+                Stmt::Assign(ref left, ref right) => {
+                    let mut insts = self.gen_assign_inst(left, right);
+                    for inst in insts.drain(..) {
+                        self.add_inst_to_block(block_id, inst);
+                    }
+                }
+                Stmt::For(ref itor, ref start, ref end, ref step, ref inner_block) => {
+                    self.gen_for_hir(itor, start, end, step, inner_block)
+                }
+                Stmt::While(ref cond, ref inner_block) => self.gen_while_hir(cond, inner_block),
+                Stmt::If(ref cond, ref inner_block, ref mut elifs) => {
+                    self.gen_if_hir(cond, inner_block, &mut elifs.clone())
+                }
+                Stmt::Func(ref _name, ref _argcs, ref _var_type, ref _block) => todo!(),
+                Stmt::Return(ref _ret_expr) => todo!(),
+                Stmt::Default => {}
             }
-            Stmt::While(ref cond, ref block) => self.gen_while_hir(cond, block),
-            Stmt::If(ref cond, ref block, ref elifs) => {
-                self.gen_if_hir(cond, block, &mut elifs.clone())
-            }
-            Stmt::Func(ref name, ref argcs, ref var_type, ref block) => todo!(),
-            Stmt::Return(ref ret_expr) => todo!(),
-            Stmt::Default => todo!(),
         }
-        }
-        res
     }
 
-    fn gen_assign_hir(&mut self, left: &Rc<RefCell<Expr>>, right: &Rc<RefCell<Expr>>) {
+    fn gen_assign_inst(
+        &mut self,
+        left: &Rc<RefCell<Expr>>,
+        right: &Rc<RefCell<Expr>>,
+    ) -> Vec<HIRInst> {
         let mut res = self.gen_expr_ir(right);
         let obj_id = self.next_objid - 1;
 
@@ -347,6 +355,12 @@ impl HirGenerator {
         if let Some(old) = old_obj_id {
             res.push(HIRInst::DecRef { obj: old });
         }
+
+        res
+    }
+
+    fn gen_assign_hir(&mut self, left: &Rc<RefCell<Expr>>, right: &Rc<RefCell<Expr>>) {
+        let res = self.gen_assign_inst(left, right);
 
         for i in &res {
             self.hir.push(HIR::Inst(i.clone()))
@@ -393,11 +407,8 @@ impl HirGenerator {
                 },
             );
 
-            let then_block = self.gen_block_ir(&elifs[elif_idx].1);
+            self.gen_block_ir(then_block_id, &elifs[elif_idx].1);
             elif_idx += 1;
-            for i in then_block {
-                self.add_inst_to_block(then_block_id, i);
-            }
             self.add_inst_to_block(then_block_id, HIRInst::Jmp { target: merge_id });
         }
 
@@ -455,10 +466,7 @@ impl HirGenerator {
         );
         self.emit_block(cond_block_id);
 
-        let block_ir = self.gen_block_ir(block);
-        for i in block_ir {
-            self.add_inst_to_block(body_block_id, i);
-        }
+        self.gen_block_ir(body_block_id, block);
         let temp_obj_id = self.next_objid;
         self.get_next_obj_id();
         self.add_inst_to_block(
@@ -501,16 +509,11 @@ impl HirGenerator {
         );
         self.emit_block(br_block_id);
 
-        let block_ir = self.gen_block_ir(block);
-        for i in block_ir {
-            self.add_inst_to_block(body_block_id, i);
-        }
+        self.gen_block_ir(body_block_id, block);
         self.emit_block(body_block_id);
         self.emit_block(merge_block_id);
     }
-    fn gen_func_hir(&mut self, stmt: Stmt) {
-
-    }
+    fn gen_func_hir(&mut self, stmt: Stmt) {}
     fn gen_return_hir(&mut self, stmt: Stmt) -> Vec<HIRInst> {
         vec![]
     }
