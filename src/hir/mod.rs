@@ -10,11 +10,13 @@ pub(crate) mod overrides;
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
 pub(crate) struct VarId(i32);
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
+pub(crate) struct FuncId(i32);
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
 pub(crate) struct BlockId(i32);
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
 pub(crate) struct ObjId(i32);
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(super) enum StorageClass {
     Local,
     Param,
@@ -22,11 +24,17 @@ pub(super) enum StorageClass {
     Temp,
 }
 
-#[derive(Debug, Default)]
-struct HirSymbol {
+#[derive(Default)]
+struct HirVarSymbol {
     pub(super) ty_set: HashSet<VarType>, // 可能指向的对象类型集合
     pub(super) mutability: bool,         // 能不能 Bind
     pub(super) storage: StorageClass,    // local / param / temp
+    pub(super) obj_id:ObjId,
+}
+
+#[derive(Default)]
+struct HirFuncSymbol {
+    pub(super) ty_set: HashSet<VarType>, // 可能的返回值类型集合
 }
 
 pub(crate) struct HirGenerator {
@@ -34,21 +42,31 @@ pub(crate) struct HirGenerator {
 
     next_objid: ObjId,
     next_tempvar_id: ObjId,
+    next_blockid: BlockId,
 
-    var_registry: HashMap<VarId, HirSymbol>,
-    obj_registry: HashMap<ObjId, HirSymbol>,
-    block_registry: HashMap<BlockId, HirSymbol>,
+    var_registry: HashMap<VarId, HirVarSymbol>,
+    func_registry: HashMap<FuncId, HirFuncSymbol>,
+    block_registry: HashMap<BlockId, Vec<HIRInst>,>,
 
     ast_symbol_table: SymbolTable,
+
+    hir:Vec<HIR>
 }
 
+#[derive(Clone)]
+pub(crate) enum HIR {
+    Inst(HIRInst),
+    Block(BlockId)
+}
+
+#[derive(Clone)]
 pub(crate) enum HIRInst {
     New {
-        obj_type: VarType,
+        obj_type: HashSet<VarType>,
         dst: ObjId,
     },
     Br {
-        cond: VarId,
+        cond: ObjId,
         then_block: BlockId,
         else_block: BlockId,
     },
@@ -64,7 +82,7 @@ pub(crate) enum HIRInst {
     UnaryOp {
         op: UnaryOperation,
         expr: ObjId,
-        dst:ObjId,
+        dst: ObjId,
     },
     IncRef {
         obj: ObjId,
@@ -82,6 +100,7 @@ pub(crate) enum HIRInst {
     },
 }
 
+#[derive(Clone)]
 pub(super) enum BinOperator {
     Add,
     Sub,
@@ -92,8 +111,11 @@ pub(super) enum BinOperator {
     Less,
     GreaterEqual,
     LessEqual,
+    And,
+    Or,
 }
 
+#[derive(Clone)]
 pub(super) enum UnaryOperation {
-    Not
+    Not,
 }

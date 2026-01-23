@@ -482,7 +482,7 @@ impl Parser {
 
             self.symbol_table.ret_to_parent_scope();
 
-            return Ok(Stmt::Func(name.to_string(), args, VarType::Unknown, block));
+            return Ok(Stmt::Func(name.to_string(), args, HashSet::<VarType>::new(), block));
         }
 
         Err(Error::new_error("".to_string()))

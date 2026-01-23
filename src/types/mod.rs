@@ -64,7 +64,7 @@ pub(crate) enum Stmt {
     ),
     While(Rc<RefCell<Expr>>, Block),
     If(Rc<RefCell<Expr>>, Block, Vec<(Rc<RefCell<Expr>>, Block)>),
-    Func(String, Vec<Argc>, VarType, Block),
+    Func(String, Vec<Argc>, HashSet<VarType>, Block),
     Return(Rc<RefCell<Expr>>),
     Default,
 }

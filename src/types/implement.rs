@@ -1,6 +1,7 @@
 use core::fmt;
 
-use crate::types::{Argc, Token, VarType};
+use crate::types::{Argc, Expr, Token, VarType};
+use std::collections::HashSet;
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -36,6 +37,27 @@ impl fmt::Display for VarType {
             VarType::Char => write!(f, "char"),
             VarType::Bool => write!(f, "bool"),
             VarType::Unknown => write!(f, "unknown"),
+        }
+    }
+}
+
+impl Expr {
+    pub fn get_type_set(&self) -> &HashSet<VarType> {
+        match self {
+            Expr::ConstNum(_, ty) => ty,
+            Expr::ConstChar(_, ty) => ty,
+            Expr::Var(_, ty) => ty,
+            Expr::FuncCall(_, _, ty) => ty,
+            Expr::Add(_, _, ty) => ty,
+            Expr::Sub(_, _, ty) => ty,
+            Expr::Mul(_, _, ty) => ty,
+            Expr::Div(_, _, ty) => ty,
+            Expr::Equal(_, _, ty) => ty,
+            Expr::Greater(_, _, ty) => ty,
+            Expr::Less(_, _, ty) => ty,
+            Expr::GreaterEqual(_, _, ty) => ty,
+            Expr::LessEqual(_, _, ty) => ty,
+            Expr::Not(_, ty) => ty,
         }
     }
 }

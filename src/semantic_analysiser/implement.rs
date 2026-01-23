@@ -398,18 +398,7 @@ impl SemanticAnalysiser {
     ) -> Result<(), Error> {
         let ret = _ret.clone();
         let ret_type = Self::infer_type(self.symbol_table.clone(), &ret)?;
-        if let Some(_fn_sym) = self.symbol_table.find_symbol(name) {
-            if ret_type != _fn_sym.its_type && _fn_sym.its_type.len() != 0 {
-                return Err(Error::new_error(format!(
-                    "return expect type {:?},but find {:?}",
-                    _fn_sym.its_type, ret_type
-                )));
-            } else {
-                self.symbol_table.add_symbol_type(&name, ret_type.clone());
-            }
-        } else {
-            self.symbol_table.add_symbol_type(&name, ret_type.clone());
-        }
+        self.symbol_table.add_symbol_type(&name, ret_type.clone());
 
         #[cfg(debug_assertions)]
         {

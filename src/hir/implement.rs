@@ -5,13 +5,15 @@ use std::{
 };
 
 use crate::{
-    hir::{BlockId, HIRInst, HirGenerator, HirSymbol, ObjId, StorageClass, UnaryOperation, VarId},
+    hir::{
+        BinOperator, BlockId, FuncId, HIR, HIRInst, HirFuncSymbol, HirGenerator, HirVarSymbol, ObjId, StorageClass, UnaryOperation, VarId
+    },
     symbol_table::{Symbol, SymbolTable},
-    types::{Expr, Stmt, VarType},
+    types::{Block, Expr, Stmt, VarType},
 };
 
-impl HirSymbol {
-    pub(super) fn new(ast_sym: Symbol) -> HirSymbol {
+impl HirVarSymbol {
+    pub(super) fn new(ast_sym: Symbol, obj_id: ObjId) -> HirVarSymbol {
         let mutability = true;
         let mut storage = StorageClass::Local;
 
@@ -19,18 +21,20 @@ impl HirSymbol {
             storage = StorageClass::Param;
         }
 
-        HirSymbol {
+        HirVarSymbol {
             ty_set: ast_sym.its_type,
             mutability,
             storage,
+            obj_id,
         }
     }
 
-    pub(super) fn new_temp_var(ty_set: HashSet<VarType>) -> HirSymbol {
-        HirSymbol {
+    pub(super) fn new_temp_var(ty_set: HashSet<VarType>, obj_id: ObjId) -> HirVarSymbol {
+        HirVarSymbol {
             ty_set,
             mutability: true,
             storage: StorageClass::Temp,
+            obj_id,
         }
     }
 }
@@ -42,12 +46,15 @@ impl HirGenerator {
 
             next_objid: ObjId(0),
             next_tempvar_id: ObjId(0),
+            next_blockid: BlockId(0),
 
-            var_registry: HashMap::<VarId, HirSymbol>::new(),
-            obj_registry: HashMap::<ObjId, HirSymbol>::new(),
-            block_registry: HashMap::<BlockId, HirSymbol>::new(),
+            var_registry: HashMap::<VarId, HirVarSymbol>::new(),
+            func_registry:HashMap::<FuncId, HirFuncSymbol>::new(),
+            block_registry: HashMap::<BlockId, Vec<HIRInst>>::new(),
 
             ast_symbol_table,
+
+            hir: Vec::<HIR>::new(),
         }
     }
 
@@ -56,10 +63,42 @@ impl HirGenerator {
         self.next_objid += 1;
         id
     }
-    fn new_temp_var(&mut self) -> ObjId {
-        let id = self.next_tempvar_id;
-        self.next_tempvar_id += 1;
+
+    fn find_var_id(&mut self, name: &String) -> VarId {
+        match self.ast_symbol_table.find_symbol(name) {
+            None => panic!(""),
+            Some(sys) => VarId(sys.id),
+        }
+    }
+
+    fn new_block(&mut self) -> BlockId {
+        let id = self.next_blockid;
+        self.next_blockid += 1;
+
+        self.hir.push(HIR::Block(id));
+        self.block_registry.insert(id, Vec::<HIRInst>::new());
+
         id
+    }
+    fn add_inst_to_block(&mut self, id: BlockId, inst: HIRInst) {
+        let mut block = match self.block_registry.get(&id) {
+            None => panic!("no that block"),
+            Some(x) => x.clone(),
+        };
+
+        block.push(inst);
+        self.block_registry.insert(id, block.to_vec());
+    }
+    fn emit_block(&mut self, id: BlockId) {
+        self.hir.push(HIR::Block(id));
+        let block = match self.block_registry.get(&id) {
+            None => panic!(""),
+            Some(x) => x.clone(),
+        };
+
+        for i in block {
+            self.hir.push(HIR::Inst(i));
+        }
     }
 
     fn gen_expr_ir(&mut self, expr: &Rc<RefCell<Expr>>) -> Vec<HIRInst> {
@@ -68,46 +107,98 @@ impl HirGenerator {
         match *expr.borrow() {
             Expr::Add(ref left, ref right, _) => {
                 res.append(&mut self.gen_expr_ir(left));
+                let left_objid = self.next_objid - 1;
                 res.append(&mut self.gen_expr_ir(right));
+                let right_objid = self.next_objid - 1;
+
+                let new_obj_id = self.next_objid;
+                res.push(HIRInst::New {
+                    obj_type: left
+                        .borrow()
+                        .get_type_set()
+                        .union(right.borrow().get_type_set())
+                        .cloned()
+                        .collect(),
+                    dst: self.get_next_obj_id(),
+                });
 
                 res.push(HIRInst::BinOp {
-                    left: self.next_objid - 2,
+                    left: left_objid,
                     op: super::BinOperator::Add,
-                    right: self.next_objid - 2,
-                    dst: self.get_next_obj_id(),
+                    right: right_objid,
+                    dst: new_obj_id,
                 });
             }
             Expr::Sub(ref left, ref right, _) => {
                 res.append(&mut self.gen_expr_ir(left));
+                let left_objid = self.next_objid - 1;
                 res.append(&mut self.gen_expr_ir(right));
+                let right_objid = self.next_objid - 1;
+
+                let new_obj_id = self.next_objid;
+                res.push(HIRInst::New {
+                    obj_type: left
+                        .borrow()
+                        .get_type_set()
+                        .union(right.borrow().get_type_set())
+                        .cloned()
+                        .collect(),
+                    dst: self.get_next_obj_id(),
+                });
 
                 res.push(HIRInst::BinOp {
-                    left: self.next_objid - 2,
+                    left: left_objid,
                     op: super::BinOperator::Sub,
-                    right: self.next_objid - 2,
-                    dst: self.get_next_obj_id(),
+                    right: right_objid,
+                    dst: new_obj_id,
                 });
             }
             Expr::Mul(ref left, ref right, _) => {
                 res.append(&mut self.gen_expr_ir(left));
+                let left_objid = self.next_objid - 1;
                 res.append(&mut self.gen_expr_ir(right));
+                let right_objid = self.next_objid - 1;
+
+                let new_obj_id = self.next_objid;
+                res.push(HIRInst::New {
+                    obj_type: left
+                        .borrow()
+                        .get_type_set()
+                        .union(right.borrow().get_type_set())
+                        .cloned()
+                        .collect(),
+                    dst: self.get_next_obj_id(),
+                });
 
                 res.push(HIRInst::BinOp {
-                    left: self.next_objid - 2,
+                    left: left_objid,
                     op: super::BinOperator::Mul,
-                    right: self.next_objid - 2,
-                    dst: self.get_next_obj_id(),
+                    right: right_objid,
+                    dst: new_obj_id,
                 });
             }
             Expr::Div(ref left, ref right, _) => {
                 res.append(&mut self.gen_expr_ir(left));
+                let left_objid = self.next_objid - 1;
                 res.append(&mut self.gen_expr_ir(right));
+                let right_objid = self.next_objid - 1;
+
+                let new_obj_id = self.next_objid;
+                res.push(HIRInst::New {
+                    obj_type: left
+                        .borrow()
+                        .get_type_set()
+                        .union(right.borrow().get_type_set())
+                        .cloned()
+                        .collect(),
+                    dst: self.get_next_obj_id(),
+                });
 
                 res.push(HIRInst::BinOp {
-                    left: self.next_objid - 2,
+                    left: left_objid,
                     op: super::BinOperator::Div,
-                    right: self.next_objid - 2,
-                    dst: self.get_next_obj_id(),
+                    right: right_objid,
+                    dst: new_obj_id,
                 });
             }
             Expr::Equal(ref left, ref right, _) => {
@@ -166,18 +257,33 @@ impl HirGenerator {
                 });
             }
             Expr::ConstChar(c, _) => {
+                let mut set = HashSet::<VarType>::new();
+                set.insert(VarType::Char);
                 res.push(HIRInst::New {
-                    obj_type: VarType::Char,
+                    obj_type: set,
                     dst: self.get_next_obj_id(),
                 });
             }
             Expr::ConstNum(x, _) => {
+                let mut set = HashSet::<VarType>::new();
+                set.insert(VarType::Int);
                 res.push(HIRInst::New {
-                    obj_type: VarType::Int,
+                    obj_type: set,
                     dst: self.get_next_obj_id(),
                 });
             }
-            Expr::Var(ref name, _) => todo!(),
+            Expr::Var(ref name, ref var_type) => {
+                let temp_obj_id = self.next_objid;
+                res.push(HIRInst::New {
+                    obj_type: var_type.clone(),
+                    dst: self.get_next_obj_id(),
+                });
+
+                res.push(HIRInst::Load {
+                    var: self.find_var_id(name),
+                    obj: temp_obj_id,
+                });
+            }
             Expr::FuncCall(ref name, ref argcs, _) => todo!(),
             Expr::Not(ref expr, _) => {
                 res.append(&mut self.gen_expr_ir(expr));
@@ -191,15 +297,31 @@ impl HirGenerator {
 
         res
     }
+    fn gen_block_ir(&mut self, block_id:BlockId, block: &Block) -> Vec<HIRInst> {
+        let mut res = Vec::<HIRInst>::new();
+        for i in block.body.clone() {
+            match i {
+            Stmt::Assign(ref left, ref right) => self.gen_assign_hir(left, right),
+            Stmt::For(ref itor, ref start, ref end, ref step, ref block) => {
+                self.gen_for_hir(itor, start, end, step, block)
+            }
+            Stmt::While(ref cond, ref block) => self.gen_while_hir(cond, block),
+            Stmt::If(ref cond, ref block, ref elifs) => {
+                self.gen_if_hir(cond, block, &mut elifs.clone())
+            }
+            Stmt::Func(ref name, ref argcs, ref var_type, ref block) => todo!(),
+            Stmt::Return(ref ret_expr) => todo!(),
+            Stmt::Default => todo!(),
+        }
+        }
+        res
+    }
 
-    fn gen_assign_hir(
-        &mut self,
-        left: &Rc<RefCell<Expr>>,
-        right: &Rc<RefCell<Expr>>,
-    ) -> Vec<HIRInst> {
+    fn gen_assign_hir(&mut self, left: &Rc<RefCell<Expr>>, right: &Rc<RefCell<Expr>>) {
         let mut res = self.gen_expr_ir(right);
+        let obj_id = self.next_objid - 1;
 
-        let new_sym: HirSymbol;
+        let new_sym: HirVarSymbol;
         let id: VarId;
         let binding = left.borrow();
         let name = match &*binding {
@@ -210,46 +332,209 @@ impl HirGenerator {
             None => panic!("Assignment left side must be a variable"),
             Some(sym) => {
                 id = VarId(sym.id);
-                new_sym = HirSymbol::new(sym);
+                new_sym = HirVarSymbol::new(sym, obj_id);
             }
         }
+
+        let old_obj_id = self.var_registry.get(&id).map(|s| s.obj_id);
 
         self.var_registry.insert(id, new_sym);
         res.push(HIRInst::Bind {
             var: id,
-            obj: self.next_objid - 1,
+            obj: obj_id,
         });
-        res
+        res.push(HIRInst::IncRef { obj: obj_id });
+        if let Some(old) = old_obj_id {
+            res.push(HIRInst::DecRef { obj: old });
+        }
+
+        for i in &res {
+            self.hir.push(HIR::Inst(i.clone()))
+        }
     }
-    fn gen_if_hir(&mut self, stmt: Stmt) -> Vec<HIRInst> {
-        vec![]
+    fn gen_if_hir(
+        &mut self,
+        cond: &Rc<RefCell<Expr>>,
+        block: &Block,
+        elifs: &mut Vec<(Rc<RefCell<Expr>>, Block)>,
+    ) {
+        elifs.insert(0, (cond.clone(), block.clone()));
+        let mut block_ids = Vec::<BlockId>::new();
+
+        for _ in 0..elifs.len() {
+            block_ids.push(self.new_block());
+            block_ids.push(self.new_block());
+            block_ids.push(self.new_block());
+        }
+        block_ids.push(self.new_block()); //merge
+        let merge_id = block_ids[block_ids.len() - 1];
+
+        let mut i = 0;
+        let mut elif_idx = 0;
+        while i < block_ids.len() - 1 {
+            let cond = self.gen_expr_ir(&elifs[elif_idx].0);
+            let cond_id = self.next_objid - 1;
+
+            let br_block_id = block_ids[i];
+            i += 1;
+            let then_block_id = block_ids[i];
+            i += 1;
+            let else_block_id = block_ids[i + 1];
+
+            for i in cond {
+                self.add_inst_to_block(br_block_id, i);
+            }
+            self.add_inst_to_block(
+                br_block_id,
+                HIRInst::Br {
+                    cond: cond_id,
+                    then_block: then_block_id,
+                    else_block: else_block_id,
+                },
+            );
+
+            let then_block = self.gen_block_ir(&elifs[elif_idx].1);
+            elif_idx += 1;
+            for i in then_block {
+                self.add_inst_to_block(then_block_id, i);
+            }
+            self.add_inst_to_block(then_block_id, HIRInst::Jmp { target: merge_id });
+        }
+
+        for i in block_ids {
+            self.emit_block(i);
+        }
     }
-    fn gen_for_hir(&mut self, stmt: Stmt) -> Vec<HIRInst> {
-        vec![]
+    fn gen_for_hir(
+        &mut self,
+        itor: &Rc<RefCell<Expr>>,
+        start: &Rc<RefCell<Expr>>,
+        end: &Rc<RefCell<Expr>>,
+        step: &Rc<RefCell<Expr>>,
+        block: &Block,
+    ) {
+        let init_block_id = self.new_block();
+        let cond_block_id = self.new_block();
+        let body_block_id = self.new_block();
+        let merge_block_id = self.new_block();
+
+        self.emit_block(init_block_id);
+        let itor_id = self.next_objid;
+        let itor_ir = self.gen_assign_hir(itor, start);
+        self.hir.push(HIR::Inst(HIRInst::Jmp {
+            target: cond_block_id,
+        }));
+
+        let end_id = self.next_objid;
+        let end_ir = self.gen_expr_ir(end);
+        let step_id = self.next_objid;
+        let step_ir = self.gen_expr_ir(step);
+        for i in end_ir {
+            self.add_inst_to_block(cond_block_id, i);
+        }
+        for i in step_ir {
+            self.add_inst_to_block(cond_block_id, i);
+        }
+
+        let cond_id = self.next_objid;
+        let cond_ir = HIRInst::BinOp {
+            left: itor_id,
+            op: BinOperator::Less,
+            right: end_id,
+            dst: self.get_next_obj_id(),
+        };
+        self.add_inst_to_block(cond_block_id, cond_ir);
+
+        self.add_inst_to_block(
+            cond_block_id,
+            HIRInst::Br {
+                cond: cond_id,
+                then_block: body_block_id,
+                else_block: merge_block_id,
+            },
+        );
+        self.emit_block(cond_block_id);
+
+        let block_ir = self.gen_block_ir(block);
+        for i in block_ir {
+            self.add_inst_to_block(body_block_id, i);
+        }
+        let temp_obj_id = self.next_objid;
+        self.get_next_obj_id();
+        self.add_inst_to_block(
+            body_block_id,
+            HIRInst::BinOp {
+                left: itor_id,
+                op: BinOperator::Add,
+                right: step_id,
+                dst: temp_obj_id,
+            },
+        );
+        self.add_inst_to_block(
+            body_block_id,
+            HIRInst::Jmp {
+                target: cond_block_id,
+            },
+        );
+
+        self.emit_block(body_block_id);
+        self.emit_block(merge_block_id);
     }
-    fn gen_while_hir(&mut self, stmt: Stmt) -> Vec<HIRInst> {
-        vec![]
+    fn gen_while_hir(&mut self, cond: &Rc<RefCell<Expr>>, block: &Block) {
+        let cond = self.gen_expr_ir(cond);
+        let cond_id = self.next_objid - 1;
+
+        let br_block_id = self.new_block();
+        let body_block_id = self.new_block();
+        let merge_block_id = self.new_block();
+
+        for i in cond {
+            self.add_inst_to_block(br_block_id, i);
+        }
+        self.add_inst_to_block(
+            br_block_id,
+            HIRInst::Br {
+                cond: cond_id,
+                then_block: body_block_id,
+                else_block: merge_block_id,
+            },
+        );
+        self.emit_block(br_block_id);
+
+        let block_ir = self.gen_block_ir(block);
+        for i in block_ir {
+            self.add_inst_to_block(body_block_id, i);
+        }
+        self.emit_block(body_block_id);
+        self.emit_block(merge_block_id);
     }
-    fn gen_func_hir(&mut self, stmt: Stmt) -> Vec<HIRInst> {
-        vec![]
+    fn gen_func_hir(&mut self, stmt: Stmt) {
+
     }
     fn gen_return_hir(&mut self, stmt: Stmt) -> Vec<HIRInst> {
         vec![]
     }
-    fn gen_stmt_hir(&mut self, stmt: Stmt) -> Vec<HIRInst> {
-        if let Stmt::Assign(ref left, ref right) = stmt {
-            return self.gen_assign_hir(left, right);
+    fn gen_stmt_hir(&mut self, mut stmt: Stmt) {
+        match stmt {
+            Stmt::Assign(ref left, ref right) => self.gen_assign_hir(left, right),
+            Stmt::For(ref itor, ref start, ref end, ref step, ref block) => {
+                self.gen_for_hir(itor, start, end, step, block)
+            }
+            Stmt::While(ref cond, ref block) => self.gen_while_hir(cond, block),
+            Stmt::If(ref cond, ref block, ref elifs) => {
+                self.gen_if_hir(cond, block, &mut elifs.clone())
+            }
+            Stmt::Func(ref name, ref argcs, ref var_type, ref block) => todo!(),
+            Stmt::Return(ref ret_expr) => todo!(),
+            Stmt::Default => todo!(),
         }
-
-        Vec::new()
     }
 
-    pub(crate) fn gen_hir(&mut self) -> Vec<HIRInst> {
-        let mut res = Vec::<HIRInst>::new();
+    pub(crate) fn gen_hir(&mut self) -> Vec<HIR> {
         for i in 0..self.stmts.len() {
-            res.append(&mut self.gen_stmt_hir(self.stmts[i].clone()));
+            self.gen_stmt_hir(self.stmts[i].clone());
         }
 
-        res
+        self.hir.clone()
     }
 }
