@@ -54,6 +54,7 @@ impl fmt::Display for UnaryOperation {
 
 impl fmt::Display for HIRInst {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"    ")?;
         match self {
             HIRInst::New { obj_type, dst } => write!(f, "New {:?} -> obj_{}", obj_type, dst),
             HIRInst::Br {
@@ -62,11 +63,17 @@ impl fmt::Display for HIRInst {
                 else_block,
             } => write!(
                 f,
-                "Br cond: {}, then-block: {}, else-block: {}",
+                "Br cond: obj_{}, then-block: block_{}, else-block: block_{}",
                 cond, then_block, else_block
             ),
             HIRInst::Jmp { target } => write!(f, "Jmp to block_{}", target),
-            HIRInst::Call { id, ret } => write!(f, "Call func_{}, ret: {:?}", id, ret),
+            HIRInst::Call { id, ret } => {
+                write!(f, "Call func_{}, ret:", id)?;
+                for i in ret{
+                    write!(f," obj_{}",i)?;
+                }
+                write!(f,"")
+            },
             HIRInst::BinOp {
                 left,
                 op,

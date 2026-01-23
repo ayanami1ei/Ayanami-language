@@ -1,66 +1,68 @@
 block_0: 
-Bind var_0 and obj_0
-Bind var_1 and obj_0
-Jmp to block_1
-
+    Bind var_3 and obj_0
+    Bind var_4 and obj_0
+    Jmp to block_1
 block_1: 
-New {Int} -> obj_0
-Load var_0's obj to obj_0
-New {Int} -> obj_1
-Load var_1's obj to obj_1
-New {Int} -> obj_2
-obj_0 + obj_1 -> obj_2
-Ret obj_0
-block_1: 
-New {Int} -> obj_0
-Load var_0's obj to obj_0
-New {Int} -> obj_1
-Load var_1's obj to obj_1
-New {Int} -> obj_2
-obj_0 + obj_1 -> obj_2
-Ret obj_0
-
-
+    New {Int} -> obj_0
+    Load var_3's obj to obj_0
+    New {Int} -> obj_1
+    Load var_4's obj to obj_1
+    New {Int} -> obj_2
+    obj_0 + obj_1 -> obj_2
+    Ret obj_0
 block_2: 
-Jmp to block_3
-
+    Jmp to block_3
+block_3: 
+    New {Int} -> obj_3
+    Bind var_6 and obj_3
+    Increase reference obj_3
+    New {Int} -> obj_4
+    Bind var_7 and obj_4
+    Increase reference obj_4
 block_4: 
-New {Int} -> obj_5
-New {Int} -> obj_6
-obj_5 > obj_5 -> obj_7
-Br cond: 7, then-block: 5, else-block: 7
+    New {Int} -> obj_5
+    New {Int} -> obj_6
+    obj_5 > obj_5 -> obj_7
+    Br cond: obj_7, then-block: block_5, else-block: block_7
 block_5: 
-New {Int} -> obj_8
-Bind var_1 and obj_8
-Increase reference obj_8
-Decrease reference obj_4
-Jmp to block_7
-block_6: 
+    New {Int} -> obj_8
+    Bind var_7 and obj_8
+    Increase reference obj_8
+    Decrease reference obj_4
+    Jmp to block_7
 block_7: 
 block_8: 
-New {Int} -> obj_9
-New {Int} -> obj_10
-obj_9 > obj_9 -> obj_11
-Br cond: 11, then-block: 9, else-block: 10
+    New {Int} -> obj_9
+    New {Int} -> obj_10
+    obj_9 > obj_9 -> obj_11
+    Br cond: obj_9, then-block: block_9, else-block: block_10
 block_9: 
-New {Int} -> obj_12
-Bind var_8 and obj_12
-Increase reference obj_12
+    New {Int} -> obj_12
+    Bind var_8 and obj_12
+    Increase reference obj_12
+    Jmp to block_8
 block_10: 
-
-block_3: 
-New {Int} -> obj_3
-Bind var_0 and obj_3
-Increase reference obj_3
-Decrease reference obj_0
-New {Int} -> obj_4
-Bind var_1 and obj_4
-Increase reference obj_4
-Decrease reference obj_1
-New {} -> obj_13
-Load var_0's obj to obj_13
-New {} -> obj_14
-Load var_1's obj to obj_14
-Call func_4, ret: []
-Bind var_9 and obj_14
-Increase reference obj_14
+block_11: 
+    New {Int} -> obj_13
+    Bind var_9 and obj_13
+    Increase reference obj_13
+    Jmp to block_12
+block_12: 
+    New {Int} -> obj_14
+    New {Int} -> obj_15
+    obj_13 < obj_14 -> obj_16
+    Br cond: obj_16, then-block: block_13, else-block: block_14
+block_13: 
+    New {Int} -> obj_17
+    Bind var_10 and obj_17
+    Increase reference obj_17
+    obj_13 + obj_15 -> obj_18
+    Jmp to block_12
+block_14: 
+    New {} -> obj_19
+    Load var_6's obj to obj_19
+    New {} -> obj_20
+    Load var_7's obj to obj_20
+    Call func_2, ret:
+    Bind var_11 and obj_20
+    Increase reference obj_20

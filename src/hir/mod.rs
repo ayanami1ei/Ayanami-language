@@ -30,14 +30,14 @@ struct HirVarSymbol {
     pub(super) ty_set: HashSet<VarType>, // 可能指向的对象类型集合
     pub(super) mutability: bool,         // 能不能 Bind
     pub(super) storage: StorageClass,    // local / param / temp
-    pub(super) obj_id:ObjId,
+    pub(super) obj_id: ObjId,
 }
 
 #[derive(Default, Clone)]
 struct HirFuncSymbol {
     pub(super) ty_set: HashSet<VarType>, // 可能的返回值类型集合
-    pub(super) ret_obj_id:Vec<ObjId>,
-    pub(super) id:FuncId,
+    pub(super) ret_obj_id: Vec<ObjId>,
+    pub(super) id: FuncId,
 }
 
 pub(crate) struct HirGenerator {
@@ -49,17 +49,18 @@ pub(crate) struct HirGenerator {
 
     var_registry: HashMap<VarId, HirVarSymbol>,
     func_registry: HashMap<FuncId, HirFuncSymbol>,
-    block_registry: HashMap<BlockId, Vec<HIRInst>,>,
+    block_registry: HashMap<BlockId, Vec<HIRInst>>,
 
     ast_symbol_table: SymbolTable,
 
-    hir:Vec<HIR>
+    hir: Vec<HIR>,
+    pending_block_emits: Vec<BlockId>,
 }
 
 #[derive(Clone)]
 pub(crate) enum HIR {
     Inst(HIRInst),
-    Block(BlockId)
+    Block(BlockId),
 }
 
 #[derive(Clone)]
@@ -76,8 +77,8 @@ pub(crate) enum HIRInst {
     Jmp {
         target: BlockId,
     },
-    Call{
-        id:FuncId,
+    Call {
+        id: FuncId,
         ret: Vec<ObjId>,
     },
     BinOp {
@@ -105,9 +106,9 @@ pub(crate) enum HIRInst {
         var: VarId,
         obj: ObjId,
     },
-    Ret{
-        ret_obj:ObjId
-    }
+    Ret {
+        ret_obj: ObjId,
+    },
 }
 
 #[derive(Clone)]

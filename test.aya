@@ -13,5 +13,9 @@ fn main(){
         c=2
     }
 
+    for i in (0,10){
+        x=1
+    }
+
     d=add(a,b)
 }
