@@ -1,0 +1,66 @@
+block_0: 
+Bind var_0 and obj_0
+Bind var_1 and obj_0
+Jmp to block_1
+
+block_1: 
+New {Int} -> obj_0
+Load var_0's obj to obj_0
+New {Int} -> obj_1
+Load var_1's obj to obj_1
+New {Int} -> obj_2
+obj_0 + obj_1 -> obj_2
+Ret obj_0
+block_1: 
+New {Int} -> obj_0
+Load var_0's obj to obj_0
+New {Int} -> obj_1
+Load var_1's obj to obj_1
+New {Int} -> obj_2
+obj_0 + obj_1 -> obj_2
+Ret obj_0
+
+
+block_2: 
+Jmp to block_3
+
+block_4: 
+New {Int} -> obj_5
+New {Int} -> obj_6
+obj_5 > obj_5 -> obj_7
+Br cond: 7, then-block: 5, else-block: 7
+block_5: 
+New {Int} -> obj_8
+Bind var_1 and obj_8
+Increase reference obj_8
+Decrease reference obj_4
+Jmp to block_7
+block_6: 
+block_7: 
+block_8: 
+New {Int} -> obj_9
+New {Int} -> obj_10
+obj_9 > obj_9 -> obj_11
+Br cond: 11, then-block: 9, else-block: 10
+block_9: 
+New {Int} -> obj_12
+Bind var_8 and obj_12
+Increase reference obj_12
+block_10: 
+
+block_3: 
+New {Int} -> obj_3
+Bind var_0 and obj_3
+Increase reference obj_3
+Decrease reference obj_0
+New {Int} -> obj_4
+Bind var_1 and obj_4
+Increase reference obj_4
+Decrease reference obj_1
+New {} -> obj_13
+Load var_0's obj to obj_13
+New {} -> obj_14
+Load var_1's obj to obj_14
+Call func_4, ret: []
+Bind var_9 and obj_14
+Increase reference obj_14

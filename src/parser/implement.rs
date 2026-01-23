@@ -302,10 +302,23 @@ impl Parser {
                     }
                 }
 
+                let func_sym = self.symbol_table.find_symbol(&name);
+                if func_sym.is_none() {
+                    return Err(Error::new_error(format!("undefined function {}", name)));
+                }
+                let fs = func_sym.unwrap();
+                let scope_id = if let Some(id) = fs.body_scope_id {
+                    id
+                } else {
+                    // fallback: use the symbol's area id
+                    fs.area.upgrade().unwrap().borrow().id
+                };
+
                 return Ok(Rc::new(RefCell::new(Expr::FuncCall(
                     name.to_string(),
                     args,
                     HashSet::new(),
+                    scope_id,
                 ))));
             } else {
                 return Ok(Rc::new(RefCell::new(Expr::Var(
@@ -334,23 +347,6 @@ impl Parser {
         }
     }
 
-    fn parser_assign(&mut self) -> Result<Stmt, Error> {
-        let var = self.parser_add_sub()?;
-        let _a = match self.expect(Token::Operator("=".to_string())) {
-            Ok(_) => 1,
-            Err(mut e) => return Err(e.with_context_front("expect a statement ".to_string())),
-        };
-        let body = self.parser_add_sub()?;
-
-        if self.j != 0 {
-            return Err(Error::new_error(format!(
-                "the line {} must end here {}",
-                self.i, self.j
-            )));
-        }
-
-        Ok(Stmt::Assign(var, body))
-    }
     fn parser_for(&mut self) -> Result<Stmt, Error> {
         if let Token::Identifier(_) = self.peek() {
             let i = self.parser_add_sub()?;
@@ -391,6 +387,7 @@ impl Parser {
             self.expect(Token::Operator(")".to_string()))?;
 
             self.symbol_table.into_new_scope();
+            let scope_id = self.symbol_table.get_scope().borrow().id;
             let mut i_sym = Symbol::new_var(i_name, self.symbol_table.get_scope());
             i_sym.its_type.insert(VarType::Int);
             self.symbol_table.add_symbol(i_sym);
@@ -403,7 +400,7 @@ impl Parser {
 
             self.symbol_table.ret_to_parent_scope();
 
-            Ok(Stmt::For(i, start, end, step, block))
+            Ok(Stmt::For(i, start, end, step, block, scope_id))
         } else {
             Err(Error::new_error(format!(
                 "expect an identifier, but find {}",
@@ -415,6 +412,7 @@ impl Parser {
         let condition = self.parser_add_sub()?;
 
         self.symbol_table.into_new_scope();
+        let scope_id = self.symbol_table.get_scope().borrow().id;
 
         self.expect(Token::Operator("{".to_string()))?;
         let mut block = Block::new();
@@ -424,12 +422,13 @@ impl Parser {
 
         self.symbol_table.ret_to_parent_scope();
 
-        Ok(Stmt::While(condition, block))
+        Ok(Stmt::While(condition, block, scope_id))
     }
     fn parser_if(&mut self) -> Result<Stmt, Error> {
         let mut condition = self.parser_add_sub()?;
 
         self.symbol_table.into_new_scope();
+        let scope_id = self.symbol_table.get_scope().borrow().id;
 
         self.expect(Token::Operator("{".to_string()))?;
         let mut block = Block::new();
@@ -482,7 +481,7 @@ impl Parser {
             self.symbol_table.ret_to_parent_scope();
         }
 
-        Ok(Stmt::If(condition, block, elifs))
+        Ok(Stmt::If(condition, block, elifs, scope_id))
     }
     fn parser_func(&mut self) -> Result<Stmt, Error> {
         if let Token::Identifier(ref name) = self.peek() {
@@ -491,8 +490,6 @@ impl Parser {
             self.expect(Token::Operator("(".to_string()))?;
             let mut args = Vec::<Argc>::new();
             let mut arg = Argc::new();
-
-            self.symbol_table.into_new_scope();
 
             loop {
                 if self.is(Token::Keyword("ref".to_string()))? {
@@ -511,18 +508,40 @@ impl Parser {
                     args.push(arg.clone());
                     arg = Argc::new();
 
-                    let arg_sym = Symbol::new_argc(
-                        arg_name.clone(),
-                        arg.is_ref,
-                        self.symbol_table.get_scope(),
-                    );
-                    self.symbol_table.add_symbol(arg_sym);
                     self.next()?;
                 } else if self.is(Token::Operator(",".to_string()))? {
                     continue;
                 } else if self.is(Token::Operator(")".to_string()))? {
                     break;
                 }
+            }
+
+            // 创建参数符号列表
+            let mut arg_symbols = Vec::new();
+            for a in &args {
+                let mut sym =
+                    Symbol::new_argc(a.var_name.clone(), a.is_ref, self.symbol_table.get_scope());
+                sym.its_type.insert(a.arg_type.clone());
+                arg_symbols.push(sym);
+            }
+
+            // 在全局作用域声明函数符号
+            let fn_sym =
+                Symbol::new_func(name.to_string(), arg_symbols, self.symbol_table.get_scope());
+            self.symbol_table.add_symbol(fn_sym);
+
+            // 创建函数体作用域并记录其 id 到对应函数符号的 `body_scope_id`
+            self.symbol_table.into_new_scope();
+            let scope_id = self.symbol_table.get_scope().borrow().id;
+            self.symbol_table
+                .set_func_body_scope(&name.to_string(), scope_id);
+
+            // 在函数作用域内添加参数符号
+            for a in &args {
+                let mut arg_sym =
+                    Symbol::new_argc(a.var_name.clone(), a.is_ref, self.symbol_table.get_scope());
+                arg_sym.its_type.insert(a.arg_type.clone());
+                self.symbol_table.add_symbol(arg_sym);
             }
 
             self.expect(Token::Operator("{".to_string()))?;
@@ -538,6 +557,7 @@ impl Parser {
                 args,
                 HashSet::<VarType>::new(),
                 block,
+                scope_id,
             ));
         }
 
@@ -560,7 +580,17 @@ impl Parser {
         } else if self.is(Token::Keyword("return".to_string()))? {
             Ok(self.parser_return()?)
         } else {
-            Ok(self.parser_assign()?)
+            let expr = self.parser_add_sub()?;
+            if self.is(Token::Operator("=".to_string()))? {
+                let right = self.parser_add_sub()?;
+                Ok(Stmt::Assign(expr, right))
+            } else {
+                if let Expr::FuncCall(ref name, ref argcs, _, scope_id) = *expr.borrow() {
+                    Ok(Stmt::Call(name.clone(), argcs.clone(), scope_id))
+                } else {
+                    Err(Error::new_error("invalid expr stmt".to_string()))
+                }
+            }
         }
     }
 

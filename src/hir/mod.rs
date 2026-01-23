@@ -6,6 +6,7 @@ use crate::{
 };
 pub(crate) mod implement;
 pub(crate) mod overrides;
+pub(crate) mod print;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
 pub(crate) struct VarId(i32);
@@ -13,7 +14,7 @@ pub(crate) struct VarId(i32);
 pub(crate) struct FuncId(i32);
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
 pub(crate) struct BlockId(i32);
-#[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Default, Debug)]
 pub(crate) struct ObjId(i32);
 
 #[derive(Default)]

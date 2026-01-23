@@ -1,10 +1,11 @@
+use crate::hir::HirGenerator;
 use crate::parser::Parser;
 use crate::semantic_analysiser::SemanticAnalysiser;
 use crate::symbol_table::SymbolTable;
 use crate::tokenlizer::Tokenlizer;
 use crate::types::Token;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::fs::{self, File, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
 
 pub mod error_type;
 pub mod hir;
@@ -55,6 +56,15 @@ pub fn run() {
     let mut semantic_analysiser = SemanticAnalysiser::new(stmts, symbol_table.clone());
     stmts = semantic_analysiser.semantic_analysise().unwrap();
 
+    let mut hir_generator = HirGenerator::new(stmts, symbol_table);
+    let hirs = hir_generator.gen_hir();
+
+    fs::write("./hir.txt", "").unwrap();
+    let mut file = OpenOptions::new().append(true).open("./hir.txt").unwrap();
+    for i in hirs{
+        file.write(&i.to_string().as_bytes()).unwrap();
+        file.write("\n".as_bytes()).unwrap();
+    }
 }
 
 pub fn tokenlize() {

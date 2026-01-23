@@ -1,4 +1,4 @@
-use ayanami::{run, tokenlize};
+use ayanami::{run};
 
 fn main() {
     run();

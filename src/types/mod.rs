@@ -37,7 +37,7 @@ pub(crate) enum Expr {
     ConstNum(f64, HashSet<VarType>),
     ConstChar(char, HashSet<VarType>),
     Var(String, HashSet<VarType>),
-    FuncCall(String, Vec<Argc>, HashSet<VarType>),
+    FuncCall(String, Vec<Argc>, HashSet<VarType>, i32),
 
     Add(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
     Sub(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
@@ -55,16 +55,23 @@ pub(crate) enum Expr {
 #[derive(Debug, Clone)]
 pub(crate) enum Stmt {
     Assign(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>),
+    Call(String, Vec<Argc>, i32),
     For(
         Rc<RefCell<Expr>>,
         Rc<RefCell<Expr>>,
         Rc<RefCell<Expr>>,
         Rc<RefCell<Expr>>,
         Block,
+        i32,
     ),
-    While(Rc<RefCell<Expr>>, Block),
-    If(Rc<RefCell<Expr>>, Block, Vec<(Rc<RefCell<Expr>>, Block)>),
-    Func(String, Vec<Argc>, HashSet<VarType>, Block),
+    While(Rc<RefCell<Expr>>, Block, i32),
+    If(
+        Rc<RefCell<Expr>>,
+        Block,
+        Vec<(Rc<RefCell<Expr>>, Block)>,
+        i32,
+    ),
+    Func(String, Vec<Argc>, HashSet<VarType>, Block, i32),
     Return(Rc<RefCell<Expr>>),
     Default,
 }

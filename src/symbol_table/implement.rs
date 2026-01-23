@@ -19,6 +19,7 @@ impl Symbol {
                 its_type: HashSet::new(),
                 id: NEXT_ID,
                 area: Rc::downgrade(&scope),
+                body_scope_id: None,
             };
             NEXT_ID += 1;
             res
@@ -36,6 +37,7 @@ impl Symbol {
                 its_type: HashSet::new(),
                 id: NEXT_ID,
                 area: Rc::downgrade(&scope),
+                body_scope_id: None,
             };
             NEXT_ID += 1;
             res
@@ -51,8 +53,9 @@ impl Symbol {
                 is_ref: is_ref,
                 is_var: false,
                 its_type: HashSet::new(),
-                id:NEXT_ID,
+                id: NEXT_ID,
                 area: Rc::downgrade(&scope),
+                body_scope_id: None,
             };
             NEXT_ID += 1;
             res
@@ -61,7 +64,7 @@ impl Symbol {
 }
 
 impl Scope {
-    pub(super) fn new(id:i32) -> Scope {
+    pub(super) fn new(id: i32) -> Scope {
         Scope {
             parent: None,
             sons: Vec::<Rc<RefCell<Scope>>>::new(),
@@ -90,7 +93,7 @@ impl SymbolTable {
         SymbolTable {
             area: _area,
             area_ptr: _area_ptr,
-            next_scope_id:1,
+            next_scope_id: 1,
         }
     }
 
@@ -103,7 +106,7 @@ impl SymbolTable {
 
     pub(crate) fn into_new_scope(&mut self) {
         let scope = Rc::new(RefCell::new(Scope::new(self.next_scope_id)));
-        self.next_scope_id+=1;
+        self.next_scope_id += 1;
 
         if let Some(scope_ptr) = self.area_ptr.upgrade() {
             let mut binding = scope_ptr.borrow_mut();
@@ -159,12 +162,74 @@ impl SymbolTable {
         None
     }
 
+    pub(crate) fn set_func_body_scope(&mut self, name: &String, body_id: i32) {
+        // search scopes recursively from root
+        if Self::find_and_set_body_scope(&self.area, name, body_id) {
+            return;
+        }
+    }
+
+    fn find_and_set_body_scope(scope: &Rc<RefCell<Scope>>, name: &String, body_id: i32) -> bool {
+        let mut binding = scope.borrow_mut();
+        for i in 0..binding.symbol.len() {
+            if binding.symbol[i].name == *name && binding.symbol[i].is_func {
+                binding.symbol[i].body_scope_id = Some(body_id);
+                return true;
+            }
+        }
+
+        // collect sons first to avoid nested borrow while recursing
+        let sons = binding.sons.clone();
+        drop(binding);
+
+        for son in &sons {
+            if Self::find_and_set_body_scope(son, name, body_id) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     pub(crate) fn get_scope(&self) -> Rc<RefCell<Scope>> {
         self.area_ptr.upgrade().unwrap().clone()
     }
 
     pub(crate) fn reset(&mut self) {
         self.area_ptr = Rc::downgrade(&self.area)
+    }
+
+    pub(crate) fn set_area_ptr_by_id(&mut self, id: i32) {
+        if let Some(scope) = self.find_scope_by_id(&self.area, id) {
+            self.area_ptr = Rc::downgrade(&scope);
+        } else {
+            eprintln!(
+                "Warning: scope id {} not found, keeping current area_ptr",
+                id
+            );
+        }
+    }
+
+    pub(crate) fn add_symbol_to_scope(&mut self, id: i32, symbol: Symbol) {
+        if let Some(scope) = self.find_scope_by_id(&self.area, id) {
+            let mut s = scope.borrow_mut();
+            s.add_symbol(symbol);
+        } else {
+            eprintln!("Warning: cannot find scope id {} to add symbol", id);
+        }
+    }
+
+    fn find_scope_by_id(&self, scope: &Rc<RefCell<Scope>>, id: i32) -> Option<Rc<RefCell<Scope>>> {
+        let binding = scope.borrow();
+        if binding.id == id {
+            return Some(scope.clone());
+        }
+        for son in &binding.sons {
+            if let Some(found) = self.find_scope_by_id(son, id) {
+                return Some(found);
+            }
+        }
+        None
     }
 
     pub(crate) fn add_symbol_type(&mut self, name: &String, ty: HashSet<VarType>) {
@@ -175,7 +240,8 @@ impl SymbolTable {
                 let mut binding = cur_rc.borrow_mut();
                 let index = Self::find_in_vec(&binding.symbol, name);
                 if index != usize::MAX {
-                    binding.symbol[index].its_type = binding.symbol[index].its_type.union(&ty).cloned().collect();
+                    binding.symbol[index].its_type =
+                        binding.symbol[index].its_type.union(&ty).cloned().collect();
                     #[cfg(debug_assertions)]
                     {
                         println!("new type:{:?}", ty);

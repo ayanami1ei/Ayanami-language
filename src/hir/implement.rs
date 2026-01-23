@@ -67,10 +67,11 @@ impl HirGenerator {
 
     fn find_var_id(&mut self, name: &String) -> VarId {
         match self.ast_symbol_table.find_symbol(name) {
-            None => panic!(""),
+            None => panic!("failed in find id of {}", name),
             Some(sys) => VarId(sys.id),
         }
     }
+
     fn find_func_sym(&mut self, name: &String) -> HirFuncSymbol {
         let id = FuncId(match self.ast_symbol_table.find_symbol(name) {
             None => panic!(""),
@@ -87,7 +88,6 @@ impl HirGenerator {
         let id = self.next_blockid;
         self.next_blockid += 1;
 
-        self.hir.push(HIR::Block(id));
         self.block_registry.insert(id, Vec::<HIRInst>::new());
 
         id
@@ -296,7 +296,7 @@ impl HirGenerator {
                     obj: temp_obj_id,
                 });
             }
-            Expr::FuncCall(ref name, ref argcs, _) => {
+            Expr::FuncCall(ref name, ref argcs, _, _) => {
                 let func_sym = self.find_func_sym(name);
 
                 // For each argument (call-site) produce a temporary object and load the variable into it.
@@ -334,7 +334,7 @@ impl HirGenerator {
 
         res
     }
-    fn gen_block_ir(&mut self, block_id: BlockId, block: &Block, ret_obj:&mut Vec<ObjId>) {
+    fn gen_block_ir(&mut self, block_id: BlockId, block: &Block, ret_obj: &mut Vec<ObjId>) {
         for mut i in block.body.clone() {
             match i {
                 Stmt::Assign(ref left, ref right) => {
@@ -343,14 +343,27 @@ impl HirGenerator {
                         self.add_inst_to_block(block_id, inst);
                     }
                 }
-                Stmt::For(ref itor, ref start, ref end, ref step, ref inner_block) => {
-                    self.gen_for_hir(itor, start, end, step, inner_block)
+                Stmt::For(ref itor, ref start, ref end, ref step, ref inner_block, scope_id) => {
+                    self.ast_symbol_table.set_area_ptr_by_id(scope_id);
+                    self.gen_for_hir(itor, start, end, step, inner_block);
+                    self.ast_symbol_table.reset();
                 }
-                Stmt::While(ref cond, ref inner_block) => self.gen_while_hir(cond, inner_block),
-                Stmt::If(ref cond, ref inner_block, ref mut elifs) => {
-                    self.gen_if_hir(cond, inner_block, &mut elifs.clone())
+                Stmt::While(ref cond, ref inner_block, scope_id) => {
+                    self.ast_symbol_table.set_area_ptr_by_id(scope_id);
+                    self.gen_while_hir(cond, inner_block);
+                    self.ast_symbol_table.reset();
                 }
-                Stmt::Func(ref _name, ref _argcs, ref _var_type, ref _block) => todo!(),
+                Stmt::If(ref cond, ref inner_block, ref mut elifs, scope_id) => {
+                    self.ast_symbol_table.set_area_ptr_by_id(scope_id);
+                    self.gen_if_hir(cond, inner_block, &mut elifs.clone());
+                    self.ast_symbol_table.reset();
+                }
+                Stmt::Func(ref _name, ref _argcs, ref _var_type, ref _block, _) => todo!(),
+                Stmt::Call(ref name, ref argcs, scope_id) => {
+                    self.ast_symbol_table.set_area_ptr_by_id(scope_id);
+                    self.gen_call_hir(name, argcs);
+                    self.ast_symbol_table.reset();
+                }
                 Stmt::Return(ref ret_expr) => self.gen_return_hir(block_id, ret_expr, ret_obj),
                 Stmt::Default => {}
             }
@@ -409,6 +422,7 @@ impl HirGenerator {
         elifs: &mut Vec<(Rc<RefCell<Expr>>, Block)>,
     ) {
         elifs.insert(0, (cond.clone(), block.clone()));
+        self.ast_symbol_table.into_new_scope();
         let mut block_ids = Vec::<BlockId>::new();
 
         for _ in 0..elifs.len() {
@@ -421,7 +435,7 @@ impl HirGenerator {
 
         let mut i = 0;
         let mut elif_idx = 0;
-        while i < block_ids.len() - 1 {
+        while elifs.len() != 0 && i < block_ids.len() - 1 && elif_idx < elifs.len() {
             let cond = self.gen_expr_ir(&elifs[elif_idx].0);
             let cond_id = self.next_objid - 1;
 
@@ -443,11 +457,14 @@ impl HirGenerator {
                 },
             );
 
+            self.ast_symbol_table.into_new_scope();
             self.gen_block_ir(then_block_id, &elifs[elif_idx].1, &mut Vec::new());
+            self.ast_symbol_table.ret_to_parent_scope();
             elif_idx += 1;
             self.add_inst_to_block(then_block_id, HIRInst::Jmp { target: merge_id });
         }
 
+        self.ast_symbol_table.ret_to_parent_scope();
         for i in block_ids {
             self.emit_block(i);
         }
@@ -502,7 +519,9 @@ impl HirGenerator {
         );
         self.emit_block(cond_block_id);
 
+        self.ast_symbol_table.into_new_scope();
         self.gen_block_ir(body_block_id, block, &mut Vec::new());
+        self.ast_symbol_table.ret_to_parent_scope();
         let temp_obj_id = self.next_objid;
         self.get_next_obj_id();
         self.add_inst_to_block(
@@ -545,7 +564,9 @@ impl HirGenerator {
         );
         self.emit_block(br_block_id);
 
+        self.ast_symbol_table.into_new_scope();
         self.gen_block_ir(body_block_id, block, &mut Vec::new());
+        self.ast_symbol_table.ret_to_parent_scope();
         self.emit_block(body_block_id);
         self.emit_block(merge_block_id);
     }
@@ -585,7 +606,18 @@ impl HirGenerator {
                 storage: StorageClass::Param,
                 obj_id: ObjId(i as i32),
             };
+
+            self.var_registry.insert(param_id, hir_sym);
+            self.add_inst_to_block(
+                entry_block_id,
+                HIRInst::Bind {
+                    var: param_id,
+                    obj: ObjId(0),
+                },
+            );
         }
+
+        self.func_registry.insert(fn_sym.id, fn_sym.clone());
 
         self.add_inst_to_block(
             entry_block_id,
@@ -593,11 +625,41 @@ impl HirGenerator {
                 target: body_block_id,
             },
         );
+        self.emit_block(entry_block_id);
 
+        self.ast_symbol_table.into_new_scope();
         self.gen_block_ir(body_block_id, block, &mut fn_sym.ret_obj_id);
+        self.ast_symbol_table.ret_to_parent_scope();
         self.emit_block(body_block_id);
     }
-    fn gen_return_hir(&mut self, block_id: BlockId, ret_expr: &Rc<RefCell<Expr>>, ret_obj:&mut Vec<ObjId>) {
+    fn gen_call_hir(&mut self, name: &String, argcs: &Vec<Argc>) {
+        let func_sym = self.find_func_sym(name);
+
+        for a in argcs {
+            let dst = self.get_next_obj_id();
+            self.hir.push(HIR::Inst(HIRInst::New {
+                obj_type: HashSet::new(),
+                dst,
+            }));
+
+            let var_id = self.find_var_id(&a.var_name);
+            self.hir.push(HIR::Inst(HIRInst::Load {
+                var: var_id,
+                obj: dst,
+            }));
+        }
+
+        self.hir.push(HIR::Inst(HIRInst::Call {
+            id: func_sym.id,
+            ret: func_sym.ret_obj_id,
+        }));
+    }
+    fn gen_return_hir(
+        &mut self,
+        block_id: BlockId,
+        ret_expr: &Rc<RefCell<Expr>>,
+        ret_obj: &mut Vec<ObjId>,
+    ) {
         let res_obj_id = self.next_objid;
         let res = self.gen_expr_ir(ret_expr);
         for i in res {
@@ -615,15 +677,30 @@ impl HirGenerator {
     fn gen_stmt_hir(&mut self, mut stmt: Stmt) {
         match stmt {
             Stmt::Assign(ref left, ref right) => self.gen_assign_hir(left, right),
-            Stmt::For(ref itor, ref start, ref end, ref step, ref block) => {
-                self.gen_for_hir(itor, start, end, step, block)
+            Stmt::For(ref itor, ref start, ref end, ref step, ref block, scope_id) => {
+                self.ast_symbol_table.set_area_ptr_by_id(scope_id);
+                self.gen_for_hir(itor, start, end, step, block);
+                self.ast_symbol_table.ret_to_parent_scope();
             }
-            Stmt::While(ref cond, ref block) => self.gen_while_hir(cond, block),
-            Stmt::If(ref cond, ref block, ref elifs) => {
-                self.gen_if_hir(cond, block, &mut elifs.clone())
+            Stmt::While(ref cond, ref block, scope_id) => {
+                self.ast_symbol_table.set_area_ptr_by_id(scope_id);
+                self.gen_while_hir(cond, block);
+                self.ast_symbol_table.ret_to_parent_scope();
             }
-            Stmt::Func(ref name, ref argcs, ref var_type, ref block) => {
-                self.gen_func_hir(name, argcs, var_type, block)
+            Stmt::If(ref cond, ref block, ref elifs, scope_id) => {
+                self.ast_symbol_table.set_area_ptr_by_id(scope_id);
+                self.gen_if_hir(cond, block, &mut elifs.clone());
+                self.ast_symbol_table.ret_to_parent_scope();
+            }
+            Stmt::Func(ref name, ref argcs, ref var_type, ref block, scope_id) => {
+                self.ast_symbol_table.set_area_ptr_by_id(scope_id);
+                self.gen_func_hir(name, argcs, var_type, block);
+                self.ast_symbol_table.ret_to_parent_scope();
+            }
+            Stmt::Call(ref name, ref argcs, scope_id) => {
+                self.ast_symbol_table.set_area_ptr_by_id(scope_id);
+                self.gen_call_hir(name, argcs);
+                self.ast_symbol_table.ret_to_parent_scope();
             }
             Stmt::Return(ref ret_expr) => panic!("cannot generate return stmt hir in gen_stmt_hir"),
             Stmt::Default => panic!("unkonwn stmt"),

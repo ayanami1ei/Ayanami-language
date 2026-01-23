@@ -6,7 +6,7 @@ pub(crate) mod implement;
 
 pub(crate) struct SemanticAnalysiser {
     stmts: Vec<Stmt>,
-    symbol_table: SymbolTable,
+    symbol_table: std::rc::Rc<std::cell::RefCell<SymbolTable>>,
 
     dummy: Rc<RefCell<Stmt>>,
 }
