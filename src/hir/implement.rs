@@ -10,7 +10,7 @@ use crate::{
         ObjId, StorageClass, UnaryOperation, VarId,
     },
     symbol_table::{Symbol, SymbolTable},
-    types::{Block, Expr, Stmt, VarType},
+    types::{Argc, Block, Expr, Stmt, VarType},
 };
 
 impl HirVarSymbol {
@@ -315,7 +315,7 @@ impl HirGenerator {
                     self.gen_if_hir(cond, inner_block, &mut elifs.clone())
                 }
                 Stmt::Func(ref _name, ref _argcs, ref _var_type, ref _block) => todo!(),
-                Stmt::Return(ref _ret_expr) => todo!(),
+                Stmt::Return(ref ret_expr) => self.gen_return_hir(block_id, ret_expr),
                 Stmt::Default => {}
             }
         }
@@ -513,9 +513,54 @@ impl HirGenerator {
         self.emit_block(body_block_id);
         self.emit_block(merge_block_id);
     }
-    fn gen_func_hir(&mut self, stmt: Stmt) {}
-    fn gen_return_hir(&mut self, stmt: Stmt) -> Vec<HIRInst> {
-        vec![]
+    fn gen_func_hir(
+        &mut self,
+        name: &String,
+        argcs: &Vec<Argc>,
+        var_type: &HashSet<VarType>,
+        block: &Block,
+    ) {
+        let fn_id = self.find_var_id(name);
+
+        let entry_block_id = self.new_block();
+        let body_block_id = self.new_block();
+
+        for i in 0..argcs.len() {
+            let Argc {
+                ref is_ref,
+                ref arg_type,
+                ref var_name,
+            } = argcs[i];
+
+            let param_id = self.find_var_id(var_name);
+            let mut ty_set = HashSet::<VarType>::new();
+            ty_set.insert(arg_type.clone());
+            let hir_sym = HirVarSymbol {
+                ty_set,
+                mutability: true,
+                storage: StorageClass::Param,
+                obj_id: ObjId(i as i32),
+            };
+        }
+
+        self.add_inst_to_block(
+            entry_block_id,
+            HIRInst::Jmp {
+                target: body_block_id,
+            },
+        );
+
+        self.gen_block_ir(body_block_id, block);
+        self.emit_block(body_block_id);
+    }
+    fn gen_return_hir(&mut self, block_id: BlockId, ret_expr: &Re<RefCell<Expr>>) {
+        let res_obj_id=self.next_objid;
+        let res = self.gen_expr_ir(ret_expr);
+        for i in res {
+            self.add_inst_to_block(block_id, i);
+        }
+        self.add_inst_to_block(block_id, HIRInst::Ret { ret_obj: res_obj_id });
+        self.emit_block(block_id);
     }
     fn gen_stmt_hir(&mut self, mut stmt: Stmt) {
         match stmt {
@@ -527,9 +572,11 @@ impl HirGenerator {
             Stmt::If(ref cond, ref block, ref elifs) => {
                 self.gen_if_hir(cond, block, &mut elifs.clone())
             }
-            Stmt::Func(ref name, ref argcs, ref var_type, ref block) => todo!(),
-            Stmt::Return(ref ret_expr) => todo!(),
-            Stmt::Default => todo!(),
+            Stmt::Func(ref name, ref argcs, ref var_type, ref block) => {
+                self.gen_func_hir(name, argcs, var_type, block)
+            }
+            Stmt::Return(ref ret_expr) => panic!("cannot generate return stmt hir in gen_stmt_hir"),
+            Stmt::Default => panic!("unkonwn stmt"),
         }
     }
 

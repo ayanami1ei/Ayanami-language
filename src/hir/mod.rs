@@ -98,6 +98,9 @@ pub(crate) enum HIRInst {
         var: VarId,
         obj: ObjId,
     },
+    Ret{
+        ret_obj:ObjId
+    }
 }
 
 #[derive(Clone)]
