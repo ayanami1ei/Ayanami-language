@@ -69,6 +69,9 @@ pub(crate) enum HIRInst {
         obj_type: HashSet<VarType>,
         dst: ObjId,
     },
+    /*Const{
+        const_type:VarType,
+    },*/
     Br {
         cond: ObjId,
         then_block: BlockId,
@@ -92,12 +95,12 @@ pub(crate) enum HIRInst {
         expr: ObjId,
         dst: ObjId,
     },
-    IncRef {
+    /*IncRef {
         obj: ObjId,
     },
     DecRef {
         obj: ObjId,
-    },
+    },*/
     Bind {
         var: VarId,
         obj: ObjId,

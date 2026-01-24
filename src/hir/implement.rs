@@ -4,8 +4,6 @@ use std::{
     rc::Rc,
 };
 
-use llvm_sys::lto::thinlto_codegen_add_cross_referenced_symbol;
-
 use crate::{
     hir::{
         BinOperator, BlockId, FuncId, HIR, HIRInst, HirFuncSymbol, HirGenerator, HirVarSymbol,
@@ -221,56 +219,66 @@ impl HirGenerator {
             }
             Expr::Equal(ref left, ref right, _) => {
                 self.gen_expr_ir(left);
+                let left_id=self.next_objid-1;
                 self.gen_expr_ir(right);
+                let right_id=self.next_objid-1;
 
                 res.push(HIRInst::BinOp {
-                    left: self.next_objid - 2,
+                    left: left_id,
                     op: super::BinOperator::Equal,
-                    right: self.next_objid - 2,
+                    right: right_id,
                     dst: self.get_next_obj_id(),
                 });
             }
             Expr::Greater(ref left, ref right, _) => {
                 self.gen_expr_ir(left);
+                let left_id=self.next_objid-1;
                 self.gen_expr_ir(right);
+                let right_id=self.next_objid-1;
 
                 res.push(HIRInst::BinOp {
-                    left: self.next_objid - 2,
+                    left: left_id,
                     op: super::BinOperator::Greater,
-                    right: self.next_objid - 2,
+                    right: right_id,
                     dst: self.get_next_obj_id(),
                 });
             }
             Expr::Less(ref left, ref right, _) => {
                 self.gen_expr_ir(left);
+                let left_id=self.next_objid-1;
                 self.gen_expr_ir(right);
+                let right_id=self.next_objid-1;
 
                 res.push(HIRInst::BinOp {
-                    left: self.next_objid - 2,
+                    left: left_id,
                     op: super::BinOperator::Less,
-                    right: self.next_objid - 2,
+                    right: right_id,
                     dst: self.get_next_obj_id(),
                 });
             }
             Expr::GreaterEqual(ref left, ref right, _) => {
                 self.gen_expr_ir(left);
+                let left_id=self.next_objid-1;
                 self.gen_expr_ir(right);
+                let right_id=self.next_objid-1;
 
                 res.push(HIRInst::BinOp {
-                    left: self.next_objid - 2,
+                    left: left_id,
                     op: super::BinOperator::GreaterEqual,
-                    right: self.next_objid - 2,
+                    right: right_id,
                     dst: self.get_next_obj_id(),
                 });
             }
             Expr::LessEqual(ref left, ref right, _) => {
                 self.gen_expr_ir(left);
+                let left_id=self.next_objid-1;
                 self.gen_expr_ir(right);
+                let right_id=self.next_objid-1;
 
                 res.push(HIRInst::BinOp {
-                    left: self.next_objid - 2,
+                    left: left_id,
                     op: super::BinOperator::LessEqual,
-                    right: self.next_objid - 2,
+                    right: right_id,
                     dst: self.get_next_obj_id(),
                 });
             }
@@ -420,9 +428,9 @@ impl HirGenerator {
             var: id,
             obj: obj_id,
         });
-        res.push(HIRInst::IncRef { obj: obj_id });
+        //res.push(HIRInst::IncRef { obj: obj_id });
         if let Some(old) = old_obj_id {
-            res.push(HIRInst::DecRef { obj: old });
+            //res.push(HIRInst::DecRef { obj: old });
         }
 
         res
@@ -505,10 +513,10 @@ impl HirGenerator {
         }));
 
         self.emit_block(cond_block_id);
-        let end_id = self.next_objid;
         self.gen_expr_ir(end);
-        let step_id = self.next_objid;
+        let end_id = self.next_objid-1;
         self.gen_expr_ir(step);
+        let step_id = self.next_objid-1;
 
         let cond_id = self.next_objid;
         let cond_ir = HIRInst::BinOp {
@@ -528,13 +536,12 @@ impl HirGenerator {
 
         self.emit_block(body_block_id);
         self.gen_block_ir(body_block_id, block, &mut Vec::new());
-        let temp_obj_id = self.next_objid;
         self.get_next_obj_id();
         self.hir.push(HIR::Inst(HIRInst::BinOp {
             left: itor_id,
             op: BinOperator::Add,
             right: step_id,
-            dst: temp_obj_id,
+            dst: itor_id,
         }));
         self.hir.push(HIR::Inst(HIRInst::Jmp {
             target: cond_block_id,
@@ -545,9 +552,9 @@ impl HirGenerator {
     }
     fn gen_while_hir(&mut self, cond: &Rc<RefCell<Expr>>, block: &Block) {
         let br_block_id = self.new_block();
-        let cond_id = self.next_objid;
         self.emit_block(br_block_id);
         self.gen_expr_ir(cond);
+        let cond_id = self.next_objid-1;
 
         let body_block_id = self.new_block();
         let merge_block_id = self.new_block();
@@ -672,8 +679,8 @@ impl HirGenerator {
         ret_expr: &Rc<RefCell<Expr>>,
         ret_obj: &mut Vec<ObjId>,
     ) {
-        let res_obj_id = self.next_objid;
         self.gen_expr_ir(ret_expr);
+        let res_obj_id = self.next_objid - 1;
 
         self.hir.push(HIR::Inst(HIRInst::Ret {
             ret_obj: res_obj_id,
