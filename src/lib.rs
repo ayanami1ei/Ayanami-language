@@ -1,6 +1,6 @@
 use crate::hir::HirGenerator;
 use crate::parser::Parser;
-use crate::semantic_analysiser::SemanticAnalysiser;
+use crate::type_inferrer::TypeInferrer;
 use crate::symbol_table::SymbolTable;
 use crate::tokenlizer::Tokenlizer;
 use crate::types::Token;
@@ -10,7 +10,7 @@ use std::io::{BufRead, BufReader, Write};
 pub mod error_type;
 pub mod hir;
 pub mod parser;
-pub mod semantic_analysiser;
+pub mod type_inferrer;
 pub mod symbol_table;
 pub mod tokenlizer;
 pub mod types;
@@ -53,8 +53,8 @@ pub fn run() {
         }
     };
 
-    let mut semantic_analysiser = SemanticAnalysiser::new(stmts, symbol_table.clone());
-    stmts = semantic_analysiser.semantic_analysise().unwrap();
+    let mut type_inferrer = TypeInferrer::new(stmts, symbol_table.clone());
+    stmts = type_inferrer.semantic_analysise().unwrap();
 
     let mut hir_generator = HirGenerator::new(stmts, symbol_table);
     let hirs = hir_generator.gen_hir();

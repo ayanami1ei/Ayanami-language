@@ -2,14 +2,14 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use crate::{
     error_type::Error,
-    semantic_analysiser::SemanticAnalysiser,
     symbol_table::{Symbol, SymbolTable},
+    type_inferrer::TypeInferrer,
     types::{Expr, Stmt, VarType},
 };
 
-impl SemanticAnalysiser {
-    pub(crate) fn new(stmts: Vec<Stmt>, symbol_table: SymbolTable) -> SemanticAnalysiser {
-        SemanticAnalysiser {
+impl TypeInferrer {
+    pub(crate) fn new(stmts: Vec<Stmt>, symbol_table: SymbolTable) -> TypeInferrer {
+        TypeInferrer {
             stmts,
             symbol_table: Rc::new(RefCell::new(symbol_table)),
             dummy: Rc::new(RefCell::new(Stmt::Default)),

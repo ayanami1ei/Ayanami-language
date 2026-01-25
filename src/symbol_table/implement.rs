@@ -272,4 +272,33 @@ impl SymbolTable {
             }
         }
     }
+
+    fn find_scope_id_by_var_name_rec(scope: &Rc<RefCell<Scope>>, name: &String) -> Option<i32> {
+        let binding = scope.borrow();
+        for sym in &binding.symbol {
+            if sym.name == *name {
+                return Some(binding.id);
+            }
+        }
+
+        // clone sons to avoid nested borrow while recursing
+        let sons = binding.sons.clone();
+        drop(binding);
+
+        for son in &sons {
+            if let Some(id) = Self::find_scope_id_by_var_name_rec(son, name) {
+                return Some(id);
+            }
+        }
+
+        None
+    }
+
+    pub(crate) fn find_scope_id_by_var_name(&mut self, name: &String) -> i32 {
+        if let Some(id) = Self::find_scope_id_by_var_name_rec(&self.area, name) {
+            id
+        } else {
+            -1
+        }
+    }
 }

@@ -4,7 +4,7 @@ use crate::{symbol_table::SymbolTable, types::Stmt};
 
 pub(crate) mod implement;
 
-pub(crate) struct SemanticAnalysiser {
+pub(crate) struct TypeInferrer {
     stmts: Vec<Stmt>,
     symbol_table: std::rc::Rc<std::cell::RefCell<SymbolTable>>,
 
