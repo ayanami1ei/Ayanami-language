@@ -30,14 +30,15 @@ struct HirVarSymbol {
     pub(super) ty_set: HashSet<VarType>, // 可能指向的对象类型集合
     pub(super) mutability: bool,         // 能不能 Bind
     pub(super) storage: StorageClass,    // local / param / temp
-    pub(super) obj_id: ObjId,
+    pub(super) obj_id: Value,
 }
 
 #[derive(Default, Clone)]
 struct HirFuncSymbol {
     pub(super) ty_set: HashSet<VarType>, // 可能的返回值类型集合
-    pub(super) ret_obj_id: Vec<ObjId>,
+    pub(super) ret_obj_id: Vec<Value>,
     pub(super) id: FuncId,
+    pub(super) param_id:Vec<VarId>
 }
 
 pub(crate) struct HirGenerator {
@@ -69,11 +70,8 @@ pub(crate) enum HIRInst {
         obj_type: HashSet<VarType>,
         dst: ObjId,
     },
-    /*Const{
-        const_type:VarType,
-    },*/
     Br {
-        cond: ObjId,
+        cond: Value,
         then_block: BlockId,
         else_block: BlockId,
     },
@@ -82,35 +80,35 @@ pub(crate) enum HIRInst {
     },
     Call {
         id: FuncId,
-        ret: Vec<ObjId>,
+        ret: Value,
     },
     BinOp {
-        left: ObjId,
+        left: Value,
         op: BinOperator,
-        right: ObjId,
+        right: Value,
         dst: ObjId,
     },
     UnaryOp {
         op: UnaryOperation,
-        expr: ObjId,
+        expr: Value,
         dst: ObjId,
     },
-    /*IncRef {
+    IncRef {
         obj: ObjId,
     },
     DecRef {
         obj: ObjId,
-    },*/
+    },
     Bind {
         var: VarId,
-        obj: ObjId,
+        obj: Value,
     },
     Load {
         var: VarId,
-        obj: ObjId,
+        obj: Value,
     },
     Ret {
-        ret_obj: ObjId,
+        ret_obj: Value,
     },
 }
 
@@ -132,4 +130,21 @@ pub(super) enum BinOperator {
 #[derive(Clone)]
 pub(super) enum UnaryOperation {
     Not,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) enum Const{
+    Int(i64),
+    Float(f64),
+    Char(char),
+    Bool(bool),
+    Null
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) enum Value{
+    Const(Const),
+    Obj(ObjId),
+    #[default]
+    Null
 }

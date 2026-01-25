@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::hir::{BinOperator, BlockId, FuncId, HIR, HIRInst, ObjId, UnaryOperation, VarId};
+use crate::hir::{BinOperator, BlockId, Const, FuncId, HIR, HIRInst, ObjId, UnaryOperation, Value, VarId};
 
 impl fmt::Display for BlockId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -11,7 +11,7 @@ impl fmt::Display for BlockId {
 impl fmt::Display for ObjId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ObjId(id) = self;
-        write!(f, "{}", id)
+        write!(f, "obj_{}", id)
     }
 }
 impl fmt::Display for VarId {
@@ -24,6 +24,27 @@ impl fmt::Display for FuncId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let FuncId(id) = self;
         write!(f, "{}", id)
+    }
+}
+impl fmt::Display for Const{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self{
+            Const::Int(x) => write!(f, "Int: {}",x),
+            Const::Float(x) => write!(f, "Float: {}",x),
+            Const::Char(x) => write!(f, "Char: {}",x),
+            Const::Bool(x) => write!(f, "Bool: {}",x),
+            Const::Null => write!(f, ""),
+        }
+    }
+}
+
+impl fmt::Display for Value{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self{
+            Value::Const(x) => write!(f,"Const_{}",x),
+            Value::Obj(obj_id) => write!(f,"{}",obj_id),
+            Value::Null => todo!(),
+        }
     }
 }
 
@@ -56,22 +77,20 @@ impl fmt::Display for HIRInst {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"    ")?;
         match self {
-            HIRInst::New { obj_type, dst } => write!(f, "New {:?} -> obj_{}", obj_type, dst),
+            HIRInst::New { obj_type, dst } => write!(f, "New {:?} -> {}", obj_type, dst),
             HIRInst::Br {
                 cond,
                 then_block,
                 else_block,
             } => write!(
                 f,
-                "Br cond: obj_{}, then-block: block_{}, else-block: block_{}",
+                "Br cond: {}, then-block: block_{}, else-block: block_{}",
                 cond, then_block, else_block
             ),
             HIRInst::Jmp { target } => write!(f, "Jmp to block_{}", target),
             HIRInst::Call { id, ret } => {
                 write!(f, "Call func_{}, ret:", id)?;
-                for i in ret{
-                    write!(f," obj_{}",i)?;
-                }
+                write!(f," {}",ret)?;
                 write!(f,"")
             },
             HIRInst::BinOp {
@@ -79,13 +98,13 @@ impl fmt::Display for HIRInst {
                 op,
                 right,
                 dst,
-            } => write!(f, "obj_{} {} obj_{} -> obj_{}", left, op, right, dst),
-            HIRInst::UnaryOp { op, expr, dst } => write!(f,"{} obj_{} -> obj_{}", op,expr,dst),
-            //HIRInst::IncRef { obj } => write!(f,"Increase reference obj_{}",obj),
-            //HIRInst::DecRef { obj } => write!(f,"Decrease reference obj_{}",obj),
-            HIRInst::Bind { var, obj } => write!(f,"Bind var_{} and obj_{}",var,obj),
-            HIRInst::Load { var, obj } => write!(f,"Load var_{}'s obj to obj_{}",var,obj),
-            HIRInst::Ret { ret_obj } => write!(f,"Ret obj_{}", ret_obj),
+            } => write!(f, "{} {} {} -> {}", left, op, right, dst),
+            HIRInst::UnaryOp { op, expr, dst } => write!(f,"{} {} -> {}", op,expr,dst),
+            HIRInst::Bind { var, obj } => write!(f,"Bind var_{} and {}",var,obj),
+            HIRInst::Load { var, obj } => write!(f,"Load var_{}'s obj to {}",var,obj),
+            HIRInst::Ret { ret_obj } => write!(f,"Ret {}", ret_obj),
+            HIRInst::IncRef { obj } => write!(f,"Increase Reference of {}",obj),
+            HIRInst::DecRef { obj } => write!(f,"Decrease Reference of {}",obj),
         }
     }
 }

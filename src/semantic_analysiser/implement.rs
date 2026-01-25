@@ -279,7 +279,9 @@ impl SemanticAnalysiser {
         let b_type = Self::infer_type(self.symbol_table.clone(), b.clone())?;
 
         if let Expr::Var(ref name, _) = *a.borrow() {
-            if let Some(mut a_sym) = (*self.symbol_table).borrow().find_symbol(name) {
+            // avoid holding an active borrow across later borrow_mut() calls
+            let maybe_sym = { (*self.symbol_table).borrow().find_symbol(name) };
+            if let Some(a_sym) = maybe_sym {
                 if a_sym
                     .its_type
                     .intersection(&b_type)
@@ -287,14 +289,16 @@ impl SemanticAnalysiser {
                     .len()
                     == 0
                 {
-                    a_sym.its_type = a_sym.its_type.intersection(&b_type).cloned().collect();
+                    (*self.symbol_table)
+                        .borrow_mut()
+                        .add_symbol_type(name, b_type.clone());
                 }
             } else {
                 let new_a = Rc::new(RefCell::new(Expr::Var(name.clone(), b_type.clone())));
                 let new_b = b.clone();
                 *std::cell::RefCell::borrow_mut(&self.dummy) = Stmt::Assign(new_a, new_b);
-                let mut a_sym =
-                    Symbol::new_var(name.clone(), (*self.symbol_table).borrow().get_scope());
+                let scope = { (*self.symbol_table).borrow().get_scope() };
+                let mut a_sym = Symbol::new_var(name.clone(), scope);
                 a_sym.its_type = b_type.clone();
                 (*self.symbol_table).borrow_mut().add_symbol(a_sym);
             }

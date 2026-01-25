@@ -252,4 +252,24 @@ impl SymbolTable {
             }
         }
     }
+
+    pub(crate) fn intersect_symbol_type(&mut self, name: &String, ty: &HashSet<VarType>) {
+        let mut cur_opt = self.area_ptr.upgrade();
+
+        while let Some(cur_rc) = cur_opt {
+            {
+                let mut binding = cur_rc.borrow_mut();
+                let index = Self::find_in_vec(&binding.symbol, name);
+                if index != usize::MAX {
+                    binding.symbol[index].its_type = binding.symbol[index]
+                        .its_type
+                        .intersection(ty)
+                        .cloned()
+                        .collect();
+                    return;
+                }
+                cur_opt = binding.parent.as_ref().and_then(|w| w.upgrade());
+            }
+        }
+    }
 }
