@@ -1,27 +1,29 @@
+func_2:
 block_0: 
-    Bind var_3 and obj_0
-    Bind var_4 and obj_0
+    Bind var_3 and (obj_0, level: 2)
+    Bind var_4 and (obj_0, level: 2)
     Jmp to block_1
 block_1: 
-    New {Int} -> obj_0
-    obj_0 + obj_1 -> obj_0
-    Ret obj_0
+    New {Int} -> (obj_0, level: 2)
+    (obj_0, level: 2) + (obj_1, level: 2) -> (obj_0, level: 2)
+    Ret (obj_0, level: 2)
+func_5:
 block_2: 
     Jmp to block_3
 block_3: 
     Bind var_6 and Const_Int: 1
     Bind var_7 and Const_Int: 1
 block_4: 
-    Const_Int: 1 > Const_Int: 0 -> obj_1
-    Br cond: obj_1, then-block: block_5, else-block: block_7
+    Const_Int: 1 > Const_Int: 0 -> (obj_1, level: 4)
+    Br cond: (obj_1, level: 0), then-block: block_5, else-block: block_7
 block_5: 
     Bind var_8 and Const_Int: 1
     Bind var_7 and Const_Int: 1
     Jmp to block_7
 block_7: 
 block_8: 
-    Const_Int: 1 > Const_Int: 0 -> obj_2
-    Br cond: obj_2, then-block: block_9, else-block: block_10
+    Const_Int: 1 > Const_Int: 0 -> (obj_2, level: 3)
+    Br cond: (obj_2, level: 0), then-block: block_9, else-block: block_10
 block_9: 
     Bind var_9 and Const_Int: 2
     Jmp to block_8
@@ -30,17 +32,17 @@ block_11:
     Bind var_10 and Const_Int: 0
     Jmp to block_12
 block_12: 
-    obj_3 < obj_2 -> obj_3
-    Br cond: obj_3, then-block: block_13, else-block: block_14
+    (obj_3, level: 0) < (obj_2, level: 0) -> (obj_3, level: 3)
+    Br cond: (obj_3, level: 0), then-block: block_13, else-block: block_14
 block_13: 
     Bind var_11 and Const_Int: 1
-    obj_3 + obj_2 -> obj_3
+    (obj_3, level: 0) + (obj_2, level: 0) -> (obj_3, level: 0)
     Jmp to block_12
 block_14: 
-    New {Int} -> obj_5
-    Load var_6's obj to obj_5
-    New {Int} -> obj_6
-    Load var_7's obj to obj_6
-    Call func_2, ret: obj_7
-    Bind var_12 and obj_7
-    Increase Reference of obj_7
+    New {Int} -> (obj_5, level: 0)
+    Load var_6's obj to (obj_5, level: 0)
+    New {Int} -> (obj_6, level: 0)
+    Load var_7's obj to (obj_6, level: 0)
+    Call func_2, ret: (obj_7, level: 2)
+    Bind var_12 and (obj_7, level: 2)
+    Increase Reference of (obj_7, level: 2)

@@ -298,7 +298,11 @@ impl TypeInferrer {
                 let new_b = b.clone();
                 *std::cell::RefCell::borrow_mut(&self.dummy) = Stmt::Assign(new_a, new_b);
                 let scope = { (*self.symbol_table).borrow().get_scope() };
-                let mut a_sym = Symbol::new_var(name.clone(), scope);
+                let mut a_sym = Symbol::new_var(
+                    name.clone(),
+                    scope,
+                    self.symbol_table.borrow_mut().get_level(),
+                );
                 a_sym.its_type = b_type.clone();
                 (*self.symbol_table).borrow_mut().add_symbol(a_sym);
             }
@@ -340,8 +344,11 @@ impl TypeInferrer {
                     )));
                 }
             } else {
-                let mut itor_sym =
-                    Symbol::new_var(name.clone(), (*self.symbol_table).borrow().get_scope());
+                let mut itor_sym = Symbol::new_var(
+                    name.clone(),
+                    (*self.symbol_table).borrow().get_scope(),
+                    self.symbol_table.borrow_mut().get_level(),
+                );
                 itor_sym.its_type.insert(VarType::Int);
                 (*self.symbol_table).borrow_mut().add_symbol(itor_sym);
             }

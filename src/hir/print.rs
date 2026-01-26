@@ -10,8 +10,8 @@ impl fmt::Display for BlockId {
 }
 impl fmt::Display for ObjId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ObjId(id) = self;
-        write!(f, "obj_{}", id)
+        let ObjId{id,level_id} = self;
+        write!(f, "(obj_{}, level: {})", id,level_id)
     }
 }
 impl fmt::Display for VarId {
@@ -114,6 +114,7 @@ impl fmt::Display for HIR {
         match self {
             HIR::Inst(hirinst) => write!(f,"{}",hirinst),
             HIR::Block(block_id) => write!(f, "block_{}: ", block_id),
+            HIR::Func(func_id)=>write!(f,"func_{}:",func_id)
         }
     }
 }

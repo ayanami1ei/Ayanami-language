@@ -5,6 +5,7 @@ use crate::{
     types::{Stmt, VarType},
 };
 pub(crate) mod implement;
+pub(crate) mod life_time;
 pub(crate) mod overrides;
 pub(crate) mod print;
 
@@ -15,7 +16,10 @@ pub(crate) struct FuncId(i32);
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
 pub(crate) struct BlockId(i32);
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default, Debug)]
-pub(crate) struct ObjId(i32);
+pub(crate) struct ObjId{
+    id:i32,
+    level_id:i32
+}
 
 #[derive(Default)]
 pub(super) enum StorageClass {
@@ -38,7 +42,7 @@ struct HirFuncSymbol {
     pub(super) ty_set: HashSet<VarType>, // 可能的返回值类型集合
     pub(super) ret_obj_id: Vec<Value>,
     pub(super) id: FuncId,
-    pub(super) param_id:Vec<VarId>
+    pub(super) param_id: Vec<VarId>,
 }
 
 pub(crate) struct HirGenerator {
@@ -62,6 +66,7 @@ pub(crate) struct HirGenerator {
 pub(crate) enum HIR {
     Inst(HIRInst),
     Block(BlockId),
+    Func(FuncId),
 }
 
 #[derive(Clone)]
@@ -133,18 +138,18 @@ pub(super) enum UnaryOperation {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) enum Const{
+pub(super) enum Const {
     Int(i64),
     Float(f64),
     Char(char),
     Bool(bool),
-    Null
+    Null,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub(super) enum Value{
+pub(super) enum Value {
     Const(Const),
     Obj(ObjId),
     #[default]
-    Null
+    Null,
 }

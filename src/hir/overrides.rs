@@ -21,19 +21,19 @@ impl Sub<i32> for VarId {
 
 impl AddAssign<i32> for ObjId {
     fn add_assign(&mut self, other: i32) {
-        self.0 += other;
+        self.id += other;
     }
 }
 impl Add<i32> for ObjId {
     type Output = ObjId;
     fn add(self, rhs: i32) -> Self::Output {
-        ObjId(self.0 + rhs)
+        ObjId{id:self.id+rhs, level_id:self.level_id}
     }
 }
 impl Sub<i32> for ObjId {
     type Output = ObjId;
     fn sub(self, rhs: i32) -> Self::Output {
-        ObjId(self.0 - rhs)
+        ObjId{id:self.id-rhs, level_id:self.level_id}
     }
 }
 

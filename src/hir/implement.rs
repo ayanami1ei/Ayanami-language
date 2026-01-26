@@ -29,15 +29,6 @@ impl HirVarSymbol {
             obj_id,
         }
     }
-
-    pub(super) fn new_temp_var(ty_set: HashSet<VarType>, obj_id: Value) -> HirVarSymbol {
-        HirVarSymbol {
-            ty_set,
-            mutability: true,
-            storage: StorageClass::Temp,
-            obj_id,
-        }
-    }
 }
 
 impl HirGenerator {
@@ -45,8 +36,8 @@ impl HirGenerator {
         HirGenerator {
             stmts,
 
-            next_objid: ObjId(0),
-            next_tempvar_id: ObjId(0),
+            next_objid: ObjId{id:0,level_id:0},
+            next_tempvar_id: ObjId{id:0,level_id:0},
             next_blockid: BlockId(0),
 
             var_registry: HashMap::<VarId, HirVarSymbol>::new(),
@@ -109,18 +100,6 @@ impl HirGenerator {
         }
     }
 
-    fn emit_pending_blocks(&mut self) {
-        if self.pending_block_emits.len() == 0 {
-            return;
-        }
-
-        // Drain in FIFO order
-        let pending: Vec<BlockId> = self.pending_block_emits.drain(..).collect();
-        for id in pending {
-            self.emit_block(id);
-        }
-    }
-
     fn gen_expr_ir(&mut self, expr: &Rc<RefCell<Expr>>) -> Value {
         let mut irs = Vec::<HIRInst>::new();
         let res: Value;
@@ -130,7 +109,8 @@ impl HirGenerator {
                 let left_objid = self.gen_expr_ir(left);
                 let right_objid = self.gen_expr_ir(right);
 
-                let new_obj_id = self.next_objid;
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::New {
                     obj_type: left
                         .borrow()
@@ -138,7 +118,7 @@ impl HirGenerator {
                         .union(right.borrow().get_type_set())
                         .cloned()
                         .collect(),
-                    dst: self.get_next_obj_id(),
+                    dst: new_obj_id,
                 });
 
                 irs.push(HIRInst::BinOp {
@@ -154,7 +134,8 @@ impl HirGenerator {
                 let left_objid = self.gen_expr_ir(left);
                 let right_objid = self.gen_expr_ir(right);
 
-                let new_obj_id = self.next_objid;
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::New {
                     obj_type: left
                         .borrow()
@@ -162,7 +143,7 @@ impl HirGenerator {
                         .union(right.borrow().get_type_set())
                         .cloned()
                         .collect(),
-                    dst: self.get_next_obj_id(),
+                    dst: new_obj_id,
                 });
 
                 irs.push(HIRInst::BinOp {
@@ -177,7 +158,8 @@ impl HirGenerator {
                 let left_objid = self.gen_expr_ir(left);
                 let right_objid = self.gen_expr_ir(right);
 
-                let new_obj_id = self.next_objid;
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::New {
                     obj_type: left
                         .borrow()
@@ -185,7 +167,7 @@ impl HirGenerator {
                         .union(right.borrow().get_type_set())
                         .cloned()
                         .collect(),
-                    dst: self.get_next_obj_id(),
+                    dst: new_obj_id,
                 });
 
                 irs.push(HIRInst::BinOp {
@@ -200,7 +182,8 @@ impl HirGenerator {
                 let left_objid = self.gen_expr_ir(left);
                 let right_objid = self.gen_expr_ir(right);
 
-                let new_obj_id = self.next_objid;
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::New {
                     obj_type: left
                         .borrow()
@@ -208,7 +191,7 @@ impl HirGenerator {
                         .union(right.borrow().get_type_set())
                         .cloned()
                         .collect(),
-                    dst: self.get_next_obj_id(),
+                    dst: new_obj_id,
                 });
 
                 irs.push(HIRInst::BinOp {
@@ -224,7 +207,8 @@ impl HirGenerator {
                 let left_id = self.gen_expr_ir(left);
                 let right_id = self.gen_expr_ir(right);
 
-                let new_obj_id = self.get_next_obj_id();
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::BinOp {
                     left: left_id,
                     op: super::BinOperator::Equal,
@@ -237,7 +221,8 @@ impl HirGenerator {
                 let left_id = self.gen_expr_ir(left);
                 let right_id = self.gen_expr_ir(right);
 
-                let new_obj_id = self.get_next_obj_id();
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::BinOp {
                     left: left_id,
                     op: super::BinOperator::Greater,
@@ -250,7 +235,8 @@ impl HirGenerator {
                 let left_id = self.gen_expr_ir(left);
                 let right_id = self.gen_expr_ir(right);
 
-                let new_obj_id = self.get_next_obj_id();
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::BinOp {
                     left: left_id,
                     op: super::BinOperator::Less,
@@ -263,7 +249,8 @@ impl HirGenerator {
                 let left_id = self.gen_expr_ir(left);
                 let right_id = self.gen_expr_ir(right);
 
-                let new_obj_id = self.get_next_obj_id();
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::BinOp {
                     left: left_id,
                     op: super::BinOperator::GreaterEqual,
@@ -276,7 +263,8 @@ impl HirGenerator {
                 let left_id = self.gen_expr_ir(left);
                 let right_id = self.gen_expr_ir(right);
 
-                let new_obj_id = self.get_next_obj_id();
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::BinOp {
                     left: left_id,
                     op: super::BinOperator::LessEqual,
@@ -330,7 +318,8 @@ impl HirGenerator {
                     });
                 }
 
-                let new_obj_id = self.get_next_obj_id();
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::Call {
                     id: func_sym.id,
                     ret: hir::Value::Obj(new_obj_id),
@@ -340,7 +329,8 @@ impl HirGenerator {
             }
             Expr::Not(ref expr, _) => {
                 let expr_obj_id = self.gen_expr_ir(expr);
-                let new_obj_id = self.get_next_obj_id();
+                let mut new_obj_id = self.get_next_obj_id();
+                new_obj_id.level_id=self.ast_symbol_table.get_level();
                 irs.push(HIRInst::UnaryOp {
                     op: UnaryOperation::Not,
                     expr: expr_obj_id,
@@ -383,9 +373,7 @@ impl HirGenerator {
                     self.ast_symbol_table.ret_to_parent_scope();
                 }
                 Stmt::Func(ref name, ref argcs, ref var_type, ref _block, scope_id) => {
-                    self.ast_symbol_table.set_area_ptr_by_id(scope_id);
                     self.gen_func_hir(name, argcs, var_type, block);
-                    self.ast_symbol_table.ret_to_parent_scope();
                 }
                 Stmt::Call(ref name, ref argcs, scope_id) => {
                     self.ast_symbol_table.set_area_ptr_by_id(scope_id);
@@ -531,11 +519,13 @@ impl HirGenerator {
         let step_id = self.next_objid - 1;
 
         let cond_id = self.next_objid;
+        let mut new_obj_id = self.get_next_obj_id();
+        new_obj_id.level_id=self.ast_symbol_table.get_level();
         let cond_ir = HIRInst::BinOp {
             left: hir::Value::Obj(itor_id),
             op: BinOperator::Less,
             right: hir::Value::Obj(end_id),
-            dst: self.get_next_obj_id(),
+            dst: new_obj_id,
         };
         self.hir.push(HIR::Inst(cond_ir));
 
@@ -595,6 +585,7 @@ impl HirGenerator {
             None => panic!(""),
             Some(sym) => sym,
         };
+        self.hir.push(HIR::Func(FuncId(ast_fn_sym.id)));
         let mut fn_sym = HirFuncSymbol {
             ty_set: ast_fn_sym.its_type,
             ret_obj_id: Vec::<Value>::new(),
@@ -620,14 +611,14 @@ impl HirGenerator {
                 ty_set,
                 mutability: true,
                 storage: StorageClass::Param,
-                obj_id: hir::Value::Obj(ObjId(i as i32)),
+                obj_id: hir::Value::Obj(ObjId{id:i as i32,level_id:self.ast_symbol_table.get_level()}),
             };
 
             self.var_registry.insert(param_id, hir_sym);
             fn_sym.param_id.push(param_id);
             self.hir.push(HIR::Inst(HIRInst::Bind {
                 var: param_id,
-                obj: hir::Value::Obj(ObjId(0)),
+                obj: hir::Value::Obj(ObjId{id:0 as i32,level_id:self.ast_symbol_table.get_level()}),
             }));
         }
 
@@ -705,13 +696,12 @@ impl HirGenerator {
         ret_expr: &Rc<RefCell<Expr>>,
         ret_obj: &mut Vec<Value>,
     ) {
-        self.gen_expr_ir(ret_expr);
-        let res_obj_id = self.next_objid - 1;
+        let res_obj_id = self.gen_expr_ir(ret_expr);
 
         self.hir.push(HIR::Inst(HIRInst::Ret {
-            ret_obj: hir::Value::Obj(res_obj_id),
+            ret_obj: res_obj_id,
         }));
-        ret_obj.push(hir::Value::Obj(res_obj_id));
+        ret_obj.push(res_obj_id);
         //self.emit_block(block_id);
     }
     fn gen_stmt_hir(&mut self, stmt: Stmt) {
@@ -747,13 +737,8 @@ impl HirGenerator {
 
     pub(crate) fn gen_hir(&mut self) -> Vec<HIR> {
         for i in 0..self.stmts.len() {
-            // Flush any blocks produced by previous statements (e.g. loops/ifs)
-            self.emit_pending_blocks();
             self.gen_stmt_hir(self.stmts[i].clone());
         }
-
-        // Flush any remaining pending blocks
-        self.emit_pending_blocks();
 
         self.hir.clone()
     }

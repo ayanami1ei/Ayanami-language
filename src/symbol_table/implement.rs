@@ -7,7 +7,7 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc, usize};
 static mut NEXT_ID: i32 = 0;
 
 impl Symbol {
-    pub(crate) fn new_var(name: String, scope: Rc<RefCell<Scope>>) -> Symbol {
+    pub(crate) fn new_var(name: String, scope: Rc<RefCell<Scope>>, level: i32) -> Symbol {
         unsafe {
             let res = Symbol {
                 name: name,
@@ -18,6 +18,7 @@ impl Symbol {
                 is_var: true,
                 its_type: HashSet::new(),
                 id: NEXT_ID,
+                level,
                 area: Rc::downgrade(&scope),
                 body_scope_id: None,
             };
@@ -25,7 +26,12 @@ impl Symbol {
             res
         }
     }
-    pub(crate) fn new_func(name: String, args: Vec<Symbol>, scope: Rc<RefCell<Scope>>) -> Symbol {
+    pub(crate) fn new_func(
+        name: String,
+        args: Vec<Symbol>,
+        scope: Rc<RefCell<Scope>>,
+        level: i32,
+    ) -> Symbol {
         unsafe {
             let res = Symbol {
                 name: name,
@@ -36,6 +42,7 @@ impl Symbol {
                 is_var: false,
                 its_type: HashSet::new(),
                 id: NEXT_ID,
+                level,
                 area: Rc::downgrade(&scope),
                 body_scope_id: None,
             };
@@ -43,7 +50,12 @@ impl Symbol {
             res
         }
     }
-    pub(crate) fn new_argc(name: String, is_ref: bool, scope: Rc<RefCell<Scope>>) -> Symbol {
+    pub(crate) fn new_argc(
+        name: String,
+        is_ref: bool,
+        scope: Rc<RefCell<Scope>>,
+        level: i32,
+    ) -> Symbol {
         unsafe {
             let res = Symbol {
                 name: name,
@@ -54,6 +66,7 @@ impl Symbol {
                 is_var: false,
                 its_type: HashSet::new(),
                 id: NEXT_ID,
+                level,
                 area: Rc::downgrade(&scope),
                 body_scope_id: None,
             };
@@ -94,6 +107,7 @@ impl SymbolTable {
             area: _area,
             area_ptr: _area_ptr,
             next_scope_id: 1,
+            now_level: 1,
         }
     }
 
@@ -117,6 +131,7 @@ impl SymbolTable {
         }
 
         self.area_ptr = Rc::downgrade(&scope);
+        self.now_level+=1;
     }
 
     pub(crate) fn ret_to_parent_scope(&mut self) {
@@ -126,6 +141,8 @@ impl SymbolTable {
                 self.area_ptr = parent_ptr.clone();
             }
         }
+
+        self.now_level-=1;
     }
 
     fn find_in_vec(vec: &Vec<Symbol>, name: &String) -> usize {
@@ -208,15 +225,8 @@ impl SymbolTable {
                 id
             );
         }
-    }
 
-    pub(crate) fn add_symbol_to_scope(&mut self, id: i32, symbol: Symbol) {
-        if let Some(scope) = self.find_scope_by_id(&self.area, id) {
-            let mut s = scope.borrow_mut();
-            s.add_symbol(symbol);
-        } else {
-            eprintln!("Warning: cannot find scope id {} to add symbol", id);
-        }
+        self.now_level+=1;
     }
 
     fn find_scope_by_id(&self, scope: &Rc<RefCell<Scope>>, id: i32) -> Option<Rc<RefCell<Scope>>> {
@@ -253,52 +263,7 @@ impl SymbolTable {
         }
     }
 
-    pub(crate) fn intersect_symbol_type(&mut self, name: &String, ty: &HashSet<VarType>) {
-        let mut cur_opt = self.area_ptr.upgrade();
-
-        while let Some(cur_rc) = cur_opt {
-            {
-                let mut binding = cur_rc.borrow_mut();
-                let index = Self::find_in_vec(&binding.symbol, name);
-                if index != usize::MAX {
-                    binding.symbol[index].its_type = binding.symbol[index]
-                        .its_type
-                        .intersection(ty)
-                        .cloned()
-                        .collect();
-                    return;
-                }
-                cur_opt = binding.parent.as_ref().and_then(|w| w.upgrade());
-            }
-        }
-    }
-
-    fn find_scope_id_by_var_name_rec(scope: &Rc<RefCell<Scope>>, name: &String) -> Option<i32> {
-        let binding = scope.borrow();
-        for sym in &binding.symbol {
-            if sym.name == *name {
-                return Some(binding.id);
-            }
-        }
-
-        // clone sons to avoid nested borrow while recursing
-        let sons = binding.sons.clone();
-        drop(binding);
-
-        for son in &sons {
-            if let Some(id) = Self::find_scope_id_by_var_name_rec(son, name) {
-                return Some(id);
-            }
-        }
-
-        None
-    }
-
-    pub(crate) fn find_scope_id_by_var_name(&mut self, name: &String) -> i32 {
-        if let Some(id) = Self::find_scope_id_by_var_name_rec(&self.area, name) {
-            id
-        } else {
-            -1
-        }
+    pub(crate) fn get_level(&mut self) -> i32 {
+        self.now_level
     }
 }

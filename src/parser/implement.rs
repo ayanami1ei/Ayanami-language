@@ -388,7 +388,7 @@ impl Parser {
 
             self.symbol_table.into_new_scope();
             let scope_id = self.symbol_table.get_scope().borrow().id;
-            let mut i_sym = Symbol::new_var(i_name, self.symbol_table.get_scope());
+            let mut i_sym = Symbol::new_var(i_name, self.symbol_table.get_scope(), self.symbol_table.get_level());
             i_sym.its_type.insert(VarType::Int);
             self.symbol_table.add_symbol(i_sym);
             self.expect(Token::Operator("{".to_string()))?;
@@ -520,14 +520,14 @@ impl Parser {
             let mut arg_symbols = Vec::new();
             for a in &args {
                 let mut sym =
-                    Symbol::new_argc(a.var_name.clone(), a.is_ref, self.symbol_table.get_scope());
+                    Symbol::new_argc(a.var_name.clone(), a.is_ref, self.symbol_table.get_scope(), self.symbol_table.get_level());
                 sym.its_type.insert(a.arg_type.clone());
                 arg_symbols.push(sym);
             }
 
             // 在全局作用域声明函数符号
             let fn_sym =
-                Symbol::new_func(name.to_string(), arg_symbols, self.symbol_table.get_scope());
+                Symbol::new_func(name.to_string(), arg_symbols, self.symbol_table.get_scope(), self.symbol_table.get_level());
             self.symbol_table.add_symbol(fn_sym);
 
             // 创建函数体作用域并记录其 id 到对应函数符号的 `body_scope_id`
@@ -539,7 +539,7 @@ impl Parser {
             // 在函数作用域内添加参数符号
             for a in &args {
                 let mut arg_sym =
-                    Symbol::new_argc(a.var_name.clone(), a.is_ref, self.symbol_table.get_scope());
+                    Symbol::new_argc(a.var_name.clone(), a.is_ref, self.symbol_table.get_scope(), self.symbol_table.get_level());
                 arg_sym.its_type.insert(a.arg_type.clone());
                 self.symbol_table.add_symbol(arg_sym);
             }
@@ -589,7 +589,7 @@ impl Parser {
                 };
                let _sym= match self.symbol_table.find_symbol(&name){
                     None=>{
-                        let sym=Symbol::new_var(name, self.symbol_table.get_scope());
+                        let sym=Symbol::new_var(name, self.symbol_table.get_scope(), self.symbol_table.get_level());
                         self.symbol_table.add_symbol(sym);
                     },
                     Some(_)=>(),
