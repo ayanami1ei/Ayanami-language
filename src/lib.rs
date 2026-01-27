@@ -14,6 +14,7 @@ pub mod type_inferrer;
 pub mod symbol_table;
 pub mod tokenlizer;
 pub mod types;
+pub mod lir;
 
 pub fn run() {
     let path = "test.aya";
@@ -36,10 +37,6 @@ pub fn run() {
         if token.len() != 0 {
             tokens.push(token);
         }
-    }
-
-    for i in 0..tokens.len() {
-        println!("{:?}", tokens[i]);
     }
 
     let symbol_table = SymbolTable::new();

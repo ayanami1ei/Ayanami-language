@@ -261,47 +261,18 @@ impl Parser {
             self.next()?;
             if self.is(Token::Operator("(".to_string()))? {
                 // 函数调用: name(<args>)，args 形如 [ref] ident, ...
-                let mut args = Vec::<Argc>::new();
-
-                loop {
-                    // 空参数列表: 立即遇到 ')'
-                    if self.is(Token::Operator(")".to_string()))? {
-                        break;
-                    }
-
-                    let mut arg = Argc::new();
-
-                    // 可选的 ref 关键字
-                    if self.is(Token::Keyword("ref".to_string()))? {
-                        arg.is_ref = true;
-                    }
-
-                    // 参数名必须是标识符
-                    if let Token::Identifier(ref arg_name) = self.peek() {
-                        arg.var_name = arg_name.clone();
-                        arg.arg_type = VarType::Unknown;
-                        self.next()?;
-                    } else {
-                        return Err(Error::new_error(format!(
-                            "expect argument name, but find {}",
-                            self.peek()
-                        )));
-                    }
-
-                    args.push(arg);
-
-                    if self.is(Token::Operator(",".to_string()))? {
+                let mut args = Vec::<Rc<RefCell<Expr>>>::new();
+                
+                loop{
+                    args.push(self.parser_add_sub()?);
+                    if self.is(Token::Operator(",".to_string()))?{
                         continue;
-                    } else if self.is(Token::Operator(")".to_string()))? {
+                    }
+                    if self.is(Token::Operator(")".to_string()))?{
                         break;
-                    } else {
-                        return Err(Error::new_error(format!(
-                            "expect ',' or ')', but find {}",
-                            self.peek()
-                        )));
                     }
                 }
-
+                
                 let func_sym = self.symbol_table.find_symbol(&name);
                 if func_sym.is_none() {
                     return Err(Error::new_error(format!("undefined function {}", name)));

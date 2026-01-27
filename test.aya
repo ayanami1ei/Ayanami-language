@@ -1,17 +1,19 @@
 fn add(int a, int b){
-    return a+b
+    if a>b{
+        return a+b
+    } else {
+        return a
+    }
 }
 
 fn main(){
-    a=1
+    a=1.1
     b=1
-
-    if 1>0{
+    
+    while 1>0{
+        d=b+a
         d=1
         b=d
-    }
-    while 1>0{
-        c=2
     }
 
     for i in (0,10){
@@ -19,4 +21,5 @@ fn main(){
     }
 
     d=add(a,b)
+    return 0
 }

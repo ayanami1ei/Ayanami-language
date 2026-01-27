@@ -27,10 +27,6 @@ impl TypeInferrer {
         let mut expr_ref = expr.borrow_mut();
         match *expr_ref {
             Expr::ConstNum(x, ref mut ty_set) => {
-                #[cfg(debug_assertions)]
-                {
-                    println!("{}", x);
-                }
                 *ty_set = if Self::can_be_int(x) {
                     let mut set = HashSet::new();
                     set.insert(VarType::Int);
@@ -89,49 +85,43 @@ impl TypeInferrer {
                     )));
                 }
 
-                // Enter function scope for argument checking
-                let mut st = symbol_table.borrow_mut();
-                let saved = st.get_scope();
-                st.set_area_ptr_by_id(scope_id);
+                // Enter function scope for argument checking.
+                // Do a short-lived mutable borrow to save current scope and set the function scope,
+                // then drop the mutable borrow before recursively inferring argument types to
+                // avoid borrow conflicts on `symbol_table`.
+                let saved = {
+                    let mut st = symbol_table.borrow_mut();
+                    let s = st.get_scope();
+                    st.set_area_ptr_by_id(scope_id);
+                    s
+                };
 
                 // Check each argument: argument must be an existing variable and its type must be compatible
                 for i in 0..argcs.len() {
                     let call_arg = &argcs[i];
                     let param_sym = &fn_sym.args[i];
 
-                    // find the passed variable
-                    if let Some(arg_sym) = st.find_symbol(&call_arg.var_name) {
-                        // ref-ness should match between declaration and call-site
-                        if param_sym.is_ref != call_arg.is_ref {
+                    let arg_type = Self::infer_type(symbol_table.clone(), call_arg.clone())?;
+                    if !param_sym.its_type.is_empty() && !arg_type.is_empty() {
+                        let inter = param_sym
+                            .its_type
+                            .intersection(&arg_type)
+                            .cloned()
+                            .collect::<HashSet<VarType>>();
+                        if inter.is_empty() {
                             return Err(Error::new_error(format!(
-                                "ref-ness mismatch for parameter {} of function {}",
+                                "type mismatch for parameter {} of function {}",
                                 param_sym.name, name
                             )));
                         }
-
-                        // if parameter type is known, require intersection
-                        if !param_sym.its_type.is_empty() && !arg_sym.its_type.is_empty() {
-                            let inter = param_sym
-                                .its_type
-                                .intersection(&arg_sym.its_type)
-                                .cloned()
-                                .collect::<HashSet<VarType>>();
-                            if inter.is_empty() {
-                                return Err(Error::new_error(format!(
-                                    "type mismatch for parameter {} of function {}",
-                                    param_sym.name, name
-                                )));
-                            }
-                        }
-                    } else {
-                        return Err(Error::new_error(format!(
-                            "undefined variable {} in call to {}",
-                            call_arg.var_name, name
-                        )));
                     }
                 }
 
-                st.area_ptr = Rc::downgrade(&saved);
+                // restore saved scope
+                {
+                    let mut st = symbol_table.borrow_mut();
+                    st.area_ptr = Rc::downgrade(&saved);
+                }
 
                 // Use function symbol's return-type set if available
                 if fn_sym.its_type.is_empty() {
@@ -474,6 +464,10 @@ impl TypeInferrer {
                 } else {
                     symtab_binding.set_area_ptr_by_id(scope_id);
                 }
+                // 将函数符号中记录的参数类型合并到函数体作用域中对应的参数符号上
+                for arg in &func_sym.args {
+                    symtab_binding.add_symbol_type(&arg.name, arg.its_type.clone());
+                }
             } else {
                 symtab_binding.set_area_ptr_by_id(scope_id);
             }
@@ -489,18 +483,23 @@ impl TypeInferrer {
 
         (*self.symbol_table).borrow_mut().ret_to_parent_scope();
 
-        (*self.symbol_table).borrow_mut().reset();
-
         Ok(())
     }
     fn semantic_analysise_call(&mut self) -> Result<(), Error> {
         if let Stmt::Call(ref name, ref argcs, scope_id) = *self.dummy.borrow() {
             // 首先在当前（调用者）作用域推断每个实参的类型
+            let fn_sym = if let Some(s) = self.symbol_table.borrow().find_symbol(name) {
+                s
+            } else {
+                return Err(Error::new_error("undefined function".to_string()));
+            };
+
+            if !fn_sym.is_func {
+                return Err(Error::new_error(format!("{} is not a function", name)));
+            }
             let mut arg_types: Vec<HashSet<VarType>> = Vec::new();
             for arg in argcs {
-                let arg_expr = Expr::Var(arg.var_name.clone(), HashSet::new());
-                let ty =
-                    Self::infer_type(self.symbol_table.clone(), Rc::new(RefCell::new(arg_expr)))?;
+                let ty = Self::infer_type(self.symbol_table.clone(), arg.clone())?;
                 arg_types.push(ty);
             }
 
@@ -523,6 +522,10 @@ impl TypeInferrer {
                 (*self.symbol_table)
                     .borrow_mut()
                     .add_symbol_type(&param_name, arg_types[i].clone());
+                // 也将实参类型合并回全局函数符号的参数列表，便于在其他地方（例如函数调用类型检查）使用
+                (*self.symbol_table)
+                    .borrow_mut()
+                    .add_func_arg_type(name, i, arg_types[i].clone());
             }
             (*self.symbol_table).borrow_mut().ret_to_parent_scope();
 
@@ -541,11 +544,6 @@ impl TypeInferrer {
         self.symbol_table
             .borrow_mut()
             .add_symbol_type(&name, ret_type.clone());
-
-        #[cfg(debug_assertions)]
-        {
-            println!("{} ret type {:?}", name.clone(), ret_type);
-        }
 
         Ok(())
     }

@@ -19,6 +19,7 @@ impl Symbol {
                 its_type: HashSet::new(),
                 id: NEXT_ID,
                 level,
+                scope_id: scope.borrow().id,
                 area: Rc::downgrade(&scope),
                 body_scope_id: None,
             };
@@ -43,6 +44,7 @@ impl Symbol {
                 its_type: HashSet::new(),
                 id: NEXT_ID,
                 level,
+                scope_id: scope.borrow().id,
                 area: Rc::downgrade(&scope),
                 body_scope_id: None,
             };
@@ -67,6 +69,7 @@ impl Symbol {
                 its_type: HashSet::new(),
                 id: NEXT_ID,
                 level,
+                scope_id: scope.borrow().id,
                 area: Rc::downgrade(&scope),
                 body_scope_id: None,
             };
@@ -131,7 +134,7 @@ impl SymbolTable {
         }
 
         self.area_ptr = Rc::downgrade(&scope);
-        self.now_level+=1;
+        self.now_level += 1;
     }
 
     pub(crate) fn ret_to_parent_scope(&mut self) {
@@ -142,7 +145,7 @@ impl SymbolTable {
             }
         }
 
-        self.now_level-=1;
+        self.now_level -= 1;
     }
 
     fn find_in_vec(vec: &Vec<Symbol>, name: &String) -> usize {
@@ -186,6 +189,16 @@ impl SymbolTable {
         }
     }
 
+    pub(crate) fn add_func_arg_type(
+        &mut self,
+        name: &String,
+        arg_index: usize,
+        ty: HashSet<VarType>,
+    ) {
+        // search scopes recursively from root and merge the type into the function symbol's arg
+        let _ = Self::find_and_add_func_arg_type(&self.area, name, arg_index, ty);
+    }
+
     fn find_and_set_body_scope(scope: &Rc<RefCell<Scope>>, name: &String, body_id: i32) -> bool {
         let mut binding = scope.borrow_mut();
         for i in 0..binding.symbol.len() {
@@ -226,7 +239,7 @@ impl SymbolTable {
             );
         }
 
-        self.now_level+=1;
+        self.now_level += 1;
     }
 
     fn find_scope_by_id(&self, scope: &Rc<RefCell<Scope>>, id: i32) -> Option<Rc<RefCell<Scope>>> {
@@ -242,6 +255,38 @@ impl SymbolTable {
         None
     }
 
+    fn find_and_add_func_arg_type(
+        scope: &Rc<RefCell<Scope>>,
+        name: &String,
+        arg_index: usize,
+        ty: HashSet<VarType>,
+    ) -> bool {
+        let mut binding = scope.borrow_mut();
+        for i in 0..binding.symbol.len() {
+            if binding.symbol[i].name == *name && binding.symbol[i].is_func {
+                if arg_index < binding.symbol[i].args.len() {
+                    binding.symbol[i].args[arg_index].its_type = binding.symbol[i].args[arg_index]
+                        .its_type
+                        .union(&ty)
+                        .cloned()
+                        .collect();
+                }
+                return true;
+            }
+        }
+
+        let sons = binding.sons.clone();
+        drop(binding);
+
+        for son in &sons {
+            if Self::find_and_add_func_arg_type(son, name, arg_index, ty.clone()) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     pub(crate) fn add_symbol_type(&mut self, name: &String, ty: HashSet<VarType>) {
         let mut cur_opt = self.area_ptr.upgrade();
 
@@ -252,10 +297,6 @@ impl SymbolTable {
                 if index != usize::MAX {
                     binding.symbol[index].its_type =
                         binding.symbol[index].its_type.union(&ty).cloned().collect();
-                    #[cfg(debug_assertions)]
-                    {
-                        println!("new type:{:?}", ty);
-                    }
                     return;
                 }
                 cur_opt = binding.parent.as_ref().and_then(|w| w.upgrade());

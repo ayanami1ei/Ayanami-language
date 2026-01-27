@@ -21,7 +21,10 @@ pub(crate) struct Symbol {
     pub(crate) its_type: HashSet<VarType>,
 
     pub(crate) id: i32,
-    pub(crate) level:i32,
+    pub(crate) level: i32,
+
+    // the id of the Scope this symbol was declared in
+    pub(crate) scope_id: i32,
 
     pub(crate) area: Weak<RefCell<Scope>>,
     pub(crate) body_scope_id: Option<i32>,
@@ -42,5 +45,5 @@ pub(crate) struct SymbolTable {
     area: Rc<RefCell<Scope>>,
     pub(crate) area_ptr: Weak<RefCell<Scope>>,
     next_scope_id: i32,
-    now_level:i32,
+    now_level: i32,
 }
