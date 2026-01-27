@@ -11,11 +11,6 @@ impl HirGenerator {
         vec.sort_by_key(|x| x.1.last_use);
 
         for (id,slot) in vec{
-             println!(
-                "{}: can escape: {}, last use index: {}",
-                id, slot.escape, slot.last_use
-            );
-
             if self.can_delete(&slot) {
                 self.hir.insert(
                     slot.last_use + offset +2,

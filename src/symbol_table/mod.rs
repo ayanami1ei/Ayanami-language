@@ -15,8 +15,10 @@ pub(crate) struct Symbol {
     pub(crate) args: Vec<Symbol>,
 
     pub(crate) is_argc: bool,
+    #[allow(unused)]
     pub(crate) is_ref: bool,
 
+    #[allow(unused)]
     pub(crate) is_var: bool,
     pub(crate) its_type: HashSet<VarType>,
 
@@ -24,6 +26,7 @@ pub(crate) struct Symbol {
     pub(crate) level: i32,
 
     // the id of the Scope this symbol was declared in
+    #[allow(unused)]
     pub(crate) scope_id: i32,
 
     pub(crate) area: Weak<RefCell<Scope>>,

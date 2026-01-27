@@ -33,6 +33,7 @@ pub(crate) struct ObjId {
 #[derive(Clone, Default)]
 pub(crate) struct ObjSlot {
     set: HashSet<Value>,
+    #[allow(unused)]
     home_level_id: i32,
     cur_leve_id: i32,
 
@@ -84,18 +85,28 @@ pub(super) enum StorageClass {
 
 #[derive(Default)]
 struct HirVarSymbol {
+    #[allow(unused)]
     pub(super) ty_set: HashSet<VarType>, // 可能指向的对象类型集合
+    #[allow(unused)]
     pub(super) mutability: bool,         // 能不能 Bind
+    #[allow(unused)]
     pub(super) storage: StorageClass,    // local / param / temp
     pub(super) obj_id: SlotId,
 }
 
 #[derive(Default, Clone)]
-struct HirFuncSymbol {
+pub(crate) struct HirFuncSymbol {
+    #[allow(unused)]
     pub(super) ty_set: HashSet<VarType>, // 可能的返回值类型集合
     pub(super) ret_obj_id: SlotId,
     pub(super) id: FuncId,
     pub(super) param_id: Vec<VarId>,
+}
+
+#[derive(Clone)]
+pub(crate) enum FuncDef{
+    Start(FuncId),
+    End(FuncId)
 }
 
 pub(crate) struct HirGenerator {
@@ -107,7 +118,7 @@ pub(crate) struct HirGenerator {
 
     var_registry: HashMap<VarId, HirVarSymbol>,
     obj_registry: HashMap<i32, ObjId>,
-    func_registry: HashMap<FuncId, HirFuncSymbol>,
+    pub(crate) func_registry: HashMap<FuncId, HirFuncSymbol>,
     block_registry: HashMap<BlockId, Vec<HIRInst>>,
     slot_registry: HashMap<SlotId, ObjSlot>,
 
@@ -120,11 +131,12 @@ pub(crate) struct HirGenerator {
 pub(crate) enum HIR {
     Inst(HIRInst),
     Block(BlockId),
-    Func(FuncId),
+    FuncLabel(FuncDef),
 }
 
 #[derive(Clone)]
 pub(crate) enum HIRInst {
+    #[allow(unused)]
     New {
         obj_type: HashSet<VarType>,
         dst: ObjId,
@@ -169,6 +181,7 @@ pub(crate) enum HIRInst {
         var: VarId,
         obj: SlotId,
     },
+    #[allow(unused)]
     Load {
         var: VarId,
         obj: SlotId,
@@ -189,7 +202,9 @@ pub(super) enum BinOperator {
     Less,
     GreaterEqual,
     LessEqual,
+    #[allow(unused)]
     And,
+    #[allow(unused)]
     Or,
 }
 
@@ -203,7 +218,9 @@ pub(super) enum Const {
     Int(i64),
     Float(FloatKey),
     Char(char),
+    #[allow(unused)]
     Bool(bool),
+    #[allow(unused)]
     Null,
 }
 

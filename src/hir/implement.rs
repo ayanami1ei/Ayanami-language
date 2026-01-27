@@ -189,6 +189,25 @@ impl HirGenerator {
         id
     }
     fn emit_block(&mut self, id: BlockId) {
+        if !self.hir.is_empty() {
+            if let HIR::Inst(x) = &self.hir[self.hir.len() - 1] {
+                match x {
+                    HIRInst::Br { .. } | HIRInst::Jmp { .. } | HIRInst::Ret { .. } => {
+                        // 已经是分支/跳转/返回：不做任何事
+                    }
+                    _ => {
+                        self.hir.push(HIR::Inst(HIRInst::Jmp { target: id }));
+                    }
+                }
+            } else if let HIR::FuncLabel(_) = &self.hir[self.hir.len() - 1] {
+            } else {
+                self.hir.push(HIR::Inst(HIRInst::Jmp { target: id }));
+            }
+        } else {
+            // 若当前没有任何指令，直接插入跳转到新块的指令
+            self.hir.push(HIR::Inst(HIRInst::Jmp { target: id }));
+        }
+
         self.hir.push(HIR::Block(id));
         let block = match self.block_registry.get(&id) {
             None => panic!(""),
@@ -316,7 +335,7 @@ impl HirGenerator {
                     res_slot_id = ret_slot;
                 }
             }
-            Expr::Var(ref name, ref var_type) => {
+            Expr::Var(ref name, _) => {
                 let id = self.find_var_id(name);
                 let sym = match self.var_registry.get(&id) {
                     None => panic!(""),
@@ -337,7 +356,7 @@ impl HirGenerator {
                         obj: arg_slot_id,
                     }));
                 }
-                let new_obj_id = self.get_next_obj_id();
+
                 irs.push(HIRInst::Call {
                     id: func_sym.id,
                     ret: func_sym.ret_obj_id,
@@ -404,7 +423,7 @@ impl HirGenerator {
                     self.gen_if_hir(cond, inner_block, &mut elifs.clone(), ret_obj);
                     self.ast_symbol_table.ret_to_parent_scope();
                 }
-                Stmt::Func(ref name, ref argcs, ref var_type, ref _block, scope_id) => {
+                Stmt::Func(ref name, ref argcs, ref var_type, ref _block, _) => {
                     self.gen_func_hir(name, argcs, var_type, block);
                 }
                 Stmt::Call(ref name, ref argcs, scope_id) => {
@@ -628,7 +647,7 @@ impl HirGenerator {
         &mut self,
         name: &String,
         argcs: &Vec<Argc>,
-        var_type: &HashSet<VarType>,
+        #[allow(unused)] var_type: &HashSet<VarType>,
         block: &Block,
     ) {
         // Ensure expressions in the function body have their variable type sets
@@ -637,7 +656,8 @@ impl HirGenerator {
             None => panic!(""),
             Some(sym) => sym,
         };
-        self.hir.push(HIR::Func(FuncId(ast_fn_sym.id)));
+        self.hir
+            .push(HIR::FuncLabel(hir::FuncDef::Start(FuncId(ast_fn_sym.id))));
         let slot_id = self.get_next_slot_id();
         let mut fn_sym = HirFuncSymbol {
             ty_set: ast_fn_sym.its_type,
@@ -654,6 +674,7 @@ impl HirGenerator {
 
         for i in 0..argcs.len() {
             let Argc {
+                #[allow(unused)]
                 ref is_ref,
                 ref arg_type,
                 ref var_name,
@@ -692,6 +713,8 @@ impl HirGenerator {
 
         self.gen_block_ir(body_block_id, block, &mut fn_sym.ret_obj_id);
         self.func_registry.insert(fn_sym.id, fn_sym.clone());
+        self.hir
+            .push(HIR::FuncLabel(hir::FuncDef::End(FuncId(ast_fn_sym.id))));
         // gen_block_ir will emit the body block and any nested blocks in correct order
     }
     fn gen_call_hir(&mut self, name: &String, argcs: &Vec<Rc<RefCell<Expr>>>) {
@@ -739,7 +762,7 @@ impl HirGenerator {
     }
     fn gen_return_hir(
         &mut self,
-        block_id: BlockId,
+        #[allow(unused)] block_id: BlockId,
         ret_expr: &Rc<RefCell<Expr>>,
         ret_obj: &mut SlotId,
     ) {
@@ -766,13 +789,11 @@ impl HirGenerator {
             }
             Stmt::While(ref cond, ref block, scope_id) => {
                 self.ast_symbol_table.set_area_ptr_by_id(scope_id);
-                let mut tmp = ObjSlot::new(self.ast_symbol_table.get_level());
                 self.gen_while_hir(cond, block, &mut SlotId { id: -1 });
                 self.ast_symbol_table.ret_to_parent_scope();
             }
             Stmt::If(ref cond, ref block, ref elifs, scope_id) => {
                 self.ast_symbol_table.set_area_ptr_by_id(scope_id);
-                let mut tmp = ObjSlot::new(self.ast_symbol_table.get_level());
                 self.gen_if_hir(cond, block, &mut elifs.clone(), &mut SlotId { id: -1 });
                 self.ast_symbol_table.ret_to_parent_scope();
             }
@@ -781,10 +802,10 @@ impl HirGenerator {
                 self.gen_func_hir(name, argcs, var_type, block);
                 self.ast_symbol_table.ret_to_parent_scope();
             }
-            Stmt::Call(ref name, ref argcs, scope_id) => {
+            Stmt::Call(ref name, ref argcs, _) => {
                 self.gen_call_hir(name, argcs);
             }
-            Stmt::Return(ref ret_expr) => panic!("cannot generate return stmt hir in gen_stmt_hir"),
+            Stmt::Return(_) => panic!("cannot generate return stmt hir in gen_stmt_hir"),
             Stmt::Default => panic!("unkonwn stmt"),
         }
     }

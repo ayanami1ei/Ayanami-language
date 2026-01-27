@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::hir::{
-    BinOperator, BlockId, Const, FloatKey, FuncId, HIR, HIRInst, ObjId, ObjSlot, SlotId, UnaryOperation, Value, VarId
+    BinOperator, BlockId, Const, FloatKey, FuncDef, FuncId, HIR, HIRInst, ObjId, ObjSlot, SlotId, UnaryOperation, Value, VarId
 };
 
 impl fmt::Display for BlockId {
@@ -50,23 +50,17 @@ impl fmt::Display for Const {
         }
     }
 }
-impl fmt::Display for FloatKey{
+impl fmt::Display for FloatKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let FloatKey(x)=self;
-        write!(f,"{}",x)
+        let FloatKey(x) = self;
+        write!(f, "{}", x)
     }
 }
 
-impl fmt::Display for SlotId{
+impl fmt::Display for SlotId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let SlotId {
-            id,
-        } = self;
-        write!(
-            f,
-            "slot_{}",
-            id
-        )
+        let SlotId { id } = self;
+        write!(f, "slot_{}", id)
     }
 }
 impl fmt::Display for ObjSlot {
@@ -74,7 +68,7 @@ impl fmt::Display for ObjSlot {
         for i in self.set.clone() {
             write!(f, "{}, ", i)?;
         }
-        write!(f,"")
+        write!(f, "")
     }
 }
 
@@ -84,6 +78,15 @@ impl fmt::Display for Value {
             Value::Const(x) => write!(f, "Const_{}", x),
             Value::Obj(obj_id) => write!(f, "{}", obj_id),
             Value::Null => todo!(),
+        }
+    }
+}
+
+impl fmt::Display for FuncDef{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self{
+            FuncDef::Start(func_id) => write!(f,"{} start", func_id),
+            FuncDef::End(func_id) => write!(f,"{} end", func_id),
         }
     }
 }
@@ -120,15 +123,15 @@ impl fmt::Display for HIRInst {
             HIRInst::New { obj_type, dst } => {
                 write!(f, "New ")?;
 
-                for i in obj_type{
-                    write!(f, "{} ",i)?;
+                for i in obj_type {
+                    write!(f, "{} ", i)?;
                 }
 
-                write!(f,"-> {}", dst)
-            },
-            HIRInst::Delete { dst }=>{
-                write!(f,"//Delete {}",dst)
-            },
+                write!(f, "-> {}", dst)
+            }
+            HIRInst::Delete { dst } => {
+                write!(f, "//Delete {}", dst)
+            }
             HIRInst::Store { from, to } => write!(f, "Store {} -> {}", from, to),
             HIRInst::Br {
                 cond,
@@ -165,7 +168,7 @@ impl fmt::Display for HIR {
         match self {
             HIR::Inst(hirinst) => write!(f, "    {}", hirinst),
             HIR::Block(block_id) => write!(f, "    block_{}: ", block_id),
-            HIR::Func(func_id) => write!(f, "func_{}:", func_id),
+            HIR::FuncLabel(func_id) => write!(f, "func_{}:", func_id),
         }
     }
 }

@@ -10,6 +10,7 @@ impl Error {
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn new_warning(s: String) -> Error {
         Error {
             _type: super::ErrorType::Warning,
@@ -24,6 +25,7 @@ impl Error {
         self.clone()
     }
 
+    #[allow(unused)]
     pub(crate) fn with_context_back(&mut self, s:String) -> Error {
         let mut _s = self.inner.to_string();
         _s.push_str(&s);
@@ -32,6 +34,7 @@ impl Error {
         self.clone()
     }
 
+    #[allow(unused)]
     pub(crate) fn msg(&self) -> String {
         self.inner.to_string()
     }
@@ -41,10 +44,10 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self._type {
             super::ErrorType::Error => {
-                write!(f, "{}", "Error: ".red());
+                write!(f, "{}", "Error: ".red())?;
             }
             super::ErrorType::Warning => {
-                write!(f, "{}", "Warning: ".yellow());
+                write!(f, "{}", "Warning: ".yellow())?;
             }
         };
         write!(f, "{}", self.inner.to_string())

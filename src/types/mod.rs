@@ -20,6 +20,7 @@ pub(crate) struct Argc {
 #[derive(Debug, Clone)]
 pub(crate) struct Block {
     pub(crate) body: Vec<Stmt>,
+    #[allow(unused)]
     pub(crate) id: i32,
 }
 
@@ -35,6 +36,7 @@ pub(crate) enum VarType {
 #[derive(Debug, Clone)]
 pub(crate) enum Expr {
     ConstNum(f64, HashSet<VarType>),
+    #[allow(unused)]
     ConstChar(char, HashSet<VarType>),
     Var(String, HashSet<VarType>),
     FuncCall(String, Vec<Rc<RefCell<Expr>>>, HashSet<VarType>, i32),
@@ -49,6 +51,7 @@ pub(crate) enum Expr {
     Less(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
     GreaterEqual(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
     LessEqual(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
+    #[allow(unused)]
     Not(Rc<RefCell<Expr>>, HashSet<VarType>),
 }
 

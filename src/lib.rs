@@ -1,20 +1,21 @@
 use crate::hir::HirGenerator;
+use crate::lir::LirGenerator;
 use crate::parser::Parser;
-use crate::type_inferrer::TypeInferrer;
 use crate::symbol_table::SymbolTable;
 use crate::tokenlizer::Tokenlizer;
+use crate::type_inferrer::TypeInferrer;
 use crate::types::Token;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 
 pub mod error_type;
 pub mod hir;
+pub mod lir;
 pub mod parser;
-pub mod type_inferrer;
 pub mod symbol_table;
 pub mod tokenlizer;
+pub mod type_inferrer;
 pub mod types;
-pub mod lir;
 
 pub fn run() {
     let path = "test.aya";
@@ -58,10 +59,14 @@ pub fn run() {
 
     fs::write("./hir.txt", "").unwrap();
     let mut file = OpenOptions::new().append(true).open("./hir.txt").unwrap();
-    for i in hirs{
+    for i in hirs.clone() {
         file.write(&i.to_string().as_bytes()).unwrap();
         file.write("\n".as_bytes()).unwrap();
     }
+
+    // create an LLVM context and pass it to LIR generator
+    let context = inkwell::context::Context::create();
+    let mut lir_generator = LirGenerator::new(&context, &hirs, hir_generator.func_registry);
 }
 
 pub fn tokenlize() {

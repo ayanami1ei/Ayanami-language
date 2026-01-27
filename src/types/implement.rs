@@ -42,6 +42,7 @@ impl fmt::Display for VarType {
 }
 
 impl Expr {
+    #[allow(unused)]
     pub fn get_type_set(&self) -> &HashSet<VarType> {
         match self {
             Expr::ConstNum(_, ty) => ty,
