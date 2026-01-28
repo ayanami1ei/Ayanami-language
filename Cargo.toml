@@ -1,0 +1,14 @@
+[package]
+name = "ayanami_runtime"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libc = "0.2.180"
+macro_lib={path="./macro_lib"}
+ptr = "0.2.3"
+
+[lib]
+name = "ayanami_runtime"
+crate-type = ["dylib"]
+
