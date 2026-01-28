@@ -25,12 +25,13 @@ pub(crate) struct Block {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[repr(u32)]
 pub(crate) enum VarType {
-    Int,
-    Float,
-    Bool,
-    Char,
-    Unknown,
+    Int = 1,
+    Float = 2,
+    Bool = 3,
+    Char = 4,
+    Unknown = 5,
 }
 
 #[derive(Debug, Clone)]

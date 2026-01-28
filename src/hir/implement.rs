@@ -350,7 +350,7 @@ impl HirGenerator {
 
                 for i in 0..argcs.len() {
                     let arg_slot_id = self.gen_expr_ir(&argcs[i]);
-
+                    self.hir.push(HIR::Inst(HIRInst::IncRef { obj: arg_slot_id }));
                     self.hir.push(HIR::Inst(HIRInst::Bind {
                         var: func_sym.param_id[i],
                         obj: arg_slot_id,
@@ -657,7 +657,7 @@ impl HirGenerator {
             Some(sym) => sym,
         };
         self.hir
-            .push(HIR::FuncLabel(hir::FuncDef::Start(FuncId(ast_fn_sym.id))));
+            .push(HIR::FuncLabel(hir::FuncId(ast_fn_sym.id)));
         let slot_id = self.get_next_slot_id();
         let mut fn_sym = HirFuncSymbol {
             ty_set: ast_fn_sym.its_type,
@@ -702,6 +702,8 @@ impl HirGenerator {
 
             self.var_registry.insert(param_id, hir_sym);
             fn_sym.param_id.push(param_id);
+
+            self.hir.push(HIR::Inst(HIRInst::Load { var: param_id, obj: i_slot_id }));
         }
 
         self.func_registry.insert(fn_sym.id, fn_sym.clone());
@@ -713,8 +715,21 @@ impl HirGenerator {
 
         self.gen_block_ir(body_block_id, block, &mut fn_sym.ret_obj_id);
         self.func_registry.insert(fn_sym.id, fn_sym.clone());
-        self.hir
-            .push(HIR::FuncLabel(hir::FuncDef::End(FuncId(ast_fn_sym.id))));
+
+        for i in 0..argcs.len(){
+            let Argc {
+                #[allow(unused)]
+                ref is_ref,
+                ref arg_type,
+                ref var_name,
+            } = argcs[i];
+
+            let param_id = self.find_var_id(var_name);
+
+            let i_slot_id=self.var_registry.get(&param_id).expect("");
+
+            self.hir.push(HIR::Inst(HIRInst::DecRef { obj: i_slot_id.obj_id }));
+        }
         // gen_block_ir will emit the body block and any nested blocks in correct order
     }
     fn gen_call_hir(&mut self, name: &String, argcs: &Vec<Rc<RefCell<Expr>>>) {
@@ -722,6 +737,7 @@ impl HirGenerator {
 
         for i in 0..argcs.len() {
             let arg_slot_id = self.gen_expr_ir(&argcs[i]);
+            self.hir.push(HIR::Inst(HIRInst::IncRef { obj: arg_slot_id }));
             self.hir.push(HIR::Inst(HIRInst::Bind {
                 var: func_sym.param_id[i],
                 obj: arg_slot_id,
@@ -743,6 +759,7 @@ impl HirGenerator {
 
         for i in 0..argcs.len() {
             let arg_slot_id = self.gen_expr_ir(&argcs[i]);
+            self.hir.push(HIR::Inst(HIRInst::IncRef { obj: arg_slot_id }));
             self.hir.push(HIR::Inst(HIRInst::Bind {
                 var: func_sym.param_id[i],
                 obj: arg_slot_id,

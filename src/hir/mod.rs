@@ -18,11 +18,11 @@ pub(crate) struct SlotId {
     id: i32,
 }
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
-pub(crate) struct FuncId(i32);
+pub(crate) struct FuncId(pub(crate) i32);
 #[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, Default)]
 pub(crate) struct BlockId {
-    id: i32,
-    is_merge: bool,
+    pub(crate) id: i32,
+    pub(crate) is_merge: bool,
 }
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default, Debug, PartialOrd, Ord)]
 pub(crate) struct ObjId {
@@ -103,12 +103,6 @@ pub(crate) struct HirFuncSymbol {
     pub(super) param_id: Vec<VarId>,
 }
 
-#[derive(Clone)]
-pub(crate) enum FuncDef{
-    Start(FuncId),
-    End(FuncId)
-}
-
 pub(crate) struct HirGenerator {
     stmts: Vec<Stmt>,
 
@@ -131,7 +125,7 @@ pub(crate) struct HirGenerator {
 pub(crate) enum HIR {
     Inst(HIRInst),
     Block(BlockId),
-    FuncLabel(FuncDef),
+    FuncLabel(FuncId),
 }
 
 #[derive(Clone)]

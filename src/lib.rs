@@ -58,15 +58,17 @@ pub fn run() {
     let hirs = hir_generator.gen_hir();
 
     fs::write("./hir.txt", "").unwrap();
-    let mut file = OpenOptions::new().append(true).open("./hir.txt").unwrap();
+    let mut hir_file = OpenOptions::new().append(true).open("./hir.txt").unwrap();
     for i in hirs.clone() {
-        file.write(&i.to_string().as_bytes()).unwrap();
-        file.write("\n".as_bytes()).unwrap();
+        hir_file.write(&i.to_string().as_bytes()).unwrap();
+        hir_file.write("\n".as_bytes()).unwrap();
     }
 
     // create an LLVM context and pass it to LIR generator
     let context = inkwell::context::Context::create();
     let mut lir_generator = LirGenerator::new(&context, &hirs, hir_generator.func_registry);
+    lir_generator.gen_lir();
+    
 }
 
 pub fn tokenlize() {

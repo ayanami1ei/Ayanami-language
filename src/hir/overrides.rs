@@ -1,4 +1,4 @@
-use crate::hir::{BlockId, FuncDef, FuncId, ObjId, SlotId, VarId};
+use crate::hir::{BlockId, FuncId, ObjId, SlotId, VarId};
 use std::ops::{Add, AddAssign, Sub};
 
 impl AddAssign<i32> for VarId {
@@ -91,11 +91,9 @@ impl Sub<i32> for SlotId {
     }
 }
 
-impl FuncDef{
-    pub(crate) fn get_id(&self)->FuncId{
-        match self{
-            FuncDef::Start(func_id) => func_id.clone(),
-            FuncDef::End(func_id) => func_id.clone(),
-        }
+impl FuncId{
+    pub(crate) fn get_id(self)->i32{
+        let FuncId(x)=self;
+        x
     }
 }

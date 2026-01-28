@@ -1,5 +1,7 @@
-func_2 start:
+func_2:
     block_0: 
+        Load var_3 to slot_1
+        Load var_4 to slot_2
         Jmp to block_1
     block_1: 
         Jmp to block_2
@@ -20,8 +22,9 @@ func_2 start:
         Ret slot_1
         Jmp to block_merge_6
     block_merge_6: 
-func_2 end:
-func_5 start:
+        Decrease Reference of slot_1
+        Decrease Reference of slot_2
+func_5:
     block_7: 
         Jmp to block_8
     block_8: 
@@ -75,17 +78,18 @@ func_5 start:
         slot_14 + slot_16 -> slot_14
         Jmp to block_13
     block_merge_15: 
+        Increase Reference of slot_7
         Bind var_3 and slot_7
-        Bind var_4 and slot_13
         //Delete slot_14
         //Delete slot_15
-        //Delete slot_16
         //Delete slot_7
-        Call func_2, ret_slot:slot_0
+        //Delete slot_16
+        Increase Reference of slot_13
+        Bind var_4 and slot_13
         //Delete slot_13
+        Call func_2, ret_slot:slot_0
         Increase Reference of slot_0
         Bind var_11 and slot_0
         //Delete slot_0
         Store Const_Int: 0 -> slot_19
         Ret slot_19
-func_5 end:

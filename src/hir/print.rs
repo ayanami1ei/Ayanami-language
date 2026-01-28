@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::hir::{
-    BinOperator, BlockId, Const, FloatKey, FuncDef, FuncId, HIR, HIRInst, ObjId, ObjSlot, SlotId, UnaryOperation, Value, VarId
+    BinOperator, BlockId, Const, FloatKey, FuncId, HIR, HIRInst, ObjId, ObjSlot, SlotId, UnaryOperation, Value, VarId
 };
 
 impl fmt::Display for BlockId {
@@ -82,15 +82,6 @@ impl fmt::Display for Value {
     }
 }
 
-impl fmt::Display for FuncDef{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self{
-            FuncDef::Start(func_id) => write!(f,"{} start", func_id),
-            FuncDef::End(func_id) => write!(f,"{} end", func_id),
-        }
-    }
-}
-
 impl fmt::Display for BinOperator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -155,7 +146,7 @@ impl fmt::Display for HIRInst {
             } => write!(f, "{} {} {} -> {}", left, op, right, dst),
             HIRInst::UnaryOp { op, expr, dst } => write!(f, "{} {} -> {}", op, expr, dst),
             HIRInst::Bind { var, obj } => write!(f, "Bind var_{} and {}", var, obj),
-            HIRInst::Load { var, obj } => write!(f, "Load var_{}'s obj to {}", var, obj),
+            HIRInst::Load { var, obj } => write!(f, "Load var_{} to {}", var, obj),
             HIRInst::Ret { ret_obj } => write!(f, "Ret {}", ret_obj),
             HIRInst::IncRef { obj } => write!(f, "Increase Reference of {}", obj),
             HIRInst::DecRef { obj } => write!(f, "Decrease Reference of {}", obj),
