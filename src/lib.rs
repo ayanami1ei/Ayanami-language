@@ -57,8 +57,8 @@ pub fn run() {
     let mut hir_generator = HirGenerator::new(stmts, symbol_table);
     let hirs = hir_generator.gen_hir();
 
-    fs::write("./hir.txt", "").unwrap();
-    let mut hir_file = OpenOptions::new().append(true).open("./hir.txt").unwrap();
+    fs::write("./build/hir.txt", "").unwrap();
+    let mut hir_file = OpenOptions::new().append(true).open("./build/hir.txt").unwrap();
     for i in hirs.clone() {
         hir_file.write(&i.to_string().as_bytes()).unwrap();
         hir_file.write("\n".as_bytes()).unwrap();
@@ -68,7 +68,7 @@ pub fn run() {
     let context = inkwell::context::Context::create();
     let mut lir_generator = LirGenerator::new(&context, &hirs, hir_generator.func_registry);
     lir_generator.gen_lir();
-    
+    lir_generator.to_asm()
 }
 
 pub fn tokenlize() {

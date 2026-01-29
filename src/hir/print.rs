@@ -150,6 +150,7 @@ impl fmt::Display for HIRInst {
             HIRInst::Ret { ret_obj } => write!(f, "Ret {}", ret_obj),
             HIRInst::IncRef { obj } => write!(f, "Increase Reference of {}", obj),
             HIRInst::DecRef { obj } => write!(f, "Decrease Reference of {}", obj),
+            HIRInst::Unreachable=>write!(f, "Unreachable"),
         }
     }
 }

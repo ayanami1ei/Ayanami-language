@@ -1,15 +1,26 @@
-use std::{collections::HashMap, fs::{self, OpenOptions}, io::Write};
+use std::{
+    collections::HashMap,
+    fs::{self, OpenOptions},
+    io::Write,
+    mem::transmute,
+    path::Path,
+    process::Command,
+};
 
 use inkwell::{
-    AddressSpace,
+    AddressSpace, OptimizationLevel,
     basic_block::BasicBlock,
     context::Context,
     module::Module,
+    targets::{
+        CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
+    },
     types::{BasicMetadataTypeEnum, BasicTypeEnum},
     values::{
         BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue,
     },
 };
+use llvm_sys::target_machine;
 use macro_lib::{bin_operator_fn, call_bin_operator_fn, make_fn};
 
 use crate::{
@@ -22,9 +33,11 @@ impl<'ctx> LirGenerator<'ctx> {
     fn init_env(&mut self) {
         let obj_ptr = self.context.i8_type().ptr_type(AddressSpace::default());
 
-        let err_fn =
-            self.module
-                .add_function("err", self.context.void_type().fn_type(&[obj_ptr.into()], false), None);
+        let err_fn = self.module.add_function(
+            "err",
+            self.context.void_type().fn_type(&[obj_ptr.into()], false),
+            None,
+        );
         self.runtime_fn.insert("err", err_fn);
 
         let is_type_fn = self.module.add_function(
@@ -36,19 +49,25 @@ impl<'ctx> LirGenerator<'ctx> {
         );
         self.runtime_fn.insert("is_type", is_type_fn);
 
-        let del_obj_fn =
-            self.module
-                .add_function("del_obj", self.context.void_type().fn_type(&[obj_ptr.into()], false), None);
+        let del_obj_fn = self.module.add_function(
+            "del_obj",
+            self.context.void_type().fn_type(&[obj_ptr.into()], false),
+            None,
+        );
         self.runtime_fn.insert("del_obj", del_obj_fn);
 
-        let dec_ref_fn =
-            self.module
-                .add_function("dec_ref", self.context.void_type().fn_type(&[obj_ptr.into()], false), None);
+        let dec_ref_fn = self.module.add_function(
+            "dec_ref",
+            self.context.void_type().fn_type(&[obj_ptr.into()], false),
+            None,
+        );
         self.runtime_fn.insert("dec_ref", dec_ref_fn);
 
-        let inc_ref_fn =
-            self.module
-                .add_function("inc_ref", self.context.void_type().fn_type(&[obj_ptr.into()], false), None);
+        let inc_ref_fn = self.module.add_function(
+            "inc_ref",
+            self.context.void_type().fn_type(&[obj_ptr.into()], false),
+            None,
+        );
         self.runtime_fn.insert("inc_ref", inc_ref_fn);
 
         let alloc_int_fn = self.module.add_function(
@@ -300,26 +319,44 @@ impl<'ctx> LirGenerator<'ctx> {
 
     fn gen_func_ir(&mut self, func_def: &FuncId) -> FunctionValue {
         let id = func_def.clone();
+        let mut name = "fn_".to_string();
+        name.push_str(&id.to_string());
 
         let sym = match self.func_registry.get(&id) {
             None => panic!(""),
             Some(x) => x,
         };
-        let ptr = self.context.i8_type().ptr_type(AddressSpace::default());
-        let mut args = Vec::<BasicMetadataTypeEnum<'ctx>>::new();
-        for _ in 0..sym.param_id.len() {
-            args.push(ptr.into());
+        if sym.is_main {
+            let ret_type = self.context.i32_type();
+            name = "main".to_string();
+
+            let mut args = Vec::<BasicMetadataTypeEnum<'ctx>>::new();
+            for _ in 0..sym.param_id.len() {
+                args.push(ret_type.into());
+            }
+            let fn_type = ret_type.fn_type(&args, false);
+            let function = self.module.add_function(&name, fn_type, None);
+            self.llvm_func_registry.insert(id, function);
+            function
+        } else {
+            let ret_type = self.context.i8_type().ptr_type(AddressSpace::default());
+
+            let mut args = Vec::<BasicMetadataTypeEnum<'ctx>>::new();
+            for _ in 0..sym.param_id.len() {
+                args.push(ret_type.into());
+            }
+            let fn_type = ret_type.fn_type(&args, false);
+            let function = self.module.add_function(&name, fn_type, None);
+            self.llvm_func_registry.insert(id, function);
+            function
         }
-        let fn_type = ptr.fn_type(&args, false);
-        let function = self.module.add_function(&id.to_string(), fn_type, None);
-        self.llvm_func_registry.insert(id, function);
-        function
     }
     fn new_llvm_block(&mut self, function: FunctionValue<'ctx>, id: &BlockId) {
         if let Some(_) = self.block_registry.get(id) {
             return;
         }
-        let name = id.to_string();
+        let mut name = "block_".to_string();
+        name.push_str(&id.to_string());
         let block = self.context.append_basic_block(function, &name);
         self.block_registry.insert(*id, block);
     }
@@ -346,7 +383,7 @@ impl<'ctx> LirGenerator<'ctx> {
             HIRInst::Load { var, obj: slot } => {
                 let slot_type = object_ptr_type; // alloca Object*
                 let slot_ptr: PointerValue<'ctx> =
-                    self.builder.build_alloca(slot_type, "slot").unwrap();
+                    self.builder.build_alloca(slot_type, "").unwrap();
 
                 let loaded: PointerValue<'ctx> = self
                     .builder
@@ -663,6 +700,9 @@ impl<'ctx> LirGenerator<'ctx> {
                 // 2. ret Object*
                 self.builder.build_return(Some(&ret_val)).unwrap();
             }
+            HIRInst::Unreachable => {
+                self.builder.build_unreachable().unwrap();
+            }
         }
     }
 
@@ -676,7 +716,6 @@ impl<'ctx> LirGenerator<'ctx> {
         let hirs = self.hirs.clone();
         let mut i = 0;
         while i < hirs.len() {
-            println!("index: {}", i + 1);
             match hirs[i].clone() {
                 HIR::Inst(hirinst) => {
                     self.gen_inst_ir(&hirinst, cur_func.clone());
@@ -709,6 +748,23 @@ impl<'ctx> LirGenerator<'ctx> {
                     cur_block_id = block_id;
                 }
                 HIR::FuncLabel(ref func_def) => {
+                    if let Some(func_name) = cur_func {
+                        let function = self
+                            .llvm_func_registry
+                            .get(&FuncId(func_name.parse::<i32>().unwrap()))
+                            .expect("");
+                        self.new_llvm_block(
+                            *function,
+                            &BlockId {
+                                id: -1,
+                                is_merge: false,
+                            },
+                        );
+                        self.emit_llvm_block(&BlockId {
+                            id: -1,
+                            is_merge: false,
+                        });
+                    }
                     let t = self.gen_func_ir(func_def);
                     cur_func = Some(func_def.get_id().to_string());
                 }
@@ -718,9 +774,52 @@ impl<'ctx> LirGenerator<'ctx> {
         }
 
         let lir = self.module.print_to_string().to_string();
-        fs::write("./lir.txt", "").unwrap();
-        let mut lir_file = OpenOptions::new().append(true).open("./lir.txt").unwrap();
+        fs::write("./build/lir.txt", "").unwrap();
+        let mut lir_file = OpenOptions::new()
+            .append(true)
+            .open("./build/lir.txt")
+            .unwrap();
         lir_file.write(&lir.to_string().as_bytes()).unwrap();
         lir_file.write("\n".as_bytes()).unwrap();
+    }
+
+    pub(crate) fn to_asm(&mut self) {
+        let init_config = InitializationConfig {
+            asm_printer: true,
+            asm_parser: true,
+            base: true,
+            disassembler: true,
+            info: true,
+            machine_code: true,
+        };
+        Target::initialize_all(&init_config);
+
+        let triple = &TargetMachine::get_default_triple();
+        let target = Target::from_triple(triple).unwrap();
+        let target_machine = target
+            .create_target_machine(
+                triple,
+                "generic",
+                "",
+                OptimizationLevel::Aggressive,
+                RelocMode::PIC,
+                CodeModel::Default,
+            )
+            .unwrap();
+
+        let output_obj = Path::new("./build/test.o");
+        target_machine
+            .write_to_file(&self.module, FileType::Object, output_obj)
+            .unwrap();
+
+        let link_result = Command::new("gcc")
+            .arg(output_obj) // test.o
+            .arg("-L./runtime") // 库搜索路径
+            .arg("-layanami_runtime") // libayanami_runtime.so
+            .arg("-Wl,-rpath,$ORIGIN/runtime") // 
+            .arg("-o")
+            .arg("./build/ayanami_test")
+            .status()
+            .expect("failed to invoke gcc");
     }
 }

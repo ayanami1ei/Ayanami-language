@@ -1,5 +1,8 @@
-use crate::hir::{BlockId, FuncId, ObjId, SlotId, VarId};
+use crate::hir::{BlockId, FloatKey, FuncId, ObjId, SlotId, VarId};
+use std::cmp::Ordering;
 use std::ops::{Add, AddAssign, Sub};
+use std::hash::Hasher;
+use std::hash::Hash;
 
 impl AddAssign<i32> for VarId {
     fn add_assign(&mut self, other: i32) {
@@ -95,5 +98,37 @@ impl FuncId{
     pub(crate) fn get_id(self)->i32{
         let FuncId(x)=self;
         x
+    }
+}
+
+
+impl From<f64> for FloatKey {
+    fn from(v: f64) -> Self {
+        FloatKey(v)
+    }
+}
+
+impl PartialEq for FloatKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.to_bits() == other.0.to_bits()
+    }
+}
+impl Eq for FloatKey {}
+
+impl Hash for FloatKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.0.to_bits());
+    }
+}
+
+impl PartialOrd for FloatKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for FloatKey {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.total_cmp(&other.0)
     }
 }

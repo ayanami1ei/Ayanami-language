@@ -11,19 +11,18 @@ func_2:
     block_3: 
         //Delete slot_3
         slot_1 + slot_2 -> slot_4
-        Ret slot_4
         //Delete slot_2
-        Jmp to block_merge_6
+        Ret slot_4
     block_4: 
         Store Const_Int: 1 -> slot_5
         Br cond: slot_5, then-block: block_5, else-block: block_merge_6
     block_5: 
         //Delete slot_5
         Ret slot_1
-        Jmp to block_merge_6
     block_merge_6: 
         Decrease Reference of slot_1
         Decrease Reference of slot_2
+        Unreachable
 func_5:
     block_7: 
         Jmp to block_8
@@ -39,9 +38,9 @@ func_5:
         Store Const_Int: 1 -> slot_9
         Store Const_Int: 0 -> slot_10
         slot_9 > slot_10 -> slot_11
-        Br cond: slot_11, then-block: block_10, else-block: block_merge_11
         //Delete slot_9
         //Delete slot_10
+        Br cond: slot_11, then-block: block_10, else-block: block_merge_11
     block_10: 
         //Delete slot_11
         slot_8 + slot_7 -> slot_12
@@ -80,10 +79,10 @@ func_5:
     block_merge_15: 
         Increase Reference of slot_7
         Bind var_3 and slot_7
+        //Delete slot_16
+        //Delete slot_7
         //Delete slot_14
         //Delete slot_15
-        //Delete slot_7
-        //Delete slot_16
         Increase Reference of slot_13
         Bind var_4 and slot_13
         //Delete slot_13

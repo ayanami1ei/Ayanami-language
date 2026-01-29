@@ -1,6 +1,5 @@
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::hash::{Hash};
 
 use crate::{
     symbol_table::SymbolTable,
@@ -44,37 +43,6 @@ pub(crate) struct ObjSlot {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct FloatKey(pub(crate) f64);
 
-impl From<f64> for FloatKey {
-    fn from(v: f64) -> Self {
-        FloatKey(v)
-    }
-}
-
-impl PartialEq for FloatKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.to_bits() == other.0.to_bits()
-    }
-}
-impl Eq for FloatKey {}
-
-impl Hash for FloatKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.0.to_bits());
-    }
-}
-
-impl PartialOrd for FloatKey {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for FloatKey {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.0.total_cmp(&other.0)
-    }
-}
-
 #[derive(Default)]
 pub(super) enum StorageClass {
     Local,
@@ -101,6 +69,7 @@ pub(crate) struct HirFuncSymbol {
     pub(super) ret_obj_id: SlotId,
     pub(super) id: FuncId,
     pub(super) param_id: Vec<VarId>,
+    pub(crate) is_main:bool,
 }
 
 pub(crate) struct HirGenerator {
@@ -175,7 +144,6 @@ pub(crate) enum HIRInst {
         var: VarId,
         obj: SlotId,
     },
-    #[allow(unused)]
     Load {
         var: VarId,
         obj: SlotId,
@@ -183,6 +151,7 @@ pub(crate) enum HIRInst {
     Ret {
         ret_obj: SlotId,
     },
+    Unreachable,
 }
 
 #[derive(Clone)]
