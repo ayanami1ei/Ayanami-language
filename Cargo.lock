@@ -8,7 +8,6 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "macro_lib",
- "ptr",
 ]
 
 [[package]]
@@ -20,9 +19,3 @@ checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
 [[package]]
 name = "macro_lib"
 version = "0.1.0"
-
-[[package]]
-name = "ptr"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76208293e44a44a702aa22f5cf40e2e55f4a6cd19953ddadb0b3f68e337d87ce"

@@ -1,7 +1,7 @@
 use macro_lib::{logic_operation, type_trans, value_operation};
 use std::{
     alloc::{alloc, dealloc, Layout},
-    ptr::null_mut,
+    ptr::{self, null_mut},
 };
 
 //cargo clean && cargo build --lib --release
@@ -30,9 +30,24 @@ pub extern "C" fn is_type(ty: u32, obj: *mut Object) -> bool {
     unsafe { (*obj).ty.clone() as u32 == ty }
 }
 
-pub extern "C" fn del_obj<T>(obj: *mut Object) {
+pub extern "C" fn del_obj_inner<T>(obj: *mut Object) {
     let layout = Layout::new::<T>();
     unsafe { dealloc(obj as *mut u8, layout) };
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn del_obj(obj: *mut Object) {
+    unsafe {
+        // 释放对象本身
+        match (*obj).ty {
+            VarType::Int => del_obj_inner::<IntObject>(obj),
+            VarType::Float => del_obj_inner::<FloatObject>(obj),
+            VarType::Bool => del_obj_inner::<BoolObject>(obj),
+            VarType::Char => del_obj_inner::<CharObject>(obj),
+            VarType::String => del_obj_inner::<CharObject>(obj),
+            VarType::Unknown => panic!("no such type"),
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -47,15 +62,7 @@ pub extern "C" fn dec_ref(obj: *mut Object) {
 
         // 如果没有引用了，就释放
         if (*obj).refcnt == 0 {
-            // 释放对象本身
-            match (*obj).ty {
-                VarType::Int => del_obj::<IntObject>(obj),
-                VarType::Float => del_obj::<FloatObject>(obj),
-                VarType::Bool => del_obj::<BoolObject>(obj),
-                VarType::Char => del_obj::<CharObject>(obj),
-                VarType::String => del_obj::<CharObject>(obj),
-                VarType::Unknown => panic!("no such type"),
-            }
+            del_obj(obj);
         }
     }
 }
@@ -199,4 +206,29 @@ pub extern "C" fn not(_cond: *const Object) -> *mut Object {
         let v = (*cond).value;
         alloc_bool(!v)
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn equal(_left: *const Object, _right: *const Object) -> *mut Object {
+    logic_operation!(_left, ==, _right)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn greater(_left: *const Object, _right: *const Object) -> *mut Object {
+    logic_operation!(_left, >, _right)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn less(_left: *const Object, _right: *const Object) -> *mut Object {
+    logic_operation!(_left, <, _right)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn greater_equal(_left: *const Object, _right: *const Object) -> *mut Object {
+    logic_operation!(_left, >=, _right)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn less_equal(_left: *const Object, _right: *const Object) -> *mut Object {
+    logic_operation!(_left, <=, _right)
 }
