@@ -21,10 +21,11 @@ pub(crate) struct LirGenerator<'ctx> {
     block_registry: HashMap<BlockId, BasicBlock<'ctx>>,
     slot_registry: HashMap<SlotId, PointerValue<'ctx>>,
     var_registry: HashMap<VarId, PointerValue<'ctx>>,
+    var_to_slot: HashMap<VarId, SlotId>,
 
     runtime_fn:HashMap<&'ctx str, FunctionValue<'ctx>>,
 
-    bool_object_type:StructType<'ctx>,
+    main_id:FuncId,
 
     hirs: Vec<HIR>,
     i: usize,

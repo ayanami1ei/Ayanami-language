@@ -85,6 +85,7 @@ pub(crate) struct HirGenerator {
     pub(crate) func_registry: HashMap<FuncId, HirFuncSymbol>,
     block_registry: HashMap<BlockId, Vec<HIRInst>>,
     slot_registry: HashMap<SlotId, ObjSlot>,
+    pub(crate) var_to_slot:HashMap<VarId, SlotId>,
 
     ast_symbol_table: SymbolTable,
 

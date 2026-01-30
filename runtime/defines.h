@@ -20,7 +20,7 @@
         ptr->header.refcnt = 0;                                                                            \
         ptr->value = value;                                                                                \
         /* debug: log allocation */                                                                        \
-        fprintf(stderr, "[runtime] alloc_%s called -> ptr=%p\n", #name, (void *)ptr);                      \
+        /*fprintf(stderr, "[runtime] alloc_%s called -> ptr=%p\n", #name, (void *)ptr); */                     \
         return (Object *)ptr;                                                                              \
     }
 
@@ -75,6 +75,7 @@ extern "C" bool inline is_truth(const Object *obj)
         {                                                                                  \
             IntObject *l = (IntObject *)(left);                                            \
             IntObject *r = (IntObject *)(right);                                           \
+            /*printf("int and int\n");   */                                                    \
             return alloc_int((l->value)op(r->value));                                      \
         }                                                                                  \
         else if (left_type == VarType::Int && right_type == VarType::Float)                \
@@ -311,7 +312,8 @@ extern "C" bool inline is_truth(const Object *obj)
         }                                                                                  \
         else                                                                               \
         {                                                                                  \
-            const char *msg = "unknown type";                                              \
+            const char *msg = "unknown type\n";                                            \
+            printf("left type: %d, right type: %d\n", left->type, right->type);            \
             char *buf = (char *)malloc(sizeof(char) * strlen(msg));                        \
             if (!buf)                                                                      \
             {                                                                              \

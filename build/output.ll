@@ -1,5 +1,6 @@
 ; ModuleID = 'ayanami_modlue'
 source_filename = "ayanami_modlue"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 
 declare void @err(ptr)
 
@@ -57,12 +58,6 @@ entry:
   store ptr %0, ptr %slotslot_2, align 8
   %slotslot_3 = alloca ptr, align 8
   store ptr %1, ptr %slotslot_3, align 8
-  br label %block_0
-
-block_0:                                          ; preds = %entry
-  br label %block_1
-
-block_1:                                          ; preds = %block_0
   %slotslot_4 = alloca ptr, align 8
   %left_obj = load ptr, ptr %slotslot_2, align 8
   %right_obj = load ptr, ptr %slotslot_3, align 8
@@ -79,12 +74,6 @@ block_1:                                          ; preds = %block_0
 
 define i32 @main() {
 entry:
-  br label %block_2
-
-block_2:                                          ; preds = %entry
-  br label %block_3
-
-block_3:                                          ; preds = %block_2
   %"new int" = call ptr @alloc_int(i64 1)
   %slotslot_6 = alloca ptr, align 8
   store ptr %"new int", ptr %slotslot_6, align 8
@@ -101,9 +90,6 @@ block_3:                                          ; preds = %block_2
   %slotslot_74 = alloca ptr, align 8
   %bind.load5 = load ptr, ptr %slotslot_7, align 8
   store ptr %bind.load5, ptr %slotslot_74, align 8
-  br label %block_4
-
-block_4:                                          ; preds = %block_3
   %"new int6" = call ptr @alloc_int(i64 0)
   %slotslot_8 = alloca ptr, align 8
   store ptr %"new int6", ptr %slotslot_8, align 8
@@ -114,7 +100,7 @@ block_4:                                          ; preds = %block_3
   store ptr %bind.load9, ptr %slotslot_88, align 8
   br label %block_5
 
-block_5:                                          ; preds = %block_6, %block_4
+block_5:                                          ; preds = %block_6, %entry
   %"new int10" = call ptr @alloc_int(i64 5)
   %slotslot_9 = alloca ptr, align 8
   store ptr %"new int10", ptr %slotslot_9, align 8
@@ -203,4 +189,3 @@ block_merge_7:                                    ; preds = %block_5
   call void @del_obj(ptr %ret.load)
   ret i32 %"get main ret"
 }
-

@@ -18,7 +18,7 @@ pub mod type_inferrer;
 pub mod types;
 
 pub fn run() {
-    let path = "test.aya";
+    let path = "./test.aya";
 
     let input = File::open(path).unwrap();
     let buffered = BufReader::new(input);
@@ -66,7 +66,7 @@ pub fn run() {
 
     // create an LLVM context and pass it to LIR generator
     let context = inkwell::context::Context::create();
-    let mut lir_generator = LirGenerator::new(&context, &hirs, hir_generator.func_registry);
+    let mut lir_generator = LirGenerator::new(&context, &hirs, hir_generator.func_registry, hir_generator.var_to_slot);
     lir_generator.gen_lir();
     lir_generator.to_asm()
 }

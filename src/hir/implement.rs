@@ -128,6 +128,7 @@ impl HirGenerator {
             func_registry: HashMap::<FuncId, HirFuncSymbol>::new(),
             block_registry: HashMap::<BlockId, Vec<HIRInst>>::new(),
             slot_registry: HashMap::<SlotId, ObjSlot>::new(),
+            var_to_slot:HashMap::new(),
 
             ast_symbol_table,
 
@@ -614,6 +615,7 @@ impl HirGenerator {
 
         let cond_id = self.get_next_obj_id();
         let cond_slot_id = self.get_next_slot_id();
+        cond_slot_id.escape(&mut self.slot_registry);
         cond_slot_id.push(&mut self.slot_registry, hir::Value::Obj(cond_id));
         let cond_ir = HIRInst::BinOp {
             left: itor_id,
@@ -732,6 +734,7 @@ impl HirGenerator {
                 obj_id: i_slot_id,
             };
 
+            self.var_to_slot.insert(param_id, i_slot_id);
             self.var_registry.insert(param_id, hir_sym);
             fn_sym.param_id.push(param_id);
 
@@ -739,6 +742,8 @@ impl HirGenerator {
                 var: param_id,
                 obj: i_slot_id,
             }));
+
+            i_slot_id.escape(&mut self.slot_registry);
         }
 
         self.func_registry.insert(fn_sym.id, fn_sym.clone());
@@ -1157,15 +1162,17 @@ impl HirGenerator {
             i += 1;
         }
 
-        // Per-block pass: move Deletes within each block to after their last use in that block
+        // Per-block pass: move ALL Delete instructions to the end of their enclosing block,
+        // inserting them immediately before the block's final instruction.
+        let mut new_hir: Vec<HIR> = Vec::new();
         let mut pos = 0;
         while pos < self.hir.len() {
-            if let HIR::Block(_) = self.hir[pos] {
+            if let HIR::Block(_) = &self.hir[pos] {
+                // find block_end (next Block or FuncLabel) or end
                 let bs = pos;
-                // find block end (index of next Block or FuncLabel) or end of hir
                 let mut block_end = self.hir.len();
                 for e in (bs + 1)..self.hir.len() {
-                    match self.hir[e] {
+                    match &self.hir[e] {
                         HIR::Block(_) | HIR::FuncLabel(_) => {
                             block_end = e;
                             break;
@@ -1174,89 +1181,43 @@ impl HirGenerator {
                     }
                 }
 
-                let mut p = bs + 1;
-                while p < block_end {
-                    if let HIR::Inst(HIRInst::Delete { dst }) = self.hir[p].clone() {
-                        // find last use of dst within this block
-                        let mut last_use = p;
-                        let mut j = p + 1;
-                        while j < block_end {
-                            if let HIR::Inst(ref inst) = self.hir[j] {
-                                let uses_dst = match inst {
-                                    HIRInst::Store { to, .. } => *to == dst,
-                                    HIRInst::Br { cond, .. } => *cond == dst,
-                                    HIRInst::Call { ret, .. } => *ret == dst,
-                                    HIRInst::BinOp {
-                                        left,
-                                        right,
-                                        dst: d,
-                                        ..
-                                    } => *left == dst || *right == dst || *d == dst,
-                                    HIRInst::UnaryOp { expr, dst: d, .. } => {
-                                        *expr == dst || *d == dst
-                                    }
-                                    HIRInst::IncRef { obj } | HIRInst::DecRef { obj } => {
-                                        *obj == dst
-                                    }
-                                    HIRInst::Bind { obj, .. } => *obj == dst,
-                                    HIRInst::Load { obj, .. } => *obj == dst,
-                                    HIRInst::Ret { ret_obj } => *ret_obj == dst,
-                                    HIRInst::Delete { dst: d } => *d == dst,
-                                    _ => false,
-                                };
-
-                                if uses_dst {
-                                    last_use = j;
-                                }
-                            }
-
-                            j += 1;
-                        }
-
-                        // compute insertion position: after last_use if any, otherwise before block_end
-                        let mut insert_at = if last_use >= p {
-                            last_use + 1
-                        } else {
-                            block_end
-                        };
-                        if insert_at > block_end {
-                            insert_at = block_end;
-                        }
-
-                        // remove current delete and reinsert at insert_at (adjust for removal)
-                        let inst = self.hir.remove(p);
-                        // removal shifts indices left; if p < insert_at then insert_at -= 1
-                        if p < insert_at {
-                            insert_at -= 1;
-                        }
-                        self.hir.insert(insert_at, inst);
-
-                        // update block_end and set p to position after inserted Delete
-                        // find new block_end
-                        block_end = self.hir.len();
-                        for e in (bs + 1)..self.hir.len() {
-                            match self.hir[e] {
-                                HIR::Block(_) | HIR::FuncLabel(_) => {
-                                    block_end = e;
-                                    break;
-                                }
-                                _ => {}
-                            }
-                        }
-                        p = insert_at + 1;
-                        continue;
+                // collect header, body, deletes
+                new_hir.push(self.hir[bs].clone());
+                let mut body_non_delete: Vec<HIR> = Vec::new();
+                let mut deletes: Vec<HIR> = Vec::new();
+                for idx in (bs + 1)..block_end {
+                    match &self.hir[idx] {
+                        HIR::Inst(HIRInst::Delete { .. }) => deletes.push(self.hir[idx].clone()),
+                        other => body_non_delete.push(other.clone()),
                     }
-
-                    p += 1;
                 }
 
-                // advance pos to block_end
+                if body_non_delete.is_empty() {
+                    // no instructions in block, just append deletes after header
+                    for d in deletes {
+                        new_hir.push(d);
+                    }
+                } else {
+                    // push all but last non-delete, then deletes, then last non-delete
+                    for i in 0..(body_non_delete.len() - 1) {
+                        new_hir.push(body_non_delete[i].clone());
+                    }
+                    for d in deletes {
+                        new_hir.push(d);
+                    }
+                    new_hir.push(body_non_delete[body_non_delete.len() - 1].clone());
+                }
+
                 pos = block_end;
                 continue;
             }
 
+            new_hir.push(self.hir[pos].clone());
             pos += 1;
         }
+
+        // replace HIR with reassembled HIR
+        self.hir = new_hir;
     }
 
     pub(crate) fn gen_hir(&mut self) -> Vec<HIR> {

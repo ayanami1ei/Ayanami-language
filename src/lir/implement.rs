@@ -25,7 +25,7 @@ use llvm_sys::target_machine;
 use macro_lib::{bin_operator_fn, call_bin_operator_fn, make_fn};
 
 use crate::{
-    hir::{BlockId, FloatKey, FuncId, HIR, HIRInst, HirFuncSymbol, SlotId, Value},
+    hir::{BlockId, FloatKey, FuncId, HIR, HIRInst, HirFuncSymbol, SlotId, Value, VarId},
     lir::LirGenerator,
     types::VarType,
 };
@@ -40,6 +40,13 @@ impl<'ctx> LirGenerator<'ctx> {
             None,
         );
         self.runtime_fn.insert("err", err_fn);
+
+        let get_int_value_fn = self.module.add_function(
+            "get_int_value",
+            self.context.i32_type().fn_type(&[obj_ptr.into()], false),
+            None,
+        );
+        self.runtime_fn.insert("get_int_value", get_int_value_fn);
 
         let is_truth_fn = self.module.add_function(
             "is_truth",
@@ -130,7 +137,7 @@ impl<'ctx> LirGenerator<'ctx> {
         self.runtime_fn.insert("alloc_string", alloc_string_fn);
     }
 
-    fn init_operation_mod(&mut self) {
+    fn init_operation(&mut self) {
         bin_operator_fn!(
             self,
             add,
@@ -155,13 +162,14 @@ impl<'ctx> LirGenerator<'ctx> {
 
     fn init_runtime(&mut self) {
         self.init_env();
-        self.init_operation_mod();
+        self.init_operation();
     }
 
     pub(crate) fn new(
         context: &'ctx Context,
         hirs: &Vec<HIR>,
         func_registry: HashMap<FuncId, HirFuncSymbol>,
+        var_to_slot: HashMap<VarId, SlotId>,
     ) -> LirGenerator<'ctx> {
         let module = context.create_module("ayanami_modlue");
         let builder = context.create_builder();
@@ -177,14 +185,9 @@ impl<'ctx> LirGenerator<'ctx> {
             block_registry: HashMap::new(),
             slot_registry: HashMap::new(),
             var_registry: HashMap::new(),
+            var_to_slot,
             runtime_fn: HashMap::<&str, FunctionValue>::new(),
-            bool_object_type: context.struct_type(
-                &[
-                    object_type.into(),         // Object header
-                    context.bool_type().into(), // value 字段
-                ],
-                false, // packed?
-            ),
+            main_id: FuncId(0),
             i: 0,
         };
 
@@ -232,19 +235,16 @@ impl<'ctx> LirGenerator<'ctx> {
         };
 
         let mut name = sym.name.clone();
+        let function;
 
         if sym.is_main {
             let ret_type = self.context.i32_type();
             name = "main".to_string();
+            self.main_id = sym.id;
 
-            let mut args = Vec::<BasicMetadataTypeEnum<'ctx>>::new();
-            for _ in 0..sym.param_id.len() {
-                args.push(ret_type.into());
-            }
-            let fn_type = ret_type.fn_type(&args, false);
-            let function = self.module.add_function(&name, fn_type, None);
+            let fn_type = ret_type.fn_type(&[], false);
+            function = self.module.add_function(&name, fn_type, None);
             self.llvm_func_registry.insert(id, function);
-            function
         } else {
             let ret_type = self.context.i8_type().ptr_type(AddressSpace::default());
 
@@ -253,10 +253,46 @@ impl<'ctx> LirGenerator<'ctx> {
                 args.push(ret_type.into());
             }
             let fn_type = ret_type.fn_type(&args, false);
-            let function = self.module.add_function(&name, fn_type, None);
+            function = self.module.add_function(&name, fn_type, None);
             self.llvm_func_registry.insert(id, function);
-            function
         }
+
+        // 为参数在 entry block 中写入传入的参数值，并建立 VarId -> LLVM 指针 的映射。
+        // 入口块用于放置 slot 的 alloca（如果需要通过 slot 管理）。
+        let entry_bb = self.context.append_basic_block(function, "entry");
+        let cur_bb = self.builder.get_insert_block();
+        self.builder.position_at_end(entry_bb);
+
+        let object_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_ids = sym.param_id.clone();
+        for (idx, var_id) in param_ids.iter().enumerate() {
+            // 取函数第 idx 个参数
+            let param_val = function
+                .get_nth_param(idx as u32)
+                .expect("missing function param");
+
+            // 如果存在 var->slot 的静态映射，则在 slot 上创建/获取 alloca，并把参数写入该 slot，
+            // 同时让 var_registry 指向该 slot。否则，为 var 分配一个临时 alloca 并写入参数。
+            if let Some(slot_id) = self.var_to_slot.get(var_id) {
+                let slot_ptr = self.get_or_create_slot(*slot_id, entry_bb);
+                self.builder.build_store(slot_ptr, param_val).unwrap();
+                self.var_registry.insert(*var_id, slot_ptr);
+            } else {
+                let var_ptr = self
+                    .builder
+                    .build_alloca(object_ptr_ty, &format!("var{}", var_id))
+                    .unwrap();
+                self.builder.build_store(var_ptr, param_val).unwrap();
+                self.var_registry.insert(*var_id, var_ptr);
+            }
+        }
+
+        // 恢复插入点
+        if let Some(bb) = cur_bb {
+            self.builder.position_at_end(bb);
+        }
+
+        function
     }
     fn new_llvm_block(&mut self, function: FunctionValue<'ctx>, id: &BlockId) {
         if let Some(_) = self.block_registry.get(id) {
@@ -265,6 +301,22 @@ impl<'ctx> LirGenerator<'ctx> {
         let mut name = "block_".to_string();
         name.push_str(&id.to_string());
         let block = self.context.append_basic_block(function, &name);
+
+        // 如果函数已有首个 basic block，且它没有 terminator，则在首块插入到新块的无条件分支。
+        if let Some(first_bb) = function.get_first_basic_block() {
+            if first_bb != block {
+                if first_bb.get_terminator().is_none() {
+                    // 保存当前插入点，切换到首块插入分支，随后恢复
+                    let cur = self.builder.get_insert_block();
+                    self.builder.position_at_end(first_bb);
+                    self.builder.build_unconditional_branch(block).unwrap();
+                    if let Some(bb) = cur {
+                        self.builder.position_at_end(bb);
+                    }
+                }
+            }
+        }
+
         self.block_registry.insert(*id, block);
     }
     fn emit_llvm_block(&mut self, id: &BlockId) {
@@ -276,10 +328,18 @@ impl<'ctx> LirGenerator<'ctx> {
     }
 
     fn gen_inst_ir(&mut self, inst: &HIRInst, cur_func: Option<String>) {
-        let function = *self
-            .llvm_func_registry
-            .get(&FuncId(cur_func.clone().expect("").parse::<i32>().unwrap()))
-            .expect("");
+        let function;
+        if let Some(ref name) = cur_func
+            && name == "main"
+        {
+            let id = self.main_id;
+            function = *self.llvm_func_registry.get(&id).expect("");
+        } else {
+            function = *self
+                .llvm_func_registry
+                .get(&FuncId(cur_func.clone().expect("").parse::<i32>().unwrap()))
+                .expect("");
+        }
 
         let object_ptr_type = self.context.i8_type().ptr_type(AddressSpace::default());
         match inst {
@@ -351,19 +411,17 @@ impl<'ctx> LirGenerator<'ctx> {
                     .unwrap();
             }
             HIRInst::Load { var, obj: slot } => {
-                let entry_bb = self
-                    .builder
-                    .get_insert_block()
-                    .expect("builder has no insertion block");
-                // 1. 找到已有的 slot（alloca Object*）
-                self.get_or_create_slot(*slot, entry_bb);
-                let slot_ptr = match self.slot_registry.get(slot) {
+                // 将 slot 别名到 var：slot_registry[slot] = var_registry[var]
+                // var 的参数值在 gen_func_ir 已经写入到 var 对应的存储，因此这里只建立别名关系。
+                let var_ptr = match self.var_registry.get(var) {
                     Some(p) => *p,
-                    None => panic!("slot {} not found", slot),
+                    None => panic!(
+                        "var {} not found: parameter should be initialized in gen_func_ir",
+                        var
+                    ),
                 };
 
-                // 2. var 只是别名到这个 slot
-                self.var_registry.insert(*var, slot_ptr);
+                self.slot_registry.insert(*slot, var_ptr);
             }
             HIRInst::Delete { dst } => {
                 let del_ref_fn = match self.module.get_function("del_obj") {
@@ -687,14 +745,24 @@ impl<'ctx> LirGenerator<'ctx> {
                 self.var_registry.insert(*var, var_ptr);
             }
             HIRInst::Ret { ret_obj } => {
+                let slot_ptr = *self.slot_registry.get(ret_obj).expect("ret slot not found");
+
+                // 1. 从 slot 中 load 出 Object*
+                let obj = self
+                    .builder
+                    .build_load(object_ptr_type, slot_ptr, "ret.load")
+                    .unwrap();
+
+                // 2. inc_ref —— 返回的是“共享引用”
+                let inc_fn = *self.runtime_fn.get("inc_ref").expect("inc_ref not found");
+                self.builder
+                    .build_call(inc_fn, &[obj.into()], "ret.inc_ref")
+                    .unwrap();
+
+                // 3. main 特判：拆值 + 释放对象
                 if let Some(func) = cur_func
                     && func == "main"
                 {
-                    let slot = self.slot_registry.get(ret_obj).expect("");
-                    let obj = self
-                        .builder
-                        .build_load(object_ptr_type, *slot, "load main ret")
-                        .unwrap();
                     let get_fn = *self.runtime_fn.get("get_int_value").expect("");
                     let ret_val = self
                         .builder
@@ -702,24 +770,21 @@ impl<'ctx> LirGenerator<'ctx> {
                         .unwrap()
                         .try_as_basic_value()
                         .left()
-                        .expect("is_truth has no return")
+                        .expect("get_int_value must return")
                         .into_int_value();
 
-                    self.builder.build_return(Some(&ret_val)).unwrap();
+                    // main 是程序终点，可以直接释放
+                    let del_fn = *self.runtime_fn.get("del_obj").expect("");
+                    self.builder
+                        .build_call(del_fn, &[obj.into()], "main.del_obj")
+                        .unwrap();
 
+                    self.builder.build_return(Some(&ret_val)).unwrap();
                     return;
                 }
 
-                let slot_ptr = *self.slot_registry.get(ret_obj).expect(""); // Object**
-
-                // 1. 从 slot 中 load 出 Object*
-                let ret_val = self
-                    .builder
-                    .build_load(object_ptr_type, slot_ptr, "ret.load")
-                    .unwrap();
-
-                // 2. ret Object*
-                self.builder.build_return(Some(&ret_val)).unwrap();
+                // 4. 普通函数：ret Object*
+                self.builder.build_return(Some(&obj)).unwrap();
             }
             HIRInst::Unreachable => {
                 self.builder.build_unreachable().unwrap();
@@ -755,11 +820,22 @@ impl<'ctx> LirGenerator<'ctx> {
 
                     // 如果当前 block 未被声明，则在当前函数中声明它
                     if !self.block_registry.contains_key(&block_id) {
-                        let function = *self
-                            .llvm_func_registry
-                            .get(&FuncId(cur_func.clone().expect("").parse::<i32>().unwrap()))
-                            .expect("function not found when declaring current block");
-                        self.new_llvm_block(function, &block_id);
+                        if let Some(ref name) = cur_func
+                            && name == "main"
+                        {
+                            let FuncId(id) = self.main_id;
+                            let function = *self
+                                .llvm_func_registry
+                                .get(&FuncId(id))
+                                .expect("function not found when declaring current block");
+                            self.new_llvm_block(function, &block_id);
+                        } else {
+                            let function = *self
+                                .llvm_func_registry
+                                .get(&FuncId(cur_func.clone().expect("").parse::<i32>().unwrap()))
+                                .expect("function not found when declaring current block");
+                            self.new_llvm_block(function, &block_id);
+                        }
                     }
 
                     // 将当前 block 切换为插入点
@@ -769,8 +845,14 @@ impl<'ctx> LirGenerator<'ctx> {
                     cur_block_id = block_id;
                 }
                 HIR::FuncLabel(ref func_def) => {
-                    let t = self.gen_func_ir(func_def);
-                    cur_func = Some(func_def.get_id().to_string());
+                    let _t = self.gen_func_ir(func_def);
+                    // 进入新函数，重置参数索引（HIR 中 load 的顺序对应参数顺序）
+                    self.i = 0;
+                    if *func_def == self.main_id {
+                        cur_func = Some("main".to_string());
+                    } else {
+                        cur_func = Some(func_def.get_id().to_string());
+                    }
                 }
             }
 
@@ -830,5 +912,8 @@ impl<'ctx> LirGenerator<'ctx> {
         if !link.success() {
             println!("g++ not success, {:?}", link.code());
         }
+
+        self.module.print_to_file("./build/output.ll").unwrap();
+        Command::new("llc -O0 -print-after-all ./build/output.ll > ./build/debug.txt");
     }
 }

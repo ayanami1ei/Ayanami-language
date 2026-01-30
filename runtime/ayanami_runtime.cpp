@@ -12,10 +12,10 @@ extern "C" Object *alloc_string(char *value, int len);
 
 extern "C" void err(Object *obj)
 {
-    fprintf(stderr, "[runtime] err called obj=%p\n", (void *)obj);
+    //fprintf(stderr, "[runtime] err called obj=%p\n", (void *)obj);
     if (obj == NULL)
     {
-        fprintf(stderr, "[runtime] err: NULL obj\n");
+        //fprintf(stderr, "[runtime] err: NULL obj\n");
         return;
     }
     StringObject *s = (StringObject *)obj;
@@ -26,7 +26,7 @@ extern "C" void err(Object *obj)
     }
     else
     {
-        fprintf(stderr, "[runtime] err: string->data NULL\n");
+        //fprintf(stderr, "[runtime] err: string->data NULL\n");
     }
 
     // exit(-1);
@@ -34,7 +34,7 @@ extern "C" void err(Object *obj)
 
 extern "C" void write(Object *obj)
 {
-    StringObject *str_obj = (StringObject *)alloc_string("", 0);
+    StringObject *str_obj;
     std::string str;
 
     switch (obj->type)
@@ -48,34 +48,40 @@ extern "C" void write(Object *obj)
         str_obj = (StringObject *)alloc_string((char *)str.c_str(), str.size());
         break;
     case VarType::Bool:
-        str = ((BoolObject *)obj)->value?"true":"false";
+        str = ((BoolObject *)obj)->value ? "true" : "false";
         str_obj = (StringObject *)alloc_string((char *)str.c_str(), str.size());
         break;
     case VarType::Char:
         str = std::to_string(((CharObject *)obj)->value);
         str_obj = (StringObject *)alloc_string((char *)str.c_str(), str.size());
         break;
+    case VarType::String:
+        str_obj = (StringObject *)obj;
+        break;
+    default:
+        str_obj = (StringObject *)alloc_string("", 0);
     }
 
-    printf("%s", ((StringObject *)str_obj)->data);
+    printf("%s", (char *)(((StringObject *)str_obj)->data));
+    fflush(stdout);
 }
 
 extern "C" bool is_type(int ty, Object *obj)
 {
     // quick integrity scan to detect first corruption earlier
-    fprintf(stderr, "[runtime] is_type called ty=%d obj=%p\n", ty, (void *)obj);
+    //fprintf(stderr, "[runtime] is_type called ty=%d obj=%p\n", ty, (void *)obj);
     if (ty < 1 || ty > 6)
     {
-        fprintf(stderr, "[runtime] is_type: invalid ty=%d\n", ty);
+        //fprintf(stderr, "[runtime] is_type: invalid ty=%d\n", ty);
         return false;
     }
     VarType type = static_cast<VarType>(ty);
     bool res = (obj != NULL) && (type == obj->type);
-    fprintf(stderr, "[runtime] is_type result=%d\n", res);
+    //fprintf(stderr, "[runtime] is_type result=%d\n", res);
     return res;
 }
 
-extern "C" int inline get_int_value(Object *obj)
+extern "C" int get_int_value(Object *obj)
 {
     switch (obj->type)
     {
@@ -102,20 +108,20 @@ extern "C" void del_obj(Object *obj)
     int t = (int)obj->type;
     if (t < 1 || t > 6)
     {
-        fprintf(stderr, "[runtime] del_obj: invalid header for obj=%p type=%d refcnt=%d\n", (void *)obj, t, obj->refcnt);
+        //fprintf(stderr, "[runtime] del_obj: invalid header for obj=%p type=%d refcnt=%d\n", (void *)obj, t, obj->refcnt);
         // Dump first bytes to help diagnose pointer/value confusion
         unsigned char *p = (unsigned char *)obj;
-        fprintf(stderr, "[runtime] dump bytes:");
+        //fprintf(stderr, "[runtime] dump bytes:");
         for (int i = 0; i < 32; ++i)
         {
-            fprintf(stderr, " %02x", (unsigned int)p[i]);
+            //fprintf(stderr, " %02x", (unsigned int)p[i]);
         }
-        fprintf(stderr, "\n");
-        fflush(stderr);
+        //fprintf(stderr, "\n");
+        //fflush(stderr);
         abort();
     }
 
-    fprintf(stderr, "[runtime] del_obj called obj=%p type=%d refcnt=%d\n", (void *)obj, t, obj->refcnt);
+    //fprintf(stderr, "[runtime] del_obj called obj=%p type=%d refcnt=%d\n", (void *)obj, t, obj->refcnt);
 
     switch (obj->type)
     {
@@ -158,14 +164,14 @@ extern "C" void dec_ref(Object *obj)
 
     if ((*obj).refcnt <= 0)
     {
-        fprintf(stderr, "[runtime] dec_ref: warning obj=%p had non-positive refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
+        //fprintf(stderr, "[runtime] dec_ref: warning obj=%p had non-positive refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
     }
     (*obj).refcnt -= 1;
-    fprintf(stderr, "[runtime] dec_ref obj=%p new_refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
+    //fprintf(stderr, "[runtime] dec_ref obj=%p new_refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
 
     if ((*obj).refcnt <= 0)
     {
-        fprintf(stderr, "[runtime] refcnt reached zero for obj=%p, calling del_obj\n", (void *)obj);
+        //fprintf(stderr, "[runtime] refcnt reached zero for obj=%p, calling del_obj\n", (void *)obj);
         del_obj(obj);
     }
 }
@@ -179,10 +185,10 @@ extern "C" void inc_ref(Object *obj)
 
     if ((*obj).refcnt < 0)
     {
-        fprintf(stderr, "[runtime] inc_ref: warning obj=%p had negative refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
+        //fprintf(stderr, "[runtime] inc_ref: warning obj=%p had negative refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
     }
     (*obj).refcnt += 1;
-    fprintf(stderr, "[runtime] inc_ref obj=%p new_refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
+    //fprintf(stderr, "[runtime] inc_ref obj=%p new_refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
 }
 
 alloc_fn(int, const int, Int)
@@ -220,7 +226,7 @@ alloc_fn(int, const int, Int)
     ptr->header.refcnt = 1;
     ptr->data = buf;
     ptr->len = len;
-    fprintf(stderr, "[runtime] alloc_string called len=%d ptr=%p data=%p\n", len, (void *)ptr, (void *)ptr->data);
+    //fprintf(stderr, "[runtime] alloc_string called len=%d ptr=%p data=%p\n", len, (void *)ptr, (void *)ptr->data);
 
     return (Object *)ptr;
 }

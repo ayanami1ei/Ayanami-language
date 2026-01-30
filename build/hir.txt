@@ -7,17 +7,17 @@ func_4:
         Load var_5 to slot_2
         Load var_6 to slot_3
         slot_2 + slot_3 -> slot_4
-        //Delete slot_3
-        //Delete slot_2
+        Decrease Reference of slot_2
+        Decrease Reference of slot_3
         Ret slot_4
 func_7:
     block_2: 
         Jmp to block_3
     block_3: 
-        New {float } -> slot_6, val = 1.1
+        New {int } -> slot_6, val = 1
         Increase Reference of slot_6
         Bind var_8 and slot_6
-        New {int } -> slot_7, val = 1
+        New {int } -> slot_7, val = 2
         Increase Reference of slot_7
         Bind var_9 and slot_7
         Jmp to block_4
@@ -27,35 +27,36 @@ func_7:
         Bind var_10 and slot_8
         Jmp to block_5
     block_5: 
-        New {int } -> slot_9, val = 10
+        New {int } -> slot_9, val = 5
         New {int } -> slot_10, val = 1
         slot_8 < slot_9 -> slot_11
         Br cond: slot_11, then-block: block_6, else-block: block_merge_7
     block_6: 
-        //Delete slot_11
         Load var_9 to slot_7
         New {int } -> slot_12, val = 1
         slot_7 + slot_12 -> slot_13
         Increase Reference of slot_13
-        //Delete slot_7
-        //Delete slot_12
         Bind var_9 and slot_13
         slot_8 + slot_10 -> slot_8
+        //Delete slot_12
+        //Delete slot_7
         Jmp to block_5
     block_merge_7: 
         Load var_8 to slot_6
-        //Delete slot_10
-        //Delete slot_9
-        //Delete slot_8
         Bind var_5 and slot_6
         Load var_9 to slot_13
         Bind var_6 and slot_13
-        //Delete slot_13
         Call func_4, ret_slot:slot_1
+        Bind var_8 and slot_1
+        Load var_8 to slot_1
         Bind var_0 and slot_1
         Call func_1, ret_slot:slot_0
         New {int } -> slot_14, val = 0
-        //Delete slot_0
+        //Delete slot_9
+        //Delete slot_10
+        //Delete slot_8
+        //Delete slot_13
         //Delete slot_1
+        //Delete slot_0
         //Delete slot_6
         Ret slot_14

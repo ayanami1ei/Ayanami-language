@@ -1,16 +1,17 @@
-fn add(int a, int b){
+fn myadd(int a, int b){
     return a+b
 }
 
 fn main(){
-    a=1.1
-    b=1
+    a=1
+    b=2
 
-    for i in (0,10){
+    for i in (0,5){
         b=b+1
     }
-    
-    write(add(a,b))
+
+    a=myadd(a,b)
+    write(a)
 
     return 0
 }
