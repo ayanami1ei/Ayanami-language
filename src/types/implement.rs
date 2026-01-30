@@ -36,6 +36,7 @@ impl fmt::Display for VarType {
             VarType::Float => write!(f, "float"),
             VarType::Char => write!(f, "char"),
             VarType::Bool => write!(f, "bool"),
+            VarType::String=>write!(f, "string"),
             VarType::Unknown => write!(f, "unknown"),
         }
     }

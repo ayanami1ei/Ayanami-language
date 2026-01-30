@@ -70,6 +70,7 @@ pub(crate) struct HirFuncSymbol {
     pub(super) id: FuncId,
     pub(super) param_id: Vec<VarId>,
     pub(crate) is_main:bool,
+    pub(crate) name:String
 }
 
 pub(crate) struct HirGenerator {
@@ -101,8 +102,9 @@ pub(crate) enum HIR {
 pub(crate) enum HIRInst {
     #[allow(unused)]
     New {
-        obj_type: HashSet<VarType>,
-        dst: ObjId,
+        obj_type: VarType,
+        val:f64,
+        dst: SlotId,
     },
     Delete {
         dst: SlotId,

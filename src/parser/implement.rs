@@ -30,12 +30,28 @@ impl Block {
 
 impl Parser {
     pub(crate) fn new(tokens: Vec<Vec<Token>>, symbol_table: SymbolTable) -> Parser {
-        Parser {
+        let mut res = Parser {
             tokens,
             i: 0,
             j: 0,
             symbol_table,
-        }
+        };
+
+        let fn_sym = Symbol::new_func(
+            "write".to_string(),
+            [Symbol::new_argc(
+                "str".to_string(),
+                false,
+                res.symbol_table.get_scope(),
+                res.symbol_table.get_level(),
+            )]
+            .to_vec(),
+            res.symbol_table.get_scope(),
+            res.symbol_table.get_level(),
+        );
+        res.symbol_table.add_symbol(fn_sym);
+
+        res
     }
 
     fn next(&mut self) -> Result<(), Error> {
@@ -262,17 +278,17 @@ impl Parser {
             if self.is(Token::Operator("(".to_string()))? {
                 // 函数调用: name(<args>)，args 形如 [ref] ident, ...
                 let mut args = Vec::<Rc<RefCell<Expr>>>::new();
-                
-                loop{
+
+                loop {
                     args.push(self.parser_add_sub()?);
-                    if self.is(Token::Operator(",".to_string()))?{
+                    if self.is(Token::Operator(",".to_string()))? {
                         continue;
                     }
-                    if self.is(Token::Operator(")".to_string()))?{
+                    if self.is(Token::Operator(")".to_string()))? {
                         break;
                     }
                 }
-                
+
                 let func_sym = self.symbol_table.find_symbol(&name);
                 if func_sym.is_none() {
                     return Err(Error::new_error(format!("undefined function {}", name)));
@@ -359,7 +375,11 @@ impl Parser {
 
             self.symbol_table.into_new_scope();
             let scope_id = self.symbol_table.get_scope().borrow().id;
-            let mut i_sym = Symbol::new_var(i_name, self.symbol_table.get_scope(), self.symbol_table.get_level());
+            let mut i_sym = Symbol::new_var(
+                i_name,
+                self.symbol_table.get_scope(),
+                self.symbol_table.get_level(),
+            );
             i_sym.its_type.insert(VarType::Int);
             self.symbol_table.add_symbol(i_sym);
             self.expect(Token::Operator("{".to_string()))?;
@@ -490,15 +510,23 @@ impl Parser {
             // 创建参数符号列表
             let mut arg_symbols = Vec::new();
             for a in &args {
-                let mut sym =
-                    Symbol::new_argc(a.var_name.clone(), a.is_ref, self.symbol_table.get_scope(), self.symbol_table.get_level());
+                let mut sym = Symbol::new_argc(
+                    a.var_name.clone(),
+                    a.is_ref,
+                    self.symbol_table.get_scope(),
+                    self.symbol_table.get_level(),
+                );
                 sym.its_type.insert(a.arg_type.clone());
                 arg_symbols.push(sym);
             }
 
             // 在全局作用域声明函数符号
-            let fn_sym =
-                Symbol::new_func(name.to_string(), arg_symbols, self.symbol_table.get_scope(), self.symbol_table.get_level());
+            let fn_sym = Symbol::new_func(
+                name.to_string(),
+                arg_symbols,
+                self.symbol_table.get_scope(),
+                self.symbol_table.get_level(),
+            );
             self.symbol_table.add_symbol(fn_sym);
 
             // 创建函数体作用域并记录其 id 到对应函数符号的 `body_scope_id`
@@ -509,8 +537,12 @@ impl Parser {
 
             // 在函数作用域内添加参数符号
             for a in &args {
-                let mut arg_sym =
-                    Symbol::new_argc(a.var_name.clone(), a.is_ref, self.symbol_table.get_scope(), self.symbol_table.get_level());
+                let mut arg_sym = Symbol::new_argc(
+                    a.var_name.clone(),
+                    a.is_ref,
+                    self.symbol_table.get_scope(),
+                    self.symbol_table.get_level(),
+                );
                 arg_sym.its_type.insert(a.arg_type.clone());
                 self.symbol_table.add_symbol(arg_sym);
             }
@@ -554,16 +586,20 @@ impl Parser {
             let expr = self.parser_add_sub()?;
             if self.is(Token::Operator("=".to_string()))? {
                 let right = self.parser_add_sub()?;
-                let (name, _)=match expr.borrow().clone(){
-                    Expr::Var(name,ty)=>(name,ty),
-                    _=>return Err(Error::new_error(format!("must be var")))
+                let (name, _) = match expr.borrow().clone() {
+                    Expr::Var(name, ty) => (name, ty),
+                    _ => return Err(Error::new_error(format!("must be var"))),
                 };
-               let _sym= match self.symbol_table.find_symbol(&name){
-                    None=>{
-                        let sym=Symbol::new_var(name, self.symbol_table.get_scope(), self.symbol_table.get_level());
+                let _sym = match self.symbol_table.find_symbol(&name) {
+                    None => {
+                        let sym = Symbol::new_var(
+                            name,
+                            self.symbol_table.get_scope(),
+                            self.symbol_table.get_level(),
+                        );
                         self.symbol_table.add_symbol(sym);
-                    },
-                    Some(_)=>(),
+                    }
+                    Some(_) => (),
                 };
                 Ok(Stmt::Assign(expr, right))
             } else {

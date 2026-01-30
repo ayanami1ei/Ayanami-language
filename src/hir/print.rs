@@ -111,14 +111,11 @@ impl fmt::Display for HIRInst {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "    ")?;
         match self {
-            HIRInst::New { obj_type, dst } => {
-                write!(f, "New ")?;
-
-                for i in obj_type {
-                    write!(f, "{} ", i)?;
-                }
-
-                write!(f, "-> {}", dst)
+            HIRInst::New { obj_type, val, dst } => {
+                write!(f, "New {{")?;
+                write!(f, "{} ", obj_type)?;
+                write!(f, "}} -> {}", dst)?;
+                write!(f, ", val = {}", val)
             }
             HIRInst::Delete { dst } => {
                 write!(f, "//Delete {}", dst)

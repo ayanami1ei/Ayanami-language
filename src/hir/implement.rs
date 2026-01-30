@@ -1,5 +1,9 @@
 use std::{
-    cell::RefCell, collections::{HashMap, HashSet}, fs::{self, OpenOptions}, io::Write, rc::Rc
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    fs::{self, OpenOptions},
+    io::Write,
+    rc::Rc,
 };
 
 use crate::{
@@ -105,7 +109,7 @@ impl HirVarSymbol {
 
 impl HirGenerator {
     pub(crate) fn new(stmts: Vec<Stmt>, ast_symbol_table: SymbolTable) -> HirGenerator {
-        HirGenerator {
+        let mut res = HirGenerator {
             stmts,
 
             next_objid: ObjId {
@@ -128,7 +132,27 @@ impl HirGenerator {
             ast_symbol_table,
 
             hir: Vec::<HIR>::new(),
-        }
+        };
+
+        let ast_sym = res
+            .ast_symbol_table
+            .find_symbol(&"write".to_string())
+            .expect("");
+        let slot_id = res.get_next_slot_id();
+        let param_id = ast_sym.args[0].id;
+        res.func_registry.insert(
+            FuncId(ast_sym.id),
+            HirFuncSymbol {
+                ty_set: HashSet::new(),
+                ret_obj_id: slot_id,
+                id: hir::FuncId(ast_sym.id),
+                param_id: [VarId(param_id)].to_vec(),
+                is_main: false,
+                name: "write".to_string(),
+            },
+        );
+
+        res
     }
 
     fn can_be_int(x: f64) -> bool {
@@ -299,9 +323,10 @@ impl HirGenerator {
                 let ret_slot = self.get_next_slot_id();
                 self.slot_registry.insert(ret_slot, s);
 
-                irs.push(HIRInst::Store {
-                    from: Value::Const(super::Const::Char(c)),
-                    to: ret_slot,
+                irs.push(HIRInst::New {
+                    obj_type: VarType::Char,
+                    val: c as u8 as f64,
+                    dst: ret_slot,
                 });
 
                 res_slot_id = ret_slot;
@@ -313,9 +338,10 @@ impl HirGenerator {
                     let ret_slot = self.get_next_slot_id();
                     self.slot_registry.insert(ret_slot, s);
 
-                    irs.push(HIRInst::Store {
-                        from: Value::Const(super::Const::Int(x as i64)),
-                        to: ret_slot,
+                    irs.push(HIRInst::New {
+                        obj_type: VarType::Int,
+                        val: x as f64,
+                        dst: ret_slot,
                     });
 
                     res_slot_id = ret_slot;
@@ -325,9 +351,10 @@ impl HirGenerator {
                     let ret_slot = self.get_next_slot_id();
                     self.slot_registry.insert(ret_slot, s);
 
-                    irs.push(HIRInst::Store {
-                        from: Value::Const(super::Const::Float(hir::FloatKey(x))),
-                        to: ret_slot,
+                    irs.push(HIRInst::New {
+                        obj_type: VarType::Float,
+                        val: x,
+                        dst: ret_slot,
                     });
 
                     res_slot_id = ret_slot;
@@ -339,6 +366,13 @@ impl HirGenerator {
                     None => panic!(""),
                     Some(p) => p,
                 };
+
+                let res_slot = self.var_registry.get(&id).expect("").obj_id;
+                irs.push(HIRInst::Load {
+                    var: id,
+                    obj: res_slot,
+                });
+
                 sym.obj_id
                     .set_near_use(&mut self.slot_registry, self.hir.len());
                 res_slot_id = sym.obj_id;
@@ -426,12 +460,10 @@ impl HirGenerator {
                     self.gen_func_hir(name, argcs, var_type, block);
                 }
                 Stmt::Call(ref name, ref argcs, scope_id) => {
-                    self.ast_symbol_table.set_area_ptr_by_id(scope_id);
                     let insts = self.gen_call_inst(name, argcs);
                     for inst in insts.into_iter() {
                         self.hir.push(HIR::Inst(inst));
                     }
-                    self.ast_symbol_table.ret_to_parent_scope();
                 }
                 Stmt::Return(ref ret_expr) => {
                     self.gen_return_hir(block_id, ret_expr, ret_obj);
@@ -662,7 +694,8 @@ impl HirGenerator {
             ret_obj_id: slot_id,
             id: FuncId(ast_fn_sym.id),
             param_id: Vec::new(),
-            is_main:name=="main"
+            is_main: name == "main",
+            name: name.clone(),
         };
         self.slot_registry
             .insert(slot_id, ObjSlot::new(self.ast_symbol_table.get_level()));
@@ -738,6 +771,7 @@ impl HirGenerator {
     }
     fn gen_call_hir(&mut self, name: &String, argcs: &Vec<Rc<RefCell<Expr>>>) {
         let func_sym = self.find_func_sym(name);
+        let mut param_ids = Vec::new();
 
         for i in 0..argcs.len() {
             let arg_slot_id = self.gen_expr_ir(&argcs[i]);
@@ -747,6 +781,7 @@ impl HirGenerator {
                 var: func_sym.param_id[i],
                 obj: arg_slot_id,
             }));
+            param_ids.push(arg_slot_id);
         }
 
         self.hir.push(HIR::Inst(HIRInst::Call {
@@ -756,20 +791,29 @@ impl HirGenerator {
         func_sym
             .ret_obj_id
             .set_near_use(&mut self.slot_registry, self.hir.len());
+
+        for i in param_ids {
+            i.set_near_use(&mut self.slot_registry, self.hir.len());
+        }
+
         self.func_registry.insert(func_sym.id, func_sym);
     }
     fn gen_call_inst(&mut self, name: &String, argcs: &Vec<Rc<RefCell<Expr>>>) -> Vec<HIRInst> {
         let res = Vec::<HIRInst>::new();
         let func_sym = self.find_func_sym(name);
+        let mut param_ids = Vec::new();
 
-        for i in 0..argcs.len() {
-            let arg_slot_id = self.gen_expr_ir(&argcs[i]);
-            self.hir
-                .push(HIR::Inst(HIRInst::IncRef { obj: arg_slot_id }));
-            self.hir.push(HIR::Inst(HIRInst::Bind {
-                var: func_sym.param_id[i],
-                obj: arg_slot_id,
-            }));
+        if argcs.len() >= 1 {
+            for i in 0..argcs.len() {
+                let arg_slot_id = self.gen_expr_ir(&argcs[i]);
+                self.hir
+                    .push(HIR::Inst(HIRInst::IncRef { obj: arg_slot_id }));
+                self.hir.push(HIR::Inst(HIRInst::Bind {
+                    var: func_sym.param_id[i],
+                    obj: arg_slot_id,
+                }));
+                param_ids.push(arg_slot_id);
+            }
         }
 
         self.hir.push(HIR::Inst(HIRInst::Call {
@@ -780,6 +824,10 @@ impl HirGenerator {
             .ret_obj_id
             .set_near_use(&mut self.slot_registry, self.hir.len());
         self.func_registry.insert(func_sym.id, func_sym);
+
+        for i in param_ids {
+            i.set_near_use(&mut self.slot_registry, self.hir.len());
+        }
 
         res
     }
@@ -833,7 +881,7 @@ impl HirGenerator {
         }
     }
 
-    fn into_file(&mut self){
+    fn into_file(&mut self) {
         fs::write("./build/hir.txt", "").unwrap();
         let mut hir_file = OpenOptions::new()
             .append(true)
@@ -885,8 +933,6 @@ impl HirGenerator {
             i += 1;
         }
 
-        
-
         i = 0;
         while i < self.hir.len() {
             fn wait_for_swap(ir: &HIR) -> bool {
@@ -919,16 +965,16 @@ impl HirGenerator {
                         _ => Ret::con,
                     }
                 }
-                while i < self.hir.len() -1 {
+                while i < self.hir.len() - 1 {
                     match can_swap(&self.hir[i + 1]) {
                         Ret::swap => {
                             self.hir.swap(i, i + 1);
                             self.into_file();
-                        },
+                        }
                         Ret::erase => {
                             self.hir.remove(i + 1);
                             self.into_file();
-                            i-=1;
+                            i -= 1;
                         }
                         Ret::con => break,
                     }
@@ -938,6 +984,278 @@ impl HirGenerator {
             }
 
             i += 1;
+        }
+
+        // For each Delete: if the slot did NOT escape, remove related IncRef/DecRef.
+        // Otherwise move IncRef/DecRef before Delete (so they act on live object).
+        let mut idx = 0;
+        while idx < self.hir.len() {
+            if let HIR::Inst(HIRInst::Delete { dst }) = self.hir[idx] {
+                // check slot escape info
+                if let Some(slot_info) = self.slot_registry.get(&dst) {
+                    if !slot_info.escape {
+                        // remove any IncRef/DecRef for this dst in the same basic block
+                        // scan backwards
+                        let mut back = idx;
+                        while back > 0 {
+                            match &self.hir[back - 1] {
+                                HIR::Block(_) | HIR::FuncLabel(_) => break,
+                                HIR::Inst(x) => match x {
+                                    HIRInst::IncRef { obj } | HIRInst::DecRef { obj }
+                                        if *obj == dst =>
+                                    {
+                                        self.hir.remove(back - 1);
+                                        // we've removed one element before idx, shift idx left
+                                        idx -= 1;
+                                        back -= 1;
+                                        continue;
+                                    }
+                                    _ => {}
+                                },
+                                _ => break,
+                            }
+
+                            back -= 1;
+                        }
+
+                        // scan forwards
+                        let mut scan = idx + 1;
+                        while scan < self.hir.len() {
+                            match &self.hir[scan] {
+                                HIR::Block(_) | HIR::FuncLabel(_) => break,
+                                HIR::Inst(x) => match x {
+                                    HIRInst::IncRef { obj } | HIRInst::DecRef { obj }
+                                        if *obj == dst =>
+                                    {
+                                        self.hir.remove(scan);
+                                        // do not advance scan, new element now at `scan`
+                                        continue;
+                                    }
+                                    _ => {}
+                                },
+                                _ => break,
+                            }
+
+                            scan += 1;
+                        }
+                    } else {
+                        // slot escaped: keep refs, but ensure they are before Delete
+                        let mut scan = idx + 1;
+                        while scan < self.hir.len() {
+                            match &self.hir[scan] {
+                                HIR::Block(_) | HIR::FuncLabel(_) => break,
+                                HIR::Inst(x) => match x {
+                                    HIRInst::IncRef { obj } | HIRInst::DecRef { obj }
+                                        if *obj == dst =>
+                                    {
+                                        let inst = self.hir.remove(scan);
+                                        self.hir.insert(idx, inst);
+                                        idx += 1;
+                                        scan = idx + 1;
+                                        continue;
+                                    }
+                                    _ => {}
+                                },
+                                _ => break,
+                            }
+
+                            scan += 1;
+                        }
+                    }
+                }
+            }
+
+            idx += 1;
+        }
+
+        // Move each Delete into the last-use block and place it before that block's last instruction.
+        let mut i = 0;
+        while i < self.hir.len() {
+            if let HIR::Inst(HIRInst::Delete { dst }) = self.hir[i].clone() {
+                // find last index where dst is used within the same function
+                let mut last_use = i;
+                let mut j = i + 1;
+                while j < self.hir.len() {
+                    match &self.hir[j] {
+                        HIR::FuncLabel(_) => break,
+                        HIR::Block(_) => {}
+                        HIR::Inst(inst) => {
+                            let uses_dst = match inst {
+                                HIRInst::Store { to, .. } => *to == dst,
+                                HIRInst::Br { cond, .. } => *cond == dst,
+                                HIRInst::Call { ret, .. } => *ret == dst,
+                                HIRInst::BinOp {
+                                    left,
+                                    right,
+                                    dst: d,
+                                    ..
+                                } => *left == dst || *right == dst || *d == dst,
+                                HIRInst::UnaryOp { expr, dst: d, .. } => *expr == dst || *d == dst,
+                                HIRInst::IncRef { obj } | HIRInst::DecRef { obj } => *obj == dst,
+                                HIRInst::Bind { obj, .. } => *obj == dst,
+                                HIRInst::Load { obj, .. } => *obj == dst,
+                                HIRInst::Ret { ret_obj } => *ret_obj == dst,
+                                HIRInst::Delete { dst: d } => *d == dst,
+                                _ => false,
+                            };
+
+                            if uses_dst {
+                                last_use = j;
+                            }
+                        }
+                    }
+
+                    j += 1;
+                }
+
+                if last_use > i {
+                    // find the block that contains last_use by scanning backward
+                    let mut block_start = None;
+                    for b in (0..=last_use).rev() {
+                        if let HIR::Block(_) = self.hir[b] {
+                            block_start = Some(b);
+                            break;
+                        }
+                    }
+
+                    if let Some(bs) = block_start {
+                        // find block end (index of next Block or FuncLabel) or end of hir
+                        let mut block_end = self.hir.len();
+                        for k in (bs + 1)..self.hir.len() {
+                            match self.hir[k] {
+                                HIR::Block(_) | HIR::FuncLabel(_) => {
+                                    block_end = k;
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        // choose insertion position: before the block's last instruction
+                        // if block has no instructions (block_end == bs + 1), insert at bs + 1
+                        let insert_at = if block_end > bs + 1 {
+                            block_end - 1
+                        } else {
+                            bs + 1
+                        };
+
+                        // remove original Delete; adjust insertion index if needed
+                        let delete_inst = self.hir.remove(i);
+                        let adjusted_insert = if i < insert_at {
+                            insert_at - 1
+                        } else {
+                            insert_at
+                        };
+                        self.hir.insert(adjusted_insert, delete_inst);
+
+                        i = adjusted_insert + 1;
+                        continue;
+                    }
+                }
+            }
+
+            i += 1;
+        }
+
+        // Per-block pass: move Deletes within each block to after their last use in that block
+        let mut pos = 0;
+        while pos < self.hir.len() {
+            if let HIR::Block(_) = self.hir[pos] {
+                let bs = pos;
+                // find block end (index of next Block or FuncLabel) or end of hir
+                let mut block_end = self.hir.len();
+                for e in (bs + 1)..self.hir.len() {
+                    match self.hir[e] {
+                        HIR::Block(_) | HIR::FuncLabel(_) => {
+                            block_end = e;
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+
+                let mut p = bs + 1;
+                while p < block_end {
+                    if let HIR::Inst(HIRInst::Delete { dst }) = self.hir[p].clone() {
+                        // find last use of dst within this block
+                        let mut last_use = p;
+                        let mut j = p + 1;
+                        while j < block_end {
+                            if let HIR::Inst(ref inst) = self.hir[j] {
+                                let uses_dst = match inst {
+                                    HIRInst::Store { to, .. } => *to == dst,
+                                    HIRInst::Br { cond, .. } => *cond == dst,
+                                    HIRInst::Call { ret, .. } => *ret == dst,
+                                    HIRInst::BinOp {
+                                        left,
+                                        right,
+                                        dst: d,
+                                        ..
+                                    } => *left == dst || *right == dst || *d == dst,
+                                    HIRInst::UnaryOp { expr, dst: d, .. } => {
+                                        *expr == dst || *d == dst
+                                    }
+                                    HIRInst::IncRef { obj } | HIRInst::DecRef { obj } => {
+                                        *obj == dst
+                                    }
+                                    HIRInst::Bind { obj, .. } => *obj == dst,
+                                    HIRInst::Load { obj, .. } => *obj == dst,
+                                    HIRInst::Ret { ret_obj } => *ret_obj == dst,
+                                    HIRInst::Delete { dst: d } => *d == dst,
+                                    _ => false,
+                                };
+
+                                if uses_dst {
+                                    last_use = j;
+                                }
+                            }
+
+                            j += 1;
+                        }
+
+                        // compute insertion position: after last_use if any, otherwise before block_end
+                        let mut insert_at = if last_use >= p {
+                            last_use + 1
+                        } else {
+                            block_end
+                        };
+                        if insert_at > block_end {
+                            insert_at = block_end;
+                        }
+
+                        // remove current delete and reinsert at insert_at (adjust for removal)
+                        let inst = self.hir.remove(p);
+                        // removal shifts indices left; if p < insert_at then insert_at -= 1
+                        if p < insert_at {
+                            insert_at -= 1;
+                        }
+                        self.hir.insert(insert_at, inst);
+
+                        // update block_end and set p to position after inserted Delete
+                        // find new block_end
+                        block_end = self.hir.len();
+                        for e in (bs + 1)..self.hir.len() {
+                            match self.hir[e] {
+                                HIR::Block(_) | HIR::FuncLabel(_) => {
+                                    block_end = e;
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                        p = insert_at + 1;
+                        continue;
+                    }
+
+                    p += 1;
+                }
+
+                // advance pos to block_end
+                pos = block_end;
+                continue;
+            }
+
+            pos += 1;
         }
     }
 

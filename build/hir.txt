@@ -1,94 +1,61 @@
-func_2:
+func_4:
     block_0: 
-        Load var_3 to slot_1
-        Load var_4 to slot_2
+        Load var_5 to slot_2
+        Load var_6 to slot_3
         Jmp to block_1
     block_1: 
-        Jmp to block_2
-    block_2: 
-        slot_1 > slot_2 -> slot_3
-        Br cond: slot_3, then-block: block_3, else-block: block_4
-    block_3: 
+        Load var_5 to slot_2
+        Load var_6 to slot_3
+        slot_2 + slot_3 -> slot_4
         //Delete slot_3
-        slot_1 + slot_2 -> slot_4
         //Delete slot_2
         Ret slot_4
+func_7:
+    block_2: 
+        Jmp to block_3
+    block_3: 
+        New {float } -> slot_6, val = 1.1
+        Increase Reference of slot_6
+        Bind var_8 and slot_6
+        New {int } -> slot_7, val = 1
+        Increase Reference of slot_7
+        Bind var_9 and slot_7
+        Jmp to block_4
     block_4: 
-        Store Const_Int: 1 -> slot_5
-        Br cond: slot_5, then-block: block_5, else-block: block_merge_6
-    block_5: 
-        //Delete slot_5
-        Ret slot_1
-    block_merge_6: 
-        Decrease Reference of slot_1
-        Decrease Reference of slot_2
-        Unreachable
-func_5:
-    block_7: 
-        Jmp to block_8
-    block_8: 
-        Store Const_Float: 1.1 -> slot_7
-        Increase Reference of slot_7
-        Bind var_6 and slot_7
-        Store Const_Int: 1 -> slot_8
+        New {int } -> slot_8, val = 0
         Increase Reference of slot_8
-        Bind var_7 and slot_8
-        Jmp to block_9
-    block_9: 
-        Store Const_Int: 1 -> slot_9
-        Store Const_Int: 0 -> slot_10
-        slot_9 > slot_10 -> slot_11
-        //Delete slot_9
-        //Delete slot_10
-        Br cond: slot_11, then-block: block_10, else-block: block_merge_11
-    block_10: 
+        Bind var_10 and slot_8
+        Jmp to block_5
+    block_5: 
+        New {int } -> slot_9, val = 10
+        New {int } -> slot_10, val = 1
+        slot_8 < slot_9 -> slot_11
+        Br cond: slot_11, then-block: block_6, else-block: block_merge_7
+    block_6: 
         //Delete slot_11
-        slot_8 + slot_7 -> slot_12
-        Increase Reference of slot_12
-        //Delete slot_8
-        Bind var_8 and slot_12
-        //Delete slot_12
-        Store Const_Int: 1 -> slot_13
+        Load var_9 to slot_7
+        New {int } -> slot_12, val = 1
+        slot_7 + slot_12 -> slot_13
         Increase Reference of slot_13
-        Bind var_8 and slot_13
-        Decrease Reference of slot_12
-        Increase Reference of slot_13
-        Bind var_7 and slot_13
-        Decrease Reference of slot_8
-        Jmp to block_9
-    block_merge_11: 
-        Jmp to block_12
-    block_12: 
-        Store Const_Int: 0 -> slot_14
-        Increase Reference of slot_14
-        Bind var_9 and slot_14
-        Jmp to block_13
-    block_13: 
-        Store Const_Int: 10 -> slot_15
-        Store Const_Int: 1 -> slot_16
-        slot_14 < slot_15 -> slot_17
-        Br cond: slot_17, then-block: block_14, else-block: block_merge_15
-    block_14: 
-        //Delete slot_17
-        Store Const_Int: 1 -> slot_18
-        Increase Reference of slot_18
-        Bind var_10 and slot_18
-        //Delete slot_18
-        slot_14 + slot_16 -> slot_14
-        Jmp to block_13
-    block_merge_15: 
-        Increase Reference of slot_7
-        Bind var_3 and slot_7
-        //Delete slot_16
         //Delete slot_7
-        //Delete slot_14
-        //Delete slot_15
-        Increase Reference of slot_13
-        Bind var_4 and slot_13
+        //Delete slot_12
+        Bind var_9 and slot_13
+        slot_8 + slot_10 -> slot_8
+        Jmp to block_5
+    block_merge_7: 
+        Load var_8 to slot_6
+        //Delete slot_10
+        //Delete slot_9
+        //Delete slot_8
+        Bind var_5 and slot_6
+        Load var_9 to slot_13
+        Bind var_6 and slot_13
         //Delete slot_13
-        Call func_2, ret_slot:slot_0
-        Increase Reference of slot_0
-        Bind var_11 and slot_0
+        Call func_4, ret_slot:slot_1
+        Bind var_0 and slot_1
+        Call func_1, ret_slot:slot_0
+        New {int } -> slot_14, val = 0
         //Delete slot_0
-        Store Const_Int: 0 -> slot_19
-        Ret slot_19
+        //Delete slot_1
+        //Delete slot_6
+        Ret slot_14

@@ -31,7 +31,8 @@ pub(crate) enum VarType {
     Float = 2,
     Bool = 3,
     Char = 4,
-    Unknown = 5,
+    String = 5,
+    Unknown = 6,
 }
 
 #[derive(Debug, Clone)]

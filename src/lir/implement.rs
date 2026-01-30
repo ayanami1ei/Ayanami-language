@@ -1,4 +1,5 @@
 use std::{
+    clone,
     collections::HashMap,
     fs::{self, OpenOptions},
     io::Write,
@@ -39,6 +40,20 @@ impl<'ctx> LirGenerator<'ctx> {
             None,
         );
         self.runtime_fn.insert("err", err_fn);
+
+        let is_truth_fn = self.module.add_function(
+            "is_truth",
+            self.context.bool_type().fn_type(&[obj_ptr.into()], false),
+            None,
+        );
+        self.runtime_fn.insert("is_truth", is_truth_fn);
+
+        let write_fn = self.module.add_function(
+            "write",
+            self.context.void_type().fn_type(&[obj_ptr.into()], false),
+            None,
+        );
+        self.llvm_func_registry.insert(FuncId(1), write_fn);
 
         let is_type_fn = self.module.add_function(
             "is_type",
@@ -121,14 +136,14 @@ impl<'ctx> LirGenerator<'ctx> {
             add,
             sub,
             mul,
-            div,
+            div_op,
             equal,
             greater,
             less,
             greater_equal,
             less_equal,
-            and,
-            or
+            and_op,
+            or_op
         );
 
         let obj_ptr = self.context.i8_type().ptr_type(AddressSpace::default());
@@ -178,115 +193,6 @@ impl<'ctx> LirGenerator<'ctx> {
         res
     }
 
-    fn cond_ir(&mut self, current_fn: FunctionValue<'ctx>, cond_slot: SlotId) -> IntValue<'ctx> {
-        // 1. 从 slot_registry 拿 Object* 指针
-        let entry_bb = self
-            .builder
-            .get_insert_block()
-            .expect("builder has no insertion block");
-        self.get_or_create_slot(cond_slot, entry_bb);
-        let loaded_ptr = *self.slot_registry.get(&cond_slot).expect("slot not found");
-
-        // 2. Load Object*
-        let loaded: BasicValueEnum<'ctx> = self
-            .builder
-            .build_load(
-                self.context.i8_type().ptr_type(AddressSpace::default()),
-                loaded_ptr,
-                "cond_loaded",
-            )
-            .unwrap();
-
-        // 3. 类型检查：调用 runtime is_type(Object*, VarType::Bool)
-        let is_type_fn = *self.runtime_fn.get("is_type").expect("runtime not init");
-        let type_tag = self
-            .context
-            .i32_type()
-            .const_int(VarType::Bool as u64, false);
-
-        let is_type_call = self
-            .builder
-            .build_call(
-                is_type_fn,
-                &[type_tag.into(), loaded.into()],
-                "is_type_call",
-            )
-            .unwrap();
-
-        let is_bool = is_type_call
-            .try_as_basic_value()
-            .left()
-            .expect("is_type has no return")
-            .into_int_value();
-
-        // 4. 创建 ok / panic 分支
-        let ok_bb = self.context.append_basic_block(current_fn, "ok");
-        let panic_bb = self.context.append_basic_block(current_fn, "panic");
-
-        self.builder
-            .build_conditional_branch(is_bool, ok_bb, panic_bb)
-            .unwrap();
-
-        // 5. panic 分支
-        self.builder.position_at_end(panic_bb);
-        let panic_fn = *self.runtime_fn.get("err").expect("panic not init");
-
-        let new_str_obj_fn = *self
-            .runtime_fn
-            .get("alloc_string")
-            .expect("runtime not init");
-
-        let hello_str = self
-            .builder
-            .build_global_string_ptr("type unsuitable", "err")
-            .unwrap();
-        let metadata_arg: BasicMetadataValueEnum = hello_str.as_pointer_value().into();
-
-        self.builder
-            .build_call(new_str_obj_fn, &[metadata_arg], "err")
-            .unwrap();
-        self.builder.build_call(panic_fn, &[], "panic").unwrap();
-        self.builder.build_unreachable().unwrap();
-
-        // 6. ok 分支
-        self.builder.position_at_end(ok_bb);
-
-        // 7. 强制类型转换 Object* -> BoolObject*
-        let bool_ptr_type: BasicTypeEnum<'ctx> = self
-            .bool_object_type
-            .ptr_type(AddressSpace::default())
-            .into();
-        let bool_obj_ptr: PointerValue<'ctx> = self
-            .builder
-            .build_bitcast(
-                loaded,
-                bool_ptr_type, // 这里是 BasicTypeEnum
-                "bool_obj",
-            )
-            .expect("bitcast failed")
-            .into_pointer_value(); // 转成 PointerValue
-
-        // 8. 获取 BoolObject.value 字段
-        let value_ptr = self
-            .builder
-            .build_struct_gep(
-                self.bool_object_type,
-                bool_obj_ptr,
-                1, // value 在第二个字段
-                "value_ptr",
-            )
-            .expect("GEP failed");
-
-        // 9. load value 字段
-        let cond_i1 = self
-            .builder
-            .build_load(self.context.bool_type(), value_ptr, "cond_i1")
-            .unwrap()
-            .into_int_value();
-
-        cond_i1
-    }
-
     fn get_or_create_slot(
         &mut self,
         slot: SlotId,
@@ -307,9 +213,9 @@ impl<'ctx> LirGenerator<'ctx> {
             .unwrap();
 
         // 可以初始化为 null
-        self.builder
-            .build_store(slot_ptr, obj_ptr_ty.const_null())
-            .unwrap();
+        /*self.builder
+        .build_store(slot_ptr, obj_ptr_ty.const_null())
+        .unwrap();*/
 
         self.builder.position_at_end(current_bb);
 
@@ -317,15 +223,16 @@ impl<'ctx> LirGenerator<'ctx> {
         slot_ptr
     }
 
-    fn gen_func_ir(&mut self, func_def: &FuncId) -> FunctionValue {
+    fn gen_func_ir(&mut self, func_def: &FuncId) -> FunctionValue<'ctx> {
         let id = func_def.clone();
-        let mut name = "fn_".to_string();
-        name.push_str(&id.to_string());
 
         let sym = match self.func_registry.get(&id) {
             None => panic!(""),
             Some(x) => x,
         };
+
+        let mut name = sym.name.clone();
+
         if sym.is_main {
             let ret_type = self.context.i32_type();
             name = "main".to_string();
@@ -371,44 +278,119 @@ impl<'ctx> LirGenerator<'ctx> {
     fn gen_inst_ir(&mut self, inst: &HIRInst, cur_func: Option<String>) {
         let function = *self
             .llvm_func_registry
-            .get(&FuncId(cur_func.expect("").parse::<i32>().unwrap()))
+            .get(&FuncId(cur_func.clone().expect("").parse::<i32>().unwrap()))
             .expect("");
 
         let object_ptr_type = self.context.i8_type().ptr_type(AddressSpace::default());
         match inst {
-            HIRInst::New {
-                obj_type: _,
-                dst: _,
-            } => todo!(),
-            HIRInst::Load { var, obj: slot } => {
-                let slot_type = object_ptr_type; // alloca Object*
-                let slot_ptr: PointerValue<'ctx> =
-                    self.builder.build_alloca(slot_type, "").unwrap();
+            HIRInst::New { obj_type, val, dst } => {
+                let new_fn = *match obj_type {
+                    VarType::Int => self.runtime_fn.get("alloc_int").expect("runtime not found"),
+                    VarType::Float => self
+                        .runtime_fn
+                        .get("alloc_float")
+                        .expect("runtime not found"),
+                    VarType::Bool => self
+                        .runtime_fn
+                        .get("alloc_bool")
+                        .expect("runtime not found"),
+                    VarType::Char => self
+                        .runtime_fn
+                        .get("alloc_char")
+                        .expect("runtime not found"),
+                    _ => panic!("unknown type"),
+                };
 
-                let loaded: PointerValue<'ctx> = self
-                    .builder
-                    .build_load(object_ptr_type, slot_ptr, "load_slot_1")
-                    .unwrap()
+                let call_res;
+                match obj_type {
+                    VarType::Int => {
+                        let args = self.context.i64_type().const_int(*val as u64, false);
+                        call_res = self
+                            .builder
+                            .build_call(new_fn, &[args.into()], "new int")
+                            .unwrap();
+                    }
+                    VarType::Float => {
+                        let args = self.context.f64_type().const_float(*val);
+                        call_res = self
+                            .builder
+                            .build_call(new_fn, &[args.into()], "new int")
+                            .unwrap();
+                    }
+                    VarType::Bool => {
+                        let args = self.context.bool_type().const_int(*val as u64, false);
+                        call_res = self
+                            .builder
+                            .build_call(new_fn, &[args.into()], "new int")
+                            .unwrap();
+                    }
+                    VarType::Char => {
+                        let args = self.context.i32_type().const_int(*val as u64, false);
+                        call_res = self
+                            .builder
+                            .build_call(new_fn, &[args.into()], "new int")
+                            .unwrap();
+                    }
+                    _ => panic!("unknown type"),
+                }
+
+                let result_obj_ptr = call_res
+                    .try_as_basic_value()
+                    .left() // 有返回值才会是 Some
+                    .expect("binop must return")
                     .into_pointer_value(); // Object*
 
-                self.slot_registry.insert(*slot, loaded);
+                let entry_bb = self
+                    .builder
+                    .get_insert_block()
+                    .expect("builder has no insertion block");
+                self.get_or_create_slot(*dst, entry_bb);
+                let dst_slot_ptr = *self.slot_registry.get(&dst).unwrap();
+                self.builder
+                    .build_store(dst_slot_ptr, result_obj_ptr)
+                    .unwrap();
+            }
+            HIRInst::Load { var, obj: slot } => {
+                let entry_bb = self
+                    .builder
+                    .get_insert_block()
+                    .expect("builder has no insertion block");
+                // 1. 找到已有的 slot（alloca Object*）
+                self.get_or_create_slot(*slot, entry_bb);
+                let slot_ptr = match self.slot_registry.get(slot) {
+                    Some(p) => *p,
+                    None => panic!("slot {} not found", slot),
+                };
+
+                // 2. var 只是别名到这个 slot
+                self.var_registry.insert(*var, slot_ptr);
             }
             HIRInst::Delete { dst } => {
-                let dec_ref_fn = match self.module.get_function("del_obj") {
+                let del_ref_fn = match self.module.get_function("del_obj") {
                     None => panic!("ayanami_runtime not found"),
                     Some(x) => x,
                 };
                 let ptr = match self.slot_registry.get(dst) {
-                    None => panic!(""),
+                    None => return,
                     Some(x) => x,
                 };
+
+                let load_res = self
+                    .builder
+                    .build_load(object_ptr_type, *ptr, "load")
+                    .unwrap();
+
                 match self
                     .builder
-                    .build_call(dec_ref_fn, &[(*ptr).into()], "del_obj")
+                    .build_call(del_ref_fn, &[load_res.into()], "del_obj")
                 {
                     Err(e) => panic!("{}", e),
                     Ok(_) => {}
                 }
+
+                self.builder
+                    .build_store(*ptr, object_ptr_type.const_null())
+                    .unwrap();
             }
             HIRInst::Store { from, to } => {
                 let entry_bb = self
@@ -459,7 +441,20 @@ impl<'ctx> LirGenerator<'ctx> {
                 else_block,
             } => {
                 // 1. cond_ir 返回 i1
-                let cond_i1 = self.cond_ir(function, *cond);
+                let is_truth_fn = *self.runtime_fn.get("is_truth").expect("runtime not found");
+                let cond_slot = self.slot_registry.get(cond).expect("");
+                let args = self
+                    .builder
+                    .build_load(object_ptr_type, *cond_slot, "cond_load")
+                    .unwrap();
+                let cond_i1 = self
+                    .builder
+                    .build_call(is_truth_fn, &[args.into()], "call is_truth")
+                    .unwrap()
+                    .try_as_basic_value()
+                    .left()
+                    .expect("is_truth has no return")
+                    .into_int_value();
 
                 // 2. 获取 LLVM 基本块
                 self.new_llvm_block(function, then_block);
@@ -489,7 +484,10 @@ impl<'ctx> LirGenerator<'ctx> {
                 self.builder.build_unconditional_branch(*target_bb).unwrap();
             }
             HIRInst::Call { id, ret } => {
-                let func = *self.llvm_func_registry.get(id).expect("no such func");
+                let func = *self
+                    .llvm_func_registry
+                    .get(id)
+                    .expect(&format!("no such func, id:{}", id));
                 let sym = self.func_registry.get(id).expect("");
 
                 let mut args = Vec::<BasicMetadataValueEnum>::new();
@@ -689,6 +687,29 @@ impl<'ctx> LirGenerator<'ctx> {
                 self.var_registry.insert(*var, var_ptr);
             }
             HIRInst::Ret { ret_obj } => {
+                if let Some(func) = cur_func
+                    && func == "main"
+                {
+                    let slot = self.slot_registry.get(ret_obj).expect("");
+                    let obj = self
+                        .builder
+                        .build_load(object_ptr_type, *slot, "load main ret")
+                        .unwrap();
+                    let get_fn = *self.runtime_fn.get("get_int_value").expect("");
+                    let ret_val = self
+                        .builder
+                        .build_call(get_fn, &[obj.into()], "get main ret")
+                        .unwrap()
+                        .try_as_basic_value()
+                        .left()
+                        .expect("is_truth has no return")
+                        .into_int_value();
+
+                    self.builder.build_return(Some(&ret_val)).unwrap();
+
+                    return;
+                }
+
                 let slot_ptr = *self.slot_registry.get(ret_obj).expect(""); // Object**
 
                 // 1. 从 slot 中 load 出 Object*
@@ -748,23 +769,6 @@ impl<'ctx> LirGenerator<'ctx> {
                     cur_block_id = block_id;
                 }
                 HIR::FuncLabel(ref func_def) => {
-                    if let Some(func_name) = cur_func {
-                        let function = self
-                            .llvm_func_registry
-                            .get(&FuncId(func_name.parse::<i32>().unwrap()))
-                            .expect("");
-                        self.new_llvm_block(
-                            *function,
-                            &BlockId {
-                                id: -1,
-                                is_merge: false,
-                            },
-                        );
-                        self.emit_llvm_block(&BlockId {
-                            id: -1,
-                            is_merge: false,
-                        });
-                    }
                     let t = self.gen_func_ir(func_def);
                     cur_func = Some(func_def.get_id().to_string());
                 }
@@ -812,14 +816,19 @@ impl<'ctx> LirGenerator<'ctx> {
             .write_to_file(&self.module, FileType::Object, output_obj)
             .unwrap();
 
-        let link_result = Command::new("gcc")
-            .arg(output_obj) // test.o
-            .arg("-L./runtime") // 库搜索路径
-            .arg("-layanami_runtime") // libayanami_runtime.so
-            .arg("-Wl,-rpath,$ORIGIN/runtime") // 
+        let link = Command::new("g++")
+            .arg("-g")
+            .arg("-O0")
+            .arg("./build/test.o")
+            .arg("-L./runtime")
+            .arg("-layanami_runtime")
             .arg("-o")
             .arg("./build/ayanami_test")
             .status()
-            .expect("failed to invoke gcc");
+            .unwrap();
+
+        if !link.success() {
+            println!("g++ not success, {:?}", link.code());
+        }
     }
 }
