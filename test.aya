@@ -13,13 +13,13 @@ fn main(){
         b=b+1
     }
 
-    write(b)
+    write("b = "+b+"\n")
 
     while b<10{
         b=b+1
     }
 
-    write(myadd(a,b))
+    write("a + b = "+myadd(a,b)+"\n")
 
     return 0
 }

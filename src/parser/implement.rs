@@ -93,6 +93,14 @@ impl Parser {
         self.tokens[self.i][self.j].clone()
     }
 
+    fn get_escape_character(str: &String) -> String {
+        if str == "n" {
+            return "\n".to_string();
+        }
+
+        panic!("illegal escape character")
+    }
+
     fn parser_add_sub(&mut self) -> Result<Rc<RefCell<Expr>>, Error> {
         let mut left = match self.parser_mul_div() {
             Ok(v) => v,
@@ -327,8 +335,35 @@ impl Parser {
                 self.expect(Token::Operator("]".to_string()))?;
                 return Ok(res);
             }
-            if self.is(Token::Operator("\"".to_string()))?{
-                
+            if self.is(Token::Operator("\"".to_string()))? {
+                let mut str = String::new();
+                while !self.is(Token::Operator("\"".to_string()))? {
+                    let mut new_str = match self.peek() {
+                        Token::Identifier(s) => s,
+                        Token::Operator(s) => s,
+                        Token::Keyword(s) => s,
+                        Token::Num(s) => s.to_string(),
+                    };
+
+                    if new_str == "\\" {
+                        self.next()?;
+                        let c = match self.peek() {
+                            Token::Identifier(s) => s,
+                            Token::Operator(s) => s,
+                            Token::Keyword(s) => s,
+                            Token::Num(s) => s.to_string(),
+                        };
+
+                        new_str = Self::get_escape_character(&c);
+                    }
+
+                    str.push_str(&new_str);
+                    self.next()?;
+                }
+
+                let mut ty = HashSet::new();
+                ty.insert(VarType::String);
+                return Ok(Rc::new(RefCell::new(Expr::ConstStr(str, ty))));
             }
 
             Err(Error::new_error(format!("unknown operator: {}", op)))

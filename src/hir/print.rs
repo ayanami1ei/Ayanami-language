@@ -47,6 +47,7 @@ impl fmt::Display for Const {
             Const::Float(x) => write!(f, "Float: {}", x),
             Const::Char(x) => write!(f, "Char: {}", x),
             Const::Bool(x) => write!(f, "Bool: {}", x),
+            Const::String(x)=>write!(f,"String: {}",x),
             Const::Null => write!(f, ""),
         }
     }

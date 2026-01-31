@@ -40,6 +40,7 @@ pub(crate) enum Expr {
     ConstNum(f64, HashSet<VarType>),
     #[allow(unused)]
     ConstChar(char, HashSet<VarType>),
+    ConstStr(String, HashSet<VarType>),
     Var(String, HashSet<VarType>),
     FuncCall(String, Vec<Rc<RefCell<Expr>>>, HashSet<VarType>, i32),
 

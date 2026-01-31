@@ -53,39 +53,57 @@ func_7:
         //Delete slot_19
         Jmp to block_8
     block_merge_10: 
-        Load var_9 to slot_21
-        Increase Reference of slot_21
-        Call func_1, args: [slot_21 ], ret_slot:slot_0
-        //Delete slot_14
-        //Delete slot_15
+        New {string } -> slot_21, val = b = 
+        Load var_9 to slot_22
+        slot_21 + slot_22 -> slot_23
+        New {string } -> slot_24, val = 
+
+        slot_23 + slot_24 -> slot_25
+        Increase Reference of slot_25
+        Call func_1, args: [slot_25 ], ret_slot:slot_0
         //Delete slot_16
+        //Delete slot_15
+        //Delete slot_14
+        //Delete slot_21
+        //Delete slot_23
+        //Delete slot_24
         Jmp to block_11
     block_11: 
-        Load var_9 to slot_22
-        New {int } -> slot_23, val = 10
-        slot_22 < slot_23 -> slot_24
-        //Delete slot_23
-        Br cond: slot_24, then-block: block_12, else-block: block_merge_13
+        Load var_9 to slot_26
+        New {int } -> slot_27, val = 10
+        slot_26 < slot_27 -> slot_28
+        //Delete slot_25
+        //Delete slot_27
+        Br cond: slot_28, then-block: block_12, else-block: block_merge_13
     block_12: 
-        Load var_9 to slot_25
-        New {int } -> slot_26, val = 1
-        slot_25 + slot_26 -> slot_27
-        Increase Reference of slot_27
-        Bind var_9 and slot_27
-        Increase Reference of slot_27
+        Load var_9 to slot_29
+        New {int } -> slot_30, val = 1
+        slot_29 + slot_30 -> slot_31
+        Increase Reference of slot_31
+        Bind var_9 and slot_31
+        Increase Reference of slot_31
         Decrease Reference of slot_20
-        //Delete slot_24
-        //Delete slot_26
+        //Delete slot_28
+        //Delete slot_30
         Jmp to block_11
     block_merge_13: 
-        Load var_8 to slot_28
-        Increase Reference of slot_28
-        Load var_9 to slot_29
-        Increase Reference of slot_29
-        Call func_4, args: [slot_28 slot_29 ], ret_slot:slot_1
-        Call func_1, args: [slot_1 ], ret_slot:slot_0
-        New {int } -> slot_30, val = 0
+        New {string } -> slot_32, val = a + b = 
+        Load var_8 to slot_33
+        Increase Reference of slot_33
+        Load var_9 to slot_34
+        Increase Reference of slot_34
+        Call func_4, args: [slot_33 slot_34 ], ret_slot:slot_1
+        slot_32 + slot_1 -> slot_35
+        New {string } -> slot_36, val = 
+
+        slot_35 + slot_36 -> slot_37
+        Call func_1, args: [slot_37 ], ret_slot:slot_0
+        New {int } -> slot_38, val = 0
         //Delete slot_12
-        //Delete slot_0
         //Delete slot_1
-        Ret slot_30
+        //Delete slot_32
+        //Delete slot_36
+        //Delete slot_35
+        //Delete slot_37
+        //Delete slot_0
+        Ret slot_38

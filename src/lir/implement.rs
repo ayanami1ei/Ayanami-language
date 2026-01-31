@@ -358,34 +358,76 @@ impl<'ctx> LirGenerator<'ctx> {
                         .runtime_fn
                         .get("alloc_char")
                         .expect("runtime not found"),
+                    VarType::String => self
+                        .runtime_fn
+                        .get("alloc_string")
+                        .expect("runtime not found"),
                     _ => panic!("unknown type"),
                 };
 
                 let call_res;
                 match obj_type {
                     VarType::Int => {
-                        let args = self.context.i64_type().const_int(*val as u64, false);
+                        let args = self
+                            .context
+                            .i64_type()
+                            .const_int(val.parse().unwrap(), false);
                         call_res = self
                             .builder
                             .build_call(new_fn, &[args.into()], "new int")
                             .unwrap();
                     }
                     VarType::Float => {
-                        let args = self.context.f64_type().const_float(*val);
+                        let args = self.context.f64_type().const_float(val.parse().unwrap());
                         call_res = self
                             .builder
                             .build_call(new_fn, &[args.into()], "new int")
                             .unwrap();
                     }
                     VarType::Bool => {
-                        let args = self.context.bool_type().const_int(*val as u64, false);
+                        let args = self
+                            .context
+                            .bool_type()
+                            .const_int(val.parse().unwrap(), false);
                         call_res = self
                             .builder
                             .build_call(new_fn, &[args.into()], "new int")
                             .unwrap();
                     }
+                    VarType::String => {
+                        // val is the string content
+                        let s = val;
+                        let bytes = s.as_bytes();
+                        let array_ty = self.context.i8_type().array_type(bytes.len() as u32);
+                        let gname = format!(".str.{}", self.i);
+                        let global = self.module.add_global(array_ty, None, &gname);
+                        let mut elems: Vec<inkwell::values::IntValue> = Vec::new();
+                        for b in bytes.iter() {
+                            elems.push(self.context.i8_type().const_int(*b as u64, false));
+                        }
+                        let const_array = self.context.i8_type().const_array(&elems);
+                        global.set_initializer(&const_array);
+                        global.set_constant(true);
+
+                        let gv_ptr = global.as_pointer_value();
+                        let gep = self
+                            .builder
+                            .build_pointer_cast(gv_ptr, object_ptr_type, "str.ptr")
+                            .unwrap();
+
+                        let len_val = self.context.i32_type().const_int(bytes.len() as u64, false);
+
+                        call_res = self
+                            .builder
+                            .build_call(new_fn, &[gep.into(), len_val.into()], "new string")
+                            .unwrap();
+                        self.i += 1;
+                    }
                     VarType::Char => {
-                        let args = self.context.i32_type().const_int(*val as u64, false);
+                        let args = self
+                            .context
+                            .i32_type()
+                            .const_int(val.parse().unwrap(), false);
                         call_res = self
                             .builder
                             .build_call(new_fn, &[args.into()], "new int")
@@ -493,6 +535,46 @@ impl<'ctx> LirGenerator<'ctx> {
                             .const_int(*b as u64, false)
                             .as_basic_value_enum(),
                         crate::hir::Const::Null => todo!(),
+                        crate::hir::Const::String(s) => {
+                            // create a global constant byte array for the string
+                            let bytes = s.as_bytes();
+                            let array_ty = self.context.i8_type().array_type(bytes.len() as u32);
+                            let gname = format!(".str.{}", self.i);
+                            let global = self.module.add_global(array_ty, None, &gname);
+                            // build initializer
+                            let mut elems: Vec<inkwell::values::IntValue> = Vec::new();
+                            for b in bytes.iter() {
+                                elems.push(self.context.i8_type().const_int(*b as u64, false));
+                            }
+                            let const_array = self.context.i8_type().const_array(&elems);
+                            global.set_initializer(&const_array);
+                            global.set_constant(true);
+
+                            // get i8* pointer to the first element by pointer-casting
+                            let gv_ptr = global.as_pointer_value();
+                            let gep = self
+                                .builder
+                                .build_pointer_cast(gv_ptr, object_ptr_type, "str.ptr")
+                                .unwrap();
+
+                            // call runtime alloc_string(ptr, len) -> Object*
+                            let alloc_str = *self
+                                .runtime_fn
+                                .get("alloc_string")
+                                .expect("runtime alloc_string not found");
+                            let len_val =
+                                self.context.i32_type().const_int(bytes.len() as u64, false);
+                            let call_res = self
+                                .builder
+                                .build_call(alloc_str, &[gep.into(), len_val.into()], "new string")
+                                .unwrap();
+                            self.i += 1;
+
+                            call_res
+                                .try_as_basic_value()
+                                .left()
+                                .expect("alloc_string must return")
+                        }
                     };
 
                     match self.builder.build_store(to_ptr, val) {

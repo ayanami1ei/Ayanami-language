@@ -48,6 +48,7 @@ impl Expr {
         match self {
             Expr::ConstNum(_, ty) => ty,
             Expr::ConstChar(_, ty) => ty,
+            Expr::ConstStr(_, ty)=>ty,
             Expr::Var(_, ty) => ty,
             Expr::FuncCall(_, _, ty, _) => ty,
             Expr::Add(_, _, ty) => ty,

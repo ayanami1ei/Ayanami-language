@@ -46,6 +46,14 @@ impl TypeInferrer {
                 };
                 Ok(ty_set.clone())
             }
+            Expr::ConstStr(_,ref mut ty_set )=>{
+                *ty_set = {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::String);
+                    set
+                };
+                Ok(ty_set.clone())
+            }
             Expr::Var(ref name, ref mut ty_set) => {
                 if let Some(sym) = symbol_table.borrow().find_symbol(name) {
                     if sym.its_type.is_empty() {

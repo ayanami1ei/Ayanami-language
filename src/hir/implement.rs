@@ -338,7 +338,7 @@ impl HirGenerator {
 
                 irs.push(HIRInst::New {
                     obj_type: VarType::Char,
-                    val: c as u8 as f64,
+                    val: c.to_string(),
                     dst: ret_slot,
                 });
 
@@ -353,7 +353,7 @@ impl HirGenerator {
 
                     irs.push(HIRInst::New {
                         obj_type: VarType::Int,
-                        val: x as f64,
+                        val: x.to_string(),
                         dst: ret_slot,
                     });
 
@@ -366,12 +366,26 @@ impl HirGenerator {
 
                     irs.push(HIRInst::New {
                         obj_type: VarType::Float,
-                        val: x,
+                        val: x.to_string(),
                         dst: ret_slot,
                     });
 
                     res_slot_id = ret_slot;
                 }
+            }
+            Expr::ConstStr(ref str, _) => {
+                let mut s = ObjSlot::new(self.ast_symbol_table.get_level());
+                s.push(Value::Const(super::Const::String(str.clone())));
+                let ret_slot = self.get_next_slot_id();
+                self.slot_registry.insert(ret_slot, s);
+
+                irs.push(HIRInst::New {
+                    obj_type: VarType::String,
+                    val: str.clone(),
+                    dst: ret_slot,
+                });
+
+                res_slot_id = ret_slot;
             }
             Expr::Var(ref name, _) => {
                 let id = self.find_var_id(name);

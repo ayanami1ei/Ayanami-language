@@ -105,7 +105,7 @@ pub(crate) enum HIRInst {
     #[allow(unused)]
     New {
         obj_type: VarType,
-        val: f64,
+        val: String,
         dst: SlotId,
     },
     Delete {
@@ -181,18 +181,19 @@ pub(super) enum UnaryOperation {
     Not,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) enum Const {
     Int(i64),
     Float(FloatKey),
     Char(char),
     #[allow(unused)]
     Bool(bool),
+    String(String),
     #[allow(unused)]
     Null,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) enum Value {
     Const(Const),
     Obj(ObjId),

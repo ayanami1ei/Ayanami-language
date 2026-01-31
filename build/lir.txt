@@ -1,6 +1,11 @@
 ; ModuleID = 'ayanami_modlue'
 source_filename = "ayanami_modlue"
 
+@.str.0 = constant [4 x i8] c"b = "
+@.str.1 = constant [1 x i8] c"\0A"
+@.str.2 = constant [8 x i8] c"a + b = "
+@.str.3 = constant [1 x i8] c"\0A"
+
 declare void @err(ptr)
 
 declare i32 @get_int_value(ptr)
@@ -199,99 +204,155 @@ block_9:                                          ; preds = %block_8
   br label %block_8
 
 block_merge_10:                                   ; preds = %block_8
-  %slotslot_21 = alloca ptr, align 8
-  %param.load23 = load ptr, ptr %var9, align 8
-  store ptr %param.load23, ptr %slotslot_21, align 8
-  %left_obj24 = load ptr, ptr %slotslot_21, align 8
-  call void @inc_ref(ptr %left_obj24)
-  %call.arg = load ptr, ptr %slotslot_21, align 8
-  call void @write(ptr %call.arg)
-  %load25 = load ptr, ptr %slotslot_14, align 8
-  call void @del_obj(ptr %load25)
-  store ptr null, ptr %slotslot_14, align 8
-  %load26 = load ptr, ptr %slotslot_15, align 8
-  call void @del_obj(ptr %load26)
-  store ptr null, ptr %slotslot_15, align 8
-  %load27 = load ptr, ptr %slotslot_16, align 8
-  call void @del_obj(ptr %load27)
-  store ptr null, ptr %slotslot_16, align 8
-  br label %block_11
-
-block_11:                                         ; preds = %block_12, %block_merge_10
+  %slotslot_25 = alloca ptr, align 8
   %slotslot_24 = alloca ptr, align 8
   %slotslot_23 = alloca ptr, align 8
   %slotslot_22 = alloca ptr, align 8
-  %param.load28 = load ptr, ptr %var9, align 8
-  store ptr %param.load28, ptr %slotslot_22, align 8
-  %"new int29" = call ptr @alloc_int(i64 10)
-  store ptr %"new int29", ptr %slotslot_23, align 8
-  %left_obj30 = load ptr, ptr %slotslot_22, align 8
-  %right_obj31 = load ptr, ptr %slotslot_23, align 8
-  %less32 = call ptr @less(ptr %left_obj30, ptr %right_obj31)
-  store ptr %less32, ptr %slotslot_24, align 8
-  %load33 = load ptr, ptr %slotslot_23, align 8
+  %slotslot_21 = alloca ptr, align 8
+  %"new string" = call ptr @alloc_string(ptr @.str.0, i32 4)
+  store ptr %"new string", ptr %slotslot_21, align 8
+  %param.load23 = load ptr, ptr %var9, align 8
+  store ptr %param.load23, ptr %slotslot_22, align 8
+  %left_obj24 = load ptr, ptr %slotslot_21, align 8
+  %right_obj25 = load ptr, ptr %slotslot_22, align 8
+  %add26 = call ptr @add(ptr %left_obj24, ptr %right_obj25)
+  store ptr %add26, ptr %slotslot_23, align 8
+  %"new string27" = call ptr @alloc_string(ptr @.str.1, i32 1)
+  store ptr %"new string27", ptr %slotslot_24, align 8
+  %left_obj28 = load ptr, ptr %slotslot_23, align 8
+  %right_obj29 = load ptr, ptr %slotslot_24, align 8
+  %add30 = call ptr @add(ptr %left_obj28, ptr %right_obj29)
+  store ptr %add30, ptr %slotslot_25, align 8
+  %left_obj31 = load ptr, ptr %slotslot_25, align 8
+  call void @inc_ref(ptr %left_obj31)
+  %call.arg = load ptr, ptr %slotslot_25, align 8
+  call void @write(ptr %call.arg)
+  %load32 = load ptr, ptr %slotslot_16, align 8
+  call void @del_obj(ptr %load32)
+  store ptr null, ptr %slotslot_16, align 8
+  %load33 = load ptr, ptr %slotslot_15, align 8
   call void @del_obj(ptr %load33)
+  store ptr null, ptr %slotslot_15, align 8
+  %load34 = load ptr, ptr %slotslot_14, align 8
+  call void @del_obj(ptr %load34)
+  store ptr null, ptr %slotslot_14, align 8
+  %load35 = load ptr, ptr %slotslot_21, align 8
+  call void @del_obj(ptr %load35)
+  store ptr null, ptr %slotslot_21, align 8
+  %load36 = load ptr, ptr %slotslot_23, align 8
+  call void @del_obj(ptr %load36)
   store ptr null, ptr %slotslot_23, align 8
-  %cond.load34 = load ptr, ptr %slotslot_24, align 8
-  %"call is_truth35" = call i1 @is_truth(ptr %cond.load34)
-  br i1 %"call is_truth35", label %block_12, label %block_merge_13
+  %load37 = load ptr, ptr %slotslot_24, align 8
+  call void @del_obj(ptr %load37)
+  store ptr null, ptr %slotslot_24, align 8
+  br label %block_11
 
-block_12:                                         ; preds = %block_11
+block_11:                                         ; preds = %block_12, %block_merge_10
+  %slotslot_28 = alloca ptr, align 8
   %slotslot_27 = alloca ptr, align 8
   %slotslot_26 = alloca ptr, align 8
-  %slotslot_25 = alloca ptr, align 8
-  %param.load36 = load ptr, ptr %var9, align 8
-  store ptr %param.load36, ptr %slotslot_25, align 8
-  %"new int37" = call ptr @alloc_int(i64 1)
-  store ptr %"new int37", ptr %slotslot_26, align 8
-  %left_obj38 = load ptr, ptr %slotslot_25, align 8
-  %right_obj39 = load ptr, ptr %slotslot_26, align 8
-  %add40 = call ptr @add(ptr %left_obj38, ptr %right_obj39)
-  store ptr %add40, ptr %slotslot_27, align 8
-  %left_obj41 = load ptr, ptr %slotslot_27, align 8
-  call void @inc_ref(ptr %left_obj41)
-  %bind.load42 = load ptr, ptr %slotslot_27, align 8
-  store ptr %bind.load42, ptr %var9, align 8
-  %left_obj43 = load ptr, ptr %slotslot_27, align 8
-  call void @inc_ref(ptr %left_obj43)
-  %left_obj44 = load ptr, ptr %slotslot_20, align 8
-  call void @dec_ref(ptr %left_obj44)
-  %load45 = load ptr, ptr %slotslot_24, align 8
-  call void @del_obj(ptr %load45)
-  store ptr null, ptr %slotslot_24, align 8
-  %load46 = load ptr, ptr %slotslot_26, align 8
-  call void @del_obj(ptr %load46)
-  store ptr null, ptr %slotslot_26, align 8
+  %param.load38 = load ptr, ptr %var9, align 8
+  store ptr %param.load38, ptr %slotslot_26, align 8
+  %"new int39" = call ptr @alloc_int(i64 10)
+  store ptr %"new int39", ptr %slotslot_27, align 8
+  %left_obj40 = load ptr, ptr %slotslot_26, align 8
+  %right_obj41 = load ptr, ptr %slotslot_27, align 8
+  %less42 = call ptr @less(ptr %left_obj40, ptr %right_obj41)
+  store ptr %less42, ptr %slotslot_28, align 8
+  %load43 = load ptr, ptr %slotslot_25, align 8
+  call void @del_obj(ptr %load43)
+  store ptr null, ptr %slotslot_25, align 8
+  %load44 = load ptr, ptr %slotslot_27, align 8
+  call void @del_obj(ptr %load44)
+  store ptr null, ptr %slotslot_27, align 8
+  %cond.load45 = load ptr, ptr %slotslot_28, align 8
+  %"call is_truth46" = call i1 @is_truth(ptr %cond.load45)
+  br i1 %"call is_truth46", label %block_12, label %block_merge_13
+
+block_12:                                         ; preds = %block_11
+  %slotslot_31 = alloca ptr, align 8
+  %slotslot_30 = alloca ptr, align 8
+  %slotslot_29 = alloca ptr, align 8
+  %param.load47 = load ptr, ptr %var9, align 8
+  store ptr %param.load47, ptr %slotslot_29, align 8
+  %"new int48" = call ptr @alloc_int(i64 1)
+  store ptr %"new int48", ptr %slotslot_30, align 8
+  %left_obj49 = load ptr, ptr %slotslot_29, align 8
+  %right_obj50 = load ptr, ptr %slotslot_30, align 8
+  %add51 = call ptr @add(ptr %left_obj49, ptr %right_obj50)
+  store ptr %add51, ptr %slotslot_31, align 8
+  %left_obj52 = load ptr, ptr %slotslot_31, align 8
+  call void @inc_ref(ptr %left_obj52)
+  %bind.load53 = load ptr, ptr %slotslot_31, align 8
+  store ptr %bind.load53, ptr %var9, align 8
+  %left_obj54 = load ptr, ptr %slotslot_31, align 8
+  call void @inc_ref(ptr %left_obj54)
+  %left_obj55 = load ptr, ptr %slotslot_20, align 8
+  call void @dec_ref(ptr %left_obj55)
+  %load56 = load ptr, ptr %slotslot_28, align 8
+  call void @del_obj(ptr %load56)
+  store ptr null, ptr %slotslot_28, align 8
+  %load57 = load ptr, ptr %slotslot_30, align 8
+  call void @del_obj(ptr %load57)
+  store ptr null, ptr %slotslot_30, align 8
   br label %block_11
 
 block_merge_13:                                   ; preds = %block_11
-  %slotslot_30 = alloca ptr, align 8
+  %slotslot_38 = alloca ptr, align 8
+  %slotslot_37 = alloca ptr, align 8
+  %slotslot_36 = alloca ptr, align 8
+  %slotslot_35 = alloca ptr, align 8
   %slotslot_1 = alloca ptr, align 8
-  %slotslot_29 = alloca ptr, align 8
-  %slotslot_28 = alloca ptr, align 8
-  %param.load47 = load ptr, ptr %var8, align 8
-  store ptr %param.load47, ptr %slotslot_28, align 8
-  %left_obj48 = load ptr, ptr %slotslot_28, align 8
-  call void @inc_ref(ptr %left_obj48)
-  %param.load49 = load ptr, ptr %var9, align 8
-  store ptr %param.load49, ptr %slotslot_29, align 8
-  %left_obj50 = load ptr, ptr %slotslot_29, align 8
-  call void @inc_ref(ptr %left_obj50)
-  %call.arg51 = load ptr, ptr %slotslot_28, align 8
-  %call.arg52 = load ptr, ptr %slotslot_29, align 8
-  %call = call ptr @myadd(ptr %call.arg51, ptr %call.arg52)
+  %slotslot_34 = alloca ptr, align 8
+  %slotslot_33 = alloca ptr, align 8
+  %slotslot_32 = alloca ptr, align 8
+  %"new string58" = call ptr @alloc_string(ptr @.str.2, i32 8)
+  store ptr %"new string58", ptr %slotslot_32, align 8
+  %param.load59 = load ptr, ptr %var8, align 8
+  store ptr %param.load59, ptr %slotslot_33, align 8
+  %left_obj60 = load ptr, ptr %slotslot_33, align 8
+  call void @inc_ref(ptr %left_obj60)
+  %param.load61 = load ptr, ptr %var9, align 8
+  store ptr %param.load61, ptr %slotslot_34, align 8
+  %left_obj62 = load ptr, ptr %slotslot_34, align 8
+  call void @inc_ref(ptr %left_obj62)
+  %call.arg63 = load ptr, ptr %slotslot_33, align 8
+  %call.arg64 = load ptr, ptr %slotslot_34, align 8
+  %call = call ptr @myadd(ptr %call.arg63, ptr %call.arg64)
   store ptr %call, ptr %slotslot_1, align 8
-  %call.arg53 = load ptr, ptr %slotslot_1, align 8
-  call void @write(ptr %call.arg53)
-  %"new int54" = call ptr @alloc_int(i64 0)
-  store ptr %"new int54", ptr %slotslot_30, align 8
-  %load55 = load ptr, ptr %slotslot_12, align 8
-  call void @del_obj(ptr %load55)
+  %left_obj65 = load ptr, ptr %slotslot_32, align 8
+  %right_obj66 = load ptr, ptr %slotslot_1, align 8
+  %add67 = call ptr @add(ptr %left_obj65, ptr %right_obj66)
+  store ptr %add67, ptr %slotslot_35, align 8
+  %"new string68" = call ptr @alloc_string(ptr @.str.3, i32 1)
+  store ptr %"new string68", ptr %slotslot_36, align 8
+  %left_obj69 = load ptr, ptr %slotslot_35, align 8
+  %right_obj70 = load ptr, ptr %slotslot_36, align 8
+  %add71 = call ptr @add(ptr %left_obj69, ptr %right_obj70)
+  store ptr %add71, ptr %slotslot_37, align 8
+  %call.arg72 = load ptr, ptr %slotslot_37, align 8
+  call void @write(ptr %call.arg72)
+  %"new int73" = call ptr @alloc_int(i64 0)
+  store ptr %"new int73", ptr %slotslot_38, align 8
+  %load74 = load ptr, ptr %slotslot_12, align 8
+  call void @del_obj(ptr %load74)
   store ptr null, ptr %slotslot_12, align 8
-  %load56 = load ptr, ptr %slotslot_1, align 8
-  call void @del_obj(ptr %load56)
+  %load75 = load ptr, ptr %slotslot_1, align 8
+  call void @del_obj(ptr %load75)
   store ptr null, ptr %slotslot_1, align 8
-  %ret.load = load ptr, ptr %slotslot_30, align 8
+  %load76 = load ptr, ptr %slotslot_32, align 8
+  call void @del_obj(ptr %load76)
+  store ptr null, ptr %slotslot_32, align 8
+  %load77 = load ptr, ptr %slotslot_36, align 8
+  call void @del_obj(ptr %load77)
+  store ptr null, ptr %slotslot_36, align 8
+  %load78 = load ptr, ptr %slotslot_35, align 8
+  call void @del_obj(ptr %load78)
+  store ptr null, ptr %slotslot_35, align 8
+  %load79 = load ptr, ptr %slotslot_37, align 8
+  call void @del_obj(ptr %load79)
+  store ptr null, ptr %slotslot_37, align 8
+  %ret.load = load ptr, ptr %slotslot_38, align 8
   call void @inc_ref(ptr %ret.load)
   %"get main ret" = call i32 @get_int_value(ptr %ret.load)
   call void @del_obj(ptr %ret.load)
