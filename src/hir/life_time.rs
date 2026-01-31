@@ -11,6 +11,10 @@ impl HirGenerator {
         vec.sort_by_key(|x| x.1.last_use);
 
         for (id, slot) in vec {
+            // skip temp slots: they are ephemeral loaded temps and should not get Delete
+            if id.temp {
+                continue;
+            }
             if self.can_delete(&slot) {
                 self.hir.insert(
                     slot.last_use + offset + 2,

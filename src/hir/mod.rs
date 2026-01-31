@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash};
+use std::hash::Hash;
 
 use crate::{
     symbol_table::SymbolTable,
@@ -15,6 +15,7 @@ pub(crate) struct VarId(i32);
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
 pub(crate) struct SlotId {
     id: i32,
+    pub(crate) temp: bool,
 }
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
 pub(crate) struct FuncId(pub(crate) i32);
@@ -36,8 +37,8 @@ pub(crate) struct ObjSlot {
     home_level_id: i32,
     cur_leve_id: i32,
 
-    last_use:usize,
-    escape:bool,
+    last_use: usize,
+    escape: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -56,9 +57,9 @@ struct HirVarSymbol {
     #[allow(unused)]
     pub(super) ty_set: HashSet<VarType>, // 可能指向的对象类型集合
     #[allow(unused)]
-    pub(super) mutability: bool,         // 能不能 Bind
+    pub(super) mutability: bool, // 能不能 Bind
     #[allow(unused)]
-    pub(super) storage: StorageClass,    // local / param / temp
+    pub(super) storage: StorageClass, // local / param / temp
     pub(super) obj_id: SlotId,
 }
 
@@ -69,8 +70,8 @@ pub(crate) struct HirFuncSymbol {
     pub(super) ret_obj_id: SlotId,
     pub(super) id: FuncId,
     pub(super) param_id: Vec<VarId>,
-    pub(crate) is_main:bool,
-    pub(crate) name:String
+    pub(crate) is_main: bool,
+    pub(crate) name: String,
 }
 
 pub(crate) struct HirGenerator {
@@ -85,7 +86,7 @@ pub(crate) struct HirGenerator {
     pub(crate) func_registry: HashMap<FuncId, HirFuncSymbol>,
     block_registry: HashMap<BlockId, Vec<HIRInst>>,
     slot_registry: HashMap<SlotId, ObjSlot>,
-    pub(crate) var_to_slot:HashMap<VarId, SlotId>,
+    pub(crate) var_to_slot: HashMap<VarId, SlotId>,
 
     ast_symbol_table: SymbolTable,
 
@@ -104,7 +105,7 @@ pub(crate) enum HIRInst {
     #[allow(unused)]
     New {
         obj_type: VarType,
-        val:f64,
+        val: f64,
         dst: SlotId,
     },
     Delete {
@@ -124,6 +125,7 @@ pub(crate) enum HIRInst {
     },
     Call {
         id: FuncId,
+        args: Vec<SlotId>,
         ret: SlotId,
     },
     BinOp {

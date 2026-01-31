@@ -390,8 +390,6 @@ impl TypeInferrer {
 
         (*self.symbol_table).borrow_mut().ret_to_parent_scope();
 
-        (*self.symbol_table).borrow_mut().reset();
-
         Ok(())
     }
     fn semantic_analysise_if(&mut self) -> Result<(), Error> {
@@ -442,8 +440,6 @@ impl TypeInferrer {
 
             (*self.symbol_table).borrow_mut().ret_to_parent_scope();
         }
-
-        (*self.symbol_table).borrow_mut().reset();
 
         Ok(())
     }

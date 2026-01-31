@@ -327,6 +327,9 @@ impl Parser {
                 self.expect(Token::Operator("]".to_string()))?;
                 return Ok(res);
             }
+            if self.is(Token::Operator("\"".to_string()))?{
+                
+            }
 
             Err(Error::new_error(format!("unknown operator: {}", op)))
         } else {

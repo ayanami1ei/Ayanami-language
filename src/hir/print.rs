@@ -1,7 +1,8 @@
 use std::fmt;
 
 use crate::hir::{
-    BinOperator, BlockId, Const, FloatKey, FuncId, HIR, HIRInst, ObjId, ObjSlot, SlotId, UnaryOperation, Value, VarId
+    BinOperator, BlockId, Const, FloatKey, FuncId, HIR, HIRInst, ObjId, ObjSlot, SlotId,
+    UnaryOperation, Value, VarId,
 };
 
 impl fmt::Display for BlockId {
@@ -59,7 +60,7 @@ impl fmt::Display for FloatKey {
 
 impl fmt::Display for SlotId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let SlotId { id } = self;
+        let SlotId { id, temp: _ } = self;
         write!(f, "slot_{}", id)
     }
 }
@@ -131,8 +132,12 @@ impl fmt::Display for HIRInst {
                 cond, then_block, else_block
             ),
             HIRInst::Jmp { target } => write!(f, "Jmp to block_{}", target),
-            HIRInst::Call { id, ret } => {
-                write!(f, "Call func_{}, ret_slot:{}", id, ret)?;
+            HIRInst::Call { id, args, ret } => {
+                write!(f, "Call func_{}, args: [", id)?;
+                for a in args.iter() {
+                    write!(f, "{} ", a)?;
+                }
+                write!(f, "], ret_slot:{}", ret)?;
                 write!(f, "")
             }
             HIRInst::BinOp {
@@ -147,7 +152,7 @@ impl fmt::Display for HIRInst {
             HIRInst::Ret { ret_obj } => write!(f, "Ret {}", ret_obj),
             HIRInst::IncRef { obj } => write!(f, "Increase Reference of {}", obj),
             HIRInst::DecRef { obj } => write!(f, "Decrease Reference of {}", obj),
-            HIRInst::Unreachable=>write!(f, "Unreachable"),
+            HIRInst::Unreachable => write!(f, "Unreachable"),
         }
     }
 }

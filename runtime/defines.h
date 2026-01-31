@@ -19,8 +19,6 @@
         ptr->header.type = VarType::TYPENAME;                                                              \
         ptr->header.refcnt = 0;                                                                            \
         ptr->value = value;                                                                                \
-        /* debug: log allocation */                                                                        \
-        /*fprintf(stderr, "[runtime] alloc_%s called -> ptr=%p\n", #name, (void *)ptr); */                     \
         return (Object *)ptr;                                                                              \
     }
 
@@ -28,7 +26,7 @@
     (type *)ptr;
 
 /* helper: convert any Object* to a truthy 0/1 value (used by logical operators) */
-extern "C" bool inline is_truth(const Object *obj)
+extern "C" bool is_truth(const Object *obj)
 {
     if (obj == NULL)
         return 0;
@@ -75,7 +73,7 @@ extern "C" bool inline is_truth(const Object *obj)
         {                                                                                  \
             IntObject *l = (IntObject *)(left);                                            \
             IntObject *r = (IntObject *)(right);                                           \
-            /*printf("int and int\n");   */                                                    \
+            /*printf("int and int\n");   */                                                \
             return alloc_int((l->value)op(r->value));                                      \
         }                                                                                  \
         else if (left_type == VarType::Int && right_type == VarType::Float)                \
@@ -324,8 +322,184 @@ extern "C" bool inline is_truth(const Object *obj)
         }                                                                                  \
     } while (0)
 
-#define logic_operation(left, op, right) \
-    return alloc_bool(is_truth(left) op is_truth(right))
+#define logic_operation(left, op, right)                                        \
+    do                                                                          \
+    {                                                                           \
+        VarType left_type = (left)->type;                                       \
+        VarType right_type = (right)->type;                                     \
+        /* handle each type combination */                                      \
+        if (left_type == VarType::Int && right_type == VarType::Int)            \
+        {                                                                       \
+            IntObject *l = (IntObject *)(left);                                 \
+            IntObject *r = (IntObject *)(right);                                \
+            /*printf("int and int\n");   */                                     \
+            return alloc_bool((l->value)op(r->value));                          \
+        }                                                                       \
+        else if (left_type == VarType::Int && right_type == VarType::Float)     \
+        {                                                                       \
+            IntObject *l = (IntObject *)(left);                                 \
+            FloatObject *r = (FloatObject *)(right);                            \
+            return alloc_bool(((double)l->value)op(r->value));                  \
+        }                                                                       \
+        else if (left_type == VarType::Int && right_type == VarType::Bool)      \
+        {                                                                       \
+            IntObject *l = (IntObject *)(left);                                 \
+            BoolObject *r = (BoolObject *)(right);                              \
+            int rv = r->value ? 1 : 0;                                          \
+            return alloc_bool((l->value)op rv);                                 \
+        }                                                                       \
+        else if (left_type == VarType::Int && right_type == VarType::Char)      \
+        {                                                                       \
+            IntObject *l = (IntObject *)(left);                                 \
+            CharObject *r = (CharObject *)(right);                              \
+            return alloc_bool(((l->value)op(int)(r->value)));                   \
+        }                                                                       \
+        else if (left_type == VarType::Int && right_type == VarType::String)    \
+        {                                                                       \
+            IntObject *l = (IntObject *)(left);                                 \
+            StringObject *r = (StringObject *)(right);                          \
+            return alloc_bool((l->value)op(r->len));                            \
+        }                                                                       \
+        else if (left_type == VarType::Float && right_type == VarType::Int)     \
+        {                                                                       \
+            FloatObject *l = (FloatObject *)(left);                             \
+            IntObject *r = (IntObject *)(right);                                \
+            return alloc_bool((l->value)op((double)r->value));                  \
+        }                                                                       \
+        else if (left_type == VarType::Float && right_type == VarType::Float)   \
+        {                                                                       \
+            FloatObject *l = (FloatObject *)(left);                             \
+            FloatObject *r = (FloatObject *)(right);                            \
+            return alloc_bool((l->value)op(r->value));                          \
+        }                                                                       \
+        else if (left_type == VarType::Float && right_type == VarType::Bool)    \
+        {                                                                       \
+            FloatObject *l = (FloatObject *)(left);                             \
+            BoolObject *r = (BoolObject *)(right);                              \
+            double rv = r->value ? 1.0 : 0.0;                                   \
+            return alloc_bool((l->value)op rv);                                 \
+        }                                                                       \
+        else if (left_type == VarType::Float && right_type == VarType::Char)    \
+        {                                                                       \
+            FloatObject *l = (FloatObject *)(left);                             \
+            CharObject *r = (CharObject *)(right);                              \
+            return alloc_bool((l->value)op((double)r->value));                  \
+        }                                                                       \
+        else if (left_type == VarType::Float && right_type == VarType::String)  \
+        {                                                                       \
+            FloatObject *l = (FloatObject *)(left);                             \
+            StringObject *r = (StringObject *)(right);                          \
+            return alloc_bool((l->value)op(r->len));                            \
+        }                                                                       \
+        else if (left_type == VarType::Bool && right_type == VarType::Int)      \
+        {                                                                       \
+            BoolObject *l = (BoolObject *)(left);                               \
+            IntObject *r = (IntObject *)(right);                                \
+            int lv = l->value ? 1 : 0;                                          \
+            return alloc_bool((lv)op(r->value));                                \
+        }                                                                       \
+        else if (left_type == VarType::Bool && right_type == VarType::Float)    \
+        {                                                                       \
+            BoolObject *l = (BoolObject *)(left);                               \
+            FloatObject *r = (FloatObject *)(right);                            \
+            double lv = l->value ? 1.0 : 0.0;                                   \
+            return alloc_bool((lv)op(r->value));                                \
+        }                                                                       \
+        else if (left_type == VarType::Bool && right_type == VarType::Bool)     \
+        {                                                                       \
+            BoolObject *l = (BoolObject *)(left);                               \
+            BoolObject *r = (BoolObject *)(right);                              \
+            int lv = l->value ? 1 : 0;                                          \
+            int rv = r->value ? 1 : 0;                                          \
+            return alloc_bool((lv)op(rv));                                      \
+        }                                                                       \
+        else if (left_type == VarType::Bool && right_type == VarType::Char)     \
+        {                                                                       \
+            BoolObject *l = (BoolObject *)(left);                               \
+            CharObject *r = (CharObject *)(right);                              \
+            int lv = l->value ? 1 : 0;                                          \
+            return alloc_bool((char)((lv)op(r->value)));                        \
+        }                                                                       \
+        else if (left_type == VarType::Bool && right_type == VarType::String)   \
+        {                                                                       \
+            BoolObject *l = (BoolObject *)(left);                               \
+            StringObject *r = (StringObject *)(right);                          \
+            return alloc_bool((l->value)op(r->len));                            \
+        }                                                                       \
+        else if (left_type == VarType::Char && right_type == VarType::Int)      \
+        {                                                                       \
+            CharObject *l = (CharObject *)(left);                               \
+            IntObject *r = (IntObject *)(right);                                \
+            return alloc_bool((char)((l->value)op(r->value)));                  \
+        }                                                                       \
+        else if (left_type == VarType::Char && right_type == VarType::Float)    \
+        {                                                                       \
+            CharObject *l = (CharObject *)(left);                               \
+            FloatObject *r = (FloatObject *)(right);                            \
+            return alloc_bool(((double)l->value)op(r->value));                  \
+        }                                                                       \
+        else if (left_type == VarType::Char && right_type == VarType::Bool)     \
+        {                                                                       \
+            CharObject *l = (CharObject *)(left);                               \
+            BoolObject *r = (BoolObject *)(right);                              \
+            int rv = r->value ? 1 : 0;                                          \
+            return alloc_bool((char)((l->value)op rv));                         \
+        }                                                                       \
+        else if (left_type == VarType::Char && right_type == VarType::Char)     \
+        {                                                                       \
+            CharObject *l = (CharObject *)(left);                               \
+            CharObject *r = (CharObject *)(right);                              \
+            return alloc_bool((char)((l->value)op(r->value)));                  \
+        }                                                                       \
+        else if (left_type == VarType::Char && right_type == VarType::String)   \
+        {                                                                       \
+            CharObject *l = (CharObject *)(left);                               \
+            StringObject *r = (StringObject *)(right);                          \
+            return alloc_bool((l->value)op(r->len));                            \
+        }                                                                       \
+        else if (left_type == VarType::String && right_type == VarType::Int)    \
+        {                                                                       \
+            StringObject *l = (StringObject *)(left);                           \
+            IntObject *r = (IntObject *)(right);                                \
+            return alloc_bool((l->len)op(r->value));                            \
+        }                                                                       \
+        else if (left_type == VarType::String && right_type == VarType::Float)  \
+        {                                                                       \
+            StringObject *l = (StringObject *)(left);                           \
+            FloatObject *r = (FloatObject *)(right);                            \
+            return alloc_bool((l->len)op(r->value));                            \
+        }                                                                       \
+        else if (left_type == VarType::String && right_type == VarType::Bool)   \
+        {                                                                       \
+            StringObject *l = (StringObject *)(left);                           \
+            BoolObject *r = (BoolObject *)(right);                              \
+            return alloc_bool((l->len)op(r->value));                            \
+        }                                                                       \
+        else if (left_type == VarType::String && right_type == VarType::Char)   \
+        {                                                                       \
+            StringObject *l = (StringObject *)(left);                           \
+            CharObject *r = (CharObject *)(right);                              \
+            return alloc_bool((l->len)op(r->value));                            \
+        }                                                                       \
+        else if (left_type == VarType::String && right_type == VarType::String) \
+        {                                                                       \
+            StringObject *l = (StringObject *)(left);                           \
+            StringObject *r = (StringObject *)(right);                          \
+            return alloc_bool((l->len)op(r->len));                              \
+        }                                                                       \
+        else                                                                    \
+        {                                                                       \
+            const char *msg = "unknown type\n";                                 \
+            printf("left type: %d, right type: %d\n", left->type, right->type); \
+            char *buf = (char *)malloc(sizeof(char) * strlen(msg));             \
+            if (!buf)                                                           \
+            {                                                                   \
+                return NULL;                                                    \
+            }                                                                   \
+            memcpy(buf, msg, strlen(msg));                                      \
+            return alloc_string(buf, strlen(msg));                              \
+        }                                                                       \
+    } while (0)
 
 #define bin_op_inner(left, op, right, type) \
     UNION(type, _operation)(left, op, right)

@@ -1,4 +1,7 @@
 fn myadd(int a, int b){
+    if a>b{
+        return a
+    }
     return a+b
 }
 
@@ -10,8 +13,13 @@ fn main(){
         b=b+1
     }
 
-    a=myadd(a,b)
-    write(a)
+    write(b)
+
+    while b<10{
+        b=b+1
+    }
+
+    write(myadd(a,b))
 
     return 0
 }

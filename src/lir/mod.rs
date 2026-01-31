@@ -5,7 +5,12 @@ use crate::{
     types::VarType,
 };
 use inkwell::{
-    basic_block::BasicBlock, builder::Builder, context::Context, module::Module, types::StructType, values::{FunctionValue, PointerValue}
+    basic_block::BasicBlock,
+    builder::Builder,
+    context::Context,
+    module::Module,
+    types::StructType,
+    values::{FunctionValue, PointerValue},
 };
 
 pub(crate) mod implement;
@@ -21,11 +26,10 @@ pub(crate) struct LirGenerator<'ctx> {
     block_registry: HashMap<BlockId, BasicBlock<'ctx>>,
     slot_registry: HashMap<SlotId, PointerValue<'ctx>>,
     var_registry: HashMap<VarId, PointerValue<'ctx>>,
-    var_to_slot: HashMap<VarId, SlotId>,
 
-    runtime_fn:HashMap<&'ctx str, FunctionValue<'ctx>>,
+    runtime_fn: HashMap<&'ctx str, FunctionValue<'ctx>>,
 
-    main_id:FuncId,
+    main_id: FuncId,
 
     hirs: Vec<HIR>,
     i: usize,
