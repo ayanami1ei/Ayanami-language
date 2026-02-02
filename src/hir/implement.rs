@@ -456,6 +456,54 @@ impl HirGenerator {
                 self.slot_registry.insert(ret_slot, s);
                 res_slot_id = ret_slot;
             }
+            Expr::Array(ref elems, _, _) => {
+                let mut elem_slots = Vec::new();
+                for e in elems {
+                    let elem_slot = self.gen_expr_ir(e);
+                    elem_slot.escape(&mut self.slot_registry);
+                    elem_slots.push(elem_slot);
+                }
+
+                let new_obj_id = self.get_next_obj_id();
+                let dst_slot_id = self.get_next_slot_id();
+                dst_slot_id.push(&mut self.slot_registry, hir::Value::Obj(new_obj_id));
+
+                irs.push(HIRInst::ArrayNew {
+                    elems: elem_slots.clone(),
+                    dst: dst_slot_id,
+                });
+                dst_slot_id.escape(&mut self.slot_registry);
+
+                res_slot_id = dst_slot_id;
+            }
+            Expr::ArrayElem(ref name, ref idx, _) => {
+                let arr_var_id = self.find_var_id(name);
+                let arr_slot = self.get_next_temp_slot_id();
+                irs.push(HIRInst::Load {
+                    var: arr_var_id,
+                    obj: arr_slot,
+                });
+
+                let idx_slot = self.gen_expr_ir(idx);
+
+                let ret_slot = self.get_next_slot_id();
+                irs.push(HIRInst::ArrayGet {
+                    arr: arr_slot,
+                    idx: idx_slot,
+                    dst: ret_slot,
+                });
+
+                arr_slot.set_near_use(&mut self.slot_registry, self.hir.len());
+                idx_slot.set_near_use(&mut self.slot_registry, self.hir.len());
+                ret_slot.escape(&mut self.slot_registry);
+
+                if let Some(sym) = self.var_registry.get(&arr_var_id) {
+                    sym.obj_id
+                        .set_near_use(&mut self.slot_registry, self.hir.len());
+                };
+
+                res_slot_id = ret_slot;
+            }
         };
 
         for i in irs {
@@ -491,7 +539,7 @@ impl HirGenerator {
                 Stmt::Func(ref name, ref argcs, ref var_type, ref _block, _) => {
                     self.gen_func_hir(name, argcs, var_type, block);
                 }
-                Stmt::Call(ref name, ref argcs, scope_id) => {
+                Stmt::Call(ref name, ref argcs, _scope_id) => {
                     let insts = self.gen_call_inst(name, argcs);
                     for inst in insts.into_iter() {
                         self.hir.push(HIR::Inst(inst));
@@ -554,8 +602,6 @@ impl HirGenerator {
         {
             value_slot_id.escape(&mut self.slot_registry);
         }
-
-        res.push(HIRInst::IncRef { obj: value_slot_id });
 
         self.var_registry.insert(id, new_sym);
 
@@ -682,6 +728,25 @@ impl HirGenerator {
             right: step_id,
             dst: itor_id,
         }));
+
+        // Re-bind the loop iterator variable to the updated slot so subsequent
+        // iterations see the new value rather than the old snapshot.
+        let itor_var = match &*itor.borrow() {
+            Expr::Var(name, _) => {
+                let sym = self
+                    .ast_symbol_table
+                    .find_symbol(name)
+                    .expect("loop iterator symbol missing");
+                VarId(sym.id)
+            }
+            _ => panic!("iterator is not a variable"),
+        };
+
+        self.hir.push(HIR::Inst(HIRInst::Bind {
+            var: itor_var,
+            obj: itor_id,
+        }));
+
         self.hir.push(HIR::Inst(HIRInst::Jmp {
             target: cond_block_id,
         }));
@@ -969,30 +1034,26 @@ impl HirGenerator {
     fn checker(&mut self) {
         let mut i = 0;
         while i < self.hir.len() {
-            if let HIR::Block(x) = self.hir[i] {
+            if let HIR::Block(_) = self.hir[i] {
                 let mut flag = true;
                 i += 1;
 
-                while flag {
+                while flag && i < self.hir.len() {
                     match self.hir[i] {
                         HIR::Block(_) | HIR::FuncLabel(_) => {
                             if i != 0 {
-                                match &self.hir[i - 1] {
-                                    HIR::Inst(x) => {
-                                        match x {
-                                            HIRInst::Br { .. }
-                                            | HIRInst::Jmp { .. }
-                                            | HIRInst::Ret { .. }
-                                            | HIRInst::Unreachable => {
-                                                break;
-                                            }
-                                            _ => {
-                                                self.hir.insert(i, HIR::Inst(HIRInst::Unreachable));
-                                                //i+=1;
-                                            }
+                                if let HIR::Inst(x) = &self.hir[i - 1] {
+                                    match x {
+                                        HIRInst::Br { .. }
+                                        | HIRInst::Jmp { .. }
+                                        | HIRInst::Ret { .. }
+                                        | HIRInst::Unreachable => {
+                                            break;
+                                        }
+                                        _ => {
+                                            self.hir.insert(i, HIR::Inst(HIRInst::Unreachable));
                                         }
                                     }
-                                    _ => {}
                                 }
                             }
 
@@ -1003,7 +1064,9 @@ impl HirGenerator {
                 }
             }
 
-            i += 1;
+            if i < self.hir.len() {
+                i += 1;
+            }
         }
 
         i = 0;
@@ -1022,9 +1085,9 @@ impl HirGenerator {
             }
             if wait_for_swap(&self.hir[i]) {
                 enum Ret {
-                    erase,
-                    swap,
-                    con,
+                    Erase,
+                    Swap,
+                    Con,
                 }
                 fn can_swap(ir: &HIR) -> Ret {
                     match ir {
@@ -1032,24 +1095,24 @@ impl HirGenerator {
                             HIRInst::Br { .. }
                             | HIRInst::Jmp { .. }
                             | HIRInst::Ret { .. }
-                            | HIRInst::Unreachable => Ret::erase,
-                            _ => Ret::swap,
+                            | HIRInst::Unreachable => Ret::Erase,
+                            _ => Ret::Swap,
                         },
-                        _ => Ret::con,
+                        _ => Ret::Con,
                     }
                 }
                 while i < self.hir.len() - 1 {
                     match can_swap(&self.hir[i + 1]) {
-                        Ret::swap => {
+                        Ret::Swap => {
                             self.hir.swap(i, i + 1);
                             self.into_file();
                         }
-                        Ret::erase => {
+                        Ret::Erase => {
                             self.hir.remove(i + 1);
                             self.into_file();
                             i -= 1;
                         }
-                        Ret::con => break,
+                        Ret::Con => break,
                     }
 
                     i += 1;
@@ -1085,7 +1148,6 @@ impl HirGenerator {
                                     }
                                     _ => {}
                                 },
-                                _ => break,
                             }
 
                             back -= 1;
@@ -1106,7 +1168,6 @@ impl HirGenerator {
                                     }
                                     _ => {}
                                 },
-                                _ => break,
                             }
 
                             scan += 1;
@@ -1129,7 +1190,6 @@ impl HirGenerator {
                                     }
                                     _ => {}
                                 },
-                                _ => break,
                             }
 
                             scan += 1;
@@ -1155,6 +1215,12 @@ impl HirGenerator {
                         HIR::Inst(inst) => {
                             let uses_dst = match inst {
                                 HIRInst::Store { to, .. } => *to == dst,
+                                HIRInst::ArrayNew { elems, dst: d } => {
+                                    elems.iter().any(|e| *e == dst) || *d == dst
+                                }
+                                HIRInst::ArrayGet { arr, idx, dst: d } => {
+                                    *arr == dst || *idx == dst || *d == dst
+                                }
                                 HIRInst::Br { cond, .. } => *cond == dst,
                                 HIRInst::Call { ret, .. } => *ret == dst,
                                 HIRInst::BinOp {

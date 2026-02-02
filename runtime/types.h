@@ -1,6 +1,8 @@
 #ifndef AYANAMI_CPP_TYPES_H
 #define AYANAMI_CPP_TYPES_H
 
+//#define DEBUG
+
 enum class VarType
 {
     Int=1,
@@ -8,7 +10,8 @@ enum class VarType
     Bool=3,
     Char=4,
     String=5,
-    Unknown=6,
+    Array=6,
+    Unknown=7,
 };
 
 struct Object
@@ -39,6 +42,13 @@ struct BoolObject
 {
     Object header;
     bool value;
+};
+
+struct ArrayObject
+{
+    Object header;
+    int len;
+    Object **data;
 };
 
 struct StringObject

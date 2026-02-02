@@ -1,25 +1,10 @@
-fn myadd(int a, int b){
-    if a>b{
-        return a
-    }
-    return a+b
-}
-
 fn main(){
-    a=1
-    b=2
+    a=[2,2.1,'c', "str"]
 
-    for i in (0,5){
-        b=b+1
+    for i in (0,4){
+        write(i+": ")
+        write(a[i]+" ")
     }
-
-    write("b = "+b+"\n")
-
-    while b<10{
-        b=b+1
-    }
-
-    write("a + b = "+myadd(a,b)+"\n")
 
     return 0
 }

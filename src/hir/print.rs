@@ -47,7 +47,7 @@ impl fmt::Display for Const {
             Const::Float(x) => write!(f, "Float: {}", x),
             Const::Char(x) => write!(f, "Char: {}", x),
             Const::Bool(x) => write!(f, "Bool: {}", x),
-            Const::String(x)=>write!(f,"String: {}",x),
+            Const::String(x) => write!(f, "String: {}", x),
             Const::Null => write!(f, ""),
         }
     }
@@ -123,6 +123,16 @@ impl fmt::Display for HIRInst {
                 write!(f, "//Delete {}", dst)
             }
             HIRInst::Store { from, to } => write!(f, "Store {} -> {}", from, to),
+            HIRInst::ArrayNew { elems, dst } => {
+                write!(f, "ArrayNew {{")?;
+                for e in elems.iter() {
+                    write!(f, "{} ", e)?;
+                }
+                write!(f, "}} -> {}", dst)
+            }
+            HIRInst::ArrayGet { arr, idx, dst } => {
+                write!(f, "ArrayGet {}[{}] -> {}", arr, idx, dst)
+            }
             HIRInst::Br {
                 cond,
                 then_block,

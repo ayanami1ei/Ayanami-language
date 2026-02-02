@@ -1,9 +1,7 @@
 use std::{
-    clone,
     collections::HashMap,
     fs::{self, OpenOptions},
     io::Write,
-    mem::transmute,
     path::Path,
     process::Command,
 };
@@ -12,20 +10,14 @@ use inkwell::{
     AddressSpace, OptimizationLevel,
     basic_block::BasicBlock,
     context::Context,
-    module::Module,
-    targets::{
-        CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
-    },
-    types::{BasicMetadataTypeEnum, BasicTypeEnum},
-    values::{
-        BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue, PointerValue,
-    },
+    targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine},
+    types::BasicMetadataTypeEnum,
+    values::{BasicMetadataValueEnum, BasicValue, FunctionValue, PointerValue},
 };
-use llvm_sys::target_machine;
 use macro_lib::{bin_operator_fn, call_bin_operator_fn, make_fn};
 
 use crate::{
-    hir::{BlockId, FloatKey, FuncId, HIR, HIRInst, HirFuncSymbol, SlotId, Value, VarId},
+    hir::{BlockId, FloatKey, FuncId, HIR, HIRInst, HirFuncSymbol, SlotId, UnaryOperation, Value},
     lir::LirGenerator,
     types::VarType,
 };
@@ -120,6 +112,13 @@ impl<'ctx> LirGenerator<'ctx> {
         );
         self.runtime_fn.insert("alloc_char", alloc_char_fn);
 
+        let alloc_array_fn = self.module.add_function(
+            "alloc_array",
+            obj_ptr.fn_type(&[self.context.i64_type().into()], false),
+            None,
+        );
+        self.runtime_fn.insert("alloc_array", alloc_array_fn);
+
         let alloc_string_fn = self.module.add_function(
             "alloc_string",
             obj_ptr.fn_type(
@@ -172,7 +171,6 @@ impl<'ctx> LirGenerator<'ctx> {
     ) -> LirGenerator<'ctx> {
         let module = context.create_module("ayanami_modlue");
         let builder = context.create_builder();
-        let object_type = context.i8_type().ptr_type(AddressSpace::default());
 
         let mut res = LirGenerator {
             context,
@@ -427,7 +425,7 @@ impl<'ctx> LirGenerator<'ctx> {
                         let args = self
                             .context
                             .i32_type()
-                            .const_int(val.parse().unwrap(), false);
+                            .const_int(val.parse::<char>().unwrap() as u64, false);
                         call_res = self
                             .builder
                             .build_call(new_fn, &[args.into()], "new int")
@@ -472,6 +470,193 @@ impl<'ctx> LirGenerator<'ctx> {
                 self.get_or_create_slot(*slot, entry_bb);
                 let dst_ptr = *self.slot_registry.get(slot).expect("slot not created");
                 self.builder.build_store(dst_ptr, loaded).unwrap();
+            }
+            HIRInst::ArrayNew { elems, dst } => {
+                let len = elems.len();
+                let alloc_array_fn = *self
+                    .runtime_fn
+                    .get("alloc_array")
+                    .expect("runtime not found");
+
+                // call alloc_arr(len: i64) -> Object*
+                let len_val = self.context.i64_type().const_int(len as u64, false);
+                let call_res = self
+                    .builder
+                    .build_call(alloc_array_fn, &[len_val.into()], "alloc_array")
+                    .unwrap();
+                let ret_val = call_res
+                    .try_as_basic_value()
+                    .left()
+                    .expect("alloc_arr must return value");
+
+                // store returned array object into dst slot
+                let entry_bb = self
+                    .builder
+                    .get_insert_block()
+                    .expect("builder has no insertion block");
+                self.get_or_create_slot(*dst, entry_bb);
+                let dst_slot_ptr = *self.slot_registry.get(&dst).unwrap();
+                self.builder.build_store(dst_slot_ptr, ret_val).unwrap();
+
+                // cast to ArrayObject* to set len/data
+                let array_struct = self.context.struct_type(
+                    &[
+                        self.context.i32_type().into(),                           // VarType
+                        self.context.i32_type().into(),                           // refcnt
+                        self.context.i32_type().into(),                           // len
+                        object_ptr_type.ptr_type(AddressSpace::default()).into(), // data: Object **
+                    ],
+                    false,
+                );
+                let arr_ptr = self
+                    .builder
+                    .build_pointer_cast(
+                        ret_val.into_pointer_value(),
+                        array_struct.ptr_type(AddressSpace::default()),
+                        "arr.cast",
+                    )
+                    .unwrap();
+
+                // set len field
+                let len_ptr = self
+                    .builder
+                    .build_struct_gep(array_struct, arr_ptr, 2, "arr.len")
+                    .unwrap();
+                self.builder
+                    .build_store(
+                        len_ptr,
+                        self.context.i32_type().const_int(len as u64, false),
+                    )
+                    .unwrap();
+
+                // get data pointer (Object**)
+                let data_ptr_ptr = self
+                    .builder
+                    .build_struct_gep(array_struct, arr_ptr, 3, "arr.data.ptr")
+                    .unwrap();
+                let data_ptr = self
+                    .builder
+                    .build_load(
+                        object_ptr_type.ptr_type(AddressSpace::default()),
+                        data_ptr_ptr,
+                        "arr.data",
+                    )
+                    .unwrap()
+                    .into_pointer_value();
+
+                for (i, elem_slot_id) in elems.iter().enumerate() {
+                    // load element value
+                    let elem_ptr = *self
+                        .slot_registry
+                        .get(elem_slot_id)
+                        .expect("elem slot not found");
+                    let elem_val = self
+                        .builder
+                        .build_load(object_ptr_type, elem_ptr, "arr.elem.load")
+                        .unwrap();
+
+                    // store into data[i]
+                    let idx_val = self.context.i64_type().const_int(i as u64, false);
+                    let elem_dst_ptr = unsafe {
+                        self.builder
+                            .build_in_bounds_gep(
+                                object_ptr_type,
+                                data_ptr,
+                                &[idx_val],
+                                "arr.elem.ptr",
+                            )
+                            .unwrap()
+                    };
+                    self.builder.build_store(elem_dst_ptr, elem_val).unwrap();
+                }
+            }
+            HIRInst::ArrayGet { arr, idx, dst } => {
+                // Load array object pointer from slot.
+                let arr_ptr_ptr = *self.slot_registry.get(arr).expect("array slot not found");
+                let arr_obj = self
+                    .builder
+                    .build_load(object_ptr_type, arr_ptr_ptr, "arr.load")
+                    .unwrap()
+                    .into_pointer_value();
+
+                // Cast to ArrayObject*; layout assumed: { i32 type, i32 refcnt, i32 len, Object** data }.
+                let array_struct = self.context.struct_type(
+                    &[
+                        self.context.i32_type().into(),
+                        self.context.i32_type().into(),
+                        self.context.i32_type().into(),
+                        object_ptr_type.ptr_type(AddressSpace::default()).into(),
+                    ],
+                    false,
+                );
+                let arr_typed = self
+                    .builder
+                    .build_pointer_cast(
+                        arr_obj,
+                        array_struct.ptr_type(AddressSpace::default()),
+                        "arr.cast",
+                    )
+                    .unwrap();
+
+                // Load data pointer (Object**).
+                let data_ptr_ptr = self
+                    .builder
+                    .build_struct_gep(array_struct, arr_typed, 3, "arr.data.ptr")
+                    .unwrap();
+                let data_ptr = self
+                    .builder
+                    .build_load(
+                        object_ptr_type.ptr_type(AddressSpace::default()),
+                        data_ptr_ptr,
+                        "arr.data",
+                    )
+                    .unwrap()
+                    .into_pointer_value();
+
+                // Compute index: load Object* then extract the int value via runtime helper.
+                let idx_ptr = *self.slot_registry.get(idx).expect("index slot not found");
+                let idx_obj = self
+                    .builder
+                    .build_load(object_ptr_type, idx_ptr, "idx.obj")
+                    .unwrap();
+
+                let get_fn = *self
+                    .runtime_fn
+                    .get("get_int_value")
+                    .expect("get_int_value not found");
+                let idx_val_i32 = self
+                    .builder
+                    .build_call(get_fn, &[idx_obj.into()], "idx.value")
+                    .unwrap()
+                    .try_as_basic_value()
+                    .left()
+                    .expect("get_int_value must return int")
+                    .into_int_value();
+
+                let idx_val = self
+                    .builder
+                    .build_int_s_extend(idx_val_i32, self.context.i64_type(), "idx.i64")
+                    .unwrap();
+
+                // data[idx]
+                let elem_ptr = unsafe {
+                    self.builder
+                        .build_in_bounds_gep(object_ptr_type, data_ptr, &[idx_val], "elem.ptr")
+                        .unwrap()
+                };
+                let elem_val = self
+                    .builder
+                    .build_load(object_ptr_type, elem_ptr, "elem.load")
+                    .unwrap();
+
+                // Store result into dst slot.
+                let entry_bb = self
+                    .builder
+                    .get_insert_block()
+                    .expect("builder has no insertion block");
+                self.get_or_create_slot(*dst, entry_bb);
+                let dst_ptr = *self.slot_registry.get(dst).expect("dst slot not created");
+                self.builder.build_store(dst_ptr, elem_val).unwrap();
             }
             HIRInst::Delete { dst } => {
                 let del_ref_fn = match self.module.get_function("del_obj") {
@@ -578,7 +763,7 @@ impl<'ctx> LirGenerator<'ctx> {
                     };
 
                     match self.builder.build_store(to_ptr, val) {
-                        Err(e) => panic!("e"),
+                        Err(e) => panic!("{}", e),
                         Ok(_) => {}
                     };
                 }
@@ -764,10 +949,12 @@ impl<'ctx> LirGenerator<'ctx> {
 
                 let not_fn = *self.runtime_fn.get("not").expect("runtime not init");
 
-                let call_res = self
-                    .builder
-                    .build_call(not_fn, &[expr_obj.into()], "not")
-                    .unwrap();
+                let call_res = match op {
+                    UnaryOperation::Not => self
+                        .builder
+                        .build_call(not_fn, &[expr_obj.into()], "not")
+                        .unwrap(),
+                };
 
                 let ret_val = call_res
                     .try_as_basic_value()

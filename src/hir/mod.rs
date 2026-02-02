@@ -115,6 +115,15 @@ pub(crate) enum HIRInst {
         from: Value,
         to: SlotId,
     },
+    ArrayNew {
+        elems: Vec<SlotId>,
+        dst: SlotId,
+    },
+    ArrayGet {
+        arr: SlotId,
+        idx: SlotId,
+        dst: SlotId,
+    },
     Br {
         cond: SlotId,
         then_block: BlockId,
@@ -186,7 +195,6 @@ pub(super) enum Const {
     Int(i64),
     Float(FloatKey),
     Char(char),
-    #[allow(unused)]
     Bool(bool),
     String(String),
     #[allow(unused)]

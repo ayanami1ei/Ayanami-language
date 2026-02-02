@@ -22,6 +22,9 @@ pub(crate) struct Symbol {
     pub(crate) is_var: bool,
     pub(crate) its_type: HashSet<VarType>,
 
+    pub(crate) is_arr:bool,
+    pub(crate) elem_type:Vec<HashSet<VarType>>,
+
     pub(crate) id: i32,
     pub(crate) level: i32,
 
@@ -48,5 +51,5 @@ pub(crate) struct SymbolTable {
     area: Rc<RefCell<Scope>>,
     pub(crate) area_ptr: Weak<RefCell<Scope>>,
     next_scope_id: i32,
-    now_level: i32,
+    pub(crate) now_level: i32,
 }

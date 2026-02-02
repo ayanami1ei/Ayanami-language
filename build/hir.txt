@@ -1,109 +1,47 @@
-func_4:
+func_2:
     block_0: 
         Jmp to block_1
     block_1: 
+        New {int } -> slot_2, val = 2
+        New {float } -> slot_3, val = 2.1
+        New {char } -> slot_4, val = c
+        New {string } -> slot_5, val = str
+        ArrayNew {slot_2 slot_3 slot_4 slot_5 } -> slot_6
+        Increase Reference of slot_6
+        Bind var_3 and slot_6
         Jmp to block_2
     block_2: 
-        Load var_5 to slot_4
-        Load var_6 to slot_5
-        slot_4 > slot_5 -> slot_6
-        Br cond: slot_6, then-block: block_3, else-block: block_merge_4
+        New {int } -> slot_7, val = 0
+        Increase Reference of slot_7
+        Bind var_4 and slot_7
+        New {int } -> slot_8, val = 4
+        New {int } -> slot_9, val = 1
+        Jmp to block_3
     block_3: 
-        Load var_5 to slot_7
-        //Delete slot_6
-        Ret slot_7
-    block_merge_4: 
-        Load var_5 to slot_8
-        Load var_6 to slot_9
-        slot_8 + slot_9 -> slot_10
-        Ret slot_10
-func_7:
-    block_5: 
-        Jmp to block_6
-    block_6: 
-        New {int } -> slot_12, val = 1
-        Increase Reference of slot_12
-        Bind var_8 and slot_12
-        Increase Reference of slot_12
-        New {int } -> slot_13, val = 2
-        Increase Reference of slot_13
-        Bind var_9 and slot_13
-        Increase Reference of slot_13
-        Jmp to block_7
-    block_7: 
-        New {int } -> slot_14, val = 0
-        Increase Reference of slot_14
-        Bind var_10 and slot_14
-        Increase Reference of slot_14
-        New {int } -> slot_15, val = 5
-        New {int } -> slot_16, val = 1
-        Jmp to block_8
-    block_8: 
-        slot_14 < slot_15 -> slot_17
-        Br cond: slot_17, then-block: block_9, else-block: block_merge_10
-    block_9: 
-        Load var_9 to slot_18
-        New {int } -> slot_19, val = 1
-        slot_18 + slot_19 -> slot_20
-        Increase Reference of slot_20
-        Bind var_9 and slot_20
-        Increase Reference of slot_20
-        slot_14 + slot_16 -> slot_14
-        //Delete slot_13
-        //Delete slot_19
-        Jmp to block_8
-    block_merge_10: 
-        New {string } -> slot_21, val = b = 
-        Load var_9 to slot_22
-        slot_21 + slot_22 -> slot_23
-        New {string } -> slot_24, val = 
-
-        slot_23 + slot_24 -> slot_25
-        Increase Reference of slot_25
-        Call func_1, args: [slot_25 ], ret_slot:slot_0
-        //Delete slot_16
-        //Delete slot_15
-        //Delete slot_14
-        //Delete slot_21
-        //Delete slot_23
-        //Delete slot_24
-        Jmp to block_11
-    block_11: 
-        Load var_9 to slot_26
-        New {int } -> slot_27, val = 10
-        slot_26 < slot_27 -> slot_28
-        //Delete slot_25
-        //Delete slot_27
-        Br cond: slot_28, then-block: block_12, else-block: block_merge_13
-    block_12: 
-        Load var_9 to slot_29
-        New {int } -> slot_30, val = 1
-        slot_29 + slot_30 -> slot_31
-        Increase Reference of slot_31
-        Bind var_9 and slot_31
-        Increase Reference of slot_31
-        Decrease Reference of slot_20
-        //Delete slot_28
-        //Delete slot_30
-        Jmp to block_11
-    block_merge_13: 
-        New {string } -> slot_32, val = a + b = 
-        Load var_8 to slot_33
-        Increase Reference of slot_33
-        Load var_9 to slot_34
-        Increase Reference of slot_34
-        Call func_4, args: [slot_33 slot_34 ], ret_slot:slot_1
-        slot_32 + slot_1 -> slot_35
-        New {string } -> slot_36, val = 
-
-        slot_35 + slot_36 -> slot_37
-        Call func_1, args: [slot_37 ], ret_slot:slot_0
-        New {int } -> slot_38, val = 0
+        slot_7 < slot_8 -> slot_10
+        Br cond: slot_10, then-block: block_4, else-block: block_merge_5
+    block_4: 
+        Load var_4 to slot_11
+        New {string } -> slot_12, val = : 
+        slot_11 + slot_12 -> slot_13
+        Call func_1, args: [slot_13 ], ret_slot:slot_0
+        Load var_4 to slot_15
+        Load var_3 to slot_14
+        ArrayGet slot_14[slot_15] -> slot_16
+        New {string } -> slot_17, val =  
+        slot_16 + slot_17 -> slot_18
+        Call func_1, args: [slot_18 ], ret_slot:slot_0
+        slot_7 + slot_9 -> slot_7
+        Bind var_4 and slot_7
         //Delete slot_12
-        //Delete slot_1
-        //Delete slot_32
-        //Delete slot_36
-        //Delete slot_35
-        //Delete slot_37
+        //Delete slot_13
+        //Delete slot_17
         //Delete slot_0
-        Ret slot_38
+        //Delete slot_18
+        Jmp to block_3
+    block_merge_5: 
+        New {int } -> slot_19, val = 0
+        //Delete slot_7
+        //Delete slot_9
+        //Delete slot_8
+        Ret slot_19

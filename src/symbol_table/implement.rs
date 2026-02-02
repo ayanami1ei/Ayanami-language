@@ -22,6 +22,8 @@ impl Symbol {
                 scope_id: scope.borrow().id,
                 area: Rc::downgrade(&scope),
                 body_scope_id: None,
+                is_arr: false,
+                elem_type: Vec::new(),
             };
             NEXT_ID += 1;
             res
@@ -47,6 +49,8 @@ impl Symbol {
                 scope_id: scope.borrow().id,
                 area: Rc::downgrade(&scope),
                 body_scope_id: None,
+                is_arr: false,
+                elem_type: Vec::new(),
             };
             NEXT_ID += 1;
             res
@@ -72,6 +76,30 @@ impl Symbol {
                 scope_id: scope.borrow().id,
                 area: Rc::downgrade(&scope),
                 body_scope_id: None,
+                is_arr: false,
+                elem_type: Vec::new(),
+            };
+            NEXT_ID += 1;
+            res
+        }
+    }
+    pub(crate) fn new_array(name: String, scope: Rc<RefCell<Scope>>, level: i32) -> Symbol {
+        unsafe {
+            let res = Symbol {
+                name: name,
+                is_func: false,
+                args: Vec::<Symbol>::new(),
+                is_argc: false,
+                is_ref: false,
+                is_var: true,
+                its_type: HashSet::new(),
+                id: NEXT_ID,
+                level,
+                scope_id: scope.borrow().id,
+                area: Rc::downgrade(&scope),
+                body_scope_id: None,
+                is_arr: true,
+                elem_type: Vec::new(),
             };
             NEXT_ID += 1;
             res

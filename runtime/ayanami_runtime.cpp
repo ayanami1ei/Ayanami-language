@@ -6,27 +6,27 @@
 #include <string.h>
 #include <vector>
 
-//#define DEBUG
 
 // g++ -g -O0 -std=c++17 -I c -c ayanami_runtime.cpp -o ayanami_runtime.o && ar rcs libayanami_runtime.a ayanami_runtime.o
+
 // g++ -g -O3 -std=c++17 -I c -c ayanami_runtime.cpp -o ayanami_runtime.o && ar rcs libayanami_runtime.a ayanami_runtime.o
 
 extern "C" Object *alloc_string(char *value, int len);
 
 extern "C" void err(Object *obj)
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     fprintf(stderr, "[runtime] err called obj=%p\n", (void *)obj);
-    #endif
+#endif
     if (obj == NULL)
     {
-        #ifdef DEBUG
+#ifdef DEBUG
         fprintf(stderr, "[runtime] err: NULL obj\n");
-        #endif
+#endif
         return;
     }
     StringObject *s = (StringObject *)obj;
-        #ifdef DEBUG
+#ifdef DEBUG
     if (s->data != NULL)
     {
         fprintf(stderr, "%s\n", s->data);
@@ -36,14 +36,15 @@ extern "C" void err(Object *obj)
     {
         fprintf(stderr, "[runtime] err: string->data NULL\n");
     }
-        #endif
+#endif
 
     exit(-1);
 }
 
 extern "C" void write(Object *obj)
 {
-    if (obj==NULL){
+    if (obj == NULL)
+    {
         Object *str_err = alloc_string("illegal str", strlen("illegal str"));
         err(str_err);
     }
@@ -82,22 +83,22 @@ extern "C" void write(Object *obj)
 
 extern "C" bool is_type(int ty, Object *obj)
 {
-    #ifdef DEBUG
+#ifdef DEBUG
     // quick integrity scan to detect first corruption earlier
     fprintf(stderr, "[runtime] is_type called ty=%d obj=%p\n", ty, (void *)obj);
-    #endif
+#endif
     if (ty < 1 || ty > 6)
     {
-        #ifdef DEBUG
+#ifdef DEBUG
         fprintf(stderr, "[runtime] is_type: invalid ty=%d\n", ty);
-        #endif
+#endif
         return false;
     }
     VarType type = static_cast<VarType>(ty);
     bool res = (obj != NULL) && (type == obj->type);
-    #ifdef DEBUG
+#ifdef DEBUG
     fprintf(stderr, "[runtime] is_type result=%d\n", res);
-    #endif
+#endif
     return res;
 }
 
@@ -128,7 +129,7 @@ extern "C" void del_obj(Object *obj)
     int t = (int)obj->type;
     if (t < 1 || t > 6)
     {
-        #ifdef DEBUG
+#ifdef DEBUG
         fprintf(stderr, "[runtime] del_obj: invalid header for obj=%p type=%d refcnt=%d\n", (void *)obj, t, obj->refcnt);
         // Dump first bytes to help diagnose pointer/value confusion
         unsigned char *p = (unsigned char *)obj;
@@ -139,13 +140,13 @@ extern "C" void del_obj(Object *obj)
         }
         fprintf(stderr, "\n");
         fflush(stderr);
-        #endif
+#endif
         abort();
     }
 
-    #ifdef DEBUG
+#ifdef DEBUG
     fprintf(stderr, "[runtime] del_obj called obj=%p type=%d refcnt=%d\n", (void *)obj, t, obj->refcnt);
-    #endif
+#endif
 
     switch (obj->type)
     {
@@ -176,6 +177,13 @@ extern "C" void del_obj(Object *obj)
         free(s);
         break;
     }
+    case VarType::Array:
+    {
+        ArrayObject *arr = (ArrayObject *)obj;
+        free(arr->data);
+        free(arr);
+        break;
+    }
     }
 }
 
@@ -186,22 +194,22 @@ extern "C" void dec_ref(Object *obj)
         return;
     }
 
-    #ifdef DEBUG 
+#ifdef DEBUG
     if ((*obj).refcnt <= 0)
     {
         fprintf(stderr, "[runtime] dec_ref: warning obj=%p had non-positive refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
     }
-    #endif
+#endif
     (*obj).refcnt -= 1;
-    #ifdef DEBUG
+#ifdef DEBUG
     fprintf(stderr, "[runtime] dec_ref obj=%p new_refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
 #endif
 
     if ((*obj).refcnt <= 0)
     {
-        #ifdef DEBUG
+#ifdef DEBUG
         fprintf(stderr, "[runtime] refcnt reached zero for obj=%p, calling del_obj\n", (void *)obj);
-        #endif
+#endif
         del_obj(obj);
     }
 }
@@ -213,17 +221,17 @@ extern "C" void inc_ref(Object *obj)
         return;
     }
 
-    #ifdef DEBUG
+#ifdef DEBUG
     if ((*obj).refcnt < 0)
     {
         fprintf(stderr, "[runtime] inc_ref: warning obj=%p had negative refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
     }
-    #endif
+#endif
     (*obj).refcnt += 1;
 
-    #ifdef DEBUG
+#ifdef DEBUG
     fprintf(stderr, "[runtime] inc_ref obj=%p new_refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
-    #endif
+#endif
 }
 
 alloc_fn(int, const int, Int)
@@ -231,7 +239,24 @@ alloc_fn(int, const int, Int)
         alloc_fn(float, const double, Float)
             alloc_fn(char, const char, Char)
 
-                extern "C" Object *alloc_string(char *value, int len)
+                extern "C" Object *alloc_array(int len)
+{
+    Object **data = (Object **)malloc(sizeof(Object *) * len);
+
+    ArrayObject *res = (ArrayObject *)malloc(sizeof(ArrayObject));
+    res->header.type = VarType::Array;
+    res->header.refcnt = 0;
+    res->len = len;
+    res->data = data;
+
+#ifdef DEBUG
+    fprintf(stderr, "[runtime] alloc_array len=%d ptr=%p data=%p\n", len, (void *)res, (void *)data);
+#endif
+
+    return (Object *)res;
+}
+
+extern "C" Object *alloc_string(char *value, int len)
 {
     StringObject *ptr = (StringObject *)malloc(sizeof(StringObject));
     if (ptr == NULL)
@@ -262,9 +287,9 @@ alloc_fn(int, const int, Int)
     ptr->data = buf;
     ptr->len = len;
 
-    #ifdef DEBUG
+#ifdef DEBUG
     fprintf(stderr, "[runtime] alloc_string called len=%d ptr=%p data=%p\n", len, (void *)ptr, (void *)ptr->data);
-    #endif
+#endif
 
     return (Object *)ptr;
 }

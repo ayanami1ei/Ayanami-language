@@ -37,6 +37,7 @@ impl fmt::Display for VarType {
             VarType::Char => write!(f, "char"),
             VarType::Bool => write!(f, "bool"),
             VarType::String=>write!(f, "string"),
+            VarType::Array => write!(f, "array"),
             VarType::Unknown => write!(f, "unknown"),
         }
     }
@@ -61,6 +62,8 @@ impl Expr {
             Expr::GreaterEqual(_, _, ty) => ty,
             Expr::LessEqual(_, _, ty) => ty,
             Expr::Not(_, ty) => ty,
+            Expr::Array(_, _, ty) => ty,
+            Expr::ArrayElem(_, _, ty) => ty,
         }
     }
 }

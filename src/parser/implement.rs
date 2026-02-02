@@ -278,7 +278,7 @@ impl Parser {
         Ok(left)
     }
     fn parser_primary(&mut self) -> Result<Rc<RefCell<Expr>>, Error> {
-        let peek = self.peek().clone();
+        let mut peek = self.peek().clone();
 
         if let Token::Identifier(ref name) = peek {
             // 先吃掉标识符，再看是不是函数调用
@@ -309,18 +309,27 @@ impl Parser {
                     fs.area.upgrade().unwrap().borrow().id
                 };
 
-                return Ok(Rc::new(RefCell::new(Expr::FuncCall(
-                    name.to_string(),
-                    args,
-                    HashSet::new(),
-                    scope_id,
-                ))));
+                if !self.is(Token::Operator("[".to_string()))? {
+                    return Ok(Rc::new(RefCell::new(Expr::FuncCall(
+                        name.to_string(),
+                        args,
+                        HashSet::new(),
+                        scope_id,
+                    ))));
+                }
             } else {
-                return Ok(Rc::new(RefCell::new(Expr::Var(
-                    name.to_string(),
-                    HashSet::new(),
-                ))));
+                if !self.is(Token::Operator("[".to_string()))? {
+                    return Ok(Rc::new(RefCell::new(Expr::Var(
+                        name.to_string(),
+                        HashSet::new(),
+                    ))));
+                }
             }
+
+            let index=self.parser_add_sub()?;
+            self.expect(Token::Operator("]".to_string()))?;
+            let ty=HashSet::new();
+            Ok(Rc::new(RefCell::new(Expr::ArrayElem(name.to_string(), index, ty))))
         } else if let Token::Num(x) = peek {
             self.next()?;
             Ok(Rc::new(RefCell::new(Expr::ConstNum(x, HashSet::new()))))
@@ -331,9 +340,19 @@ impl Parser {
                 return Ok(res);
             }
             if self.is(Token::Operator("[".to_string()))? {
-                let res = self.parser_add_sub()?;
-                self.expect(Token::Operator("]".to_string()))?;
-                return Ok(res);
+                let mut elem_vec=Vec::new();
+
+                while !self.is(Token::Operator("]".to_string()))?{
+                    if self.is(Token::Operator(",".to_string()))?{
+                        continue;
+                    }
+                    let res = self.parser_add_sub()?;
+                    elem_vec.push(res);
+                }
+                
+                let mut ty=HashSet::new();
+                ty.insert(VarType::Array);
+                return Ok(Rc::new(RefCell::new(Expr::Array(elem_vec, Vec::new(), ty))));
             }
             if self.is(Token::Operator("\"".to_string()))? {
                 let mut str = String::new();
@@ -364,6 +383,40 @@ impl Parser {
                 let mut ty = HashSet::new();
                 ty.insert(VarType::String);
                 return Ok(Rc::new(RefCell::new(Expr::ConstStr(str, ty))));
+            }
+            if self.is(Token::Operator("\'".to_string()))? {
+                let c: char;
+                peek=self.peek();
+
+                let mut new_char = match peek.clone() {
+                    Token::Identifier(s) => s.chars().collect::<Vec<char>>()[0],
+                    Token::Operator(s) => s.chars().collect::<Vec<char>>()[0],
+                    Token::Keyword(s) => s.chars().collect::<Vec<char>>()[0],
+                    Token::Num(s) => s.to_string().chars().collect::<Vec<char>>()[0],
+                };
+
+                if new_char == '\\' {
+                    self.next()?;
+                    let c = match peek {
+                        Token::Identifier(s) => s,
+                        Token::Operator(s) => s,
+                        Token::Keyword(s) => s,
+                        Token::Num(s) => s.to_string(),
+                    };
+
+                    new_char = Self::get_escape_character(&c)
+                        .chars()
+                        .collect::<Vec<char>>()[0];
+                }
+
+                c = new_char;
+                self.next()?;
+
+                self.expect(Token::Operator('\''.to_string()))?;
+
+                let mut ty = HashSet::new();
+                ty.insert(VarType::Char);
+                return Ok(Rc::new(RefCell::new(Expr::ConstChar(c, ty))));
             }
 
             Err(Error::new_error(format!("unknown operator: {}", op)))
@@ -628,7 +681,7 @@ impl Parser {
                     Expr::Var(name, ty) => (name, ty),
                     _ => return Err(Error::new_error(format!("must be var"))),
                 };
-                let _sym = match self.symbol_table.find_symbol(&name) {
+                match self.symbol_table.find_symbol(&name) {
                     None => {
                         let sym = Symbol::new_var(
                             name,

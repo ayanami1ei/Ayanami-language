@@ -135,6 +135,56 @@ impl Tokenlizer {
 
                 continue;
             }
+            if self.chars[self.i] == '\'' {
+                // opening quote token
+                tokens.push(Token::Operator("\'".to_string()));
+                self.i += 1;
+
+                // collect string content (allow any characters, handle simple escapes)
+                let mut s = String::new();
+                while self.i < self.chars.len() && self.chars[self.i] != '\'' {
+                    let c = self.chars[self.i];
+                    if c == '\\' {
+                        // escape sequence: take next char literally and translate common escapes
+                        self.i += 1;
+                        if self.i >= self.chars.len() {
+                            return Err(Error::new_error(
+                                "unterminated escape in string".to_string(),
+                            ));
+                        }
+                        let esc = self.chars[self.i];
+                        let mapped = match esc {
+                            'n' => '\n',
+                            'r' => '\r',
+                            't' => '\t',
+                            '\\' => '\\',
+                            '"' => '"',
+                            '\'' => '\'',
+                            '0' => '\0',
+                            other => other,
+                        };
+                        s.push(mapped);
+                        self.i += 1;
+                    } else {
+                        s.push(c);
+                        self.i += 1;
+                    }
+                }
+
+                // push content as Identifier token (parser will accept Identifier/Operator/Num inside string)
+                tokens.push(Token::Identifier(s));
+
+                // expect and emit closing quote
+                if self.i < self.chars.len() && self.chars[self.i] == '\'' {
+                    tokens.push(Token::Operator("\'".to_string()));
+                    self.i += 1;
+                } else {
+                    return Err(Error::new_error("unterminated string literal".to_string()));
+                }
+
+                continue;
+            }
+            
             if Self::is_num(self.chars[self.i]) {
                 match self.tokenlize_num() {
                     Ok(x) => tokens.push(x),

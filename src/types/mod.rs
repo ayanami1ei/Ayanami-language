@@ -32,17 +32,20 @@ pub(crate) enum VarType {
     Bool = 3,
     Char = 4,
     String = 5,
-    Unknown = 6,
+    Array=6,
+    Unknown = 7,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum Expr {
     ConstNum(f64, HashSet<VarType>),
-    #[allow(unused)]
     ConstChar(char, HashSet<VarType>),
     ConstStr(String, HashSet<VarType>),
     Var(String, HashSet<VarType>),
     FuncCall(String, Vec<Rc<RefCell<Expr>>>, HashSet<VarType>, i32),
+
+    Array(Vec<Rc<RefCell<Expr>>>, Vec<HashSet<VarType>>, HashSet<VarType>),
+    ArrayElem(String, Rc<RefCell<Expr>>, HashSet<VarType>),
 
     Add(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
     Sub(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
@@ -54,7 +57,6 @@ pub(crate) enum Expr {
     Less(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
     GreaterEqual(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
     LessEqual(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>, HashSet<VarType>),
-    #[allow(unused)]
     Not(Rc<RefCell<Expr>>, HashSet<VarType>),
 }
 

@@ -46,7 +46,7 @@ impl TypeInferrer {
                 };
                 Ok(ty_set.clone())
             }
-            Expr::ConstStr(_,ref mut ty_set )=>{
+            Expr::ConstStr(_, ref mut ty_set) => {
                 *ty_set = {
                     let mut set = HashSet::new();
                     set.insert(VarType::String);
@@ -57,13 +57,16 @@ impl TypeInferrer {
             Expr::Var(ref name, ref mut ty_set) => {
                 if let Some(sym) = symbol_table.borrow().find_symbol(name) {
                     if sym.its_type.is_empty() {
-                        return Err(Error::new_error(format!(
-                            "cannot infer the type of var {}",
-                            name
-                        )));
+                        // Fallback: mark as Unknown so later passes can continue.
+                        let mut set = HashSet::new();
+                        set.insert(VarType::Unknown);
+                        symbol_table.borrow_mut().add_symbol_type(name, set.clone());
+                        *ty_set = set.clone();
+                        Ok(set)
+                    } else {
+                        *ty_set = sym.its_type.clone();
+                        Ok(sym.its_type.clone())
                     }
-                    *ty_set = sym.its_type.clone();
-                    Ok(sym.its_type.clone())
                 } else {
                     Err(Error::new_error(format!(
                         "cannot infer the type of var {}",
@@ -264,6 +267,45 @@ impl TypeInferrer {
                 };
                 Ok(ty_set.clone())
             }
+            Expr::Array(ref elems, ref mut elems_ty, _) => {
+                if elems_ty.len() == 0 {
+                    for i in 0..elems.len() {
+                        let ty = Self::infer_type(symbol_table.clone(), elems[i].clone())?;
+                        (*elems_ty).push(ty);
+                    }
+                }
+
+                let mut res = HashSet::new();
+                res.insert(VarType::Array);
+                Ok(res)
+            }
+            Expr::ArrayElem(ref name, ref idx, ref mut hash_set) => {
+                // still infer index for basic checking
+                let _ = Self::infer_type(symbol_table.clone(), idx.clone())?;
+
+                if let Some(sym) = symbol_table.borrow().find_symbol(name) {
+                    let merged: HashSet<VarType> = sym
+                        .elem_type
+                        .iter()
+                        .flat_map(|set| set.iter().cloned())
+                        .collect();
+
+                    if merged.is_empty() {
+                        let mut set = HashSet::new();
+                        set.insert(VarType::Unknown);
+                        *hash_set = set.clone();
+                        Ok(set)
+                    } else {
+                        *hash_set = merged.clone();
+                        Ok(merged)
+                    }
+                } else {
+                    let mut set = HashSet::new();
+                    set.insert(VarType::Unknown);
+                    *hash_set = set.clone();
+                    Ok(set)
+                }
+            }
         }
     }
 
@@ -275,6 +317,16 @@ impl TypeInferrer {
         };
 
         let b_type = Self::infer_type(self.symbol_table.clone(), b.clone())?;
+
+        // collect element types when assigning array literals
+        let array_elem_types: Option<Vec<HashSet<VarType>>> = {
+            let borrowed_b = b.borrow();
+            if let Expr::Array(_, ref elems_ty, _) = *borrowed_b {
+                Some(elems_ty.clone())
+            } else {
+                None
+            }
+        };
 
         if let Expr::Var(ref name, _) = *a.borrow() {
             // avoid holding an active borrow across later borrow_mut() calls
@@ -296,11 +348,21 @@ impl TypeInferrer {
                 let new_b = b.clone();
                 *std::cell::RefCell::borrow_mut(&self.dummy) = Stmt::Assign(new_a, new_b);
                 let scope = { (*self.symbol_table).borrow().get_scope() };
-                let mut a_sym = Symbol::new_var(
-                    name.clone(),
-                    scope,
-                    self.symbol_table.borrow_mut().get_level(),
-                );
+                let mut a_sym = if let Some(elem_tys) = array_elem_types.clone() {
+                    let mut sym = Symbol::new_array(
+                        name.clone(),
+                        scope,
+                        self.symbol_table.borrow_mut().get_level(),
+                    );
+                    sym.elem_type = elem_tys;
+                    sym
+                } else {
+                    Symbol::new_var(
+                        name.clone(),
+                        scope,
+                        self.symbol_table.borrow_mut().get_level(),
+                    )
+                };
                 a_sym.its_type = b_type.clone();
                 (*self.symbol_table).borrow_mut().add_symbol(a_sym);
             }
@@ -335,7 +397,12 @@ impl TypeInferrer {
         if let Expr::Var(ref name, _) = *itor.borrow() {
             (*self.symbol_table).borrow_mut().into_new_scope();
             if let Some(itor_sym) = (*self.symbol_table).borrow().find_symbol(name) {
-                if !itor_sym.its_type.contains(&VarType::Int) {
+                // If the iterator already exists but has no type information yet, assume Int.
+                if itor_sym.its_type.is_empty() {
+                    (*self.symbol_table)
+                        .borrow_mut()
+                        .add_symbol_type(name, HashSet::from([VarType::Int]));
+                } else if !itor_sym.its_type.contains(&VarType::Int) {
                     return Err(Error::new_error(format!(
                         "the itor must be type int, but find {:?}",
                         itor_sym.its_type
@@ -491,6 +558,12 @@ impl TypeInferrer {
     }
     fn semantic_analysise_call(&mut self) -> Result<(), Error> {
         if let Stmt::Call(ref name, ref argcs, scope_id) = *self.dummy.borrow() {
+            // Preserve caller scope so we can restore after temporarily switching to callee scope.
+            let (saved_area, saved_level) = {
+                let binding = self.symbol_table.borrow();
+                (binding.area_ptr.clone(), binding.now_level)
+            };
+
             // 首先在当前（调用者）作用域推断每个实参的类型
             let fn_sym = if let Some(s) = self.symbol_table.borrow().find_symbol(name) {
                 s
@@ -531,7 +604,13 @@ impl TypeInferrer {
                     .borrow_mut()
                     .add_func_arg_type(name, i, arg_types[i].clone());
             }
-            (*self.symbol_table).borrow_mut().ret_to_parent_scope();
+
+            // Restore caller scope so subsequent statements stay in the right area.
+            {
+                let mut binding = self.symbol_table.borrow_mut();
+                binding.area_ptr = saved_area;
+                binding.now_level = saved_level;
+            }
 
             Ok(())
         } else {
