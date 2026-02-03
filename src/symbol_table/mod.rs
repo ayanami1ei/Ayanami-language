@@ -47,7 +47,7 @@ pub(crate) struct Scope {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SymbolTable {
+pub struct SymbolTable {
     area: Rc<RefCell<Scope>>,
     pub(crate) area_ptr: Weak<RefCell<Scope>>,
     next_scope_id: i32,

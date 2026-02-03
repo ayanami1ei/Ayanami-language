@@ -7,14 +7,14 @@
 #include <unordered_set>
 #include <vector>
 
-// g++ -g -O0 -std=c++17 -I c -c ayanami_runtime.cpp -o ayanami_runtime.o && ar rcs libayanami_runtime.a ayanami_runtime.o
+// g++ -g -O0 -std=c++17 -DRUNTIME_DEBUG -I c -c ayanami_runtime.cpp -o ayanami_runtime.o && ar rcs libayanami_runtime.a ayanami_runtime.o
 
 // g++ -g -O3 -std=c++17 -I c -c ayanami_runtime.cpp -o ayanami_runtime.o && ar rcs libayanami_runtime.a ayanami_runtime.o
 
 extern "C" Object *alloc_string(char *value, int len);
 extern "C" void runtime_debug_ref(int op, int slot_id, Object *obj);
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
 static std::unordered_set<Object *> g_allocs;
 
 extern "C" void runtime_register(Object *obj)
@@ -41,7 +41,7 @@ extern "C" int runtime_is_registered(Object *obj)
 
 extern "C" void runtime_debug_ref(int op, int slot_id, Object *obj)
 {
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     const char *op_name = (op == 0) ? "dec_ref" : "inc_ref";
     fprintf(stderr,
             "[runtime] %s slot=%d obj=%p registered=%d\n",
@@ -58,18 +58,18 @@ extern "C" void runtime_debug_ref(int op, int slot_id, Object *obj)
 
 extern "C" void err(Object *obj)
 {
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     fprintf(stderr, "[runtime] err called obj=%p\n", (void *)obj);
 #endif
     if (obj == NULL)
     {
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
         fprintf(stderr, "[runtime] err: NULL obj\n");
 #endif
         return;
     }
     StringObject *s = (StringObject *)obj;
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     if (s->data != NULL)
     {
         fprintf(stderr, "%s\n", s->data);
@@ -126,20 +126,20 @@ extern "C" void write(Object *obj)
 
 extern "C" bool is_type(int ty, Object *obj)
 {
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     // quick integrity scan to detect first corruption earlier
     fprintf(stderr, "[runtime] is_type called ty=%d obj=%p\n", ty, (void *)obj);
 #endif
     if (ty < 1 || ty > 6)
     {
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
         fprintf(stderr, "[runtime] is_type: invalid ty=%d\n", ty);
 #endif
         return false;
     }
     VarType type = static_cast<VarType>(ty);
     bool res = (obj != NULL) && (type == obj->type);
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     fprintf(stderr, "[runtime] is_type result=%d\n", res);
 #endif
     return res;
@@ -172,7 +172,7 @@ extern "C" void del_obj(Object *obj)
     int t = (int)obj->type;
     if (t < 1 || t > 6)
     {
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
         fprintf(stderr, "[runtime] del_obj: invalid header for obj=%p type=%d refcnt=%d\n", (void *)obj, t, obj->refcnt);
         // Dump first bytes to help diagnose pointer/value confusion
         unsigned char *p = (unsigned char *)obj;
@@ -187,7 +187,7 @@ extern "C" void del_obj(Object *obj)
         abort();
     }
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     fprintf(stderr, "[runtime] del_obj called obj=%p type=%d refcnt=%d\n", (void *)obj, t, obj->refcnt);
     runtime_unregister(obj);
 #endif
@@ -238,7 +238,7 @@ extern "C" void dec_ref(Object *obj)
         return;
     }
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     if (!runtime_is_registered(obj))
     {
         fprintf(stderr, "[runtime] dec_ref: invalid obj=%p (not registered)\n", (void *)obj);
@@ -246,7 +246,7 @@ extern "C" void dec_ref(Object *obj)
     }
 #endif
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     if ((*obj).refcnt <= 0)
     {
         fprintf(stderr, "[runtime] dec_ref: warning obj=%p had non-positive refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
@@ -260,13 +260,13 @@ extern "C" void dec_ref(Object *obj)
     }
 
     (*obj).refcnt -= 1;
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     fprintf(stderr, "[runtime] dec_ref obj=%p new_refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
 #endif
 
     if ((*obj).refcnt == 0)
     {
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
         fprintf(stderr, "[runtime] refcnt reached zero for obj=%p, calling del_obj\n", (void *)obj);
 #endif
         del_obj(obj);
@@ -280,7 +280,7 @@ extern "C" void inc_ref(Object *obj)
         return;
     }
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     if (!runtime_is_registered(obj))
     {
         fprintf(stderr, "[runtime] inc_ref: invalid obj=%p (not registered)\n", (void *)obj);
@@ -288,7 +288,7 @@ extern "C" void inc_ref(Object *obj)
     }
 #endif
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     if ((*obj).refcnt < 0)
     {
         fprintf(stderr, "[runtime] inc_ref: warning obj=%p had negative refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
@@ -296,7 +296,7 @@ extern "C" void inc_ref(Object *obj)
 #endif
     (*obj).refcnt += 1;
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     fprintf(stderr, "[runtime] inc_ref obj=%p new_refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
 #endif
 }
@@ -316,11 +316,11 @@ alloc_fn(int, const int, Int)
     res->len = len;
     res->data = data;
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     runtime_register((Object *)res);
 #endif
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     fprintf(stderr, "[runtime] alloc_array len=%d ptr=%p data=%p\n", len, (void *)res, (void *)data);
 #endif
 
@@ -358,11 +358,11 @@ extern "C" Object *alloc_string(char *value, int len)
     ptr->data = buf;
     ptr->len = len;
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     runtime_register((Object *)ptr);
 #endif
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
     fprintf(stderr, "[runtime] alloc_string called len=%d ptr=%p data=%p\n", len, (void *)ptr, (void *)ptr->data);
 #endif
 

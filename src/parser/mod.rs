@@ -1,7 +1,7 @@
 use crate::{symbol_table::SymbolTable, types::Token};
-pub(crate) mod implement;
+pub mod implement;
 
-pub(crate) struct Parser{
+pub struct Parser{
     tokens:Vec<Vec<Token>>,
     symbol_table:SymbolTable,
     i:usize,

@@ -9,9 +9,9 @@ use inkwell::{
     values::{FunctionValue, PointerValue},
 };
 
-pub(crate) mod implement;
+pub mod implement;
 
-pub(crate) struct LirGenerator<'ctx> {
+pub struct LirGenerator<'ctx> {
     context: &'ctx Context,
     module: Module<'ctx>,
     builder: Builder<'ctx>,

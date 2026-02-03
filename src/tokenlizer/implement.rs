@@ -81,7 +81,7 @@ impl Tokenlizer {
         }
     }
 
-    pub(crate) fn tokenlize(&mut self) -> Result<Vec<Token>, Error> {
+    pub fn tokenlize(&mut self) -> Result<Vec<Token>, Error> {
         let mut tokens = Vec::<Token>::new();
 
         while self.i < self.chars.len() {
@@ -211,7 +211,7 @@ impl Tokenlizer {
         Ok(tokens)
     }
 
-    pub(crate) fn new(s: String) -> Tokenlizer {
+    pub fn new(s: String) -> Tokenlizer {
         let chars: Vec<char> = s.chars().collect();
         Tokenlizer { i: 0, chars: chars }
     }

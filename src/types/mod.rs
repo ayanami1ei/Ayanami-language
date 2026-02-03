@@ -1,9 +1,9 @@
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
-pub(crate) mod implement;
+pub mod implement;
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) enum Token {
+pub enum Token {
     Identifier(String),
     Operator(String),
     Keyword(String),
@@ -18,7 +18,7 @@ pub(crate) struct Argc {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Block {
+pub struct Block {
     pub(crate) body: Vec<Stmt>,
     #[allow(unused)]
     pub(crate) id: i32,
@@ -26,7 +26,7 @@ pub(crate) struct Block {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[repr(u32)]
-pub(crate) enum VarType {
+pub enum VarType {
     Int = 1,
     Float = 2,
     Bool = 3,
@@ -37,7 +37,7 @@ pub(crate) enum VarType {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum Expr {
+pub enum Expr {
     ConstNum(f64, HashSet<VarType>),
     ConstChar(char, HashSet<VarType>),
     ConstStr(String, HashSet<VarType>),
@@ -61,7 +61,7 @@ pub(crate) enum Expr {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum Stmt {
+pub enum Stmt {
     Assign(Rc<RefCell<Expr>>, Rc<RefCell<Expr>>),
     Call(String, Vec<Rc<RefCell<Expr>>>, i32),
     For(

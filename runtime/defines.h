@@ -10,7 +10,7 @@ extern "C" void runtime_debug_ref(int op, int slot_id, Object *obj);
 
 #define UNION(a, b) a##b
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
 extern "C" void runtime_register(Object *obj);
 extern "C" void runtime_unregister(Object *obj);
 extern "C" int runtime_is_registered(Object *obj);
@@ -21,7 +21,7 @@ extern "C" int runtime_is_registered(Object *obj);
         free((UNION(type, Object) *)obj); \
         break;
 
-#ifdef DEBUG
+#ifdef DRUNTIME_DEBUG
 #define alloc_fn(name, _type, TYPENAME)                                                                    \
     extern "C" Object *UNION(alloc_, name)(_type value)                                                    \
     {                                                                                                      \

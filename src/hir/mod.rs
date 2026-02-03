@@ -5,33 +5,33 @@ use crate::{
     symbol_table::SymbolTable,
     types::{Stmt, VarType},
 };
-pub(crate) mod implement;
-pub(crate) mod life_time;
-pub(crate) mod overrides;
-pub(crate) mod print;
+pub mod implement;
+pub mod life_time;
+pub mod overrides;
+pub mod print;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
-pub(crate) struct VarId(i32);
+pub struct VarId(i32);
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
-pub(crate) struct SlotId {
+pub struct SlotId {
     id: i32,
     pub(crate) temp: bool,
 }
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default)]
-pub(crate) struct FuncId(pub(crate) i32);
+pub struct FuncId(pub(crate) i32);
 #[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, Default)]
-pub(crate) struct BlockId {
+pub struct BlockId {
     pub(crate) id: i32,
     pub(crate) is_merge: bool,
 }
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Default, Debug, PartialOrd, Ord)]
-pub(crate) struct ObjId {
+pub struct ObjId {
     id: i32,
     home_level_id: i32,
     cur_leve_id: i32,
 }
 #[derive(Clone, Default)]
-pub(crate) struct ObjSlot {
+pub struct ObjSlot {
     set: HashSet<Value>,
     #[allow(unused)]
     home_level_id: i32,
@@ -42,7 +42,7 @@ pub(crate) struct ObjSlot {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct FloatKey(pub(crate) f64);
+pub struct FloatKey(pub f64);
 
 #[derive(Default)]
 pub(super) enum StorageClass {
@@ -73,7 +73,7 @@ pub(crate) struct HirFuncSymbol {
     pub(crate) name: String,
 }
 
-pub(crate) struct HirGenerator {
+pub struct HirGenerator {
     stmts: Vec<Stmt>,
 
     next_objid: ObjId,
@@ -93,14 +93,14 @@ pub(crate) struct HirGenerator {
 }
 
 #[derive(Clone)]
-pub(crate) enum HIR {
+pub enum HIR {
     Inst(HIRInst),
     Block(BlockId),
     FuncLabel(FuncId),
 }
 
 #[derive(Clone)]
-pub(crate) enum HIRInst {
+pub enum HIRInst {
     #[allow(unused)]
     New {
         obj_type: VarType,
@@ -173,7 +173,7 @@ pub(crate) enum HIRInst {
 }
 
 #[derive(Clone)]
-pub(super) enum BinOperator {
+pub enum BinOperator {
     Add,
     Sub,
     Mul,
@@ -190,12 +190,12 @@ pub(super) enum BinOperator {
 }
 
 #[derive(Clone)]
-pub(super) enum UnaryOperation {
+pub enum UnaryOperation {
     Not,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(super) enum Const {
+pub enum Const {
     Int(i64),
     Float(FloatKey),
     Char(char),
@@ -206,7 +206,7 @@ pub(super) enum Const {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(super) enum Value {
+pub enum Value {
     Const(Const),
     Obj(ObjId),
     #[default]

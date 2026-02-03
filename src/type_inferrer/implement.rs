@@ -679,7 +679,7 @@ impl TypeInferrer {
         }
     }
 
-    pub(crate) fn semantic_analysise(&mut self) -> Result<Vec<Stmt>, Error> {
+    pub fn semantic_analysise(&mut self) -> Result<Vec<Stmt>, Error> {
         (*self.symbol_table).borrow_mut().reset();
         for stmt in self.stmts.clone() {
             self.semantic_analysise_stmt(stmt)?;

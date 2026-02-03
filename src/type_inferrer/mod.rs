@@ -2,9 +2,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{symbol_table::SymbolTable, types::Stmt};
 
-pub(crate) mod implement;
+pub mod implement;
 
-pub(crate) struct TypeInferrer {
+pub struct TypeInferrer {
     stmts: Vec<Stmt>,
     symbol_table: std::rc::Rc<std::cell::RefCell<SymbolTable>>,
 

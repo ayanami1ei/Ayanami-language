@@ -9,3 +9,7 @@ owo-colors = "4.2.3"
 inkwell = { version = "0.4", features = ["llvm17-0"] }
 llvm-sys = { version = "170", features = ["prefer-dynamic"] }
 macro_lib={path="./macro_lib"}
+
+[lib]
+name = "ayanami"
+crate-type = ["rlib"]

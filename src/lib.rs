@@ -1,24 +1,26 @@
 use crate::hir::HirGenerator;
 use crate::lir::LirGenerator;
+use crate::pakager::{Arch, Pakage, System, Target, UseMode};
 use crate::parser::Parser;
 use crate::symbol_table::SymbolTable;
 use crate::tokenlizer::Tokenlizer;
 use crate::type_inferrer::TypeInferrer;
-use crate::types::Token;
+use crate::types::{Stmt, Token};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 
+pub mod compile;
 pub mod error_type;
 pub mod hir;
 pub mod lir;
+pub mod pakager;
 pub mod parser;
 pub mod symbol_table;
 pub mod tokenlizer;
 pub mod type_inferrer;
 pub mod types;
-pub mod pakager;
 
-pub fn run() {
+pub fn main() {
     let path = "./test.aya";
 
     let input = File::open(path).unwrap();
@@ -58,11 +60,13 @@ pub fn run() {
     let mut hir_generator = HirGenerator::new(stmts, symbol_table);
     let hirs = hir_generator.gen_hir();
 
-    fs::write("./build/hir.txt", "").unwrap();
-    let mut hir_file = OpenOptions::new()
-        .append(true)
-        .open("./build/hir.txt")
-        .unwrap();
+    let hir_path = std::path::Path::new("./build/hir.txt");
+    if let Some(parent) = hir_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = File::create(hir_path);
+    fs::write(hir_path, "").unwrap();
+    let mut hir_file = OpenOptions::new().append(true).open(hir_path).unwrap();
     for i in hirs.clone() {
         hir_file.write(&i.to_string().as_bytes()).unwrap();
         hir_file.write("\n".as_bytes()).unwrap();
@@ -72,20 +76,19 @@ pub fn run() {
     let context = inkwell::context::Context::create();
     let mut lir_generator = LirGenerator::new(&context, &hirs, hir_generator.func_registry);
     lir_generator.gen_lir();
-    lir_generator.to_asm()
-}
+    lir_generator.to_llvm_bc("./build/ayanami_test.bc");
 
-pub fn tokenlize() {
-    let s = "s = 1+\"str\"";
-    let mut tl = Tokenlizer::new(s.to_string());
-    let tokens = match tl.tokenlize() {
-        Ok(v) => v,
-        Err(e) => {
-            println!("{}", e);
-            return;
-        }
-    };
-    for i in 0..tokens.len() {
-        println!("{}", tokens[i]);
-    }
+    let pakager = Pakage::new(
+        "./build/ayanami_test.bc".to_string(),
+        "0.0.0".to_string(),
+        UseMode::AsDeveloper,
+        Target::Executable,
+        Arch::X86X64,
+        System::Default,
+        "./build/ayanami_test.bc".to_string(),
+    );
+
+    pakager.gen_pak("./build/ayanami_test.lcl");
+
+    compile::compile("./build/ayanami_test.lcl", "./bin");
 }

@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
     io::Write,
-    path::Path,
+    path::{self, Path},
     process::Command,
 };
 
@@ -84,19 +84,22 @@ impl<'ctx> LirGenerator<'ctx> {
         );
         self.runtime_fn.insert("inc_ref", inc_ref_fn);
 
-        let debug_ref_fn = self.module.add_function(
-            "runtime_debug_ref",
-            self.context.void_type().fn_type(
-                &[
-                    self.context.i32_type().into(),
-                    self.context.i32_type().into(),
-                    obj_ptr.into(),
-                ],
-                false,
-            ),
-            None,
-        );
-        self.runtime_fn.insert("runtime_debug_ref", debug_ref_fn);
+        #[cfg(debug_assertions)]
+        {
+            let debug_ref_fn = self.module.add_function(
+                "runtime_debug_ref",
+                self.context.void_type().fn_type(
+                    &[
+                        self.context.i32_type().into(),
+                        self.context.i32_type().into(),
+                        obj_ptr.into(),
+                    ],
+                    false,
+                ),
+                None,
+            );
+            self.runtime_fn.insert("runtime_debug_ref", debug_ref_fn);
+        }
 
         let alloc_int_fn = self.module.add_function(
             "alloc_int",
@@ -762,22 +765,25 @@ impl<'ctx> LirGenerator<'ctx> {
                     .build_load(object_ptr_type, *ptr, "load")
                     .unwrap();
 
-                let debug_ref_fn = *self
-                    .runtime_fn
-                    .get("runtime_debug_ref")
-                    .expect("runtime_debug_ref not init");
-                let op_val = self.context.i32_type().const_int(0, false);
-                let slot_val = self
-                    .context
-                    .i32_type()
-                    .const_int(dst.raw_id() as u64, false);
-                self.builder
-                    .build_call(
-                        debug_ref_fn,
-                        &[op_val.into(), slot_val.into(), load_res.into()],
-                        "dbg_dec_ref",
-                    )
-                    .unwrap();
+                #[cfg(debug_assertions)]
+                {
+                    let debug_ref_fn = *self
+                        .runtime_fn
+                        .get("runtime_debug_ref")
+                        .expect("runtime_debug_ref not init");
+                    let op_val = self.context.i32_type().const_int(0, false);
+                    let slot_val = self
+                        .context
+                        .i32_type()
+                        .const_int(dst.raw_id() as u64, false);
+                    self.builder
+                        .build_call(
+                            debug_ref_fn,
+                            &[op_val.into(), slot_val.into(), load_res.into()],
+                            "dbg_dec_ref",
+                        )
+                        .unwrap();
+                }
 
                 match self
                     .builder
@@ -1127,19 +1133,22 @@ impl<'ctx> LirGenerator<'ctx> {
                     .build_load(object_ptr_type, *slot_ptr, "left_obj")
                     .unwrap();
 
-                let debug_ref_fn = *self
-                    .runtime_fn
-                    .get("runtime_debug_ref")
-                    .expect("runtime_debug_ref not init");
-                let op_val = self.context.i32_type().const_int(1, false);
-                self.builder
-                    .build_call(
-                        debug_ref_fn,
-                        &[op_val.into(), slot_val.into(), obj_val.into()],
-                        "dbg_inc_ref",
-                    )
-                    .unwrap();
+                #[cfg(debug_assertions)]
+                {
+                    let debug_ref_fn = *self
+                        .runtime_fn
+                        .get("runtime_debug_ref")
+                        .expect("runtime_debug_ref not init");
+                    let op_val = self.context.i32_type().const_int(1, false);
 
+                    self.builder
+                        .build_call(
+                            debug_ref_fn,
+                            &[op_val.into(), slot_val.into(), obj_val.into()],
+                            "dbg_inc_ref",
+                        )
+                        .unwrap();
+                }
                 let inc_ref_fn = *self.runtime_fn.get("inc_ref").expect("runtime not init");
                 self.builder
                     .build_call(inc_ref_fn, &[obj_val.into()], "inc_ref")
@@ -1159,18 +1168,23 @@ impl<'ctx> LirGenerator<'ctx> {
                     .build_load(object_ptr_type, *slot_ptr, "left_obj")
                     .unwrap();
 
-                let debug_ref_fn = *self
-                    .runtime_fn
-                    .get("runtime_debug_ref")
-                    .expect("runtime_debug_ref not init");
-                let op_val = self.context.i32_type().const_int(0, false);
-                self.builder
-                    .build_call(
-                        debug_ref_fn,
-                        &[op_val.into(), slot_val.into(), obj_val.into()],
-                        "dbg_dec_ref",
-                    )
-                    .unwrap();
+                #[cfg(debug_assertions)]
+                {
+                    let debug_ref_fn = *self
+                        .runtime_fn
+                        .get("runtime_debug_ref")
+                        .expect("runtime_debug_ref not init");
+
+                    let op_val = self.context.i32_type().const_int(0, false);
+
+                    self.builder
+                        .build_call(
+                            debug_ref_fn,
+                            &[op_val.into(), slot_val.into(), obj_val.into()],
+                            "dbg_dec_ref",
+                        )
+                        .unwrap();
+                }
 
                 let dec_ref_fn = *self.runtime_fn.get("dec_ref").expect("runtime not init");
                 self.builder
@@ -1270,7 +1284,7 @@ impl<'ctx> LirGenerator<'ctx> {
         }
     }
 
-    pub(crate) fn gen_lir(&mut self) {
+    pub fn gen_lir(&mut self) {
         let mut cur_func: Option<String> = None;
         let mut cur_block_id = BlockId {
             id: 0,
@@ -1357,74 +1371,23 @@ impl<'ctx> LirGenerator<'ctx> {
         }
 
         let lir = self.module.print_to_string().to_string();
-        fs::write("./build/lir.txt", "").unwrap();
-        let mut lir_file = OpenOptions::new()
-            .append(true)
-            .open("./build/lir.txt")
-            .unwrap();
+        let lir_path = Path::new("./build/lir.txt");
+        if let Some(parent) = lir_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let _ = fs::File::create(lir_path);
+        fs::write(lir_path, "").unwrap();
+        let mut lir_file = OpenOptions::new().append(true).open(lir_path).unwrap();
         lir_file.write(&lir.to_string().as_bytes()).unwrap();
         lir_file.write("\n".as_bytes()).unwrap();
     }
 
-    pub(crate) fn to_asm(&mut self) {
-        let init_config = InitializationConfig {
-            asm_printer: true,
-            asm_parser: true,
-            base: true,
-            disassembler: true,
-            info: true,
-            machine_code: true,
-        };
-        Target::initialize_all(&init_config);
-
-        let triple = &TargetMachine::get_default_triple();
-        let target = Target::from_triple(triple).unwrap();
-        let target_machine = target
-            .create_target_machine(
-                triple,
-                "generic",
-                "",
-                OptimizationLevel::Aggressive,
-                RelocMode::Default,
-                CodeModel::Default,
-            )
-            .unwrap();
-
-        // 将 LLVM IR 写入文件以供检查
-        let lir = self.module.print_to_string().to_string();
-        fs::write("./build/lir.txt", &lir).unwrap();
-
-        // 先尝试生成汇编文件（避免直接生成 object 以确定崩溃是否与后端有关）
-        let output_asm = Path::new("./build/test.s");
-
-        // 设置 module 的 data layout 与 triple，保证 TargetMachine 能正确生成目标文件
-        self.module
-            .set_data_layout(&target_machine.get_target_data().get_data_layout());
-        self.module.set_triple(triple);
-
-        // 写入汇编（如果此处也崩溃则问题更靠前）
-        target_machine
-            .write_to_file(&self.module, FileType::Assembly, output_asm)
-            .unwrap();
-
-        let output_obj = Path::new("./build/test.o");
-        target_machine
-            .write_to_file(&self.module, FileType::Object, output_obj)
-            .unwrap();
-
-        let link = Command::new("g++")
-            .arg("-g")
-            .arg("-O0")
-            .arg("./build/test.o")
-            .arg("-L./runtime")
-            .arg("-layanami_runtime")
-            .arg("-o")
-            .arg("./build/ayanami_test")
-            .status()
-            .unwrap();
-
-        if !link.success() {
-            println!("g++ not success, {:?}", link.code());
+    pub fn to_llvm_bc(&mut self, path_str: &str) {
+        let path = Path::new(path_str);
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
         }
+        let _ = fs::File::create(path);
+        self.module.write_bitcode_to_path(path);
     }
 }

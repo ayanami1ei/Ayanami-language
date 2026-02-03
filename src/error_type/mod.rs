@@ -1,4 +1,4 @@
-pub(crate) mod implement;
+pub mod implement;
 
 #[derive(Debug, Clone)]
 enum ErrorType{
@@ -7,7 +7,7 @@ enum ErrorType{
 }
 
 #[derive(Debug)]
-pub(crate) struct Error{
+pub struct Error{
     _type:ErrorType,
     inner:anyhow::Error
 }

@@ -1,4 +1,4 @@
-; ModuleID = 'ayanami_modlue'
+; ModuleID = 'pak_bc'
 source_filename = "ayanami_modlue"
 
 declare void @err(ptr)
@@ -852,4 +852,3 @@ blockmerge_20:                                    ; preds = %block18
   call void @del_obj(ptr %ret.load)
   ret i32 %"get main ret"
 }
-

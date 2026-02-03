@@ -29,7 +29,7 @@ impl Block {
 }
 
 impl Parser {
-    pub(crate) fn new(tokens: Vec<Vec<Token>>, symbol_table: SymbolTable) -> Parser {
+    pub fn new(tokens: Vec<Vec<Token>>, symbol_table: SymbolTable) -> Parser {
         let mut res = Parser {
             tokens,
             i: 0,
@@ -710,7 +710,7 @@ impl Parser {
         }
     }
 
-    pub(crate) fn parser(&mut self) -> Result<Vec<Stmt>, Error> {
+    pub fn parser(&mut self) -> Result<Vec<Stmt>, Error> {
         let mut stmts = Vec::<Stmt>::new();
         while self.i < self.tokens.len() {
             stmts.push(self.parser_stmt()?)

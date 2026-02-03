@@ -112,7 +112,7 @@ impl HirVarSymbol {
 }
 
 impl HirGenerator {
-    pub(crate) fn new(stmts: Vec<Stmt>, ast_symbol_table: SymbolTable) -> HirGenerator {
+    pub fn new(stmts: Vec<Stmt>, ast_symbol_table: SymbolTable) -> HirGenerator {
         let mut res = HirGenerator {
             stmts,
 
@@ -1044,11 +1044,13 @@ impl HirGenerator {
     }
 
     fn into_file(&mut self) {
-        fs::write("./build/hir.txt", "").unwrap();
-        let mut hir_file = OpenOptions::new()
-            .append(true)
-            .open("./build/hir.txt")
-            .unwrap();
+        let hir_path = std::path::Path::new("./build/hir.txt");
+        if let Some(parent) = hir_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let _ = std::fs::File::create(hir_path);
+        fs::write(hir_path, "").unwrap();
+        let mut hir_file = OpenOptions::new().append(true).open(hir_path).unwrap();
         for i in self.hir.clone() {
             hir_file.write(&i.to_string().as_bytes()).unwrap();
             hir_file.write("\n".as_bytes()).unwrap();
@@ -1515,7 +1517,7 @@ impl HirGenerator {
         self.hir = new_hir;
     }
 
-    pub(crate) fn gen_hir(&mut self) -> Vec<HIR> {
+    pub fn gen_hir(&mut self) -> Vec<HIR> {
         for i in 0..self.stmts.len() {
             self.gen_stmt_hir(self.stmts[i].clone());
         }

@@ -1,6 +1,6 @@
-pub(crate) mod implement;
+pub mod implement;
 
-pub(crate) struct Tokenlizer{
+pub struct Tokenlizer{
     i:usize,
     chars:Vec<char>,
 }
