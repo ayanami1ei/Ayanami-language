@@ -84,6 +84,20 @@ impl<'ctx> LirGenerator<'ctx> {
         );
         self.runtime_fn.insert("inc_ref", inc_ref_fn);
 
+        let debug_ref_fn = self.module.add_function(
+            "runtime_debug_ref",
+            self.context.void_type().fn_type(
+                &[
+                    self.context.i32_type().into(),
+                    self.context.i32_type().into(),
+                    obj_ptr.into(),
+                ],
+                false,
+            ),
+            None,
+        );
+        self.runtime_fn.insert("runtime_debug_ref", debug_ref_fn);
+
         let alloc_int_fn = self.module.add_function(
             "alloc_int",
             obj_ptr.fn_type(&[self.context.i64_type().into()], false),
@@ -218,10 +232,10 @@ impl<'ctx> LirGenerator<'ctx> {
             .build_alloca(obj_ptr_ty, &format!("slot{}", slot))
             .unwrap();
 
-        // 可以初始化为 null
-        /*self.builder
-        .build_store(slot_ptr, obj_ptr_ty.const_null())
-        .unwrap();*/
+        // 初始化为 null，避免未初始化 slot 被 dec_ref/dec_ref 使用时产生栈垃圾地址
+        self.builder
+            .build_store(slot_ptr, obj_ptr_ty.const_null())
+            .unwrap();
 
         self.builder.position_at_end(current_bb);
 
@@ -249,6 +263,8 @@ impl<'ctx> LirGenerator<'ctx> {
             function = self.module.add_function(&name, fn_type, None);
             self.llvm_func_registry.insert(id, function);
         } else {
+            // Mangle user function names to avoid collisions with libc/runtime symbols
+            name = format!("user_{}_{}", name, id.0);
             let ret_type = self.context.i8_type().ptr_type(AddressSpace::default());
 
             let mut args = Vec::<BasicMetadataTypeEnum<'ctx>>::new();
@@ -260,43 +276,41 @@ impl<'ctx> LirGenerator<'ctx> {
             self.llvm_func_registry.insert(id, function);
         }
 
-        // 为参数在 entry block 中写入传入的参数值，并建立 VarId -> LLVM 指针 的映射。
-        // 入口块用于放置 slot 的 alloca（如果需要通过 slot 管理）。
         let entry_bb = self.context.append_basic_block(function, "entry");
-        let cur_bb = self.builder.get_insert_block();
         self.builder.position_at_end(entry_bb);
 
-        let object_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_ids = sym.param_id.clone();
+        // 初始化参数的 alloca 并写入参数值
+        if !sym.is_main {
+            let obj_ptr_type = self.context.i8_type().ptr_type(AddressSpace::default());
+            for (i, param_id) in sym.param_id.iter().enumerate() {
+                let param = function
+                    .get_nth_param(i as u32)
+                    .expect("param missing")
+                    .into_pointer_value();
 
-        // 按函数参数的顺序，将每个参数的值绑定到对应的 var。
-        // 不写入 slot，只为每个参数创建一个局部 alloca 并把参数值存入，然后建立 var -> ptr 映射。
-        for (idx, param_val) in function.get_param_iter().enumerate() {
-            let var_id = match param_ids.get(idx) {
-                Some(v) => *v,
-                None => continue,
-            };
+                if let Some(first_instr) = entry_bb.get_first_instruction() {
+                    self.builder.position_before(&first_instr);
+                } else {
+                    self.builder.position_at_end(entry_bb);
+                }
 
-            let var_ptr = self
-                .builder
-                .build_alloca(object_ptr_ty, &format!("var{}", var_id))
-                .unwrap();
-            self.builder.build_store(var_ptr, param_val).unwrap();
-            self.var_registry.insert(var_id, var_ptr);
-        }
+                let var_alloc = self
+                    .builder
+                    .build_alloca(obj_ptr_type, &format!("var{}", param_id))
+                    .unwrap();
+                self.builder.build_store(var_alloc, param).unwrap();
 
-        // 恢复插入点
-        if let Some(bb) = cur_bb {
-            self.builder.position_at_end(bb);
+                self.var_registry.insert(*param_id, var_alloc);
+            }
+
+            self.builder.position_at_end(entry_bb);
         }
 
         function
     }
+
     fn new_llvm_block(&mut self, function: FunctionValue<'ctx>, id: &BlockId) {
-        if let Some(_) = self.block_registry.get(id) {
-            return;
-        }
-        let mut name = "block_".to_string();
+        let mut name = "block".to_string();
         name.push_str(&id.to_string());
         let block = self.context.append_basic_block(function, &name);
 
@@ -439,10 +453,9 @@ impl<'ctx> LirGenerator<'ctx> {
                     .left() // 有返回值才会是 Some
                     .expect("call must return");
 
-                let entry_bb = self
-                    .builder
-                    .get_insert_block()
-                    .expect("builder has no insertion block");
+                let entry_bb = function
+                    .get_first_basic_block()
+                    .expect("function has no entry block");
                 self.get_or_create_slot(*dst, entry_bb);
                 let dst_slot_ptr = *self.slot_registry.get(&dst).unwrap();
                 self.builder.build_store(dst_slot_ptr, ret_val).unwrap();
@@ -463,10 +476,9 @@ impl<'ctx> LirGenerator<'ctx> {
                     .build_load(object_ptr_type, var_ptr, "param.load")
                     .unwrap();
 
-                let entry_bb = self
-                    .builder
-                    .get_insert_block()
-                    .expect("builder has no insertion block");
+                let entry_bb = function
+                    .get_first_basic_block()
+                    .expect("function has no entry block");
                 self.get_or_create_slot(*slot, entry_bb);
                 let dst_ptr = *self.slot_registry.get(slot).expect("slot not created");
                 self.builder.build_store(dst_ptr, loaded).unwrap();
@@ -490,10 +502,9 @@ impl<'ctx> LirGenerator<'ctx> {
                     .expect("alloc_arr must return value");
 
                 // store returned array object into dst slot
-                let entry_bb = self
-                    .builder
-                    .get_insert_block()
-                    .expect("builder has no insertion block");
+                let entry_bb = function
+                    .get_first_basic_block()
+                    .expect("function has no entry block");
                 self.get_or_create_slot(*dst, entry_bb);
                 let dst_slot_ptr = *self.slot_registry.get(&dst).unwrap();
                 self.builder.build_store(dst_slot_ptr, ret_val).unwrap();
@@ -650,16 +661,94 @@ impl<'ctx> LirGenerator<'ctx> {
                     .unwrap();
 
                 // Store result into dst slot.
-                let entry_bb = self
-                    .builder
-                    .get_insert_block()
-                    .expect("builder has no insertion block");
+                let entry_bb = function
+                    .get_first_basic_block()
+                    .expect("function has no entry block");
                 self.get_or_create_slot(*dst, entry_bb);
                 let dst_ptr = *self.slot_registry.get(dst).expect("dst slot not created");
                 self.builder.build_store(dst_ptr, elem_val).unwrap();
             }
+            HIRInst::ArraySet { arr, idx, src } => {
+                let arr_ptr_ptr = *self.slot_registry.get(arr).expect("array slot not found");
+                let arr_obj = self
+                    .builder
+                    .build_load(object_ptr_type, arr_ptr_ptr, "arr.load")
+                    .unwrap()
+                    .into_pointer_value();
+
+                let array_struct = self.context.struct_type(
+                    &[
+                        self.context.i32_type().into(),
+                        self.context.i32_type().into(),
+                        self.context.i32_type().into(),
+                        object_ptr_type.ptr_type(AddressSpace::default()).into(),
+                    ],
+                    false,
+                );
+                let arr_typed = self
+                    .builder
+                    .build_pointer_cast(
+                        arr_obj,
+                        array_struct.ptr_type(AddressSpace::default()),
+                        "arr.cast",
+                    )
+                    .unwrap();
+
+                let data_ptr_ptr = self
+                    .builder
+                    .build_struct_gep(array_struct, arr_typed, 3, "arr.data.ptr")
+                    .unwrap();
+                let data_ptr = self
+                    .builder
+                    .build_load(
+                        object_ptr_type.ptr_type(AddressSpace::default()),
+                        data_ptr_ptr,
+                        "arr.data",
+                    )
+                    .unwrap()
+                    .into_pointer_value();
+
+                let idx_ptr = *self.slot_registry.get(idx).expect("index slot not found");
+                let idx_obj = self
+                    .builder
+                    .build_load(object_ptr_type, idx_ptr, "idx.obj")
+                    .unwrap();
+
+                let get_fn = *self
+                    .runtime_fn
+                    .get("get_int_value")
+                    .expect("get_int_value not found");
+                let idx_val_i32 = self
+                    .builder
+                    .build_call(get_fn, &[idx_obj.into()], "idx.value")
+                    .unwrap()
+                    .try_as_basic_value()
+                    .left()
+                    .expect("get_int_value must return int")
+                    .into_int_value();
+                let idx_val = self
+                    .builder
+                    .build_int_s_extend(idx_val_i32, self.context.i64_type(), "idx.i64")
+                    .unwrap();
+
+                let elem_ptr = unsafe {
+                    self.builder
+                        .build_in_bounds_gep(object_ptr_type, data_ptr, &[idx_val], "elem.ptr")
+                        .unwrap()
+                };
+
+                // store new value (array holds shared references; lifetime managed elsewhere)
+                let src_ptr = *self.slot_registry.get(src).expect("src slot not found");
+                let src_val = self
+                    .builder
+                    .build_load(object_ptr_type, src_ptr, "src.load")
+                    .unwrap();
+                self.builder.build_store(elem_ptr, src_val).unwrap();
+            }
             HIRInst::Delete { dst } => {
-                let del_ref_fn = match self.module.get_function("del_obj") {
+                // Lifetime pass marked this slot as no longer needed; drop one reference.
+                // Runtime dec_ref will free the object if refcnt reaches zero.
+                let dec_ref_fn = match self.module.get_function("dec_ref") {
                     None => panic!("ayanami_runtime not found"),
                     Some(x) => x,
                 };
@@ -673,9 +762,26 @@ impl<'ctx> LirGenerator<'ctx> {
                     .build_load(object_ptr_type, *ptr, "load")
                     .unwrap();
 
+                let debug_ref_fn = *self
+                    .runtime_fn
+                    .get("runtime_debug_ref")
+                    .expect("runtime_debug_ref not init");
+                let op_val = self.context.i32_type().const_int(0, false);
+                let slot_val = self
+                    .context
+                    .i32_type()
+                    .const_int(dst.raw_id() as u64, false);
+                self.builder
+                    .build_call(
+                        debug_ref_fn,
+                        &[op_val.into(), slot_val.into(), load_res.into()],
+                        "dbg_dec_ref",
+                    )
+                    .unwrap();
+
                 match self
                     .builder
-                    .build_call(del_ref_fn, &[load_res.into()], "del_obj")
+                    .build_call(dec_ref_fn, &[load_res.into()], "dec_ref")
                 {
                     Err(e) => panic!("{}", e),
                     Ok(_) => {}
@@ -686,86 +792,133 @@ impl<'ctx> LirGenerator<'ctx> {
                     .unwrap();
             }
             HIRInst::Store { from, to } => {
-                let entry_bb = self
-                    .builder
-                    .get_insert_block()
-                    .expect("builder has no insertion block");
+                let entry_bb = function
+                    .get_first_basic_block()
+                    .expect("function has no entry block");
                 self.get_or_create_slot(*to, entry_bb);
                 let to_ptr = match self.slot_registry.get(to) {
-                    None => match self.builder.build_alloca(self.context.i32_type(), "tmp") {
+                    None => match self.builder.build_alloca(object_ptr_type, "tmp") {
                         Err(e) => panic!("{}", e),
                         Ok(x) => x,
                     },
                     Some(x) => *x,
                 };
-                if let Value::Const(c) = from {
-                    let val = match c {
-                        crate::hir::Const::Int(x) => self
-                            .context
-                            .i64_type()
-                            .const_int(*x as u64, false)
-                            .as_basic_value_enum(),
-                        crate::hir::Const::Float(float_key) => {
-                            let FloatKey(x) = *float_key;
-                            self.context.f64_type().const_float(x).as_basic_value_enum()
-                        }
-                        crate::hir::Const::Char(c) => self
-                            .context
-                            .i8_type()
-                            .const_int(*c as u64, false)
-                            .as_basic_value_enum(),
-                        crate::hir::Const::Bool(b) => self
-                            .context
-                            .bool_type()
-                            .const_int(*b as u64, false)
-                            .as_basic_value_enum(),
-                        crate::hir::Const::Null => todo!(),
-                        crate::hir::Const::String(s) => {
-                            // create a global constant byte array for the string
-                            let bytes = s.as_bytes();
-                            let array_ty = self.context.i8_type().array_type(bytes.len() as u32);
-                            let gname = format!(".str.{}", self.i);
-                            let global = self.module.add_global(array_ty, None, &gname);
-                            // build initializer
-                            let mut elems: Vec<inkwell::values::IntValue> = Vec::new();
-                            for b in bytes.iter() {
-                                elems.push(self.context.i8_type().const_int(*b as u64, false));
+                match from {
+                    Value::Const(c) => {
+                        let val = match c {
+                            crate::hir::Const::Int(x) => {
+                                let alloc_int = *self
+                                    .runtime_fn
+                                    .get("alloc_int")
+                                    .expect("runtime alloc_int not found");
+                                let arg = self.context.i64_type().const_int(*x as u64, false);
+                                self.builder
+                                    .build_call(alloc_int, &[arg.into()], "new int")
+                                    .unwrap()
+                                    .try_as_basic_value()
+                                    .left()
+                                    .expect("alloc_int must return")
                             }
-                            let const_array = self.context.i8_type().const_array(&elems);
-                            global.set_initializer(&const_array);
-                            global.set_constant(true);
+                            crate::hir::Const::Float(float_key) => {
+                                let FloatKey(x) = *float_key;
+                                let alloc_float = *self
+                                    .runtime_fn
+                                    .get("alloc_float")
+                                    .expect("runtime alloc_float not found");
+                                let arg = self.context.f64_type().const_float(x);
+                                self.builder
+                                    .build_call(alloc_float, &[arg.into()], "new float")
+                                    .unwrap()
+                                    .try_as_basic_value()
+                                    .left()
+                                    .expect("alloc_float must return")
+                            }
+                            crate::hir::Const::Char(c) => {
+                                let alloc_char = *self
+                                    .runtime_fn
+                                    .get("alloc_char")
+                                    .expect("runtime alloc_char not found");
+                                let arg = self.context.i32_type().const_int(*c as u64, false);
+                                self.builder
+                                    .build_call(alloc_char, &[arg.into()], "new char")
+                                    .unwrap()
+                                    .try_as_basic_value()
+                                    .left()
+                                    .expect("alloc_char must return")
+                            }
+                            crate::hir::Const::Bool(b) => {
+                                let alloc_bool = *self
+                                    .runtime_fn
+                                    .get("alloc_bool")
+                                    .expect("runtime alloc_bool not found");
+                                let arg = self.context.bool_type().const_int(*b as u64, false);
+                                self.builder
+                                    .build_call(alloc_bool, &[arg.into()], "new bool")
+                                    .unwrap()
+                                    .try_as_basic_value()
+                                    .left()
+                                    .expect("alloc_bool must return")
+                            }
+                            crate::hir::Const::Null => {
+                                object_ptr_type.const_null().as_basic_value_enum()
+                            }
+                            crate::hir::Const::String(s) => {
+                                // create a global constant byte array for the string
+                                let bytes = s.as_bytes();
+                                let array_ty =
+                                    self.context.i8_type().array_type(bytes.len() as u32);
+                                let gname = format!(".str.{}", self.i);
+                                let global = self.module.add_global(array_ty, None, &gname);
+                                // build initializer
+                                let mut elems: Vec<inkwell::values::IntValue> = Vec::new();
+                                for b in bytes.iter() {
+                                    elems.push(self.context.i8_type().const_int(*b as u64, false));
+                                }
+                                let const_array = self.context.i8_type().const_array(&elems);
+                                global.set_initializer(&const_array);
+                                global.set_constant(true);
 
-                            // get i8* pointer to the first element by pointer-casting
-                            let gv_ptr = global.as_pointer_value();
-                            let gep = self
-                                .builder
-                                .build_pointer_cast(gv_ptr, object_ptr_type, "str.ptr")
-                                .unwrap();
+                                // get i8* pointer to the first element by pointer-casting
+                                let gv_ptr = global.as_pointer_value();
+                                let gep = self
+                                    .builder
+                                    .build_pointer_cast(gv_ptr, object_ptr_type, "str.ptr")
+                                    .unwrap();
 
-                            // call runtime alloc_string(ptr, len) -> Object*
-                            let alloc_str = *self
-                                .runtime_fn
-                                .get("alloc_string")
-                                .expect("runtime alloc_string not found");
-                            let len_val =
-                                self.context.i32_type().const_int(bytes.len() as u64, false);
-                            let call_res = self
-                                .builder
-                                .build_call(alloc_str, &[gep.into(), len_val.into()], "new string")
-                                .unwrap();
-                            self.i += 1;
+                                // call runtime alloc_string(ptr, len) -> Object*
+                                let alloc_str = *self
+                                    .runtime_fn
+                                    .get("alloc_string")
+                                    .expect("runtime alloc_string not found");
+                                let len_val =
+                                    self.context.i32_type().const_int(bytes.len() as u64, false);
+                                let call_res = self
+                                    .builder
+                                    .build_call(
+                                        alloc_str,
+                                        &[gep.into(), len_val.into()],
+                                        "new string",
+                                    )
+                                    .unwrap();
+                                self.i += 1;
 
-                            call_res
-                                .try_as_basic_value()
-                                .left()
-                                .expect("alloc_string must return")
-                        }
-                    };
+                                call_res
+                                    .try_as_basic_value()
+                                    .left()
+                                    .expect("alloc_string must return")
+                            }
+                        };
 
-                    match self.builder.build_store(to_ptr, val) {
-                        Err(e) => panic!("{}", e),
-                        Ok(_) => {}
-                    };
+                        match self.builder.build_store(to_ptr, val) {
+                            Err(e) => panic!("{}", e),
+                            Ok(_) => {}
+                        };
+                    }
+                    Value::Obj(_) | Value::Null => {
+                        self.builder
+                            .build_store(to_ptr, object_ptr_type.const_null())
+                            .unwrap();
+                    }
                 }
             }
             HIRInst::Br {
@@ -819,7 +972,7 @@ impl<'ctx> LirGenerator<'ctx> {
             HIRInst::Call {
                 id,
                 args: call_args,
-                ret,
+                dst,
             } => {
                 let func = *self
                     .llvm_func_registry
@@ -846,12 +999,11 @@ impl<'ctx> LirGenerator<'ctx> {
 
                 // 如果调用有返回值（Some），则写入目标 slot；否则跳过。
                 if let Some(ret_val) = call_res.try_as_basic_value().left() {
-                    let entry_bb = self
-                        .builder
-                        .get_insert_block()
-                        .expect("builder has no insertion block");
-                    self.get_or_create_slot(*ret, entry_bb);
-                    let dst_slot_ptr = *self.slot_registry.get(ret).unwrap();
+                    let entry_bb = function
+                        .get_first_basic_block()
+                        .expect("function has no entry block");
+                    self.get_or_create_slot(*dst, entry_bb);
+                    let dst_slot_ptr = *self.slot_registry.get(dst).unwrap();
                     self.builder.build_store(dst_slot_ptr, ret_val).unwrap();
                 }
             }
@@ -861,10 +1013,9 @@ impl<'ctx> LirGenerator<'ctx> {
                 right,
                 dst,
             } => {
-                let entry_bb = self
-                    .builder
-                    .get_insert_block()
-                    .expect("builder has no insertion block");
+                let entry_bb = function
+                    .get_first_basic_block()
+                    .expect("function has no entry block");
                 self.get_or_create_slot(*dst, entry_bb);
 
                 let left_ptr = match self.slot_registry.get(left) {
@@ -931,10 +1082,9 @@ impl<'ctx> LirGenerator<'ctx> {
                 self.builder.build_store(dst_slot_ptr, ret_val).unwrap();
             }
             HIRInst::UnaryOp { op, expr, dst } => {
-                let entry_bb = self
-                    .builder
-                    .get_insert_block()
-                    .expect("builder has no insertion block");
+                let entry_bb = function
+                    .get_first_basic_block()
+                    .expect("function has no entry block");
                 self.get_or_create_slot(*dst, entry_bb);
 
                 let expr_ptr = match self.slot_registry.get(expr) {
@@ -968,14 +1118,31 @@ impl<'ctx> LirGenerator<'ctx> {
 
                 let slot_ptr: &PointerValue<'_> =
                     self.slot_registry.get(&obj).expect("sloy not found");
-                let obj = self
+                let slot_val = self
+                    .context
+                    .i32_type()
+                    .const_int(obj.raw_id() as u64, false);
+                let obj_val = self
                     .builder
                     .build_load(object_ptr_type, *slot_ptr, "left_obj")
                     .unwrap();
 
+                let debug_ref_fn = *self
+                    .runtime_fn
+                    .get("runtime_debug_ref")
+                    .expect("runtime_debug_ref not init");
+                let op_val = self.context.i32_type().const_int(1, false);
+                self.builder
+                    .build_call(
+                        debug_ref_fn,
+                        &[op_val.into(), slot_val.into(), obj_val.into()],
+                        "dbg_inc_ref",
+                    )
+                    .unwrap();
+
                 let inc_ref_fn = *self.runtime_fn.get("inc_ref").expect("runtime not init");
                 self.builder
-                    .build_call(inc_ref_fn, &[obj.into()], "inc_ref")
+                    .build_call(inc_ref_fn, &[obj_val.into()], "inc_ref")
                     .unwrap();
             }
             HIRInst::DecRef { obj } => {
@@ -983,14 +1150,31 @@ impl<'ctx> LirGenerator<'ctx> {
 
                 let slot_ptr: &PointerValue<'_> =
                     self.slot_registry.get(&obj).expect("sloy not found");
-                let obj = self
+                let slot_val = self
+                    .context
+                    .i32_type()
+                    .const_int(obj.raw_id() as u64, false);
+                let obj_val = self
                     .builder
                     .build_load(object_ptr_type, *slot_ptr, "left_obj")
                     .unwrap();
 
+                let debug_ref_fn = *self
+                    .runtime_fn
+                    .get("runtime_debug_ref")
+                    .expect("runtime_debug_ref not init");
+                let op_val = self.context.i32_type().const_int(0, false);
+                self.builder
+                    .build_call(
+                        debug_ref_fn,
+                        &[op_val.into(), slot_val.into(), obj_val.into()],
+                        "dbg_dec_ref",
+                    )
+                    .unwrap();
+
                 let dec_ref_fn = *self.runtime_fn.get("dec_ref").expect("runtime not init");
                 self.builder
-                    .build_call(dec_ref_fn, &[obj.into()], "dec_ref")
+                    .build_call(dec_ref_fn, &[obj_val.into()], "dec_ref")
                     .unwrap();
             }
             HIRInst::Bind { var, obj } => {
@@ -1155,6 +1339,23 @@ impl<'ctx> LirGenerator<'ctx> {
             i += 1;
         }
 
+        // Ensure main has a return; insert `ret i32 0` into any unterminated basic block.
+        if let Some(main_fn) = self.llvm_func_registry.get(&self.main_id) {
+            let i32_type = self.context.i32_type();
+            for bb in main_fn.get_basic_blocks() {
+                if bb.get_terminator().is_none() {
+                    let cur = self.builder.get_insert_block();
+                    self.builder.position_at_end(bb);
+                    self.builder
+                        .build_return(Some(&i32_type.const_int(0, false)))
+                        .unwrap();
+                    if let Some(c) = cur {
+                        self.builder.position_at_end(c);
+                    }
+                }
+            }
+        }
+
         let lir = self.module.print_to_string().to_string();
         fs::write("./build/lir.txt", "").unwrap();
         let mut lir_file = OpenOptions::new()
@@ -1183,7 +1384,7 @@ impl<'ctx> LirGenerator<'ctx> {
                 triple,
                 "generic",
                 "",
-                OptimizationLevel::Less,
+                OptimizationLevel::Aggressive,
                 RelocMode::Default,
                 CodeModel::Default,
             )

@@ -326,10 +326,14 @@ impl Parser {
                 }
             }
 
-            let index=self.parser_add_sub()?;
+            let index = self.parser_add_sub()?;
             self.expect(Token::Operator("]".to_string()))?;
-            let ty=HashSet::new();
-            Ok(Rc::new(RefCell::new(Expr::ArrayElem(name.to_string(), index, ty))))
+            let ty = HashSet::new();
+            Ok(Rc::new(RefCell::new(Expr::ArrayElem(
+                name.to_string(),
+                index,
+                ty,
+            ))))
         } else if let Token::Num(x) = peek {
             self.next()?;
             Ok(Rc::new(RefCell::new(Expr::ConstNum(x, HashSet::new()))))
@@ -340,17 +344,17 @@ impl Parser {
                 return Ok(res);
             }
             if self.is(Token::Operator("[".to_string()))? {
-                let mut elem_vec=Vec::new();
+                let mut elem_vec = Vec::new();
 
-                while !self.is(Token::Operator("]".to_string()))?{
-                    if self.is(Token::Operator(",".to_string()))?{
+                while !self.is(Token::Operator("]".to_string()))? {
+                    if self.is(Token::Operator(",".to_string()))? {
                         continue;
                     }
                     let res = self.parser_add_sub()?;
                     elem_vec.push(res);
                 }
-                
-                let mut ty=HashSet::new();
+
+                let mut ty = HashSet::new();
                 ty.insert(VarType::Array);
                 return Ok(Rc::new(RefCell::new(Expr::Array(elem_vec, Vec::new(), ty))));
             }
@@ -386,7 +390,7 @@ impl Parser {
             }
             if self.is(Token::Operator("\'".to_string()))? {
                 let c: char;
-                peek=self.peek();
+                peek = self.peek();
 
                 let mut new_char = match peek.clone() {
                     Token::Identifier(s) => s.chars().collect::<Vec<char>>()[0],
@@ -679,19 +683,22 @@ impl Parser {
                 let right = self.parser_add_sub()?;
                 let (name, _) = match expr.borrow().clone() {
                     Expr::Var(name, ty) => (name, ty),
+                    Expr::ArrayElem(name, _, ty) => (name, ty),
                     _ => return Err(Error::new_error(format!("must be var"))),
                 };
-                match self.symbol_table.find_symbol(&name) {
-                    None => {
-                        let sym = Symbol::new_var(
-                            name,
-                            self.symbol_table.get_scope(),
-                            self.symbol_table.get_level(),
-                        );
-                        self.symbol_table.add_symbol(sym);
-                    }
-                    Some(_) => (),
-                };
+                if let Expr::Var(_, _) = *expr.borrow() {
+                    match self.symbol_table.find_symbol(&name) {
+                        None => {
+                            let sym = Symbol::new_var(
+                                name,
+                                self.symbol_table.get_scope(),
+                                self.symbol_table.get_level(),
+                            );
+                            self.symbol_table.add_symbol(sym);
+                        }
+                        Some(_) => (),
+                    };
+                }
                 Ok(Stmt::Assign(expr, right))
             } else {
                 if let Expr::FuncCall(ref name, ref argcs, _, scope_id) = *expr.borrow() {

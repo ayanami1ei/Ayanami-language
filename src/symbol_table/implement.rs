@@ -332,6 +332,32 @@ impl SymbolTable {
         }
     }
 
+    pub(crate) fn update_array_elem_type(&mut self, name: &String, elem_ty: HashSet<VarType>) {
+        let mut cur_opt = self.area_ptr.upgrade();
+
+        while let Some(cur_rc) = cur_opt {
+            {
+                let mut binding = cur_rc.borrow_mut();
+                let index = Self::find_in_vec(&binding.symbol, name);
+                if index != usize::MAX {
+                    // ensure the symbol is marked as array and carries Array in its type set
+                    binding.symbol[index].is_arr = true;
+                    binding.symbol[index].its_type.insert(VarType::Array);
+
+                    if binding.symbol[index].elem_type.is_empty() {
+                        binding.symbol[index].elem_type.push(elem_ty.clone());
+                    } else {
+                        for set in binding.symbol[index].elem_type.iter_mut() {
+                            *set = set.union(&elem_ty).cloned().collect();
+                        }
+                    }
+                    return;
+                }
+                cur_opt = binding.parent.as_ref().and_then(|w| w.upgrade());
+            }
+        }
+    }
+
     pub(crate) fn get_level(&mut self) -> i32 {
         self.now_level
     }

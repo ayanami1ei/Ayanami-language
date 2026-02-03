@@ -16,8 +16,12 @@ impl HirGenerator {
                 continue;
             }
             if self.can_delete(&slot) {
+                let mut insert_pos = slot.last_use + offset + 2;
+                if insert_pos > self.hir.len() {
+                    insert_pos = self.hir.len();
+                }
                 self.hir.insert(
-                    slot.last_use + offset + 2,
+                    insert_pos,
                     super::HIR::Inst(super::HIRInst::Delete { dst: *id }),
                 );
                 offset += 1;

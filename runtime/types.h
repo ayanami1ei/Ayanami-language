@@ -1,7 +1,7 @@
 #ifndef AYANAMI_CPP_TYPES_H
 #define AYANAMI_CPP_TYPES_H
 
-//#define DEBUG
+#define DEBUG
 
 enum class VarType
 {

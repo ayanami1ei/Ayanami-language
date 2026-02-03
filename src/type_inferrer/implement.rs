@@ -328,49 +328,71 @@ impl TypeInferrer {
             }
         };
 
-        if let Expr::Var(ref name, _) = *a.borrow() {
-            // avoid holding an active borrow across later borrow_mut() calls
-            let maybe_sym = { (*self.symbol_table).borrow().find_symbol(name) };
-            if let Some(a_sym) = maybe_sym {
-                if a_sym
-                    .its_type
-                    .intersection(&b_type)
-                    .collect::<Vec<&VarType>>()
-                    .len()
-                    == 0
-                {
-                    (*self.symbol_table)
-                        .borrow_mut()
-                        .add_symbol_type(name, b_type.clone());
-                }
-            } else {
-                let new_a = Rc::new(RefCell::new(Expr::Var(name.clone(), b_type.clone())));
-                let new_b = b.clone();
-                *std::cell::RefCell::borrow_mut(&self.dummy) = Stmt::Assign(new_a, new_b);
-                let scope = { (*self.symbol_table).borrow().get_scope() };
-                let mut a_sym = if let Some(elem_tys) = array_elem_types.clone() {
-                    let mut sym = Symbol::new_array(
-                        name.clone(),
-                        scope,
-                        self.symbol_table.borrow_mut().get_level(),
-                    );
-                    sym.elem_type = elem_tys;
-                    sym
+        match &*a.borrow() {
+            Expr::Var(name, _) => {
+                // avoid holding an active borrow across later borrow_mut() calls
+                let maybe_sym = { (*self.symbol_table).borrow().find_symbol(name) };
+                if let Some(a_sym) = maybe_sym {
+                    if a_sym
+                        .its_type
+                        .intersection(&b_type)
+                        .collect::<Vec<&VarType>>()
+                        .is_empty()
+                    {
+                        (*self.symbol_table)
+                            .borrow_mut()
+                            .add_symbol_type(name, b_type.clone());
+                    }
                 } else {
-                    Symbol::new_var(
-                        name.clone(),
-                        scope,
-                        self.symbol_table.borrow_mut().get_level(),
-                    )
-                };
-                a_sym.its_type = b_type.clone();
-                (*self.symbol_table).borrow_mut().add_symbol(a_sym);
+                    let new_a = Rc::new(RefCell::new(Expr::Var(name.clone(), b_type.clone())));
+                    let new_b = b.clone();
+                    *std::cell::RefCell::borrow_mut(&self.dummy) = Stmt::Assign(new_a, new_b);
+                    let scope = { (*self.symbol_table).borrow().get_scope() };
+                    let mut a_sym = if let Some(elem_tys) = array_elem_types.clone() {
+                        let mut sym = Symbol::new_array(
+                            name.clone(),
+                            scope,
+                            self.symbol_table.borrow_mut().get_level(),
+                        );
+                        sym.elem_type = elem_tys;
+                        sym
+                    } else {
+                        Symbol::new_var(
+                            name.clone(),
+                            scope,
+                            self.symbol_table.borrow_mut().get_level(),
+                        )
+                    };
+                    a_sym.its_type = b_type.clone();
+                    (*self.symbol_table).borrow_mut().add_symbol(a_sym);
+                }
+                Ok(())
             }
-            Ok(())
-        } else {
-            Err(Error::new_error(
+            Expr::ArrayElem(name, idx, _) => {
+                let idx_ty = Self::infer_type(self.symbol_table.clone(), idx.clone())?;
+                if !idx_ty.contains(&VarType::Int) && !idx_ty.contains(&VarType::Unknown) {
+                    return Err(Error::new_error("array index must be int".to_string()));
+                }
+
+                if idx_ty.contains(&VarType::Unknown) {
+                    if let Expr::Var(idx_name, _) = &*idx.borrow() {
+                        let mut set = std::collections::HashSet::new();
+                        set.insert(VarType::Int);
+                        (*self.symbol_table)
+                            .borrow_mut()
+                            .add_symbol_type(idx_name, set);
+                    }
+                }
+
+                (*self.symbol_table)
+                    .borrow_mut()
+                    .update_array_elem_type(name, b_type.clone());
+
+                Ok(())
+            }
+            _ => Err(Error::new_error(
                 "illegal type of assign, must be var".to_string(),
-            ))
+            )),
         }
     }
     fn semantic_analysise_for(&mut self) -> Result<(), Error> {

@@ -4,14 +4,57 @@
 #include <stdlib.h>
 #include <string>
 #include <string.h>
+#include <unordered_set>
 #include <vector>
-
 
 // g++ -g -O0 -std=c++17 -I c -c ayanami_runtime.cpp -o ayanami_runtime.o && ar rcs libayanami_runtime.a ayanami_runtime.o
 
 // g++ -g -O3 -std=c++17 -I c -c ayanami_runtime.cpp -o ayanami_runtime.o && ar rcs libayanami_runtime.a ayanami_runtime.o
 
 extern "C" Object *alloc_string(char *value, int len);
+extern "C" void runtime_debug_ref(int op, int slot_id, Object *obj);
+
+#ifdef DEBUG
+static std::unordered_set<Object *> g_allocs;
+
+extern "C" void runtime_register(Object *obj)
+{
+    if (obj != NULL)
+    {
+        g_allocs.insert(obj);
+    }
+}
+
+extern "C" void runtime_unregister(Object *obj)
+{
+    if (obj != NULL)
+    {
+        g_allocs.erase(obj);
+    }
+}
+
+extern "C" int runtime_is_registered(Object *obj)
+{
+    return (obj != NULL && g_allocs.find(obj) != g_allocs.end()) ? 1 : 0;
+}
+#endif
+
+extern "C" void runtime_debug_ref(int op, int slot_id, Object *obj)
+{
+#ifdef DEBUG
+    const char *op_name = (op == 0) ? "dec_ref" : "inc_ref";
+    fprintf(stderr,
+            "[runtime] %s slot=%d obj=%p registered=%d\n",
+            op_name,
+            slot_id,
+            (void *)obj,
+            runtime_is_registered(obj));
+#else
+    (void)op;
+    (void)slot_id;
+    (void)obj;
+#endif
+}
 
 extern "C" void err(Object *obj)
 {
@@ -146,6 +189,7 @@ extern "C" void del_obj(Object *obj)
 
 #ifdef DEBUG
     fprintf(stderr, "[runtime] del_obj called obj=%p type=%d refcnt=%d\n", (void *)obj, t, obj->refcnt);
+    runtime_unregister(obj);
 #endif
 
     switch (obj->type)
@@ -195,17 +239,32 @@ extern "C" void dec_ref(Object *obj)
     }
 
 #ifdef DEBUG
+    if (!runtime_is_registered(obj))
+    {
+        fprintf(stderr, "[runtime] dec_ref: invalid obj=%p (not registered)\n", (void *)obj);
+        return;
+    }
+#endif
+
+#ifdef DEBUG
     if ((*obj).refcnt <= 0)
     {
         fprintf(stderr, "[runtime] dec_ref: warning obj=%p had non-positive refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
     }
 #endif
+
+    // If refcnt is already non-positive, avoid double-free and just return.
+    if ((*obj).refcnt <= 0)
+    {
+        return;
+    }
+
     (*obj).refcnt -= 1;
 #ifdef DEBUG
     fprintf(stderr, "[runtime] dec_ref obj=%p new_refcnt=%d\n", (void *)obj, (int)(*obj).refcnt);
 #endif
 
-    if ((*obj).refcnt <= 0)
+    if ((*obj).refcnt == 0)
     {
 #ifdef DEBUG
         fprintf(stderr, "[runtime] refcnt reached zero for obj=%p, calling del_obj\n", (void *)obj);
@@ -220,6 +279,14 @@ extern "C" void inc_ref(Object *obj)
     {
         return;
     }
+
+#ifdef DEBUG
+    if (!runtime_is_registered(obj))
+    {
+        fprintf(stderr, "[runtime] inc_ref: invalid obj=%p (not registered)\n", (void *)obj);
+        return;
+    }
+#endif
 
 #ifdef DEBUG
     if ((*obj).refcnt < 0)
@@ -241,13 +308,17 @@ alloc_fn(int, const int, Int)
 
                 extern "C" Object *alloc_array(int len)
 {
-    Object **data = (Object **)malloc(sizeof(Object *) * len);
+    Object **data = (Object **)calloc((size_t)len, sizeof(Object *));
 
     ArrayObject *res = (ArrayObject *)malloc(sizeof(ArrayObject));
     res->header.type = VarType::Array;
     res->header.refcnt = 0;
     res->len = len;
     res->data = data;
+
+#ifdef DEBUG
+    runtime_register((Object *)res);
+#endif
 
 #ifdef DEBUG
     fprintf(stderr, "[runtime] alloc_array len=%d ptr=%p data=%p\n", len, (void *)res, (void *)data);
@@ -286,6 +357,10 @@ extern "C" Object *alloc_string(char *value, int len)
     ptr->header.refcnt = 1;
     ptr->data = buf;
     ptr->len = len;
+
+#ifdef DEBUG
+    runtime_register((Object *)ptr);
+#endif
 
 #ifdef DEBUG
     fprintf(stderr, "[runtime] alloc_string called len=%d ptr=%p data=%p\n", len, (void *)ptr, (void *)ptr->data);

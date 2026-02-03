@@ -133,6 +133,9 @@ impl fmt::Display for HIRInst {
             HIRInst::ArrayGet { arr, idx, dst } => {
                 write!(f, "ArrayGet {}[{}] -> {}", arr, idx, dst)
             }
+            HIRInst::ArraySet { arr, idx, src } => {
+                write!(f, "ArraySet {}[{}] = {}", arr, idx, src)
+            }
             HIRInst::Br {
                 cond,
                 then_block,
@@ -143,12 +146,12 @@ impl fmt::Display for HIRInst {
                 cond, then_block, else_block
             ),
             HIRInst::Jmp { target } => write!(f, "Jmp to block_{}", target),
-            HIRInst::Call { id, args, ret } => {
+            HIRInst::Call { id, args, dst } => {
                 write!(f, "Call func_{}, args: [", id)?;
                 for a in args.iter() {
                     write!(f, "{} ", a)?;
                 }
-                write!(f, "], ret_slot:{}", ret)?;
+                write!(f, "], dst:{}", dst)?;
                 write!(f, "")
             }
             HIRInst::BinOp {

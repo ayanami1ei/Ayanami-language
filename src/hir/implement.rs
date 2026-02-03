@@ -45,6 +45,10 @@ impl ObjSlot {
 }
 
 impl SlotId {
+    pub(crate) fn raw_id(self) -> i32 {
+        self.id
+    }
+
     pub(super) fn push(self, map: &mut HashMap<SlotId, ObjSlot>, value: Value) {
         let mut obj_slot = match map.get(&self) {
             None => panic!(""),
@@ -139,13 +143,11 @@ impl HirGenerator {
             .ast_symbol_table
             .find_symbol(&"write".to_string())
             .expect("");
-        let slot_id = res.get_next_slot_id();
         let param_id = ast_sym.args[0].id;
         res.func_registry.insert(
             FuncId(ast_sym.id),
             HirFuncSymbol {
                 ty_set: HashSet::new(),
-                ret_obj_id: slot_id,
                 id: hir::FuncId(ast_sym.id),
                 param_id: [VarId(param_id)].to_vec(),
                 is_main: false,
@@ -421,17 +423,16 @@ impl HirGenerator {
                     call_args.push(arg_slot_id);
                 }
 
+                let ret_slot = self.get_next_slot_id();
                 irs.push(HIRInst::Call {
                     id: func_sym.id,
                     args: call_args,
-                    ret: func_sym.ret_obj_id,
+                    dst: ret_slot,
                 });
 
-                func_sym
-                    .ret_obj_id
-                    .set_near_use(&mut self.slot_registry, self.hir.len());
+                ret_slot.set_near_use(&mut self.slot_registry, self.hir.len());
                 self.func_registry.insert(func_sym.id, func_sym.clone());
-                res_slot_id = func_sym.ret_obj_id;
+                res_slot_id = ret_slot;
             }
             Expr::Not(ref expr, _) => {
                 let expr_slot_id = self.gen_expr_ir(expr);
@@ -512,7 +513,7 @@ impl HirGenerator {
 
         res_slot_id
     }
-    fn gen_block_ir(&mut self, block_id: BlockId, block: &Block, ret_obj: &mut SlotId) {
+    fn gen_block_ir(&mut self, block_id: BlockId, block: &Block) {
         for mut i in block.body.clone() {
             match i {
                 Stmt::Assign(ref left, ref right) => {
@@ -523,17 +524,17 @@ impl HirGenerator {
                 }
                 Stmt::For(ref itor, ref start, ref end, ref step, ref inner_block, scope_id) => {
                     self.ast_symbol_table.set_area_ptr_by_id(scope_id);
-                    self.gen_for_hir(itor, start, end, step, inner_block, ret_obj);
+                    self.gen_for_hir(itor, start, end, step, inner_block);
                     self.ast_symbol_table.ret_to_parent_scope();
                 }
                 Stmt::While(ref cond, ref inner_block, scope_id) => {
                     self.ast_symbol_table.set_area_ptr_by_id(scope_id);
-                    self.gen_while_hir(cond, inner_block, ret_obj);
+                    self.gen_while_hir(cond, inner_block);
                     self.ast_symbol_table.ret_to_parent_scope();
                 }
                 Stmt::If(ref cond, ref inner_block, ref mut elifs, scope_id) => {
                     self.ast_symbol_table.set_area_ptr_by_id(scope_id);
-                    self.gen_if_hir(cond, inner_block, &mut elifs.clone(), ret_obj);
+                    self.gen_if_hir(cond, inner_block, &mut elifs.clone());
                     self.ast_symbol_table.ret_to_parent_scope();
                 }
                 Stmt::Func(ref name, ref argcs, ref var_type, ref _block, _) => {
@@ -546,7 +547,7 @@ impl HirGenerator {
                     }
                 }
                 Stmt::Return(ref ret_expr) => {
-                    self.gen_return_hir(block_id, ret_expr, ret_obj);
+                    self.gen_return_hir(block_id, ret_expr);
                 }
                 Stmt::Default => {}
             }
@@ -567,51 +568,71 @@ impl HirGenerator {
         // Increment reference for the slot that was stored
         res.push(HIRInst::IncRef { obj: value_slot_id });
 
-        let binding = left.borrow();
-        let name = match &*binding {
-            &Expr::Var(ref n, _) => n,
-            _ => panic!("Assignment left side must be a variable"),
-        };
-        let sym = self
-            .ast_symbol_table
-            .find_symbol(name)
-            .expect("Assignment left side must be a variable");
-        let id = VarId(sym.id);
-        let new_sym = HirVarSymbol::new(sym.clone(), value_slot_id);
+        match &*left.borrow() {
+            Expr::Var(name, _) => {
+                let sym = self
+                    .ast_symbol_table
+                    .find_symbol(name)
+                    .expect("Assignment left side must be a variable");
+                let id = VarId(sym.id);
+                let new_sym = HirVarSymbol::new(sym.clone(), value_slot_id);
 
-        let mut slot = match self.slot_registry.get(&value_slot_id) {
-            None => panic!(""),
-            Some(x) => x.clone(),
-        };
-        if sym.level > slot.cur_leve_id {
-            slot.cur_leve_id = sym.level;
-            slot.escape();
-        }
-        slot.set_near_use(self.hir.len());
-        self.slot_registry.insert(value_slot_id, slot);
+                let mut slot = match self.slot_registry.get(&value_slot_id) {
+                    None => panic!(""),
+                    Some(x) => x.clone(),
+                };
+                if sym.level > slot.cur_leve_id {
+                    slot.cur_leve_id = sym.level;
+                    slot.escape();
+                }
+                slot.set_near_use(self.hir.len());
+                self.slot_registry.insert(value_slot_id, slot);
 
-        let old_obj_id = self.var_registry.get(&id).map(|s| s.obj_id);
+                let old_obj_id = self.var_registry.get(&id).map(|s| s.obj_id);
 
-        res.push(HIRInst::Bind {
-            var: id,
-            obj: value_slot_id,
-        });
+                res.push(HIRInst::Bind {
+                    var: id,
+                    obj: value_slot_id,
+                });
 
-        if let Some(sym) = self.ast_symbol_table.find_symbol(name)
-            && (sym.level < self.ast_symbol_table.get_level() || sym.is_argc)
-        {
-            value_slot_id.escape(&mut self.slot_registry);
-        }
+                if let Some(sym) = self.ast_symbol_table.find_symbol(name)
+                    && (sym.level < self.ast_symbol_table.get_level() || sym.is_argc)
+                {
+                    value_slot_id.escape(&mut self.slot_registry);
+                }
 
-        self.var_registry.insert(id, new_sym);
+                self.var_registry.insert(id, new_sym);
 
-        if let Some(old) = old_obj_id {
-            let old_slot = self.slot_registry.get(&old).expect("");
-            if old_slot.escape {
-                res.push(HIRInst::DecRef { obj: old });
+                // Do not auto-dec old binding here; lifetime is handled by ownership of new value.
+                value_slot_id.set_near_use(&mut self.slot_registry, self.hir.len());
             }
+            Expr::ArrayElem(name, idx, _) => {
+                let arr_var_id = self.find_var_id(name);
+                let arr_slot = self.get_next_temp_slot_id();
+                res.push(HIRInst::Load {
+                    var: arr_var_id,
+                    obj: arr_slot,
+                });
+
+                let idx_slot = self.gen_expr_ir(idx);
+                res.push(HIRInst::ArraySet {
+                    arr: arr_slot,
+                    idx: idx_slot,
+                    src: value_slot_id,
+                });
+
+                arr_slot.set_near_use(&mut self.slot_registry, self.hir.len());
+                idx_slot.set_near_use(&mut self.slot_registry, self.hir.len());
+                value_slot_id.set_near_use(&mut self.slot_registry, self.hir.len());
+                value_slot_id.escape(&mut self.slot_registry);
+
+                if let Some(sym) = self.var_registry.get(&arr_var_id) {
+                    sym.obj_id
+                        .set_near_use(&mut self.slot_registry, self.hir.len());
+                }
+            }
+            _ => panic!("Assignment left side must be a variable"),
         }
-        value_slot_id.set_near_use(&mut self.slot_registry, self.hir.len());
 
         (res, value_slot_id)
     }
@@ -629,7 +650,6 @@ impl HirGenerator {
         cond: &Rc<RefCell<Expr>>,
         block: &Block,
         elifs: &mut Vec<(Rc<RefCell<Expr>>, Block)>,
-        ret_obj: &mut SlotId,
     ) {
         elifs.insert(0, (cond.clone(), block.clone()));
         self.ast_symbol_table.into_new_scope();
@@ -663,7 +683,7 @@ impl HirGenerator {
             }));
 
             self.emit_block(then_block_id);
-            self.gen_block_ir(then_block_id, &elifs[elif_idx].1, ret_obj);
+            self.gen_block_ir(then_block_id, &elifs[elif_idx].1);
             elif_idx += 1;
             self.hir.push(HIR::Inst(HIRInst::Jmp { target: merge_id }));
         }
@@ -680,7 +700,6 @@ impl HirGenerator {
         end: &Rc<RefCell<Expr>>,
         step: &Rc<RefCell<Expr>>,
         block: &Block,
-        ret_obj: &mut SlotId,
     ) {
         let init_block_id = self.new_block();
         let cond_block_id = self.new_block();
@@ -720,7 +739,7 @@ impl HirGenerator {
         // cond_block_id will be emitted later
 
         self.emit_block(body_block_id);
-        self.gen_block_ir(body_block_id, block, ret_obj);
+        self.gen_block_ir(body_block_id, block);
 
         self.hir.push(HIR::Inst(HIRInst::BinOp {
             left: itor_id,
@@ -758,7 +777,7 @@ impl HirGenerator {
         end_id.set_near_use(&mut self.slot_registry, self.hir.len());
         step_id.set_near_use(&mut self.slot_registry, self.hir.len());
     }
-    fn gen_while_hir(&mut self, cond: &Rc<RefCell<Expr>>, block: &Block, ret_obj: &mut SlotId) {
+    fn gen_while_hir(&mut self, cond: &Rc<RefCell<Expr>>, block: &Block) {
         let br_block_id = self.new_block();
         self.emit_block(br_block_id);
         let cond_id = self.gen_expr_ir(cond);
@@ -774,7 +793,7 @@ impl HirGenerator {
         }));
         // Defer emitting blocks until the parent block is emitted to preserve source order.
         self.emit_block(body_block_id);
-        self.gen_block_ir(body_block_id, block, ret_obj);
+        self.gen_block_ir(body_block_id, block);
         self.hir.push(HIR::Inst(HIRInst::Jmp {
             target: br_block_id,
         }));
@@ -794,17 +813,13 @@ impl HirGenerator {
             Some(sym) => sym,
         };
         self.hir.push(HIR::FuncLabel(hir::FuncId(ast_fn_sym.id)));
-        let slot_id = self.get_next_slot_id();
         let mut fn_sym = HirFuncSymbol {
             ty_set: ast_fn_sym.its_type,
-            ret_obj_id: slot_id,
             id: FuncId(ast_fn_sym.id),
             param_id: Vec::new(),
             is_main: name == "main",
             name: name.clone(),
         };
-        self.slot_registry
-            .insert(slot_id, ObjSlot::new(self.ast_symbol_table.get_level()));
 
         let entry_block_id = self.new_block();
         self.emit_block(entry_block_id);
@@ -852,13 +867,55 @@ impl HirGenerator {
 
         self.func_registry.insert(fn_sym.id, fn_sym.clone());
 
+        let func_body_start = self.hir.len();
+
         self.hir.push(HIR::Inst(HIRInst::Jmp {
             target: body_block_id,
         }));
         self.emit_block(body_block_id);
 
-        self.gen_block_ir(body_block_id, block, &mut fn_sym.ret_obj_id);
+        self.gen_block_ir(body_block_id, block);
         self.func_registry.insert(fn_sym.id, fn_sym.clone());
+
+        // If function has no explicit return, insert an implicit `Ret` of the first parameter (or null if none).
+        let mut has_ret = false;
+        let mut idx = func_body_start;
+        while idx < self.hir.len() {
+            match &self.hir[idx] {
+                HIR::FuncLabel(_) => break,
+                HIR::Inst(HIRInst::Ret { .. }) => {
+                    has_ret = true;
+                    break;
+                }
+                _ => {}
+            }
+            idx += 1;
+        }
+
+        if !has_ret {
+            if let Some(first_param) = fn_sym.param_id.first() {
+                // load first param into a temp slot and return it
+                let ret_slot = self.get_next_temp_slot_id();
+                self.hir.push(HIR::Inst(HIRInst::Load {
+                    var: *first_param,
+                    obj: ret_slot,
+                }));
+                self.hir.push(HIR::Inst(HIRInst::Ret { ret_obj: ret_slot }));
+            } else {
+                // no params: synthesize a zero literal return to avoid falling through
+                let mut s = ObjSlot::new(self.ast_symbol_table.get_level());
+                s.push(Value::Const(hir::Const::Int(0)));
+                let ret_slot = self.get_next_slot_id();
+                self.slot_registry.insert(ret_slot, s);
+
+                self.hir.push(HIR::Inst(HIRInst::New {
+                    obj_type: VarType::Int,
+                    val: "0".to_string(),
+                    dst: ret_slot,
+                }));
+                self.hir.push(HIR::Inst(HIRInst::Ret { ret_obj: ret_slot }));
+            }
+        }
 
         /*for i in 0..argcs.len() {
             let Argc {
@@ -882,6 +939,8 @@ impl HirGenerator {
         let func_sym = self.find_func_sym(name);
         let mut param_ids = Vec::new();
 
+        let dst_slot = self.get_next_slot_id();
+
         let mut call_args: Vec<SlotId> = Vec::new();
         for i in 0..argcs.len() {
             let arg_slot_id = self.gen_expr_ir(&argcs[i]);
@@ -894,11 +953,9 @@ impl HirGenerator {
         self.hir.push(HIR::Inst(HIRInst::Call {
             id: func_sym.id,
             args: call_args,
-            ret: func_sym.ret_obj_id,
+            dst: dst_slot,
         }));
-        func_sym
-            .ret_obj_id
-            .set_near_use(&mut self.slot_registry, self.hir.len());
+        dst_slot.set_near_use(&mut self.slot_registry, self.hir.len());
 
         for i in param_ids {
             i.set_near_use(&mut self.slot_registry, self.hir.len());
@@ -907,9 +964,11 @@ impl HirGenerator {
         self.func_registry.insert(func_sym.id, func_sym);
     }
     fn gen_call_inst(&mut self, name: &String, argcs: &Vec<Rc<RefCell<Expr>>>) -> Vec<HIRInst> {
-        let res = Vec::<HIRInst>::new();
+        let mut res = Vec::<HIRInst>::new();
         let func_sym = self.find_func_sym(name);
         let mut param_ids = Vec::new();
+
+        let ret_slot = self.get_next_slot_id();
 
         if argcs.len() >= 1 {
             let mut call_args: Vec<SlotId> = Vec::new();
@@ -924,18 +983,16 @@ impl HirGenerator {
             self.hir.push(HIR::Inst(HIRInst::Call {
                 id: func_sym.id,
                 args: call_args,
-                ret: func_sym.ret_obj_id,
+                dst: ret_slot,
             }));
         } else {
             self.hir.push(HIR::Inst(HIRInst::Call {
                 id: func_sym.id,
                 args: Vec::new(),
-                ret: func_sym.ret_obj_id,
+                dst: ret_slot,
             }));
         }
-        func_sym
-            .ret_obj_id
-            .set_near_use(&mut self.slot_registry, self.hir.len());
+        ret_slot.set_near_use(&mut self.slot_registry, self.hir.len());
         self.func_registry.insert(func_sym.id, func_sym);
 
         for i in param_ids {
@@ -944,12 +1001,7 @@ impl HirGenerator {
 
         res
     }
-    fn gen_return_hir(
-        &mut self,
-        #[allow(unused)] block_id: BlockId,
-        ret_expr: &Rc<RefCell<Expr>>,
-        ret_obj: &mut SlotId,
-    ) {
+    fn gen_return_hir(&mut self, #[allow(unused)] block_id: BlockId, ret_expr: &Rc<RefCell<Expr>>) {
         let value_slot_id = self.gen_expr_ir(ret_expr);
 
         self.hir.push(HIR::Inst(HIRInst::Ret {
@@ -957,9 +1009,6 @@ impl HirGenerator {
         }));
         value_slot_id.set_near_use(&mut self.slot_registry, self.hir.len());
         value_slot_id.escape(&mut self.slot_registry);
-
-        // push returned object id into ret_obj slot
-        ret_obj.append(&mut self.slot_registry, &value_slot_id);
     }
     fn gen_stmt_hir(&mut self, stmt: Stmt) {
         match stmt {
@@ -968,42 +1017,17 @@ impl HirGenerator {
             }
             Stmt::For(ref itor, ref start, ref end, ref step, ref block, scope_id) => {
                 self.ast_symbol_table.set_area_ptr_by_id(scope_id);
-                self.gen_for_hir(
-                    itor,
-                    start,
-                    end,
-                    step,
-                    block,
-                    &mut SlotId {
-                        id: -1,
-                        temp: false,
-                    },
-                );
+                self.gen_for_hir(itor, start, end, step, block);
                 self.ast_symbol_table.ret_to_parent_scope();
             }
             Stmt::While(ref cond, ref block, scope_id) => {
                 self.ast_symbol_table.set_area_ptr_by_id(scope_id);
-                self.gen_while_hir(
-                    cond,
-                    block,
-                    &mut SlotId {
-                        id: -1,
-                        temp: false,
-                    },
-                );
+                self.gen_while_hir(cond, block);
                 self.ast_symbol_table.ret_to_parent_scope();
             }
             Stmt::If(ref cond, ref block, ref elifs, scope_id) => {
                 self.ast_symbol_table.set_area_ptr_by_id(scope_id);
-                self.gen_if_hir(
-                    cond,
-                    block,
-                    &mut elifs.clone(),
-                    &mut SlotId {
-                        id: -1,
-                        temp: false,
-                    },
-                );
+                self.gen_if_hir(cond, block, &mut elifs.clone());
                 self.ast_symbol_table.ret_to_parent_scope();
             }
             Stmt::Func(ref name, ref argcs, ref var_type, ref block, scope_id) => {
@@ -1036,23 +1060,25 @@ impl HirGenerator {
         while i < self.hir.len() {
             if let HIR::Block(_) = self.hir[i] {
                 let mut flag = true;
+                let block_start = i;
                 i += 1;
 
                 while flag && i < self.hir.len() {
                     match self.hir[i] {
                         HIR::Block(_) | HIR::FuncLabel(_) => {
-                            if i != 0 {
-                                if let HIR::Inst(x) = &self.hir[i - 1] {
-                                    match x {
-                                        HIRInst::Br { .. }
-                                        | HIRInst::Jmp { .. }
-                                        | HIRInst::Ret { .. }
-                                        | HIRInst::Unreachable => {
-                                            break;
-                                        }
-                                        _ => {
-                                            self.hir.insert(i, HIR::Inst(HIRInst::Unreachable));
-                                        }
+                            if i == block_start + 1 {
+                                // empty block: insert unreachable
+                                self.hir.insert(i, HIR::Inst(HIRInst::Unreachable));
+                            } else if let HIR::Inst(x) = &self.hir[i - 1] {
+                                match x {
+                                    HIRInst::Br { .. }
+                                    | HIRInst::Jmp { .. }
+                                    | HIRInst::Ret { .. }
+                                    | HIRInst::Unreachable => {
+                                        break;
+                                    }
+                                    _ => {
+                                        self.hir.insert(i, HIR::Inst(HIRInst::Unreachable));
                                     }
                                 }
                             }
@@ -1124,9 +1150,34 @@ impl HirGenerator {
 
         // For each Delete: if the slot did NOT escape, remove related IncRef/DecRef.
         // Otherwise move IncRef/DecRef before Delete (so they act on live object).
+        // Additionally: if a slot has any IncRef/DecRef at all, skip inserting Delete for it.
         let mut idx = 0;
         while idx < self.hir.len() {
             if let HIR::Inst(HIRInst::Delete { dst }) = self.hir[idx] {
+                // Skip Delete if there is an IncRef/DecRef for this slot in the same function.
+                let mut has_ref_ops = false;
+                for scan in 0..self.hir.len() {
+                    match &self.hir[scan] {
+                        HIR::FuncLabel(_) => {
+                            if scan > idx {
+                                break;
+                            }
+                        }
+                        HIR::Inst(HIRInst::IncRef { obj }) | HIR::Inst(HIRInst::DecRef { obj })
+                            if *obj == dst =>
+                        {
+                            has_ref_ops = true;
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+
+                if has_ref_ops {
+                    self.hir.remove(idx);
+                    continue;
+                }
+
                 // check slot escape info
                 if let Some(slot_info) = self.slot_registry.get(&dst) {
                     if !slot_info.escape {
@@ -1201,6 +1252,113 @@ impl HirGenerator {
             idx += 1;
         }
 
+        // Ensure every basic block ends with a terminator.
+        // Prefer jumping to the next block within the same function; if none,
+        // insert a sensible return: for main return int 0; otherwise return the
+        // first parameter if it exists, else return int 0.
+        let mut idx_block = 0;
+        let mut cur_func: Option<FuncId> = None;
+        while idx_block < self.hir.len() {
+            if let HIR::FuncLabel(fid) = self.hir[idx_block] {
+                cur_func = Some(fid);
+            }
+
+            if let HIR::Block(block_id) = self.hir[idx_block] {
+                let mut j = idx_block + 1;
+                let mut has_term = false;
+                while j < self.hir.len() {
+                    match &self.hir[j] {
+                        HIR::Block(_) | HIR::FuncLabel(_) => break,
+                        HIR::Inst(inst) => match inst {
+                            HIRInst::Br { .. }
+                            | HIRInst::Jmp { .. }
+                            | HIRInst::Ret { .. }
+                            | HIRInst::Unreachable => {
+                                has_term = true;
+                                break;
+                            }
+                            _ => {}
+                        },
+                    }
+                    j += 1;
+                }
+
+                if !has_term {
+                    // find the next block in the same function
+                    let mut k = j;
+                    let mut next_block: Option<BlockId> = None;
+                    while k < self.hir.len() {
+                        match &self.hir[k] {
+                            HIR::FuncLabel(_) => break,
+                            HIR::Block(bid) => {
+                                next_block = Some(*bid);
+                                break;
+                            }
+                            _ => {}
+                        }
+                        k += 1;
+                    }
+
+                    if let Some(target) = next_block {
+                        self.hir.insert(j, HIR::Inst(HIRInst::Jmp { target }));
+                        idx_block = j + 1;
+                        continue;
+                    }
+
+                    // No subsequent block: synthesize a return.
+                    let is_main = if let Some(fid) = cur_func {
+                        if let Some(sym) = self.func_registry.get(&fid) {
+                            sym.is_main
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+
+                    if is_main {
+                        let ret_slot = self.get_next_slot_id();
+                        self.hir.push(HIR::Inst(HIRInst::New {
+                            obj_type: VarType::Int,
+                            val: "0".to_string(),
+                            dst: ret_slot,
+                        }));
+                        self.hir.push(HIR::Inst(HIRInst::Ret { ret_obj: ret_slot }));
+                    } else if let Some(fid) = cur_func
+                        && let Some(sym) = self.func_registry.get(&fid)
+                        && let Some(first_param) = sym.param_id.first()
+                    {
+                        if let Some(var_sym) = self.var_registry.get(first_param) {
+                            self.hir.push(HIR::Inst(HIRInst::Ret {
+                                ret_obj: var_sym.obj_id,
+                            }));
+                        } else {
+                            let ret_slot = self.get_next_slot_id();
+                            self.hir.push(HIR::Inst(HIRInst::New {
+                                obj_type: VarType::Int,
+                                val: "0".to_string(),
+                                dst: ret_slot,
+                            }));
+                            self.hir.push(HIR::Inst(HIRInst::Ret { ret_obj: ret_slot }));
+                        }
+                    } else {
+                        let ret_slot = self.get_next_slot_id();
+                        self.hir.push(HIR::Inst(HIRInst::New {
+                            obj_type: VarType::Int,
+                            val: "0".to_string(),
+                            dst: ret_slot,
+                        }));
+                        self.hir.push(HIR::Inst(HIRInst::Ret { ret_obj: ret_slot }));
+                    }
+
+                    idx_block = self.hir.len();
+                    continue;
+                }
+            }
+
+            idx_block += 1;
+        }
+
         // Move each Delete into the last-use block and place it before that block's last instruction.
         let mut i = 0;
         while i < self.hir.len() {
@@ -1221,8 +1379,11 @@ impl HirGenerator {
                                 HIRInst::ArrayGet { arr, idx, dst: d } => {
                                     *arr == dst || *idx == dst || *d == dst
                                 }
+                                HIRInst::ArraySet { arr, idx, src } => {
+                                    *arr == dst || *idx == dst || *src == dst
+                                }
                                 HIRInst::Br { cond, .. } => *cond == dst,
-                                HIRInst::Call { ret, .. } => *ret == dst,
+                                HIRInst::Call { dst: d, .. } => *d == dst,
                                 HIRInst::BinOp {
                                     left,
                                     right,
@@ -1359,6 +1520,7 @@ impl HirGenerator {
             self.gen_stmt_hir(self.stmts[i].clone());
         }
 
+        // Lifetime Delete pass disabled to avoid premature frees; refcounts handled explicitly.
         self.analyze_lifetime();
 
         self.checker();

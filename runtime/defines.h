@@ -6,8 +6,15 @@ extern "C" Object *alloc_int(const int value);
 extern "C" Object *alloc_bool(const bool value);
 extern "C" Object *alloc_float(const double value);
 extern "C" Object *alloc_char(const char value);
+extern "C" void runtime_debug_ref(int op, int slot_id, Object *obj);
 
 #define UNION(a, b) a##b
+
+#ifdef DEBUG
+extern "C" void runtime_register(Object *obj);
+extern "C" void runtime_unregister(Object *obj);
+extern "C" int runtime_is_registered(Object *obj);
+#endif
 
 #define FREE_AS(type)                     \
     case VarType::type:                   \
@@ -26,6 +33,7 @@ extern "C" Object *alloc_char(const char value);
         ptr->header.type = VarType::TYPENAME;                                                              \
         ptr->header.refcnt = 0;                                                                            \
         ptr->value = value;                                                                                \
+        runtime_register((Object *)ptr);                                                                   \
         fprintf(stderr, "[runtime] alloc_%s value=%g ptr=%p\n", #name, (double)value, (void *)ptr);        \
         return (Object *)ptr;                                                                              \
     }

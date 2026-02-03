@@ -67,7 +67,6 @@ struct HirVarSymbol {
 pub(crate) struct HirFuncSymbol {
     #[allow(unused)]
     pub(super) ty_set: HashSet<VarType>, // 可能的返回值类型集合
-    pub(super) ret_obj_id: SlotId,
     pub(super) id: FuncId,
     pub(super) param_id: Vec<VarId>,
     pub(crate) is_main: bool,
@@ -115,6 +114,11 @@ pub(crate) enum HIRInst {
         from: Value,
         to: SlotId,
     },
+    ArraySet {
+        arr: SlotId,
+        idx: SlotId,
+        src: SlotId,
+    },
     ArrayNew {
         elems: Vec<SlotId>,
         dst: SlotId,
@@ -135,7 +139,7 @@ pub(crate) enum HIRInst {
     Call {
         id: FuncId,
         args: Vec<SlotId>,
-        ret: SlotId,
+        dst: SlotId,
     },
     BinOp {
         left: SlotId,

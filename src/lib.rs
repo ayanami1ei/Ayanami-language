@@ -16,6 +16,7 @@ pub mod symbol_table;
 pub mod tokenlizer;
 pub mod type_inferrer;
 pub mod types;
+pub mod pakager;
 
 pub fn run() {
     let path = "./test.aya";
