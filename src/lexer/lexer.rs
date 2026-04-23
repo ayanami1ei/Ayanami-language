@@ -1,4 +1,4 @@
-use crate::tokenlizer::token::{Token, TokenKind, Keyword};
+use crate::lexer::token::{Token, TokenKind, Keyword};
 
 pub struct Lexer<'a> {
     chars: Vec<char>,
@@ -122,6 +122,8 @@ impl<'a> Lexer<'a> {
                     "int" => TokenKind::Keyword(Keyword::Int),
                     "float" => TokenKind::Keyword(Keyword::Float),
                     "char" => TokenKind::Keyword(Keyword::Char),
+                    "mut" => TokenKind::Keyword(Keyword::Mut),
+                    "shared" => TokenKind::Keyword(Keyword::Shared),
                     _ => TokenKind::Identifier(s),
                 };
                 Token::new(kind, l, ccol)
@@ -164,7 +166,7 @@ impl<'a> Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tokenlizer::token::TokenKind;
+    use crate::lexer::token::TokenKind;
 
     #[test]
     fn smoke() {

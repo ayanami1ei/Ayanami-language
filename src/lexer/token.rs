@@ -10,6 +10,8 @@ pub enum Keyword {
     Int,
     Float,
     Char,
+    Mut,
+    Shared,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,6 +50,8 @@ impl fmt::Display for Keyword {
             Keyword::Int => "int",
             Keyword::Float => "float",
             Keyword::Char => "char",
+            Keyword::Mut => "mut",
+            Keyword::Shared => "shared",
         };
         write!(f, "{}", s)
     }
