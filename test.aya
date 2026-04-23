@@ -34,7 +34,8 @@ fn main() {
 
     i = 0
     while i < n {
-        write(arr[i])
+       write(arr[i])
         i = i + 1
     }
+    
 }

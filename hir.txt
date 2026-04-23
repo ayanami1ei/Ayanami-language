@@ -30,7 +30,6 @@ func_5:
         slot_13 < slot_14 -> slot_15
         Br cond: slot_15, then-block: block_6, else-block: block_merge_7
     block_6: 
-        //Delete slot_15
         Load var_9 to slot_17
         Load var_6 to slot_16
         ArrayGet slot_16[slot_17] -> slot_18
@@ -52,16 +51,17 @@ func_5:
         New {int } -> slot_28, val = 1
         slot_27 + slot_28 -> slot_29
         Increase Reference of slot_29
-        //Delete slot_28
         Bind var_9 and slot_29
+        //Delete slot_15
+        //Delete slot_28
         Jmp to block_merge_7
     block_merge_7: 
         Load var_11 to slot_30
         New {int } -> slot_31, val = 1
         slot_30 + slot_31 -> slot_32
         Increase Reference of slot_32
-        //Delete slot_31
         Bind var_11 and slot_32
+        //Delete slot_31
         Jmp to block_2
     block_merge_4: 
         Load var_9 to slot_34
@@ -94,7 +94,6 @@ func_17:
         slot_48 < slot_49 -> slot_50
         Br cond: slot_50, then-block: block_11, else-block: block_merge_12
     block_11: 
-        //Delete slot_50
         Load var_18 to slot_51
         Increase Reference of slot_51
         Load var_19 to slot_52
@@ -104,6 +103,7 @@ func_17:
         Call func_5, args: [slot_51 slot_52 slot_53 ], dst:slot_54
         Increase Reference of slot_54
         Bind var_21 and slot_54
+        //Delete slot_50
         Jmp to block_13
     block_13: 
         Load var_21 to slot_55
@@ -112,7 +112,6 @@ func_17:
         //Delete slot_56
         Br cond: slot_57, then-block: block_14, else-block: block_merge_15
     block_14: 
-        //Delete slot_57
         Load var_18 to slot_59
         Increase Reference of slot_59
         Load var_19 to slot_60
@@ -121,27 +120,26 @@ func_17:
         New {int } -> slot_62, val = 1
         slot_61 - slot_62 -> slot_63
         Increase Reference of slot_63
-        //Delete slot_62
         Call func_17, args: [slot_59 slot_60 slot_63 ], dst:slot_58
+        //Delete slot_57
+        //Delete slot_62
         Jmp to block_merge_15
     block_merge_15: 
-        //Delete slot_63
-        //Delete slot_58
         Load var_18 to slot_65
         Increase Reference of slot_65
         Load var_21 to slot_66
         New {int } -> slot_67, val = 1
         slot_66 + slot_67 -> slot_68
         Increase Reference of slot_68
-        //Delete slot_67
         Load var_20 to slot_69
         Increase Reference of slot_69
         Call func_17, args: [slot_65 slot_68 slot_69 ], dst:slot_64
+        //Delete slot_58
+        //Delete slot_67
         Jmp to block_merge_12
     block_merge_12: 
-        //Delete slot_68
-        //Delete slot_64
         Load var_18 to slot_70
+        //Delete slot_64
         Ret slot_70
 func_22:
     block_16: 
@@ -168,23 +166,19 @@ func_22:
         New {int } -> slot_84, val = 1
         slot_83 - slot_84 -> slot_85
         Increase Reference of slot_85
-        //Delete slot_84
         Call func_17, args: [slot_81 slot_82 slot_85 ], dst:slot_80
         New {int } -> slot_86, val = 0
         Increase Reference of slot_86
-        //Delete slot_80
-        //Delete slot_82
-        //Delete slot_85
         Bind var_25 and slot_86
+        //Delete slot_84
+        //Delete slot_80
         Jmp to block_18
     block_18: 
         Load var_25 to slot_87
         Load var_24 to slot_88
         slot_87 < slot_88 -> slot_89
-        //Delete slot_79
         Br cond: slot_89, then-block: block_19, else-block: block_merge_20
     block_19: 
-        //Delete slot_89
         Load var_25 to slot_92
         Load var_23 to slot_91
         ArrayGet slot_91[slot_92] -> slot_93
@@ -192,12 +186,12 @@ func_22:
         Call func_1, args: [slot_93 ], dst:slot_90
         Load var_25 to slot_94
         New {int } -> slot_95, val = 1
-        //Delete slot_86
-        //Delete slot_90
         slot_94 + slot_95 -> slot_96
         Increase Reference of slot_96
-        //Delete slot_95
         Bind var_25 and slot_96
+        //Delete slot_89
+        //Delete slot_90
+        //Delete slot_95
         Jmp to block_18
     block_merge_20: 
         New {int } -> slot_97, val = 0
