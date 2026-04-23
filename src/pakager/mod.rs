@@ -1,3 +1,5 @@
+use crate::symbol_table::Symbol;
+
 pub(crate) mod implement;
 pub(crate) mod tlv;
 
@@ -14,7 +16,7 @@ pub(crate) struct PakageInfo {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[allow(dead_code)]
-pub(crate) enum UseMode {
+pub enum UseMode {
     AsDeveloper,
     #[default]
     AsUser,
@@ -22,7 +24,7 @@ pub(crate) enum UseMode {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[allow(dead_code)]
-pub(crate) enum Target {
+pub enum Target {
     #[default]
     Executable,
     StaticLib,
@@ -31,7 +33,7 @@ pub(crate) enum Target {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[allow(dead_code)]
-pub(crate) enum Arch {
+pub enum Arch {
     X86X64,
     X86,
     AArch64,
@@ -46,7 +48,7 @@ pub(crate) enum Arch {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[allow(dead_code)]
-pub(crate) enum System {
+pub enum System {
     Windows,
     Linux,
     #[default]
@@ -60,5 +62,6 @@ pub(crate) struct Pakage {
     pub(crate) target: Target,
     pub(crate) arch: Arch,
     pub(crate) system: System,
+    pub(crate) symbols: Vec<Symbol>,
     pub(crate) bc: Vec<u8>,
 }

@@ -25,4 +25,19 @@ pub(crate) enum TlvType {
     Bc = 0x08,
 
     System = 0x09,
+
+    Symbol=0x0A,
+    SymbolsName = 0x0B,
+    SymbolIsFunc=0x0C,
+    SymbolArgs=0x0D,
+    SymbolIsArgc=0x0E,
+    SymbolIsRef=0x0F,
+    SymbolIsVar=0x10,
+    SymbolItsType=0x11,
+    SymbolIsArr=0x12,
+    SymbolElemType=0x13,
+    SymbolId=0x14,
+    SymbolLevel=0x15,
+    SymbolScopeId=0x16,
+    SymbolBodyScopeId=0x17,
 }

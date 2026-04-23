@@ -652,6 +652,7 @@ impl TypeInferrer {
 
         Ok(())
     }
+
     fn semantic_analysise_stmt(&mut self, stmt: Stmt) -> Result<(), Error> {
         self.dummy = Rc::new(RefCell::new(stmt));
 

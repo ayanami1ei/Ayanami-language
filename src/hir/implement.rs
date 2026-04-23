@@ -549,6 +549,9 @@ impl HirGenerator {
                 Stmt::Return(ref ret_expr) => {
                     self.gen_return_hir(block_id, ret_expr);
                 }
+                Stmt::Import(ref pak_name) => {
+                    self.gen_import_hir(pak_name);
+                }
                 Stmt::Default => {}
             }
         }
@@ -1010,6 +1013,9 @@ impl HirGenerator {
         value_slot_id.set_near_use(&mut self.slot_registry, self.hir.len());
         value_slot_id.escape(&mut self.slot_registry);
     }
+    fn gen_import_hir(&mut self, pak_name: &String) {
+        todo!();
+    }
     fn gen_stmt_hir(&mut self, stmt: Stmt) {
         match stmt {
             Stmt::Assign(ref left, ref right) => {
@@ -1037,6 +1043,9 @@ impl HirGenerator {
             }
             Stmt::Call(ref name, ref argcs, _) => {
                 self.gen_call_hir(name, argcs);
+            }
+            Stmt::Import(ref pak_name) => {
+                self.gen_import_hir(pak_name);
             }
             Stmt::Return(_) => panic!("cannot generate return stmt hir in gen_stmt_hir"),
             Stmt::Default => panic!("unkonwn stmt"),
@@ -1522,7 +1531,6 @@ impl HirGenerator {
             self.gen_stmt_hir(self.stmts[i].clone());
         }
 
-        // Lifetime Delete pass disabled to avoid premature frees; refcounts handled explicitly.
         self.analyze_lifetime();
 
         self.checker();

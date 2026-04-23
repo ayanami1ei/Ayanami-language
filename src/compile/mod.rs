@@ -1,7 +1,5 @@
 use std::{
-    fs::{self, File},
-    path::{Path, PathBuf},
-    process::Command,
+    ffi::{CStr, c_char}, fs::{self, File}, path::{Path, PathBuf}, process::Command
 };
 
 use inkwell::{
@@ -189,4 +187,25 @@ pub fn compile(pak_path: &str, output_path: &str) {
     if pak.use_mode == UseMode::AsUser {
         let _ = fs::remove_file(pak_path);
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn compile_api(c_pak_path:*const c_char, c_output_path:*const c_char) {
+    if c_pak_path.is_null() || c_output_path.is_null() {
+        return;
+    }
+
+    let pak_path = unsafe { CStr::from_ptr(c_pak_path) };
+    let s1 = match pak_path.to_str() {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let output_path = unsafe { CStr::from_ptr(c_output_path) };
+    let s2 = match output_path.to_str() {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+
+    compile(s1, s2);
 }

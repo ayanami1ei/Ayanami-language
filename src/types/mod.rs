@@ -81,5 +81,6 @@ pub enum Stmt {
     ),
     Func(String, Vec<Argc>, HashSet<VarType>, Block, i32),
     Return(Rc<RefCell<Expr>>),
+    Import(String),
     Default,
 }

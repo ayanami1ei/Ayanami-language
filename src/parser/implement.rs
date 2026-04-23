@@ -4,10 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::{
-    error_type::Error,
-    parser::Parser,
-    symbol_table::{Symbol, SymbolTable},
-    types::{Argc, Block, Expr, Stmt, Token, VarType},
+    error_type::Error, pakager::Pakage, parser::Parser, symbol_table::{Symbol, SymbolTable}, types::{Argc, Block, Expr, Stmt, Token, VarType}
 };
 
 static mut BLOCK_ID: i32 = -1;
@@ -665,6 +662,20 @@ impl Parser {
         let ret = self.parser_add_sub()?;
         Ok(Stmt::Return(ret))
     }
+    fn parser_import(&mut self) -> Result<Stmt, Error> {
+        if let Token::Identifier(ref name) = self.peek() {
+            let pak=Pakage::analyze_pak(name);
+
+            for i in pak.symbols {
+                self.symbol_table.add_symbol(i);
+            }
+
+            self.next()?;
+            return Ok(Stmt::Import(name.to_string()));
+        }
+
+        Err(Error::new_error("must be a identifier behind import".to_string()))
+    }
 
     fn parser_stmt(&mut self) -> Result<Stmt, Error> {
         if self.is(Token::Keyword("fn".to_string()))? {
@@ -677,6 +688,8 @@ impl Parser {
             Ok(self.parser_if()?)
         } else if self.is(Token::Keyword("return".to_string()))? {
             Ok(self.parser_return()?)
+        } else if self.is(Token::Keyword("import".to_string()))? {
+            Ok(self.parser_import()?)
         } else {
             let expr = self.parser_add_sub()?;
             if self.is(Token::Operator("=".to_string()))? {

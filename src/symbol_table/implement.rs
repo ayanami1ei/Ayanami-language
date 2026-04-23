@@ -361,4 +361,9 @@ impl SymbolTable {
     pub(crate) fn get_level(&mut self) -> i32 {
         self.now_level
     }
+
+    pub(crate) fn export_root_symbols(&self) -> Vec<Symbol> {
+        let binding = self.area.borrow();
+        binding.symbol.clone()
+    }
 }

@@ -20,9 +20,7 @@ pub mod tokenlizer;
 pub mod type_inferrer;
 pub mod types;
 
-pub fn main() {
-    let path = "./test.aya";
-
+pub fn tokenlize(path: &str) -> Result<Vec<Vec<Token>>, error_type::Error> {
     let input = File::open(path).unwrap();
     let buffered = BufReader::new(input);
 
@@ -34,61 +32,99 @@ pub fn main() {
         let token = match tl.tokenlize() {
             Ok(v) => v,
             Err(e) => {
-                println!("{}", e);
-                return;
+                return Err(e);
             }
         };
         if token.len() != 0 {
             tokens.push(token);
         }
     }
+    return Ok(tokens);
+}
 
+pub fn parse(tokens: Vec<Vec<Token>>) -> Result<(Vec<Stmt>, SymbolTable), error_type::Error> {
     let symbol_table = SymbolTable::new();
 
     let mut parser = Parser::new(tokens, symbol_table.clone());
     let mut stmts = match parser.parser() {
         Ok(c) => c,
         Err(e) => {
-            println!("{}", e);
-            return;
+            return Err(e);
         }
     };
 
+    Ok((stmts, symbol_table))
+}
+pub fn type_infer(
+    mut stmts: Vec<Stmt>,
+    symbol_table: SymbolTable,
+) -> Result<Vec<Stmt>, error_type::Error> {
     let mut type_inferrer = TypeInferrer::new(stmts, symbol_table.clone());
-    stmts = type_inferrer.semantic_analysise().unwrap();
+    stmts = match type_inferrer.semantic_analysise() {
+        Ok(s) => s,
+        Err(e) => return Err(e),
+    };
 
-    let mut hir_generator = HirGenerator::new(stmts, symbol_table);
+    Ok(stmts)
+}
+pub fn pakage(
+    stmts: Vec<Stmt>,
+    symbol_table: SymbolTable,
+    out_dir: &str,
+    name: String,
+    version: String,
+    use_mode: UseMode,
+    target: Target,
+    arch: Arch,
+    system: System,
+) {
+    let out_dir = std::path::Path::new(out_dir);
+    let _ = fs::create_dir_all(out_dir);
+    let mut hir_generator = HirGenerator::new(stmts, symbol_table.clone());
     let hirs = hir_generator.gen_hir();
 
-    let hir_path = std::path::Path::new("./build/hir.txt");
-    if let Some(parent) = hir_path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    let _ = File::create(hir_path);
-    fs::write(hir_path, "").unwrap();
-    let mut hir_file = OpenOptions::new().append(true).open(hir_path).unwrap();
-    for i in hirs.clone() {
-        hir_file.write(&i.to_string().as_bytes()).unwrap();
-        hir_file.write("\n".as_bytes()).unwrap();
+    #[cfg(debug_assertions)]
+    {
+        let hir_path = out_dir.join("hir.txt");
+        if let Some(parent) = hir_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let _ = File::create(hir_path.clone());
+        fs::write(&hir_path, "").unwrap();
+        let mut hir_file = OpenOptions::new().append(true).open(&hir_path).unwrap();
+        for i in hirs.clone() {
+            hir_file.write(&i.to_string().as_bytes()).unwrap();
+            hir_file.write("\n".as_bytes()).unwrap();
+        }
     }
 
     // create an LLVM context and pass it to LIR generator
     let context = inkwell::context::Context::create();
-    let mut lir_generator = LirGenerator::new(&context, &hirs, hir_generator.func_registry);
+    let mut lir_generator = LirGenerator::new(&context, &hirs, hir_generator.func_registry.clone());
     lir_generator.gen_lir();
-    lir_generator.to_llvm_bc("./build/ayanami_test.bc");
+    let base_name = std::path::Path::new(&name)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("ayanami")
+        .to_string();
+    let bc_path = out_dir.join(format!("{}.bc", base_name));
+    lir_generator.to_llvm_bc(bc_path.to_string_lossy().as_ref());
 
     let pakager = Pakage::new(
-        "./build/ayanami_test.bc".to_string(),
-        "0.0.0".to_string(),
-        UseMode::AsDeveloper,
-        Target::Executable,
-        Arch::X86X64,
-        System::Default,
-        "./build/ayanami_test.bc".to_string(),
+        name,
+        version,
+        use_mode,
+        target,
+        arch,
+        system,
+        symbol_table.export_root_symbols().clone(),
+        bc_path.to_string_lossy().to_string(),
     );
 
-    pakager.gen_pak("./build/ayanami_test.lcl");
+    let pak_path = out_dir.join(format!("{}.lcl", base_name));
+    pakager.gen_pak(pak_path.to_string_lossy().as_ref());
+}
 
-    compile::compile("./build/ayanami_test.lcl", "./bin");
+pub fn compile(pak_path: &str, output_path: &str) {
+    compile::compile(pak_path, output_path);
 }

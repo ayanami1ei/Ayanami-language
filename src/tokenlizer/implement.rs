@@ -43,6 +43,9 @@ impl Tokenlizer {
             || s == "if"
             || s == "elif"
             || s == "else"
+            || s == "true"
+            || s == "false"
+            || s == "import"
     }
 
     fn tokenlize_identifier(&mut self) -> Token {
@@ -184,7 +187,7 @@ impl Tokenlizer {
 
                 continue;
             }
-            
+
             if Self::is_num(self.chars[self.i]) {
                 match self.tokenlize_num() {
                     Ok(x) => tokens.push(x),
