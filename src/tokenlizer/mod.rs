@@ -1,6 +1,5 @@
-pub mod implement;
+pub mod lexer;
+pub mod token;
 
-pub struct Tokenlizer{
-    i:usize,
-    chars:Vec<char>,
-}
+pub use lexer::Lexer;
+pub use token::{Keyword, Token, TokenKind};

@@ -1,41 +1,6 @@
-fn partition(arr, l, r) {
-    i = l
-    pivot = arr[r]
-    j = l
-    while j < r {
-        if arr[j] < pivot {
-            tmp = arr[i]
-            arr[i] = arr[j]
-            arr[j] = tmp
-            i = i + 1
-        }
-        j = j + 1
-    }
-    tmp = arr[i]
-    arr[i] = arr[r]
-    arr[r] = tmp
-    return i
-}
-
-fn qsort(arr, l, r) {
-    if l < r {
-        p = partition(arr, l, r)
-        if p > 0 { 
-            qsort(arr, l, p - 1)
-        }
-        qsort(arr, p + 1, r)
-    }
-}
-
-fn main() {
-    arr = [5, 1, 4, 2, 8, 0, 3]
-    n = 7  
-    qsort(arr, 0, n - 1)
-
-    i = 0
-    while i < n {
-       write(arr[i])
-        i = i + 1
-    }
-    
+fn main()->Result{
+    a=1
+    b='b'
+    c=0.1
+    d="sss"
 }

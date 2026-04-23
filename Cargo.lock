@@ -15,7 +15,6 @@ dependencies = [
  "anyhow",
  "inkwell",
  "llvm-sys",
- "macro_lib",
  "owo-colors",
 ]
 
@@ -91,10 +90,6 @@ dependencies = [
  "regex-lite",
  "semver",
 ]
-
-[[package]]
-name = "macro_lib"
-version = "0.1.0"
 
 [[package]]
 name = "once_cell"
