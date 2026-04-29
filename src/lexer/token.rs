@@ -22,7 +22,7 @@ pub enum TokenKind {
     FloatLiteral(String),
     CharLiteral(String),
     StringLiteral(String),
-    Symbol(String),
+    Operator(String),
     EOF,
 }
 
@@ -66,7 +66,7 @@ impl fmt::Display for TokenKind {
             TokenKind::FloatLiteral(s) => write!(f, "FloatLiteral({})", s),
             TokenKind::CharLiteral(s) => write!(f, "CharLiteral({})", s),
             TokenKind::StringLiteral(s) => write!(f, "StringLiteral(\"{}\")", s),
-            TokenKind::Symbol(s) => write!(f, "Symbol({})", s),
+            TokenKind::Operator(s) => write!(f, "Symbol({})", s),
             TokenKind::EOF => write!(f, "EOF"),
         }
     }

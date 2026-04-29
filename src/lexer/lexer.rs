@@ -1,4 +1,4 @@
-use crate::lexer::token::{Token, TokenKind, Keyword};
+use crate::lexer::token::{Keyword, Token, TokenKind};
 
 pub struct Lexer<'a> {
     chars: Vec<char>,
@@ -10,11 +10,21 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     pub fn new(src: &'a str) -> Self {
-        Lexer { chars: src.chars().collect(), pos: 0, line: 1, col: 1, _src: src }
+        Lexer {
+            chars: src.chars().collect(),
+            pos: 0,
+            line: 1,
+            col: 1,
+            _src: src,
+        }
     }
 
-    fn peek(&self) -> Option<char> { self.chars.get(self.pos).copied() }
-    fn peek_next(&self) -> Option<char> { self.chars.get(self.pos + 1).copied() }
+    fn peek(&self) -> Option<char> {
+        self.chars.get(self.pos).copied()
+    }
+    fn peek_next(&self) -> Option<char> {
+        self.chars.get(self.pos + 1).copied()
+    }
 
     fn bump(&mut self) -> Option<char> {
         let c = self.peek()?;
@@ -31,7 +41,9 @@ impl<'a> Lexer<'a> {
     fn skip_whitespace(&mut self) {
         loop {
             match self.peek() {
-                Some(c) if c.is_whitespace() => { self.bump(); }
+                Some(c) if c.is_whitespace() => {
+                    self.bump();
+                }
                 _ => break,
             }
         }
@@ -49,25 +61,44 @@ impl<'a> Lexer<'a> {
         let start_col = self.col;
         let mut s = String::new();
         if let Some(c) = self.peek() {
-            if Self::is_ident_start(c) { s.push(self.bump().unwrap()); }
+            if Self::is_ident_start(c) {
+                s.push(self.bump().unwrap());
+            }
         }
         while let Some(c) = self.peek() {
-            if Self::is_ident_continue(c) { s.push(self.bump().unwrap()); } else { break }
+            if Self::is_ident_continue(c) {
+                s.push(self.bump().unwrap());
+            } else {
+                break;
+            }
         }
         (s, start_line, start_col)
     }
 
     fn read_number(&mut self) -> (String, bool, usize, usize) {
-        let start_line = self.line; let start_col = self.col;
-        let mut s = String::new(); let mut is_float = false;
+        let start_line = self.line;
+        let start_col = self.col;
+        let mut s = String::new();
+        let mut is_float = false;
         while let Some(c) = self.peek() {
-            if c.is_ascii_digit() { s.push(self.bump().unwrap()); } else { break }
+            if c.is_ascii_digit() {
+                s.push(self.bump().unwrap());
+            } else {
+                break;
+            }
         }
         if let Some('.') = self.peek() {
             if let Some(nxt) = self.peek_next() {
                 if nxt.is_ascii_digit() {
-                    is_float = true; s.push(self.bump().unwrap());
-                    while let Some(c) = self.peek() { if c.is_ascii_digit() { s.push(self.bump().unwrap()); } else { break } }
+                    is_float = true;
+                    s.push(self.bump().unwrap());
+                    while let Some(c) = self.peek() {
+                        if c.is_ascii_digit() {
+                            s.push(self.bump().unwrap());
+                        } else {
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -75,7 +106,8 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_char_literal(&mut self) -> (String, usize, usize) {
-        let start_line = self.line; let start_col = self.col;
+        let start_line = self.line;
+        let start_col = self.col;
         // consume opening '
         self.bump(); // consume '\''
         let mut s = String::new();
@@ -83,24 +115,42 @@ impl<'a> Lexer<'a> {
             match c {
                 '\\' => {
                     s.push(self.bump().unwrap());
-                    if let Some(_n) = self.peek() { s.push(self.bump().unwrap()); }
+                    if let Some(_n) = self.peek() {
+                        s.push(self.bump().unwrap());
+                    }
                 }
-                '\'' => { self.bump(); break }
-                _ => { s.push(self.bump().unwrap()); }
+                '\'' => {
+                    self.bump();
+                    break;
+                }
+                _ => {
+                    s.push(self.bump().unwrap());
+                }
             }
         }
         (s, start_line, start_col)
     }
 
     fn read_string_literal(&mut self) -> (String, usize, usize) {
-        let start_line = self.line; let start_col = self.col;
+        let start_line = self.line;
+        let start_col = self.col;
         self.bump(); // consume '"'
         let mut s = String::new();
         while let Some(c) = self.peek() {
             match c {
-                '\\' => { s.push(self.bump().unwrap()); if let Some(_n) = self.peek() { s.push(self.bump().unwrap()); } }
-                '"' => { self.bump(); break }
-                _ => { s.push(self.bump().unwrap()); }
+                '\\' => {
+                    s.push(self.bump().unwrap());
+                    if let Some(_n) = self.peek() {
+                        s.push(self.bump().unwrap());
+                    }
+                }
+                '"' => {
+                    self.bump();
+                    break;
+                }
+                _ => {
+                    s.push(self.bump().unwrap());
+                }
             }
         }
         (s, start_line, start_col)
@@ -108,7 +158,8 @@ impl<'a> Lexer<'a> {
 
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
-        let line = self.line; let col = self.col;
+        let line = self.line;
+        let col = self.col;
         match self.peek() {
             None => Token::new(TokenKind::EOF, line, col),
             Some(c) if Self::is_ident_start(c) => {
@@ -130,7 +181,11 @@ impl<'a> Lexer<'a> {
             }
             Some(c) if c.is_ascii_digit() => {
                 let (s, is_float, l, ccol) = self.read_number();
-                let kind = if is_float { TokenKind::FloatLiteral(s) } else { TokenKind::IntLiteral(s) };
+                let kind = if is_float {
+                    TokenKind::FloatLiteral(s)
+                } else {
+                    TokenKind::IntLiteral(s)
+                };
                 Token::new(kind, l, ccol)
             }
             Some('\'') => {
@@ -153,13 +208,32 @@ impl<'a> Lexer<'a> {
                     _ => None,
                 };
                 if let Some(op) = two {
-                    let l = self.line; let ccol = self.col; self.bump(); self.bump();
-                    return Token::new(TokenKind::Symbol(op), l, ccol);
+                    let l = self.line;
+                    let ccol = self.col;
+                    self.bump();
+                    self.bump();
+                    return Token::new(TokenKind::Operator(op), l, ccol);
                 }
-                let l = self.line; let ccol = self.col; let ch = self.bump().unwrap();
-                Token::new(TokenKind::Symbol(ch.to_string()), l, ccol)
+                let l = self.line;
+                let ccol = self.col;
+                let ch = self.bump().unwrap();
+                Token::new(TokenKind::Operator(ch.to_string()), l, ccol)
             }
         }
+    }
+}
+
+impl<'a> Lexer<'a> {
+    /// 收集并返回直到 EOF 的所有 token（包含 EOF）
+    pub fn tokenize_all(&mut self) -> Vec<Token> {
+        let mut out = Vec::new();
+        loop {
+            let t = self.next_token();
+            let is_eof = matches!(t.kind, TokenKind::EOF);
+            out.push(t);
+            if is_eof { break; }
+        }
+        out
     }
 }
 

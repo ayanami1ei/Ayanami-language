@@ -6,13 +6,9 @@ pub mod parser;
 pub fn main() {
     let code = include_str!("../test.aya");
     let mut lexer = Lexer::new(code);
-    let mut token = lexer.next_token();
-    loop {
-        if matches!(&token.kind, TokenKind::EOF) {
-            break;
-        }
-        println!("{}", token);
-        token = lexer.next_token();
+    let tokens = lexer.tokenize_all();
+    for t in tokens.iter().filter(|t| !matches!(t.kind, TokenKind::EOF)) {
+        println!("{}", t);
     }
 }
 
