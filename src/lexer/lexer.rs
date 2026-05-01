@@ -1,4 +1,4 @@
-use crate::lexer::token::{Keyword, Token, TokenKind};
+use crate::lexer::token::{Delimiter, Keyword, Token, TokenKind};
 
 pub struct Lexer<'a> {
     chars: Vec<char>,
@@ -60,10 +60,10 @@ impl<'a> Lexer<'a> {
         let start_line = self.line;
         let start_col = self.col;
         let mut s = String::new();
-        if let Some(c) = self.peek() {
-            if Self::is_ident_start(c) {
-                s.push(self.bump().unwrap());
-            }
+        if let Some(c) = self.peek()
+            && Self::is_ident_start(c)
+        {
+            s.push(self.bump().unwrap());
         }
         while let Some(c) = self.peek() {
             if Self::is_ident_continue(c) {
@@ -87,18 +87,17 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        if let Some('.') = self.peek() {
-            if let Some(nxt) = self.peek_next() {
-                if nxt.is_ascii_digit() {
-                    is_float = true;
+        if let Some('.') = self.peek()
+            && let Some(nxt) = self.peek_next()
+            && nxt.is_ascii_digit()
+        {
+            is_float = true;
+            s.push(self.bump().unwrap());
+            while let Some(c) = self.peek() {
+                if c.is_ascii_digit() {
                     s.push(self.bump().unwrap());
-                    while let Some(c) = self.peek() {
-                        if c.is_ascii_digit() {
-                            s.push(self.bump().unwrap());
-                        } else {
-                            break;
-                        }
-                    }
+                } else {
+                    break;
                 }
             }
         }
@@ -196,9 +195,40 @@ impl<'a> Lexer<'a> {
                 let (s, l, ccol) = self.read_string_literal();
                 Token::new(TokenKind::StringLiteral(s), l, ccol)
             }
-            Some(_) => {
-                let two = match (self.peek(), self.peek_next()) {
-                    (Some('-'), Some('>')) => Some("->".to_string()),
+            Some(c) => {
+                // 单字符分隔符
+                let single_delim = match c {
+                    '(' => Some(Delimiter::LParen),
+                    ')' => Some(Delimiter::RParen),
+                    '{' => Some(Delimiter::LBrace),
+                    '}' => Some(Delimiter::RBrace),
+                    '[' => Some(Delimiter::LBracket),
+                    ']' => Some(Delimiter::RBracket),
+                    ',' => Some(Delimiter::Comma),
+                    ';' => Some(Delimiter::Semicolon),
+                    _ => None,
+                };
+                if let Some(d) = single_delim {
+                    let l = self.line;
+                    let ccol = self.col;
+                    self.bump();
+                    return Token::new(TokenKind::Delimiter(d), l, ccol);
+                }
+
+                // 双字符 token（分隔符和运算符）
+                let two_delim = match (self.peek(), self.peek_next()) {
+                    (Some('-'), Some('>')) => Some(Delimiter::Arrow),
+                    _ => None,
+                };
+                if let Some(d) = two_delim {
+                    let l = self.line;
+                    let ccol = self.col;
+                    self.bump();
+                    self.bump();
+                    return Token::new(TokenKind::Delimiter(d), l, ccol);
+                }
+
+                let two_op = match (self.peek(), self.peek_next()) {
                     (Some('='), Some('=')) => Some("==".to_string()),
                     (Some('!'), Some('=')) => Some("!=".to_string()),
                     (Some('<'), Some('=')) => Some("<=".to_string()),
@@ -207,13 +237,14 @@ impl<'a> Lexer<'a> {
                     (Some('|'), Some('|')) => Some("||".to_string()),
                     _ => None,
                 };
-                if let Some(op) = two {
+                if let Some(op) = two_op {
                     let l = self.line;
                     let ccol = self.col;
                     self.bump();
                     self.bump();
                     return Token::new(TokenKind::Operator(op), l, ccol);
                 }
+
                 let l = self.line;
                 let ccol = self.col;
                 let ch = self.bump().unwrap();

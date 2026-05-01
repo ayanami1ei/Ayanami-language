@@ -1,50 +1,59 @@
-use crate::parser::symbol::types::Types;
+use crate::intern::Symbol;
+use crate::parser::ast::Type;
 
 #[derive(Clone)]
-pub struct VarSymbol<'a> {
-    name: &'a str,
-    type_: Types,
+pub struct VarSymbol {
+    pub name: Symbol,
+    pub type_: Type,
 }
 
 #[derive(Clone)]
-pub struct FnSymbol<'a> {
-    name: &'a str,
-    rtn_type: Types,
-    args: Vec<VarSymbol<'a>>,
+pub struct FnSymbol {
+    pub name: Symbol,
+    pub rtn_type: Type,
+    pub args: Vec<VarSymbol>,
 }
 
 #[derive(Clone)]
-pub enum Symbol<'a> {
-    Fn(FnSymbol<'a>),
-    Var(VarSymbol<'a>),
-    Default,
+pub enum SemanticSymbol {
+    Fn(FnSymbol),
+    Var(VarSymbol),
 }
 
-impl<'a> Default for Symbol<'a> {
+impl Default for SemanticSymbol {
     fn default() -> Self {
-        Symbol::Default
+        SemanticSymbol::Var(VarSymbol {
+            name: Symbol::default(),
+            type_: Type::Void(Default::default()),
+        })
     }
 }
 
-impl<'a> Symbol<'a> {
-    pub fn new_var(name: &'a str) -> Self {
-        Symbol::Var(VarSymbol { name, type_: Types::Unknown })
+impl SemanticSymbol {
+    pub fn new_var(name: Symbol) -> Self {
+        SemanticSymbol::Var(VarSymbol {
+            name,
+            type_: Type::Void(Default::default()),
+        })
     }
 
-    pub fn new_fn(name: &'a str, rtn_type: Types) -> Self {
-        Symbol::Fn(FnSymbol { name, rtn_type, args: Vec::new() })
+    pub fn new_fn(name: Symbol, rtn_type: Type) -> Self {
+        SemanticSymbol::Fn(FnSymbol {
+            name,
+            rtn_type,
+            args: Vec::new(),
+        })
     }
 
-    pub fn set_type(&mut self, type_: &Types) {
+    pub fn set_type(&mut self, type_: Type) {
         match self {
-            Symbol::Var(v) => v.type_ = type_.clone(),
-            Symbol::Fn(f) => f.rtn_type = type_.clone(),
-            _ => {}
+            SemanticSymbol::Var(v) => v.type_ = type_,
+            SemanticSymbol::Fn(f) => f.rtn_type = type_,
         }
     }
 
-    pub fn set_args(&mut self, args: Vec<VarSymbol<'a>>) {
-        if let Symbol::Fn(f) = self {
+    pub fn set_args(&mut self, args: Vec<VarSymbol>) {
+        if let SemanticSymbol::Fn(f) = self {
             f.args = args;
         }
     }

@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{Error, anyhow};
 
-use crate::parser::symbol::symbol::Symbol;
+use crate::parser::symbol::symbol::SemanticSymbol;
 
 #[derive(Default, Clone)]
 pub struct TreeNode<T: Default + Clone> {
@@ -21,6 +21,12 @@ pub struct Tree<T: Default + Clone> {
     cursor: Weak<RefCell<TreeNode<T>>>,
 }
 
+impl<T: Default + Clone> Default for Tree<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Default + Clone> Tree<T> {
     pub fn new() -> Self {
         let head = TreeNode::default();
@@ -31,13 +37,12 @@ impl<T: Default + Clone> Tree<T> {
         }
     }
 
-
-    pub fn with_inner(&self, func:fn(&mut T)){
+    pub fn with_inner(&self, func: fn(&mut T)) {
         func(&mut self.cursor.upgrade().unwrap().borrow_mut().node)
     }
 }
 
-impl<'a> Tree<Vec<Symbol<'a>>> {
+impl Tree<Vec<SemanticSymbol>> {
     pub fn into_next(&mut self) -> usize {
         let new = Rc::new(RefCell::new(TreeNode::default()));
         new.borrow_mut().id = self.next_index;
@@ -89,9 +94,9 @@ impl<'a> Tree<Vec<Symbol<'a>>> {
     }
 
     fn find_sons(
-        dummy: Rc<RefCell<TreeNode<Vec<Symbol<'a>>>>>,
+        dummy: Rc<RefCell<TreeNode<Vec<SemanticSymbol>>>>,
         id: usize,
-    ) -> Option<Weak<RefCell<TreeNode<Vec<Symbol<'a>>>>>> {
+    ) -> Option<Weak<RefCell<TreeNode<Vec<SemanticSymbol>>>>> {
         let son_len = dummy.borrow().sons.len();
         if son_len == 0 {
             return None;
@@ -110,6 +115,6 @@ impl<'a> Tree<Vec<Symbol<'a>>> {
             }
         }
 
-        return None;
+        None
     }
 }

@@ -1,10 +1,15 @@
+pub mod expr;
+pub mod stmt;
+pub mod visitor;
+
+use crate::lexer::Token;
+use crate::span::Span;
 use anyhow::Result;
 
-use crate::lexer::{Lexer, Token};
-
-pub mod assign;
-pub mod expr;
+pub use expr::*;
+pub use stmt::*;
 
 pub trait AstNode: Default {
-    fn gen_from(&mut self, tokens:& Vec<Token>, index:&mut usize)->Result<()>;
+    fn gen_from(&mut self, tokens: &[Token], index: &mut usize) -> Result<()>;
+    fn span(&self) -> Span;
 }

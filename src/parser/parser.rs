@@ -1,11 +1,20 @@
-use crate::parser::symbol::{symbol::Symbol, tree::Tree};
+use crate::parser::symbol::{symbol::SemanticSymbol, tree::Tree};
 
-pub struct Parser<'a>{
-    map:Tree<Vec<Symbol<'a>>>
+#[allow(dead_code)]
+pub struct Parser {
+    map: Tree<Vec<SemanticSymbol>>,
 }
 
-impl<'a> Parser<'a>{
-    pub fn new()->Self{
-        Self{map:Tree::new()}
+impl Default for Parser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Parser {
+    pub fn new() -> Self {
+        Self {
+            map: Tree::new(),
+        }
     }
 }
