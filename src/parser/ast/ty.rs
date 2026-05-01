@@ -8,7 +8,6 @@ pub enum Type {
     Char(Span),
     Void(Span),
     Named(Symbol, Span),
-    Ref(Box<Type>, Span),
 }
 
 impl Type {
@@ -18,8 +17,7 @@ impl Type {
             | Type::Float(s)
             | Type::Char(s)
             | Type::Void(s)
-            | Type::Named(_, s)
-            | Type::Ref(_, s) => *s,
+            | Type::Named(_, s) => *s,
         }
     }
 }

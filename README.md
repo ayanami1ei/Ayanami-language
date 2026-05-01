@@ -22,7 +22,7 @@
       3）返回值类型须显式指出，只能返回单一类型
       5）同一作用域内的函数不能重载
       6）例：
-         fn func(ref int a, char c)->int{
+         fn func(int a, char c)->int{
             if a==1{
                return c    //返回char型，错误
             } else {
