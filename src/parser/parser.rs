@@ -1,4 +1,4 @@
-use crate::parser::symbol::{symbol::SemanticSymbol, tree::Tree};
+use crate::parser::symbol::{semantic_symbol::SemanticSymbol, tree::Tree};
 
 #[allow(dead_code)]
 pub struct Parser {

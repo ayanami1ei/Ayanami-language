@@ -1,18 +1,7 @@
 use crate::intern::Symbol;
 use crate::parser::ast::Type;
-
-#[derive(Clone)]
-pub struct VarSymbol {
-    pub name: Symbol,
-    pub type_: Type,
-}
-
-#[derive(Clone)]
-pub struct FnSymbol {
-    pub name: Symbol,
-    pub rtn_type: Type,
-    pub args: Vec<VarSymbol>,
-}
+use crate::parser::symbol::fn_symbol::FnSymbol;
+use crate::parser::symbol::var_symbol::VarSymbol;
 
 #[derive(Clone)]
 pub enum SemanticSymbol {

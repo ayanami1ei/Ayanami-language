@@ -1,19 +1,12 @@
 use std::{
-    cell::{RefCell},
+    cell::RefCell,
     rc::{Rc, Weak},
 };
 
 use anyhow::{Error, anyhow};
 
-use crate::parser::symbol::symbol::SemanticSymbol;
-
-#[derive(Default, Clone)]
-pub struct TreeNode<T: Default + Clone> {
-    pub(super) node: T,
-    pub(super) id: usize,
-    pub(super) sons: Vec<Rc<RefCell<TreeNode<T>>>>,
-    pub(super) parent: Weak<RefCell<TreeNode<T>>>,
-}
+use crate::parser::symbol::semantic_symbol::SemanticSymbol;
+use crate::parser::symbol::tree_node::TreeNode;
 
 pub struct Tree<T: Default + Clone> {
     head: TreeNode<T>,

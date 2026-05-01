@@ -1,5 +1,9 @@
-use super::expr::*;
-use super::stmt::*;
+use super::block::Block;
+use super::expr::Expr;
+use super::literal::Literal;
+use super::program::Program;
+use super::stmt::Stmt;
+use super::ty::Type;
 
 pub trait AstVisitor {
     type Output;

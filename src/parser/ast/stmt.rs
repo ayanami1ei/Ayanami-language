@@ -1,18 +1,8 @@
 use crate::intern::Symbol;
-use crate::parser::ast::expr::{Expr, Type};
+use crate::parser::ast::block::Block;
+use crate::parser::ast::expr::Expr;
+use crate::parser::ast::ty::Type;
 use crate::span::Span;
-
-#[derive(Debug, Clone)]
-pub struct Block {
-    pub stmts: Vec<Stmt>,
-    pub span: Span,
-}
-
-impl Block {
-    pub fn new(stmts: Vec<Stmt>, span: Span) -> Self {
-        Self { stmts, span }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
@@ -69,16 +59,5 @@ impl Stmt {
             | Stmt::While { span, .. }
             | Stmt::ExprStmt { span, .. } => *span,
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Program {
-    pub stmts: Vec<Stmt>,
-}
-
-impl Program {
-    pub fn new(stmts: Vec<Stmt>) -> Self {
-        Self { stmts }
     }
 }

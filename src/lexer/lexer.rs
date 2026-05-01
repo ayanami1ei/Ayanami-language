@@ -1,4 +1,7 @@
-use crate::lexer::token::{Delimiter, Keyword, Token, TokenKind};
+use crate::lexer::delimiter::Delimiter;
+use crate::lexer::keyword::Keyword;
+use crate::lexer::token::Token;
+use crate::lexer::token_kind::TokenKind;
 
 pub struct Lexer<'a> {
     chars: Vec<char>,
@@ -271,7 +274,7 @@ impl<'a> Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer::token::TokenKind;
+    use crate::lexer::token_kind::TokenKind;
 
     #[test]
     fn smoke() {
