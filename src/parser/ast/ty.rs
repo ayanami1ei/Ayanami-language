@@ -1,8 +1,10 @@
 use crate::intern::Symbol;
 use crate::span::Span;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum Type {
+    #[default]
+    Default,
     Int(Span),
     Float(Span),
     Char(Span),
@@ -13,11 +15,8 @@ pub enum Type {
 impl Type {
     pub fn span(&self) -> Span {
         match self {
-            Type::Int(s)
-            | Type::Float(s)
-            | Type::Char(s)
-            | Type::Void(s)
-            | Type::Named(_, s) => *s,
+            Type::Int(s) | Type::Float(s) | Type::Char(s) | Type::Void(s) | Type::Named(_, s) => *s,
+            Type::Default => todo!(),
         }
     }
 }

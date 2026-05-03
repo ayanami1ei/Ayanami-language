@@ -36,6 +36,15 @@ impl<T: Default + Clone> Tree<T> {
 }
 
 impl Tree<Vec<SemanticSymbol>> {
+    pub fn push_to_current(&mut self, symbol: SemanticSymbol) {
+        self.cursor
+            .upgrade()
+            .expect("invalid cursor")
+            .borrow_mut()
+            .node
+            .push(symbol);
+    }
+
     pub fn into_next(&mut self) -> usize {
         let new = Rc::new(RefCell::new(TreeNode::default()));
         new.borrow_mut().id = self.next_index;
