@@ -1,0 +1,28 @@
+{
+  "name": "ayanami",
+  "displayName": "Ayanami Language",
+  "description": "Ayanami language support",
+  "version": "0.1.0",
+  "publisher": "ayanami",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "ayanami",
+        "aliases": ["Ayanami", "ayanami"],
+        "extensions": [".aya"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ayanami",
+        "scopeName": "source.aya",
+        "path": "./syntaxes/ayanami.tmLanguage.json"
+      }
+    ]
+  }
+}
