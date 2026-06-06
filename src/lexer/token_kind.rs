@@ -3,7 +3,7 @@ use std::fmt;
 use crate::lexer::delimiter::Delimiter;
 use crate::lexer::keyword::Keyword;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TokenKind {
     Identifier(String),
     Keyword(Keyword),

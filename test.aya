@@ -1,6 +1,0 @@
-fn main()->Result{
-    a=1
-    b='b'
-    c=0.1
-    d="sss"
-}

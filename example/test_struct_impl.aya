@@ -1,0 +1,15 @@
+struct Point {
+    int x
+    int y
+}
+
+impl Point {
+    fn get_x(unique self) -> int {
+        return self.x;
+    }
+}
+
+fn main() -> int {
+    p = Point { x = 42, y = 0 };
+    return p.get_x();
+}

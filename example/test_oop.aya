@@ -1,0 +1,51 @@
+interface Drawable {
+    fn draw(shared self) -> void;
+    fn get_id(shared self) -> int;
+}
+
+interface Resizable {
+    fn resize(shared self, int factor) -> int;
+}
+
+impl int {
+    fn draw(shared self) -> void {}
+    fn get_id(shared self) -> int { return self; }
+    fn resize(shared self, int factor) -> int { return self + factor; }
+    fn triple(unique self) -> int { return self * 3; }
+}
+
+impl float {
+    fn draw(shared self) -> void {}
+    fn get_id(shared self) -> int { return 0; }
+    fn resize(shared self, int factor) -> int { return 0; }
+}
+
+fn render_drawable(shared Drawable d) -> void {
+    d.draw();
+}
+
+fn get_any_id(shared Drawable d) -> int {
+    return d.get_id();
+}
+
+fn scale(shared Resizable r, int f) -> int {
+    return r.resize(f);
+}
+
+fn main() -> int {
+    a = 42;
+    b = 3.0;
+
+    render_drawable(a);
+    render_drawable(b);
+
+    id1 = get_any_id(a);
+    id2 = get_any_id(b);
+
+    result = scale(a, 8);
+    result2 = scale(b, 5);
+
+    t = a.triple();
+
+    return result + result2 + t - id1 - id2;
+}

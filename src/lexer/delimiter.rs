@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Delimiter {
     LParen,
     RParen,
@@ -11,6 +11,7 @@ pub enum Delimiter {
     Comma,
     Semicolon,
     Arrow,
+    Dot,
 }
 
 impl fmt::Display for Delimiter {
@@ -25,6 +26,7 @@ impl fmt::Display for Delimiter {
             Delimiter::Comma => ",",
             Delimiter::Semicolon => ";",
             Delimiter::Arrow => "->",
+            Delimiter::Dot => ".",
         };
         write!(f, "{}", s)
     }

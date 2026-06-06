@@ -1,0 +1,7 @@
+fn main() -> int {
+    a = true;
+    if a {
+        return 1;
+    }
+    return 0;
+}

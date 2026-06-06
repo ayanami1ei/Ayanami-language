@@ -1,0 +1,7 @@
+fn main() -> int {
+    a = 42;
+    b = shared a;
+    c = unique b;
+    d = weak c;
+    return d;
+}

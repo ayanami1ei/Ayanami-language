@@ -1,0 +1,9 @@
+// this is a line comment
+/* this is a block comment */
+fn main() -> int {
+    a = 42; // inline comment
+    /* multi
+       line
+       block */
+    return a;
+}

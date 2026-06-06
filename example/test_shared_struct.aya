@@ -1,0 +1,10 @@
+struct Point {
+    int x
+    int y
+}
+
+fn main() -> int {
+    p = Point { x = 10, y = 3 };
+    sp = shared p;
+    return sp.x;
+}

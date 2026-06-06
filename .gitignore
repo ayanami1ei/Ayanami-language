@@ -1,1 +1,23 @@
 /target
+/test_output/
+/example/test_output/
+# example compiled binaries (not .aya source files)
+/example/test
+/example/test_array
+/example/test_array_param
+/example/test_bool
+/example/test_bool2
+/example/test_comments
+/example/test_conv
+/example/test_oop
+/example/test_overload
+/example/test_poly
+/example/test_shared_struct
+/example/test_struct
+/example/test_struct2
+/example/test_struct_fn
+/example/test_struct_impl
+/example/test_unique_struct
+/example/test_virtual
+/example/test_vis
+/example/test_vis2

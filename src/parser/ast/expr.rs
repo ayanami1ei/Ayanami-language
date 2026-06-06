@@ -24,6 +24,33 @@ pub enum Expr {
         args: Vec<Expr>,
         span: Span,
     },
+    Move(Box<Expr>, Span),
+    Clone(Box<Expr>, Span),
+    ToUnique(Box<Expr>, Span),
+    ToShared(Box<Expr>, Span),
+    ToWeak(Box<Expr>, Span),
+    MethodCall {
+        object: Box<Expr>,
+        method: Symbol,
+        args: Vec<Expr>,
+        span: Span,
+    },
+    FieldAccess {
+        object: Box<Expr>,
+        field: Symbol,
+        span: Span,
+    },
+    StructLiteral {
+        type_name: Symbol,
+        fields: Vec<(Symbol, Expr)>,
+        span: Span,
+    },
+    ArrayLiteral(Vec<Expr>, Span),
+    Index {
+        object: Box<Expr>,
+        index: Box<Expr>,
+        span: Span,
+    },
 }
 
 impl Expr {
@@ -31,7 +58,17 @@ impl Expr {
         match self {
             Expr::Binary { span, .. }
             | Expr::Unary { span, .. }
-            | Expr::FnCall { span, .. } => *span,
+            | Expr::FnCall { span, .. }
+            |             Expr::Move(_, span)
+            | Expr::Clone(_, span)
+            | Expr::ToUnique(_, span)
+            | Expr::ToShared(_, span)
+            | Expr::ToWeak(_, span)
+            | Expr::MethodCall { span, .. }
+            | Expr::FieldAccess { span, .. }
+            | Expr::StructLiteral { span, .. }
+            | Expr::ArrayLiteral(_, span)
+            | Expr::Index { span, .. } => *span,
             Expr::Literal(lit) => lit.span(),
             Expr::Ident(_, span) => *span,
         }

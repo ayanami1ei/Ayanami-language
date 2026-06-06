@@ -1,97 +1,174 @@
-# Ayanami 语法规范
+# Ayanami Language
 
-## 一、基本语法
-#####   1.所有语句都应当是以下几种，不能是单独的表达式。
-      1）赋值语句
-      2）函数声明
-      3）函数返回
-      4）控制流语句
-      5）函数调用
-  
+## 类型系统
 
-#####   2.赋值语句
-      1）形式为 变量 = 表达式
-      2）变量的类型由编译器自动推导，无需显示写出
-      4）例：
-         a=1      //int型
-         b='c'    //char型
+| 类型 | 写法 | 说明 |
+|------|------|------|
+| 整数 | `int` | 64 位 |
+| 浮点 | `float` | 64 位 |
+| 字符 | `char` | 单字节 |
+| 布尔 | `bool` | `true` / `false` |
+| 数组 | `[int]` | 堆分配，`arr[0]` 索引 |
+| 结构体 | `Point` | 自定义，值语义 |
+| shared | `shared int` | 引用计数指针 |
+| unique | `unique int` | 独占所有权指针 |
+| weak | `weak int` | 弱引用 |
 
-#####   3.函数声明
-      1）形式为 fn 函数名(参数列表){}
-      2）参数列表需要显式指出参数的类型
-      3）返回值类型须显式指出，只能返回单一类型
-      5）同一作用域内的函数不能重载
-      6）例：
-         fn func(int a, char c)->int{
-            if a==1{
-               return c    //返回char型，错误
-            } else {
-               return a    //返回int型
-            }
-         }
+## 语法
 
-#####   4.函数返回
-      形式为 return 表达式
-
-#####   5.控制流语句
-      1）if语句
-         i）形式为 if cond1 {} elif cond2 {} elif ... else {}
-         ii）条件必须是表达式
-      2）for循环
-         i）形式为 for itor in (start, end, step){}
-         ii）itor是一个临时变量，仅在for的作用域内有效，初值为start
-         iii）start，end和step是表达式
-         ix）当itor大于等于end时，退出循环
-         x）step是每次循环后itor的变化量，可以省略，默认为1
-      3）while循环
-         i）形式为 while cond {}
-         ii）条件必须是表达式
-
-#####   6.函数调用
-      1）形式为 func(参数列表)
-      2）可以视作表达式，也可以视作语句
-
-#####   7.命名空间
-      1）形式为namespace name{}
-      2）可包含函数、结构体
-
-## 二、面向对象（待开发）
-   1.使用结构体来表示对象的内存结果
-   2.结构体内只能有数据，不能有函数
-
-## 三、包管理机制
-   1.以.lcl作为文件结尾
-   2.主体是llvm bc，使用时先编译，保存编译产物
-   3.有多个标识符来表示链接模式等属性
-   4.用户端安装时使用安装器安装
-   5.包含ayanami语言格式的符号文档
-   6..lcl文件格式
+### 注释
 ```
-      [pakage-info]
-      name="xxx"
-      version="xxx"
-      [use-mode]
-      as-developer
-      as-user
-      [target]
-      executable
-      static-lib
-      dynamic-lib
-      [arch]
-      x86-x64
-      arm
-      [bin]
-      llvm .bc
+// 行注释
+/* 块注释 */
 ```
 
+### 函数
+```
+fn add(int a, int b) -> int {
+    return a + b;
+}
+```
 
-## 四、内存管理系统：
-   - 使用所有权语义尝试分析对象生存周期，自动添加所有权分析指令
-   - 对象分为3种类型：值、引用、共享，对象也可按可变性分为可变、不可变，对象类型由用户控制，编译器将根据实际情况报错并要求正确的类型
-   - 所有权不确定时将报错，根据实际情况要求用户降级成共享对象
-   - 每个可变对象最多只能有一个可变引用，但可以有多个不可变引用，可变引用与不可变引用的作用域不能重叠
-   - 引用不持有所有权，生命周期不超过被引用对象的生命周期
-   - 共享类型会使用引用计数来管理内存，这会带来运行时开销，部分情况下需要手动管理内存，同时不保证线程安全
-   - 默认采用值语义，自动插入move和最少clone
+参数顺序：**类型 名称**（C 风格）。返回值用 `->`。
 
-         
+### 变量
+```
+x = 42;            // 类型自动推导为 int
+p = Point { ... }; // 类型自动推导为 Point 结构体
+arr = [1, 2, 3];   // 类型自动推导为 [int]
+```
+
+所有变量必须通过赋值声明，类型由右侧表达式推断。
+
+### 字面量
+```
+42         // int
+3.14       // float
+'a'        // char
+"hello"    // string
+true       // bool
+false      // bool
+[1, 2, 3]  // array
+```
+
+### 控制流
+```
+// if / elif / else
+if a > b {
+    return 1;
+} elif a < b {
+    return 2;
+} else {
+    return 3;
+}
+
+// while
+while a < 10 {
+    a = a + 1;
+}
+
+// for (desugars to while)
+for i in (0, 10, 1) {
+    // i from 0 to 9, step 1
+}
+```
+
+### 结构体
+```
+struct Point {
+    int x
+    int y
+}
+
+p = Point { x = 10, y = 3 };
+return p.x;
+```
+
+结构体默认值语义（栈分配）。函数传参和返回值也按值传递。
+
+### 堆分配（shared / unique / weak）
+```
+a = 42;
+b = shared a;   // 深拷贝到堆，引用计数
+c = unique b;   // 深拷贝到堆，独占所有权
+d = weak c;     // 深拷贝到堆，弱引用
+```
+
+`shared` / `unique` / `weak` 也可作为类型修饰符：
+```
+fn foo(shared Point p) -> int { ... }
+fn bar(unique [int] arr) -> void { ... }
+```
+
+对于值类型（`int`, `float`, `char`, `bool`），`shared` / `unique` 在 LLVM 层面无开销（仍然是传值）。
+
+对于堆类型（结构体、数组、接口 fat pointer），堆分配通过 `malloc` + `memcpy` 深拷贝。
+
+### 接口
+```
+interface Drawable {
+    fn draw(shared self) -> int;
+    fn resize(unique self, int w, int h) -> void;
+}
+```
+
+接口方法必须显式写 `shared self` 或 `unique self`。
+
+### 实现（impl）
+```
+impl Point {
+    fn get_x(unique self) -> int {
+        return self.x;
+    }
+}
+
+p = Point { x = 42, y = 0 };
+return p.get_x();
+// 等价于自动包装为 unique：
+// return get_x(unique p);
+```
+
+### 方法调用语法糖
+```
+obj.method(args)
+```
+- 如果 obj 是接口类型 → 虚函数表动态分派
+- 如果 obj 是具体类型 → 普通函数调用
+- receiver 若为纯值类型而方法需要 `unique`/`shared` → 自动包装
+
+### 可见性
+```
+pub fn foo() -> int { ... }
+pub(crate) struct Point { int x }
+pub namespace math { ... }
+fn bar() -> int { ... }   // 默认 private
+```
+
+`pub` / `pub(crate)` / 默认 private，与 Rust 一致。可在 `fn`、`struct`、`namespace` 前使用。
+当前可见性仅标记，不做访问控制检查。
+
+### 命名空间
+```
+pub namespace math {
+    fn abs(int x) -> int {
+        if x < 0 { return -x; }
+        return x;
+    }
+}
+```
+
+### 函数重载
+按函数名 + 参数类型列表匹配，支持重载。
+
+### 包（.lcl）
+编译产物为 `.lcl` 格式，包含 LIR 和元数据。
+
+## 编译管线
+
+```
+源码 → Lexer → Parser(AST) → HIR → MIR → LIR → LLVM IR → .o → 可执行文件
+```
+
+## 示例
+
+所有完整示例见 [`example/`](example/)。

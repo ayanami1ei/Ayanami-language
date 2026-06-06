@@ -1,0 +1,31 @@
+interface Shape {
+    fn area(shared self) -> int;
+    fn describe(shared self) -> void;
+}
+
+impl int {
+    fn area(shared self) -> int {
+        return self;
+    }
+    fn describe(shared self) -> void {}
+}
+
+impl float {
+    fn area(shared self) -> int {
+        return 0;
+    }
+    fn describe(shared self) -> void {}
+}
+
+fn double_area(shared Shape s) -> int {
+    s.describe();
+    return s.area() * 2;
+}
+
+fn main() -> int {
+    a = 21;
+    b = 3.0;
+    a.area();
+    result = double_area(a) + double_area(b);
+    return result;
+}

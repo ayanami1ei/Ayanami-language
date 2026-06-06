@@ -6,7 +6,4 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.100"
 owo-colors = "4.2.3"
-inkwell = { version = "0.4", features = ["llvm17-0"] }
-llvm-sys = { version = "170", features = ["prefer-dynamic"] }
 
-ast_macro={path="./ast_macro"}

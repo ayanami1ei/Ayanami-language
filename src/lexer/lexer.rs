@@ -8,6 +8,7 @@ pub struct Lexer<'a> {
     pos: usize,
     line: usize,
     col: usize,
+    byte_offset: usize,
     _src: &'a str,
 }
 
@@ -18,6 +19,7 @@ impl<'a> Lexer<'a> {
             pos: 0,
             line: 1,
             col: 1,
+            byte_offset: 0,
             _src: src,
         }
     }
@@ -32,6 +34,7 @@ impl<'a> Lexer<'a> {
     fn bump(&mut self) -> Option<char> {
         let c = self.peek()?;
         self.pos += 1;
+        self.byte_offset += c.len_utf8();
         if c == '\n' {
             self.line += 1;
             self.col = 1;
@@ -41,11 +44,28 @@ impl<'a> Lexer<'a> {
         Some(c)
     }
 
-    fn skip_whitespace(&mut self) {
+    fn skip_whitespace_and_comments(&mut self) {
         loop {
             match self.peek() {
                 Some(c) if c.is_whitespace() => {
                     self.bump();
+                }
+                Some('/') if self.peek_next() == Some('/') => {
+                    self.bump(); self.bump();
+                    while let Some(c) = self.peek() {
+                        if c == '\n' { break; }
+                        self.bump();
+                    }
+                }
+                Some('/') if self.peek_next() == Some('*') => {
+                    self.bump(); self.bump();
+                    while let Some(c) = self.peek() {
+                        if c == '*' && self.peek_next() == Some('/') {
+                            self.bump(); self.bump();
+                            break;
+                        }
+                        self.bump();
+                    }
                 }
                 _ => break,
             }
@@ -59,9 +79,10 @@ impl<'a> Lexer<'a> {
         c.is_ascii_alphanumeric() || c == '_' || (c as u32) >= 0x80
     }
 
-    fn read_identifier_or_keyword(&mut self) -> (String, usize, usize) {
+    fn read_identifier_or_keyword(&mut self) -> (String, usize, usize, usize) {
         let start_line = self.line;
         let start_col = self.col;
+        let start_byte = self.byte_offset;
         let mut s = String::new();
         if let Some(c) = self.peek()
             && Self::is_ident_start(c)
@@ -75,12 +96,13 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        (s, start_line, start_col)
+        (s, start_line, start_col, start_byte)
     }
 
-    fn read_number(&mut self) -> (String, bool, usize, usize) {
+    fn read_number(&mut self) -> (String, bool, usize, usize, usize) {
         let start_line = self.line;
         let start_col = self.col;
+        let start_byte = self.byte_offset;
         let mut s = String::new();
         let mut is_float = false;
         while let Some(c) = self.peek() {
@@ -104,14 +126,15 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-        (s, is_float, start_line, start_col)
+        (s, is_float, start_line, start_col, start_byte)
     }
 
-    fn read_char_literal(&mut self) -> (String, usize, usize) {
+    fn read_char_literal(&mut self) -> (String, usize, usize, usize) {
         let start_line = self.line;
         let start_col = self.col;
+        let start_byte = self.byte_offset;
         // consume opening '
-        self.bump(); // consume '\''
+        self.bump();
         let mut s = String::new();
         while let Some(c) = self.peek() {
             match c {
@@ -130,12 +153,13 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-        (s, start_line, start_col)
+        (s, start_line, start_col, start_byte)
     }
 
-    fn read_string_literal(&mut self) -> (String, usize, usize) {
+    fn read_string_literal(&mut self) -> (String, usize, usize, usize) {
         let start_line = self.line;
         let start_col = self.col;
+        let start_byte = self.byte_offset;
         self.bump(); // consume '"'
         let mut s = String::new();
         while let Some(c) = self.peek() {
@@ -155,48 +179,83 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-        (s, start_line, start_col)
+        (s, start_line, start_col, start_byte)
     }
 
     pub fn next_token(&mut self) -> Token {
-        self.skip_whitespace();
+        self.skip_whitespace_and_comments();
         let line = self.line;
         let col = self.col;
         match self.peek() {
-            None => Token::new(TokenKind::EOF, line, col),
+            None => Token::new(
+                TokenKind::EOF,
+                line,
+                col,
+                self.byte_offset,
+                self.byte_offset,
+            ),
             Some(c) if Self::is_ident_start(c) => {
-                let (s, l, ccol) = self.read_identifier_or_keyword();
+                let (s, l, ccol, sbyte) = self.read_identifier_or_keyword();
                 let kind = match s.as_str() {
+                    "pub" => TokenKind::Keyword(Keyword::Pub),
+                    "crate" => TokenKind::Keyword(Keyword::Crate),
                     "fn" => TokenKind::Keyword(Keyword::Fn),
                     "return" => TokenKind::Keyword(Keyword::Return),
                     "for" => TokenKind::Keyword(Keyword::For),
                     "if" => TokenKind::Keyword(Keyword::If),
+                    "elif" => TokenKind::Keyword(Keyword::Elif),
+                    "else" => TokenKind::Keyword(Keyword::Else),
+                    "in" => TokenKind::Keyword(Keyword::In),
                     "while" => TokenKind::Keyword(Keyword::While),
                     "int" => TokenKind::Keyword(Keyword::Int),
                     "float" => TokenKind::Keyword(Keyword::Float),
                     "char" => TokenKind::Keyword(Keyword::Char),
+                    "bool" => TokenKind::Keyword(Keyword::Bool),
+                    "true" => TokenKind::Keyword(Keyword::True),
+                    "false" => TokenKind::Keyword(Keyword::False),
                     "mut" => TokenKind::Keyword(Keyword::Mut),
                     "shared" => TokenKind::Keyword(Keyword::Shared),
+                    "unique" => TokenKind::Keyword(Keyword::Unique),
+                    "weak" => TokenKind::Keyword(Keyword::Weak),
+                    "struct" => TokenKind::Keyword(Keyword::Struct),
+                    "namespace" => TokenKind::Keyword(Keyword::Namespace),
+                    "move" => TokenKind::Keyword(Keyword::Move),
+                    "clone" => TokenKind::Keyword(Keyword::Clone),
+                    "interface" => TokenKind::Keyword(Keyword::Interface),
+                    "impl" => TokenKind::Keyword(Keyword::Impl),
+                    "self" => TokenKind::Keyword(Keyword::Self_),
                     _ => TokenKind::Identifier(s),
                 };
-                Token::new(kind, l, ccol)
+                Token::new(kind, l, ccol, sbyte, self.byte_offset)
             }
             Some(c) if c.is_ascii_digit() => {
-                let (s, is_float, l, ccol) = self.read_number();
+                let (s, is_float, l, ccol, sbyte) = self.read_number();
                 let kind = if is_float {
                     TokenKind::FloatLiteral(s)
                 } else {
                     TokenKind::IntLiteral(s)
                 };
-                Token::new(kind, l, ccol)
+                Token::new(kind, l, ccol, sbyte, self.byte_offset)
             }
             Some('\'') => {
-                let (s, l, ccol) = self.read_char_literal();
-                Token::new(TokenKind::CharLiteral(s), l, ccol)
+                let (s, l, ccol, sbyte) = self.read_char_literal();
+                Token::new(
+                    TokenKind::CharLiteral(s),
+                    l,
+                    ccol,
+                    sbyte,
+                    self.byte_offset,
+                )
             }
             Some('"') => {
-                let (s, l, ccol) = self.read_string_literal();
-                Token::new(TokenKind::StringLiteral(s), l, ccol)
+                let (s, l, ccol, sbyte) = self.read_string_literal();
+                Token::new(
+                    TokenKind::StringLiteral(s),
+                    l,
+                    ccol,
+                    sbyte,
+                    self.byte_offset,
+                )
             }
             Some(c) => {
                 // 单字符分隔符
@@ -209,13 +268,21 @@ impl<'a> Lexer<'a> {
                     ']' => Some(Delimiter::RBracket),
                     ',' => Some(Delimiter::Comma),
                     ';' => Some(Delimiter::Semicolon),
+                    '.' => Some(Delimiter::Dot),
                     _ => None,
                 };
                 if let Some(d) = single_delim {
                     let l = self.line;
                     let ccol = self.col;
+                    let sbyte = self.byte_offset;
                     self.bump();
-                    return Token::new(TokenKind::Delimiter(d), l, ccol);
+                    return Token::new(
+                        TokenKind::Delimiter(d),
+                        l,
+                        ccol,
+                        sbyte,
+                        self.byte_offset,
+                    );
                 }
 
                 // 双字符 token（分隔符和运算符）
@@ -226,9 +293,16 @@ impl<'a> Lexer<'a> {
                 if let Some(d) = two_delim {
                     let l = self.line;
                     let ccol = self.col;
+                    let sbyte = self.byte_offset;
                     self.bump();
                     self.bump();
-                    return Token::new(TokenKind::Delimiter(d), l, ccol);
+                    return Token::new(
+                        TokenKind::Delimiter(d),
+                        l,
+                        ccol,
+                        sbyte,
+                        self.byte_offset,
+                    );
                 }
 
                 let two_op = match (self.peek(), self.peek_next()) {
@@ -243,15 +317,29 @@ impl<'a> Lexer<'a> {
                 if let Some(op) = two_op {
                     let l = self.line;
                     let ccol = self.col;
+                    let sbyte = self.byte_offset;
                     self.bump();
                     self.bump();
-                    return Token::new(TokenKind::Operator(op), l, ccol);
+                    return Token::new(
+                        TokenKind::Operator(op),
+                        l,
+                        ccol,
+                        sbyte,
+                        self.byte_offset,
+                    );
                 }
 
                 let l = self.line;
                 let ccol = self.col;
+                let sbyte = self.byte_offset;
                 let ch = self.bump().unwrap();
-                Token::new(TokenKind::Operator(ch.to_string()), l, ccol)
+                Token::new(
+                    TokenKind::Operator(ch.to_string()),
+                    l,
+                    ccol,
+                    sbyte,
+                    self.byte_offset,
+                )
             }
         }
     }
@@ -265,7 +353,9 @@ impl<'a> Lexer<'a> {
             let t = self.next_token();
             let is_eof = matches!(t.kind, TokenKind::EOF);
             out.push(t);
-            if is_eof { break; }
+            if is_eof {
+                break;
+            }
         }
         out
     }

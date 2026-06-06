@@ -1,0 +1,9 @@
+pub(crate) struct Point {
+    int x
+    int y
+}
+
+pub fn main() -> int {
+    p = Point { x = 10, y = 3 };
+    return p.x;
+}

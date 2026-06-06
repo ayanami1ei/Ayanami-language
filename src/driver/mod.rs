@@ -1,0 +1,88 @@
+/// Compilation driver: converts LLVM IR text → object → executable.
+///
+/// Pipeline:
+/// 1. `llc` compiles `.ll` → `.o` (LLVM static compiler)
+/// 2. `gcc` links `.o` with `src/runtime.c` → executable (`-no-pie`)
+use std::path::Path;
+use std::process::Command;
+
+/// Compile LLVM IR text → object file (.o) via `llc`.
+pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), String> {
+    let obj = obj_path.as_ref();
+
+    // Write LLVM IR to temp file
+    let mut ll_path = obj.to_path_buf();
+    ll_path.set_extension("ll");
+    std::fs::write(&ll_path, llvm_ir)
+        .map_err(|e| format!("failed to write .ll file: {}", e))?;
+
+    let status = Command::new("llc")
+        .arg("-filetype=obj")
+        .arg("-o")
+        .arg(obj)
+        .arg(&ll_path)
+        .status()
+        .map_err(|e| format!("failed to run llc: {}", e))?;
+
+    if !status.success() {
+        return Err("llc failed".into());
+    }
+
+    // Clean up temp .ll file
+    let _ = std::fs::remove_file(&ll_path);
+    Ok(())
+}
+
+/// Link object file + runtime → executable via `gcc`.
+/// Looks for `src/runtime.c` relative to the crate root.
+pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<(), String> {
+    // Find runtime.c relative to the project root
+    let runtime_c = find_runtime_c()?;
+
+    let status = Command::new("gcc")
+        .arg("-no-pie")
+        .arg(obj_path.as_ref())
+        .arg(&runtime_c)
+        .arg("-o")
+        .arg(exe_path.as_ref())
+        .status()
+        .map_err(|e| format!("failed to run gcc: {}", e))?;
+
+    if !status.success() {
+        return Err("gcc link failed".into());
+    }
+    Ok(())
+}
+
+/// Locate the runtime C file by searching upward for Cargo.toml.
+fn find_runtime_c() -> Result<String, String> {
+    let cwd = std::env::current_dir().map_err(|e| format!("failed to get cwd: {}", e))?;
+    let mut dir = Some(cwd.as_path());
+    while let Some(d) = dir {
+        if d.join("Cargo.toml").exists() {
+            let rt = d.join("src").join("runtime.c");
+            if rt.exists() {
+                return Ok(rt.to_string_lossy().into_owned());
+            }
+            return Err("src/runtime.c not found next to Cargo.toml".into());
+        }
+        dir = d.parent();
+    }
+    Err("could not locate Cargo.toml (project root)".into())
+}
+
+/// Compile LLVM IR → executable in one step.
+pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<(), String> {
+    let obj_path = {
+        let mut p = exe_path.as_ref().to_path_buf();
+        p.set_extension("o");
+        p
+    };
+
+    ir_to_object(llvm_ir, &obj_path)?;
+    object_to_exe(&obj_path, exe_path)?;
+
+    // Clean up .o
+    let _ = std::fs::remove_file(&obj_path);
+    Ok(())
+}

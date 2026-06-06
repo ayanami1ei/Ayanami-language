@@ -1,21 +1,43 @@
 use std::fmt;
 
 use crate::lexer::token_kind::TokenKind;
+use crate::span::Span;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Token {
     pub kind: TokenKind,
     pub line: usize,
     pub col: usize,
+    pub start_byte: usize,
+    pub end_byte: usize,
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, line: usize, col: usize) -> Self {
-        Token { kind, line, col }
+    pub fn new(
+        kind: TokenKind,
+        line: usize,
+        col: usize,
+        start_byte: usize,
+        end_byte: usize,
+    ) -> Self {
+        Token {
+            kind,
+            line,
+            col,
+            start_byte,
+            end_byte,
+        }
     }
 
-    pub fn span(&self) -> crate::span::Span {
-        crate::span::Span::new(self.line, self.col, self.line, self.col)
+    pub fn span(&self) -> Span {
+        Span::new(
+            self.line,
+            self.col,
+            self.line,
+            self.col,
+            self.start_byte,
+            self.end_byte,
+        )
     }
 }
 
