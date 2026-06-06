@@ -54,8 +54,20 @@ pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> 
     Ok(())
 }
 
-/// Locate the runtime C file by searching upward for Cargo.toml.
+/// Locate the runtime C file.
+/// Searches: exe dir → Cargo.toml parent → cwd parent.
 fn find_runtime_c() -> Result<String, String> {
+    // First, try next to the executable (for release builds in build/)
+    let exe = std::env::current_exe().ok();
+    if let Some(exe_path) = exe {
+        if let Some(exe_dir) = exe_path.parent() {
+            let rt = exe_dir.join("runtime.c");
+            if rt.exists() {
+                return Ok(rt.to_string_lossy().into_owned());
+            }
+        }
+    }
+    // Second, search upward for Cargo.toml (for development)
     let cwd = std::env::current_dir().map_err(|e| format!("failed to get cwd: {}", e))?;
     let mut dir = Some(cwd.as_path());
     while let Some(d) = dir {
@@ -68,7 +80,7 @@ fn find_runtime_c() -> Result<String, String> {
         }
         dir = d.parent();
     }
-    Err("could not locate Cargo.toml (project root)".into())
+    Err("could not locate runtime.c (place next to the ayanami binary)".into())
 }
 
 /// Compile LLVM IR → executable in one step.
