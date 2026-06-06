@@ -1,5 +1,14 @@
 # Ayanami Language
 
+## CLI
+
+```
+ayanami new <name>      创建项目
+ayanami check <file>    前端检查（lex → parse → HIR → MIR → LIR → LLVM IR）
+ayanami build <file>    构建可执行文件 + .lcl 包
+ayanami run <file>      构建并运行
+```
+
 ## 类型系统
 
 | 类型 | 写法 | 说明 |
