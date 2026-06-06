@@ -3,8 +3,23 @@
 /// Pipeline:
 /// 1. `llc` compiles `.ll` → `.o` (LLVM static compiler)
 /// 2. `gcc` links `.o` with `src/runtime.c` → executable (`-no-pie`)
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+
+/// Find `llc` — check next to the ayanami binary first, then PATH.
+fn find_llc() -> Result<(PathBuf, PathBuf), String> {
+    let exe = std::env::current_exe().ok();
+    if let Some(exe_path) = exe {
+        if let Some(exe_dir) = exe_path.parent() {
+            let local = exe_dir.join("llc");
+            if local.exists() {
+                return Ok((local, exe_dir.to_path_buf()));
+            }
+        }
+    }
+    // Fall back to system PATH
+    Ok((PathBuf::from("llc"), PathBuf::new()))
+}
 
 /// Compile LLVM IR text → object file (.o) via `llc`.
 pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), String> {
@@ -16,13 +31,19 @@ pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), Str
     std::fs::write(&ll_path, llvm_ir)
         .map_err(|e| format!("failed to write .ll file: {}", e))?;
 
-    let status = Command::new("llc")
-        .arg("-filetype=obj")
-        .arg("-o")
-        .arg(obj)
-        .arg(&ll_path)
-        .status()
-        .map_err(|e| format!("failed to run llc: {}", e))?;
+    let (llc_path, llc_dir) = find_llc()?;
+    let mut cmd = Command::new(&llc_path);
+    cmd.arg("-filetype=obj")
+        .arg("-o").arg(obj)
+        .arg(&ll_path);
+
+    // If llc is bundled, set LD_LIBRARY_PATH so it can find its .so
+    if !llc_dir.as_os_str().is_empty() {
+        cmd.env("LD_LIBRARY_PATH", llc_dir.to_string_lossy().as_ref());
+    }
+
+    let status = cmd.status()
+        .map_err(|e| format!("failed to run llc: {} (install llvm or place llc next to ayanami)", e))?;
 
     if !status.success() {
         return Err("llc failed".into());
