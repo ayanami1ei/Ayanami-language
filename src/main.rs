@@ -10,7 +10,7 @@ fn main() {
         eprintln!("  check <file>       frontend checks (lex, parse, HIR)");
         eprintln!("  package <file>     package to .lcl (LIR + symbols), no executable");
         eprintln!("  build <file>       build to executable + .lcl package");
-        eprintln!("  install <lcl>      install .lcl package (build executable/library)");
+        eprintln!("  install <lcl>      根据包内目标类型构建（executable/static-lib/dynamic-lib）");
         eprintln!("  run <file>         build and run");
         std::process::exit(1);
     }
@@ -101,12 +101,12 @@ fn cmd_package(args: &[String]) {
 
 fn cmd_install(args: &[String]) {
     if args.is_empty() {
-        eprintln!("usage: ayanami install <package.lcl> [target-type]");
+        eprintln!("usage: ayanami install <package.lcl>");
         std::process::exit(1);
     }
     let lcl_path = &args[0];
-    let target = args.get(1).map(|s| s.as_str());
-    match ayanami::compiler::install_package(lcl_path, target) {
+    // Target type is read from the package's [target] section, no CLI arg needed.
+    match ayanami::compiler::install_package(lcl_path, None) {
         Ok(()) => {}
         Err(e) => { eprintln!("install failed: {}", e); std::process::exit(1); }
     }
