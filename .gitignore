@@ -21,5 +21,6 @@
 /example/test_virtual
 /example/test_vis
 *.lcl
+*.vsix
 check_output/
 *.o

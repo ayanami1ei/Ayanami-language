@@ -1,5 +1,15 @@
 # Ayanami Language
 
+## VSCode 插件
+
+`ayanami-0.1.0.vsix` 位于项目根目录，安装方式：
+
+```
+code --install-extension ayanami-0.1.0.vsix
+```
+
+或 VSCode → Extensions → ... → Install from VSIX。
+
 ## CLI
 
 ```
