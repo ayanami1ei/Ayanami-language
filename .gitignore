@@ -20,6 +20,6 @@
 /example/test_unique_struct
 /example/test_virtual
 /example/test_vis
-/example/test_vis2
 *.lcl
+check_output/
 *.o
