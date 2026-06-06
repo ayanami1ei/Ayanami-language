@@ -1,9 +1,37 @@
 use crate::parser::ast::{Stmt, Type};
 
-/// Compiled package (.lcl) containing public symbols, generic source (reserved), and LIR.
+/// What kind of artifact this package can produce.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TargetType {
+    Executable,
+    StaticLib,
+    DynamicLib,
+}
+
+impl TargetType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TargetType::Executable => "executable",
+            TargetType::StaticLib => "static-lib",
+            TargetType::DynamicLib => "dynamic-lib",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "executable" => Some(TargetType::Executable),
+            "static-lib" => Some(TargetType::StaticLib),
+            "dynamic-lib" => Some(TargetType::DynamicLib),
+            _ => None,
+        }
+    }
+}
+
+/// Compiled package (.lcl) containing public symbols, generic source (reserved), LIR, and target metadata.
 pub struct Package {
     pub name: String,
     pub version: String,
+    pub target_types: Vec<TargetType>,
     pub symbols: Vec<PackageSymbol>,
     pub generic_sources: Vec<String>,
     pub lir_data: String,
@@ -28,6 +56,7 @@ impl Package {
         Self {
             name,
             version,
+            target_types: Vec::new(),
             symbols: Vec::new(),
             generic_sources: Vec::new(),
             lir_data: String::new(),
@@ -93,6 +122,14 @@ impl Package {
         body.push_str(&format!("version=\"{}\"\n", self.version));
         body.push_str("\n");
 
+        if !self.target_types.is_empty() {
+            body.push_str("[target]\n");
+            for tt in &self.target_types {
+                body.push_str(&format!("type=\"{}\"\n", tt.as_str()));
+            }
+            body.push_str("\n");
+        }
+
         if !self.symbols.is_empty() {
             body.push_str("[symbols]\n");
             for sym in &self.symbols {
@@ -149,8 +186,8 @@ pub enum ImportedSymbol {
     },
 }
 
-/// Parse a .lcl file and return the imported symbols and generic sources.
-pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, String), String> {
+/// Parse a .lcl file and return the imported symbols, generic sources, LIR, and target types.
+pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, String, Vec<TargetType>), String> {
     let data = std::fs::read(path)
         .map_err(|e| format!("failed to read package '{}': {}", path, e))?;
 
@@ -164,9 +201,11 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Str
     let mut symbols = Vec::new();
     let mut sources = Vec::new();
     let mut lir = String::new();
+    let mut target_types = Vec::new();
     let mut in_symbols = false;
     let mut in_generics = false;
     let mut in_lir = false;
+    let mut in_target = false;
 
     for line in body.lines() {
         let line = line.trim();
@@ -174,6 +213,7 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Str
             in_symbols = line.starts_with("[symbols]");
             in_generics = line.starts_with("[generics]");
             in_lir = line.starts_with("[lir]");
+            in_target = line.starts_with("[target]");
             continue;
         }
         if in_symbols {
@@ -193,13 +233,20 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Str
             if let Some(rest) = line.strip_prefix("source=") {
                 sources.push(parse_ini_value(rest));
             }
+        } else if in_target {
+            if let Some(rest) = line.strip_prefix("type=") {
+                let val = parse_ini_value(rest);
+                if let Some(tt) = TargetType::from_str(&val) {
+                    target_types.push(tt);
+                }
+            }
         } else if in_lir {
             lir.push_str(line);
             lir.push('\n');
         }
     }
 
-    Ok((symbols, sources, lir))
+    Ok((symbols, sources, lir, target_types))
 }
 
 fn parse_ini_value(s: &str) -> String {

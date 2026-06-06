@@ -133,7 +133,7 @@ impl Ctx {
                     self.struct_defs.insert(*name, hir_fields);
                 }
                 Stmt::Import { path, .. } => {
-                    let (imported_syms, _, _) = crate::package::load_package(path)
+                    let (imported_syms, _, _, _) = crate::package::load_package(path)
                         .map_err(|e| format!("import error: {}", e))?;
                     for sym in &imported_syms {
                         match sym {

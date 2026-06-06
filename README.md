@@ -192,6 +192,13 @@ pub namespace math {
 name="my_lib"
 version="0.1.0"
 
+[target]
+type="static-lib"
+type="dynamic-lib"
+
+# 有 main 函数时为：
+# type="executable"
+
 [symbols]
 fn="foo,foo(int,float)->int"
 fn="bar,bar()->void"

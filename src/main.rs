@@ -146,6 +146,15 @@ fn main() {
             // Generate package (.lcl) alongside the executable
             let lcl_name = format!("{}.lcl", exe_name);
             let mut pkg = crate::package::Package::new(exe_name.clone(), "0.1.0".into());
+            // Determine target type: executable if has main, otherwise static-lib
+            let has_main = result.program.stmts.iter().any(|s| matches!(s,
+                crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main"
+            ));
+            pkg.target_types = if has_main {
+                vec![crate::package::TargetType::Executable]
+            } else {
+                vec![crate::package::TargetType::StaticLib, crate::package::TargetType::DynamicLib]
+            };
             pkg.collect_symbols(&result.program.stmts);
             pkg.lir_data = crate::lir::lir_program_to_string(&result.lir_program);
             if let Err(e) = pkg.write_to_file(&lcl_name) {
