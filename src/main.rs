@@ -4,6 +4,7 @@ pub mod intern;
 pub mod lexer;
 pub mod lir;
 pub mod mir;
+pub mod package;
 pub mod parser;
 pub mod span;
 
@@ -22,8 +23,13 @@ use crate::parser::ast::{
 /// 3. HIR lowering: AST → HIR (name resolution, interface registration, vtable mapping)
 /// 4. MIR lowering: HIR → MIR (flatten control flow, insert memory ops)
 /// 5. LIR lowering: MIR → LIR (three-address code)
-/// 6. LIR emit: LIR → LLVM IR text
-fn compile_source(code: &str) -> Result<String, String> {
+struct CompileResult {
+    llvm_ir: String,
+    program: crate::parser::ast::Program,
+    lir_program: crate::lir::ir::LirProgram,
+}
+
+fn compile_source(code: &str) -> Result<CompileResult, String> {
     let mut lexer = crate::lexer::Lexer::new(code);
     let tokens = lexer.tokenize_all();
 
@@ -43,7 +49,7 @@ fn compile_source(code: &str) -> Result<String, String> {
     let lir_program = crate::lir::lower_program(&mir_program);
     let llvm_ir = crate::lir::emit_program(&lir_program);
 
-    Ok(llvm_ir)
+    Ok(CompileResult { llvm_ir, program, lir_program })
 }
 
 fn write_stage_outputs(code: &str, out_dir: &str) -> Result<(), String> {
@@ -123,15 +129,29 @@ fn main() {
 
     // Compile to executable
     match compile_source(&code) {
-        Ok(llvm_ir) => {
+        Ok(result) => {
             let exe_name = {
                 let p = std::path::Path::new(src_path);
                 p.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy().into_owned()
             };
             println!("compiling {} -> {}", src_path, exe_name);
-            match crate::driver::ir_to_executable(&llvm_ir, &exe_name) {
-                Ok(()) => println!("done: ./{}", exe_name),
-                Err(e) => eprintln!("error: link failed: {}", e),
+
+            // Generate executable
+            if let Err(e) = crate::driver::ir_to_executable(&result.llvm_ir, &exe_name) {
+                eprintln!("error: link failed: {}", e);
+            } else {
+                println!("done: ./{}", exe_name);
+            }
+
+            // Generate package (.lcl) alongside the executable
+            let lcl_name = format!("{}.lcl", exe_name);
+            let mut pkg = crate::package::Package::new(exe_name.clone(), "0.1.0".into());
+            pkg.collect_symbols(&result.program.stmts);
+            pkg.lir_data = crate::lir::lir_program_to_string(&result.lir_program);
+            if let Err(e) = pkg.write_to_file(&lcl_name) {
+                eprintln!("error: package write failed: {}", e);
+            } else {
+                println!("package: {}", lcl_name);
             }
         }
         Err(e) => {

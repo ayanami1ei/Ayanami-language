@@ -163,10 +163,47 @@ pub namespace math {
 ### 包（.lcl）
 编译产物为 `.lcl` 格式，包含 LIR 和元数据。
 
+## 包（.lcl）
+
+编译时自动在可执行文件旁生成 `.lcl` 包文件，包含公开符号和 LIR。
+
+### 格式
+
+**二进制头（12 字节）：**
+| 偏移 | 大小 | 内容 |
+|------|------|------|
+| 0    | 4    | 魔术字 `LCL1` |
+| 4    | 4    | 版本号（u32 LE） |
+| 8    | 4    | 标志位（u32 LE） |
+
+**UTF-8 INI 正文：**
+
+```
+[pakage-info]
+name="my_lib"
+version="0.1.0"
+
+[symbols]
+fn="foo,foo(int,float)->int"
+fn="bar,bar()->void"
+struct="Point"
+namespace="math"
+
+[generics]
+# 泛型源代码（预留）
+
+[lir]
+# LIR 文本
+```
+
+- `[symbols]`：只包含 `pub` / `pub(crate)` 的公开符号
+- `[generics]`：预留，未来泛型会把全部源码放入
+- `[lir]`：编译后的 LIR 文本
+
 ## 编译管线
 
 ```
-源码 → Lexer → Parser(AST) → HIR → MIR → LIR → LLVM IR → .o → 可执行文件
+源码 → Lexer → Parser(AST) → HIR → MIR → LIR → LLVM IR → .o → 可执行文件 + .lcl
 ```
 
 ## 示例
