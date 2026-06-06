@@ -8,7 +8,7 @@
 | 浮点 | `float` | 64 位 |
 | 字符 | `char` | 单字节 |
 | 布尔 | `bool` | `true` / `false` |
-| 数组 | `[int]` | 堆分配，`arr[0]` 索引 |
+| 数组 | `unique [int]` / `shared [int]` | 堆分配，必须显式写内存管理，`arr[0]` 索引 |
 | 结构体 | `Point` | 自定义，值语义 |
 | shared | `shared int` | 引用计数指针 |
 | unique | `unique int` | 独占所有权指针 |
@@ -48,7 +48,8 @@ arr = [1, 2, 3];   // 类型自动推导为 [int]
 "hello"    // string
 true       // bool
 false      // bool
-[1, 2, 3]  // array
+unique [1, 2, 3]   // array，必须带 shared/unique/weak
+shared [1, 2, 3]   // array，引用计数
 ```
 
 ### 控制流
@@ -102,7 +103,15 @@ fn bar(unique [int] arr) -> void { ... }
 
 对于值类型（`int`, `float`, `char`, `bool`），`shared` / `unique` 在 LLVM 层面无开销（仍然是传值）。
 
-对于堆类型（结构体、数组、接口 fat pointer），堆分配通过 `malloc` + `memcpy` 深拷贝。
+对于堆类型（结构体、接口 fat pointer），堆分配通过 `malloc` + `memcpy` 深拷贝。
+
+**数组必须显式带上 `shared` / `unique` / `weak`**，禁止裸数组（值语义）：
+
+```
+a = unique [1, 2, 3];    // ✓ 正确
+b = shared [1, 2, 3];    // ✓ 正确
+c = [1, 2, 3];            // ✗ 编译错误
+```
 
 ### 接口
 ```
