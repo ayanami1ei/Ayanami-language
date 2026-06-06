@@ -222,9 +222,19 @@ pub enum HirItem {
     },
 }
 
+/// Signature of an imported function (from a package).
+#[derive(Debug, Clone)]
+pub struct ImportedFnSig {
+    pub fn_id: FnId,
+    pub name: Symbol,
+    pub params: Vec<(Symbol, HirType)>,
+    pub return_type: HirType,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirProgram {
     pub items: Vec<HirItem>,
     pub vtables: Vec<VtableEntry>,
     pub struct_defs: HashMap<Symbol, Vec<HirStructField>>,
+    pub imported_fns: Vec<ImportedFnSig>,
 }

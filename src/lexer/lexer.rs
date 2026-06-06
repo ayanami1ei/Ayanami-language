@@ -199,6 +199,7 @@ impl<'a> Lexer<'a> {
                 let kind = match s.as_str() {
                     "pub" => TokenKind::Keyword(Keyword::Pub),
                     "crate" => TokenKind::Keyword(Keyword::Crate),
+                    "import" => TokenKind::Keyword(Keyword::Import),
                     "fn" => TokenKind::Keyword(Keyword::Fn),
                     "return" => TokenKind::Keyword(Keyword::Return),
                     "for" => TokenKind::Keyword(Keyword::For),

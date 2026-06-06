@@ -189,4 +189,5 @@ pub struct LirProgram {
     pub functions: Vec<LirFn>,
     pub vtables: Vec<VtableDesc>,
     pub struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
+    pub imported_fn_ids: std::collections::HashSet<FnId>,
 }

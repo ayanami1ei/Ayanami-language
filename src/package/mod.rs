@@ -98,6 +98,7 @@ impl Package {
             for sym in &self.symbols {
                 match sym {
                     PackageSymbol::Fn { name, signature } => {
+                        // signature format: "name(param_types...)->ret_type"
                         body.push_str(&format!("fn=\"{},{}\"\n", name, signature));
                     }
                     PackageSymbol::Struct { name } => {
@@ -130,6 +131,83 @@ impl Package {
     pub fn write_to_file(&self, path: &str) -> Result<(), String> {
         std::fs::write(path, self.to_bytes())
             .map_err(|e| format!("failed to write package: {}", e))
+    }
+}
+
+/// Parsed symbol from a .lcl package file.
+#[derive(Debug, Clone)]
+pub enum ImportedSymbol {
+    Fn {
+        name: String,
+        sig: String,
+    },
+    Struct {
+        name: String,
+    },
+    Namespace {
+        name: String,
+    },
+}
+
+/// Parse a .lcl file and return the imported symbols and generic sources.
+pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, String), String> {
+    let data = std::fs::read(path)
+        .map_err(|e| format!("failed to read package '{}': {}", path, e))?;
+
+    // Skip 12-byte binary header
+    let body = if data.len() >= 12 {
+        std::str::from_utf8(&data[12..]).map_err(|e| format!("invalid UTF-8 in package: {}", e))?
+    } else {
+        return Err("invalid package: too short".into());
+    };
+
+    let mut symbols = Vec::new();
+    let mut sources = Vec::new();
+    let mut lir = String::new();
+    let mut in_symbols = false;
+    let mut in_generics = false;
+    let mut in_lir = false;
+
+    for line in body.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            in_symbols = line.starts_with("[symbols]");
+            in_generics = line.starts_with("[generics]");
+            in_lir = line.starts_with("[lir]");
+            continue;
+        }
+        if in_symbols {
+            if let Some(rest) = line.strip_prefix("fn=") {
+                let val = parse_ini_value(rest);
+                if let Some((name, sig)) = val.split_once(',') {
+                    symbols.push(ImportedSymbol::Fn { name: name.to_string(), sig: sig.to_string() });
+                }
+            } else if let Some(rest) = line.strip_prefix("struct=") {
+                let val = parse_ini_value(rest);
+                symbols.push(ImportedSymbol::Struct { name: val });
+            } else if let Some(rest) = line.strip_prefix("namespace=") {
+                let val = parse_ini_value(rest);
+                symbols.push(ImportedSymbol::Namespace { name: val });
+            }
+        } else if in_generics {
+            if let Some(rest) = line.strip_prefix("source=") {
+                sources.push(parse_ini_value(rest));
+            }
+        } else if in_lir {
+            lir.push_str(line);
+            lir.push('\n');
+        }
+    }
+
+    Ok((symbols, sources, lir))
+}
+
+fn parse_ini_value(s: &str) -> String {
+    let s = s.trim();
+    if s.starts_with('"') && s.ends_with('"') && s.len() >= 2 {
+        s[1..s.len()-1].to_string()
+    } else {
+        s.to_string()
     }
 }
 

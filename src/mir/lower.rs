@@ -140,6 +140,12 @@ pub fn lower_program(hir: &HirProgram) -> MirProgram {
         struct_defs: hir.struct_defs.iter().map(|(name, fields)| {
             (*name, fields.iter().map(|f| (f.name, f.ty.clone())).collect())
         }).collect(),
+        imported_fns: hir.imported_fns.iter().map(|f| crate::hir::ir::ImportedFnSig {
+            fn_id: f.fn_id,
+            name: f.name,
+            params: f.params.clone(),
+            return_type: f.return_type.clone(),
+        }).collect(),
     }
 }
 

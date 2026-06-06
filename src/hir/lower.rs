@@ -17,7 +17,21 @@ pub fn lower_program(program: &Program) -> Result<HirProgram, String> {
     // Phase 2: lower all top-level items
     let items = ctx.lower_items(&program.stmts)?;
 
-    Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone() })
+    // Collect imported function sigs (those not in HirItems)
+    let defined_ids: std::collections::HashSet<_> = items.iter().filter_map(|item| {
+        if let HirItem::Fn(f) = item { Some(f.fn_id) } else { None }
+    }).collect();
+    let imported_fns: Vec<ImportedFnSig> = ctx.fns.iter().enumerate()
+        .filter(|(i, _)| !defined_ids.contains(&FnId(*i)))
+        .map(|(i, sig)| ImportedFnSig {
+            fn_id: FnId(i),
+            name: sig.name,
+            params: sig.params.clone(),
+            return_type: sig.return_type.clone(),
+        })
+        .collect();
+
+    Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), imported_fns })
 }
 
 // ====================================================================
@@ -117,6 +131,47 @@ impl Ctx {
                         .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
                         .collect();
                     self.struct_defs.insert(*name, hir_fields);
+                }
+                Stmt::Import { path, .. } => {
+                    let (imported_syms, _, _) = crate::package::load_package(path)
+                        .map_err(|e| format!("import error: {}", e))?;
+                    for sym in &imported_syms {
+                        match sym {
+                            crate::package::ImportedSymbol::Fn { name, sig } => {
+                                // sig format: "fnName(param_types...)->ret_type"
+                                let sig_body = sig.trim_start_matches(name.as_str());
+                                let arrow_pos = sig_body.find(")->")
+                                    .ok_or_else(|| format!("invalid fn sig in package '{}'", name))?;
+                                let params_str = &sig_body[..arrow_pos];
+                                let ret_str = &sig_body[arrow_pos + 3..];
+                                // params_str is "(type1,type2" — strip leading '('
+                                let params_str = params_str.strip_prefix('(').unwrap_or(params_str);
+                                let param_tys: Vec<&str> = if params_str.is_empty() {
+                                    Vec::new()
+                                } else {
+                                    params_str.split(',').collect()
+                                };
+                                let hir_params: Vec<(Symbol, HirType)> = param_tys.iter()
+                                    .map(|s| (Symbol::intern(""), sig_str_to_hir(s)))
+                                    .collect();
+                                let hir_ret = sig_str_to_hir(ret_str);
+                                let fn_id = FnId(self.fns.len());
+                                self.fns.push(FnSig {
+                                    name: Symbol::intern(name),
+                                    params: hir_params,
+                                    return_type: hir_ret,
+                                });
+                                self.fn_map.entry(Symbol::intern(name)).or_default().push(fn_id);
+                            }
+                            crate::package::ImportedSymbol::Struct { name } => {
+                                // Register with empty fields — actual struct def must come from source
+                                self.struct_defs.entry(Symbol::intern(name)).or_insert_with(Vec::new);
+                            }
+                            crate::package::ImportedSymbol::Namespace { .. } => {
+                                // Handled by lowering; just register the path
+                            }
+                        }
+                    }
                 }
                 Stmt::ImplBlock { methods, .. } => {
                     // Register impl block methods as regular functions
@@ -388,6 +443,7 @@ impl Ctx {
                         .collect();
                     items.push(HirItem::StructDef(HirStructDef { name: *name, fields: hir_fields }));
                 }
+                Stmt::Import { .. } => {} // already handled in collect_fns
                 Stmt::ImplBlock { methods, .. } => {
                     // Flatten impl block: lower each method as a regular Fn
                     for method_stmt in methods {
@@ -581,7 +637,7 @@ impl Ctx {
                 let hir_expr = self.lower_expr(expr)?;
                 Ok(HirStmt::Expr(hir_expr))
             }
-            Stmt::Namespace { .. } | Stmt::FnDecl { .. } | Stmt::StructDef { .. } | Stmt::InterfaceDef { .. } | Stmt::ImplBlock { .. } => {
+            Stmt::Namespace { .. } | Stmt::FnDecl { .. } | Stmt::StructDef { .. } | Stmt::InterfaceDef { .. } | Stmt::ImplBlock { .. } | Stmt::Import { .. } => {
                 Err("unexpected declaration inside function body".into())
             }
         }
@@ -948,6 +1004,29 @@ fn wrap_for_unique_param(expr: HirExpr, param_ty: &HirType) -> HirExpr {
 // ====================================================================
 //  Type helpers
 // ====================================================================
+
+/// Parse a type from a package signature string like "int", "shared Point", "[int]", etc.
+fn sig_str_to_hir(s: &str) -> HirType {
+    let s = s.trim();
+    if let Some(inner) = s.strip_prefix("shared ") {
+        HirType::Shared(Box::new(sig_str_to_hir(inner)))
+    } else if let Some(inner) = s.strip_prefix("unique ") {
+        HirType::Unique(Box::new(sig_str_to_hir(inner)))
+    } else if let Some(inner) = s.strip_prefix("weak ") {
+        HirType::Weak(Box::new(sig_str_to_hir(inner)))
+    } else if let Some(inner) = s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        HirType::Array(Box::new(sig_str_to_hir(inner)))
+    } else {
+        match s {
+            "int" => HirType::Int,
+            "float" => HirType::Float,
+            "char" => HirType::Char,
+            "bool" => HirType::Bool,
+            "void" => HirType::Void,
+            other => HirType::Named(Symbol::intern(other)),
+        }
+    }
+}
 
 fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> HirType {
     match ty {

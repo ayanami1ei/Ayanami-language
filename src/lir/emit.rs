@@ -108,6 +108,17 @@ impl<'a> Emitter<'a> {
         self.wln("declare i32 @printf(i8*, ...)");
         self.wln("");
 
+        // Extern declarations for imported functions
+        for &fn_id in &self.prog.imported_fn_ids {
+            if let Some(fn_name) = self.prog.fn_names.get(&fn_id) {
+                // Use void return and ... params as a generic declaration
+                self.wln_fmt(format_args!("declare i64 @{}()", fn_name));
+            }
+        }
+        if !self.prog.imported_fn_ids.is_empty() {
+            self.wln("");
+        }
+
         // Functions
         for func in &self.prog.functions {
             self.emit_fn(func);

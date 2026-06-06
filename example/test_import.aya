@@ -1,0 +1,5 @@
+import "math_lib.lcl";
+
+fn main() -> int {
+    return add(10, 20);
+}

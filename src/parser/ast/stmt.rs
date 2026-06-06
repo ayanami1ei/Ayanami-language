@@ -78,6 +78,10 @@ pub enum Stmt {
         methods: Vec<Stmt>,
         span: Span,
     },
+    Import {
+        path: String,
+        span: Span,
+    },
 }
 
 impl Stmt {
@@ -93,7 +97,8 @@ impl Stmt {
             |             Stmt::Namespace { span, .. }
             | Stmt::StructDef { span, .. }
             | Stmt::InterfaceDef { span, .. }
-            | Stmt::ImplBlock { span, .. } => *span,
+            | Stmt::ImplBlock { span, .. }
+            | Stmt::Import { span, .. } => *span,
         }
     }
 }

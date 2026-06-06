@@ -12,7 +12,15 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         .enumerate()
         .map(|(i, s)| (s.clone(), i as u64))
         .collect();
-    let fn_names = collect_fn_names(mir);
+    let mut fn_names = collect_fn_names(mir);
+
+    // Add names for imported functions (not defined in any MirItem)
+    for imp in &mir.imported_fns {
+        if !fn_names.contains_key(&imp.fn_id) {
+            let name = mangle("", &imp.name.as_str(), &imp.params);
+            fn_names.insert(imp.fn_id, name);
+        }
+    }
 
     let functions: Vec<LirFn> = mir
         .items
@@ -25,12 +33,19 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         VtableDesc { name, fn_ids: ve.method_fn_ids.clone() }
     }).collect();
 
+    let defined_ids: std::collections::HashSet<FnId> = functions.iter().map(|f| f.fn_id).collect();
+    let imported_fn_ids: std::collections::HashSet<FnId> = fn_names.keys()
+        .filter(|id| !defined_ids.contains(id))
+        .copied()
+        .collect();
+
     LirProgram {
         strings,
         fn_names,
         functions,
         vtables,
         struct_defs: mir.struct_defs.clone(),
+        imported_fn_ids,
     }
 }
 

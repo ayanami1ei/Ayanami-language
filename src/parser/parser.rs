@@ -131,6 +131,7 @@ impl Parser {
             TokenKind::Keyword(Keyword::Struct) => self.parse_struct_def(vis),
             TokenKind::Keyword(Keyword::Interface) => self.parse_interface_def(),
             TokenKind::Keyword(Keyword::Impl) => self.parse_impl_block(),
+            TokenKind::Keyword(Keyword::Import) => self.parse_import(),
             _ => {
                 if let TokenKind::Identifier(_) = &tok.kind {
                     if self.pos + 1 < self.tokens.len()
@@ -389,6 +390,20 @@ impl Parser {
     }
 
     // ==================== Impl block ====================
+
+    fn parse_import(&mut self) -> Result<Stmt, String> {
+        self.advance(); // import
+        let path = match self.peek().map(|t| &t.kind) {
+            Some(TokenKind::StringLiteral(s)) => {
+                let s = s.clone();
+                self.advance();
+                s
+            }
+            _ => return Err(self.error("expected package path string after `import`")),
+        };
+        self.expect_semicolon()?;
+        Ok(Stmt::Import { path, span: Span::default() })
+    }
 
     fn parse_impl_block(&mut self) -> Result<Stmt, String> {
         self.advance(); // impl
