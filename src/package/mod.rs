@@ -34,7 +34,7 @@ pub struct Package {
     pub target_types: Vec<TargetType>,
     pub symbols: Vec<PackageSymbol>,
     pub generic_sources: Vec<String>,
-    pub lir_data: String,
+    pub lir_data: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -59,7 +59,7 @@ impl Package {
             target_types: Vec::new(),
             symbols: Vec::new(),
             generic_sources: Vec::new(),
-            lir_data: String::new(),
+            lir_data: Vec::new(),
         }
     }
 
@@ -156,12 +156,12 @@ impl Package {
         }
         body.push_str("\n");
 
-        // LIR data
+        // LIR metadata (empty, binary follows after marker)
         body.push_str("[lir]\n");
-        body.push_str(&self.lir_data);
         body.push_str("\n");
-
         buf.extend_from_slice(body.as_bytes());
+        buf.extend_from_slice(b"===LIR===\n");
+        buf.extend_from_slice(&self.lir_data);
         buf
     }
 
@@ -186,8 +186,8 @@ pub enum ImportedSymbol {
     },
 }
 
-/// Parse a .lcl file and return the imported symbols, generic sources, LIR, and target types.
-pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, String, Vec<TargetType>), String> {
+/// Parse a .lcl file and return the imported symbols, generic sources, LIR (binary), and target types.
+pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>), String> {
     let data = std::fs::read(path)
         .map_err(|e| format!("failed to read package '{}': {}", path, e))?;
 
@@ -198,21 +198,30 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Str
         return Err("invalid package: too short".into());
     };
 
+    // Split at ===LIR=== marker to separate INI body from binary LIR
+    // The marker is at byte offset `pos` within `body` (after the 12-byte header).
+    // Its position in the raw `data` is `pos + 12`.
+    let body_str = body;
+    let (ini_body, lir_binary) = if let Some(pos) = body_str.find("===LIR===\n") {
+        let lir_start = pos + 10; // skip "===LIR===\n"
+        let data_offset = 12 + lir_start;
+        (&body_str[..pos], data[data_offset..].to_vec())
+    } else {
+        (body_str, Vec::new())
+    };
+
     let mut symbols = Vec::new();
     let mut sources = Vec::new();
-    let mut lir = String::new();
     let mut target_types = Vec::new();
     let mut in_symbols = false;
     let mut in_generics = false;
-    let mut in_lir = false;
     let mut in_target = false;
 
-    for line in body.lines() {
+    for line in ini_body.lines() {
         let line = line.trim();
         if line.starts_with('[') {
             in_symbols = line.starts_with("[symbols]");
             in_generics = line.starts_with("[generics]");
-            in_lir = line.starts_with("[lir]");
             in_target = line.starts_with("[target]");
             continue;
         }
@@ -240,13 +249,10 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Str
                     target_types.push(tt);
                 }
             }
-        } else if in_lir {
-            lir.push_str(line);
-            lir.push('\n');
         }
     }
 
-    Ok((symbols, sources, lir, target_types))
+    Ok((symbols, sources, lir_binary, target_types))
 }
 
 fn parse_ini_value(s: &str) -> String {

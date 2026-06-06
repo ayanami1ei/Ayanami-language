@@ -104,6 +104,58 @@ fn find_runtime_c() -> Result<String, String> {
     Err("could not locate runtime.c (place next to the ayanami binary)".into())
 }
 
+/// Link object file → static library (.a) via `ar`.
+pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<(), String> {
+    let status = Command::new("ar")
+        .arg("rcs")
+        .arg(lib_path.as_ref())
+        .arg(obj_path.as_ref())
+        .status()
+        .map_err(|e| format!("failed to run ar: {}", e))?;
+
+    if !status.success() {
+        return Err("ar failed".into());
+    }
+    Ok(())
+}
+
+/// Link object file → shared library (.so) via `gcc`.
+pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<(), String> {
+    let status = Command::new("gcc")
+        .arg("-shared")
+        .arg("-fPIC")
+        .arg("-o")
+        .arg(lib_path.as_ref())
+        .arg(obj_path.as_ref())
+        .status()
+        .map_err(|e| format!("failed to run gcc: {}", e))?;
+
+    if !status.success() {
+        return Err("gcc -shared failed".into());
+    }
+    Ok(())
+}
+
+/// Compile LLVM IR → library (.a or .so) in one step.
+pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<(), String> {
+    let obj_path = {
+        let mut p = lib_path.as_ref().to_path_buf();
+        p.set_extension("o");
+        p
+    };
+
+    ir_to_object(llvm_ir, &obj_path)?;
+
+    match lib_type {
+        "static-lib" => object_to_static_lib(&obj_path, lib_path)?,
+        "dynamic-lib" => object_to_shared_lib(&obj_path, lib_path)?,
+        _ => return Err(format!("unknown library type: {}", lib_type)),
+    }
+
+    let _ = std::fs::remove_file(&obj_path);
+    Ok(())
+}
+
 /// Compile LLVM IR → executable in one step.
 pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<(), String> {
     let obj_path = {

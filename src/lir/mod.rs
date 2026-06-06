@@ -13,6 +13,7 @@ pub mod ir;
 pub mod lower;
 pub mod display;
 pub mod emit;
+pub mod serialize;
 
 pub use ir::LirProgram;
 pub use lower::lower_program;

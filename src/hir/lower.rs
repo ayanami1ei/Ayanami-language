@@ -135,6 +135,7 @@ impl Ctx {
                 Stmt::Import { path, .. } => {
                     let (imported_syms, _, _, _) = crate::package::load_package(path)
                         .map_err(|e| format!("import error: {}", e))?;
+                    let _ = imported_syms;
                     for sym in &imported_syms {
                         match sym {
                             crate::package::ImportedSymbol::Fn { name, sig } => {

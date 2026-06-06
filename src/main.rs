@@ -6,10 +6,12 @@ fn main() {
     if args.len() < 2 {
         eprintln!("usage: ayanami <command> [args...]");
         eprintln!("commands:");
-        eprintln!("  new <name>     create a new project");
-        eprintln!("  check <file>   frontend checks (lex, parse, HIR)");
-        eprintln!("  build <file>   build to executable + .lcl package");
-        eprintln!("  run <file>     build and run");
+        eprintln!("  new <name>         create a new project");
+        eprintln!("  check <file>       frontend checks (lex, parse, HIR)");
+        eprintln!("  package <file>     package to .lcl (LIR + symbols), no executable");
+        eprintln!("  build <file>       build to executable + .lcl package");
+        eprintln!("  install <lcl>      install .lcl package (build executable/library)");
+        eprintln!("  run <file>         build and run");
         std::process::exit(1);
     }
 
@@ -17,7 +19,9 @@ fn main() {
     match command.as_str() {
         "new" => cmd_new(&args[2..]),
         "check" => cmd_check(&args[2..]),
+        "package" => cmd_package(&args[2..]),
         "build" => cmd_build(&args[2..]),
+        "install" => cmd_install(&args[2..]),
         "run" => cmd_run(&args[2..]),
         _ => {
             eprintln!("unknown command: {}", command);
@@ -76,6 +80,35 @@ fn cmd_check(args: &[String]) {
             eprintln!("check failed: {}", e);
             std::process::exit(1);
         }
+    }
+}
+
+fn cmd_package(args: &[String]) {
+    if args.is_empty() {
+        eprintln!("usage: ayanami package <file.aya>");
+        std::process::exit(1);
+    }
+    let path = &args[0];
+    let code = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) => { eprintln!("error: failed to read '{}': {}", path, e); std::process::exit(1); }
+    };
+    match ayanami::compiler::package_source(path, &code) {
+        Ok(()) => {}
+        Err(e) => { eprintln!("package failed: {}", e); std::process::exit(1); }
+    }
+}
+
+fn cmd_install(args: &[String]) {
+    if args.is_empty() {
+        eprintln!("usage: ayanami install <package.lcl> [target-type]");
+        std::process::exit(1);
+    }
+    let lcl_path = &args[0];
+    let target = args.get(1).map(|s| s.as_str());
+    match ayanami::compiler::install_package(lcl_path, target) {
+        Ok(()) => {}
+        Err(e) => { eprintln!("install failed: {}", e); std::process::exit(1); }
     }
 }
 

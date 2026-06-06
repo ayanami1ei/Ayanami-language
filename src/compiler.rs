@@ -88,6 +88,82 @@ pub fn check_source(code: &str, out_dir: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Package a source file into a .lcl (LIR + symbols + metadata), no executable.
+pub fn package_source(src_path: &str, code: &str) -> Result<(), String> {
+    let result = compile_source(code)?;
+
+    let exe_name = {
+        let p = std::path::Path::new(src_path);
+        p.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy().into_owned()
+    };
+
+    println!("packaging {} -> {}.lcl", src_path, exe_name);
+
+    let mut pkg = crate::package::Package::new(exe_name, "0.1.0".into());
+    let has_main = result.program.stmts.iter().any(|s| matches!(s,
+        crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main"
+    ));
+    pkg.target_types = if has_main {
+        vec![crate::package::TargetType::Executable,
+             crate::package::TargetType::StaticLib,
+             crate::package::TargetType::DynamicLib]
+    } else {
+        vec![crate::package::TargetType::StaticLib,
+             crate::package::TargetType::DynamicLib]
+    };
+    pkg.collect_symbols(&result.program.stmts);
+    pkg.lir_data = crate::lir::serialize::program_to_bytes(&result.lir_program);
+
+    let lcl_name = format!("{}.lcl", src_path.strip_suffix(".aya").unwrap_or(src_path));
+    pkg.write_to_file(&lcl_name).map_err(|e| format!("package write failed: {}", e))?;
+    println!("package: {}", lcl_name);
+
+    Ok(())
+}
+
+/// Install a .lcl package: read LIR, emit LLVM IR, build executable or library.
+pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<(), String> {
+    let (_, _, lir_binary, target_types) = crate::package::load_package(lcl_path)
+        .map_err(|e| format!("failed to load package: {}", e))?;
+
+    let lir_program = crate::lir::serialize::program_from_bytes(&lir_binary)
+        .map_err(|e| format!("failed to deserialize LIR: {}", e))?;
+
+    let llvm_ir = crate::lir::emit_program(&lir_program);
+
+    let base_name = std::path::Path::new(lcl_path)
+        .file_stem().unwrap_or(std::ffi::OsStr::new("a"))
+        .to_string_lossy().into_owned();
+
+    // Determine which target type to build
+    let tt = target_type.and_then(|s| crate::package::TargetType::from_str(s))
+        .or_else(|| target_types.first().copied())
+        .ok_or_else(|| "no target type specified and none in package".to_string())?;
+
+    match tt {
+        crate::package::TargetType::Executable => {
+            let exe_path = format!("./{}", base_name);
+            println!("installing {} -> executable {}", lcl_path, exe_path);
+            crate::driver::ir_to_executable(&llvm_ir, &exe_path)?;
+            println!("installed: {}", exe_path);
+        }
+        crate::package::TargetType::StaticLib => {
+            let lib_path = format!("./lib{}.a", base_name);
+            println!("installing {} -> static lib {}", lcl_path, lib_path);
+            crate::driver::ir_to_library(&llvm_ir, &lib_path, "static-lib")?;
+            println!("installed: {}", lib_path);
+        }
+        crate::package::TargetType::DynamicLib => {
+            let lib_path = format!("./lib{}.so", base_name);
+            println!("installing {} -> dynamic lib {}", lcl_path, lib_path);
+            crate::driver::ir_to_library(&llvm_ir, &lib_path, "dynamic-lib")?;
+            println!("installed: {}", lib_path);
+        }
+    }
+
+    Ok(())
+}
+
 /// Build a source file into an executable, generating a .lcl package alongside.
 pub fn build_source(src_path: &str, code: &str) -> Result<(), String> {
     let result = compile_source(code)?;
@@ -116,7 +192,7 @@ pub fn build_source(src_path: &str, code: &str) -> Result<(), String> {
         vec![crate::package::TargetType::StaticLib, crate::package::TargetType::DynamicLib]
     };
     pkg.collect_symbols(&result.program.stmts);
-    pkg.lir_data = crate::lir::lir_program_to_string(&result.lir_program);
+    pkg.lir_data = crate::lir::serialize::program_to_bytes(&result.lir_program);
     pkg.write_to_file(&lcl_name).map_err(|e| format!("package write failed: {}", e))?;
     println!("package: {}", lcl_name);
 
