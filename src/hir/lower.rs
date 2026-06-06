@@ -56,6 +56,8 @@ struct Ctx {
     locals: Vec<HirLocal>,
     /// Scope stack: each scope maps name → (VarId, type, mutable)
     scopes: Vec<HashMap<Symbol, (VarId, HirType, bool)>>,
+    /// Whether bare array literals are allowed (set inside ToShared/ToUnique/ToWeak)
+    allow_bare_array: bool,
 }
 
 impl Ctx {
@@ -70,6 +72,7 @@ impl Ctx {
             current_fn: FnId(0),
             locals: Vec::new(),
             scopes: Vec::new(),
+            allow_bare_array: false,
         }
     }
 
@@ -827,19 +830,25 @@ impl Ctx {
                 Ok(HirExpr::Clone(Box::new(hir_inner), ty))
             }
             Expr::ToUnique(inner, _) => {
+                self.allow_bare_array = true;
                 let hir_inner = self.lower_expr(inner)?;
+                self.allow_bare_array = false;
                 let inner_ty = expr_type(&hir_inner);
                 let ty = HirType::Unique(Box::new(strip_ownership(inner_ty)));
                 Ok(HirExpr::ToUnique(Box::new(hir_inner), ty))
             }
             Expr::ToShared(inner, _) => {
+                self.allow_bare_array = true;
                 let hir_inner = self.lower_expr(inner)?;
+                self.allow_bare_array = false;
                 let inner_ty = expr_type(&hir_inner);
                 let ty = HirType::Shared(Box::new(strip_ownership(inner_ty)));
                 Ok(HirExpr::ToShared(Box::new(hir_inner), ty))
             }
             Expr::ToWeak(inner, _) => {
+                self.allow_bare_array = true;
                 let hir_inner = self.lower_expr(inner)?;
+                self.allow_bare_array = false;
                 let inner_ty = expr_type(&hir_inner);
                 let ty = HirType::Weak(Box::new(strip_ownership(inner_ty)));
                 Ok(HirExpr::ToWeak(Box::new(hir_inner), ty))
@@ -871,6 +880,9 @@ impl Ctx {
                 })
             }
             Expr::ArrayLiteral(elems, _) => {
+                if !self.allow_bare_array {
+                    return Err("array literal must be prefixed with `shared`, `unique`, or `weak`".into());
+                }
                 let mut hir_elems = Vec::new();
                 for e in elems {
                     hir_elems.push(self.lower_expr(e)?);
@@ -885,7 +897,7 @@ impl Ctx {
             Expr::Index { object, index, .. } => {
                 let hir_object = self.lower_expr(object)?;
                 let hir_index = self.lower_expr(index)?;
-                let object_ty = expr_type(&hir_object);
+                let object_ty = strip_ownership(expr_type(&hir_object));
                 let elem_ty = match &object_ty {
                     HirType::Array(inner) => *inner.clone(),
                     _ => return Err("index on non-array type".into()),

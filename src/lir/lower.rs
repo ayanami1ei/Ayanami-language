@@ -618,7 +618,8 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             let dest = ctx.next_tmp();
             let gep_tmp = ctx.next_tmp();
             let load_tmp = ctx.next_tmp();
-            let elem_ty = match expr_mir_type(object) {
+            let obj_ty = strip_ownership(expr_mir_type(object));
+            let elem_ty = match obj_ty {
                 HirType::Array(inner) => *inner,
                 _ => ty.clone(),
             };
@@ -762,6 +763,13 @@ fn expr_mir_type(expr: &MirExpr) -> HirType {
         | MirExpr::StructLiteral { ty, .. }
         | MirExpr::ArrayLiteral(_, ty)
         | MirExpr::Index { ty, .. } => ty.clone(),
+    }
+}
+
+fn strip_ownership(ty: HirType) -> HirType {
+    match ty {
+        HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => *inner,
+        other => other,
     }
 }
 

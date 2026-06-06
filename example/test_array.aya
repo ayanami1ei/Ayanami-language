@@ -1,4 +1,4 @@
 fn main() -> int {
-    a = [10, 20, 30];
-    return a[1] + a[2];
+    a = unique [10, 20, 30];
+    return a[0];
 }

@@ -1,8 +1,8 @@
-fn sum([int] arr) -> int {
+fn sum(unique [int] arr) -> int {
     return arr[0] + arr[1] + arr[2];
 }
 
 fn main() -> int {
-    a = [10, 20, 30];
+    a = unique [10, 20, 30];
     return sum(a);
 }
