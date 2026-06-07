@@ -639,26 +639,37 @@ impl<'a> Emitter<'a> {
                     // Struct value type: drop owned fields
                     if let Some(fields) = self.prog.struct_defs.get(type_name) {
                         for (i, (_, field_ty)) in fields.iter().enumerate() {
-                            match field_ty {
-                                HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => {
-                                    if matches!(inner.as_ref(), HirType::Named(_) | HirType::Array(_) | HirType::FatPtr { .. }) {
-                                        let gep = self.tmp();
-                                        let ftmp = self.tmp();
-                                        let struct_llvm = format!("%struct.{}", type_name);
-                                        let field_llvm = self.llvm_type(inner);
-                                        // GEP to the field, load the pointer, free it
-                                        self.wln_fmt(format_args!(
-                                            "%t{} = getelementptr {}, ptr %v{}, i32 0, i32 {}",
-                                            gep, struct_llvm, vid.0, i
-                                        ));
-                                        self.wln_fmt(format_args!(
-                                            "%t{} = load {}, ptr %t{}",
-                                            ftmp, field_llvm, gep
-                                        ));
-                                        self.wln_fmt(format_args!("call void @free(i8* %t{})", ftmp));
-                                    }
+                            let (needs_drop, is_shared) = match field_ty {
+                                HirType::Unique(inner) => {
+                                    (matches!(inner.as_ref(), HirType::Named(_) | HirType::Array(_) | HirType::FatPtr { .. }), false)
                                 }
-                                _ => {}
+                                HirType::Shared(inner) | HirType::Weak(inner) => {
+                                    (matches!(inner.as_ref(), HirType::Named(_) | HirType::Array(_) | HirType::FatPtr { .. }), true)
+                                }
+                                _ => (false, false),
+                            };
+                            if needs_drop {
+                                let gep = self.tmp();
+                                let ftmp = self.tmp();
+                                let struct_llvm = format!("%struct.{}", type_name);
+                                let inner_ty = match field_ty {
+                                    HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
+                                    _ => unreachable!(),
+                                };
+                                let field_llvm = self.llvm_type(inner_ty);
+                                self.wln_fmt(format_args!(
+                                    "%t{} = getelementptr {}, ptr %v{}, i32 0, i32 {}",
+                                    gep, struct_llvm, vid.0, i
+                                ));
+                                self.wln_fmt(format_args!(
+                                    "%t{} = load {}, ptr %t{}",
+                                    ftmp, field_llvm, gep
+                                ));
+                                if is_shared {
+                                    self.wln_fmt(format_args!("call void @__ayanami_shared_release(i8* %t{})", ftmp));
+                                } else {
+                                    self.wln_fmt(format_args!("call void @free(i8* %t{})", ftmp));
+                                }
                             }
                         }
                     }
