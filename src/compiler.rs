@@ -79,11 +79,22 @@ pub fn compile_file(
     let mut new_stmts = Vec::new();
     for stmt in &program.stmts {
         if let Stmt::Import { path, .. } = stmt {
-            if path.ends_with(".aya") {
-                let dep_path = base_dir.join(path);
-                let dep_target = load_config_for_file(&dep_path, out_dir);
+            // Try to resolve the import path (supports config aliases)
+            let resolved = resolve_import_path(path, base_dir);
+            let dep_path = match resolved {
+                Some(p) => p,
+                None => {
+                    // Try direct path relative to source dir
+                    let direct = base_dir.join(path);
+                    if direct.exists() { direct } else {
+                        // If parsing fails, just use the path as-is (HIR will handle .lcl)
+                        return Err(format!("cannot resolve import '{}' from {}: not found", path, base_dir.display()));
+                    }
+                }
+            };
+            let dep_target = load_config_for_file(&dep_path, out_dir);
+            if dep_path.to_string_lossy().ends_with(".aya") {
                 let dep = compile_file(&dep_path, base_dir, out_dir, compiling, cache, dep_target.as_deref())?;
-                // If dep is a dynamic lib, add link flags instead of its .o
                 if dep_target.as_deref() == Some("dynamic-lib") {
                     let dep_stem = dep_path.file_stem().unwrap_or_default().to_string_lossy();
                     dep_link_flags.push(format!("-L{}", out_dir.canonicalize().unwrap_or_else(|_| out_dir.to_path_buf()).display()));
@@ -96,7 +107,14 @@ pub fn compile_file(
                 let lcl_name = dep.lcl_path.to_string_lossy().into_owned();
                 new_stmts.push(Stmt::Import { path: lcl_name, span: crate::span::Span::default() });
             } else {
-                new_stmts.push(stmt.clone());
+                // .lcl file: use resolved path and link corresponding .o
+                let lcl_str = dep_path.to_string_lossy().into_owned();
+                new_stmts.push(Stmt::Import { path: lcl_str, span: crate::span::Span::default() });
+                // Also add the .o file for linking
+                let o_path = dep_path.with_extension("o");
+                if o_path.exists() {
+                    dep_obj_paths.push(o_path);
+                }
             }
         } else {
             new_stmts.push(stmt.clone());
@@ -187,6 +205,39 @@ pub fn compile_file(
 
     compiling.remove(&canonical);
     Ok(result)
+}
+
+/// Resolve an import path using config [dependencies] aliases.
+/// Returns Some(path) if found, None if the path doesn't exist.
+fn resolve_import_path(import_path: &str, base_dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    // Direct file check first
+    let direct = base_dir.join(import_path);
+    if direct.exists() { return Some(direct); }
+
+    // If it has an extension (like .lcl, .aya), and doesn't exist, fail
+    if import_path.contains('.') { return None; }
+
+    // No extension: try config alias. Walk up from base_dir to find ayanami.toml
+    let mut dir = Some(base_dir);
+    while let Some(d) = dir {
+        let toml_path = d.join("ayanami.toml");
+        if toml_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&toml_path) {
+                let config = crate::package::config::ProjectConfig::load(&content);
+                if let Some(alias_path) = config.dependencies.get(import_path) {
+                    let full = d.join(alias_path);
+                    // Support relative paths and absolute paths
+                    if full.exists() { return Some(full); }
+                    // Also try relative to the source file's base_dir
+                    let alt = base_dir.join(alias_path);
+                    if alt.exists() { return Some(alt); }
+                }
+            }
+            return None; // Found config but no alias match
+        }
+        dir = d.parent();
+    }
+    None
 }
 
 /// Try to load project config and resolve target for a file path.
