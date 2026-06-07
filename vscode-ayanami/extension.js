@@ -1,15 +1,22 @@
 const vscode = require('vscode');
 
 function activate(context) {
+    console.log('ayanami extension activating...');
     // ─── Status Bar ──────────────────────────────────────────────────
-    const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1);
     statusBar.text = '$(eye) Ayanami';
     statusBar.tooltip = 'Ayanami Language';
     statusBar.show();
     context.subscriptions.push(statusBar);
+    console.log('ayanami status bar shown');
 
     function setStatus(text, icon) {
-        statusBar.text = `${icon} Ayanami ${text}`;
+        try {
+            statusBar.text = `${icon} Ayanami ${text}`;
+            statusBar.show();
+        } catch (e) {
+            console.error('ayanami setStatus error:', e);
+        }
     }
 
     // ─── Completion Provider ─────────────────────────────────────────
@@ -179,6 +186,7 @@ function activate(context) {
     context.subscriptions.push(diagCollection);
 
     context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(doc => {
+        try {
         if (doc.languageId !== 'ayanami') return;
         setStatus('checking...', '$(eye)');
         diagCollection.clear();
@@ -237,8 +245,16 @@ function activate(context) {
         }
 
         diagCollection.set(doc.uri, diagnostics);
+        } catch (e) {
+            console.error('ayanami diagnostic error:', e);
+            setStatus('error', '$(error)');
+        }
     }));
-}
+    console.log('ayanami extension activated');
+
+    setTimeout(() => {
+        setStatus('ready', '$(eye)');
+    }, 1000);
 
 function findAyanamiPath(context) {
     const fs = require('fs');
