@@ -24,3 +24,4 @@
 *.vsix
 check_output/
 *.o
+/build

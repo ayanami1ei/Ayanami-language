@@ -166,22 +166,34 @@ pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<(), 
 
 /// Build a source file into an executable, generating a .lcl package alongside.
 pub fn build_source(src_path: &str, code: &str) -> Result<(), String> {
+    build_source_to(src_path, code, "build")
+}
+
+/// Build with explicit output directory.
+pub fn build_source_to(src_path: &str, code: &str, out_dir: &str) -> Result<(), String> {
     let result = compile_source(code)?;
+
+    // Ensure output directory exists
+    std::fs::create_dir_all(out_dir)
+        .map_err(|e| format!("failed to create output dir '{}': {}", out_dir, e))?;
 
     let exe_name = {
         let p = std::path::Path::new(src_path);
         p.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy().into_owned()
     };
 
-    println!("building {} -> {}", src_path, exe_name);
+    let exe_path = std::path::Path::new(out_dir).join(&exe_name);
+    let exe_path_str = exe_path.to_string_lossy().into_owned();
 
-    crate::driver::ir_to_executable(&result.llvm_ir, &exe_name)
+    println!("building {} -> {}", src_path, exe_path_str);
+
+    crate::driver::ir_to_executable(&result.llvm_ir, &exe_path_str)
         .map_err(|e| format!("link failed: {}", e))?;
 
-    println!("build ok: ./{}", exe_name);
+    println!("build ok: {}", exe_path_str);
 
-    // Generate .lcl package
-    let lcl_name = format!("{}.lcl", exe_name);
+    // Generate .lcl package alongside executable
+    let lcl_name = format!("{}.lcl", exe_path_str);
     let mut pkg = crate::package::Package::new(exe_name, "0.1.0".into());
     let has_main = result.program.stmts.iter().any(|s| matches!(s,
         crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main"
@@ -199,9 +211,16 @@ pub fn build_source(src_path: &str, code: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Run a built executable.
-pub fn run_executable(exe_path: &str) -> Result<i32, String> {
-    let status = std::process::Command::new(exe_path)
+/// Run a built executable.  Looks in `build/` first, then cwd.
+pub fn run_executable(exe_name: &str) -> Result<i32, String> {
+    let build_path = format!("build/{}", exe_name);
+    let exe_path = if std::path::Path::new(&build_path).exists() {
+        build_path
+    } else {
+        exe_name.to_string()
+    };
+    println!("running: {}", exe_path);
+    let status = std::process::Command::new(&exe_path)
         .status()
         .map_err(|e| format!("failed to run '{}': {}", exe_path, e))?;
     Ok(status.code().unwrap_or(-1))

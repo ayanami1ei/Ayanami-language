@@ -166,7 +166,7 @@ fn cmd_build(args: &[String]) {
     let code = match fs::read_to_string(&path) {
         Ok(c) => c, Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
-    match ayanami::compiler::build_source(&path_str, &code) {
+    match ayanami::compiler::build_source_to(&path_str, &code, "build") {
         Ok(()) => {}
         Err(e) => { eprintln!("build failed: {}", e); std::process::exit(1); }
     }
@@ -178,13 +178,11 @@ fn cmd_run(args: &[String]) {
     let code = match fs::read_to_string(&path) {
         Ok(c) => c, Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
-    if let Err(e) = ayanami::compiler::build_source(&path_str, &code) {
+    if let Err(e) = ayanami::compiler::build_source_to(&path_str, &code, "build") {
         eprintln!("build failed: {}", e); std::process::exit(1);
     }
     let exe_name = path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy();
-    let exe_path = format!("./{}", exe_name);
-    println!("running: {}", exe_path);
-    match ayanami::compiler::run_executable(&exe_path) {
+    match ayanami::compiler::run_executable(&exe_name) {
         Ok(code) => println!("exit code: {}", code),
         Err(e) => { eprintln!("run failed: {}", e); std::process::exit(1); }
     }
