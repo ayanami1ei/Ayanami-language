@@ -43,6 +43,7 @@ pub enum Expr {
     },
     StructLiteral {
         type_name: Symbol,
+        generic_args: Vec<Type>,
         fields: Vec<(Symbol, Expr)>,
         span: Span,
     },

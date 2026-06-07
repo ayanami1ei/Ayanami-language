@@ -81,6 +81,7 @@ pub enum Stmt {
     StructDef {
         vis: Visibility,
         name: Symbol,
+        generic_params: Vec<(Symbol, Option<Symbol>)>,
         fields: Vec<(Symbol, Type)>,
         span: Span,
     },

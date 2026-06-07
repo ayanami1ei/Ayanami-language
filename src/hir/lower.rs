@@ -69,6 +69,8 @@ struct Ctx {
 
     /// Struct definitions: name → fields
     struct_defs: HashMap<Symbol, Vec<HirStructField>>,
+    /// Generic struct params: name → [(param_name, constraint)]
+    generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
 
     /// Generic function ASTs: (name, generic_params, Stmt::FnDecl)
     generic_fns: Vec<(Symbol, Vec<(Symbol, Option<Symbol>)>, Stmt)>,
@@ -94,6 +96,7 @@ impl Ctx {
             vtables: Vec::new(),
             type_ifaces: HashMap::new(),
             struct_defs: HashMap::new(),
+            generic_struct_params: HashMap::new(),
             generic_fns: Vec::new(),
             specialized_fns: Vec::new(),
             current_fn: FnId(0),
@@ -159,11 +162,14 @@ impl Ctx {
                     }).collect();
                     self.interfaces.insert(*name, InterfaceReg { methods: hir_methods });
                 }
-                Stmt::StructDef { name, fields, .. } => {
+                Stmt::StructDef { name, fields, generic_params, .. } => {
                     let hir_fields: Vec<HirStructField> = fields.iter()
                         .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
                         .collect();
                     self.struct_defs.insert(*name, hir_fields);
+                    if !generic_params.is_empty() {
+                        self.generic_struct_params.insert(*name, generic_params.clone());
+                    }
                 }
                 Stmt::Import { path, .. } => {
                     let (imported_syms, _, _, _) = crate::package::load_package(path)
@@ -772,6 +778,10 @@ impl Ctx {
             .ok_or_else(|| format!("struct `{}` has no field `{}`", type_name, field))
     }
 
+    fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)> {
+        self.generic_struct_params.get(type_name).cloned().unwrap_or_default()
+    }
+
     fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool) {
         if let Some(existing) = self.lookup_var(&name) {
             return existing;
@@ -1197,15 +1207,45 @@ impl Ctx {
                     ty: field_ty,
                 })
             }
-            Expr::StructLiteral { type_name, fields, .. } => {
-                let struct_ty = HirType::Named(*type_name);
+            Expr::StructLiteral { type_name, generic_args, fields, .. } => {
+                // Handle generic struct instantiation
+                let concrete_name = if !generic_args.is_empty() {
+                    let args_str: Vec<String> = generic_args.iter()
+                        .map(|a| type_to_string_generic(a, &self.interfaces))
+                        .collect();
+                    let encoded = format!("{}<{}>", type_name, args_str.join(","));
+                    let name_sym = Symbol::intern(&encoded);
+                    // Monomorphize: create concrete struct def if not exists
+                    if !self.struct_defs.contains_key(&name_sym) {
+                        if let Some(generic_fields) = self.struct_defs.get(type_name) {
+                            // Build substitution map: T → concrete type
+                            let generic_params = self.collected_generic_params(type_name);
+                            let mut subst: HashMap<Symbol, HirType> = HashMap::new();
+                            for ((gp_name, _), concrete_ty) in generic_params.iter().zip(generic_args.iter()) {
+                                subst.insert(*gp_name, ast_type_to_hir(concrete_ty, &self.interfaces));
+                            }
+                            // Substitute field types
+                            let concrete_fields: Vec<HirStructField> = generic_fields.iter()
+                                .map(|f| {
+                                    let new_ty = substitute_hir_type(&f.ty, &subst);
+                                    HirStructField { name: f.name, ty: new_ty }
+                                })
+                                .collect();
+                            self.struct_defs.insert(name_sym, concrete_fields);
+                        }
+                    }
+                    name_sym
+                } else {
+                    *type_name
+                };
+                let struct_ty = HirType::Named(concrete_name);
                 let mut hir_fields = Vec::new();
                 for (name, expr) in fields {
                     let hir_val = self.lower_expr(expr)?;
                     hir_fields.push((*name, hir_val));
                 }
                 Ok(HirExpr::StructLiteral {
-                    type_name: *type_name,
+                    type_name: concrete_name,
                     fields: hir_fields,
                     ty: struct_ty,
                 })
@@ -1396,6 +1436,7 @@ fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type {
         Type::Char(_) => Type::Char(s),
         Type::Bool(_) => Type::Bool(s),
         Type::Void(_) => Type::Void(s),
+        Type::Generic(name, args, _) => Type::Generic(*name, args.iter().map(|a| substitute_type_in_type(a, subst)).collect(), s),
         Type::Default => ty.clone(),
         Type::Self_(_) => ty.clone(),
     }
@@ -1428,8 +1469,9 @@ fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr {
             args: args.iter().map(|a| substitute_type_in_expr(a, subst)).collect(),
             span: *span,
         },
-        Expr::StructLiteral { type_name, fields, span } => Expr::StructLiteral {
+        Expr::StructLiteral { type_name, generic_args, fields, span } => Expr::StructLiteral {
             type_name: *type_name,
+            generic_args: generic_args.clone(),
             fields: fields.iter().map(|(n, e)| (*n, substitute_type_in_expr(e, subst))).collect(),
             span: *span,
         },
@@ -1547,9 +1589,10 @@ fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt {
             items: items.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
             span: *span,
         },
-        Stmt::StructDef { vis, name, fields, span } => Stmt::StructDef {
+        Stmt::StructDef { vis, name, fields, span, .. } => Stmt::StructDef {
             vis: *vis,
             name: *name,
+            generic_params: Vec::new(),
             fields: fields.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
             span: *span,
         },
@@ -1579,6 +1622,54 @@ fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt {
 // ====================================================================
 
 /// Parse a type from a package signature string like "int", "shared Point", "[int]", etc.
+/// Convert an AST Type to a string for generic encoding.
+fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String {
+    match ty {
+        Type::Default => "?".into(),
+        Type::Int(_) => "int".into(),
+        Type::Float(_) => "float".into(),
+        Type::Char(_) => "char".into(),
+        Type::Bool(_) => "bool".into(),
+        Type::Void(_) => "void".into(),
+        Type::Named(s, _) => s.as_str().to_string(),
+        Type::Generic(name, args, _) => {
+            let a: Vec<String> = args.iter().map(|a| type_to_string_generic(a, interfaces)).collect();
+            format!("{}<{}>", name, a.join(","))
+        }
+        Type::Array(inner, _) => format!("[{}]", type_to_string_generic(inner, interfaces)),
+        Type::Ref(inner, mutable, _) => format!("ref{}{}",
+            if *mutable { " mut" } else { "" },
+            type_to_string_generic(inner, interfaces)),
+        Type::Unique(inner, _) => format!("unique {}", type_to_string_generic(inner, interfaces)),
+        Type::Shared(inner, _) => format!("shared {}", type_to_string_generic(inner, interfaces)),
+        Type::Weak(inner, _) => format!("weak {}", type_to_string_generic(inner, interfaces)),
+        Type::Self_(_) => "Self".into(),
+    }
+}
+
+/// Substitute generic type parameters in a HirType.
+fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType {
+    match ty {
+        HirType::Named(s) => {
+            if let Some(replacement) = subst.get(s) {
+                replacement.clone()
+            } else {
+                ty.clone()
+            }
+        }
+        HirType::Unique(inner) => HirType::Unique(Box::new(substitute_hir_type(inner, subst))),
+        HirType::Shared(inner) => HirType::Shared(Box::new(substitute_hir_type(inner, subst))),
+        HirType::Weak(inner) => HirType::Weak(Box::new(substitute_hir_type(inner, subst))),
+        HirType::Array(inner) => HirType::Array(Box::new(substitute_hir_type(inner, subst))),
+        HirType::Ref(inner, mutable) => HirType::Ref(Box::new(substitute_hir_type(inner, subst)), *mutable),
+        HirType::FatPtr { name, kind } => HirType::FatPtr {
+            name: *name,
+            kind: Box::new(substitute_hir_type(kind, subst)),
+        },
+        _ => ty.clone(),
+    }
+}
+
 fn sig_str_to_hir(s: &str) -> HirType {
     let s = s.trim();
     if let Some(inner) = s.strip_prefix("shared ") {
@@ -1609,6 +1700,13 @@ fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> Hir
         Type::Bool(_) => HirType::Bool,
         Type::Void(_) => HirType::Void,
         Type::Array(inner, _) => HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))),
+        Type::Generic(name, args, _) => {
+            // Encode generic instantiation as a unique named type
+            let args_str: Vec<String> = args.iter()
+                .map(|a| type_to_string_generic(a, interfaces))
+                .collect();
+            HirType::Named(Symbol::intern(&format!("{}<{}>", name, args_str.join(","))))
+        }
         Type::Named(s, _) => {
             let name = s.as_str();
             if name == "int" { HirType::Int }
@@ -1638,6 +1736,10 @@ fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> Hir
         }
         Type::Weak(inner, _) => HirType::Weak(Box::new(ast_type_to_hir(inner, interfaces))),
         Type::Ref(inner, mutable, _) => HirType::Ref(Box::new(ast_type_to_hir(inner, interfaces)), *mutable),
+        Type::Generic(name, args, _) => {
+            let hir_args: Vec<HirType> = args.iter().map(|a| ast_type_to_hir(a, interfaces)).collect();
+            HirType::Named(Symbol::intern(&format!("{}<{}>", name, hir_args.iter().map(hir_type_display).collect::<Vec<_>>().join(","))))
+        }
         Type::Self_(_) => {
             // Self_ should not appear outside impl blocks since the parser
             // already fills in the concrete type

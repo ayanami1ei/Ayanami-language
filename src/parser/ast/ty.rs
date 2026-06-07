@@ -11,6 +11,7 @@ pub enum Type {
     Bool(Span),
     Void(Span),
     Named(Symbol, Span),
+    Generic(Symbol, Vec<Type>, Span),  // Foo[int]
     Array(Box<Type>, Span),
     Ref(Box<Type>, bool, Span),  // ref T or ref mut T
     Unique(Box<Type>, Span),
@@ -27,6 +28,7 @@ impl Type {
             | Type::Char(s)
             | Type::Bool(s)
             | Type::Void(s)
+            | Type::Generic(_, _, s)
             | Type::Array(_, s)
             | Type::Ref(_, _, s)
             | Type::Unique(_, s)

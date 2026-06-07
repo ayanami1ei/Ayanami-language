@@ -370,6 +370,23 @@ impl Parser {
     fn parse_struct_def(&mut self, vis: Visibility) -> Result<Stmt, String> {
         self.advance(); // struct
         let name = Symbol::intern(&self.expect_identifier()?);
+        let mut generic_params = Vec::new();
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
+            self.advance();
+            loop {
+                let gp_name = Symbol::intern(&self.expect_identifier()?);
+                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
+                    self.advance();
+                    Some(Symbol::intern(&self.expect_identifier()?))
+                } else {
+                    None
+                };
+                generic_params.push((gp_name, gp_constraint));
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) { break; }
+                self.expect_delimiter(Delimiter::Comma)?;
+            }
+            self.expect_delimiter(Delimiter::RBracket)?;
+        }
         self.expect_delimiter(Delimiter::LBrace)?;
         let mut fields = Vec::new();
         loop {
@@ -383,7 +400,7 @@ impl Parser {
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Stmt::StructDef { vis, name, fields, span: Span::default() })
+        Ok(Stmt::StructDef { vis, name, generic_params, fields, span: Span::default() })
     }
 
     // ==================== Interface definition ====================
@@ -899,6 +916,49 @@ impl Parser {
                     name_str = format!("{}.{}", name_str, next);
                     name_sym = Symbol::intern(&name_str);
                 }
+                // Check for generic struct literal: Name[T] { field = val }
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
+                    let after_bracket = self.pos + 2 < self.tokens.len()
+                        && self.tokens[self.pos + 1].kind != TokenKind::Delimiter(Delimiter::RBracket);
+                    let after_close = self.pos + 2 < self.tokens.len()
+                        && (self.tokens[self.pos + 2].kind == TokenKind::Delimiter(Delimiter::RBracket)
+                            || self.tokens[self.pos + 3].kind == TokenKind::Delimiter(Delimiter::RBracket));
+                    if after_bracket && after_close {
+                        // Try to find ]{ pattern: means this is a generic struct literal
+                        // For now, just parse it as a generic type + struct literal
+                        self.advance(); // consume [
+                        let mut generic_args = Vec::new();
+                        loop {
+                            generic_args.push(self.parse_type()?);
+                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) { break; }
+                            self.expect_delimiter(Delimiter::Comma)?;
+                        }
+                        let rbracket_span = self.peek().map(|t| t.span()).unwrap_or_default();
+                        self.expect_delimiter(Delimiter::RBracket)?;
+                        // Now check for { — struct literal
+                        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
+                            let is_struct_lit = self.pos + 2 < self.tokens.len()
+                                && matches!(&self.tokens[self.pos + 1].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
+                                && self.tokens[self.pos + 2].kind == TokenKind::Operator("=".to_string());
+                            if is_struct_lit {
+                                self.advance(); // consume {
+                                let mut fields = Vec::new();
+                                if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
+                                    loop {
+                                        let field_name = Symbol::intern(&self.expect_identifier()?);
+                                        self.expect_operator("=")?;
+                                        let field_val = self.parse_expr()?;
+                                        fields.push((field_name, field_val));
+                                        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) { break; }
+                                        self.expect_delimiter(Delimiter::Comma)?;
+                                    }
+                                }
+                                self.expect_delimiter(Delimiter::RBrace)?;
+                                return Ok(Expr::StructLiteral { type_name: name_sym, generic_args, fields, span });
+                            }
+                        }
+                    }
+                }
                 match self.peek().map(|t| &t.kind) {
                     Some(TokenKind::Delimiter(Delimiter::LParen)) => {
                         self.advance();
@@ -937,7 +997,7 @@ impl Parser {
                             }
                         }
                         self.expect_delimiter(Delimiter::RBrace)?;
-                        Ok(Expr::StructLiteral { type_name: name_sym, fields, span })
+                        Ok(Expr::StructLiteral { type_name: name_sym, generic_args: Vec::new(), fields, span })
                     }
                     _ => Ok(Expr::Ident(name_sym, span)),
                 }
@@ -1114,8 +1174,22 @@ impl Parser {
                 Ok(Type::Self_(Span::default()))
             }
             TokenKind::Identifier(s) => {
+                let name = Symbol::intern(&s);
                 self.advance();
-                Ok(Type::Named(Symbol::intern(&s), Span::default()))
+                // Check for generic type instantiation: Foo[int]
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
+                    self.advance();
+                    let mut args = Vec::new();
+                    loop {
+                        args.push(self.parse_type()?);
+                        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) { break; }
+                        self.expect_delimiter(Delimiter::Comma)?;
+                    }
+                    self.expect_delimiter(Delimiter::RBracket)?;
+                    Ok(Type::Generic(name, args, Span::default()))
+                } else {
+                    Ok(Type::Named(name, Span::default()))
+                }
             }
             _ => Err(self.error("expected type")),
         }

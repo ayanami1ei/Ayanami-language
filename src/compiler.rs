@@ -536,6 +536,7 @@ fn format_type(ty: &Type) -> String {
         Type::Unique(inner, _) => format!("unique {}", format_type(inner)),
         Type::Shared(inner, _) => format!("shared {}", format_type(inner)),
         Type::Weak(inner, _) => format!("weak {}", format_type(inner)),
+        Type::Generic(name, args, _) => format!("{}[{}]", name, args.iter().map(|a| format_type(a)).collect::<Vec<_>>().join(",")),
         Type::Ref(inner, mutable, _) => {
             if *mutable {
                 format!("ref mut {}", format_type(inner))

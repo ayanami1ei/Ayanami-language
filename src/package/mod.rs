@@ -301,6 +301,7 @@ fn type_to_string(ty: &Type) -> String {
         Type::Unique(inner, _) => format!("unique {}", type_to_string(inner)),
         Type::Shared(inner, _) => format!("shared {}", type_to_string(inner)),
         Type::Weak(inner, _) => format!("weak {}", type_to_string(inner)),
+        Type::Generic(name, args, _) => format!("{}[{}]", name, args.iter().map(|a| type_to_string(a)).collect::<Vec<_>>().join(",")),
         Type::Ref(inner, mutable, _) => {
             if *mutable {
                 format!("ref mut {}", type_to_string(inner))

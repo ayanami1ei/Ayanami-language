@@ -60,7 +60,7 @@ impl<'a> Emitter<'a> {
             HirType::Void => "void".into(),
             HirType::Named(s) => {
                 if self.prog.struct_defs.contains_key(s) {
-                    format!("%struct.{}", s)
+                    format!("%struct.{}", sanitize_name(&s.as_str()))
                 } else {
                     "i8*".into()
                 }
@@ -264,9 +264,10 @@ impl<'a> Emitter<'a> {
             let field_types: Vec<String> = fields.iter()
                 .map(|(_, ty)| self.llvm_type(ty))
                 .collect();
+            let safe_name = sanitize_name(&name.as_str());
             self.wln_fmt(format_args!(
                 "%struct.{} = type {{ {} }}",
-                name, field_types.join(", ")
+                safe_name, field_types.join(", ")
             ));
         }
         if !self.prog.struct_defs.is_empty() {
@@ -276,7 +277,7 @@ impl<'a> Emitter<'a> {
 
     fn struct_llvm_name(&self, name: &Symbol) -> Option<String> {
         if self.prog.struct_defs.contains_key(name) {
-            Some(format!("%struct.{}", name))
+            Some(format!("%struct.{}", sanitize_name(&name.as_str())))
         } else {
             None
         }
@@ -651,7 +652,7 @@ impl<'a> Emitter<'a> {
                             if needs_drop {
                                 let gep = self.tmp();
                                 let ftmp = self.tmp();
-                                let struct_llvm = format!("%struct.{}", type_name);
+                                let struct_llvm = format!("%struct.{}", sanitize_name(&type_name.as_str()));
                                 let inner_ty = match field_ty {
                                     HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
                                     _ => unreachable!(),
@@ -823,7 +824,7 @@ impl<'a> Emitter<'a> {
                 }
             }
             LirInst::StructLit { dest, alloca_tmp, field_geps, fields, struct_name, struct_ty: _ } => {
-                let struct_llvm = format!("%struct.{}", struct_name);
+                let struct_llvm = format!("%struct.{}", sanitize_name(&struct_name.as_str()));
                 self.wln_fmt(format_args!(
                     "%t{} = alloca {}, align 8",
                     alloca_tmp, struct_llvm
@@ -1026,6 +1027,11 @@ impl<'a> Emitter<'a> {
 // ----------------------------------------------------------------
 //  Utilities
 // ----------------------------------------------------------------
+
+/// Sanitize a struct name for use as an LLVM identifier.
+fn sanitize_name(name: &str) -> String {
+    name.replace('<', "_lt_").replace('>', "_gt_").replace(',', "_c_")
+}
 
 fn lit_to_string(lit: &HirLiteral, ty: &HirType) -> String {
     match (lit, ty) {
