@@ -92,8 +92,14 @@ pub fn compile_file(
             };
             let dep_target = load_config_for_file(&dep_path, out_dir);
             if dep_path.to_string_lossy().ends_with(".aya") {
-                let dep = compile_file(&dep_path, base_dir, out_dir, compiling, cache, dep_target.as_deref())?;
-                if dep_target.as_deref() == Some("dynamic-lib") {
+                // Dependencies should always be static-lib (never executable)
+                let dep_target_or_static = if dep_target.as_deref() == Some("dynamic-lib") {
+                    "dynamic-lib"
+                } else {
+                    "static-lib"
+                };
+                let dep = compile_file(&dep_path, base_dir, out_dir, compiling, cache, Some(dep_target_or_static))?;
+                if dep_target_or_static == "dynamic-lib" {
                     let dep_stem = dep_path.file_stem().unwrap_or_default().to_string_lossy();
                     dep_link_flags.push(format!("-L{}", out_dir.canonicalize().unwrap_or_else(|_| out_dir.to_path_buf()).display()));
                     dep_link_flags.push(format!("-l{}", dep_stem));
