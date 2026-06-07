@@ -1,0 +1,4 @@
+fn main() -> int {
+    self = 42;
+    return self;
+}

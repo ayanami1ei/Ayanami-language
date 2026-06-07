@@ -1,0 +1,19 @@
+struct Point {
+    int x
+    int y
+}
+
+impl Point {
+    fn add(shared self, shared Point other) -> Point {
+        a = self.x + other.x;
+        b = self.y + other.y;
+        return Point { x = a, y = b };
+    }
+}
+
+fn main() -> int {
+    a = Point { x = 10, y = 3 };
+    b = Point { x = 5, y = 7 };
+    c = a + b;
+    return c.x;
+}

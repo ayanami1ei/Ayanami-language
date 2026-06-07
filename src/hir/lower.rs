@@ -740,17 +740,42 @@ impl Ctx {
             Expr::Binary { op, lhs, rhs, .. } => {
                 let hir_lhs = self.lower_expr(lhs)?;
                 let hir_rhs = self.lower_expr(rhs)?;
-                let ty = strip_ownership(expr_type(&hir_lhs));
+                let lhs_ty = expr_type(&hir_lhs);
+                let inner_ty = strip_ownership(lhs_ty.clone());
+                // Try operator overloading first: look for a matching function
+                if let Some(op_fn_name) = binary_op_to_fn_name(op) {
+                    let rhs_ty = expr_type(&hir_rhs);
+                    let param_types = [lhs_ty.clone(), rhs_ty];
+                    if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
+                        let ret_ty = self.fns[fn_id.0].return_type.clone();
+                        let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
+                        let args = vec![hir_lhs, hir_rhs].into_iter().enumerate().map(|(i, arg)| {
+                            if i >= param_tys.len() { return arg; }
+                            wrap_arg_for_param(arg, &param_tys[i])
+                        }).collect();
+                        return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
+                    }
+                }
+                // Fall back to built-in operator
                 Ok(HirExpr::Binary {
                     op: *op,
                     lhs: Box::new(hir_lhs),
                     rhs: Box::new(hir_rhs),
-                    ty,
+                    ty: inner_ty,
                 })
             }
             Expr::Unary { op, arg, .. } => {
                 let hir_arg = self.lower_expr(arg)?;
-                let ty = strip_ownership(expr_type(&hir_arg));
+                let arg_ty = expr_type(&hir_arg);
+                // Try operator overloading
+                if let Some(op_fn_name) = unary_op_to_fn_name(op) {
+                    let param_types = [arg_ty.clone()];
+                    if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
+                        let ret_ty = self.fns[fn_id.0].return_type.clone();
+                        return Ok(HirExpr::Call { fn_id, args: vec![implicit_move(hir_arg)], ty: ret_ty });
+                    }
+                }
+                let ty = strip_ownership(arg_ty);
                 Ok(HirExpr::Unary {
                     op: *op,
                     arg: Box::new(hir_arg),
@@ -1018,6 +1043,34 @@ fn implicit_move(expr: HirExpr) -> HirExpr {
     }
 }
 
+/// Wrap an argument to match the expected parameter type (handles ownership conversion).
+fn wrap_arg_for_param(arg: HirExpr, param_ty: &HirType) -> HirExpr {
+    let arg_ty = expr_type(&arg);
+    match param_ty {
+        HirType::Unique(pt) | HirType::Shared(pt) | HirType::Weak(pt) => {
+            if arg_ty == *pt.as_ref() {
+                match param_ty {
+                    HirType::Unique(_) => {
+                        HirExpr::ToUnique(Box::new(arg), param_ty.clone())
+                    }
+                    HirType::Shared(_) => {
+                        HirExpr::ToShared(Box::new(arg), param_ty.clone())
+                    }
+                    HirType::Weak(_) => {
+                        HirExpr::ToWeak(Box::new(arg), param_ty.clone())
+                    }
+                    _ => arg,
+                }
+            } else if matches!(param_ty, HirType::Unique(_)) {
+                wrap_for_unique_param(arg, param_ty)
+            } else {
+                arg
+            }
+        }
+        _ => arg,
+    }
+}
+
 /// Like implicit_move, but also wraps plain values when the param expects Unique.
 fn wrap_for_unique_param(expr: HirExpr, param_ty: &HirType) -> HirExpr {
     let ty = expr_type(&expr);
@@ -1121,6 +1174,31 @@ fn hir_type_display(ty: &HirType) -> String {
         HirType::Weak(inner) => format!("weak {}", hir_type_display(inner)),
         HirType::FatPtr { name, kind } => format!("{} {}", hir_type_display(kind), name.as_str()),
         HirType::Array(inner) => format!("[{}]", hir_type_display(inner)),
+    }
+}
+
+/// Map binary operators to function names for operator overloading.
+fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str> {
+    match op {
+        BinaryOp::Add => Some("add"),
+        BinaryOp::Sub => Some("sub"),
+        BinaryOp::Mul => Some("mul"),
+        BinaryOp::Div => Some("div"),
+        BinaryOp::Mod => Some("rem"),
+        BinaryOp::Eq => Some("eq"),
+        BinaryOp::Neq => Some("ne"),
+        BinaryOp::Lt => Some("lt"),
+        BinaryOp::Gt => Some("gt"),
+        BinaryOp::Le => Some("le"),
+        BinaryOp::Ge => Some("ge"),
+        BinaryOp::And | BinaryOp::Or => None, // logical ops not overloadable
+    }
+}
+
+fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str> {
+    match op {
+        UnaryOp::Neg => Some("neg"),
+        UnaryOp::Not => Some("not"),
     }
 }
 
