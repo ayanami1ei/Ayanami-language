@@ -12,6 +12,7 @@ fn main() {
         eprintln!("  build [file/proj]  构建可执行文件 + .lcl 包");
         eprintln!("  install <lcl>      从 .lcl 构建目标产物");
         eprintln!("  run [file/proj]    构建并运行");
+        eprintln!("  clean              清除 build/ 目录");
         std::process::exit(1);
     }
 
@@ -23,6 +24,7 @@ fn main() {
         "build" => cmd_build(&args[2..]),
         "install" => cmd_install(&args[2..]),
         "run" => cmd_run(&args[2..]),
+        "clean" => cmd_clean(),
         _ => {
             eprintln!("unknown command: {}", command);
             std::process::exit(1);
@@ -167,6 +169,19 @@ fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)> {
         Some((proj_dir, ayanami::package::config::ProjectConfig::load(&toml_str)))
     } else {
         None
+    }
+}
+
+fn cmd_clean() {
+    let build_dir = Path::new("build");
+    if build_dir.exists() {
+        fs::remove_dir_all(build_dir).unwrap_or_else(|e| {
+            eprintln!("error: failed to remove build/: {}", e);
+            std::process::exit(1);
+        });
+        println!("removed build/");
+    } else {
+        println!("build/ does not exist");
     }
 }
 
