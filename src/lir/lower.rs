@@ -708,6 +708,33 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             ctx.emit(LirInst::RefInst { dest, var_id, mutable: *mutable, ty: ty.clone() });
             LirValue::Tmp(dest)
         }
+        MirExpr::Asm { template, outputs, inputs, ty } => {
+            let is_void = matches!(ty, HirType::Void);
+            let dest = if is_void { None } else { Some(ctx.next_tmp()) };
+            let input_operands: Vec<_> = inputs.iter()
+                .map(|(c, e)| { let v = lower_expr(ctx, e); (v, (c.clone(), expr_mir_type(e))) })
+                .collect();
+            let output_constraints: Vec<String> = outputs.iter().map(|(c, _)| format!("={}", c)).collect();
+            let input_constraints: Vec<String> = input_operands.iter().map(|(_, (c, _))| c.clone()).collect();
+            let input_vals: Vec<(LirValue, HirType)> = input_operands.into_iter().map(|(v, (_, t))| (v, t)).collect();
+            // Outputs become additional temps
+            if !outputs.is_empty() {
+                // For now, only support single output
+            }
+            ctx.emit(LirInst::Asm {
+                dest,
+                template: template.clone(),
+                output_constraints,
+                input_operands: input_vals,
+                input_constraints,
+                ret_ty: ty.clone(),
+            });
+            if is_void {
+                LirValue::Literal(HirLiteral::Int(0), HirType::Void)
+            } else {
+                LirValue::Tmp(dest.unwrap())
+            }
+        }
         MirExpr::Index { object, index, ty } => {
             let arr_val = lower_expr(ctx, object);
             let idx_val = lower_expr(ctx, index);
@@ -868,7 +895,8 @@ fn expr_mir_type(expr: &MirExpr) -> HirType {
         | MirExpr::ArraySized { ty, .. }
         | MirExpr::ArrayLiteral(_, ty)
         | MirExpr::Index { ty, .. }
-        | MirExpr::Ref { ty, .. } => ty.clone(),
+        | MirExpr::Ref { ty, .. }
+        | MirExpr::Asm { ty, .. } => ty.clone(),
     }
 }
 
@@ -996,6 +1024,10 @@ fn collect_strings_expr(expr: &MirExpr, out: &mut Vec<String>) {
         MirExpr::Index { object, index, .. } => {
             collect_strings_expr(object, out);
             collect_strings_expr(index, out);
+        }
+        MirExpr::Asm { outputs, inputs, .. } => {
+            for (_, e) in outputs { collect_strings_expr(e, out); }
+            for (_, e) in inputs { collect_strings_expr(e, out); }
         }
         _ => {}
     }

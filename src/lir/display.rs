@@ -108,6 +108,9 @@ fn write_inst(inst: &LirInst, w: &mut impl Write) -> std::fmt::Result {
         LirInst::IndexStore { dest, elem_ty, .. } => {
             writeln!(w, "    t{} = index_store elem_ty={:?}", dest, elem_ty)?;
         }
+        LirInst::Asm { template, .. } => {
+            writeln!(w, "    asm \"{}\"", template)?;
+        }
         LirInst::RefInst { dest, var_id, mutable, ty } => {
             let m = if *mutable { "mut " } else { "" };
             writeln!(w, "    t{} = ref_{}v{} : {:?}", dest, m, var_id.0, ty)?;

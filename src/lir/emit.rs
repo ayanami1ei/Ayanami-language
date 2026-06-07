@@ -921,6 +921,29 @@ impl<'a> Emitter<'a> {
                     elem_llvm, src_str, gep_tmp
                 ));
             }
+            LirInst::Asm { dest, template, output_constraints, input_operands, input_constraints, ret_ty } => {
+                let ret_llvm = self.llvm_type(ret_ty);
+                let constraint_str = {
+                    let mut all = output_constraints.clone();
+                    all.extend(input_constraints.iter().cloned());
+                    all.join(",")
+                };
+                let args_str: Vec<String> = input_operands.iter()
+                    .map(|(v, t)| format!("{} {}", self.llvm_type(t), self.value_ref(v, t)))
+                    .collect();
+                if let Some(d) = dest {
+                    self.wln_fmt(format_args!(
+                        "%t{} = call {} asm sideeffect \"{}\", \"{}\"({})",
+                        d, ret_llvm, template, constraint_str, args_str.join(", ")
+                    ));
+                } else {
+                    let args = if args_str.is_empty() { String::from("()") } else { format!("({})", args_str.join(", ")) };
+                    self.wln_fmt(format_args!(
+                        "call void asm sideeffect \"{}\", \"{}\"{}",
+                        template, constraint_str, args
+                    ));
+                }
+            }
             LirInst::RefInst { dest, var_id, mutable: _, ty: _ } => {
                 // The alloca pointer IS the reference value
                 self.wln_fmt(format_args!(

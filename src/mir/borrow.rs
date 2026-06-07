@@ -92,6 +92,10 @@ impl<'a> BorrowChecker<'a> {
             MirExpr::ArrayLiteral(elems, _) => { for e in elems { self.check_expr(e)?; } }
             MirExpr::ArraySized { count, .. } => self.check_expr(count)?,
             MirExpr::Index { object, index, .. } => { self.check_expr(object)?; self.check_expr(index)?; }
+            MirExpr::Asm { outputs, inputs, .. } => {
+                for (_, e) in outputs { self.check_expr(e)?; }
+                for (_, e) in inputs { self.check_expr(e)?; }
+            }
             _ => {}
         }
         Ok(())

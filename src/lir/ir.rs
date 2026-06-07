@@ -104,6 +104,15 @@ pub enum LirInst {
         field_ty: HirType,
         struct_ty: HirType,
     },
+    /// Inline assembly instruction
+    Asm {
+        dest: Option<u64>,
+        template: String,
+        output_constraints: Vec<String>,
+        input_operands: Vec<(LirValue, HirType)>,
+        input_constraints: Vec<String>,
+        ret_ty: HirType,
+    },
     /// Take a reference: emit the address of a variable as ptr
     RefInst {
         dest: u64,

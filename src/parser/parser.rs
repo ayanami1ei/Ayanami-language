@@ -894,12 +894,51 @@ impl Parser {
                 let span = tok.span();
                 self.advance();
                 self.expect_delimiter(Delimiter::LParen)?;
-                let asm_str = match self.peek().map(|t| &t.kind) {
+                let template = match self.peek().map(|t| &t.kind) {
                     Some(TokenKind::StringLiteral(s)) => { let s = s.clone(); self.advance(); s }
                     _ => return Err(self.error("expected string literal in asm")),
                 };
+                let mut outputs = Vec::new();
+                let mut inputs = Vec::new();
+                loop {
+                    match self.peek().map(|t| &t.kind) {
+                        Some(TokenKind::Delimiter(Delimiter::RParen)) | None => break,
+                        _ => {
+                            self.expect_delimiter(Delimiter::Comma)?;
+                            match self.peek().map(|t| &t.kind) {
+                                Some(TokenKind::Keyword(Keyword::Out)) => {
+                                    self.advance();
+                                    self.expect_delimiter(Delimiter::LParen)?;
+                                    let constraint = match self.peek().map(|t| &t.kind) {
+                                        Some(TokenKind::Keyword(Keyword::Reg)) => {
+                                            self.advance(); "r".to_string()
+                                        }
+                                        _ => return Err(self.error("expected reg in asm out")),
+                                    };
+                                    self.expect_delimiter(Delimiter::RParen)?;
+                                    let output = self.parse_expr()?;
+                                    outputs.push((constraint, Box::new(output)));
+                                }
+                                Some(TokenKind::Keyword(Keyword::In)) => {
+                                    self.advance();
+                                    self.expect_delimiter(Delimiter::LParen)?;
+                                    let constraint = match self.peek().map(|t| &t.kind) {
+                                        Some(TokenKind::Keyword(Keyword::Reg)) => {
+                                            self.advance(); "r".to_string()
+                                        }
+                                        _ => return Err(self.error("expected reg in asm in")),
+                                    };
+                                    self.expect_delimiter(Delimiter::RParen)?;
+                                    let input = self.parse_expr()?;
+                                    inputs.push((constraint, Box::new(input)));
+                                }
+                                _ => break,
+                            }
+                        }
+                    }
+                }
                 self.expect_delimiter(Delimiter::RParen)?;
-                Ok(Expr::Asm(asm_str, span))
+                Ok(Expr::Asm { template, outputs, inputs, span })
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.advance();

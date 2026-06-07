@@ -98,6 +98,12 @@ fn mir_expr_from_hir(expr: &HirExpr, moved: &HashSet<VarId>) -> MirExpr {
             index: Box::new(mir_expr_from_hir(index, moved)),
             ty: ty.clone(),
         },
+        HirExpr::Asm { template, outputs, inputs, ty } => MirExpr::Asm {
+            template: template.clone(),
+            outputs: outputs.iter().map(|(c, e)| (c.clone(), Box::new(mir_expr_from_hir(e, moved)))).collect(),
+            inputs: inputs.iter().map(|(c, e)| (c.clone(), Box::new(mir_expr_from_hir(e, moved)))).collect(),
+            ty: ty.clone(),
+        },
     }
 }
 
@@ -143,6 +149,10 @@ fn collect_var_ids(expr: &HirExpr) -> HashSet<VarId> {
         HirExpr::Index { object, index, .. } => {
             vars.extend(collect_var_ids(object));
             vars.extend(collect_var_ids(index));
+        }
+        HirExpr::Asm { outputs, inputs, .. } => {
+            for (_, e) in outputs { vars.extend(collect_var_ids(e)); }
+            for (_, e) in inputs { vars.extend(collect_var_ids(e)); }
         }
         _ => {}
     }
@@ -315,6 +325,10 @@ impl Ctx {
             }
             HirExpr::StructLiteral { fields, .. } => {
                 for (_, e) in fields { self.track_expr_moves(e); }
+            }
+            HirExpr::Asm { outputs, inputs, .. } => {
+                for (_, e) in outputs { self.track_expr_moves(e); }
+                for (_, e) in inputs { self.track_expr_moves(e); }
             }
             HirExpr::ArrayLiteral(elems, _) => {
                 for e in elems { self.track_expr_moves(e); }

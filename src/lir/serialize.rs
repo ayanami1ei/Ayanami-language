@@ -259,6 +259,18 @@ fn put_inst(buf: &mut Vec<u8>, inst: &LirInst) {
             put_value(buf, elem_count); put_u64(buf, *elem_size);
             put_type(buf, elem_ty); put_type(buf, ty);
         }
+        Asm { dest, template, output_constraints, input_operands, input_constraints, ret_ty } => {
+            buf.push(24);
+            put_u32(buf, dest.map_or(0xFFFFFFFF, |d| d as u32));
+            put_str(buf, template);
+            put_u32(buf, output_constraints.len() as u32);
+            for c in output_constraints { put_str(buf, c); }
+            put_u32(buf, input_operands.len() as u32);
+            for (v, t) in input_operands { put_value(buf, v); put_type(buf, t); }
+            put_u32(buf, input_constraints.len() as u32);
+            for c in input_constraints { put_str(buf, c); }
+            put_type(buf, ret_ty);
+        }
         RefInst { dest, var_id, mutable, ty } => { buf.push(23); put_u64(buf, *dest); put_u32(buf, var_id.0 as u32); buf.push(if *mutable { 1 } else { 0 }); put_type(buf, ty); }
         IndexStore { dest, gep_tmp, src, index, elem_ty, array_ty } => {
             buf.push(22);
@@ -483,6 +495,22 @@ impl<'a> Reader<'a> {
                 Ok(IndexStore { dest: d, gep_tmp: gt, src: s, index: idx, elem_ty: et, array_ty: at })
             }
             23 => { let d = self.u64()?; let vr = VarId(self.u32()? as usize); let m = self.read(1)?[0] != 0; let t = self.ty()?; Ok(RefInst { dest: d, var_id: vr, mutable: m, ty: t }) }
+            24 => {
+                let d_raw = self.u32()?;
+                let dest = if d_raw == 0xFFFFFFFF { None } else { Some(d_raw as u64) };
+                let template = self.str()?;
+                let oc_count = self.u32()?;
+                let mut output_constraints = Vec::new();
+                for _ in 0..oc_count { output_constraints.push(self.str()?); }
+                let io_count = self.u32()?;
+                let mut input_operands = Vec::new();
+                for _ in 0..io_count { input_operands.push((self.value()?, self.ty()?)); }
+                let ic_count = self.u32()?;
+                let mut input_constraints = Vec::new();
+                for _ in 0..ic_count { input_constraints.push(self.str()?); }
+                let ret_ty = self.ty()?;
+                Ok(Asm { dest, template, output_constraints, input_operands, input_constraints, ret_ty })
+            }
             _ => Err(format!("unknown inst tag: {}", tag)),
         }
     }

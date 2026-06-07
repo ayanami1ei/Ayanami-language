@@ -189,6 +189,17 @@ fn write_expr(expr: &MirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}  index:", p)?;
             write_expr(index, level + 1, w)?;
         }
+        MirExpr::Asm { template, outputs, inputs, .. } => {
+            writeln!(w, "{}Asm template=\"{}\" outputs={} inputs={}", p, template, outputs.len(), inputs.len())?;
+            for (i, (c, e)) in outputs.iter().enumerate() {
+                writeln!(w, "{}  out[{}] constraint={}:", p, i, c)?;
+                write_expr(e, level + 1, w)?;
+            }
+            for (i, (c, e)) in inputs.iter().enumerate() {
+                writeln!(w, "{}  in[{}] constraint={}:", p, i, c)?;
+                write_expr(e, level + 1, w)?;
+            }
+        }
     }
     Ok(())
 }

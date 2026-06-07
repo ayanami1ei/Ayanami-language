@@ -102,6 +102,13 @@ pub enum HirExpr {
     ArrayLiteral(Vec<HirExpr>, HirType),
     /// Sized array [int; 10] — calloc with count
     ArraySized { count: Box<HirExpr>, elem_ty: HirType, ty: HirType },
+    /// Inline assembly
+    Asm {
+        template: String,
+        outputs: Vec<(String, Box<HirExpr>)>,
+        inputs: Vec<(String, Box<HirExpr>)>,
+        ty: HirType,
+    },
     /// Take a reference: ref x or ref mut x
     Ref { expr: Box<HirExpr>, mutable: bool, ty: HirType },
     /// Index expression arr[i]

@@ -1093,8 +1093,24 @@ impl Ctx {
                 let ty = HirType::Array(Box::new(elem_ty.clone()));
                 Ok(HirExpr::ArraySized { count: Box::new(hir_count), elem_ty, ty })
             }
-            Expr::Asm(_, _) => {
-                Ok(HirExpr::Literal(HirLiteral::Int(0), HirType::Void))
+            Expr::Asm { template, outputs, inputs, .. } => {
+                let lowered_outputs: Vec<(String, Box<HirExpr>)> = outputs.iter().map(|(c, e)| {
+                    (c.clone(), Box::new(self.lower_expr(e).unwrap()))
+                }).collect();
+                let lowered_inputs: Vec<(String, Box<HirExpr>)> = inputs.iter().map(|(c, e)| {
+                    (c.clone(), Box::new(self.lower_expr(e).unwrap()))
+                }).collect();
+                let ty = if !lowered_outputs.is_empty() {
+                    expr_type(&lowered_outputs[0].1)
+                } else {
+                    HirType::Void
+                };
+                Ok(HirExpr::Asm {
+                    template: template.clone(),
+                    outputs: lowered_outputs,
+                    inputs: lowered_inputs,
+                    ty,
+                })
             }
         }
     }
@@ -1326,6 +1342,7 @@ fn expr_type(expr: &HirExpr) -> HirType {
         | HirExpr::ArraySized { ty, .. }
         | HirExpr::ArrayLiteral(_, ty)
         | HirExpr::Index { ty, .. }
-        | HirExpr::Ref { ty, .. } => ty.clone(),
+        | HirExpr::Ref { ty, .. }
+        | HirExpr::Asm { ty, .. } => ty.clone(),
     }
 }

@@ -1,0 +1,7 @@
+fn main() -> int {
+    result = 0;
+    a = 10;
+    b = 20;
+    asm!("add {0}, {1}", in(reg) a, out(reg) result);
+    return result;
+}
