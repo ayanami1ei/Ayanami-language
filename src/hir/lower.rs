@@ -1069,6 +1069,38 @@ impl Ctx {
                 let ty = self.fns[fn_id.0].return_type.clone();
                 Ok(HirExpr::Call { fn_id, args: hir_args, ty })
             }
+            Expr::CallExpr { target, args, span } => {
+                // Function call on arbitrary expression: look for `call` method
+                let hir_target = self.lower_expr(target)?;
+                let target_ty = expr_type(&hir_target);
+                let hir_args: Vec<HirExpr> = args.iter()
+                    .map(|a| self.lower_expr(a))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
+                let all_types = std::iter::once(target_ty.clone()).chain(arg_types.clone()).collect::<Vec<_>>();
+                if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("call"), &all_types) {
+                    let ret_ty = self.fns[fn_id.0].return_type.clone();
+                    let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
+                    let mut all_args = vec![hir_target];
+                    all_args.extend(hir_args);
+                    all_args = all_args.into_iter().enumerate().map(|(i, arg)| {
+                        if i >= param_tys.len() { return arg; }
+                        wrap_arg_for_param(arg, &param_tys[i])
+                    }).collect();
+                    return Ok(HirExpr::Call { fn_id, args: all_args, ty: ret_ty });
+                }
+                Err(format!("type `{}` cannot be called as a function at {}:{}",
+                    hir_type_display(&target_ty), span.start_line, span.start_col))
+            }
+            Expr::TryOp(inner, span) => {
+                let hir_inner = self.lower_expr(inner)?;
+                let inner_ty = expr_type(&hir_inner);
+                if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("try_unwrap"), &[inner_ty.clone()]) {
+                    let ret_ty = self.fns[fn_id.0].return_type.clone();
+                    return Ok(HirExpr::Call { fn_id, args: vec![hir_inner], ty: ret_ty });
+                }
+                Err(format!("type `{:?}` cannot use `?` operator at {}:{}", inner_ty, span.start_line, span.start_col))
+            }
             Expr::MethodCall { object, method, args, span } => {
                 // Lower the receiver first
                 let receiver = self.lower_expr(object)?;
@@ -1265,13 +1297,26 @@ impl Ctx {
                 };
                 Ok(HirExpr::ArrayLiteral(hir_elems, HirType::Array(Box::new(elem_ty))))
             }
-            Expr::Index { object, index, .. } => {
+            Expr::Index { object, index, span } => {
                 let hir_object = self.lower_expr(object)?;
                 let hir_index = self.lower_expr(index)?;
-                let object_ty = strip_ownership(expr_type(&hir_object));
-                let elem_ty = match &object_ty {
+                let object_ty = expr_type(&hir_object);
+                let inner_ty = strip_ownership(object_ty.clone());
+                // Try operator overloading: index(self, index)
+                let index_ty = expr_type(&hir_index);
+                if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("index"), &[object_ty.clone(), index_ty.clone()]) {
+                    let ret_ty = self.fns[fn_id.0].return_type.clone();
+                    let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
+                    let args = vec![hir_object, hir_index].into_iter().enumerate().map(|(i, arg)| {
+                        if i >= param_tys.len() { return arg; }
+                        wrap_arg_for_param(arg, &param_tys[i])
+                    }).collect();
+                    return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
+                }
+                // Fallback to built-in array index
+                let elem_ty = match &inner_ty {
                     HirType::Array(inner) => *inner.clone(),
-                    _ => return Err("index on non-array type".into()),
+                    _ => return Err(format!("index on non-array type at {}:{}", span.start_line, span.start_col)),
                 };
                 Ok(HirExpr::Index {
                     object: Box::new(hir_object),
@@ -1510,6 +1555,15 @@ fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr {
             index: Box::new(substitute_type_in_expr(index, subst)),
             span: *span,
         },
+        Expr::CallExpr { target, args, span } => Expr::CallExpr {
+            target: Box::new(substitute_type_in_expr(target, subst)),
+            args: args.iter().map(|a| substitute_type_in_expr(a, subst)).collect(),
+            span: *span,
+        },
+        Expr::TryOp(inner, span) => Expr::TryOp(
+            Box::new(substitute_type_in_expr(inner, subst)),
+            *span,
+        ),
     }
 }
 
@@ -1736,10 +1790,6 @@ fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> Hir
         }
         Type::Weak(inner, _) => HirType::Weak(Box::new(ast_type_to_hir(inner, interfaces))),
         Type::Ref(inner, mutable, _) => HirType::Ref(Box::new(ast_type_to_hir(inner, interfaces)), *mutable),
-        Type::Generic(name, args, _) => {
-            let hir_args: Vec<HirType> = args.iter().map(|a| ast_type_to_hir(a, interfaces)).collect();
-            HirType::Named(Symbol::intern(&format!("{}<{}>", name, hir_args.iter().map(hir_type_display).collect::<Vec<_>>().join(","))))
-        }
         Type::Self_(_) => {
             // Self_ should not appear outside impl blocks since the parser
             // already fills in the concrete type

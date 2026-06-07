@@ -665,6 +665,18 @@ fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
         Expr::Asm { template, .. } => {
             writeln!(w, "{}Asm(\"{}\")", pad(level), template).unwrap();
         }
+        Expr::CallExpr { target, args, .. } => {
+            writeln!(w, "{}CallExpr", pad(level)).unwrap();
+            writeln!(w, "{}  target:", pad(level)).unwrap();
+            write_expr(target, level + 1, w);
+            for arg in args {
+                write_expr(arg, level + 1, w);
+            }
+        }
+        Expr::TryOp(inner, _) => {
+            writeln!(w, "{}TryOp", pad(level)).unwrap();
+            write_expr(inner, level + 1, w);
+        }
     }
 }
 

@@ -65,6 +65,12 @@ pub enum Expr {
         index: Box<Expr>,
         span: Span,
     },
+    CallExpr {
+        target: Box<Expr>,
+        args: Vec<Expr>,
+        span: Span,
+    },
+    TryOp(Box<Expr>, Span),  // expr?
 }
 
 impl Expr {
@@ -85,7 +91,9 @@ impl Expr {
             | Expr::ArraySized { span, .. }
             | Expr::Ref(_, _, span)
             | Expr::Asm { span, .. }
-            | Expr::Index { span, .. } => *span,
+            | Expr::Index { span, .. }
+            | Expr::CallExpr { span, .. }
+            | Expr::TryOp(_, span) => *span,
             Expr::Literal(lit) => lit.span(),
             Expr::Ident(_, span) => *span,
         }

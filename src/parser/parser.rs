@@ -840,8 +840,7 @@ impl Parser {
                         let name = *name;
                         expr = Expr::FnCall { name, args, span };
                     } else {
-                        // Parenthesized expr called as function: not supported yet
-                        return Err(self.error("calling non-identifier as function is not supported"));
+                        expr = Expr::CallExpr { target: Box::new(expr), args, span };
                     }
                 }
                 // Indexing: expr[index]
@@ -852,6 +851,11 @@ impl Parser {
                     expr = Expr::Index {
                         object: Box::new(expr), index: Box::new(index), span
                     };
+                }
+                // Try operator: expr?
+                Some(TokenKind::Operator(s)) if s == "?" => {
+                    self.advance();
+                    expr = Expr::TryOp(Box::new(expr), span);
                 }
                 // Method call: expr.method(args) or field access: expr.field
                 Some(TokenKind::Delimiter(Delimiter::Dot)) => {
@@ -917,26 +921,26 @@ impl Parser {
                     name_sym = Symbol::intern(&name_str);
                 }
                 // Check for generic struct literal: Name[T] { field = val }
-                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
-                    let after_bracket = self.pos + 2 < self.tokens.len()
-                        && self.tokens[self.pos + 1].kind != TokenKind::Delimiter(Delimiter::RBracket);
-                    let after_close = self.pos + 2 < self.tokens.len()
-                        && (self.tokens[self.pos + 2].kind == TokenKind::Delimiter(Delimiter::RBracket)
-                            || self.tokens[self.pos + 3].kind == TokenKind::Delimiter(Delimiter::RBracket));
-                    if after_bracket && after_close {
-                        // Try to find ]{ pattern: means this is a generic struct literal
-                        // For now, just parse it as a generic type + struct literal
-                        self.advance(); // consume [
-                        let mut generic_args = Vec::new();
-                        loop {
-                            generic_args.push(self.parse_type()?);
-                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) { break; }
-                            self.expect_delimiter(Delimiter::Comma)?;
-                        }
-                        let rbracket_span = self.peek().map(|t| t.span()).unwrap_or_default();
-                        self.expect_delimiter(Delimiter::RBracket)?;
-                        // Now check for { — struct literal
-                        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
+                // Only trigger if we can find ]{ ident = pattern
+                let is_generic_struct = self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket))
+                    && self.pos + 4 < self.tokens.len()
+                    && self.tokens[self.pos + 1].kind != TokenKind::Delimiter(Delimiter::RBracket)
+                    && self.tokens[self.pos + 2].kind == TokenKind::Delimiter(Delimiter::RBracket)
+                    && self.tokens[self.pos + 3].kind == TokenKind::Delimiter(Delimiter::LBrace)
+                    && matches!(&self.tokens[self.pos + 4].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
+                    && self.pos + 5 < self.tokens.len()
+                    && self.tokens[self.pos + 5].kind == TokenKind::Operator("=".to_string());
+                if is_generic_struct {
+                    self.advance(); // consume [
+                    let mut generic_args = Vec::new();
+                    loop {
+                        generic_args.push(self.parse_type()?);
+                        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) { break; }
+                        self.expect_delimiter(Delimiter::Comma)?;
+                    }
+                    self.expect_delimiter(Delimiter::RBracket)?;
+                    // Now check for { — struct literal
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
                             let is_struct_lit = self.pos + 2 < self.tokens.len()
                                 && matches!(&self.tokens[self.pos + 1].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
                                 && self.tokens[self.pos + 2].kind == TokenKind::Operator("=".to_string());
@@ -956,7 +960,6 @@ impl Parser {
                                 self.expect_delimiter(Delimiter::RBrace)?;
                                 return Ok(Expr::StructLiteral { type_name: name_sym, generic_args, fields, span });
                             }
-                        }
                     }
                 }
                 match self.peek().map(|t| &t.kind) {
