@@ -171,6 +171,86 @@ c = a + b;  // 调用 add(a, b)
 | `+` `-` `*` `/` `%` | `add` `sub` `mul` `div` `rem` |
 | `==` `!=` `<` `>` `<=` `>=` | `eq` `ne` `lt` `gt` `le` `ge` |
 | `-` `!`（一元） | `neg` `not` |
+| `a[i]` | `index(self, i)` |
+| `a(args)` | `call(self, args...)` |
+| `expr?` | `try_unwrap(expr)` |
+
+### 泛型
+
+```ayanami
+fn identity[T](T a) -> T { return a; }
+fn max[T: Ord](T a, T b) -> T { if a > b { return a; } return b; }
+
+struct Option[T] {
+    T value
+    bool has_value
+}
+
+fn main() -> int {
+    return identity(42);  // 单态化为 identity_int
+    a = Option[int] { value = 10, has_value = true };
+}
+```
+
+泛型通过单态化实现——每个具体类型生成独立专用函数/结构体。
+
+### null / 空指针
+
+```ayanami
+struct Node {
+    int data
+    shared Node next
+}
+
+fn main() -> int {
+    n = shared Node { data = 42, next = null };
+    if n.next == null { return 1; }
+    return 0;
+}
+```
+
+`null` 可用于 `shared T` 和 `unique T` 类型，通过 `== null` / `!= null` 检查。
+
+### extern "C"
+
+```ayanami
+extern "C" fn putchar(int c);
+
+fn main() -> int {
+    putchar(65);  // 调用 C 标准库函数
+    return 0;
+}
+```
+
+`extern "C"` 函数使用 C ABI、不 mangling 名字、可在 `.c` 文件中实现。
+
+### 包别名
+
+```toml
+# ayanami.toml
+[dependencies]
+math = "lib/math.aya"
+io = "../shared/io.lcl"
+```
+
+```ayanami
+import "math";   // 解析为 lib/math.aya
+import "io";     // 解析为 ../shared/io.lcl
+```
+
+别名在 `ayanami.toml` 的 `[dependencies]` 中配置，import 时使用短名称。
+
+### 标准库
+
+`install/std/` 目录下预编译好的 `.lcl` + `.o` 文件：
+
+```
+import "io";     // print, println, putchar, getchar
+import "math";   // abs, min, max, clamp, pow
+import "std";    // 全部导入
+```
+
+编译器自动在自身同目录的 `std/` 中搜索标准库。
 
 ### 命名空间
 ```
