@@ -7,6 +7,8 @@
   "engines": {
     "vscode": "^1.60.0"
   },
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:ayanami"],
   "categories": ["Programming Languages"],
   "contributes": {
     "languages": [
