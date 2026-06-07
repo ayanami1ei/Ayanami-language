@@ -449,7 +449,7 @@ impl Ctx {
         let mut items = Vec::new();
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, params, return_type, body, is_inline, .. } => {
+                Stmt::FnDecl { name, params, return_type, body, is_inline, extern_c, .. } => {
                     let full_name = if ns_prefix.is_empty() {
                         *name
                     } else {
@@ -460,7 +460,7 @@ impl Ctx {
                         .collect();
                     let fn_id = self.find_fn_by_sig(full_name, &ptypes)
                         .ok_or_else(|| format!("internal error: function `{}` not found", full_name))?;
-                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline)?;
+                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline, *extern_c)?;
                     items.push(HirItem::Fn(hir_fn));
                 }
                 Stmt::Namespace { name, items: ns_items, .. } => {
@@ -501,7 +501,7 @@ impl Ctx {
                                 .collect();
                             let fn_id = self.find_fn_by_sig(*name, &ptypes)
                                 .ok_or_else(|| format!("internal error: method `{}` not found", name))?;
-                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false)?;
+                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false)?;
                             items.push(HirItem::Fn(hir_fn));
                         }
                     }
@@ -522,6 +522,7 @@ impl Ctx {
         _return_type: &Type,
         body: &Block,
         is_inline: bool,
+        extern_c: bool,
     ) -> Result<HirFn, String> {
         self.current_fn = fn_id;
         self.locals = Vec::new();
@@ -549,6 +550,7 @@ impl Ctx {
             fn_id,
             name,
             is_inline,
+            extern_c,
             params: hir_params,
             return_type,
             locals,
@@ -790,17 +792,21 @@ impl Ctx {
                 let lhs_ty = expr_type(&hir_lhs);
                 let inner_ty = strip_ownership(lhs_ty.clone());
                 // Try operator overloading first: look for a matching function
-                if let Some(op_fn_name) = binary_op_to_fn_name(op) {
-                    let rhs_ty = expr_type(&hir_rhs);
-                    let param_types = [lhs_ty.clone(), rhs_ty];
-                    if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
-                        let ret_ty = self.fns[fn_id.0].return_type.clone();
-                        let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
-                        let args = vec![hir_lhs, hir_rhs].into_iter().enumerate().map(|(i, arg)| {
-                            if i >= param_tys.len() { return arg; }
-                            wrap_arg_for_param(arg, &param_tys[i])
-                        }).collect();
-                        return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
+                // Primitive types use built-in operators, not overloading
+                let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool);
+                if !is_primitive {
+                    if let Some(op_fn_name) = binary_op_to_fn_name(op) {
+                        let rhs_ty = expr_type(&hir_rhs);
+                        let param_types = [lhs_ty.clone(), rhs_ty];
+                        if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
+                            let ret_ty = self.fns[fn_id.0].return_type.clone();
+                            let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
+                            let args = vec![hir_lhs, hir_rhs].into_iter().enumerate().map(|(i, arg)| {
+                                if i >= param_tys.len() { return arg; }
+                                wrap_arg_for_param(arg, &param_tys[i])
+                            }).collect();
+                            return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
+                        }
                     }
                 }
                 // Fall back to built-in operator

@@ -219,6 +219,7 @@ fn lower_fn(f: &HirFn) -> MirFn {
         fn_id: f.fn_id,
         name: f.name,
         is_inline: f.is_inline,
+        extern_c: f.extern_c,
         params: f.params.clone(),
         return_type: f.return_type.clone(),
         locals: ctx.mir_locals,

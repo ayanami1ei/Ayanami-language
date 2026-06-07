@@ -18,6 +18,7 @@ pub enum Stmt {
     FnDecl {
         vis: Visibility,
         is_inline: bool,
+        extern_c: bool,
         name: Symbol,
         params: Vec<(Symbol, Type)>,
         return_type: Type,

@@ -60,7 +60,12 @@ fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<Fn
         match item {
             MirItem::Fn(f) => {
                 // Function name already includes namespace from HIR (e.g., "PointStatic.new")
-                let name = mangle("", &f.name.as_str().replace('.', "__"), &f.params);
+                let name = if f.extern_c {
+                    // Extern C: use unmangled name
+                    f.name.as_str().to_string()
+                } else {
+                    mangle("", &f.name.as_str().replace('.', "__"), &f.params)
+                };
                 map.insert(f.fn_id, name);
             }
             MirItem::StructDef { .. } => {}
@@ -152,6 +157,7 @@ fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
         fn_id: f.fn_id,
         name: f.name,
         is_inline: f.is_inline,
+        extern_c: f.extern_c,
         params: f.params.clone(),
         return_type: f.return_type.clone(),
         locals: f.locals.clone(),

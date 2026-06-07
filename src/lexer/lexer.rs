@@ -200,6 +200,7 @@ impl<'a> Lexer<'a> {
                     "pub" => TokenKind::Keyword(Keyword::Pub),
                     "crate" => TokenKind::Keyword(Keyword::Crate),
                     "inline" => TokenKind::Keyword(Keyword::Inline),
+                    "extern" => TokenKind::Keyword(Keyword::Extern),
                     "asm" => TokenKind::Keyword(Keyword::Asm),
                     "in" => TokenKind::Keyword(Keyword::In),
                     "out" => TokenKind::Keyword(Keyword::Out),
