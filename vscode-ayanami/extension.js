@@ -254,7 +254,17 @@ function findAyanamiPath(context) {
     const fs = require('fs');
     const path = require('path');
 
-    // 1. Search PATH directly (works on all OS)
+    // 0. Check user setting first
+    try {
+        const config = vscode.workspace.getConfiguration('ayanami');
+        const setting = config.get('compilerPath', '');
+        if (setting && fs.existsSync(setting)) {
+            console.log('ayanami from setting:', setting);
+            return setting;
+        }
+    } catch (_) {}
+
+    // 1. Search PATH
     const envPath = (process.env.PATH || '').split(path.delimiter);
     for (const dir of envPath) {
         const candidate = path.join(dir, 'ayanami');
@@ -266,15 +276,15 @@ function findAyanamiPath(context) {
         } catch (_) {}
     }
 
-    // 2. Check relative to extension dir
+    // 2. Check relative to workspace/project dirs
     try {
-        const extDir = context.extensionUri ? context.extensionUri.fsPath : null;
-        if (extDir) {
-            let dir = path.dirname(extDir);
-            for (let i = 0; i < 10; i++) {
+        const workspaces = vscode.workspace.workspaceFolders || [];
+        for (const ws of workspaces) {
+            let dir = ws.uri.fsPath;
+            for (let i = 0; i < 5; i++) {
                 for (const sub of ['build/ayanami', 'target/release/ayanami', 'target/debug/ayanami']) {
                     const p = path.join(dir, sub);
-                    if (fs.existsSync(p)) { console.log('ayanami found near ext:', p); return p; }
+                    if (fs.existsSync(p)) { console.log('ayanami found in workspace:', p); return p; }
                 }
                 const parent = path.dirname(dir);
                 if (parent === dir) break;
@@ -283,7 +293,7 @@ function findAyanamiPath(context) {
         }
     } catch (_) {}
 
-    console.log('ayanami: compiler not found in PATH or near extension');
+    console.log('ayanami: compiler not found');
     return null;
 }
 }

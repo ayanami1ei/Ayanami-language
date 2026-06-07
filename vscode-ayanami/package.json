@@ -12,6 +12,16 @@
   "activationEvents": ["onLanguage:ayanami"],
   "categories": ["Programming Languages"],
   "contributes": {
+    "configuration": {
+      "title": "Ayanami",
+      "properties": {
+        "ayanami.compilerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to ayanami compiler (leave empty to search PATH)"
+        }
+      }
+    },
     "languages": [
       {
         "id": "ayanami",
