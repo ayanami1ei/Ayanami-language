@@ -1,38 +1,170 @@
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use crate::parser::ast::{
     BinaryOp, Block, Expr, Literal, Program, Stmt, Type, UnaryOp,
 };
 
-/// Result of the full compilation pipeline.
+/// Result of compiling a single file (including its recursively-resolved imports).
+pub struct CompiledFile {
+    pub program: Program,
+    pub lir_program: crate::lir::ir::LirProgram,
+    pub llvm_ir: String,
+    /// All .o files this file depends on (including its own)
+    pub obj_paths: Vec<PathBuf>,
+    /// Path to this file's own .o
+    pub own_obj: PathBuf,
+    /// Path to this file's .lcl
+    pub lcl_path: PathBuf,
+}
+
+/// Compile a .aya source file with recursive import resolution.
+/// `base_dir` is where to look for imported .aya files.
+/// `compiling` tracks files currently being compiled (cycle detection).
+pub fn compile_file(
+    src_path: &Path,
+    base_dir: &Path,
+    out_dir: &Path,
+    compiling: &mut HashSet<PathBuf>,
+    cache: &mut std::collections::HashMap<PathBuf, CompiledFile>,
+) -> Result<CompiledFile, String> {
+    let canonical = src_path.canonicalize()
+        .map_err(|e| format!("cannot resolve '{}': {}", src_path.display(), e))?;
+
+    // Cycle detection
+    if compiling.contains(&canonical) {
+        return Err(format!("circular import detected: {}", src_path.display()));
+    }
+
+    // Cache hit
+    if let Some(cached) = cache.get(&canonical) {
+        return Ok(CompiledFile {
+            program: Program::new(Vec::new()),
+            lir_program: crate::lir::ir::LirProgram {
+                strings: Vec::new(), fn_names: std::collections::HashMap::new(),
+                functions: Vec::new(), vtables: Vec::new(),
+                struct_defs: std::collections::HashMap::new(),
+                imported_fn_ids: HashSet::new(),
+            },
+            llvm_ir: String::new(),
+            obj_paths: cached.obj_paths.clone(),
+            own_obj: cached.own_obj.clone(),
+            lcl_path: cached.lcl_path.clone(),
+        });
+    }
+
+    compiling.insert(canonical.clone());
+
+    let code = fs::read_to_string(src_path)
+        .map_err(|e| format!("failed to read '{}': {}", src_path.display(), e))?;
+
+    let mut lexer = crate::lexer::Lexer::new(&code);
+    let tokens = lexer.tokenize_all();
+    let filtered: Vec<_> = tokens.into_iter()
+        .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
+        .collect();
+
+    let mut parser = crate::parser::Parser::new(filtered);
+    let mut program = parser.parse_program()
+        .map_err(|e| format!("Parse error in {}: {}", src_path.display(), e))?;
+
+    // Resolve imports: for each .aya import, compile the dependency
+    let mut dep_obj_paths = Vec::new();
+    let mut new_stmts = Vec::new();
+    for stmt in &program.stmts {
+        if let Stmt::Import { path, .. } = stmt {
+            if path.ends_with(".aya") {
+                let dep_path = base_dir.join(path);
+                let dep = compile_file(&dep_path, base_dir, out_dir, compiling, cache)?;
+                dep_obj_paths.extend(dep.obj_paths.clone());
+                // Replace .aya import with .lcl import for HIR
+                let lcl_name = dep.lcl_path.to_string_lossy().into_owned();
+                new_stmts.push(Stmt::Import { path: lcl_name, span: crate::span::Span::default() });
+            } else {
+                new_stmts.push(stmt.clone());
+            }
+        } else {
+            new_stmts.push(stmt.clone());
+        }
+    }
+    program.stmts = new_stmts;
+
+    // HIR → MIR → LIR
+    let hir_program = crate::hir::lower_program(&program)
+        .map_err(|e| format!("HIR error in {}: {}", src_path.display(), e))?;
+    let mir_program = crate::mir::lower_program(&hir_program);
+    let lir_program = crate::lir::lower_program(&mir_program);
+    let llvm_ir = crate::lir::emit_program(&lir_program);
+
+    // Compute output paths
+    let stem = src_path.file_stem().unwrap_or(std::ffi::OsStr::new("a"));
+    let own_obj = out_dir.join(stem).with_extension("o");
+    let lcl_path = out_dir.join(stem).with_extension("lcl");
+
+    // Emit .o
+    crate::driver::ir_to_object(&llvm_ir, &own_obj)
+        .map_err(|e| format!("llc failed for {}: {}", src_path.display(), e))?;
+
+    // Emit .lcl (include all symbols for .aya imports)
+    let mut pkg = crate::package::Package::new(stem.to_string_lossy().into_owned(), "0.1.0".into());
+    pkg.collect_all_symbols(&program.stmts);
+    pkg.lir_data = crate::lir::serialize::program_to_bytes(&lir_program);
+    pkg.write_to_file(&lcl_path.to_string_lossy())
+        .map_err(|e| format!("package write failed for {}: {}", src_path.display(), e))?;
+
+    let mut all_objs = dep_obj_paths;
+    all_objs.push(own_obj.clone());
+
+    let result = CompiledFile {
+        program,
+        lir_program,
+        llvm_ir,
+        obj_paths: all_objs,
+        own_obj,
+        lcl_path,
+    };
+
+    cache.insert(canonical.clone(), CompiledFile {
+        program: Program::new(Vec::new()),
+        lir_program: crate::lir::ir::LirProgram {
+            strings: Vec::new(), fn_names: std::collections::HashMap::new(),
+            functions: Vec::new(), vtables: Vec::new(),
+            struct_defs: std::collections::HashMap::new(),
+            imported_fn_ids: HashSet::new(),
+        },
+        llvm_ir: String::new(),
+        obj_paths: result.obj_paths.clone(),
+        own_obj: result.own_obj.clone(),
+        lcl_path: result.lcl_path.clone(),
+    });
+
+    compiling.remove(&canonical);
+    Ok(result)
+}
+
+/// Simple compile from source text (no import resolution).
 pub struct CompileResult {
     pub llvm_ir: String,
     pub program: Program,
     pub lir_program: crate::lir::ir::LirProgram,
 }
 
-/// Full compilation pipeline: source → LLVM IR.
 pub fn compile_source(code: &str) -> Result<CompileResult, String> {
     let mut lexer = crate::lexer::Lexer::new(code);
     let tokens = lexer.tokenize_all();
-
-    let filtered: Vec<_> = tokens
-        .into_iter()
+    let filtered: Vec<_> = tokens.into_iter()
         .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
         .collect();
-
     let mut parser = crate::parser::Parser::new(filtered);
     let program = parser.parse_program()
         .map_err(|e| format!("Parse error: {}", e))?;
-
     let hir_program = crate::hir::lower_program(&program)
         .map_err(|e| format!("HIR error: {}", e))?;
-
     let mir_program = crate::mir::lower_program(&hir_program);
     let lir_program = crate::lir::lower_program(&mir_program);
     let llvm_ir = crate::lir::emit_program(&lir_program);
-
     Ok(CompileResult { llvm_ir, program, lir_program })
 }
 
@@ -169,33 +301,36 @@ pub fn build_source(src_path: &str, code: &str) -> Result<(), String> {
     build_source_to(src_path, code, "build")
 }
 
-/// Build with explicit output directory.
-pub fn build_source_to(src_path: &str, code: &str, out_dir: &str) -> Result<(), String> {
-    let result = compile_source(code)?;
-
-    // Ensure output directory exists
-    std::fs::create_dir_all(out_dir)
+/// Build with explicit output directory, using recursive import compilation.
+pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<(), String> {
+    let out_path = Path::new(out_dir);
+    std::fs::create_dir_all(out_path)
         .map_err(|e| format!("failed to create output dir '{}': {}", out_dir, e))?;
 
-    let exe_name = {
-        let p = std::path::Path::new(src_path);
-        p.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy().into_owned()
-    };
+    let src_path = Path::new(src_path);
+    let base_dir = src_path.parent().unwrap_or(Path::new("."));
+    let mut compiling = HashSet::new();
+    let mut cache = HashMap::new();
 
-    let exe_path = std::path::Path::new(out_dir).join(&exe_name);
+    let compiled = compile_file(src_path, base_dir, out_path, &mut compiling, &mut cache)?;
+
+    let exe_name = src_path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy();
+    let exe_path = out_path.join(&*exe_name);
     let exe_path_str = exe_path.to_string_lossy().into_owned();
 
-    println!("building {} -> {}", src_path, exe_path_str);
+    println!("building {} -> {}", src_path.display(), exe_path_str);
 
-    crate::driver::ir_to_executable(&result.llvm_ir, &exe_path_str)
+    crate::driver::objects_to_exe(&compiled.obj_paths, &exe_path_str)
         .map_err(|e| format!("link failed: {}", e))?;
 
     println!("build ok: {}", exe_path_str);
 
-    // Generate .lcl package alongside executable
-    let lcl_name = format!("{}.lcl", exe_path_str);
-    let mut pkg = crate::package::Package::new(exe_name, "0.1.0".into());
-    let has_main = result.program.stmts.iter().any(|s| matches!(s,
+    // Generate root .lcl
+    let lcl_path = out_path.join(format!("{}.lcl", exe_name));
+    let mut pkg = crate::package::Package::new(exe_name.to_string(), "0.1.0".into());
+    pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);
+    pkg.collect_symbols(&compiled.program.stmts);
+    let has_main = compiled.program.stmts.iter().any(|s| matches!(s,
         crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main"
     ));
     pkg.target_types = if has_main {
@@ -203,10 +338,9 @@ pub fn build_source_to(src_path: &str, code: &str, out_dir: &str) -> Result<(), 
     } else {
         vec![crate::package::TargetType::StaticLib, crate::package::TargetType::DynamicLib]
     };
-    pkg.collect_symbols(&result.program.stmts);
-    pkg.lir_data = crate::lir::serialize::program_to_bytes(&result.lir_program);
-    pkg.write_to_file(&lcl_name).map_err(|e| format!("package write failed: {}", e))?;
-    println!("package: {}", lcl_name);
+    pkg.write_to_file(&lcl_path.to_string_lossy())
+        .map_err(|e| format!("package write failed: {}", e))?;
+    println!("package: {}", lcl_path.display());
 
     Ok(())
 }

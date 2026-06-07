@@ -63,17 +63,27 @@ impl Package {
         }
     }
 
-    /// Collect public symbols from top-level AST statements.
+    /// Collect symbols from top-level AST statements.
+    /// If `all` is true, include all functions (ignore visibility).
     pub fn collect_symbols(&mut self, stmts: &[Stmt]) {
+        self.collect_symbols_internal(stmts, false)
+    }
+
+    /// Collect ALL symbols (including private), used for .aya→.lcl compilation.
+    pub fn collect_all_symbols(&mut self, stmts: &[Stmt]) {
+        self.collect_symbols_internal(stmts, true)
+    }
+
+    fn collect_symbols_internal(&mut self, stmts: &[Stmt], all: bool) {
         for stmt in stmts {
-            self.collect_stmt_symbols(stmt);
+            self.collect_stmt_symbols(stmt, all);
         }
     }
 
-    fn collect_stmt_symbols(&mut self, stmt: &Stmt) {
+    fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool) {
         match stmt {
             Stmt::FnDecl { vis, name, params, return_type, .. } => {
-                if vis.is_public() {
+                if all || vis.is_public() {
                     let sig = format!("{}({})->{}",
                         name,
                         params.iter().map(|(_, t)| type_to_string(t)).collect::<Vec<_>>().join(","),
@@ -92,14 +102,13 @@ impl Package {
                 }
             }
             Stmt::Namespace { vis, name, items, .. } => {
-                if vis.is_public() {
+                if all || vis.is_public() {
                     self.symbols.push(PackageSymbol::Namespace {
                         name: name.as_str().to_string(),
                     });
                 }
-                // Collect symbol from inside namespace too
                 for item in items {
-                    self.collect_stmt_symbols(item);
+                    self.collect_stmt_symbols(item, all);
                 }
             }
             _ => {}

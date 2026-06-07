@@ -54,25 +54,21 @@ pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), Str
     Ok(())
 }
 
-/// Link object file + runtime → executable via `gcc`.
-/// Looks for `src/runtime.c` relative to the crate root.
-pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<(), String> {
-    // Find runtime.c relative to the project root
+/// Link multiple object files + runtime → executable via `gcc`.
+pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<(), String> {
     let runtime_c = find_runtime_c()?;
-
-    let status = Command::new("gcc")
-        .arg("-no-pie")
-        .arg(obj_path.as_ref())
-        .arg(&runtime_c)
-        .arg("-o")
-        .arg(exe_path.as_ref())
-        .status()
-        .map_err(|e| format!("failed to run gcc: {}", e))?;
-
-    if !status.success() {
-        return Err("gcc link failed".into());
-    }
+    let mut cmd = Command::new("gcc");
+    cmd.arg("-no-pie");
+    for o in obj_paths { cmd.arg(o); }
+    cmd.arg(&runtime_c).arg("-o").arg(exe_path.as_ref());
+    let status = cmd.status().map_err(|e| format!("failed to run gcc: {}", e))?;
+    if !status.success() { return Err("gcc link failed".into()); }
     Ok(())
+}
+
+/// Single object file version (backward compat).
+pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<(), String> {
+    objects_to_exe(&[obj_path.as_ref().to_path_buf()], exe_path)
 }
 
 /// Locate the runtime C file.
@@ -156,7 +152,12 @@ pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) 
     Ok(())
 }
 
-/// Compile LLVM IR → executable in one step.
+/// Compile LLVM IR → .o (keeps the .o file for later linking).
+pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), String> {
+    ir_to_object(llvm_ir, &obj_path)
+}
+
+/// Compile LLVM IR → executable in one step, keeping .o.
 pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<(), String> {
     let obj_path = {
         let mut p = exe_path.as_ref().to_path_buf();
@@ -165,9 +166,7 @@ pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<(),
     };
 
     ir_to_object(llvm_ir, &obj_path)?;
-    object_to_exe(&obj_path, exe_path)?;
+    objects_to_exe(&[obj_path], exe_path)?;
 
-    // Clean up .o
-    let _ = std::fs::remove_file(&obj_path);
     Ok(())
 }
