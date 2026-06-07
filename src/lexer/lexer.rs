@@ -313,6 +313,7 @@ impl<'a> Lexer<'a> {
                     (Some('>'), Some('=')) => Some(">=".to_string()),
                     (Some('&'), Some('&')) => Some("&&".to_string()),
                     (Some('|'), Some('|')) => Some("||".to_string()),
+                    (Some(':'), Some(':')) => Some("::".to_string()),
                     _ => None,
                 };
                 if let Some(op) = two_op {

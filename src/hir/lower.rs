@@ -95,23 +95,37 @@ impl Ctx {
     // ----------------------------------------------------------------
 
     fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<(), String> {
+        self.collect_fns_with_ns(stmts, "")
+    }
+
+    fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<(), String> {
         for stmt in stmts {
             match stmt {
                 Stmt::FnDecl { name, params, return_type, .. } => {
+                    let full_name = if ns_prefix.is_empty() {
+                        *name
+                    } else {
+                        Symbol::intern(&format!("{}.{}", ns_prefix, name))
+                    };
                     let hir_return = ast_type_to_hir(return_type, &self.interfaces);
                     let hir_params = params.iter()
                         .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
                         .collect();
                     let fn_id = FnId(self.fns.len());
                     self.fns.push(FnSig {
-                        name: *name,
+                        name: full_name,
                         params: hir_params,
                         return_type: hir_return,
                     });
-                    self.fn_map.entry(*name).or_default().push(fn_id);
+                    self.fn_map.entry(full_name).or_default().push(fn_id);
                 }
-                Stmt::Namespace { items, .. } => {
-                    self.collect_fns(items)?;
+                Stmt::Namespace { name, items, .. } => {
+                    let nested = if ns_prefix.is_empty() {
+                        name.as_str().to_string()
+                    } else {
+                        format!("{}.{}", ns_prefix, name)
+                    };
+                    self.collect_fns_with_ns(items, &nested)?;
                 }
                 Stmt::InterfaceDef { name, methods, .. } => {
                     let hir_methods: Vec<HirInterfaceMethod> = methods.iter().map(|m| {
@@ -409,20 +423,34 @@ impl Ctx {
     // ----------------------------------------------------------------
 
     fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>, String> {
+        self.lower_items_with_ns(stmts, "")
+    }
+
+    fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>, String> {
         let mut items = Vec::new();
         for stmt in stmts {
             match stmt {
                 Stmt::FnDecl { name, params, return_type, body, .. } => {
+                    let full_name = if ns_prefix.is_empty() {
+                        *name
+                    } else {
+                        Symbol::intern(&format!("{}.{}", ns_prefix, name))
+                    };
                     let ptypes: Vec<HirType> = params.iter()
                         .map(|(_, t)| ast_type_to_hir(t, &self.interfaces))
                         .collect();
-                    let fn_id = self.find_fn_by_sig(*name, &ptypes)
-                        .ok_or_else(|| format!("internal error: function `{}` not found", name))?;
-                    let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body)?;
+                    let fn_id = self.find_fn_by_sig(full_name, &ptypes)
+                        .ok_or_else(|| format!("internal error: function `{}` not found", full_name))?;
+                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body)?;
                     items.push(HirItem::Fn(hir_fn));
                 }
                 Stmt::Namespace { name, items: ns_items, .. } => {
-                    let inner = self.lower_items(ns_items)?;
+                    let nested = if ns_prefix.is_empty() {
+                        name.as_str().to_string()
+                    } else {
+                        format!("{}.{}", ns_prefix, name)
+                    };
+                    let inner = self.lower_items_with_ns(ns_items, &nested)?;
                     items.push(HirItem::Namespace { name: *name, items: inner });
                 }
                 Stmt::InterfaceDef { name, methods, .. } => {

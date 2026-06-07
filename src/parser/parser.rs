@@ -800,9 +800,16 @@ impl Parser {
                 Ok(Expr::Literal(Literal::String(s, Span::default())))
             }
             TokenKind::Identifier(ref name) => {
-                let name_str = name.clone();
-                let name_sym = Symbol::intern(&name_str);
+                let mut name_str = name.clone();
+                let mut name_sym = Symbol::intern(&name_str);
                 self.advance();
+                // Handle :: namespace separator: foo::bar
+                while self.peek().map(|t| &t.kind) == Some(&TokenKind::Operator("::".to_string())) {
+                    self.advance(); // consume ::
+                    let next = self.expect_identifier()?;
+                    name_str = format!("{}.{}", name_str, next);
+                    name_sym = Symbol::intern(&name_str);
+                }
                 match self.peek().map(|t| &t.kind) {
                     Some(TokenKind::Delimiter(Delimiter::LParen)) => {
                         self.advance();

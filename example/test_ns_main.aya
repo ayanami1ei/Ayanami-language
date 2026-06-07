@@ -1,0 +1,9 @@
+namespace math {
+    fn add(int a, int b) -> int {
+        return a + b;
+    }
+}
+
+fn main() -> int {
+    return math::add(10, 20);
+}
