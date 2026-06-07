@@ -804,19 +804,27 @@ impl<'a> Emitter<'a> {
                     dest, struct_llvm, alloca_tmp
                 ));
             }
-            LirInst::ArraySized { dest, malloc_tmp, elem_count, elem_size, .. } => {
-                let total_size = elem_count * elem_size;
+            LirInst::ArraySized { dest, malloc_tmp, count_tmp, size_tmp, elem_count, elem_size, .. } => {
+                let count_str = self.value_ref(elem_count, &HirType::Int);
                 self.wln_fmt(format_args!(
-                    "%t{} = call i8* @malloc(i64 {})",
-                    malloc_tmp, total_size
+                    "%t{} = add i64 0, {}",
+                    count_tmp, count_str
+                ));
+                self.wln_fmt(format_args!(
+                    "%t{} = mul i64 %t{}, {}",
+                    size_tmp, count_tmp, elem_size
+                ));
+                self.wln_fmt(format_args!(
+                    "%t{} = call i8* @malloc(i64 %t{})",
+                    malloc_tmp, size_tmp
                 ));
                 self.wln_fmt(format_args!(
                     "%t{} = bitcast i8* %t{} to ptr",
                     dest, malloc_tmp
                 ));
                 self.wln_fmt(format_args!(
-                    "call void @llvm.memset.p0.i64(ptr %t{}, i8 0, i64 {}, i1 false)",
-                    dest, total_size
+                    "call void @llvm.memset.p0.i64(ptr %t{}, i8 0, i64 %t{}, i1 false)",
+                    dest, size_tmp
                 ));
             }
             LirInst::ArrayLit { dest, malloc_tmp, elem_geps, elems, elem_ty, ty: _ } => {

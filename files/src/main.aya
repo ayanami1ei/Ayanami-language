@@ -1,5 +1,7 @@
 import "lib.aya";
 
 fn main() -> int {
-    return add(1, 2);
+    v = VecInt { inner = unique [1, 2, 3], len = 3 };
+    v.push(4);
+    return 0;
 }

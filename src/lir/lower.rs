@@ -658,11 +658,13 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
         MirExpr::ArraySized { count, elem_ty, ty } => {
             let dest = ctx.next_tmp();
             let malloc_tmp = ctx.next_tmp();
+            let count_tmp = ctx.next_tmp();
+            let size_tmp = ctx.next_tmp();
+            let elem_count = lower_expr(ctx, count);
             let elem_size = type_size(elem_ty);
             ctx.emit(LirInst::ArraySized {
-                dest,
-                malloc_tmp,
-                elem_count: *count,
+                dest, malloc_tmp, count_tmp, size_tmp,
+                elem_count,
                 elem_size,
                 elem_ty: elem_ty.clone(),
                 ty: ty.clone(),
@@ -966,7 +968,9 @@ fn collect_strings_expr(expr: &MirExpr, out: &mut Vec<String>) {
                 collect_strings_expr(e, out);
             }
         }
-        MirExpr::ArraySized { .. } => {}
+        MirExpr::ArraySized { count, .. } => {
+            collect_strings_expr(count, out);
+        }
         MirExpr::ArrayLiteral(elems, _) => {
             for e in elems {
                 collect_strings_expr(e, out);

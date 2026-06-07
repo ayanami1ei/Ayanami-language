@@ -577,8 +577,10 @@ fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             writeln!(w, "{}ArrayLiteral", pad(level)).unwrap();
             for e in elems { write_expr(e, level + 1, w); }
         }
-        Expr::ArraySized { elem_type, .. } => {
+        Expr::ArraySized { elem_type, count, .. } => {
             writeln!(w, "{}ArraySized {{ elem_type: {} }}", pad(level), format_type(elem_type)).unwrap();
+            writeln!(w, "{}  count:", pad(level)).unwrap();
+            write_expr(count, level + 1, w);
         }
         Expr::Index { object, index, .. } => {
             writeln!(w, "{}Index", pad(level)).unwrap();

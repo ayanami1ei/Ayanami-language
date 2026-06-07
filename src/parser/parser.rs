@@ -446,6 +446,23 @@ impl Parser {
     /// Converts `fn draw(shared self, ...)` into a regular FnDecl with
     /// the self parameter typed as `shared TypeName` (or `unique TypeName`).
     fn parse_impl_method(&mut self, impl_type: &Symbol) -> Result<Stmt, String> {
+        // Optional pub keyword
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Pub)) {
+            self.advance();
+        }
+        // Optional pub(crate)
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Pub)) {
+            self.advance();
+            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
+                self.advance();
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Crate)) {
+                    self.advance();
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                        self.advance();
+                    }
+                }
+            }
+        }
         self.expect_keyword(Keyword::Fn)?;
         let name = Symbol::intern(&self.expect_identifier()?);
 

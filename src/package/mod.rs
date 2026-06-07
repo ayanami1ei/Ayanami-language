@@ -101,11 +101,19 @@ impl Package {
                     });
                 }
             }
-            Stmt::StructDef { vis, name, .. } => {
+            Stmt::StructDef { vis, name, fields, .. } => {
                 if vis.is_public() {
+                    let fields_str: Vec<String> = fields.iter()
+                        .map(|(fn_name, fty)| format!("{}:{}", fn_name, type_to_string(fty)))
+                        .collect();
                     self.symbols.push(PackageSymbol::Struct {
-                        name: name.as_str().to_string(),
+                        name: format!("{}({})", name, fields_str.join(",")),
                     });
+                }
+            }
+            Stmt::ImplBlock { methods, .. } => {
+                for m in methods {
+                    self.collect_stmt_symbols(m, all, ns_prefix);
                 }
             }
             Stmt::Namespace { vis, name, items, .. } => {
@@ -212,24 +220,19 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
     let data = std::fs::read(path)
         .map_err(|e| format!("failed to read package '{}': {}", path, e))?;
 
-    // Skip 12-byte binary header
-    let body = if data.len() >= 12 {
-        std::str::from_utf8(&data[12..]).map_err(|e| format!("invalid UTF-8 in package: {}", e))?
+    // Find ===LIR=== marker in raw bytes (before UTF-8 decoding)
+    let marker = b"===LIR===\n";
+    let (ini_bytes, lir_binary) = if let Some(pos) = data[12..].windows(marker.len()).position(|w| w == marker) {
+        let ini_end = 12 + pos;
+        let lir_start = ini_end + marker.len();
+        (&data[12..ini_end], data[lir_start..].to_vec())
     } else {
-        return Err("invalid package: too short".into());
+        (&data[12..], Vec::new())
     };
 
-    // Split at ===LIR=== marker to separate INI body from binary LIR
-    // The marker is at byte offset `pos` within `body` (after the 12-byte header).
-    // Its position in the raw `data` is `pos + 12`.
-    let body_str = body;
-    let (ini_body, lir_binary) = if let Some(pos) = body_str.find("===LIR===\n") {
-        let lir_start = pos + 10; // skip "===LIR===\n"
-        let data_offset = 12 + lir_start;
-        (&body_str[..pos], data[data_offset..].to_vec())
-    } else {
-        (body_str, Vec::new())
-    };
+    // Decode INI portion as UTF-8
+    let body_str = std::str::from_utf8(ini_bytes)
+        .map_err(|e| format!("invalid UTF-8 in package INI: {}", e))?;
 
     let mut symbols = Vec::new();
     let mut sources = Vec::new();
@@ -238,7 +241,7 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
     let mut in_generics = false;
     let mut in_target = false;
 
-    for line in ini_body.lines() {
+    for line in body_str.lines() {
         let line = line.trim();
         if line.starts_with('[') {
             in_symbols = line.starts_with("[symbols]");

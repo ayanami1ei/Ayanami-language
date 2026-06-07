@@ -179,8 +179,27 @@ impl Ctx {
                                 self.fn_map.entry(Symbol::intern(name)).or_default().push(fn_id);
                             }
                             crate::package::ImportedSymbol::Struct { name } => {
-                                // Register with empty fields — actual struct def must come from source
-                                self.struct_defs.entry(Symbol::intern(name)).or_insert_with(Vec::new);
+                                // Parse "Name(field1:type1,field2:type2)" format
+                                let (struct_name, fields_str) = if let Some(paren) = name.find('(') {
+                                    let n = &name[..paren];
+                                    let f = name[paren+1..].trim_end_matches(')');
+                                    (n.to_string(), f)
+                                } else {
+                                    (name.clone(), "")
+                                };
+                                let fields: Vec<HirStructField> = if fields_str.is_empty() {
+                                    Vec::new()
+                                } else {
+                                    fields_str.split(',').filter_map(|s| {
+                                        let mut parts = s.splitn(2, ':');
+                                        let field_name = Symbol::intern(parts.next()?);
+                                        let field_type_str = parts.next()?;
+                                        // Parse field type string back to HirType
+                                        let field_ty = sig_str_to_hir(field_type_str);
+                                        Some(HirStructField { name: field_name, ty: field_ty })
+                                    }).collect()
+                                };
+                                self.struct_defs.entry(Symbol::intern(&struct_name)).or_insert_with(Vec::new).extend(fields);
                             }
                             crate::package::ImportedSymbol::Namespace { .. } => {
                                 // Handled by lowering; just register the path
@@ -1061,17 +1080,10 @@ impl Ctx {
                 })
             }
             Expr::ArraySized { elem_type, count, .. } => {
-                let hir_elem_ty = ast_type_to_hir(elem_type, &self.interfaces);
                 let hir_count = self.lower_expr(count)?;
-                let count_val = match &hir_count {
-                    HirExpr::Literal(HirLiteral::Int(n), _) => *n as u64,
-                    _ => return Err("ArraySized count must be a constant integer".into()),
-                };
-                Ok(HirExpr::ArraySized {
-                    count: count_val,
-                    elem_ty: hir_elem_ty.clone(),
-                    ty: HirType::Array(Box::new(hir_elem_ty)),
-                })
+                let elem_ty = ast_type_to_hir(elem_type, &self.interfaces);
+                let ty = HirType::Array(Box::new(elem_ty.clone()));
+                Ok(HirExpr::ArraySized { count: Box::new(hir_count), elem_ty, ty })
             }
         }
     }

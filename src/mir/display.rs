@@ -166,7 +166,9 @@ fn write_expr(expr: &MirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
             }
         }
         MirExpr::ArraySized { count, elem_ty, ty } => {
-            writeln!(w, "{}ArraySized {{ count: {}, elem_ty: {}, ty: {} }}", p, count, display_type(elem_ty), display_type(ty))?;
+            writeln!(w, "{}ArraySized {{ elem_ty: {}, ty: {} }}", p, display_type(elem_ty), display_type(ty))?;
+            writeln!(w, "{}  count:", p)?;
+            write_expr(count, level + 1, w)?;
         }
         MirExpr::Index { object, index, ty } => {
             writeln!(w, "{}Index ty={}", p, display_type(ty))?;

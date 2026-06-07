@@ -109,7 +109,11 @@ pub enum LirInst {
         dest: u64,
         /// Pre-allocated temp for malloc/calloc result
         malloc_tmp: u64,
-        elem_count: u64,
+        /// Pre-allocated temp for count evaluaton
+        count_tmp: u64,
+        /// Pre-allocated temp for size calculation
+        size_tmp: u64,
+        elem_count: LirValue,
         elem_size: u64,
         elem_ty: HirType,
         ty: HirType,
