@@ -71,7 +71,7 @@ pub fn compile_file(
 
     let mut parser = crate::parser::Parser::new(filtered);
     let mut program = parser.parse_program()
-        .map_err(|e| format!("Parse error in {}: {}", src_path.display(), e))?;
+        .map_err(|e| format!("{}: error: {}", src_path.display(), e))?;
 
     // Resolve imports: for each .aya import, compile the dependency
     let mut dep_obj_paths = Vec::new();
@@ -106,7 +106,7 @@ pub fn compile_file(
 
     // HIR → MIR → LIR
     let hir_program = crate::hir::lower_program(&program)
-        .map_err(|e| format!("HIR error in {}: {}", src_path.display(), e))?;
+        .map_err(|e| format!("{}: error: {}", src_path.display(), e))?;
     let mir_program = crate::mir::lower_program(&hir_program);
     let lir_program = crate::lir::lower_program(&mir_program);
     let llvm_ir = crate::lir::emit_program(&lir_program);

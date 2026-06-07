@@ -225,14 +225,24 @@ function activate(context) {
             if (out) {
                 for (const line of out.split('\n')) {
                     const t = line.trim();
-                    if (!t) continue;
-                    const msg = t.replace(/^[^:]*:\s*/, '');
-                    if (!msg) continue;
-                    const m = t.match(/:(\d+):(\d+)/);
-                    const range = m
-                        ? new vscode.Range(Math.max(0, parseInt(m[1]) - 1), 0, Math.max(0, parseInt(m[1]) - 1), 1000)
-                        : new vscode.Range(0, 0, 0, 10);
-                    diagnostics.push(new vscode.Diagnostic(range, msg, vscode.DiagnosticSeverity.Error));
+                    if (!t || t.startsWith('stage') || t.startsWith('check passed')) continue;
+                    // Try: at line:col (suffix format)
+                    const at = t.match(/at (\d+):(\d+)\)?$/);
+                    if (at) {
+                        const l = Math.max(0, parseInt(at[1]) - 1);
+                        const msg = t.replace(/\s*\(?at \d+:\d+\)?\s*$/, '').replace(/^[^:]+:\s*/, '');
+                        diagnostics.push(new vscode.Diagnostic(new vscode.Range(l, 0, l, 1000), msg, vscode.DiagnosticSeverity.Error));
+                        continue;
+                    }
+                    // Try: file:line:col: message (gcc/rust format)
+                    const cl = t.match(/^([^:]+):(\d+):(\d+):\s*(.+)/);
+                    if (cl) {
+                        const l = Math.max(0, parseInt(cl[2]) - 1);
+                        diagnostics.push(new vscode.Diagnostic(new vscode.Range(l, 0, l, 1000), cl[4], vscode.DiagnosticSeverity.Error));
+                        continue;
+                    }
+                    // Fallback: whole line at top
+                    diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 10), t, vscode.DiagnosticSeverity.Error));
                 }
             }
 

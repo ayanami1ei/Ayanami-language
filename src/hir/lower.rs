@@ -758,9 +758,9 @@ impl Ctx {
     fn lower_expr(&mut self, expr: &Expr) -> Result<HirExpr, String> {
         match expr {
             Expr::Literal(lit) => self.lower_literal(lit),
-            Expr::Ident(name, _) => {
+            Expr::Ident(name, span) => {
                 let (var_id, ty, _) = self.lookup_var(name)
-                    .ok_or_else(|| format!("undefined variable `{}`", name))?;
+                    .ok_or_else(|| format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col))?;
                 Ok(HirExpr::Local(var_id, ty))
             }
             Expr::Binary { op, lhs, rhs, .. } => {
@@ -808,7 +808,7 @@ impl Ctx {
                     ty,
                 })
             }
-            Expr::FnCall { name, args, .. } => {
+            Expr::FnCall { name, args, span } => {
                 // Step 1: lower all arguments
                 let mut hir_args: Vec<HirExpr> = args.iter()
                     .map(|a| self.lower_expr(a))
@@ -828,11 +828,11 @@ impl Ctx {
                                 .map(|t| format!("{:?}", t))
                                 .collect();
                             format!(
-                                "no matching overload of `{}` for argument types ({}); {} candidate(s) exist",
-                                name, ats.join(", "), candidates
+                                "no matching overload of `{}` for argument types ({}); {} candidate(s) exist at {}:{}",
+                                name, ats.join(", "), candidates, span.start_line, span.start_col
                             )
                         } else {
-                            format!("undefined function `{}`", name)
+                            format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col)
                         }
                     })?;
 

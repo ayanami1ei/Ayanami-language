@@ -26,9 +26,9 @@ impl Parser {
 
     fn error(&self, msg: &str) -> String {
         if let Some(tok) = self.peek() {
-            format!("{} at {}:{}", msg, tok.line, tok.col)
+            format!("{} (at {}:{})", msg, tok.line, tok.col)
         } else {
-            format!("{} at end of file", msg)
+            format!("{} (at end of file)", msg)
         }
     }
 
@@ -801,12 +801,13 @@ impl Parser {
                 Ok(Expr::Literal(Literal::String(s, Span::default())))
             }
             TokenKind::Identifier(ref name) => {
+                let tok = self.peek().cloned().unwrap();
+                let span = tok.span();
                 let mut name_str = name.clone();
                 let mut name_sym = Symbol::intern(&name_str);
                 self.advance();
-                // Handle :: namespace separator: foo::bar
                 while self.peek().map(|t| &t.kind) == Some(&TokenKind::Operator("::".to_string())) {
-                    self.advance(); // consume ::
+                    self.advance();
                     let next = self.expect_identifier()?;
                     name_str = format!("{}.{}", name_str, next);
                     name_sym = Symbol::intern(&name_str);
@@ -825,15 +826,14 @@ impl Parser {
                             }
                         }
                         self.expect_delimiter(Delimiter::RParen)?;
-                        Ok(Expr::FnCall { name: name_sym, args, span: Span::default() })
+                        Ok(Expr::FnCall { name: name_sym, args, span })
                     }
                     Some(TokenKind::Delimiter(Delimiter::LBrace)) => {
-                        // Peek ahead: only treat as struct literal if { is followed by ident =
                         let is_struct_lit = self.pos + 2 < self.tokens.len()
                             && matches!(&self.tokens[self.pos + 1].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
                             && self.tokens[self.pos + 2].kind == TokenKind::Operator("=".to_string());
                         if !is_struct_lit {
-                            return Ok(Expr::Ident(name_sym, Span::default()));
+                            return Ok(Expr::Ident(name_sym, span));
                         }
                         self.advance();
                         let mut fields = Vec::new();
@@ -850,22 +850,25 @@ impl Parser {
                             }
                         }
                         self.expect_delimiter(Delimiter::RBrace)?;
-                        Ok(Expr::StructLiteral { type_name: name_sym, fields, span: Span::default() })
+                        Ok(Expr::StructLiteral { type_name: name_sym, fields, span })
                     }
-                    _ => Ok(Expr::Ident(name_sym, Span::default())),
+                    _ => Ok(Expr::Ident(name_sym, span)),
                 }
             }
             TokenKind::Keyword(Keyword::True) => {
+                let tok = self.peek().cloned().unwrap();
                 self.advance();
-                Ok(Expr::Literal(Literal::Bool(true, Span::default())))
+                Ok(Expr::Literal(Literal::Bool(true, tok.span())))
             }
             TokenKind::Keyword(Keyword::False) => {
+                let tok = self.peek().cloned().unwrap();
                 self.advance();
-                Ok(Expr::Literal(Literal::Bool(false, Span::default())))
+                Ok(Expr::Literal(Literal::Bool(false, tok.span())))
             }
             TokenKind::Keyword(Keyword::Self_) => {
+                let tok = self.peek().cloned().unwrap();
                 self.advance();
-                Ok(Expr::Ident(Symbol::intern("self"), Span::default()))
+                Ok(Expr::Ident(Symbol::intern("self"), tok.span()))
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.advance();
