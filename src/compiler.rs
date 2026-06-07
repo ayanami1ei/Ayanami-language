@@ -21,14 +21,14 @@ pub struct CompiledFile {
 }
 
 /// Compile a .aya source file with recursive import resolution.
-/// `base_dir` is where to look for imported .aya files.
-/// `compiling` tracks files currently being compiled (cycle detection).
+/// If `target_override` is set, also produce the target artifact (.so / .a / exe).
 pub fn compile_file(
     src_path: &Path,
     base_dir: &Path,
     out_dir: &Path,
     compiling: &mut HashSet<PathBuf>,
     cache: &mut std::collections::HashMap<PathBuf, CompiledFile>,
+    target_override: Option<&str>,
 ) -> Result<CompiledFile, String> {
     let canonical = src_path.canonicalize()
         .map_err(|e| format!("cannot resolve '{}': {}", src_path.display(), e))?;
@@ -77,9 +77,10 @@ pub fn compile_file(
         if let Stmt::Import { path, .. } = stmt {
             if path.ends_with(".aya") {
                 let dep_path = base_dir.join(path);
-                let dep = compile_file(&dep_path, base_dir, out_dir, compiling, cache)?;
+                // Try to load project config to determine dep target
+                let dep_target = load_config_for_file(&dep_path, out_dir);
+                let dep = compile_file(&dep_path, base_dir, out_dir, compiling, cache, dep_target.as_deref())?;
                 dep_obj_paths.extend(dep.obj_paths.clone());
-                // Replace .aya import with .lcl import for HIR
                 let lcl_name = dep.lcl_path.to_string_lossy().into_owned();
                 new_stmts.push(Stmt::Import { path: lcl_name, span: crate::span::Span::default() });
             } else {
@@ -106,6 +107,28 @@ pub fn compile_file(
     // Emit .o
     crate::driver::ir_to_object(&llvm_ir, &own_obj)
         .map_err(|e| format!("llc failed for {}: {}", src_path.display(), e))?;
+
+    // If a target type is specified and this file has no imports (standalone),
+    // produce the target artifact.  Files with deps will be linked by the root.
+    let stem_str = stem.to_string_lossy();
+    if dep_obj_paths.is_empty() {
+        let target = target_override.unwrap_or("static-lib");
+        match target {
+            "executable" => {
+                let exe_path = out_dir.join(&*stem_str);
+                crate::driver::objects_to_exe(&[own_obj.clone()], &exe_path)?;
+            }
+            "static-lib" => {
+                let lib_path = out_dir.join(format!("lib{}.a", stem_str));
+                crate::driver::object_to_static_lib(&own_obj, &lib_path)?;
+            }
+            "dynamic-lib" => {
+                let so_path = out_dir.join(format!("lib{}.so", stem_str));
+                crate::driver::object_to_shared_lib(&own_obj, &so_path)?;
+            }
+            _ => {}
+        }
+    }
 
     // Emit .lcl (include all symbols for .aya imports)
     let mut pkg = crate::package::Package::new(stem.to_string_lossy().into_owned(), "0.1.0".into());
@@ -142,6 +165,24 @@ pub fn compile_file(
 
     compiling.remove(&canonical);
     Ok(result)
+}
+
+/// Try to load project config and resolve target for a file path.
+fn load_config_for_file(file_path: &Path, _out_dir: &Path) -> Option<String> {
+    // Walk up from file to find ayanami.toml
+    let mut dir = file_path.parent()?;
+    loop {
+        let toml = dir.join("ayanami.toml");
+        if toml.exists() {
+            if let Ok(content) = std::fs::read_to_string(&toml) {
+                let cfg = crate::package::config::ProjectConfig::load(&content);
+                let rel_path = file_path.strip_prefix(dir).ok()?;
+                return Some(cfg.resolve_target(rel_path).to_string());
+            }
+        }
+        if let Some(parent) = dir.parent() { dir = parent; } else { break; }
+    }
+    None
 }
 
 /// Simple compile from source text (no import resolution).
@@ -317,7 +358,7 @@ pub fn build_source_with_target(src_path: &str, _code: &str, out_dir: &str, targ
     let mut compiling = HashSet::new();
     let mut cache = HashMap::new();
 
-    let compiled = compile_file(src_path, base_dir, out_path, &mut compiling, &mut cache)?;
+    let compiled = compile_file(src_path, base_dir, out_path, &mut compiling, &mut cache, target_override)?;
 
     let name = src_path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy();
 

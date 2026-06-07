@@ -1,0 +1,9 @@
+[package]
+name = "files"
+version = "0.1.0"
+
+[build]
+target = "executable"
+
+[build.targets]
+"src/lib.aya" = "dynamic-lib"
