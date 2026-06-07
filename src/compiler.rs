@@ -303,6 +303,11 @@ pub fn build_source(src_path: &str, code: &str) -> Result<(), String> {
 
 /// Build with explicit output directory, using recursive import compilation.
 pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<(), String> {
+    build_source_with_target(src_path, _code, out_dir, None)
+}
+
+/// Build with explicit output directory and target type override.
+pub fn build_source_with_target(src_path: &str, _code: &str, out_dir: &str, target_override: Option<&str>) -> Result<(), String> {
     let out_path = Path::new(out_dir);
     std::fs::create_dir_all(out_path)
         .map_err(|e| format!("failed to create output dir '{}': {}", out_dir, e))?;
@@ -314,20 +319,54 @@ pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<(),
 
     let compiled = compile_file(src_path, base_dir, out_path, &mut compiling, &mut cache)?;
 
-    let exe_name = src_path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy();
-    let exe_path = out_path.join(&*exe_name);
-    let exe_path_str = exe_path.to_string_lossy().into_owned();
+    let name = src_path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy();
 
-    println!("building {} -> {}", src_path.display(), exe_path_str);
+    // Determine target: override → heuristic
+    let target = target_override.unwrap_or_else(|| {
+        if &*name == "main" { "executable" } else { "static-lib" }
+    });
 
-    crate::driver::objects_to_exe(&compiled.obj_paths, &exe_path_str)
-        .map_err(|e| format!("link failed: {}", e))?;
+    // Build the target artifact
+    let output_path = match target {
+        "executable" => {
+            let exe_path = out_path.join(&*name);
+            println!("building {} -> {}", src_path.display(), exe_path.display());
+            crate::driver::objects_to_exe(&compiled.obj_paths, &exe_path)
+                .map_err(|e| format!("link failed: {}", e))?;
+            exe_path
+        }
+        "static-lib" => {
+            let lib_path = out_path.join(format!("lib{}.a", name));
+            println!("building {} -> {}", src_path.display(), lib_path.display());
+            // For static lib, just archive all .o files
+            if compiled.obj_paths.len() == 1 {
+                crate::driver::object_to_static_lib(&compiled.obj_paths[0], &lib_path)?;
+            } else {
+                // Multiple .o files: link into single .o first, then archive
+                crate::driver::objects_to_exe(&compiled.obj_paths, &out_path.join("_temp_exe"))?;
+                crate::driver::object_to_static_lib(&out_path.join("_temp_exe.o"), &lib_path)?;
+                let _ = std::fs::remove_file(&out_path.join("_temp_exe"));
+            }
+            lib_path
+        }
+        "dynamic-lib" => {
+            let so_path = out_path.join(format!("lib{}.so", name));
+            println!("building {} -> {}", src_path.display(), so_path.display());
+            if compiled.obj_paths.len() == 1 {
+                crate::driver::object_to_shared_lib(&compiled.obj_paths[0], &so_path)?;
+            } else {
+                crate::driver::objects_to_shared_lib(&compiled.obj_paths, &so_path)?;
+            }
+            so_path
+        }
+        _ => return Err(format!("unknown target type: {}", target)),
+    };
 
-    println!("build ok: {}", exe_path_str);
+    println!("build ok: {}", output_path.display());
 
     // Generate root .lcl
-    let lcl_path = out_path.join(format!("{}.lcl", exe_name));
-    let mut pkg = crate::package::Package::new(exe_name.to_string(), "0.1.0".into());
+    let lcl_path = out_path.join(format!("{}.lcl", name));
+    let mut pkg = crate::package::Package::new(name.to_string(), "0.1.0".into());
     pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);
     pkg.collect_symbols(&compiled.program.stmts);
     let has_main = compiled.program.stmts.iter().any(|s| matches!(s,

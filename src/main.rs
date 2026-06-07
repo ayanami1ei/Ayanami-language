@@ -189,8 +189,7 @@ fn cmd_build(args: &[String]) {
     let path = resolve_path(args.first().map(|s| s.as_str()));
     let path_str = path.to_string_lossy().into_owned();
 
-    // Load project config for per-file target overrides
-    let _file_target = load_config()
+    let target = load_config()
         .map(|(_, cfg)| cfg.resolve_target(&path).to_string())
         .unwrap_or_else(|| {
             if path_str.ends_with("main.aya") { "executable".into() } else { "static-lib".into() }
@@ -199,7 +198,7 @@ fn cmd_build(args: &[String]) {
     let code = match fs::read_to_string(&path) {
         Ok(c) => c, Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
-    match ayanami::compiler::build_source_to(&path_str, &code, "build") {
+    match ayanami::compiler::build_source_with_target(&path_str, &code, "build", Some(&target)) {
         Ok(()) => {}
         Err(e) => { eprintln!("build failed: {}", e); std::process::exit(1); }
     }
@@ -209,14 +208,12 @@ fn cmd_run(args: &[String]) {
     let path = resolve_path(args.first().map(|s| s.as_str()));
     let path_str = path.to_string_lossy().into_owned();
 
-    let _file_target = load_config()
-        .map(|(_, cfg)| cfg.resolve_target(&path).to_string())
-        .unwrap_or_else(|| "executable".into());
+    let target = "executable";
 
     let code = match fs::read_to_string(&path) {
         Ok(c) => c, Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
-    if let Err(e) = ayanami::compiler::build_source_to(&path_str, &code, "build") {
+    if let Err(e) = ayanami::compiler::build_source_with_target(&path_str, &code, "build", Some(target)) {
         eprintln!("build failed: {}", e); std::process::exit(1);
     }
     let exe_name = path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy();

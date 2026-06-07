@@ -115,7 +115,18 @@ pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Pat
     Ok(())
 }
 
-/// Link object file → shared library (.so) via `gcc`.
+/// Link multiple object files → shared library (.so) via `gcc`.
+pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<(), String> {
+    let mut cmd = Command::new("gcc");
+    cmd.arg("-shared").arg("-fPIC");
+    for o in obj_paths { cmd.arg(o); }
+    cmd.arg("-o").arg(lib_path.as_ref());
+    let status = cmd.status().map_err(|e| format!("failed to run gcc: {}", e))?;
+    if !status.success() { return Err("gcc -shared failed".into()); }
+    Ok(())
+}
+
+/// Link single object file → shared library (.so) via `gcc`.
 pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<(), String> {
     let status = Command::new("gcc")
         .arg("-shared")

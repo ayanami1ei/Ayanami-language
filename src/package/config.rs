@@ -30,7 +30,7 @@ impl ProjectConfig {
                 let k = k.trim();
                 let v = v.trim().trim_matches('"');
                 if in_targets {
-                    file_targets.insert(k.to_string(), v.to_string());
+                    file_targets.insert(k.trim_matches('"').to_string(), v.to_string());
                 } else if in_build {
                     match k {
                         "target" => default_target = Some(v.to_string()),
