@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::intern::Symbol;
 use crate::parser::ast::*;
+use crate::span::Span;
 
 use super::ir::*;
 
@@ -15,7 +16,7 @@ pub fn lower_program(program: &Program) -> Result<HirProgram, String> {
     ctx.build_vtables()?;
 
     // Phase 2: lower all top-level items
-    let items = ctx.lower_items(&program.stmts)?;
+    let mut items = ctx.lower_items(&program.stmts)?;
 
     // Collect imported function sigs (those not in HirItems)
     let defined_ids: std::collections::HashSet<_> = items.iter().filter_map(|item| {
@@ -30,6 +31,11 @@ pub fn lower_program(program: &Program) -> Result<HirProgram, String> {
             return_type: sig.return_type.clone(),
         })
         .collect();
+
+    // Append any specialized generic functions discovered during lowering
+    for f in ctx.specialized_fns.drain(..) {
+        items.push(HirItem::Fn(f));
+    }
 
     Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), imported_fns })
 }
@@ -64,6 +70,11 @@ struct Ctx {
     /// Struct definitions: name → fields
     struct_defs: HashMap<Symbol, Vec<HirStructField>>,
 
+    /// Generic function ASTs: (name, generic_params, Stmt::FnDecl)
+    generic_fns: Vec<(Symbol, Vec<(Symbol, Option<Symbol>)>, Stmt)>,
+    /// Specialized (monomorphized) functions created during lowering
+    specialized_fns: Vec<HirFn>,
+
     /// Current function being lowered
     current_fn: FnId,
     /// Locals of current function
@@ -83,6 +94,8 @@ impl Ctx {
             vtables: Vec::new(),
             type_ifaces: HashMap::new(),
             struct_defs: HashMap::new(),
+            generic_fns: Vec::new(),
+            specialized_fns: Vec::new(),
             current_fn: FnId(0),
             locals: Vec::new(),
             scopes: Vec::new(),
@@ -101,12 +114,18 @@ impl Ctx {
     fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<(), String> {
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, params, return_type, .. } => {
+                Stmt::FnDecl { name, params, return_type, generic_params, .. } => {
                     let full_name = if ns_prefix.is_empty() {
                         *name
                     } else {
                         Symbol::intern(&format!("{}.{}", ns_prefix, name))
                     };
+                    if !generic_params.is_empty() {
+                        // Store generic function AST for later monomorphization;
+                        // do NOT register it as a normal callable function.
+                        self.generic_fns.push((full_name, generic_params.clone(), stmt.clone()));
+                        continue;
+                    }
                     let hir_return = ast_type_to_hir(return_type, &self.interfaces);
                     let hir_params = params.iter()
                         .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
@@ -438,6 +457,101 @@ impl Ctx {
     }
 
     // ----------------------------------------------------------------
+    // Generic specialization
+    // ----------------------------------------------------------------
+
+    /// Try to resolve a call by specializing a generic function.
+    /// Returns the FnId of the newly-created specialized function on success.
+    fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId, String> {
+        // Find matching generic function
+        let gf_idx = self.generic_fns.iter().position(|(gf_name, _, _)| gf_name == name);
+        let gf_idx = match gf_idx {
+            Some(i) => i,
+            None => {
+                return Err(if self.fn_map.contains_key(name) {
+                    let ats: Vec<String> = arg_types.iter().map(|t| format!("{:?}", t)).collect();
+                    format!("no matching overload of `{}` for argument types ({}); candidate(s) exist at {}:{}",
+                        name, ats.join(", "), span.start_line, span.start_col)
+                } else {
+                    format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col)
+                });
+            }
+        };
+
+        let (gf_name, gf_params, gf_stmt) = &self.generic_fns[gf_idx];
+        let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, .. } = gf_stmt else {
+            return Err("internal error: generic function is not a FnDecl".into());
+        };
+
+        if params.len() != arg_types.len() {
+            return Err(format!(
+                "generic function `{}` takes {} argument(s) but {} given at {}:{}",
+                gf_name, params.len(), arg_types.len(), span.start_line, span.start_col
+            ));
+        }
+
+        // Step 1: Infer concrete type for each generic parameter
+        let generic_names: Vec<Symbol> = gf_params.iter().map(|(n, _)| *n).collect();
+        let mut generic_mappings: HashMap<Symbol, HirType> = HashMap::new();
+        for ((_, param_ty), arg_ty) in params.iter().zip(arg_types.iter()) {
+            if let Some((gp_name, hir_concrete)) = infer_generic_from_param(param_ty, arg_ty) {
+                if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
+                    generic_mappings.insert(gp_name, hir_concrete.clone());
+                }
+            }
+        }
+        // Ensure all generic params were resolved
+        for (gp_name, _) in gf_params {
+            if !generic_mappings.contains_key(gp_name) {
+                return Err(format!(
+                    "cannot infer generic parameter `{}` for function `{}` at {}:{}",
+                    gp_name, gf_name, span.start_line, span.start_col
+                ));
+            }
+        }
+
+        // Step 2: Build substitution map from generic Symbol -> AST Type
+        let substitutions: HashMap<Symbol, Type> = generic_mappings.iter()
+            .map(|(k, v)| (*k, hir_type_to_ast_type(v)))
+            .collect();
+
+        // Step 3: Clone and substitute types in the AST
+        let new_params: Vec<(Symbol, Type)> = params.iter()
+            .map(|(n, t)| (*n, substitute_type_in_type(t, &substitutions)))
+            .collect();
+        let new_return_type = substitute_type_in_type(return_type, &substitutions);
+        let new_body = substitute_type_in_block(body, &substitutions);
+
+        // Step 4: Create specialized function signature and register it
+        let hir_return = ast_type_to_hir(&new_return_type, &self.interfaces);
+        let hir_params: Vec<(Symbol, HirType)> = new_params.iter()
+            .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+            .collect();
+        let fid = FnId(self.fns.len());
+        self.fns.push(FnSig {
+            name: *name,
+            params: hir_params,
+            return_type: hir_return,
+        });
+        self.fn_map.entry(*name).or_default().push(fid);
+
+        // Step 5: Lower the specialized function body
+        let saved_current_fn = self.current_fn;
+        let saved_locals = std::mem::take(&mut self.locals);
+        let saved_scopes = std::mem::take(&mut self.scopes);
+
+        let hir_fn = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c)?;
+
+        self.current_fn = saved_current_fn;
+        self.locals = saved_locals;
+        self.scopes = saved_scopes;
+
+        self.specialized_fns.push(hir_fn);
+
+        Ok(fid)
+    }
+
+    // ----------------------------------------------------------------
     // Phase 2: lower items
     // ----------------------------------------------------------------
 
@@ -449,7 +563,11 @@ impl Ctx {
         let mut items = Vec::new();
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, params, return_type, body, is_inline, extern_c, .. } => {
+                Stmt::FnDecl { name, params, return_type, body, is_inline, extern_c, generic_params, .. } => {
+                    // Skip generic functions — they are specialized on demand
+                    if !generic_params.is_empty() {
+                        continue;
+                    }
                     let full_name = if ns_prefix.is_empty() {
                         *name
                     } else {
@@ -845,23 +963,13 @@ impl Ctx {
                 let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
 
                 // Step 3: resolve overloaded function
-                let fn_id = self.resolve_fn_call(name, &arg_types)
-                    .ok_or_else(|| {
-                        let candidates = self.fn_map.get(name)
-                            .map(|ids| ids.len())
-                            .unwrap_or(0);
-                        if candidates > 0 {
-                            let ats: Vec<String> = arg_types.iter()
-                                .map(|t| format!("{:?}", t))
-                                .collect();
-                            format!(
-                                "no matching overload of `{}` for argument types ({}); {} candidate(s) exist at {}:{}",
-                                name, ats.join(", "), candidates, span.start_line, span.start_col
-                            )
-                        } else {
-                            format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col)
-                        }
-                    })?;
+                let fn_id = match self.resolve_fn_call(name, &arg_types) {
+                    Some(fid) => fid,
+                    None => {
+                        // Step 3b: try generic specialization
+                        self.specialize_generic_call(name, &arg_types, span)?
+                    }
+                };
 
                 // Step 4: wrap args into fat pointers where needed, apply implicit moves
                 let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
@@ -1180,6 +1288,245 @@ fn wrap_for_unique_param(expr: HirExpr, param_ty: &HirType) -> HirExpr {
         HirExpr::Move(Box::new(expr), ty)
     } else {
         expr
+    }
+}
+
+// ====================================================================
+//  Generic substitution: AST-level type replacement
+// ====================================================================
+
+/// Convert a HirType back to an AST Type (for substitution into generic body).
+/// Uses Span::default() for synthetic nodes.
+fn hir_type_to_ast_type(ty: &HirType) -> Type {
+    let s = Span::default();
+    match ty {
+        HirType::Int => Type::Int(s),
+        HirType::Float => Type::Float(s),
+        HirType::Char => Type::Char(s),
+        HirType::Bool => Type::Bool(s),
+        HirType::Void => Type::Void(s),
+        HirType::Named(n) => Type::Named(*n, s),
+        HirType::Unique(inner) => Type::Unique(Box::new(hir_type_to_ast_type(inner)), s),
+        HirType::Shared(inner) => Type::Shared(Box::new(hir_type_to_ast_type(inner)), s),
+        HirType::Weak(inner) => Type::Weak(Box::new(hir_type_to_ast_type(inner)), s),
+        HirType::Array(inner) => Type::Array(Box::new(hir_type_to_ast_type(inner)), s),
+        HirType::FatPtr { name, .. } => Type::Named(*name, s),
+        HirType::Ref(inner, mutable) => Type::Ref(Box::new(hir_type_to_ast_type(inner)), *mutable, s),
+    }
+}
+
+/// Given an AST param type and the corresponding HirType from the lowered arg,
+/// extract the binding for a generic parameter name (if the param type uses it).
+fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Option<(Symbol, HirType)> {
+    match (param_ty, arg_ty) {
+        (Type::Named(name, _), _) => Some((*name, arg_ty.clone())),
+        (Type::Unique(inner, _), HirType::Unique(hir_inner)) => infer_generic_from_param(inner, hir_inner),
+        (Type::Shared(inner, _), HirType::Shared(hir_inner)) => infer_generic_from_param(inner, hir_inner),
+        (Type::Weak(inner, _), HirType::Weak(hir_inner)) => infer_generic_from_param(inner, hir_inner),
+        // Param expects wrapper but arg is unwrapped (auto-wrap will handle)
+        (Type::Unique(inner, _) | Type::Shared(inner, _) | Type::Weak(inner, _), _) => {
+            infer_generic_from_param(inner, arg_ty)
+        }
+        _ => None,
+    }
+}
+
+/// Substitute generic type parameters in an AST Type node.
+fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type {
+    let s = Span::default();
+    match ty {
+        Type::Named(name, _) => {
+            if let Some(concrete) = subst.get(name) {
+                concrete.clone()
+            } else {
+                Type::Named(*name, s)
+            }
+        }
+        Type::Unique(inner, _) => Type::Unique(Box::new(substitute_type_in_type(inner, subst)), s),
+        Type::Shared(inner, _) => Type::Shared(Box::new(substitute_type_in_type(inner, subst)), s),
+        Type::Weak(inner, _) => Type::Weak(Box::new(substitute_type_in_type(inner, subst)), s),
+        Type::Array(inner, _) => Type::Array(Box::new(substitute_type_in_type(inner, subst)), s),
+        Type::Ref(inner, mutable, _) => Type::Ref(Box::new(substitute_type_in_type(inner, subst)), *mutable, s),
+        Type::Int(_) => Type::Int(s),
+        Type::Float(_) => Type::Float(s),
+        Type::Char(_) => Type::Char(s),
+        Type::Bool(_) => Type::Bool(s),
+        Type::Void(_) => Type::Void(s),
+        Type::Default => ty.clone(),
+        Type::Self_(_) => ty.clone(),
+    }
+}
+
+/// Substitute generic type parameters in an AST Expr.
+fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr {
+    match expr {
+        Expr::Binary { op, lhs, rhs, span } => Expr::Binary {
+            op: *op,
+            lhs: Box::new(substitute_type_in_expr(lhs, subst)),
+            rhs: Box::new(substitute_type_in_expr(rhs, subst)),
+            span: *span,
+        },
+        Expr::Unary { op, arg, span } => Expr::Unary {
+            op: *op,
+            arg: Box::new(substitute_type_in_expr(arg, subst)),
+            span: *span,
+        },
+        Expr::Literal(_) => expr.clone(),
+        Expr::Ident(_, _) => expr.clone(),
+        Expr::FnCall { name, args, span } => Expr::FnCall {
+            name: *name,
+            args: args.iter().map(|a| substitute_type_in_expr(a, subst)).collect(),
+            span: *span,
+        },
+        Expr::MethodCall { object, method, args, span } => Expr::MethodCall {
+            object: Box::new(substitute_type_in_expr(object, subst)),
+            method: *method,
+            args: args.iter().map(|a| substitute_type_in_expr(a, subst)).collect(),
+            span: *span,
+        },
+        Expr::StructLiteral { type_name, fields, span } => Expr::StructLiteral {
+            type_name: *type_name,
+            fields: fields.iter().map(|(n, e)| (*n, substitute_type_in_expr(e, subst))).collect(),
+            span: *span,
+        },
+        Expr::ArrayLiteral(elems, span) => Expr::ArrayLiteral(
+            elems.iter().map(|e| substitute_type_in_expr(e, subst)).collect(),
+            *span,
+        ),
+        Expr::ArraySized { elem_type, count, span } => Expr::ArraySized {
+            elem_type: substitute_type_in_type(elem_type, subst),
+            count: Box::new(substitute_type_in_expr(count, subst)),
+            span: *span,
+        },
+        Expr::Move(inner, span) => Expr::Move(Box::new(substitute_type_in_expr(inner, subst)), *span),
+        Expr::Clone(inner, span) => Expr::Clone(Box::new(substitute_type_in_expr(inner, subst)), *span),
+        Expr::ToUnique(inner, span) => Expr::ToUnique(Box::new(substitute_type_in_expr(inner, subst)), *span),
+        Expr::ToShared(inner, span) => Expr::ToShared(Box::new(substitute_type_in_expr(inner, subst)), *span),
+        Expr::ToWeak(inner, span) => Expr::ToWeak(Box::new(substitute_type_in_expr(inner, subst)), *span),
+        Expr::FieldAccess { object, field, span } => Expr::FieldAccess {
+            object: Box::new(substitute_type_in_expr(object, subst)),
+            field: *field,
+            span: *span,
+        },
+        Expr::Ref(inner, mutable, span) => Expr::Ref(
+            Box::new(substitute_type_in_expr(inner, subst)),
+            *mutable,
+            *span,
+        ),
+        Expr::Asm { template, outputs, inputs, span } => Expr::Asm {
+            template: template.clone(),
+            outputs: outputs.iter().map(|(c, e)| (c.clone(), Box::new(substitute_type_in_expr(e, subst)))).collect(),
+            inputs: inputs.iter().map(|(c, e)| (c.clone(), Box::new(substitute_type_in_expr(e, subst)))).collect(),
+            span: *span,
+        },
+        Expr::Index { object, index, span } => Expr::Index {
+            object: Box::new(substitute_type_in_expr(object, subst)),
+            index: Box::new(substitute_type_in_expr(index, subst)),
+            span: *span,
+        },
+    }
+}
+
+/// Substitute generic type parameters in an AST Block.
+fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block {
+    Block {
+        stmts: block.stmts.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
+        span: block.span,
+    }
+}
+
+/// Substitute generic type parameters in an AST Stmt.
+fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt {
+    match stmt {
+        Stmt::FnDecl { vis, is_inline, extern_c, name, generic_params: _, params, return_type, body, span } => {
+            Stmt::FnDecl {
+                vis: *vis,
+                is_inline: *is_inline,
+                extern_c: *extern_c,
+                name: *name,
+                generic_params: Vec::new(), // cleared: all generics are now concrete
+                params: params.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
+                return_type: substitute_type_in_type(return_type, subst),
+                body: substitute_type_in_block(body, subst),
+                span: *span,
+            }
+        }
+        Stmt::Assign { name, is_mut, value, span } => Stmt::Assign {
+            name: *name,
+            is_mut: *is_mut,
+            value: substitute_type_in_expr(value, subst),
+            span: *span,
+        },
+        Stmt::FieldAssign { object, field, value, span } => Stmt::FieldAssign {
+            object: Box::new(substitute_type_in_expr(object, subst)),
+            field: *field,
+            value: substitute_type_in_expr(value, subst),
+            span: *span,
+        },
+        Stmt::IndexAssign { object, index, value, span } => Stmt::IndexAssign {
+            object: Box::new(substitute_type_in_expr(object, subst)),
+            index: Box::new(substitute_type_in_expr(index, subst)),
+            value: substitute_type_in_expr(value, subst),
+            span: *span,
+        },
+        Stmt::Return { value, span } => Stmt::Return {
+            value: value.as_ref().map(|v| substitute_type_in_expr(v, subst)),
+            span: *span,
+        },
+        Stmt::If { cond, then_block, elifs, else_block, span } => Stmt::If {
+            cond: substitute_type_in_expr(cond, subst),
+            then_block: substitute_type_in_block(then_block, subst),
+            elifs: elifs.iter().map(|(c, b)| (substitute_type_in_expr(c, subst), substitute_type_in_block(b, subst))).collect(),
+            else_block: else_block.as_ref().map(|b| substitute_type_in_block(b, subst)),
+            span: *span,
+        },
+        Stmt::For { iterator, start, end, step, body, span } => Stmt::For {
+            iterator: *iterator,
+            start: substitute_type_in_expr(start, subst),
+            end: substitute_type_in_expr(end, subst),
+            step: step.as_ref().map(|s| substitute_type_in_expr(s, subst)),
+            body: substitute_type_in_block(body, subst),
+            span: *span,
+        },
+        Stmt::While { cond, body, span } => Stmt::While {
+            cond: substitute_type_in_expr(cond, subst),
+            body: substitute_type_in_block(body, subst),
+            span: *span,
+        },
+        Stmt::ExprStmt { expr, span } => Stmt::ExprStmt {
+            expr: substitute_type_in_expr(expr, subst),
+            span: *span,
+        },
+        Stmt::Namespace { vis, name, items, span } => Stmt::Namespace {
+            vis: *vis,
+            name: *name,
+            items: items.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
+            span: *span,
+        },
+        Stmt::StructDef { vis, name, fields, span } => Stmt::StructDef {
+            vis: *vis,
+            name: *name,
+            fields: fields.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
+            span: *span,
+        },
+        Stmt::InterfaceDef { name, methods, span } => Stmt::InterfaceDef {
+            name: *name,
+            methods: methods.iter().map(|m| {
+                InterfaceMethod {
+                    name: m.name,
+                    self_keyword: m.self_keyword,
+                    params: m.params.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
+                    return_type: substitute_type_in_type(&m.return_type, subst),
+                }
+            }).collect(),
+            span: *span,
+        },
+        Stmt::ImplBlock { type_name, methods, span } => Stmt::ImplBlock {
+            type_name: *type_name,
+            methods: methods.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
+            span: *span,
+        },
+        Stmt::Import { path, span } => Stmt::Import { path: path.clone(), span: *span },
     }
 }
 

@@ -207,6 +207,27 @@ impl Parser {
         self.advance();
         let name = self.expect_identifier()?;
 
+        // Generic parameters: [T: Interface, U]
+        let mut generic_params = Vec::new();
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
+            self.advance();
+            loop {
+                let gp_name = Symbol::intern(&self.expect_identifier()?);
+                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
+                    self.advance();
+                    Some(Symbol::intern(&self.expect_identifier()?))
+                } else {
+                    None
+                };
+                generic_params.push((gp_name, gp_constraint));
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
+                    break;
+                }
+                self.expect_delimiter(Delimiter::Comma)?;
+            }
+            self.expect_delimiter(Delimiter::RBracket)?;
+        }
+
         self.expect_delimiter(Delimiter::LParen)?;
         let mut params = Vec::new();
         if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
@@ -234,6 +255,7 @@ impl Parser {
 
         Ok(Stmt::FnDecl {
             vis, is_inline, extern_c,
+            generic_params,
             name: Symbol::intern(&name),
             params,
             return_type,
@@ -562,6 +584,7 @@ impl Parser {
             vis: Visibility::Pub,
             is_inline: false,
             extern_c: false,
+            generic_params: Vec::new(),
             name,
             params,
             return_type,

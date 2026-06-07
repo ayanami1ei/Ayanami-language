@@ -277,6 +277,7 @@ impl<'a> Lexer<'a> {
                     ',' => Some(Delimiter::Comma),
                     ';' => Some(Delimiter::Semicolon),
                     '.' => Some(Delimiter::Dot),
+                    ':' => Some(Delimiter::Colon),
                     _ => None,
                 };
                 if let Some(d) = single_delim {

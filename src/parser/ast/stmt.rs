@@ -20,6 +20,7 @@ pub enum Stmt {
         is_inline: bool,
         extern_c: bool,
         name: Symbol,
+        generic_params: Vec<(Symbol, Option<Symbol>)>,  // (name, constraint_interface)
         params: Vec<(Symbol, Type)>,
         return_type: Type,
         body: Block,

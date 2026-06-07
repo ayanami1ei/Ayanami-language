@@ -12,6 +12,7 @@ pub enum Delimiter {
     Semicolon,
     Arrow,
     Dot,
+    Colon,
 }
 
 impl fmt::Display for Delimiter {
@@ -27,6 +28,7 @@ impl fmt::Display for Delimiter {
             Delimiter::Semicolon => ";",
             Delimiter::Arrow => "->",
             Delimiter::Dot => ".",
+            Delimiter::Colon => ":",
         };
         write!(f, "{}", s)
     }

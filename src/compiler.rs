@@ -692,6 +692,7 @@ fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
 mod tests {
     use super::*;
     use crate::hir::ir::*;
+    use crate::intern::Symbol;
     use crate::lexer::Lexer;
 
     fn parse(code: &str) -> Program {
@@ -979,5 +980,118 @@ mod tests {
             "fn foo(int a)->int{ return a; } fn foo(int b)->int{ return b; } fn main()->int{ return foo(1); }",
         ));
         assert!(result.is_err());
+    }
+
+    // ----------------------------------------------------------------
+    // Generic function tests
+    // ----------------------------------------------------------------
+
+    #[test]
+    fn test_generic_fn_identity_int() {
+        let program = parse("fn id[T](T a)->T{ return a; } fn main()->int{ return id(42); }");
+        let hir = lower(&program);
+        // items: [main, specialized id[int]]
+        assert_eq!(hir.items.len(), 2);
+        // Check specialized function
+        match &hir.items[1] {
+            HirItem::Fn(f) => {
+                assert_eq!(f.name.as_str(), "id");
+                assert_eq!(f.params.len(), 1);
+                assert_eq!(f.params[0].1, HirType::Int);
+                assert_eq!(f.return_type, HirType::Int);
+            }
+            _ => panic!("expected Fn for specialized id"),
+        }
+        // Check main calls the specialized function
+        match &hir.items[0] {
+            HirItem::Fn(f) => match &f.body.stmts[0] {
+                HirStmt::Return { value: Some(HirExpr::Call { fn_id, args, ty }) } => {
+                    assert_eq!(fn_id.0, 1, "should call specialized id[int]");
+                    assert_eq!(args.len(), 1);
+                    assert_eq!(*ty, HirType::Int);
+                }
+                _ => panic!("expected Call in main"),
+            },
+            _ => panic!("expected Fn for main"),
+        }
+    }
+
+    #[test]
+    fn test_generic_fn_identity_float() {
+        let program = parse("fn id[T](T a)->T{ return a; } fn main()->float{ return id(3.14); }");
+        let hir = lower(&program);
+        match &hir.items[1] {
+            HirItem::Fn(f) => {
+                assert_eq!(f.params[0].1, HirType::Float);
+                assert_eq!(f.return_type, HirType::Float);
+            }
+            _ => panic!("expected Fn for specialized id"),
+        }
+    }
+
+    #[test]
+    fn test_generic_fn_with_shared_param() {
+        let program = parse("fn id[T](shared T a)->T{ return clone a; } fn main()->int{ return id(42); }");
+        let hir = lower(&program);
+        // Should specialize id with T=int, so param = shared int, return = int
+        match &hir.items[1] {
+            HirItem::Fn(f) => {
+                assert_eq!(f.params.len(), 1);
+                assert_eq!(f.params[0].1, HirType::Shared(Box::new(HirType::Int)));
+                assert_eq!(f.return_type, HirType::Int);
+            }
+            _ => panic!("expected Fn for specialized id"),
+        }
+        // Main should call it
+        match &hir.items[0] {
+            HirItem::Fn(f) => match &f.body.stmts[0] {
+                HirStmt::Return { value: Some(HirExpr::Call { .. }) } => {}
+                _ => panic!("expected Call in main"),
+            },
+            _ => panic!("expected Fn for main"),
+        }
+    }
+
+    #[test]
+    fn test_generic_fn_struct_type() {
+        let program = parse("struct Point{ int x int y } fn id[T](T a)->T{ return a; } fn main()->Point{ return id(Point{x=1, y=2}); }");
+        let hir = lower(&program);
+        let point_ty = HirType::Named(Symbol::intern("Point"));
+        // items: [StructDef(Point), Fn(main), Fn(specialized id)]
+        assert_eq!(hir.items.len(), 3);
+        match &hir.items[2] {
+            HirItem::Fn(f) => {
+                assert_eq!(f.params[0].1, point_ty);
+                assert_eq!(f.return_type, point_ty);
+            }
+            _ => panic!("expected Fn for specialized id"),
+        }
+    }
+
+    #[test]
+    fn test_generic_fn_multiple_calls_same_type() {
+        let program = parse("fn id[T](T a)->T{ return a; } fn main()->int{ a=id(1); b=id(2); return a+b; }");
+        let hir = lower(&program);
+        // Specialization happens twice, creating two entries in specialized_fns.
+        // Both have fn_id > 0 (main is fn_id 0).
+        match &hir.items[0] {
+            HirItem::Fn(f) => {
+                // Find two Calls in main body
+                let calls: Vec<&HirStmt> = f.body.stmts.iter()
+                    .filter(|s| matches!(s, HirStmt::Assign { value: HirExpr::Call { .. }, .. }))
+                    .collect();
+                assert_eq!(calls.len(), 2, "should have two calls to id");
+            }
+            _ => panic!("expected Fn for main"),
+        }
+        // Should have main + 1 specialized copy (second call reuses the same specialization)
+        assert_eq!(hir.items.len(), 2, "expected 2 items (main + 1 specialized)");
+    }
+
+    #[test]
+    fn test_generic_fn_error_wrong_arg_count() {
+        let result = crate::hir::lower_program(&parse("fn foo[T](T a)->T{ return a; } fn main()->int{ return foo(); }"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("takes 1 argument(s) but 0 given"));
     }
 }
