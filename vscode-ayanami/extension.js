@@ -1,6 +1,17 @@
 const vscode = require('vscode');
 
 function activate(context) {
+    // ─── Status Bar ──────────────────────────────────────────────────
+    const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    statusBar.text = '$(eye) Ayanami';
+    statusBar.tooltip = 'Ayanami Language';
+    statusBar.show();
+    context.subscriptions.push(statusBar);
+
+    function setStatus(text, icon) {
+        statusBar.text = `${icon} Ayanami ${text}`;
+    }
+
     // ─── Completion Provider ─────────────────────────────────────────
     const provider = vscode.languages.registerCompletionItemProvider('ayanami', {
         provideCompletionItems(document, position) {
@@ -169,54 +180,49 @@ function activate(context) {
 
     context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(doc => {
         if (doc.languageId !== 'ayanami') return;
+        setStatus('checking...', '$(eye)');
         diagCollection.clear();
         const diagnostics = [];
         const fs = require('fs');
         const path = require('path');
 
-        // Find ayanami compiler: check common project-relative locations
         let ayanamiPath = findAyanamiPath(context);
         if (!ayanamiPath) {
-            diagnostics.push(new vscode.Diagnostic(
-                new vscode.Range(0, 0, 0, 5),
-                'ayanami compiler not found (set PATH or place in build/)',
-                vscode.DiagnosticSeverity.Warning));
+            setStatus('not found', '$(warning)');
+            diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 5),
+                'ayanami compiler not found (set PATH)', vscode.DiagnosticSeverity.Warning));
             diagCollection.set(doc.uri, diagnostics);
             return;
         }
 
         const { execSync } = require('child_process');
         try {
-            // Run check, do NOT redirect stderr so execSync captures it on error
             execSync(`"${ayanamiPath}" check "${doc.uri.fsPath}"`, {
                 timeout: 10000,
                 cwd: path.dirname(doc.uri.fsPath),
                 stdio: ['pipe', 'pipe', 'pipe'],
             });
+            setStatus('ok', '$(check)');
         } catch (e) {
-            // execSync throws on non-zero; output is in e.stdout or e.stderr
             const out = (e.stdout || '').toString() + (e.stderr || '').toString();
             const lines = out.split('\n');
             for (const line of lines) {
                 if (!line.trim()) continue;
-                // Parse compiler error lines
-                const lineCol = line.match(/(\d+):(\d+)/);
                 const msgOnly = line.replace(/^(error|failed|Parse error[^:]*):\s*/i, '').trim();
                 if (!msgOnly) continue;
-
+                const lineCol = line.match(/(\d+):(\d+)/);
                 let range;
                 if (lineCol) {
                     const l = Math.max(0, parseInt(lineCol[1]) - 1);
-                    const c = Math.max(0, parseInt(lineCol[2]) - 1);
                     range = new vscode.Range(l, 0, l, 1000);
                 } else {
                     range = new vscode.Range(0, 0, 0, 5);
                 }
                 diagnostics.push(new vscode.Diagnostic(range, msgOnly, vscode.DiagnosticSeverity.Error));
             }
+            setStatus(`${diagnostics.length} error(s)`, '$(error)');
         }
 
-        // Fallback: basic syntax check
         if (diagnostics.length === 0) {
             const text = doc.getText();
             let braceDepth = 0;
