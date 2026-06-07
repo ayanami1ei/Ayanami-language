@@ -53,6 +53,43 @@ fn main() -> int {
 | `clamp(int x, int lo, int hi)` | 限制范围 |
 | `pow(int base, int exp)` | 整数幂 |
 
+## std — 主入口
+
+文件：`std/std.lcl`
+
+导入此模块即可使用所有标准库：
+
+```ayanami
+import "std";
+
+fn main() -> int {
+    print(42);
+    println();
+    return 0;
+}
+```
+
+等价于分别导入 `io`、`math`、`string`。
+
+## string — 字符串（WIP）
+
+文件：`std/string.aya`（未预编译，待完善）
+
+```ayanami
+struct String {
+    unique [char] data
+    int len
+}
+```
+
+| 方法 | 说明 |
+|------|------|
+| `String::from(unique [char])` | 从字符数组创建字符串 |
+| `s.len()` | 长度 |
+| `s.at(int i)` | 按索引访问字符 |
+| `s.print()` | 输出字符串 |
+| `to_string(int n)` | 整数转字符串 |
+
 ## 多个模块
 
 ```ayanami
