@@ -110,10 +110,15 @@ pub fn compile_file(
                 // .lcl file: use resolved path and link corresponding .o
                 let lcl_str = dep_path.to_string_lossy().into_owned();
                 new_stmts.push(Stmt::Import { path: lcl_str, span: crate::span::Span::default() });
-                // Also add the .o file for linking
+                // Also add the .o file for linking (check both same dir and std dir)
                 let o_path = dep_path.with_extension("o");
                 if o_path.exists() {
                     dep_obj_paths.push(o_path);
+                } else if let Some(std_dir) = find_std_dir() {
+                    let std_o = std_dir.join(dep_path.file_name().unwrap()).with_extension("o");
+                    if std_o.exists() {
+                        dep_obj_paths.push(std_o);
+                    }
                 }
             }
         } else {
@@ -207,14 +212,34 @@ pub fn compile_file(
     Ok(result)
 }
 
-/// Resolve an import path using config [dependencies] aliases.
+/// Find the standard library directory (next to the compiler binary).
+fn find_std_dir() -> Option<std::path::PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let exe_dir = exe.parent()?;
+    // Check exe_dir/std/ and exe_dir/../std/ and exe_dir/
+    for candidate in &[
+        exe_dir.join("std"),
+        exe_dir.join("../std"),
+        exe_dir.join("../../std"),
+    ] {
+        if candidate.join("io.lcl").exists() {
+            return Some(candidate.to_path_buf());
+        }
+    }
+    None
+}
+
+/// Resolve an import path using config [dependencies] aliases and std library.
 /// Returns Some(path) if found, None if the path doesn't exist.
 fn resolve_import_path(import_path: &str, base_dir: &std::path::Path) -> Option<std::path::PathBuf> {
     // Direct file check first
     let direct = base_dir.join(import_path);
     if direct.exists() { return Some(direct); }
+    // Try with .aya extension
+    let with_aya = base_dir.join(format!("{}.aya", import_path));
+    if with_aya.exists() { return Some(with_aya); }
 
-    // If it has an extension (like .lcl, .aya), and doesn't exist, fail
+    // If it has an extension (like .lcl), and doesn't exist, fail
     if import_path.contains('.') { return None; }
 
     // No extension: try config alias. Walk up from base_dir to find ayanami.toml
@@ -226,16 +251,20 @@ fn resolve_import_path(import_path: &str, base_dir: &std::path::Path) -> Option<
                 let config = crate::package::config::ProjectConfig::load(&content);
                 if let Some(alias_path) = config.dependencies.get(import_path) {
                     let full = d.join(alias_path);
-                    // Support relative paths and absolute paths
                     if full.exists() { return Some(full); }
-                    // Also try relative to the source file's base_dir
                     let alt = base_dir.join(alias_path);
                     if alt.exists() { return Some(alt); }
                 }
             }
-            return None; // Found config but no alias match
+            break; // Found config but no alias match
         }
         dir = d.parent();
+    }
+
+    // Finally, try the standard library directory
+    if let Some(std_dir) = find_std_dir() {
+        let std_lcl = std_dir.join(format!("{}.lcl", import_path));
+        if std_lcl.exists() { return Some(std_lcl); }
     }
     None
 }
