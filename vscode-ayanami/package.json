@@ -10,15 +10,8 @@
   "icon": "./icon.png",
   "main": "./extension.js",
   "activationEvents": ["onLanguage:ayanami"],
-  "categories": ["Programming Languages", "Themes"],
+  "categories": ["Programming Languages"],
   "contributes": {
-    "iconThemes": [
-      {
-        "id": "ayanami-icons",
-        "label": "Ayanami File Icons",
-        "path": "./icon-theme.json"
-      }
-    ],
     "languages": [
       {
         "id": "ayanami",

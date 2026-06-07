@@ -206,20 +206,20 @@ function activate(context) {
             }
             console.log('ayanami using:', ayanamiPath);
 
-            const { execSync } = require('child_process');
+            const { execFileSync } = require('child_process');
             let out = '';
             try {
-                const result = execSync(`"${ayanamiPath}" check "${doc.uri.fsPath}"`, {
+                out = execFileSync(ayanamiPath, ['check', doc.uri.fsPath], {
                     timeout: 15000,
                     encoding: 'utf8',
                     cwd: path.dirname(doc.uri.fsPath),
+                    stdio: ['pipe', 'pipe', 'pipe'],
                 });
-                out = result || '';
                 console.log('ayanami check ok');
                 setStatus('ok');
             } catch (e) {
                 out = (e.stdout || '') + (e.stderr || '');
-                console.log('ayanami check stderr:', out.slice(0, 200));
+                console.log('ayanami check failed, output:', out.slice(0, 300));
             }
 
             if (out) {
