@@ -17,7 +17,8 @@
         "id": "ayanami",
         "aliases": ["Ayanami", "ayanami"],
         "extensions": [".aya"],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": "./icon.png"
       }
     ],
     "grammars": [
