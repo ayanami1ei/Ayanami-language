@@ -124,15 +124,23 @@ fn cmd_new(args: &[String]) {
 
 fn cmd_check(args: &[String]) {
     let path = resolve_path(args.first().map(|s| s.as_str()));
-    if !path.to_string_lossy().ends_with(".aya") {
+    let path_str = path.to_string_lossy().into_owned();
+    if !path_str.ends_with(".aya") {
         eprintln!("error: check requires a .aya file"); std::process::exit(1);
     }
     let code = match fs::read_to_string(&path) {
         Ok(c) => c,
         Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
-    match ayanami::compiler::check_source(&code, "check_output") {
-        Ok(()) => println!("check passed: {}", path.display()),
+    // Use build to get full import resolution, but skip generating the executable
+    let mut compiling = std::collections::HashSet::new();
+    let mut cache = std::collections::HashMap::new();
+    let src = std::path::Path::new(&path_str);
+    let base = src.parent().unwrap_or(std::path::Path::new("."));
+    let out = std::path::Path::new("build");
+    std::fs::create_dir_all(out).ok();
+    match ayanami::compiler::compile_file(src, base, out, &mut compiling, &mut cache, None) {
+        Ok(_) => println!("check passed: {}", path.display()),
         Err(e) => { eprintln!("check failed: {}", e); std::process::exit(1); }
     }
 }
