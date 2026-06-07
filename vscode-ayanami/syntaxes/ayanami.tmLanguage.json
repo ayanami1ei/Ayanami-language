@@ -10,6 +10,9 @@
     { "include": "#numbers" },
     { "include": "#keywords" },
     { "include": "#types" },
+    { "include": "#struct-names" },
+    { "include": "#namespace-names" },
+    { "include": "#function-names" },
     { "include": "#operators" },
     { "include": "#delimiters" },
     { "include": "#identifiers" }
@@ -61,6 +64,21 @@
           "name": "constant.language.aya",
           "match": "\\b(true|false|self)\\b"
         }
+      ]
+    },
+    "struct-names": {
+      "patterns": [
+        { "name": "entity.name.type.struct.aya", "match": "(?<=\\bstruct\\s)[a-zA-Z_][a-zA-Z0-9_]*" }
+      ]
+    },
+    "namespace-names": {
+      "patterns": [
+        { "name": "entity.name.type.namespace.aya", "match": "(?<=\\bnamespace\\s)[a-zA-Z_][a-zA-Z0-9_]*" }
+      ]
+    },
+    "function-names": {
+      "patterns": [
+        { "name": "entity.name.function.aya", "match": "(?<=\\bfn\\s)[a-zA-Z_][a-zA-Z0-9_]*" }
       ]
     },
     "types": {
