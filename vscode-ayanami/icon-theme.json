@@ -1,0 +1,10 @@
+{
+  "iconDefinitions": {
+    "_aya_file": {
+      "iconPath": "./icon.png"
+    }
+  },
+  "fileExtensions": {
+    "aya": "_aya_file"
+  }
+}
