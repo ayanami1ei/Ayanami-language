@@ -55,27 +55,31 @@ fn collect_fn_names(mir: &MirProgram) -> HashMap<FnId, String> {
     map
 }
 
-fn collect_fn_names_items(items: &[MirItem], prefix: &str, map: &mut HashMap<FnId, String>) {
+fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<FnId, String>) {
     for item in items {
         match item {
             MirItem::Fn(f) => {
-                let name = mangle(prefix, &f.name.as_str(), &f.params);
+                // Function name already includes namespace from HIR (e.g., "PointStatic.new")
+                let name = mangle("", &f.name.as_str().replace('.', "__"), &f.params);
                 map.insert(f.fn_id, name);
             }
             MirItem::StructDef { .. } => {}
-            MirItem::Namespace { name, items } => {
-                let ns = mangle(prefix, &name.as_str(), &[]);
-                collect_fn_names_items(items, &ns, map);
+            MirItem::Namespace { name: _name, items } => {
+                // Namespace already handled by HIR dotted naming; just recurse
+                collect_fn_names_items(items, "", map);
             }
         }
     }
 }
 
 fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String {
-    let base = if prefix.is_empty() {
-        name.to_string()
+    // Replace dots with __ for LLVM identifier compatibility (namespace paths)
+    let safe_name = name.replace('.', "__");
+    let safe_prefix = prefix.replace('.', "__");
+    let base = if safe_prefix.is_empty() {
+        safe_name
     } else {
-        format!("{}__{}", prefix, name)
+        format!("{}__{}", safe_prefix, safe_name)
     };
     if params.is_empty() {
         base

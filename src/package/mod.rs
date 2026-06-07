@@ -68,30 +68,35 @@ impl Package {
     /// Collect symbols from top-level AST statements.
     /// If `all` is true, include all functions (ignore visibility).
     pub fn collect_symbols(&mut self, stmts: &[Stmt]) {
-        self.collect_symbols_internal(stmts, false)
+        self.collect_symbols_with_prefix(stmts, false, "")
     }
 
     /// Collect ALL symbols (including private), used for .aya→.lcl compilation.
     pub fn collect_all_symbols(&mut self, stmts: &[Stmt]) {
-        self.collect_symbols_internal(stmts, true)
+        self.collect_symbols_with_prefix(stmts, true, "")
     }
 
-    fn collect_symbols_internal(&mut self, stmts: &[Stmt], all: bool) {
+    fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str) {
         for stmt in stmts {
-            self.collect_stmt_symbols(stmt, all);
+            self.collect_stmt_symbols(stmt, all, ns_prefix);
         }
     }
 
-    fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool) {
+    fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str) {
         match stmt {
             Stmt::FnDecl { vis, name, params, return_type, .. } => {
                 if all || vis.is_public() {
+                    let full_name = if ns_prefix.is_empty() {
+                        name.as_str().to_string()
+                    } else {
+                        format!("{}.{}", ns_prefix, name)
+                    };
                     let sig = format!("{}({})->{}",
-                        name,
+                        full_name,
                         params.iter().map(|(_, t)| type_to_string(t)).collect::<Vec<_>>().join(","),
                         type_to_string(return_type));
                     self.symbols.push(PackageSymbol::Fn {
-                        name: name.as_str().to_string(),
+                        name: full_name,
                         signature: sig,
                     });
                 }
@@ -109,8 +114,13 @@ impl Package {
                         name: name.as_str().to_string(),
                     });
                 }
+                let nested = if ns_prefix.is_empty() {
+                    name.as_str().to_string()
+                } else {
+                    format!("{}.{}", ns_prefix, name)
+                };
                 for item in items {
-                    self.collect_stmt_symbols(item, all);
+                    self.collect_stmt_symbols(item, all, &nested);
                 }
             }
             _ => {}
