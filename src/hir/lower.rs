@@ -1324,6 +1324,10 @@ impl Ctx {
                     ty: elem_ty,
                 })
             }
+            Expr::Null(_) => {
+                // Null value — lowered as a zero int; will be cast to ptr at use site
+                Ok(HirExpr::Literal(HirLiteral::Int(0), HirType::Int))
+            }
             Expr::Ref(inner, mutable, _) => {
                 let hir_inner = self.lower_expr(inner)?;
                 let inner_ty = expr_type(&hir_inner);
@@ -1539,6 +1543,7 @@ fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr {
             field: *field,
             span: *span,
         },
+        Expr::Null(span) => Expr::Null(*span),
         Expr::Ref(inner, mutable, span) => Expr::Ref(
             Box::new(substitute_type_in_expr(inner, subst)),
             *mutable,

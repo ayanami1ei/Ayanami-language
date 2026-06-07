@@ -650,6 +650,7 @@ fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             writeln!(w, "{}  count:", pad(level)).unwrap();
             write_expr(count, level + 1, w);
         }
+        Expr::Null(_) => writeln!(w, "{}Null", pad(level)).unwrap(),
         Expr::Ref(expr, mutable, _) => {
             let m = if *mutable { "mut " } else { "" };
             writeln!(w, "{}Ref({})", pad(level), m).unwrap();

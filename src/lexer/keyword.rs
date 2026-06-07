@@ -2,6 +2,7 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Keyword {
+    Null,
     Pub,
     Crate,
     Inline,
@@ -42,6 +43,7 @@ pub enum Keyword {
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
+            Keyword::Null => "null",
             Keyword::Pub => "pub",
             Keyword::Crate => "crate",
             Keyword::Inline => "inline",

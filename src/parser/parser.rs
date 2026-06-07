@@ -1015,6 +1015,11 @@ impl Parser {
                 self.advance();
                 Ok(Expr::Literal(Literal::Bool(false, tok.span())))
             }
+            TokenKind::Keyword(Keyword::Null) => {
+                let tok = self.peek().cloned().unwrap();
+                self.advance();
+                Ok(Expr::Null(tok.span()))
+            }
             TokenKind::Keyword(Keyword::Self_) => {
                 let tok = self.peek().cloned().unwrap();
                 self.advance();

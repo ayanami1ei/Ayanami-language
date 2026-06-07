@@ -383,9 +383,10 @@ impl<'a> Emitter<'a> {
                 rhs,
                 ty,
             } => {
-                let _llvm_ty = self.llvm_type(ty);
                 let l = self.value_ref(lhs, ty);
                 let r = self.value_ref(rhs, ty);
+                // Detect pointer comparison: one side is "null" and the other is a temp
+                let is_ptr = l == "null" || r == "null" || l.contains("ptr") || r.contains("ptr");
 
                 match (op, ty) {
                     (BinaryOp::Add, HirType::Int) => {
@@ -449,40 +450,46 @@ impl<'a> Emitter<'a> {
                         ));
                     }
                     (BinaryOp::Eq, _) if *ty != HirType::Float => {
-                        self.wln_fmt(format_args!(
-                            "%t{} = icmp eq i64 {}, {}",
-                            dest, l, r
-                        ));
+                        if is_ptr {
+                            self.wln_fmt(format_args!("%t{} = icmp eq ptr {}, {}", dest, l, r));
+                        } else {
+                            self.wln_fmt(format_args!("%t{} = icmp eq i64 {}, {}", dest, l, r));
+                        }
                     }
                     (BinaryOp::Neq, _) if *ty != HirType::Float => {
-                        self.wln_fmt(format_args!(
-                            "%t{} = icmp ne i64 {}, {}",
-                            dest, l, r
-                        ));
+                        if is_ptr {
+                            self.wln_fmt(format_args!("%t{} = icmp ne ptr {}, {}", dest, l, r));
+                        } else {
+                            self.wln_fmt(format_args!("%t{} = icmp ne i64 {}, {}", dest, l, r));
+                        }
                     }
                     (BinaryOp::Lt, _) if *ty != HirType::Float => {
-                        self.wln_fmt(format_args!(
-                            "%t{} = icmp slt i64 {}, {}",
-                            dest, l, r
-                        ));
+                        if is_ptr {
+                            self.wln_fmt(format_args!("%t{} = icmp ult ptr {}, {}", dest, l, r));
+                        } else {
+                            self.wln_fmt(format_args!("%t{} = icmp slt i64 {}, {}", dest, l, r));
+                        }
                     }
                     (BinaryOp::Gt, _) if *ty != HirType::Float => {
-                        self.wln_fmt(format_args!(
-                            "%t{} = icmp sgt i64 {}, {}",
-                            dest, l, r
-                        ));
+                        if is_ptr {
+                            self.wln_fmt(format_args!("%t{} = icmp ugt ptr {}, {}", dest, l, r));
+                        } else {
+                            self.wln_fmt(format_args!("%t{} = icmp sgt i64 {}, {}", dest, l, r));
+                        }
                     }
                     (BinaryOp::Le, _) if *ty != HirType::Float => {
-                        self.wln_fmt(format_args!(
-                            "%t{} = icmp sle i64 {}, {}",
-                            dest, l, r
-                        ));
+                        if is_ptr {
+                            self.wln_fmt(format_args!("%t{} = icmp ule ptr {}, {}", dest, l, r));
+                        } else {
+                            self.wln_fmt(format_args!("%t{} = icmp sle i64 {}, {}", dest, l, r));
+                        }
                     }
                     (BinaryOp::Ge, _) if *ty != HirType::Float => {
-                        self.wln_fmt(format_args!(
-                            "%t{} = icmp sge i64 {}, {}",
-                            dest, l, r
-                        ));
+                        if is_ptr {
+                            self.wln_fmt(format_args!("%t{} = icmp uge ptr {}, {}", dest, l, r));
+                        } else {
+                            self.wln_fmt(format_args!("%t{} = icmp sge i64 {}, {}", dest, l, r));
+                        }
                     }
                     (BinaryOp::Eq, HirType::Float) => {
                         self.wln_fmt(format_args!(
@@ -975,12 +982,12 @@ impl<'a> Emitter<'a> {
         t
     }
 
-    fn value_ref(&self, val: &LirValue, _expected_ty: &HirType) -> String {
+    fn value_ref(&self, val: &LirValue, expected_ty: &HirType) -> String {
         match val {
             LirValue::Tmp(t) => format!("%t{}", t),
             LirValue::Param(i) => format!("%{}", i),
             LirValue::Var(v) => format!("%v{}", v.0),
-            LirValue::Literal(lit, ty) => lit_to_string(lit, ty),
+            LirValue::Literal(lit, _) => lit_to_string(lit, expected_ty),
         }
     }
 }
@@ -994,8 +1001,9 @@ fn sanitize_name(name: &str) -> String {
     name.replace('<', "_lt_").replace('>', "_gt_").replace(',', "_c_")
 }
 
-fn lit_to_string(lit: &HirLiteral, ty: &HirType) -> String {
-    match (lit, ty) {
+fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {
+    match (lit, expected_ty) {
+        (HirLiteral::Int(0), ty) if is_pointer_type(ty) => "null".into(),
         (HirLiteral::Int(n), _) => format!("{}", n),
         (HirLiteral::Float(n), _) => {
             let s = format!("{}", n);
@@ -1046,6 +1054,13 @@ fn needs_heap_ops(ty: &HirType) -> bool {
         HirType::Ref(_, _) => false,
         _ => false,
     }
+}
+
+fn is_pointer_type(ty: &HirType) -> bool {
+    matches!(ty,
+        HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_)
+        | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_)
+    )
 }
 
 fn escape_llvm_string(s: &str) -> String {

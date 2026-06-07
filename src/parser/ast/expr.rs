@@ -53,6 +53,7 @@ pub enum Expr {
         count: Box<Expr>,
         span: Span,
     },
+    Null(Span),  // null literal
     Ref(Box<Expr>, bool, Span),  // ref expr or ref mut expr
     Asm {
         template: String,
@@ -90,6 +91,7 @@ impl Expr {
             | Expr::ArrayLiteral(_, span)
             | Expr::ArraySized { span, .. }
             | Expr::Ref(_, _, span)
+            | Expr::Null(span)
             | Expr::Asm { span, .. }
             | Expr::Index { span, .. }
             | Expr::CallExpr { span, .. }

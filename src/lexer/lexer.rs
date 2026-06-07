@@ -197,6 +197,7 @@ impl<'a> Lexer<'a> {
             Some(c) if Self::is_ident_start(c) => {
                 let (s, l, ccol, sbyte) = self.read_identifier_or_keyword();
                 let kind = match s.as_str() {
+                    "null" => TokenKind::Keyword(Keyword::Null),
                     "pub" => TokenKind::Keyword(Keyword::Pub),
                     "crate" => TokenKind::Keyword(Keyword::Crate),
                     "inline" => TokenKind::Keyword(Keyword::Inline),
