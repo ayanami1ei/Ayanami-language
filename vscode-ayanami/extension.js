@@ -253,30 +253,37 @@ function activate(context) {
 function findAyanamiPath(context) {
     const fs = require('fs');
     const path = require('path');
-    // 1. Check PATH
+
+    // 1. Search PATH directly (works on all OS)
+    const envPath = (process.env.PATH || '').split(path.delimiter);
+    for (const dir of envPath) {
+        const candidate = path.join(dir, 'ayanami');
+        try {
+            if (fs.existsSync(candidate)) {
+                console.log('ayanami found in PATH:', candidate);
+                return candidate;
+            }
+        } catch (_) {}
+    }
+
+    // 2. Check relative to extension dir
     try {
-        const { execSync } = require('child_process');
-        const result = execSync('which ayanami', { timeout: 2000 }).toString().trim();
-        if (result && fs.existsSync(result)) return result;
+        const extDir = context.extensionUri ? context.extensionUri.fsPath : null;
+        if (extDir) {
+            let dir = path.dirname(extDir);
+            for (let i = 0; i < 10; i++) {
+                for (const sub of ['build/ayanami', 'target/release/ayanami', 'target/debug/ayanami']) {
+                    const p = path.join(dir, sub);
+                    if (fs.existsSync(p)) { console.log('ayanami found near ext:', p); return p; }
+                }
+                const parent = path.dirname(dir);
+                if (parent === dir) break;
+                dir = parent;
+            }
+        }
     } catch (_) {}
 
-    // 2. Check relative to extension dir (when installed from VSIX)
-    const extDir = context.extensionUri ? context.extensionUri.fsPath : null;
-    if (extDir) {
-        // Walk up to find project root (where build/ or target/ is)
-        let dir = path.dirname(extDir);
-        for (let i = 0; i < 10; i++) {
-            const buildPath = path.join(dir, 'build', 'ayanami');
-            if (fs.existsSync(buildPath)) return buildPath;
-            const releasePath = path.join(dir, 'target', 'release', 'ayanami');
-            if (fs.existsSync(releasePath)) return releasePath;
-            const debugPath = path.join(dir, 'target', 'debug', 'ayanami');
-            if (fs.existsSync(debugPath)) return debugPath;
-            const parent = path.dirname(dir);
-            if (parent === dir) break;
-            dir = parent;
-        }
-    }
+    console.log('ayanami: compiler not found in PATH or near extension');
     return null;
 }
 }
