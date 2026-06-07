@@ -187,8 +187,8 @@ function activate(context) {
 
     context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(doc => {
         try {
+            console.log('ayanami save event: lang=' + doc.languageId + ' file=' + doc.uri.fsPath);
             if (doc.languageId !== 'ayanami') return;
-            console.log('ayanami check:', doc.uri.fsPath);
             setStatus('checking');
             diagCollection.clear();
             const diagnostics = [];
