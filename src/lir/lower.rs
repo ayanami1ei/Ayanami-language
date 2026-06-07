@@ -104,6 +104,7 @@ fn type_to_mangle(ty: &HirType) -> String {
         HirType::Weak(inner) => format!("weak_{}", type_to_mangle(inner)),
         HirType::FatPtr { name, .. } => format!("fatptr_{}", name),
         HirType::Array(inner) => format!("arr_{}", type_to_mangle(inner)),
+        HirType::Ref(inner, _) => format!("ref_{}", type_to_mangle(inner)),
     }
 }
 
@@ -696,6 +697,16 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             });
             LirValue::Tmp(dest)
         }
+        MirExpr::Ref { expr, mutable, ty } => {
+            // Extract VarId directly from the MirExpr (before lowering)
+            let var_id = match expr.as_ref() {
+                MirExpr::Local(id, _, _) => *id,
+                _ => { let _ = lower_expr(ctx, expr); panic!("ref target must be a variable"); }
+            };
+            let dest = ctx.next_tmp();
+            ctx.emit(LirInst::RefInst { dest, var_id, mutable: *mutable, ty: ty.clone() });
+            LirValue::Tmp(dest)
+        }
         MirExpr::Index { object, index, ty } => {
             let arr_val = lower_expr(ctx, object);
             let idx_val = lower_expr(ctx, index);
@@ -855,7 +866,8 @@ fn expr_mir_type(expr: &MirExpr) -> HirType {
         | MirExpr::StructLiteral { ty, .. }
         | MirExpr::ArraySized { ty, .. }
         | MirExpr::ArrayLiteral(_, ty)
-        | MirExpr::Index { ty, .. } => ty.clone(),
+        | MirExpr::Index { ty, .. }
+        | MirExpr::Ref { ty, .. } => ty.clone(),
     }
 }
 
@@ -873,6 +885,7 @@ fn type_size(ty: &HirType) -> u64 {
         HirType::Void => 0,
         HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) => 16,
         HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => type_size(inner),
+        HirType::Ref(_, _) => 8,
     }
 }
 
@@ -976,6 +989,9 @@ fn collect_strings_expr(expr: &MirExpr, out: &mut Vec<String>) {
                 collect_strings_expr(e, out);
             }
         }
+        MirExpr::Ref { expr, .. } => {
+            collect_strings_expr(expr, out);
+        }
         MirExpr::Index { object, index, .. } => {
             collect_strings_expr(object, out);
             collect_strings_expr(index, out);
@@ -991,7 +1007,7 @@ fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
         HirType::Float => Some((LirValue::Literal(HirLiteral::Float(0.0), HirType::Float), HirType::Float)),
         HirType::Char => Some((LirValue::Literal(HirLiteral::Char('\0'), HirType::Char), HirType::Char)),
         HirType::Bool => Some((LirValue::Literal(HirLiteral::Bool(false), HirType::Bool), HirType::Bool)),
-        HirType::Named(_) | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_) => {
+        HirType::Named(_) | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::Ref(_, _) => {
             Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), ty.clone()))
         }
     }

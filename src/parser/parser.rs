@@ -713,6 +713,13 @@ impl Parser {
                 let expr = self.parse_unary()?;
                 Ok(Expr::ToWeak(Box::new(expr), Span::default()))
             }
+            TokenKind::Keyword(Keyword::Ref) => {
+                self.advance();
+                let mutable = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Mut));
+                if mutable { self.advance(); }
+                let expr = self.parse_unary()?;
+                Ok(Expr::Ref(Box::new(expr), mutable, Span::default()))
+            }
             _ => self.parse_postfix(),
         }
     }
@@ -941,6 +948,13 @@ impl Parser {
                 self.advance();
                 let inner = self.parse_base_type()?;
                 Ok(Type::Unique(Box::new(inner), Span::default()))
+            }
+            TokenKind::Keyword(Keyword::Ref) => {
+                self.advance();
+                let mutable = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Mut));
+                if mutable { self.advance(); }
+                let inner = self.parse_base_type()?;
+                Ok(Type::Ref(Box::new(inner), mutable, Span::default()))
             }
             TokenKind::Keyword(Keyword::Shared) => {
                 self.advance();

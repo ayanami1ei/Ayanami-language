@@ -32,6 +32,13 @@ fn display_type(ty: &HirType) -> String {
         HirType::Weak(inner) => format!("weak {}", display_type(inner)),
         HirType::FatPtr { name, kind } => format!("fatptr({}, {})", name, display_type(kind)),
         HirType::Array(inner) => format!("[{}]", display_type(inner)),
+        HirType::Ref(inner, mutable) => {
+            if *mutable {
+                format!("ref mut {}", display_type(inner))
+            } else {
+                format!("ref {}", display_type(inner))
+            }
+        }
     }
 }
 
@@ -171,6 +178,11 @@ fn write_expr(expr: &HirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}ArraySized {{ elem_ty: {}, ty: {} }}", p, display_type(elem_ty), display_type(ty))?;
             writeln!(w, "{}  count:", p)?;
             write_expr(count, level + 1, w)?;
+        }
+        HirExpr::Ref { expr, mutable, ty } => {
+            let m = if *mutable { "mut " } else { "" };
+            writeln!(w, "{}Ref({}ty: {})", p, m, display_type(ty))?;
+            write_expr(expr, level + 1, w)?;
         }
         HirExpr::Index { object, index, ty } => {
             writeln!(w, "{}Index ty={}", p, display_type(ty))?;

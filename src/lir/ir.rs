@@ -104,6 +104,13 @@ pub enum LirInst {
         field_ty: HirType,
         struct_ty: HirType,
     },
+    /// Take a reference: emit the address of a variable as ptr
+    RefInst {
+        dest: u64,
+        var_id: VarId,
+        mutable: bool,
+        ty: HirType,
+    },
     /// Allocate a zeroed array on the heap with count elements
     ArraySized {
         dest: u64,

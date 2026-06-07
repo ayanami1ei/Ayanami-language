@@ -35,6 +35,8 @@ pub enum HirType {
     FatPtr { name: Symbol, kind: Box<HirType> },
     /// Array of elements of the inner type
     Array(Box<HirType>),
+    /// Reference: Ref(inner, mutable)
+    Ref(Box<HirType>, bool),
 }
 
 #[derive(Debug, Clone)]
@@ -100,6 +102,8 @@ pub enum HirExpr {
     ArrayLiteral(Vec<HirExpr>, HirType),
     /// Sized array [int; 10] — calloc with count
     ArraySized { count: Box<HirExpr>, elem_ty: HirType, ty: HirType },
+    /// Take a reference: ref x or ref mut x
+    Ref { expr: Box<HirExpr>, mutable: bool, ty: HirType },
     /// Index expression arr[i]
     Index {
         object: Box<HirExpr>,

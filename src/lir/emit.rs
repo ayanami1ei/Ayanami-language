@@ -74,6 +74,7 @@ impl<'a> Emitter<'a> {
             }
             HirType::FatPtr { .. } => "{ ptr, ptr }".into(),
             HirType::Array(_) => "ptr".into(),
+            HirType::Ref(_, _) => "ptr".into(),
         }
     }
 
@@ -919,6 +920,13 @@ impl<'a> Emitter<'a> {
                     elem_llvm, src_str, gep_tmp
                 ));
             }
+            LirInst::RefInst { dest, var_id, mutable: _, ty: _ } => {
+                // The alloca pointer IS the reference value
+                self.wln_fmt(format_args!(
+                    "%t{} = getelementptr i8, ptr %v{}, i32 0",
+                    dest, var_id.0
+                ));
+            }
             LirInst::Ret(val) => match val {
                 Some((v, ty)) => {
                     let s = self.value_ref(v, ty);
@@ -993,6 +1001,7 @@ fn llvm_type_size(ty: &HirType) -> &'static str {
         HirType::Named(_) | HirType::FatPtr { .. } => "16",
         HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => llvm_type_size(inner),
         HirType::Array(_) => "16",
+        HirType::Ref(_, _) => "16",
     }
 }
 
@@ -1004,6 +1013,7 @@ fn needs_heap_ops(ty: &HirType) -> bool {
         }
         HirType::Named(_) => false,
         HirType::Array(_) => true,
+        HirType::Ref(_, _) => false,
         _ => false,
     }
 }

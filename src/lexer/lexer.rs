@@ -212,6 +212,7 @@ impl<'a> Lexer<'a> {
                     "float" => TokenKind::Keyword(Keyword::Float),
                     "char" => TokenKind::Keyword(Keyword::Char),
                     "bool" => TokenKind::Keyword(Keyword::Bool),
+                    "ref" => TokenKind::Keyword(Keyword::Ref),
                     "true" => TokenKind::Keyword(Keyword::True),
                     "false" => TokenKind::Keyword(Keyword::False),
                     "mut" => TokenKind::Keyword(Keyword::Mut),

@@ -108,6 +108,13 @@ pub fn compile_file(
     let hir_program = crate::hir::lower_program(&program)
         .map_err(|e| format!("{}: error: {}", src_path.display(), e))?;
     let mir_program = crate::mir::lower_program(&hir_program);
+    // Borrow check
+    for item in &mir_program.items {
+        if let crate::mir::ir::MirItem::Fn(f) = item {
+            crate::mir::borrow::check_borrows(f)
+                .map_err(|e| format!("{}: borrow error: {}", src_path.display(), e))?;
+        }
+    }
     let lir_program = crate::lir::lower_program(&mir_program);
     let llvm_ir = crate::lir::emit_program(&lir_program);
 
@@ -476,6 +483,13 @@ fn format_type(ty: &Type) -> String {
         Type::Unique(inner, _) => format!("unique {}", format_type(inner)),
         Type::Shared(inner, _) => format!("shared {}", format_type(inner)),
         Type::Weak(inner, _) => format!("weak {}", format_type(inner)),
+        Type::Ref(inner, mutable, _) => {
+            if *mutable {
+                format!("ref mut {}", format_type(inner))
+            } else {
+                format!("ref {}", format_type(inner))
+            }
+        }
         Type::Self_(_) => "Self".into(),
     }
 }
@@ -581,6 +595,11 @@ fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             writeln!(w, "{}ArraySized {{ elem_type: {} }}", pad(level), format_type(elem_type)).unwrap();
             writeln!(w, "{}  count:", pad(level)).unwrap();
             write_expr(count, level + 1, w);
+        }
+        Expr::Ref(expr, mutable, _) => {
+            let m = if *mutable { "mut " } else { "" };
+            writeln!(w, "{}Ref({})", pad(level), m).unwrap();
+            write_expr(expr, level + 1, w);
         }
         Expr::Index { object, index, .. } => {
             writeln!(w, "{}Index", pad(level)).unwrap();

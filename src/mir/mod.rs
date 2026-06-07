@@ -8,6 +8,7 @@ pub mod ir;
 pub mod lower;
 pub mod display;
 pub mod mem;
+pub mod borrow;
 
 pub use ir::*;
 pub use lower::lower_program;

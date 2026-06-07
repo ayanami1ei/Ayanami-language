@@ -1079,6 +1079,12 @@ impl Ctx {
                     ty: elem_ty,
                 })
             }
+            Expr::Ref(inner, mutable, _) => {
+                let hir_inner = self.lower_expr(inner)?;
+                let inner_ty = expr_type(&hir_inner);
+                let ty = HirType::Ref(Box::new(inner_ty), *mutable);
+                Ok(HirExpr::Ref { expr: Box::new(hir_inner), mutable: *mutable, ty })
+            }
             Expr::ArraySized { elem_type, count, .. } => {
                 let hir_count = self.lower_expr(count)?;
                 let elem_ty = ast_type_to_hir(elem_type, &self.interfaces);
@@ -1213,6 +1219,7 @@ fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> Hir
             }
         }
         Type::Weak(inner, _) => HirType::Weak(Box::new(ast_type_to_hir(inner, interfaces))),
+        Type::Ref(inner, mutable, _) => HirType::Ref(Box::new(ast_type_to_hir(inner, interfaces)), *mutable),
         Type::Self_(_) => {
             // Self_ should not appear outside impl blocks since the parser
             // already fills in the concrete type
@@ -1241,6 +1248,13 @@ fn hir_type_display(ty: &HirType) -> String {
         HirType::Weak(inner) => format!("weak {}", hir_type_display(inner)),
         HirType::FatPtr { name, kind } => format!("{} {}", hir_type_display(kind), name.as_str()),
         HirType::Array(inner) => format!("[{}]", hir_type_display(inner)),
+        HirType::Ref(inner, mutable) => {
+            if *mutable {
+                format!("ref mut {}", hir_type_display(inner))
+            } else {
+                format!("ref {}", hir_type_display(inner))
+            }
+        }
     }
 }
 
@@ -1306,6 +1320,7 @@ fn expr_type(expr: &HirExpr) -> HirType {
         | HirExpr::StructLiteral { ty, .. }
         | HirExpr::ArraySized { ty, .. }
         | HirExpr::ArrayLiteral(_, ty)
-        | HirExpr::Index { ty, .. } => ty.clone(),
+        | HirExpr::Index { ty, .. }
+        | HirExpr::Ref { ty, .. } => ty.clone(),
     }
 }

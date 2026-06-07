@@ -137,6 +137,7 @@ fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
             put_type(buf, kind);
         }
         HirType::Array(inner) => { buf.push(10); put_type(buf, inner); }
+        HirType::Ref(inner, mutable) => { buf.push(11); put_type(buf, inner); buf.push(if *mutable { 1 } else { 0 }); }
     }
 }
 
@@ -258,6 +259,7 @@ fn put_inst(buf: &mut Vec<u8>, inst: &LirInst) {
             put_value(buf, elem_count); put_u64(buf, *elem_size);
             put_type(buf, elem_ty); put_type(buf, ty);
         }
+        RefInst { dest, var_id, mutable, ty } => { buf.push(23); put_u64(buf, *dest); put_u32(buf, var_id.0 as u32); buf.push(if *mutable { 1 } else { 0 }); put_type(buf, ty); }
         IndexStore { dest, gep_tmp, src, index, elem_ty, array_ty } => {
             buf.push(22);
             put_u64(buf, *dest); put_u64(buf, *gep_tmp);
@@ -339,6 +341,7 @@ impl<'a> Reader<'a> {
                 Ok(HirType::FatPtr { name, kind })
             }
             10 => Ok(HirType::Array(Box::new(self.ty()?))),
+            11 => { let inner = Box::new(self.ty()?); let mutable = self.read(1)?[0] != 0; Ok(HirType::Ref(inner, mutable)) }
             _ => Err(format!("unknown type tag: {}", tag)),
         }
     }
@@ -478,6 +481,7 @@ impl<'a> Reader<'a> {
                 let et = self.ty()?; let at = self.ty()?;
                 Ok(IndexStore { dest: d, gep_tmp: gt, src: s, index: idx, elem_ty: et, array_ty: at })
             }
+            23 => { let d = self.u64()?; let vr = VarId(self.u32()? as usize); let m = self.read(1)?[0] != 0; let t = self.ty()?; Ok(RefInst { dest: d, var_id: vr, mutable: m, ty: t }) }
             _ => Err(format!("unknown inst tag: {}", tag)),
         }
     }

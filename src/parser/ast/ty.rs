@@ -12,6 +12,7 @@ pub enum Type {
     Void(Span),
     Named(Symbol, Span),
     Array(Box<Type>, Span),
+    Ref(Box<Type>, bool, Span),  // ref T or ref mut T
     Unique(Box<Type>, Span),
     Shared(Box<Type>, Span),
     Weak(Box<Type>, Span),
@@ -27,6 +28,7 @@ impl Type {
             | Type::Bool(s)
             | Type::Void(s)
             | Type::Array(_, s)
+            | Type::Ref(_, _, s)
             | Type::Unique(_, s)
             | Type::Shared(_, s)
             | Type::Weak(_, s) => *s,

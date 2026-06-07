@@ -52,6 +52,7 @@ pub enum Expr {
         count: Box<Expr>,
         span: Span,
     },
+    Ref(Box<Expr>, bool, Span),  // ref expr or ref mut expr
     Index {
         object: Box<Expr>,
         index: Box<Expr>,
@@ -75,6 +76,7 @@ impl Expr {
             | Expr::StructLiteral { span, .. }
             | Expr::ArrayLiteral(_, span)
             | Expr::ArraySized { span, .. }
+            | Expr::Ref(_, _, span)
             | Expr::Index { span, .. } => *span,
             Expr::Literal(lit) => lit.span(),
             Expr::Ident(_, span) => *span,
