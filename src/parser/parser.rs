@@ -724,11 +724,13 @@ impl Parser {
         }
     }
 
-    /// Parse postfix operations: function calls and method calls.
+    /// Parse postfix operations: function calls, indexing, method calls, field access.
     fn parse_postfix(&mut self) -> Result<Expr, String> {
         let mut expr = self.parse_atom()?;
         loop {
-            match self.peek().map(|t| &t.kind) {
+            let tok = self.peek().cloned();
+            let span = tok.as_ref().map(|t| t.span()).unwrap_or_default();
+            match tok.as_ref().map(|t| &t.kind) {
                 // Function call: expr(args) — currently only used for Ident(args)
                 // which is handled inside parse_atom. This branch handles cases
                 // like (expr)(args) for parenthesized expressions.
@@ -748,7 +750,7 @@ impl Parser {
                     // If expr is an Ident, convert to FnCall
                     if let Expr::Ident(name, _) = &expr {
                         let name = *name;
-                        expr = Expr::FnCall { name, args, span: Span::default() };
+                        expr = Expr::FnCall { name, args, span };
                     } else {
                         // Parenthesized expr called as function: not supported yet
                         return Err(self.error("calling non-identifier as function is not supported"));
@@ -760,9 +762,7 @@ impl Parser {
                     let index = self.parse_expr()?;
                     self.expect_delimiter(Delimiter::RBracket)?;
                     expr = Expr::Index {
-                        object: Box::new(expr),
-                        index: Box::new(index),
-                        span: Span::default(),
+                        object: Box::new(expr), index: Box::new(index), span
                     };
                 }
                 // Method call: expr.method(args) or field access: expr.field
@@ -772,27 +772,19 @@ impl Parser {
                     if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
                         self.advance();
                         let mut args = Vec::new();
-                        if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
-                            loop {
-                                args.push(self.parse_expr()?);
-                                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
-                                    break;
-                                }
-                                self.expect_delimiter(Delimiter::Comma)?;
-                            }
+                        loop {
+                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
+                            args.push(self.parse_expr()?);
+                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
+                            self.expect_delimiter(Delimiter::Comma)?;
                         }
                         self.expect_delimiter(Delimiter::RParen)?;
                         expr = Expr::MethodCall {
-                            object: Box::new(expr),
-                            method: Symbol::intern(&name),
-                            args,
-                            span: Span::default(),
+                            object: Box::new(expr), method: Symbol::intern(&name), args, span
                         };
                     } else {
                         expr = Expr::FieldAccess {
-                            object: Box::new(expr),
-                            field: Symbol::intern(&name),
-                            span: Span::default(),
+                            object: Box::new(expr), field: Symbol::intern(&name), span
                         };
                     }
                 }
