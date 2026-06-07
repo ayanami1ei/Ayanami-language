@@ -1091,6 +1091,9 @@ impl Ctx {
                 let ty = HirType::Array(Box::new(elem_ty.clone()));
                 Ok(HirExpr::ArraySized { count: Box::new(hir_count), elem_ty, ty })
             }
+            Expr::Asm(_, _) => {
+                Ok(HirExpr::Literal(HirLiteral::Int(0), HirType::Void))
+            }
         }
     }
 

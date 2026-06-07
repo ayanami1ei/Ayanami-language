@@ -4,6 +4,8 @@ use std::fmt;
 pub enum Keyword {
     Pub,
     Crate,
+    Inline,
+    Asm,
     Import,
     Fn,
     Return,
@@ -38,6 +40,8 @@ impl fmt::Display for Keyword {
         let s = match self {
             Keyword::Pub => "pub",
             Keyword::Crate => "crate",
+            Keyword::Inline => "inline",
+            Keyword::Asm => "asm",
             Keyword::Import => "import",
             Keyword::Fn => "fn",
             Keyword::Return => "return",

@@ -53,6 +53,7 @@ pub enum Expr {
         span: Span,
     },
     Ref(Box<Expr>, bool, Span),  // ref expr or ref mut expr
+    Asm(String, Span),
     Index {
         object: Box<Expr>,
         index: Box<Expr>,
@@ -77,6 +78,7 @@ impl Expr {
             | Expr::ArrayLiteral(_, span)
             | Expr::ArraySized { span, .. }
             | Expr::Ref(_, _, span)
+            | Expr::Asm(_, span)
             | Expr::Index { span, .. } => *span,
             Expr::Literal(lit) => lit.span(),
             Expr::Ident(_, span) => *span,

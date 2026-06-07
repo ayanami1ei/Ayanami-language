@@ -120,9 +120,11 @@ impl Parser {
 
     fn parse_stmt(&mut self) -> Result<Stmt, String> {
         let vis = self.parse_visibility();
+        let is_inline = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Inline));
+        if is_inline { self.advance(); }
         let tok = self.peek().ok_or_else(|| self.error("expected statement"))?.clone();
         match tok.kind {
-            TokenKind::Keyword(Keyword::Fn) => self.parse_fn_decl(vis),
+            TokenKind::Keyword(Keyword::Fn) => self.parse_fn_decl(vis, is_inline),
             TokenKind::Keyword(Keyword::Return) => self.parse_return(),
             TokenKind::Keyword(Keyword::If) => self.parse_if(),
             TokenKind::Keyword(Keyword::For) => self.parse_for(),
@@ -163,7 +165,7 @@ impl Parser {
         Ok(Stmt::ExprStmt { expr, span: Span::default() })
     }
 
-    fn parse_fn_decl(&mut self, vis: Visibility) -> Result<Stmt, String> {
+    fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool) -> Result<Stmt, String> {
         self.advance();
         let name = self.expect_identifier()?;
 
@@ -193,7 +195,7 @@ impl Parser {
         let body = self.parse_block()?;
 
         Ok(Stmt::FnDecl {
-            vis,
+            vis, is_inline,
             name: Symbol::intern(&name),
             params,
             return_type,
@@ -520,6 +522,7 @@ impl Parser {
 
         Ok(Stmt::FnDecl {
             vis: Visibility::Pub,
+            is_inline: false,
             name,
             params,
             return_type,
@@ -885,6 +888,18 @@ impl Parser {
                 let tok = self.peek().cloned().unwrap();
                 self.advance();
                 Ok(Expr::Ident(Symbol::intern("self"), tok.span()))
+            }
+            TokenKind::Keyword(Keyword::Asm) => {
+                let tok = self.peek().cloned().unwrap();
+                let span = tok.span();
+                self.advance();
+                self.expect_delimiter(Delimiter::LParen)?;
+                let asm_str = match self.peek().map(|t| &t.kind) {
+                    Some(TokenKind::StringLiteral(s)) => { let s = s.clone(); self.advance(); s }
+                    _ => return Err(self.error("expected string literal in asm")),
+                };
+                self.expect_delimiter(Delimiter::RParen)?;
+                Ok(Expr::Asm(asm_str, span))
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
                 self.advance();

@@ -581,6 +581,9 @@ fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             writeln!(w, "{}  index:", pad(level)).unwrap();
             write_expr(index, level + 1, w);
         }
+        Expr::Asm(asm_str, _) => {
+            writeln!(w, "{}Asm(\"{}\")", pad(level), asm_str).unwrap();
+        }
     }
 }
 

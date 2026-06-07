@@ -17,6 +17,7 @@ pub struct InterfaceMethod {
 pub enum Stmt {
     FnDecl {
         vis: Visibility,
+        is_inline: bool,
         name: Symbol,
         params: Vec<(Symbol, Type)>,
         return_type: Type,
