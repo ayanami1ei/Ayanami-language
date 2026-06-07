@@ -104,6 +104,16 @@ pub enum LirInst {
         field_ty: HirType,
         struct_ty: HirType,
     },
+    /// Allocate a zeroed array on the heap with count elements
+    ArraySized {
+        dest: u64,
+        /// Pre-allocated temp for malloc/calloc result
+        malloc_tmp: u64,
+        elem_count: u64,
+        elem_size: u64,
+        elem_ty: HirType,
+        ty: HirType,
+    },
     /// Allocate an array on the heap and store elements
     ArrayLit {
         dest: u64,

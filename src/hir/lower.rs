@@ -1034,6 +1034,19 @@ impl Ctx {
                     ty: elem_ty,
                 })
             }
+            Expr::ArraySized { elem_type, count, .. } => {
+                let hir_elem_ty = ast_type_to_hir(elem_type, &self.interfaces);
+                let hir_count = self.lower_expr(count)?;
+                let count_val = match &hir_count {
+                    HirExpr::Literal(HirLiteral::Int(n), _) => *n as u64,
+                    _ => return Err("ArraySized count must be a constant integer".into()),
+                };
+                Ok(HirExpr::ArraySized {
+                    count: count_val,
+                    elem_ty: hir_elem_ty.clone(),
+                    ty: HirType::Array(Box::new(hir_elem_ty)),
+                })
+            }
         }
     }
 
@@ -1253,6 +1266,7 @@ fn expr_type(expr: &HirExpr) -> HirType {
         | HirExpr::MakeFatPtr { ty, .. }
         | HirExpr::FieldAccess { ty, .. }
         | HirExpr::StructLiteral { ty, .. }
+        | HirExpr::ArraySized { ty, .. }
         | HirExpr::ArrayLiteral(_, ty)
         | HirExpr::Index { ty, .. } => ty.clone(),
     }

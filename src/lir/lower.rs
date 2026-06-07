@@ -598,6 +598,20 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             });
             LirValue::Tmp(dest)
         }
+        MirExpr::ArraySized { count, elem_ty, ty } => {
+            let dest = ctx.next_tmp();
+            let malloc_tmp = ctx.next_tmp();
+            let elem_size = type_size(elem_ty);
+            ctx.emit(LirInst::ArraySized {
+                dest,
+                malloc_tmp,
+                elem_count: *count,
+                elem_size,
+                elem_ty: elem_ty.clone(),
+                ty: ty.clone(),
+            });
+            LirValue::Tmp(dest)
+        }
         MirExpr::ArrayLiteral(elems, ty) => {
             let lowered_elems: Vec<_> = elems.iter()
                 .map(|e| {
@@ -780,6 +794,7 @@ fn expr_mir_type(expr: &MirExpr) -> HirType {
         | MirExpr::MakeFatPtr { ty, .. }
         | MirExpr::FieldAccess { ty, .. }
         | MirExpr::StructLiteral { ty, .. }
+        | MirExpr::ArraySized { ty, .. }
         | MirExpr::ArrayLiteral(_, ty)
         | MirExpr::Index { ty, .. } => ty.clone(),
     }
@@ -789,6 +804,16 @@ fn strip_ownership(ty: HirType) -> HirType {
     match ty {
         HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => *inner,
         other => other,
+    }
+}
+
+fn type_size(ty: &HirType) -> u64 {
+    match ty {
+        HirType::Int | HirType::Float => 8,
+        HirType::Char | HirType::Bool => 1,
+        HirType::Void => 0,
+        HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) => 16,
+        HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => type_size(inner),
     }
 }
 
@@ -875,6 +900,7 @@ fn collect_strings_expr(expr: &MirExpr, out: &mut Vec<String>) {
                 collect_strings_expr(e, out);
             }
         }
+        MirExpr::ArraySized { .. } => {}
         MirExpr::ArrayLiteral(elems, _) => {
             for e in elems {
                 collect_strings_expr(e, out);

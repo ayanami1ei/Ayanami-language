@@ -96,6 +96,9 @@ fn write_inst(inst: &LirInst, w: &mut impl Write) -> std::fmt::Result {
         LirInst::ArrayLit { dest, elems, elem_ty, .. } => {
             writeln!(w, "    t{} = array_lit ({} elems, elem_ty={:?})", dest, elems.len(), elem_ty)?;
         }
+        LirInst::ArraySized { dest, elem_count, elem_ty, .. } => {
+            writeln!(w, "    t{} = array_sized ({} elems, elem_ty={:?})", dest, elem_count, elem_ty)?;
+        }
         LirInst::IndexAccess { dest, elem_ty, .. } => {
             writeln!(w, "    t{} = index_access elem_ty={:?}", dest, elem_ty)?;
         }

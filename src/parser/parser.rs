@@ -874,18 +874,38 @@ impl Parser {
             }
             TokenKind::Delimiter(Delimiter::LBracket) => {
                 self.advance();
-                let mut elems = Vec::new();
-                if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
-                    loop {
-                        elems.push(self.parse_expr()?);
-                        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
-                            break;
+                // Check if this is a sized array: [type; count]
+                // Peek: if next token is a type keyword or identifier, and the one after is ";"
+                let is_sized = self.peek().map(|t| {
+                    matches!(&t.kind,
+                        TokenKind::Keyword(Keyword::Int | Keyword::Float | Keyword::Char | Keyword::Bool)
+                        | TokenKind::Identifier(_)
+                        | TokenKind::Keyword(Keyword::Shared | Keyword::Unique | Keyword::Weak)
+                    )
+                }).unwrap_or(false)
+                && self.pos + 1 < self.tokens.len()
+                && self.tokens[self.pos + 1].kind == TokenKind::Delimiter(Delimiter::Semicolon);
+
+                if is_sized {
+                    let elem_type = self.parse_type()?;
+                    self.expect_delimiter(Delimiter::Semicolon)?;
+                    let count = self.parse_expr()?;
+                    self.expect_delimiter(Delimiter::RBracket)?;
+                    Ok(Expr::ArraySized { elem_type, count: Box::new(count), span: Span::default() })
+                } else {
+                    let mut elems = Vec::new();
+                    if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
+                        loop {
+                            elems.push(self.parse_expr()?);
+                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
+                                break;
+                            }
+                            self.expect_delimiter(Delimiter::Comma)?;
                         }
-                        self.expect_delimiter(Delimiter::Comma)?;
                     }
+                    self.expect_delimiter(Delimiter::RBracket)?;
+                    Ok(Expr::ArrayLiteral(elems, Span::default()))
                 }
-                self.expect_delimiter(Delimiter::RBracket)?;
-                Ok(Expr::ArrayLiteral(elems, Span::default()))
             }
             _ => Err(self.error("expected expression")),
         }

@@ -54,6 +54,7 @@ pub enum MirExpr {
         ty: HirType,
     },
     ArrayLiteral(Vec<MirExpr>, HirType),
+    ArraySized { count: u64, elem_ty: HirType, ty: HirType },
     Index {
         object: Box<MirExpr>,
         index: Box<MirExpr>,

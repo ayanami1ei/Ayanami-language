@@ -1,6 +1,7 @@
 use crate::intern::Symbol;
 use crate::parser::ast::binary_op::BinaryOp;
 use crate::parser::ast::literal::Literal;
+use crate::parser::ast::ty::Type;
 use crate::parser::ast::unary_op::UnaryOp;
 use crate::span::Span;
 
@@ -46,6 +47,11 @@ pub enum Expr {
         span: Span,
     },
     ArrayLiteral(Vec<Expr>, Span),
+    ArraySized {
+        elem_type: Type,
+        count: Box<Expr>,
+        span: Span,
+    },
     Index {
         object: Box<Expr>,
         index: Box<Expr>,
@@ -68,6 +74,7 @@ impl Expr {
             | Expr::FieldAccess { span, .. }
             | Expr::StructLiteral { span, .. }
             | Expr::ArrayLiteral(_, span)
+            | Expr::ArraySized { span, .. }
             | Expr::Index { span, .. } => *span,
             Expr::Literal(lit) => lit.span(),
             Expr::Ident(_, span) => *span,

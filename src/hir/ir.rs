@@ -98,6 +98,8 @@ pub enum HirExpr {
     },
     /// Array literal [a, b, c]
     ArrayLiteral(Vec<HirExpr>, HirType),
+    /// Sized array [int; 10] — calloc with count
+    ArraySized { count: u64, elem_ty: HirType, ty: HirType },
     /// Index expression arr[i]
     Index {
         object: Box<HirExpr>,

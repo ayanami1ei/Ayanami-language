@@ -167,6 +167,9 @@ fn write_expr(expr: &HirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
                 write_expr(e, level + 1, w)?;
             }
         }
+        HirExpr::ArraySized { count, elem_ty, ty } => {
+            writeln!(w, "{}ArraySized {{ count: {}, elem_ty: {}, ty: {} }}", p, count, display_type(elem_ty), display_type(ty))?;
+        }
         HirExpr::Index { object, index, ty } => {
             writeln!(w, "{}Index ty={}", p, display_type(ty))?;
             writeln!(w, "{}  object:", p)?;

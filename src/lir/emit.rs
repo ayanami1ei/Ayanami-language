@@ -104,6 +104,7 @@ impl<'a> Emitter<'a> {
         self.wln("declare void @__ayanami_shared_retain(i8*)");
         self.wln("declare void @__ayanami_shared_release(i8*)");
         self.wln("declare void @llvm.memcpy.p0.p0.i64(i8*, i8*, i64, i1)");
+        self.wln("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)");
         self.wln("declare i32 @putchar(i32)");
         self.wln("declare i32 @printf(i8*, ...)");
         self.wln("");
@@ -801,6 +802,21 @@ impl<'a> Emitter<'a> {
                 self.wln_fmt(format_args!(
                     "%t{} = load {}, ptr %t{}",
                     dest, struct_llvm, alloca_tmp
+                ));
+            }
+            LirInst::ArraySized { dest, malloc_tmp, elem_count, elem_size, .. } => {
+                let total_size = elem_count * elem_size;
+                self.wln_fmt(format_args!(
+                    "%t{} = call i8* @malloc(i64 {})",
+                    malloc_tmp, total_size
+                ));
+                self.wln_fmt(format_args!(
+                    "%t{} = bitcast i8* %t{} to ptr",
+                    dest, malloc_tmp
+                ));
+                self.wln_fmt(format_args!(
+                    "call void @llvm.memset.p0.i64(ptr %t{}, i8 0, i64 {}, i1 false)",
+                    dest, total_size
                 ));
             }
             LirInst::ArrayLit { dest, malloc_tmp, elem_geps, elems, elem_ty, ty: _ } => {

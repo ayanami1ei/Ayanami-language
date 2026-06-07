@@ -83,6 +83,11 @@ fn mir_expr_from_hir(expr: &HirExpr, moved: &HashSet<VarId>) -> MirExpr {
             elems.iter().map(|e| mir_expr_from_hir(e, moved)).collect(),
             ty.clone(),
         ),
+        HirExpr::ArraySized { count, elem_ty, ty } => MirExpr::ArraySized {
+            count: *count,
+            elem_ty: elem_ty.clone(),
+            ty: ty.clone(),
+        },
         HirExpr::Index { object, index, ty } => MirExpr::Index {
             object: Box::new(mir_expr_from_hir(object, moved)),
             index: Box::new(mir_expr_from_hir(index, moved)),
@@ -124,6 +129,7 @@ fn collect_var_ids(expr: &HirExpr) -> HashSet<VarId> {
         HirExpr::ArrayLiteral(elems, _) => {
             for e in elems { vars.extend(collect_var_ids(e)); }
         }
+        HirExpr::ArraySized { .. } => {}
         HirExpr::Index { object, index, .. } => {
             vars.extend(collect_var_ids(object));
             vars.extend(collect_var_ids(index));

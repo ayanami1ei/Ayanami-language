@@ -243,6 +243,12 @@ fn put_inst(buf: &mut Vec<u8>, inst: &LirInst) {
             put_value(buf, arr); put_value(buf, index);
             put_type(buf, elem_ty); put_type(buf, ty);
         }
+        ArraySized { dest, malloc_tmp, elem_count, elem_size, elem_ty, ty } => {
+            buf.push(20);
+            put_u64(buf, *dest); put_u64(buf, *malloc_tmp);
+            put_u64(buf, *elem_count); put_u64(buf, *elem_size);
+            put_type(buf, elem_ty); put_type(buf, ty);
+        }
     }
 }
 
@@ -433,6 +439,12 @@ impl<'a> Reader<'a> {
                 let a = self.value()?; let i = self.value()?;
                 let et = self.ty()?; let t = self.ty()?;
                 Ok(IndexAccess { dest: d, gep_tmp: gt, load_tmp: lt, arr: a, index: i, elem_ty: et, ty: t })
+            }
+            20 => {
+                let d = self.u64()?; let mt = self.u64()?;
+                let ec = self.u64()?; let es = self.u64()?;
+                let et = self.ty()?; let t = self.ty()?;
+                Ok(ArraySized { dest: d, malloc_tmp: mt, elem_count: ec, elem_size: es, elem_ty: et, ty: t })
             }
             _ => Err(format!("unknown inst tag: {}", tag)),
         }
