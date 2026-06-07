@@ -25,6 +25,19 @@ pub enum Stmt {
     },
     Assign {
         name: Symbol,
+        is_mut: bool,
+        value: Expr,
+        span: Span,
+    },
+    FieldAssign {
+        object: Box<Expr>,
+        field: Symbol,
+        value: Expr,
+        span: Span,
+    },
+    IndexAssign {
+        object: Box<Expr>,
+        index: Box<Expr>,
         value: Expr,
         span: Span,
     },
@@ -88,7 +101,9 @@ impl Stmt {
     pub fn span(&self) -> Span {
         match self {
             Stmt::FnDecl { span, .. }
-            | Stmt::Assign { span, .. }
+            |             Stmt::Assign { span, .. }
+            | Stmt::FieldAssign { span, .. }
+            | Stmt::IndexAssign { span, .. }
             | Stmt::Return { span, .. }
             | Stmt::If { span, .. }
             | Stmt::For { span, .. }

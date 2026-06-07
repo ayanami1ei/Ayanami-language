@@ -191,6 +191,22 @@ fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}  value:", p)?;
             write_expr(value, level + 1, w)?;
         }
+        HirStmt::FieldAssign { object, field, field_index, value, .. } => {
+            writeln!(w, "{}FieldAssign field={} index={}", p, field, field_index)?;
+            writeln!(w, "{}  object:", p)?;
+            write_expr(object, level + 1, w)?;
+            writeln!(w, "{}  value:", p)?;
+            write_expr(value, level + 1, w)?;
+        }
+        HirStmt::IndexAssign { object, index, value } => {
+            writeln!(w, "{}IndexAssign", p)?;
+            writeln!(w, "{}  object:", p)?;
+            write_expr(object, level + 1, w)?;
+            writeln!(w, "{}  index:", p)?;
+            write_expr(index, level + 1, w)?;
+            writeln!(w, "{}  value:", p)?;
+            write_expr(value, level + 1, w)?;
+        }
         HirStmt::Return { value } => {
             writeln!(w, "{}Return", p)?;
             if let Some(v) = value {

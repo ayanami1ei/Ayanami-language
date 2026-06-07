@@ -623,6 +623,32 @@ impl Ctx {
                     value: hir_value,
                 })
             }
+            Stmt::FieldAssign { object, field, value, .. } => {
+                let hir_object = self.lower_expr(object)?;
+                let object_ty = expr_type(&hir_object);
+                let field_index = self.find_field_index(&object_ty, field)?;
+                let field_ty = self.find_field_type(&object_ty, field)?;
+                let hir_value = self.lower_expr(value)?;
+                let hir_value = implicit_move(hir_value);
+                Ok(HirStmt::FieldAssign {
+                    object: Box::new(hir_object),
+                    field: *field,
+                    field_index,
+                    field_ty,
+                    value: hir_value,
+                })
+            }
+            Stmt::IndexAssign { object, index, value, .. } => {
+                let hir_object = self.lower_expr(object)?;
+                let hir_index = self.lower_expr(index)?;
+                let hir_value = self.lower_expr(value)?;
+                let hir_value = implicit_move(hir_value);
+                Ok(HirStmt::IndexAssign {
+                    object: Box::new(hir_object),
+                    index: Box::new(hir_index),
+                    value: hir_value,
+                })
+            }
             Stmt::Return { value, .. } => {
                 let hir_value = match value {
                     Some(v) => {

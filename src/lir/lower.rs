@@ -277,6 +277,63 @@ fn lower_stmt(ctx: &mut LowerCtx, stmt: &MirStmt) {
                 });
             }
         }
+        MirStmt::FieldAssign { object, field: _, field_index, field_ty, value } => {
+            let obj_ty = expr_mir_type(object);
+            // Extract var_id BEFORE lowering (lower_expr loads into Tmp)
+            let var_id = match object.as_ref() {
+                MirExpr::Local(id, _, _) => {
+                    let is_value = !matches!(obj_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_));
+                    if is_value { Some(*id) } else { None }
+                }
+                _ => None,
+            };
+            let obj_val = lower_expr(ctx, object);
+            let obj_tmp = match obj_val {
+                LirValue::Tmp(t) => t,
+                _ => {
+                    let t = ctx.next_tmp();
+                    ctx.emit(LirInst::Load { dest: t, src: extract_var(&obj_val), ty: obj_ty.clone() });
+                    t
+                }
+            };
+            let src_val = lower_expr(ctx, value);
+            let gep_tmp = ctx.next_tmp();
+            let iv_tmp = ctx.next_tmp();
+            ctx.emit(LirInst::FieldStore {
+                dest: obj_tmp, var_id, gep_tmp, iv_tmp,
+                src: src_val,
+                field_index: *field_index,
+                field_ty: field_ty.clone(),
+                struct_ty: obj_ty,
+            });
+        }
+        MirStmt::IndexAssign { object, index, value } => {
+            let obj_val = lower_expr(ctx, object);
+            let obj_tmp = match obj_val {
+                LirValue::Tmp(t) => t,
+                _ => {
+                    let t = ctx.next_tmp();
+                    ctx.emit(LirInst::Load { dest: t, src: extract_var(&obj_val), ty: expr_mir_type(object) });
+                    t
+                }
+            };
+            let idx_val = lower_expr(ctx, index);
+            let src_val = lower_expr(ctx, value);
+            let gep_tmp = ctx.next_tmp();
+            let obj_ty = strip_ownership(expr_mir_type(object));
+            let elem_ty = match &obj_ty {
+                HirType::Array(inner) => *inner.clone(),
+                _ => HirType::Int,
+            };
+            ctx.emit(LirInst::IndexStore {
+                dest: obj_tmp,
+                gep_tmp,
+                src: src_val,
+                index: idx_val,
+                elem_ty,
+                array_ty: expr_mir_type(object),
+            });
+        }
         MirStmt::Return { value } => {
             let ret = value.as_ref().map(|v| {
                 let val = lower_expr(ctx, v);
@@ -850,6 +907,15 @@ fn collect_strings_stmt(stmts: &[MirStmt], out: &mut Vec<String>) {
     for stmt in stmts {
         match stmt {
             MirStmt::Assign { value, .. } => collect_strings_expr(value, out),
+            MirStmt::FieldAssign { object, value, .. } => {
+                collect_strings_expr(object, out);
+                collect_strings_expr(value, out);
+            }
+            MirStmt::IndexAssign { object, index, value, .. } => {
+                collect_strings_expr(object, out);
+                collect_strings_expr(index, out);
+                collect_strings_expr(value, out);
+            }
             MirStmt::Return { value: Some(v) } => collect_strings_expr(v, out),
             MirStmt::If {
                 then_block,

@@ -132,17 +132,35 @@ impl Parser {
             TokenKind::Keyword(Keyword::Interface) => self.parse_interface_def(),
             TokenKind::Keyword(Keyword::Impl) => self.parse_impl_block(),
             TokenKind::Keyword(Keyword::Import) => self.parse_import(),
-            _ => {
-                if let TokenKind::Identifier(_) = &tok.kind {
-                    if self.pos + 1 < self.tokens.len()
-                        && self.tokens[self.pos + 1].kind == TokenKind::Operator("=".to_string())
-                    {
-                        return self.parse_assign();
-                    }
-                }
-                self.parse_expr_as_stmt()
+            _ => self.parse_any_assign_or_expr(),
+        }
+    }
+
+    /// Parse an assignment (with optional mut) or expression statement.
+    /// Handles: mut v = expr, v = expr, expr.field = expr, expr[i] = expr, expr;
+    fn parse_any_assign_or_expr(&mut self) -> Result<Stmt, String> {
+        let is_mut = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Mut));
+        if is_mut { self.advance(); }
+
+        let expr = self.parse_expr()?;
+
+        if let Some(TokenKind::Operator(s)) = self.peek().map(|t| &t.kind) {
+            if s == "=" {
+                self.advance();
+                let value = self.parse_expr()?;
+                self.expect_semicolon()?;
+                return match expr {
+                    Expr::Ident(name, _) => Ok(Stmt::Assign { name, is_mut, value, span: Span::default() }),
+                    Expr::FieldAccess { object, field, .. } =>
+                        Ok(Stmt::FieldAssign { object, field, value, span: Span::default() }),
+                    Expr::Index { object, index, .. } =>
+                        Ok(Stmt::IndexAssign { object, index, value, span: Span::default() }),
+                    _ => Err(self.error("invalid assignment target")),
+                };
             }
         }
+        self.expect_semicolon()?;
+        Ok(Stmt::ExprStmt { expr, span: Span::default() })
     }
 
     fn parse_fn_decl(&mut self, vis: Visibility) -> Result<Stmt, String> {
@@ -180,18 +198,6 @@ impl Parser {
             params,
             return_type,
             body,
-            span: Span::default(),
-        })
-    }
-
-    fn parse_assign(&mut self) -> Result<Stmt, String> {
-        let name = self.expect_identifier()?;
-        self.expect_operator("=")?;
-        let value = self.parse_expr()?;
-        self.expect_semicolon()?;
-        Ok(Stmt::Assign {
-            name: Symbol::intern(&name),
-            value,
             span: Span::default(),
         })
     }
@@ -505,11 +511,6 @@ impl Parser {
         })
     }
 
-    fn parse_expr_as_stmt(&mut self) -> Result<Stmt, String> {
-        let expr = self.parse_expr()?;
-        self.expect_semicolon()?;
-        Ok(Stmt::ExprStmt { expr, span: Span::default() })
-    }
 
     fn parse_block(&mut self) -> Result<Block, String> {
         self.expect_delimiter(Delimiter::LBrace)?;

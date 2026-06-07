@@ -102,6 +102,12 @@ fn write_inst(inst: &LirInst, w: &mut impl Write) -> std::fmt::Result {
         LirInst::IndexAccess { dest, elem_ty, .. } => {
             writeln!(w, "    t{} = index_access elem_ty={:?}", dest, elem_ty)?;
         }
+        LirInst::FieldStore { dest, field_index, field_ty, .. } => {
+            writeln!(w, "    t{} = field_store field={} : {:?}", dest, field_index, field_ty)?;
+        }
+        LirInst::IndexStore { dest, elem_ty, .. } => {
+            writeln!(w, "    t{} = index_store elem_ty={:?}", dest, elem_ty)?;
+        }
     }
     Ok(())
 }

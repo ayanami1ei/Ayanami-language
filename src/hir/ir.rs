@@ -152,6 +152,18 @@ pub enum HirStmt {
         target: HirExpr,
         value: HirExpr,
     },
+    FieldAssign {
+        object: Box<HirExpr>,
+        field: Symbol,
+        field_index: usize,
+        field_ty: HirType,
+        value: HirExpr,
+    },
+    IndexAssign {
+        object: Box<HirExpr>,
+        index: Box<HirExpr>,
+        value: HirExpr,
+    },
     Return {
         value: Option<HirExpr>,
     },

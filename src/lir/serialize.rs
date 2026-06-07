@@ -219,6 +219,14 @@ fn put_inst(buf: &mut Vec<u8>, inst: &LirInst) {
             put_value(buf, src); put_u32(buf, *field_index as u32);
             put_type(buf, field_ty); put_type(buf, struct_ty);
         }
+        FieldStore { dest, var_id, gep_tmp, iv_tmp, src, field_index, field_ty, struct_ty } => {
+            buf.push(21);
+            put_u64(buf, *dest);
+            put_u32(buf, var_id.map_or(0xFFFFFFFF, |v| v.0 as u32));
+            put_u64(buf, *gep_tmp); put_u64(buf, *iv_tmp);
+            put_value(buf, src); put_u32(buf, *field_index as u32);
+            put_type(buf, field_ty); put_type(buf, struct_ty);
+        }
         StructLit { dest, alloca_tmp, field_geps, fields, struct_name, struct_ty } => {
             buf.push(17);
             put_u64(buf, *dest); put_u64(buf, *alloca_tmp);
@@ -248,6 +256,12 @@ fn put_inst(buf: &mut Vec<u8>, inst: &LirInst) {
             put_u64(buf, *dest); put_u64(buf, *malloc_tmp);
             put_u64(buf, *elem_count); put_u64(buf, *elem_size);
             put_type(buf, elem_ty); put_type(buf, ty);
+        }
+        IndexStore { dest, gep_tmp, src, index, elem_ty, array_ty } => {
+            buf.push(22);
+            put_u64(buf, *dest); put_u64(buf, *gep_tmp);
+            put_value(buf, src); put_value(buf, index);
+            put_type(buf, elem_ty); put_type(buf, array_ty);
         }
     }
 }
@@ -407,10 +421,12 @@ impl<'a> Reader<'a> {
                     gep_tmp: gt, fn_ptr_tmp: fpt, method_index: mi, args, ret_ty: rt2 })
             }
             16 => {
-                let d = self.u64()?; let gt = self.u64()?;
+                let d = self.u64()?;
                 let s = self.value()?; let fi = self.u32()? as usize;
                 let ft = self.ty()?; let st = self.ty()?;
-                Ok(FieldAccess { dest: d, gep_tmp: gt, src: s, field_index: fi, field_ty: ft, struct_ty: st })
+                // Old FieldStore format (no var_id); discard this path
+                let _ = d; let _ = s; let _ = fi; let _ = ft; let _ = st;
+                return Err("deprecated FieldStore format".into());
             }
             17 => {
                 let d = self.u64()?; let at = self.u64()?;
@@ -440,11 +456,25 @@ impl<'a> Reader<'a> {
                 let et = self.ty()?; let t = self.ty()?;
                 Ok(IndexAccess { dest: d, gep_tmp: gt, load_tmp: lt, arr: a, index: i, elem_ty: et, ty: t })
             }
-            20 => {
+             20 => {
                 let d = self.u64()?; let mt = self.u64()?;
                 let ec = self.u64()?; let es = self.u64()?;
                 let et = self.ty()?; let t = self.ty()?;
                 Ok(ArraySized { dest: d, malloc_tmp: mt, elem_count: ec, elem_size: es, elem_ty: et, ty: t })
+            }
+            21 => {
+                let d = self.u64()?; let vr = self.u32()?;
+                let var_id = if vr == 0xFFFFFFFF { None } else { Some(VarId(vr as usize)) };
+                let gt = self.u64()?; let iv = self.u64()?;
+                let s = self.value()?; let fi = self.u32()? as usize;
+                let ft = self.ty()?; let st = self.ty()?;
+                Ok(FieldStore { dest: d, var_id, gep_tmp: gt, iv_tmp: iv, src: s, field_index: fi, field_ty: ft, struct_ty: st })
+            }
+            22 => {
+                let d = self.u64()?; let gt = self.u64()?;
+                let s = self.value()?; let idx = self.value()?;
+                let et = self.ty()?; let at = self.ty()?;
+                Ok(IndexStore { dest: d, gep_tmp: gt, src: s, index: idx, elem_ty: et, array_ty: at })
             }
             _ => Err(format!("unknown inst tag: {}", tag)),
         }

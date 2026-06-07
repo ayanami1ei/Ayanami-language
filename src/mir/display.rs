@@ -189,6 +189,22 @@ fn write_stmt(stmt: &MirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}  value:", p)?;
             write_expr(value, level + 1, w)?;
         }
+        MirStmt::FieldAssign { object, field, field_index, field_ty, value } => {
+            writeln!(w, "{}FieldAssign field={} index={} ty={}", p, field, field_index, display_type(field_ty))?;
+            writeln!(w, "{}  object:", p)?;
+            write_expr(object, level + 1, w)?;
+            writeln!(w, "{}  value:", p)?;
+            write_expr(value, level + 1, w)?;
+        }
+        MirStmt::IndexAssign { object, index, value } => {
+            writeln!(w, "{}IndexAssign", p)?;
+            writeln!(w, "{}  object:", p)?;
+            write_expr(object, level + 1, w)?;
+            writeln!(w, "{}  index:", p)?;
+            write_expr(index, level + 1, w)?;
+            writeln!(w, "{}  value:", p)?;
+            write_expr(value, level + 1, w)?;
+        }
         MirStmt::Return { value } => {
             writeln!(w, "{}Return", p)?;
             if let Some(v) = value {

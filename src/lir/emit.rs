@@ -861,6 +861,56 @@ impl<'a> Emitter<'a> {
                     dest, elem_llvm, load_tmp, self.llvm_type(ty)
                 ));
             }
+            LirInst::FieldStore { dest, var_id, gep_tmp, iv_tmp, src, field_index, field_ty, struct_ty } => {
+                let inner = match struct_ty {
+                    HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+                    other => other,
+                };
+                let struct_name = match inner {
+                    HirType::Named(n) => n,
+                    _ => unreachable!(),
+                };
+                let struct_llvm = self.struct_llvm_name(struct_name)
+                    .unwrap_or_else(|| panic!("unknown struct type `{}`", struct_name));
+                let src_str = self.value_ref(src, field_ty);
+                let field_llvm = self.llvm_type(field_ty);
+                if matches!(struct_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)) {
+                    // Heap pointer: GEP + store
+                    self.wln_fmt(format_args!(
+                        "%t{} = getelementptr {}, ptr %t{}, i32 0, i32 {}",
+                        gep_tmp, struct_llvm, dest, field_index
+                    ));
+                    self.wln_fmt(format_args!(
+                        "store {} {}, ptr %t{}",
+                        field_llvm, src_str, gep_tmp
+                    ));
+                } else {
+                    // Value type: insertvalue + store back to alloca
+                    let var_ty = self.llvm_type(&struct_ty);
+                    self.wln_fmt(format_args!(
+                        "%t{} = insertvalue {} %t{}, {} {}, {}",
+                        iv_tmp, struct_llvm, dest, field_llvm, src_str, field_index
+                    ));
+                    let store_var = var_id.expect("FieldStore: value type needs var_id");
+                    self.wln_fmt(format_args!(
+                        "store {} %t{}, ptr %v{}, align 8",
+                        var_ty, iv_tmp, store_var.0
+                    ));
+                }
+            }
+            LirInst::IndexStore { dest, gep_tmp, src, index, elem_ty, array_ty: _ } => {
+                let elem_llvm = self.llvm_type(elem_ty);
+                let src_str = self.value_ref(src, elem_ty);
+                let idx_str = self.value_ref(index, &HirType::Int);
+                self.wln_fmt(format_args!(
+                    "%t{} = getelementptr {}, ptr %t{}, i64 {}",
+                    gep_tmp, elem_llvm, dest, idx_str
+                ));
+                self.wln_fmt(format_args!(
+                    "store {} {}, ptr %t{}",
+                    elem_llvm, src_str, gep_tmp
+                ));
+            }
             LirInst::Ret(val) => match val {
                 Some((v, ty)) => {
                     let s = self.value_ref(v, ty);

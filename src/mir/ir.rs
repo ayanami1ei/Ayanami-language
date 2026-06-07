@@ -68,6 +68,18 @@ pub enum MirStmt {
         target: MirExpr,
         value: MirExpr,
     },
+    FieldAssign {
+        object: Box<MirExpr>,
+        field: Symbol,
+        field_index: usize,
+        field_ty: HirType,
+        value: MirExpr,
+    },
+    IndexAssign {
+        object: Box<MirExpr>,
+        index: Box<MirExpr>,
+        value: MirExpr,
+    },
     Return {
         value: Option<MirExpr>,
     },

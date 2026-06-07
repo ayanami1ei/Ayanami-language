@@ -246,6 +246,22 @@ impl Ctx {
     fn lower_stmt(&mut self, stmt: &HirStmt) -> Vec<MirStmt> {
         match stmt {
             HirStmt::Assign { target, value } => self.lower_assign(target, value),
+            HirStmt::FieldAssign { object, field, field_index, field_ty, value } => {
+                vec![MirStmt::FieldAssign {
+                    object: Box::new(mir_expr_from_hir(object, &self.moved)),
+                    field: *field,
+                    field_index: *field_index,
+                    field_ty: field_ty.clone(),
+                    value: mir_expr_from_hir(value, &self.moved),
+                }]
+            }
+            HirStmt::IndexAssign { object, index, value } => {
+                vec![MirStmt::IndexAssign {
+                    object: Box::new(mir_expr_from_hir(object, &self.moved)),
+                    index: Box::new(mir_expr_from_hir(index, &self.moved)),
+                    value: mir_expr_from_hir(value, &self.moved),
+                }]
+            }
             HirStmt::Return { value } => self.lower_return(value),
             HirStmt::If { cond, then_block, elifs, else_block } => {
                 self.lower_if(cond, then_block, elifs, else_block)

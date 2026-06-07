@@ -167,6 +167,35 @@ pub enum LirInst {
         args: Vec<(LirValue, HirType)>,
         ret_ty: HirType,
     },
+    /// Store a value into a struct field
+    FieldStore {
+        /// Temp holding the object (value or pointer)
+        dest: u64,
+        /// Alloca variable (for value types — store modified struct back)
+        var_id: Option<VarId>,
+        /// Pre-allocated temp for GEP result
+        gep_tmp: u64,
+        /// Pre-allocated temp for insertvalue (value types only)
+        iv_tmp: u64,
+        /// Value to store
+        src: LirValue,
+        field_index: usize,
+        field_ty: HirType,
+        struct_ty: HirType,
+    },
+    /// Store a value into an array element
+    IndexStore {
+        /// Temp holding the array pointer
+        dest: u64,
+        /// Pre-allocated temp for GEP result
+        gep_tmp: u64,
+        /// Value to store
+        src: LirValue,
+        /// Index value
+        index: LirValue,
+        elem_ty: HirType,
+        array_ty: HirType,
+    },
 }
 
 #[derive(Debug, Clone)]

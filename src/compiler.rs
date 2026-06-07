@@ -610,6 +610,22 @@ fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
             writeln!(w, "{}  value:", p).unwrap();
             write_expr(value, level + 1, w);
         }
+        Stmt::FieldAssign { object, field, value, .. } => {
+            writeln!(w, "{}FieldAssign {{ field: {} }}", p, field).unwrap();
+            writeln!(w, "{}  object:", p).unwrap();
+            write_expr(object, level + 1, w);
+            writeln!(w, "{}  value:", p).unwrap();
+            write_expr(value, level + 1, w);
+        }
+        Stmt::IndexAssign { object, index, value, .. } => {
+            writeln!(w, "{}IndexAssign", p).unwrap();
+            writeln!(w, "{}  object:", p).unwrap();
+            write_expr(object, level + 1, w);
+            writeln!(w, "{}  index:", p).unwrap();
+            write_expr(index, level + 1, w);
+            writeln!(w, "{}  value:", p).unwrap();
+            write_expr(value, level + 1, w);
+        }
         Stmt::Return { value, .. } => {
             writeln!(w, "{}Return", p).unwrap();
             if let Some(val) = value { write_expr(val, level + 1, w); }
