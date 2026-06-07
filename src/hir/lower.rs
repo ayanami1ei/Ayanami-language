@@ -937,7 +937,23 @@ impl Ctx {
             Expr::Clone(inner, _) => {
                 let hir_inner = self.lower_expr(inner)?;
                 let ty = expr_type(&hir_inner);
-                Ok(HirExpr::Clone(Box::new(hir_inner), ty))
+                // For heap types (Shared/Unique wrapping Named/Array), deep copy via ToUnique/ToShared
+                match &ty {
+                    HirType::Shared(inner_ty) if needs_deep_copy(inner_ty) => {
+                        let new_ty = HirType::Shared(inner_ty.clone());
+                        Ok(HirExpr::ToShared(Box::new(HirExpr::Clone(Box::new(hir_inner), ty.clone())), new_ty))
+                    }
+                    HirType::Unique(inner_ty) if needs_deep_copy(inner_ty) => {
+                        let new_ty = HirType::Unique(inner_ty.clone());
+                        Ok(HirExpr::ToUnique(Box::new(HirExpr::Clone(Box::new(hir_inner), ty.clone())), new_ty))
+                    }
+                    _ if needs_deep_copy(&ty) => {
+                        // Plain heap value: clone produces a Unique copy
+                        let new_ty = HirType::Unique(Box::new(ty.clone()));
+                        Ok(HirExpr::ToUnique(Box::new(HirExpr::Clone(Box::new(hir_inner), ty.clone())), new_ty))
+                    }
+                    _ => Ok(HirExpr::Clone(Box::new(hir_inner), ty)),
+                }
             }
             Expr::ToUnique(inner, _) => {
                 self.allow_bare_array = true;
@@ -1175,6 +1191,11 @@ fn hir_type_display(ty: &HirType) -> String {
         HirType::FatPtr { name, kind } => format!("{} {}", hir_type_display(kind), name.as_str()),
         HirType::Array(inner) => format!("[{}]", hir_type_display(inner)),
     }
+}
+
+/// Check if a type needs deep copy (heap-allocated data).
+fn needs_deep_copy(ty: &HirType) -> bool {
+    matches!(ty, HirType::Named(_) | HirType::Array(_) | HirType::FatPtr { .. })
 }
 
 /// Map binary operators to function names for operator overloading.
