@@ -3,8 +3,8 @@ const vscode = require('vscode');
 function activate(context) {
     console.log('ayanami extension activating...');
     // ─── Status Bar ──────────────────────────────────────────────────
-    const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1);
-    statusBar.text = '$(eye) Ayanami';
+    const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 1000);
+    statusBar.text = 'Ayanami';
     statusBar.tooltip = 'Ayanami Language';
     statusBar.show();
     context.subscriptions.push(statusBar);
@@ -12,7 +12,7 @@ function activate(context) {
 
     function setStatus(text, icon) {
         try {
-            statusBar.text = `${icon} Ayanami ${text}`;
+            statusBar.text = text ? `Ayanami: ${text}` : 'Ayanami';
             statusBar.show();
         } catch (e) {
             console.error('ayanami setStatus error:', e);
@@ -187,74 +187,68 @@ function activate(context) {
 
     context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(doc => {
         try {
-        if (doc.languageId !== 'ayanami') return;
-        setStatus('checking...', '$(eye)');
-        diagCollection.clear();
-        const diagnostics = [];
-        const fs = require('fs');
-        const path = require('path');
+            if (doc.languageId !== 'ayanami') return;
+            console.log('ayanami check:', doc.uri.fsPath);
+            setStatus('checking');
+            diagCollection.clear();
+            const diagnostics = [];
+            const fs = require('fs');
+            const path = require('path');
 
-        let ayanamiPath = findAyanamiPath(context);
-        if (!ayanamiPath) {
-            setStatus('not found', '$(warning)');
-            diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 5),
-                'ayanami compiler not found (set PATH)', vscode.DiagnosticSeverity.Warning));
-            diagCollection.set(doc.uri, diagnostics);
-            return;
-        }
+            let ayanamiPath = findAyanamiPath(context);
+            if (!ayanamiPath) {
+                setStatus('not found');
+                console.log('ayanami: compiler not found');
+                diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 10),
+                    'ayanami: compiler not found in PATH', vscode.DiagnosticSeverity.Warning));
+                diagCollection.set(doc.uri, diagnostics);
+                return;
+            }
+            console.log('ayanami using:', ayanamiPath);
 
-        const { execSync } = require('child_process');
-        try {
-            execSync(`"${ayanamiPath}" check "${doc.uri.fsPath}"`, {
-                timeout: 10000,
-                cwd: path.dirname(doc.uri.fsPath),
-                stdio: ['pipe', 'pipe', 'pipe'],
-            });
-            setStatus('ok', '$(check)');
-        } catch (e) {
-            const out = (e.stdout || '').toString() + (e.stderr || '').toString();
-            const lines = out.split('\n');
-            for (const line of lines) {
-                if (!line.trim()) continue;
-                const msgOnly = line.replace(/^(error|failed|Parse error[^:]*):\s*/i, '').trim();
-                if (!msgOnly) continue;
-                const lineCol = line.match(/(\d+):(\d+)/);
-                let range;
-                if (lineCol) {
-                    const l = Math.max(0, parseInt(lineCol[1]) - 1);
-                    range = new vscode.Range(l, 0, l, 1000);
-                } else {
-                    range = new vscode.Range(0, 0, 0, 5);
+            const { execSync } = require('child_process');
+            let out = '';
+            try {
+                const result = execSync(`"${ayanamiPath}" check "${doc.uri.fsPath}"`, {
+                    timeout: 15000,
+                    encoding: 'utf8',
+                    cwd: path.dirname(doc.uri.fsPath),
+                });
+                out = result || '';
+                console.log('ayanami check ok');
+                setStatus('ok');
+            } catch (e) {
+                out = (e.stdout || '') + (e.stderr || '');
+                console.log('ayanami check stderr:', out.slice(0, 200));
+            }
+
+            if (out) {
+                for (const line of out.split('\n')) {
+                    const t = line.trim();
+                    if (!t) continue;
+                    const msg = t.replace(/^[^:]*:\s*/, '');
+                    if (!msg) continue;
+                    const m = t.match(/:(\d+):(\d+)/);
+                    const range = m
+                        ? new vscode.Range(Math.max(0, parseInt(m[1]) - 1), 0, Math.max(0, parseInt(m[1]) - 1), 1000)
+                        : new vscode.Range(0, 0, 0, 10);
+                    diagnostics.push(new vscode.Diagnostic(range, msg, vscode.DiagnosticSeverity.Error));
                 }
-                diagnostics.push(new vscode.Diagnostic(range, msgOnly, vscode.DiagnosticSeverity.Error));
             }
-            setStatus(`${diagnostics.length} error(s)`, '$(error)');
-        }
 
-        if (diagnostics.length === 0) {
-            const text = doc.getText();
-            let braceDepth = 0;
-            for (const ch of text) {
-                if (ch === '{') braceDepth++;
-                if (ch === '}') braceDepth--;
+            if (diagnostics.length > 0) {
+                setStatus(`${diagnostics.length} error(s)`);
             }
-            if (braceDepth !== 0) {
-                diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 5),
-                    `${Math.abs(braceDepth)} un matched brace(s)`, vscode.DiagnosticSeverity.Warning));
-            }
-        }
 
-        diagCollection.set(doc.uri, diagnostics);
+            diagCollection.set(doc.uri, diagnostics);
         } catch (e) {
             console.error('ayanami diagnostic error:', e);
-            setStatus('error', '$(error)');
+            setStatus('error');
         }
     }));
     console.log('ayanami extension activated');
 
-    setTimeout(() => {
-        setStatus('ready', '$(eye)');
-    }, 1000);
+    setTimeout(() => { setStatus('ready'); }, 1000);
 
 function findAyanamiPath(context) {
     const fs = require('fs');
