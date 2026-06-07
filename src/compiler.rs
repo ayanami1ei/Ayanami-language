@@ -14,6 +14,8 @@ pub struct CompiledFile {
     pub llvm_ir: String,
     /// All .o files this file depends on (including its own)
     pub obj_paths: Vec<PathBuf>,
+    /// Link flags for dynamic libraries: -L and -l
+    pub link_flags: Vec<String>,
     /// Path to this file's own .o
     pub own_obj: PathBuf,
     /// Path to this file's .lcl
@@ -50,6 +52,7 @@ pub fn compile_file(
             },
             llvm_ir: String::new(),
             obj_paths: cached.obj_paths.clone(),
+            link_flags: cached.link_flags.clone(),
             own_obj: cached.own_obj.clone(),
             lcl_path: cached.lcl_path.clone(),
         });
@@ -72,15 +75,24 @@ pub fn compile_file(
 
     // Resolve imports: for each .aya import, compile the dependency
     let mut dep_obj_paths = Vec::new();
+    let mut dep_link_flags = Vec::new();
     let mut new_stmts = Vec::new();
     for stmt in &program.stmts {
         if let Stmt::Import { path, .. } = stmt {
             if path.ends_with(".aya") {
                 let dep_path = base_dir.join(path);
-                // Try to load project config to determine dep target
                 let dep_target = load_config_for_file(&dep_path, out_dir);
                 let dep = compile_file(&dep_path, base_dir, out_dir, compiling, cache, dep_target.as_deref())?;
-                dep_obj_paths.extend(dep.obj_paths.clone());
+                // If dep is a dynamic lib, add link flags instead of its .o
+                if dep_target.as_deref() == Some("dynamic-lib") {
+                    let dep_stem = dep_path.file_stem().unwrap_or_default().to_string_lossy();
+                    dep_link_flags.push(format!("-L{}", out_dir.canonicalize().unwrap_or_else(|_| out_dir.to_path_buf()).display()));
+                    dep_link_flags.push(format!("-l{}", dep_stem));
+                    dep_link_flags.push(format!("-Wl,-rpath,{}", out_dir.canonicalize().unwrap_or_else(|_| out_dir.to_path_buf()).display()));
+                } else {
+                    dep_obj_paths.extend(dep.obj_paths.clone());
+                }
+                dep_link_flags.extend(dep.link_flags.clone());
                 let lcl_name = dep.lcl_path.to_string_lossy().into_owned();
                 new_stmts.push(Stmt::Import { path: lcl_name, span: crate::span::Span::default() });
             } else {
@@ -110,8 +122,9 @@ pub fn compile_file(
 
     // If a target type is specified and this file has no imports (standalone),
     // produce the target artifact.  Files with deps will be linked by the root.
+    // Also skip if there are link flags (dynamic lib linking handled by root).
     let stem_str = stem.to_string_lossy();
-    if dep_obj_paths.is_empty() {
+    if dep_obj_paths.is_empty() && dep_link_flags.is_empty() {
         let target = target_override.unwrap_or("static-lib");
         match target {
             "executable" => {
@@ -145,6 +158,7 @@ pub fn compile_file(
         lir_program,
         llvm_ir,
         obj_paths: all_objs,
+        link_flags: dep_link_flags,
         own_obj,
         lcl_path,
     };
@@ -159,6 +173,7 @@ pub fn compile_file(
         },
         llvm_ir: String::new(),
         obj_paths: result.obj_paths.clone(),
+        link_flags: result.link_flags.clone(),
         own_obj: result.own_obj.clone(),
         lcl_path: result.lcl_path.clone(),
     });
@@ -372,7 +387,7 @@ pub fn build_source_with_target(src_path: &str, _code: &str, out_dir: &str, targ
         "executable" => {
             let exe_path = out_path.join(&*name);
             println!("building {} -> {}", src_path.display(), exe_path.display());
-            crate::driver::objects_to_exe(&compiled.obj_paths, &exe_path)
+            crate::driver::objects_to_exe_with_flags(&compiled.obj_paths, &compiled.link_flags, &exe_path)
                 .map_err(|e| format!("link failed: {}", e))?;
             exe_path
         }

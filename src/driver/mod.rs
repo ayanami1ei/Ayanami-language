@@ -56,10 +56,16 @@ pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), Str
 
 /// Link multiple object files + runtime → executable via `gcc`.
 pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<(), String> {
+    objects_to_exe_with_flags(obj_paths, &[], exe_path)
+}
+
+/// Link with extra flags (for dynamic lib linking).
+pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<(), String> {
     let runtime_c = find_runtime_c()?;
     let mut cmd = Command::new("gcc");
     cmd.arg("-no-pie");
     for o in obj_paths { cmd.arg(o); }
+    for f in extra_flags { cmd.arg(f); }
     cmd.arg(&runtime_c).arg("-o").arg(exe_path.as_ref());
     let status = cmd.status().map_err(|e| format!("failed to run gcc: {}", e))?;
     if !status.success() { return Err("gcc link failed".into()); }
