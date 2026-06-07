@@ -76,18 +76,16 @@ pub fn compile_file(
     // Resolve imports: for each .aya import, compile the dependency
     let mut dep_obj_paths = Vec::new();
     let mut dep_link_flags = Vec::new();
+    let mut dep_lcl_paths = Vec::new(); // track .lcl files for struct def merging
     let mut new_stmts = Vec::new();
     for stmt in &program.stmts {
         if let Stmt::Import { path, .. } = stmt {
-            // Try to resolve the import path (supports config aliases)
             let resolved = resolve_import_path(path, base_dir);
             let dep_path = match resolved {
                 Some(p) => p,
                 None => {
-                    // Try direct path relative to source dir
                     let direct = base_dir.join(path);
                     if direct.exists() { direct } else {
-                        // If parsing fails, just use the path as-is (HIR will handle .lcl)
                         return Err(format!("cannot resolve import '{}' from {}: not found", path, base_dir.display()));
                     }
                 }
@@ -105,12 +103,11 @@ pub fn compile_file(
                 }
                 dep_link_flags.extend(dep.link_flags.clone());
                 let lcl_name = dep.lcl_path.to_string_lossy().into_owned();
+                dep_lcl_paths.push(dep.lcl_path.clone());
                 new_stmts.push(Stmt::Import { path: lcl_name, span: crate::span::Span::default() });
             } else {
-                // .lcl file: use resolved path and link corresponding .o
                 let lcl_str = dep_path.to_string_lossy().into_owned();
                 new_stmts.push(Stmt::Import { path: lcl_str, span: crate::span::Span::default() });
-                // Also add the .o file for linking (check both same dir and std dir)
                 let o_path = dep_path.with_extension("o");
                 if o_path.exists() {
                     dep_obj_paths.push(o_path);
@@ -131,14 +128,25 @@ pub fn compile_file(
     let hir_program = crate::hir::lower_program(&program)
         .map_err(|e| format!("{}: error: {}", src_path.display(), e))?;
     let mir_program = crate::mir::lower_program(&hir_program);
-    // Borrow check
     for item in &mir_program.items {
         if let crate::mir::ir::MirItem::Fn(f) = item {
             crate::mir::borrow::check_borrows(f)
                 .map_err(|e| format!("{}: borrow error: {}", src_path.display(), e))?;
         }
     }
-    let lir_program = crate::lir::lower_program(&mir_program);
+    let mut lir_program = crate::lir::lower_program(&mir_program);
+
+    // Merge struct definitions from dependency .lcl files into this file's LIR
+    for lcl_path in &dep_lcl_paths {
+        if let Ok((_, _, lir_binary, _)) = crate::package::load_package(&lcl_path.to_string_lossy()) {
+            if let Ok(dep_lir) = crate::lir::serialize::program_from_bytes(&lir_binary) {
+                for (name, fields) in dep_lir.struct_defs {
+                    lir_program.struct_defs.entry(name).or_insert(fields);
+                }
+            }
+        }
+    }
+
     let llvm_ir = crate::lir::emit_program(&lir_program);
 
     // Compute output paths

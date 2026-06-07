@@ -440,11 +440,10 @@ impl<'a> Reader<'a> {
             }
             16 => {
                 let d = self.u64()?;
+                let gt = self.u64()?; // gep_tmp
                 let s = self.value()?; let fi = self.u32()? as usize;
                 let ft = self.ty()?; let st = self.ty()?;
-                // Old FieldStore format (no var_id); discard this path
-                let _ = d; let _ = s; let _ = fi; let _ = ft; let _ = st;
-                return Err("deprecated FieldStore format".into());
+                Ok(FieldAccess { dest: d, gep_tmp: gt, src: s, field_index: fi, field_ty: ft, struct_ty: st })
             }
             17 => {
                 let d = self.u64()?; let at = self.u64()?;
