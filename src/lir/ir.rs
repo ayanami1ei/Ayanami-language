@@ -219,6 +219,7 @@ pub struct LirBlock {
 pub struct LirFn {
     pub fn_id: FnId,
     pub name: Symbol,
+    pub is_inline: bool,
     pub params: Vec<(Symbol, HirType)>,
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,

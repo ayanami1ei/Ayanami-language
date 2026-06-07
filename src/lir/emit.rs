@@ -311,10 +311,11 @@ impl<'a> Emitter<'a> {
             .map(|(_, t)| self.llvm_type(t))
             .collect();
         let param_list = params_str.join(", ");
+        let inline_attr = if f.is_inline { " alwaysinline" } else { "" };
 
         self.wln_fmt(format_args!(
-            "define {} @{}({}) {{",
-            ret_ty, fn_name, param_list
+            "define {} @{}({}){} {{",
+            ret_ty, fn_name, param_list, inline_attr
         ));
         self.indent += 1;
 

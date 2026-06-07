@@ -449,7 +449,7 @@ impl Ctx {
         let mut items = Vec::new();
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, params, return_type, body, .. } => {
+                Stmt::FnDecl { name, params, return_type, body, is_inline, .. } => {
                     let full_name = if ns_prefix.is_empty() {
                         *name
                     } else {
@@ -460,7 +460,7 @@ impl Ctx {
                         .collect();
                     let fn_id = self.find_fn_by_sig(full_name, &ptypes)
                         .ok_or_else(|| format!("internal error: function `{}` not found", full_name))?;
-                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body)?;
+                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline)?;
                     items.push(HirItem::Fn(hir_fn));
                 }
                 Stmt::Namespace { name, items: ns_items, .. } => {
@@ -501,7 +501,7 @@ impl Ctx {
                                 .collect();
                             let fn_id = self.find_fn_by_sig(*name, &ptypes)
                                 .ok_or_else(|| format!("internal error: method `{}` not found", name))?;
-                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body)?;
+                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false)?;
                             items.push(HirItem::Fn(hir_fn));
                         }
                     }
@@ -521,6 +521,7 @@ impl Ctx {
         ast_params: &[(Symbol, Type)],
         _return_type: &Type,
         body: &Block,
+        is_inline: bool,
     ) -> Result<HirFn, String> {
         self.current_fn = fn_id;
         self.locals = Vec::new();
@@ -547,6 +548,7 @@ impl Ctx {
         Ok(HirFn {
             fn_id,
             name,
+            is_inline,
             params: hir_params,
             return_type,
             locals,

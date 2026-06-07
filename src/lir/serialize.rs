@@ -271,6 +271,7 @@ fn put_inst(buf: &mut Vec<u8>, inst: &LirInst) {
 
 fn put_fn(buf: &mut Vec<u8>, f: &LirFn) {
     put_u32(buf, f.fn_id.0 as u32);
+    buf.push(if f.is_inline { 1 } else { 0 });
     put_str(buf, &f.name.as_str());
     put_type(buf, &f.return_type);
     put_u32(buf, f.params.len() as u32);
@@ -487,6 +488,7 @@ impl<'a> Reader<'a> {
     }
     fn read_fn(&mut self) -> Result<LirFn, String> {
         let fid = FnId(self.u32()? as usize);
+        let is_inline = self.read(1)?[0] != 0;
         let name = Symbol::intern(&self.str()?);
         let ret = self.ty()?;
         let pc = self.u32()?;
@@ -509,6 +511,6 @@ impl<'a> Reader<'a> {
             for _ in 0..ic { insts.push(self.inst()?); }
             blocks.push(LirBlock { label, insts });
         }
-        Ok(LirFn { fn_id: fid, name, params, return_type: ret, locals, blocks })
+        Ok(LirFn { fn_id: fid, is_inline, name, params, return_type: ret, locals, blocks })
     }
 }

@@ -151,6 +151,7 @@ fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
     LirFn {
         fn_id: f.fn_id,
         name: f.name,
+        is_inline: f.is_inline,
         params: f.params.clone(),
         return_type: f.return_type.clone(),
         locals: f.locals.clone(),
