@@ -104,6 +104,11 @@ function activate(context) {
                 items.push(makeItem(t, vscode.CompletionItemKind.TypeParameter, 'type'));
             }
 
+            // Operator overloading method completions
+            for (const m of ['add', 'sub', 'mul', 'div', 'rem', 'neg', 'not', 'eq', 'ne', 'lt', 'gt', 'le', 'ge']) {
+                items.push(makeItem(m, vscode.CompletionItemKind.Method, 'operator overload'));
+            }
+
             // Self / true / false
             for (const t of ['self', 'true', 'false']) {
                 items.push(makeItem(t, vscode.CompletionItemKind.Constant, 'keyword'));
@@ -143,6 +148,8 @@ function activate(context) {
                 { label: 'for', insert: 'for ${1:i} in (${2:start}, ${3:end}) {\n    ${4}\n}' },
                 { label: 'namespace', insert: 'namespace ${1:name} {\n    ${2}\n}' },
                 { label: 'import', insert: 'import "${1:path}";' },
+                { label: 'arr sized', insert: 'unique [${1:int}; ${2:10}]' },
+                { label: 'impl add', insert: 'fn add(shared self, shared ${1:Type} other) -> ${1:Type} {\n    ${2}\n}' },
             ];
             for (const s of snippets) {
                 const item = new vscode.CompletionItem(s.label, vscode.CompletionItemKind.Snippet);
