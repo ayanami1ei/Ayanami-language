@@ -1,126 +1,306 @@
 const vscode = require('vscode');
 
 function activate(context) {
+    // ─── Completion Provider ─────────────────────────────────────────
     const provider = vscode.languages.registerCompletionItemProvider('ayanami', {
         provideCompletionItems(document, position) {
             const items = [];
             const linePrefix = document.lineAt(position).text.slice(0, position.character);
-            const isAfterDot = linePrefix.endsWith('.');
-            const isAfterImport = /import\s*"$/.test(linePrefix);
+            const textBefore = document.getText(new vscode.Range(
+                new vscode.Position(Math.max(0, position.line - 30), 0), position
+            ));
 
-            // === Keywords ===
-            const keywords = [
-                { label: 'fn', detail: 'function declaration' },
-                { label: 'return', detail: 'return from function' },
-                { label: 'if', detail: 'if expression' },
-                { label: 'elif', detail: 'else if' },
-                { label: 'else', detail: 'else branch' },
-                { label: 'for', detail: 'for loop' },
-                { label: 'in', detail: 'for loop iterator' },
-                { label: 'while', detail: 'while loop' },
-                { label: 'struct', detail: 'struct definition' },
-                { label: 'interface', detail: 'interface definition' },
-                { label: 'impl', detail: 'implementation block' },
-                { label: 'import', detail: 'import package or file' },
-                { label: 'namespace', detail: 'namespace declaration' },
-                { label: 'pub', detail: 'make public' },
-                { label: 'pub(crate)', detail: 'make crate-public' },
-                { label: 'shared', detail: 'shared ownership (refcount)' },
-                { label: 'unique', detail: 'unique ownership' },
-                { label: 'weak', detail: 'weak reference' },
-                { label: 'move', detail: 'move ownership' },
-                { label: 'clone', detail: 'clone value' },
-                { label: 'self', detail: 'self parameter' },
-                { label: 'true', detail: 'boolean true' },
-                { label: 'false', detail: 'boolean false' },
-                { label: 'int', detail: '64-bit integer type' },
-                { label: 'float', detail: '64-bit float type' },
-                { label: 'char', detail: 'character type' },
-                { label: 'bool', detail: 'boolean type' },
-                { label: 'void', detail: 'void type' },
-                { label: 'mut', detail: 'mutable variable' },
-            ];
-            for (const kw of keywords) {
-                const item = new vscode.CompletionItem(kw.label, vscode.CompletionItemKind.Keyword);
-                item.detail = kw.detail;
-                items.push(item);
+            // ── Detect context ──
+            const dotMatch = linePrefix.match(/(\w+)\.$/);
+            const nsMatch = linePrefix.match(/(\w+)::$/);
+            const afterArrow = linePrefix.match(/->\s*$/);
+            const afterColon = linePrefix.match(/:\s*$/);
+
+            // ── Scan document for structs, namespaces, functions, variables ──
+            const structs = scanStructs(document);
+            const namespaces = scanNamespaces(document);
+            const functions = scanFunctions(document);
+            const fnByNs = groupByNamespace(functions);
+            const vars = scanVariables(document);
+
+            // ── After `.`: struct field completions ──
+            if (dotMatch) {
+                const typeName = dotMatch[1];
+                const fields = getStructFields(document, typeName);
+                for (const f of fields) {
+                    items.push(makeItem(f, vscode.CompletionItemKind.Field, 'struct field'));
+                }
+                // Also suggest common methods
+                for (const m of ['get_x', 'get_y', 'to_string']) {
+                    items.push(makeItem(m, vscode.CompletionItemKind.Method, 'method (common)'));
+                }
+                return items;
             }
 
-            // === Snippets ===
+            // ── After `::`: namespace member completions ──
+            if (nsMatch) {
+                const nsName = nsMatch[1];
+                const members = fnByNs[nsName] || [];
+                for (const m of members) {
+                    items.push(makeItem(m, vscode.CompletionItemKind.Function, 'namespace function'));
+                }
+                // Sub-namespaces
+                for (const ns of namespaces) {
+                    if (ns.startsWith(nsName + '.')) {
+                        const sub = ns.slice(nsName.length + 1);
+                        items.push(makeItem(sub, vscode.CompletionItemKind.Module, 'namespace'));
+                    }
+                }
+                return items;
+            }
+
+            // ── After `->`: type completions ──
+            if (afterArrow) {
+                for (const t of ['int', 'float', 'char', 'bool', 'void']) {
+                    items.push(makeItem(t, vscode.CompletionItemKind.TypeParameter, 'return type'));
+                }
+                for (const s of structs) {
+                    items.push(makeItem(s.name, vscode.CompletionItemKind.Struct, 'struct'));
+                }
+                return items;
+            }
+
+            // ── General context: keywords + variables + types ──
+            const keywords = [
+                { label: 'fn', kind: vscode.CompletionItemKind.Keyword, detail: 'function declaration' },
+                { label: 'return', kind: vscode.CompletionItemKind.Keyword, detail: 'return from function' },
+                { label: 'if', kind: vscode.CompletionItemKind.Keyword, detail: 'if expression' },
+                { label: 'elif', kind: vscode.CompletionItemKind.Keyword, detail: 'else if' },
+                { label: 'else', kind: vscode.CompletionItemKind.Keyword, detail: 'else branch' },
+                { label: 'for', kind: vscode.CompletionItemKind.Keyword, detail: 'for loop' },
+                { label: 'in', kind: vscode.CompletionItemKind.Keyword, detail: 'for iterator' },
+                { label: 'while', kind: vscode.CompletionItemKind.Keyword, detail: 'while loop' },
+                { label: 'struct', kind: vscode.CompletionItemKind.Keyword, detail: 'struct definition' },
+                { label: 'interface', kind: vscode.CompletionItemKind.Keyword, detail: 'interface' },
+                { label: 'impl', kind: vscode.CompletionItemKind.Keyword, detail: 'impl block' },
+                { label: 'import', kind: vscode.CompletionItemKind.Keyword, detail: 'import' },
+                { label: 'namespace', kind: vscode.CompletionItemKind.Keyword, detail: 'namespace' },
+                { label: 'pub', kind: vscode.CompletionItemKind.Keyword, detail: 'make public' },
+                { label: 'pub(crate)', kind: vscode.CompletionItemKind.Keyword, detail: 'crate-public' },
+                { label: 'shared', kind: vscode.CompletionItemKind.Keyword, detail: 'shared ownership' },
+                { label: 'unique', kind: vscode.CompletionItemKind.Keyword, detail: 'unique ownership' },
+                { label: 'weak', kind: vscode.CompletionItemKind.Keyword, detail: 'weak reference' },
+                { label: 'move', kind: vscode.CompletionItemKind.Keyword, detail: 'move ownership' },
+                { label: 'clone', kind: vscode.CompletionItemKind.Keyword, detail: 'clone value' },
+            ];
+            for (const kw of keywords) {
+                items.push(new vscode.CompletionItem(kw.label, kw.kind));
+            }
+
+            // Type keywords
+            for (const t of ['int', 'float', 'char', 'bool', 'void']) {
+                items.push(makeItem(t, vscode.CompletionItemKind.TypeParameter, 'type'));
+            }
+
+            // Self / true / false
+            for (const t of ['self', 'true', 'false']) {
+                items.push(makeItem(t, vscode.CompletionItemKind.Constant, 'keyword'));
+            }
+
+            // Struct names as types
+            for (const s of structs) {
+                items.push(makeItem(s.name, vscode.CompletionItemKind.Struct, 'struct'));
+            }
+
+            // Namespace names (for `::` access)
+            for (const ns of namespaces) {
+                items.push(makeItem(ns, vscode.CompletionItemKind.Module, 'namespace'));
+            }
+
+            // Variables from current file
+            for (const v of vars) {
+                items.push(makeItem(v, vscode.CompletionItemKind.Variable, 'variable'));
+            }
+
+            // Functions as callable completions
+            for (const f of functions) {
+                items.push(makeItem(f, vscode.CompletionItemKind.Function, 'function'));
+            }
+
+            // ── Snippets ──
             const snippets = [
-                {
-                    label: 'fn main',
-                    detail: 'main function',
-                    insertText: new vscode.SnippetString('fn main() -> int {\n    ${1:return 0;}\n}'),
-                },
-                {
-                    label: 'fn',
-                    detail: 'function with return type',
-                    insertText: new vscode.SnippetString('fn ${1:name}(${2:int param}) -> ${3:int} {\n    ${4}\n}'),
-                },
-                {
-                    label: 'struct',
-                    detail: 'struct definition',
-                    insertText: new vscode.SnippetString('struct ${1:Name} {\n    ${2:int field}\n}'),
-                },
-                {
-                    label: 'interface',
-                    detail: 'interface definition',
-                    insertText: new vscode.SnippetString('interface ${1:Name} {\n    fn ${2:method}(shared self) -> ${3:int};\n}'),
-                },
-                {
-                    label: 'impl',
-                    detail: 'implementation block',
-                    insertText: new vscode.SnippetString('impl ${1:Type} {\n    fn ${2:method}(${3:shared self}) -> ${4:int} {\n        ${5}\n    }\n}'),
-                },
-                {
-                    label: 'if',
-                    detail: 'if expression',
-                    insertText: new vscode.SnippetString('if ${1:condition} {\n    ${2}\n}'),
-                },
-                {
-                    label: 'ifelse',
-                    detail: 'if-else expression',
-                    insertText: new vscode.SnippetString('if ${1:condition} {\n    ${2}\n} else {\n    ${3}\n}'),
-                },
-                {
-                    label: 'elif',
-                    detail: 'else-if chain',
-                    insertText: new vscode.SnippetString('if ${1:cond1} {\n    ${2}\n} elif ${3:cond2} {\n    ${4}\n} else {\n    ${5}\n}'),
-                },
-                {
-                    label: 'while',
-                    detail: 'while loop',
-                    insertText: new vscode.SnippetString('while ${1:condition} {\n    ${2}\n}'),
-                },
-                {
-                    label: 'for',
-                    detail: 'for loop',
-                    insertText: new vscode.SnippetString('for ${1:i} in (${2:start}, ${3:end}) {\n    ${4}\n}'),
-                },
-                {
-                    label: 'namespace',
-                    detail: 'namespace',
-                    insertText: new vscode.SnippetString('namespace ${1:name} {\n    ${2}\n}'),
-                },
-                {
-                    label: 'import',
-                    detail: 'import package or file',
-                    insertText: new vscode.SnippetString('import "${1:path}";'),
-                },
+                { label: 'fn main', insert: 'fn main() -> int {\n    ${1:return 0;}\n}' },
+                { label: 'fn', insert: 'fn ${1:name}(${2:int param}) -> ${3:int} {\n    ${4}\n}' },
+                { label: 'struct', insert: 'struct ${1:Name} {\n    ${2:int field}\n}' },
+                { label: 'interface', insert: 'interface ${1:Name} {\n    fn ${2:method}(shared self) -> ${3:int};\n}' },
+                { label: 'impl', insert: 'impl ${1:Type} {\n    fn ${2:method}(${3:shared self}) -> ${4:int} {\n        ${5}\n    }\n}' },
+                { label: 'if', insert: 'if ${1:condition} {\n    ${2}\n}' },
+                { label: 'ifelse', insert: 'if ${1:condition} {\n    ${2}\n} else {\n    ${3}\n}' },
+                { label: 'elif', insert: 'if ${1:c1} {\n    ${2}\n} elif ${3:c2} {\n    ${4}\n} else {\n    ${5}\n}' },
+                { label: 'while', insert: 'while ${1:condition} {\n    ${2}\n}' },
+                { label: 'for', insert: 'for ${1:i} in (${2:start}, ${3:end}) {\n    ${4}\n}' },
+                { label: 'namespace', insert: 'namespace ${1:name} {\n    ${2}\n}' },
+                { label: 'import', insert: 'import "${1:path}";' },
             ];
             for (const s of snippets) {
                 const item = new vscode.CompletionItem(s.label, vscode.CompletionItemKind.Snippet);
-                item.detail = s.detail;
-                item.insertText = s.insertText;
+                item.insertText = new vscode.SnippetString(s.insert);
                 items.push(item);
             }
 
             return items;
         },
-    }, ...'abcdefghijklmnopqrstuvwxyz_'); // trigger characters
+    }, '.', ':', ...'abcdefghijklmnopqrstuvwxyz_'); // trigger on . and : too
 
     context.subscriptions.push(provider);
+
+    // ─── Diagnostic Provider (basic check on save) ──────────────────
+    const diagCollection = vscode.languages.createDiagnosticCollection('ayanami');
+    context.subscriptions.push(diagCollection);
+
+    context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(doc => {
+        if (doc.languageId !== 'ayanami') return;
+        diagCollection.clear();
+        const diagnostics = [];
+        const text = doc.getText();
+        const lines = text.split('\n');
+
+        // Basic checks
+        let braceDepth = 0;
+        let parenDepth = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const lineNum = i;
+
+            // Check for unmatched braces
+            for (const ch of line) {
+                if (ch === '{') braceDepth++;
+                if (ch === '}') braceDepth--;
+                if (ch === '(') parenDepth++;
+                if (ch === ')') parenDepth--;
+            }
+
+            // Check for unterminated string literals
+            let inString = false;
+            for (let j = 0; j < line.length; j++) {
+                if (line[j] === '"' && (j === 0 || line[j-1] !== '\\')) {
+                    inString = !inString;
+                }
+            }
+            if (inString) {
+                const range = new vscode.Range(lineNum, 0, lineNum, line.length);
+                diagnostics.push(new vscode.Diagnostic(range, 'Unterminated string literal', vscode.DiagnosticSeverity.Error));
+            }
+        }
+
+        if (braceDepth > 0) {
+            const range = new vscode.Range(0, 0, 0, 5);
+            diagnostics.push(new vscode.Diagnostic(range, `${braceDepth} unclosed brace(s)`, vscode.DiagnosticSeverity.Warning));
+        }
+        if (braceDepth < 0) {
+            const range = new vscode.Range(0, 0, 0, 5);
+            diagnostics.push(new vscode.Diagnostic(range, `${-braceDepth} extra closing brace(s)`, vscode.DiagnosticSeverity.Error));
+        }
+        if (parenDepth !== 0) {
+            const range = new vscode.Range(0, 0, 0, 5);
+            diagnostics.push(new vscode.Diagnostic(range, `Unmatched parentheses`, vscode.DiagnosticSeverity.Error));
+        }
+
+        diagCollection.set(doc.uri, diagnostics);
+    }));
+}
+
+// ─── Helper: scan struct definitions ─────────────────────────────────
+function scanStructs(doc) {
+    const structs = [];
+    const text = doc.getText();
+    const re = /struct\s+(\w+)\s*\{/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        structs.push({ name: m[1], line: m.index });
+    }
+    return structs;
+}
+
+// ─── Helper: scan namespace definitions ─────────────────────────────
+function scanNamespaces(doc) {
+    const nss = [];
+    const text = doc.getText();
+    const re = /namespace\s+(\w+)\s*\{/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        nss.push(m[1]);
+    }
+    return nss;
+}
+
+// ─── Helper: scan function signatures ────────────────────────────────
+function scanFunctions(doc) {
+    const fns = [];
+    const text = doc.getText();
+    const re = /(?:pub\s+)?fn\s+(\w+)\s*\(/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        fns.push(m[1]);
+    }
+    return fns;
+}
+
+// ─── Helper: group functions by namespace ────────────────────────────
+function groupByNamespace(fns) {
+    const groups = {};
+    for (const f of fns) {
+        const parts = f.split('.');
+        if (parts.length > 1) {
+            const ns = parts.slice(0, -1).join('.');
+            const name = parts[parts.length - 1];
+            if (!groups[ns]) groups[ns] = [];
+            groups[ns].push(name);
+        }
+    }
+    return groups;
+}
+
+// ─── Helper: scan variable assignments ──────────────────────────────
+function scanVariables(doc) {
+    const vars = new Set();
+    const text = doc.getText();
+    // Match:  name =  or  for name in
+    const re = /(?:(?:for\s+(\w+)\s+in)|(?:(\w+)\s*=(?!=)))/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        if (m[1]) vars.add(m[1]);
+        if (m[2]) vars.add(m[2]);
+    }
+    // Match function params:  type name, type name)
+    const re2 = /(\w+)\s+(\w+)(?=[,)]|\s*->)/g;
+    while ((m = re2.exec(text)) !== null) {
+        const typeName = m[1];
+        const paramName = m[2];
+        // Skip if first word is a type keyword
+        if (!['int', 'float', 'char', 'bool', 'void', 'shared', 'unique', 'weak'].includes(typeName)) continue;
+        vars.add(paramName);
+    }
+    return [...vars];
+}
+
+// ─── Helper: get struct fields ──────────────────────────────────────
+function getStructFields(doc, typeName) {
+    const text = doc.getText();
+    // Find struct definition
+    const re = new RegExp('struct\\s+' + typeName + '\\s*\\{([^}]*)\\}', 'm');
+    const m = re.exec(text);
+    if (!m) return [];
+    const body = m[1];
+    const fields = [];
+    const re2 = /(\w+)\s+(\w+)/g;
+    let fm;
+    while ((fm = re2.exec(body)) !== null) {
+        fields.push(fm[2]); // field name
+    }
+    return fields;
+}
+
+// ─── Helper: create completion item ─────────────────────────────────
+function makeItem(label, kind, detail) {
+    const item = new vscode.CompletionItem(label, kind);
+    item.detail = detail;
+    return item;
 }
 
 function deactivate() {}
