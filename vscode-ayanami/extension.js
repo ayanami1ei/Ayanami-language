@@ -163,7 +163,7 @@ function activate(context) {
 
     context.subscriptions.push(provider);
 
-    // ─── Diagnostic Provider (basic check on save) ──────────────────
+    // ─── Diagnostic Provider (compiler check on save) ────────────────
     const diagCollection = vscode.languages.createDiagnosticCollection('ayanami');
     context.subscriptions.push(diagCollection);
 
@@ -171,48 +171,69 @@ function activate(context) {
         if (doc.languageId !== 'ayanami') return;
         diagCollection.clear();
         const diagnostics = [];
-        const text = doc.getText();
-        const lines = text.split('\n');
+        const fs = require('fs');
+        const path = require('path');
 
-        // Basic checks
-        let braceDepth = 0;
-        let parenDepth = 0;
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const lineNum = i;
+        // Try to find ayanami binary: next to VSIX, or in PATH
+        let ayanamiPath = 'ayanami';
+        // Check common locations relative to the extension
+        const extDir = context.extensionUri ? context.extensionUri.fsPath : null;
+        if (extDir) {
+            const candidates = [
+                path.join(extDir, '..', '..', '..', 'build', 'ayanami'),
+                path.join(extDir, '..', '..', 'target', 'release', 'ayanami'),
+                path.join(extDir, '..', '..', 'target', 'debug', 'ayanami'),
+            ];
+            for (const c of candidates) {
+                if (fs.existsSync(c)) { ayanamiPath = c; break; }
+            }
+        }
 
-            // Check for unmatched braces
-            for (const ch of line) {
+        const { execSync } = require('child_process');
+        try {
+            const stderr = execSync(`"${ayanamiPath}" check "${doc.uri.fsPath}" 2>&1`, {
+                timeout: 10000,
+                cwd: path.dirname(doc.uri.fsPath),
+            }).toString();
+        } catch (e) {
+            // Parse error output: "error: ..." or "Parse error in file:line:col: ..."
+            const errMsg = e.stderr ? e.stderr.toString() : e.message;
+            const lines = errMsg.split('\n');
+            for (const line of lines) {
+                // Try to extract line number from error messages
+                const lineMatch = line.match(/(?:at |:)(\d+):(\d+)/);
+                const msgMatch = line.match(/(?:error|failed|Parse error in [^:]+):\s*(.+)/);
+                let msg = msgMatch ? msgMatch[1] : line;
+                if (!msg || msg.trim() === '') continue;
+
+                let range;
+                if (lineMatch) {
+                    const l = Math.max(0, parseInt(lineMatch[1]) - 1);
+                    const c = Math.max(0, parseInt(lineMatch[2]) - 1);
+                    range = new vscode.Range(l, c, l, c + 10);
+                } else {
+                    range = new vscode.Range(0, 0, 0, 5);
+                }
+                diagnostics.push(new vscode.Diagnostic(range, msg, vscode.DiagnosticSeverity.Error));
+            }
+        }
+
+        // If no compiler errors, do basic syntax checks as fallback
+        if (diagnostics.length === 0) {
+            const text = doc.getText();
+            let braceDepth = 0;
+            for (const ch of text) {
                 if (ch === '{') braceDepth++;
                 if (ch === '}') braceDepth--;
-                if (ch === '(') parenDepth++;
-                if (ch === ')') parenDepth--;
             }
-
-            // Check for unterminated string literals
-            let inString = false;
-            for (let j = 0; j < line.length; j++) {
-                if (line[j] === '"' && (j === 0 || line[j-1] !== '\\')) {
-                    inString = !inString;
-                }
+            if (braceDepth > 0) {
+                diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 5),
+                    `${braceDepth} unclosed brace(s)`, vscode.DiagnosticSeverity.Warning));
             }
-            if (inString) {
-                const range = new vscode.Range(lineNum, 0, lineNum, line.length);
-                diagnostics.push(new vscode.Diagnostic(range, 'Unterminated string literal', vscode.DiagnosticSeverity.Error));
+            if (braceDepth < 0) {
+                diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 5),
+                    `${-braceDepth} extra closing brace(s)`, vscode.DiagnosticSeverity.Error));
             }
-        }
-
-        if (braceDepth > 0) {
-            const range = new vscode.Range(0, 0, 0, 5);
-            diagnostics.push(new vscode.Diagnostic(range, `${braceDepth} unclosed brace(s)`, vscode.DiagnosticSeverity.Warning));
-        }
-        if (braceDepth < 0) {
-            const range = new vscode.Range(0, 0, 0, 5);
-            diagnostics.push(new vscode.Diagnostic(range, `${-braceDepth} extra closing brace(s)`, vscode.DiagnosticSeverity.Error));
-        }
-        if (parenDepth !== 0) {
-            const range = new vscode.Range(0, 0, 0, 5);
-            diagnostics.push(new vscode.Diagnostic(range, `Unmatched parentheses`, vscode.DiagnosticSeverity.Error));
         }
 
         diagCollection.set(doc.uri, diagnostics);
