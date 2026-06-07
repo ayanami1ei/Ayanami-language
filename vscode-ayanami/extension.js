@@ -16,10 +16,17 @@ function activate(context) {
             const afterArrow = linePrefix.match(/->\s*$/);
             const afterColon = linePrefix.match(/:\s*$/);
 
-            // ── Scan document for structs, namespaces, functions, variables ──
-            const structs = scanStructs(document);
-            const namespaces = scanNamespaces(document);
-            const functions = scanFunctions(document);
+            // ── Scan documents (current + imported) for symbols ──
+            const folder = document.uri.scheme === 'file' ? require('path').dirname(document.uri.fsPath) : null;
+            const imported = folder ? resolveImports(document, folder) : { structs: [], namespaces: [], functions: [] };
+
+            const localStructs = scanStructs(document);
+            const localNss = scanNamespaces(document);
+            const localFns = scanFunctions(document);
+
+            const structs = [...localStructs, ...imported.structs];
+            const namespaces = [...new Set([...localNss, ...imported.namespaces])];
+            const functions = [...localFns, ...imported.functions];
             const fnByNs = groupByNamespace(functions);
             const vars = scanVariables(document);
 
@@ -277,6 +284,57 @@ function scanVariables(doc) {
         vars.add(paramName);
     }
     return [...vars];
+}
+
+// ─── Helper: resolve imported .aya files ─────────────────────────────
+function resolveImports(doc, folder) {
+    const fs = require('fs');
+    const path = require('path');
+    const result = { structs: [], namespaces: [], functions: [] };
+    const text = doc.getText();
+    const re = /import\s+"([^"]+\.aya)"/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const importPath = m[1];
+        // Try relative to current file's directory
+        const fullPath = path.resolve(folder, importPath);
+        try {
+            const content = fs.readFileSync(fullPath, 'utf8');
+            const structs = scanStructsRaw(content);
+            for (const s of structs) result.structs.push(s);
+            const nss = scanNamespacesRaw(content);
+            for (const ns of nss) result.namespaces.push(ns);
+            const fns = scanFunctionsRaw(content);
+            for (const f of fns) result.functions.push(f);
+        } catch (e) {
+            // File not found, skip
+        }
+    }
+    return result;
+}
+
+function scanStructsRaw(text) {
+    const structs = [];
+    const re = /struct\s+(\w+)\s*\{/g;
+    let m;
+    while ((m = re.exec(text)) !== null) structs.push({ name: m[1], line: m.index });
+    return structs;
+}
+
+function scanNamespacesRaw(text) {
+    const nss = [];
+    const re = /namespace\s+(\w+)\s*\{/g;
+    let m;
+    while ((m = re.exec(text)) !== null) nss.push(m[1]);
+    return nss;
+}
+
+function scanFunctionsRaw(text) {
+    const fns = [];
+    const re = /(?:pub\s+)?fn\s+(\w+)\s*\(/g;
+    let m;
+    while ((m = re.exec(text)) !== null) fns.push(m[1]);
+    return fns;
 }
 
 // ─── Helper: get struct fields ──────────────────────────────────────
