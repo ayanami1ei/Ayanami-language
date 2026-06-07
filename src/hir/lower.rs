@@ -899,7 +899,7 @@ impl Ctx {
                 let ty = self.fns[fn_id.0].return_type.clone();
                 Ok(HirExpr::Call { fn_id, args: hir_args, ty })
             }
-            Expr::MethodCall { object, method, args, .. } => {
+            Expr::MethodCall { object, method, args, span } => {
                 // Lower the receiver first
                 let receiver = self.lower_expr(object)?;
                 let receiver_ty = expr_type(&receiver);
@@ -934,7 +934,7 @@ impl Ctx {
 
                 // Static dispatch: find method by receiver type
                 let fn_id = self.resolve_method(&receiver_ty, method, &arg_types)
-                    .ok_or_else(|| format!("no method `{}` found for type {:?}", method, receiver_ty))?;
+                    .ok_or_else(|| format!("no method `{}` found for type {:?} at {}:{}", method, receiver_ty, span.start_line, span.start_col))?;
 
                 // Apply implicit moves and ownership conversions on all args (including receiver)
                 let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
