@@ -174,51 +174,49 @@ function activate(context) {
         const fs = require('fs');
         const path = require('path');
 
-        // Try to find ayanami binary: next to VSIX, or in PATH
-        let ayanamiPath = 'ayanami';
-        // Check common locations relative to the extension
-        const extDir = context.extensionUri ? context.extensionUri.fsPath : null;
-        if (extDir) {
-            const candidates = [
-                path.join(extDir, '..', '..', '..', 'build', 'ayanami'),
-                path.join(extDir, '..', '..', 'target', 'release', 'ayanami'),
-                path.join(extDir, '..', '..', 'target', 'debug', 'ayanami'),
-            ];
-            for (const c of candidates) {
-                if (fs.existsSync(c)) { ayanamiPath = c; break; }
-            }
+        // Find ayanami compiler: check common project-relative locations
+        let ayanamiPath = findAyanamiPath(context);
+        if (!ayanamiPath) {
+            diagnostics.push(new vscode.Diagnostic(
+                new vscode.Range(0, 0, 0, 5),
+                'ayanami compiler not found (set PATH or place in build/)',
+                vscode.DiagnosticSeverity.Warning));
+            diagCollection.set(doc.uri, diagnostics);
+            return;
         }
 
         const { execSync } = require('child_process');
         try {
-            const stderr = execSync(`"${ayanamiPath}" check "${doc.uri.fsPath}" 2>&1`, {
+            // Run check, do NOT redirect stderr so execSync captures it on error
+            execSync(`"${ayanamiPath}" check "${doc.uri.fsPath}"`, {
                 timeout: 10000,
                 cwd: path.dirname(doc.uri.fsPath),
-            }).toString();
+                stdio: ['pipe', 'pipe', 'pipe'],
+            });
         } catch (e) {
-            // Parse error output: "error: ..." or "Parse error in file:line:col: ..."
-            const errMsg = e.stderr ? e.stderr.toString() : e.message;
-            const lines = errMsg.split('\n');
+            // execSync throws on non-zero; output is in e.stdout or e.stderr
+            const out = (e.stdout || '').toString() + (e.stderr || '').toString();
+            const lines = out.split('\n');
             for (const line of lines) {
-                // Try to extract line number from error messages
-                const lineMatch = line.match(/(?:at |:)(\d+):(\d+)/);
-                const msgMatch = line.match(/(?:error|failed|Parse error in [^:]+):\s*(.+)/);
-                let msg = msgMatch ? msgMatch[1] : line;
-                if (!msg || msg.trim() === '') continue;
+                if (!line.trim()) continue;
+                // Parse compiler error lines
+                const lineCol = line.match(/(\d+):(\d+)/);
+                const msgOnly = line.replace(/^(error|failed|Parse error[^:]*):\s*/i, '').trim();
+                if (!msgOnly) continue;
 
                 let range;
-                if (lineMatch) {
-                    const l = Math.max(0, parseInt(lineMatch[1]) - 1);
-                    const c = Math.max(0, parseInt(lineMatch[2]) - 1);
-                    range = new vscode.Range(l, c, l, c + 10);
+                if (lineCol) {
+                    const l = Math.max(0, parseInt(lineCol[1]) - 1);
+                    const c = Math.max(0, parseInt(lineCol[2]) - 1);
+                    range = new vscode.Range(l, 0, l, 1000);
                 } else {
                     range = new vscode.Range(0, 0, 0, 5);
                 }
-                diagnostics.push(new vscode.Diagnostic(range, msg, vscode.DiagnosticSeverity.Error));
+                diagnostics.push(new vscode.Diagnostic(range, msgOnly, vscode.DiagnosticSeverity.Error));
             }
         }
 
-        // If no compiler errors, do basic syntax checks as fallback
+        // Fallback: basic syntax check
         if (diagnostics.length === 0) {
             const text = doc.getText();
             let braceDepth = 0;
@@ -226,18 +224,45 @@ function activate(context) {
                 if (ch === '{') braceDepth++;
                 if (ch === '}') braceDepth--;
             }
-            if (braceDepth > 0) {
+            if (braceDepth !== 0) {
                 diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 5),
-                    `${braceDepth} unclosed brace(s)`, vscode.DiagnosticSeverity.Warning));
-            }
-            if (braceDepth < 0) {
-                diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 5),
-                    `${-braceDepth} extra closing brace(s)`, vscode.DiagnosticSeverity.Error));
+                    `${Math.abs(braceDepth)} un matched brace(s)`, vscode.DiagnosticSeverity.Warning));
             }
         }
 
         diagCollection.set(doc.uri, diagnostics);
     }));
+}
+
+function findAyanamiPath(context) {
+    const fs = require('fs');
+    const path = require('path');
+    // 1. Check PATH
+    try {
+        const { execSync } = require('child_process');
+        const result = execSync('which ayanami', { timeout: 2000 }).toString().trim();
+        if (result && fs.existsSync(result)) return result;
+    } catch (_) {}
+
+    // 2. Check relative to extension dir (when installed from VSIX)
+    const extDir = context.extensionUri ? context.extensionUri.fsPath : null;
+    if (extDir) {
+        // Walk up to find project root (where build/ or target/ is)
+        let dir = path.dirname(extDir);
+        for (let i = 0; i < 10; i++) {
+            const buildPath = path.join(dir, 'build', 'ayanami');
+            if (fs.existsSync(buildPath)) return buildPath;
+            const releasePath = path.join(dir, 'target', 'release', 'ayanami');
+            if (fs.existsSync(releasePath)) return releasePath;
+            const debugPath = path.join(dir, 'target', 'debug', 'ayanami');
+            if (fs.existsSync(debugPath)) return debugPath;
+            const parent = path.dirname(dir);
+            if (parent === dir) break;
+            dir = parent;
+        }
+    }
+    return null;
+}
 }
 
 // ─── Helper: scan struct definitions ─────────────────────────────────
