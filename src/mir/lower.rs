@@ -386,6 +386,8 @@ impl Ctx {
 
         let mir_value = match value {
             Some(v) => {
+                // Track moves inside the return expression (e.g., Move inside Call args)
+                self.track_expr_moves(v);
                 match v {
                     HirExpr::Move(inner, _) => {
                         if let Some(var) = extract_var_id(inner) {

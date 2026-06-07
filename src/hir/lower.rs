@@ -431,6 +431,16 @@ impl Ctx {
     /// Check if a receiver type matches a method's self param type (allowing Shared auto-wrap)
     fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool {
         if receiver == param { return true; }
+        // Check inner types match (allowing ownership wrapper mismatch)
+        let recv_inner = match receiver {
+            HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
+            other => other,
+        };
+        let param_inner = match param {
+            HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
+            other => other,
+        };
+        if recv_inner == param_inner { return true; }
         // Allow passing plain T to shared/unique self (auto-wrap)
         match param {
             HirType::Shared(inner) | HirType::Unique(inner) => {
@@ -507,6 +517,40 @@ impl Ctx {
                     "cannot infer generic parameter `{}` for function `{}` at {}:{}",
                     gp_name, gf_name, span.start_line, span.start_col
                 ));
+            }
+        }
+
+        // Step 1.5: Check interface constraints
+        for (gp_name, constraint) in gf_params {
+            if let Some(iface_name) = constraint {
+                let concrete_ty = generic_mappings.get(gp_name)
+                    .ok_or_else(|| format!("internal error: generic param `{}` not resolved", gp_name))?;
+                let concrete_inner = strip_ownership_ref(concrete_ty);
+                let concrete_type_name = match concrete_inner {
+                    HirType::Named(n) => *n,
+                    HirType::Int => Symbol::intern("int"),
+                    HirType::Float => Symbol::intern("float"),
+                    HirType::Char => Symbol::intern("char"),
+                    HirType::Bool => Symbol::intern("bool"),
+                    HirType::Array(_) => Symbol::intern("[int]"), // simplified
+                    _ => return Err(format!(
+                        "type `{}` does not satisfy interface `{}` for generic parameter `{}` at {}:{}",
+                        hir_type_display(concrete_ty), iface_name, gp_name,
+                        span.start_line, span.start_col
+                    )),
+                };
+                let implements = self.type_ifaces.get(&concrete_type_name)
+                    .map(|ifaces| ifaces.contains(iface_name))
+                    .unwrap_or(false);
+                if !implements {
+                    // Also check if there's an impl block with matching methods
+                    // For now, report the error
+                    return Err(format!(
+                        "type `{}` does not implement interface `{}` required by generic parameter `{}` at {}:{}",
+                        hir_type_display(concrete_ty), iface_name, gp_name,
+                        span.start_line, span.start_col
+                    ));
+                }
             }
         }
 
