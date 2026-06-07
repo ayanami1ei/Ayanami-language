@@ -1,3 +1,5 @@
+pub mod config;
+
 use crate::parser::ast::{Stmt, Type};
 
 /// What kind of artifact this package can produce.

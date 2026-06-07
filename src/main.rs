@@ -107,7 +107,7 @@ fn cmd_new(args: &[String]) {
     });
     let toml = dir.join("ayanami.toml");
     fs::write(&toml, format!(
-        "[package]\nname = \"{}\"\nversion = \"0.1.0\"\n\n[build]\ntarget = \"executable\"\n",
+        "[package]\nname = \"{}\"\nversion = \"0.1.0\"\n\n[build]\ntarget = \"executable\"\n\n[build.targets]\n# \"src/utils.aya\" = \"static-lib\"\n# \"src/plugin.aya\" = \"dynamic-lib\"\n",
         name
     )).unwrap_or_else(|e| {
         eprintln!("error: failed to write ayanami.toml: {}", e);
@@ -160,9 +160,27 @@ fn cmd_install(args: &[String]) {
     }
 }
 
+/// Load project config from current or parent directory.
+fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)> {
+    let cwd = std::env::current_dir().ok()?;
+    if let Some((proj_dir, toml_str)) = find_project(&cwd) {
+        Some((proj_dir, ayanami::package::config::ProjectConfig::load(&toml_str)))
+    } else {
+        None
+    }
+}
+
 fn cmd_build(args: &[String]) {
     let path = resolve_path(args.first().map(|s| s.as_str()));
     let path_str = path.to_string_lossy().into_owned();
+
+    // Load project config for per-file target overrides
+    let _file_target = load_config()
+        .map(|(_, cfg)| cfg.resolve_target(&path).to_string())
+        .unwrap_or_else(|| {
+            if path_str.ends_with("main.aya") { "executable".into() } else { "static-lib".into() }
+        });
+
     let code = match fs::read_to_string(&path) {
         Ok(c) => c, Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
@@ -175,6 +193,11 @@ fn cmd_build(args: &[String]) {
 fn cmd_run(args: &[String]) {
     let path = resolve_path(args.first().map(|s| s.as_str()));
     let path_str = path.to_string_lossy().into_owned();
+
+    let _file_target = load_config()
+        .map(|(_, cfg)| cfg.resolve_target(&path).to_string())
+        .unwrap_or_else(|| "executable".into());
+
     let code = match fs::read_to_string(&path) {
         Ok(c) => c, Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
