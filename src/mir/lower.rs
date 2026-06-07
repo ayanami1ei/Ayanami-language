@@ -277,8 +277,48 @@ impl Ctx {
                 self.lower_if(cond, then_block, elifs, else_block)
             }
             HirStmt::While { cond, body } => self.lower_while(cond, body),
-            HirStmt::Expr(expr) => vec![MirStmt::Expr(mir_expr_from_hir(expr, &self.moved))],
+            HirStmt::Expr(expr) => {
+                // Track moves inside expression (e.g., Move inside Call args)
+                self.track_expr_moves(expr);
+                vec![MirStmt::Expr(mir_expr_from_hir(expr, &self.moved))]
+            },
             HirStmt::Block(stmts) => self.lower_block(stmts),
+        }
+    }
+
+    /// Walk an expression tree and mark any Move(Local(v)) as moved.
+    fn track_expr_moves(&mut self, expr: &HirExpr) {
+        match expr {
+            HirExpr::Move(inner, _) => {
+                if let HirExpr::Local(id, _) = inner.as_ref() {
+                    self.moved.insert(*id);
+                }
+            }
+            HirExpr::Call { args, .. } => {
+                for a in args { self.track_expr_moves(a); }
+            }
+            HirExpr::VirtualCall { receiver, args, .. } => {
+                self.track_expr_moves(receiver);
+                for a in args { self.track_expr_moves(a); }
+            }
+            HirExpr::Binary { lhs, rhs, .. } => {
+                self.track_expr_moves(lhs);
+                self.track_expr_moves(rhs);
+            }
+            HirExpr::Unary { arg, .. } => self.track_expr_moves(arg),
+            HirExpr::ToUnique(inner, _) | HirExpr::ToShared(inner, _) | HirExpr::ToWeak(inner, _) => {
+                self.track_expr_moves(inner);
+            }
+            HirExpr::FieldAccess { object, .. } | HirExpr::Index { object, .. } => {
+                self.track_expr_moves(object);
+            }
+            HirExpr::StructLiteral { fields, .. } => {
+                for (_, e) in fields { self.track_expr_moves(e); }
+            }
+            HirExpr::ArrayLiteral(elems, _) => {
+                for e in elems { self.track_expr_moves(e); }
+            }
+            _ => {}
         }
     }
 
