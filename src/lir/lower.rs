@@ -26,6 +26,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         .items
         .iter()
         .flat_map(|item| lower_items(item, &str_map))
+        .filter(|f| !(f.extern_c && f.blocks.is_empty()))
         .collect();
 
     let vtables: Vec<VtableDesc> = mir.vtables.iter().map(|ve| {
@@ -125,6 +126,20 @@ fn lower_items(item: &MirItem, str_map: &HashMap<String, u64>) -> Vec<LirFn> {
 
 fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
     let mut ctx = LowerCtx::new(str_map);
+
+    // Extern declarations have no body — return early
+    if f.extern_c && f.body.is_empty() {
+        return LirFn {
+            fn_id: f.fn_id,
+            name: f.name,
+            is_inline: f.is_inline,
+            extern_c: f.extern_c,
+            params: f.params.clone(),
+            return_type: f.return_type.clone(),
+            locals: f.locals.clone(),
+            blocks: vec![],
+        };
+    }
 
     for (i, local) in f.locals.iter().enumerate() {
         ctx.emit(LirInst::Alloca(VarId(i), local.ty.clone()));

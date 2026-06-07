@@ -1,0 +1,31 @@
+// Math helpers
+// Usage: import "std/math.aya";
+
+pub fn abs(int x) -> int {
+    if x < 0 { return -x; }
+    return x;
+}
+
+pub fn min(int a, int b) -> int {
+    if a < b { return a; }
+    return b;
+}
+
+pub fn max(int a, int b) -> int {
+    if a > b { return a; }
+    return b;
+}
+
+pub fn clamp(int x, int lo, int hi) -> int {
+    if x < lo { return lo; }
+    if x > hi { return hi; }
+    return x;
+}
+
+pub fn pow(int base, int exp) -> int {
+    result = 1;
+    for i in (0, exp) {
+        result = result * base;
+    }
+    return result;
+}

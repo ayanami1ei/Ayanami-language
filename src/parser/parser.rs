@@ -251,7 +251,13 @@ impl Parser {
             Type::Void(Span::default())
         };
 
-        let body = self.parse_block()?;
+        // Extern "C" declarations end with ; instead of a body
+        let body = if extern_c && self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Semicolon)) {
+            self.advance();
+            Block::new(Vec::new(), Span::default())
+        } else {
+            self.parse_block()?
+        };
 
         Ok(Stmt::FnDecl {
             vis, is_inline, extern_c,

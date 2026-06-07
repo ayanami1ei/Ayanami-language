@@ -192,6 +192,20 @@ fn lower_item(item: &HirItem) -> Vec<MirItem> {
 }
 
 fn lower_fn(f: &HirFn) -> MirFn {
+    // Extern C declarations have no body
+    if f.extern_c {
+        return MirFn {
+            fn_id: f.fn_id,
+            name: f.name,
+            is_inline: f.is_inline,
+            extern_c: f.extern_c,
+            params: f.params.clone(),
+            return_type: f.return_type.clone(),
+            locals: vec![],
+            body: vec![],
+        };
+    }
+
     let mut ctx = Ctx::new(f);
 
     let mut body = Vec::new();

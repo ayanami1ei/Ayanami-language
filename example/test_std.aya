@@ -1,0 +1,15 @@
+import "../std/io.aya";
+
+fn main() -> int {
+    println();
+    print(42);
+    println();
+    // For now, use putchar with int values
+    putchar(104); // 'h'
+    putchar(101); // 'e'
+    putchar(108); // 'l'
+    putchar(108); // 'l'
+    putchar(111); // 'o'
+    println();
+    return 0;
+}
