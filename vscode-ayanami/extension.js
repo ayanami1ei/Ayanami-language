@@ -60,9 +60,6 @@ function activate(context) {
         provideCompletionItems(document, position) {
             const items = [];
             const linePrefix = document.lineAt(position).text.slice(0, position.character);
-            const textBefore = document.getText(new vscode.Range(
-                new vscode.Position(Math.max(0, position.line - 30), 0), position
-            ));
 
             const dotMatch = linePrefix.match(/(\w+)\.$/);
             const nsMatch = linePrefix.match(/(\w+)::$/);
@@ -79,16 +76,31 @@ function activate(context) {
             const namespaces = [...new Set([...localNss, ...imported.namespaces])];
             const functions = [...localFns, ...imported.functions];
             const fnByNs = groupByNamespace(functions);
-            const vars = scanVariables(document);
+            const varTypes = scanVariableTypes(document);
 
             if (dotMatch) {
-                const typeName = dotMatch[1];
-                const fields = getStructFields(document, typeName);
-                for (const f of fields) {
-                    items.push(makeItem(f, vscode.CompletionItemKind.Field, 'struct field'));
+                const varName = dotMatch[1];
+                const typeName = varTypes.get(varName);
+                if (typeName) {
+                    // Show struct fields for the type
+                    const fields = getStructFields(document, typeName);
+                    for (const f of fields) {
+                        items.push(makeItem(f, vscode.CompletionItemKind.Field, `${typeName} field`));
+                    }
+                    // Show methods for the type from impl blocks
+                    const methods = getImplMethods(document, typeName);
+                    for (const m of methods) {
+                        items.push(makeItem(m, vscode.CompletionItemKind.Method, `${typeName} method`));
+                    }
                 }
-                for (const m of ['get_x', 'get_y', 'to_string']) {
-                    items.push(makeItem(m, vscode.CompletionItemKind.Method, 'method (common)'));
+                // Show known methods for primitive types
+                if (typeName === 'int' || typeName === 'String') {
+                    items.push(makeItem('to_string', vscode.CompletionItemKind.Method, `${typeName} method`));
+                }
+                if (typeName === 'String') {
+                    items.push(makeItem('len', vscode.CompletionItemKind.Method, 'String method'));
+                    items.push(makeItem('copy', vscode.CompletionItemKind.Method, 'String method'));
+                    items.push(makeItem('add', vscode.CompletionItemKind.Method, 'String method'));
                 }
                 return items;
             }
@@ -164,7 +176,7 @@ function activate(context) {
                 items.push(makeItem(ns, vscode.CompletionItemKind.Module, 'namespace'));
             }
 
-            for (const v of vars) {
+            for (const v of varTypes.keys()) {
                 items.push(makeItem(v, vscode.CompletionItemKind.Variable, 'variable'));
             }
 
@@ -674,24 +686,6 @@ function groupByNamespace(fns) {
 }
 
 // ─── Helper: scan variable assignments ──────────────────────────────
-function scanVariables(doc) {
-    const vars = new Set();
-    const text = doc.getText();
-    const re = /(?:(?:for\s+(\w+)\s+in)|(?:(\w+)\s*=(?!=)))/g;
-    let m;
-    while ((m = re.exec(text)) !== null) {
-        if (m[1]) vars.add(m[1]);
-        if (m[2]) vars.add(m[2]);
-    }
-    const re2 = /(\w+)\s+(\w+)(?=[,)]|\s*->)/g;
-    while ((m = re2.exec(text)) !== null) {
-        const typeName = m[1];
-        const paramName = m[2];
-        if (!['int', 'float', 'char', 'bool', 'void', 'shared', 'unique', 'weak'].includes(typeName)) continue;
-        vars.add(paramName);
-    }
-    return [...vars];
-}
 
 // ─── Helper: resolve imported .aya files ─────────────────────────────
 function resolveImports(doc, folder) {
@@ -752,6 +746,136 @@ function getStructFields(doc, typeName) {
         fields.push(fm[2]);
     }
     return fields;
+}
+
+// ─── Helper: scan variables with their inferred types ─────────────────
+function scanVariableTypes(doc) {
+    const varTypes = new Map();
+    const text = doc.getText();
+
+    // Assignment: v = expr (try to infer type from RHS)
+    const assignRe = /(\w+)\s*=\s*(.*?)(?:;|$)/g;
+    let m;
+    while ((m = assignRe.exec(text)) !== null) {
+        const varName = m[1];
+        const rhs = m[2].trim();
+        // Struct constructor: unique String { ... } or String { ... }
+        const structMatch = rhs.match(/(?:unique\s+|shared\s+)?(\w+)\s*\{/);
+        if (structMatch) {
+            varTypes.set(varName, structMatch[1]);
+            continue;
+        }
+        // String literal
+        if (rhs.startsWith('"')) {
+            varTypes.set(varName, 'String');
+            continue;
+        }
+        // Int literal
+        if (/^-?\d+$/.test(rhs)) {
+            varTypes.set(varName, 'int');
+            continue;
+        }
+        // to_string() call returns String
+        if (rhs.endsWith('.to_string()')) {
+            varTypes.set(varName, 'String');
+            continue;
+        }
+        // .copy() returns same type as the receiver
+        const copyMatch = rhs.match(/^(\w+)\.copy\(\)$/);
+        if (copyMatch && varTypes.has(copyMatch[1])) {
+            varTypes.set(varName, varTypes.get(copyMatch[1]));
+            continue;
+        }
+        // add() returns String
+        if (rhs.includes('.add(')) {
+            varTypes.set(varName, 'String');
+            continue;
+        }
+        // Function call returns... for common known functions
+        const callMatch = rhs.match(/^(\w+)\(/);
+        if (callMatch) {
+            const fnName = callMatch[1];
+            if (fnName === 'to_string') {
+                varTypes.set(varName, 'String');
+                continue;
+            }
+        }
+    }
+
+    // Function params: fn foo(TypeName param)
+    const paramRe = /fn\s+\w+\(([^)]*)\)/g;
+    while ((m = paramRe.exec(text)) !== null) {
+        const paramsStr = m[1];
+        const params = paramsStr.split(',');
+        for (const p of params) {
+            const parts = p.trim().split(/\s+/);
+            if (parts.length >= 2) {
+                // Handle: unique String param, shared int param, int param
+                let typeName = parts[parts.length - 2];
+                let paramName = parts[parts.length - 1];
+                if (['shared', 'unique', 'weak', 'ref'].includes(typeName) && parts.length >= 3) {
+                    typeName = parts[parts.length - 3];
+                    paramName = parts[parts.length - 1];
+                }
+                if (paramName && typeName && paramName !== '->' && !typeName.startsWith('//')) {
+                    varTypes.set(paramName, typeName);
+                }
+            }
+        }
+    }
+
+    // Self param in impl methods: type comes from impl block
+    const implRe = /impl\s+(\w+)\s*\{/g;
+    while ((m = implRe.exec(text)) !== null) {
+        const implType = m[1];
+        // self appears inside this impl block
+        const blockStart = m.index + m[0].length;
+        let depth = 1;
+        let pos = blockStart;
+        while (depth > 0 && pos < text.length) {
+            if (text[pos] === '{') depth++;
+            else if (text[pos] === '}') depth--;
+            pos++;
+        }
+        const blockBody = text.slice(blockStart, pos - 1);
+        const selfRe = /\bself\b/g;
+        let sm;
+        while ((sm = selfRe.exec(blockBody)) !== null) {
+            varTypes.set('self', implType);
+        }
+    }
+
+    // For loop: for v in (0, n) — v is int
+    const forRe = /for\s+(\w+)\s+in\s*\(/g;
+    while ((m = forRe.exec(text)) !== null) {
+        varTypes.set(m[1], 'int');
+    }
+
+    return varTypes;
+}
+
+// ─── Helper: get method names from impl blocks for a type ────────────
+function getImplMethods(doc, typeName) {
+    const methods = [];
+    const text = doc.getText();
+    const re = new RegExp('impl\\s+' + typeName + '\\s*\\{', 'm');
+    const m = re.exec(text);
+    if (!m) return methods;
+    const blockStart = m.index + m[0].length;
+    let depth = 1;
+    let pos = blockStart;
+    while (depth > 0 && pos < text.length) {
+        if (text[pos] === '{') depth++;
+        else if (text[pos] === '}') depth--;
+        pos++;
+    }
+    const blockBody = text.slice(blockStart, pos - 1);
+    const fnRe = /(?:pub\s+)?fn\s+(\w+)\s*\(/g;
+    let fm;
+    while ((fm = fnRe.exec(blockBody)) !== null) {
+        methods.push(fm[1]);
+    }
+    return methods;
 }
 
 // ─── Helper: create completion item ─────────────────────────────────
