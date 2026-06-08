@@ -58,3 +58,17 @@ void __ayanami_print_str(const char *s) {
 void __ayanami_print_ln(void) {
     printf("\n");
 }
+
+// Return the length needed for formatted float string.
+int64_t __ayanami_float_len(double n) {
+    char tmp[64];
+    return (int64_t)snprintf(tmp, sizeof(tmp), "%g", n);
+}
+
+// Write formatted float into a heap buffer of exactly out_len bytes.
+char *__ayanami_float_str(double n, int64_t out_len) {
+    char *buf = (char *)malloc((size_t)(out_len + 1));
+    if (!buf) return NULL;
+    snprintf(buf, (size_t)(out_len + 1), "%g", n);
+    return buf;
+}

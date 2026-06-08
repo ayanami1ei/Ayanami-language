@@ -299,8 +299,11 @@ fn resolve_import_path(import_path: &str, base_dir: &std::path::Path) -> Option<
         dir = d.parent();
     }
 
-    // Finally, try the standard library directory
+    // Finally, try the standard library directory, preferring .aya over .lcl
     if let Some(std_dir) = find_std_dir() {
+        // Prefer .aya source if available (includes generic ASTs and all functions)
+        let std_aya = std_dir.join(format!("{}.aya", import_path));
+        if std_aya.exists() { return Some(std_aya); }
         let std_lcl = std_dir.join(format!("{}.lcl", import_path));
         if std_lcl.exists() { return Some(std_lcl); }
     }

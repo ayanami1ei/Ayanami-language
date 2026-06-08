@@ -41,13 +41,42 @@ impl int {
     }
 }
 
+extern "C" fn __ayanami_float_len(float n) -> int;
+extern "C" fn __ayanami_float_str(float n, int len) -> unique [char];
+
+impl float {
+    fn to_string(unique self) -> unique String {
+        len = __ayanami_float_len(self)
+        data = __ayanami_float_str(self, len)
+        return unique String { data = data, len = len }
+    }
+}
+
+impl char {
+    fn to_string(unique self) -> unique String {
+        return unique String { data = unique [self], len = 1 }
+    }
+}
+
+impl bool {
+    fn to_string(unique self) -> unique String {
+        if self {
+            return unique String { data = unique ['t', 'r', 'u', 'e'], len = 4 }
+        } else {
+            return unique String { data = unique ['f', 'a', 'l', 's', 'e'], len = 5 }
+        }
+    }
+}
+
 impl String {
     pub fn to_string(unique self) -> unique String {
         return self.copy()
     }
+
     pub fn index(unique self, int i) -> char {
         return self.data[i];
     }
+    
     pub fn len(unique self) -> int {
         return self.len;
     }
