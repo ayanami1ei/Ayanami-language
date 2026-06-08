@@ -281,7 +281,6 @@ function activate(context) {
             }
 
             const { execFileSync } = require('child_process');
-            const path = require('path');
 
             // Use project root as CWD (walk up from file to find ayanami.toml)
             let projectRoot = path.dirname(doc.uri.fsPath);
