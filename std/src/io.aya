@@ -1,4 +1,3 @@
-// I/O functions
 import "string"
 
 extern "C" fn __ayanami_getchar() -> int;
