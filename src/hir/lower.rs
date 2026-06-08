@@ -235,10 +235,12 @@ impl Ctx {
                     }
                 }
                 Stmt::ImplBlock { methods, .. } => {
-                    // Register impl block methods as regular functions
                     for method in methods {
-                        // methods inside impl blocks are already Stmt::FnDecl from the parser
-                        if let Stmt::FnDecl { name, params, return_type, .. } = method {
+                        if let Stmt::FnDecl { name, params, return_type, generic_params, .. } = method {
+                            if !generic_params.is_empty() {
+                                self.generic_fns.push((*name, generic_params.clone(), method.clone()));
+                                continue;
+                            }
                             let hir_return = ast_type_to_hir(return_type, &self.interfaces);
                             let hir_params = params.iter()
                                 .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
@@ -793,7 +795,10 @@ impl Ctx {
                 Stmt::ImplBlock { methods, .. } => {
                     // Flatten impl block: lower each method as a regular Fn
                     for method_stmt in methods {
-                        if let Stmt::FnDecl { name, params, return_type, body, .. } = method_stmt {
+                        if let Stmt::FnDecl { name, params, return_type, body, generic_params, .. } = method_stmt {
+                            if !generic_params.is_empty() {
+                                continue; // generic methods are lowered during specialization
+                            }
                             let ptypes: Vec<HirType> = params.iter()
                                 .map(|(_, t)| ast_type_to_hir(t, &self.interfaces))
                                 .collect();

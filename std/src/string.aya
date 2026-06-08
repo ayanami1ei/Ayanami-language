@@ -3,15 +3,29 @@ pub struct String {
     int len
 }
 
+pub interface ToString{
+    fn to_string(unique self)->unique String;
+}
+
 impl String {
-    pub fn index(shared self, int i) -> char {
+    pub fn index(unique self, int i) -> char {
         return self.data[i];
     }
-    pub fn len(shared self) -> int {
+    pub fn len(unique self) -> int {
         return self.len;
     }
 
-    pub fn add[T:Add](shared self, unique T a)->unique String{
-        return self.data;
+    pub fn add[T:ToString](unique self, unique T a)->unique String{
+        str=a.to_string()
+        new_str_inner=[char;self.len+a.len]
+
+        for i in (0, self.len){
+            new_str_inner[i]=self.data[i]
+        }
+        for i in (self.len, a.len+self.len){
+            new_str_inner[i]=a.data[i]
+        }
+
+        return unique String{data=new_str_inner, len=self.len+a.len}
     }
 }
