@@ -281,12 +281,23 @@ function activate(context) {
             }
 
             const { execFileSync } = require('child_process');
+            const path = require('path');
+
+            // Use project root as CWD (walk up from file to find ayanami.toml)
+            let projectRoot = path.dirname(doc.uri.fsPath);
+            for (let i = 0; i < 10; i++) {
+                if (fs.existsSync(path.join(projectRoot, 'ayanami.toml'))) break;
+                const parent = path.dirname(projectRoot);
+                if (parent === projectRoot) { projectRoot = path.dirname(doc.uri.fsPath); break; }
+                projectRoot = parent;
+            }
+
             let out = '';
             try {
                 out = execFileSync(ayanamiPath, ['check', doc.uri.fsPath], {
                     timeout: 15000,
                     encoding: 'utf8',
-                    cwd: path.dirname(doc.uri.fsPath),
+                    cwd: projectRoot,
                     stdio: ['pipe', 'pipe', 'pipe'],
                 });
                 statusFn('ok');

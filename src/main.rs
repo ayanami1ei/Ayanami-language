@@ -134,17 +134,18 @@ fn cmd_check(args: &[String]) {
         Ok(c) => c,
         Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
-    // Use build to get full import resolution, but skip generating the executable
+    // Use a temp directory so check doesn't pollute build/
+    let tmp_dir = std::env::temp_dir().join("ayanami-check");
+    std::fs::create_dir_all(&tmp_dir).ok();
     let mut compiling = std::collections::HashSet::new();
     let mut cache = std::collections::HashMap::new();
     let src = std::path::Path::new(&path_str);
     let base = src.parent().unwrap_or(std::path::Path::new("."));
-    let out = std::path::Path::new("build");
-    std::fs::create_dir_all(out).ok();
-    match ayanami::compiler::compile_file(src, base, out, &mut compiling, &mut cache, None) {
+    match ayanami::compiler::compile_file(src, base, &tmp_dir, &mut compiling, &mut cache, None) {
         Ok(_) => println!("check passed: {}", path.display()),
         Err(e) => { eprintln!("check failed: {}", e); std::process::exit(1); }
     }
+    let _ = std::fs::remove_dir_all(&tmp_dir);
 }
 
 fn cmd_package(args: &[String]) {
