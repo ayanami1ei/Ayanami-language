@@ -3,6 +3,6 @@ import "io"
 
 fn main()->int{
     print("Hello")
-    println(" World")
+    println()
     return 0;
 }

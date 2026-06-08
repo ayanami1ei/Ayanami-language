@@ -116,22 +116,31 @@ pub fn compile_file(
                     dep_link_flags.push(format!("-l{}", dep_stem));
                     dep_link_flags.push(format!("-Wl,-rpath,{}", out_dir.canonicalize().unwrap_or_else(|_| out_dir.to_path_buf()).display()));
                 } else {
-                    dep_obj_paths.extend(dep.obj_paths.clone());
+                    for p in &dep.obj_paths {
+                        if !dep_obj_paths.contains(p) {
+                            dep_obj_paths.push(p.clone());
+                        }
+                    }
                 }
                 dep_link_flags.extend(dep.link_flags.clone());
                 let lcl_name = dep.lcl_path.to_string_lossy().into_owned();
-                dep_lcl_paths.push(dep.lcl_path.clone());
+                if !dep_lcl_paths.contains(&dep.lcl_path) {
+                    dep_lcl_paths.push(dep.lcl_path.clone());
+                }
                 new_stmts.push(Stmt::Import { path: lcl_name, span: crate::span::Span::default() });
             } else {
                 let lcl_str = dep_path.to_string_lossy().into_owned();
                 new_stmts.push(Stmt::Import { path: lcl_str, span: crate::span::Span::default() });
                 let o_path = dep_path.with_extension("o");
-                if o_path.exists() {
-                    dep_obj_paths.push(o_path);
+                let o_to_add = if o_path.exists() {
+                    Some(o_path)
                 } else if let Some(std_dir) = find_std_dir() {
                     let std_o = std_dir.join(dep_path.file_name().unwrap()).with_extension("o");
-                    if std_o.exists() {
-                        dep_obj_paths.push(std_o);
+                    if std_o.exists() { Some(std_o) } else { None }
+                } else { None };
+                if let Some(o) = o_to_add {
+                    if !dep_obj_paths.contains(&o) {
+                        dep_obj_paths.push(o);
                     }
                 }
             }

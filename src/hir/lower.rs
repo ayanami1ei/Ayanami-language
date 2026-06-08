@@ -1285,7 +1285,7 @@ impl Ctx {
                         }
                     }
                     if matches!(param_tys[i], HirType::Unique(_)) {
-                        wrap_for_unique_param(arg, &param_tys[i])
+                        wrap_arg_for_param(arg, &param_tys[i])
                     } else {
                         arg
                     }

@@ -87,7 +87,10 @@ impl Package {
 
     fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str) {
         match stmt {
-            Stmt::FnDecl { vis, name, params, return_type, generic_params, body, .. } => {
+            Stmt::FnDecl { vis, name, params, return_type, generic_params, .. } => {
+                if !generic_params.is_empty() {
+                    return; // Generic functions stored in generic_sources via ImplBlock or parent
+                }
                 if all || vis.is_public() {
                     let full_name = if ns_prefix.is_empty() {
                         name.as_str().to_string()
