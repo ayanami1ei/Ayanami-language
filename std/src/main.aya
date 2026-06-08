@@ -2,7 +2,7 @@ import "string"
 import "io"
 
 fn main()->int{
-    println((1+"+"1+"="+2))
-
+    print("Hello")
+    println()
     return 0;
 }

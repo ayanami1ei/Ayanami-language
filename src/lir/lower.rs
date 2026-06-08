@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::hir::ir::{FnId, HirLiteral, HirType, VarId};
+use crate::intern::Symbol;
 use crate::mir::ir::*;
 
 use super::ir::*;
@@ -396,11 +397,37 @@ fn lower_stmt(ctx: &mut LowerCtx, stmt: &MirStmt) {
 
 fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
     match expr {
-        MirExpr::Literal(HirLiteral::String(s), _ty) => {
+        MirExpr::Literal(HirLiteral::String(s), ty) => {
             let idx = ctx.str_map[s];
-            let dest = ctx.next_tmp();
-            ctx.emit(LirInst::StrGlobal { dest, str_idx: idx });
-            LirValue::Tmp(dest)
+            let is_string_struct = matches!(ty, HirType::Named(sym) if sym.as_str() == "String");
+            
+            if is_string_struct {
+                // Build String struct: { data: ptr, len: i64 }
+                let data_dest = ctx.next_tmp();
+                ctx.emit(LirInst::StrGlobal { dest: data_dest, str_idx: idx });
+                let data_val = LirValue::Tmp(data_dest);
+                
+                let len_val = LirValue::Literal(HirLiteral::Int(s.len() as i64), HirType::Int);
+                
+                let struct_dest = ctx.next_tmp();
+                let alloca_tmp = ctx.next_tmp();
+                ctx.emit(LirInst::StructLit {
+                    dest: struct_dest,
+                    alloca_tmp,
+                    field_geps: vec![],
+                    fields: vec![
+                        (data_val, HirType::Named(Symbol::intern("[char]"))),
+                        (LirValue::Literal(HirLiteral::Int(s.len() as i64), HirType::Int), HirType::Int),
+                    ],
+                    struct_name: Symbol::intern("String"),
+                    struct_ty: ty.clone(),
+                });
+                LirValue::Tmp(struct_dest)
+            } else {
+                let dest = ctx.next_tmp();
+                ctx.emit(LirInst::StrGlobal { dest, str_idx: idx });
+                LirValue::Tmp(dest)
+            }
         }
         MirExpr::Literal(lit, ty) => LirValue::Literal(lit.clone(), ty.clone()),
         MirExpr::Local(id, ty, _) => {
