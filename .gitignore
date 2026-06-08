@@ -25,3 +25,5 @@
 check_output/
 *.o
 /build
+node_modules/
+package-lock.json
