@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -7,7 +8,7 @@ fn main() {
         eprintln!("usage: ayanami <command> [args...]");
         eprintln!("commands:");
         eprintln!("  new <name>         创建新项目");
-        eprintln!("  check <file/proj>  前端检查（lex, parse, HIR）");
+        eprintln!("  check [--watch] <file/proj> 前端检查（lex, parse, HIR）；--watch 监听文件变更自动重检");
         eprintln!("  fmt [file/dir]     格式化代码（类似 rustfmt）");
         eprintln!("  package <file/proj> 打包为 .lcl（不生成可执行文件）");
         eprintln!("  build [file/proj]  构建可执行文件 + .lcl 包");
@@ -159,28 +160,74 @@ fn cmd_fmt(args: &[String]) {
     }
 }
 
-fn cmd_check(args: &[String]) {
-    let path = resolve_path(args.first().map(|s| s.as_str()));
-    let path_str = path.to_string_lossy().into_owned();
-    if !path_str.ends_with(".aya") {
-        eprintln!("error: check requires a .aya file"); std::process::exit(1);
-    }
-    let code = match fs::read_to_string(&path) {
-        Ok(c) => c,
-        Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
-    };
-    // Use a temp directory so check doesn't pollute build/
+fn do_check(path: &Path) -> Result<(), String> {
     let tmp_dir = std::env::temp_dir().join("ayanami-check");
     std::fs::create_dir_all(&tmp_dir).ok();
     let mut compiling = std::collections::HashSet::new();
     let mut cache = std::collections::HashMap::new();
-    let src = std::path::Path::new(&path_str);
-    let base = src.parent().unwrap_or(std::path::Path::new("."));
-    match ayanami::compiler::compile_file(src, base, &tmp_dir, &mut compiling, &mut cache, None) {
+    let base = path.parent().unwrap_or(std::path::Path::new("."));
+    let result = ayanami::compiler::compile_file(path, base, &tmp_dir, &mut compiling, &mut cache, None);
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    result.map(|_| ())
+}
+
+fn cmd_check(args: &[String]) {
+    let watch = args.first().map(|s| s.as_str()) == Some("--watch");
+    let path_arg = if watch { args.get(1) } else { args.first() };
+    let path = resolve_path(path_arg.map(|s| s.as_str()));
+    let path_str = path.to_string_lossy().into_owned();
+    if !path_str.ends_with(".aya") {
+        eprintln!("error: check requires a .aya file"); std::process::exit(1);
+    }
+    match do_check(&path) {
         Ok(_) => println!("check passed: {}", path.display()),
         Err(e) => { eprintln!("check failed: {}", e); std::process::exit(1); }
     }
-    let _ = std::fs::remove_dir_all(&tmp_dir);
+    if watch {
+        watch_file(&path);
+    }
+}
+
+fn watch_file(path: &Path) {
+    use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+    use std::sync::mpsc;
+
+    let path = path.to_path_buf();
+    let canonical = path.canonicalize().unwrap_or(path.clone());
+    let dir_to_watch = canonical.parent().unwrap_or(&canonical).to_path_buf();
+
+    println!("watching {} for changes...", canonical.display());
+
+    let (tx, rx) = mpsc::channel::<Result<Event, notify::Error>>();
+    let mut watcher: RecommendedWatcher =
+        Watcher::new(tx, Config::default()).expect("failed to create watcher");
+    watcher
+        .watch(&dir_to_watch, RecursiveMode::NonRecursive)
+        .expect("failed to watch directory");
+
+    for res in rx {
+        match res {
+            Ok(event) => {
+                let is_relevant = matches!(&event.kind, EventKind::Modify(_) | EventKind::Create(_))
+                    && event.paths.iter().any(|p| {
+                        p.canonicalize().map(|c| c == canonical).unwrap_or(false)
+                    });
+                if !is_relevant {
+                    continue;
+                }
+                // Small debounce: skip if the event is within 200ms of the last check
+                std::thread::sleep(Duration::from_millis(200));
+                match do_check(&canonical) {
+                    Ok(_) => println!(
+                        "\ncheck passed: {}",
+                        canonical.display()
+                    ),
+                    Err(e) => eprintln!("\ncheck failed: {}", e),
+                }
+            }
+            Err(e) => eprintln!("watch error: {}", e),
+        }
+    }
 }
 
 fn cmd_package(args: &[String]) {
