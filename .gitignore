@@ -29,3 +29,4 @@ node_modules/
 package-lock.json
 install/llc
 install/libLLVM.so.21.1
+*.tar.gz
