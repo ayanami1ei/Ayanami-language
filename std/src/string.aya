@@ -7,6 +7,40 @@ pub interface ToString{
     fn to_string(unique self)->unique String;
 }
 
+impl int {
+    fn to_string(unique self) -> unique String {
+        if self == 0 {
+            return unique String { data = unique ['0'], len = 1 }
+        }
+        n = self
+        digit_count = 0
+        if n < 0 {
+            digit_count = 1
+            n = -n
+        }
+        temp = n
+        while temp > 0 {
+            digit_count = digit_count + 1
+            temp = temp / 10
+        }
+        digits = unique ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+        buf = unique [char; digit_count]
+        i = digit_count - 1
+        if self < 0 {
+            buf[0] = '-'
+            n = -self
+        } else {
+            n = self
+        }
+        while n > 0 {
+            buf[i] = digits[n % 10]
+            n = n / 10
+            i = i - 1
+        }
+        return unique String { data = buf, len = digit_count }
+    }
+}
+
 impl String {
     pub fn index(unique self, int i) -> char {
         return self.data[i];
@@ -29,3 +63,5 @@ impl String {
         return unique String{data=new_str_inner, len=self.len+a.len}
     }
 }
+
+

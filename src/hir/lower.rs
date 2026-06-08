@@ -542,6 +542,11 @@ impl Ctx {
         if let HirType::Unique(inner) = param_ty {
             if arg_ty == inner.as_ref() { return true; }
         }
+        // Allow passing Shared(T)/Unique(T)/Weak(T) to plain T
+        // (ownership wrapper is transparent for primitives)
+        if let HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) = arg_ty {
+            if param_ty == inner.as_ref() { return true; }
+        }
         // FatPtr compatibility
         self.is_fatptr_compatible(param_ty, arg_ty)
     }
