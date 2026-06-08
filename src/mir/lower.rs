@@ -210,6 +210,8 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
 
     let mut ctx = Ctx::new(f);
 
+
+
     let mut body = Vec::new();
     for stmt in &f.body.stmts {
         let mut stmts = ctx.lower_stmt(stmt);

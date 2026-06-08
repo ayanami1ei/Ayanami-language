@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use crate::intern::Symbol;
 use crate::parser::ast::{BinaryOp, UnaryOp};
+use crate::span::Span;
 
 /// Index into the current function's locals array.
 /// Used in instructions to reference stack-allocated variables.
@@ -225,6 +226,7 @@ pub struct HirInterfaceMethod {
 
 #[derive(Debug, Clone)]
 pub struct HirFn {
+    pub span: Span,
     pub fn_id: FnId,
     pub name: Symbol,
     pub is_inline: bool,
@@ -245,6 +247,7 @@ pub enum HirItem {
     },
     InterfaceDef {
         name: Symbol,
+        generic_params: Vec<(Symbol, Option<Symbol>)>,
         methods: Vec<HirInterfaceMethod>,
     },
 }

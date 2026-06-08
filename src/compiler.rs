@@ -6,6 +6,17 @@ use std::path::{Path, PathBuf};
 use crate::parser::ast::{
     BinaryOp, Block, Expr, Literal, Program, Stmt, Type, UnaryOp,
 };
+use crate::hir::ir::{HirItem, HirProgram, HirStmt, HirType};
+
+/// A symbol definition with source location.
+#[derive(Debug, Clone)]
+pub struct SymDef {
+    pub name: String,
+    pub kind: String,
+    pub file: String,
+    pub line: usize,
+    pub col: usize,
+}
 
 /// Result of compiling a single file (including its recursively-resolved imports).
 pub struct CompiledFile {
@@ -133,6 +144,10 @@ pub fn compile_file(
     // HIR → MIR → LIR
     let hir_program = crate::hir::lower_program(&program)
         .map_err(|e| format!("{}: error: {}", src_path.display(), e))?;
+
+    // Check for missing return in non-void functions.
+    check_hir_returns(&hir_program, src_path)?;
+
     let mir_program = crate::mir::lower_program(&hir_program);
     for item in &mir_program.items {
         if let crate::mir::ir::MirItem::Fn(f) = item {
@@ -790,6 +805,176 @@ fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
             writeln!(w, "{}Import {{ path: {} }}", p, path).unwrap();
         }
     }
+}
+
+fn has_return_in_item(item: &HirItem) -> bool {
+    match item {
+        HirItem::Fn(f) => f.body.stmts.iter().any(|s| {
+            if matches!(s, HirStmt::Return { .. }) { return true; }
+            if let HirStmt::If { then_block, elifs, else_block, .. } = s {
+                if then_block.stmts.iter().any(|s2| has_return_in_stmt(s2)) { return true; }
+                for (_, b) in elifs {
+                    if b.stmts.iter().any(|s2| has_return_in_stmt(s2)) { return true; }
+                }
+                if let Some(b) = else_block {
+                    if b.stmts.iter().any(|s2| has_return_in_stmt(s2)) { return true; }
+                }
+            }
+            false
+        }),
+        HirItem::StructDef(_) | HirItem::InterfaceDef { .. } => true,
+        HirItem::Namespace { items, .. } => items.iter().all(|i| has_return_in_item(i)),
+    }
+}
+
+fn has_return_in_stmt(s: &HirStmt) -> bool {
+    match s {
+        HirStmt::Return { .. } => true,
+        HirStmt::If { then_block, elifs, else_block, .. } => {
+            if then_block.stmts.iter().any(|s2| has_return_in_stmt(s2)) { return true; }
+            for (_, b) in elifs {
+                if b.stmts.iter().any(|s2| has_return_in_stmt(s2)) { return true; }
+            }
+            if let Some(b) = else_block {
+                if b.stmts.iter().any(|s2| has_return_in_stmt(s2)) { return true; }
+            }
+            false
+        }
+        HirStmt::While { body, .. } => body.stmts.iter().any(|s2| has_return_in_stmt(s2)),
+        HirStmt::Block(stmts) => stmts.iter().any(|s2| has_return_in_stmt(s2)),
+        _ => false,
+    }
+}
+
+fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<(), String> {
+    for item in &hir.items {
+        if let HirItem::Fn(f) = item {
+            if matches!(f.return_type, HirType::Void) { continue; }
+            if !has_return_in_item(item) {
+                let (ln, col) = if f.span.start_line > 0 || f.span.start_col > 0 {
+                    (f.span.start_line, f.span.start_col)
+                } else {
+                    (1, 1)
+                };
+                return Err(format!("{}:{}:{}: error: function `{}` has non-void return type but no return statement",
+                    src_path.display(), ln, col, f.name));
+            }
+        }
+    }
+    Ok(())
+}
+
+// ====================================================================
+//  Symbol definition collection (for IDE support)
+// ====================================================================
+
+/// Collect all symbol definitions from a list of statements with their locations.
+pub fn collect_defs_from_stmts(stmts: &[Stmt], file: &str, prefix: &str, defs: &mut Vec<SymDef>) {
+    for stmt in stmts {
+        collect_defs_from_stmt(stmt, file, prefix, defs);
+    }
+}
+
+fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>) {
+    match stmt {
+        Stmt::FnDecl { name, span, .. } => {
+            let qualified = if prefix.is_empty() {
+                name.as_str().to_string()
+            } else {
+                format!("{}.{}", prefix, name)
+            };
+            defs.push(SymDef {
+                name: qualified,
+                kind: "fn".into(),
+                file: file.into(),
+                line: span.start_line,
+                col: span.start_col,
+            });
+        }
+        Stmt::StructDef { name, span, .. } => {
+            let qualified = if prefix.is_empty() {
+                name.as_str().to_string()
+            } else {
+                format!("{}.{}", prefix, name)
+            };
+            defs.push(SymDef {
+                name: qualified,
+                kind: "struct".into(),
+                file: file.into(),
+                line: span.start_line,
+                col: span.start_col,
+            });
+        }
+        Stmt::InterfaceDef { name, span, .. } => {
+            let qualified = if prefix.is_empty() {
+                name.as_str().to_string()
+            } else {
+                format!("{}.{}", prefix, name)
+            };
+            defs.push(SymDef {
+                name: qualified,
+                kind: "interface".into(),
+                file: file.into(),
+                line: span.start_line,
+                col: span.start_col,
+            });
+        }
+        Stmt::Namespace { name, items, span, .. } => {
+            let qualified = if prefix.is_empty() {
+                name.as_str().to_string()
+            } else {
+                format!("{}.{}", prefix, name)
+            };
+            defs.push(SymDef {
+                name: qualified.clone(),
+                kind: "namespace".into(),
+                file: file.into(),
+                line: span.start_line,
+                col: span.start_col,
+            });
+            for item in items {
+                collect_defs_from_stmt(item, file, &qualified, defs);
+            }
+        }
+        Stmt::ImplBlock { methods, .. } => {
+            for m in methods {
+                collect_defs_from_stmt(m, file, prefix, defs);
+            }
+        }
+        Stmt::Assign { name, span, .. } => {
+            let qualified = if prefix.is_empty() {
+                name.as_str().to_string()
+            } else {
+                format!("{}.{}", prefix, name)
+            };
+            defs.push(SymDef {
+                name: qualified,
+                kind: "variable".into(),
+                file: file.into(),
+                line: span.start_line,
+                col: span.start_col,
+            });
+        }
+        _ => {}
+    }
+}
+
+/// Output symbol definitions as JSON (without serde).
+pub fn defs_to_json(defs: &[SymDef]) -> String {
+    let mut json = String::from("[\n");
+    for (i, d) in defs.iter().enumerate() {
+        if i > 0 { json.push_str(",\n"); }
+        json.push_str(&format!(
+            "  {{\"name\":\"{}\",\"kind\":\"{}\",\"file\":\"{}\",\"line\":{},\"col\":{}}}",
+            d.name.replace('\\', "\\\\").replace('"', "\\\""),
+            d.kind,
+            d.file.replace('\\', "\\\\").replace('"', "\\\""),
+            d.line,
+            d.col,
+        ));
+    }
+    json.push_str("\n]\n");
+    json
 }
 
 // ====================================================================

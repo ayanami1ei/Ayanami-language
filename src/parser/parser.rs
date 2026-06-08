@@ -65,8 +65,39 @@ impl Parser {
         }
     }
 
-    fn expect_semicolon(&mut self) -> Result<(), String> {
-        self.expect_delimiter(Delimiter::Semicolon)
+    /// Tokens that can never be the start of an expression.
+    fn is_stmt_only_keyword(kind: &TokenKind) -> bool {
+        matches!(kind,
+            TokenKind::Keyword(Keyword::Fn | Keyword::Return | Keyword::If | Keyword::For
+                | Keyword::While | Keyword::Interface | Keyword::Struct | Keyword::Impl
+                | Keyword::Import | Keyword::Namespace | Keyword::Pub | Keyword::Inline
+                | Keyword::Extern | Keyword::Mut | Keyword::Asm)
+        )
+    }
+
+    /// Tokens that can start a new statement (including expression statements).
+    fn is_stmt_start(kind: &TokenKind) -> bool {
+        Self::is_stmt_only_keyword(kind)
+            || matches!(kind,
+                TokenKind::Keyword(Keyword::True | Keyword::False | Keyword::Null | Keyword::Self_)
+                | TokenKind::Identifier(_) | TokenKind::IntLiteral(_) | TokenKind::FloatLiteral(_)
+                | TokenKind::StringLiteral(_) | TokenKind::CharLiteral(_)
+                | TokenKind::Delimiter(Delimiter::LBrace | Delimiter::LParen | Delimiter::LBracket)
+                | TokenKind::Operator(_)
+            )
+    }
+
+    /// Consume `;` if present; otherwise, succeed if the next token
+    /// starts a new statement or ends the current scope.
+    fn try_semicolon(&mut self) -> Result<(), String> {
+        match self.peek().map(|t| &t.kind) {
+            Some(TokenKind::Delimiter(Delimiter::Semicolon)) => { self.advance(); Ok(()) }
+            Some(kind) if Self::is_stmt_start(kind) || matches!(kind,
+                TokenKind::Delimiter(Delimiter::RBrace | Delimiter::RParen | Delimiter::RBracket)
+            ) => Ok(()),
+            None => Ok(()),
+            Some(other) => Err(self.error(&format!("expected `;` or new statement, found `{}`", other))),
+        }
     }
 
     fn parse_visibility(&mut self) -> Visibility {
@@ -188,22 +219,24 @@ impl Parser {
             if s == "=" {
                 self.advance();
                 let value = self.parse_expr()?;
-                self.expect_semicolon()?;
+                self.try_semicolon()?;
                 return match expr {
-                    Expr::Ident(name, _) => Ok(Stmt::Assign { name, is_mut, value, span: Span::default() }),
-                    Expr::FieldAccess { object, field, .. } =>
-                        Ok(Stmt::FieldAssign { object, field, value, span: Span::default() }),
-                    Expr::Index { object, index, .. } =>
-                        Ok(Stmt::IndexAssign { object, index, value, span: Span::default() }),
+                    Expr::Ident(name, id_span) => Ok(Stmt::Assign { name, is_mut, value, span: id_span }),
+                    Expr::FieldAccess { object, field, span: fa_span } =>
+                        Ok(Stmt::FieldAssign { object, field, value, span: fa_span }),
+                    Expr::Index { object, index, span: ix_span } =>
+                        Ok(Stmt::IndexAssign { object, index, value, span: ix_span }),
                     _ => Err(self.error("invalid assignment target")),
                 };
             }
         }
-        self.expect_semicolon()?;
-        Ok(Stmt::ExprStmt { expr, span: Span::default() })
+        self.try_semicolon()?;
+        let expr_span = expr.span();
+        Ok(Stmt::ExprStmt { expr, span: expr_span })
     }
 
     fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let name = self.expect_identifier()?;
 
@@ -266,22 +299,28 @@ impl Parser {
             params,
             return_type,
             body,
-            span: Span::default(),
+            span: start_span,
         })
     }
 
     fn parse_return(&mut self) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
-        let value = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Semicolon)) {
-            None
-        } else {
-            Some(self.parse_expr()?)
+        let value = match self.peek().map(|t| &t.kind) {
+            Some(TokenKind::Delimiter(Delimiter::Semicolon)) => { self.advance(); None }
+            Some(TokenKind::Delimiter(Delimiter::RBrace | Delimiter::RParen | Delimiter::RBracket))
+                | None => None,
+            Some(kind) if Self::is_stmt_only_keyword(kind) => None,
+            _ => Some(self.parse_expr()?),
         };
-        self.expect_semicolon()?;
-        Ok(Stmt::Return { value, span: Span::default() })
+        if value.is_some() {
+            self.try_semicolon()?;
+        }
+        Ok(Stmt::Return { value, span: start_span })
     }
 
     fn parse_if(&mut self) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let cond = self.parse_expr()?;
         let then_block = self.parse_block()?;
@@ -308,11 +347,12 @@ impl Parser {
             then_block,
             elifs,
             else_block,
-            span: Span::default(),
+            span: start_span,
         })
     }
 
     fn parse_for(&mut self) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let iter_name = self.expect_identifier()?;
         self.expect_keyword(Keyword::In)?;
@@ -334,18 +374,20 @@ impl Parser {
             end,
             step,
             body,
-            span: Span::default(),
+            span: start_span,
         })
     }
 
     fn parse_while(&mut self) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let cond = self.parse_expr()?;
         let body = self.parse_block()?;
-        Ok(Stmt::While { cond, body, span: Span::default() })
+        Ok(Stmt::While { cond, body, span: start_span })
     }
 
     fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let name = self.expect_identifier()?;
         self.expect_delimiter(Delimiter::LBrace)?;
@@ -361,13 +403,14 @@ impl Parser {
             vis,
             name: Symbol::intern(&name),
             items,
-            span: Span::default(),
+            span: start_span,
         })
     }
 
     // ==================== Struct definition ====================
 
     fn parse_struct_def(&mut self, vis: Visibility) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // struct
         let name = Symbol::intern(&self.expect_identifier()?);
         let mut generic_params = Vec::new();
@@ -400,14 +443,37 @@ impl Parser {
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Stmt::StructDef { vis, name, generic_params, fields, span: Span::default() })
+        Ok(Stmt::StructDef { vis, name, generic_params, fields, span: start_span })
     }
 
     // ==================== Interface definition ====================
 
     fn parse_interface_def(&mut self) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // interface
         let name = self.expect_identifier()?;
+
+        // Generic parameters: [T, U: Constraint]
+        let mut generic_params = Vec::new();
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
+            self.advance();
+            loop {
+                let gp_name = Symbol::intern(&self.expect_identifier()?);
+                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
+                    self.advance();
+                    Some(Symbol::intern(&self.expect_identifier()?))
+                } else {
+                    None
+                };
+                generic_params.push((gp_name, gp_constraint));
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
+                    break;
+                }
+                self.expect_delimiter(Delimiter::Comma)?;
+            }
+            self.expect_delimiter(Delimiter::RBracket)?;
+        }
+
         self.expect_delimiter(Delimiter::LBrace)?;
         let mut methods = Vec::new();
         loop {
@@ -419,8 +485,9 @@ impl Parser {
         self.expect_delimiter(Delimiter::RBrace)?;
         Ok(Stmt::InterfaceDef {
             name: Symbol::intern(&name),
+            generic_params,
             methods,
-            span: Span::default(),
+            span: start_span,
         })
     }
 
@@ -470,7 +537,7 @@ impl Parser {
             Type::Void(Span::default())
         };
 
-        self.expect_semicolon()?;
+        self.try_semicolon()?;
 
         Ok(InterfaceMethod {
             name: Symbol::intern(&name),
@@ -483,6 +550,7 @@ impl Parser {
     // ==================== Impl block ====================
 
     fn parse_import(&mut self) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // import
         let path = match self.peek().map(|t| &t.kind) {
             Some(TokenKind::StringLiteral(s)) => {
@@ -492,11 +560,12 @@ impl Parser {
             }
             _ => return Err(self.error("expected package path string after `import`")),
         };
-        self.expect_semicolon()?;
-        Ok(Stmt::Import { path, span: Span::default() })
+        self.try_semicolon()?;
+        Ok(Stmt::Import { path, span: start_span })
     }
 
     fn parse_impl_block(&mut self) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // impl
         let type_sym = match self.peek().map(|t| &t.kind) {
             Some(TokenKind::Identifier(name)) => {
@@ -523,7 +592,7 @@ impl Parser {
         Ok(Stmt::ImplBlock {
             type_name: type_sym,
             methods,
-            span: Span::default(),
+            span: start_span,
         })
     }
 
@@ -548,6 +617,7 @@ impl Parser {
                 }
             }
         }
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.expect_keyword(Keyword::Fn)?;
         let name = Symbol::intern(&self.expect_identifier()?);
 
@@ -612,12 +682,13 @@ impl Parser {
             params,
             return_type,
             body,
-            span: Span::default(),
+            span: start_span,
         })
     }
 
 
     fn parse_block(&mut self) -> Result<Block, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.expect_delimiter(Delimiter::LBrace)?;
         let mut stmts = Vec::new();
         loop {
@@ -627,7 +698,7 @@ impl Parser {
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Block::new(stmts, Span::default()))
+        Ok(Block::new(stmts, start_span))
     }
 
     // ==================== Expressions ====================

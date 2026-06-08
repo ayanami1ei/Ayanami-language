@@ -9,9 +9,20 @@
   },
   "icon": "./icon.png",
   "main": "./extension.js",
-  "activationEvents": ["onLanguage:ayanami"],
-  "categories": ["Programming Languages"],
+  "activationEvents": [
+    "onLanguage:ayanami"
+  ],
+  "categories": [
+    "Programming Languages"
+  ],
   "contributes": {
+    "commands": [
+      {
+        "command": "ayanami.restart",
+        "title": "Ayanami: Restart Language Server",
+        "category": "Ayanami"
+      }
+    ],
     "configuration": {
       "title": "Ayanami",
       "properties": {
@@ -25,8 +36,13 @@
     "languages": [
       {
         "id": "ayanami",
-        "aliases": ["Ayanami", "ayanami"],
-        "extensions": [".aya"],
+        "aliases": [
+          "Ayanami",
+          "ayanami"
+        ],
+        "extensions": [
+          ".aya"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -37,5 +53,8 @@
         "path": "./syntaxes/ayanami.tmLanguage.json"
       }
     ]
+  },
+  "dependencies": {
+    "@vscode/vsce": "^3.9.2"
   }
 }

@@ -971,7 +971,10 @@ fn collect_strings_items(items: &[MirItem], out: &mut Vec<String>) {
 fn collect_strings_stmt(stmts: &[MirStmt], out: &mut Vec<String>) {
     for stmt in stmts {
         match stmt {
-            MirStmt::Assign { value, .. } => collect_strings_expr(value, out),
+            MirStmt::Assign { target, value, .. } => {
+                collect_strings_expr(target, out);
+                collect_strings_expr(value, out);
+            }
             MirStmt::FieldAssign { object, value, .. } => {
                 collect_strings_expr(object, out);
                 collect_strings_expr(value, out);
@@ -1017,7 +1020,9 @@ fn collect_strings_expr(expr: &MirExpr, out: &mut Vec<String>) {
                 collect_strings_expr(a, out);
             }
         }
-        MirExpr::Move(inner, _) | MirExpr::Clone(inner, _) => collect_strings_expr(inner, out),
+        MirExpr::Move(inner, _) | MirExpr::Clone(inner, _)
+            | MirExpr::ToUnique(inner, _) | MirExpr::ToShared(inner, _) | MirExpr::ToWeak(inner, _)
+            => collect_strings_expr(inner, out),
         MirExpr::VirtualCall { receiver, args, .. } => {
             collect_strings_expr(receiver, out);
             for a in args {

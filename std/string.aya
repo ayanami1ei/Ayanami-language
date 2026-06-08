@@ -1,9 +1,4 @@
-// String type and operations
-// Usage: import "std/string.aya";
-
-extern "C" {
-    fn __ayanami_print_str(unique [char] s);
-}
+extern "C" fn __ayanami_print_str(unique [char] s);
 
 pub struct String {
     unique [char] data
@@ -11,56 +6,29 @@ pub struct String {
 }
 
 impl String {
-    pub fn from(unique [char] chars) -> String {
-        len = 0;
-        for i in (0, 1000000) {
-            if chars[i] == '\0' { break; }
-            len = len + 1;
-        }
-        return String { data = chars, len = len };
+    pub fn index(shared self, int i) -> char {
+        return self.data[i];
     }
-
     pub fn len(shared self) -> int {
         return self.len;
     }
-
-    pub fn at(shared self, int i) -> char {
-        return self.data[i];
-    }
-
     pub fn print(shared self) {
         __ayanami_print_str(self.data);
     }
 }
 
-pub fn to_string(int n) -> String {
-    // Simple integer to string conversion (max 20 digits)
-    tmp = unique [char; 20];
-    i = 0;
-    neg = false;
-    if n < 0 {
-        neg = true;
-        n = -n;
-    } else if n == 0 {
-        tmp[0] = '0';
-        return String { data = tmp, len = 1 };
-    }
-    while n > 0 {
-        tmp[i] = (n % 10) as char + '0';
-        n = n / 10;
-        i = i + 1;
-    }
-    if neg {
-        tmp[i] = '-';
-        i = i + 1;
-    }
-    // Reverse the string
-    result = unique [char; i + 1];
-    j = 0;
-    while j < i {
-        result[j] = tmp[i - 1 - j];
-        j = j + 1;
-    }
-    result[i] = '\0';
-    return String::from(result);
+// --- ToString interface (for future use) ---
+// Usage: types implement to_string(shared self) -> String
+// Then print can accept any ToString type
+// Requires: impl Trait for Type support
+/*
+interface ToString {
+    fn to_string(shared self) -> String;
 }
+
+impl ToString for String {
+    fn to_string(shared self) -> String {
+        return self;
+    }
+}
+*/

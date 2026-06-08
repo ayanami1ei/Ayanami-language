@@ -87,6 +87,7 @@ pub enum Stmt {
     },
     InterfaceDef {
         name: Symbol,
+        generic_params: Vec<(Symbol, Option<Symbol>)>,
         methods: Vec<InterfaceMethod>,
         span: Span,
     },

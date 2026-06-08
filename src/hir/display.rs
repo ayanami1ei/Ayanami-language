@@ -68,8 +68,13 @@ fn write_item(item: &HirItem, level: usize, w: &mut impl Write) -> std::fmt::Res
                 write_item(item, level + 1, w)?;
             }
         }
-        HirItem::InterfaceDef { name, methods } => {
-            writeln!(w, "{}InterfaceDef {}", p, name)?;
+        HirItem::InterfaceDef { name, generic_params, methods } => {
+            let gp_str: Vec<String> = generic_params.iter().map(|(n, _)| n.to_string()).collect();
+            if gp_str.is_empty() {
+                writeln!(w, "{}InterfaceDef {}", p, name)?;
+            } else {
+                writeln!(w, "{}InterfaceDef {}[{}]", p, name, gp_str.join(", "))?;
+            }
             for m in methods {
                 let params: Vec<String> = m.params.iter()
                     .map(|(n, t)| format!("{}: {}", n, display_type(t)))
