@@ -621,6 +621,27 @@ impl Parser {
         self.expect_keyword(Keyword::Fn)?;
         let name = Symbol::intern(&self.expect_identifier()?);
 
+        // Generic parameters: [T: Interface, U]
+        let mut generic_params = Vec::new();
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
+            self.advance();
+            loop {
+                let gp_name = Symbol::intern(&self.expect_identifier()?);
+                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
+                    self.advance();
+                    Some(Symbol::intern(&self.expect_identifier()?))
+                } else {
+                    None
+                };
+                generic_params.push((gp_name, gp_constraint));
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
+                    break;
+                }
+                self.expect_delimiter(Delimiter::Comma)?;
+            }
+            self.expect_delimiter(Delimiter::RBracket)?;
+        }
+
         self.expect_delimiter(Delimiter::LParen)?;
 
         // Parse self parameter: shared self or unique self
@@ -677,7 +698,7 @@ impl Parser {
             vis: Visibility::Pub,
             is_inline: false,
             extern_c: false,
-            generic_params: Vec::new(),
+            generic_params,
             name,
             params,
             return_type,

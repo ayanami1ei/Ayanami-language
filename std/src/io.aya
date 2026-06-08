@@ -6,13 +6,13 @@ extern "C" fn __ayanami_print(unique [char] s);
 extern "C" fn __ayanami_print_ln();
 
 pub fn getchar() -> int { 
-    return __ayanami_getchar(); 
+    return __ayanami_getchar() 
 }
 pub fn putchar(int c) { 
     __ayanami_putchar(c); 
 }
 pub fn print(String n) { 
-    __ayanami_print(n); 
+    __ayanami_print(n.data); 
 }
 pub fn println() {
     __ayanami_print_ln(); 

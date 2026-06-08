@@ -1,5 +1,3 @@
-extern "C" fn __ayanami_print_str(unique [char] s);
-
 pub struct String {
     unique [char] data
     int len
@@ -12,7 +10,8 @@ impl String {
     pub fn len(shared self) -> int {
         return self.len;
     }
-    pub fn print(shared self) {
-        __ayanami_print_str(self.data);
+
+    pub fn add[T:Add](shared self, unique T a)->unique String{
+        return self.data;
     }
 }
