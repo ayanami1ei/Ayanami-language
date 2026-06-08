@@ -1064,7 +1064,7 @@ impl Ctx {
             op: BinaryOp::Lt,
             lhs: Box::new(HirExpr::Local(var_id, ty.clone())),
             rhs: Box::new(hir_end),
-            ty: HirType::Bool,
+            ty: ty.clone(),
         };
 
         let hir_body = self.lower_block(body)?;

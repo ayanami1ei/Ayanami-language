@@ -50,17 +50,42 @@ impl String {
     }
 
     pub fn add[T:ToString](unique self, unique T a)->unique String{
-        str=a.to_string()
-        new_str_inner=[char;self.len+a.len]
+        str = a.to_string()
+        new_len = self.len + str.len
+        new_str_inner = [char; new_len]
 
         for i in (0, self.len){
-            new_str_inner[i]=self.data[i]
+            new_str_inner[i] = self.data[i]
         }
-        for i in (self.len, a.len+self.len){
-            new_str_inner[i]=a.data[i]
+        for i in (self.len, new_len){
+            new_str_inner[i] = str.data[i - self.len]
         }
 
-        return unique String{data=new_str_inner, len=self.len+a.len}
+        return unique String{data = new_str_inner, len = new_len}
+    }
+
+    pub fn eq(unique self, unique String other) -> bool {
+        if self.len != other.len {
+            return false
+        }
+        for i in (0, self.len){
+            if self.data[i] != other.data[i] {
+                return false
+            }
+        }
+        return true
+    }
+
+    pub fn ne(unique self, unique String other) -> bool {
+        return !self.eq(other)
+    }
+
+    pub fn copy(unique self) -> unique String {
+        buf = unique [char; self.len]
+        for i in (0, self.len){
+            buf[i] = self.data[i]
+        }
+        return unique String { data = buf, len = self.len }
     }
 }
 
