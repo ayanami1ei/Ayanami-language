@@ -6,14 +6,15 @@ function activate(context) {
     // ─── Status Bar ──────────────────────────────────────────────────
     const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1000);
     statusBar.text = 'Ayanami';
-    statusBar.tooltip = 'Ayanami Language';
+    statusBar.tooltip = 'Ayanami Language — click to restart';
+    statusBar.command = 'ayanami.restart';
     statusBar.show();
     context.subscriptions.push(statusBar);
 
     function setStatus(text, icon) {
         try {
             statusBar.text = text ? `Ayanami: ${text}` : 'Ayanami';
-            statusBar.tooltip = text ? `Ayanami: ${text}` : 'Ayanami Language';
+            statusBar.tooltip = text ? `Ayanami: ${text} — click to restart` : 'Ayanami Language — click to restart';
             statusBar.show();
         } catch (e) {
             console.error('ayanami setStatus error:', e);
