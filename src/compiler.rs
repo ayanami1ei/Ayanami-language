@@ -849,6 +849,7 @@ fn has_return_in_stmt(s: &HirStmt) -> bool {
 fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<(), String> {
     for item in &hir.items {
         if let HirItem::Fn(f) = item {
+            if f.extern_c { continue; }
             if matches!(f.return_type, HirType::Void) { continue; }
             if !has_return_in_item(item) {
                 let (ln, col) = if f.span.start_line > 0 || f.span.start_col > 0 {

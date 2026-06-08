@@ -3,7 +3,8 @@ name = "std"
 version = "0.1.0"
 
 [build]
-target = "static-lib"
+#target = "static-lib"
+target = "executable"
 
 [dependencies]
 string = "src/string.aya"
