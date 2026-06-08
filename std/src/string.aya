@@ -70,6 +70,11 @@ impl String {
         return self.add(n.to_string())
     }
 
+    pub fn add[T:ToString](unique self, unique T a) -> unique String {
+        str = a.to_string()
+        return self.add(str)
+    }
+
     pub fn eq(unique self, unique String other) -> bool {
         if self.len != other.len {
             return false

@@ -51,6 +51,9 @@ pub enum PackageSymbol {
     Namespace {
         name: String,
     },
+    Interface {
+        name: String,
+    },
 }
 
 impl Package {
@@ -84,7 +87,7 @@ impl Package {
 
     fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str) {
         match stmt {
-            Stmt::FnDecl { vis, name, params, return_type, .. } => {
+            Stmt::FnDecl { vis, name, params, return_type, generic_params, body, .. } => {
                 if all || vis.is_public() {
                     let full_name = if ns_prefix.is_empty() {
                         name.as_str().to_string()
@@ -99,6 +102,28 @@ impl Package {
                         name: full_name,
                         signature: sig,
                     });
+                    if !generic_params.is_empty() {
+                        // Serialize generic function AST to source code
+                        let prog = crate::parser::ast::Program {
+                            stmts: vec![stmt.clone()],
+                        };
+                        let src = crate::formatter::format_program(&prog);
+                        self.generic_sources.push(src);
+                    }
+                }
+            }
+            Stmt::ImplBlock { type_name, methods, .. } => {
+                let has_generic = methods.iter().any(|m| matches!(m, Stmt::FnDecl { generic_params, .. } if !generic_params.is_empty()));
+                if has_generic {
+                    // Serialize the entire impl block as generic source (needed for self syntax)
+                    let prog = crate::parser::ast::Program {
+                        stmts: vec![stmt.clone()],
+                    };
+                    let src = crate::formatter::format_program(&prog);
+                    self.generic_sources.push(src);
+                }
+                for m in methods {
+                    self.collect_stmt_symbols(m, all, ns_prefix);
                 }
             }
             Stmt::StructDef { vis, name, fields, .. } => {
@@ -110,6 +135,17 @@ impl Package {
                         name: format!("{}({})", name, fields_str.join(",")),
                     });
                 }
+            }
+            Stmt::InterfaceDef { name, methods, generic_params, .. } => {
+                self.symbols.push(PackageSymbol::Interface {
+                    name: name.as_str().to_string(),
+                });
+                // Serialize interface to generic sources for method resolution
+                let prog = crate::parser::ast::Program {
+                    stmts: vec![stmt.clone()],
+                };
+                let src = crate::formatter::format_program(&prog);
+                self.generic_sources.push(src);
             }
             Stmt::ImplBlock { methods, .. } => {
                 for m in methods {
@@ -173,15 +209,18 @@ impl Package {
                     PackageSymbol::Namespace { name } => {
                         body.push_str(&format!("namespace=\"{}\"\n", name));
                     }
+                    PackageSymbol::Interface { name } => {
+                        body.push_str(&format!("interface=\"{}\"\n", name));
+                    }
                 }
             }
             body.push_str("\n");
         }
 
-        // Generic source code slot (reserved for future)
         body.push_str("[generics]\n");
         for src in &self.generic_sources {
-            body.push_str(&format!("source=\"{}\"\n", src));
+            let escaped = src.replace('\\', "\\\\").replace('\n', "\\n").replace('"', "\\\"");
+            body.push_str(&format!("source=\"{}\"\n", escaped));
         }
         body.push_str("\n");
 
@@ -211,6 +250,9 @@ pub enum ImportedSymbol {
         name: String,
     },
     Namespace {
+        name: String,
+    },
+    Interface {
         name: String,
     },
 }
@@ -261,10 +303,15 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             } else if let Some(rest) = line.strip_prefix("namespace=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Namespace { name: val });
+            } else if let Some(rest) = line.strip_prefix("interface=") {
+                let val = parse_ini_value(rest);
+                symbols.push(ImportedSymbol::Interface { name: val });
             }
         } else if in_generics {
             if let Some(rest) = line.strip_prefix("source=") {
-                sources.push(parse_ini_value(rest));
+                let val = parse_ini_value(rest);
+                let unescaped = val.replace("\\n", "\n").replace("\\\\", "\\").replace("\\\"", "\"");
+                sources.push(unescaped);
             }
         } else if in_target {
             if let Some(rest) = line.strip_prefix("type=") {

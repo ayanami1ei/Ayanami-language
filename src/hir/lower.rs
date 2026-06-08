@@ -199,9 +199,52 @@ impl Ctx {
                             found
                         }
                     };
-                    let (imported_syms, _, _, _) = crate::package::load_package(&pkg_path)
+                    let (imported_syms, sources, _, _) = crate::package::load_package(&pkg_path)
                         .map_err(|e| format!("import error for '{}': {}", path, e))?;
                     let _ = imported_syms;
+                    
+                    // Parse and register generic function ASTs and interfaces from the package
+                    for src in &sources {
+                        let mut lexer = crate::lexer::Lexer::new(src);
+                        let tokens = lexer.tokenize_all();
+                        let filtered: Vec<_> = tokens.into_iter()
+                            .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
+                            .collect();
+                        if filtered.is_empty() { continue; }
+                        let mut parser = crate::parser::Parser::new(filtered);
+                        if let Ok(parsed) = parser.parse_program() {
+                            for stmt in &parsed.stmts {
+                                match stmt {
+                                    Stmt::FnDecl { name, generic_params, .. } if !generic_params.is_empty() => {
+                                        self.generic_fns.push((*name, generic_params.clone(), stmt.clone()));
+                                    }
+                                    Stmt::ImplBlock { methods, .. } => {
+                                        for m in methods {
+                                            if let Stmt::FnDecl { name, generic_params, .. } = m {
+                                                if !generic_params.is_empty() {
+                                                    self.generic_fns.push((*name, generic_params.clone(), m.clone()));
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Stmt::InterfaceDef { name, methods, generic_params, .. } => {
+                                        let hir_methods = methods.iter().map(|m| {
+                                            crate::hir::ir::HirInterfaceMethod {
+                                                name: m.name,
+                                                self_keyword: m.self_keyword,
+                                                params: m.params.iter()
+                                                    .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+                                                    .collect(),
+                                                return_type: ast_type_to_hir(&m.return_type, &self.interfaces),
+                                            }
+                                        }).collect();
+                                        self.interfaces.insert(*name, InterfaceReg { generic_params: generic_params.clone(), methods: hir_methods });
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
                     for sym in &imported_syms {
                         match sym {
                             crate::package::ImportedSymbol::Fn { name, sig } => {
@@ -255,6 +298,9 @@ impl Ctx {
                             }
                             crate::package::ImportedSymbol::Namespace { .. } => {
                                 // Handled by lowering; just register the path
+                            }
+                            crate::package::ImportedSymbol::Interface { .. } => {
+                                // Interface definition is loaded from generic sources above
                             }
                         }
                     }
@@ -1314,8 +1360,14 @@ impl Ctx {
                 }
 
                 // Static dispatch: find method by receiver type
-                let fn_id = self.resolve_method(&receiver_ty, method, &arg_types)
-                    .ok_or_else(|| format!("no method `{}` found for type {:?} at {}:{}", method, receiver_ty, span.start_line, span.start_col))?;
+                let fn_id = match self.resolve_method(&receiver_ty, method, &arg_types) {
+                    Some(id) => id,
+                    None => {
+                        let mut all_param_types = vec![receiver_ty.clone()];
+                        all_param_types.extend(arg_types.iter().cloned());
+                        self.specialize_generic_call(method, &all_param_types, span)?
+                    }
+                };
 
                 // Apply implicit moves and ownership conversions on all args (including receiver)
                 let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
