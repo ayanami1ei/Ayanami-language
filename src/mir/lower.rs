@@ -315,6 +315,8 @@ impl Ctx {
     }
 
     fn lower_stmt(&mut self, stmt: &HirStmt) -> Vec<MirStmt> {
+        // Track moves in all expressions within this statement
+        self.track_stmt_moves(stmt);
         match stmt {
             HirStmt::Assign { target, value } => self.lower_assign(target, value),
             HirStmt::FieldAssign { object, field, field_index, field_ty, value } => {
@@ -344,6 +346,40 @@ impl Ctx {
                 vec![MirStmt::Expr(mir_expr_from_hir(expr, &self.moved))]
             },
             HirStmt::Block(stmts) => self.lower_block(stmts),
+        }
+    }
+
+    /// Walk all expressions in a statement and mark any Move(Local(v)) as moved.
+    fn track_stmt_moves(&mut self, stmt: &HirStmt) {
+        match stmt {
+            HirStmt::Assign { value, .. } => self.track_expr_moves(value),
+            HirStmt::FieldAssign { object, value, .. } => {
+                self.track_expr_moves(object);
+                self.track_expr_moves(value);
+            }
+            HirStmt::IndexAssign { object, index, value } => {
+                self.track_expr_moves(object);
+                self.track_expr_moves(index);
+                self.track_expr_moves(value);
+            }
+            HirStmt::Return { value } => {
+                if let Some(v) = value { self.track_expr_moves(v); }
+            }
+            HirStmt::If { cond, then_block, elifs, else_block } => {
+                self.track_expr_moves(cond);
+                for s in then_block.stmts.iter().chain(elifs.iter().flat_map(|(_, b)| &b.stmts))
+                    .chain(else_block.iter().flat_map(|b| &b.stmts)) {
+                    self.track_stmt_moves(s);
+                }
+            }
+            HirStmt::While { cond, body } => {
+                self.track_expr_moves(cond);
+                for s in &body.stmts { self.track_stmt_moves(s); }
+            }
+            HirStmt::Expr(expr) => self.track_expr_moves(expr),
+            HirStmt::Block(stmts) => {
+                for s in stmts { self.track_stmt_moves(s); }
+            }
         }
     }
 
@@ -389,6 +425,9 @@ impl Ctx {
 
     fn lower_assign(&mut self, target: &HirExpr, value: &HirExpr) -> Vec<MirStmt> {
         let mut stmts = Vec::new();
+
+        // Track moves inside the value expression
+        self.track_expr_moves(value);
 
         // If target is a local, handle cleanup of old value
         if let Some(tgt_var) = extract_var_id(target) {
@@ -444,6 +483,13 @@ impl Ctx {
                         }
                     }
                     _ => {}
+                }
+                // Mark all return expression variables as moved
+                // (they're consumed by the return, even if nested in Call args)
+                if let Some(return_vars_fix) = value.as_ref().map(collect_var_ids) {
+                    for var in &return_vars_fix {
+                        self.moved.insert(*var);
+                    }
                 }
                 Some(mir_expr_from_hir(v, &self.moved))
             }
