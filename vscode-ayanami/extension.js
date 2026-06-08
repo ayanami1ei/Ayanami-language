@@ -82,18 +82,29 @@ function activate(context) {
                 const varName = dotMatch[1];
                 const typeName = varTypes.get(varName);
                 if (typeName) {
-                    // Show struct fields for the type
                     const fields = getStructFields(document, typeName);
                     for (const f of fields) {
                         items.push(makeItem(f, vscode.CompletionItemKind.Field, `${typeName} field`));
                     }
-                    // Show methods for the type from impl blocks
+                    // Also check imported files for struct fields
+                    if (fields.length === 0 && folder) {
+                        const importedFields = getImportedStructFields(folder, typeName);
+                        for (const f of importedFields) {
+                            items.push(makeItem(f, vscode.CompletionItemKind.Field, `${typeName} field`));
+                        }
+                    }
                     const methods = getImplMethods(document, typeName);
                     for (const m of methods) {
                         items.push(makeItem(m, vscode.CompletionItemKind.Method, `${typeName} method`));
                     }
+                    // Also check imported files for impl methods
+                    if (methods.length === 0 && folder) {
+                        const importedMethods = getImportedImplMethods(folder, typeName);
+                        for (const m of importedMethods) {
+                            items.push(makeItem(m, vscode.CompletionItemKind.Method, `${typeName} method`));
+                        }
+                    }
                 }
-                // Show known methods for primitive types
                 if (typeName === 'int' || typeName === 'String') {
                     items.push(makeItem('to_string', vscode.CompletionItemKind.Method, `${typeName} method`));
                 }
@@ -799,6 +810,42 @@ function scanVariableTypes(doc) {
                 varTypes.set(varName, 'String');
                 continue;
             }
+            // Try to infer from function return type
+            const retType = getReturnType(text, fnName);
+            if (retType) {
+                varTypes.set(varName, retType);
+                continue;
+            }
+        }
+    }
+
+    // Collect function return types for the whole file first
+    const fnRetTypes = collectReturnTypes(text);
+    // Also collect from imported files
+    const folder = document.uri.scheme === 'file' ? require('path').dirname(document.uri.fsPath) : null;
+    if (folder) {
+        const importRe = /import\s+"([^"]+\.aya)"/g;
+        let im;
+        while ((im = importRe.exec(text)) !== null) {
+            const importPath = require('path').resolve(folder, im[1]);
+            try {
+                const importContent = require('fs').readFileSync(importPath, 'utf8');
+                const importRetTypes = collectReturnTypes(importContent);
+                for (const [k, v] of importRetTypes) {
+                    fnRetTypes.set(k, v);
+                }
+            } catch (e) {}
+        }
+    }
+
+    // Second pass: resolve call-based types from collected return types
+    const assignRe2 = /(\w+)\s*=\s*(.*?)(?:;|$)/g;
+    while ((m = assignRe2.exec(text)) !== null) {
+        const varName = m[1];
+        const rhs = m[2].trim();
+        const callMatch2 = rhs.match(/^(\w+)\(/);
+        if (callMatch2 && fnRetTypes.has(callMatch2[1]) && !varTypes.has(varName)) {
+            varTypes.set(varName, fnRetTypes.get(callMatch2[1]));
         }
     }
 
@@ -875,6 +922,82 @@ function getImplMethods(doc, typeName) {
     while ((fm = fnRe.exec(blockBody)) !== null) {
         methods.push(fm[1]);
     }
+    return methods;
+}
+
+// ─── Helper: collect function return types from source text ─────────
+function collectReturnTypes(text) {
+    const map = new Map();
+    const re = /(?:pub\s+)?fn\s+(\w+)\s*\([^)]*\)\s*(?:->\s*(\w+))?/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        if (m[2]) {
+            map.set(m[1], m[2]);
+        }
+    }
+    // Also check extern "C" declarations
+    const externRe = /extern\s+"C"\s+fn\s+(\w+)\s*\([^)]*\)\s*(?:->\s*(\w+))?/g;
+    while ((m = externRe.exec(text)) !== null) {
+        if (m[2]) {
+            map.set(m[1], m[2]);
+        }
+    }
+    return map;
+}
+
+function getReturnType(text, fnName) {
+    const types = collectReturnTypes(text);
+    return types.get(fnName) || null;
+}
+
+// ─── Helper: get struct fields from imported files ──────────────────
+function getImportedStructFields(folder, typeName) {
+    const fs = require('fs');
+    const path = require('path');
+    const fields = [];
+    try {
+        const files = fs.readdirSync(folder);
+        for (const f of files) {
+            if (!f.endsWith('.aya')) continue;
+            const content = fs.readFileSync(path.join(folder, f), 'utf8');
+            const re = new RegExp('struct\\s+' + typeName + '\\s*\\{([^}]*)\\}', 'm');
+            const m = re.exec(content);
+            if (!m) continue;
+            const body = m[1];
+            const re2 = /(\w+)\s+(\w+)/g;
+            let fm;
+            while ((fm = re2.exec(body)) !== null) fields.push(fm[2]);
+        }
+    } catch (e) {}
+    return fields;
+}
+
+// ─── Helper: get impl methods from imported files ───────────────────
+function getImportedImplMethods(folder, typeName) {
+    const fs = require('fs');
+    const path = require('path');
+    const methods = [];
+    try {
+        const files = fs.readdirSync(folder);
+        for (const f of files) {
+            if (!f.endsWith('.aya')) continue;
+            const content = fs.readFileSync(path.join(folder, f), 'utf8');
+            const re = new RegExp('impl\\s+' + typeName + '\\s*\\{', 'm');
+            const m = re.exec(content);
+            if (!m) continue;
+            const blockStart = m.index + m[0].length;
+            let depth = 1, pos = blockStart;
+            while (depth > 0 && pos < content.length) {
+                if (content[pos] === '{') depth++;
+                else if (content[pos] === '}') depth--;
+                pos++;
+            }
+            const blockBody = content.slice(blockStart, pos - 1);
+            const fnRe = /(?:pub\s+)?fn\s+(\w+)\s*\(/g;
+            let fm;
+            while ((fm = fnRe.exec(blockBody)) !== null) methods.push(fm[1]);
+        }
+    } catch (e) {}
     return methods;
 }
 
