@@ -1,7 +1,23 @@
 const vscode = require('vscode');
 
 function activate(context) {
-    console.log('ayanami extension activating...');
+    // ─── Output Channel ───────────────────────────────────────────────
+    const outputChannel = vscode.window.createOutputChannel('Ayanami');
+    context.subscriptions.push(outputChannel);
+    outputChannel.appendLine('ayanami extension activating...');
+
+    // ─── Debounced check queue ────────────────────────────────────────
+    const pendingChecks = new Map(); // uri -> timer
+    function scheduleCheck(doc) {
+        const key = doc.uri.toString();
+        if (pendingChecks.has(key)) {
+            clearTimeout(pendingChecks.get(key));
+        }
+        pendingChecks.set(key, setTimeout(() => {
+            pendingChecks.delete(key);
+            runCheck(doc, diagCollection, context, setStatus, outputChannel);
+        }, 400));
+    }
 
     // ─── Status Bar ──────────────────────────────────────────────────
     const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1000);
@@ -32,7 +48,7 @@ function activate(context) {
         // Re-check all open .aya files
         const files = vscode.workspace.textDocuments.filter(d => d.languageId === 'ayanami');
         for (const doc of files) {
-            runCheck(doc, diagCollection, context, setStatus);
+            runCheck(doc, diagCollection, context, setStatus, outputChannel);
         }
         setStatus('ready');
         vscode.window.showInformationMessage('Ayanami: restarted');
@@ -262,20 +278,26 @@ function activate(context) {
     const diagCollection = vscode.languages.createDiagnosticCollection('ayanami');
     context.subscriptions.push(diagCollection);
 
-    function runCheck(doc, collection, ctx, statusFn) {
+    function runCheck(doc, collection, ctx, statusFn, log) {
         try {
             if (doc.languageId !== 'ayanami') return;
+            const fs = require('fs');
+            const path = require('path');
+            const filePath = doc.uri.fsPath;
+
+            // Skip files in node_modules, .git, etc.
+            if (filePath.includes('node_modules') || filePath.includes('.git')) return;
+
             statusFn('checking');
             collection.clear();
             const diagnostics = [];
-            const fs = require('fs');
-            const path = require('path');
 
             let ayanamiPath = findAyanamiPath(ctx);
             if (!ayanamiPath) {
+                if (log) log.appendLine('compiler not found');
                 statusFn('not found');
                 diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 10),
-                    'ayanami: compiler not found in PATH', vscode.DiagnosticSeverity.Warning));
+                    'ayanami: compiler not found (set ayanami.compilerPath in settings)', vscode.DiagnosticSeverity.Warning));
                 collection.set(doc.uri, diagnostics);
                 return;
             }
@@ -283,25 +305,28 @@ function activate(context) {
             const { execFileSync } = require('child_process');
 
             // Use project root as CWD (walk up from file to find ayanami.toml)
-            let projectRoot = path.dirname(doc.uri.fsPath);
+            let projectRoot = path.dirname(filePath);
             for (let i = 0; i < 10; i++) {
                 if (fs.existsSync(path.join(projectRoot, 'ayanami.toml'))) break;
                 const parent = path.dirname(projectRoot);
-                if (parent === projectRoot) { projectRoot = path.dirname(doc.uri.fsPath); break; }
+                if (parent === projectRoot) { projectRoot = path.dirname(filePath); break; }
                 projectRoot = parent;
             }
+            if (log) log.appendLine(`check: ${path.relative(projectRoot, filePath)} (cwd=${projectRoot})`);
 
             let out = '';
             try {
-                out = execFileSync(ayanamiPath, ['check', doc.uri.fsPath], {
+                out = execFileSync(ayanamiPath, ['check', filePath], {
                     timeout: 15000,
                     encoding: 'utf8',
                     cwd: projectRoot,
                     stdio: ['pipe', 'pipe', 'pipe'],
                 });
                 statusFn('ok');
+                if (log) log.appendLine('check passed');
             } catch (e) {
                 out = (e.stdout || '') + (e.stderr || '');
+                if (log) log.appendLine(`check stderr: ${(e.stderr || '').slice(0, 200)}`);
             }
 
             if (out) {
@@ -333,26 +358,43 @@ function activate(context) {
 
             if (diagnostics.length > 0) {
                 statusFn(`${diagnostics.length} error(s)`);
+                if (log) log.appendLine(`${diagnostics.length} error(s) found`);
             }
 
             collection.set(doc.uri, diagnostics);
         } catch (e) {
-            console.error('ayanami diagnostic error:', e);
+            if (log) log.appendLine(`diagnostic error: ${e.message}`);
             statusFn('error');
         }
     }
 
-    // Check on save
-    context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(doc => {
-        runCheck(doc, diagCollection, context, setStatus);
-    }));
-
-    // Check on open (with small delay to let editor settle)
+    // Check on open (debounced, 400ms delay to let editor settle)
     context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
-        setTimeout(() => runCheck(doc, diagCollection, context, setStatus), 500);
+        if (doc.languageId === 'ayanami') {
+            scheduleCheck(doc);
+        }
     }));
 
-    console.log('ayanami extension activated');
+    // Check on save (immediate, no debounce)
+    context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(doc => {
+        if (doc.languageId === 'ayanami') {
+            runCheck(doc, diagCollection, context, setStatus, outputChannel);
+        }
+    }));
+
+    // Check on edit (debounced, 600ms after last change)
+    let editTimer = null;
+    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(e => {
+        if (e.document.languageId === 'ayanami') {
+            if (editTimer) clearTimeout(editTimer);
+            editTimer = setTimeout(() => {
+                editTimer = null;
+                runCheck(e.document, diagCollection, context, setStatus, outputChannel);
+            }, 600);
+        }
+    }));
+
+    outputChannel.appendLine('ayanami extension activated');
     setTimeout(() => { setStatus('ready'); }, 1000);
 
     // ─── Defs Cache (for Go to Definition) ────────────────────────────
@@ -530,7 +572,9 @@ function activate(context) {
 function findAyanamiPath(context) {
     const fs = require('fs');
     const path = require('path');
+    const os = require('os');
 
+    // 1. Setting
     try {
         const config = vscode.workspace.getConfiguration('ayanami');
         const setting = config.get('compilerPath', '');
@@ -539,12 +583,26 @@ function findAyanamiPath(context) {
         }
     } catch (_) {}
 
+    // 2. Common home-directory locations
+    const home = os.homedir();
+    const homeCandidates = [
+        path.join(home, 'ayanami', 'ayanami'),
+        path.join(home, '.ayanami', 'ayanami'),
+        path.join(home, 'bin', 'ayanami'),
+        path.join(home, '.local', 'bin', 'ayanami'),
+    ];
+    for (const c of homeCandidates) {
+        try { if (fs.existsSync(c)) return c; } catch (_) {}
+    }
+
+    // 3. PATH
     const envPath = (process.env.PATH || '').split(path.delimiter);
     for (const dir of envPath) {
         const candidate = path.join(dir, 'ayanami');
         try { if (fs.existsSync(candidate)) return candidate; } catch (_) {}
     }
 
+    // 4. Workspace-relative build directories
     try {
         const workspaces = vscode.workspace.workspaceFolders || [];
         for (const ws of workspaces) {
