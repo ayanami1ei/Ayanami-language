@@ -175,7 +175,7 @@ impl Ctx {
                 }
                 Stmt::Import { path, .. } => {
                     let (imported_syms, _, _, _) = crate::package::load_package(path)
-                        .map_err(|e| format!("import error: {}", e))?;
+                        .map_err(|e| format!("import error for '{}': {}", path, e))?;
                     let _ = imported_syms;
                     for sym in &imported_syms {
                         match sym {
@@ -183,7 +183,7 @@ impl Ctx {
                                 // sig format: "fnName(param_types...)->ret_type"
                                 let sig_body = sig.trim_start_matches(name.as_str());
                                 let arrow_pos = sig_body.find(")->")
-                                    .ok_or_else(|| format!("invalid fn sig in package '{}'", name))?;
+                                    .ok_or_else(|| format!("invalid fn sig in package '{}': sig body `{}`", name, sig_body))?;
                                 let params_str = &sig_body[..arrow_pos];
                                 let ret_str = &sig_body[arrow_pos + 3..];
                                 // params_str is "(type1,type2" — strip leading '('
@@ -251,12 +251,14 @@ impl Ctx {
                             });
                             self.fn_map.entry(*name).or_default().push(fn_id);
                         } else {
-                            return Err("unexpected non-FnDecl inside impl block".into());
+                            let s = method.span();
+                            return Err(format!("unexpected non-FnDecl inside impl block (at {}:{})", s.start_line, s.start_col));
                         }
                     }
                 }
                 _ => {
-                    return Err(format!("unexpected top-level statement outside function, namespace, interface, or impl block"));
+                    let s = stmt.span();
+                    return Err(format!("unexpected top-level statement outside function, namespace, interface, or impl block (at {}:{})", s.start_line, s.start_col));
                 }
             }
         }
@@ -624,7 +626,7 @@ impl Ctx {
 
         let (gf_name, gf_params, gf_stmt) = &self.generic_fns[gf_idx];
         let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, .. } = gf_stmt else {
-            return Err("internal error: generic function is not a FnDecl".into());
+            return Err(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col));
         };
 
         if params.len() != arg_types.len() {
@@ -658,7 +660,7 @@ impl Ctx {
         for (gp_name, constraint) in gf_params {
             if let Some(iface_name) = constraint {
                 let concrete_ty = generic_mappings.get(gp_name)
-                    .ok_or_else(|| format!("internal error: generic param `{}` not resolved", gp_name))?;
+                    .ok_or_else(|| format!("internal error: generic param `{}` not resolved at {}:{}", gp_name, span.start_line, span.start_col))?;
                 let concrete_inner = strip_ownership_ref(concrete_ty);
                 let concrete_type_name = match concrete_inner {
                     HirType::Named(n) => *n,
@@ -755,7 +757,7 @@ impl Ctx {
                         .map(|(_, t)| ast_type_to_hir(t, &self.interfaces))
                         .collect();
                     let fn_id = self.find_fn_by_sig(full_name, &ptypes)
-                        .ok_or_else(|| format!("internal error: function `{}` not found", full_name))?;
+                        .ok_or_else(|| format!("internal error: function `{}` not found at {}:{}", full_name, span.start_line, span.start_col))?;
                     let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline, *extern_c, *span)?;
                     items.push(HirItem::Fn(hir_fn));
                 }
@@ -796,14 +798,18 @@ impl Ctx {
                                 .map(|(_, t)| ast_type_to_hir(t, &self.interfaces))
                                 .collect();
                             let fn_id = self.find_fn_by_sig(*name, &ptypes)
-                                .ok_or_else(|| format!("internal error: method `{}` not found", name))?;
+                                .ok_or_else(|| {
+                                    let s = method_stmt.span();
+                                    format!("internal error: method `{}` not found at {}:{}", name, s.start_line, s.start_col)
+                                })?;
                             let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, Span::default())?;
                             items.push(HirItem::Fn(hir_fn));
                         }
                     }
                 }
                 _ => {
-                    return Err(format!("unexpected top-level statement"));
+                    let s = stmt.span();
+                    return Err(format!("unexpected top-level statement (at {}:{})", s.start_line, s.start_col));
                 }
             }
         }
@@ -883,29 +889,29 @@ impl Ctx {
         None
     }
 
-    fn find_field_index(&self, struct_ty: &HirType, field: &Symbol) -> Result<usize, String> {
+    fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize, String> {
         let inner = strip_ownership_ref(struct_ty);
         let type_name = match inner {
             HirType::Named(n) => *n,
-            _ => return Err(format!("cannot access field on non-struct type {:?}", struct_ty)),
+            _ => return Err(format!("cannot access field on non-struct type {:?} (at {}:{})", struct_ty, span.start_line, span.start_col)),
         };
         let def = self.struct_defs.get(&type_name)
-            .ok_or_else(|| format!("unknown struct type `{}`", type_name))?;
+            .ok_or_else(|| format!("unknown struct type `{}` (at {}:{})", type_name, span.start_line, span.start_col))?;
         def.iter().position(|f| &f.name == field)
-            .ok_or_else(|| format!("struct `{}` has no field `{}`", type_name, field))
+            .ok_or_else(|| format!("struct `{}` has no field `{}` (at {}:{})", type_name, field, span.start_line, span.start_col))
     }
 
-    fn find_field_type(&self, struct_ty: &HirType, field: &Symbol) -> Result<HirType, String> {
+    fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType, String> {
         let inner = strip_ownership_ref(struct_ty);
         let type_name = match inner {
             HirType::Named(n) => *n,
-            _ => return Err(format!("cannot access field on non-struct type {:?}", struct_ty)),
+            _ => return Err(format!("cannot access field on non-struct type {:?} (at {}:{})", struct_ty, span.start_line, span.start_col)),
         };
         let def = self.struct_defs.get(&type_name)
-            .ok_or_else(|| format!("unknown struct type `{}`", type_name))?;
+            .ok_or_else(|| format!("unknown struct type `{}` (at {}:{})", type_name, span.start_line, span.start_col))?;
         def.iter().find(|f| &f.name == field)
             .map(|f| f.ty.clone())
-            .ok_or_else(|| format!("struct `{}` has no field `{}`", type_name, field))
+            .ok_or_else(|| format!("struct `{}` has no field `{}` (at {}:{})", type_name, field, span.start_line, span.start_col))
     }
 
     fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)> {
@@ -948,11 +954,11 @@ impl Ctx {
                     value: hir_value,
                 })
             }
-            Stmt::FieldAssign { object, field, value, .. } => {
+            Stmt::FieldAssign { object, field, value, span: stmt_span } => {
                 let hir_object = self.lower_expr(object)?;
                 let object_ty = expr_type(&hir_object);
-                let field_index = self.find_field_index(&object_ty, field)?;
-                let field_ty = self.find_field_type(&object_ty, field)?;
+                let field_index = self.find_field_index(&object_ty, field, stmt_span)?;
+                let field_ty = self.find_field_type(&object_ty, field, stmt_span)?;
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
                 Ok(HirStmt::FieldAssign {
@@ -1018,7 +1024,8 @@ impl Ctx {
                 Ok(HirStmt::Expr(hir_expr))
             }
             Stmt::Namespace { .. } | Stmt::FnDecl { .. } | Stmt::StructDef { .. } | Stmt::InterfaceDef { .. } | Stmt::ImplBlock { .. } | Stmt::Import { .. } => {
-                Err("unexpected declaration inside function body".into())
+                let s = stmt.span();
+                Err(format!("unexpected declaration inside function body (at {}:{})", s.start_line, s.start_col))
             }
         }
     }
@@ -1248,11 +1255,11 @@ impl Ctx {
                     // Virtual dispatch through interface
                     let iface_name = *iface;
                     let iface_reg = self.interfaces.get(&iface_name)
-                        .ok_or_else(|| format!("unknown interface `{}` used as type", iface_name))?;
+                        .ok_or_else(|| format!("unknown interface `{}` used as type (at {}:{})", iface_name, span.start_line, span.start_col))?;
 
                     let method_idx = iface_reg.methods.iter()
                         .position(|m| m.name == *method)
-                        .ok_or_else(|| format!("interface `{}` has no method `{}`", iface_name, method))?;
+                        .ok_or_else(|| format!("interface `{}` has no method `{}` (at {}:{})", iface_name, method, span.start_line, span.start_col))?;
 
                     let ret_ty = iface_reg.methods[method_idx].return_type.clone();
                     return Ok(HirExpr::VirtualCall {
@@ -1356,12 +1363,12 @@ impl Ctx {
                 let ty = HirType::Weak(Box::new(strip_ownership(inner_ty)));
                 Ok(HirExpr::ToWeak(Box::new(hir_inner), ty))
             }
-            Expr::FieldAccess { object, field, .. } => {
+            Expr::FieldAccess { object, field, span: expr_span } => {
                 let hir_object = self.lower_expr(object)?;
                 let object_ty = expr_type(&hir_object);
                 // Resolve field index from struct definition
-                let field_index = self.find_field_index(&object_ty, field)?;
-                let field_ty = self.find_field_type(&object_ty, field)?;
+                let field_index = self.find_field_index(&object_ty, field, expr_span)?;
+                let field_ty = self.find_field_type(&object_ty, field, expr_span)?;
                 Ok(HirExpr::FieldAccess {
                     object: Box::new(hir_object),
                     field: *field,
@@ -1412,9 +1419,9 @@ impl Ctx {
                     ty: struct_ty,
                 })
             }
-            Expr::ArrayLiteral(elems, _) => {
+            Expr::ArrayLiteral(elems, span) => {
                 if !self.allow_bare_array {
-                    return Err("array literal must be prefixed with `shared`, `unique`, or `weak`".into());
+                    return Err(format!("array literal must be prefixed with `shared`, `unique`, or `weak` (at {}:{})", span.start_line, span.start_col));
                 }
                 let mut hir_elems = Vec::new();
                 for e in elems {

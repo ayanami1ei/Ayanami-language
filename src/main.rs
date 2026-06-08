@@ -8,6 +8,7 @@ fn main() {
         eprintln!("commands:");
         eprintln!("  new <name>         创建新项目");
         eprintln!("  check <file/proj>  前端检查（lex, parse, HIR）");
+        eprintln!("  fmt [file/dir]     格式化代码（类似 rustfmt）");
         eprintln!("  package <file/proj> 打包为 .lcl（不生成可执行文件）");
         eprintln!("  build [file/proj]  构建可执行文件 + .lcl 包");
         eprintln!("  install <lcl>      从 .lcl 构建目标产物");
@@ -21,6 +22,7 @@ fn main() {
     match command.as_str() {
         "new" => cmd_new(&args[2..]),
         "check" => cmd_check(&args[2..]),
+        "fmt" => cmd_fmt(&args[2..]),
         "package" => cmd_package(&args[2..]),
         "build" => cmd_build(&args[2..]),
         "install" => cmd_install(&args[2..]),
@@ -122,6 +124,39 @@ fn cmd_new(args: &[String]) {
     println!("  ├── ayanami.toml");
     println!("  └── src/");
     println!("       └── main.aya");
+}
+
+fn cmd_fmt(args: &[String]) {
+    let path = resolve_path(args.first().map(|s| s.as_str()));
+    let path_str = path.to_string_lossy().into_owned();
+    if !path_str.ends_with(".aya") {
+        eprintln!("error: fmt requires a .aya file");
+        std::process::exit(1);
+    }
+    let code = match fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("error: failed to read '{}': {}", path.display(), e);
+            std::process::exit(1);
+        }
+    };
+    match ayanami::formatter::format_file(&code) {
+        Ok(formatted) => {
+            if formatted == code {
+                // No changes needed
+            } else {
+                fs::write(&path, &formatted).unwrap_or_else(|e| {
+                    eprintln!("error: failed to write '{}': {}", path.display(), e);
+                    std::process::exit(1);
+                });
+            }
+            print!("{}", formatted);
+        }
+        Err(e) => {
+            eprintln!("fmt error: {}", e);
+            std::process::exit(1);
+        }
+    }
 }
 
 fn cmd_check(args: &[String]) {

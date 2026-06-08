@@ -47,14 +47,11 @@ void __ayanami_putchar(int c) {
     putchar(c);
 }
 
-void __ayanami_print_int(int64_t n) {
-    printf("%ld", (long)n);
-}
-
-void __ayanami_print_str(const char *s) {
+void __ayanami_print(const char *s) {
     printf("%s", s);
 }
 
-void __ayanami_print_ln(void) {
-    printf("\n");
+void __ayanami_print_ln(const char *s)
+{
+    printf("%s\n", s);
 }

@@ -1,0 +1,18 @@
+extern "C" fn __ayanami_print_str(unique [char] s);
+
+pub struct String {
+    unique [char] data
+    int len
+}
+
+impl String {
+    pub fn index(shared self, int i) -> char {
+        return self.data[i];
+    }
+    pub fn len(shared self) -> int {
+        return self.len;
+    }
+    pub fn print(shared self) {
+        __ayanami_print_str(self.data);
+    }
+}

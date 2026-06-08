@@ -38,8 +38,8 @@ impl Parser {
                 self.advance();
                 Ok(())
             }
-            Some(tok) => Err(format!("expected keyword `{}`, found `{}`", kw, tok.kind)),
-            None => Err(format!("expected keyword `{}`, found EOF", kw)),
+            Some(tok) => Err(self.error(&format!("expected keyword `{}`, found `{}`", kw, tok.kind))),
+            None => Err(self.error(&format!("expected keyword `{}`, found EOF", kw))),
         }
     }
 
@@ -49,8 +49,8 @@ impl Parser {
                 self.advance();
                 Ok(())
             }
-            Some(tok) => Err(format!("expected `{}`, found `{}`", d, tok.kind)),
-            None => Err(format!("expected `{}`, found EOF", d)),
+            Some(tok) => Err(self.error(&format!("expected `{}`, found `{}`", d, tok.kind))),
+            None => Err(self.error(&format!("expected `{}`, found EOF", d))),
         }
     }
 
@@ -60,8 +60,8 @@ impl Parser {
                 self.advance();
                 Ok(())
             }
-            Some(tok) => Err(format!("expected `{}`, found `{}`", op, tok.kind)),
-            None => Err(format!("expected `{}`, found EOF", op)),
+            Some(tok) => Err(self.error(&format!("expected `{}`, found `{}`", op, tok.kind))),
+            None => Err(self.error(&format!("expected `{}`, found EOF", op))),
         }
     }
 
@@ -132,8 +132,8 @@ impl Parser {
                     _ => unreachable!(),
                 }
             }
-            Some(tok) => Err(format!("expected identifier, found `{}`", tok.kind)),
-            None => Err("expected identifier, found EOF".to_string()),
+            Some(tok) => Err(self.error(&format!("expected identifier, found `{}`", tok.kind))),
+            None => Err(self.error("expected identifier, found EOF")),
         }
     }
 
@@ -710,13 +710,14 @@ impl Parser {
     fn parse_or(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_and()?;
         while self.peek().map(|t| t.kind == TokenKind::Operator("||".to_string())) == Some(true) {
+            let op_span = self.peek().unwrap().span();
             self.advance();
             let right = self.parse_and()?;
             left = Expr::Binary {
                 op: BinaryOp::Or,
                 lhs: Box::new(left),
                 rhs: Box::new(right),
-                span: Span::default(),
+                span: op_span,
             };
         }
         Ok(left)
@@ -725,13 +726,14 @@ impl Parser {
     fn parse_and(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_compare()?;
         while self.peek().map(|t| t.kind == TokenKind::Operator("&&".to_string())) == Some(true) {
+            let op_span = self.peek().unwrap().span();
             self.advance();
             let right = self.parse_compare()?;
             left = Expr::Binary {
                 op: BinaryOp::And,
                 lhs: Box::new(left),
                 rhs: Box::new(right),
-                span: Span::default(),
+                span: op_span,
             };
         }
         Ok(left)
@@ -740,6 +742,7 @@ impl Parser {
     fn parse_compare(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_sum()?;
         while let Some(tok) = self.peek() {
+            let op_span = tok.span();
             let op = match &tok.kind {
                 TokenKind::Operator(s) => match s.as_str() {
                     "==" => Some(BinaryOp::Eq),
@@ -760,7 +763,7 @@ impl Parser {
                         op,
                         lhs: Box::new(left),
                         rhs: Box::new(right),
-                        span: Span::default(),
+                        span: op_span,
                     };
                 }
                 None => break,
@@ -772,6 +775,7 @@ impl Parser {
     fn parse_sum(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_product()?;
         while let Some(tok) = self.peek() {
+            let op_span = tok.span();
             let op = match &tok.kind {
                 TokenKind::Operator(s) => match s.as_str() {
                     "+" => Some(BinaryOp::Add),
@@ -788,7 +792,7 @@ impl Parser {
                         op,
                         lhs: Box::new(left),
                         rhs: Box::new(right),
-                        span: Span::default(),
+                        span: op_span,
                     };
                 }
                 None => break,
@@ -800,6 +804,7 @@ impl Parser {
     fn parse_product(&mut self) -> Result<Expr, String> {
         let mut left = self.parse_unary()?;
         while let Some(tok) = self.peek() {
+            let op_span = tok.span();
             let op = match &tok.kind {
                 TokenKind::Operator(s) => match s.as_str() {
                     "*" => Some(BinaryOp::Mul),
@@ -817,7 +822,7 @@ impl Parser {
                         op,
                         lhs: Box::new(left),
                         rhs: Box::new(right),
-                        span: Span::default(),
+                        span: op_span,
                     };
                 }
                 None => break,
@@ -828,6 +833,7 @@ impl Parser {
 
     fn parse_unary(&mut self) -> Result<Expr, String> {
         let tok = self.peek().ok_or_else(|| self.error("expected expression"))?.clone();
+        let span = tok.span();
         match &tok.kind {
             TokenKind::Operator(s) if s == "-" => {
                 self.advance();
@@ -835,7 +841,7 @@ impl Parser {
                 Ok(Expr::Unary {
                     op: UnaryOp::Neg,
                     arg: Box::new(expr),
-                    span: Span::default(),
+                    span,
                 })
             }
             TokenKind::Operator(s) if s == "!" => {
@@ -844,40 +850,40 @@ impl Parser {
                 Ok(Expr::Unary {
                     op: UnaryOp::Not,
                     arg: Box::new(expr),
-                    span: Span::default(),
+                    span,
                 })
             }
             TokenKind::Keyword(Keyword::Move) => {
                 self.advance();
                 let expr = self.parse_unary()?;
-                Ok(Expr::Move(Box::new(expr), Span::default()))
+                Ok(Expr::Move(Box::new(expr), span))
             }
             TokenKind::Keyword(Keyword::Clone) => {
                 self.advance();
                 let expr = self.parse_unary()?;
-                Ok(Expr::Clone(Box::new(expr), Span::default()))
+                Ok(Expr::Clone(Box::new(expr), span))
             }
             TokenKind::Keyword(Keyword::Unique) => {
                 self.advance();
                 let expr = self.parse_unary()?;
-                Ok(Expr::ToUnique(Box::new(expr), Span::default()))
+                Ok(Expr::ToUnique(Box::new(expr), span))
             }
             TokenKind::Keyword(Keyword::Shared) => {
                 self.advance();
                 let expr = self.parse_unary()?;
-                Ok(Expr::ToShared(Box::new(expr), Span::default()))
+                Ok(Expr::ToShared(Box::new(expr), span))
             }
             TokenKind::Keyword(Keyword::Weak) => {
                 self.advance();
                 let expr = self.parse_unary()?;
-                Ok(Expr::ToWeak(Box::new(expr), Span::default()))
+                Ok(Expr::ToWeak(Box::new(expr), span))
             }
             TokenKind::Keyword(Keyword::Ref) => {
                 self.advance();
-                let mutable = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Mut));
+                let mutable = self.peek().map(|t| t.kind == TokenKind::Keyword(Keyword::Mut)).unwrap_or(false);
                 if mutable { self.advance(); }
                 let expr = self.parse_unary()?;
-                Ok(Expr::Ref(Box::new(expr), mutable, Span::default()))
+                Ok(Expr::Ref(Box::new(expr), mutable, span))
             }
             _ => self.parse_postfix(),
         }
@@ -959,25 +965,26 @@ impl Parser {
 
     fn parse_atom(&mut self) -> Result<Expr, String> {
         let tok = self.peek().ok_or_else(|| self.error("expected expression"))?.clone();
+        let span = tok.span();
         match tok.kind {
             TokenKind::IntLiteral(s) => {
                 self.advance();
                 let n = s.parse::<i64>().map_err(|_| self.error("invalid integer literal"))?;
-                Ok(Expr::Literal(Literal::Int(n, Span::default())))
+                Ok(Expr::Literal(Literal::Int(n, span)))
             }
             TokenKind::FloatLiteral(s) => {
                 self.advance();
                 let n = s.parse::<f64>().map_err(|_| self.error("invalid float literal"))?;
-                Ok(Expr::Literal(Literal::Float(n, Span::default())))
+                Ok(Expr::Literal(Literal::Float(n, span)))
             }
             TokenKind::CharLiteral(s) => {
                 self.advance();
                 let c = s.chars().next().unwrap_or('\0');
-                Ok(Expr::Literal(Literal::Char(c, Span::default())))
+                Ok(Expr::Literal(Literal::Char(c, span)))
             }
             TokenKind::StringLiteral(s) => {
                 self.advance();
-                Ok(Expr::Literal(Literal::String(s, Span::default())))
+                Ok(Expr::Literal(Literal::String(s, span)))
             }
             TokenKind::Identifier(ref name) => {
                 let tok = self.peek().cloned().unwrap();
@@ -1154,6 +1161,8 @@ impl Parser {
                 Ok(expr)
             }
             TokenKind::Delimiter(Delimiter::LBracket) => {
+                let tok = self.peek().cloned().unwrap();
+                let bracket_span = tok.span();
                 self.advance();
                 // Check if this is a sized array: [type; count]
                 // Peek: if next token is a type keyword or identifier, and the one after is ";"
@@ -1172,7 +1181,7 @@ impl Parser {
                     self.expect_delimiter(Delimiter::Semicolon)?;
                     let count = self.parse_expr()?;
                     self.expect_delimiter(Delimiter::RBracket)?;
-                    Ok(Expr::ArraySized { elem_type, count: Box::new(count), span: Span::default() })
+                    Ok(Expr::ArraySized { elem_type, count: Box::new(count), span: bracket_span })
                 } else {
                     let mut elems = Vec::new();
                     if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
@@ -1185,7 +1194,7 @@ impl Parser {
                         }
                     }
                     self.expect_delimiter(Delimiter::RBracket)?;
-                    Ok(Expr::ArrayLiteral(elems, Span::default()))
+                    Ok(Expr::ArrayLiteral(elems, bracket_span))
                 }
             }
             _ => Err(self.error("expected expression")),
@@ -1196,28 +1205,29 @@ impl Parser {
 
     fn parse_type(&mut self) -> Result<Type, String> {
         let tok = self.peek().ok_or_else(|| self.error("expected type"))?.clone();
+        let span = tok.span();
         match tok.kind {
             TokenKind::Keyword(Keyword::Unique) => {
                 self.advance();
                 let inner = self.parse_base_type()?;
-                Ok(Type::Unique(Box::new(inner), Span::default()))
+                Ok(Type::Unique(Box::new(inner), span))
             }
             TokenKind::Keyword(Keyword::Ref) => {
                 self.advance();
                 let mutable = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Mut));
                 if mutable { self.advance(); }
                 let inner = self.parse_base_type()?;
-                Ok(Type::Ref(Box::new(inner), mutable, Span::default()))
+                Ok(Type::Ref(Box::new(inner), mutable, span))
             }
             TokenKind::Keyword(Keyword::Shared) => {
                 self.advance();
                 let inner = self.parse_base_type()?;
-                Ok(Type::Shared(Box::new(inner), Span::default()))
+                Ok(Type::Shared(Box::new(inner), span))
             }
             TokenKind::Keyword(Keyword::Weak) => {
                 self.advance();
                 let inner = self.parse_base_type()?;
-                Ok(Type::Weak(Box::new(inner), Span::default()))
+                Ok(Type::Weak(Box::new(inner), span))
             }
             _ => self.parse_base_type(),
         }
@@ -1225,32 +1235,33 @@ impl Parser {
 
     fn parse_base_type(&mut self) -> Result<Type, String> {
         let tok = self.peek().ok_or_else(|| self.error("expected type"))?.clone();
+        let span = tok.span();
         match tok.kind {
             TokenKind::Delimiter(Delimiter::LBracket) => {
                 self.advance();
                 let inner = self.parse_type()?;
                 self.expect_delimiter(Delimiter::RBracket)?;
-                Ok(Type::Array(Box::new(inner), Span::default()))
+                Ok(Type::Array(Box::new(inner), span))
             }
             TokenKind::Keyword(Keyword::Int) => {
                 self.advance();
-                Ok(Type::Int(Span::default()))
+                Ok(Type::Int(span))
             }
             TokenKind::Keyword(Keyword::Float) => {
                 self.advance();
-                Ok(Type::Float(Span::default()))
+                Ok(Type::Float(span))
             }
             TokenKind::Keyword(Keyword::Char) => {
                 self.advance();
-                Ok(Type::Char(Span::default()))
+                Ok(Type::Char(span))
             }
             TokenKind::Keyword(Keyword::Bool) => {
                 self.advance();
-                Ok(Type::Bool(Span::default()))
+                Ok(Type::Bool(span))
             }
             TokenKind::Keyword(Keyword::Self_) => {
                 self.advance();
-                Ok(Type::Self_(Span::default()))
+                Ok(Type::Self_(span))
             }
             TokenKind::Identifier(s) => {
                 let name = Symbol::intern(&s);
@@ -1265,9 +1276,9 @@ impl Parser {
                         self.expect_delimiter(Delimiter::Comma)?;
                     }
                     self.expect_delimiter(Delimiter::RBracket)?;
-                    Ok(Type::Generic(name, args, Span::default()))
+                    Ok(Type::Generic(name, args, span))
                 } else {
-                    Ok(Type::Named(name, Span::default()))
+                    Ok(Type::Named(name, span))
                 }
             }
             _ => Err(self.error("expected type")),

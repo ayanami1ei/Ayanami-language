@@ -1,0 +1,9 @@
+[package]
+name = "std"
+version = "0.1.0"
+
+[build]
+target = "static-lib"
+
+[dependencies]
+string = "src/string.aya"

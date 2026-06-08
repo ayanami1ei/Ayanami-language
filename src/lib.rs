@@ -1,5 +1,6 @@
 pub mod compiler;
 pub mod driver;
+pub mod formatter;
 pub mod hir;
 pub mod intern;
 pub mod lexer;
