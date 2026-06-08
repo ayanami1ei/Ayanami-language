@@ -4,7 +4,7 @@ function activate(context) {
     console.log('ayanami extension activating...');
 
     // ─── Status Bar ──────────────────────────────────────────────────
-    const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 1000);
+    const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1000);
     statusBar.text = 'Ayanami';
     statusBar.tooltip = 'Ayanami Language';
     statusBar.show();
@@ -13,6 +13,7 @@ function activate(context) {
     function setStatus(text, icon) {
         try {
             statusBar.text = text ? `Ayanami: ${text}` : 'Ayanami';
+            statusBar.tooltip = text ? `Ayanami: ${text}` : 'Ayanami Language';
             statusBar.show();
         } catch (e) {
             console.error('ayanami setStatus error:', e);

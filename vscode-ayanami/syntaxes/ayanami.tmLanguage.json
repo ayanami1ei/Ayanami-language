@@ -84,8 +84,12 @@
     "types": {
       "patterns": [
         {
-          "name": "storage.type.primitive.aya",
+          "name": "entity.name.type.primitive.aya",
           "match": "\\b(int|float|char|bool|void)\\b"
+        },
+        {
+          "name": "entity.name.type.struct.aya",
+          "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
         }
       ]
     },

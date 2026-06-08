@@ -53,8 +53,4 @@
         "path": "./syntaxes/ayanami.tmLanguage.json"
       }
     ]
-  },
-  "dependencies": {
-    "@vscode/vsce": "^3.9.2"
-  }
-}
+  }}
