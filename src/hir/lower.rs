@@ -174,7 +174,32 @@ impl Ctx {
                     }
                 }
                 Stmt::Import { path, .. } => {
-                    let (imported_syms, _, _, _) = crate::package::load_package(path)
+                    let pkg_path = if std::path::Path::new(path).exists() {
+                        path.clone()
+                    } else {
+                        // Try with .lcl extension
+                        let with_ext = format!("{}.lcl", path);
+                        if std::path::Path::new(&with_ext).exists() {
+                            with_ext
+                        } else {
+                            // Try standard library directory
+                            let exe = std::env::current_exe().ok();
+                            let mut found = path.clone();
+                            if let Some(exe_dir) = exe.and_then(|p| p.parent().map(|d| d.to_path_buf())) {
+                                for candidate in &[
+                                    exe_dir.join("std").join(&with_ext),
+                                    exe_dir.join("../std").join(&with_ext),
+                                ] {
+                                    if candidate.exists() {
+                                        found = candidate.to_string_lossy().into_owned();
+                                        break;
+                                    }
+                                }
+                            }
+                            found
+                        }
+                    };
+                    let (imported_syms, _, _, _) = crate::package::load_package(&pkg_path)
                         .map_err(|e| format!("import error for '{}': {}", path, e))?;
                     let _ = imported_syms;
                     for sym in &imported_syms {
@@ -1105,7 +1130,7 @@ impl Ctx {
                     .ok_or_else(|| format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col))?;
                 Ok(HirExpr::Local(var_id, ty))
             }
-            Expr::Binary { op, lhs, rhs, .. } => {
+            Expr::Binary { op, lhs, rhs, span } => {
                 let hir_lhs = self.lower_expr(lhs)?;
                 let hir_rhs = self.lower_expr(rhs)?;
                 let lhs_ty = expr_type(&hir_lhs);
@@ -1117,15 +1142,22 @@ impl Ctx {
                     if let Some(op_fn_name) = binary_op_to_fn_name(op) {
                         let rhs_ty = expr_type(&hir_rhs);
                         let param_types = [lhs_ty.clone(), rhs_ty];
-                        if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
-                            let ret_ty = self.fns[fn_id.0].return_type.clone();
-                            let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
-                            let args = vec![hir_lhs, hir_rhs].into_iter().enumerate().map(|(i, arg)| {
-                                if i >= param_tys.len() { return arg; }
-                                wrap_arg_for_param(arg, &param_tys[i])
-                            }).collect();
-                            return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
-                        }
+                        let fn_id = match self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
+                            Some(fid) => fid,
+                            None => {
+                                match self.specialize_generic_call(&Symbol::intern(op_fn_name), &param_types, span) {
+                                    Ok(fid) => fid,
+                                    Err(_) => { return Ok(HirExpr::Binary { op: *op, lhs: Box::new(hir_lhs), rhs: Box::new(hir_rhs), ty: inner_ty }); }
+                                }
+                            }
+                        };
+                        let ret_ty = self.fns[fn_id.0].return_type.clone();
+                        let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
+                        let args = vec![hir_lhs, hir_rhs].into_iter().enumerate().map(|(i, arg)| {
+                            if i >= param_tys.len() { return arg; }
+                            wrap_arg_for_param(arg, &param_tys[i])
+                        }).collect();
+                        return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
                     }
                 }
                 // Fall back to built-in operator

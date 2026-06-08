@@ -11,7 +11,7 @@ pub fn getchar() -> int {
 pub fn putchar(int c) { 
     __ayanami_putchar(c); 
 }
-pub fn print(String n) { 
+pub fn print(unique String n) { 
     __ayanami_print(n.data); 
 }
 pub fn println() {

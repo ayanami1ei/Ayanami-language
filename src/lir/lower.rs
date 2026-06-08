@@ -399,22 +399,25 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
     match expr {
         MirExpr::Literal(HirLiteral::String(s), ty) => {
             let idx = ctx.str_map[s];
-            let is_string_struct = matches!(ty, HirType::Named(sym) if sym.as_str() == "String");
+            let is_string_struct = match ty {
+                HirType::Named(sym) => sym.as_str() == "String",
+                _ => false,
+            };
             
             if is_string_struct {
                 // Build String struct: { data: ptr, len: i64 }
                 let data_dest = ctx.next_tmp();
                 ctx.emit(LirInst::StrGlobal { dest: data_dest, str_idx: idx });
                 let data_val = LirValue::Tmp(data_dest);
-                
-                let len_val = LirValue::Literal(HirLiteral::Int(s.len() as i64), HirType::Int);
-                
+
                 let struct_dest = ctx.next_tmp();
                 let alloca_tmp = ctx.next_tmp();
+                let data_gep = ctx.next_tmp();
+                let len_gep = ctx.next_tmp();
                 ctx.emit(LirInst::StructLit {
                     dest: struct_dest,
                     alloca_tmp,
-                    field_geps: vec![],
+                    field_geps: vec![data_gep, len_gep],
                     fields: vec![
                         (data_val, HirType::Named(Symbol::intern("[char]"))),
                         (LirValue::Literal(HirLiteral::Int(s.len() as i64), HirType::Int), HirType::Int),
