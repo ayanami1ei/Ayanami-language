@@ -66,9 +66,8 @@ impl String {
         return unique String { data = new_str_inner, len = new_len }
     }
 
-    pub fn add[T:ToString](unique self, unique T a)->unique String{
-        str = a.to_string()
-        return self.add(str)
+    pub fn add_int(unique self, int n) -> unique String {
+        return self.add(n.to_string())
     }
 
     pub fn eq(unique self, unique String other) -> bool {

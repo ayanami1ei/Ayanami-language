@@ -3,7 +3,7 @@ import "string"
 extern "C" fn __ayanami_getchar() -> int;
 extern "C" fn __ayanami_putchar(int c);
 extern "C" fn __ayanami_print(unique [char] s);
-extern "C" fn __ayanami_print_ln();
+extern "C" fn __ayanami_print_ln(unique [char] s);
 
 pub fn getchar() -> int { 
     return __ayanami_getchar() 
@@ -14,6 +14,6 @@ pub fn putchar(int c) {
 pub fn print(unique String n) { 
     __ayanami_print(n.data); 
 }
-pub fn println() {
-    __ayanami_print_ln(); 
+pub fn println(unique String s) {
+    __ayanami_print_ln(s.data); 
 }

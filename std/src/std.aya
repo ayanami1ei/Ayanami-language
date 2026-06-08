@@ -2,6 +2,6 @@
 // Import this to get all standard modules:
 //   import "std/std.aya";
 
-import "std/io.aya";
-import "std/string.aya";
-import "std/math.aya";
+import "io.aya";
+import "string.aya";
+import "math.aya";
