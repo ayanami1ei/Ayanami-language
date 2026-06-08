@@ -4,7 +4,7 @@ version = "0.1.0"
 
 [build]
 #target = "static-lib"
-target = "executable"
+#target = "executable"
 
 [dependencies]
 string = "src/string.aya"
