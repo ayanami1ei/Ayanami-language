@@ -7,7 +7,6 @@
   "engines": {
     "vscode": "^1.60.0"
   },
-  "icon": "./icon.png",
   "main": "./extension.js",
   "activationEvents": [
     "onLanguage:ayanami"
@@ -20,6 +19,11 @@
       {
         "command": "ayanami.restart",
         "title": "Ayanami: Restart Language Server",
+        "category": "Ayanami"
+      },
+      {
+        "command": "ayanami.fmt",
+        "title": "Ayanami: Format Code",
         "category": "Ayanami"
       }
     ],
@@ -51,6 +55,13 @@
         "language": "ayanami",
         "scopeName": "source.aya",
         "path": "./syntaxes/ayanami.tmLanguage.json"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "ayanami.fmt",
+        "key": "shift+alt+f",
+        "when": "editorLangId == ayanami"
       }
     ]
   }}

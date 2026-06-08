@@ -456,6 +456,76 @@ function activate(context) {
         }
     });
     context.subscriptions.push(lensProvider);
+
+    // ─── Format command ───────────────────────────────────────────────
+    const fmtCmd = vscode.commands.registerCommand('ayanami.fmt', async (filePath) => {
+        try {
+            const ayanamiPath = findAyanamiPath(context);
+            if (!ayanamiPath) {
+                vscode.window.showErrorMessage('ayanami: compiler not found');
+                return;
+            }
+            const { execFileSync } = require('child_process');
+            const path = require('path');
+
+            const editor = vscode.window.activeTextEditor;
+            if (!editor || editor.document.languageId !== 'ayanami') {
+                vscode.window.showErrorMessage('ayanami: not an .aya file');
+                return;
+            }
+
+            const fpath = filePath || editor.document.uri.fsPath;
+            const out = execFileSync(ayanamiPath, ['fmt', fpath], {
+                timeout: 15000,
+                encoding: 'utf8',
+                cwd: path.dirname(fpath),
+                stdio: ['pipe', 'pipe', 'pipe'],
+            });
+
+            // Replace the entire document with formatted output
+            const fullRange = new vscode.Range(0, 0, editor.document.lineCount, 0);
+            await editor.edit(editBuilder => {
+                editBuilder.replace(fullRange, out);
+            });
+            vscode.window.showInformationMessage('ayanami: formatted');
+        } catch (e) {
+            const msg = (e.stdout || '') + (e.stderr || '') || e.message;
+            vscode.window.showErrorMessage(`ayanami fmt failed: ${msg}`);
+        }
+    });
+    context.subscriptions.push(fmtCmd);
+
+    // ─── Format Document Provider (Shift+Alt+F) ───────────────────────
+    const formatProvider = vscode.languages.registerDocumentFormattingEditProvider('ayanami', {
+        provideDocumentFormattingEdits(document) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const ayanamiPath = findAyanamiPath(context);
+                    if (!ayanamiPath) {
+                        reject('ayanami: compiler not found');
+                        return;
+                    }
+                    const { execFileSync } = require('child_process');
+                    const path = require('path');
+
+                    const out = execFileSync(ayanamiPath, ['fmt', document.uri.fsPath], {
+                        timeout: 15000,
+                        encoding: 'utf8',
+                        cwd: path.dirname(document.uri.fsPath),
+                        stdio: ['pipe', 'pipe', 'pipe'],
+                    });
+
+                    const lastLine = document.lineCount;
+                    const fullRange = new vscode.Range(0, 0, lastLine - 1, document.lineAt(lastLine - 1).text.length);
+                    resolve([new vscode.TextEdit(fullRange, out)]);
+                } catch (e) {
+                    const msg = (e.stdout || '') + (e.stderr || '') || e.message;
+                    reject(msg);
+                }
+            });
+        }
+    });
+    context.subscriptions.push(formatProvider);
 }
 
 function findAyanamiPath(context) {
