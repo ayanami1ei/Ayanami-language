@@ -17,3 +17,7 @@ pub fn print(unique String n) {
 pub fn println() {
     __ayanami_print_ln(); 
 }
+pub fn println(unique String s) {
+    print(s)
+    println()
+}

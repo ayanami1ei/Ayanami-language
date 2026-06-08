@@ -2,7 +2,8 @@ import "string"
 import "io"
 
 fn main()->int{
-    print("Hello")
+    println("Hello, World! from println")
+    print("Hello from print")
     println()
     return 0;
 }
