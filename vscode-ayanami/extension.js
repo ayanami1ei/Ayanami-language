@@ -403,6 +403,48 @@ function activate(context) {
     context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(doc => {
         delete defsCache[doc.uri.fsPath];
     }));
+
+    // ─── Run Main command ─────────────────────────────────────────────
+    const runMainCmd = vscode.commands.registerCommand('ayanami.runMain', async (filePath) => {
+        try {
+            const ayanamiPath = findAyanamiPath(context);
+            if (!ayanamiPath) {
+                vscode.window.showErrorMessage('ayanami: compiler not found');
+                return;
+            }
+            const { execFileSync } = require('child_process');
+            const path = require('path');
+            const cwd = path.dirname(filePath);
+            const terminal = vscode.window.createTerminal({ name: 'Ayanami Run' });
+            terminal.show();
+            terminal.sendText(`"${ayanamiPath}" run "${filePath}"`);
+        } catch (e) {
+            vscode.window.showErrorMessage(`ayanami run failed: ${e.message}`);
+        }
+    });
+    context.subscriptions.push(runMainCmd);
+
+    // ─── CodeLens Provider (Run button above fn main) ─────────────────
+    const lensProvider = vscode.languages.registerCodeLensProvider('ayanami', {
+        provideCodeLenses(document) {
+            const lenses = [];
+            const text = document.getText();
+            const re = /(?:(?:pub\s+)?fn\s+main)\s*\(/g;
+            let m;
+            while ((m = re.exec(text)) !== null) {
+                const pos = document.positionAt(m.index);
+                const line = pos.line;
+                const range = new vscode.Range(line, 0, line, 0);
+                lenses.push(new vscode.CodeLens(range, {
+                    title: '▶ Run',
+                    command: 'ayanami.runMain',
+                    arguments: [document.uri.fsPath],
+                }));
+            }
+            return lenses;
+        }
+    });
+    context.subscriptions.push(lensProvider);
 }
 
 function findAyanamiPath(context) {
