@@ -1,9 +1,21 @@
+// ============================================================
+//  LLVM IR 发射器
+//  将 LIR（三地址码）转换为 LLVM IR 文本（.ll 格式），主要工作：
+//  1. 生成 LLVM 模块和类型声明
+//  2. 为每个函数生成 LLVM 函数定义（含基本块和指令）
+//  3. 生成全局字符串常量和虚函数表
+//  4. 处理内存管理指令（DropValue/RetainValue/ReleaseValue）
+//  5. 处理虚函数调用（通过 vtable 间接调用）
+//  6. 结构体和数组的内存布局与存取
+// ============================================================
+
 use crate::intern::Symbol;
 use crate::hir::ir::{FnId, HirLiteral, HirType};
 use crate::parser::ast::{BinaryOp, UnaryOp};
 
 use super::ir::*;
 
+/// 将 LIR 程序发射为 LLVM IR 文本
 pub fn emit_program(prog: &LirProgram) -> String {
     let mut e = Emitter::new(prog);
     e.emit();

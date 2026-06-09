@@ -1,3 +1,17 @@
+// ============================================================
+//  Ayanami 编译器 —— CLI 入口
+//  命令行接口，支持以下命令：
+//    new     — 创建新项目骨架
+//    check   — 前端检查（lex → parse → HIR → MIR → 借用检查）
+//    fmt     — 格式化代码
+//    package — 打包为 .lcl（不生成可执行文件）
+//    build   — 完整构建（生成可执行文件/静态库/动态库）
+//    install — 从 .lcl 构建目标产物
+//    defs    — 输出符号定义列表（JSON）
+//    run     — 构建并运行
+//    clean   — 清除构建产物
+// ============================================================
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -37,7 +51,8 @@ fn main() {
     }
 }
 
-/// Try to find ayanami.toml from `dir` upward. Returns (project_dir, config).
+/// 从 `dir` 向上级目录搜索 ayanami.toml 文件，找到项目根目录
+/// 返回 (项目目录, toml 内容)
 fn find_project(dir: &Path) -> Option<(PathBuf, String)> {
     let mut d = Some(dir);
     while let Some(cur) = d {
@@ -52,13 +67,16 @@ fn find_project(dir: &Path) -> Option<(PathBuf, String)> {
     None
 }
 
-/// Read project entry point from ayanami.toml, default to src/main.aya.
+/// 读取项目入口文件（默认 src/main.aya）
 fn project_entry(project_dir: &Path) -> Option<PathBuf> {
     let main_aya = project_dir.join("src").join("main.aya");
     if main_aya.exists() { Some(main_aya) } else { None }
 }
 
-/// Resolve target: if arg is a .aya file, use it; else treat as project dir (or cwd).
+/// 解析命令行路径参数：
+/// - 如果以 `.aya` / `.lcl` 结尾 → 直接作为文件路径
+/// - 否则 → 当作项目目录，查找 src/main.aya
+/// - 无参数 → 当前目录作为项目目录
 fn resolve_path(arg: Option<&str>) -> PathBuf {
     match arg {
         Some(p) if p.ends_with(".aya") || p.ends_with(".lcl") => PathBuf::from(p),

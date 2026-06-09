@@ -1,3 +1,12 @@
+// ============================================================
+//  MIR（中级中间表示）降级
+//  将 HIR（高级中间表示）降级为 MIR，主要工作：
+//  1. 插入内存管理指令（Drop/Retain/Release）
+//  2. 根据所有权的不同策略（值/Unique/Shared）管理生命周期
+//  3. 跟踪变量移动状态以决定是否插入清理代码
+//  4. 处理返回语句中的所有权转移
+// ============================================================
+
 use crate::intern::Symbol;
 use std::collections::{HashMap, HashSet};
 
@@ -5,6 +14,11 @@ use crate::hir::ir::*;
 use crate::mir::ir::*;
 use crate::mir::mem::*;
 
+/// 根据类型选择对应的内存管理策略
+///
+/// - `Unique[T]` → UniqueStrategy：作用域结束时 Drop（free）
+/// - `Shared[T]` | `Weak[T]` → SharedStrategy：引用计数增减
+/// - 值类型（int、float、char、bool 等）→ ValueStrategy：无操作
 fn strategy_for(ty: &HirType) -> Box<dyn MemStrategy> {
     match ty {
         HirType::Unique(_) => Box::new(UniqueStrategy),

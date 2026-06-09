@@ -1,3 +1,13 @@
+// ============================================================
+//  LIR（低级中间表示）降级
+//  将 MIR（中级中间表示）降级为 LIR（三地址码），主要工作：
+//  1. 收集所有字符串常量
+//  2. 收集所有函数名并生成 LLVM 兼容的符号名
+//  3. 将 MIR 的表达式树拍平为基本块 + 三地址指令序列
+//  4. 构建虚函数表描述（用于 LLVM IR 全局常量）
+//  5. 推导导入函数的签名列表
+// ============================================================
+
 use std::collections::HashMap;
 
 use crate::hir::ir::{FnId, HirLiteral, HirType, VarId};
@@ -6,6 +16,7 @@ use crate::mir::ir::*;
 
 use super::ir::*;
 
+/// 将 MIR 程序降级为 LIR 程序
 pub fn lower_program(mir: &MirProgram) -> LirProgram {
     let strings = collect_strings(mir);
     let str_map: HashMap<String, u64> = strings
