@@ -297,6 +297,80 @@ function activate(context) {
     });
     context.subscriptions.push(hoverProvider);
 
+    // ─── Inlay Hints Provider (type hints like rust-analyzer) ─────────
+    const inlayHintsProvider = vscode.languages.registerInlayHintsProvider('ayanami', {
+        provideInlayHints(document, range) {
+            const hints = [];
+            const varTypes = scanVariableTypes(document);
+
+            const excludeVars = new Set(['fn', 'for', 'if', 'elif', 'else', 'while', 'return', 'import', 'struct', 'namespace', 'impl', 'interface', 'pub', 'move', 'clone', 'shared', 'unique', 'weak', 'ref', 'mut', 'true', 'false', 'null']);
+
+            const text = document.getText();
+
+            // 1. Variable assignments: name = expr → show : type after name
+            const assignRe = /(?:^|\n)(\s*)(\w+)\s*=/gm;
+            while ((m = assignRe.exec(text)) !== null) {
+                const varName = m[2];
+                if (excludeVars.has(varName)) continue;
+                const typeName = varTypes.get(varName);
+                if (!typeName) continue;
+                const nameStart = m[0].indexOf(varName, m[1].length);
+                const nameEnd = m.index + nameStart + varName.length;
+                const pos = document.positionAt(nameEnd);
+                if (pos.isBefore(range.start) || pos.isAfter(range.end)) continue;
+                const hint = new vscode.InlayHint(pos, `: ${typeName}`, vscode.InlayHintKind.Type);
+                hint.paddingRight = true;
+                hints.push(hint);
+            }
+
+            // 2. self in method params: self → : TypeName (from enclosing impl block)
+            const implRe = /impl\s+(\w+)\s*\{/g;
+            while ((m = implRe.exec(text)) !== null) {
+                const implType = m[1];
+                let depth = 1, pos = m.index + m[0].length;
+                const blockStart = pos;
+                while (depth > 0 && pos < text.length) {
+                    if (text[pos] === '{') depth++;
+                    else if (text[pos] === '}') depth--;
+                    pos++;
+                }
+                const blockBody = text.slice(blockStart, pos - 1);
+                const fnRe = /fn\s+\w+\s*\(([^)]*)\)/g;
+                let fm;
+                while ((fm = fnRe.exec(blockBody)) !== null) {
+                    const paramsStr = fm[1];
+                    const selfIndex = paramsStr.indexOf('self');
+                    if (selfIndex === -1) continue;
+                    // Position of self end in blockBody-relative coordinates
+                    const parenPos = fm[0].indexOf('(');
+                    const absFnStart = blockStart + fm.index;
+                    const nameEnd = absFnStart + parenPos + 1 + selfIndex + 4;
+                    const p = document.positionAt(nameEnd);
+                    if (p.isBefore(range.start) || p.isAfter(range.end)) continue;
+                    const hint = new vscode.InlayHint(p, `: ${implType}`, vscode.InlayHintKind.Type);
+                    hint.paddingRight = true;
+                    hints.push(hint);
+                }
+            }
+
+            // 3. For-loop variable: for i in ( → i: int
+            const forRe = /\bfor\s+(\w+)\s+in\s*\(/g;
+            while ((m = forRe.exec(text)) !== null) {
+                const varName = m[1];
+                const nameStart = m[0].indexOf(varName);
+                const nameEnd = m.index + nameStart + varName.length;
+                const p = document.positionAt(nameEnd);
+                if (p.isBefore(range.start) || p.isAfter(range.end)) continue;
+                const hint = new vscode.InlayHint(p, ': int', vscode.InlayHintKind.Type);
+                hint.paddingRight = true;
+                hints.push(hint);
+            }
+
+            return hints;
+        }
+    });
+    context.subscriptions.push(inlayHintsProvider);
+
     // ─── Diagnostic Provider (compiler check on save) ────────────────
     const diagCollection = vscode.languages.createDiagnosticCollection('ayanami');
     context.subscriptions.push(diagCollection);
@@ -768,6 +842,27 @@ function getStructFields(doc, typeName) {
     return fields;
 }
 
+// Get the type of a specific struct field
+function getFieldType(doc, typeName, fieldName) {
+    const text = doc.getText();
+    const re = new RegExp('struct\\s+' + typeName + '\\s*\\{([^}]*)\\}', 'm');
+    const m = re.exec(text);
+    if (!m) return null;
+    const body = m[1];
+    // Match: shared/unique/weak? TypeName fieldName
+    // Also match struct inside same file for field lookup
+    const lines = body.split('\n');
+    for (const line of lines) {
+        const trimmed = line.trim();
+        // Pattern: [ownership] Type fieldname
+        const fm = trimmed.match(/^(?:(?:shared|unique|weak)\s+)?(\w+)\s+(\w+)$/);
+        if (fm && fm[2] === fieldName) {
+            return fm[1];
+        }
+    }
+    return null;
+}
+
 // ─── Helper: scan variables with their inferred types ─────────────────
 function scanVariableTypes(doc) {
     const varTypes = new Map();
@@ -779,40 +874,119 @@ function scanVariableTypes(doc) {
     while ((m = assignRe.exec(text)) !== null) {
         const varName = m[1];
         const rhs = m[2].trim();
+
+        // 剥离所有权前缀（unique/shared/weak），用于后续模式匹配
+        let coreRhs = rhs.replace(/^(?:unique|shared|weak)\s+/, '');
+        const ownership = rhs !== coreRhs ? rhs.split(/\s+/)[0] : null;
+
         // Struct constructor: unique String { ... } or String { ... }
-        const structMatch = rhs.match(/(?:unique\s+|shared\s+)?(\w+)\s*\{/);
+        const structMatch = coreRhs.match(/^(\w+)\s*\{/);
         if (structMatch) {
             varTypes.set(varName, structMatch[1]);
             continue;
         }
         // String literal
-        if (rhs.startsWith('"')) {
+        if (coreRhs.startsWith('"')) {
             varTypes.set(varName, 'String');
             continue;
         }
         // Int literal
-        if (/^-?\d+$/.test(rhs)) {
+        if (/^-?\d+$/.test(coreRhs)) {
             varTypes.set(varName, 'int');
             continue;
         }
+        // Float literal
+        if (/^-?\d+\.\d+$/.test(coreRhs)) {
+            varTypes.set(varName, 'float');
+            continue;
+        }
+        // Bool literal
+        if (coreRhs === 'true' || coreRhs === 'false') {
+            varTypes.set(varName, 'bool');
+            continue;
+        }
+        // Unary not
+        if (/^!\w+$/.test(coreRhs)) {
+            varTypes.set(varName, 'bool');
+            continue;
+        }
+        // List literal: unique [char; 10] or [int; n]
+        const arrMatch = coreRhs.match(/^\[(\w+)\s*;/);
+        if (arrMatch) {
+            varTypes.set(varName, '[' + arrMatch[1] + ']');
+            continue;
+        }
+        // Field access: weak obj.field or obj.field
+        const fieldMatch = coreRhs.match(/^(\w+)\.(\w+)$/);
+        if (fieldMatch) {
+            const objName = fieldMatch[1];
+            if (objName === 'self') {
+                // self.field: try to infer from struct definition
+                const selfType = varTypes.get('self');
+                if (selfType) {
+                    const fieldType = getFieldType(doc, selfType, fieldMatch[2]);
+                    if (fieldType) {
+                        varTypes.set(varName, fieldType);
+                        continue;
+                    }
+                }
+            }
+            // Copy type from the object (for method chains like var.method())
+            if (varTypes.has(objName)) {
+                varTypes.set(varName, varTypes.get(objName));
+                continue;
+            }
+        }
+        // Variable copy: v = otherVar
+        if (varTypes.has(coreRhs)) {
+            varTypes.set(varName, varTypes.get(coreRhs));
+            continue;
+        }
         // to_string() call returns String
-        if (rhs.endsWith('.to_string()')) {
+        if (coreRhs.endsWith('.to_string()')) {
             varTypes.set(varName, 'String');
             continue;
         }
         // .copy() returns same type as the receiver
-        const copyMatch = rhs.match(/^(\w+)\.copy\(\)$/);
+        const copyMatch = coreRhs.match(/^(\w+)\.copy\(\)$/);
         if (copyMatch && varTypes.has(copyMatch[1])) {
             varTypes.set(varName, varTypes.get(copyMatch[1]));
             continue;
         }
-        // add() returns String
-        if (rhs.includes('.add(')) {
-            varTypes.set(varName, 'String');
+        // .len() returns int
+        if (coreRhs.match(/^\w+\.len\(\)$/)) {
+            varTypes.set(varName, 'int');
+            continue;
+        }
+        // .index() returns char
+        if (coreRhs.match(/^\w+\.index\(/)) {
+            varTypes.set(varName, 'char');
+            continue;
+        }
+        // .neg() returns same type as receiver
+        const negMatch = coreRhs.match(/^(\w+)\.neg\(\)$/);
+        if (negMatch && varTypes.has(negMatch[1])) {
+            varTypes.set(varName, varTypes.get(negMatch[1]));
+            continue;
+        }
+        // .not() returns bool
+        if (coreRhs.match(/^\w+\.not\(\)$/)) {
+            varTypes.set(varName, 'bool');
+            continue;
+        }
+        // .eq/.ne/.lt/.gt/.le/.ge returns bool
+        if (coreRhs.match(/^\w+\.(eq|ne|lt|gt|le|ge)\(/)) {
+            varTypes.set(varName, 'bool');
+            continue;
+        }
+        // .add/.sub/.mul/.div/.rem returns same type as receiver (for primitives)
+        const arithMatch = coreRhs.match(/^(\w+)\.(add|sub|mul|div|rem)\(/);
+        if (arithMatch && varTypes.has(arithMatch[1])) {
+            varTypes.set(varName, varTypes.get(arithMatch[1]));
             continue;
         }
         // Function call returns... for common known functions
-        const callMatch = rhs.match(/^(\w+)\(/);
+        const callMatch = coreRhs.match(/^(\w+)\(/);
         if (callMatch) {
             const fnName = callMatch[1];
             if (fnName === 'to_string') {
