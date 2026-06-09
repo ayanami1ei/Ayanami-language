@@ -578,21 +578,33 @@ impl super::Ctx {
         }
     }
 
-    /// Resolve a method call: find function where first param matches receiver type
-    /// Check if a receiver type matches a method's self param type (allowing Shared auto-wrap)
+    /// 检查接收者类型是否匹配方法的 self 参数类型
+    ///
+    /// 支持多层所有权包装的自动剥离，例如：
+    /// - `Unique(Shared(LinkedList))` 匹配 `Unique(LinkedList)`
+    /// - `Shared(LinkedList)` 匹配 `LinkedList`
+    /// - `Unique(Shared(LinkedList))` 匹配 `LinkedList`
     pub(super) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool {
         if receiver == param { return true; }
-        // Check inner types match (allowing ownership wrapper mismatch)
+        // 逐层剥离接收者的所有权包装（Unique/Shared/Weak）
+        // 处理多层包装如 Unique(Shared(T)) 的情况
         let recv_inner = match receiver {
             HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
             other => other,
         };
+        // 如果剥离后与参数完全相等，则匹配
+        if recv_inner == param { return true; }
+        // 再剥离参数的所有权包装
         let param_inner = match param {
             HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
             other => other,
         };
         if recv_inner == param_inner { return true; }
-        // Allow passing plain T to shared/unique self (auto-wrap)
+        // 接收者仍有包装层未剥离？递归处理（如 Unique(Shared(T)) → Shared(T)）
+        if recv_inner != receiver {
+            return Self::receiver_matches_param(recv_inner, param);
+        }
+        // 允许向 shared/unique self 传入裸类型（自动包装）
         match param {
             HirType::Shared(inner) | HirType::Unique(inner) => {
                 if receiver == inner.as_ref() { return true; }
@@ -677,7 +689,12 @@ impl super::Ctx {
             if let Some(iface_name) = constraint {
                 let concrete_ty = generic_mappings.get(gp_name)
                     .ok_or_else(|| format!("internal error: generic param `{}` not resolved at {}:{}", gp_name, span.start_line, span.start_col))?;
-                let concrete_inner = strip_ownership_ref(concrete_ty);
+                // 递归剥离所有权包装（Unique/Shared/Weak），
+                // 处理多层包装如 Unique(Shared(LinkedList)) → LinkedList
+                let mut concrete_inner = concrete_ty;
+                while matches!(concrete_inner, HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_)) {
+                    concrete_inner = strip_ownership_ref(concrete_inner);
+                }
                 let concrete_type_name = match concrete_inner {
                     HirType::Named(n) => *n,
                     HirType::Int => Symbol::intern("int"),
