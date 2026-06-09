@@ -668,15 +668,17 @@ impl<'a> Emitter<'a> {
                     }
                     ConvKind::ToShared => {
                         if src_is_heap_ptr {
-                            // 源已在堆上：复制指针并 retain
+                            // 复制指针；仅当源是 Shared 时才 retain（Unique/Weak 没有 refcount）
                             self.wln_fmt(format_args!(
                                 "%t{} = bitcast ptr {} to ptr",
                                 dest, src_val
                             ));
-                            self.wln_fmt(format_args!(
-                                "call void @__ayanami_shared_retain(i8* %t{})",
-                                dest
-                            ));
+                            if matches!(src_ty, HirType::Shared(_)) {
+                                self.wln_fmt(format_args!(
+                                    "call void @__ayanami_shared_retain(i8* %t{})",
+                                    dest
+                                ));
+                            }
                         } else {
                             // 源是结构体值：堆分配 + memcpy（创建新共享指针）
                             let inner_ty = match &ty {

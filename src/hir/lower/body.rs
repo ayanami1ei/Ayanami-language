@@ -1205,7 +1205,7 @@ impl super::Ctx {
                             }
                         }
                     }
-                    if matches!(param_tys[i], HirType::Unique(_)) {
+                    if matches!(param_tys[i], HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_)) {
                         wrap_arg_for_param(arg, &param_tys[i])
                     } else {
                         arg
@@ -1298,31 +1298,7 @@ impl super::Ctx {
                 all_args.extend(hir_args);
                 all_args = all_args.into_iter().enumerate().map(|(i, arg)| {
                     if i >= param_tys.len() { return arg; }
-                    let arg_ty = expr_type(&arg);
-                    match &param_tys[i] {
-                        HirType::Unique(pt) | HirType::Shared(pt) | HirType::Weak(pt) => {
-                            // If arg is a plain struct value and param expects ownership, auto-wrap
-                            if arg_ty == *pt.as_ref() {
-                                match &param_tys[i] {
-                                    HirType::Unique(_) => {
-                                        HirExpr::ToUnique(Box::new(arg), param_tys[i].clone())
-                                    }
-                                    HirType::Shared(_) => {
-                                        HirExpr::ToShared(Box::new(arg), param_tys[i].clone())
-                                    }
-                                    HirType::Weak(_) => {
-                                        HirExpr::ToWeak(Box::new(arg), param_tys[i].clone())
-                                    }
-                                    _ => arg,
-                                }
-                            } else if matches!(param_tys[i], HirType::Unique(_)) {
-                                wrap_for_unique_param(arg, &param_tys[i])
-                            } else {
-                                arg
-                            }
-                        }
-                        _ => arg,
-                    }
+                    wrap_arg_for_param(arg, &param_tys[i])
                 }).collect();
 
                 let ty = self.fns[fn_id.0].return_type.clone();

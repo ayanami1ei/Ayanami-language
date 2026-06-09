@@ -411,6 +411,9 @@ impl Ctx {
                 if let HirExpr::Local(id, _) = inner.as_ref() {
                     self.moved.insert(*id);
                 }
+                // 即使 Move 包装的不是 Local（例如 Move(Call(...))），
+                // 也需要递归遍历内部表达式，以找到参数中的 Move(Local)
+                self.track_expr_moves(inner);
             }
             HirExpr::Call { args, .. } => {
                 for a in args { self.track_expr_moves(a); }
