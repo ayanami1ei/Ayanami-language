@@ -77,7 +77,7 @@ fn mir_expr_from_hir(expr: &HirExpr, moved: &HashSet<VarId>) -> MirExpr {
         HirExpr::ToWeak(inner, ty) => {
             MirExpr::ToWeak(Box::new(mir_expr_from_hir(inner, moved)), ty.clone())
         }
-        HirExpr::VirtualCall { receiver, interface, method_index, args, ty } => MirExpr::VirtualCall {
+        HirExpr::VirtualCall { receiver, interface, method_index, args, ty, .. } => MirExpr::VirtualCall {
             receiver: Box::new(mir_expr_from_hir(receiver, moved)),
             interface: *interface,
             method_index: *method_index,

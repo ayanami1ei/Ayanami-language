@@ -10,6 +10,7 @@ use crate::intern::Symbol;
 use crate::parser::ast::*;
 use crate::span::Span;
 use crate::hir::ir::*;
+use super::strip_generic_name;
 use super::InterfaceReg;
 
     /// 自动插入 Move 包装：如果表达式是 unique 类型且尚未包装，则包装为 Move
@@ -525,6 +526,17 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
 }
 
     /// 将 AST 类型节点转换为 HIR 类型（含接口信息）
+fn is_iface_type(inner_hir: &HirType, interfaces: &HashMap<Symbol, super::InterfaceReg>) -> bool {
+    match inner_hir {
+        HirType::Named(n) if interfaces.contains_key(n) => true,
+        HirType::Named(n) => {
+            let base = strip_generic_name(n);
+            base != *n && interfaces.contains_key(&base)
+        }
+        _ => false,
+    }
+}
+
 pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> HirType {
     match ty {
         Type::Default | Type::Int(_) => HirType::Int,
@@ -551,8 +563,7 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         }
         Type::Unique(inner, _) => {
             let inner_hir = ast_type_to_hir(inner, interfaces);
-            if matches!(&inner_hir, HirType::Named(n) if interfaces.contains_key(n)) {
-                // unique Interface → fat pointer
+            if is_iface_type(&inner_hir, interfaces) {
                 HirType::FatPtr { name: *extract_named(&inner_hir).unwrap(), kind: Box::new(HirType::Unique(Box::new(HirType::Void))) }
             } else {
                 HirType::Unique(Box::new(inner_hir))
@@ -560,8 +571,7 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         }
         Type::Shared(inner, _) => {
             let inner_hir = ast_type_to_hir(inner, interfaces);
-            if matches!(&inner_hir, HirType::Named(n) if interfaces.contains_key(n)) {
-                // shared Interface → fat pointer
+            if is_iface_type(&inner_hir, interfaces) {
                 HirType::FatPtr { name: *extract_named(&inner_hir).unwrap(), kind: Box::new(HirType::Shared(Box::new(HirType::Void))) }
             } else {
                 HirType::Shared(Box::new(inner_hir))

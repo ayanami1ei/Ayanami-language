@@ -150,7 +150,7 @@ fn write_expr(expr: &HirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}ToWeak(ty: {})", p, display_type(ty))?;
             write_expr(inner, level + 1, w)?;
         }
-        HirExpr::VirtualCall { receiver, interface, method_index, args, ty } => {
+        HirExpr::VirtualCall { receiver, interface, method_index, args, ty, .. } => {
             writeln!(w, "{}VirtualCall iface={} method={} ty={}", p, interface, method_index, display_type(ty))?;
             writeln!(w, "{}  receiver:", p)?;
             write_expr(receiver, level + 1, w)?;

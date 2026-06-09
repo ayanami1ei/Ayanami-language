@@ -636,7 +636,8 @@ impl super::Ctx {
     /// Check if a type's generic_fns methods structurally match an interface.
     /// This enables on-the-fly interface matching for generic impls.
     fn check_generic_fns_for_iface(&self, type_name: &Symbol, iface_name: &Symbol) -> bool {
-        let iface_reg = match self.interfaces.get(iface_name) {
+        let base_iface = crate::hir::lower::strip_generic_name(iface_name);
+        let iface_reg = match self.interfaces.get(&base_iface) {
             Some(r) => r,
             None => return false,
         };
@@ -668,7 +669,43 @@ impl super::Ctx {
         true
     }
 
-    /// Register vtable for a generic impl type → interface relationship.
+    /// Ensure a specialized interface (e.g. "List<int>") is registered.
+    fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<(), String> {
+        if self.interfaces.contains_key(specialized_name) { return Ok(()); }
+        let s = specialized_name.as_str();
+        let base = crate::hir::lower::strip_generic_name(specialized_name);
+        if base == *specialized_name { return Ok(()); } // not a specialized name
+        let generics_reg = match self.interfaces.get(&base) {
+            Some(r) => r.clone(),
+            None => return Ok(()),
+        };
+        // Extract generic param values from the name
+        let gp_start = s.find('<').unwrap();
+        let gp_end = s.rfind('>').unwrap_or(s.len() - 1);
+        let inner_str = &s[gp_start + 1..gp_end];
+        let gp_values: Vec<HirType> = inner_str.split(',')
+            .map(|p| sig_str_to_hir(p.trim()))
+            .collect();
+        let gp_names: Vec<Symbol> = generics_reg.generic_params.iter().map(|(n, _)| *n).collect();
+        let mut subst: HashMap<Symbol, HirType> = HashMap::new();
+        for ((name, _), val) in generics_reg.generic_params.iter().zip(gp_values.iter()) {
+            subst.insert(*name, val.clone());
+        }
+        // Substitute types in all methods
+        let subst_methods: Vec<HirInterfaceMethod> = generics_reg.methods.iter().map(|m| {
+            HirInterfaceMethod {
+                name: m.name,
+                self_keyword: m.self_keyword.clone(),
+                params: m.params.iter().map(|(n, t)| (*n, Self::substitute_iface_type(t, &subst, &gp_names))).collect(),
+                return_type: Self::substitute_iface_type(&m.return_type, &subst, &gp_names),
+            }
+        }).collect();
+        self.interfaces.insert(*specialized_name, super::InterfaceReg {
+            generic_params: vec![],
+            methods: subst_methods,
+        });
+        Ok(())
+    }
     /// Specializes methods on the fly.
     fn register_generic_vtable(
         &mut self,
@@ -1565,6 +1602,9 @@ impl super::Ctx {
                 if let HirType::FatPtr { name: iface, .. } = receiver_inner {
                     // Virtual dispatch through interface
                     let iface_name = *iface;
+                    if !self.interfaces.contains_key(&iface_name) {
+                        self.ensure_specialized_interface(&iface_name)?;
+                    }
                     let iface_reg = self.interfaces.get(&iface_name)
                         .ok_or_else(|| format!("unknown interface `{}` used as type (at {}:{})", iface_name, span.start_line, span.start_col))?;
 
@@ -1578,6 +1618,7 @@ impl super::Ctx {
                         interface: iface_name,
                         method_index: method_idx,
                         args: hir_args,
+                        concrete_type: iface_name,
                         ty: ret_ty,
                     });
                 }
@@ -1772,17 +1813,22 @@ impl super::Ctx {
                 let inner_ty = strip_ownership(object_ty.clone());
                 // Virtual dispatch through interface
                 if let HirType::FatPtr { name: iface, .. } = &inner_ty {
-                    let iface_reg = self.interfaces.get(iface)
-                        .ok_or_else(|| format!("unknown interface `{}` used as type (at {}:{})", iface, span.start_line, span.start_col))?;
+                    let iface_name = *iface;
+                    if !self.interfaces.contains_key(&iface_name) {
+                        self.ensure_specialized_interface(&iface_name)?;
+                    }
+                    let iface_reg = self.interfaces.get(&iface_name)
+                        .ok_or_else(|| format!("unknown interface `{}` used as type (at {}:{})", iface_name, span.start_line, span.start_col))?;
                     let method_idx = iface_reg.methods.iter()
                         .position(|m| m.name == Symbol::intern("index"))
-                        .ok_or_else(|| format!("interface `{}` has no method `index` (at {}:{})", iface, span.start_line, span.start_col))?;
+                        .ok_or_else(|| format!("interface `{}` has no method `index` (at {}:{})", iface_name, span.start_line, span.start_col))?;
                     let ret_ty = iface_reg.methods[method_idx].return_type.clone();
                     return Ok(HirExpr::VirtualCall {
                         receiver: Box::new(hir_object),
-                        interface: *iface,
+                        interface: iface_name,
                         method_index: method_idx,
                         args: vec![hir_index],
+                        concrete_type: iface_name,
                         ty: ret_ty,
                     });
                 }

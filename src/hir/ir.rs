@@ -124,6 +124,7 @@ pub enum HirExpr {
         interface: Symbol,
         method_index: usize,
         args: Vec<HirExpr>,
+        concrete_type: Symbol,
         ty: HirType,
     },
     /// Wrap a concrete value into a {data, vtable} fat pointer for interface dispatch

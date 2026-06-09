@@ -44,7 +44,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
     let vtables: Vec<VtableDesc> = mir.vtables.iter().map(|ve| {
         let name = format!("vtable_{}_{}",
             ve.concrete_type.as_str().replace('<', "_lt_").replace('>', "_gt_").replace('[', "_lb_").replace(']', "_rb_"),
-            ve.interface);
+            ve.interface.as_str().replace('<', "_lt_").replace('>', "_gt_"));
         VtableDesc { name, fn_ids: ve.method_fn_ids.clone() }
     }).collect();
 
@@ -124,7 +124,7 @@ fn type_to_mangle(ty: &HirType) -> String {
         HirType::Unique(inner) => format!("unique_{}", type_to_mangle(inner)),
         HirType::Shared(inner) => format!("shared_{}", type_to_mangle(inner)),
         HirType::Weak(inner) => format!("weak_{}", type_to_mangle(inner)),
-        HirType::FatPtr { name, .. } => format!("fatptr_{}", name),
+        HirType::FatPtr { name, .. } => format!("fatptr_{}", name.as_str().replace('<', "_lt_").replace('>', "_gt_")),
         HirType::Array(inner) => format!("arr_{}", type_to_mangle(inner)),
         HirType::Ref(inner, _) => format!("ref_{}", type_to_mangle(inner)),
     }
@@ -681,7 +681,7 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             };
             let vtable_name = format!("vtable_{}_{}",
                 concrete_type.as_str().replace('<', "_lt_").replace('>', "_gt_").replace('[', "_lb_").replace(']', "_rb_"),
-                interface_name);
+                interface_name.as_str().replace('<', "_lt_").replace('>', "_gt_"));
             let dest = ctx.next_tmp();
             let malloc_tmp = ctx.next_tmp();
             let bc_tmp = ctx.next_tmp();

@@ -825,24 +825,29 @@ impl<'a> Emitter<'a> {
                 ));
             }
             LirInst::MakeFatPtr { dest, malloc_tmp, bc_tmp, vtable_gep_tmp, iv_tmp, value_src, value_ty, vtable_name, .. } => {
-                // Allocate heap space for the value
-                let size = llvm_type_size(value_ty);
-                self.wln_fmt(format_args!(
-                    "%t{} = call i8* @malloc(i64 {})",
-                    malloc_tmp, size
-                ));
-                // Bitcast to the value type pointer and store
-                let val_llvm = self.llvm_type(value_ty);
-                self.wln_fmt(format_args!(
-                    "%t{} = bitcast i8* %t{} to ptr",
-                    bc_tmp, malloc_tmp
-                ));
-                let src_str = self.value_ref(value_src, value_ty);
-                self.wln_fmt(format_args!(
-                    "store {} {}, ptr %t{}, align 8",
-                    val_llvm, src_str, bc_tmp
-                ));
-                // Get vtable pointer
+                // For already-heap types (Shared/Unique/Weak), use the value pointer directly.
+                // For value types (int, float, structs), heap-allocate a copy.
+                let is_ptr_type = matches!(value_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_));
+                let data_ptr = if is_ptr_type {
+                    self.value_ref(value_src, value_ty)
+                } else {
+                    let size = llvm_type_size(value_ty);
+                    self.wln_fmt(format_args!(
+                        "%t{} = call i8* @malloc(i64 {})",
+                        malloc_tmp, size
+                    ));
+                    self.wln_fmt(format_args!(
+                        "%t{} = bitcast i8* %t{} to ptr",
+                        bc_tmp, malloc_tmp
+                    ));
+                    let val_llvm = self.llvm_type(value_ty);
+                    let src_str = self.value_ref(value_src, value_ty);
+                    self.wln_fmt(format_args!(
+                        "store {} {}, ptr %t{}, align 8",
+                        val_llvm, src_str, bc_tmp
+                    ));
+                    format!("%t{}", malloc_tmp)
+                };
                 let vtable_elem_count = self.prog.vtables.iter()
                     .find(|v| v.name == *vtable_name)
                     .map(|v| v.fn_ids.len())
@@ -851,10 +856,9 @@ impl<'a> Emitter<'a> {
                     "%t{} = getelementptr [{} x ptr], ptr @{}, i64 0, i64 0",
                     vtable_gep_tmp, vtable_elem_count, vtable_name
                 ));
-                // Construct fat pointer struct {ptr, ptr}
                 self.wln_fmt(format_args!(
-                    "%t{} = insertvalue {{ ptr, ptr }} zeroinitializer, ptr %t{}, 0",
-                    iv_tmp, malloc_tmp
+                    "%t{} = insertvalue {{ ptr, ptr }} zeroinitializer, ptr {}, 0",
+                    iv_tmp, data_ptr
                 ));
                 self.wln_fmt(format_args!(
                     "%t{} = insertvalue {{ ptr, ptr }} %t{}, ptr %t{}, 1",
