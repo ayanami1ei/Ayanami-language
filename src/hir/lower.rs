@@ -199,10 +199,21 @@ impl Ctx {
                             found
                         }
                     };
-                    let (imported_syms, sources, _, _) = crate::package::load_package(&pkg_path)
+                    let (imported_syms, sources, lir_binary, _) = crate::package::load_package(&pkg_path)
                         .map_err(|e| format!("import error for '{}': {}", path, e))?;
-                    let _ = imported_syms;
-                    
+
+                    // Merge struct definitions from the package's LIR data
+                    if !lir_binary.is_empty() {
+                        if let Ok(dep_lir) = crate::lir::serialize::program_from_bytes(&lir_binary) {
+                            for (name, fields) in dep_lir.struct_defs {
+                                let hir_fields: Vec<HirStructField> = fields.iter()
+                                    .map(|(fn_name, ty)| HirStructField { name: *fn_name, ty: ty.clone() })
+                                    .collect();
+                                self.struct_defs.entry(name).or_insert_with(Vec::new).extend(hir_fields);
+                            }
+                        }
+                    }
+
                     // Parse and register generic function ASTs and interfaces from the package
                     for src in &sources {
                         let mut lexer = crate::lexer::Lexer::new(src);

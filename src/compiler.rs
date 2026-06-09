@@ -499,10 +499,13 @@ pub fn build_source_with_target(src_path: &str, _code: &str, out_dir: &str, targ
             if compiled.obj_paths.len() == 1 {
                 crate::driver::object_to_static_lib(&compiled.obj_paths[0], &lib_path)?;
             } else {
-                // Multiple .o files: link into single .o first, then archive
-                crate::driver::objects_to_exe(&compiled.obj_paths, &out_path.join("_temp_exe"))?;
-                crate::driver::object_to_static_lib(&out_path.join("_temp_exe.o"), &lib_path)?;
-                let _ = std::fs::remove_file(&out_path.join("_temp_exe"));
+                // Multiple .o files: add all to the archive directly
+                let mut cmd = std::process::Command::new("ar");
+                cmd.arg("rcs").arg(&lib_path);
+                for o in &compiled.obj_paths { cmd.arg(o); }
+                let status = cmd.status()
+                    .map_err(|e| format!("failed to run ar: {}", e))?;
+                if !status.success() { return Err("ar failed".into()); }
             }
             lib_path
         }
