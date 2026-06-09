@@ -417,8 +417,17 @@ function activate(context) {
         }
     }));
 
+    // Check all open .aya files once after activation
+    setTimeout(() => {
+        for (const doc of vscode.workspace.textDocuments) {
+            if (doc.languageId === 'ayanami') {
+                scheduleCheck(doc);
+            }
+        }
+        setStatus('ready');
+    }, 1500);
+
     outputChannel.appendLine('ayanami extension activated');
-    setTimeout(() => { setStatus('ready'); }, 1000);
 
     // ─── Defs Cache (for Go to Definition) ────────────────────────────
     const defsCache = {};
