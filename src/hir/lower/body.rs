@@ -1598,6 +1598,15 @@ impl super::Ctx {
                     }).collect();
                     return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
                 }
+                if let Ok(fn_id) = self.specialize_generic_call(&Symbol::intern("index"), &[object_ty.clone(), index_ty.clone()], span) {
+                    let ret_ty = self.fns[fn_id.0].return_type.clone();
+                    let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
+                    let args = vec![hir_object, hir_index].into_iter().enumerate().map(|(i, arg)| {
+                        if i >= param_tys.len() { return arg; }
+                        wrap_arg_for_param(arg, &param_tys[i])
+                    }).collect();
+                    return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
+                }
                 // Fallback to built-in array index
                 let elem_ty = match &inner_ty {
                     HirType::Array(inner) => *inner.clone(),
