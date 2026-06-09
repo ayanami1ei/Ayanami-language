@@ -161,7 +161,9 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
         // Generic("LinkedList", [Named("T")]) vs Named("LinkedList<int>") → infer T = int
         (Type::Generic(name, params, _), _) => {
             let base = name.as_str();
-            let arg_name = match arg_ty {
+            // 剥离所有所有权包装，获取底层的 Named 类型名
+            let stripped = strip_ownership_ref(arg_ty);
+            let arg_name = match stripped {
                 HirType::Named(n) => n.as_str(),
                 _ => return None,
             };

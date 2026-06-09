@@ -125,7 +125,6 @@ impl super::Ctx {
                     if !lir_binary.is_empty() {
                         let dep_lir = crate::lir::serialize::program_from_bytes(&lir_binary);
                         if let Err(e) = &dep_lir {
-                            eprintln!("[LIR ERR] program_from_bytes failed: {}", e);
                         }
                         if let Ok(dep_lir) = dep_lir {
                             // 先保存 generic_struct_params（需在 struct_defs 被消费前读取）
@@ -151,7 +150,6 @@ impl super::Ctx {
                                 }
                             }
                             // 从 LIR binary 恢复 generic_struct_params（覆盖字段扫描结果）
-                            eprintln!("[GSP] restoring {} gsp entries from LIR", gsp_from_lir.len());
                             for (gsp_name, gsp_params) in &gsp_from_lir {
                                 self.generic_struct_params.insert(*gsp_name, gsp_params.clone());
                             }
@@ -165,11 +163,9 @@ impl super::Ctx {
                         let filtered: Vec<_> = tokens.into_iter()
                             .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
                             .collect();
-                        if filtered.is_empty() { eprintln!("[DEBUG IMPORT] empty source"); continue; }
                         let mut parser = crate::parser::Parser::new(filtered);
                         let parsed = match parser.parse_program() {
                             Ok(p) => p,
-                            Err(e) => { eprintln!("[DEBUG IMPORT] parse error: {}", e); continue; }
                         };
                             for stmt in &parsed.stmts {
                                 match stmt {
@@ -603,7 +599,13 @@ impl super::Ctx {
 
     /// Resolve a function call by name and argument types (overload-aware)
     pub(super) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId> {
-        let candidates = self.fn_map.get(name)?;
+        let candidates = self.fn_map.get(name);
+        let candidates = match candidates {
+            Some(c) => c,
+            None => {
+                return None;
+            }
+        };
         let matches: Vec<FnId> = candidates.iter().copied()
             .filter(|&fn_id| {
                 let sig = &self.fns[fn_id.0];
@@ -616,6 +618,8 @@ impl super::Ctx {
         if matches.len() == 1 {
             Some(matches[0])
         } else {
+            if matches.len() > 1 {
+            }
             None
         }
     }
@@ -696,7 +700,6 @@ impl super::Ctx {
 
         let (gf_name, gf_params, gf_stmt) = &self.generic_fns[gf_idx];
         if let Stmt::FnDecl { params, .. } = gf_stmt {
-            eprintln!("[SPEC] {} self_ty={:?}", gf_name,
                 params.get(0).map(|(_, t)| t));
         }
         let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, .. } = gf_stmt else {
@@ -716,7 +719,6 @@ impl super::Ctx {
         for ((_, param_ty), arg_ty) in params.iter().zip(arg_types.iter()) {
             let result = infer_generic_from_param(param_ty, arg_ty);
             if let Some((n, _)) = &result {
-                eprintln!("[INFER] {} <- {:?}", n, arg_ty);
             }
             if let Some((gp_name, hir_concrete)) = result {
                 if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
@@ -1492,7 +1494,6 @@ impl super::Ctx {
                         if let Some(generic_fields) = self.struct_defs.get(type_name) {
                             // Build substitution map: T → concrete type
                             let mut generic_params = self.collected_generic_params(type_name);
-                            eprintln!("[MONO] struct={} gp={} args={}", type_name, generic_params.len(), generic_args.len());
                             // 若 generic_struct_params 未从 .lcl 合并，则从字段类型推断 GP 名称
                             if generic_params.is_empty() && !generic_args.is_empty() {
                                 generic_params = generic_args.iter().enumerate()
@@ -1514,7 +1515,6 @@ impl super::Ctx {
                             let mut subst: HashMap<Symbol, HirType> = HashMap::new();
                             for ((gp_name, _), concrete_ty) in generic_params.iter().zip(generic_args.iter()) {
                                 let hir_ty = ast_type_to_hir(concrete_ty, &self.interfaces);
-                                eprintln!("[MONO] subst {} -> {:?}", gp_name, hir_ty);
                                 subst.insert(*gp_name, hir_ty);
                             }
                             // Substitute field types
@@ -1522,7 +1522,6 @@ impl super::Ctx {
                                 .map(|f| {
                                     let new_ty = substitute_hir_type(&f.ty, &subst);
                                     if &f.ty != &new_ty {
-                                        eprintln!("[MONO] field {}: {:?} -> {:?}", f.name, f.ty, new_ty);
                                     }
                                     HirStructField { name: f.name, ty: new_ty }
                                 })

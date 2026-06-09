@@ -126,9 +126,16 @@ impl Package {
                     let src = crate::formatter::format_program(&prog);
                     self.generic_sources.push(src);
                 }
-                // 如果 impl 有泛型参数，方法已包含在 generic_sources 中，不重复添加为独立符号
-                if !has_generic {
+                // 如果 impl 级有泛型参数，所有方法都引用这些参数，不能作为独立符号导出
+                if !generic_params.is_empty() {
+                    // All methods reference the impl's generic params; skip individual symbols
+                } else {
                     for m in methods {
+                        if let Stmt::FnDecl { generic_params, .. } = m {
+                            if !generic_params.is_empty() {
+                                continue; // 方法级泛型已包含在 generic_sources 中
+                            }
+                        }
                         self.collect_stmt_symbols(m, all, ns_prefix);
                     }
                 }
