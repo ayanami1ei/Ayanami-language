@@ -788,6 +788,35 @@ impl super::Ctx {
         let hir_params: Vec<(Symbol, HirType)> = new_params.iter()
             .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
             .collect();
+
+        // 检查：如果特化结果中仍包含泛型参数（如 Named("T")），说明未完全解析，跳过
+        fn has_unresolved_gp(ty: &HirType) -> bool {
+            match ty {
+                HirType::Named(n) => {
+                    let s = n.as_str();
+                    s.len() == 1 && s.chars().all(|c| c.is_uppercase())
+                }
+                HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => has_unresolved_gp(inner),
+                _ => false,
+            }
+        }
+        if hir_params.iter().any(|(_, t)| has_unresolved_gp(t))
+            || generic_mappings.values().any(|v| has_unresolved_gp(v))
+        {
+            return Err(format!("cannot resolve generic parameter for `{}` at {}:{}",
+                name, span.start_line, span.start_col));
+        }
+
+        // 去重：检查是否已存在相同签名的特化函数
+        if let Some(existing) = self.fn_map.get(name).and_then(|ids| {
+            ids.iter().find(|id| {
+                let s = &self.fns[id.0];
+                s.params == hir_params && s.return_type == hir_return
+            })
+        }) {
+            return Ok(*existing);
+        }
+
         let fid = FnId(self.fns.len());
         self.fns.push(FnSig {
             name: *name,
@@ -1462,6 +1491,9 @@ impl super::Ctx {
                         if let Some(generic_fields) = self.struct_defs.get(type_name) {
                             // Build substitution map: T → concrete type
                             let mut generic_params = self.collected_generic_params(type_name);
+                            if !generic_args.is_empty() && generic_params.is_empty() {
+                                eprintln!("[WARN] no generic params for struct {}", type_name);
+                            }
                             // 若 generic_struct_params 未从 .lcl 合并，则从字段类型推断 GP 名称
                             if generic_params.is_empty() && !generic_args.is_empty() {
                                 generic_params = generic_args.iter().enumerate()

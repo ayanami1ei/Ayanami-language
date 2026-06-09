@@ -217,23 +217,32 @@ fn resolve_dependencies(
                     span: crate::span::Span::default(),
                 });
 
-                let o_name = dep_path.file_stem().unwrap_or(std::ffi::OsStr::new("a"));
-                let o_path = out_dir.join(o_name).with_extension("o");
-                if !o_path.exists() {
-                    if let Ok((_, _, lir_binary, _)) =
-                        crate::package::load_package(&dep_path.to_string_lossy())
-                    {
-                        if let Ok(lir_prog) =
-                            crate::lir::serialize::program_from_bytes(&lir_binary)
-                        {
-                            let llvm_ir = crate::lir::emit_program(&lir_prog);
-                            crate::driver::ir_to_object(&llvm_ir, &o_path)
-                                .map_err(|e| format!("llc failed for {}: {}", dep_path.display(), e))?;
+                // 编译该 .lcl 及其同目录下所有 .lcl 文件为 .o
+                // （因为 std.lcl 依赖 string.lcl、io.lcl 等，它们的函数必须参与链接）
+                let lcl_dir = dep_path.parent().unwrap_or(std::path::Path::new("."));
+                if let Ok(entries) = std::fs::read_dir(lcl_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.extension().map(|e| e == "lcl") != Some(true) { continue; }
+                        let o_name = path.file_stem().unwrap_or(std::ffi::OsStr::new("a"));
+                        let o_path = out_dir.join(o_name).with_extension("o");
+                        if !o_path.exists() {
+                            if let Ok((_, _, lir_binary, _)) =
+                                crate::package::load_package(&path.to_string_lossy())
+                            {
+                                if let Ok(lir_prog) =
+                                    crate::lir::serialize::program_from_bytes(&lir_binary)
+                                {
+                                    let llvm_ir = crate::lir::emit_program(&lir_prog);
+                                    crate::driver::ir_to_object(&llvm_ir, &o_path)
+                                        .map_err(|e| format!("llc failed for {}: {}", path.display(), e))?;
+                                }
+                            }
+                        }
+                        if o_path.exists() && !dep_obj_paths.contains(&o_path) {
+                            dep_obj_paths.push(o_path);
                         }
                     }
-                }
-                if o_path.exists() && !dep_obj_paths.contains(&o_path) {
-                    dep_obj_paths.push(o_path);
                 }
             }
         } else {

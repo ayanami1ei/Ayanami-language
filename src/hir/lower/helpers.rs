@@ -256,7 +256,7 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
         },
         Expr::StructLiteral { type_name, generic_args, fields, span } => Expr::StructLiteral {
             type_name: *type_name,
-            generic_args: generic_args.clone(),
+            generic_args: generic_args.iter().map(|a| substitute_type_in_type(a, subst)).collect(),
             fields: fields.iter().map(|(n, e)| (*n, substitute_type_in_expr(e, subst))).collect(),
             span: *span,
         },

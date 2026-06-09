@@ -126,8 +126,11 @@ impl Package {
                     let src = crate::formatter::format_program(&prog);
                     self.generic_sources.push(src);
                 }
-                for m in methods {
-                    self.collect_stmt_symbols(m, all, ns_prefix);
+                // 如果 impl 有泛型参数，方法已包含在 generic_sources 中，不重复添加为独立符号
+                if !has_generic {
+                    for m in methods {
+                        self.collect_stmt_symbols(m, all, ns_prefix);
+                    }
                 }
             }
             Stmt::StructDef { vis, name, fields, .. } => {
