@@ -1005,7 +1005,7 @@ function scanVariableTypes(doc) {
     // Collect function return types for the whole file first
     const fnRetTypes = collectReturnTypes(text);
     // Also collect from imported files
-    const folder = document.uri.scheme === 'file' ? require('path').dirname(document.uri.fsPath) : null;
+    const folder = doc.uri.scheme === 'file' ? require('path').dirname(doc.uri.fsPath) : null;
     if (folder) {
         const importRe = /import\s+"([^"]+\.aya)"/g;
         let im;
