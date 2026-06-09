@@ -644,42 +644,109 @@ impl<'a> Emitter<'a> {
                     dest, str_idx
                 ));
             }
-            LirInst::Conv { dest, alloca_tmp, malloc_tmp, src, kind: _, src_ty, ty } => {
+            LirInst::Conv { dest, alloca_tmp, malloc_tmp, src, kind, src_ty, ty } => {
                 let src_val = self.value_ref(src, src_ty);
-                let inner_ty = match &ty {
-                    HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
-                    _ => &ty,
-                };
-                let size = llvm_type_size(inner_ty);
-
-                // If source is a struct value (not a pointer), store to alloca first
-                let src_ptr = if matches!(src_ty, HirType::Named(s) if self.prog.struct_defs.contains_key(s)) {
-                    let src_llvm = self.llvm_type(&src_ty);
-                    self.wln_fmt(format_args!(
-                        "%t{} = alloca {}, align 8",
-                        alloca_tmp, src_llvm
-                    ));
-                    self.wln_fmt(format_args!(
-                        "store {} {}, ptr %t{}",
-                        src_llvm, src_val, alloca_tmp
-                    ));
-                    format!("%t{}", alloca_tmp)
-                } else {
-                    src_val.clone()
-                };
-
-                self.wln_fmt(format_args!(
-                    "%l{} = call i8* @malloc(i64 {})",
-                    malloc_tmp, size
-                ));
-                self.wln_fmt(format_args!(
-                    "call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)",
-                    malloc_tmp, src_ptr, size
-                ));
-                self.wln_fmt(format_args!(
-                    "%t{} = bitcast i8* %l{} to {}",
-                    dest, malloc_tmp, self.llvm_type(&ty)
-                ));
+                // 检查源是否已在堆上（Shared/Unique/Weak 都是 ptr）
+                let src_is_heap_ptr = matches!(src_ty,
+                    HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)
+                );
+                match kind {
+                    ConvKind::ToWeak => {
+                        // ToWeak：源应已是指针，直接复制，不增加引用计数
+                        if src_is_heap_ptr {
+                            self.wln_fmt(format_args!(
+                                "%t{} = bitcast ptr {} to ptr",
+                                dest, src_val
+                            ));
+                        } else {
+                            // 源是值类型 → 作为标识符直接传递（极少出现）
+                            self.wln_fmt(format_args!(
+                                "%t{} = bitcast ptr {} to ptr",
+                                dest, src_val
+                            ));
+                        }
+                    }
+                    ConvKind::ToShared => {
+                        if src_is_heap_ptr {
+                            // 源已在堆上：复制指针并 retain
+                            self.wln_fmt(format_args!(
+                                "%t{} = bitcast ptr {} to ptr",
+                                dest, src_val
+                            ));
+                            self.wln_fmt(format_args!(
+                                "call void @__ayanami_shared_retain(i8* %t{})",
+                                dest
+                            ));
+                        } else {
+                            // 源是结构体值：堆分配 + memcpy（创建新共享指针）
+                            let inner_ty = match &ty {
+                                HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
+                                _ => &ty,
+                            };
+                            let size = llvm_type_size(inner_ty);
+                            let src_ptr = if matches!(src_ty, HirType::Named(s) if self.prog.struct_defs.contains_key(s)) {
+                                let src_llvm = self.llvm_type(&src_ty);
+                                self.wln_fmt(format_args!(
+                                    "%t{} = alloca {}, align 8",
+                                    alloca_tmp, src_llvm
+                                ));
+                                self.wln_fmt(format_args!(
+                                    "store {} {}, ptr %t{}",
+                                    src_llvm, src_val, alloca_tmp
+                                ));
+                                format!("%t{}", alloca_tmp)
+                            } else {
+                                src_val.clone()
+                            };
+                            self.wln_fmt(format_args!(
+                                "%l{} = call i8* @malloc(i64 {})",
+                                malloc_tmp, size
+                            ));
+                            self.wln_fmt(format_args!(
+                                "call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)",
+                                malloc_tmp, src_ptr, size
+                            ));
+                            self.wln_fmt(format_args!(
+                                "%t{} = bitcast i8* %l{} to {}",
+                                dest, malloc_tmp, self.llvm_type(&ty)
+                            ));
+                        }
+                    }
+                    ConvKind::ToUnique => {
+                        // ToUnique：堆分配并拷贝数据（独占所有权）
+                        let inner_ty = match &ty {
+                            HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
+                            _ => &ty,
+                        };
+                        let size = llvm_type_size(inner_ty);
+                        let src_ptr = if matches!(src_ty, HirType::Named(s) if self.prog.struct_defs.contains_key(s)) {
+                            let src_llvm = self.llvm_type(&src_ty);
+                            self.wln_fmt(format_args!(
+                                "%t{} = alloca {}, align 8",
+                                alloca_tmp, src_llvm
+                            ));
+                            self.wln_fmt(format_args!(
+                                "store {} {}, ptr %t{}",
+                                src_llvm, src_val, alloca_tmp
+                            ));
+                            format!("%t{}", alloca_tmp)
+                        } else {
+                            src_val.clone()
+                        };
+                        self.wln_fmt(format_args!(
+                            "%l{} = call i8* @malloc(i64 {})",
+                            malloc_tmp, size
+                        ));
+                        self.wln_fmt(format_args!(
+                            "call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)",
+                            malloc_tmp, src_ptr, size
+                        ));
+                        self.wln_fmt(format_args!(
+                            "%t{} = bitcast i8* %l{} to {}",
+                            dest, malloc_tmp, self.llvm_type(&ty)
+                        ));
+                    }
+                }
             }
             LirInst::DropValue(vid, ty) => {
                 if needs_heap_ops(&ty) {

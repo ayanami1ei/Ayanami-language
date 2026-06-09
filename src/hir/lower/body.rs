@@ -124,7 +124,7 @@ impl super::Ctx {
                                 let hir_fields: Vec<HirStructField> = fields.iter()
                                     .map(|(fn_name, ty)| HirStructField { name: *fn_name, ty: ty.clone() })
                                     .collect();
-                                self.struct_defs.entry(name).or_insert_with(Vec::new).extend(hir_fields);
+                                self.struct_defs.insert(name, hir_fields);
                             }
                         }
                     }
@@ -230,7 +230,7 @@ impl super::Ctx {
                                         Some(HirStructField { name: field_name, ty: field_ty })
                                     }).collect()
                                 };
-                                self.struct_defs.entry(Symbol::intern(&struct_name)).or_insert_with(Vec::new).extend(fields);
+                                self.struct_defs.insert(Symbol::intern(&struct_name), fields);
                             }
                             crate::package::ImportedSymbol::Namespace { .. } => {
                                 // Handled by lowering; just register the path
@@ -955,7 +955,16 @@ impl super::Ctx {
                 let hir_value = match value {
                     Some(v) => {
                         let expr = self.lower_expr(v)?;
-                        Some(implicit_move(expr))
+                        let expr_ty = expr_type(&expr);
+                        // 若函数返回 unique T，但表达式是裸 T，自动包装为 ToUnique
+                        let fn_ret = &self.fns[self.current_fn.0].return_type;
+                        let wrapped = match (fn_ret, &expr_ty) {
+                            (HirType::Unique(pt), _) if *pt.as_ref() == expr_ty => {
+                                HirExpr::ToUnique(Box::new(expr), fn_ret.clone())
+                            }
+                            _ => expr,
+                        };
+                        Some(implicit_move(wrapped))
                     }
                     None => None,
                 };

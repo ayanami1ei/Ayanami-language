@@ -116,12 +116,13 @@ import "math"     // abs, min, max, clamp, pow
 
 ```ayanami
 s = "Hello"
-t = s + " World"          // 拼接
+t = s + " World"          // 拼接（支持 shared/unique String + 任意 ToString 类型）
 println(s.len())          // 长度
 println(s.copy())         // 深拷贝
 if s.eq(t) { ... }        // 相等比较
 s2 = 42.to_string()       // int → String
 s3 = 3.14.to_string()     // float → String
+println("val: " + 42)     // String + int → 自动调用 to_string
 ```
 
 ## 语法
@@ -171,13 +172,34 @@ interface ToString {
 }
 
 impl Point {
-    fn to_string(unique self) -> unique String {
-        return "(" + self.x.to_string() + ", " + self.y.to_string() + ")"
+    // shared self 适合 to_string（不消费原值）
+    fn to_string(shared self) -> unique String {
+        return "(" + self.x + ", " + self.y + ")"
     }
 }
+
+impl Point: ToString {}  // 结构匹配：有 to_string 方法即自动实现接口
 ```
 
-方法必须写 `shared self` / `unique self`。
+方法必须写 `shared self` / `unique self`。`shared self` 借用，`unique self` 消费。
+
+### shared / unique / weak
+
+| 所有权 | 说明 |
+|--------|------|
+| `shared T` | 引用计数指针，可共享，自动释放 |
+| `unique T` | 独占所有权指针，移动语义，离开作用域自动释放 |
+| `weak T` | 弱引用，不增加引用计数，用于遍历 |
+
+`shared T` 可传入接受 `T` 或 `shared T` 参数的函数。  
+`unique T` 可传入接受 `T` 或 `unique T` 参数的函数。
+
+字符串拼接 `add[T:ToString](T a)` 支持 `unique T` 和 `shared T`：
+
+```
+s = shared String { data = "hello", len = 5 }  // 共享字符串
+println(s + " world")                           // 可用在拼接中
+```
 
 ### 泛型
 ```ayanami
