@@ -345,6 +345,30 @@ impl super::Ctx {
             }
         }
 
+        // Also add generic_fns methods for interface matching
+        for (gf_name, _, gf_stmt) in &self.generic_fns {
+            if let Stmt::FnDecl { params, return_type, .. } = gf_stmt {
+                if params.is_empty() { continue; }
+                let param_ty = ast_type_to_hir(&params[0].1, &self.interfaces);
+                let inner_ty = match &param_ty {
+                    HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+                    other => other,
+                };
+                if let HirType::Named(n) = inner_ty {
+                    let base = crate::hir::lower::strip_generic_name(n);
+                    let hir_params: Vec<(Symbol, HirType)> = params.iter()
+                        .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+                        .collect();
+                    let hir_return = ast_type_to_hir(return_type, &self.interfaces);
+                    impl_methods.entry(base).or_default().push(FnSig {
+                        name: *gf_name,
+                        params: hir_params,
+                        return_type: hir_return,
+                    });
+                }
+            }
+        }
+
         let iface_list: Vec<(Symbol, Vec<(Symbol, Option<Symbol>)>, Vec<HirInterfaceMethod>)> = self.interfaces.iter()
             .map(|(name, reg)| (*name, reg.generic_params.clone(), reg.methods.clone()))
             .collect();
@@ -434,7 +458,7 @@ impl super::Ctx {
                 for subst in &results {
                     let mut local = subst.clone();
                     let mut ok = true;
-                    for ((_, ift), (_, impt)) in iface_method.params.iter().zip(&impl_method.params[1..]) {
+                    for ((_, ift), (_, impt)) in iface_method.params[1..].iter().zip(&impl_method.params[1..]) {
                         if !Self::infer_iface_generic(ift, impt, &gp_names, &mut local) { ok = false; break; }
                     }
                     if !ok { continue; }
@@ -575,6 +599,13 @@ impl super::Ctx {
             if let Some(ct) = concrete {
                 if let Some(ifaces) = self.type_ifaces.get(&ct) {
                     return ifaces.contains(iface_name);
+                }
+                // Also check stripped base name (for generic structs like LinkedList<T>)
+                let base_ct = crate::hir::lower::strip_generic_name(&ct);
+                if base_ct != ct {
+                    if let Some(ifaces) = self.type_ifaces.get(&base_ct) {
+                        return ifaces.contains(iface_name);
+                    }
                 }
             }
         }
@@ -1332,6 +1363,18 @@ impl super::Ctx {
                             if self.type_ifaces.contains_key(&ct)
                                 && self.type_ifaces[&ct].contains(iface_name) {
                                 // Build fat pointer
+                                let fatptr_ty = param_tys[i].clone();
+                                return HirExpr::MakeFatPtr {
+                                    value: Box::new(arg),
+                                    concrete_type: ct,
+                                    interface_name: *iface_name,
+                                    ty: fatptr_ty,
+                                };
+                            }
+                            // Also check stripped base name
+                            let base_ct = crate::hir::lower::strip_generic_name(&ct);
+                            if base_ct != ct && self.type_ifaces.contains_key(&base_ct)
+                                && self.type_ifaces[&base_ct].contains(iface_name) {
                                 let fatptr_ty = param_tys[i].clone();
                                 return HirExpr::MakeFatPtr {
                                     value: Box::new(arg),
