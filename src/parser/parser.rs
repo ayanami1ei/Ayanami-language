@@ -569,6 +569,26 @@ impl Parser {
     fn parse_impl_block(&mut self) -> Result<Stmt, String> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // impl
+        // Parse optional generic params: [T, U: Interface]
+        let mut generic_params = Vec::new();
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
+            self.advance();
+            loop {
+                let gp_name = Symbol::intern(&self.expect_identifier()?);
+                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
+                    self.advance();
+                    Some(Symbol::intern(&self.expect_identifier()?))
+                } else {
+                    None
+                };
+                generic_params.push((gp_name, gp_constraint));
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
+                    break;
+                }
+                self.expect_delimiter(Delimiter::Comma)?;
+            }
+            self.expect_delimiter(Delimiter::RBracket)?;
+        }
         let type_sym = match self.peek().map(|t| &t.kind) {
             Some(TokenKind::Identifier(name)) => {
                 let name = name.clone();
@@ -587,12 +607,13 @@ impl Parser {
         loop {
             match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Delimiter(Delimiter::RBrace)) | None => break,
-                _ => methods.push(self.parse_impl_method(&type_sym)?),
+                _ => methods.push(self.parse_impl_method(&type_sym, &generic_params)?),
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
         Ok(Stmt::ImplBlock {
             type_name: type_sym,
+            generic_params,
             methods,
             span: start_span,
         })
@@ -601,7 +622,7 @@ impl Parser {
     /// Parse a method inside an impl block.
     /// Converts `fn draw(shared self, ...)` into a regular FnDecl with
     /// the self parameter typed as `shared TypeName` (or `unique TypeName`).
-    fn parse_impl_method(&mut self, impl_type: &Symbol) -> Result<Stmt, String> {
+    fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt, String> {
         // Optional pub keyword
         if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Pub)) {
             self.advance();
@@ -663,10 +684,18 @@ impl Parser {
             return Err(self.error("expected 'self' as first parameter name in method"));
         }
 
-        let self_type = if self_keyword.as_str() == "shared" {
-            Type::Shared(Box::new(Type::Named(*impl_type, Span::default())), Span::default())
+        let base_self_type = if impl_generic_params.is_empty() {
+            Type::Named(*impl_type, Span::default())
         } else {
-            Type::Unique(Box::new(Type::Named(*impl_type, Span::default())), Span::default())
+            let gp_names: Vec<Type> = impl_generic_params.iter()
+                .map(|(n, _)| Type::Named(*n, Span::default()))
+                .collect();
+            Type::Generic(*impl_type, gp_names, Span::default())
+        };
+        let self_type = if self_keyword.as_str() == "shared" {
+            Type::Shared(Box::new(base_self_type), Span::default())
+        } else {
+            Type::Unique(Box::new(base_self_type), Span::default())
         };
 
         let mut params = vec![(Symbol::intern("self"), self_type)];

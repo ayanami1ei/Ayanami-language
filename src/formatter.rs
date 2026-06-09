@@ -161,9 +161,21 @@ fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
             let _ = writeln!(out, "{}}}", i);
         }
-        ImplBlock { type_name, methods, .. } => {
+        ImplBlock { type_name, methods, generic_params, .. } => {
             let i = indent(level);
-            let _ = writeln!(out, "{}impl {} {{", i, type_name);
+            let gp_str = if generic_params.is_empty() {
+                String::new()
+            } else {
+                let params: Vec<String> = generic_params.iter()
+                    .map(|(n, c)| if let Some(constraint) = c {
+                        format!("{}: {}", n, constraint)
+                    } else {
+                        n.to_string()
+                    })
+                    .collect();
+                format!("[{}]", params.join(", "))
+            };
+            let _ = writeln!(out, "{}impl{} {} {{", i, gp_str, type_name);
             for m in methods {
                 write_stmt(out, m, level + 1);
             }

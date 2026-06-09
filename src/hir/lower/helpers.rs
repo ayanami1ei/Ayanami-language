@@ -373,8 +373,9 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             }).collect(),
             span: *span,
         },
-        Stmt::ImplBlock { type_name, methods, span } => Stmt::ImplBlock {
+        Stmt::ImplBlock { type_name, generic_params, methods, span } => Stmt::ImplBlock {
             type_name: *type_name,
+            generic_params: generic_params.clone(),
             methods: methods.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
             span: *span,
         },

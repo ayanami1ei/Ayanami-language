@@ -144,11 +144,16 @@ impl super::Ctx {
                                     Stmt::FnDecl { name, generic_params, .. } if !generic_params.is_empty() => {
                                         self.generic_fns.push((*name, generic_params.clone(), stmt.clone()));
                                     }
-                                    Stmt::ImplBlock { methods, .. } => {
+                                    Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
                                         for m in methods {
                                             if let Stmt::FnDecl { name, generic_params, .. } = m {
-                                                if !generic_params.is_empty() {
-                                                    self.generic_fns.push((*name, generic_params.clone(), m.clone()));
+                                                let combined: Vec<(Symbol, Option<Symbol>)> = {
+                                                    let mut all = impl_gp.clone();
+                                                    all.extend(generic_params.iter().cloned());
+                                                    all
+                                                };
+                                                if !combined.is_empty() {
+                                                    self.generic_fns.push((*name, combined, m.clone()));
                                                 }
                                             }
                                         }
@@ -241,11 +246,17 @@ impl super::Ctx {
                         }
                     }
                 }
-                Stmt::ImplBlock { methods, .. } => {
+                Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
                     for method in methods {
-                        if let Stmt::FnDecl { name, params, return_type, generic_params, .. } = method {
-                            if !generic_params.is_empty() {
-                                self.generic_fns.push((*name, generic_params.clone(), method.clone()));
+                        if let Stmt::FnDecl { name, params, return_type, generic_params: method_gp, .. } = method {
+                            // 合并 impl 级和方法级泛型参数：impl[T] LinkedList[T] { fn push[T: Ord](...) }
+                            let combined_gp: Vec<(Symbol, Option<Symbol>)> = {
+                                let mut all = impl_gp.clone();
+                                all.extend(method_gp.iter().cloned());
+                                all
+                            };
+                            if !combined_gp.is_empty() {
+                                self.generic_fns.push((*name, combined_gp, method.clone()));
                                 continue;
                             }
                             let hir_return = ast_type_to_hir(return_type, &self.interfaces);
@@ -824,11 +835,11 @@ impl super::Ctx {
                     items.push(HirItem::StructDef(HirStructDef { name: *name, fields: hir_fields }));
                 }
                 Stmt::Import { .. } => {} // already handled in collect_fns
-                Stmt::ImplBlock { methods, .. } => {
+                Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
                     // Flatten impl block: lower each method as a regular Fn
                     for method_stmt in methods {
                         if let Stmt::FnDecl { name, params, return_type, body, generic_params, .. } = method_stmt {
-                            if !generic_params.is_empty() {
+                            if !generic_params.is_empty() || !impl_gp.is_empty() {
                                 continue; // generic methods are lowered during specialization
                             }
                             let ptypes: Vec<HirType> = params.iter()

@@ -115,8 +115,9 @@ impl Package {
                     }
                 }
             }
-            Stmt::ImplBlock { type_name, methods, .. } => {
-                let has_generic = methods.iter().any(|m| matches!(m, Stmt::FnDecl { generic_params, .. } if !generic_params.is_empty()));
+            Stmt::ImplBlock { type_name, methods, generic_params, .. } => {
+                let has_generic = !generic_params.is_empty()
+                    || methods.iter().any(|m| matches!(m, Stmt::FnDecl { generic_params, .. } if !generic_params.is_empty()));
                 if has_generic {
                     // Serialize the entire impl block as generic source (needed for self syntax)
                     let prog = crate::parser::ast::Program {

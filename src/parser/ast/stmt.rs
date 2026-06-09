@@ -93,6 +93,7 @@ pub enum Stmt {
     },
     ImplBlock {
         type_name: Symbol,
+        generic_params: Vec<(Symbol, Option<Symbol>)>,
         methods: Vec<Stmt>,
         span: Span,
     },
