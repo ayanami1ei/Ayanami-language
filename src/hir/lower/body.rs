@@ -765,7 +765,13 @@ impl super::Ctx {
                     )),
                 };
                 let implements = self.type_ifaces.get(&concrete_type_name)
-                    .map(|ifaces| ifaces.contains(iface_name))
+                    .map(|ifaces| {
+                        ifaces.contains(iface_name)
+                            || ifaces.iter().any(|name| {
+                                let s = name.as_str();
+                                s.starts_with(&*iface_name.as_str()) && s.contains('<')
+                            })
+                    })
                     .unwrap_or(false);
                 if !implements {
                     // 检查泛型方法是否实现了接口要求的方法
@@ -1399,7 +1405,24 @@ impl super::Ctx {
                     None => {
                         let mut all_param_types = vec![receiver_ty.clone()];
                         all_param_types.extend(arg_types.iter().cloned());
-                        self.specialize_generic_call(method, &all_param_types, span)?
+                        let fid = self.specialize_generic_call(method, &all_param_types, span)?;
+                        // 泛型推导成功后，尝试更新接收者变量的类型
+                        if let HirExpr::Local(var_id, _) = &receiver {
+                            let spec_param_ty = &self.fns[fid.0].params[0].1;
+                            let recv_stripped = strip_ownership_ref(&receiver_ty);
+                            let spec_stripped = strip_ownership_ref(spec_param_ty);
+                            if let (HirType::Named(rn), HirType::Named(sn)) = (recv_stripped, spec_stripped) {
+                                let rs = rn.as_str();
+                                let ss = sn.as_str();
+                                if !rs.contains('<') && ss.contains('<') {
+                                    let base = crate::hir::lower::strip_generic_name(&sn);
+                                    if base.as_str() == rs {
+                                        self.update_var_type(*var_id, spec_param_ty.clone());
+                                    }
+                                }
+                            }
+                        }
+                        fid
                     }
                 };
 
