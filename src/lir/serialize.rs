@@ -46,6 +46,20 @@ pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
         }
     }
 
+    // generic_struct_params
+    put_u32(&mut buf, p.generic_struct_params.len() as u32);
+    for (name, params) in &p.generic_struct_params {
+        put_str(&mut buf, &name.as_str());
+        put_u32(&mut buf, params.len() as u32);
+        for (gp_name, constraint) in params {
+            put_str(&mut buf, &gp_name.as_str());
+            put_u32(&mut buf, constraint.map(|_| 1u32).unwrap_or(0));
+            if let Some(c) = constraint {
+                put_str(&mut buf, &c.as_str());
+            }
+        }
+    }
+
     // imported_fn_ids
     put_u32(&mut buf, p.imported_fn_ids.len() as u32);
     for id in &p.imported_fn_ids { put_u32(&mut buf, id.0 as u32); }

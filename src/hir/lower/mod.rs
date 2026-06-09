@@ -144,9 +144,12 @@ impl Ctx {
             _ => return Err(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
                 hir_type_display(struct_ty), field, span.start_line, span.start_col)),
         };
-        let base_name = strip_generic_name(&type_name);
-        let raw = type_name.as_str();
-        let fields = self.struct_defs.get(&base_name)
+        // 优先查完整类型名（含泛型参数），再试剥离后的基名
+        let fields = self.struct_defs.get(&type_name)
+            .or_else(|| {
+                let base = strip_generic_name(&type_name);
+                if base != type_name { self.struct_defs.get(&base) } else { None }
+            })
             .ok_or_else(|| format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))?;
         fields.iter().position(|f| f.name == *field)
             .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col))
@@ -167,8 +170,12 @@ impl Ctx {
             _ => return Err(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
                 hir_type_display(struct_ty), field, span.start_line, span.start_col)),
         };
-        let base_name = strip_generic_name(&type_name);
-        let fields = self.struct_defs.get(&base_name)
+        // 优先查完整类型名（含泛型参数），再试剥离后的基名
+        let fields = self.struct_defs.get(&type_name)
+            .or_else(|| {
+                let base = strip_generic_name(&type_name);
+                if base != type_name { self.struct_defs.get(&base) } else { None }
+            })
             .ok_or_else(|| format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))?;
         fields.iter().find(|f| f.name == *field)
             .map(|f| f.ty.clone())
