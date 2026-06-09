@@ -729,17 +729,30 @@ impl<'a> Emitter<'a> {
                             _ => &ty,
                         };
                         let size = llvm_type_size(inner_ty);
-                        let src_ptr = if matches!(src_ty, HirType::Named(s) if self.prog.struct_defs.contains_key(s)) {
+                        let src_ptr = if matches!(src_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool) {
                             let src_llvm = self.llvm_type(&src_ty);
+                            let alloca = format!("%t{}", alloca_tmp);
                             self.wln_fmt(format_args!(
-                                "%t{} = alloca {}, align 8",
-                                alloca_tmp, src_llvm
+                                "{} = alloca {}, align 8",
+                                alloca, src_llvm
                             ));
                             self.wln_fmt(format_args!(
-                                "store {} {}, ptr %t{}",
-                                src_llvm, src_val, alloca_tmp
+                                "store {} {}, ptr {}",
+                                src_llvm, src_val, alloca
                             ));
-                            format!("%t{}", alloca_tmp)
+                            alloca
+                        } else if matches!(src_ty, HirType::Named(s) if self.prog.struct_defs.contains_key(s)) {
+                            let src_llvm = self.llvm_type(&src_ty);
+                            let alloca = format!("%t{}", alloca_tmp);
+                            self.wln_fmt(format_args!(
+                                "{} = alloca {}, align 8",
+                                alloca, src_llvm
+                            ));
+                            self.wln_fmt(format_args!(
+                                "store {} {}, ptr {}",
+                                src_llvm, src_val, alloca
+                            ));
+                            alloca
                         } else {
                             src_val.clone()
                         };

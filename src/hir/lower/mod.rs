@@ -144,15 +144,25 @@ impl Ctx {
             _ => return Err(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
                 hir_type_display(struct_ty), field, span.start_line, span.start_col)),
         };
-        // 优先查完整类型名（含泛型参数），再试剥离后的基名
-        let fields = self.struct_defs.get(&type_name)
-            .or_else(|| {
-                let base = strip_generic_name(&type_name);
-                if base != type_name { self.struct_defs.get(&base) } else { None }
-            })
-            .ok_or_else(|| format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))?;
-        fields.iter().position(|f| f.name == *field)
-            .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col))
+        self.find_field_index_by_name(&type_name, field, span)
+    }
+
+    /// 按类型名查找字段索引（含泛型回退与替换）
+    fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize, String> {
+        if let Some(fields) = self.struct_defs.get(type_name) {
+            return fields.iter().position(|f| f.name == *field)
+                .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col));
+        }
+        let base = strip_generic_name(type_name);
+        if base != *type_name {
+            if let Some(fields) = self.struct_defs.get(&base) {
+                // 从类型名中提取泛型替换 e.g. LinkedListNode<int> → T=int
+                let subst = self.build_generic_subst(type_name, &base);
+                return fields.iter().position(|f| f.name == *field)
+                    .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col));
+            }
+        }
+        Err(format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))
     }
 
     /// 查找结构体中某字段的类型
@@ -170,16 +180,45 @@ impl Ctx {
             _ => return Err(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
                 hir_type_display(struct_ty), field, span.start_line, span.start_col)),
         };
-        // 优先查完整类型名（含泛型参数），再试剥离后的基名
-        let fields = self.struct_defs.get(&type_name)
-            .or_else(|| {
-                let base = strip_generic_name(&type_name);
-                if base != type_name { self.struct_defs.get(&base) } else { None }
-            })
-            .ok_or_else(|| format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))?;
-        fields.iter().find(|f| f.name == *field)
-            .map(|f| f.ty.clone())
-            .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col))
+        self.find_field_type_by_name(&type_name, field, span)
+    }
+
+    /// 按类型名查找字段类型（含泛型回退与替换）
+    fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType, String> {
+        if let Some(fields) = self.struct_defs.get(type_name) {
+            return fields.iter().find(|f| f.name == *field)
+                .map(|f| f.ty.clone())
+                .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col));
+        }
+        let base = strip_generic_name(type_name);
+        if base != *type_name {
+            if let Some(fields) = self.struct_defs.get(&base) {
+                let subst = self.build_generic_subst(type_name, &base);
+                return fields.iter().find(|f| f.name == *field)
+                    .map(|f| substitute_hir_type(&f.ty, &subst))
+                    .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col));
+            }
+        }
+        Err(format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))
+    }
+
+    /// 从完整类型名（含泛型参数）构建替换映射
+    fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType> {
+        let mut subst = HashMap::new();
+        let s = type_name.as_str();
+        let b = base.as_str();
+        if let Some(start) = s.find('<') {
+            if &s[..start] == b {
+                let inner = s[start..].trim_start_matches('<').trim_end_matches('>');
+                let inner_parts: Vec<&str> = inner.split(',').collect();
+                let gp = self.collected_generic_params(base);
+                for ((gp_name, _), val_str) in gp.iter().zip(inner_parts.iter()) {
+                    let hir_ty = sig_str_to_hir(val_str.trim());
+                    subst.insert(*gp_name, hir_ty);
+                }
+            }
+        }
+        subst
     }
 
     /// 获取结构体的泛型参数列表（如有）
