@@ -124,8 +124,6 @@ impl super::Ctx {
                     // Merge struct definitions from the package's LIR data
                     if !lir_binary.is_empty() {
                         let dep_lir = crate::lir::serialize::program_from_bytes(&lir_binary);
-                        if let Err(e) = &dep_lir {
-                        }
                         if let Ok(dep_lir) = dep_lir {
                             // 先保存 generic_struct_params（需在 struct_defs 被消费前读取）
                             let gsp_from_lir: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>> =
@@ -1499,9 +1497,6 @@ impl super::Ctx {
                         if let Some(generic_fields) = self.struct_defs.get(type_name) {
                             // Build substitution map: T → concrete type
                             let mut generic_params = self.collected_generic_params(type_name);
-                            if !generic_args.is_empty() && generic_params.is_empty() {
-                                eprintln!("[WARN] no generic params for struct {}", type_name);
-                            }
                             // 若 generic_struct_params 未从 .lcl 合并，则从字段类型推断 GP 名称
                             if generic_params.is_empty() && !generic_args.is_empty() {
                                 generic_params = generic_args.iter().enumerate()
