@@ -163,9 +163,11 @@ impl super::Ctx {
                         let filtered: Vec<_> = tokens.into_iter()
                             .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
                             .collect();
+                        if filtered.is_empty() { continue; }
                         let mut parser = crate::parser::Parser::new(filtered);
                         let parsed = match parser.parse_program() {
                             Ok(p) => p,
+                            Err(e) => { continue; }
                         };
                             for stmt in &parsed.stmts {
                                 match stmt {
@@ -699,9 +701,6 @@ impl super::Ctx {
         };
 
         let (gf_name, gf_params, gf_stmt) = &self.generic_fns[gf_idx];
-        if let Stmt::FnDecl { params, .. } = gf_stmt {
-                params.get(0).map(|(_, t)| t));
-        }
         let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, .. } = gf_stmt else {
             return Err(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col));
         };
