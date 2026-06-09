@@ -8,6 +8,17 @@ use crate::parser::ast::*;
 use crate::span::Span;
 use super::ir::*;
 
+/// 从类型名中剥离泛型参数
+/// 例如 "LinkedListNode<T>" → "LinkedListNode"
+fn strip_generic_name(name: &Symbol) -> Symbol {
+    let s = name.as_str();
+    if let Some(pos) = s.find('<') {
+        Symbol::intern(&s[..pos])
+    } else {
+        *name
+    }
+}
+
 // ============================================================
 //  类型定义：HIR 降级过程中使用的内部数据结构
 // ============================================================
@@ -132,7 +143,8 @@ impl Ctx {
             _ => return Err(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
                 hir_type_display(struct_ty), field, span.start_line, span.start_col)),
         };
-        let fields = self.struct_defs.get(&type_name)
+        let base_name = strip_generic_name(&type_name);
+        let fields = self.struct_defs.get(&base_name)
             .ok_or_else(|| format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))?;
         fields.iter().position(|f| f.name == *field)
             .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col))
@@ -153,7 +165,8 @@ impl Ctx {
             _ => return Err(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
                 hir_type_display(struct_ty), field, span.start_line, span.start_col)),
         };
-        let fields = self.struct_defs.get(&type_name)
+        let base_name = strip_generic_name(&type_name);
+        let fields = self.struct_defs.get(&base_name)
             .ok_or_else(|| format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))?;
         fields.iter().find(|f| f.name == *field)
             .map(|f| f.ty.clone())
