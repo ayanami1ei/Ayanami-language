@@ -920,18 +920,17 @@ function scanVariableTypes(doc) {
         const fieldMatch = coreRhs.match(/^(\w+)\.(\w+)$/);
         if (fieldMatch) {
             const objName = fieldMatch[1];
-            if (objName === 'self') {
-                // self.field: try to infer from struct definition
-                const selfType = varTypes.get('self');
-                if (selfType) {
-                    const fieldType = getFieldType(doc, selfType, fieldMatch[2]);
-                    if (fieldType) {
-                        varTypes.set(varName, fieldType);
-                        continue;
-                    }
+            const fieldName = fieldMatch[2];
+            // 优先从 struct 定义解析字段类型
+            const objType = varTypes.get(objName) || varTypes.get('self');
+            if (objType) {
+                const fieldType = getFieldType(doc, objType, fieldName);
+                if (fieldType) {
+                    varTypes.set(varName, fieldType);
+                    continue;
                 }
             }
-            // Copy type from the object (for method chains like var.method())
+            // 后备：从对象类型推断方法链结果
             if (varTypes.has(objName)) {
                 varTypes.set(varName, varTypes.get(objName));
                 continue;
