@@ -748,10 +748,30 @@ impl super::Ctx {
                 }
                 let concrete_type_name = match concrete_inner {
                     HirType::Named(n) => {
-                        // 先试试完整类型名，再试剥离泛型参数后的基名
                         let base = crate::hir::lower::strip_generic_name(n);
                         if self.type_ifaces.contains_key(n) { *n }
                         else { base }
+                    }
+                    HirType::FatPtr { name, .. } => {
+                        // FatPtr 是接口类型（如 shared List）。
+                        // 检查该接口是否包含了约束接口的所有方法。
+                        let iface_methods = self.interfaces.get(iface_name)
+                            .map(|reg| reg.methods.iter().map(|m| m.name).collect::<Vec<_>>())
+                            .unwrap_or_default();
+                        let all_ok = iface_methods.iter().all(|method_name| {
+                            self.interfaces.get(name)
+                                .map(|reg| reg.methods.iter().any(|m| m.name == *method_name))
+                                .unwrap_or(false)
+                        });
+                        if !all_ok {
+                            return Err(format!(
+                                "type `{}` does not satisfy interface `{}` for generic parameter `{}` at {}:{}",
+                                hir_type_display(concrete_ty), iface_name, gp_name,
+                                span.start_line, span.start_col
+                            ));
+                        }
+                        // 直接标记为已实现，跳过后续 type_ifaces 检查
+                        continue;
                     }
                     HirType::Int => Symbol::intern("int"),
                     HirType::Float => Symbol::intern("float"),
@@ -779,9 +799,7 @@ impl super::Ctx {
                         .map(|reg| reg.methods.iter().map(|m| m.name).collect::<Vec<_>>())
                         .unwrap_or_default();
                     let has_matching_method = iface_methods.iter().any(|method_name| {
-                        // 检查泛型函数
                         self.generic_fns.iter().any(|(gf_name, _, _)| gf_name == method_name)
-                        // 或非泛型函数
                         || self.fn_map.contains_key(method_name)
                     });
                     if !has_matching_method {
@@ -1379,7 +1397,9 @@ impl super::Ctx {
                 let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
 
                 // Check if receiver type is a fat pointer (interface dispatch)
-                if let HirType::FatPtr { name: iface, .. } = &receiver_ty {
+                // receiver_ty may be wrapped in ownership (e.g. Shared(FatPtr))
+                let receiver_inner = strip_ownership_ref(&receiver_ty);
+                if let HirType::FatPtr { name: iface, .. } = receiver_inner {
                     // Virtual dispatch through interface
                     let iface_name = *iface;
                     let iface_reg = self.interfaces.get(&iface_name)
@@ -1587,6 +1607,22 @@ impl super::Ctx {
                 let hir_index = self.lower_expr(index)?;
                 let object_ty = expr_type(&hir_object);
                 let inner_ty = strip_ownership(object_ty.clone());
+                // Virtual dispatch through interface
+                if let HirType::FatPtr { name: iface, .. } = &inner_ty {
+                    let iface_reg = self.interfaces.get(iface)
+                        .ok_or_else(|| format!("unknown interface `{}` used as type (at {}:{})", iface, span.start_line, span.start_col))?;
+                    let method_idx = iface_reg.methods.iter()
+                        .position(|m| m.name == Symbol::intern("index"))
+                        .ok_or_else(|| format!("interface `{}` has no method `index` (at {}:{})", iface, span.start_line, span.start_col))?;
+                    let ret_ty = iface_reg.methods[method_idx].return_type.clone();
+                    return Ok(HirExpr::VirtualCall {
+                        receiver: Box::new(hir_object),
+                        interface: *iface,
+                        method_index: method_idx,
+                        args: vec![hir_index],
+                        ty: ret_ty,
+                    });
+                }
                 // Try operator overloading: index(self, index)
                 let index_ty = expr_type(&hir_index);
                 if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("index"), &[object_ty.clone(), index_ty.clone()]) {

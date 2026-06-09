@@ -148,7 +148,14 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
         HirType::Shared(inner) => Type::Shared(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::Weak(inner) => Type::Weak(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::Array(inner) => Type::Array(Box::new(hir_type_to_ast_type(inner)), s),
-        HirType::FatPtr { name, .. } => Type::Named(*name, s),
+        HirType::FatPtr { name, kind } => {
+            let inner = Type::Named(*name, s);
+            match kind.as_ref() {
+                HirType::Shared(_) => Type::Shared(Box::new(inner), s),
+                HirType::Unique(_) => Type::Unique(Box::new(inner), s),
+                _ => inner,
+            }
+        }
         HirType::Ref(inner, mutable) => Type::Ref(Box::new(hir_type_to_ast_type(inner)), *mutable, s),
     }
 }
