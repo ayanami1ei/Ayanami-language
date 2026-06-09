@@ -31,6 +31,8 @@ pub struct CompiledFile {
     pub own_obj: PathBuf,
     /// Path to this file's .lcl
     pub lcl_path: PathBuf,
+    /// Paths to dependency .lcl files (for transitive symbol merging)
+    pub dep_lcl_paths: Vec<PathBuf>,
 }
 
 /// Compile a .aya source file with recursive import resolution.
@@ -66,6 +68,7 @@ pub fn compile_file(
             link_flags: cached.link_flags.clone(),
             own_obj: cached.own_obj.clone(),
             lcl_path: cached.lcl_path.clone(),
+            dep_lcl_paths: cached.dep_lcl_paths.clone(),
         });
     }
 
@@ -131,17 +134,21 @@ pub fn compile_file(
             } else {
                 let lcl_str = dep_path.to_string_lossy().into_owned();
                 new_stmts.push(Stmt::Import { path: lcl_str, span: crate::span::Span::default() });
-                let o_path = dep_path.with_extension("o");
-                let o_to_add = if o_path.exists() {
-                    Some(o_path)
-                } else if let Some(std_dir) = find_std_dir() {
-                    let std_o = std_dir.join(dep_path.file_name().unwrap()).with_extension("o");
-                    if std_o.exists() { Some(std_o) } else { None }
-                } else { None };
-                if let Some(o) = o_to_add {
-                    if !dep_obj_paths.contains(&o) {
-                        dep_obj_paths.push(o);
+
+                // Compile .lcl LIR to .o on the fly (cross-platform: no pre-built .o needed)
+                let o_name = dep_path.file_stem().unwrap_or(std::ffi::OsStr::new("a"));
+                let o_path = out_dir.join(o_name).with_extension("o");
+                if !o_path.exists() {
+                    if let Ok((_, _, lir_binary, _)) = crate::package::load_package(&dep_path.to_string_lossy()) {
+                        if let Ok(lir_prog) = crate::lir::serialize::program_from_bytes(&lir_binary) {
+                            let llvm_ir = crate::lir::emit_program(&lir_prog);
+                            crate::driver::ir_to_object(&llvm_ir, &o_path)
+                                .map_err(|e| format!("llc failed for {}: {}", dep_path.display(), e))?;
+                        }
                     }
+                }
+                if o_path.exists() && !dep_obj_paths.contains(&o_path) {
+                    dep_obj_paths.push(o_path);
                 }
             }
         } else {
@@ -166,7 +173,8 @@ pub fn compile_file(
     }
     let mut lir_program = crate::lir::lower_program(&mir_program);
 
-    // Merge struct definitions from dependency .lcl files into this file's LIR
+    // Merge struct definitions from dependency .lcl files (only structs, not function bodies —
+    // function FnId namespaces would collide; functions are compiled to separate .o files)
     for lcl_path in &dep_lcl_paths {
         if let Ok((_, _, lir_binary, _)) = crate::package::load_package(&lcl_path.to_string_lossy()) {
             if let Ok(dep_lir) = crate::lir::serialize::program_from_bytes(&lir_binary) {
@@ -214,12 +222,34 @@ pub fn compile_file(
     // Emit .lcl (include all symbols for .aya imports)
     let mut pkg = crate::package::Package::new(stem.to_string_lossy().into_owned(), "0.1.0".into());
     pkg.collect_all_symbols(&program.stmts);
+    // Merge symbols from dependency .lcl packages (for transitive imports like "std")
+    for dep_lcl in &dep_lcl_paths {
+        if let Ok((syms, sources, _, _)) = crate::package::load_package(&dep_lcl.to_string_lossy()) {
+            use crate::package::PackageSymbol;
+            for sym in syms {
+                let pkg_sym = match sym {
+                    crate::package::ImportedSymbol::Fn { name, sig } => PackageSymbol::Fn { name, signature: sig },
+                    crate::package::ImportedSymbol::Struct { name } => PackageSymbol::Struct { name },
+                    crate::package::ImportedSymbol::Namespace { name } => PackageSymbol::Namespace { name },
+                    crate::package::ImportedSymbol::Interface { name } => PackageSymbol::Interface { name },
+                };
+                if !pkg.symbols.contains(&pkg_sym) {
+                    pkg.symbols.push(pkg_sym);
+                }
+            }
+            for src in &sources {
+                if !pkg.generic_sources.contains(src) {
+                    pkg.generic_sources.push(src.clone());
+                }
+            }
+        }
+    }
     pkg.lir_data = crate::lir::serialize::program_to_bytes(&lir_program);
     pkg.write_to_file(&lcl_path.to_string_lossy())
         .map_err(|e| format!("package write failed for {}: {}", src_path.display(), e))?;
 
-    let mut all_objs = dep_obj_paths;
-    all_objs.push(own_obj.clone());
+    let mut all_objs = vec![own_obj.clone()];
+    all_objs.extend(dep_obj_paths);
 
     let result = CompiledFile {
         program,
@@ -229,6 +259,7 @@ pub fn compile_file(
         link_flags: dep_link_flags,
         own_obj,
         lcl_path,
+        dep_lcl_paths,
     };
 
     cache.insert(canonical.clone(), CompiledFile {
@@ -244,6 +275,7 @@ pub fn compile_file(
         link_flags: result.link_flags.clone(),
         own_obj: result.own_obj.clone(),
         lcl_path: result.lcl_path.clone(),
+        dep_lcl_paths: result.dep_lcl_paths.clone(),
     });
 
     compiling.remove(&canonical);
@@ -254,15 +286,15 @@ pub fn compile_file(
 fn find_std_dir() -> Option<std::path::PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let exe_dir = exe.parent()?;
-    // Check exe_dir/std/ and exe_dir/../std/ and exe_dir/
-    for candidate in &[
-        exe_dir.join("std"),
-        exe_dir.join("../std"),
-        exe_dir.join("../../std"),
-    ] {
-        if candidate.join("io.lcl").exists() {
-            return Some(candidate.to_path_buf());
-        }
+    // Production: exe_dir/std/  (e.g. install/std/)
+    let prod = exe_dir.join("std");
+    if prod.join("io.lcl").exists() {
+        return Some(prod);
+    }
+    // Dev: exe_dir/../std/  (e.g. target/debug/../std/ = ./std/)
+    let dev = exe_dir.join("../std");
+    if dev.join("io.lcl").exists() {
+        return Some(dev);
     }
     None
 }
@@ -277,8 +309,11 @@ fn resolve_import_path(import_path: &str, base_dir: &std::path::Path) -> Option<
     let with_aya = base_dir.join(format!("{}.aya", import_path));
     if with_aya.exists() { return Some(with_aya); }
 
-    // If it has an extension (like .lcl), and doesn't exist, fail
-    if import_path.contains('.') { return None; }
+    // If it's a .lcl path and doesn't exist, fail (not in std dir)
+    if import_path.ends_with(".lcl") { return None; }
+
+    // Strip extensions for std dir lookup
+    let stem = import_path.strip_suffix(".aya").or_else(|| import_path.strip_suffix(".lcl")).unwrap_or(import_path);
 
     // No extension: try config alias. Walk up from base_dir to find ayanami.toml
     let mut dir = Some(base_dir);
@@ -302,9 +337,9 @@ fn resolve_import_path(import_path: &str, base_dir: &std::path::Path) -> Option<
     // Finally, try the standard library directory, preferring .aya over .lcl
     if let Some(std_dir) = find_std_dir() {
         // Prefer .aya source if available (includes generic ASTs and all functions)
-        let std_aya = std_dir.join(format!("{}.aya", import_path));
+        let std_aya = std_dir.join(format!("{}.aya", stem));
         if std_aya.exists() { return Some(std_aya); }
-        let std_lcl = std_dir.join(format!("{}.lcl", import_path));
+        let std_lcl = std_dir.join(format!("{}.lcl", stem));
         if std_lcl.exists() { return Some(std_lcl); }
     }
     None
@@ -378,18 +413,23 @@ pub fn check_source(code: &str, out_dir: &str) -> Result<(), String> {
 }
 
 /// Package a source file into a .lcl (LIR + symbols + metadata), no executable.
-pub fn package_source(src_path: &str, code: &str) -> Result<(), String> {
-    let result = compile_source(code)?;
+pub fn package_source(src_path: &str, _code: &str) -> Result<(), String> {
+    let path = std::path::Path::new(src_path);
+    let base_dir = path.parent().unwrap_or(std::path::Path::new("."));
+    let tmp_dir = std::env::temp_dir().join(format!("ayanami_pkg_{}", std::process::id()));
+    std::fs::create_dir_all(&tmp_dir).ok();
 
-    let exe_name = {
-        let p = std::path::Path::new(src_path);
-        p.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy().into_owned()
-    };
+    // Use compile_file for proper import resolution and transitive symbol merging
+    let mut compiling = std::collections::HashSet::new();
+    let mut cache = std::collections::HashMap::new();
+    let compiled = compile_file(path, base_dir, &tmp_dir, &mut compiling, &mut cache, Some("static-lib"))?;
+
+    let exe_name = path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy().into_owned();
 
     println!("packaging {} -> {}.lcl", src_path, exe_name);
 
     let mut pkg = crate::package::Package::new(exe_name, "0.1.0".into());
-    let has_main = result.program.stmts.iter().any(|s| matches!(s,
+    let has_main = compiled.program.stmts.iter().any(|s| matches!(s,
         crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main"
     ));
     pkg.target_types = if has_main {
@@ -400,12 +440,37 @@ pub fn package_source(src_path: &str, code: &str) -> Result<(), String> {
         vec![crate::package::TargetType::StaticLib,
              crate::package::TargetType::DynamicLib]
     };
-    pkg.collect_symbols(&result.program.stmts);
-    pkg.lir_data = crate::lir::serialize::program_to_bytes(&result.lir_program);
+    pkg.collect_all_symbols(&compiled.program.stmts);
+    // Merge symbols from dependency .lcl packages (transitive imports)
+    for dep_lcl in &compiled.dep_lcl_paths {
+        if let Ok((syms, sources, _, _)) = crate::package::load_package(&dep_lcl.to_string_lossy()) {
+            use crate::package::PackageSymbol;
+            for sym in syms {
+                let pkg_sym = match sym {
+                    crate::package::ImportedSymbol::Fn { name, sig } => PackageSymbol::Fn { name, signature: sig },
+                    crate::package::ImportedSymbol::Struct { name } => PackageSymbol::Struct { name },
+                    crate::package::ImportedSymbol::Namespace { name } => PackageSymbol::Namespace { name },
+                    crate::package::ImportedSymbol::Interface { name } => PackageSymbol::Interface { name },
+                };
+                if !pkg.symbols.contains(&pkg_sym) {
+                    pkg.symbols.push(pkg_sym);
+                }
+            }
+            for src in &sources {
+                if !pkg.generic_sources.contains(src) {
+                    pkg.generic_sources.push(src.clone());
+                }
+            }
+        }
+    }
+    pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);
 
     let lcl_name = format!("{}.lcl", src_path.strip_suffix(".aya").unwrap_or(src_path));
     pkg.write_to_file(&lcl_name).map_err(|e| format!("package write failed: {}", e))?;
     println!("package: {}", lcl_name);
+
+    // Clean up temp artifacts
+    std::fs::remove_dir_all(&tmp_dir).ok();
 
     Ok(())
 }
@@ -529,6 +594,28 @@ pub fn build_source_with_target(src_path: &str, _code: &str, out_dir: &str, targ
     let mut pkg = crate::package::Package::new(name.to_string(), "0.1.0".into());
     pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);
     pkg.collect_symbols(&compiled.program.stmts);
+    // Merge symbols from dependency .lcl packages (for transitive imports)
+    for dep_lcl in &compiled.dep_lcl_paths {
+        if let Ok((syms, sources, _, _)) = crate::package::load_package(&dep_lcl.to_string_lossy()) {
+            use crate::package::PackageSymbol;
+            for sym in syms {
+                let pkg_sym = match sym {
+                    crate::package::ImportedSymbol::Fn { name, sig } => PackageSymbol::Fn { name, signature: sig },
+                    crate::package::ImportedSymbol::Struct { name } => PackageSymbol::Struct { name },
+                    crate::package::ImportedSymbol::Namespace { name } => PackageSymbol::Namespace { name },
+                    crate::package::ImportedSymbol::Interface { name } => PackageSymbol::Interface { name },
+                };
+                if !pkg.symbols.contains(&pkg_sym) {
+                    pkg.symbols.push(pkg_sym);
+                }
+            }
+            for src in &sources {
+                if !pkg.generic_sources.contains(src) {
+                    pkg.generic_sources.push(src.clone());
+                }
+            }
+        }
+    }
     let has_main = compiled.program.stmts.iter().any(|s| matches!(s,
         crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main"
     ));
@@ -866,6 +953,7 @@ fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<(), String> {
         if let HirItem::Fn(f) = item {
             if f.extern_c { continue; }
             if matches!(f.return_type, HirType::Void) { continue; }
+            if f.name.as_str() == "main" { continue; }  // main implicitly returns 0
             if !has_return_in_item(item) {
                 let (ln, col) = if f.span.start_line > 0 || f.span.start_col > 0 {
                     (f.span.start_line, f.span.start_col)

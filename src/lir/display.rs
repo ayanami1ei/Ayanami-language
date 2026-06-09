@@ -42,7 +42,7 @@ fn write_inst(inst: &LirInst, w: &mut impl Write) -> std::fmt::Result {
         LirInst::Load { dest, src, ty } => {
             writeln!(w, "    t{} = load v{} : {:?}", dest, src.0, ty)?;
         }
-        LirInst::BinOp { dest, op, lhs, rhs, ty } => {
+        LirInst::BinOp { dest, op, lhs, rhs, ty, result_ty: _ } => {
             writeln!(w, "    t{} = {:?} {:?} {:?} : {:?}", dest, op, lhs, rhs, ty)?;
         }
         LirInst::UnaryOp { dest, op, src, ty } => {

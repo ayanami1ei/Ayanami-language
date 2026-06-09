@@ -446,12 +446,17 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             let lv = lower_expr(ctx, lhs);
             let rv = lower_expr(ctx, rhs);
             let dest = ctx.next_tmp();
+            let result_ty = match op {
+                BinaryOp::Eq | BinaryOp::Neq | BinaryOp::Lt | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Ge => HirType::Bool,
+                _ => ty.clone(),
+            };
             ctx.emit(LirInst::BinOp {
                 dest,
                 op: *op,
                 lhs: lv,
                 rhs: rv,
                 ty: ty.clone(),
+                result_ty,
             });
             LirValue::Tmp(dest)
         }

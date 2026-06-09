@@ -68,6 +68,73 @@ impl bool {
     }
 }
 
+// ----------------------------------------------------------------
+//  Int operator methods
+// ----------------------------------------------------------------
+
+impl int {
+    pub fn add(unique self, int other) -> int { return self + other }
+    pub fn sub(unique self, int other) -> int { return self - other }
+    pub fn mul(unique self, int other) -> int { return self * other }
+    pub fn div(unique self, int other) -> int { return self / other }
+    pub fn rem(unique self, int other) -> int { return self % other }
+
+    pub fn eq(unique self, int other) -> bool { return self == other }
+    pub fn ne(unique self, int other) -> bool { return self != other }
+    pub fn lt(unique self, int other) -> bool { return self < other }
+    pub fn gt(unique self, int other) -> bool { return self > other }
+    pub fn le(unique self, int other) -> bool { return self <= other }
+    pub fn ge(unique self, int other) -> bool { return self >= other }
+
+    pub fn neg(unique self) -> int { return -self }
+}
+
+// ----------------------------------------------------------------
+//  Float operator methods
+// ----------------------------------------------------------------
+
+impl float {
+    pub fn add(unique self, float other) -> float { return self + other }
+    pub fn sub(unique self, float other) -> float { return self - other }
+    pub fn mul(unique self, float other) -> float { return self * other }
+    pub fn div(unique self, float other) -> float { return self / other }
+
+    pub fn eq(unique self, float other) -> bool { return self == other }
+    pub fn ne(unique self, float other) -> bool { return self != other }
+    pub fn lt(unique self, float other) -> bool { return self < other }
+    pub fn gt(unique self, float other) -> bool { return self > other }
+    pub fn le(unique self, float other) -> bool { return self <= other }
+    pub fn ge(unique self, float other) -> bool { return self >= other }
+
+    pub fn neg(unique self) -> float { return -self }
+}
+
+// ----------------------------------------------------------------
+//  Char operator methods
+// ----------------------------------------------------------------
+
+impl char {
+    pub fn eq(unique self, char other) -> bool { return self == other }
+    pub fn ne(unique self, char other) -> bool { return self != other }
+    pub fn lt(unique self, char other) -> bool { return self < other }
+    pub fn gt(unique self, char other) -> bool { return self > other }
+    pub fn le(unique self, char other) -> bool { return self <= other }
+    pub fn ge(unique self, char other) -> bool { return self >= other }
+}
+
+// ----------------------------------------------------------------
+//  Bool operator methods
+// ----------------------------------------------------------------
+
+impl bool {
+    pub fn eq(unique self, bool other) -> bool { return self == other }
+    pub fn ne(unique self, bool other) -> bool { return self != other }
+}
+
+// ----------------------------------------------------------------
+//  String implementation
+// ----------------------------------------------------------------
+
 impl String {
     pub fn to_string(unique self) -> unique String {
         return self.copy()

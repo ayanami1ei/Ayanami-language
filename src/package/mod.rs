@@ -39,7 +39,7 @@ pub struct Package {
     pub lir_data: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PackageSymbol {
     Fn {
         name: String,

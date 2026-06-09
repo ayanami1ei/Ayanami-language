@@ -38,7 +38,10 @@ pub enum LirInst {
         op: BinaryOp,
         lhs: LirValue,
         rhs: LirValue,
+        /// LLVM operand type (e.g., Int → i64 for icmp/add)
         ty: HirType,
+        /// Result type (for comparisons this is Bool, otherwise same as ty)
+        result_ty: HirType,
     },
     UnaryOp {
         dest: u64,

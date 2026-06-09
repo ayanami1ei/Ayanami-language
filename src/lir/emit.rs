@@ -19,6 +19,7 @@ struct Emitter<'a> {
     prog: &'a LirProgram,
     indent: usize,
     load_tmp: u64,
+    current_fn_ret_ty: HirType,
 }
 
 impl<'a> Emitter<'a> {
@@ -28,6 +29,7 @@ impl<'a> Emitter<'a> {
             prog,
             indent: 0,
             load_tmp: 0,
+            current_fn_ret_ty: HirType::Void,
         }
     }
 
@@ -141,7 +143,8 @@ impl<'a> Emitter<'a> {
             self.indent += 1;
             for (i, &fn_id) in vt.fn_ids.iter().enumerate() {
                 let comma = if i < elem_count - 1 { "," } else { "" };
-                if fn_id.0 == usize::MAX {
+                // usize::MAX is truncated to u32::MAX during serialization
+                if fn_id.0 == usize::MAX || fn_id.0 == u32::MAX as usize {
                     self.wln_fmt(format_args!("ptr null{}", comma));
                 } else {
                     let fn_name = &self.prog.fn_names[&fn_id];
@@ -247,10 +250,10 @@ impl<'a> Emitter<'a> {
                 } else {
                     let tmp = self.tmp();
                     self.wln_fmt(format_args!(
-                        "%t{} = call {} @{}({})",
+                        "%e{} = call {} @{}({})",
                         tmp, ret_ty, fn_name, all_args
                     ));
-                    self.wln_fmt(format_args!("ret {} %t{}", ret_ty, tmp));
+                    self.wln_fmt(format_args!("ret {} %e{}", ret_ty, tmp));
                 }
                 self.indent -= 1;
                 self.wln("}");
@@ -314,6 +317,8 @@ impl<'a> Emitter<'a> {
         let param_list = params_str.join(", ");
         let inline_attr = if f.is_inline { " alwaysinline" } else { "" };
 
+        self.current_fn_ret_ty = f.return_type.clone();
+
         self.wln_fmt(format_args!(
             "define {} @{}({}){} {{",
             ret_ty, fn_name, param_list, inline_attr
@@ -357,10 +362,10 @@ impl<'a> Emitter<'a> {
                     LirValue::Var(v) => {
                         let tmp = self.tmp();
                         self.wln_fmt(format_args!(
-                        "%t{} = load {}, ptr %v{}, align 8",
+                        "%e{} = load {}, ptr %v{}, align 8",
                         tmp, llvm_ty, v.0
                         ));
-                        format!("%t{}", tmp)
+                        format!("%e{}", tmp)
                     }
                     LirValue::Literal(lit, _) => lit_to_string(lit, ty),
                 };
@@ -382,6 +387,7 @@ impl<'a> Emitter<'a> {
                 lhs,
                 rhs,
                 ty,
+                result_ty: _,
             } => {
                 let l = self.value_ref(lhs, ty);
                 let r = self.value_ref(rhs, ty);
@@ -668,10 +674,10 @@ impl<'a> Emitter<'a> {
                     let tmp = self.tmp();
                     let llvm_ty = self.llvm_type(&ty);
                     self.wln_fmt(format_args!(
-                        "%l{} = load {}, ptr %v{}, align 8",
+                        "%c{} = load {}, ptr %v{}, align 8",
                         tmp, llvm_ty, vid.0
                     ));
-                    self.wln_fmt(format_args!("call void @free(i8* %l{})", tmp));
+                    self.wln_fmt(format_args!("call void @free(i8* %c{})", tmp));
                 }
             }
             LirInst::RetainValue(vid, ty) => {
@@ -679,11 +685,11 @@ impl<'a> Emitter<'a> {
                     let tmp = self.tmp();
                     let llvm_ty = self.llvm_type(&ty);
                     self.wln_fmt(format_args!(
-                        "%l{} = load {}, ptr %v{}, align 8",
+                        "%c{} = load {}, ptr %v{}, align 8",
                         tmp, llvm_ty, vid.0
                     ));
                     self.wln_fmt(format_args!(
-                        "call void @__ayanami_shared_retain(i8* %l{})",
+                        "call void @__ayanami_shared_retain(i8* %c{})",
                         tmp
                     ));
                 }
@@ -693,11 +699,11 @@ impl<'a> Emitter<'a> {
                     let tmp = self.tmp();
                     let llvm_ty = self.llvm_type(&ty);
                     self.wln_fmt(format_args!(
-                        "%l{} = load {}, ptr %v{}, align 8",
+                        "%c{} = load {}, ptr %v{}, align 8",
                         tmp, llvm_ty, vid.0
                     ));
                     self.wln_fmt(format_args!(
-                        "call void @__ayanami_shared_release(i8* %l{})",
+                        "call void @__ayanami_shared_release(i8* %c{})",
                         tmp
                     ));
                 }
@@ -992,7 +998,7 @@ impl<'a> Emitter<'a> {
             LirInst::Ret(val) => match val {
                 Some((v, ty)) => {
                     let s = self.value_ref(v, ty);
-                    let llvm_ty = self.llvm_type(ty);
+                    let llvm_ty = self.llvm_type(&self.current_fn_ret_ty);
                     self.wln_fmt(format_args!("ret {} {}", llvm_ty, s));
                 }
                 None => {

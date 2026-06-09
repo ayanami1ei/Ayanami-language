@@ -178,25 +178,41 @@ impl Ctx {
                         path.clone()
                     } else {
                         // Try with .lcl extension
-                        let with_ext = format!("{}.lcl", path);
-                        if std::path::Path::new(&with_ext).exists() {
-                            with_ext
+                        let with_lcl = format!("{}.lcl", path);
+                        if std::path::Path::new(&with_lcl).exists() {
+                            with_lcl
                         } else {
-                            // Try standard library directory
-                            let exe = std::env::current_exe().ok();
-                            let mut found = path.clone();
-                            if let Some(exe_dir) = exe.and_then(|p| p.parent().map(|d| d.to_path_buf())) {
-                                for candidate in &[
-                                    exe_dir.join("std").join(&with_ext),
-                                    exe_dir.join("../std").join(&with_ext),
-                                ] {
-                                    if candidate.exists() {
-                                        found = candidate.to_string_lossy().into_owned();
-                                        break;
+                            // Try with .aya extension
+                            let with_aya = if path.ends_with(".aya") {
+                                path.to_string()
+                            } else {
+                                format!("{}.aya", path)
+                            };
+                            if std::path::Path::new(&with_aya).exists() {
+                                with_aya
+                            } else {
+                                // Try standard library directory (use filename only, strip any directory prefix)
+                                let exe = std::env::current_exe().ok();
+                                let mut found = path.clone();
+                                if let Some(exe_dir) = exe.and_then(|p| p.parent().map(|d| d.to_path_buf())) {
+                                    let stem = std::path::Path::new(path).file_stem()
+                                        .and_then(|s| s.to_str())
+                                        .unwrap_or(path);
+                                    let std_candidates = [
+                                        exe_dir.join("std").join(format!("{}.lcl", stem)),
+                                        exe_dir.join("../std").join(format!("{}.lcl", stem)),
+                                        exe_dir.join("std").join(format!("{}.aya", stem)),
+                                        exe_dir.join("../std").join(format!("{}.aya", stem)),
+                                    ];
+                                    for candidate in &std_candidates {
+                                        if candidate.exists() {
+                                            found = candidate.to_string_lossy().into_owned();
+                                            break;
+                                        }
                                     }
                                 }
+                                found
                             }
-                            found
                         }
                     };
                     let (imported_syms, sources, lir_binary, _) = crate::package::load_package(&pkg_path)
@@ -276,13 +292,23 @@ impl Ctx {
                                     .map(|s| (Symbol::intern(""), sig_str_to_hir(s)))
                                     .collect();
                                 let hir_ret = sig_str_to_hir(ret_str);
+                                // Dedup: skip if a FnSig with same name and param types already exists
+                                let sym_name = Symbol::intern(name);
+                                let already = self.fns.iter().any(|existing| {
+                                    existing.name == sym_name
+                                        && existing.params.len() == hir_params.len()
+                                        && existing.params.iter().zip(&hir_params).all(|(a, b)| a.1 == b.1)
+                                });
+                                if already {
+                                    continue;
+                                }
                                 let fn_id = FnId(self.fns.len());
                                 self.fns.push(FnSig {
-                                    name: Symbol::intern(name),
+                                    name: sym_name,
                                     params: hir_params,
                                     return_type: hir_ret,
                                 });
-                                self.fn_map.entry(Symbol::intern(name)).or_default().push(fn_id);
+                                self.fn_map.entry(sym_name).or_default().push(fn_id);
                             }
                             crate::package::ImportedSymbol::Struct { name } => {
                                 // Parse "Name(field1:type1,field2:type2)" format
@@ -1191,20 +1217,30 @@ impl Ctx {
                 let hir_lhs = self.lower_expr(lhs)?;
                 let hir_rhs = self.lower_expr(rhs)?;
                 let lhs_ty = expr_type(&hir_lhs);
+                let rhs_ty = expr_type(&hir_rhs);
                 let inner_ty = strip_ownership(lhs_ty.clone());
+                // Detect null-vs-pointer comparison (null is lowered to Int(0))
+                // Only treat as pointer comparison when the non-null side's inner type is NOT primitive
+                // (e.g. Shared(Node) vs null, but NOT Unique(Int) == 0 — int is passed by value)
+                let lhs_is_null = is_null_literal(&hir_lhs);
+                let rhs_is_null = is_null_literal(&hir_rhs);
+                let non_null_ty = if lhs_is_null { &rhs_ty } else { &lhs_ty };
+                let is_null_ptr_cmp = (lhs_is_null || rhs_is_null)
+                    && is_pointer_type_for_cmp(non_null_ty)
+                    && !matches!(strip_ownership(non_null_ty.clone()), HirType::Int | HirType::Float | HirType::Char | HirType::Bool);
                 // Try operator overloading first: look for a matching function
                 // Primitive types use built-in operators, not overloading
+                // Null-vs-pointer comparisons use built-in ptr comparison, not overloading
                 let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool);
-                if !is_primitive {
+                if !is_primitive && !is_null_ptr_cmp {
                     if let Some(op_fn_name) = binary_op_to_fn_name(op) {
-                        let rhs_ty = expr_type(&hir_rhs);
                         let param_types = [lhs_ty.clone(), rhs_ty];
                         let fn_id = match self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
                             Some(fid) => fid,
                             None => {
                                 match self.specialize_generic_call(&Symbol::intern(op_fn_name), &param_types, span) {
                                     Ok(fid) => fid,
-                                    Err(_) => { return Ok(HirExpr::Binary { op: *op, lhs: Box::new(hir_lhs), rhs: Box::new(hir_rhs), ty: inner_ty }); }
+                                    Err(msg) => { return Err(msg); }
                                 }
                             }
                         };
@@ -1218,22 +1254,32 @@ impl Ctx {
                     }
                 }
                 // Fall back to built-in operator
+                let binop_ty = if is_null_ptr_cmp {
+                    // Use the non-null side's type so the LIR emitter detects pointer comparison
+                    if lhs_is_null { rhs_ty.clone() } else { lhs_ty.clone() }
+                } else {
+                    inner_ty
+                };
                 Ok(HirExpr::Binary {
                     op: *op,
                     lhs: Box::new(hir_lhs),
                     rhs: Box::new(hir_rhs),
-                    ty: inner_ty,
+                    ty: binop_ty,
                 })
             }
             Expr::Unary { op, arg, .. } => {
                 let hir_arg = self.lower_expr(arg)?;
                 let arg_ty = expr_type(&hir_arg);
-                // Try operator overloading
-                if let Some(op_fn_name) = unary_op_to_fn_name(op) {
-                    let param_types = [arg_ty.clone()];
-                    if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
-                        let ret_ty = self.fns[fn_id.0].return_type.clone();
-                        return Ok(HirExpr::Call { fn_id, args: vec![implicit_move(hir_arg)], ty: ret_ty });
+                let inner_ty = strip_ownership(arg_ty.clone());
+                // Try operator overloading (skip for primitive types)
+                let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool);
+                if !is_primitive {
+                    if let Some(op_fn_name) = unary_op_to_fn_name(op) {
+                        let param_types = [arg_ty.clone()];
+                        if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
+                            let ret_ty = self.fns[fn_id.0].return_type.clone();
+                            return Ok(HirExpr::Call { fn_id, args: vec![implicit_move(hir_arg)], ty: ret_ty });
+                        }
                     }
                 }
                 let ty = strip_ownership(arg_ty);
@@ -2142,4 +2188,17 @@ fn expr_type(expr: &HirExpr) -> HirType {
         | HirExpr::Ref { ty, .. }
         | HirExpr::Asm { ty, .. } => ty.clone(),
     }
+}
+
+/// Check if a HirExpr is a null literal (lowered to Int(0)).
+fn is_null_literal(expr: &HirExpr) -> bool {
+    matches!(expr, HirExpr::Literal(HirLiteral::Int(0), HirType::Int))
+}
+
+/// Check if a type is a pointer-like type for null comparison purposes.
+fn is_pointer_type_for_cmp(ty: &HirType) -> bool {
+    matches!(ty,
+        HirType::Named(_) | HirType::Shared(_) | HirType::Unique(_)
+        | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_)
+    )
 }

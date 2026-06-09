@@ -170,7 +170,7 @@ fn put_inst(buf: &mut Vec<u8>, inst: &LirInst) {
         Alloca(vid, ty) => { buf.push(0); put_u32(buf, vid.0 as u32); put_type(buf, ty); }
         Store { dest, src, ty } => { buf.push(1); put_u32(buf, dest.0 as u32); put_value(buf, src); put_type(buf, ty); }
         Load { dest, src, ty } => { buf.push(2); put_u64(buf, *dest); put_u32(buf, src.0 as u32); put_type(buf, ty); }
-        BinOp { dest, op, lhs, rhs, ty } => { buf.push(3); put_u64(buf, *dest); put_u32(buf, *op as u32); put_value(buf, lhs); put_value(buf, rhs); put_type(buf, ty); }
+        BinOp { dest, op, lhs, rhs, ty, result_ty } => { buf.push(3); put_u64(buf, *dest); put_u32(buf, *op as u32); put_value(buf, lhs); put_value(buf, rhs); put_type(buf, ty); put_type(buf, result_ty); }
         UnaryOp { dest, op, src, ty } => { buf.push(4); put_u64(buf, *dest); put_u32(buf, *op as u32); put_value(buf, src); put_type(buf, ty); }
         Call { dest, fn_id, args, ret_ty } => {
             buf.push(5);
@@ -387,9 +387,9 @@ impl<'a> Reader<'a> {
             0 => Ok(Alloca(VarId(self.u32()? as usize), self.ty()?)),
             1 => { let d = VarId(self.u32()? as usize); let s = self.value()?; let t = self.ty()?; Ok(Store { dest: d, src: s, ty: t }) }
             2 => { let d = self.u64()?; let s = VarId(self.u32()? as usize); let t = self.ty()?; Ok(Load { dest: d, src: s, ty: t }) }
-            3 => { let d = self.u64()?; let o = self.u32()?; let l = self.value()?; let r = self.value()?; let t = self.ty()?;
+            3 => { let d = self.u64()?; let o = self.u32()?; let l = self.value()?; let r = self.value()?; let t = self.ty()?; let rt = self.ty()?;
                    let op = match o { 0 => BinaryOp::Add, 1 => BinaryOp::Sub, 2 => BinaryOp::Mul, 3 => BinaryOp::Div, 4 => BinaryOp::Mod, 5 => BinaryOp::Eq, 6 => BinaryOp::Neq, 7 => BinaryOp::Lt, 8 => BinaryOp::Gt, 9 => BinaryOp::Le, 10 => BinaryOp::Ge, 11 => BinaryOp::And, 12 => BinaryOp::Or, _ => return Err("unknown BinaryOp".into()) };
-                   Ok(BinOp { dest: d, op, lhs: l, rhs: r, ty: t }) }
+                   Ok(BinOp { dest: d, op, lhs: l, rhs: r, ty: t, result_ty: rt }) }
             4 => { let d = self.u64()?; let o = self.u32()?; let s = self.value()?; let t = self.ty()?;
                     let op = match o { 0 => crate::parser::ast::UnaryOp::Neg, 1 => crate::parser::ast::UnaryOp::Not, _ => return Err("unknown UnaryOp".into()) };
                    Ok(UnaryOp { dest: d, op, src: s, ty: t }) }

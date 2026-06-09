@@ -280,6 +280,8 @@ impl Parser {
         {
             self.advance();
             self.parse_type()?
+        } else if name == "main" {
+            Type::Int(Span::default())
         } else {
             Type::Void(Span::default())
         };
