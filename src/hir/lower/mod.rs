@@ -146,8 +146,6 @@ impl Ctx {
         };
         let base_name = strip_generic_name(&type_name);
         let raw = type_name.as_str();
-        eprintln!("[DEBUG FFI] raw='{}' hex={:02x?} base='{}' exists={} total={}",
-            raw, raw.as_bytes().get(0..20), base_name, self.struct_defs.contains_key(&base_name), self.struct_defs.len());
         let fields = self.struct_defs.get(&base_name)
             .ok_or_else(|| format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))?;
         fields.iter().position(|f| f.name == *field)

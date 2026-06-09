@@ -12,10 +12,8 @@ impl super::Ctx {
     // ----------------------------------------------------------------
 
     pub(super) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<(), String> {
-        eprintln!("[DEBUG] collect_fns called with {} stmts", stmts.len());
         for s in stmts {
             if let Stmt::Import { path, .. } = s {
-                eprintln!("[DEBUG]   import: {}", path);
             }
         }
         self.collect_fns_with_ns(stmts, "")
@@ -79,7 +77,6 @@ impl super::Ctx {
                     }
                 }
                 Stmt::Import { path, .. } => {
-                    eprintln!("[DEBUG IMPORT] processing import: {}", path);
                     let pkg_path = if std::path::Path::new(path).exists() {
                         path.clone()
                     } else {
@@ -128,12 +125,9 @@ impl super::Ctx {
                     if !lir_binary.is_empty() {
                         let dep_lir = crate::lir::serialize::program_from_bytes(&lir_binary);
                         if let Err(e) = &dep_lir {
-                            eprintln!("[DEBUG LIR] deserialize error: {}", e);
                         }
                         if let Ok(dep_lir) = dep_lir {
-                            eprintln!("[DEBUG LIR] merged {} struct_defs", dep_lir.struct_defs.len());
                             for (name, fields) in &dep_lir.struct_defs {
-                                eprintln!("[DEBUG LIR]   struct: {}", name);
                             }
                             for (name, fields) in dep_lir.struct_defs {
                                 let hir_fields: Vec<HirStructField> = fields.iter()
@@ -158,7 +152,6 @@ impl super::Ctx {
                     }
 
                     // Parse and register generic function ASTs and interfaces from the package
-                    eprintln!("[DEBUG IMPORT] processing {} generic sources", sources.len());
                     for src in &sources {
                         let mut lexer = crate::lexer::Lexer::new(src);
                         let tokens = lexer.tokenize_all();
@@ -171,14 +164,12 @@ impl super::Ctx {
                             Ok(p) => p,
                             Err(e) => { eprintln!("[DEBUG IMPORT] parse error: {}", e); continue; }
                         };
-                        eprintln!("[DEBUG IMPORT] parsed {} stmts", parsed.stmts.len());
                             for stmt in &parsed.stmts {
                                 match stmt {
                                     Stmt::FnDecl { name, generic_params, .. } if !generic_params.is_empty() => {
                                         self.generic_fns.push((*name, generic_params.clone(), stmt.clone()));
                                     }
                                     Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
-                                        eprintln!("[DEBUG IMPORT] ImplBlock gp_len={}, methods={}", impl_gp.len(), methods.len());
                                         for m in methods {
                                             if let Stmt::FnDecl { name, generic_params, .. } = m {
                                                 let combined: Vec<(Symbol, Option<Symbol>)> = {
@@ -188,7 +179,6 @@ impl super::Ctx {
                                                 };
                                                 if !combined.is_empty() {
                                                     self.generic_fns.push((*name, combined, m.clone()));
-                                                    eprintln!("[DEBUG IMPORT] pushed generic fn: {}", name);
                                                 }
                                             }
                                         }
@@ -281,7 +271,6 @@ impl super::Ctx {
                     }
                 }
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
-                    eprintln!("[DEBUG] ImplBlock gp_len={}, methods={}", impl_gp.len(), methods.len());
                     for method in methods {
                         if let Stmt::FnDecl { name, params, return_type, generic_params: method_gp, .. } = method {
                             // 合并 impl 级和方法级泛型参数：impl[T] LinkedList[T] { fn push[T: Ord](...) }
@@ -292,7 +281,6 @@ impl super::Ctx {
                             };
                             if !combined_gp.is_empty() {
                                 self.generic_fns.push((*name, combined_gp, method.clone()));
-                                eprintln!("[DEBUG] pushed generic fn: {} with gp_len={}", name, impl_gp.len());
                                 continue;
                             }
                             let hir_return = ast_type_to_hir(return_type, &self.interfaces);
@@ -685,7 +673,6 @@ impl super::Ctx {
     /// Returns the FnId of the newly-created specialized function on success.
     pub(super) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId, String> {
         // Find matching generic function
-        eprintln!("[DEBUG] generic_fns keys: {:?}", self.generic_fns.iter().map(|(n,_,_)| n).collect::<Vec<_>>());
         let gf_idx = self.generic_fns.iter().position(|(gf_name, _, _)| gf_name == name);
         let gf_idx = match gf_idx {
             Some(i) => i,
@@ -704,9 +691,6 @@ impl super::Ctx {
         let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, .. } = gf_stmt else {
             return Err(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col));
         };
-        eprintln!("[DEBUG SPEC] fn={} params={:?} arg_types={:?}", gf_name,
-            params.iter().map(|(n,t)| format!("{}:{:?}",n,t)).collect::<Vec<_>>(),
-            arg_types);
 
         if params.len() != arg_types.len() {
             return Err(format!(
@@ -720,7 +704,6 @@ impl super::Ctx {
         let mut generic_mappings: HashMap<Symbol, HirType> = HashMap::new();
         for ((_, param_ty), arg_ty) in params.iter().zip(arg_types.iter()) {
             let result = infer_generic_from_param(param_ty, arg_ty);
-            eprintln!("[DEBUG INFER] param={:?} arg={:?} result={:?}", param_ty, arg_ty, result.as_ref().map(|(n,_)| n));
             if let Some((gp_name, hir_concrete)) = result {
                 if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
                     generic_mappings.insert(gp_name, hir_concrete.clone());
@@ -1479,8 +1462,6 @@ impl super::Ctx {
                         if let Some(generic_fields) = self.struct_defs.get(type_name) {
                             // Build substitution map: T → concrete type
                             let mut generic_params = self.collected_generic_params(type_name);
-                            eprintln!("[DEBUG MONO] struct={} args={:?} gp={:?}",
-                                type_name, generic_args.len(), generic_params.len());
                             // 若 generic_struct_params 未从 .lcl 合并，则从字段类型推断 GP 名称
                             if generic_params.is_empty() && !generic_args.is_empty() {
                                 generic_params = generic_args.iter().enumerate()
