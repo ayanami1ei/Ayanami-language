@@ -19,10 +19,17 @@ use crate::mir::mem::*;
 /// - `Unique[T]` → UniqueStrategy：作用域结束时 Drop（free）
 /// - `Shared[T]` | `Weak[T]` → SharedStrategy：引用计数增减
 /// - 值类型（int、float、char、bool 等）→ ValueStrategy：无操作
+/// 根据类型选择内存管理策略
+///
+/// - `Unique[T]` → UniqueStrategy：作用域结束时 Drop（free）
+/// - `Shared[T]` → SharedStrategy：引用计数 retain/release
+/// - `Weak[T]` → ValueStrategy：弱引用不参与引用计数
+/// - 值类型（int、float、char、bool 等）→ ValueStrategy：无操作
 fn strategy_for(ty: &HirType) -> Box<dyn MemStrategy> {
     match ty {
         HirType::Unique(_) => Box::new(UniqueStrategy),
-        HirType::Shared(_) | HirType::Weak(_) => Box::new(SharedStrategy),
+        HirType::Shared(_) => Box::new(SharedStrategy),
+        HirType::Weak(_) => Box::new(ValueStrategy),
         _ => Box::new(ValueStrategy),
     }
 }
