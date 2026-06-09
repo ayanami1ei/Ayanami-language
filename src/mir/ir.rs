@@ -100,6 +100,8 @@ pub enum MirStmt {
         cond: MirExpr,
         body: Vec<MirStmt>,
     },
+    Break,
+    Continue,
     Expr(MirExpr),
     Block(Vec<MirStmt>),
     Drop(VarId, HirType),

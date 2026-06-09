@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::hir::ir::{FnId, HirLiteral, HirType, VarId};
 use crate::intern::Symbol;
@@ -253,5 +253,5 @@ pub struct LirProgram {
     pub functions: Vec<LirFn>,
     pub vtables: Vec<VtableDesc>,
     pub struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
-    pub imported_fn_ids: std::collections::HashSet<FnId>,
+    pub imported_fn_ids: HashSet<FnId>,
 }

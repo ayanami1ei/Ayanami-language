@@ -291,11 +291,19 @@ impl<'a> Emitter<'a> {
     }
 
     fn struct_llvm_name(&self, name: &Symbol) -> Option<String> {
+        // 尝试完整类型名，再尝试剥离泛型参数后的基名
         if self.prog.struct_defs.contains_key(name) {
-            Some(format!("%struct.{}", sanitize_name(&name.as_str())))
-        } else {
-            None
+            return Some(format!("%struct.{}", sanitize_name(&name.as_str())));
         }
+        let s = name.as_str();
+        let base = s.find('<').or_else(|| s.find('[')).map(|p| &s[..p]);
+        if let Some(base) = base {
+            let base_sym = Symbol::intern(base);
+            if self.prog.struct_defs.contains_key(&base_sym) {
+                return Some(format!("%struct.{}", sanitize_name(base)));
+            }
+        }
+        None
     }
 
     fn emit_string_globals(&mut self) {
@@ -1115,7 +1123,8 @@ impl<'a> Emitter<'a> {
 
 /// Sanitize a struct name for use as an LLVM identifier.
 fn sanitize_name(name: &str) -> String {
-    name.replace('<', "_lt_").replace('>', "_gt_").replace(',', "_c_")
+    name.replace('<', "_lt_").replace('>', "_gt_")
+        .replace(',', "_c_").replace('[', "_lb_").replace(']', "_rb_").replace(' ', "_")
 }
 
 fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {

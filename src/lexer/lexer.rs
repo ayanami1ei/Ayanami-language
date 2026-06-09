@@ -215,6 +215,8 @@ impl<'a> Lexer<'a> {
                     "elif" => TokenKind::Keyword(Keyword::Elif),
                     "else" => TokenKind::Keyword(Keyword::Else),
                     "while" => TokenKind::Keyword(Keyword::While),
+                    "break" => TokenKind::Keyword(Keyword::Break),
+                    "continue" => TokenKind::Keyword(Keyword::Continue),
                     "int" => TokenKind::Keyword(Keyword::Int),
                     "float" => TokenKind::Keyword(Keyword::Float),
                     "char" => TokenKind::Keyword(Keyword::Char),

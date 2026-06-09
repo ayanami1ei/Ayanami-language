@@ -69,7 +69,8 @@ impl Parser {
     fn is_stmt_only_keyword(kind: &TokenKind) -> bool {
         matches!(kind,
             TokenKind::Keyword(Keyword::Fn | Keyword::Return | Keyword::If | Keyword::For
-                | Keyword::While | Keyword::Interface | Keyword::Struct | Keyword::Impl
+                | Keyword::While | Keyword::Break | Keyword::Continue
+                | Keyword::Interface | Keyword::Struct | Keyword::Impl
                 | Keyword::Import | Keyword::Namespace | Keyword::Pub | Keyword::Inline
                 | Keyword::Extern | Keyword::Mut | Keyword::Asm)
         )
@@ -198,6 +199,8 @@ impl Parser {
             TokenKind::Keyword(Keyword::If) => self.parse_if(),
             TokenKind::Keyword(Keyword::For) => self.parse_for(),
             TokenKind::Keyword(Keyword::While) => self.parse_while(),
+            TokenKind::Keyword(Keyword::Break) => Ok(Stmt::Break { span: tok.span() }),
+            TokenKind::Keyword(Keyword::Continue) => Ok(Stmt::Continue { span: tok.span() }),
             TokenKind::Keyword(Keyword::Namespace) => self.parse_namespace(vis),
             TokenKind::Keyword(Keyword::Struct) => self.parse_struct_def(vis),
             TokenKind::Keyword(Keyword::Interface) => self.parse_interface_def(),
@@ -589,19 +592,25 @@ impl Parser {
             }
             self.expect_delimiter(Delimiter::RBracket)?;
         }
-        let type_sym = match self.peek().map(|t| &t.kind) {
-            Some(TokenKind::Identifier(name)) => {
-                let name = name.clone();
-                self.advance();
-                Symbol::intern(&name)
+        // 解析类型名（支持 LinkedList[T] 泛型写法）
+        let impl_type = self.parse_type()?;
+        // 从解析出的类型中提取类型名
+        fn extract_type_name(ty: &Type) -> Symbol {
+            match ty {
+                Type::Named(name, _) => *name,
+                Type::Generic(name, _, _) => *name,
+                Type::Unique(inner, _) | Type::Shared(inner, _) | Type::Weak(inner, _) => {
+                    extract_type_name(inner)
+                }
+                Type::Int(_) => Symbol::intern("int"),
+                Type::Float(_) => Symbol::intern("float"),
+                Type::Char(_) => Symbol::intern("char"),
+                Type::Bool(_) => Symbol::intern("bool"),
+                Type::Void(_) => Symbol::intern("void"),
+                _ => Symbol::intern(""),
             }
-            Some(TokenKind::Keyword(kw)) => {
-                let s = kw.to_string();
-                self.advance();
-                Symbol::intern(&s)
-            }
-            _ => return Err(self.error("expected type name after `impl`")),
-        };
+        }
+        let type_sym = extract_type_name(&impl_type);
         self.expect_delimiter(Delimiter::LBrace)?;
         let mut methods = Vec::new();
         loop {

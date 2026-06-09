@@ -287,6 +287,12 @@ fn write_stmt(stmt: &MirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
         MirStmt::Release(VarId(id), ty) => {
             writeln!(w, "{}Release(v{} : {})", p, id, display_type(ty))?;
         }
+        MirStmt::Break => {
+            writeln!(w, "{}Break", p)?;
+        }
+        MirStmt::Continue => {
+            writeln!(w, "{}Continue", p)?;
+        }
     }
     Ok(())
 }

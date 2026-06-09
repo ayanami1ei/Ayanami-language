@@ -68,6 +68,12 @@ pub enum Stmt {
         body: Block,
         span: Span,
     },
+    Break {
+        span: Span,
+    },
+    Continue {
+        span: Span,
+    },
     ExprStmt {
         expr: Expr,
         span: Span,
@@ -119,7 +125,9 @@ impl Stmt {
             | Stmt::StructDef { span, .. }
             | Stmt::InterfaceDef { span, .. }
             | Stmt::ImplBlock { span, .. }
-            | Stmt::Import { span, .. } => *span,
+            | Stmt::Import { span, .. }
+            | Stmt::Break { span, .. }
+            | Stmt::Continue { span, .. } => *span,
         }
     }
 }

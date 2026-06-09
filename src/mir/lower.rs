@@ -361,6 +361,8 @@ impl Ctx {
                 self.lower_if(cond, then_block, elifs, else_block)
             }
             HirStmt::While { cond, body } => self.lower_while(cond, body),
+            HirStmt::Break => vec![MirStmt::Break],
+            HirStmt::Continue => vec![MirStmt::Continue],
             HirStmt::Expr(expr) => {
                 // Track moves inside expression (e.g., Move inside Call args)
                 self.track_expr_moves(expr);
@@ -397,6 +399,7 @@ impl Ctx {
                 self.track_expr_moves(cond);
                 for s in &body.stmts { self.track_stmt_moves(s); }
             }
+            HirStmt::Break | HirStmt::Continue => {}
             HirStmt::Expr(expr) => self.track_expr_moves(expr),
             HirStmt::Block(stmts) => {
                 for s in stmts { self.track_stmt_moves(s); }

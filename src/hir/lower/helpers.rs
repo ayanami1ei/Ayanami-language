@@ -158,6 +158,37 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
 pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Option<(Symbol, HirType)> {
     match (param_ty, arg_ty) {
         (Type::Named(name, _), _) => Some((*name, arg_ty.clone())),
+        // Generic("LinkedList", [Named("T")]) vs Named("LinkedList<int>") → infer T = int
+        (Type::Generic(name, params, _), _) => {
+            let base = name.as_str();
+            let arg_name = match arg_ty {
+                HirType::Named(n) => n.as_str(),
+                _ => return None,
+            };
+            // 如果 arg 本身就是泛型参数（如 Named("T")），直接映射
+            for gp in params.iter() {
+                if let Type::Named(gp_name, _) = gp {
+                    if arg_name == gp_name.as_str() {
+                        return Some((*gp_name, arg_ty.clone()));
+                    }
+                }
+            }
+            // Check if arg_name is "Name<...>"
+            if let Some(start) = arg_name.find('<') {
+                if &arg_name[..start] == base {
+                    let inner = arg_name[start..].trim_start_matches('<').trim_end_matches('>');
+                    let inner_parts: Vec<&str> = inner.split(',').collect();
+                    // Decode each inner part: "int" → Int, "String" → Named("String")
+                    for (gp, inner_str) in params.iter().zip(inner_parts.iter()) {
+                        if let Type::Named(gp_name, _) = gp {
+                            let hir_inner = sig_str_to_hir(inner_str.trim());
+                            return Some((*gp_name, hir_inner));
+                        }
+                    }
+                }
+            }
+            None
+        }
         (Type::Unique(inner, _), HirType::Unique(hir_inner)) => infer_generic_from_param(inner, hir_inner),
         (Type::Shared(inner, _), HirType::Shared(hir_inner)) => infer_generic_from_param(inner, hir_inner),
         (Type::Weak(inner, _), HirType::Weak(hir_inner)) => infer_generic_from_param(inner, hir_inner),
@@ -380,6 +411,8 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             span: *span,
         },
         Stmt::Import { path, span } => Stmt::Import { path: path.clone(), span: *span },
+        Stmt::Break { span } => Stmt::Break { span: *span },
+        Stmt::Continue { span } => Stmt::Continue { span: *span },
     }
 }
 
@@ -417,11 +450,34 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
 pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType {
     match ty {
         HirType::Named(s) => {
+            // 直接匹配泛型参数名（如 T → int）
             if let Some(replacement) = subst.get(s) {
-                replacement.clone()
-            } else {
-                ty.clone()
+                return replacement.clone();
             }
+            // 处理编码的泛型类型名（如 "LinkedListNode<T>" 或 "LinkedListNode[T]"）
+            let name_str = s.as_str();
+            let open = name_str.find('<').or_else(|| name_str.find('['));
+            if let Some(start) = open {
+                let base = &name_str[..start];
+                let inner = name_str[start..].trim_start_matches('<').trim_start_matches('[').trim_end_matches('>').trim_end_matches(']');
+                let parts: Vec<&str> = inner.split(',').collect();
+                let mut changed = false;
+                let new_parts: Vec<String> = parts.iter().map(|p| {
+                    let trimmed = p.trim();
+                    let sym = Symbol::intern(trimmed);
+                    if let Some(replacement) = subst.get(&sym) {
+                        changed = true;
+                        hir_type_display(replacement)
+                    } else {
+                        trimmed.to_string()
+                    }
+                }).collect();
+                if changed {
+                    let new_name = format!("{}<{}>", base, new_parts.join(","));
+                    return HirType::Named(Symbol::intern(&new_name));
+                }
+            }
+            ty.clone()
         }
         HirType::Unique(inner) => HirType::Unique(Box::new(substitute_hir_type(inner, subst))),
         HirType::Shared(inner) => HirType::Shared(Box::new(substitute_hir_type(inner, subst))),

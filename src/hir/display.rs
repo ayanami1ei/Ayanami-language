@@ -280,6 +280,12 @@ fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
             }
             writeln!(w, "{}}}", p)?;
         }
+        HirStmt::Break => {
+            writeln!(w, "{}Break", p)?;
+        }
+        HirStmt::Continue => {
+            writeln!(w, "{}Continue", p)?;
+        }
     }
     Ok(())
 }

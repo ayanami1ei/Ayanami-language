@@ -175,7 +175,15 @@ fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
                     .collect();
                 format!("[{}]", params.join(", "))
             };
-            let _ = writeln!(out, "{}impl{} {} {{", i, gp_str, type_name);
+            let type_str = if generic_params.is_empty() {
+                type_name.to_string()
+            } else {
+                let args: Vec<String> = generic_params.iter()
+                    .map(|(n, _)| n.to_string())
+                    .collect();
+                format!("{}[{}]", type_name, args.join(", "))
+            };
+            let _ = writeln!(out, "{}impl{} {} {{", i, gp_str, type_str);
             for m in methods {
                 write_stmt(out, m, level + 1);
             }
@@ -188,6 +196,14 @@ fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
         ExprStmt { expr, .. } => {
             let i = indent(level);
             let _ = writeln!(out, "{}{};", i, write_expr(expr));
+        }
+        Break { .. } => {
+            let i = indent(level);
+            let _ = writeln!(out, "{}break;", i);
+        }
+        Continue { .. } => {
+            let i = indent(level);
+            let _ = writeln!(out, "{}continue;", i);
         }
     }
 }
@@ -225,11 +241,11 @@ fn write_params(out: &mut String, params: &[(Symbol, Type)]) {
         // Format impl method self parameter: shared self / unique self
         if name.as_str() == "self" {
             match ty {
-                Type::Shared(inner, _) if matches!(inner.as_ref(), Type::Named(_, _)) => {
+                Type::Shared(inner, _) if matches!(inner.as_ref(), Type::Named(_, _) | Type::Generic(_, _, _)) => {
                     let _ = write!(out, "shared self");
                     continue;
                 }
-                Type::Unique(inner, _) if matches!(inner.as_ref(), Type::Named(_, _)) => {
+                Type::Unique(inner, _) if matches!(inner.as_ref(), Type::Named(_, _) | Type::Generic(_, _, _)) => {
                     let _ = write!(out, "unique self");
                     continue;
                 }

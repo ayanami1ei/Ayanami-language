@@ -361,5 +361,11 @@ fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
         Stmt::Import { path, .. } => {
             writeln!(w, "{}Import {{ path: {} }}", p, path).unwrap();
         }
+        Stmt::Break { .. } => {
+            writeln!(w, "{}Break", p).unwrap();
+        }
+        Stmt::Continue { .. } => {
+            writeln!(w, "{}Continue", p).unwrap();
+        }
     }
 }

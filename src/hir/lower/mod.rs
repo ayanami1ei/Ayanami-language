@@ -9,11 +9,12 @@ use crate::span::Span;
 use super::ir::*;
 
 /// 从类型名中剥离泛型参数
-/// 例如 "LinkedListNode<T>" → "LinkedListNode"
-fn strip_generic_name(name: &Symbol) -> Symbol {
+/// 例如 "LinkedListNode<T>" → "LinkedListNode"，也处理 "LinkedListNode[T]"
+pub(super) fn strip_generic_name(name: &Symbol) -> Symbol {
     let s = name.as_str();
-    if let Some(pos) = s.find('<') {
-        Symbol::intern(&s[..pos])
+    let pos = s.find('<').or_else(|| s.find('['));
+    if let Some(p) = pos {
+        Symbol::intern(&s[..p])
     } else {
         *name
     }
@@ -144,6 +145,9 @@ impl Ctx {
                 hir_type_display(struct_ty), field, span.start_line, span.start_col)),
         };
         let base_name = strip_generic_name(&type_name);
+        let raw = type_name.as_str();
+        eprintln!("[DEBUG FFI] raw='{}' hex={:02x?} base='{}' exists={} total={}",
+            raw, raw.as_bytes().get(0..20), base_name, self.struct_defs.contains_key(&base_name), self.struct_defs.len());
         let fields = self.struct_defs.get(&base_name)
             .ok_or_else(|| format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))?;
         fields.iter().position(|f| f.name == *field)

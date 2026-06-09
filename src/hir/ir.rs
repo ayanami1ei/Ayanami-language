@@ -189,6 +189,8 @@ pub enum HirStmt {
         cond: HirExpr,
         body: HirBlock,
     },
+    Break,
+    Continue,
     Expr(HirExpr),
     Block(Vec<HirStmt>),
 }

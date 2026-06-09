@@ -42,7 +42,9 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         .collect();
 
     let vtables: Vec<VtableDesc> = mir.vtables.iter().map(|ve| {
-        let name = format!("vtable_{}_{}", ve.concrete_type, ve.interface);
+        let name = format!("vtable_{}_{}",
+            ve.concrete_type.as_str().replace('<', "_lt_").replace('>', "_gt_").replace('[', "_lb_").replace(']', "_rb_"),
+            ve.interface);
         VtableDesc { name, fn_ids: ve.method_fn_ids.clone() }
     }).collect();
 
@@ -116,7 +118,8 @@ fn type_to_mangle(ty: &HirType) -> String {
         HirType::Char => "char".into(),
         HirType::Void => "void".into(),
         HirType::Bool => "bool".into(),
-        HirType::Named(s) => format!("{}", s.as_str()),
+        HirType::Named(s) => s.as_str().replace('<', "_lt_").replace('>', "_gt_")
+            .replace(',', "_c_").replace(' ', "_").replace('[', "_lb_").replace(']', "_rb_"),
         HirType::Unique(inner) => format!("unique_{}", type_to_mangle(inner)),
         HirType::Shared(inner) => format!("shared_{}", type_to_mangle(inner)),
         HirType::Weak(inner) => format!("weak_{}", type_to_mangle(inner)),
@@ -203,6 +206,8 @@ struct LowerCtx<'a> {
     current_insts: Vec<LirInst>,
     blocks: Vec<LirBlock>,
     str_map: &'a HashMap<String, u64>,
+    /// 循环栈：(cond_label, end_label) — 用于 break/continue 生成跳转
+    loop_stack: Vec<(String, String)>,
 }
 
 impl<'a> LowerCtx<'a> {
@@ -214,6 +219,7 @@ impl<'a> LowerCtx<'a> {
             current_insts: Vec::new(),
             blocks: Vec::new(),
             str_map,
+            loop_stack: Vec::new(),
         }
     }
 
@@ -390,6 +396,16 @@ fn lower_stmt(ctx: &mut LowerCtx, stmt: &MirStmt) {
             else_block,
         } => lower_if(ctx, cond, then_block, elifs, else_block),
         MirStmt::While { cond, body } => lower_while(ctx, cond, body),
+        MirStmt::Break => {
+            if let Some((_, end_lbl)) = ctx.loop_stack.last() {
+                ctx.emit(LirInst::Br(end_lbl.clone()));
+            }
+        }
+        MirStmt::Continue => {
+            if let Some((cond_lbl, _)) = ctx.loop_stack.last() {
+                ctx.emit(LirInst::Br(cond_lbl.clone()));
+            }
+        }
         MirStmt::Drop(id, ty) => {
             ctx.emit(LirInst::DropValue(*id, ty.clone()));
         }
@@ -662,7 +678,9 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
                     LirValue::Tmp(t)
                 }
             };
-            let vtable_name = format!("vtable_{}_{}", concrete_type, interface_name);
+            let vtable_name = format!("vtable_{}_{}",
+                concrete_type.as_str().replace('<', "_lt_").replace('>', "_gt_").replace('[', "_lb_").replace(']', "_rb_"),
+                interface_name);
             let dest = ctx.next_tmp();
             let malloc_tmp = ctx.next_tmp();
             let bc_tmp = ctx.next_tmp();
@@ -918,6 +936,9 @@ fn lower_while(ctx: &mut LowerCtx, cond: &MirExpr, body: &[MirStmt]) {
     let body_lbl = ctx.next_block_label("while.body");
     let end_lbl = ctx.next_block_label("while.end");
 
+    // 推入循环栈供 break/continue 使用
+    ctx.loop_stack.push((cond_lbl.clone(), end_lbl.clone()));
+
     ctx.emit(LirInst::Br(cond_lbl.clone()));
 
     ctx.set_current_block(cond_lbl.clone());
@@ -931,6 +952,8 @@ fn lower_while(ctx: &mut LowerCtx, cond: &MirExpr, body: &[MirStmt]) {
     ctx.set_current_block(body_lbl);
     lower_stmts(ctx, body);
     ctx.emit(LirInst::Br(cond_lbl));
+
+    ctx.loop_stack.pop();
 
     ctx.set_current_block(end_lbl);
 }

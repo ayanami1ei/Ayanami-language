@@ -12,6 +12,12 @@ impl super::Ctx {
     // ----------------------------------------------------------------
 
     pub(super) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<(), String> {
+        eprintln!("[DEBUG] collect_fns called with {} stmts", stmts.len());
+        for s in stmts {
+            if let Stmt::Import { path, .. } = s {
+                eprintln!("[DEBUG]   import: {}", path);
+            }
+        }
         self.collect_fns_with_ns(stmts, "")
     }
 
@@ -73,6 +79,7 @@ impl super::Ctx {
                     }
                 }
                 Stmt::Import { path, .. } => {
+                    eprintln!("[DEBUG IMPORT] processing import: {}", path);
                     let pkg_path = if std::path::Path::new(path).exists() {
                         path.clone()
                     } else {
@@ -119,32 +126,59 @@ impl super::Ctx {
 
                     // Merge struct definitions from the package's LIR data
                     if !lir_binary.is_empty() {
-                        if let Ok(dep_lir) = crate::lir::serialize::program_from_bytes(&lir_binary) {
+                        let dep_lir = crate::lir::serialize::program_from_bytes(&lir_binary);
+                        if let Err(e) = &dep_lir {
+                            eprintln!("[DEBUG LIR] deserialize error: {}", e);
+                        }
+                        if let Ok(dep_lir) = dep_lir {
+                            eprintln!("[DEBUG LIR] merged {} struct_defs", dep_lir.struct_defs.len());
+                            for (name, fields) in &dep_lir.struct_defs {
+                                eprintln!("[DEBUG LIR]   struct: {}", name);
+                            }
                             for (name, fields) in dep_lir.struct_defs {
                                 let hir_fields: Vec<HirStructField> = fields.iter()
                                     .map(|(fn_name, ty)| HirStructField { name: *fn_name, ty: ty.clone() })
                                     .collect();
                                 self.struct_defs.insert(name, hir_fields);
+                                // 从字段类型中推断泛型参数名：查找 Named("T")、Named("U") 等
+                                if !self.generic_struct_params.contains_key(&name) {
+                                    let mut gp_names: Vec<Symbol> = Vec::new();
+                                    for (_, fty) in &fields {
+                                        Self::collect_gp_from_type(fty, &mut gp_names);
+                                    }
+                                    if !gp_names.is_empty() {
+                                        gp_names.sort();
+                                        gp_names.dedup();
+                                        self.generic_struct_params.insert(name,
+                                            gp_names.into_iter().map(|n| (n, None)).collect());
+                                    }
+                                }
                             }
                         }
                     }
 
                     // Parse and register generic function ASTs and interfaces from the package
+                    eprintln!("[DEBUG IMPORT] processing {} generic sources", sources.len());
                     for src in &sources {
                         let mut lexer = crate::lexer::Lexer::new(src);
                         let tokens = lexer.tokenize_all();
                         let filtered: Vec<_> = tokens.into_iter()
                             .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
                             .collect();
-                        if filtered.is_empty() { continue; }
+                        if filtered.is_empty() { eprintln!("[DEBUG IMPORT] empty source"); continue; }
                         let mut parser = crate::parser::Parser::new(filtered);
-                        if let Ok(parsed) = parser.parse_program() {
+                        let parsed = match parser.parse_program() {
+                            Ok(p) => p,
+                            Err(e) => { eprintln!("[DEBUG IMPORT] parse error: {}", e); continue; }
+                        };
+                        eprintln!("[DEBUG IMPORT] parsed {} stmts", parsed.stmts.len());
                             for stmt in &parsed.stmts {
                                 match stmt {
                                     Stmt::FnDecl { name, generic_params, .. } if !generic_params.is_empty() => {
                                         self.generic_fns.push((*name, generic_params.clone(), stmt.clone()));
                                     }
                                     Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
+                                        eprintln!("[DEBUG IMPORT] ImplBlock gp_len={}, methods={}", impl_gp.len(), methods.len());
                                         for m in methods {
                                             if let Stmt::FnDecl { name, generic_params, .. } = m {
                                                 let combined: Vec<(Symbol, Option<Symbol>)> = {
@@ -154,6 +188,7 @@ impl super::Ctx {
                                                 };
                                                 if !combined.is_empty() {
                                                     self.generic_fns.push((*name, combined, m.clone()));
+                                                    eprintln!("[DEBUG IMPORT] pushed generic fn: {}", name);
                                                 }
                                             }
                                         }
@@ -174,7 +209,6 @@ impl super::Ctx {
                                     _ => {}
                                 }
                             }
-                        }
                     }
                     for sym in &imported_syms {
                         match sym {
@@ -247,6 +281,7 @@ impl super::Ctx {
                     }
                 }
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
+                    eprintln!("[DEBUG] ImplBlock gp_len={}, methods={}", impl_gp.len(), methods.len());
                     for method in methods {
                         if let Stmt::FnDecl { name, params, return_type, generic_params: method_gp, .. } = method {
                             // 合并 impl 级和方法级泛型参数：impl[T] LinkedList[T] { fn push[T: Ord](...) }
@@ -257,6 +292,7 @@ impl super::Ctx {
                             };
                             if !combined_gp.is_empty() {
                                 self.generic_fns.push((*name, combined_gp, method.clone()));
+                                eprintln!("[DEBUG] pushed generic fn: {} with gp_len={}", name, impl_gp.len());
                                 continue;
                             }
                             let hir_return = ast_type_to_hir(return_type, &self.interfaces);
@@ -649,6 +685,7 @@ impl super::Ctx {
     /// Returns the FnId of the newly-created specialized function on success.
     pub(super) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId, String> {
         // Find matching generic function
+        eprintln!("[DEBUG] generic_fns keys: {:?}", self.generic_fns.iter().map(|(n,_,_)| n).collect::<Vec<_>>());
         let gf_idx = self.generic_fns.iter().position(|(gf_name, _, _)| gf_name == name);
         let gf_idx = match gf_idx {
             Some(i) => i,
@@ -667,6 +704,9 @@ impl super::Ctx {
         let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, .. } = gf_stmt else {
             return Err(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col));
         };
+        eprintln!("[DEBUG SPEC] fn={} params={:?} arg_types={:?}", gf_name,
+            params.iter().map(|(n,t)| format!("{}:{:?}",n,t)).collect::<Vec<_>>(),
+            arg_types);
 
         if params.len() != arg_types.len() {
             return Err(format!(
@@ -679,7 +719,9 @@ impl super::Ctx {
         let generic_names: Vec<Symbol> = gf_params.iter().map(|(n, _)| *n).collect();
         let mut generic_mappings: HashMap<Symbol, HirType> = HashMap::new();
         for ((_, param_ty), arg_ty) in params.iter().zip(arg_types.iter()) {
-            if let Some((gp_name, hir_concrete)) = infer_generic_from_param(param_ty, arg_ty) {
+            let result = infer_generic_from_param(param_ty, arg_ty);
+            eprintln!("[DEBUG INFER] param={:?} arg={:?} result={:?}", param_ty, arg_ty, result.as_ref().map(|(n,_)| n));
+            if let Some((gp_name, hir_concrete)) = result {
                 if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
                     generic_mappings.insert(gp_name, hir_concrete.clone());
                 }
@@ -707,7 +749,12 @@ impl super::Ctx {
                     concrete_inner = strip_ownership_ref(concrete_inner);
                 }
                 let concrete_type_name = match concrete_inner {
-                    HirType::Named(n) => *n,
+                    HirType::Named(n) => {
+                        // 先试试完整类型名，再试剥离泛型参数后的基名
+                        let base = crate::hir::lower::strip_generic_name(n);
+                        if self.type_ifaces.contains_key(n) { *n }
+                        else { base }
+                    }
                     HirType::Int => Symbol::intern("int"),
                     HirType::Float => Symbol::intern("float"),
                     HirType::Char => Symbol::intern("char"),
@@ -723,13 +770,20 @@ impl super::Ctx {
                     .map(|ifaces| ifaces.contains(iface_name))
                     .unwrap_or(false);
                 if !implements {
-                    // Also check if there's an impl block with matching methods
-                    // For now, report the error
-                    return Err(format!(
-                        "type `{}` does not implement interface `{}` required by generic parameter `{}` at {}:{}",
-                        hir_type_display(concrete_ty), iface_name, gp_name,
-                        span.start_line, span.start_col
-                    ));
+                    // 检查泛型方法是否实现了接口要求的方法
+                    let iface_methods = self.interfaces.get(iface_name)
+                        .map(|reg| reg.methods.iter().map(|m| m.name).collect::<Vec<_>>())
+                        .unwrap_or_default();
+                    let has_generic_method = iface_methods.iter().any(|method_name| {
+                        self.generic_fns.iter().any(|(gf_name, _, _)| gf_name == method_name)
+                    });
+                    if !has_generic_method {
+                        return Err(format!(
+                            "type `{}` does not implement interface `{}` required by generic parameter `{}` at {}:{}",
+                            hir_type_display(concrete_ty), iface_name, gp_name,
+                            span.start_line, span.start_col
+                        ));
+                    }
                 }
             }
         }
@@ -862,6 +916,38 @@ impl super::Ctx {
             }
         }
         Ok(items)
+    }
+
+    /// 从 HirType 中递归收集泛型参数名（如 T，含编码名 LinkedListNode[T] 里的 T）
+    pub(super) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>) {
+        match ty {
+            HirType::Named(n) => {
+                let s = n.as_str();
+                // 裸泛型参数名：T
+                if s.len() == 1 && s.chars().all(|c| c.is_uppercase()) {
+                    out.push(*n);
+                }
+                // 编码名中的泛型参数：LinkedListNode[T] → T
+                let open = s.find('<').or_else(|| s.find('['));
+                if let Some(start) = open {
+                    let inner = s[start..].trim_start_matches('<').trim_start_matches('[')
+                        .trim_end_matches('>').trim_end_matches(']');
+                    for part in inner.split(',') {
+                        let trimmed = part.trim();
+                        if trimmed.len() == 1 && trimmed.chars().all(|c| c.is_uppercase()) {
+                            out.push(Symbol::intern(trimmed));
+                        }
+                    }
+                }
+            }
+            HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => {
+                Self::collect_gp_from_type(inner, out);
+            }
+            HirType::Array(inner) => Self::collect_gp_from_type(inner, out),
+            HirType::Ref(inner, _) => Self::collect_gp_from_type(inner, out),
+            HirType::FatPtr { kind, .. } => Self::collect_gp_from_type(kind, out),
+            _ => {}
+        }
     }
 
     pub(super) fn lower_fn(
@@ -1010,6 +1096,8 @@ impl super::Ctx {
                 let hir_body = self.lower_block(body)?;
                 Ok(HirStmt::While { cond: hir_cond, body: hir_body })
             }
+            Stmt::Break { .. } => Ok(HirStmt::Break),
+            Stmt::Continue { .. } => Ok(HirStmt::Continue),
             Stmt::ExprStmt { expr, .. } => {
                 let hir_expr = self.lower_expr(expr)?;
                 Ok(HirStmt::Expr(hir_expr))
@@ -1390,7 +1478,27 @@ impl super::Ctx {
                     if !self.struct_defs.contains_key(&name_sym) {
                         if let Some(generic_fields) = self.struct_defs.get(type_name) {
                             // Build substitution map: T → concrete type
-                            let generic_params = self.collected_generic_params(type_name);
+                            let mut generic_params = self.collected_generic_params(type_name);
+                            eprintln!("[DEBUG MONO] struct={} args={:?} gp={:?}",
+                                type_name, generic_args.len(), generic_params.len());
+                            // 若 generic_struct_params 未从 .lcl 合并，则从字段类型推断 GP 名称
+                            if generic_params.is_empty() && !generic_args.is_empty() {
+                                generic_params = generic_args.iter().enumerate()
+                                    .map(|(i, _)| (Symbol::intern(&format!("_G{}", i)), None))
+                                    .collect();
+                                // 尝试从字段类型中提取实际 GP 名称（单字母大写名）
+                                if let Some(fields) = self.struct_defs.get(type_name) {
+                                    for field in fields {
+                                        if let HirType::Named(n) = strip_ownership_ref(&field.ty) {
+                                            let s = n.as_str();
+                                            if s.len() == 1 && s.chars().all(|c| c.is_uppercase()) {
+                                                generic_params = vec![(*n, None)];
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             let mut subst: HashMap<Symbol, HirType> = HashMap::new();
                             for ((gp_name, _), concrete_ty) in generic_params.iter().zip(generic_args.iter()) {
                                 subst.insert(*gp_name, ast_type_to_hir(concrete_ty, &self.interfaces));
