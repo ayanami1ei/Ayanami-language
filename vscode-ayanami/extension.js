@@ -804,7 +804,7 @@ function resolveImports(doc, folder) {
 
 function scanStructsRaw(text) {
     const structs = [];
-    const re = /struct\s+(\w+)\s*\{/g;
+    const re = /(?:pub\s+)?struct\s+(\w+)\s*\{/g;
     let m;
     while ((m = re.exec(text)) !== null) structs.push({ name: m[1], line: m.index });
     return structs;
@@ -829,7 +829,7 @@ function scanFunctionsRaw(text) {
 // ─── Helper: get struct fields ──────────────────────────────────────
 function getStructFields(doc, typeName) {
     const text = doc.getText();
-    const re = new RegExp('struct\\s+' + typeName + '\\s*\\{([^}]*)\\}', 'm');
+    const re = new RegExp('(?:pub\\s+)?struct\\s+' + typeName + '\\s*\\{([^}]*)\\}', 'm');
     const m = re.exec(text);
     if (!m) return [];
     const body = m[1];
@@ -845,12 +845,10 @@ function getStructFields(doc, typeName) {
 // Get the type of a specific struct field
 function getFieldType(doc, typeName, fieldName) {
     const text = doc.getText();
-    const re = new RegExp('struct\\s+' + typeName + '\\s*\\{([^}]*)\\}', 'm');
+    const re = new RegExp('(?:pub\\s+)?struct\\s+' + typeName + '\\s*\\{([^}]*)\\}', 'm');
     const m = re.exec(text);
     if (!m) return null;
     const body = m[1];
-    // Match: shared/unique/weak? TypeName fieldName
-    // Also match struct inside same file for field lookup
     const lines = body.split('\n');
     for (const line of lines) {
         const trimmed = line.trim();
