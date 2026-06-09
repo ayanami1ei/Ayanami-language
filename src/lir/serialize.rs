@@ -101,11 +101,26 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram, String> {
         struct_defs.insert(name, fields);
     }
 
+    let gsp_count = r.u32()?;
+    let mut generic_struct_params = std::collections::HashMap::new();
+    for _ in 0..gsp_count {
+        let name = Symbol::intern(&r.str()?);
+        let p_count = r.u32()?;
+        let mut params = Vec::new();
+        for _ in 0..p_count {
+            let gp_name = Symbol::intern(&r.str()?);
+            let has_constraint = r.u32()?;
+            let constraint = if has_constraint != 0 { Some(Symbol::intern(&r.str()?)) } else { None };
+            params.push((gp_name, constraint));
+        }
+        generic_struct_params.insert(name, params);
+    }
+
     let imp_count = r.u32()?;
     let mut imported_fn_ids = std::collections::HashSet::new();
     for _ in 0..imp_count { imported_fn_ids.insert(FnId(r.u32()? as usize)); }
 
-    Ok(LirProgram { strings, fn_names, functions, vtables, struct_defs, imported_fn_ids })
+    Ok(LirProgram { strings, fn_names, functions, vtables, struct_defs, generic_struct_params, imported_fn_ids })
 }
 
 // ============================================================

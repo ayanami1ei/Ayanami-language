@@ -152,5 +152,6 @@ pub struct MirProgram {
     pub items: Vec<MirItem>,
     pub vtables: Vec<VtableEntry>,
     pub struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
+    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
     pub imported_fns: Vec<crate::hir::ir::ImportedFnSig>,
 }

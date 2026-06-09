@@ -127,14 +127,15 @@ impl super::Ctx {
                         if let Err(e) = &dep_lir {
                         }
                         if let Ok(dep_lir) = dep_lir {
-                            for (name, fields) in &dep_lir.struct_defs {
-                            }
+                            // 先保存 generic_struct_params（需在 struct_defs 被消费前读取）
+                            let gsp_from_lir: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>> =
+                                dep_lir.generic_struct_params.clone();
                             for (name, fields) in dep_lir.struct_defs {
                                 let hir_fields: Vec<HirStructField> = fields.iter()
                                     .map(|(fn_name, ty)| HirStructField { name: *fn_name, ty: ty.clone() })
                                     .collect();
                                 self.struct_defs.insert(name, hir_fields);
-                                // 从字段类型中推断泛型参数名：查找 Named("T")、Named("U") 等
+                                // 字段扫描：从字段类型中推断泛型参数名
                                 if !self.generic_struct_params.contains_key(&name) {
                                     let mut gp_names: Vec<Symbol> = Vec::new();
                                     for (_, fty) in &fields {
@@ -147,6 +148,10 @@ impl super::Ctx {
                                             gp_names.into_iter().map(|n| (n, None)).collect());
                                     }
                                 }
+                            }
+                            // 从 LIR binary 恢复 generic_struct_params（覆盖字段扫描结果）
+                            for (gsp_name, gsp_params) in &gsp_from_lir {
+                                self.generic_struct_params.insert(*gsp_name, gsp_params.clone());
                             }
                         }
                     }
@@ -757,10 +762,13 @@ impl super::Ctx {
                     let iface_methods = self.interfaces.get(iface_name)
                         .map(|reg| reg.methods.iter().map(|m| m.name).collect::<Vec<_>>())
                         .unwrap_or_default();
-                    let has_generic_method = iface_methods.iter().any(|method_name| {
+                    let has_matching_method = iface_methods.iter().any(|method_name| {
+                        // 检查泛型函数
                         self.generic_fns.iter().any(|(gf_name, _, _)| gf_name == method_name)
+                        // 或非泛型函数
+                        || self.fn_map.contains_key(method_name)
                     });
-                    if !has_generic_method {
+                    if !has_matching_method {
                         return Err(format!(
                             "type `{}` does not implement interface `{}` required by generic parameter `{}` at {}:{}",
                             hir_type_display(concrete_ty), iface_name, gp_name,

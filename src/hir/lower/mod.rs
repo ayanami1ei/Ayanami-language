@@ -224,5 +224,5 @@ pub fn lower_program(program: &Program) -> Result<HirProgram, String> {
     // 追加降级过程中特化的泛型函数
     for f in ctx.specialized_fns.drain(..) { items.push(HirItem::Fn(f)); }
 
-    Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), imported_fns })
+    Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), generic_struct_params: ctx.generic_struct_params.clone(), imported_fns })
 }

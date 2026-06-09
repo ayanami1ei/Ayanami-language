@@ -189,6 +189,7 @@ pub fn lower_program(hir: &HirProgram) -> MirProgram {
         items: hir.items.iter().flat_map(|item| lower_item(item, &struct_defs)).collect(),
         vtables: hir.vtables.clone(),
         struct_defs: struct_defs.clone(),
+        generic_struct_params: hir.generic_struct_params.clone(),
         imported_fns: hir.imported_fns.iter().map(|f| crate::hir::ir::ImportedFnSig {
             fn_id: f.fn_id,
             name: f.name,

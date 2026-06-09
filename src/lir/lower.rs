@@ -60,6 +60,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         functions,
         vtables,
         struct_defs: mir.struct_defs.clone(),
+        generic_struct_params: mir.generic_struct_params.clone(),
         imported_fn_ids,
     }
 }

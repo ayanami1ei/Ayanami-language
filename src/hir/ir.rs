@@ -268,5 +268,6 @@ pub struct HirProgram {
     pub items: Vec<HirItem>,
     pub vtables: Vec<VtableEntry>,
     pub struct_defs: HashMap<Symbol, Vec<HirStructField>>,
+    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
     pub imported_fns: Vec<ImportedFnSig>,
 }
