@@ -246,6 +246,9 @@ fn resolve_dependencies(
                         }
                     }
                 }
+                if !dep_lcl_paths.contains(&dep_path) {
+                    dep_lcl_paths.push(dep_path.clone());
+                }
             }
         } else {
             new_stmts.push(stmt.clone());
