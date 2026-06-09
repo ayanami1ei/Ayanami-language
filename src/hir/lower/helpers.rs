@@ -53,9 +53,13 @@ pub(crate) fn wrap_arg_for_param(arg: HirExpr, param_ty: &HirType) -> HirExpr {
                     _ => arg,
                 }
             } else if let HirType::Unique(inner) = &arg_ty {
-                // arg 是 Unique(T)，param 想要其他所有权类型
+                // arg 是 Unique(T)，param 想要所有权类型
                 if **inner == *pt.as_ref() {
                     match param_ty {
+                        HirType::Unique(_) => {
+                            // Unique(T) → Unique(T)：需要 Move 包装以转移所有权
+                            wrap_for_unique_param(arg, param_ty)
+                        }
                         HirType::Shared(_) => {
                             HirExpr::ToShared(Box::new(arg), param_ty.clone())
                         }
@@ -71,6 +75,9 @@ pub(crate) fn wrap_arg_for_param(arg: HirExpr, param_ty: &HirType) -> HirExpr {
                 // arg 是 Shared(T)，param 想要其他所有权类型
                 if **inner == *pt.as_ref() {
                     match param_ty {
+                        HirType::Shared(_) => {
+                            arg
+                        }
                         HirType::Unique(_) => {
                             HirExpr::ToUnique(Box::new(arg), param_ty.clone())
                         }
@@ -86,6 +93,9 @@ pub(crate) fn wrap_arg_for_param(arg: HirExpr, param_ty: &HirType) -> HirExpr {
                 // arg 是 Weak(T)，param 想要其他所有权类型
                 if **inner == *pt.as_ref() {
                     match param_ty {
+                        HirType::Weak(_) => {
+                            arg
+                        }
                         HirType::Shared(_) => {
                             HirExpr::ToShared(Box::new(arg), param_ty.clone())
                         }

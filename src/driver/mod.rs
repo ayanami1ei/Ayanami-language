@@ -49,8 +49,8 @@ pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), Str
         return Err("llc failed".into());
     }
 
-    // Clean up temp .ll file
-    let _ = std::fs::remove_file(&ll_path);
+    // Keep .ll file for debugging
+    // let _ = std::fs::remove_file(&ll_path);
     Ok(())
 }
 
