@@ -581,6 +581,21 @@ impl super::Ctx {
         None
     }
 
+    /// Extract a concrete type name from an HirType (stripping ownership).
+    fn extract_concrete_type_name(ty: &HirType) -> Option<Symbol> {
+        match ty {
+            HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => {
+                Self::extract_concrete_type_name(inner)
+            }
+            HirType::Named(n) => Some(*n),
+            HirType::Int => Some(Symbol::intern("int")),
+            HirType::Float => Some(Symbol::intern("float")),
+            HirType::Char => Some(Symbol::intern("char")),
+            HirType::Bool => Some(Symbol::intern("bool")),
+            _ => None,
+        }
+    }
+
     /// Check if an arg type can be passed to a param type (accounting for FatPtr wrapping)
     pub(super) fn is_fatptr_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool {
         // Check if param is FatPtr and arg is a concrete type that implements the interface
@@ -600,16 +615,93 @@ impl super::Ctx {
                 if let Some(ifaces) = self.type_ifaces.get(&ct) {
                     return ifaces.contains(iface_name);
                 }
-                // Also check stripped base name (for generic structs like LinkedList<T>)
                 let base_ct = crate::hir::lower::strip_generic_name(&ct);
                 if base_ct != ct {
                     if let Some(ifaces) = self.type_ifaces.get(&base_ct) {
                         return ifaces.contains(iface_name);
                     }
                 }
+                // Fallback: check generic_fns for matching impl methods
+                // Only allow if the concrete type has generic params (<...>) or the struct isn't generic
+                let has_gp = self.generic_struct_params.contains_key(&base_ct);
+                if has_gp && !ct.as_str().contains('<') {
+                    return false;
+                }
+                return self.check_generic_fns_for_iface(&base_ct, iface_name);
             }
         }
         false
+    }
+
+    /// Check if a type's generic_fns methods structurally match an interface.
+    /// This enables on-the-fly interface matching for generic impls.
+    fn check_generic_fns_for_iface(&self, type_name: &Symbol, iface_name: &Symbol) -> bool {
+        let iface_reg = match self.interfaces.get(iface_name) {
+            Some(r) => r,
+            None => return false,
+        };
+        for iface_method in &iface_reg.methods {
+            let has_match = self.generic_fns.iter().any(|(gf_name, _, gf_stmt)| {
+                if *gf_name != iface_method.name { return false; }
+                if let Stmt::FnDecl { params, .. } = gf_stmt {
+                    if params.is_empty() { return false; }
+                    let self_ty = ast_type_to_hir(&params[0].1, &self.interfaces);
+                    let self_inner = match &self_ty {
+                        HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+                        other => other,
+                    };
+                    let self_base = match self_inner {
+                        HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
+                        _ => return false,
+                    };
+                    if self_base != *type_name { return false; }
+                    // iface.params excludes self, impl.params includes self
+                    if params.len() - 1 != iface_method.params.len() { return false; }
+                    params[1..].iter().zip(&iface_method.params).all(|((_, pt), (_, ift))| {
+                        let pt_hir = ast_type_to_hir(pt, &self.interfaces);
+                        Self::type_matches(&pt_hir, ift)
+                    })
+                } else { false }
+            });
+            if !has_match { return false; }
+        }
+        true
+    }
+
+    /// Register vtable for a generic impl type → interface relationship.
+    /// Specializes methods on the fly.
+    fn register_generic_vtable(
+        &mut self,
+        concrete_type: &Symbol,
+        base_type: &Symbol,
+        iface_name: &Symbol,
+    ) -> Result<(), String> {
+        let iface_reg = match self.interfaces.get(iface_name) {
+            Some(r) => r.clone(),
+            None => return Ok(()),
+        };
+        let mut vtable_fns: Vec<FnId> = vec![FnId(usize::MAX)];
+        let span = crate::span::Span::default();
+        for iface_method in &iface_reg.methods {
+            let self_ty = HirType::Shared(Box::new(HirType::Named(*concrete_type)));
+            let mut arg_types = vec![self_ty];
+            for (_, ift) in &iface_method.params {
+                arg_types.push(ift.clone());
+            }
+            let fid = self.specialize_generic_call(&iface_method.name, &arg_types, &span)?;
+            vtable_fns.push(fid);
+        }
+        self.vtables.push(VtableEntry {
+            concrete_type: *concrete_type,
+            interface: *iface_name,
+            method_fn_ids: vtable_fns,
+        });
+        self.type_ifaces.entry(*concrete_type).or_default().push(*iface_name);
+        // Also register under base type for future lookups
+        if *base_type != *concrete_type {
+            self.type_ifaces.entry(*base_type).or_default().push(*iface_name);
+        }
+        Ok(())
     }
 
     pub(super) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool {
@@ -1340,9 +1432,27 @@ impl super::Ctx {
                 };
 
                 // Step 4: wrap args into fat pointers where needed, apply implicit moves
+                // Pre-register vtables for generic impl → interface (before the closure that can't use ?)
                 let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
                     .map(|(_, t)| t.clone())
                     .collect();
+                for (i, arg) in hir_args.iter().enumerate() {
+                    if i >= param_tys.len() { break; }
+                    if let HirType::FatPtr { name: iface_name, .. } = &param_tys[i] {
+                        let arg_ty = expr_type(arg);
+                        if let Some(ct) = Self::extract_concrete_type_name(&arg_ty) {
+                            let base_ct = crate::hir::lower::strip_generic_name(&ct);
+                            if !self.type_ifaces.contains_key(&ct) || !self.type_ifaces[&ct].contains(iface_name) {
+                                if base_ct != ct && self.type_ifaces.contains_key(&base_ct)
+                                    && self.type_ifaces[&base_ct].contains(iface_name) {
+                                    // already registered
+                                } else if self.check_generic_fns_for_iface(&base_ct, iface_name) {
+                                    self.register_generic_vtable(&ct, &base_ct, iface_name)?;
+                                }
+                            }
+                        }
+                    }
+                }
                 hir_args = hir_args.into_iter().enumerate().map(|(i, arg)| {
                     if i >= param_tys.len() { return arg; }
                     let arg_ty = expr_type(&arg);
@@ -1375,6 +1485,16 @@ impl super::Ctx {
                             let base_ct = crate::hir::lower::strip_generic_name(&ct);
                             if base_ct != ct && self.type_ifaces.contains_key(&base_ct)
                                 && self.type_ifaces[&base_ct].contains(iface_name) {
+                                let fatptr_ty = param_tys[i].clone();
+                                return HirExpr::MakeFatPtr {
+                                    value: Box::new(arg),
+                                    concrete_type: ct,
+                                    interface_name: *iface_name,
+                                    ty: fatptr_ty,
+                                };
+                            }
+                            // try full concrete type (already registered by pre-check above)
+                            if self.type_ifaces.contains_key(&ct) && self.type_ifaces[&ct].contains(iface_name) {
                                 let fatptr_ty = param_tys[i].clone();
                                 return HirExpr::MakeFatPtr {
                                     value: Box::new(arg),
