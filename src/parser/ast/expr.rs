@@ -72,6 +72,11 @@ pub enum Expr {
         span: Span,
     },
     TryOp(Box<Expr>, Span),  // expr?
+    Match {
+        value: Box<Expr>,
+        arms: Vec<crate::parser::ast::stmt::MatchArm>,
+        span: Span,
+    },
     EnumConstruct {
         enum_name: Symbol,
         variant_name: Symbol,
@@ -103,6 +108,7 @@ impl Expr {
             | Expr::Index { span, .. }
             | Expr::CallExpr { span, .. }
             | Expr::TryOp(_, span) => *span,
+            | Expr::Match { span, .. } => *span,
             | Expr::EnumConstruct { span, .. } => *span,
             Expr::Literal(lit) => lit.span(),
             Expr::Ident(_, span) => *span,

@@ -315,6 +315,7 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
             Box::new(substitute_type_in_expr(inner, subst)),
             *span,
         ),
+        Expr::Match { .. } => todo!(),
         Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => {
             Expr::EnumConstruct {
                 enum_name: *enum_name,
@@ -393,6 +394,7 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             body: substitute_type_in_block(body, subst),
             span: *span,
         },
+        Stmt::Match { .. } => todo!(),
         Stmt::ExprStmt { expr, span } => Stmt::ExprStmt {
             expr: substitute_type_in_expr(expr, subst),
             span: *span,

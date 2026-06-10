@@ -206,6 +206,9 @@ fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             writeln!(w, "{}TryOp", pad(level)).unwrap();
             write_expr(inner, level + 1, w);
         }
+        Expr::Match { .. } => {
+            writeln!(w, "{}Match", pad(level)).unwrap();
+        }
         Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, .. } => {
             writeln!(w, "{}EnumConstruct {}.{}", pad(level), enum_name, variant_name).unwrap();
             for e in tuple_args { write_expr(e, level + 1, w); }
@@ -319,6 +322,9 @@ fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
             writeln!(w, "{}While", p).unwrap();
             write_expr(cond, level + 1, w);
             write_block(body, level + 1, w);
+        }
+        Stmt::Match { .. } => {
+            writeln!(w, "{}Match", p).unwrap();
         }
         Stmt::Namespace { name, items, .. } => {
             writeln!(w, "{}Namespace {{ name: {} }}", p, name).unwrap();

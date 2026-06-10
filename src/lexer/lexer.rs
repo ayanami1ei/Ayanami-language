@@ -230,6 +230,7 @@ impl<'a> Lexer<'a> {
                     "weak" => TokenKind::Keyword(Keyword::Weak),
                     "struct" => TokenKind::Keyword(Keyword::Struct),
                     "enum" => TokenKind::Keyword(Keyword::Enum),
+                    "match" => TokenKind::Keyword(Keyword::Match),
                     "namespace" => TokenKind::Keyword(Keyword::Namespace),
                     "move" => TokenKind::Keyword(Keyword::Move),
                     "clone" => TokenKind::Keyword(Keyword::Clone),
@@ -301,6 +302,7 @@ impl<'a> Lexer<'a> {
                 // 双字符 token（分隔符和运算符）
                 let two_delim = match (self.peek(), self.peek_next()) {
                     (Some('-'), Some('>')) => Some(Delimiter::Arrow),
+                    (Some('='), Some('>')) => Some(Delimiter::FatArrow),
                     _ => None,
                 };
                 if let Some(d) = two_delim {

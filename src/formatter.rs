@@ -120,6 +120,7 @@ fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             write_block_same_line(out, body, level);
             let _ = writeln!(out);
         }
+        Match { .. } => todo!(),
         Namespace { vis, name, items, .. } => {
             let i = indent(level);
             let vis_str = vis_str(vis);
@@ -396,6 +397,9 @@ fn write_expr(expr: &Expr) -> String {
         }
         Expr::TryOp(inner, _) => {
             format!("{}?", write_expr(inner))
+        }
+        Expr::Match { .. } => {
+            String::new()
         }
         Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, .. } => {
             if !tuple_args.is_empty() {

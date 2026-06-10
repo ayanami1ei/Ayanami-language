@@ -11,6 +11,7 @@ pub enum Delimiter {
     Comma,
     Semicolon,
     Arrow,
+    FatArrow,
     Dot,
     Colon,
 }
@@ -27,6 +28,7 @@ impl fmt::Display for Delimiter {
             Delimiter::Comma => ",",
             Delimiter::Semicolon => ";",
             Delimiter::Arrow => "->",
+            Delimiter::FatArrow => "=>",
             Delimiter::Dot => ".",
             Delimiter::Colon => ":",
         };

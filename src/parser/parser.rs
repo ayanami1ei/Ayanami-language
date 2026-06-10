@@ -69,7 +69,7 @@ impl Parser {
     fn is_stmt_only_keyword(kind: &TokenKind) -> bool {
         matches!(kind,
             TokenKind::Keyword(Keyword::Fn | Keyword::Return | Keyword::If | Keyword::For
-                | Keyword::While | Keyword::Break | Keyword::Continue
+                | Keyword::While | Keyword::Break | Keyword::Continue | Keyword::Match
                 | Keyword::Interface | Keyword::Struct | Keyword::Impl
                 | Keyword::Import | Keyword::Namespace | Keyword::Pub | Keyword::Inline
                 | Keyword::Extern | Keyword::Mut | Keyword::Asm)
@@ -206,6 +206,7 @@ impl Parser {
             TokenKind::Keyword(Keyword::Enum) => self.parse_enum_def(vis),
             TokenKind::Keyword(Keyword::Interface) => self.parse_interface_def(),
             TokenKind::Keyword(Keyword::Impl) => self.parse_impl_block(),
+            TokenKind::Keyword(Keyword::Match) => self.parse_match_stmt(),
             TokenKind::Keyword(Keyword::Import) => self.parse_import(),
             _ => self.parse_any_assign_or_expr(),
         }
@@ -390,6 +391,39 @@ impl Parser {
         let cond = self.parse_expr()?;
         let body = self.parse_block()?;
         Ok(Stmt::While { cond, body, span: start_span })
+    }
+
+    // ==================== Match statement ====================
+
+    fn parse_match_stmt(&mut self) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
+        self.advance(); // match
+        let value = self.parse_expr()?;
+        self.expect_delimiter(Delimiter::LBrace)?;
+        let mut arms = Vec::new();
+        loop {
+            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) { break; }
+            let variant_name = Symbol::intern(&self.expect_identifier()?);
+            let mut bindings = Vec::new();
+            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
+                self.advance();
+                loop {
+                    let binding_name = self.expect_identifier()?;
+                    bindings.push((Symbol::intern(&binding_name), None));
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
+                    self.expect_delimiter(Delimiter::Comma)?;
+                }
+                self.expect_delimiter(Delimiter::RParen)?;
+            }
+            self.expect_delimiter(Delimiter::FatArrow)?;
+            let body = self.parse_expr()?;
+            arms.push(crate::parser::ast::stmt::MatchArm { variant_name, bindings, body });
+            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
+                self.advance();
+            }
+        }
+        self.expect_delimiter(Delimiter::RBrace)?;
+        Ok(Stmt::Match { value: Box::new(value), arms, span: start_span })
     }
 
     fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt, String> {

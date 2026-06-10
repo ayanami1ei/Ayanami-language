@@ -1338,6 +1338,9 @@ impl super::Ctx {
                 let hir_body = self.lower_block(body)?;
                 Ok(HirStmt::While { cond: hir_cond, body: hir_body })
             }
+            Stmt::Match { .. } => {
+                todo!()
+            }
             Stmt::Break { .. } => Ok(HirStmt::Break),
             Stmt::Continue { .. } => Ok(HirStmt::Continue),
             Stmt::ExprStmt { expr, .. } => {
@@ -1628,6 +1631,7 @@ impl super::Ctx {
                 }
                 Err(format!("type `{:?}` cannot use `?` operator at {}:{}", inner_ty, span.start_line, span.start_col))
             }
+            Expr::Match { .. } => todo!(),
             Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => {
                 let var_struct_name = Symbol::intern(&format!("{}_{}", enum_name, variant_name));
                 if !named_args.is_empty() {

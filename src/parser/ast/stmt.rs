@@ -27,6 +27,13 @@ pub struct EnumVariant {
 }
 
 #[derive(Debug, Clone)]
+pub struct MatchArm {
+    pub variant_name: Symbol,
+    pub bindings: Vec<(Symbol, Option<Symbol>)>,  // (name, optional type annotation)
+    pub body: Expr,
+}
+
+#[derive(Debug, Clone)]
 pub enum Stmt {
     FnDecl {
         vis: Visibility,
@@ -87,6 +94,11 @@ pub enum Stmt {
     Continue {
         span: Span,
     },
+    Match {
+        value: Box<Expr>,
+        arms: Vec<MatchArm>,
+        span: Span,
+    },
     ExprStmt {
         expr: Expr,
         span: Span,
@@ -140,6 +152,7 @@ impl Stmt {
             | Stmt::If { span, .. }
             | Stmt::For { span, .. }
             | Stmt::While { span, .. }
+            | Stmt::Match { span, .. }
             | Stmt::ExprStmt { span, .. }
             |             Stmt::Namespace { span, .. }
             | Stmt::StructDef { span, .. }
