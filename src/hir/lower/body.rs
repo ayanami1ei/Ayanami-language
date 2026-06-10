@@ -76,8 +76,30 @@ impl super::Ctx {
                         self.generic_struct_params.insert(*name, generic_params.clone());
                     }
                 }
-                Stmt::EnumDef { .. } => {
-                    // TODO: implement enum lowering
+                Stmt::EnumDef { name, variants, generic_params, .. } => {
+                    for variant in variants {
+                        let var_struct_name = Symbol::intern(&format!("{}_{}", name, variant.name));
+                        let hir_fields: Vec<HirStructField> = match &variant.fields {
+                            crate::parser::ast::stmt::EnumFields::Named(fields) => {
+                                fields.iter()
+                                    .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
+                                    .collect()
+                            }
+                            crate::parser::ast::stmt::EnumFields::Tuple(tys) => {
+                                tys.iter().enumerate()
+                                    .map(|(i, t)| HirStructField { name: Symbol::intern(&format!("_{}", i)), ty: ast_type_to_hir(t, &self.interfaces) })
+                                    .collect()
+                            }
+                            crate::parser::ast::stmt::EnumFields::None => vec![],
+                        };
+                        self.struct_defs.insert(var_struct_name, hir_fields);
+                        if !generic_params.is_empty() {
+                            self.generic_struct_params.insert(var_struct_name, generic_params.clone());
+                        }
+                    }
+                    if !generic_params.is_empty() {
+                        self.generic_struct_params.insert(*name, generic_params.clone());
+                    }
                 }
                 Stmt::Import { path, .. } => {
                     let pkg_path = if std::path::Path::new(path).exists() {
@@ -1089,8 +1111,24 @@ impl super::Ctx {
                         .collect();
                     items.push(HirItem::StructDef(HirStructDef { name: *name, fields: hir_fields }));
                 }
-                Stmt::EnumDef { .. } => {
-                    // TODO: implement enum lowering
+                Stmt::EnumDef { name, variants, .. } => {
+                    for variant in variants {
+                        let var_struct_name = Symbol::intern(&format!("{}_{}", name, variant.name));
+                        let hir_fields: Vec<HirStructField> = match &variant.fields {
+                            crate::parser::ast::stmt::EnumFields::Named(fields) => {
+                                fields.iter()
+                                    .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
+                                    .collect()
+                            }
+                            crate::parser::ast::stmt::EnumFields::Tuple(tys) => {
+                                tys.iter().enumerate()
+                                    .map(|(i, t)| HirStructField { name: Symbol::intern(&format!("_{}", i)), ty: ast_type_to_hir(t, &self.interfaces) })
+                                    .collect()
+                            }
+                            crate::parser::ast::stmt::EnumFields::None => vec![],
+                        };
+                        items.push(HirItem::StructDef(HirStructDef { name: var_struct_name, fields: hir_fields }));
+                    }
                 }
                 Stmt::Import { .. } => {} // already handled in collect_fns
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
@@ -1589,6 +1627,21 @@ impl super::Ctx {
                     return Ok(HirExpr::Call { fn_id, args: vec![hir_inner], ty: ret_ty });
                 }
                 Err(format!("type `{:?}` cannot use `?` operator at {}:{}", inner_ty, span.start_line, span.start_col))
+            }
+            Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => {
+                let var_struct_name = Symbol::intern(&format!("{}_{}", enum_name, variant_name));
+                if !named_args.is_empty() {
+                    return Err(format!("named fields in enum construct not yet supported at {}:{}", span.start_line, span.start_col));
+                }
+                let hir_args = tuple_args.iter().map(|e| self.lower_expr(e)).collect::<Result<Vec<_>, _>>()?;
+                let ty = HirType::Named(*enum_name);
+                Ok(HirExpr::EnumConstruct {
+                    enum_name: *enum_name,
+                    variant_name: *variant_name,
+                    variant_struct: var_struct_name,
+                    args: hir_args,
+                    ty,
+                })
             }
             Expr::MethodCall { object, method, args, span } => {
                 // Lower the receiver first

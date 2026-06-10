@@ -315,6 +315,15 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
             Box::new(substitute_type_in_expr(inner, subst)),
             *span,
         ),
+        Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => {
+            Expr::EnumConstruct {
+                enum_name: *enum_name,
+                variant_name: *variant_name,
+                tuple_args: tuple_args.iter().map(|e| substitute_type_in_expr(e, subst)).collect(),
+                named_args: named_args.iter().map(|(n, e)| (*n, substitute_type_in_expr(e, subst))).collect(),
+                span: *span,
+            }
+        }
     }
 }
 
@@ -683,6 +692,7 @@ pub(crate) fn expr_type(expr: &HirExpr) -> HirType {
         | HirExpr::ToWeak(_, ty)
         | HirExpr::VirtualCall { ty, .. }
         | HirExpr::MakeFatPtr { ty, .. }
+        | HirExpr::EnumConstruct { ty, .. }
         | HirExpr::FieldAccess { ty, .. }
         | HirExpr::StructLiteral { ty, .. }
         | HirExpr::ArraySized { ty, .. }

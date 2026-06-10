@@ -206,6 +206,11 @@ fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             writeln!(w, "{}TryOp", pad(level)).unwrap();
             write_expr(inner, level + 1, w);
         }
+        Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, .. } => {
+            writeln!(w, "{}EnumConstruct {}.{}", pad(level), enum_name, variant_name).unwrap();
+            for e in tuple_args { write_expr(e, level + 1, w); }
+            for (_, e) in named_args { write_expr(e, level + 1, w); }
+        }
     }
 }
 

@@ -72,6 +72,13 @@ pub enum Expr {
         span: Span,
     },
     TryOp(Box<Expr>, Span),  // expr?
+    EnumConstruct {
+        enum_name: Symbol,
+        variant_name: Symbol,
+        tuple_args: Vec<Expr>,
+        named_args: Vec<(Symbol, Expr)>,
+        span: Span,
+    },
 }
 
 impl Expr {
@@ -96,6 +103,7 @@ impl Expr {
             | Expr::Index { span, .. }
             | Expr::CallExpr { span, .. }
             | Expr::TryOp(_, span) => *span,
+            | Expr::EnumConstruct { span, .. } => *span,
             Expr::Literal(lit) => lit.span(),
             Expr::Ident(_, span) => *span,
         }

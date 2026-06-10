@@ -397,6 +397,15 @@ fn write_expr(expr: &Expr) -> String {
         Expr::TryOp(inner, _) => {
             format!("{}?", write_expr(inner))
         }
+        Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, .. } => {
+            if !tuple_args.is_empty() {
+                format!("{}::{}({})", enum_name, variant_name, tuple_args.iter().map(|e| write_expr(e)).collect::<Vec<_>>().join(", "))
+            } else if !named_args.is_empty() {
+                format!("{}::{} {{ {} }}", enum_name, variant_name, named_args.iter().map(|(n, v)| format!("{} = {}", n, write_expr(v))).collect::<Vec<_>>().join(", "))
+            } else {
+                format!("{}::{}", enum_name, variant_name)
+            }
+        }
     }
 }
 

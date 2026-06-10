@@ -90,6 +90,13 @@ fn mir_expr_from_hir(expr: &HirExpr, moved: &HashSet<VarId>) -> MirExpr {
             interface_name: *interface_name,
             ty: ty.clone(),
         },
+        HirExpr::EnumConstruct { enum_name, variant_name, variant_struct, args, ty } => MirExpr::EnumConstruct {
+            enum_name: *enum_name,
+            variant_name: *variant_name,
+            variant_struct: *variant_struct,
+            args: args.iter().map(|a| mir_expr_from_hir(a, moved)).collect(),
+            ty: ty.clone(),
+        },
         HirExpr::FieldAccess { object, field, field_index, ty } => MirExpr::FieldAccess {
             object: Box::new(mir_expr_from_hir(object, moved)),
             field: *field,

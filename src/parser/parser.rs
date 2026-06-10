@@ -1079,6 +1079,60 @@ impl Parser {
                     self.advance();
                     expr = Expr::TryOp(Box::new(expr), span);
                 }
+                // Enum construction: EnumType::Variant(args)
+                Some(TokenKind::Operator(s)) if s == "::" => {
+                    self.advance();
+                    let variant_name = Symbol::intern(&self.expect_identifier()?);
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
+                        self.advance();
+                        let mut args = Vec::new();
+                        if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                            loop {
+                                args.push(self.parse_expr()?);
+                                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
+                                self.expect_delimiter(Delimiter::Comma)?;
+                            }
+                        }
+                        self.expect_delimiter(Delimiter::RParen)?;
+                        let enum_name = match &expr {
+                            Expr::Ident(n, _) => *n,
+                            _ => return Err(self.error("expected enum type name before ::")),
+                        };
+                        expr = Expr::EnumConstruct {
+                            enum_name,
+                            variant_name,
+                            tuple_args: args,
+                            named_args: vec![],
+                            span,
+                        };
+                    } else if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
+                        self.advance();
+                        let mut fields = Vec::new();
+                        loop {
+                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) { break; }
+                            let fexpr = self.parse_expr()?;
+                            let fname = self.expect_identifier()?;
+                            fields.push((Symbol::intern(&fname), fexpr));
+                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
+                                self.advance();
+                            }
+                        }
+                        self.expect_delimiter(Delimiter::RBrace)?;
+                        let enum_name = match &expr {
+                            Expr::Ident(n, _) => *n,
+                            _ => return Err(self.error("expected enum type name before ::")),
+                        };
+                        expr = Expr::EnumConstruct {
+                            enum_name,
+                            variant_name,
+                            tuple_args: vec![],
+                            named_args: fields,
+                            span,
+                        };
+                    } else {
+                        return Err(self.error("expected '(' or '{' after enum variant name"));
+                    }
+                }
                 // Method call: expr.method(args) or field access: expr.field
                 Some(TokenKind::Delimiter(Delimiter::Dot)) => {
                     self.advance();
@@ -1137,12 +1191,9 @@ impl Parser {
                 let mut name_str = name.clone();
                 let mut name_sym = Symbol::intern(&name_str);
                 self.advance();
-                while self.peek().map(|t| &t.kind) == Some(&TokenKind::Operator("::".to_string())) {
-                    self.advance();
-                    let next = self.expect_identifier()?;
-                    name_str = format!("{}.{}", name_str, next);
-                    name_sym = Symbol::intern(&name_str);
-                }
+                // Handle :: as path separator only if followed by another :: (namespace chain)
+                // or if it's NOT followed by ( or { (which would be enum construct)
+                self.handle_path_sep(&mut name_str, &mut name_sym)?;
                 // Check for generic struct literal: Name[T] { field = val }
                 // Only trigger if we can find ]{ ident = pattern
                 let is_generic_struct = self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket))
@@ -1428,5 +1479,28 @@ impl Parser {
             }
             _ => Err(self.error("expected type")),
         }
+    }
+
+    /// Handle :: as path separator: consume :: pairs that form namespace paths.
+    /// Stops when :: is followed by ( or { (enum construct).
+    fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<(), String> {
+        loop {
+            match self.peek().map(|t| &t.kind) {
+                Some(TokenKind::Operator(s)) if s == "::" => {
+                    // Check next-next token: if ( or {, this is enum construct, not path
+                    let next_next = self.tokens.get(self.pos + 2).map(|t| &t.kind);
+                    if matches!(next_next, Some(TokenKind::Delimiter(Delimiter::LParen))
+                        | Some(TokenKind::Delimiter(Delimiter::LBrace))) {
+                        break;
+                    }
+                    self.advance();
+                    let next = self.expect_identifier()?;
+                    *name_str = format!("{}.{}", name_str, next);
+                    *name_sym = Symbol::intern(&name_str);
+                }
+                _ => break,
+            }
+        }
+        Ok(())
     }
 }

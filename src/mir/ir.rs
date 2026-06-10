@@ -42,6 +42,13 @@ pub enum MirExpr {
         interface_name: Symbol,
         ty: HirType,
     },
+    EnumConstruct {
+        enum_name: Symbol,
+        variant_name: Symbol,
+        variant_struct: Symbol,
+        args: Vec<MirExpr>,
+        ty: HirType,
+    },
     FieldAccess {
         object: Box<MirExpr>,
         field: Symbol,

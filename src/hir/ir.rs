@@ -134,6 +134,14 @@ pub enum HirExpr {
         interface_name: Symbol,
         ty: HirType,
     },
+    /// Construct an enum value
+    EnumConstruct {
+        enum_name: Symbol,
+        variant_name: Symbol,
+        variant_struct: Symbol,
+        args: Vec<HirExpr>,
+        ty: HirType,
+    },
 }
 
 #[derive(Debug, Clone)]

@@ -162,6 +162,9 @@ fn write_expr(expr: &HirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}MakeFatPtr {} -> {} ty={}", p, concrete_type, interface_name, display_type(ty))?;
             write_expr(value, level + 1, w)?;
         }
+        HirExpr::EnumConstruct { enum_name, variant_name, .. } => {
+            writeln!(w, "{}EnumConstruct {}.{}", p, enum_name, variant_name)?;
+        }
         HirExpr::FieldAccess { object, field, ty, .. } => {
             writeln!(w, "{}FieldAccess {} ty={}", p, field, display_type(ty))?;
             write_expr(object, level + 1, w)?;

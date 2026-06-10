@@ -700,6 +700,11 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             });
             LirValue::Tmp(dest)
         }
+        MirExpr::EnumConstruct { .. } => {
+            // TODO: implement full enum construction
+            // Return a zero int as placeholder (enum tag = 0)
+            LirValue::Literal(HirLiteral::Int(0), HirType::Int)
+        }
         MirExpr::FieldAccess { object, field_index, ty, .. } => {
             let obj_val = lower_expr(ctx, object);
             let obj_tmp = match obj_val {
@@ -981,6 +986,7 @@ fn expr_mir_type(expr: &MirExpr) -> HirType {
         | MirExpr::ToWeak(_, ty)
         | MirExpr::VirtualCall { ty, .. }
         | MirExpr::MakeFatPtr { ty, .. }
+        | MirExpr::EnumConstruct { ty, .. }
         | MirExpr::FieldAccess { ty, .. }
         | MirExpr::StructLiteral { ty, .. }
         | MirExpr::ArraySized { ty, .. }
@@ -1100,6 +1106,9 @@ fn collect_strings_expr(expr: &MirExpr, out: &mut Vec<String>) {
             }
         }
         MirExpr::MakeFatPtr { value, .. } => collect_strings_expr(value, out),
+        MirExpr::EnumConstruct { args, .. } => {
+            for a in args { collect_strings_expr(a, out); }
+        }
         MirExpr::FieldAccess { object, .. } => collect_strings_expr(object, out),
         MirExpr::StructLiteral { fields, .. } => {
             for (_, e) in fields {
