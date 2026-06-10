@@ -20,7 +20,7 @@ pub fn format_program(program: &Program) -> String {
 
 fn write_stmt_separator(out: &mut String, stmt: &Stmt) {
     match stmt {
-        FnDecl { .. } | StructDef { .. } | InterfaceDef { .. }
+        FnDecl { .. } | StructDef { .. } | EnumDef { .. } | InterfaceDef { .. }
         | ImplBlock { .. } | Namespace { .. } | Import { .. } => {
             out.push_str("\n");
         }
@@ -143,6 +143,31 @@ fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
                 }
                 let _ = writeln!(out, "{}}}", i);
             }
+        }
+        EnumDef { vis, name, generic_params, variants, .. } => {
+            let i = indent(level);
+            let vis_str = vis_str(vis);
+            let _ = write!(out, "{}{}enum {}", i, vis_str, name);
+            write_generic_params(out, generic_params);
+            let _ = writeln!(out, " {{");
+            for v in variants {
+                let _ = write!(out, "{}{}", indent(level + 1), v.name);
+                match &v.fields {
+                    crate::parser::ast::stmt::EnumFields::Named(fields) => {
+                        let _ = writeln!(out, " {{");
+                        for (fname_e, fty_e) in fields {
+                            let _ = writeln!(out, "{}{} {}", indent(level + 2), write_type(fty_e), fname_e);
+                        }
+                        let _ = write!(out, "{}}}", indent(level + 1));
+                    }
+                    crate::parser::ast::stmt::EnumFields::Tuple(tys) => {
+                        let _ = write!(out, "({})", tys.iter().map(write_type).collect::<Vec<_>>().join(", "));
+                    }
+                    crate::parser::ast::stmt::EnumFields::None => {}
+                }
+                let _ = writeln!(out, ",");
+            }
+            let _ = writeln!(out, "{}}}", i);
         }
         InterfaceDef { name, generic_params, methods, .. } => {
             let i = indent(level);

@@ -1,0 +1,7 @@
+// Ayanami Standard Library
+// Import this to get all standard modules:
+//   import "std/std.aya";
+
+import "io.aya";
+import "string.aya";
+import "math.aya";

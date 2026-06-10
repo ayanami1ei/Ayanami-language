@@ -1,0 +1,88 @@
+Date : 2026-06-09 11:34:54
+Directory : /home/ayanami/Ayanami-language/src
+Total : 50 files,  11235 codes, 623 comments, 795 blanks, all 12653 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| Rust     |         49 |     11,189 |        610 |        779 |     12,578 |
+| C        |          1 |         46 |         13 |         16 |         75 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                       | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                          |         50 |     11,235 |        623 |        795 |     12,653 |
+| . (Files)                                                  |          6 |      2,129 |        106 |        177 |      2,412 |
+| driver                                                     |          1 |        140 |         24 |         26 |        190 |
+| hir                                                        |          4 |      2,400 |        199 |        153 |      2,752 |
+| intern                                                     |          3 |         51 |          4 |         14 |         69 |
+| lexer                                                      |          7 |        587 |         11 |         38 |        636 |
+| lir                                                        |          6 |      2,844 |        167 |        162 |      3,173 |
+| mir                                                        |          9 |      1,139 |         32 |         88 |      1,259 |
+| mir (Files)                                                |          5 |      1,069 |         32 |         74 |      1,175 |
+| mir/mem                                                    |          4 |         70 |          0 |         14 |         84 |
+| package                                                    |          2 |        393 |         27 |         34 |        454 |
+| parser                                                     |         12 |      1,552 |         53 |        103 |      1,708 |
+| parser (Files)                                             |          2 |      1,192 |         53 |         77 |      1,322 |
+| parser/ast                                                 |         10 |        360 |          0 |         26 |        386 |
++------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                   | language | code       | comment    | blank      | total      |
++------------------------------------------------------------+----------+------------+------------+------------+------------+
+| /home/ayanami/Ayanami-language/src/compiler.rs             | Rust     |      1,273 |         78 |        109 |      1,460 |
+| /home/ayanami/Ayanami-language/src/driver/mod.rs           | Rust     |        140 |         24 |         26 |        190 |
+| /home/ayanami/Ayanami-language/src/formatter.rs            | Rust     |        389 |          2 |         16 |        407 |
+| /home/ayanami/Ayanami-language/src/hir/display.rs          | Rust     |        276 |          0 |         10 |        286 |
+| /home/ayanami/Ayanami-language/src/hir/ir.rs               | Rust     |        212 |         40 |         19 |        271 |
+| /home/ayanami/Ayanami-language/src/hir/lower.rs            | Rust     |      1,906 |        148 |        122 |      2,176 |
+| /home/ayanami/Ayanami-language/src/hir/mod.rs              | Rust     |          6 |         11 |          2 |         19 |
+| /home/ayanami/Ayanami-language/src/intern/interner.rs      | Rust     |         28 |          0 |          5 |         33 |
+| /home/ayanami/Ayanami-language/src/intern/mod.rs           | Rust     |          3 |          4 |          2 |          9 |
+| /home/ayanami/Ayanami-language/src/intern/symbol.rs        | Rust     |         20 |          0 |          7 |         27 |
+| /home/ayanami/Ayanami-language/src/lexer/delimiter.rs      | Rust     |         33 |          0 |          3 |         36 |
+| /home/ayanami/Ayanami-language/src/lexer/keyword.rs        | Rust     |         83 |          0 |          3 |         86 |
+| /home/ayanami/Ayanami-language/src/lexer/lexer.rs          | Rust     |        373 |          4 |         18 |        395 |
+| /home/ayanami/Ayanami-language/src/lexer/mod.rs            | Rust     |         11 |          7 |          2 |         20 |
+| /home/ayanami/Ayanami-language/src/lexer/test.rs           | Rust     |         14 |          0 |          2 |         16 |
+| /home/ayanami/Ayanami-language/src/lexer/token.rs          | Rust     |         43 |          0 |          6 |         49 |
+| /home/ayanami/Ayanami-language/src/lexer/token_kind.rs     | Rust     |         30 |          0 |          4 |         34 |
+| /home/ayanami/Ayanami-language/src/lib.rs                  | Rust     |         11 |          0 |          1 |         12 |
+| /home/ayanami/Ayanami-language/src/lir/display.rs          | Rust     |        116 |          0 |          5 |        121 |
+| /home/ayanami/Ayanami-language/src/lir/emit.rs             | Rust     |      1,014 |         52 |         51 |      1,117 |
+| /home/ayanami/Ayanami-language/src/lir/ir.rs               | Rust     |        199 |         50 |          9 |        258 |
+| /home/ayanami/Ayanami-language/src/lir/lower.rs            | Rust     |      1,003 |         39 |         67 |      1,109 |
+| /home/ayanami/Ayanami-language/src/lir/mod.rs              | Rust     |          9 |         11 |          2 |         22 |
+| /home/ayanami/Ayanami-language/src/lir/serialize.rs        | Rust     |        503 |         15 |         28 |        546 |
+| /home/ayanami/Ayanami-language/src/main.rs                 | Rust     |        348 |         10 |         27 |        385 |
+| /home/ayanami/Ayanami-language/src/mir/borrow.rs           | Rust     |        121 |          0 |         10 |        131 |
+| /home/ayanami/Ayanami-language/src/mir/display.rs          | Rust     |        283 |          0 |         10 |        293 |
+| /home/ayanami/Ayanami-language/src/mir/ir.rs               | Rust     |        147 |          0 |          8 |        155 |
+| /home/ayanami/Ayanami-language/src/mir/lower.rs            | Rust     |        510 |         26 |         44 |        580 |
+| /home/ayanami/Ayanami-language/src/mir/mem/mod.rs          | Rust     |         19 |          0 |          5 |         24 |
+| /home/ayanami/Ayanami-language/src/mir/mem/shared.rs       | Rust     |         17 |          0 |          3 |         20 |
+| /home/ayanami/Ayanami-language/src/mir/mem/unique.rs       | Rust     |         17 |          0 |          3 |         20 |
+| /home/ayanami/Ayanami-language/src/mir/mem/value.rs        | Rust     |         17 |          0 |          3 |         20 |
+| /home/ayanami/Ayanami-language/src/mir/mod.rs              | Rust     |          8 |          6 |          2 |         16 |
+| /home/ayanami/Ayanami-language/src/package/config.rs       | Rust     |         74 |          9 |          6 |         89 |
+| /home/ayanami/Ayanami-language/src/package/mod.rs          | Rust     |        319 |         18 |         28 |        365 |
+| /home/ayanami/Ayanami-language/src/parser/ast/binary_op.rs | Rust     |         16 |          0 |          1 |         17 |
+| /home/ayanami/Ayanami-language/src/parser/ast/block.rs     | Rust     |         12 |          0 |          3 |         15 |
+| /home/ayanami/Ayanami-language/src/parser/ast/expr.rs      | Rust     |        101 |          0 |          3 |        104 |
+| /home/ayanami/Ayanami-language/src/parser/ast/literal.rs   | Rust     |         20 |          0 |          3 |         23 |
+| /home/ayanami/Ayanami-language/src/parser/ast/mod.rs       | Rust     |         18 |          0 |          2 |         20 |
+| /home/ayanami/Ayanami-language/src/parser/ast/program.rs   | Rust     |         10 |          0 |          3 |         13 |
+| /home/ayanami/Ayanami-language/src/parser/ast/stmt.rs      | Rust     |        121 |          0 |          4 |        125 |
+| /home/ayanami/Ayanami-language/src/parser/ast/ty.rs        | Rust     |         46 |          0 |          4 |         50 |
+| /home/ayanami/Ayanami-language/src/parser/ast/unary_op.rs  | Rust     |          5 |          0 |          1 |          6 |
+| /home/ayanami/Ayanami-language/src/parser/ast/vis.rs       | Rust     |         11 |          0 |          2 |         13 |
+| /home/ayanami/Ayanami-language/src/parser/mod.rs           | Rust     |          4 |          5 |          2 |         11 |
+| /home/ayanami/Ayanami-language/src/parser/parser.rs        | Rust     |      1,188 |         48 |         75 |      1,311 |
+| /home/ayanami/Ayanami-language/src/runtime.c               | C        |         46 |         13 |         16 |         75 |
+| /home/ayanami/Ayanami-language/src/span.rs                 | Rust     |         62 |          3 |          8 |         73 |
+| Total                                                      |          |     11,235 |        623 |        795 |     12,653 |
++------------------------------------------------------------+----------+------------+------------+------------+------------+

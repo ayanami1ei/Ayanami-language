@@ -420,6 +420,7 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             methods: methods.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
             span: *span,
         },
+        Stmt::EnumDef { .. } => todo!(),
         Stmt::Import { path, span } => Stmt::Import { path: path.clone(), span: *span },
         Stmt::Break { span } => Stmt::Break { span: *span },
         Stmt::Continue { span } => Stmt::Continue { span: *span },

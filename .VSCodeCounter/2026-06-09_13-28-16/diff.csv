@@ -1,0 +1,13 @@
+"filename", "language", "Rust", "comment", "blank", "total"
+"/home/ayanami/Ayanami-language/src/compiler.rs", "Rust", -1273, -78, -109, -1460
+"/home/ayanami/Ayanami-language/src/compiler/build.rs", "Rust", 514, 8, 63, 585
+"/home/ayanami/Ayanami-language/src/compiler/check.rs", "Rust", 94, 0, 4, 98
+"/home/ayanami/Ayanami-language/src/compiler/debug.rs", "Rust", 354, 1, 11, 366
+"/home/ayanami/Ayanami-language/src/compiler/import.rs", "Rust", 84, 12, 7, 103
+"/home/ayanami/Ayanami-language/src/compiler/mod.rs", "Rust", 75, 2, 7, 84
+"/home/ayanami/Ayanami-language/src/compiler/symdef.rs", "Rust", 143, 3, 5, 151
+"/home/ayanami/Ayanami-language/src/hir/lower.rs", "Rust", -1906, -148, -122, -2176
+"/home/ayanami/Ayanami-language/src/hir/lower/body.rs", "Rust", 1321, 102, 74, 1497
+"/home/ayanami/Ayanami-language/src/hir/lower/helpers.rs", "Rust", 494, 29, 26, 549
+"/home/ayanami/Ayanami-language/src/hir/lower/mod.rs", "Rust", 126, 12, 22, 160
+"Total", "-", 26, -57, -12, -43

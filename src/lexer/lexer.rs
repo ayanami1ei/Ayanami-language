@@ -229,6 +229,7 @@ impl<'a> Lexer<'a> {
                     "unique" => TokenKind::Keyword(Keyword::Unique),
                     "weak" => TokenKind::Keyword(Keyword::Weak),
                     "struct" => TokenKind::Keyword(Keyword::Struct),
+                    "enum" => TokenKind::Keyword(Keyword::Enum),
                     "namespace" => TokenKind::Keyword(Keyword::Namespace),
                     "move" => TokenKind::Keyword(Keyword::Move),
                     "clone" => TokenKind::Keyword(Keyword::Clone),

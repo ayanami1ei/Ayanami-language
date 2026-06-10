@@ -14,6 +14,19 @@ pub struct InterfaceMethod {
 }
 
 #[derive(Debug, Clone)]
+pub enum EnumFields {
+    Named(Vec<(Symbol, Type)>),
+    Tuple(Vec<Type>),
+    None,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnumVariant {
+    pub name: Symbol,
+    pub fields: EnumFields,
+}
+
+#[derive(Debug, Clone)]
 pub enum Stmt {
     FnDecl {
         vis: Visibility,
@@ -91,6 +104,13 @@ pub enum Stmt {
         fields: Vec<(Symbol, Type)>,
         span: Span,
     },
+    EnumDef {
+        vis: Visibility,
+        name: Symbol,
+        generic_params: Vec<(Symbol, Option<Symbol>)>,
+        variants: Vec<EnumVariant>,
+        span: Span,
+    },
     InterfaceDef {
         name: Symbol,
         generic_params: Vec<(Symbol, Option<Symbol>)>,
@@ -123,6 +143,7 @@ impl Stmt {
             | Stmt::ExprStmt { span, .. }
             |             Stmt::Namespace { span, .. }
             | Stmt::StructDef { span, .. }
+            | Stmt::EnumDef { span, .. }
             | Stmt::InterfaceDef { span, .. }
             | Stmt::ImplBlock { span, .. }
             | Stmt::Import { span, .. }

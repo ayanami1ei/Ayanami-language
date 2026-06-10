@@ -350,6 +350,7 @@ fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
                 .unwrap();
             }
         }
+            Stmt::EnumDef { .. } => {}
         Stmt::ImplBlock {
             type_name, methods, ..
         } => {

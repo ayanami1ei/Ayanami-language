@@ -89,6 +89,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 col: span.start_col,
             });
         }
+            Stmt::EnumDef { .. } => {}
         Stmt::ImplBlock {
             type_name,
             span,

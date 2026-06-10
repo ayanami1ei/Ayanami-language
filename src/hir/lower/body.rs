@@ -76,6 +76,9 @@ impl super::Ctx {
                         self.generic_struct_params.insert(*name, generic_params.clone());
                     }
                 }
+                Stmt::EnumDef { .. } => {
+                    // TODO: implement enum lowering
+                }
                 Stmt::Import { path, .. } => {
                     let pkg_path = if std::path::Path::new(path).exists() {
                         path.clone()
@@ -1086,6 +1089,9 @@ impl super::Ctx {
                         .collect();
                     items.push(HirItem::StructDef(HirStructDef { name: *name, fields: hir_fields }));
                 }
+                Stmt::EnumDef { .. } => {
+                    // TODO: implement enum lowering
+                }
                 Stmt::Import { .. } => {} // already handled in collect_fns
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
                     // Flatten impl block: lower each method as a regular Fn
@@ -1300,7 +1306,7 @@ impl super::Ctx {
                 let hir_expr = self.lower_expr(expr)?;
                 Ok(HirStmt::Expr(hir_expr))
             }
-            Stmt::Namespace { .. } | Stmt::FnDecl { .. } | Stmt::StructDef { .. } | Stmt::InterfaceDef { .. } | Stmt::ImplBlock { .. } | Stmt::Import { .. } => {
+            Stmt::Namespace { .. } | Stmt::FnDecl { .. } | Stmt::StructDef { .. } | Stmt::EnumDef { .. } | Stmt::InterfaceDef { .. } | Stmt::ImplBlock { .. } | Stmt::Import { .. } => {
                 let s = stmt.span();
                 Err(format!("unexpected declaration inside function body (at {}:{})", s.start_line, s.start_col))
             }

@@ -203,6 +203,7 @@ impl Parser {
             TokenKind::Keyword(Keyword::Continue) => Ok(Stmt::Continue { span: tok.span() }),
             TokenKind::Keyword(Keyword::Namespace) => self.parse_namespace(vis),
             TokenKind::Keyword(Keyword::Struct) => self.parse_struct_def(vis),
+            TokenKind::Keyword(Keyword::Enum) => self.parse_enum_def(vis),
             TokenKind::Keyword(Keyword::Interface) => self.parse_interface_def(),
             TokenKind::Keyword(Keyword::Impl) => self.parse_impl_block(),
             TokenKind::Keyword(Keyword::Import) => self.parse_import(),
@@ -451,6 +452,74 @@ impl Parser {
         Ok(Stmt::StructDef { vis, name, generic_params, fields, span: start_span })
     }
 
+    // ==================== Enum definition ====================
+
+    fn parse_enum_def(&mut self, vis: Visibility) -> Result<Stmt, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
+        self.advance(); // enum
+        let name = Symbol::intern(&self.expect_identifier()?);
+
+        let mut generic_params = Vec::new();
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
+            self.advance();
+            loop {
+                let gp_name = Symbol::intern(&self.expect_identifier()?);
+                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
+                    self.advance();
+                    Some(Symbol::intern(&self.expect_identifier()?))
+                } else { None };
+                generic_params.push((gp_name, gp_constraint));
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) { break; }
+                self.expect_delimiter(Delimiter::Comma)?;
+            }
+            self.expect_delimiter(Delimiter::RBracket)?;
+        }
+
+        self.expect_delimiter(Delimiter::LBrace)?;
+
+        let mut variants = Vec::new();
+        while self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
+            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
+                self.advance();
+                continue;
+            }
+            let var_name = Symbol::intern(&self.expect_identifier()?);
+            let fields = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
+                self.advance();
+                let mut tys = Vec::new();
+                loop {
+                    tys.push(self.parse_type()?);
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
+                    self.expect_delimiter(Delimiter::Comma)?;
+                }
+                self.expect_delimiter(Delimiter::RParen)?;
+                crate::parser::ast::stmt::EnumFields::Tuple(tys)
+            } else if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
+                self.advance();
+                let mut named = Vec::new();
+                loop {
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) { break; }
+                    let fty = self.parse_type()?;
+                    let fname = self.expect_identifier()?;
+                    named.push((Symbol::intern(&fname), fty));
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
+                        self.advance();
+                    }
+                }
+                self.expect_delimiter(Delimiter::RBrace)?;
+                crate::parser::ast::stmt::EnumFields::Named(named)
+            } else {
+                crate::parser::ast::stmt::EnumFields::None
+            };
+            variants.push(crate::parser::ast::stmt::EnumVariant { name: var_name, fields });
+            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
+                self.advance();
+            }
+        }
+        self.expect_delimiter(Delimiter::RBrace)?;
+        Ok(Stmt::EnumDef { vis, name, generic_params, variants, span: start_span })
+    }
+
     // ==================== Interface definition ====================
 
     fn parse_interface_def(&mut self) -> Result<Stmt, String> {
@@ -676,50 +745,65 @@ impl Parser {
 
         self.expect_delimiter(Delimiter::LParen)?;
 
-        // Parse self parameter: shared self or unique self
-        let self_keyword = match self.peek().map(|t| &t.kind) {
-            Some(TokenKind::Keyword(Keyword::Shared)) => {
-                self.advance();
-                Symbol::intern("shared")
+        // Parse optional self parameter: shared self or unique self
+        let mut params: Vec<(Symbol, Type)> = Vec::new();
+        let is_self_start = matches!(self.peek().map(|t| &t.kind), 
+            Some(TokenKind::Keyword(Keyword::Shared)) | Some(TokenKind::Keyword(Keyword::Unique)));
+        if is_self_start {
+            let self_keyword = match self.peek().map(|t| &t.kind) {
+                Some(TokenKind::Keyword(Keyword::Shared)) => {
+                    self.advance();
+                    Symbol::intern("shared")
+                }
+                Some(TokenKind::Keyword(Keyword::Unique)) => {
+                    self.advance();
+                    Symbol::intern("unique")
+                }
+                _ => unreachable!(),
+            };
+            let self_name = self.expect_identifier()?;
+            if self_name != "self" {
+                return Err(self.error("expected 'self' as first parameter name in method"));
             }
-            Some(TokenKind::Keyword(Keyword::Unique)) => {
+            let base_self_type = if impl_generic_params.is_empty() {
+                Type::Named(*impl_type, Span::default())
+            } else {
+                let gp_names: Vec<Type> = impl_generic_params.iter()
+                    .map(|(n, _)| Type::Named(*n, Span::default()))
+                    .collect();
+                Type::Generic(*impl_type, gp_names, Span::default())
+            };
+            let self_type = if self_keyword.as_str() == "shared" {
+                Type::Shared(Box::new(base_self_type), Span::default())
+            } else {
+                Type::Unique(Box::new(base_self_type), Span::default())
+            };
+            params.push((Symbol::intern("self"), self_type));
+            // Parse remaining params
+            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
                 self.advance();
-                Symbol::intern("unique")
+                loop {
+                    let ptype = self.parse_type()?;
+                    let pname = self.expect_identifier()?;
+                    params.push((Symbol::intern(&pname), ptype));
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                        break;
+                    }
+                    self.expect_delimiter(Delimiter::Comma)?;
+                }
             }
-            _ => return Err(self.error("expected 'shared' or 'unique' for self parameter in method")),
-        };
-        let self_name = self.expect_identifier()?;
-        if self_name != "self" {
-            return Err(self.error("expected 'self' as first parameter name in method"));
-        }
-
-        let base_self_type = if impl_generic_params.is_empty() {
-            Type::Named(*impl_type, Span::default())
         } else {
-            let gp_names: Vec<Type> = impl_generic_params.iter()
-                .map(|(n, _)| Type::Named(*n, Span::default()))
-                .collect();
-            Type::Generic(*impl_type, gp_names, Span::default())
-        };
-        let self_type = if self_keyword.as_str() == "shared" {
-            Type::Shared(Box::new(base_self_type), Span::default())
-        } else {
-            Type::Unique(Box::new(base_self_type), Span::default())
-        };
-
-        let mut params = vec![(Symbol::intern("self"), self_type)];
-
-        // Parse remaining params
-        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
-            self.advance();
+            // No self parameter — parse regular params
             loop {
-                let ptype = self.parse_type()?;
-                let pname = self.expect_identifier()?;
-                params.push((Symbol::intern(&pname), ptype));
                 if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
                     break;
                 }
-                self.expect_delimiter(Delimiter::Comma)?;
+                let ptype = self.parse_type()?;
+                let pname = self.expect_identifier()?;
+                params.push((Symbol::intern(&pname), ptype));
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
+                    self.advance();
+                }
             }
         }
 
