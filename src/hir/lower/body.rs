@@ -92,16 +92,23 @@ impl super::Ctx {
                             }
                             crate::parser::ast::stmt::EnumFields::None => vec![],
                         };
-                        self.struct_defs.insert(var_struct_name, hir_fields);
-                        if !generic_params.is_empty() {
-                            self.generic_struct_params.insert(var_struct_name, generic_params.clone());
-                        }
-                    }
+                    self.struct_defs.insert(var_struct_name, hir_fields);
                     if !generic_params.is_empty() {
-                        self.generic_struct_params.insert(*name, generic_params.clone());
+                        self.generic_struct_params.insert(var_struct_name, generic_params.clone());
                     }
                 }
-                Stmt::Import { path, .. } => {
+                // Register enum struct: { tag: int, data_variant1, data_variant2, ... }
+                let mut enum_fields = vec![HirStructField { name: Symbol::intern("_tag"), ty: HirType::Int }];
+                for variant in variants {
+                    let vsn = Symbol::intern(&format!("{}_{}", name, variant.name));
+                    enum_fields.push(HirStructField { name: Symbol::intern(&format!("_data_{}", variant.name)), ty: HirType::Named(vsn) });
+                }
+                self.struct_defs.insert(*name, enum_fields);
+                if !generic_params.is_empty() {
+                    self.generic_struct_params.insert(*name, generic_params.clone());
+                }
+            }
+            Stmt::Import { path, .. } => {
                     let pkg_path = if std::path::Path::new(path).exists() {
                         path.clone()
                     } else {
@@ -1129,6 +1136,13 @@ impl super::Ctx {
                         };
                         items.push(HirItem::StructDef(HirStructDef { name: var_struct_name, fields: hir_fields }));
                     }
+                    // Emit enum struct
+                    let mut enum_fields = vec![HirStructField { name: Symbol::intern("_tag"), ty: HirType::Int }];
+                    for variant in variants {
+                        let vsn = Symbol::intern(&format!("{}_{}", name, variant.name));
+                        enum_fields.push(HirStructField { name: Symbol::intern(&format!("_data_{}", variant.name)), ty: HirType::Named(vsn) });
+                    }
+                    items.push(HirItem::StructDef(HirStructDef { name: *name, fields: enum_fields }));
                 }
                 Stmt::Import { .. } => {} // already handled in collect_fns
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
@@ -1633,19 +1647,27 @@ impl super::Ctx {
             }
             Expr::Match { .. } => todo!(),
             Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => {
-                let var_struct_name = Symbol::intern(&format!("{}_{}", enum_name, variant_name));
                 if !named_args.is_empty() {
                     return Err(format!("named fields in enum construct not yet supported at {}:{}", span.start_line, span.start_col));
                 }
-                let hir_args = tuple_args.iter().map(|e| self.lower_expr(e)).collect::<Result<Vec<_>, _>>()?;
+                let hir_args: Vec<HirExpr> = tuple_args.iter().map(|e| self.lower_expr(e)).collect::<Result<Vec<_>, _>>()?;
+                let data_field = Symbol::intern(&format!("_data_{}", variant_name));
+                let var_struct_name = Symbol::intern(&format!("{}_{}", enum_name, variant_name));
+                let data_ty = HirType::Named(var_struct_name);
+                let var_fields: Vec<(Symbol, HirExpr)> = hir_args.into_iter().enumerate()
+                    .map(|(i, e)| (Symbol::intern(&format!("_{}", i)), e))
+                    .collect();
+                let var_literal = HirExpr::StructLiteral {
+                    type_name: var_struct_name,
+                    fields: var_fields,
+                    ty: data_ty,
+                };
+                let fields = vec![
+                    (Symbol::intern("_tag"), HirExpr::Literal(HirLiteral::Int(0), HirType::Int)),
+                    (data_field, var_literal),
+                ];
                 let ty = HirType::Named(*enum_name);
-                Ok(HirExpr::EnumConstruct {
-                    enum_name: *enum_name,
-                    variant_name: *variant_name,
-                    variant_struct: var_struct_name,
-                    args: hir_args,
-                    ty,
-                })
+                Ok(HirExpr::StructLiteral { type_name: *enum_name, fields, ty })
             }
             Expr::MethodCall { object, method, args, span } => {
                 // Lower the receiver first

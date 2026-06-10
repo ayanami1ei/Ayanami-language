@@ -1146,7 +1146,8 @@ fn sanitize_name(name: &str) -> String {
 
 fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {
     match (lit, expected_ty) {
-        (HirLiteral::Int(0), ty) if is_pointer_type(ty) => "null".into(),
+        (HirLiteral::Int(0), ty) if is_pointer_type(ty) && !matches!(ty, HirType::Named(_)) => "null".into(),
+        (HirLiteral::Int(0), HirType::Named(_)) => "zeroinitializer".into(),
         (HirLiteral::Int(n), _) => format!("{}", n),
         (HirLiteral::Float(n), _) => {
             let s = format!("{}", n);
