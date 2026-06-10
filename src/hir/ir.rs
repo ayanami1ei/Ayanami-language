@@ -38,6 +38,7 @@ pub enum HirType {
     Array(Box<HirType>),
     /// Reference: Ref(inner, mutable)
     Ref(Box<HirType>, bool),
+    FnPtr(Vec<HirType>, Box<HirType>),
 }
 
 #[derive(Debug, Clone)]
@@ -149,6 +150,8 @@ pub enum HirExpr {
         arms: Vec<(i64, HirExpr)>,
         ty: HirType,
     },
+    /// Function pointer value: link_name and type
+    FnPtr(Symbol, HirType),
 }
 
 #[derive(Debug, Clone)]

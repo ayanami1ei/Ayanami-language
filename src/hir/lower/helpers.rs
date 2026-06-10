@@ -148,6 +148,7 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
         HirType::Unique(inner) => Type::Unique(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::Shared(inner) => Type::Shared(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::Weak(inner) => Type::Weak(Box::new(hir_type_to_ast_type(inner)), s),
+        HirType::FnPtr(..) => Type::Int(s),
         HirType::Array(inner) => Type::Array(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::FatPtr { name, kind } => {
             let inner = Type::Named(*name, s);
@@ -233,6 +234,7 @@ pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) 
         Type::Void(_) => Type::Void(s),
         Type::Generic(name, args, _) => Type::Generic(*name, args.iter().map(|a| substitute_type_in_type(a, subst)).collect(), s),
         Type::Default => ty.clone(),
+        Type::FnPtr(params, ret, _) => Type::FnPtr(params.iter().map(|p| substitute_type_in_type(p, subst)).collect(), Box::new(substitute_type_in_type(ret, subst)), Span::default()),
         Type::Self_(_) => ty.clone(),
     }
 }
@@ -464,6 +466,7 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
         Type::Unique(inner, _) => format!("unique {}", type_to_string_generic(inner, interfaces)),
         Type::Shared(inner, _) => format!("shared {}", type_to_string_generic(inner, interfaces)),
         Type::Weak(inner, _) => format!("weak {}", type_to_string_generic(inner, interfaces)),
+        Type::FnPtr(..) => "fn(...)".to_string(),
         Type::Self_(_) => "Self".into(),
     }
 }
@@ -591,6 +594,10 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         }
         Type::Weak(inner, _) => HirType::Weak(Box::new(ast_type_to_hir(inner, interfaces))),
         Type::Ref(inner, mutable, _) => HirType::Ref(Box::new(ast_type_to_hir(inner, interfaces)), *mutable),
+        Type::FnPtr(params, ret, _) => HirType::FnPtr(
+            params.iter().map(|p| ast_type_to_hir(p, interfaces)).collect(),
+            Box::new(ast_type_to_hir(ret, interfaces)),
+        ),
         Type::Self_(_) => {
             // Self_ should not appear outside impl blocks since the parser
             // already fills in the concrete type
@@ -618,6 +625,7 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
         HirType::Named(s) => s.as_str().to_string(),
         HirType::Unique(inner) => format!("unique {}", hir_type_display(inner)),
         HirType::Shared(inner) => format!("shared {}", hir_type_display(inner)),
+        HirType::FnPtr(..) => "fn(...)".into(),
         HirType::Weak(inner) => format!("weak {}", hir_type_display(inner)),
         HirType::FatPtr { name, kind } => format!("{} {}", hir_type_display(kind), name.as_str()),
         HirType::Array(inner) => format!("[{}]", hir_type_display(inner)),
@@ -695,7 +703,8 @@ pub(crate) fn expr_type(expr: &HirExpr) -> HirType {
         | HirExpr::VirtualCall { ty, .. }
         | HirExpr::MakeFatPtr { ty, .. }
         | HirExpr::EnumConstruct { ty, .. }
-        | HirExpr::EnumMatch { ty, .. }
+        | HirExpr::FnPtr(_, ty) |
+        HirExpr::EnumMatch { ty, .. }
         | HirExpr::FieldAccess { ty, .. }
         | HirExpr::StructLiteral { ty, .. }
         | HirExpr::ArraySized { ty, .. }

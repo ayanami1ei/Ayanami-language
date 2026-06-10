@@ -294,7 +294,7 @@ fn write_return_type(out: &mut String, ty: &Type) {
 
 fn write_type(ty: &Type) -> String {
     match ty {
-        Type::Default => "???".into(),
+        Type::Default | Type::FnPtr(..) => "???".into(),
         Type::Int(_) => "int".into(),
         Type::Float(_) => "float".into(),
         Type::Char(_) => "char".into(),

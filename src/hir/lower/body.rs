@@ -1486,9 +1486,24 @@ impl super::Ctx {
         match expr {
             Expr::Literal(lit) => self.lower_literal(lit),
             Expr::Ident(name, span) => {
-                let (var_id, ty, _) = self.lookup_var(name)
-                    .ok_or_else(|| format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col))?;
-                Ok(HirExpr::Local(var_id, ty))
+                // Check if it's a variable first
+                if let Some((var_id, ty, _)) = self.lookup_var(name) {
+                    return Ok(HirExpr::Local(var_id, ty));
+                }
+                // Check if it's a function name — create function pointer value
+                if let Some(candidates) = self.fn_map.get(name) {
+                    if let Some(&first) = candidates.first() {
+                        let sig = &self.fns[first.0];
+                        if sig.params.is_empty() {
+                            return Err(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col));
+                        }
+                        let params: Vec<HirType> = sig.params.iter().map(|(_, t)| t.clone()).collect();
+                        let ret = sig.return_type.clone();
+                        let fnptr_ty = HirType::FnPtr(params, Box::new(ret));
+                        return Ok(HirExpr::FnPtr(*name, fnptr_ty));
+                    }
+                }
+                Err(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col))
             }
             Expr::Binary { op, lhs, rhs, span } => {
                 let hir_lhs = self.lower_expr(lhs)?;
@@ -1580,7 +1595,23 @@ impl super::Ctx {
                     Some(fid) => fid,
                     None => {
                         // Step 3b: try generic specialization
-                        self.specialize_generic_call(name, &arg_types, span)?
+                        match self.specialize_generic_call(name, &arg_types, span) {
+                            Ok(fid) => fid,
+                            Err(e) => {
+                                // Step 3c: check if name is a variable with FnPtr type
+                                if let Some((_, ty, _)) = self.lookup_var(name) {
+                                    if let HirType::FnPtr(param_tys, _) = &ty {
+                                        let actual_ty = ty.clone();
+                                        // Create a function pointer call
+                                        let fnptr_expr = HirExpr::Local(*self.lookup_var(name).unwrap().0, ty.clone());
+                                        // Need to create a Call via function pointer
+                                        // For now, return an error (TODO: implement FnPtr call)
+                                        return Err(format!("calling function pointers not yet supported at {}:{}", span.start_line, span.start_col));
+                                    }
+                                }
+                                return Err(e);
+                            }
+                        }
                     }
                 };
 

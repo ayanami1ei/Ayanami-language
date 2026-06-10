@@ -166,6 +166,7 @@ fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
             put_type(buf, kind);
         }
         HirType::Array(inner) => { buf.push(10); put_type(buf, inner); }
+        HirType::FnPtr(..) => buf.push(13),
         HirType::Ref(inner, mutable) => { buf.push(11); put_type(buf, inner); buf.push(if *mutable { 1 } else { 0 }); }
     }
 }

@@ -88,6 +88,7 @@ impl<'a> Emitter<'a> {
             }
             HirType::FatPtr { .. } => "{ ptr, ptr }".into(),
             HirType::Array(_) => "ptr".into(),
+            HirType::FnPtr(..) => "ptr".into(),
             HirType::Ref(_, _) => "ptr".into(),
         }
     }
@@ -1183,6 +1184,8 @@ fn llvm_type_size(ty: &HirType) -> &'static str {
         HirType::Named(_) | HirType::FatPtr { .. } => "16",
         HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => llvm_type_size(inner),
         HirType::Array(_) => "16",
+        HirType::FnPtr(..) => "8",
+        HirType::FnPtr(..) => "8",
         HirType::Ref(_, _) => "16",
     }
 }
@@ -1204,6 +1207,7 @@ fn is_pointer_type(ty: &HirType) -> bool {
     matches!(ty,
         HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_)
         | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_)
+        | HirType::Ref(_, _) | HirType::FnPtr(..)
     )
 }
 

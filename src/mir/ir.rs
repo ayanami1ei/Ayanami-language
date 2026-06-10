@@ -49,6 +49,7 @@ pub enum MirExpr {
         args: Vec<MirExpr>,
         ty: HirType,
     },
+    FnPtr(HirType),
     EnumMatch {
         value: Box<MirExpr>,
         arms: Vec<(i64, MirExpr)>,

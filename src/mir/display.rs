@@ -30,6 +30,11 @@ fn display_type(ty: &HirType) -> String {
         HirType::Named(s) => format!("Named({})", s),
         HirType::Unique(inner) => format!("unique {}", display_type(inner)),
         HirType::Shared(inner) => format!("shared {}", display_type(inner)),
+        HirType::FnPtr(..) => "fn(...)".to_string(),
+        HirType::FnPtr(..) => "fn(...)".into(),
+        HirType::FnPtr(..) => "fn(...)".to_string(),
+        HirType::FnPtr(..) => "fn(...)".to_string(),
+        HirType::FnPtr(..) => "fnptr".to_string(),
         HirType::Weak(inner) => format!("weak {}", display_type(inner)),
         HirType::FatPtr { name, kind } => format!("fatptr({}, {})", name, display_type(kind)),
         HirType::Array(inner) => format!("[{}]", display_type(inner)),
@@ -155,6 +160,7 @@ fn write_expr(expr: &MirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}MakeFatPtr {} -> {} ty={}", p, concrete_type, interface_name, display_type(ty))?;
             write_expr(value, level + 1, w)?;
         }
+        MirExpr::FnPtr(..) => { writeln!(w, "{}FnPtr", p).unwrap(); },
         MirExpr::EnumConstruct { enum_name, variant_name, .. } => {
             writeln!(w, "{}EnumConstruct {}.{}", p, enum_name, variant_name)?;
         }

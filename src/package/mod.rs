@@ -353,7 +353,7 @@ fn parse_ini_value(s: &str) -> String {
 
 fn type_to_string(ty: &Type) -> String {
     match ty {
-        Type::Default => "???".into(),
+        Type::Default | Type::FnPtr(..) => "???".into(),
         Type::Int(_) => "int".into(),
         Type::Float(_) => "float".into(),
         Type::Char(_) => "char".into(),

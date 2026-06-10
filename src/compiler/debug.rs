@@ -8,7 +8,7 @@ fn pad(n: usize) -> String {
 
 fn format_type(ty: &Type) -> String {
     match ty {
-        Type::Default => "???".into(),
+        Type::Default | Type::FnPtr(..) => "???".into(),
         Type::Int(_) => "Int".into(),
         Type::Float(_) => "Float".into(),
         Type::Char(_) => "Char".into(),

@@ -1493,6 +1493,26 @@ impl Parser {
                 self.advance();
                 Ok(Type::Self_(span))
             }
+            TokenKind::Keyword(Keyword::Fn) => {
+                self.advance();
+                self.expect_delimiter(Delimiter::LParen)?;
+                let mut params = Vec::new();
+                if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                    loop {
+                        params.push(self.parse_type()?);
+                        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
+                        self.expect_delimiter(Delimiter::Comma)?;
+                    }
+                }
+                self.expect_delimiter(Delimiter::RParen)?;
+                let ret = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Arrow)) {
+                    self.advance();
+                    self.parse_type()?
+                } else {
+                    Type::Void(span)
+                };
+                Ok(Type::FnPtr(params, Box::new(ret), span))
+            }
             TokenKind::Identifier(s) => {
                 let name = Symbol::intern(&s);
                 self.advance();

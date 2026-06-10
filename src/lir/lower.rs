@@ -123,7 +123,12 @@ fn type_to_mangle(ty: &HirType) -> String {
             .replace(',', "_c_").replace(' ', "_").replace('[', "_lb_").replace(']', "_rb_"),
         HirType::Unique(inner) => format!("unique_{}", type_to_mangle(inner)),
         HirType::Shared(inner) => format!("shared_{}", type_to_mangle(inner)),
+        HirType::FnPtr(..) => "fn(...)".into(),
+        HirType::FnPtr(..) => "fn(...)".to_string(),
+        HirType::FnPtr(..) => "fn(...)".to_string(),
+        HirType::FnPtr(..) => "fnptr".to_string(),
         HirType::Weak(inner) => format!("weak_{}", type_to_mangle(inner)),
+        HirType::FnPtr(..) => "fnptr".into(),
         HirType::FatPtr { name, .. } => format!("fatptr_{}", name.as_str().replace('<', "_lt_").replace('>', "_gt_")),
         HirType::Array(inner) => format!("arr_{}", type_to_mangle(inner)),
         HirType::Ref(inner, _) => format!("ref_{}", type_to_mangle(inner)),
@@ -700,6 +705,7 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             });
             LirValue::Tmp(dest)
         }
+        MirExpr::FnPtr(..) => { LirValue::Literal(HirLiteral::Int(0), HirType::Int) },
         MirExpr::EnumConstruct { .. } => {
             // TODO: implement full enum construction
             LirValue::Literal(HirLiteral::Int(0), HirType::Int)
@@ -1043,7 +1049,8 @@ fn expr_mir_type(expr: &MirExpr) -> HirType {
         | MirExpr::ToWeak(_, ty)
         | MirExpr::VirtualCall { ty, .. }
         | MirExpr::MakeFatPtr { ty, .. }
-        | MirExpr::EnumConstruct { ty, .. }
+        | MirExpr::FnPtr(ty) |
+        MirExpr::EnumConstruct { ty, .. }
         | MirExpr::EnumMatch { ty, .. }
         | MirExpr::FieldAccess { ty, .. }
         | MirExpr::StructLiteral { ty, .. }
@@ -1069,6 +1076,7 @@ fn type_size(ty: &HirType) -> u64 {
         HirType::Void => 0,
         HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) => 16,
         HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => type_size(inner),
+        HirType::Ref(_, _) | HirType::FnPtr(..) => 8,
         HirType::Ref(_, _) => 8,
     }
 }
@@ -1207,7 +1215,7 @@ fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
         HirType::Float => Some((LirValue::Literal(HirLiteral::Float(0.0), HirType::Float), HirType::Float)),
         HirType::Char => Some((LirValue::Literal(HirLiteral::Char('\0'), HirType::Char), HirType::Char)),
         HirType::Bool => Some((LirValue::Literal(HirLiteral::Bool(false), HirType::Bool), HirType::Bool)),
-        HirType::Named(_) | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::Ref(_, _) => {
+        HirType::Named(_) | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
             Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), ty.clone()))
         }
     }

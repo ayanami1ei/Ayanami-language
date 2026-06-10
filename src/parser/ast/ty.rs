@@ -18,6 +18,7 @@ pub enum Type {
     Shared(Box<Type>, Span),
     Weak(Box<Type>, Span),
     Self_(Span),
+    FnPtr(Vec<Type>, Box<Type>, Span),
 }
 
 impl Type {
@@ -34,6 +35,7 @@ impl Type {
             | Type::Unique(_, s)
             | Type::Shared(_, s)
             | Type::Weak(_, s) => *s,
+            | Type::FnPtr(_, _, s) => *s,
             Type::Named(_, s) => *s,
             Type::Self_(s) => *s,
             Type::Default => todo!(),
