@@ -623,6 +623,26 @@ impl<'a> Emitter<'a> {
                     _ => {}
                 }
             }
+            LirInst::FnAddr { dest, fn_id } => {
+                let fn_name = &self.prog.fn_names[fn_id];
+                self.wln_fmt(format_args!("%t{} = getelementptr i8, ptr @{}, i32 0", dest, fn_name));
+            }
+            LirInst::CallPtr {
+                dest,
+                fn_ptr,
+                args,
+                ret_ty,
+            } => {
+                let fn_src = self.value_ref(fn_ptr, &HirType::Int);
+                let ret_llvm = self.llvm_type(ret_ty);
+                let call_args: Vec<String> = args.iter().map(|(v, t)| format!("{} {}", self.llvm_type(t), self.value_ref(v, t))).collect();
+                let is_void = matches!(ret_ty, HirType::Void);
+                if is_void {
+                    self.wln_fmt(format_args!("call void {} ({})", fn_src, call_args.join(", ")));
+                } else {
+                    self.wln_fmt(format_args!("%t{} = call {} {} ({})", dest, ret_llvm, fn_src, call_args.join(", ")));
+                }
+            }
             LirInst::Call {
                 dest,
                 fn_id,

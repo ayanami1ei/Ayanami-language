@@ -705,7 +705,34 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             });
             LirValue::Tmp(dest)
         }
-        MirExpr::FnPtr(..) => { LirValue::Literal(HirLiteral::Int(0), HirType::Int) },
+        MirExpr::CallPtr { fn_ptr, args, ty } => {
+            let fn_val = lower_expr(ctx, fn_ptr);
+            let lowered_args: Vec<(LirValue, HirType)> = args.iter()
+                .map(|a| { let val = lower_expr(ctx, a); (val, expr_mir_type(a)) })
+                .collect();
+            let dest = ctx.next_tmp();
+            let fn_ptr = match &fn_val {
+                LirValue::Tmp(t) => LirValue::Tmp(*t),
+                LirValue::Var(v) => {
+                    let t = ctx.next_tmp();
+                    ctx.emit(LirInst::Load { dest: t, src: *v, ty: expr_mir_type(fn_ptr) });
+                    LirValue::Tmp(t)
+                }
+                _ => LirValue::Tmp(ctx.next_tmp()),
+            };
+            ctx.emit(LirInst::CallPtr {
+                dest,
+                fn_ptr: fn_ptr,
+                args: lowered_args,
+                ret_ty: ty.clone(),
+            });
+            LirValue::Tmp(dest)
+        }
+        MirExpr::FnPtr(fid, _) => {
+            let t = ctx.next_tmp();
+            ctx.emit(LirInst::FnAddr { dest: t, fn_id: *fid });
+            LirValue::Tmp(t)
+        }
         MirExpr::EnumConstruct { .. } => {
             // TODO: implement full enum construction
             LirValue::Literal(HirLiteral::Int(0), HirType::Int)
@@ -1049,7 +1076,8 @@ fn expr_mir_type(expr: &MirExpr) -> HirType {
         | MirExpr::ToWeak(_, ty)
         | MirExpr::VirtualCall { ty, .. }
         | MirExpr::MakeFatPtr { ty, .. }
-        | MirExpr::FnPtr(ty) |
+        |         MirExpr::FnPtr(_, ty) |
+        MirExpr::CallPtr { ty, .. } |
         MirExpr::EnumConstruct { ty, .. }
         | MirExpr::EnumMatch { ty, .. }
         | MirExpr::FieldAccess { ty, .. }

@@ -90,7 +90,12 @@ fn mir_expr_from_hir(expr: &HirExpr, moved: &HashSet<VarId>) -> MirExpr {
             interface_name: *interface_name,
             ty: ty.clone(),
         },
-        HirExpr::FnPtr(_, ty) => MirExpr::FnPtr(ty.clone()),
+        HirExpr::FnPtr(fid, ty) => MirExpr::FnPtr(*fid, ty.clone()),
+        HirExpr::CallPtr { fn_ptr, args, ty } => MirExpr::CallPtr {
+            fn_ptr: Box::new(mir_expr_from_hir(fn_ptr, moved)),
+            args: args.iter().map(|a| mir_expr_from_hir(a, moved)).collect(),
+            ty: ty.clone(),
+        },
         HirExpr::EnumConstruct { enum_name, variant_name, variant_struct, args, ty } => MirExpr::EnumConstruct {
             enum_name: *enum_name,
             variant_name: *variant_name,

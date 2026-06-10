@@ -48,6 +48,12 @@ fn write_inst(inst: &LirInst, w: &mut impl Write) -> std::fmt::Result {
         LirInst::UnaryOp { dest, op, src, ty } => {
             writeln!(w, "    t{} = {:?} {:?} : {:?}", dest, op, src, ty)?;
         }
+        // FnAddr placeholder
+        LirInst::FnAddr { dest, fn_id } => { writeln!(w, "    t{} = fnaddr fn{}", dest, fn_id.0).unwrap(); },
+        LirInst::CallPtr { dest, fn_ptr, args, ret_ty } => {
+            let args_str: Vec<String> = args.iter().map(|(v, t)| format!("{:?}:{:?}", v, t)).collect();
+            writeln!(w, "    t{} = callptr {:?} ({}) : {:?}", dest, fn_ptr, args_str.join(", "), ret_ty)?;
+        }
         LirInst::Call { dest, fn_id, args, ret_ty } => {
             let dest_str = dest.map(|d| format!("t{}", d)).unwrap_or("_".into());
             let args_str: Vec<String> = args.iter().map(|(v, t)| format!("{:?}:{:?}", v, t)).collect();

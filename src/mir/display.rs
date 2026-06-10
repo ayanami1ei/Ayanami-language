@@ -160,6 +160,8 @@ fn write_expr(expr: &MirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}MakeFatPtr {} -> {} ty={}", p, concrete_type, interface_name, display_type(ty))?;
             write_expr(value, level + 1, w)?;
         }
+        MirExpr::CallPtr { .. } => { writeln!(w, "{}CallPtr", p).unwrap(); },
+        MirExpr::CallPtr { .. } => { writeln!(w, "{}CallPtr", p).unwrap(); }
         MirExpr::FnPtr(..) => { writeln!(w, "{}FnPtr", p).unwrap(); },
         MirExpr::EnumConstruct { enum_name, variant_name, .. } => {
             writeln!(w, "{}EnumConstruct {}.{}", p, enum_name, variant_name)?;

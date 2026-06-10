@@ -1500,7 +1500,7 @@ impl super::Ctx {
                         let params: Vec<HirType> = sig.params.iter().map(|(_, t)| t.clone()).collect();
                         let ret = sig.return_type.clone();
                         let fnptr_ty = HirType::FnPtr(params, Box::new(ret));
-                        return Ok(HirExpr::FnPtr(*name, fnptr_ty));
+                        return Ok(HirExpr::FnPtr(first, fnptr_ty));
                     }
                 }
                 Err(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col))
@@ -1597,19 +1597,19 @@ impl super::Ctx {
                         // Step 3b: try generic specialization
                         match self.specialize_generic_call(name, &arg_types, span) {
                             Ok(fid) => fid,
-                            Err(e) => {
-                                // Step 3c: check if name is a variable with FnPtr type
-                                if let Some((_, ty, _)) = self.lookup_var(name) {
-                                    if let HirType::FnPtr(param_tys, _) = &ty {
-                                        let actual_ty = ty.clone();
-                                        // Create a function pointer call
-                                        let fnptr_expr = HirExpr::Local(*self.lookup_var(name).unwrap().0, ty.clone());
-                                        // Need to create a Call via function pointer
-                                        // For now, return an error (TODO: implement FnPtr call)
-                                        return Err(format!("calling function pointers not yet supported at {}:{}", span.start_line, span.start_col));
+                            Err(_) => {
+                                // Step 3c: check if name is a variable with FnPtr type (function pointer call)
+                                if let Some((var_id, ty, _)) = self.lookup_var(name) {
+                                    if let HirType::FnPtr(_, _) = &ty {
+                                        let fn_ptr = Box::new(HirExpr::Local(var_id, ty.clone()));
+                                        let ret_ty = match &ty {
+                                            HirType::FnPtr(_, ret) => *ret.clone(),
+                                            _ => unreachable!(),
+                                        };
+                                        return Ok(HirExpr::CallPtr { fn_ptr, args: hir_args, ty: ret_ty });
                                     }
                                 }
-                                return Err(e);
+                                return Err(format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col));
                             }
                         }
                     }

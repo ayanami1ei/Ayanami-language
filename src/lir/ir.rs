@@ -55,6 +55,15 @@ pub enum LirInst {
         args: Vec<(LirValue, HirType)>,
         ret_ty: HirType,
     },
+    /// Call via function pointer
+    CallPtr {
+        dest: u64,
+        fn_ptr: LirValue,
+        args: Vec<(LirValue, HirType)>,
+        ret_ty: HirType,
+    },
+    /// Get a function pointer value
+    FnAddr { dest: u64, fn_id: FnId },
     StrGlobal { dest: u64, str_idx: u64 },
     /// Deep copy a value and change ownership: used by ToUnique/ToShared/ToWeak
     Conv {

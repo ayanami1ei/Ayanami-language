@@ -202,6 +202,19 @@ fn put_inst(buf: &mut Vec<u8>, inst: &LirInst) {
         Load { dest, src, ty } => { buf.push(2); put_u64(buf, *dest); put_u32(buf, src.0 as u32); put_type(buf, ty); }
         BinOp { dest, op, lhs, rhs, ty, result_ty } => { buf.push(3); put_u64(buf, *dest); put_u32(buf, *op as u32); put_value(buf, lhs); put_value(buf, rhs); put_type(buf, ty); put_type(buf, result_ty); }
         UnaryOp { dest, op, src, ty } => { buf.push(4); put_u64(buf, *dest); put_u32(buf, *op as u32); put_value(buf, src); put_type(buf, ty); }
+        FnAddr { dest, fn_id } => {
+            buf.push(26);
+            put_u64(buf, *dest);
+            put_u32(buf, fn_id.0 as u32);
+        }
+        CallPtr { dest, fn_ptr, args, ret_ty } => {
+            buf.push(25);
+            put_u64(buf, *dest);
+            put_value(buf, fn_ptr);
+            put_u32(buf, args.len() as u32);
+            for (v, t) in args { put_value(buf, v); put_type(buf, &t); }
+            put_type(buf, ret_ty);
+        }
         Call { dest, fn_id, args, ret_ty } => {
             buf.push(5);
             put_u32(buf, dest.map_or(0xFFFFFFFF, |d| d as u32));
@@ -540,6 +553,20 @@ impl<'a> Reader<'a> {
                 for _ in 0..ic_count { input_constraints.push(self.str()?); }
                 let ret_ty = self.ty()?;
                 Ok(Asm { dest, template, output_constraints, input_operands, input_constraints, ret_ty })
+            }
+            25 => {
+                let d = self.u64()?;
+                let fp = self.value()?;
+                let ac = self.u32()?;
+                let mut args = Vec::new();
+                for _ in 0..ac { args.push((self.value()?, self.ty()?)); }
+                let rt = self.ty()?;
+                Ok(CallPtr { dest: d, fn_ptr: fp, args, ret_ty: rt })
+            }
+            26 => {
+                let d = self.u64()?;
+                let fid = FnId(self.u32()? as usize);
+                Ok(FnAddr { dest: d, fn_id: fid })
             }
             _ => Err(format!("unknown inst tag: {}", tag)),
         }

@@ -150,8 +150,14 @@ pub enum HirExpr {
         arms: Vec<(i64, HirExpr)>,
         ty: HirType,
     },
-    /// Function pointer value: link_name and type
-    FnPtr(Symbol, HirType),
+    /// Function pointer value: fn_id and type
+    FnPtr(FnId, HirType),
+    /// Call via function pointer: fn_ptr(args)
+    CallPtr {
+        fn_ptr: Box<HirExpr>,
+        args: Vec<HirExpr>,
+        ty: HirType,
+    },
 }
 
 #[derive(Debug, Clone)]
