@@ -1783,6 +1783,34 @@ impl super::Ctx {
                     });
                 }
 
+                // Enum method dispatch: single-variant shortcut
+                if let HirType::Named(type_name) = receiver_inner {
+                    if self.is_enum_type(type_name) {
+                        if let Some(enum_fields) = self.struct_defs.get(type_name) {
+                            if let Some(vf) = enum_fields.iter().nth(1).filter(|f| f.name.as_str().starts_with("_data_")) {
+                                let shared_ty = HirType::Shared(Box::new(vf.ty.clone()));
+                                if let Some(fn_id) = self.resolve_method(&shared_ty, method, &arg_types) {
+                                    let data_expr = HirExpr::ToShared(
+                                        Box::new(HirExpr::FieldAccess {
+                                            object: Box::new(receiver),
+                                            field: vf.name, field_index: 1, ty: vf.ty.clone(),
+                                        }),
+                                        shared_ty.clone(),
+                                    );
+                                    let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
+                                        .map(|(_, t)| t.clone()).collect();
+                                    let mut all_args: Vec<HirExpr> = vec![data_expr];
+                                    all_args.extend(hir_args);
+                                    all_args = all_args.into_iter().enumerate().map(|(i, arg)| {
+                                        if i >= param_tys.len() { return arg; }
+                                        wrap_arg_for_param(arg, &param_tys[i])
+                                    }).collect();
+                                    return Ok(HirExpr::Call { fn_id, args: all_args, ty: self.fns[fn_id.0].return_type.clone() });
+                                }
+                            }
+                        }
+                    }
+                }
                 // Static dispatch: find method by receiver type
                 let fn_id = match self.resolve_method(&receiver_ty, method, &arg_types) {
                     Some(id) => id,

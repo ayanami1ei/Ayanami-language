@@ -249,6 +249,14 @@ impl Ctx {
             }
         }
     }
+
+    /// Check if a type is an enum (has _tag field as first field)
+    pub fn is_enum_type(&self, type_name: &Symbol) -> bool {
+        self.struct_defs.get(type_name)
+            .and_then(|fields| fields.first())
+            .map(|f| f.name.as_str() == "_tag")
+            .unwrap_or(false)
+    }
 }
 
 // ============================================================
