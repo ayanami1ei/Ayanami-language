@@ -100,9 +100,12 @@ fn main() -> int {
 | 字符串 | `String` | 标准库结构体 `{ unique [char] data, int len }` |
 | 数组 | `unique [int]` / `shared [int]` | 堆分配，必须显式内存管理 |
 | 结构体 | `Point` | 自定义，值语义 |
+| 枚举 | `Option[T]` | tag + union，支持方法派发 |
 | shared | `shared int` | 引用计数指针 |
 | unique | `unique int` | 独占所有权指针 |
 | weak | `weak int` | 弱引用 |
+
+| 枚举 | `Color` | tag + union，支持方法派发 |
 
 ## 标准库
 
@@ -154,6 +157,8 @@ p = Point { x = 1, y = 2 };
 if a > b { return 1; } elif a < b { return 2; } else { return 3; }
 while a < 10 { a = a + 1; }
 for i in (0, 10) { /* i: 0..9 */ }
+match x { V(v) => expr, W => expr }   // 枚举模式匹配
+break / continue                      // 循环控制
 ```
 
 ### 结构体
@@ -164,6 +169,38 @@ struct Point {
 }
 p = Point { x = 10, y = 3 };
 ```
+
+### 枚举
+```
+enum Option[T] {
+    Some(T),
+    None,
+}
+
+x = Option::Some(42)
+
+// `_tag` 字段访问判别值
+println(x._tag)               // 0
+
+// `_data_V` 访问变体数据
+println(x._data_Some._0)     // 42
+
+// `match` 按 tag 分支
+match x {
+    Some(v) => println("" + v),
+    None => println("none"),
+}
+
+// 变体方法
+impl Option_Some[T] {
+    fn get(shared self) -> T { return self._0 }
+}
+// e.method() 自动按 tag 派发到对应变体的实现
+println(x.get())  // 自动调用 Option_Some::get
+```
+
+枚举内存布局：`{ _tag: int, _data_V0: ..., _data_V1: ... }`，tag 决定当前活跃变体。
+method 调用自动生成 `match e { V0 => e._data_V0.method(...), V1 => ... }`。
 
 ### 接口与 impl
 ```
