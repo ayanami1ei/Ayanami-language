@@ -1352,8 +1352,63 @@ impl super::Ctx {
                 let hir_body = self.lower_block(body)?;
                 Ok(HirStmt::While { cond: hir_cond, body: hir_body })
             }
-            Stmt::Match { .. } => {
-                todo!()
+            Stmt::Match { value, arms, span } => {
+                let hir_value = self.lower_expr(value)?;
+                let value_ty = expr_type(&hir_value);
+                let value_ty_name = match &value_ty {
+                    HirType::Named(n) => *n,
+                    _ => return Err(format!("match on non-enum type at {}:{}", span.start_line, span.start_col)),
+                };
+                let (val_var, _, _) = self.register_or_lookup(Symbol::intern("__match_val"), value_ty.clone());
+                let val_local = HirExpr::Local(val_var, value_ty.clone());
+                let store_val = HirStmt::Assign { target: val_local, value: hir_value };
+                // Build all conditions and blocks
+                let mut conds: Vec<HirExpr> = Vec::new();
+                let mut blocks: Vec<HirBlock> = Vec::new();
+                for (i, arm) in arms.iter().enumerate() {
+                    let tag_cmp = HirExpr::Binary {
+                        op: crate::parser::ast::BinaryOp::Eq,
+                        lhs: Box::new(HirExpr::FieldAccess {
+                            object: Box::new(HirExpr::Local(val_var, value_ty.clone())),
+                            field: Symbol::intern("_tag"), field_index: 0, ty: HirType::Int,
+                        }),
+                        rhs: Box::new(HirExpr::Literal(HirLiteral::Int(i as i64), HirType::Int)),
+                        ty: HirType::Int,
+                    };
+                    conds.push(tag_cmp);
+                    let data_field = Symbol::intern(&format!("_data_{}", arm.variant_name));
+                    let var_struct = Symbol::intern(&format!("{}_{}", value_ty_name, arm.variant_name));
+                    let mut arm_stmts = Vec::new();
+                    for (j, (bind_name, _)) in arm.bindings.iter().enumerate() {
+                        let inner_acc = HirExpr::FieldAccess {
+                            object: Box::new(HirExpr::Local(val_var, value_ty.clone())),
+                            field: data_field, field_index: i + 1, ty: HirType::Named(var_struct),
+                        };
+                        let fval = HirExpr::FieldAccess {
+                            object: Box::new(inner_acc),
+                            field: Symbol::intern(&format!("_{}", j)), field_index: j, ty: HirType::Int,
+                        };
+                        let (bid, _, _) = self.register_or_lookup(*bind_name, HirType::Int);
+                        arm_stmts.push(HirStmt::Assign { target: HirExpr::Local(bid, HirType::Int), value: fval });
+                    }
+                    arm_stmts.push(HirStmt::Expr(self.lower_expr(&arm.body)?));
+                    blocks.push(HirBlock { stmts: arm_stmts });
+                }
+                if conds.is_empty() {
+                    return Ok(HirStmt::Expr(HirExpr::Literal(HirLiteral::Int(0), HirType::Int)));
+                }
+                // Build if-elif-else: first cond+block = if, last remaining = else, middle = elifs
+                let first_cond = conds.remove(0);
+                let first_block = blocks.remove(0);
+                let else_block = if !blocks.is_empty() && blocks.len() == conds.len() {
+                    blocks.pop()
+                } else {
+                    None
+                };
+                let elifs: Vec<(HirExpr, HirBlock)> = conds.into_iter().zip(blocks.into_iter()).collect();
+                Ok(HirStmt::Block(vec![store_val, HirStmt::If {
+                    cond: first_cond, then_block: first_block, elifs, else_block,
+                }]))
             }
             Stmt::Break { .. } => Ok(HirStmt::Break),
             Stmt::Continue { .. } => Ok(HirStmt::Continue),
@@ -1650,6 +1705,13 @@ impl super::Ctx {
                 if !named_args.is_empty() {
                     return Err(format!("named fields in enum construct not yet supported at {}:{}", span.start_line, span.start_col));
                 }
+                let tag = self.struct_defs.get(enum_name).map_or(0i64, |fields| {
+                    let target = format!("_data_{}", variant_name);
+                    for (i, f) in fields.iter().enumerate() {
+                        if f.name.as_str() == target { return (i - 1) as i64; }
+                    }
+                    0i64
+                });
                 let hir_args: Vec<HirExpr> = tuple_args.iter().map(|e| self.lower_expr(e)).collect::<Result<Vec<_>, _>>()?;
                 let data_field = Symbol::intern(&format!("_data_{}", variant_name));
                 let var_struct_name = Symbol::intern(&format!("{}_{}", enum_name, variant_name));
@@ -1662,10 +1724,23 @@ impl super::Ctx {
                     fields: var_fields,
                     ty: data_ty,
                 };
-                let fields = vec![
-                    (Symbol::intern("_tag"), HirExpr::Literal(HirLiteral::Int(0), HirType::Int)),
-                    (data_field, var_literal),
-                ];
+                let fields = if let Some(enum_fields) = self.struct_defs.get(enum_name) {
+                    let mut all_fields: Vec<(Symbol, HirExpr)> = enum_fields.iter()
+                        .map(|f| (f.name, HirExpr::Literal(HirLiteral::Int(0), f.ty.clone())))
+                        .collect();
+                    // Set tag
+                    all_fields[0] = (Symbol::intern("_tag"), HirExpr::Literal(HirLiteral::Int(tag), HirType::Int));
+                    // Set variant data field
+                    if let Some(pos) = enum_fields.iter().position(|f| f.name == data_field) {
+                        all_fields[pos] = (data_field, var_literal);
+                    }
+                    all_fields
+                } else {
+                    vec![
+                        (Symbol::intern("_tag"), HirExpr::Literal(HirLiteral::Int(tag), HirType::Int)),
+                        (data_field, var_literal),
+                    ]
+                };
                 let ty = HirType::Named(*enum_name);
                 Ok(HirExpr::StructLiteral { type_name: *enum_name, fields, ty })
             }
