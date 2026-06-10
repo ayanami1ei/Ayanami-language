@@ -69,6 +69,7 @@ function activate(context) {
             const imported = folder ? resolveImports(document, folder) : { structs: [], namespaces: [], functions: [] };
 
             const localStructs = scanStructs(document);
+            const localEnums = scanEnums(document);
             const localNss = scanNamespaces(document);
             const localFns = scanFunctions(document);
 
@@ -113,11 +114,27 @@ function activate(context) {
                     items.push(makeItem('copy', vscode.CompletionItemKind.Method, 'String method'));
                     items.push(makeItem('add', vscode.CompletionItemKind.Method, 'String method'));
                 }
+                // Enum field completions: show _tag and _data_Variant fields
+                const enumForType = localEnums.find(e => e.name === typeName);
+                if (enumForType) {
+                    items.push(makeItem('_tag', vscode.CompletionItemKind.Field, `${typeName} enum tag`));
+                    for (const v of enumForType.variants) {
+                        items.push(makeItem('_data_' + v, vscode.CompletionItemKind.Field, `${typeName} variant ${v}`));
+                    }
+                }
                 return items;
             }
 
             if (nsMatch) {
                 const nsName = nsMatch[1];
+                // Check if this is an enum type — show variants
+                const enumForNs = localEnums.find(e => e.name === nsName);
+                if (enumForNs) {
+                    for (const v of enumForNs.variants) {
+                        items.push(makeItem(v, vscode.CompletionItemKind.EnumMember, `${nsName} variant`));
+                    }
+                    return items;
+                }
                 const members = fnByNs[nsName] || [];
                 for (const m of members) {
                     items.push(makeItem(m, vscode.CompletionItemKind.Function, 'namespace function'));
@@ -138,6 +155,9 @@ function activate(context) {
                 for (const s of structs) {
                     items.push(makeItem(s.name, vscode.CompletionItemKind.Struct, 'struct'));
                 }
+                for (const e of localEnums) {
+                    items.push(makeItem(e.name, vscode.CompletionItemKind.Enum, 'enum'));
+                }
                 return items;
             }
 
@@ -148,6 +168,26 @@ function activate(context) {
                 { label: 'elif', kind: vscode.CompletionItemKind.Keyword, detail: 'else if' },
                 { label: 'else', kind: vscode.CompletionItemKind.Keyword, detail: 'else branch' },
                 { label: 'for', kind: vscode.CompletionItemKind.Keyword, detail: 'for loop' },
+                { label: 'while', kind: vscode.CompletionItemKind.Keyword, detail: 'while loop' },
+                { label: 'break', kind: vscode.CompletionItemKind.Keyword, detail: 'break loop' },
+                { label: 'continue', kind: vscode.CompletionItemKind.Keyword, detail: 'continue loop' },
+                { label: 'mut', kind: vscode.CompletionItemKind.Keyword, detail: 'mutable' },
+                { label: 'return', kind: vscode.CompletionItemKind.Keyword, detail: 'return' },
+                { label: 'import', kind: vscode.CompletionItemKind.Keyword, detail: 'import module' },
+                { label: 'struct', kind: vscode.CompletionItemKind.Keyword, detail: 'struct definition' },
+                { label: 'enum', kind: vscode.CompletionItemKind.Keyword, detail: 'enum definition' },
+                { label: 'match', kind: vscode.CompletionItemKind.Keyword, detail: 'match expression' },
+                { label: 'namespace', kind: vscode.CompletionItemKind.Keyword, detail: 'namespace' },
+                { label: 'interface', kind: vscode.CompletionItemKind.Keyword, detail: 'interface definition' },
+                { label: 'impl', kind: vscode.CompletionItemKind.Keyword, detail: 'impl block' },
+                { label: 'pub', kind: vscode.CompletionItemKind.Keyword, detail: 'public' },
+                { label: 'shared', kind: vscode.CompletionItemKind.Keyword, detail: 'shared ownership' },
+                { label: 'unique', kind: vscode.CompletionItemKind.Keyword, detail: 'unique ownership' },
+                { label: 'weak', kind: vscode.CompletionItemKind.Keyword, detail: 'weak reference' },
+                { label: 'true', kind: vscode.CompletionItemKind.Keyword, detail: 'boolean true' },
+                { label: 'false', kind: vscode.CompletionItemKind.Keyword, detail: 'boolean false' },
+                { label: 'null', kind: vscode.CompletionItemKind.Keyword, detail: 'null value' },
+            ];
                 { label: 'in', kind: vscode.CompletionItemKind.Keyword, detail: 'for iterator' },
                 { label: 'while', kind: vscode.CompletionItemKind.Keyword, detail: 'while loop' },
                 { label: 'struct', kind: vscode.CompletionItemKind.Keyword, detail: 'struct definition' },
@@ -740,6 +780,36 @@ function scanStructs(doc) {
     return structs;
 }
 
+// ─── Helper: scan enum definitions ─────────────────────────────────
+function scanEnums(doc) {
+    const enums = [];
+    const text = doc.getText();
+    const re = /enum\s+(\w+)\s*\{/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const ename = m[1];
+        const variants = [];
+        // Scan for variants within this enum block
+        const blockStart = m.index;
+        const afterBrace = text.indexOf('{', blockStart) + 1;
+        let depth = 1;
+        let pos = afterBrace;
+        const varRe = /\b([A-Z]\w*)\s*(?:\(|\{)?/g;
+        varRe.lastIndex = pos;
+        let vm;
+        while ((vm = varRe.exec(text)) !== null) {
+            if (vm.index >= text.length) break;
+            const ch = text[vm.index + vm[0].length];
+            if (ch === ',' || ch === '}' || ch === '(' || ch === '{') {
+                variants.push(vm[1]);
+            }
+            if (ch === '}') break;
+        }
+        enums.push({ name: ename, variants, line: m.index });
+    }
+    return enums;
+}
+
 // ─── Helper: scan namespace definitions ─────────────────────────────
 function scanNamespaces(doc) {
     const nss = [];
@@ -881,6 +951,12 @@ function scanVariableTypes(doc) {
         const structMatch = coreRhs.match(/^(\w+)\s*\{/);
         if (structMatch) {
             varTypes.set(varName, structMatch[1]);
+            continue;
+        }
+        // Enum constructor: EnumType::Variant(args)
+        const enumMatch = coreRhs.match(/^(\w+)::\w+\s*\(/);
+        if (enumMatch) {
+            varTypes.set(varName, enumMatch[1]);
             continue;
         }
         // String literal
