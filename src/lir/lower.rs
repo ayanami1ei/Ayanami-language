@@ -702,8 +702,65 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
         }
         MirExpr::EnumConstruct { .. } => {
             // TODO: implement full enum construction
-            // Return a zero int as placeholder (enum tag = 0)
             LirValue::Literal(HirLiteral::Int(0), HirType::Int)
+        }
+        MirExpr::EnumMatch { value, arms, ty } => {
+            let val = lower_expr(ctx, value);
+            let val_tmp = match val {
+                LirValue::Tmp(t) => t,
+                _ => { let t = ctx.next_tmp(); ctx.emit(LirInst::Load { dest: t, src: extract_var(&val), ty: expr_mir_type(value) }); t }
+            };
+            let tag_tmp = ctx.next_tmp();
+            let gep_tmp = ctx.next_tmp();
+            ctx.emit(LirInst::FieldAccess {
+                dest: tag_tmp, gep_tmp, src: LirValue::Tmp(val_tmp),
+                field_index: 0, field_ty: HirType::Int,
+                struct_ty: expr_mir_type(value),
+            });
+            if arms.is_empty() {
+                LirValue::Literal(HirLiteral::Int(0), HirType::Int)
+            } else {
+                let result_id = VarId(ctx.next_tmp() as usize);
+                ctx.emit(LirInst::Alloca(result_id, ty.clone()));
+                let merge_lbl = ctx.next_block_label("ematch");
+                // Pre-compute all condition labels
+                let cond_lbls: Vec<String> = (0..arms.len()).map(|i| {
+                    ctx.next_block_label(&format!("econd{}", i))
+                }).collect();
+                let arm_lbls: Vec<String> = (0..arms.len()).map(|i| {
+                    ctx.next_block_label(&format!("earm{}", i))
+                }).collect();
+                // Branch to first condition block
+                ctx.emit(LirInst::Br(cond_lbls[0].clone()));
+                for (i, (tag_val, arm_expr)) in arms.iter().enumerate() {
+                    ctx.set_current_block(cond_lbls[i].clone());
+                    let cmp_tmp = ctx.next_tmp();
+                    ctx.emit(LirInst::BinOp {
+                        dest: cmp_tmp, op: crate::parser::ast::BinaryOp::Eq,
+                        lhs: LirValue::Tmp(tag_tmp),
+                        rhs: LirValue::Literal(HirLiteral::Int(*tag_val), HirType::Int),
+                        ty: HirType::Int, result_ty: HirType::Bool,
+                    });
+                    let false_target = if i + 1 < arms.len() {
+                        cond_lbls[i + 1].clone()
+                    } else {
+                        merge_lbl.clone()
+                    };
+                    ctx.emit(LirInst::BrCond {
+                        cond: LirValue::Tmp(cmp_tmp),
+                        true_block: arm_lbls[i].clone(),
+                        false_block: false_target,
+                    });
+                    ctx.set_current_block(arm_lbls[i].clone());
+                    let arm_val = lower_expr(ctx, arm_expr);
+                    ctx.emit(LirInst::Store { dest: result_id, src: arm_val, ty: ty.clone() });
+                    ctx.emit(LirInst::Br(merge_lbl.clone()));
+                }
+                ctx.set_current_block(merge_lbl);
+                let load_tmp = ctx.next_tmp();
+                ctx.emit(LirInst::Load { dest: load_tmp, src: result_id, ty: ty.clone() });
+                LirValue::Tmp(load_tmp)
+            }
         }
         MirExpr::FieldAccess { object, field_index, ty, .. } => {
             let obj_val = lower_expr(ctx, object);
@@ -987,6 +1044,7 @@ fn expr_mir_type(expr: &MirExpr) -> HirType {
         | MirExpr::VirtualCall { ty, .. }
         | MirExpr::MakeFatPtr { ty, .. }
         | MirExpr::EnumConstruct { ty, .. }
+        | MirExpr::EnumMatch { ty, .. }
         | MirExpr::FieldAccess { ty, .. }
         | MirExpr::StructLiteral { ty, .. }
         | MirExpr::ArraySized { ty, .. }
@@ -1108,6 +1166,10 @@ fn collect_strings_expr(expr: &MirExpr, out: &mut Vec<String>) {
         MirExpr::MakeFatPtr { value, .. } => collect_strings_expr(value, out),
         MirExpr::EnumConstruct { args, .. } => {
             for a in args { collect_strings_expr(a, out); }
+        }
+        MirExpr::EnumMatch { value, arms, .. } => {
+            collect_strings_expr(value, out);
+            for (_, e) in arms { collect_strings_expr(e, out); }
         }
         MirExpr::FieldAccess { object, .. } => collect_strings_expr(object, out),
         MirExpr::StructLiteral { fields, .. } => {

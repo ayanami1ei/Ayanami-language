@@ -695,6 +695,7 @@ pub(crate) fn expr_type(expr: &HirExpr) -> HirType {
         | HirExpr::VirtualCall { ty, .. }
         | HirExpr::MakeFatPtr { ty, .. }
         | HirExpr::EnumConstruct { ty, .. }
+        | HirExpr::EnumMatch { ty, .. }
         | HirExpr::FieldAccess { ty, .. }
         | HirExpr::StructLiteral { ty, .. }
         | HirExpr::ArraySized { ty, .. }

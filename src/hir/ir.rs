@@ -142,6 +142,13 @@ pub enum HirExpr {
         args: Vec<HirExpr>,
         ty: HirType,
     },
+    /// Match on an enum value, returning a result per arm.
+    /// Each arm: (tag_value, result_expr).
+    EnumMatch {
+        value: Box<HirExpr>,
+        arms: Vec<(i64, HirExpr)>,
+        ty: HirType,
+    },
 }
 
 #[derive(Debug, Clone)]

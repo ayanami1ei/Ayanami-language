@@ -165,6 +165,9 @@ fn write_expr(expr: &HirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
         HirExpr::EnumConstruct { enum_name, variant_name, .. } => {
             writeln!(w, "{}EnumConstruct {}.{}", p, enum_name, variant_name)?;
         }
+        HirExpr::EnumMatch { .. } => {
+            writeln!(w, "{}EnumMatch", p)?;
+        }
         HirExpr::FieldAccess { object, field, ty, .. } => {
             writeln!(w, "{}FieldAccess {} ty={}", p, field, display_type(ty))?;
             write_expr(object, level + 1, w)?;

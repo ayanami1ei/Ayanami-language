@@ -1783,29 +1783,43 @@ impl super::Ctx {
                     });
                 }
 
-                // Enum method dispatch: single-variant shortcut
+                // Enum method dispatch: e.method() → EnumMatch over all variants
                 if let HirType::Named(type_name) = receiver_inner {
                     if self.is_enum_type(type_name) {
                         if let Some(enum_fields) = self.struct_defs.get(type_name) {
-                            if let Some(vf) = enum_fields.iter().nth(1).filter(|f| f.name.as_str().starts_with("_data_")) {
-                                let shared_ty = HirType::Shared(Box::new(vf.ty.clone()));
-                                if let Some(fn_id) = self.resolve_method(&shared_ty, method, &arg_types) {
-                                    let data_expr = HirExpr::ToShared(
-                                        Box::new(HirExpr::FieldAccess {
-                                            object: Box::new(receiver),
-                                            field: vf.name, field_index: 1, ty: vf.ty.clone(),
-                                        }),
-                                        shared_ty.clone(),
-                                    );
-                                    let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
-                                        .map(|(_, t)| t.clone()).collect();
-                                    let mut all_args: Vec<HirExpr> = vec![data_expr];
-                                    all_args.extend(hir_args);
-                                    all_args = all_args.into_iter().enumerate().map(|(i, arg)| {
-                                        if i >= param_tys.len() { return arg; }
-                                        wrap_arg_for_param(arg, &param_tys[i])
-                                    }).collect();
-                                    return Ok(HirExpr::Call { fn_id, args: all_args, ty: self.fns[fn_id.0].return_type.clone() });
+                            let var_fields: Vec<_> = enum_fields.iter().skip(1)
+                                .filter(|f| f.name.as_str().starts_with("_data_")).collect();
+                            if !var_fields.is_empty() {
+                                let mut arms: Vec<(i64, HirExpr)> = Vec::new();
+                                for (i, vf) in var_fields.iter().enumerate() {
+                                    let shared_ty = HirType::Shared(Box::new(vf.ty.clone()));
+                                    if let Some(fn_id) = self.resolve_method(&shared_ty, method, &arg_types) {
+                                        let ret_ty = self.fns[fn_id.0].return_type.clone();
+                                        let data_expr = HirExpr::ToShared(
+                                            Box::new(HirExpr::FieldAccess {
+                                                object: Box::new(receiver.clone()),
+                                                field: vf.name, field_index: i + 1, ty: vf.ty.clone(),
+                                            }),
+                                            shared_ty.clone(),
+                                        );
+                                        let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
+                                            .map(|(_, t)| t.clone()).collect();
+                                        let mut all_args: Vec<HirExpr> = vec![data_expr];
+                                        all_args.extend(hir_args.clone());
+                                        all_args = all_args.into_iter().enumerate().map(|(j, arg)| {
+                                            if j >= param_tys.len() { return arg; }
+                                            wrap_arg_for_param(arg, &param_tys[j])
+                                        }).collect();
+                                        arms.push((i as i64, HirExpr::Call { fn_id, args: all_args, ty: ret_ty }));
+                                    }
+                                }
+                                if arms.len() == var_fields.len() && !arms.is_empty() {
+                                    let ret_ty = expr_type(&arms[0].1);
+                                    return Ok(HirExpr::EnumMatch {
+                                        value: Box::new(receiver),
+                                        arms,
+                                        ty: ret_ty,
+                                    });
                                 }
                             }
                         }

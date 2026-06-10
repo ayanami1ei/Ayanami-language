@@ -97,6 +97,11 @@ fn mir_expr_from_hir(expr: &HirExpr, moved: &HashSet<VarId>) -> MirExpr {
             args: args.iter().map(|a| mir_expr_from_hir(a, moved)).collect(),
             ty: ty.clone(),
         },
+        HirExpr::EnumMatch { value, arms, ty } => MirExpr::EnumMatch {
+            value: Box::new(mir_expr_from_hir(value, moved)),
+            arms: arms.iter().map(|(tag, e)| (*tag, mir_expr_from_hir(e, moved))).collect(),
+            ty: ty.clone(),
+        },
         HirExpr::FieldAccess { object, field, field_index, ty } => MirExpr::FieldAccess {
             object: Box::new(mir_expr_from_hir(object, moved)),
             field: *field,
