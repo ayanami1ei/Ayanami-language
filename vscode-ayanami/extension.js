@@ -187,21 +187,11 @@ function activate(context) {
                 { label: 'true', kind: vscode.CompletionItemKind.Keyword, detail: 'boolean true' },
                 { label: 'false', kind: vscode.CompletionItemKind.Keyword, detail: 'boolean false' },
                 { label: 'null', kind: vscode.CompletionItemKind.Keyword, detail: 'null value' },
-            ];
                 { label: 'in', kind: vscode.CompletionItemKind.Keyword, detail: 'for iterator' },
-                { label: 'while', kind: vscode.CompletionItemKind.Keyword, detail: 'while loop' },
-                { label: 'struct', kind: vscode.CompletionItemKind.Keyword, detail: 'struct definition' },
-                { label: 'interface', kind: vscode.CompletionItemKind.Keyword, detail: 'interface' },
-                { label: 'impl', kind: vscode.CompletionItemKind.Keyword, detail: 'impl block' },
-                { label: 'import', kind: vscode.CompletionItemKind.Keyword, detail: 'import' },
-                { label: 'namespace', kind: vscode.CompletionItemKind.Keyword, detail: 'namespace' },
-                { label: 'pub', kind: vscode.CompletionItemKind.Keyword, detail: 'make public' },
-                { label: 'pub(crate)', kind: vscode.CompletionItemKind.Keyword, detail: 'crate-public' },
-                { label: 'shared', kind: vscode.CompletionItemKind.Keyword, detail: 'shared ownership' },
-                { label: 'unique', kind: vscode.CompletionItemKind.Keyword, detail: 'unique ownership' },
-                { label: 'weak', kind: vscode.CompletionItemKind.Keyword, detail: 'weak reference' },
-                { label: 'move', kind: vscode.CompletionItemKind.Keyword, detail: 'move ownership' },
-                { label: 'clone', kind: vscode.CompletionItemKind.Keyword, detail: 'clone value' },
+                { label: 'break', kind: vscode.CompletionItemKind.Keyword, detail: 'break loop' },
+                { label: 'continue', kind: vscode.CompletionItemKind.Keyword, detail: 'continue loop' },
+                { label: 'enum', kind: vscode.CompletionItemKind.Keyword, detail: 'enum definition' },
+                { label: 'match', kind: vscode.CompletionItemKind.Keyword, detail: 'match expression' },
             ];
             for (const kw of keywords) {
                 items.push(new vscode.CompletionItem(kw.label, kw.kind));
