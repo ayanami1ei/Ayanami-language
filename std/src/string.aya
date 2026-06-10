@@ -7,6 +7,24 @@ pub interface ToString{
     fn to_string(unique self)->unique String;
 }
 
+pub interface Error {
+    fn what(shared self) -> shared String;
+}
+
+pub enum Result[T, E] {
+    Ok(T),
+    Err(E),
+}
+
+impl[T, E] Result[T, E] {
+    pub fn try_unwrap(unique self) -> T {
+        match self {
+            Ok(v) => v,
+            Err(_) => 0,
+        }
+    }
+}
+
 impl int {
     fn to_string(unique self) -> unique String {
         if self == 0 {

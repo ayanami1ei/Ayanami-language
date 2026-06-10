@@ -120,7 +120,18 @@ fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             write_block_same_line(out, body, level);
             let _ = writeln!(out);
         }
-        Match { .. } => todo!(),
+        Match { value, arms, .. } => {
+            let i = indent(level);
+            let _ = writeln!(out, "{}match {} {{", i, write_expr(value));
+            for arm in arms {
+                let _ = write!(out, "{}{}", indent(level + 1), arm.variant_name);
+                if !arm.bindings.is_empty() {
+                    let _ = write!(out, "({})", arm.bindings.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>().join(", "));
+                }
+                let _ = writeln!(out, " => {},", write_expr(&arm.body));
+            }
+            let _ = writeln!(out, "{}}}", i);
+        }
         Namespace { vis, name, items, .. } => {
             let i = indent(level);
             let vis_str = vis_str(vis);

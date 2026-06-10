@@ -1760,6 +1760,10 @@ impl super::Ctx {
                     let ret_ty = self.fns[fn_id.0].return_type.clone();
                     return Ok(HirExpr::Call { fn_id, args: vec![hir_inner], ty: ret_ty });
                 }
+                if let Ok(fn_id) = self.specialize_generic_call(&Symbol::intern("try_unwrap"), &[inner_ty.clone()], span) {
+                    let ret_ty = self.fns[fn_id.0].return_type.clone();
+                    return Ok(HirExpr::Call { fn_id, args: vec![hir_inner], ty: ret_ty });
+                }
                 Err(format!("type `{:?}` cannot use `?` operator at {}:{}", inner_ty, span.start_line, span.start_col))
             }
             Expr::Match { .. } => todo!(),
