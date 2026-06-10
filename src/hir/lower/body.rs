@@ -877,18 +877,49 @@ impl super::Ctx {
     /// Try to resolve a call by specializing a generic function.
     /// Returns the FnId of the newly-created specialized function on success.
     pub(super) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId, String> {
-        // Find matching generic function
-        let gf_idx = self.generic_fns.iter().position(|(gf_name, _, _)| gf_name == name);
-        let gf_idx = match gf_idx {
+        // Find matching generic function — prefer one where self's base type matches
+        let arg_base = (!arg_types.is_empty()).then(|| {
+            match strip_ownership_ref(&arg_types[0]) {
+                HirType::Named(n) => Some(crate::hir::lower::strip_generic_name(n)),
+                _ => None,
+            }
+        }).flatten();
+
+        let mut best_gf_idx = None;
+        for (i, (gf_name, _, gf_stmt)) in self.generic_fns.iter().enumerate() {
+            if gf_name != name { continue; }
+            if let Stmt::FnDecl { params, .. } = gf_stmt {
+                if params.len() != arg_types.len() { continue; }
+                if let Some(ab) = &arg_base {
+                    if let Some(first) = params.first() {
+                        let self_hir = ast_type_to_hir(&first.1, &self.interfaces);
+                        let self_base = match strip_ownership_ref(&self_hir) {
+                            HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
+                            _ => continue,
+                        };
+                        if self_base != *ab { continue; }
+                    }
+                }
+                best_gf_idx = Some(i);
+                break;
+            }
+        }
+
+        let gf_idx = match best_gf_idx {
             Some(i) => i,
             None => {
-                return Err(if self.fn_map.contains_key(name) {
-                    let ats: Vec<String> = arg_types.iter().map(|t| format!("{:?}", t)).collect();
-                    format!("no matching overload of `{}` for argument types ({}); candidate(s) exist at {}:{}",
-                        name, ats.join(", "), span.start_line, span.start_col)
+                // Fallback: just find by name
+                if let Some(i) = self.generic_fns.iter().position(|(gf_name, _, _)| gf_name == name) {
+                    i
                 } else {
-                    format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col)
-                });
+                    return Err(if self.fn_map.contains_key(name) {
+                        let ats: Vec<String> = arg_types.iter().map(|t| format!("{:?}", t)).collect();
+                        format!("no matching overload of `{}` for argument types ({}); candidate(s) exist at {}:{}",
+                            name, ats.join(", "), span.start_line, span.start_col)
+                    } else {
+                        format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col)
+                    });
+                }
             }
         };
 
