@@ -2,6 +2,9 @@
 import "io.aya";
 import "string.aya";
 import "math.aya";
+import "list.aya";
+import "linkedlist.aya";
+import "arraylist.aya";
 
 pub interface Error {
     fn what(shared self) -> shared String;

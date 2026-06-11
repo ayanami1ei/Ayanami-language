@@ -1,0 +1,56 @@
+import "string"
+import "list"
+
+struct LinkedListNode[T:ToString] {
+    T val
+    shared LinkedListNode[T] next
+    shared LinkedListNode[T] front
+}
+
+pub struct LinkedList[T:ToString] {
+    shared LinkedListNode[T] head
+    shared LinkedListNode[T] tail
+    int len
+}
+
+pub namespace LinkedList{
+    pub fn new[T:ToString]()->shared LinkedList[T]{
+        return shared LinkedList[T]{head=null, tail=null, len=0}
+    }
+}
+
+impl[T:ToString] LinkedList[T] {
+    pub fn push(shared self, T val) {
+        a = shared LinkedListNode[T]{val=val, next=null, front=null}
+        if self.len==0{
+            self.head=a
+            self.tail=a
+            self.len=1
+            return
+        }
+        self.tail.next=a
+        a.front=self.tail
+        self.tail=self.tail.next
+        self.len=self.len+1
+    }
+
+    pub fn index(shared self, int index)->T{
+        t = weak self.head
+        for i in (0, index) { t = t.next }
+        return t.val
+    }
+
+    pub fn len(shared self)->int{ return self.len }
+
+    pub fn to_string(shared self) -> unique String {
+        res = unique "["
+        dummy = weak self.head
+        for i in (0, self.len){
+            res=res+dummy.val
+            if i != self.len-1{ res=res+", " }
+            dummy = weak dummy.next
+        }
+        res = res + "]"
+        return res
+    }
+}

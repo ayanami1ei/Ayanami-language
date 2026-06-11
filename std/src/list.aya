@@ -1,0 +1,6 @@
+pub interface List[T:ToString]{
+    fn push(shared self, T val);
+    fn index(shared self, int index)->T;
+    fn to_string(shared self)->unique String;
+    fn len(shared self)->int;
+}

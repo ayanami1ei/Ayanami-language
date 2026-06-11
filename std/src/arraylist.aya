@@ -1,0 +1,40 @@
+import "string"
+import "list"
+
+pub struct ArrayList[T:ToString]{
+    shared [T] data
+    int len
+    int capability
+}
+
+impl[T:ToString] ArrayList[T]{
+    fn expand(shared self){
+        if self.capability == 0 {
+            self.capability = 1
+            self.data = shared [T; 1]
+        } else {
+            tmp = shared [T; self.capability * 2]
+            for i in (0, self.len) { tmp[i] = self.data[i] }
+            self.data = tmp
+            self.capability = self.capability * 2
+        }
+    }
+
+    pub fn push(shared self, T val){
+        if self.len + 1 >= self.capability { self.expand() }
+        self.data[self.len] = val
+        self.len = self.len + 1
+    }
+
+    pub fn index(shared self, int index)->T{ return self.data[index] }
+    pub fn to_string(shared self)->unique String{
+        res = unique "["
+        for i in (0, self.len){
+            res=res+self.data[i]
+            if i != self.len-1{ res=res+", " }
+        }
+        res=res+"]"
+        return res
+    }
+    pub fn len(shared self)->int{ return self.len }
+}
