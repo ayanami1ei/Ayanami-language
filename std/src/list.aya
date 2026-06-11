@@ -3,4 +3,5 @@ pub interface List[T:ToString]{
     fn index(shared self, int index)->T;
     fn to_string(shared self)->unique String;
     fn len(shared self)->int;
+    fn iter(shared self, fn(T) f);
 }

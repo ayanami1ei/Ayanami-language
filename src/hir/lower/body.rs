@@ -188,7 +188,6 @@ impl super::Ctx {
                         }
                     }
 
-                    // Parse and register generic function ASTs and interfaces from the package
                     for src in &sources {
                         let mut lexer = crate::lexer::Lexer::new(src);
                         let tokens = lexer.tokenize_all();
@@ -490,7 +489,7 @@ impl super::Ctx {
                 for subst in &results {
                     let mut local = subst.clone();
                     let mut ok = true;
-                    for ((_, ift), (_, impt)) in iface_method.params[1..].iter().zip(&impl_method.params[1..]) {
+                    for ((_, ift), (_, impt)) in iface_method.params.iter().zip(&impl_method.params[1..]) {
                         if !Self::infer_iface_generic(ift, impt, &gp_names, &mut local) { ok = false; break; }
                     }
                     if !ok { continue; }
@@ -584,6 +583,10 @@ impl super::Ctx {
             HirType::Unique(inner) => HirType::Unique(Box::new(Self::substitute_iface_type(inner, subst, gp_names))),
             HirType::Weak(inner) => HirType::Weak(Box::new(Self::substitute_iface_type(inner, subst, gp_names))),
             HirType::FatPtr { name, kind } => HirType::FatPtr { name: *name, kind: Box::new(Self::substitute_iface_type(kind, subst, gp_names)) },
+            HirType::FnPtr(params, ret) => HirType::FnPtr(
+                params.iter().map(|p| Self::substitute_iface_type(p, subst, gp_names)).collect(),
+                Box::new(Self::substitute_iface_type(ret, subst, gp_names)),
+            ),
             _ => ty.clone(),
         }
     }

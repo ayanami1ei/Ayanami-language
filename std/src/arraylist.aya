@@ -37,4 +37,10 @@ impl[T:ToString] ArrayList[T]{
         return res
     }
     pub fn len(shared self)->int{ return self.len }
+
+    pub fn iter(shared self, fn(T) f) {
+        for i in (0, self.len) {
+            f(self.data[i])
+        }
+    }
 }

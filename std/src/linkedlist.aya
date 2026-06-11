@@ -42,6 +42,14 @@ impl[T:ToString] LinkedList[T] {
 
     pub fn len(shared self)->int{ return self.len }
 
+    pub fn iter(shared self, fn(T) f) {
+        dummy = weak self.head
+        for i in (0, self.len) {
+            f(dummy.val)
+            dummy = weak dummy.next
+        }
+    }
+
     pub fn to_string(shared self) -> unique String {
         res = unique "["
         dummy = weak self.head

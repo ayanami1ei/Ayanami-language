@@ -305,7 +305,15 @@ fn write_return_type(out: &mut String, ty: &Type) {
 
 fn write_type(ty: &Type) -> String {
     match ty {
-        Type::Default | Type::FnPtr(..) => "???".into(),
+        Type::Default => "???".into(),
+        Type::FnPtr(params, ret, _) => {
+            let p: Vec<String> = params.iter().map(|p| write_type(p)).collect();
+            if matches!(ret.as_ref(), Type::Void(_)) {
+                format!("fn({})", p.join(","))
+            } else {
+                format!("fn({})->{}", p.join(","), write_type(ret))
+            }
+        },
         Type::Int(_) => "int".into(),
         Type::Float(_) => "float".into(),
         Type::Char(_) => "char".into(),
