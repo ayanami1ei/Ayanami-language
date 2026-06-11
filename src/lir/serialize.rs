@@ -166,7 +166,12 @@ fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
             put_type(buf, kind);
         }
         HirType::Array(inner) => { buf.push(10); put_type(buf, inner); }
-        HirType::FnPtr(..) => buf.push(13),
+        HirType::FnPtr(params, ret) => {
+            buf.push(12);
+            put_u32(buf, params.len() as u32);
+            for p in params.iter() { put_type(buf, p); }
+            put_type(buf, ret);
+        }
         HirType::Ref(inner, mutable) => { buf.push(11); put_type(buf, inner); buf.push(if *mutable { 1 } else { 0 }); }
     }
 }
@@ -399,6 +404,13 @@ impl<'a> Reader<'a> {
             }
             10 => Ok(HirType::Array(Box::new(self.ty()?))),
             11 => { let inner = Box::new(self.ty()?); let mutable = self.read(1)?[0] != 0; Ok(HirType::Ref(inner, mutable)) }
+            12 => {
+                let pc = self.u32()? as usize;
+                let mut params = Vec::with_capacity(pc);
+                for _ in 0..pc { params.push(self.ty()?); }
+                let ret = Box::new(self.ty()?);
+                Ok(HirType::FnPtr(params, ret))
+            }
             _ => Err(format!("unknown type tag: {}", tag)),
         }
     }

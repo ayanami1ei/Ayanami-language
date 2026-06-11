@@ -1541,12 +1541,6 @@ impl Parser {
         loop {
             match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Operator(s)) if s == "::" => {
-                    // Check next-next token: if ( or {, this is enum construct, not path
-                    let next_next = self.tokens.get(self.pos + 2).map(|t| &t.kind);
-                    if matches!(next_next, Some(TokenKind::Delimiter(Delimiter::LParen))
-                        | Some(TokenKind::Delimiter(Delimiter::LBrace))) {
-                        break;
-                    }
                     self.advance();
                     let next = self.expect_identifier()?;
                     *name_str = format!("{}.{}", name_str, next);

@@ -1,7 +1,22 @@
 // Ayanami Standard Library
-// Import this to get all standard modules:
-//   import "std/std.aya";
-
 import "io.aya";
 import "string.aya";
 import "math.aya";
+
+pub interface Error {
+    fn what(shared self) -> shared String;
+}
+
+pub enum Result[T, E] {
+    Ok(T),
+    Err(E),
+}
+
+impl[T, E] Result[T, E] {
+    pub fn try_unwrap(unique self) -> T {
+        match self {
+            Ok(v) => v,
+            Err(_) => 0,
+        }
+    }
+}
