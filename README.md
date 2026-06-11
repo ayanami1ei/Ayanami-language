@@ -142,6 +142,21 @@ fn add(int a, int b) -> int { return a + b; }
 ```
 参数顺序：**类型 名称**。返回值用 `->`。
 
+### 函数指针
+```
+fn apply(int x, int y, fn(int,int)->int f) -> int {
+    return f(x, y)
+}
+
+fn add(int a, int b) -> int { return a + b; }
+
+fn main() -> int {
+    f = add           // 函数名自动转为函数指针
+    return apply(3, 4, f)
+}
+```
+函数指针类型 `fn(T) -> U`，函数名可直接赋值给函数指针变量。
+
 ### 变量
 ```
 x = 42;                   // int
