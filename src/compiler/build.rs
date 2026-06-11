@@ -420,7 +420,7 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<(), String> {
     let lcl_name = format!("{}.lcl", src_path.strip_suffix(".aya").unwrap_or(src_path));
     pkg.write_to_file(&lcl_name)
         .map_err(|e| format!("package write failed: {}", e))?;
-    println!("package: {}", lcl_name);
+    eprintln!("package: {}", lcl_name);
 
     std::fs::remove_dir_all(&tmp_dir).ok();
     Ok(())
@@ -516,7 +516,7 @@ pub fn build_source_with_target(
     let output_path = match target {
         "executable" => {
             let exe_path = out_path.join(&*name);
-            println!("building {} -> {}", src_path.display(), exe_path.display());
+            eprintln!("building {} -> {}", src_path.display(), exe_path.display());
             crate::driver::objects_to_exe_with_flags(
                 &compiled.obj_paths,
                 &compiled.link_flags,
@@ -527,7 +527,7 @@ pub fn build_source_with_target(
         }
         "static-lib" => {
             let lib_path = out_path.join(format!("lib{}.a", name));
-            println!("building {} -> {}", src_path.display(), lib_path.display());
+            eprintln!("building {} -> {}", src_path.display(), lib_path.display());
             if compiled.obj_paths.len() == 1 {
                 crate::driver::object_to_static_lib(&compiled.obj_paths[0], &lib_path)?;
             } else {
@@ -545,7 +545,7 @@ pub fn build_source_with_target(
         }
         "dynamic-lib" => {
             let so_path = out_path.join(format!("lib{}.so", name));
-            println!("building {} -> {}", src_path.display(), so_path.display());
+            eprintln!("building {} -> {}", src_path.display(), so_path.display());
             if compiled.obj_paths.len() == 1 {
                 crate::driver::object_to_shared_lib(&compiled.obj_paths[0], &so_path)?;
             } else {
@@ -556,7 +556,7 @@ pub fn build_source_with_target(
         _ => return Err(format!("unknown target type: {}", target)),
     };
 
-    println!("build ok: {}", output_path.display());
+    eprintln!("build ok: {}", output_path.display());
 
     let lcl_path = out_path.join(format!("{}.lcl", name));
     let mut pkg = crate::package::Package::new(name.to_string(), "0.1.0".into());
@@ -577,7 +577,7 @@ pub fn build_source_with_target(
     };
     pkg.write_to_file(&lcl_path.to_string_lossy())
         .map_err(|e| format!("package write failed: {}", e))?;
-    println!("package: {}", lcl_path.display());
+    eprintln!("package: {}", lcl_path.display());
 
     Ok(())
 }
@@ -590,7 +590,7 @@ pub fn run_executable(exe_name: &str) -> Result<i32, String> {
     } else {
         exe_name.to_string()
     };
-    println!("running: {}", exe_path);
+    eprintln!("running: {}", exe_path);
     let status = std::process::Command::new(&exe_path)
         .status()
         .map_err(|e| format!("failed to run '{}': {}", exe_path, e))?;
