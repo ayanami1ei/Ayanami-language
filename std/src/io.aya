@@ -2,7 +2,7 @@ import "string"
 
 extern "C" fn __ayanami_getchar() -> int;
 extern "C" fn __ayanami_putchar(int c);
-extern "C" fn __ayanami_print_str(unique [char] s);
+extern "C" fn __ayanami_print_str(unique [char] s, int len);
 extern "C" fn __ayanami_print_ln();
 
 pub fn getchar() -> int { 
@@ -12,7 +12,7 @@ pub fn putchar(int c) {
     __ayanami_putchar(c); 
 }
 pub fn print(unique String n) { 
-    __ayanami_print_str(n.data); 
+    __ayanami_print_str(n.data, n.len); 
 }
 pub fn println() {
     __ayanami_print_ln(); 

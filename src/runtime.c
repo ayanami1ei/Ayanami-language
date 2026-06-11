@@ -51,8 +51,8 @@ void __ayanami_print_int(int64_t n) {
     printf("%ld", (long)n);
 }
 
-void __ayanami_print_str(const char *s) {
-    printf("%s", s);
+void __ayanami_print_str(const char *s, int64_t len) {
+    fwrite(s, 1, len, stdout);
 }
 
 void __ayanami_print_ln(void) {
