@@ -144,6 +144,7 @@ fn mir_expr_from_hir(expr: &HirExpr, moved: &HashSet<VarId>) -> MirExpr {
             inputs: inputs.iter().map(|(c, e)| (c.clone(), Box::new(mir_expr_from_hir(e, moved)))).collect(),
             ty: ty.clone(),
         },
+        HirExpr::Custom(_) => panic!("custom HIR not implemented"),
     }
 }
 
@@ -230,6 +231,7 @@ fn lower_item(item: &HirItem, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType
         }
         // InterfaceDef has no runtime code — skip
         HirItem::InterfaceDef { .. } => vec![],
+        HirItem::Custom(_) => vec![],
     }
 }
 

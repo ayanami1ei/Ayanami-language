@@ -1132,6 +1132,7 @@ impl<'a> Emitter<'a> {
                     self.wln("ret void");
                 }
             },
+            LirInst::Custom(_) => { eprintln!("unhandled custom LIR instruction"); },
         }
     }
 

@@ -261,6 +261,7 @@ pub enum LirInst {
         elem_ty: HirType,
         array_ty: HirType,
     },
+    Custom(IrNode),
 }
 
 #[derive(Debug, Clone)]

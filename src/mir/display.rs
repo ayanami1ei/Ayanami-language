@@ -214,6 +214,7 @@ fn write_expr(expr: &MirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
                 write_expr(e, level + 1, w)?;
             }
         }
+        MirExpr::Custom(_) => {}
     }
     Ok(())
 }

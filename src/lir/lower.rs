@@ -944,6 +944,7 @@ fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
             });
             LirValue::Tmp(dest)
         }
+        MirExpr::Custom(_) => LirValue::Tmp(0),
     }
 }
 
@@ -1085,6 +1086,7 @@ fn expr_mir_type(expr: &MirExpr) -> HirType {
         | MirExpr::Index { ty, .. }
         | MirExpr::Ref { ty, .. }
         | MirExpr::Asm { ty, .. } => ty.clone(),
+        MirExpr::Custom(_) => HirType::Void,
     }
 }
 

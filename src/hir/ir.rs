@@ -158,6 +158,7 @@ pub enum HirExpr {
         args: Vec<HirExpr>,
         ty: HirType,
     },
+    Custom(crate::lir::ir::IrNode),
 }
 
 #[derive(Debug, Clone)]
@@ -277,6 +278,7 @@ pub enum HirItem {
         generic_params: Vec<(Symbol, Option<Symbol>)>,
         methods: Vec<HirInterfaceMethod>,
     },
+    Custom(crate::lir::ir::IrNode),
 }
 
 /// Signature of an imported function (from a package).

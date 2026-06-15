@@ -63,6 +63,7 @@ fn has_return_in_item(item: &HirItem) -> bool {
         }),
         HirItem::StructDef(_) | HirItem::InterfaceDef { .. } => true,
         HirItem::Namespace { items, .. } => items.iter().all(|i| has_return_in_item(i)),
+        HirItem::Custom(_) => false,
     }
 }
 

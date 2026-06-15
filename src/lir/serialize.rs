@@ -326,6 +326,7 @@ fn put_inst(buf: &mut Vec<u8>, inst: &LirInst) {
             put_value(buf, src); put_value(buf, index);
             put_type(buf, elem_ty); put_type(buf, array_ty);
         }
+        LirInst::Custom(_) => {}
     }
 }
 

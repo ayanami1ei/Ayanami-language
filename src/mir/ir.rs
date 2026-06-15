@@ -85,6 +85,7 @@ pub enum MirExpr {
         index: Box<MirExpr>,
         ty: HirType,
     },
+    Custom(crate::lir::ir::IrNode),
 }
 
 #[derive(Debug, Clone)]

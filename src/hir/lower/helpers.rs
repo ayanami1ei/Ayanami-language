@@ -714,6 +714,7 @@ pub(crate) fn expr_type(expr: &HirExpr) -> HirType {
         | HirExpr::Index { ty, .. }
         | HirExpr::Ref { ty, .. }
         | HirExpr::Asm { ty, .. } => ty.clone(),
+        HirExpr::Custom(_) => HirType::Void,
     }
 }
 

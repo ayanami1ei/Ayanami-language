@@ -121,6 +121,7 @@ fn write_inst(inst: &LirInst, w: &mut impl Write) -> std::fmt::Result {
             let m = if *mutable { "mut " } else { "" };
             writeln!(w, "    t{} = ref_{}v{} : {:?}", dest, m, var_id.0, ty)?;
         }
+        LirInst::Custom(_) => {}
     }
     Ok(())
 }

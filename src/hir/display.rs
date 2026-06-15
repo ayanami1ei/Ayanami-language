@@ -84,6 +84,7 @@ fn write_item(item: &HirItem, level: usize, w: &mut impl Write) -> std::fmt::Res
                     p, m.name, params.join(", "), display_type(&m.return_type))?;
             }
         }
+        HirItem::Custom(_) => {}
     }
     Ok(())
 }
@@ -217,6 +218,7 @@ fn write_expr(expr: &HirExpr, level: usize, w: &mut impl Write) -> std::fmt::Res
                 write_expr(e, level + 1, w)?;
             }
         }
+        HirExpr::Custom(_) => {}
     }
     Ok(())
 }
