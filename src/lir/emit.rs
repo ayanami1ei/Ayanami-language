@@ -367,15 +367,15 @@ impl<'a> Emitter<'a> {
     // ----------------------------------------------------------------
 
     fn emit_inst(&mut self, inst: &LirInst) {
-        match inst {
-            LirInst::Alloca(vid, ty) => {
+        match inst.kind() {
+            "Alloca" => { let LirInst::Alloca(vid, ty) = inst else { unreachable!() };
                 let llvm_ty = self.llvm_type(ty);
                 self.wln_fmt(format_args!(
                     "%v{} = alloca {}, align 8",
                     vid.0, llvm_ty
                 ));
             }
-            LirInst::Store { dest, src, ty } => {
+            "Store" => { let LirInst::Store { dest, src, ty } = inst else { unreachable!() };
                 let llvm_ty = self.llvm_type(ty);
                 let src_str = match src {
                     LirValue::Param(i) => format!("%{}", i),
@@ -395,21 +395,14 @@ impl<'a> Emitter<'a> {
                     llvm_ty, src_str, dest.0
                 ));
             }
-            LirInst::Load { dest, src, ty } => {
+            "Load" => { let LirInst::Load { dest, src, ty } = inst else { unreachable!() };
                 let llvm_ty = self.llvm_type(ty);
                 self.wln_fmt(format_args!(
                     "%t{} = load {}, ptr %v{}, align 8",
                     dest, llvm_ty, src.0
                 ));
             }
-            LirInst::BinOp {
-                dest,
-                op,
-                lhs,
-                rhs,
-                ty,
-                result_ty: _,
-            } => {
+            "BinOp" => { let LirInst::BinOp { dest, op, lhs, rhs, ty, result_ty: _ } = inst else { unreachable!() };
                 let l = self.value_ref(lhs, ty);
                 let r = self.value_ref(rhs, ty);
                 // Detect pointer comparison: one side is "null" and the other is a temp
@@ -599,7 +592,7 @@ impl<'a> Emitter<'a> {
                     _ => {}
                 }
             }
-            LirInst::UnaryOp { dest, op, src, ty } => {
+            "UnaryOp" => { let LirInst::UnaryOp { dest, op, src, ty } = inst else { unreachable!() };
                 let s = self.value_ref(src, ty);
                 match (op, ty) {
                     (UnaryOp::Neg, HirType::Int) => {
@@ -623,16 +616,11 @@ impl<'a> Emitter<'a> {
                     _ => {}
                 }
             }
-            LirInst::FnAddr { dest, fn_id } => {
+            "FnAddr" => { let LirInst::FnAddr { dest, fn_id } = inst else { unreachable!() };
                 let fn_name = &self.prog.fn_names[fn_id];
                 self.wln_fmt(format_args!("%t{} = getelementptr i8, ptr @{}, i32 0", dest, fn_name));
             }
-            LirInst::CallPtr {
-                dest,
-                fn_ptr,
-                args,
-                ret_ty,
-            } => {
+            "CallPtr" => { let LirInst::CallPtr { dest, fn_ptr, args, ret_ty } = inst else { unreachable!() };
                 let fn_src = self.value_ref(fn_ptr, &HirType::Int);
                 let ret_llvm = self.llvm_type(ret_ty);
                 let call_args: Vec<String> = args.iter().map(|(v, t)| format!("{} {}", self.llvm_type(t), self.value_ref(v, t))).collect();
@@ -643,12 +631,7 @@ impl<'a> Emitter<'a> {
                     self.wln_fmt(format_args!("%t{} = call {} {} ({})", dest, ret_llvm, fn_src, call_args.join(", ")));
                 }
             }
-            LirInst::Call {
-                dest,
-                fn_id,
-                args,
-                ret_ty,
-            } => {
+            "Call" => { let LirInst::Call { dest, fn_id, args, ret_ty } = inst else { unreachable!() };
                 let fn_name = &self.prog.fn_names[fn_id];
                 let mut arg_strs = Vec::new();
                 for (val, aty) in args {
@@ -667,13 +650,13 @@ impl<'a> Emitter<'a> {
                     dest_str, ret_llvm, fn_name, arg_strs.join(", ")
                 ));
             }
-            LirInst::StrGlobal { dest, str_idx } => {
+            "StrGlobal" => { let LirInst::StrGlobal { dest, str_idx } = inst else { unreachable!() };
                 self.wln_fmt(format_args!(
                     "%t{} = getelementptr inbounds i8, ptr @__str_{}, i64 0",
                     dest, str_idx
                 ));
             }
-            LirInst::Conv { dest, alloca_tmp, malloc_tmp, src, kind, src_ty, ty } => {
+            "Conv" => { let LirInst::Conv { dest, alloca_tmp, malloc_tmp, src, kind, src_ty, ty } = inst else { unreachable!() };
                 let src_val = self.value_ref(src, src_ty);
                 // 检查源是否已在堆上（Shared/Unique/Weak 都是 ptr）
                 let src_is_heap_ptr = matches!(src_ty,
@@ -792,7 +775,7 @@ impl<'a> Emitter<'a> {
                     }
                 }
             }
-            LirInst::DropValue(vid, ty) => {
+            "DropValue" => { let LirInst::DropValue(vid, ty) = inst else { unreachable!() };
                 if needs_heap_ops(&ty) {
                     let tmp = self.tmp();
                     let llvm_ty = self.llvm_type(&ty);
@@ -803,7 +786,7 @@ impl<'a> Emitter<'a> {
                     self.wln_fmt(format_args!("call void @free(i8* %c{})", tmp));
                 }
             }
-            LirInst::RetainValue(vid, ty) => {
+            "RetainValue" => { let LirInst::RetainValue(vid, ty) = inst else { unreachable!() };
                 if needs_heap_ops(&ty) {
                     let tmp = self.tmp();
                     let llvm_ty = self.llvm_type(&ty);
@@ -817,7 +800,7 @@ impl<'a> Emitter<'a> {
                     ));
                 }
             }
-            LirInst::ReleaseValue(vid, ty) => {
+            "ReleaseValue" => { let LirInst::ReleaseValue(vid, ty) = inst else { unreachable!() };
                 if needs_heap_ops(&ty) {
                     let tmp = self.tmp();
                     let llvm_ty = self.llvm_type(&ty);
@@ -831,21 +814,21 @@ impl<'a> Emitter<'a> {
                     ));
                 }
             }
-            LirInst::Br(label) => {
+            "Br" => { let LirInst::Br(label) = inst else { unreachable!() };
                 self.wln_fmt(format_args!("br label %{}", label));
             }
-            LirInst::BrCond {
+            "BrCond" => { let LirInst::BrCond {
                 cond,
                 true_block,
                 false_block,
-            } => {
+            } = inst else { unreachable!() };
                 let c = self.value_ref(cond, &HirType::Bool);
                 self.wln_fmt(format_args!(
                     "br i1 {}, label %{}, label %{}",
                     c, true_block, false_block
                 ));
             }
-            LirInst::MakeFatPtr { dest, malloc_tmp, bc_tmp, vtable_gep_tmp, iv_tmp, value_src, value_ty, vtable_name, .. } => {
+            "MakeFatPtr" => { let LirInst::MakeFatPtr { dest, malloc_tmp, bc_tmp, vtable_gep_tmp, iv_tmp, value_src, value_ty, vtable_name, .. } = inst else { unreachable!() };
                 // For already-heap types (Shared/Unique/Weak), use the value pointer directly.
                 // For value types (int, float, structs), heap-allocate a copy.
                 let is_ptr_type = matches!(value_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_));
@@ -886,7 +869,7 @@ impl<'a> Emitter<'a> {
                     dest, iv_tmp, vtable_gep_tmp
                 ));
             }
-            LirInst::VirtualCall { fn_dest, receiver_tmp, data_tmp, vtable_tmp, gep_tmp, fn_ptr_tmp, method_index, args, ret_ty } => {
+            "VirtualCall" => { let LirInst::VirtualCall { fn_dest, receiver_tmp, data_tmp, vtable_tmp, gep_tmp, fn_ptr_tmp, method_index, args, ret_ty } = inst else { unreachable!() };
                 // Extract data and vtable from fat pointer
                 self.wln_fmt(format_args!(
                     "%t{} = extractvalue {{ ptr, ptr }} %t{}, 0",
@@ -923,7 +906,7 @@ impl<'a> Emitter<'a> {
                     dest_str, ret_llvm, fn_ptr_tmp, call_args.join(", ")
                 ));
             }
-            LirInst::FieldAccess { dest, gep_tmp, src, field_index, field_ty, struct_ty } => {
+            "FieldAccess" => { let LirInst::FieldAccess { dest, gep_tmp, src, field_index, field_ty, struct_ty } = inst else { unreachable!() };
                 // Strip ownership wrappers to get the inner Named type
                 let inner = match struct_ty {
                     HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
@@ -954,7 +937,7 @@ impl<'a> Emitter<'a> {
                     ));
                 }
             }
-            LirInst::StructLit { dest, alloca_tmp, field_geps, fields, struct_name, struct_ty: _ } => {
+            "StructLit" => { let LirInst::StructLit { dest, alloca_tmp, field_geps, fields, struct_name, struct_ty: _ } = inst else { unreachable!() };
                 let struct_llvm = format!("%struct.{}", sanitize_name(&struct_name.as_str()));
                 self.wln_fmt(format_args!(
                     "%t{} = alloca {}, align 8",
@@ -977,7 +960,7 @@ impl<'a> Emitter<'a> {
                     dest, struct_llvm, alloca_tmp
                 ));
             }
-            LirInst::ArraySized { dest, malloc_tmp, count_tmp, size_tmp, elem_count, elem_size, .. } => {
+            "ArraySized" => { let LirInst::ArraySized { dest, malloc_tmp, count_tmp, size_tmp, elem_count, elem_size, .. } = inst else { unreachable!() };
                 let count_str = self.value_ref(elem_count, &HirType::Int);
                 self.wln_fmt(format_args!(
                     "%t{} = add i64 0, {}",
@@ -1000,7 +983,7 @@ impl<'a> Emitter<'a> {
                     dest, size_tmp
                 ));
             }
-            LirInst::ArrayLit { dest, malloc_tmp, elem_geps, elems, elem_ty, ty: _ } => {
+            "ArrayLit" => { let LirInst::ArrayLit { dest, malloc_tmp, elem_geps, elems, elem_ty, ty: _ } = inst else { unreachable!() };
                 let num_elems = elems.len();
                 let elem_llvm = self.llvm_type(elem_ty);
                 let elem_size = llvm_type_size(elem_ty).parse::<u64>().unwrap_or(8);
@@ -1025,7 +1008,7 @@ impl<'a> Emitter<'a> {
                     ));
                 }
             }
-            LirInst::IndexAccess { dest, gep_tmp, load_tmp, arr, index, elem_ty, ty } => {
+            "IndexAccess" => { let LirInst::IndexAccess { dest, gep_tmp, load_tmp, arr, index, elem_ty, ty } = inst else { unreachable!() };
                 let elem_llvm = self.llvm_type(elem_ty);
                 let arr_str = self.value_ref(arr, ty);
                 let idx_str = self.value_ref(index, &HirType::Int);
@@ -1042,7 +1025,7 @@ impl<'a> Emitter<'a> {
                     dest, elem_llvm, load_tmp, self.llvm_type(ty)
                 ));
             }
-            LirInst::FieldStore { dest, var_id, gep_tmp, iv_tmp, src, field_index, field_ty, struct_ty } => {
+            "FieldStore" => { let LirInst::FieldStore { dest, var_id, gep_tmp, iv_tmp, src, field_index, field_ty, struct_ty } = inst else { unreachable!() };
                 let inner = match struct_ty {
                     HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
                     other => other,
@@ -1079,7 +1062,7 @@ impl<'a> Emitter<'a> {
                     ));
                 }
             }
-            LirInst::IndexStore { dest, gep_tmp, src, index, elem_ty, array_ty: _ } => {
+            "IndexStore" => { let LirInst::IndexStore { dest, gep_tmp, src, index, elem_ty, array_ty: _ } = inst else { unreachable!() };
                 let elem_llvm = self.llvm_type(elem_ty);
                 let src_str = self.value_ref(src, elem_ty);
                 let idx_str = self.value_ref(index, &HirType::Int);
@@ -1092,7 +1075,7 @@ impl<'a> Emitter<'a> {
                     elem_llvm, src_str, gep_tmp
                 ));
             }
-            LirInst::Asm { dest, template, output_constraints, input_operands, input_constraints, ret_ty } => {
+            "Asm" => { let LirInst::Asm { dest, template, output_constraints, input_operands, input_constraints, ret_ty } = inst else { unreachable!() };
                 let ret_llvm = self.llvm_type(ret_ty);
                 let constraint_str = {
                     let mut all = output_constraints.clone();
@@ -1115,14 +1098,14 @@ impl<'a> Emitter<'a> {
                     ));
                 }
             }
-            LirInst::RefInst { dest, var_id, mutable: _, ty: _ } => {
+            "RefInst" => { let LirInst::RefInst { dest, var_id, mutable: _, ty: _ } = inst else { unreachable!() };
                 // The alloca pointer IS the reference value
                 self.wln_fmt(format_args!(
                     "%t{} = getelementptr i8, ptr %v{}, i32 0",
                     dest, var_id.0
                 ));
             }
-            LirInst::Ret(val) => match val {
+            "Ret" => { let LirInst::Ret(val) = inst else { unreachable!() }; match val {
                 Some((v, ty)) => {
                     let s = self.value_ref(v, ty);
                     let llvm_ty = self.llvm_type(&self.current_fn_ret_ty);
@@ -1131,8 +1114,9 @@ impl<'a> Emitter<'a> {
                 None => {
                     self.wln("ret void");
                 }
-            },
-            LirInst::Custom(_) => { eprintln!("unhandled custom LIR instruction"); },
+            }},
+            "Custom" => { eprintln!("unhandled custom LIR instruction"); },
+            _ => { panic!("unknown LIR instruction kind: {}", inst.kind()); },
         }
     }
 

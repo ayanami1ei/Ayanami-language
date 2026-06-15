@@ -264,6 +264,42 @@ pub enum LirInst {
     Custom(IrNode),
 }
 
+impl LirInst {
+    /// Return a string key for dynamic dispatch (replaces match).
+    pub fn kind(&self) -> &'static str {
+        match self {
+            LirInst::Alloca(..) => "Alloca",
+            LirInst::Store { .. } => "Store",
+            LirInst::Load { .. } => "Load",
+            LirInst::BinOp { .. } => "BinOp",
+            LirInst::UnaryOp { .. } => "UnaryOp",
+            LirInst::Call { .. } => "Call",
+            LirInst::CallPtr { .. } => "CallPtr",
+            LirInst::FnAddr { .. } => "FnAddr",
+            LirInst::StrGlobal { .. } => "StrGlobal",
+            LirInst::Conv { .. } => "Conv",
+            LirInst::DropValue(..) => "DropValue",
+            LirInst::RetainValue(..) => "RetainValue",
+            LirInst::ReleaseValue(..) => "ReleaseValue",
+            LirInst::Br(..) => "Br",
+            LirInst::BrCond { .. } => "BrCond",
+            LirInst::Ret(..) => "Ret",
+            LirInst::MakeFatPtr { .. } => "MakeFatPtr",
+            LirInst::FieldAccess { .. } => "FieldAccess",
+            LirInst::Asm { .. } => "Asm",
+            LirInst::RefInst { .. } => "RefInst",
+            LirInst::ArraySized { .. } => "ArraySized",
+            LirInst::ArrayLit { .. } => "ArrayLit",
+            LirInst::IndexAccess { .. } => "IndexAccess",
+            LirInst::StructLit { .. } => "StructLit",
+            LirInst::VirtualCall { .. } => "VirtualCall",
+            LirInst::FieldStore { .. } => "FieldStore",
+            LirInst::IndexStore { .. } => "IndexStore",
+            LirInst::Custom(_) => "Custom",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LirBlock {
     pub label: String,
