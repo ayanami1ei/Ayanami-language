@@ -14,6 +14,7 @@
 // 11. span       → 源代码位置跟踪
 // ============================================================
 
+pub mod generated;
 pub mod compiler;
 pub mod driver;
 pub mod formatter;

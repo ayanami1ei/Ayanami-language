@@ -1,0 +1,7 @@
+"filename", "language", "Rust", "comment", "blank", "total"
+"/home/ayanami/Ayanami-language/src/formatter.rs", "Rust", 8, 0, 0, 8
+"/home/ayanami/Ayanami-language/src/hir/lower/body.rs", "Rust", 4, -1, 0, 3
+"/home/ayanami/Ayanami-language/src/lir/lower.rs", "Rust", -4, 0, 0, -4
+"/home/ayanami/Ayanami-language/src/lir/serialize.rs", "Rust", 12, 0, 0, 12
+"/home/ayanami/Ayanami-language/src/parser/parser.rs", "Rust", -5, -1, 0, -6
+"Total", "-", 15, -2, 0, 13

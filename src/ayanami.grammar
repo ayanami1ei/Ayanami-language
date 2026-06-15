@@ -1,0 +1,117 @@
+// Ayanami language grammar for Asuka
+
+@lexer {
+    keyword: "fn", "let", "return", "if", "else", "true", "false", "while",
+             "for", "in", "match", "enum", "struct", "interface", "impl",
+             "pub", "shared", "unique", "weak", "extern", "import", "as",
+             "break", "continue", "mut", "self"
+    operator: "+" (prec:5, assoc:left)
+              "-" (prec:5, assoc:left)
+              "*" (prec:6, assoc:left)
+              "/" (prec:6, assoc:left)
+              "%" (prec:6, assoc:left)
+              "==" (prec:3, assoc:left)
+              "!=" (prec:3, assoc:left)
+              "<" (prec:3, assoc:left)
+              ">" (prec:3, assoc:left)
+              "<=" (prec:3, assoc:left)
+              ">=" (prec:3, assoc:left)
+              "=" (prec:2, assoc:right)
+              "[" (prefix, group)
+              "]" (prefix)
+    punct: ";", "{", "}", "(", ")", "[", "]", ",", ":", "::", "->", "=>",
+           "_", "."
+}
+
+@ast {
+    Program       = Item*;
+    Item          = FnDecl | StructDef | EnumDef | InterfaceDef | ImplBlock | Import;
+
+    Import        = "import" StringLiteral ";";
+
+    FnDecl        = Vis? "fn" Ident GenericParams? "(" ParamList? ")" ("->" Type)? Block;
+    FnParam       = Type Ident;
+    ParamList     = FnParam ("," FnParam)*;
+    Vis           = "pub" ("(" "crate" ")")?;
+
+    StructDef     = Vis? "struct" Ident GenericParams? "{" FieldList "}";
+    Field         = Type Ident;
+    FieldList     = Field*;
+
+    EnumDef       = Vis? "enum" Ident GenericParams? "{" VariantList "}";
+    Variant       = Ident ("(" TypeList? ")")?;
+    VariantList   = Variant ("," Variant)*;
+
+    InterfaceDef  = Vis? "interface" Ident GenericParams? "{" IfaceMethodList "}";
+    IfaceMethod   = "fn" Ident "(" SelfParam "," ParamList ")" ("->" Type)? ";";
+    SelfParam     = ("shared" | "unique") "self";
+
+    ImplBlock     = Vis? "impl" GenericParams? Type ("{" MethodList "}")?;
+    Method        = Vis? "fn" Ident GenericParams? "(" SelfParam "," ParamList ")" ("->" Type)? Block;
+
+    GenericParams = "[" GenericParam ("," GenericParam)* "]";
+    GenericParam  = Ident (":" Ident)?;
+
+    Type          = TypeBase | SharedType | UniqueType | WeakType | FnType | ArrayType;
+    TypeBase      = Ident ("[" Type ("," Type)* "]")?;
+    SharedType    = "shared" Type;
+    UniqueType    = "unique" Type;
+    WeakType      = "weak" Type;
+    FnType        = "fn" "(" TypeList? ")" ("->" Type)?;
+    ArrayType     = "[" Type (";" Expr)? "]";
+    TypeList      = Type ("," Type)*;
+
+    Block         = "{" Stmt* "}";
+
+    Stmt          = VarDecl | ReturnStmt | IfStmt | WhileStmt | ForStmt
+                   | MatchStmt | BreakStmt | ContinueStmt | ExprStmt | Block;
+
+    VarDecl       = Ident "=" Expr ";";
+    ReturnStmt    = "return" Expr? ";";
+    IfStmt        = "if" Expr Block ("else" (IfStmt | Block))?;
+    WhileStmt     = "while" Expr Block;
+    ForStmt       = "for" Ident "in" "(" Expr "," Expr ")" Block;
+    MatchStmt     = "match" Expr "{" MatchArm* "}";
+    MatchArm      = Pattern "=>" Expr ",";
+    BreakStmt     = "break" ";";
+    ContinueStmt  = "continue" ";";
+    ExprStmt      = Expr ";";
+
+    Pattern       = Ident ("(" PatternArgs? ")")?;
+    PatternArgs   = Pattern ("," Pattern)*;
+
+    Expr          = BinaryExpr | UnaryExpr | CallExpr | FieldExpr | IndexExpr
+                   | MatchExpr | IfExpr | BlockExpr
+                   | Ident | IntLiteral | FloatLiteral | StringLiteral | CharLiteral | BoolLiteral
+                   | StructLiteral | ArrayLiteral;
+    BinaryExpr    = Expr operator Expr;
+    UnaryExpr     = ("-" | "!") Expr;
+    CallExpr      = Ident "(" ExprList? ")";
+    FieldExpr     = Expr "." Ident;
+    IndexExpr     = Expr "[" Expr "]";
+    MatchExpr     = "match" Expr "{" MatchArm* "}";
+    IfExpr        = "if" Expr Block ("else" (IfExpr | Block))?;
+    BlockExpr     = Block;
+    StructLiteral = Type "{" FieldInitList "}";
+    FieldInit     = Ident "=" Expr;
+    FieldInitList = FieldInit ("," FieldInit)*;
+    ArrayLiteral  = "[" ExprList? "]";
+    ExprList      = Expr ("," Expr)*;
+    BoolLiteral   = "true" | "false";
+}
+
+@hir {
+    // Placeholder — lowering defined via @transform
+}
+
+@transform {
+    // Simple direct mappings for now
+}
+
+@emit {
+    // LLVM IR emission templates
+}
+
+@pipeline {
+    parse → lex, parse_ast;
+}
