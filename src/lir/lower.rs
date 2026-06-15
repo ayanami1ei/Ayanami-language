@@ -155,6 +155,7 @@ fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
             return_type: f.return_type.clone(),
             locals: f.locals.clone(),
             blocks: vec![],
+            custom: Vec::new(),
         };
     }
 
@@ -194,6 +195,7 @@ fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
         return_type: f.return_type.clone(),
         locals: f.locals.clone(),
         blocks,
+        custom: Vec::new(),
     }
 }
 

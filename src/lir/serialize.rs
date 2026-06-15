@@ -609,6 +609,6 @@ impl<'a> Reader<'a> {
             for _ in 0..ic { insts.push(self.inst()?); }
             blocks.push(LirBlock { label, insts });
         }
-        Ok(LirFn { fn_id: fid, is_inline, extern_c, name, params, return_type: ret, locals, blocks })
+        Ok(LirFn { fn_id: fid, is_inline, extern_c, name, params, return_type: ret, locals, blocks, custom: Vec::new() })
     }
 }

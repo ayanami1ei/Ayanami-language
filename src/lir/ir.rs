@@ -1,9 +1,42 @@
 use std::collections::{HashMap, HashSet};
 
+use std::collections::BTreeMap;
+
 use crate::hir::ir::{FnId, HirLiteral, HirType, VarId};
 use crate::intern::Symbol;
 use crate::mir::ir::MirLocal;
 use crate::parser::ast::{BinaryOp, UnaryOp};
+
+/// Dynamic IR node — for user-defined extensions.
+/// NOT an enum variant — attached to parent structs via `custom: Vec<IrNode>`.
+#[derive(Debug, Clone)]
+pub struct IrNode {
+    pub kind: String,
+    pub fields: BTreeMap<String, IrValue>,
+}
+
+#[derive(Debug, Clone)]
+pub enum IrValue {
+    Node(Box<IrNode>),
+    Nodes(Vec<IrNode>),
+    U64(u64),
+    I64(i64),
+    String(String),
+    None,
+}
+
+impl IrNode {
+    pub fn new(kind: &str) -> Self {
+        Self { kind: kind.to_string(), fields: BTreeMap::new() }
+    }
+    pub fn set(&mut self, name: &str, val: IrValue) -> &mut Self {
+        self.fields.insert(name.to_string(), val);
+        self
+    }
+    pub fn get(&self, name: &str) -> Option<&IrValue> {
+        self.fields.get(name)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConvKind {
@@ -246,6 +279,8 @@ pub struct LirFn {
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,
     pub blocks: Vec<LirBlock>,
+    /// User-defined extension nodes (not in LirInst enum)
+    pub custom: Vec<IrNode>,
 }
 
 /// Describes a vtable global constant for interface dispatch
