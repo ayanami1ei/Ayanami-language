@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::intern::Symbol;
 use crate::parser::ast::{BinaryOp, UnaryOp};
 use crate::span::Span;
+use crate::lir::ir::IrValue;
 
 /// Index into the current function's locals array.
 /// Used in instructions to reference stack-allocated variables.
@@ -159,6 +160,27 @@ pub enum HirExpr {
         ty: HirType,
     },
     Custom(crate::lir::ir::IrNode),
+}
+
+// ── Struct-based IR nodes (replace enum variants gradually) ──
+
+/// HirBinary — replaces HirExpr::Binary { op, lhs, rhs, ty }
+#[derive(Debug, Clone)]
+pub struct HirBinary {
+    pub op: BinaryOp,
+    pub lhs: Box<HirExpr>,
+    pub rhs: Box<HirExpr>,
+    pub ty: HirType,
+}
+
+impl HirBinary {
+    pub fn kind() -> &'static str { "HirBinary" }
+}
+
+impl From<HirBinary> for HirExpr {
+    fn from(_val: HirBinary) -> Self {
+        HirExpr::Custom(crate::lir::ir::IrNode::new("HirBinary"))
+    }
 }
 
 #[derive(Debug, Clone)]
