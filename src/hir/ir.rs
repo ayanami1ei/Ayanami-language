@@ -162,26 +162,54 @@ pub enum HirExpr {
     Custom(crate::lir::ir::IrNode),
 }
 
-// ── Struct-based IR nodes (replace enum variants gradually) ──
+// ── Struct-based IR nodes (each replaces an HirExpr enum variant) ──
+// Naming: SXxx where X = struct version of HirXxx
 
-/// HirBinary — replaces HirExpr::Binary { op, lhs, rhs, ty }
-#[derive(Debug, Clone)]
-pub struct HirBinary {
-    pub op: BinaryOp,
-    pub lhs: Box<HirExpr>,
-    pub rhs: Box<HirExpr>,
-    pub ty: HirType,
+macro_rules! s_hir {
+    ($name:ident { $($field:ident: $ty:ty),* $(,)? }) => {
+        #[derive(Debug, Clone)]
+        pub struct $name {
+            $(pub $field: $ty),*
+        }
+        impl $name {
+            pub fn kind() -> &'static str { stringify!($name) }
+        }
+        impl From<$name> for HirExpr {
+            fn from(v: $name) -> Self {
+                let mut node = crate::lir::ir::IrNode::new(stringify!($name));
+                $(
+                    node.set(stringify!($field), crate::lir::ir::IrValue::String(format!("{:?}", v.$field)));
+                )*
+                HirExpr::Custom(node)
+            }
+        }
+    };
+    ($name:ident { $($field:ident: $ty:ty),* }) => { s_hir!($name { $($field: $ty),* , }); };
 }
 
-impl HirBinary {
-    pub fn kind() -> &'static str { "HirBinary" }
-}
-
-impl From<HirBinary> for HirExpr {
-    fn from(_val: HirBinary) -> Self {
-        HirExpr::Custom(crate::lir::ir::IrNode::new("HirBinary"))
-    }
-}
+s_hir!(SBin { op: BinaryOp, lhs: Box<HirExpr>, rhs: Box<HirExpr>, ty: HirType });
+s_hir!(SUn { op: UnaryOp, arg: Box<HirExpr>, ty: HirType });
+s_hir!(SCall { fn_id: FnId, args: Vec<HirExpr>, ty: HirType });
+s_hir!(SConst { val: HirLiteral, ty: HirType });
+s_hir!(SVar { var: VarId, ty: HirType });
+s_hir!(SMove { expr: Box<HirExpr>, ty: HirType });
+s_hir!(SClone { expr: Box<HirExpr>, ty: HirType });
+s_hir!(SToUnique { expr: Box<HirExpr>, ty: HirType });
+s_hir!(SToShared { expr: Box<HirExpr>, ty: HirType });
+s_hir!(SToWeak { expr: Box<HirExpr>, ty: HirType });
+s_hir!(SField { object: Box<HirExpr>, field: Symbol, field_index: usize, ty: HirType });
+s_hir!(SStruct { type_name: Symbol, fields: Vec<(Symbol, HirExpr)>, ty: HirType });
+s_hir!(SArrLit { elems: Vec<HirExpr>, ty: HirType });
+s_hir!(SArrSz { count: Box<HirExpr>, elem_ty: HirType, ty: HirType });
+s_hir!(SAsm { template: String, outputs: Vec<(String, Box<HirExpr>)>, inputs: Vec<(String, Box<HirExpr>)>, ty: HirType });
+s_hir!(SRef { expr: Box<HirExpr>, mutable: bool, ty: HirType });
+s_hir!(SIdx { object: Box<HirExpr>, index: Box<HirExpr>, ty: HirType });
+s_hir!(SVCall { receiver: Box<HirExpr>, interface: Symbol, method_index: usize, args: Vec<HirExpr>, concrete_type: Symbol, ty: HirType });
+s_hir!(SMFP { value: Box<HirExpr>, concrete_type: Symbol, interface_name: Symbol, ty: HirType });
+s_hir!(SEnumC { enum_name: Symbol, variant_name: Symbol, variant_struct: Symbol, args: Vec<HirExpr>, ty: HirType });
+s_hir!(SEnumM { value: Box<HirExpr>, arms: Vec<(i64, HirExpr)>, ty: HirType });
+s_hir!(SFnPtr { fn_id: FnId, ty: HirType });
+s_hir!(SCallP { fn_ptr: Box<HirExpr>, args: Vec<HirExpr>, ty: HirType });
 
 #[derive(Debug, Clone)]
 pub struct HirBlock {
