@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use super::ir::*;
+use crate::hir::*;
 
 pub fn display_hir_program(program: &HirProgram) {
     print!("{}", hir_program_to_string(program));
@@ -15,11 +15,11 @@ pub fn hir_program_to_string(program: &HirProgram) -> String {
     s
 }
 
-fn pad(n: usize) -> String {
+pub(crate) fn pad(n: usize) -> String {
     "│ ".repeat(n)
 }
 
-fn display_type(ty: &HirType) -> String {
+pub(crate) fn display_type(ty: &HirType) -> String {
     match ty {
         HirType::Int => "Int".into(),
         HirType::Float => "Float".into(),
@@ -84,7 +84,6 @@ fn write_item(item: &HirItem, level: usize, w: &mut impl Write) -> std::fmt::Res
                     p, m.name, params.join(", "), display_type(&m.return_type))?;
             }
         }
-        HirItem::Custom(_) => {}
     }
     Ok(())
 }
@@ -99,128 +98,8 @@ fn write_block(block: &HirBlock, level: usize, w: &mut impl Write) -> std::fmt::
     Ok(())
 }
 
-fn write_expr(expr: &HirExpr, level: usize, w: &mut impl Write) -> std::fmt::Result {
-    let p = pad(level);
-    match expr {
-        HirExpr::Literal(lit, _) => {
-            let s = match lit {
-                HirLiteral::Int(n) => format!("Int({})", n),
-                HirLiteral::Float(n) => format!("Float({})", n),
-                HirLiteral::Char(c) => format!("Char('{}')", c),
-                HirLiteral::String(s) => format!("String(\"{}\")", s),
-                HirLiteral::Bool(b) => format!("Bool({})", b),
-            };
-            writeln!(w, "{}Literal({})", p, s)?;
-        }
-        HirExpr::Local(VarId(id), ty) => {
-            writeln!(w, "{}Local(v{} : {})", p, id, display_type(ty))?;
-        }
-        HirExpr::Binary { op, lhs, rhs, ty } => {
-            writeln!(w, "{}Binary {{ op: {:?}, ty: {} }}", p, op, display_type(ty))?;
-            writeln!(w, "{}  lhs:", p)?;
-            write_expr(lhs, level + 1, w)?;
-            writeln!(w, "{}  rhs:", p)?;
-            write_expr(rhs, level + 1, w)?;
-        }
-        HirExpr::Unary { op, arg, ty } => {
-            writeln!(w, "{}Unary {{ op: {:?}, ty: {} }}", p, op, display_type(ty))?;
-            write_expr(arg, level + 1, w)?;
-        }
-        HirExpr::Call { fn_id, args, ty } => {
-            writeln!(w, "{}Call(fn{}, ty: {})", p, fn_id.0, display_type(ty))?;
-            for arg in args {
-                write_expr(arg, level + 1, w)?;
-            }
-        }
-        HirExpr::Move(inner, ty) => {
-            writeln!(w, "{}Move(ty: {})", p, display_type(ty))?;
-            write_expr(inner, level + 1, w)?;
-        }
-        HirExpr::Clone(inner, ty) => {
-            writeln!(w, "{}Clone(ty: {})", p, display_type(ty))?;
-            write_expr(inner, level + 1, w)?;
-        }
-        HirExpr::ToUnique(inner, ty) => {
-            writeln!(w, "{}ToUnique(ty: {})", p, display_type(ty))?;
-            write_expr(inner, level + 1, w)?;
-        }
-        HirExpr::ToShared(inner, ty) => {
-            writeln!(w, "{}ToShared(ty: {})", p, display_type(ty))?;
-            write_expr(inner, level + 1, w)?;
-        }
-        HirExpr::ToWeak(inner, ty) => {
-            writeln!(w, "{}ToWeak(ty: {})", p, display_type(ty))?;
-            write_expr(inner, level + 1, w)?;
-        }
-        HirExpr::VirtualCall { receiver, interface, method_index, args, ty, .. } => {
-            writeln!(w, "{}VirtualCall iface={} method={} ty={}", p, interface, method_index, display_type(ty))?;
-            writeln!(w, "{}  receiver:", p)?;
-            write_expr(receiver, level + 1, w)?;
-            for arg in args {
-                write_expr(arg, level + 1, w)?;
-            }
-        }
-        HirExpr::MakeFatPtr { value, concrete_type, interface_name, ty } => {
-            writeln!(w, "{}MakeFatPtr {} -> {} ty={}", p, concrete_type, interface_name, display_type(ty))?;
-            write_expr(value, level + 1, w)?;
-        }
-        HirExpr::CallPtr { .. } => { writeln!(w, "{}CallPtr", p).unwrap(); },
-        HirExpr::CallPtr { .. } => { writeln!(w, "{}CallPtr", p).unwrap(); }
-        HirExpr::FnPtr(..) => { writeln!(w, "{}FnPtr", p).unwrap(); },
-        HirExpr::EnumConstruct { enum_name, variant_name, .. } => {
-            writeln!(w, "{}EnumConstruct {}.{}", p, enum_name, variant_name)?;
-        }
-        HirExpr::EnumMatch { .. } => {
-            writeln!(w, "{}EnumMatch", p)?;
-        }
-        HirExpr::FieldAccess { object, field, ty, .. } => {
-            writeln!(w, "{}FieldAccess {} ty={}", p, field, display_type(ty))?;
-            write_expr(object, level + 1, w)?;
-        }
-        HirExpr::StructLiteral { type_name, fields, ty } => {
-            writeln!(w, "{}StructLiteral {} fields={} ty={}", p, type_name, fields.len(), display_type(ty))?;
-            for (name, e) in fields {
-                writeln!(w, "{}  {}:", p, name)?;
-                write_expr(e, level + 1, w)?;
-            }
-        }
-        HirExpr::ArrayLiteral(elems, ty) => {
-            writeln!(w, "{}ArrayLiteral len={} ty={}", p, elems.len(), display_type(ty))?;
-            for e in elems {
-                write_expr(e, level + 1, w)?;
-            }
-        }
-        HirExpr::ArraySized { count, elem_ty, ty } => {
-            writeln!(w, "{}ArraySized {{ elem_ty: {}, ty: {} }}", p, display_type(elem_ty), display_type(ty))?;
-            writeln!(w, "{}  count:", p)?;
-            write_expr(count, level + 1, w)?;
-        }
-        HirExpr::Ref { expr, mutable, ty } => {
-            let m = if *mutable { "mut " } else { "" };
-            writeln!(w, "{}Ref({}ty: {})", p, m, display_type(ty))?;
-            write_expr(expr, level + 1, w)?;
-        }
-        HirExpr::Index { object, index, ty } => {
-            writeln!(w, "{}Index ty={}", p, display_type(ty))?;
-            writeln!(w, "{}  object:", p)?;
-            write_expr(object, level + 1, w)?;
-            writeln!(w, "{}  index:", p)?;
-            write_expr(index, level + 1, w)?;
-        }
-        HirExpr::Asm { template, outputs, inputs, .. } => {
-            writeln!(w, "{}Asm template=\"{}\" outputs={} inputs={}", p, template, outputs.len(), inputs.len())?;
-            for (i, (c, e)) in outputs.iter().enumerate() {
-                writeln!(w, "{}  out[{}] constraint={}:", p, i, c)?;
-                write_expr(e, level + 1, w)?;
-            }
-            for (i, (c, e)) in inputs.iter().enumerate() {
-                writeln!(w, "{}  in[{}] constraint={}:", p, i, c)?;
-                write_expr(e, level + 1, w)?;
-            }
-        }
-        HirExpr::Custom(_) => {}
-    }
-    Ok(())
+pub(crate) fn write_expr(expr: &HirNodeBox, level: usize, w: &mut impl Write) -> std::fmt::Result {
+    expr.display(level, &mut *w)
 }
 
 fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Result {

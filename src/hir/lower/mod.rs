@@ -1,12 +1,13 @@
 pub mod body;
 pub mod helpers;
+pub mod to_mir;
 pub(crate) use helpers::*;
 
 use std::collections::HashMap;
 use crate::intern::Symbol;
 use crate::parser::ast::*;
 use crate::span::Span;
-use super::ir::*;
+use crate::hir::*;
 
 /// 从类型名中剥离泛型参数
 /// 例如 "LinkedListNode<T>" → "LinkedListNode"，也处理 "LinkedListNode[T]"

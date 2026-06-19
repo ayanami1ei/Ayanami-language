@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::intern::Symbol;
 use crate::parser::ast::*;
 use crate::span::Span;
-use crate::hir::ir::*;
+use crate::hir::*;
 use super::helpers::*;
 use super::{FnSig, InterfaceReg, Ctx};
 
@@ -1308,7 +1308,7 @@ impl super::Ctx {
                 let value_ty = expr_type(&hir_value);
                 let (var_id, ty, _) = self.register_or_lookup(*name, value_ty);
                 Ok(HirStmt::Assign {
-                    target: HirExpr::Local(var_id, ty.clone()),
+                    target: SVar { var: var_id, ty: ty.clone() }.into(),
                     value: hir_value,
                 })
             }
@@ -1320,7 +1320,7 @@ impl super::Ctx {
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
                 Ok(HirStmt::FieldAssign {
-                    object: Box::new(hir_object),
+                    object: hir_object,
                     field: *field,
                     field_index,
                     field_ty,
@@ -1333,8 +1333,8 @@ impl super::Ctx {
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
                 Ok(HirStmt::IndexAssign {
-                    object: Box::new(hir_object),
-                    index: Box::new(hir_index),
+                    object: hir_object,
+                    index: hir_index,
                     value: hir_value,
                 })
             }
@@ -1347,7 +1347,7 @@ impl super::Ctx {
                         let fn_ret = &self.fns[self.current_fn.0].return_type;
                         let wrapped = match (fn_ret, &expr_ty) {
                             (HirType::Unique(pt), _) if *pt.as_ref() == expr_ty => {
-                                HirExpr::ToUnique(Box::new(expr), fn_ret.clone())
+                                SToUnique { expr, ty: fn_ret.clone() }.into()
                             }
                             _ => expr,
                         };
@@ -1394,44 +1394,42 @@ impl super::Ctx {
                     _ => return Err(format!("match on non-enum type at {}:{}", span.start_line, span.start_col)),
                 };
                 let (val_var, _, _) = self.register_or_lookup(Symbol::intern("__match_val"), value_ty.clone());
-                let val_local = HirExpr::Local(val_var, value_ty.clone());
+                let val_local: HirNodeBox = SVar { var: val_var, ty: value_ty.clone() }.into();
                 let store_val = HirStmt::Assign { target: val_local, value: hir_value };
-                // Build all conditions and blocks
-                let mut conds: Vec<HirExpr> = Vec::new();
+                let mut conds: Vec<HirNodeBox> = Vec::new();
                 let mut blocks: Vec<HirBlock> = Vec::new();
                 for (i, arm) in arms.iter().enumerate() {
-                    let tag_cmp = HirExpr::Binary {
+                    let tag_cmp: HirNodeBox = SBin {
                         op: crate::parser::ast::BinaryOp::Eq,
-                        lhs: Box::new(HirExpr::FieldAccess {
-                            object: Box::new(HirExpr::Local(val_var, value_ty.clone())),
+                        lhs: SField {
+                            object: SVar { var: val_var, ty: value_ty.clone() }.into(),
                             field: Symbol::intern("_tag"), field_index: 0, ty: HirType::Int,
-                        }),
-                        rhs: Box::new(HirExpr::Literal(HirLiteral::Int(i as i64), HirType::Int)),
+                        }.into(),
+                        rhs: SConst { val: HirLiteral::Int(i as i64), ty: HirType::Int }.into(),
                         ty: HirType::Int,
-                    };
+                    }.into();
                     conds.push(tag_cmp);
                     let data_field = Symbol::intern(&format!("_data_{}", arm.variant_name));
                     let var_struct = Symbol::intern(&format!("{}_{}", value_ty_name, arm.variant_name));
                     let mut arm_stmts = Vec::new();
                     for (j, (bind_name, _)) in arm.bindings.iter().enumerate() {
-                        let inner_acc = HirExpr::FieldAccess {
-                            object: Box::new(HirExpr::Local(val_var, value_ty.clone())),
+                        let inner_acc: HirNodeBox = SField {
+                            object: SVar { var: val_var, ty: value_ty.clone() }.into(),
                             field: data_field, field_index: i + 1, ty: HirType::Named(var_struct),
-                        };
-                        let fval = HirExpr::FieldAccess {
-                            object: Box::new(inner_acc),
+                        }.into();
+                        let fval: HirNodeBox = SField {
+                            object: inner_acc,
                             field: Symbol::intern(&format!("_{}", j)), field_index: j, ty: HirType::Int,
-                        };
+                        }.into();
                         let (bid, _, _) = self.register_or_lookup(*bind_name, HirType::Int);
-                        arm_stmts.push(HirStmt::Assign { target: HirExpr::Local(bid, HirType::Int), value: fval });
+                        arm_stmts.push(HirStmt::Assign { target: SVar { var: bid, ty: HirType::Int }.into(), value: fval });
                     }
                     arm_stmts.push(HirStmt::Expr(self.lower_expr(&arm.body)?));
                     blocks.push(HirBlock { stmts: arm_stmts });
                 }
                 if conds.is_empty() {
-                    return Ok(HirStmt::Expr(HirExpr::Literal(HirLiteral::Int(0), HirType::Int)));
+                    return Ok(HirStmt::Expr(SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into()));
                 }
-                // Build if-elif-else: first cond+block = if, last remaining = else, middle = elifs
                 let first_cond = conds.remove(0);
                 let first_block = blocks.remove(0);
                 let else_block = if !blocks.is_empty() && blocks.len() == conds.len() {
@@ -1439,7 +1437,7 @@ impl super::Ctx {
                 } else {
                     None
                 };
-                let elifs: Vec<(HirExpr, HirBlock)> = conds.into_iter().zip(blocks.into_iter()).collect();
+                let elifs: Vec<(HirNodeBox, HirBlock)> = conds.into_iter().zip(blocks.into_iter()).collect();
                 Ok(HirStmt::Block(vec![store_val, HirStmt::If {
                     cond: first_cond, then_block: first_block, elifs, else_block,
                 }]))
@@ -1472,34 +1470,34 @@ impl super::Ctx {
         let (var_id, _, _) = self.register_or_lookup(iter_name, ty.clone());
 
         let init = HirStmt::Assign {
-            target: HirExpr::Local(var_id, ty.clone()),
+            target: SVar { var: var_id, ty: ty.clone() }.into(),
             value: hir_start,
         };
 
         let hir_end = self.lower_expr(end)?;
-        let cond = HirExpr::Binary {
+        let cond: HirNodeBox = SBin {
             op: BinaryOp::Lt,
-            lhs: Box::new(HirExpr::Local(var_id, ty.clone())),
-            rhs: Box::new(hir_end),
+            lhs: SVar { var: var_id, ty: ty.clone() }.into(),
+            rhs: hir_end,
             ty: ty.clone(),
-        };
+        }.into();
 
         let hir_body = self.lower_block(body)?;
         let mut body_stmts = hir_body.stmts;
 
         let step_expr = match step {
             Some(s) => self.lower_expr(s)?,
-            None => HirExpr::Literal(HirLiteral::Int(1), HirType::Int),
+            None => SConst { val: HirLiteral::Int(1), ty: HirType::Int }.into(),
         };
         let step_ty = expr_type(&step_expr);
         body_stmts.push(HirStmt::Assign {
-            target: HirExpr::Local(var_id, ty.clone()),
-            value: HirExpr::Binary {
+            target: SVar { var: var_id, ty: ty.clone() }.into(),
+            value: SBin {
                 op: BinaryOp::Add,
-                lhs: Box::new(HirExpr::Local(var_id, ty.clone())),
-                rhs: Box::new(step_expr),
+                lhs: SVar { var: var_id, ty: ty.clone() }.into(),
+                rhs: step_expr,
                 ty: step_ty,
-            },
+            }.into(),
         });
 
         self.pop_scope();
@@ -1516,15 +1514,13 @@ impl super::Ctx {
     //  字段访问、结构体/数组字面量、指针比较等
     // ----------------------------------------------------------------
 
-    pub(super) fn lower_expr(&mut self, expr: &Expr) -> Result<HirExpr, String> {
+    pub(super) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox, String> {
         match expr {
             Expr::Literal(lit) => self.lower_literal(lit),
             Expr::Ident(name, span) => {
-                // Check if it's a variable first
                 if let Some((var_id, ty, _)) = self.lookup_var(name) {
-                    return Ok(HirExpr::Local(var_id, ty));
+                    return Ok(SVar { var: var_id, ty }.into());
                 }
-                // Check if it's a function name — create function pointer value
                 if let Some(candidates) = self.fn_map.get(name) {
                     if let Some(&first) = candidates.first() {
                         let sig = &self.fns[first.0];
@@ -1534,7 +1530,7 @@ impl super::Ctx {
                         let params: Vec<HirType> = sig.params.iter().map(|(_, t)| t.clone()).collect();
                         let ret = sig.return_type.clone();
                         let fnptr_ty = HirType::FnPtr(params, Box::new(ret));
-                        return Ok(HirExpr::FnPtr(first, fnptr_ty));
+                        return Ok(SFnPtr { fn_id: first, ty: fnptr_ty }.into());
                     }
                 }
                 Err(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col))
@@ -1576,22 +1572,20 @@ impl super::Ctx {
                             if i >= param_tys.len() { return arg; }
                             wrap_arg_for_param(arg, &param_tys[i])
                         }).collect();
-                        return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
+                        return Ok(SCall { fn_id, args, ty: ret_ty }.into());
                     }
                 }
-                // Fall back to built-in operator
                 let binop_ty = if is_null_ptr_cmp {
-                    // Use the non-null side's type so the LIR emitter detects pointer comparison
                     if lhs_is_null { rhs_ty.clone() } else { lhs_ty.clone() }
                 } else {
                     inner_ty
                 };
-                Ok(HirExpr::Binary {
+                Ok(SBin {
                     op: *op,
-                    lhs: Box::new(hir_lhs),
-                    rhs: Box::new(hir_rhs),
+                    lhs: hir_lhs,
+                    rhs: hir_rhs,
                     ty: binop_ty,
-                })
+                }.into())
             }
             Expr::Unary { op, arg, .. } => {
                 let hir_arg = self.lower_expr(arg)?;
@@ -1604,20 +1598,20 @@ impl super::Ctx {
                         let param_types = [arg_ty.clone()];
                         if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
                             let ret_ty = self.fns[fn_id.0].return_type.clone();
-                            return Ok(HirExpr::Call { fn_id, args: vec![implicit_move(hir_arg)], ty: ret_ty });
+                            return Ok(SCall { fn_id, args: vec![implicit_move(hir_arg)], ty: ret_ty }.into());
                         }
                     }
                 }
                 let ty = strip_ownership(arg_ty);
-                Ok(HirExpr::Unary {
+                Ok(SUn {
                     op: *op,
-                    arg: Box::new(hir_arg),
+                    arg: hir_arg,
                     ty,
-                })
+                }.into())
             }
             Expr::FnCall { name, args, span } => {
                 // Step 1: lower all arguments
-                let mut hir_args: Vec<HirExpr> = args.iter()
+                let mut hir_args: Vec<HirNodeBox> = args.iter()
                     .map(|a| self.lower_expr(a))
                     .collect::<Result<Vec<_>, _>>()?;
 
@@ -1635,12 +1629,12 @@ impl super::Ctx {
                                 // Step 3c: check if name is a variable with FnPtr type (function pointer call)
                                 if let Some((var_id, ty, _)) = self.lookup_var(name) {
                                     if let HirType::FnPtr(_, _) = &ty {
-                                        let fn_ptr = Box::new(HirExpr::Local(var_id, ty.clone()));
+                                        let fn_ptr: HirNodeBox = SVar { var: var_id, ty: ty.clone() }.into();
                                         let ret_ty = match &ty {
                                             HirType::FnPtr(_, ret) => *ret.clone(),
                                             _ => unreachable!(),
                                         };
-                                        return Ok(HirExpr::CallPtr { fn_ptr, args: hir_args, ty: ret_ty });
+                                        return Ok(SCallP { fn_ptr, args: hir_args, ty: ret_ty }.into());
                                     }
                                 }
                                 return Err(format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col));
@@ -1692,34 +1686,17 @@ impl super::Ctx {
                                 && self.type_ifaces[&ct].contains(iface_name) {
                                 // Build fat pointer
                                 let fatptr_ty = param_tys[i].clone();
-                                return HirExpr::MakeFatPtr {
-                                    value: Box::new(arg),
-                                    concrete_type: ct,
-                                    interface_name: *iface_name,
-                                    ty: fatptr_ty,
-                                };
+                                return SMFP { value: arg, concrete_type: ct, interface_name: *iface_name, ty: fatptr_ty }.into();
                             }
-                            // Also check stripped base name
                             let base_ct = crate::hir::lower::strip_generic_name(&ct);
                             if base_ct != ct && self.type_ifaces.contains_key(&base_ct)
                                 && self.type_ifaces[&base_ct].contains(iface_name) {
                                 let fatptr_ty = param_tys[i].clone();
-                                return HirExpr::MakeFatPtr {
-                                    value: Box::new(arg),
-                                    concrete_type: ct,
-                                    interface_name: *iface_name,
-                                    ty: fatptr_ty,
-                                };
+                                return SMFP { value: arg, concrete_type: ct, interface_name: *iface_name, ty: fatptr_ty }.into();
                             }
-                            // try full concrete type (already registered by pre-check above)
                             if self.type_ifaces.contains_key(&ct) && self.type_ifaces[&ct].contains(iface_name) {
                                 let fatptr_ty = param_tys[i].clone();
-                                return HirExpr::MakeFatPtr {
-                                    value: Box::new(arg),
-                                    concrete_type: ct,
-                                    interface_name: *iface_name,
-                                    ty: fatptr_ty,
-                                };
+                                return SMFP { value: arg, concrete_type: ct, interface_name: *iface_name, ty: fatptr_ty }.into();
                             }
                         }
                     }
@@ -1731,13 +1708,13 @@ impl super::Ctx {
                 }).collect();
 
                 let ty = self.fns[fn_id.0].return_type.clone();
-                Ok(HirExpr::Call { fn_id, args: hir_args, ty })
+                Ok(SCall { fn_id, args: hir_args, ty }.into())
             }
             Expr::CallExpr { target, args, span } => {
                 // Function call on arbitrary expression: look for `call` method
                 let hir_target = self.lower_expr(target)?;
                 let target_ty = expr_type(&hir_target);
-                let hir_args: Vec<HirExpr> = args.iter()
+                let hir_args: Vec<HirNodeBox> = args.iter()
                     .map(|a| self.lower_expr(a))
                     .collect::<Result<Vec<_>, _>>()?;
                 let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
@@ -1751,7 +1728,7 @@ impl super::Ctx {
                         if i >= param_tys.len() { return arg; }
                         wrap_arg_for_param(arg, &param_tys[i])
                     }).collect();
-                    return Ok(HirExpr::Call { fn_id, args: all_args, ty: ret_ty });
+                    return Ok(SCall { fn_id, args: all_args, ty: ret_ty }.into());
                 }
                 Err(format!("type `{}` cannot be called as a function at {}:{}",
                     hir_type_display(&target_ty), span.start_line, span.start_col))
@@ -1761,11 +1738,11 @@ impl super::Ctx {
                 let inner_ty = expr_type(&hir_inner);
                 if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("try_unwrap"), &[inner_ty.clone()]) {
                     let ret_ty = self.fns[fn_id.0].return_type.clone();
-                    return Ok(HirExpr::Call { fn_id, args: vec![hir_inner], ty: ret_ty });
+                    return Ok(SCall { fn_id, args: vec![hir_inner], ty: ret_ty }.into());
                 }
                 if let Ok(fn_id) = self.specialize_generic_call(&Symbol::intern("try_unwrap"), &[inner_ty.clone()], span) {
                     let ret_ty = self.fns[fn_id.0].return_type.clone();
-                    return Ok(HirExpr::Call { fn_id, args: vec![hir_inner], ty: ret_ty });
+                    return Ok(SCall { fn_id, args: vec![hir_inner], ty: ret_ty }.into());
                 }
                 Err(format!("type `{:?}` cannot use `?` operator at {}:{}", inner_ty, span.start_line, span.start_col))
             }
@@ -1781,37 +1758,35 @@ impl super::Ctx {
                     }
                     0i64
                 });
-                let hir_args: Vec<HirExpr> = tuple_args.iter().map(|e| self.lower_expr(e)).collect::<Result<Vec<_>, _>>()?;
+                let hir_args: Vec<HirNodeBox> = tuple_args.iter().map(|e| self.lower_expr(e)).collect::<Result<Vec<_>, _>>()?;
                 let data_field = Symbol::intern(&format!("_data_{}", variant_name));
                 let var_struct_name = Symbol::intern(&format!("{}_{}", enum_name, variant_name));
                 let data_ty = HirType::Named(var_struct_name);
-                let var_fields: Vec<(Symbol, HirExpr)> = hir_args.into_iter().enumerate()
+                let var_fields: Vec<(Symbol, HirNodeBox)> = hir_args.into_iter().enumerate()
                     .map(|(i, e)| (Symbol::intern(&format!("_{}", i)), e))
                     .collect();
-                let var_literal = HirExpr::StructLiteral {
+                let var_literal: HirNodeBox = SStruct {
                     type_name: var_struct_name,
                     fields: var_fields,
                     ty: data_ty,
-                };
+                }.into();
                 let fields = if let Some(enum_fields) = self.struct_defs.get(enum_name) {
-                    let mut all_fields: Vec<(Symbol, HirExpr)> = enum_fields.iter()
-                        .map(|f| (f.name, HirExpr::Literal(HirLiteral::Int(0), f.ty.clone())))
+                    let mut all_fields: Vec<(Symbol, HirNodeBox)> = enum_fields.iter()
+                        .map(|f| (f.name, SConst { val: HirLiteral::Int(0), ty: f.ty.clone() }.into()))
                         .collect();
-                    // Set tag
-                    all_fields[0] = (Symbol::intern("_tag"), HirExpr::Literal(HirLiteral::Int(tag), HirType::Int));
-                    // Set variant data field
+                    all_fields[0] = (Symbol::intern("_tag"), SConst { val: HirLiteral::Int(tag), ty: HirType::Int }.into());
                     if let Some(pos) = enum_fields.iter().position(|f| f.name == data_field) {
                         all_fields[pos] = (data_field, var_literal);
                     }
                     all_fields
                 } else {
                     vec![
-                        (Symbol::intern("_tag"), HirExpr::Literal(HirLiteral::Int(tag), HirType::Int)),
+                        (Symbol::intern("_tag"), SConst { val: HirLiteral::Int(tag), ty: HirType::Int }.into()),
                         (data_field, var_literal),
                     ]
                 };
                 let ty = HirType::Named(*enum_name);
-                Ok(HirExpr::StructLiteral { type_name: *enum_name, fields, ty })
+                Ok(SStruct { type_name: *enum_name, fields, ty }.into())
             }
             Expr::MethodCall { object, method, args, span } => {
                 // Lower the receiver first
@@ -1819,7 +1794,7 @@ impl super::Ctx {
                 let receiver_ty = expr_type(&receiver);
 
                 // Lower call arguments
-                let hir_args: Vec<HirExpr> = args.iter()
+                let hir_args: Vec<HirNodeBox> = args.iter()
                     .map(|a| self.lower_expr(a))
                     .collect::<Result<Vec<_>, _>>()?;
 
@@ -1842,14 +1817,14 @@ impl super::Ctx {
                         .ok_or_else(|| format!("interface `{}` has no method `{}` (at {}:{})", iface_name, method, span.start_line, span.start_col))?;
 
                     let ret_ty = iface_reg.methods[method_idx].return_type.clone();
-                    return Ok(HirExpr::VirtualCall {
-                        receiver: Box::new(receiver),
+                    return Ok(SVCall {
+                        receiver,
                         interface: iface_name,
                         method_index: method_idx,
                         args: hir_args,
                         concrete_type: iface_name,
                         ty: ret_ty,
-                    });
+                    }.into());
                 }
 
                 // Enum method dispatch: e.method() → EnumMatch over all variants
@@ -1859,36 +1834,36 @@ impl super::Ctx {
                             let var_fields: Vec<_> = enum_fields.iter().skip(1)
                                 .filter(|f| f.name.as_str().starts_with("_data_")).collect();
                             if !var_fields.is_empty() {
-                                let mut arms: Vec<(i64, HirExpr)> = Vec::new();
+                                let mut arms: Vec<(i64, HirNodeBox)> = Vec::new();
                                 for (i, vf) in var_fields.iter().enumerate() {
                                     let shared_ty = HirType::Shared(Box::new(vf.ty.clone()));
                                     if let Some(fn_id) = self.resolve_method(&shared_ty, method, &arg_types) {
                                         let ret_ty = self.fns[fn_id.0].return_type.clone();
-                                        let data_expr = HirExpr::ToShared(
-                                            Box::new(HirExpr::FieldAccess {
-                                                object: Box::new(receiver.clone()),
+                                        let data_expr: HirNodeBox = SToShared {
+                                            expr: SField {
+                                                object: receiver.clone(),
                                                 field: vf.name, field_index: i + 1, ty: vf.ty.clone(),
-                                            }),
-                                            shared_ty.clone(),
-                                        );
+                                            }.into(),
+                                            ty: shared_ty.clone(),
+                                        }.into();
                                         let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
                                             .map(|(_, t)| t.clone()).collect();
-                                        let mut all_args: Vec<HirExpr> = vec![data_expr];
+                                        let mut all_args: Vec<HirNodeBox> = vec![data_expr];
                                         all_args.extend(hir_args.clone());
                                         all_args = all_args.into_iter().enumerate().map(|(j, arg)| {
                                             if j >= param_tys.len() { return arg; }
                                             wrap_arg_for_param(arg, &param_tys[j])
                                         }).collect();
-                                        arms.push((i as i64, HirExpr::Call { fn_id, args: all_args, ty: ret_ty }));
+                                        arms.push((i as i64, SCall { fn_id, args: all_args, ty: ret_ty }.into()));
                                     }
                                 }
                                 if arms.len() == var_fields.len() && !arms.is_empty() {
                                     let ret_ty = expr_type(&arms[0].1);
-                                    return Ok(HirExpr::EnumMatch {
-                                        value: Box::new(receiver),
+                                    return Ok(SEnumM {
+                                        value: receiver,
                                         arms,
                                         ty: ret_ty,
-                                    });
+                                    }.into());
                                 }
                             }
                         }
@@ -1902,7 +1877,7 @@ impl super::Ctx {
                         all_param_types.extend(arg_types.iter().cloned());
                         let fid = self.specialize_generic_call(method, &all_param_types, span)?;
                         // 泛型推导成功后，尝试更新接收者变量的类型
-                        if let HirExpr::Local(var_id, _) = &receiver {
+                        if let Some(var_id) = receiver.as_local() {
                             let spec_param_ty = &self.fns[fid.0].params[0].1;
                             let recv_stripped = strip_ownership_ref(&receiver_ty);
                             let spec_stripped = strip_ownership_ref(spec_param_ty);
@@ -1912,7 +1887,7 @@ impl super::Ctx {
                                 if !rs.contains('<') && ss.contains('<') {
                                     let base = crate::hir::lower::strip_generic_name(&sn);
                                     if base.as_str() == rs {
-                                        self.update_var_type(*var_id, spec_param_ty.clone());
+                                        self.update_var_type(var_id, spec_param_ty.clone());
                                     }
                                 }
                             }
@@ -1925,7 +1900,7 @@ impl super::Ctx {
                 let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
                     .map(|(_, t)| t.clone())
                     .collect();
-                let mut all_args: Vec<HirExpr> = vec![receiver];
+                let mut all_args: Vec<HirNodeBox> = vec![receiver];
                 all_args.extend(hir_args);
                 all_args = all_args.into_iter().enumerate().map(|(i, arg)| {
                     if i >= param_tys.len() { return arg; }
@@ -1933,70 +1908,67 @@ impl super::Ctx {
                 }).collect();
 
                 let ty = self.fns[fn_id.0].return_type.clone();
-                Ok(HirExpr::Call { fn_id, args: all_args, ty })
+                Ok(SCall { fn_id, args: all_args, ty }.into())
             }
             Expr::Move(inner, _) => {
                 let hir_inner = self.lower_expr(inner)?;
-                let ty = expr_type(&hir_inner);
-                Ok(HirExpr::Move(Box::new(hir_inner), ty))
+                let ty = hir_inner.expr_type();
+                Ok(SMove { expr: hir_inner, ty }.into())
             }
             Expr::Clone(inner, _) => {
                 let hir_inner = self.lower_expr(inner)?;
-                let ty = expr_type(&hir_inner);
-                // For heap types (Shared/Unique wrapping Named/Array), deep copy via ToUnique/ToShared
+                let ty = hir_inner.expr_type();
                 match &ty {
                     HirType::Shared(inner_ty) if needs_deep_copy(inner_ty) => {
                         let new_ty = HirType::Shared(inner_ty.clone());
-                        Ok(HirExpr::ToShared(Box::new(HirExpr::Clone(Box::new(hir_inner), ty.clone())), new_ty))
+                        Ok(SToShared { expr: SClone { expr: hir_inner, ty: ty.clone() }.into(), ty: new_ty }.into())
                     }
                     HirType::Unique(inner_ty) if needs_deep_copy(inner_ty) => {
                         let new_ty = HirType::Unique(inner_ty.clone());
-                        Ok(HirExpr::ToUnique(Box::new(HirExpr::Clone(Box::new(hir_inner), ty.clone())), new_ty))
+                        Ok(SToUnique { expr: SClone { expr: hir_inner, ty: ty.clone() }.into(), ty: new_ty }.into())
                     }
                     _ if needs_deep_copy(&ty) => {
-                        // Plain heap value: clone produces a Unique copy
                         let new_ty = HirType::Unique(Box::new(ty.clone()));
-                        Ok(HirExpr::ToUnique(Box::new(HirExpr::Clone(Box::new(hir_inner), ty.clone())), new_ty))
+                        Ok(SToUnique { expr: SClone { expr: hir_inner, ty: ty.clone() }.into(), ty: new_ty }.into())
                     }
-                    _ => Ok(HirExpr::Clone(Box::new(hir_inner), ty)),
+                    _ => Ok(SClone { expr: hir_inner, ty }.into()),
                 }
             }
             Expr::ToUnique(inner, _) => {
                 self.allow_bare_array = true;
                 let hir_inner = self.lower_expr(inner)?;
                 self.allow_bare_array = false;
-                let inner_ty = expr_type(&hir_inner);
+                let inner_ty = hir_inner.expr_type();
                 let ty = HirType::Unique(Box::new(strip_ownership(inner_ty)));
-                Ok(HirExpr::ToUnique(Box::new(hir_inner), ty))
+                Ok(SToUnique { expr: hir_inner, ty }.into())
             }
             Expr::ToShared(inner, _) => {
                 self.allow_bare_array = true;
                 let hir_inner = self.lower_expr(inner)?;
                 self.allow_bare_array = false;
-                let inner_ty = expr_type(&hir_inner);
+                let inner_ty = hir_inner.expr_type();
                 let ty = HirType::Shared(Box::new(strip_ownership(inner_ty)));
-                Ok(HirExpr::ToShared(Box::new(hir_inner), ty))
+                Ok(SToShared { expr: hir_inner, ty }.into())
             }
             Expr::ToWeak(inner, _) => {
                 self.allow_bare_array = true;
                 let hir_inner = self.lower_expr(inner)?;
                 self.allow_bare_array = false;
-                let inner_ty = expr_type(&hir_inner);
+                let inner_ty = hir_inner.expr_type();
                 let ty = HirType::Weak(Box::new(strip_ownership(inner_ty)));
-                Ok(HirExpr::ToWeak(Box::new(hir_inner), ty))
+                Ok(SToWeak { expr: hir_inner, ty }.into())
             }
             Expr::FieldAccess { object, field, span: expr_span } => {
                 let hir_object = self.lower_expr(object)?;
-                let object_ty = expr_type(&hir_object);
-                // Resolve field index from struct definition
+                let object_ty = hir_object.expr_type();
                 let field_index = self.find_field_index(&object_ty, field, expr_span)?;
                 let field_ty = self.find_field_type(&object_ty, field, expr_span)?;
-                Ok(HirExpr::FieldAccess {
-                    object: Box::new(hir_object),
+                Ok(SField {
+                    object: hir_object,
                     field: *field,
                     field_index,
                     ty: field_ty,
-                })
+                }.into())
             }
             Expr::StructLiteral { type_name, generic_args, fields, .. } => {
                 // Handle generic struct instantiation
@@ -2056,11 +2028,11 @@ impl super::Ctx {
                     let hir_val = self.lower_expr(expr)?;
                     hir_fields.push((*name, hir_val));
                 }
-                Ok(HirExpr::StructLiteral {
+                Ok(SStruct {
                     type_name: concrete_name,
                     fields: hir_fields,
                     ty: struct_ty,
-                })
+                }.into())
             }
             Expr::ArrayLiteral(elems, span) => {
                 if !self.allow_bare_array {
@@ -2075,7 +2047,7 @@ impl super::Ctx {
                 } else {
                     HirType::Int
                 };
-                Ok(HirExpr::ArrayLiteral(hir_elems, HirType::Array(Box::new(elem_ty))))
+                Ok(SArrLit { elems: hir_elems, ty: HirType::Array(Box::new(elem_ty)) }.into())
             }
             Expr::Index { object, index, span } => {
                 let hir_object = self.lower_expr(object)?;
@@ -2094,17 +2066,16 @@ impl super::Ctx {
                         .position(|m| m.name == Symbol::intern("index"))
                         .ok_or_else(|| format!("interface `{}` has no method `index` (at {}:{})", iface_name, span.start_line, span.start_col))?;
                     let ret_ty = iface_reg.methods[method_idx].return_type.clone();
-                    return Ok(HirExpr::VirtualCall {
-                        receiver: Box::new(hir_object),
+                    return Ok(SVCall {
+                        receiver: hir_object,
                         interface: iface_name,
                         method_index: method_idx,
                         args: vec![hir_index],
                         concrete_type: iface_name,
                         ty: ret_ty,
-                    });
+                    }.into());
                 }
-                // Try operator overloading: index(self, index)
-                let index_ty = expr_type(&hir_index);
+                let index_ty = hir_index.expr_type();
                 if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("index"), &[object_ty.clone(), index_ty.clone()]) {
                     let ret_ty = self.fns[fn_id.0].return_type.clone();
                     let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
@@ -2112,7 +2083,7 @@ impl super::Ctx {
                         if i >= param_tys.len() { return arg; }
                         wrap_arg_for_param(arg, &param_tys[i])
                     }).collect();
-                    return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
+                    return Ok(SCall { fn_id, args, ty: ret_ty }.into());
                 }
                 if let Ok(fn_id) = self.specialize_generic_call(&Symbol::intern("index"), &[object_ty.clone(), index_ty.clone()], span) {
                     let ret_ty = self.fns[fn_id.0].return_type.clone();
@@ -2121,64 +2092,62 @@ impl super::Ctx {
                         if i >= param_tys.len() { return arg; }
                         wrap_arg_for_param(arg, &param_tys[i])
                     }).collect();
-                    return Ok(HirExpr::Call { fn_id, args, ty: ret_ty });
+                    return Ok(SCall { fn_id, args, ty: ret_ty }.into());
                 }
-                // Fallback to built-in array index
                 let elem_ty = match &inner_ty {
                     HirType::Array(inner) => *inner.clone(),
                     _ => return Err(format!("index on non-array type at {}:{}", span.start_line, span.start_col)),
                 };
-                Ok(HirExpr::Index {
-                    object: Box::new(hir_object),
-                    index: Box::new(hir_index),
+                Ok(SIdx {
+                    object: hir_object,
+                    index: hir_index,
                     ty: elem_ty,
-                })
+                }.into())
             }
             Expr::Null(_) => {
-                // Null value — lowered as a zero int; will be cast to ptr at use site
-                Ok(HirExpr::Literal(HirLiteral::Int(0), HirType::Int))
+                Ok(SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into())
             }
             Expr::Ref(inner, mutable, _) => {
                 let hir_inner = self.lower_expr(inner)?;
-                let inner_ty = expr_type(&hir_inner);
+                let inner_ty = hir_inner.expr_type();
                 let ty = HirType::Ref(Box::new(inner_ty), *mutable);
-                Ok(HirExpr::Ref { expr: Box::new(hir_inner), mutable: *mutable, ty })
+                Ok(SRef { expr: hir_inner, mutable: *mutable, ty }.into())
             }
             Expr::ArraySized { elem_type, count, .. } => {
                 let hir_count = self.lower_expr(count)?;
                 let elem_ty = ast_type_to_hir(elem_type, &self.interfaces);
                 let ty = HirType::Array(Box::new(elem_ty.clone()));
-                Ok(HirExpr::ArraySized { count: Box::new(hir_count), elem_ty, ty })
+                Ok(SArrSz { count: hir_count, elem_ty, ty }.into())
             }
             Expr::Asm { template, outputs, inputs, .. } => {
-                let lowered_outputs: Vec<(String, Box<HirExpr>)> = outputs.iter().map(|(c, e)| {
-                    (c.clone(), Box::new(self.lower_expr(e).unwrap()))
+                let lowered_outputs: Vec<(String, HirNodeBox)> = outputs.iter().map(|(c, e)| {
+                    (c.clone(), self.lower_expr(e).unwrap())
                 }).collect();
-                let lowered_inputs: Vec<(String, Box<HirExpr>)> = inputs.iter().map(|(c, e)| {
-                    (c.clone(), Box::new(self.lower_expr(e).unwrap()))
+                let lowered_inputs: Vec<(String, HirNodeBox)> = inputs.iter().map(|(c, e)| {
+                    (c.clone(), self.lower_expr(e).unwrap())
                 }).collect();
                 let ty = if !lowered_outputs.is_empty() {
-                    expr_type(&lowered_outputs[0].1)
+                    lowered_outputs[0].1.expr_type()
                 } else {
                     HirType::Void
                 };
-                Ok(HirExpr::Asm {
+                Ok(SAsm {
                     template: template.clone(),
                     outputs: lowered_outputs,
                     inputs: lowered_inputs,
                     ty,
-                })
+                }.into())
             }
         }
     }
 
-    pub(super) fn lower_literal(&mut self, lit: &Literal) -> Result<HirExpr, String> {
+    pub(super) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox, String> {
         match lit {
-            Literal::Int(n, _) => Ok(HirExpr::Literal(HirLiteral::Int(*n), HirType::Int)),
-            Literal::Float(n, _) => Ok(HirExpr::Literal(HirLiteral::Float(*n), HirType::Float)),
-            Literal::Char(c, _) => Ok(HirExpr::Literal(HirLiteral::Char(*c), HirType::Char)),
-            Literal::String(s, _) => Ok(HirExpr::Literal(HirLiteral::String(s.clone()), HirType::Named(Symbol::intern("String")))),
-            Literal::Bool(b, _) => Ok(HirExpr::Literal(HirLiteral::Bool(*b), HirType::Bool)),
+            Literal::Int(n, _) => Ok(SConst { val: HirLiteral::Int(*n), ty: HirType::Int }.into()),
+            Literal::Float(n, _) => Ok(SConst { val: HirLiteral::Float(*n), ty: HirType::Float }.into()),
+            Literal::Char(c, _) => Ok(SConst { val: HirLiteral::Char(*c), ty: HirType::Char }.into()),
+            Literal::String(s, _) => Ok(SConst { val: HirLiteral::String(s.clone()), ty: HirType::Named(Symbol::intern("String")) }.into()),
+            Literal::Bool(b, _) => Ok(SConst { val: HirLiteral::Bool(*b), ty: HirType::Bool }.into()),
         }
     }
 }

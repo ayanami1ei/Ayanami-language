@@ -1,13 +1,3 @@
-// ============================================================
-//  LIR（低级中间表示）降级
-//  将 MIR（中级中间表示）降级为 LIR（三地址码），主要工作：
-//  1. 收集所有字符串常量
-//  2. 收集所有函数名并生成 LLVM 兼容的符号名
-//  3. 将 MIR 的表达式树拍平为基本块 + 三地址指令序列
-//  4. 构建虚函数表描述（用于 LLVM IR 全局常量）
-//  5. 推导导入函数的签名列表
-// ============================================================
-
 use std::collections::HashMap;
 
 use crate::hir::ir::{FnId, HirLiteral, HirType, VarId};
@@ -16,7 +6,6 @@ use crate::mir::ir::*;
 
 use super::ir::*;
 
-/// 将 MIR 程序降级为 LIR 程序
 pub fn lower_program(mir: &MirProgram) -> LirProgram {
     let strings = collect_strings(mir);
     let str_map: HashMap<String, u64> = strings
@@ -26,7 +15,6 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         .collect();
     let mut fn_names = collect_fn_names(mir);
 
-    // Add names for imported functions (not defined in any MirItem)
     for imp in &mir.imported_fns {
         if !fn_names.contains_key(&imp.fn_id) {
             let name = mangle("", &imp.name.as_str(), &imp.params);
@@ -75,9 +63,7 @@ fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<Fn
     for item in items {
         match item {
             MirItem::Fn(f) => {
-                // Function name already includes namespace from HIR (e.g., "PointStatic.new")
                 let name = if f.extern_c {
-                    // Extern C: use unmangled name
                     f.name.as_str().to_string()
                 } else {
                     mangle("", &f.name.as_str().replace('.', "__"), &f.params)
@@ -86,7 +72,6 @@ fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<Fn
             }
             MirItem::StructDef { .. } => {}
             MirItem::Namespace { name: _name, items } => {
-                // Namespace already handled by HIR dotted naming; just recurse
                 collect_fn_names_items(items, "", map);
             }
         }
@@ -94,7 +79,6 @@ fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<Fn
 }
 
 fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String {
-    // Replace dots with __ for LLVM identifier compatibility (namespace paths)
     let safe_name = name.replace('.', "__");
     let safe_prefix = prefix.replace('.', "__");
     let base = if safe_prefix.is_empty() {
@@ -144,7 +128,6 @@ fn lower_items(item: &MirItem, str_map: &HashMap<String, u64>) -> Vec<LirFn> {
 fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
     let mut ctx = LowerCtx::new(str_map);
 
-    // Extern declarations have no body — return early
     if f.extern_c && f.body.is_empty() {
         return LirFn {
             fn_id: f.fn_id,
@@ -160,28 +143,27 @@ fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
     }
 
     for (i, local) in f.locals.iter().enumerate() {
-        ctx.emit(LirInst::Alloca(VarId(i), local.ty.clone()));
+        ctx.emit(SLirAlloca { var: VarId(i), ty: local.ty.clone() }.into());
     }
 
     for (i, (_, ty)) in f.params.iter().enumerate() {
         let vid = VarId(i);
-        ctx.emit(LirInst::Store {
+        ctx.emit(SLirStore {
             dest: vid,
             src: LirValue::Param(i as u64),
             ty: ty.clone(),
-        });
+        }.into());
     }
 
     lower_stmts(&mut ctx, &f.body);
 
-    // If body didn't end with ret, add a default return
     let needs_ret = ctx
         .current_insts
         .last()
-        .map_or(true, |i| !matches!(i, LirInst::Ret(_)));
+        .map_or(true, |i| i.kind() != "Ret");
     if needs_ret {
         let ret = default_ret_value(&f.return_type);
-        ctx.emit(LirInst::Ret(ret));
+        ctx.emit(SLirRet { val: ret }.into());
     }
 
     let blocks = ctx.finish();
@@ -199,18 +181,13 @@ fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
     }
 }
 
-// ----------------------------------------------------------------
-//  LowerCtx
-// ----------------------------------------------------------------
-
 struct LowerCtx<'a> {
     tmp: u64,
     block_id: u64,
     current_label: String,
-    current_insts: Vec<LirInst>,
+    current_insts: Vec<LirNodeBox>,
     blocks: Vec<LirBlock>,
     str_map: &'a HashMap<String, u64>,
-    /// 循环栈：(cond_label, end_label) — 用于 break/continue 生成跳转
     loop_stack: Vec<(String, String)>,
 }
 
@@ -227,29 +204,10 @@ impl<'a> LowerCtx<'a> {
         }
     }
 
-    fn next_tmp(&mut self) -> u64 {
-        let t = self.tmp;
-        self.tmp += 1;
-        t
-    }
-
     fn next_block_label(&mut self, prefix: &str) -> String {
         let id = self.block_id;
         self.block_id += 1;
         format!("{}{}", prefix, id)
-    }
-
-    fn emit(&mut self, inst: LirInst) {
-        self.current_insts.push(inst);
-    }
-
-    fn finish(&mut self) -> Vec<LirBlock> {
-        if !self.current_label.is_empty() {
-            let label = std::mem::take(&mut self.current_label);
-            let insts = std::mem::take(&mut self.current_insts);
-            self.blocks.push(LirBlock { label, insts });
-        }
-        std::mem::take(&mut self.blocks)
     }
 
     fn set_current_block(&mut self, label: String) {
@@ -266,827 +224,89 @@ impl<'a> LowerCtx<'a> {
             self.current_label = label;
         }
     }
+
+    fn finish(&mut self) -> Vec<LirBlock> {
+        if !self.current_label.is_empty() {
+            let label = std::mem::take(&mut self.current_label);
+            let insts = std::mem::take(&mut self.current_insts);
+            self.blocks.push(LirBlock { label, insts });
+        }
+        std::mem::take(&mut self.blocks)
+    }
 }
 
-// ----------------------------------------------------------------
-//  Statement lowering
-// ----------------------------------------------------------------
+impl LirLowerCtx for LowerCtx<'_> {
+    fn next_tmp(&mut self) -> u64 {
+        let t = self.tmp;
+        self.tmp += 1;
+        t
+    }
+    fn emit(&mut self, inst: LirNodeBox) {
+        self.current_insts.push(inst);
+    }
+    fn str_map(&self) -> &HashMap<String, u64> {
+        self.str_map
+    }
+    fn loop_stack(&self) -> &Vec<(String, String)> {
+        &self.loop_stack
+    }
+    fn loop_stack_mut(&mut self) -> &mut Vec<(String, String)> {
+        &mut self.loop_stack
+    }
+    fn next_block_label(&mut self, prefix: &str) -> String {
+        self.next_block_label(prefix)
+    }
+    fn set_current_block(&mut self, label: String) {
+        self.set_current_block(label)
+    }
+}
 
-fn lower_stmts(ctx: &mut LowerCtx, stmts: &[MirStmt]) {
+fn lower_stmts(ctx: &mut LowerCtx, stmts: &[MirStmtBox]) {
     let mut i = 0;
     while i < stmts.len() {
-        // Special handling: when we see Return, lower the expression first,
-        // then process cleanup (Drop/Release/Retain) before emitting Ret
-        if let MirStmt::Return { value } = &stmts[i] {
-            let ret = value.as_ref().map(|v| {
+        if stmts[i].is_return() {
+            let ret_val = stmts[i].return_value().and_then(|v| {
                 let val = lower_expr(ctx, v);
-                let ty = expr_mir_type(v);
-                (val, ty)
+                let ty = v.expr_type();
+                Some((val, ty))
             });
-            // Process subsequent cleanup statements before Ret
             i += 1;
             while i < stmts.len() {
-                match &stmts[i] {
-                    MirStmt::Drop(id, ty) => {
-                        ctx.emit(LirInst::DropValue(*id, ty.clone()));
-                        i += 1;
-                    }
-                    MirStmt::Retain(id, ty) => {
-                        ctx.emit(LirInst::RetainValue(*id, ty.clone()));
-                        i += 1;
-                    }
-                    MirStmt::Release(id, ty) => {
-                        ctx.emit(LirInst::ReleaseValue(*id, ty.clone()));
-                        i += 1;
-                    }
-                    _ => break,
+                if let Some((id, ty)) = stmts[i].as_drop() {
+                    ctx.emit(SLirDropValue { var: id, ty: ty.clone() }.into());
+                    i += 1;
+                } else if let Some((id, ty)) = stmts[i].as_retain() {
+                    ctx.emit(SLirRetainValue { var: id, ty: ty.clone() }.into());
+                    i += 1;
+                } else if let Some((id, ty)) = stmts[i].as_release() {
+                    ctx.emit(SLirReleaseValue { var: id, ty: ty.clone() }.into());
+                    i += 1;
+                } else {
+                    break;
                 }
             }
-            ctx.emit(LirInst::Ret(ret));
+            ctx.emit(SLirRet { val: ret_val }.into());
             continue;
         }
-        lower_stmt(ctx, &stmts[i]);
+        stmts[i].lower_to_lir_stmt(ctx);
         i += 1;
     }
 }
 
-fn lower_stmt(ctx: &mut LowerCtx, stmt: &MirStmt) {
-    match stmt {
-        MirStmt::Assign { target, value } => {
-            let src = lower_expr(ctx, value);
-            if let MirExpr::Local(id, ty, _) = target {
-                ctx.emit(LirInst::Store {
-                    dest: *id,
-                    src,
-                    ty: ty.clone(),
-                });
-            }
-        }
-        MirStmt::FieldAssign { object, field: _, field_index, field_ty, value } => {
-            let obj_ty = expr_mir_type(object);
-            // Extract var_id BEFORE lowering (lower_expr loads into Tmp)
-            let var_id = match object.as_ref() {
-                MirExpr::Local(id, _, _) => {
-                    let is_value = !matches!(obj_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_));
-                    if is_value { Some(*id) } else { None }
-                }
-                _ => None,
-            };
-            let obj_val = lower_expr(ctx, object);
-            let obj_tmp = match obj_val {
-                LirValue::Tmp(t) => t,
-                _ => {
-                    let t = ctx.next_tmp();
-                    ctx.emit(LirInst::Load { dest: t, src: extract_var(&obj_val), ty: obj_ty.clone() });
-                    t
-                }
-            };
-            let src_val = lower_expr(ctx, value);
-            let gep_tmp = ctx.next_tmp();
-            let iv_tmp = ctx.next_tmp();
-            ctx.emit(LirInst::FieldStore {
-                dest: obj_tmp, var_id, gep_tmp, iv_tmp,
-                src: src_val,
-                field_index: *field_index,
-                field_ty: field_ty.clone(),
-                struct_ty: obj_ty,
-            });
-        }
-        MirStmt::IndexAssign { object, index, value } => {
-            let obj_val = lower_expr(ctx, object);
-            let obj_tmp = match obj_val {
-                LirValue::Tmp(t) => t,
-                _ => {
-                    let t = ctx.next_tmp();
-                    ctx.emit(LirInst::Load { dest: t, src: extract_var(&obj_val), ty: expr_mir_type(object) });
-                    t
-                }
-            };
-            let idx_val = lower_expr(ctx, index);
-            let src_val = lower_expr(ctx, value);
-            let gep_tmp = ctx.next_tmp();
-            let obj_ty = strip_ownership(expr_mir_type(object));
-            let elem_ty = match &obj_ty {
-                HirType::Array(inner) => *inner.clone(),
-                _ => HirType::Int,
-            };
-            ctx.emit(LirInst::IndexStore {
-                dest: obj_tmp,
-                gep_tmp,
-                src: src_val,
-                index: idx_val,
-                elem_ty,
-                array_ty: expr_mir_type(object),
-            });
-        }
-        MirStmt::Return { value } => {
-            let ret = value.as_ref().map(|v| {
-                let val = lower_expr(ctx, v);
-                let ty = expr_mir_type(v);
-                (val, ty)
-            });
-            ctx.emit(LirInst::Ret(ret));
-        }
-        MirStmt::Expr(expr) => {
-            lower_expr(ctx, expr);
-        }
-        MirStmt::Block(stmts) => {
-            lower_stmts(ctx, stmts);
-        }
-        MirStmt::If {
-            cond,
-            then_block,
-            elifs,
-            else_block,
-        } => lower_if(ctx, cond, then_block, elifs, else_block),
-        MirStmt::While { cond, body } => lower_while(ctx, cond, body),
-        MirStmt::Break => {
-            if let Some((_, end_lbl)) = ctx.loop_stack.last() {
-                ctx.emit(LirInst::Br(end_lbl.clone()));
-            }
-        }
-        MirStmt::Continue => {
-            if let Some((cond_lbl, _)) = ctx.loop_stack.last() {
-                ctx.emit(LirInst::Br(cond_lbl.clone()));
-            }
-        }
-        MirStmt::Drop(id, ty) => {
-            ctx.emit(LirInst::DropValue(*id, ty.clone()));
-        }
-        MirStmt::Retain(id, ty) => {
-            ctx.emit(LirInst::RetainValue(*id, ty.clone()));
-        }
-        MirStmt::Release(id, ty) => {
-            ctx.emit(LirInst::ReleaseValue(*id, ty.clone()));
-        }
-    }
+fn lower_expr(ctx: &mut dyn LirLowerCtx, expr: &MirNodeBox) -> LirValue {
+    expr.lower_to_lir(ctx)
 }
 
-// ----------------------------------------------------------------
-//  Expression lowering
-// ----------------------------------------------------------------
-
-fn lower_expr(ctx: &mut LowerCtx, expr: &MirExpr) -> LirValue {
-    match expr {
-        MirExpr::Literal(HirLiteral::String(s), ty) => {
-            let idx = ctx.str_map[s];
-            let is_string_struct = match ty {
-                HirType::Named(sym) => sym.as_str() == "String",
-                _ => false,
-            };
-            
-            if is_string_struct {
-                // Build String struct: { data: ptr, len: i64 }
-                let data_dest = ctx.next_tmp();
-                ctx.emit(LirInst::StrGlobal { dest: data_dest, str_idx: idx });
-                let data_val = LirValue::Tmp(data_dest);
-
-                let struct_dest = ctx.next_tmp();
-                let alloca_tmp = ctx.next_tmp();
-                let data_gep = ctx.next_tmp();
-                let len_gep = ctx.next_tmp();
-                ctx.emit(LirInst::StructLit {
-                    dest: struct_dest,
-                    alloca_tmp,
-                    field_geps: vec![data_gep, len_gep],
-                    fields: vec![
-                        (data_val, HirType::Named(Symbol::intern("[char]"))),
-                        (LirValue::Literal(HirLiteral::Int(s.len() as i64), HirType::Int), HirType::Int),
-                    ],
-                    struct_name: Symbol::intern("String"),
-                    struct_ty: ty.clone(),
-                });
-                LirValue::Tmp(struct_dest)
-            } else {
-                let dest = ctx.next_tmp();
-                ctx.emit(LirInst::StrGlobal { dest, str_idx: idx });
-                LirValue::Tmp(dest)
-            }
+fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
+    match ty {
+        HirType::Void => None,
+        HirType::Int => Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), HirType::Int)),
+        HirType::Float => Some((LirValue::Literal(HirLiteral::Float(0.0), HirType::Float), HirType::Float)),
+        HirType::Char => Some((LirValue::Literal(HirLiteral::Char('\0'), HirType::Char), HirType::Char)),
+        HirType::Bool => Some((LirValue::Literal(HirLiteral::Bool(false), HirType::Bool), HirType::Bool)),
+        HirType::Named(_) | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
+            Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), ty.clone()))
         }
-        MirExpr::Literal(lit, ty) => LirValue::Literal(lit.clone(), ty.clone()),
-        MirExpr::Local(id, ty, _) => {
-            let dest = ctx.next_tmp();
-            ctx.emit(LirInst::Load {
-                dest,
-                src: *id,
-                ty: ty.clone(),
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::Binary { op, lhs, rhs, ty } => {
-            let lv = lower_expr(ctx, lhs);
-            let rv = lower_expr(ctx, rhs);
-            let dest = ctx.next_tmp();
-            let result_ty = match op {
-                BinaryOp::Eq | BinaryOp::Neq | BinaryOp::Lt | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Ge => HirType::Bool,
-                _ => ty.clone(),
-            };
-            ctx.emit(LirInst::BinOp {
-                dest,
-                op: *op,
-                lhs: lv,
-                rhs: rv,
-                ty: ty.clone(),
-                result_ty,
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::Unary { op, arg, ty } => {
-            let av = lower_expr(ctx, arg);
-            let dest = ctx.next_tmp();
-            ctx.emit(LirInst::UnaryOp {
-                dest,
-                op: *op,
-                src: av,
-                ty: ty.clone(),
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::Call { fn_id, args, ty } => {
-            let lowered_args: Vec<_> = args
-                .iter()
-                .map(|a| {
-                    let val = lower_expr(ctx, a);
-                    let aty = expr_mir_type(a);
-                    (val, aty)
-                })
-                .collect();
-            let is_void = matches!(ty, HirType::Void);
-            let dest = if is_void { None } else { Some(ctx.next_tmp()) };
-            ctx.emit(LirInst::Call {
-                dest,
-                fn_id: *fn_id,
-                args: lowered_args,
-                ret_ty: ty.clone(),
-            });
-            if is_void {
-                LirValue::Literal(HirLiteral::Int(0), HirType::Void)
-            } else {
-                LirValue::Tmp(dest.unwrap())
-            }
-        }
-        MirExpr::Move(inner, _) => lower_expr(ctx, inner),
-        MirExpr::Clone(inner, _) => lower_expr(ctx, inner),
-        MirExpr::ToUnique(inner, ty) => {
-            let inner_val = lower_expr(ctx, inner);
-            let inner_ty = match &ty {
-                HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
-                _ => &ty,
-            };
-            if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
-                let src = match inner_val {
-                    LirValue::Tmp(_) => inner_val,
-                    _ => {
-                        let t = ctx.next_tmp();
-                        ctx.emit(LirInst::Load {
-                            dest: t, src: extract_var(&inner_val),
-                            ty: expr_mir_type(inner),
-                        });
-                        LirValue::Tmp(t)
-                    }
-                };
-                let dest = ctx.next_tmp();
-                let alloca_tmp = ctx.next_tmp();
-                let malloc_tmp = ctx.next_tmp();
-                ctx.emit(LirInst::Conv {
-                    dest,
-                    alloca_tmp,
-                    malloc_tmp,
-                    src,
-                    kind: ConvKind::ToUnique,
-                    src_ty: expr_mir_type(inner),
-                    ty: ty.clone(),
-                });
-                LirValue::Tmp(dest)
-            } else {
-                inner_val
-            }
-        }
-        MirExpr::ToShared(inner, ty) => {
-            let inner_val = lower_expr(ctx, inner);
-            let inner_ty = match &ty {
-                HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
-                _ => &ty,
-            };
-            if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
-                let src = match inner_val {
-                    LirValue::Tmp(_) => inner_val,
-                    _ => {
-                        let t = ctx.next_tmp();
-                        ctx.emit(LirInst::Load {
-                            dest: t, src: extract_var(&inner_val),
-                            ty: expr_mir_type(inner),
-                        });
-                        LirValue::Tmp(t)
-                    }
-                };
-                let dest = ctx.next_tmp();
-                let alloca_tmp = ctx.next_tmp();
-                let malloc_tmp = ctx.next_tmp();
-                ctx.emit(LirInst::Conv {
-                    dest,
-                    alloca_tmp,
-                    malloc_tmp,
-                    src,
-                    kind: ConvKind::ToShared,
-                    src_ty: expr_mir_type(inner),
-                    ty: ty.clone(),
-                });
-                LirValue::Tmp(dest)
-            } else {
-                inner_val
-            }
-        }
-        MirExpr::ToWeak(inner, ty) => {
-            let inner_val = lower_expr(ctx, inner);
-            let inner_ty = match &ty {
-                HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
-                _ => &ty,
-            };
-            if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
-                let src = match inner_val {
-                    LirValue::Tmp(_) => inner_val,
-                    _ => {
-                        let t = ctx.next_tmp();
-                        ctx.emit(LirInst::Load {
-                            dest: t, src: extract_var(&inner_val),
-                            ty: expr_mir_type(inner),
-                        });
-                        LirValue::Tmp(t)
-                    }
-                };
-                let dest = ctx.next_tmp();
-                let alloca_tmp = ctx.next_tmp();
-                let malloc_tmp = ctx.next_tmp();
-                ctx.emit(LirInst::Conv {
-                    dest,
-                    alloca_tmp,
-                    malloc_tmp,
-                    src,
-                    kind: ConvKind::ToWeak,
-                    src_ty: expr_mir_type(inner),
-                    ty: ty.clone(),
-                });
-                LirValue::Tmp(dest)
-            } else {
-                inner_val
-            }
-        }
-        MirExpr::VirtualCall { receiver, interface: _, method_index, args, ty } => {
-            let receiver_val = lower_expr(ctx, receiver);
-            let receiver_tmp = match receiver_val {
-                LirValue::Tmp(t) => t,
-                _ => {
-                    let t = ctx.next_tmp();
-                    ctx.emit(LirInst::Load { dest: t, src: extract_var(&receiver_val), ty: expr_mir_type(receiver) });
-                    t
-                }
-            };
-            let lowered_args: Vec<_> = args.iter()
-                .map(|a| {
-                    let val = lower_expr(ctx, a);
-                    let aty = expr_mir_type(a);
-                    (val, aty)
-                })
-                .collect();
-            let is_void = matches!(ty, HirType::Void);
-            let fn_dest = if is_void { None } else { Some(ctx.next_tmp()) };
-            let data_tmp = ctx.next_tmp();
-            let vtable_tmp = ctx.next_tmp();
-            let gep_tmp = ctx.next_tmp();
-            let fn_ptr_tmp = ctx.next_tmp();
-            ctx.emit(LirInst::VirtualCall {
-                fn_dest,
-                receiver_tmp,
-                data_tmp,
-                vtable_tmp,
-                gep_tmp,
-                fn_ptr_tmp,
-                method_index: *method_index,
-                args: lowered_args,
-                ret_ty: ty.clone(),
-            });
-            if is_void {
-                LirValue::Literal(HirLiteral::Int(0), HirType::Void)
-            } else {
-                LirValue::Tmp(fn_dest.unwrap())
-            }
-        }
-        MirExpr::MakeFatPtr { value, concrete_type, interface_name, ty } => {
-            let val = lower_expr(ctx, value);
-            let value_src = match &val {
-                LirValue::Tmp(_) => val,
-                _ => {
-                    let t = ctx.next_tmp();
-                    ctx.emit(LirInst::Load { dest: t, src: extract_var(&val), ty: expr_mir_type(value) });
-                    LirValue::Tmp(t)
-                }
-            };
-            let vtable_name = format!("vtable_{}_{}",
-                concrete_type.as_str().replace('<', "_lt_").replace('>', "_gt_").replace('[', "_lb_").replace(']', "_rb_"),
-                interface_name.as_str().replace('<', "_lt_").replace('>', "_gt_"));
-            let dest = ctx.next_tmp();
-            let malloc_tmp = ctx.next_tmp();
-            let bc_tmp = ctx.next_tmp();
-            let vtable_gep_tmp = ctx.next_tmp();
-            let iv_tmp = ctx.next_tmp();
-            ctx.emit(LirInst::MakeFatPtr {
-                dest,
-                malloc_tmp,
-                bc_tmp,
-                vtable_gep_tmp,
-                iv_tmp,
-                value_src,
-                value_ty: expr_mir_type(value),
-                vtable_name,
-                ty: ty.clone(),
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::CallPtr { fn_ptr, args, ty } => {
-            let fn_val = lower_expr(ctx, fn_ptr);
-            let lowered_args: Vec<(LirValue, HirType)> = args.iter()
-                .map(|a| { let val = lower_expr(ctx, a); (val, expr_mir_type(a)) })
-                .collect();
-            let dest = ctx.next_tmp();
-            let fn_ptr = match &fn_val {
-                LirValue::Tmp(t) => LirValue::Tmp(*t),
-                LirValue::Var(v) => {
-                    let t = ctx.next_tmp();
-                    ctx.emit(LirInst::Load { dest: t, src: *v, ty: expr_mir_type(fn_ptr) });
-                    LirValue::Tmp(t)
-                }
-                _ => LirValue::Tmp(ctx.next_tmp()),
-            };
-            ctx.emit(LirInst::CallPtr {
-                dest,
-                fn_ptr: fn_ptr,
-                args: lowered_args,
-                ret_ty: ty.clone(),
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::FnPtr(fid, _) => {
-            let t = ctx.next_tmp();
-            ctx.emit(LirInst::FnAddr { dest: t, fn_id: *fid });
-            LirValue::Tmp(t)
-        }
-        MirExpr::EnumConstruct { .. } => {
-            // TODO: implement full enum construction
-            LirValue::Literal(HirLiteral::Int(0), HirType::Int)
-        }
-        MirExpr::EnumMatch { value, arms, ty } => {
-            let val = lower_expr(ctx, value);
-            let val_tmp = match val {
-                LirValue::Tmp(t) => t,
-                _ => { let t = ctx.next_tmp(); ctx.emit(LirInst::Load { dest: t, src: extract_var(&val), ty: expr_mir_type(value) }); t }
-            };
-            let tag_tmp = ctx.next_tmp();
-            let gep_tmp = ctx.next_tmp();
-            ctx.emit(LirInst::FieldAccess {
-                dest: tag_tmp, gep_tmp, src: LirValue::Tmp(val_tmp),
-                field_index: 0, field_ty: HirType::Int,
-                struct_ty: expr_mir_type(value),
-            });
-            if arms.is_empty() {
-                LirValue::Literal(HirLiteral::Int(0), HirType::Int)
-            } else {
-                let result_id = VarId(ctx.next_tmp() as usize);
-                ctx.emit(LirInst::Alloca(result_id, ty.clone()));
-                let merge_lbl = ctx.next_block_label("ematch");
-                // Pre-compute all condition labels
-                let cond_lbls: Vec<String> = (0..arms.len()).map(|i| {
-                    ctx.next_block_label(&format!("econd{}", i))
-                }).collect();
-                let arm_lbls: Vec<String> = (0..arms.len()).map(|i| {
-                    ctx.next_block_label(&format!("earm{}", i))
-                }).collect();
-                // Branch to first condition block
-                ctx.emit(LirInst::Br(cond_lbls[0].clone()));
-                for (i, (tag_val, arm_expr)) in arms.iter().enumerate() {
-                    ctx.set_current_block(cond_lbls[i].clone());
-                    let cmp_tmp = ctx.next_tmp();
-                    ctx.emit(LirInst::BinOp {
-                        dest: cmp_tmp, op: crate::parser::ast::BinaryOp::Eq,
-                        lhs: LirValue::Tmp(tag_tmp),
-                        rhs: LirValue::Literal(HirLiteral::Int(*tag_val), HirType::Int),
-                        ty: HirType::Int, result_ty: HirType::Bool,
-                    });
-                    let false_target = if i + 1 < arms.len() {
-                        cond_lbls[i + 1].clone()
-                    } else {
-                        merge_lbl.clone()
-                    };
-                    ctx.emit(LirInst::BrCond {
-                        cond: LirValue::Tmp(cmp_tmp),
-                        true_block: arm_lbls[i].clone(),
-                        false_block: false_target,
-                    });
-                    ctx.set_current_block(arm_lbls[i].clone());
-                    let arm_val = lower_expr(ctx, arm_expr);
-                    ctx.emit(LirInst::Store { dest: result_id, src: arm_val, ty: ty.clone() });
-                    ctx.emit(LirInst::Br(merge_lbl.clone()));
-                }
-                ctx.set_current_block(merge_lbl);
-                let load_tmp = ctx.next_tmp();
-                ctx.emit(LirInst::Load { dest: load_tmp, src: result_id, ty: ty.clone() });
-                LirValue::Tmp(load_tmp)
-            }
-        }
-        MirExpr::FieldAccess { object, field_index, ty, .. } => {
-            let obj_val = lower_expr(ctx, object);
-            let obj_tmp = match obj_val {
-                LirValue::Tmp(t) => t,
-                _ => {
-                    let t = ctx.next_tmp();
-                    ctx.emit(LirInst::Load { dest: t, src: extract_var(&obj_val), ty: expr_mir_type(object) });
-                    t
-                }
-            };
-            let dest = ctx.next_tmp();
-            let gep_tmp = ctx.next_tmp();
-            ctx.emit(LirInst::FieldAccess {
-                dest,
-                gep_tmp,
-                src: LirValue::Tmp(obj_tmp),
-                field_index: *field_index,
-                field_ty: ty.clone(),
-                struct_ty: expr_mir_type(object),
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::StructLiteral { type_name, fields, ty } => {
-            let lowered_fields: Vec<_> = fields.iter()
-                .map(|(_, e)| {
-                    let val = lower_expr(ctx, e);
-                    let fty = expr_mir_type(e);
-                    (val, fty)
-                })
-                .collect();
-            let dest = ctx.next_tmp();
-            let alloca_tmp = ctx.next_tmp();
-            let field_geps: Vec<u64> = lowered_fields.iter().map(|_| ctx.next_tmp()).collect();
-            ctx.emit(LirInst::StructLit {
-                dest,
-                alloca_tmp,
-                field_geps,
-                fields: lowered_fields,
-                struct_name: *type_name,
-                struct_ty: ty.clone(),
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::ArraySized { count, elem_ty, ty } => {
-            let dest = ctx.next_tmp();
-            let malloc_tmp = ctx.next_tmp();
-            let count_tmp = ctx.next_tmp();
-            let size_tmp = ctx.next_tmp();
-            let elem_count = lower_expr(ctx, count);
-            let elem_size = type_size(elem_ty);
-            ctx.emit(LirInst::ArraySized {
-                dest, malloc_tmp, count_tmp, size_tmp,
-                elem_count,
-                elem_size,
-                elem_ty: elem_ty.clone(),
-                ty: ty.clone(),
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::ArrayLiteral(elems, ty) => {
-            let lowered_elems: Vec<_> = elems.iter()
-                .map(|e| {
-                    let val = lower_expr(ctx, e);
-                    let ety = expr_mir_type(e);
-                    (val, ety)
-                })
-                .collect();
-            let dest = ctx.next_tmp();
-            let malloc_tmp = ctx.next_tmp();
-            let elem_geps: Vec<u64> = lowered_elems.iter().map(|_| ctx.next_tmp()).collect();
-            let elem_ty = match ty {
-                HirType::Array(inner) => *inner.clone(),
-                _ => HirType::Int,
-            };
-            ctx.emit(LirInst::ArrayLit {
-                dest,
-                malloc_tmp,
-                elem_geps,
-                elems: lowered_elems,
-                elem_ty,
-                ty: ty.clone(),
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::Ref { expr, mutable, ty } => {
-            // Extract VarId directly from the MirExpr (before lowering)
-            let var_id = match expr.as_ref() {
-                MirExpr::Local(id, _, _) => *id,
-                _ => { let _ = lower_expr(ctx, expr); panic!("ref target must be a variable"); }
-            };
-            let dest = ctx.next_tmp();
-            ctx.emit(LirInst::RefInst { dest, var_id, mutable: *mutable, ty: ty.clone() });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::Asm { template, outputs, inputs, ty } => {
-            let is_void = matches!(ty, HirType::Void);
-            let dest = if is_void { None } else { Some(ctx.next_tmp()) };
-            let input_operands: Vec<_> = inputs.iter()
-                .map(|(c, e)| { let v = lower_expr(ctx, e); (v, (c.clone(), expr_mir_type(e))) })
-                .collect();
-            let output_constraints: Vec<String> = outputs.iter().map(|(c, _)| format!("={}", c)).collect();
-            let input_constraints: Vec<String> = input_operands.iter().map(|(_, (c, _))| c.clone()).collect();
-            let input_vals: Vec<(LirValue, HirType)> = input_operands.into_iter().map(|(v, (_, t))| (v, t)).collect();
-            // Outputs become additional temps
-            if !outputs.is_empty() {
-                // For now, only support single output
-            }
-            ctx.emit(LirInst::Asm {
-                dest,
-                template: template.clone(),
-                output_constraints,
-                input_operands: input_vals,
-                input_constraints,
-                ret_ty: ty.clone(),
-            });
-            if is_void {
-                LirValue::Literal(HirLiteral::Int(0), HirType::Void)
-            } else {
-                LirValue::Tmp(dest.unwrap())
-            }
-        }
-        MirExpr::Index { object, index, ty } => {
-            let arr_val = lower_expr(ctx, object);
-            let idx_val = lower_expr(ctx, index);
-            let arr_tmp = match arr_val {
-                LirValue::Tmp(t) => t,
-                _ => {
-                    let t = ctx.next_tmp();
-                    ctx.emit(LirInst::Load { dest: t, src: extract_var(&arr_val), ty: expr_mir_type(object) });
-                    t
-                }
-            };
-            let dest = ctx.next_tmp();
-            let gep_tmp = ctx.next_tmp();
-            let load_tmp = ctx.next_tmp();
-            let obj_ty = strip_ownership(expr_mir_type(object));
-            let elem_ty = match obj_ty {
-                HirType::Array(inner) => *inner,
-                _ => ty.clone(),
-            };
-            ctx.emit(LirInst::IndexAccess {
-                dest,
-                gep_tmp,
-                load_tmp,
-                arr: LirValue::Tmp(arr_tmp),
-                index: idx_val,
-                elem_ty,
-                ty: ty.clone(),
-            });
-            LirValue::Tmp(dest)
-        }
-        MirExpr::Custom(_) => LirValue::Tmp(0),
-    }
-}
-
-// ----------------------------------------------------------------
-//  If / elif / else
-// ----------------------------------------------------------------
-
-fn lower_if(
-    ctx: &mut LowerCtx,
-    cond: &MirExpr,
-    then_block: &[MirStmt],
-    elifs: &[(MirExpr, Vec<MirStmt>)],
-    else_block: &Option<Vec<MirStmt>>,
-) {
-    let then_lbl = ctx.next_block_label("then");
-    let else_lbl = ctx.next_block_label("else");
-    let merge_lbl = ctx.next_block_label("ifcont");
-
-    let cond_val = lower_expr(ctx, cond);
-    ctx.emit(LirInst::BrCond {
-        cond: cond_val,
-        true_block: then_lbl.clone(),
-        false_block: else_lbl.clone(),
-    });
-
-    // Then block
-    ctx.set_current_block(then_lbl);
-    lower_stmts(ctx, then_block);
-    if !block_ends_with_ret(then_block) {
-        ctx.emit(LirInst::Br(merge_lbl.clone()));
-    }
-
-    // Else / elif chain
-    ctx.set_current_block(else_lbl);
-    lower_elifs(ctx, elifs, else_block, &merge_lbl);
-
-    // Merge
-    ctx.set_current_block(merge_lbl);
-}
-
-fn lower_elifs(
-    ctx: &mut LowerCtx,
-    elifs: &[(MirExpr, Vec<MirStmt>)],
-    else_block: &Option<Vec<MirStmt>>,
-    merge_lbl: &str,
-) {
-    if elifs.is_empty() {
-        if let Some(stmts) = else_block {
-            lower_stmts(ctx, stmts);
-        }
-        ctx.emit(LirInst::Br(merge_lbl.to_string()));
-        return;
-    }
-
-    let (cond, body) = &elifs[0];
-    let rest = &elifs[1..];
-
-    let then_lbl = ctx.next_block_label("elif.then");
-    let next_lbl = ctx.next_block_label("elif.next");
-
-    let cond_val = lower_expr(ctx, cond);
-    ctx.emit(LirInst::BrCond {
-        cond: cond_val,
-        true_block: then_lbl.clone(),
-        false_block: next_lbl.clone(),
-    });
-
-    ctx.set_current_block(then_lbl);
-    lower_stmts(ctx, body);
-    if !block_ends_with_ret(body) {
-        ctx.emit(LirInst::Br(merge_lbl.to_string()));
-    }
-
-    ctx.set_current_block(next_lbl);
-    lower_elifs(ctx, rest, else_block, merge_lbl);
-}
-
-// ----------------------------------------------------------------
-//  While
-// ----------------------------------------------------------------
-
-fn lower_while(ctx: &mut LowerCtx, cond: &MirExpr, body: &[MirStmt]) {
-    let cond_lbl = ctx.next_block_label("while.cond");
-    let body_lbl = ctx.next_block_label("while.body");
-    let end_lbl = ctx.next_block_label("while.end");
-
-    // 推入循环栈供 break/continue 使用
-    ctx.loop_stack.push((cond_lbl.clone(), end_lbl.clone()));
-
-    ctx.emit(LirInst::Br(cond_lbl.clone()));
-
-    ctx.set_current_block(cond_lbl.clone());
-    let cond_val = lower_expr(ctx, cond);
-    ctx.emit(LirInst::BrCond {
-        cond: cond_val,
-        true_block: body_lbl.clone(),
-        false_block: end_lbl.clone(),
-    });
-
-    ctx.set_current_block(body_lbl);
-    lower_stmts(ctx, body);
-    ctx.emit(LirInst::Br(cond_lbl));
-
-    ctx.loop_stack.pop();
-
-    ctx.set_current_block(end_lbl);
-}
-
-// ----------------------------------------------------------------
-//  Helpers
-// ----------------------------------------------------------------
-
-fn block_ends_with_ret(stmts: &[MirStmt]) -> bool {
-    stmts.iter().any(|s| matches!(s, MirStmt::Return { .. }))
-}
-
-fn expr_mir_type(expr: &MirExpr) -> HirType {
-    match expr {
-        MirExpr::Literal(_, ty)
-        | MirExpr::Local(_, ty, _)
-        | MirExpr::Binary { ty, .. }
-        | MirExpr::Unary { ty, .. }
-        | MirExpr::Call { ty, .. }
-        | MirExpr::Move(_, ty)
-        | MirExpr::Clone(_, ty)
-        | MirExpr::ToUnique(_, ty)
-        | MirExpr::ToShared(_, ty)
-        | MirExpr::ToWeak(_, ty)
-        | MirExpr::VirtualCall { ty, .. }
-        | MirExpr::MakeFatPtr { ty, .. }
-        |         MirExpr::FnPtr(_, ty) |
-        MirExpr::CallPtr { ty, .. } |
-        MirExpr::EnumConstruct { ty, .. }
-        | MirExpr::EnumMatch { ty, .. }
-        | MirExpr::FieldAccess { ty, .. }
-        | MirExpr::StructLiteral { ty, .. }
-        | MirExpr::ArraySized { ty, .. }
-        | MirExpr::ArrayLiteral(_, ty)
-        | MirExpr::Index { ty, .. }
-        | MirExpr::Ref { ty, .. }
-        | MirExpr::Asm { ty, .. } => ty.clone(),
-        MirExpr::Custom(_) => HirType::Void,
     }
 }
 
@@ -1105,20 +325,8 @@ fn type_size(ty: &HirType) -> u64 {
         HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) => 16,
         HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => type_size(inner),
         HirType::Ref(_, _) | HirType::FnPtr(..) => 8,
-        HirType::Ref(_, _) => 8,
     }
 }
-
-fn extract_var(val: &LirValue) -> VarId {
-    match val {
-        LirValue::Var(v) => *v,
-        _ => panic!("expected Var, got {:?}", val),
-    }
-}
-
-// ----------------------------------------------------------------
-//  String collection (reused from emit.rs)
-// ----------------------------------------------------------------
 
 fn collect_strings(mir: &MirProgram) -> Vec<String> {
     let mut strings = Vec::new();
@@ -1131,120 +339,890 @@ fn collect_strings(mir: &MirProgram) -> Vec<String> {
 fn collect_strings_items(items: &[MirItem], out: &mut Vec<String>) {
     for item in items {
         match item {
-            MirItem::Fn(f) => collect_strings_stmt(&f.body, out),
+            MirItem::Fn(f) => collect_strings_stmts(&f.body, out),
             MirItem::StructDef { .. } => {}
             MirItem::Namespace { items, .. } => collect_strings_items(items, out),
         }
     }
 }
 
-fn collect_strings_stmt(stmts: &[MirStmt], out: &mut Vec<String>) {
+fn collect_strings_stmts(stmts: &[MirStmtBox], out: &mut Vec<String>) {
     for stmt in stmts {
-        match stmt {
-            MirStmt::Assign { target, value, .. } => {
-                collect_strings_expr(target, out);
-                collect_strings_expr(value, out);
-            }
-            MirStmt::FieldAssign { object, value, .. } => {
-                collect_strings_expr(object, out);
-                collect_strings_expr(value, out);
-            }
-            MirStmt::IndexAssign { object, index, value, .. } => {
-                collect_strings_expr(object, out);
-                collect_strings_expr(index, out);
-                collect_strings_expr(value, out);
-            }
-            MirStmt::Return { value: Some(v) } => collect_strings_expr(v, out),
-            MirStmt::If {
-                then_block,
-                elifs,
-                else_block,
-                ..
-            } => {
-                collect_strings_stmt(then_block, out);
-                for (_, b) in elifs {
-                    collect_strings_stmt(b, out);
-                }
-                if let Some(b) = else_block {
-                    collect_strings_stmt(b, out);
-                }
-            }
-            MirStmt::While { body, .. } => collect_strings_stmt(body, out),
-            MirStmt::Expr(e) => collect_strings_expr(e, out),
-            MirStmt::Block(stmts) => collect_strings_stmt(stmts, out),
-            _ => {}
-        }
+        stmt.for_each_child_expr(&mut |child| {
+            collect_strings_dyn(child, out);
+        });
     }
 }
 
-fn collect_strings_expr(expr: &MirExpr, out: &mut Vec<String>) {
-    match expr {
-        MirExpr::Literal(HirLiteral::String(s), _) => out.push(s.clone()),
-        MirExpr::Binary { lhs, rhs, .. } => {
-            collect_strings_expr(lhs, out);
-            collect_strings_expr(rhs, out);
-        }
-        MirExpr::Unary { arg, .. } => collect_strings_expr(arg, out),
-        MirExpr::Call { args, .. } => {
-            for a in args {
-                collect_strings_expr(a, out);
+fn collect_strings_dyn(node: &dyn MirNode, out: &mut Vec<String>) {
+    if let Some(s) = node.as_string_literal() {
+        out.push(s.to_string());
+    }
+    node.for_each_child(&mut |child| {
+        collect_strings_dyn(child, out);
+    });
+}
+
+fn block_ends_with_ret(stmts: &[MirStmtBox]) -> bool {
+    stmts.iter().any(|s| s.is_return())
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  impl MirNode for all 23 SMir* types
+// ═══════════════════════════════════════════════════════════════════
+
+impl MirNode for SMirLocal {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirLoad { dest, src: self.var, ty: self.ty.clone() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        let m = if self.moved { " [moved]" } else { "" };
+        writeln!(w, "{:width$}Local(v{} : {}{})", "", self.var.0, display_hir_type(&self.ty), m, width = level * 2)
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn as_local(&self) -> Option<VarId> { Some(self.var) }
+    fn collect_var_ids(&self, vars: &mut std::collections::HashSet<VarId>) { vars.insert(self.var); }
+}
+
+impl MirNode for SMirLiteral {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        match &self.val {
+            HirLiteral::String(s) => {
+                let idx = ctx.str_map()[s];
+                let is_string_struct = match &self.ty {
+                    HirType::Named(sym) => sym.as_str() == "String",
+                    _ => false,
+                };
+                if is_string_struct {
+                    let data_dest = ctx.next_tmp();
+                    ctx.emit(SLirStrGlobal { dest: data_dest, str_idx: idx }.into());
+                    let data_val = LirValue::Tmp(data_dest);
+                    let struct_dest = ctx.next_tmp();
+                    let alloca_tmp = ctx.next_tmp();
+                    let data_gep = ctx.next_tmp();
+                    let len_gep = ctx.next_tmp();
+                    ctx.emit(SLirStructLit {
+                        dest: struct_dest, alloca_tmp,
+                        field_geps: vec![data_gep, len_gep],
+                        fields: vec![
+                            (data_val, HirType::Named(Symbol::intern("[char]"))),
+                            (LirValue::Literal(HirLiteral::Int(s.len() as i64), HirType::Int), HirType::Int),
+                        ],
+                        struct_name: Symbol::intern("String"),
+                        struct_ty: self.ty.clone(),
+                    }.into());
+                    LirValue::Tmp(struct_dest)
+                } else {
+                    let dest = ctx.next_tmp();
+                    ctx.emit(SLirStrGlobal { dest, str_idx: idx }.into());
+                    LirValue::Tmp(dest)
+                }
             }
+            _ => LirValue::Literal(self.val.clone(), self.ty.clone()),
         }
-        MirExpr::Move(inner, _) | MirExpr::Clone(inner, _)
-            | MirExpr::ToUnique(inner, _) | MirExpr::ToShared(inner, _) | MirExpr::ToWeak(inner, _)
-            => collect_strings_expr(inner, out),
-        MirExpr::VirtualCall { receiver, args, .. } => {
-            collect_strings_expr(receiver, out);
-            for a in args {
-                collect_strings_expr(a, out);
-            }
-        }
-        MirExpr::MakeFatPtr { value, .. } => collect_strings_expr(value, out),
-        MirExpr::EnumConstruct { args, .. } => {
-            for a in args { collect_strings_expr(a, out); }
-        }
-        MirExpr::EnumMatch { value, arms, .. } => {
-            collect_strings_expr(value, out);
-            for (_, e) in arms { collect_strings_expr(e, out); }
-        }
-        MirExpr::FieldAccess { object, .. } => collect_strings_expr(object, out),
-        MirExpr::StructLiteral { fields, .. } => {
-            for (_, e) in fields {
-                collect_strings_expr(e, out);
-            }
-        }
-        MirExpr::ArraySized { count, .. } => {
-            collect_strings_expr(count, out);
-        }
-        MirExpr::ArrayLiteral(elems, _) => {
-            for e in elems {
-                collect_strings_expr(e, out);
-            }
-        }
-        MirExpr::Ref { expr, .. } => {
-            collect_strings_expr(expr, out);
-        }
-        MirExpr::Index { object, index, .. } => {
-            collect_strings_expr(object, out);
-            collect_strings_expr(index, out);
-        }
-        MirExpr::Asm { outputs, inputs, .. } => {
-            for (_, e) in outputs { collect_strings_expr(e, out); }
-            for (_, e) in inputs { collect_strings_expr(e, out); }
-        }
-        _ => {}
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        let s = match &self.val {
+            HirLiteral::Int(n) => format!("Int({})", n),
+            HirLiteral::Float(n) => format!("Float({})", n),
+            HirLiteral::Char(c) => format!("Char('{}')", c),
+            HirLiteral::String(s) => format!("String(\"{}\")", s),
+            HirLiteral::Bool(b) => format!("Bool({})", b),
+        };
+        writeln!(w, "{:width$}Literal({})", "", s, width = level * 2)
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn as_string_literal(&self) -> Option<&str> {
+        match &self.val { HirLiteral::String(s) => Some(s.as_str()), _ => None }
     }
 }
 
-fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
-    match ty {
-        HirType::Void => None,
-        HirType::Int => Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), HirType::Int)),
-        HirType::Float => Some((LirValue::Literal(HirLiteral::Float(0.0), HirType::Float), HirType::Float)),
-        HirType::Char => Some((LirValue::Literal(HirLiteral::Char('\0'), HirType::Char), HirType::Char)),
-        HirType::Bool => Some((LirValue::Literal(HirLiteral::Bool(false), HirType::Bool), HirType::Bool)),
-        HirType::Named(_) | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
-            Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), ty.clone()))
+impl MirNode for SMirBinary {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let lv = self.lhs.lower_to_lir(ctx);
+        let rv = self.rhs.lower_to_lir(ctx);
+        let dest = ctx.next_tmp();
+        let result_ty = match self.op {
+            BinaryOp::Eq | BinaryOp::Neq | BinaryOp::Lt | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Ge => HirType::Bool,
+            _ => self.ty.clone(),
+        };
+        ctx.emit(SLirBinOp { dest, op: self.op, lhs: lv, rhs: rv, ty: self.ty.clone(), result_ty }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Binary {{ op: {:?}, ty: {} }}", "", self.op, display_hir_type(&self.ty), width = level * 2)?;
+        writeln!(w, "{:width$}  lhs:", "", width = level * 2)?;
+        self.lhs.display(level + 1, w)?;
+        writeln!(w, "{:width$}  rhs:", "", width = level * 2)?;
+        self.rhs.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.lhs); f(&*self.rhs); }
+}
+
+impl MirNode for SMirUnary {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let av = self.arg.lower_to_lir(ctx);
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirUnaryOp { dest, op: self.op, src: av, ty: self.ty.clone() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Unary {{ op: {:?}, ty: {} }}", "", self.op, display_hir_type(&self.ty), width = level * 2)?;
+        self.arg.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.arg); }
+}
+
+impl MirNode for SMirCall {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let lowered_args: Vec<_> = self.args.iter().map(|a| {
+            let val = a.lower_to_lir(ctx);
+            let aty = a.expr_type();
+            (val, aty)
+        }).collect();
+        let is_void = matches!(&self.ty, HirType::Void);
+        let dest = if is_void { None } else { Some(ctx.next_tmp()) };
+        ctx.emit(SLirCall { dest, fn_id: self.fn_id, args: lowered_args, ret_ty: self.ty.clone() }.into());
+        if is_void { LirValue::Literal(HirLiteral::Int(0), HirType::Void) }
+        else { LirValue::Tmp(dest.unwrap()) }
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Call(fn{}, ty: {})", "", self.fn_id.0, display_hir_type(&self.ty), width = level * 2)?;
+        for arg in &self.args { arg.display(level + 1, w)?; }
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for a in &self.args { f(&**a); } }
+}
+
+impl MirNode for SMirMove {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue { self.expr.lower_to_lir(ctx) }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Move(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+}
+
+impl MirNode for SMirClone {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue { self.expr.lower_to_lir(ctx) }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Clone(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+}
+
+impl MirNode for SMirToUnique {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let inner_val = self.expr.lower_to_lir(ctx);
+        let inner_ty = match &self.ty { HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(), _ => &self.ty };
+        if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
+            let src = match inner_val {
+                LirValue::Tmp(_) => inner_val,
+                _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&inner_val), ty: self.expr.expr_type() }.into()); LirValue::Tmp(t) }
+            };
+            let dest = ctx.next_tmp(); let alloca_tmp = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
+            ctx.emit(SLirConv { dest, alloca_tmp, malloc_tmp, src, kind: ConvKind::ToUnique, src_ty: self.expr.expr_type(), ty: self.ty.clone() }.into());
+            LirValue::Tmp(dest)
+        } else { inner_val }
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}ToUnique(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+}
+
+impl MirNode for SMirToShared {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let inner_val = self.expr.lower_to_lir(ctx);
+        let inner_ty = match &self.ty { HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(), _ => &self.ty };
+        if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
+            let src = match inner_val {
+                LirValue::Tmp(_) => inner_val,
+                _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&inner_val), ty: self.expr.expr_type() }.into()); LirValue::Tmp(t) }
+            };
+            let dest = ctx.next_tmp(); let alloca_tmp = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
+            ctx.emit(SLirConv { dest, alloca_tmp, malloc_tmp, src, kind: ConvKind::ToShared, src_ty: self.expr.expr_type(), ty: self.ty.clone() }.into());
+            LirValue::Tmp(dest)
+        } else { inner_val }
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}ToShared(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+}
+
+impl MirNode for SMirToWeak {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let inner_val = self.expr.lower_to_lir(ctx);
+        let inner_ty = match &self.ty { HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(), _ => &self.ty };
+        if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
+            let src = match inner_val {
+                LirValue::Tmp(_) => inner_val,
+                _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&inner_val), ty: self.expr.expr_type() }.into()); LirValue::Tmp(t) }
+            };
+            let dest = ctx.next_tmp(); let alloca_tmp = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
+            ctx.emit(SLirConv { dest, alloca_tmp, malloc_tmp, src, kind: ConvKind::ToWeak, src_ty: self.expr.expr_type(), ty: self.ty.clone() }.into());
+            LirValue::Tmp(dest)
+        } else { inner_val }
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}ToWeak(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+}
+
+impl MirNode for SMirVirtualCall {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let receiver_val = self.receiver.lower_to_lir(ctx);
+        let receiver_tmp = match receiver_val {
+            LirValue::Tmp(t) => t,
+            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&receiver_val), ty: self.receiver.expr_type() }.into()); t }
+        };
+        let lowered_args: Vec<_> = self.args.iter().map(|a| {
+            let val = a.lower_to_lir(ctx); let aty = a.expr_type(); (val, aty)
+        }).collect();
+        let is_void = matches!(&self.ty, HirType::Void);
+        let fn_dest = if is_void { None } else { Some(ctx.next_tmp()) };
+        let data_tmp = ctx.next_tmp(); let vtable_tmp = ctx.next_tmp();
+        let gep_tmp = ctx.next_tmp(); let fn_ptr_tmp = ctx.next_tmp();
+        ctx.emit(SLirVirtualCall { fn_dest, receiver_tmp, data_tmp, vtable_tmp, gep_tmp, fn_ptr_tmp, method_index: self.method_index, args: lowered_args, ret_ty: self.ty.clone() }.into());
+        if is_void { LirValue::Literal(HirLiteral::Int(0), HirType::Void) }
+        else { LirValue::Tmp(fn_dest.unwrap()) }
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}VirtualCall iface={} method={} ty={}", "", self.interface, self.method_index, display_hir_type(&self.ty), width = level * 2)?;
+        writeln!(w, "{:width$}  receiver:", "", width = level * 2)?;
+        self.receiver.display(level + 1, w)?;
+        for arg in &self.args { arg.display(level + 1, w)?; }
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.receiver); for a in &self.args { f(&**a); } }
+}
+
+impl MirNode for SMirMakeFatPtr {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let val = self.value.lower_to_lir(ctx);
+        let value_src = match &val {
+            LirValue::Tmp(_) => val,
+            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&val), ty: self.value.expr_type() }.into()); LirValue::Tmp(t) }
+        };
+        let vtable_name = format!("vtable_{}_{}",
+            self.concrete_type.as_str().replace('<', "_lt_").replace('>', "_gt_").replace('[', "_lb_").replace(']', "_rb_"),
+            self.interface_name.as_str().replace('<', "_lt_").replace('>', "_gt_"));
+        let dest = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
+        let bc_tmp = ctx.next_tmp(); let vtable_gep_tmp = ctx.next_tmp(); let iv_tmp = ctx.next_tmp();
+        ctx.emit(SLirMakeFatPtr { dest, malloc_tmp, bc_tmp, vtable_gep_tmp, iv_tmp, value_src, value_ty: self.value.expr_type(), vtable_name, ty: self.ty.clone() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}MakeFatPtr {} -> {} ty={}", "", self.concrete_type, self.interface_name, display_hir_type(&self.ty), width = level * 2)?;
+        self.value.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.value); }
+}
+
+impl MirNode for SMirEnumConstruct {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, _ctx: &mut dyn LirLowerCtx) -> LirValue {
+        LirValue::Literal(HirLiteral::Int(0), HirType::Int)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}EnumConstruct {}.{}", "", self.enum_name, self.variant_name, width = level * 2)
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for a in &self.args { f(&**a); } }
+}
+
+impl MirNode for SMirFnPtr {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let t = ctx.next_tmp();
+        ctx.emit(SLirFnAddr { dest: t, fn_id: self.fn_id }.into());
+        LirValue::Tmp(t)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}FnPtr(fn{})", "", self.fn_id.0, width = level * 2)
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+}
+
+impl MirNode for SMirCallPtr {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let fn_val = self.fn_ptr.lower_to_lir(ctx);
+        let lowered_args: Vec<(LirValue, HirType)> = self.args.iter()
+            .map(|a| { let val = a.lower_to_lir(ctx); (val, a.expr_type()) }).collect();
+        let dest = ctx.next_tmp();
+        let fn_ptr = match &fn_val {
+            LirValue::Tmp(t) => LirValue::Tmp(*t),
+            LirValue::Var(v) => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: *v, ty: self.fn_ptr.expr_type() }.into()); LirValue::Tmp(t) }
+            _ => LirValue::Tmp(ctx.next_tmp()),
+        };
+        ctx.emit(SLirCallPtr { dest, fn_ptr, args: lowered_args, ret_ty: self.ty.clone() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}CallPtr", "", width = level * 2)
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.fn_ptr); for a in &self.args { f(&**a); } }
+}
+
+impl MirNode for SMirEnumMatch {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let val = self.value.lower_to_lir(ctx);
+        let val_tmp = match val {
+            LirValue::Tmp(t) => t,
+            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&val), ty: self.value.expr_type() }.into()); t }
+        };
+        let tag_tmp = ctx.next_tmp(); let gep_tmp = ctx.next_tmp();
+        ctx.emit(SLirFieldAccess { dest: tag_tmp, gep_tmp, src: LirValue::Tmp(val_tmp), field_index: 0, field_ty: HirType::Int, struct_ty: self.value.expr_type() }.into());
+        if self.arms.is_empty() {
+            LirValue::Literal(HirLiteral::Int(0), HirType::Int)
+        } else {
+            let result_id = VarId(ctx.next_tmp() as usize);
+            ctx.emit(SLirAlloca { var: result_id, ty: self.ty.clone() }.into());
+            let merge_lbl = format!("ematch{}", ctx.next_tmp());
+            let cond_lbls: Vec<String> = (0..self.arms.len()).map(|i| format!("econd{}", i)).collect();
+            let arm_lbls: Vec<String> = (0..self.arms.len()).map(|i| format!("earm{}", i)).collect();
+            ctx.emit(SLirBr { label: cond_lbls[0].clone() }.into());
+            for (i, (tag_val, arm_expr)) in self.arms.iter().enumerate() {
+                // create a temporary LowerCtx-like block switch
+                ctx.emit(SLirBr { label: cond_lbls[i].clone() }.into());
+                let cmp_tmp = ctx.next_tmp();
+                ctx.emit(SLirBinOp { dest: cmp_tmp, op: BinaryOp::Eq, lhs: LirValue::Tmp(tag_tmp), rhs: LirValue::Literal(HirLiteral::Int(*tag_val), HirType::Int), ty: HirType::Int, result_ty: HirType::Bool }.into());
+                let false_target = if i + 1 < self.arms.len() { cond_lbls[i + 1].clone() } else { merge_lbl.clone() };
+                ctx.emit(SLirBrCond { cond: LirValue::Tmp(cmp_tmp), true_block: arm_lbls[i].clone(), false_block: false_target }.into());
+                let arm_val = arm_expr.lower_to_lir(ctx);
+                ctx.emit(SLirStore { dest: result_id, src: arm_val, ty: self.ty.clone() }.into());
+                ctx.emit(SLirBr { label: merge_lbl.clone() }.into());
+            }
+            let load_tmp = ctx.next_tmp();
+            ctx.emit(SLirLoad { dest: load_tmp, src: result_id, ty: self.ty.clone() }.into());
+            LirValue::Tmp(load_tmp)
         }
     }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}EnumMatch", "", width = level * 2)?;
+        self.value.display(level + 1, w)?;
+        for (_, e) in &self.arms { e.display(level + 1, w)?; }
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) {
+        f(&*self.value);
+        for (_, e) in &self.arms { f(&**e); }
+    }
 }
+
+impl MirNode for SMirFieldAccess {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let obj_val = self.object.lower_to_lir(ctx);
+        let obj_tmp = match obj_val {
+            LirValue::Tmp(t) => t,
+            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&obj_val), ty: self.object.expr_type() }.into()); t }
+        };
+        let dest = ctx.next_tmp(); let gep_tmp = ctx.next_tmp();
+        ctx.emit(SLirFieldAccess { dest, gep_tmp, src: LirValue::Tmp(obj_tmp), field_index: self.field_index, field_ty: self.ty.clone(), struct_ty: self.object.expr_type() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}FieldAccess {} ty={}", "", self.field, display_hir_type(&self.ty), width = level * 2)?;
+        self.object.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); }
+}
+
+impl MirNode for SMirStructLiteral {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let lowered_fields: Vec<_> = self.fields.iter().map(|(_, e)| {
+            let val = e.lower_to_lir(ctx); let fty = e.expr_type(); (val, fty)
+        }).collect();
+        let dest = ctx.next_tmp(); let alloca_tmp = ctx.next_tmp();
+        let field_geps: Vec<u64> = lowered_fields.iter().map(|_| ctx.next_tmp()).collect();
+        ctx.emit(SLirStructLit { dest, alloca_tmp, field_geps, fields: lowered_fields, struct_name: self.type_name, struct_ty: self.ty.clone() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}StructLiteral {} fields={} ty={}", "", self.type_name, self.fields.len(), display_hir_type(&self.ty), width = level * 2)?;
+        for (name, e) in &self.fields {
+            writeln!(w, "{:width$}  {}:", "", name, width = level * 2)?;
+            e.display(level + 1, w)?;
+        }
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for (_, e) in &self.fields { f(&**e); } }
+}
+
+impl MirNode for SMirArrayLiteral {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let lowered: Vec<_> = self.elems.iter().map(|e| {
+            let val = e.lower_to_lir(ctx); let ety = e.expr_type(); (val, ety)
+        }).collect();
+        let dest = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
+        let elem_geps: Vec<u64> = lowered.iter().map(|_| ctx.next_tmp()).collect();
+        let elem_ty = match &self.ty { HirType::Array(inner) => *inner.clone(), _ => HirType::Int };
+        ctx.emit(SLirArrayLit { dest, malloc_tmp, elem_geps, elems: lowered, elem_ty, ty: self.ty.clone() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}ArrayLiteral len={} ty={}", "", self.elems.len(), display_hir_type(&self.ty), width = level * 2)?;
+        for e in &self.elems { e.display(level + 1, w)?; }
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for e in &self.elems { f(&**e); } }
+}
+
+impl MirNode for SMirArraySized {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let dest = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
+        let count_tmp = ctx.next_tmp(); let size_tmp = ctx.next_tmp();
+        let elem_count = self.count.lower_to_lir(ctx);
+        let elem_size = type_size(&self.elem_ty);
+        ctx.emit(SLirArraySized { dest, malloc_tmp, count_tmp, size_tmp, elem_count, elem_size, elem_ty: self.elem_ty.clone(), ty: self.ty.clone() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}ArraySized {{ elem_ty: {}, ty: {} }}", "", display_hir_type(&self.elem_ty), display_hir_type(&self.ty), width = level * 2)?;
+        writeln!(w, "{:width$}  count:", "", width = level * 2)?;
+        self.count.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.count); }
+}
+
+impl MirNode for SMirRef {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let var_id = match self.expr.as_local() {
+            Some(id) => id,
+            None => { let _ = self.expr.lower_to_lir(ctx); panic!("ref target must be a variable"); }
+        };
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirRefInst { dest, var_id, mutable: self.mutable, ty: self.ty.clone() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        let m = if self.mutable { "mut " } else { "" };
+        writeln!(w, "{:width$}Ref({}ty: {})", "", m, display_hir_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+    fn as_ref(&self) -> Option<(VarId, bool)> {
+        self.expr.as_local().map(|var| (var, self.mutable))
+    }
+}
+
+impl MirNode for SMirIndex {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let arr_val = self.object.lower_to_lir(ctx);
+        let idx_val = self.index.lower_to_lir(ctx);
+        let arr_tmp = match arr_val {
+            LirValue::Tmp(t) => t,
+            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&arr_val), ty: self.object.expr_type() }.into()); t }
+        };
+        let dest = ctx.next_tmp(); let gep_tmp = ctx.next_tmp(); let load_tmp = ctx.next_tmp();
+        let obj_ty = strip_ownership(self.object.expr_type());
+        let elem_ty = match &obj_ty { HirType::Array(inner) => *inner.clone(), _ => self.ty.clone() };
+        ctx.emit(SLirIndexAccess { dest, gep_tmp, load_tmp, arr: LirValue::Tmp(arr_tmp), index: idx_val, elem_ty, ty: self.ty.clone() }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Index ty={}", "", display_hir_type(&self.ty), width = level * 2)?;
+        writeln!(w, "{:width$}  object:", "", width = level * 2)?;
+        self.object.display(level + 1, w)?;
+        writeln!(w, "{:width$}  index:", "", width = level * 2)?;
+        self.index.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.index); }
+}
+
+impl MirNode for SMirAsm {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let is_void = matches!(&self.ty, HirType::Void);
+        let dest = if is_void { None } else { Some(ctx.next_tmp()) };
+        let input_vals: Vec<_> = self.inputs.iter()
+            .map(|(c, e)| { let v = e.lower_to_lir(ctx); (v, (c.clone(), e.expr_type())) }).collect();
+        let output_constraints: Vec<String> = self.outputs.iter().map(|(c, _)| format!("={}", c)).collect();
+        let input_constraints: Vec<String> = input_vals.iter().map(|(_, (c, _))| c.clone()).collect();
+        let input_operands: Vec<(LirValue, HirType)> = input_vals.into_iter().map(|(v, (_, t))| (v, t)).collect();
+        ctx.emit(SLirAsm { dest, template: self.template.clone(), output_constraints, input_operands, input_constraints, ret_ty: self.ty.clone() }.into());
+        if is_void { LirValue::Literal(HirLiteral::Int(0), HirType::Void) }
+        else { LirValue::Tmp(dest.unwrap()) }
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Asm template=\"{}\" outputs={} inputs={}", "", self.template, self.outputs.len(), self.inputs.len(), width = level * 2)?;
+        for (i, (c, e)) in self.outputs.iter().enumerate() {
+            writeln!(w, "{:width$}  out[{}] constraint={}:", "", i, c, width = level * 2)?;
+            e.display(level + 1, w)?;
+        }
+        for (i, (c, e)) in self.inputs.iter().enumerate() {
+            writeln!(w, "{:width$}  in[{}] constraint={}:", "", i, c, width = level * 2)?;
+            e.display(level + 1, w)?;
+        }
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) {
+        for (_, e) in &self.outputs { f(&**e); }
+        for (_, e) in &self.inputs { f(&**e); }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  impl MirStmtNode for all 13 SMir*Stmt types
+// ═══════════════════════════════════════════════════════════════════
+
+impl MirStmtNode for SMirAssignStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        let src = self.value.lower_to_lir(ctx);
+        if let Some(id) = self.target.as_local() {
+            ctx.emit(SLirStore { dest: id, src, ty: self.target.expr_type() }.into());
+        }
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Assign", "", width = level * 2)?;
+        writeln!(w, "{:width$}  target:", "", width = level * 2)?;
+        self.target.display(level + 1, w)?;
+        writeln!(w, "{:width$}  value:", "", width = level * 2)?;
+        self.value.display(level + 1, w)?;
+        Ok(())
+    }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.target); f(&*self.value); }
+}
+
+impl MirStmtNode for SMirFieldAssignStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        let obj_ty = self.object.expr_type();
+        let var_id = match self.object.as_local() {
+            Some(id) => {
+                let is_value = !matches!(obj_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_));
+                if is_value { Some(id) } else { None }
+            }
+            None => None,
+        };
+        let obj_val = self.object.lower_to_lir(ctx);
+        let obj_tmp = match obj_val {
+            LirValue::Tmp(t) => t,
+            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&obj_val), ty: self.object.expr_type() }.into()); t }
+        };
+        let src_val = self.value.lower_to_lir(ctx);
+        let gep_tmp = ctx.next_tmp(); let iv_tmp = ctx.next_tmp();
+        ctx.emit(SLirFieldStore { dest: obj_tmp, var_id, gep_tmp, iv_tmp, src: src_val, field_index: self.field_index, field_ty: self.field_ty.clone(), struct_ty: obj_ty }.into());
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}FieldAssign field={} index={} ty={}", "", self.field, self.field_index, display_hir_type(&self.field_ty), width = level * 2)?;
+        writeln!(w, "{:width$}  object:", "", width = level * 2)?;
+        self.object.display(level + 1, w)?;
+        writeln!(w, "{:width$}  value:", "", width = level * 2)?;
+        self.value.display(level + 1, w)?;
+        Ok(())
+    }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.value); }
+}
+
+impl MirStmtNode for SMirIndexAssignStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        let obj_val = self.object.lower_to_lir(ctx);
+        let obj_tmp = match obj_val {
+            LirValue::Tmp(t) => t,
+            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&obj_val), ty: self.object.expr_type() }.into()); t }
+        };
+        let idx_val = self.index.lower_to_lir(ctx);
+        let src_val = self.value.lower_to_lir(ctx);
+        let gep_tmp = ctx.next_tmp();
+        let obj_ty = strip_ownership(self.object.expr_type());
+        let elem_ty = match &obj_ty { HirType::Array(inner) => *inner.clone(), _ => HirType::Int };
+        ctx.emit(SLirIndexStore { dest: obj_tmp, gep_tmp, src: src_val, index: idx_val, elem_ty, array_ty: self.object.expr_type() }.into());
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}IndexAssign", "", width = level * 2)?;
+        writeln!(w, "{:width$}  object:", "", width = level * 2)?;
+        self.object.display(level + 1, w)?;
+        writeln!(w, "{:width$}  index:", "", width = level * 2)?;
+        self.index.display(level + 1, w)?;
+        writeln!(w, "{:width$}  value:", "", width = level * 2)?;
+        self.value.display(level + 1, w)?;
+        Ok(())
+    }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.index); f(&*self.value); }
+}
+
+impl MirStmtNode for SMirReturnStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        let ret = self.value.as_ref().map(|v| {
+            let val = v.lower_to_lir(ctx);
+            let ty = v.expr_type();
+            (val, ty)
+        });
+        ctx.emit(SLirRet { val: ret }.into());
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Return", "", width = level * 2)?;
+        if let Some(v) = &self.value { v.display(level + 1, w)?; }
+        else { writeln!(w, "{:width$}  (none)", "", width = level * 2)?; }
+        Ok(())
+    }
+    fn is_return(&self) -> bool { true }
+    fn return_value(&self) -> Option<&MirNodeBox> { self.value.as_ref() }
+}
+
+impl MirStmtNode for SMirIfStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        let then_lbl = ctx.next_block_label("then");
+        let else_lbl = ctx.next_block_label("else");
+        let merge_lbl = ctx.next_block_label("ifcont");
+
+        let cond_val = self.cond.lower_to_lir(ctx);
+        ctx.emit(SLirBrCond { cond: cond_val, true_block: then_lbl.clone(), false_block: else_lbl.clone() }.into());
+
+        ctx.set_current_block(then_lbl);
+        for stmt in &self.then_block { stmt.lower_to_lir_stmt(ctx); }
+        ctx.emit(SLirBr { label: merge_lbl.clone() }.into());
+
+        ctx.set_current_block(else_lbl);
+        lower_elifs(ctx, &self.elifs, &self.else_block, &merge_lbl);
+
+        ctx.set_current_block(merge_lbl);
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}If", "", width = level * 2)?;
+        writeln!(w, "{:width$}  cond:", "", width = level * 2)?;
+        self.cond.display(level + 1, w)?;
+        writeln!(w, "{:width$}  then:", "", width = level * 2)?;
+        write_stmt_block(&self.then_block, level + 1, w)?;
+        for (i, (c, b)) in self.elifs.iter().enumerate() {
+            writeln!(w, "{:width$}  elif[{}]:", "", i, width = level * 2)?;
+            writeln!(w, "{:width$}    cond:", "", width = level * 2)?;
+            c.display(level + 2, w)?;
+            write_stmt_block(b, level + 1, w)?;
+        }
+        if let Some(b) = &self.else_block {
+            writeln!(w, "{:width$}  else:", "", width = level * 2)?;
+            write_stmt_block(b, level + 1, w)?;
+        }
+        Ok(())
+    }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); }
+    fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) {
+        for s in &self.then_block { f(&**s); }
+        for (_, b) in &self.elifs { for s in b { f(&**s); } }
+        if let Some(b) = &self.else_block { for s in b { f(&**s); } }
+    }
+}
+
+fn lower_elifs(ctx: &mut dyn LirLowerCtx, elifs: &[(MirNodeBox, Vec<MirStmtBox>)], else_block: &Option<Vec<MirStmtBox>>, merge_lbl: &str) {
+    if elifs.is_empty() {
+        if let Some(stmts) = else_block {
+            for s in stmts { s.lower_to_lir_stmt(ctx); }
+        }
+        ctx.emit(SLirBr { label: merge_lbl.to_string() }.into());
+        return;
+    }
+    let (cond, body) = &elifs[0];
+    let rest = &elifs[1..];
+    let then_lbl = ctx.next_block_label("elif.then");
+    let else_lbl = ctx.next_block_label("elif.else");
+    let cond_val = cond.lower_to_lir(ctx);
+    ctx.emit(SLirBrCond { cond: cond_val, true_block: then_lbl.clone(), false_block: else_lbl.clone() }.into());
+    ctx.set_current_block(then_lbl);
+    for s in body { s.lower_to_lir_stmt(ctx); }
+    ctx.emit(SLirBr { label: merge_lbl.to_string() }.into());
+    ctx.set_current_block(else_lbl);
+    lower_elifs(ctx, rest, else_block, merge_lbl);
+}
+
+impl MirStmtNode for SMirWhileStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        let cond_lbl = ctx.next_block_label("while.cond");
+        let body_lbl = ctx.next_block_label("while.body");
+        let end_lbl = ctx.next_block_label("while.end");
+
+        let cond_lbl2 = cond_lbl.clone();
+        ctx.loop_stack_mut().push((cond_lbl.clone(), end_lbl.clone()));
+        ctx.emit(SLirBr { label: cond_lbl.clone() }.into());
+
+        ctx.set_current_block(cond_lbl2);
+        let cond_val = self.cond.lower_to_lir(ctx);
+        ctx.emit(SLirBrCond { cond: cond_val, true_block: body_lbl.clone(), false_block: end_lbl.clone() }.into());
+
+        ctx.set_current_block(body_lbl);
+        for s in &self.body { s.lower_to_lir_stmt(ctx); }
+        ctx.emit(SLirBr { label: cond_lbl }.into());
+
+        ctx.loop_stack_mut().pop();
+        ctx.set_current_block(end_lbl);
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}While", "", width = level * 2)?;
+        writeln!(w, "{:width$}  cond:", "", width = level * 2)?;
+        self.cond.display(level + 1, w)?;
+        writeln!(w, "{:width$}  body:", "", width = level * 2)?;
+        write_stmt_block(&self.body, level + 1, w)?;
+        Ok(())
+    }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); }
+    fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.body { f(&**s); } }
+}
+
+impl MirStmtNode for SMirBreakStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        if let Some((_, end_lbl)) = ctx.loop_stack().last() {
+            ctx.emit(SLirBr { label: end_lbl.clone() }.into());
+        }
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Break", "", width = level * 2)
+    }
+}
+
+impl MirStmtNode for SMirContinueStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        if let Some((cond_lbl, _)) = ctx.loop_stack().last() {
+            ctx.emit(SLirBr { label: cond_lbl.clone() }.into());
+        }
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Continue", "", width = level * 2)
+    }
+}
+
+impl MirStmtNode for SMirExprStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        self.expr.lower_to_lir(ctx);
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Expr", "", width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+}
+
+impl MirStmtNode for SMirBlockStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        for s in &self.stmts { s.lower_to_lir_stmt(ctx); }
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Block {{", "", width = level * 2)?;
+        for s in &self.stmts { s.display_stmt(level + 1, w)?; }
+        writeln!(w, "{:width$}}}", "", width = level * 2)?;
+        Ok(())
+    }
+    fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.stmts { f(&**s); } }
+}
+
+impl MirStmtNode for SMirDropStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        ctx.emit(SLirDropValue { var: self.var, ty: self.ty.clone() }.into());
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Drop(v{} : {})", "", self.var.0, display_hir_type(&self.ty), width = level * 2)
+    }
+    fn as_drop(&self) -> Option<(VarId, &HirType)> { Some((self.var, &self.ty)) }
+}
+
+impl MirStmtNode for SMirRetainStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        ctx.emit(SLirRetainValue { var: self.var, ty: self.ty.clone() }.into());
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Retain(v{} : {})", "", self.var.0, display_hir_type(&self.ty), width = level * 2)
+    }
+    fn as_retain(&self) -> Option<(VarId, &HirType)> { Some((self.var, &self.ty)) }
+}
+
+impl MirStmtNode for SMirReleaseStmt {
+    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
+        ctx.emit(SLirReleaseValue { var: self.var, ty: self.ty.clone() }.into());
+    }
+    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Release(v{} : {})", "", self.var.0, display_hir_type(&self.ty), width = level * 2)
+    }
+    fn as_release(&self) -> Option<(VarId, &HirType)> { Some((self.var, &self.ty)) }
+}
+
+fn write_stmt_block(stmts: &[MirStmtBox], level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+    writeln!(w, "{:width$}Block {{", "", width = level * 2)?;
+    for s in stmts { s.display_stmt(level + 1, w)?; }
+    writeln!(w, "{:width$}}}", "", width = level * 2)?;
+    Ok(())
+}
+
+fn display_hir_type(ty: &HirType) -> String {
+    crate::hir::display::display_type(ty)
+}
+
+fn extract_var(val: &LirValue) -> VarId {
+    match val {
+        LirValue::Var(v) => *v,
+        _ => panic!("expected Var, got {:?}", val),
+    }
+}
+
+

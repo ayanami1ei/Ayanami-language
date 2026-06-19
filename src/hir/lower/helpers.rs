@@ -9,100 +9,62 @@ use std::collections::HashMap;
 use crate::intern::Symbol;
 use crate::parser::ast::*;
 use crate::span::Span;
-use crate::hir::ir::*;
+use crate::hir::*;
 use super::strip_generic_name;
 use super::InterfaceReg;
 
     /// 自动插入 Move 包装：如果表达式是 unique 类型且尚未包装，则包装为 Move
-pub(crate) fn implicit_move(expr: HirExpr) -> HirExpr {
-    let ty = expr_type(&expr);
+pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox {
+    let ty = expr.expr_type();
     if matches!(ty, HirType::Unique(_))
-        && !matches!(expr, HirExpr::Move(_, _) | HirExpr::Clone(_, _))
+        && !expr.is_move_or_clone()
     {
-        HirExpr::Move(Box::new(expr), ty)
+        SMove { expr, ty }.into()
     } else {
         expr
     }
 }
 
 /// 包装参数以匹配期望的参数类型（处理所有权转换）
-///
-/// 支持以下转换：
-/// - `T` → `Unique(T)`：ToUnique（堆分配）
-/// - `T` → `Shared(T)`：ToShared（堆分配 + retain）
-/// - `T` → `Weak(T)`：ToWeak（创建弱引用）
-/// - `Unique(T)` → `Shared(T)`：ToShared（仅 retain，不拷贝）
-/// - `Unique(T)` → `Weak(T)`：ToWeak（仅复制指针）
-/// - `Shared(T)` → `Unique(T)`：ToUnique（拷贝 + 堆分配）
-/// - `Shared(T)` → `Weak(T)`：ToWeak（仅复制指针）
-pub(crate) fn wrap_arg_for_param(arg: HirExpr, param_ty: &HirType) -> HirExpr {
-    let arg_ty = expr_type(&arg);
+pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
+    let arg_ty = arg.expr_type();
     match param_ty {
         HirType::Unique(pt) | HirType::Shared(pt) | HirType::Weak(pt) => {
             if arg_ty == *pt.as_ref() {
-                // 裸类型 → 所有权类型：自动包装
                 match param_ty {
-                    HirType::Unique(_) => {
-                        HirExpr::ToUnique(Box::new(arg), param_ty.clone())
-                    }
-                    HirType::Shared(_) => {
-                        HirExpr::ToShared(Box::new(arg), param_ty.clone())
-                    }
-                    HirType::Weak(_) => {
-                        HirExpr::ToWeak(Box::new(arg), param_ty.clone())
-                    }
+                    HirType::Unique(_) => SToUnique { expr: arg, ty: param_ty.clone() }.into(),
+                    HirType::Shared(_) => SToShared { expr: arg, ty: param_ty.clone() }.into(),
+                    HirType::Weak(_) => SToWeak { expr: arg, ty: param_ty.clone() }.into(),
                     _ => arg,
                 }
             } else if let HirType::Unique(inner) = &arg_ty {
-                // arg 是 Unique(T)，param 想要所有权类型
                 if **inner == *pt.as_ref() {
                     match param_ty {
-                        HirType::Unique(_) => {
-                            // Unique(T) → Unique(T)：需要 Move 包装以转移所有权
-                            wrap_for_unique_param(arg, param_ty)
-                        }
-                        HirType::Shared(_) => {
-                            HirExpr::ToShared(Box::new(arg), param_ty.clone())
-                        }
-                        HirType::Weak(_) => {
-                            HirExpr::ToWeak(Box::new(arg), param_ty.clone())
-                        }
+                        HirType::Unique(_) => wrap_for_unique_param(arg, param_ty),
+                        HirType::Shared(_) => SToShared { expr: arg, ty: param_ty.clone() }.into(),
+                        HirType::Weak(_) => SToWeak { expr: arg, ty: param_ty.clone() }.into(),
                         _ => arg,
                     }
                 } else {
                     arg
                 }
             } else if let HirType::Shared(inner) = &arg_ty {
-                // arg 是 Shared(T)，param 想要其他所有权类型
                 if **inner == *pt.as_ref() {
                     match param_ty {
-                        HirType::Shared(_) => {
-                            arg
-                        }
-                        HirType::Unique(_) => {
-                            HirExpr::ToUnique(Box::new(arg), param_ty.clone())
-                        }
-                        HirType::Weak(_) => {
-                            HirExpr::ToWeak(Box::new(arg), param_ty.clone())
-                        }
+                        HirType::Shared(_) => arg,
+                        HirType::Unique(_) => SToUnique { expr: arg, ty: param_ty.clone() }.into(),
+                        HirType::Weak(_) => SToWeak { expr: arg, ty: param_ty.clone() }.into(),
                         _ => arg,
                     }
                 } else {
                     arg
                 }
             } else if let HirType::Weak(inner) = &arg_ty {
-                // arg 是 Weak(T)，param 想要其他所有权类型
                 if **inner == *pt.as_ref() {
                     match param_ty {
-                        HirType::Weak(_) => {
-                            arg
-                        }
-                        HirType::Shared(_) => {
-                            HirExpr::ToShared(Box::new(arg), param_ty.clone())
-                        }
-                        HirType::Unique(_) => {
-                            HirExpr::ToUnique(Box::new(arg), param_ty.clone())
-                        }
+                        HirType::Weak(_) => arg,
+                        HirType::Shared(_) => SToShared { expr: arg, ty: param_ty.clone() }.into(),
+                        HirType::Unique(_) => SToUnique { expr: arg, ty: param_ty.clone() }.into(),
                         _ => arg,
                     }
                 } else {
@@ -119,12 +81,12 @@ pub(crate) fn wrap_arg_for_param(arg: HirExpr, param_ty: &HirType) -> HirExpr {
 }
 
 /// Like implicit_move, but also wraps plain values when the param expects Unique.
-pub(crate) fn wrap_for_unique_param(expr: HirExpr, param_ty: &HirType) -> HirExpr {
-    let ty = expr_type(&expr);
+pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
+    let ty = expr.expr_type();
     if matches!(param_ty, HirType::Unique(_))
-        && !matches!(expr, HirExpr::Move(_, _) | HirExpr::Clone(_, _))
+        && !expr.is_move_or_clone()
     {
-        HirExpr::Move(Box::new(expr), ty)
+        SMove { expr, ty }.into()
     } else {
         expr
     }
@@ -688,39 +650,13 @@ pub(crate) fn strip_ownership_ref(ty: &HirType) -> &HirType {
 }
 
     /// 推断 HIR 表达式的类型
-pub(crate) fn expr_type(expr: &HirExpr) -> HirType {
-    match expr {
-        HirExpr::Literal(_, ty)
-        | HirExpr::Local(_, ty)
-        | HirExpr::Binary { ty, .. }
-        | HirExpr::Unary { ty, .. }
-        | HirExpr::Call { ty, .. }
-        | HirExpr::Move(_, ty)
-        | HirExpr::Clone(_, ty)
-        | HirExpr::ToUnique(_, ty)
-        | HirExpr::ToShared(_, ty)
-        | HirExpr::ToWeak(_, ty)
-        | HirExpr::VirtualCall { ty, .. }
-        | HirExpr::MakeFatPtr { ty, .. }
-        | HirExpr::EnumConstruct { ty, .. }
-        |         HirExpr::FnPtr(_, ty) |
-        HirExpr::CallPtr { ty, .. } |
-        HirExpr::CallPtr { ty, .. } |
-        HirExpr::EnumMatch { ty, .. }
-        | HirExpr::FieldAccess { ty, .. }
-        | HirExpr::StructLiteral { ty, .. }
-        | HirExpr::ArraySized { ty, .. }
-        | HirExpr::ArrayLiteral(_, ty)
-        | HirExpr::Index { ty, .. }
-        | HirExpr::Ref { ty, .. }
-        | HirExpr::Asm { ty, .. } => ty.clone(),
-        HirExpr::Custom(_) => HirType::Void,
-    }
+pub(crate) fn expr_type(expr: &HirNodeBox) -> HirType {
+    expr.expr_type()
 }
 
 /// Check if a HirExpr is a null literal (lowered to Int(0)).
-pub(crate) fn is_null_literal(expr: &HirExpr) -> bool {
-    matches!(expr, HirExpr::Literal(HirLiteral::Int(0), HirType::Int))
+pub(crate) fn is_null_literal(expr: &HirNodeBox) -> bool {
+    matches!(expr.as_const(), Some(HirLiteral::Int(0)))
 }
 
 /// Check if a type is a pointer-like type for null comparison purposes.
