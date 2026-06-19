@@ -82,6 +82,10 @@ pub(crate) struct Ctx {
     pub generic_fns: Vec<(Symbol, Vec<(Symbol, Option<Symbol>)>, Stmt)>,
     /// 降级过程中特化（单态化）产生的泛型函数
     pub specialized_fns: Vec<HirFn>,
+    /// Lambda 计数器（生成唯一名称）
+    pub lambda_counter: u64,
+    /// Lambda 表达式降级产生的匿名函数
+    pub lambda_fns: Vec<HirFn>,
     /// 当前正在降级的函数 ID
     pub current_fn: FnId,
     /// 当前函数的局部变量列表
@@ -105,6 +109,8 @@ impl Ctx {
             generic_struct_params: HashMap::new(),
             generic_fns: Vec::new(),
             specialized_fns: Vec::new(),
+            lambda_counter: 0,
+            lambda_fns: Vec::new(),
             current_fn: FnId(0),
             locals: Vec::new(),
             scopes: Vec::new(),
@@ -293,6 +299,8 @@ pub fn lower_program(program: &Program) -> Result<HirProgram, String> {
 
     // 追加降级过程中特化的泛型函数
     for f in ctx.specialized_fns.drain(..) { items.push(HirItem::Fn(f)); }
+    // 追加 lambda 表达式产生的匿名函数
+    for f in ctx.lambda_fns.drain(..) { items.push(HirItem::Fn(f)); }
 
     Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), generic_struct_params: ctx.generic_struct_params.clone(), imported_fns })
 }

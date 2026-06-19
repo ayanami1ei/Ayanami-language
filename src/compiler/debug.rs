@@ -214,6 +214,11 @@ fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             for e in tuple_args { write_expr(e, level + 1, w); }
             for (_, e) in named_args { write_expr(e, level + 1, w); }
         }
+        Expr::Lambda { params, return_type, body, .. } => {
+            let params_str: Vec<String> = params.iter().map(|(n, t)| format!("{} {:?}", n, t)).collect();
+            writeln!(w, "{}Lambda({}) -> {:?}", pad(level), params_str.join(", "), return_type).unwrap();
+            for s in body { write_stmt(s, level + 1, w); }
+        }
     }
 }
 

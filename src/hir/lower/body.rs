@@ -1719,6 +1719,10 @@ impl super::Ctx {
                     .collect::<Result<Vec<_>, _>>()?;
                 let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
                 let all_types = std::iter::once(target_ty.clone()).chain(arg_types.clone()).collect::<Vec<_>>();
+                // Check if target is a function pointer type
+                if let HirType::FnPtr(param_tys, ret_ty) = &target_ty {
+                    return Ok(SCallP { fn_ptr: hir_target, args: hir_args, ty: *ret_ty.clone() }.into());
+                }
                 if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("call"), &all_types) {
                     let ret_ty = self.fns[fn_id.0].return_type.clone();
                     let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
@@ -2137,6 +2141,43 @@ impl super::Ctx {
                     inputs: lowered_inputs,
                     ty,
                 }.into())
+            }
+            Expr::Lambda { params, return_type, body, .. } => {
+                // Synthesize a unique function name for the lambda
+                let lambda_name = format!("__lambda_{}", self.lambda_counter);
+                self.lambda_counter += 1;
+                let name_sym = Symbol::intern(&lambda_name);
+
+                let hir_params: Vec<(Symbol, HirType)> = params.iter()
+                    .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+                    .collect();
+                let hir_ret = ast_type_to_hir(return_type, &self.interfaces);
+
+                let fn_id = FnId(self.fns.len());
+                self.fns.push(FnSig {
+                    name: name_sym,
+                    params: hir_params.clone(),
+                    return_type: hir_ret.clone(),
+                });
+                self.fn_map.entry(name_sym).or_default().push(fn_id);
+
+                // Build a temporary Block from the body stmts
+                let block_span = body.first().map(|s| s.span()).unwrap_or_default();
+                let tmp_block = crate::parser::ast::block::Block::new(body.clone(), block_span);
+                // Save current locals/scope before lowering lambda function
+                let saved_locals = std::mem::take(&mut self.locals);
+                let saved_scopes = std::mem::replace(&mut self.scopes, Vec::new());
+                let hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, &tmp_block, false, false, block_span)?;
+                // Restore parent function's locals/scope
+                self.locals = saved_locals;
+                self.scopes = saved_scopes;
+                self.lambda_fns.push(hir_fn);
+
+                let fnptr_ty = HirType::FnPtr(
+                    hir_params.iter().map(|(_, t)| t.clone()).collect(),
+                    Box::new(hir_ret),
+                );
+                Ok(SFnPtr { fn_id, ty: fnptr_ty }.into())
             }
         }
     }

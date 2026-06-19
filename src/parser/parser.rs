@@ -240,6 +240,49 @@ impl Parser {
         Ok(Stmt::ExprStmt { expr, span: expr_span })
     }
 
+    fn is_type_start(&self, pos: usize) -> bool {
+        self.tokens.get(pos).map(|t| matches!(&t.kind,
+            TokenKind::Keyword(Keyword::Int | Keyword::Float | Keyword::Char | Keyword::Bool
+                | Keyword::Unique | Keyword::Shared | Keyword::Weak | Keyword::Ref | Keyword::Mut | Keyword::Fn)
+            | TokenKind::Identifier(_)
+        )).unwrap_or(false)
+    }
+
+    fn parse_lambda(&mut self) -> Result<Expr, String> {
+        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
+        // Already at LParen from caller
+        self.advance(); // consume (
+        let mut params = Vec::new();
+        if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+            loop {
+                let param_type = self.parse_type()?;
+                let param_name = self.expect_identifier()?;
+                params.push((Symbol::intern(&param_name), param_type));
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                    break;
+                }
+                self.expect_delimiter(Delimiter::Comma)?;
+            }
+        }
+        self.expect_delimiter(Delimiter::RParen)?;
+
+        let return_type = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Arrow)) {
+            self.advance();
+            self.parse_type()?
+        } else {
+            Type::Void(Span::default())
+        };
+
+        let body = self.parse_block()?;
+        let span = start_span.merge(body.span);
+        Ok(Expr::Lambda {
+            params,
+            return_type,
+            body: body.stmts,
+            span,
+        })
+    }
+
     fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool) -> Result<Stmt, String> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
@@ -1385,6 +1428,12 @@ impl Parser {
                 Ok(Expr::Asm { template, outputs, inputs, span })
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
+                // Check if this is a lambda: (type name, ...) -> ret_type { ... }
+                let is_lambda = self.pos + 1 < self.tokens.len()
+                    && self.is_type_start(self.pos + 1);
+                if is_lambda {
+                    return self.parse_lambda();
+                }
                 self.advance();
                 let expr = self.parse_expr()?;
                 self.expect_delimiter(Delimiter::RParen)?;

@@ -84,6 +84,12 @@ pub enum Expr {
         named_args: Vec<(Symbol, Expr)>,
         span: Span,
     },
+    Lambda {
+        params: Vec<(Symbol, Type)>,
+        return_type: Type,
+        body: Vec<crate::parser::ast::stmt::Stmt>,
+        span: Span,
+    },
 }
 
 impl Expr {
@@ -110,6 +116,7 @@ impl Expr {
             | Expr::TryOp(_, span) => *span,
             | Expr::Match { span, .. } => *span,
             | Expr::EnumConstruct { span, .. } => *span,
+            | Expr::Lambda { span, .. } => *span,
             Expr::Literal(lit) => lit.span(),
             Expr::Ident(_, span) => *span,
         }

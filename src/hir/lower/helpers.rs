@@ -289,6 +289,12 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
                 span: *span,
             }
         }
+        Expr::Lambda { params, return_type, body, span } => Expr::Lambda {
+            params: params.clone(),
+            return_type: return_type.clone(),
+            body: body.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
+            span: *span,
+        },
     }
 }
 

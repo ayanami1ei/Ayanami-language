@@ -429,6 +429,13 @@ fn write_expr(expr: &Expr) -> String {
                 format!("{}::{}", enum_name, variant_name)
             }
         }
+        Expr::Lambda { params, return_type, body, .. } => {
+            let params_str: Vec<String> = params.iter().map(|(n, t)| format!("{} {}", write_type(t), n)).collect();
+            let mut buf = String::new();
+            for s in body { write_stmt(&mut buf, s, 1); }
+            let body_str = buf;
+            format!("({}) -> {} {{\n{}\n}}", params_str.join(", "), write_type(return_type), body_str)
+        }
     }
 }
 

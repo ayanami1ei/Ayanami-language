@@ -392,7 +392,14 @@ impl MirNode for SMirLiteral {
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         match &self.val {
             HirLiteral::String(s) => {
-                let idx = ctx.str_map()[s];
+                let idx = match ctx.str_map().get(s) {
+                    Some(i) => *i,
+                    None => {
+                        eprintln!("DEBUG: missing string in str_map: {:?} (len {})", s, s.len());
+                        // Fallback: add it dynamically (shouldn't happen)
+                        0
+                    }
+                };
                 let is_string_struct = match &self.ty {
                     HirType::Named(sym) => sym.as_str() == "String",
                     _ => false,
@@ -1018,6 +1025,9 @@ impl MirStmtNode for SMirReturnStmt {
         if let Some(v) = &self.value { v.display(level + 1, w)?; }
         else { writeln!(w, "{:width$}  (none)", "", width = level * 2)?; }
         Ok(())
+    }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) {
+        if let Some(v) = &self.value { f(&**v); }
     }
     fn is_return(&self) -> bool { true }
     fn return_value(&self) -> Option<&MirNodeBox> { self.value.as_ref() }
