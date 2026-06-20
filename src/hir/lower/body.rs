@@ -2051,7 +2051,12 @@ impl super::Ctx {
                 } else {
                     HirType::Int
                 };
-                Ok(SArrLit { elems: hir_elems, ty: HirType::Array(Box::new(elem_ty)) }.into())
+                let ty = if !hir_elems.is_empty() {
+                    HirType::ArraySized(Box::new(elem_ty.clone()), hir_elems.len())
+                } else {
+                    HirType::Array(Box::new(elem_ty))
+                };
+                Ok(SArrLit { elems: hir_elems, ty }.into())
             }
             Expr::Index { object, index, span } => {
                 let hir_object = self.lower_expr(object)?;
@@ -2099,7 +2104,7 @@ impl super::Ctx {
                     return Ok(SCall { fn_id, args, ty: ret_ty }.into());
                 }
                 let elem_ty = match &inner_ty {
-                    HirType::Array(inner) => *inner.clone(),
+                    HirType::Array(inner) | HirType::ArraySized(inner, _) => *inner.clone(),
                     _ => return Err(format!("index on non-array type at {}:{}", span.start_line, span.start_col)),
                 };
                 Ok(SIdx {
@@ -2120,7 +2125,12 @@ impl super::Ctx {
             Expr::ArraySized { elem_type, count, .. } => {
                 let hir_count = self.lower_expr(count)?;
                 let elem_ty = ast_type_to_hir(elem_type, &self.interfaces);
-                let ty = HirType::Array(Box::new(elem_ty.clone()));
+                // If count is a compile-time constant, use ArraySized type
+                let ty = if let Some(HirLiteral::Int(n)) = hir_count.as_const() {
+                    HirType::ArraySized(Box::new(elem_ty.clone()), *n as usize)
+                } else {
+                    HirType::Array(Box::new(elem_ty.clone()))
+                };
                 Ok(SArrSz { count: hir_count, elem_ty, ty }.into())
             }
             Expr::Asm { template, outputs, inputs, .. } => {

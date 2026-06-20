@@ -272,7 +272,7 @@ fn needs_heap_ops(ty: &HirType) -> bool {
             matches!(inner.as_ref(), HirType::Named(_) | HirType::FatPtr { .. })
         }
         HirType::Named(_) => false,
-        HirType::Array(_) | HirType::ArraySized(_, _) => true,
+        HirType::Array(_) | HirType::ArraySized(_, _) => false,
         HirType::Ref(_, _) => false,
         _ => false,
     }
