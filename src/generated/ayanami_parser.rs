@@ -93,19 +93,16 @@ impl Parser {
 
     pub fn pprogram(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("Program");
-        let mut items: Vec<asuka::runtime::Node> = Vec::new();
         loop {
             let saved = self.0.pos;
             match self.0.tok() {
                 asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
                 _ => {}
             }
-            match self.pitem() {
-                Ok(asuka::runtime::Value::Node(child)) => items.push(*child),
-                _ => { self.0.pos = saved; break; }
-            }
+            if let asuka::runtime::Value::Node(child) = self.pitem()? {
+                n.set("item", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
-        n.set("items", asuka::runtime::Value::Nodes(items));
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 
@@ -881,9 +878,9 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pexpr()? {
             n.set("expr", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("operator", asuka::runtime::Value::Node(child));
-        }
+        { let tok = self.0.tok().clone(); let op_name = tok.kind.clone();
+        self.0.adv();
+        n.set("op", asuka::runtime::Value::String(op_name)); }
         if let asuka::runtime::Value::Node(child) = self.pexpr()? {
             n.set("expr", asuka::runtime::Value::Node(child));
         }
