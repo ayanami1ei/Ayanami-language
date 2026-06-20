@@ -265,6 +265,24 @@ pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
     }
 }
 
+/// Compute the actual size of a Named struct type from its field definitions.
+pub(crate) fn struct_llvm_size(ty: &HirType, struct_defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> String {
+    if let HirType::Named(name) = ty {
+        if let Some(fields) = struct_defs.get(name) {
+            let total: u64 = fields.iter().map(|(_, ft)| {
+                let s = llvm_type_size(ft);
+                let n: u64 = s.parse().unwrap_or(8);
+                if matches!(ft, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)) { 8u64 } else { n }
+            }).sum();
+            return total.to_string();
+        }
+    }
+    if let HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) = ty {
+        return struct_llvm_size(inner, struct_defs);
+    }
+    llvm_type_size(ty).to_string()
+}
+
 fn needs_heap_ops(ty: &HirType) -> bool {
     match ty {
         HirType::FatPtr { .. } => true,
@@ -595,7 +613,7 @@ impl LirNode for SLirConv {
                         HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
                         _ => &self.ty,
                     };
-                    let size = llvm_type_size(inner_ty);
+                    let size = struct_llvm_size(inner_ty, &ctx.prog.struct_defs);
                     let src_ptr = if matches!(&self.src_ty, HirType::Named(s) if ctx.prog.struct_defs.contains_key(s)) {
                         let src_llvm = ctx.llvm_type(&self.src_ty);
                         lines.push(format!("%t{} = alloca {}, align 8", self.alloca_tmp, src_llvm));
@@ -615,7 +633,7 @@ impl LirNode for SLirConv {
                     HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
                     _ => &self.ty,
                 };
-                let size = llvm_type_size(inner_ty);
+                let size = struct_llvm_size(inner_ty, &ctx.prog.struct_defs);
                 let src_ptr = if matches!(&self.src_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool) {
                     let src_llvm = ctx.llvm_type(&self.src_ty);
                     let alloca = format!("%t{}", self.alloca_tmp);
@@ -795,7 +813,7 @@ impl LirNode for SLirMakeFatPtr {
         let data_ptr = if is_ptr_type {
             ctx.value_ref(&self.value_src, &self.value_ty)
         } else {
-            let size = llvm_type_size(&self.value_ty);
+            let size = struct_llvm_size(&self.value_ty, &ctx.prog.struct_defs);
             lines.push(format!("%t{} = call i8* @__ayanami_shared_alloc(i64 {})", self.malloc_tmp, size));
             lines.push(format!("%t{} = bitcast i8* %t{} to ptr", self.bc_tmp, self.malloc_tmp));
             let val_llvm = ctx.llvm_type(&self.value_ty);
