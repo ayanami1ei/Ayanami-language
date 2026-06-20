@@ -104,10 +104,7 @@ impl CompilerPipeline {
 
     /// 阶段二：语法分析 — 将 Token 流解析为抽象语法树（AST）
     pub fn parse(&mut self) -> Result<&mut Self, String> {
-        let tokens = std::mem::take(&mut self.tokens);
-        let mut parser = crate::parser::Parser::new(tokens);
-        let program = parser
-            .parse_program()
+        let program = crate::parser::parse_source(&self.code)
             .map_err(|e| format!("Parse error: {}", e))?;
         self.ast = Some(program);
         Ok(self)
