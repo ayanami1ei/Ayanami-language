@@ -6,5 +6,6 @@
 #[allow(clippy::module_inception)]
 pub mod parser;
 pub mod ast;
+pub mod gen_bridge;
 
 pub use parser::Parser;
