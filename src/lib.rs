@@ -26,3 +26,13 @@ pub mod mir;
 pub mod package;
 pub mod parser;
 pub mod span;
+
+#[cfg(test)]
+mod test_parse {
+    #[test]
+    fn test_struct_literal_parse() {
+        let code = "import \"std\"\nstruct Foo { int x }\nfn main() -> int {\n    f = Foo{x=42}\n    return 0\n}";
+        let result = crate::parser::parse_source(code);
+        assert!(result.is_ok(), "Parse failed: {:?}", result.err());
+    }
+}

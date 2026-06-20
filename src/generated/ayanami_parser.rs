@@ -943,6 +943,7 @@ impl Parser {
         if let Ok(val) = self.penum_construct() { return Ok(val); }
         if let Ok(val) = self.pasm_expr() { return Ok(val); }
         if let Ok(val) = self.pnull_expr() { return Ok(val); }
+        if let Ok(val) = self.pstruct_literal() { return Ok(val); }
         if let Ok(val) = self.pi() { return Ok(val); }
         Err("expected expression".into())
     }

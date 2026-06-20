@@ -2028,8 +2028,20 @@ impl super::Ctx {
                 };
                 let struct_ty = HirType::Named(concrete_name);
                 let mut hir_fields = Vec::new();
+                // Pre-compute field types from struct def for null type coercion
+                let field_tys: HashMap<Symbol, HirType> = self.struct_defs.get(&concrete_name)
+                    .map(|fields| fields.iter().map(|f| (f.name, f.ty.clone())).collect())
+                    .unwrap_or_default();
                 for (name, expr) in fields {
-                    let hir_val = self.lower_expr(expr)?;
+                    let mut hir_val = self.lower_expr(expr)?;
+                    // Coerce null literal to the correct pointer type
+                    if let Some(HirLiteral::Int(0)) = hir_val.as_const() {
+                        if let Some(field_ty) = field_tys.get(name) {
+                            if matches!(field_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)) {
+                                hir_val = SConst { val: HirLiteral::Int(0), ty: field_ty.clone() }.into();
+                            }
+                        }
+                    }
                     hir_fields.push((*name, hir_val));
                 }
                 Ok(SStruct {

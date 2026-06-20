@@ -1352,7 +1352,7 @@ impl Parser {
                         let next = self.peek().map(|t| &t.kind);
                         match next {
                             Some(TokenKind::Delimiter(Delimiter::Comma)) => {
-                                // Definitely a struct literal — parse remaining fields
+                                // Multi-field struct: parse remaining fields
                                 let mut fields = vec![(field_name, field_val)];
                                 loop {
                                     self.expect_delimiter(Delimiter::Comma)?;
@@ -1370,8 +1370,13 @@ impl Parser {
                                 self.expect_delimiter(Delimiter::RBrace)?;
                                 Ok(Expr::StructLiteral { type_name: name_sym, generic_args: Vec::new(), fields, span })
                             }
+                            Some(TokenKind::Delimiter(Delimiter::RBrace)) => {
+                                // Single-field struct literal: Foo { x = expr }
+                                self.advance(); // consume }
+                                Ok(Expr::StructLiteral { type_name: name_sym, generic_args: Vec::new(), fields: vec![(field_name, field_val)], span })
+                            }
                             _ => {
-                                // Single-field or invalid: ambiguous with block { var = expr }
+                                // Ambiguous: might be block body { var = expr; ... }
                                 // Restore position and return ident (let caller handle {)
                                 self.pos = saved_pos;
                                 Ok(Expr::Ident(name_sym, span))

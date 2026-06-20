@@ -1095,6 +1095,10 @@ impl LirNode for SLirFieldStore {
         let field_llvm = ctx.llvm_type(&self.field_ty);
         if matches!(&self.struct_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)) {
             lines.push(format!("%t{} = getelementptr {}, ptr %t{}, i32 0, i32 {}", self.gep_tmp, struct_llvm, self.dest, self.field_index));
+            // Retain the new value before storing (shared pointer field)
+            if matches!(&self.field_ty, HirType::Shared(_)) {
+                lines.push(format!("call void @__ayanami_shared_retain(i8* {})", src_str));
+            }
             lines.push(format!("store {} {}, ptr %t{}", field_llvm, src_str, self.gep_tmp));
         } else {
             let var_ty = ctx.llvm_type(&self.struct_ty);
