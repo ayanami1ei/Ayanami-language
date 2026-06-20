@@ -93,9 +93,19 @@ impl Parser {
 
     pub fn pprogram(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("Program");
-        if let asuka::runtime::Value::Node(child) = self.pitem()? {
-            n.set("item", asuka::runtime::Value::Node(child));
+        let mut items: Vec<asuka::runtime::Node> = Vec::new();
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            match self.pitem() {
+                Ok(asuka::runtime::Value::Node(child)) => items.push(*child),
+                _ => { self.0.pos = saved; break; }
+            }
         }
+        n.set("items", asuka::runtime::Value::Nodes(items));
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 
@@ -130,8 +140,15 @@ impl Parser {
             n.set("ident", asuka::runtime::Value::Node(child));
         }
         self.0.expect("{")?;
-        if let asuka::runtime::Value::Node(child) = self.pitem()? {
-            n.set("item", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pitem()? {
+                n.set("item", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         self.0.expect("}")?;
         Ok(asuka::runtime::Value::Node(Box::new(n)))
@@ -185,8 +202,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pfn_param()? {
             n.set("fn_param", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
@@ -248,8 +272,15 @@ impl Parser {
 
     pub fn pfield_list(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("FieldList");
-        if let asuka::runtime::Value::Node(child) = self.pfield()? {
-            n.set("field", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pfield()? {
+                n.set("field", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
@@ -293,8 +324,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pvariant()? {
             n.set("variant", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
@@ -407,8 +445,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.ptyp()? {
             n.set("typ", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         self.0.expect("]")?;
         Ok(asuka::runtime::Value::Node(Box::new(n)))
@@ -420,8 +465,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pgeneric_param()? {
             n.set("generic_param", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         self.0.expect("]")?;
         Ok(asuka::runtime::Value::Node(Box::new(n)))
@@ -529,8 +581,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.ptyp()? {
             n.set("typ", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
@@ -538,8 +597,15 @@ impl Parser {
     pub fn pblock(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("Block");
         self.0.expect("{")?;
-        if let asuka::runtime::Value::Node(child) = self.pstmt()? {
-            n.set("stmt", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pstmt()? {
+                n.set("stmt", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         self.0.expect("}")?;
         Ok(asuka::runtime::Value::Node(Box::new(n)))
@@ -631,8 +697,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pblock()? {
             n.set("block", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         if let asuka::runtime::Value::Node(child) = self.pi()? {
             n.set("", asuka::runtime::Value::Node(child));
@@ -684,8 +757,15 @@ impl Parser {
             n.set("expr", asuka::runtime::Value::Node(child));
         }
         self.0.expect("{")?;
-        if let asuka::runtime::Value::Node(child) = self.pmatch_arm()? {
-            n.set("match_arm", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pmatch_arm()? {
+                n.set("match_arm", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         self.0.expect("}")?;
         Ok(asuka::runtime::Value::Node(Box::new(n)))
@@ -743,8 +823,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.ppattern()? {
             n.set("pattern", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
@@ -889,8 +976,15 @@ impl Parser {
             n.set("expr", asuka::runtime::Value::Node(child));
         }
         self.0.expect("{")?;
-        if let asuka::runtime::Value::Node(child) = self.pmatch_arm()? {
-            n.set("match_arm", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pmatch_arm()? {
+                n.set("match_arm", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         self.0.expect("}")?;
         Ok(asuka::runtime::Value::Node(Box::new(n)))
@@ -905,8 +999,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pblock()? {
             n.set("block", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         if let asuka::runtime::Value::Node(child) = self.pi()? {
             n.set("", asuka::runtime::Value::Node(child));
@@ -1052,8 +1153,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pfield_init()? {
             n.set("field_init", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
@@ -1073,8 +1181,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pexpr()? {
             n.set("expr", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
@@ -1130,8 +1245,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pasm_output()? {
             n.set("asm_output", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
@@ -1153,8 +1275,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.pasm_input()? {
             n.set("asm_input", asuka::runtime::Value::Node(child));
         }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("", asuka::runtime::Value::Node(child));
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pi()? {
+                n.set("", asuka::runtime::Value::Node(child));
+            } else { break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
