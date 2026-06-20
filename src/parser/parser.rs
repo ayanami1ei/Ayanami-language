@@ -1273,10 +1273,7 @@ impl Parser {
                 self.handle_path_sep(&mut name_str, &mut name_sym)?;
                 // Check for generic struct literal: Name[T] { field = val }
                 // Only trigger if we can find ]{ ident = pattern
-                let first_char = name_str.chars().next();
-                let is_type_name = first_char.map(|c| c.is_uppercase()).unwrap_or(false);
-                let is_generic_struct = is_type_name
-                    && self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket))
+                let is_generic_struct = self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket))
                     && self.pos + 4 < self.tokens.len()
                     && self.tokens[self.pos + 1].kind != TokenKind::Delimiter(Delimiter::RBracket)
                     && self.tokens[self.pos + 2].kind == TokenKind::Delimiter(Delimiter::RBracket)
@@ -1333,30 +1330,53 @@ impl Parser {
                         Ok(Expr::FnCall { name: name_sym, args, span })
                     }
                     Some(TokenKind::Delimiter(Delimiter::LBrace)) => {
-                        let first_char = name_str.chars().next();
-                        let is_type_name = first_char.map(|c| c.is_uppercase()).unwrap_or(false);
-                        let is_struct_lit = is_type_name && self.pos + 2 < self.tokens.len()
+                        // Try to parse as struct literal: ident { field = val, ... }
+                        // If the first field ends with , → definitely struct
+                        // If it ends with } → one-field struct
+                        // Otherwise → backtrack: return ident, leave { in stream
+                        let saved_pos = self.pos;
+
+                        // Peek: ident { ident = pattern
+                        let looks_like_struct = self.pos + 2 < self.tokens.len()
                             && matches!(&self.tokens[self.pos + 1].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
                             && self.tokens[self.pos + 2].kind == TokenKind::Operator("=".to_string());
-                        if !is_struct_lit {
+                        if !looks_like_struct {
                             return Ok(Expr::Ident(name_sym, span));
                         }
-                        self.advance();
-                        let mut fields = Vec::new();
-                        if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
-                            loop {
-                                let field_name = Symbol::intern(&self.expect_identifier()?);
-                                self.expect_operator("=")?;
-                                let field_val = self.parse_expr()?;
-                                fields.push((field_name, field_val));
-                                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
-                                    break;
+
+                        // Tentatively parse as struct literal: consume {, field, =, expr
+                        self.advance(); // consume {
+                        let field_name = Symbol::intern(&self.expect_identifier()?);
+                        self.expect_operator("=")?;
+                        let field_val = self.parse_expr()?;
+                        let next = self.peek().map(|t| &t.kind);
+                        match next {
+                            Some(TokenKind::Delimiter(Delimiter::Comma)) => {
+                                // Definitely a struct literal — parse remaining fields
+                                let mut fields = vec![(field_name, field_val)];
+                                loop {
+                                    self.expect_delimiter(Delimiter::Comma)?;
+                                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
+                                        break;
+                                    }
+                                    let fn2 = Symbol::intern(&self.expect_identifier()?);
+                                    self.expect_operator("=")?;
+                                    let fv2 = self.parse_expr()?;
+                                    fields.push((fn2, fv2));
+                                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
+                                        break;
+                                    }
                                 }
-                                self.expect_delimiter(Delimiter::Comma)?;
+                                self.expect_delimiter(Delimiter::RBrace)?;
+                                Ok(Expr::StructLiteral { type_name: name_sym, generic_args: Vec::new(), fields, span })
+                            }
+                            _ => {
+                                // Single-field or invalid: ambiguous with block { var = expr }
+                                // Restore position and return ident (let caller handle {)
+                                self.pos = saved_pos;
+                                Ok(Expr::Ident(name_sym, span))
                             }
                         }
-                        self.expect_delimiter(Delimiter::RBrace)?;
-                        Ok(Expr::StructLiteral { type_name: name_sym, generic_args: Vec::new(), fields, span })
                     }
                     _ => Ok(Expr::Ident(name_sym, span)),
                 }
