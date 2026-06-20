@@ -17,7 +17,9 @@ pub trait MemStrategy {
 pub mod value;
 pub mod unique;
 pub mod shared;
+pub mod struct_strategy;
 
 pub use value::ValueStrategy;
 pub use unique::UniqueStrategy;
 pub use shared::SharedStrategy;
+pub use struct_strategy::StructStrategy;
