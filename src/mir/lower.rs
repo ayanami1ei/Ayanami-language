@@ -140,6 +140,10 @@ impl Ctx {
 
         let mut alive = HashSet::new();
         for i in 0..f.params.len() {
+            // Shared parameters (including shared self) are borrowed from caller — not owned by function
+            if i < f.params.len() && matches!(f.params[i].1, HirType::Shared(_)) {
+                continue;
+            }
             alive.insert(VarId(i));
         }
 

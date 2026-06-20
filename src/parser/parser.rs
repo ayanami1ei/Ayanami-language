@@ -1273,7 +1273,10 @@ impl Parser {
                 self.handle_path_sep(&mut name_str, &mut name_sym)?;
                 // Check for generic struct literal: Name[T] { field = val }
                 // Only trigger if we can find ]{ ident = pattern
-                let is_generic_struct = self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket))
+                let first_char = name_str.chars().next();
+                let is_type_name = first_char.map(|c| c.is_uppercase()).unwrap_or(false);
+                let is_generic_struct = is_type_name
+                    && self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket))
                     && self.pos + 4 < self.tokens.len()
                     && self.tokens[self.pos + 1].kind != TokenKind::Delimiter(Delimiter::RBracket)
                     && self.tokens[self.pos + 2].kind == TokenKind::Delimiter(Delimiter::RBracket)
@@ -1330,7 +1333,9 @@ impl Parser {
                         Ok(Expr::FnCall { name: name_sym, args, span })
                     }
                     Some(TokenKind::Delimiter(Delimiter::LBrace)) => {
-                        let is_struct_lit = self.pos + 2 < self.tokens.len()
+                        let first_char = name_str.chars().next();
+                        let is_type_name = first_char.map(|c| c.is_uppercase()).unwrap_or(false);
+                        let is_struct_lit = is_type_name && self.pos + 2 < self.tokens.len()
                             && matches!(&self.tokens[self.pos + 1].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
                             && self.tokens[self.pos + 2].kind == TokenKind::Operator("=".to_string());
                         if !is_struct_lit {

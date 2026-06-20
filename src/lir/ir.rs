@@ -604,7 +604,8 @@ impl LirNode for SLirConv {
                     } else {
                         src_val.clone()
                     };
-                    lines.push(format!("%l{} = call i8* @malloc(i64 {})", self.malloc_tmp, size));
+                    let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
+                    lines.push(format!("%l{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, size));
                     lines.push(format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)", self.malloc_tmp, src_ptr, size));
                     lines.push(format!("%t{} = bitcast i8* %l{} to {}", self.dest, self.malloc_tmp, ctx.llvm_type(&self.ty)));
                 }
@@ -630,7 +631,8 @@ impl LirNode for SLirConv {
                 } else {
                     src_val.clone()
                 };
-                lines.push(format!("%l{} = call i8* @malloc(i64 {})", self.malloc_tmp, size));
+                let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
+                lines.push(format!("%l{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, size));
                 lines.push(format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)", self.malloc_tmp, src_ptr, size));
                 lines.push(format!("%t{} = bitcast i8* %l{} to {}", self.dest, self.malloc_tmp, ctx.llvm_type(&self.ty)));
             }
@@ -657,7 +659,7 @@ impl LirNode for SLirDropValue {
             let tmp = ctx.tmp();
             let llvm_ty = ctx.llvm_type(&self.ty);
             lines.push(format!("%c{} = load {}, ptr %v{}, align 8", tmp, llvm_ty, self.var.0));
-            lines.push(format!("call void @free(i8* %c{})", tmp));
+            lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
         }
         lines
     }
@@ -794,7 +796,7 @@ impl LirNode for SLirMakeFatPtr {
             ctx.value_ref(&self.value_src, &self.value_ty)
         } else {
             let size = llvm_type_size(&self.value_ty);
-            lines.push(format!("%t{} = call i8* @malloc(i64 {})", self.malloc_tmp, size));
+            lines.push(format!("%t{} = call i8* @__ayanami_shared_alloc(i64 {})", self.malloc_tmp, size));
             lines.push(format!("%t{} = bitcast i8* %t{} to ptr", self.bc_tmp, self.malloc_tmp));
             let val_llvm = ctx.llvm_type(&self.value_ty);
             let src_str = ctx.value_ref(&self.value_src, &self.value_ty);
@@ -921,10 +923,11 @@ impl LirNode for SLirArraySized {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let count_str = ctx.value_ref(&self.elem_count, &HirType::Int);
+        let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
         vec![
             format!("%t{} = add i64 0, {}", self.count_tmp, count_str),
             format!("%t{} = mul i64 %t{}, {}", self.size_tmp, self.count_tmp, self.elem_size),
-            format!("%t{} = call i8* @malloc(i64 %t{})", self.malloc_tmp, self.size_tmp),
+            format!("%t{} = call i8* @{}(i64 %t{})", self.malloc_tmp, alloc_fn, self.size_tmp),
             format!("%t{} = bitcast i8* %t{} to ptr", self.dest, self.malloc_tmp),
             format!("call void @llvm.memset.p0.i64(ptr %t{}, i8 0, i64 %t{}, i1 false)", self.dest, self.size_tmp),
         ]
@@ -951,7 +954,8 @@ impl LirNode for SLirArrayLit {
         let elem_llvm = ctx.llvm_type(&self.elem_ty);
         let elem_size_val = llvm_type_size(&self.elem_ty).parse::<u64>().unwrap_or(8);
         let total_size = num_elems as u64 * elem_size_val;
-        lines.push(format!("%t{} = call i8* @malloc(i64 {})", self.malloc_tmp, total_size));
+        let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
+        lines.push(format!("%t{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, total_size));
         lines.push(format!("%t{} = bitcast i8* %t{} to ptr", self.dest, self.malloc_tmp));
         for (i, ((val, _fty), gep_tmp)) in self.elems.iter().zip(self.elem_geps.iter()).enumerate() {
             let val_str = ctx.value_ref(val, &self.elem_ty);
