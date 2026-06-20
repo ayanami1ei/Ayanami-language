@@ -111,7 +111,7 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
         HirType::Shared(inner) => Type::Shared(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::Weak(inner) => Type::Weak(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::FnPtr(..) => Type::Int(s),
-        HirType::Array(inner) => Type::Array(Box::new(hir_type_to_ast_type(inner)), s),
+        HirType::Array(inner) | HirType::ArraySized(inner, _) => Type::Array(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::FatPtr { name, kind } => {
             let inner = Type::Named(*name, s);
             match kind.as_ref() {
@@ -475,7 +475,7 @@ pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>
         HirType::Unique(inner) => HirType::Unique(Box::new(substitute_hir_type(inner, subst))),
         HirType::Shared(inner) => HirType::Shared(Box::new(substitute_hir_type(inner, subst))),
         HirType::Weak(inner) => HirType::Weak(Box::new(substitute_hir_type(inner, subst))),
-        HirType::Array(inner) => HirType::Array(Box::new(substitute_hir_type(inner, subst))),
+        HirType::Array(inner) | HirType::ArraySized(inner, _) => HirType::Array(Box::new(substitute_hir_type(inner, subst))),
         HirType::Ref(inner, mutable) => HirType::Ref(Box::new(substitute_hir_type(inner, subst)), *mutable),
         HirType::FatPtr { name, kind } => HirType::FatPtr {
             name: *name,
@@ -596,7 +596,7 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
         HirType::FnPtr(..) => "fn(...)".into(),
         HirType::Weak(inner) => format!("weak {}", hir_type_display(inner)),
         HirType::FatPtr { name, kind } => format!("{} {}", hir_type_display(kind), name.as_str()),
-        HirType::Array(inner) => format!("[{}]", hir_type_display(inner)),
+        HirType::Array(inner) | HirType::ArraySized(inner, _) => format!("[{}]", hir_type_display(inner)),
         HirType::Ref(inner, mutable) => {
             if *mutable {
                 format!("ref mut {}", hir_type_display(inner))

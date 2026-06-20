@@ -110,7 +110,7 @@ fn type_to_mangle(ty: &HirType) -> String {
         HirType::FnPtr(..) => "fnptr".into(),
         HirType::Weak(inner) => format!("weak_{}", type_to_mangle(inner)),
         HirType::FatPtr { name, .. } => format!("fatptr_{}", name.as_str().replace('<', "_lt_").replace('>', "_gt_")),
-        HirType::Array(inner) => format!("arr_{}", type_to_mangle(inner)),
+        HirType::Array(inner) | HirType::ArraySized(inner, _) => format!("arr_{}", type_to_mangle(inner)),
         HirType::Ref(inner, _) => format!("ref_{}", type_to_mangle(inner)),
     }
 }
@@ -304,7 +304,7 @@ fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
         HirType::Float => Some((LirValue::Literal(HirLiteral::Float(0.0), HirType::Float), HirType::Float)),
         HirType::Char => Some((LirValue::Literal(HirLiteral::Char('\0'), HirType::Char), HirType::Char)),
         HirType::Bool => Some((LirValue::Literal(HirLiteral::Bool(false), HirType::Bool), HirType::Bool)),
-        HirType::Named(_) | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
+        HirType::Named(_) | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
             Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), ty.clone()))
         }
     }
@@ -322,7 +322,7 @@ fn type_size(ty: &HirType) -> u64 {
         HirType::Int | HirType::Float => 8,
         HirType::Char | HirType::Bool => 1,
         HirType::Void => 0,
-        HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) => 16,
+        HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) => 16,
         HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => type_size(inner),
         HirType::Ref(_, _) | HirType::FnPtr(..) => 8,
     }
@@ -811,7 +811,7 @@ impl MirNode for SMirArrayLiteral {
         }).collect();
         let dest = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
         let elem_geps: Vec<u64> = lowered.iter().map(|_| ctx.next_tmp()).collect();
-        let elem_ty = match &self.ty { HirType::Array(inner) => *inner.clone(), _ => HirType::Int };
+        let elem_ty = match &self.ty { HirType::Array(inner) | HirType::ArraySized(inner, _) => *inner.clone(), _ => HirType::Int };
         ctx.emit(SLirArrayLit { dest, malloc_tmp, elem_geps, elems: lowered, elem_ty, ty: self.ty.clone() }.into());
         LirValue::Tmp(dest)
     }
@@ -879,7 +879,7 @@ impl MirNode for SMirIndex {
         };
         let dest = ctx.next_tmp(); let gep_tmp = ctx.next_tmp(); let load_tmp = ctx.next_tmp();
         let obj_ty = strip_ownership(self.object.expr_type());
-        let elem_ty = match &obj_ty { HirType::Array(inner) => *inner.clone(), _ => self.ty.clone() };
+        let elem_ty = match &obj_ty { HirType::Array(inner) | HirType::ArraySized(inner, _) => *inner.clone(), _ => self.ty.clone() };
         ctx.emit(SLirIndexAccess { dest, gep_tmp, load_tmp, arr: LirValue::Tmp(arr_tmp), index: idx_val, elem_ty, ty: self.ty.clone() }.into());
         LirValue::Tmp(dest)
     }
@@ -994,7 +994,7 @@ impl MirStmtNode for SMirIndexAssignStmt {
         let src_val = self.value.lower_to_lir(ctx);
         let gep_tmp = ctx.next_tmp();
         let obj_ty = strip_ownership(self.object.expr_type());
-        let elem_ty = match &obj_ty { HirType::Array(inner) => *inner.clone(), _ => HirType::Int };
+        let elem_ty = match &obj_ty { HirType::Array(inner) | HirType::ArraySized(inner, _) => *inner.clone(), _ => HirType::Int };
         ctx.emit(SLirIndexStore { dest: obj_tmp, gep_tmp, src: src_val, index: idx_val, elem_ty, array_ty: self.object.expr_type() }.into());
     }
     fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {

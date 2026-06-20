@@ -86,7 +86,7 @@ impl LirEmitCtx<'_> {
                 }
             }
             HirType::FatPtr { .. } => "{ ptr, ptr }".into(),
-            HirType::Array(_) => "ptr".into(),
+            HirType::Array(_) | HirType::ArraySized(_, _) => "ptr".into(),
             HirType::FnPtr(..) => "ptr".into(),
             HirType::Ref(_, _) => "ptr".into(),
         }
@@ -259,7 +259,7 @@ pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
         HirType::Void => "0",
         HirType::Named(_) | HirType::FatPtr { .. } => "16",
         HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => llvm_type_size(inner),
-        HirType::Array(_) => "16",
+        HirType::Array(_) | HirType::ArraySized(_, _) => "16",
         HirType::FnPtr(..) => "8",
         HirType::Ref(_, _) => "16",
     }
@@ -272,7 +272,7 @@ fn needs_heap_ops(ty: &HirType) -> bool {
             matches!(inner.as_ref(), HirType::Named(_) | HirType::FatPtr { .. })
         }
         HirType::Named(_) => false,
-        HirType::Array(_) => true,
+        HirType::Array(_) | HirType::ArraySized(_, _) => true,
         HirType::Ref(_, _) => false,
         _ => false,
     }
@@ -1223,7 +1223,7 @@ pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
             put_str(buf, &name.as_str());
             put_type(buf, kind);
         }
-        HirType::Array(inner) => { buf.push(10); put_type(buf, inner); }
+        HirType::Array(inner) | HirType::ArraySized(inner, _) => { buf.push(10); put_type(buf, inner); }
         HirType::FnPtr(params, ret) => {
             buf.push(12);
             put_u32(buf, params.len() as u32);

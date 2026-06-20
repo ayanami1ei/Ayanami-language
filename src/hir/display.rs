@@ -32,7 +32,7 @@ pub(crate) fn display_type(ty: &HirType) -> String {
         HirType::FnPtr(..) => "fn(...)".to_string(),
         HirType::Weak(inner) => format!("weak {}", display_type(inner)),
         HirType::FatPtr { name, kind } => format!("fatptr({}, {})", name, display_type(kind)),
-        HirType::Array(inner) => format!("[{}]", display_type(inner)),
+        HirType::Array(inner) | HirType::ArraySized(inner, _) => format!("[{}]", display_type(inner)),
         HirType::Ref(inner, mutable) => {
             if *mutable {
                 format!("ref mut {}", display_type(inner))

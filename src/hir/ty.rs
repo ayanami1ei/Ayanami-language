@@ -32,8 +32,10 @@ pub enum HirType {
     /// Fat pointer `{ data_ptr, vtable_ptr }` for interface dispatch.
     /// `name` is the interface name, `kind` preserves ownership (Shared/Unique).
     FatPtr { name: Symbol, kind: Box<HirType> },
-    /// Array of elements of the inner type
+    /// Array of elements of the inner type (unsized, heap)
     Array(Box<HirType>),
+    /// Sized array of elements of the inner type (stack-allocated if value, heap if shared/unique)
+    ArraySized(Box<HirType>, usize),
     /// Reference: Ref(inner, mutable)
     Ref(Box<HirType>, bool),
     FnPtr(Vec<HirType>, Box<HirType>),
