@@ -43,7 +43,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 
 ## 关键陷阱
 
-1. **`src/generated/ayanami_parser.rs` 是生成产物，禁止手改。** 改语法必须改**根目录** `ayanami.grammar`，然后跑 `./gen_parser.sh`。注意 `src/ayanami.grammar` 是无人引用的陈旧副本，别改错文件。
+1. **`src/generated/ayanami_parser.rs` 是生成产物，禁止手改。** 改语法必须改根目录 `ayanami.grammar`，然后跑 `./gen_parser.sh`。
 2. 解析有两条路径：Asuka 生成解析器 + 手写回退（`parser.rs`，桥接 `gen_bridge.rs`）。改文法时注意回退路径仍然可用。
 3. `../asuka` 是**独立仓库**的路径依赖（文法驱动解析器生成框架），改它会影响本项目。
 4. `SYMBOLS.md`、`src/generated/`、`target/`、`build/` 都是产物或生成物，不要整读；`.lcl` 是二进制包，不要读。

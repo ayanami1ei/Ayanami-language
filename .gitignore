@@ -20,11 +20,14 @@
 /example/test_unique_struct
 /example/test_virtual
 /example/test_vis
+/example/test_vis2
 *.lcl
 *.vsix
 check_output/
 *.o
 /build
+.VSCodeCounter/
+*.bak
 node_modules/
 package-lock.json
 install/llc

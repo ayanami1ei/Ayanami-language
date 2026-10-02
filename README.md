@@ -10,7 +10,7 @@ tar xzf ayanami-0.1.0-linux-x86_64.tar.gz
 cd install
 
 # 2. 运行
-./ayanami run ../example/hello.aya
+./ayanami run ../example/test_struct.aya
 ```
 
 `install/` 目录结构：
@@ -296,4 +296,4 @@ fn max[T: Ord](T a, T b) -> T { if a > b { return a; } return b; }
 
 ## 示例
 
-见 [`example/`](example/) 和 [`files/`](files/)。
+见 [`example/`](example/)（26 个端到端用例）。
