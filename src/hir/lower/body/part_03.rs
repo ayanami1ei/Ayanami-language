@@ -46,6 +46,7 @@ impl crate::hir::lower::Ctx {
                         name: *gf_name,
                         params: hir_params,
                         return_type: hir_return,
+                        effects: crate::hir::effects::EffectDecl::default(),
                     });
                 }
             }

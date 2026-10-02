@@ -148,10 +148,12 @@ pub(super) fn merge_symbols(
         {
             for sym in syms {
                 let pkg_sym = match sym {
-                    crate::package::ImportedSymbol::Fn { name, sig } => {
+                    crate::package::ImportedSymbol::Fn { name, sig, no_throws, no_effects } => {
                         PackageSymbol::Fn {
                             name,
                             signature: sig,
+                            no_throws,
+                            no_effects,
                         }
                     }
                     crate::package::ImportedSymbol::Struct { name } => {

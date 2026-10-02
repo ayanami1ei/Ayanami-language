@@ -77,7 +77,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
             return_type: imp.return_type.clone(),
             attrs: util::attrs_to_lir(&imp.attrs),
             param_attrs: Vec::new(), // 包导入暂不携带形参标注
-            effects: LirEffects::default(), // 包导入暂不携带效应摘要（U3）
+            effects: util::lir_effects(&imp.effects), // A3c：来自 .lcl 摘要
         });
     }
 

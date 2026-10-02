@@ -25,6 +25,7 @@ impl crate::hir::lower::Ctx {
                         name: full_name,
                         params: hir_params,
                         return_type: hir_return,
+                        effects: crate::hir::effects::EffectDecl::default(),
                     });
                     self.fn_map.entry(full_name).or_default().push(fn_id);
                 }
@@ -82,6 +83,7 @@ impl crate::hir::lower::Ctx {
                                 name: *name,
                                 params: hir_params,
                                 return_type: hir_return,
+                                effects: crate::hir::effects::EffectDecl::default(),
                             });
                             self.fn_map.entry(*name).or_default().push(fn_id);
                         } else {

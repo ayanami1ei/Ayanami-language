@@ -16,6 +16,9 @@ pub enum PackageSymbol {
     Fn {
         name: String,
         signature: String,
+        /// A3c：效应摘要（显式空集）随包导出，供消费者生成 LLVM 属性
+        no_throws: bool,
+        no_effects: bool,
     },
     Struct {
         name: String,
@@ -34,6 +37,8 @@ pub enum ImportedSymbol {
     Fn {
         name: String,
         sig: String,
+        no_throws: bool,
+        no_effects: bool,
     },
     Struct {
         name: String,

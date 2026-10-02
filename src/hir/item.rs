@@ -89,6 +89,8 @@ pub struct ImportedFnSig {
     pub return_type: HirType,
     /// 包导入暂无标注（源码 extern 声明的标注走 HirFn.attrs）
     pub attrs: Vec<crate::parser::ast::Attr>,
+    /// A3c：包导出的效应摘要（显式空集）
+    pub effects: crate::hir::effects::EffectDecl,
 }
 
 #[derive(Debug, Clone)]

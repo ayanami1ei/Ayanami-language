@@ -32,6 +32,7 @@ pub fn lower_program(hir: &HirProgram) -> crate::error::Result<MirProgram> {
             params: f.params.clone(),
             return_type: f.return_type.clone(),
             attrs: f.attrs.clone(),
+            effects: f.effects.clone(),
         }).collect(),
     })
 }

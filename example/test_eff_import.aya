@@ -1,0 +1,9 @@
+// A3c：.lcl 效应摘要——导入的纯函数自动带 LLVM 属性
+import "../std/math.aya"
+
+fn main() -> int {
+    a = abs(-5)
+    b = abs(-5)
+    c = pow(2, 10)
+    return a + b - 10 + c - 1024
+}

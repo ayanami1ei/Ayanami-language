@@ -36,8 +36,19 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
         if in_symbols {
             if let Some(rest) = line.strip_prefix("fn=") {
                 let val = parse_ini_value(rest);
-                if let Some((name, sig)) = val.split_once(',') {
-                    symbols.push(ImportedSymbol::Fn { name: name.to_string(), sig: sig.to_string() });
+                if let Some((name, rest)) = val.split_once(',') {
+                    // 新格式 name,flags,sig；旧格式 name,sig（无 flags）。
+                    // flags 只可能由 t/e 组成，否则视为旧格式。
+                    let (flags, sig) = match rest.split_once(',') {
+                        Some((f, s)) if f.chars().all(|c| c == 't' || c == 'e') => (f, s),
+                        _ => ("", rest),
+                    };
+                    symbols.push(ImportedSymbol::Fn {
+                        name: name.to_string(),
+                        sig: sig.to_string(),
+                        no_throws: flags.contains('t'),
+                        no_effects: flags.contains('e'),
+                    });
                 }
             } else if let Some(rest) = line.strip_prefix("struct=") {
                 let val = parse_ini_value(rest);

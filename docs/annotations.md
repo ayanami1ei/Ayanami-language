@@ -208,7 +208,7 @@ extern "C" fn strlen(unique [char] s) -> int;
 |---|---|---|---|
 | U1 | 显式空集注解 | 自动 LLVM 属性：`#[throws()]`→`nounwind`；`#[eff()]`/`#[pure]`→`memory(none)`（已实现，A3b） | GVN/CSE、LICM、调用提升 |
 | U2 | `throws()` 空集 | `?` 恒等化 + Err 分支死代码消除 | 错误零成本抽象 |
-| U3 | 效应摘要进 `.lcl` | 包导入函数自动带属性（补 A1 缺口） | 跨包优化 |
+| U3 | 效应摘要进 `.lcl` | 包导入函数自动带属性（补 A1 缺口；已实现，A3c） | 跨包优化 |
 | U4 | 完全纯 + 常量参数 | 编译期执行折叠常量（复用 A5b 插件机制） | 免 const 系统的常量折叠 |
 
 已有实证：`#[pure]` 的两次同参调用经 `opt -O2` 合并为一次（GVN 跨 FFI CSE）。
@@ -356,7 +356,8 @@ struct Holder['a] {
 - [x] A3a-1 `#[throws]`/`#[eff]` 语法、校验、存储；泛型实例继承（顺带修复 A1 标注在特化实例丢失）
 - [x] A3a-2 推断提醒与出入定位（io/throws；AST 调用点定位；`--verify-effects`）
 - [x] A3b 空集注解 → 自动 LLVM 属性（U1：`#[throws()]`→nounwind、`#[eff()]`→memory(none)，含 extern 与 .lcl）
-- [ ] A3c `?` 空效应消除（U2）+ `.lcl` 效应摘要（U3）
+- [x] A3c `.lcl` 效应摘要（U3：包导出/导入自动属性）
+- [ ] A3d `?` 空效应消除（U2）
 - [ ] A3d `try/handle`（后期）
 
 ### A5（设计，待拍板）

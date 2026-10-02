@@ -29,6 +29,8 @@ pub(super) fn strip_generic_name(name: &Symbol) -> Symbol {
 /// 函数签名 —— 用于函数重载解析和虚函数表构建
 #[derive(Clone)]
 pub(crate) struct FnSig {
+    /// A3c：效应声明（包导入时来自 .lcl 摘要）
+    pub(crate) effects: crate::hir::effects::EffectDecl,
     /// 函数名称
     pub name: Symbol,
     /// 参数列表：(参数名, 参数类型)
@@ -82,6 +84,7 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
             fn_id: FnId(i), name: sig.name,
             params: sig.params.clone(), return_type: sig.return_type.clone(),
             attrs: Vec::new(),
+            effects: sig.effects.clone(),
         })
         .collect();
 

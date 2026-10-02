@@ -131,7 +131,7 @@ impl crate::hir::lower::Ctx {
             }
             for sym in &imported_syms {
                 match sym {
-                    crate::package::ImportedSymbol::Fn { name, sig } => {
+                    crate::package::ImportedSymbol::Fn { name, sig, no_throws, no_effects } => {
                         // sig format: "fnName(param_types...)->ret_type"
                         let sig_body = sig.trim_start_matches(name.as_str());
                         let arrow_pos = sig_body.find(")->")
@@ -164,6 +164,10 @@ impl crate::hir::lower::Ctx {
                             name: sym_name,
                             params: hir_params,
                             return_type: hir_ret,
+                            effects: crate::hir::effects::EffectDecl {
+                                throws: if *no_throws { Some(Vec::new()) } else { None },
+                                effs: if *no_effects { Some(Vec::new()) } else { None },
+                            },
                         });
                         self.fn_map.entry(sym_name).or_default().push(fn_id);
                     }

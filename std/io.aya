@@ -1,8 +1,12 @@
 import "string"
 
+#[eff(io)]
 extern "C" fn __ayanami_getchar() -> int;
+#[eff(io)]
 extern "C" fn __ayanami_putchar(int c);
+#[eff(io)]
 extern "C" fn __ayanami_print_str(unique [char] s, int len);
+#[eff(io)]
 extern "C" fn __ayanami_print_ln();
 
 pub fn getchar() -> int { 

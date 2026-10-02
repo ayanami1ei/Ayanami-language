@@ -33,7 +33,7 @@ impl Package {
 
     fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str) {
         match stmt {
-            Stmt::FnDecl { vis, name, params, return_type, generic_params, .. } => {
+            Stmt::FnDecl { vis, name, params, return_type, generic_params, attrs, .. } => {
                 if !generic_params.is_empty() {
                     return; // Generic functions stored in generic_sources via ImplBlock or parent
                 }
@@ -47,9 +47,14 @@ impl Package {
                         full_name,
                         params.iter().map(|(_, t)| type_to_string(t)).collect::<Vec<_>>().join(","),
                         type_to_string(return_type));
+                    let (no_throws, no_effects) = crate::hir::effects::parse(attrs)
+                        .map(|d| (d.no_throws(), d.no_effects()))
+                        .unwrap_or((false, false));
                     self.symbols.push(PackageSymbol::Fn {
                         name: full_name,
                         signature: sig,
+                        no_throws,
+                        no_effects,
                     });
                     if !generic_params.is_empty() {
                         // Serialize generic function AST to source code

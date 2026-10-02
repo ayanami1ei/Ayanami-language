@@ -209,7 +209,7 @@ src/hir/item.rs:42: pub struct HirInterfaceMethod
 src/hir/item.rs:50: pub struct HirFn
 src/hir/item.rs:69: pub enum HirItem
 src/hir/item.rs:85: pub struct ImportedFnSig
-src/hir/item.rs:95: pub struct HirProgram
+src/hir/item.rs:97: pub struct HirProgram
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
@@ -268,8 +268,8 @@ src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_02.rs:4: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
 src/hir/lower/body/part_03.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_03.rs:6: pub(crate) fn build_vtables(&mut self) -> Result<()>
-src/hir/lower/body/part_03.rs:70: pub(crate) fn try_match_interface(
-src/hir/lower/body/part_03.rs:129: pub(crate) fn try_match_generic_interface(
+src/hir/lower/body/part_03.rs:71: pub(crate) fn try_match_interface(
+src/hir/lower/body/part_03.rs:130: pub(crate) fn try_match_generic_interface(
 src/hir/lower/body/part_04.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_04.rs:4: pub(crate) fn infer_iface_generic(
 src/hir/lower/body/part_04.rs:17: pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
@@ -350,9 +350,9 @@ src/hir/lower/mod.rs:2: pub mod helpers;
 src/hir/lower/mod.rs:3: pub mod to_mir;
 src/hir/lower/mod.rs:15: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
 src/hir/lower/mod.rs:31: pub(crate) struct FnSig
-src/hir/lower/mod.rs:42: pub(crate) struct InterfaceReg
-src/hir/lower/mod.rs:49: mod ctx;
-src/hir/lower/mod.rs:65: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:44: pub(crate) struct InterfaceReg
+src/hir/lower/mod.rs:51: mod ctx;
+src/hir/lower/mod.rs:67: pub fn lower_program(program: &Program) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
@@ -1298,7 +1298,7 @@ src/mir/lower/mod.rs:10: mod ctx;
 src/mir/lower/mod.rs:11: mod functions;
 src/mir/lower/mod.rs:12: mod mem;
 src/mir/lower/mod.rs:16: pub fn lower_program(hir: &HirProgram) -> crate::error::Result<MirProgram>
-src/mir/lower/mod.rs:39: struct Ctx
+src/mir/lower/mod.rs:40: struct Ctx
 src/mir/mem/drop.rs:6: pub struct DropStrategy;
 src/mir/mem/drop.rs:8: impl MemStrategy for DropStrategy
 src/mir/mem/drop.rs:9: fn on_scope_end(&self, var: VarId, _ty: &HirType) -> Vec<MemAction>
@@ -1326,15 +1326,15 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:66: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:69: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:13: impl ProjectConfig
 src/package/config.rs:14: pub fn load(toml_content: &str) -> Self
 src/package/config.rs:60: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
 src/package/config.rs:77: pub fn resolve_target(&self, file_path: &Path) -> &str
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:71: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:80: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:82: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:91: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
 src/package/mod.rs:7: mod load;
@@ -1353,7 +1353,7 @@ src/package/target.rs:13: pub fn as_str(&self) -> &'static str
 src/package/target.rs:21: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:15: pub enum PackageSymbol
-src/package/types.rs:33: pub enum ImportedSymbol
+src/package/types.rs:36: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:5: pub struct Block
 src/parser/ast/block.rs:10: impl Block
@@ -1490,17 +1490,17 @@ src/span.rs:62: impl std::fmt::Display for Span
 src/span.rs:63: fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
 
 ## Ayanami (.aya)
-std/io.aya:8: pub fn getchar() -> int
-std/io.aya:11: pub fn putchar(int c)
-std/io.aya:14: pub fn print(ref String n)
-std/io.aya:17: pub fn println()
-std/io.aya:20: pub fn println(ref String s)
+std/io.aya:12: pub fn getchar() -> int
+std/io.aya:15: pub fn putchar(int c)
+std/io.aya:18: pub fn print(ref String n)
+std/io.aya:21: pub fn println()
+std/io.aya:24: pub fn println(ref String s)
 std/main.aya:4: fn main()->int
-std/math.aya:4: pub fn abs(int x) -> int
-std/math.aya:9: pub fn min(int a, int b) -> int
-std/math.aya:14: pub fn max(int a, int b) -> int
-std/math.aya:19: pub fn clamp(int x, int lo, int hi) -> int
-std/math.aya:25: pub fn pow(int base, int exp) -> int
+std/math.aya:5: pub fn abs(int x) -> int
+std/math.aya:11: pub fn min(int a, int b) -> int
+std/math.aya:17: pub fn max(int a, int b) -> int
+std/math.aya:23: pub fn clamp(int x, int lo, int hi) -> int
+std/math.aya:30: pub fn pow(int base, int exp) -> int
 std/src/arraylist.aya:4: pub struct ArrayList[T:ToString]
 std/src/arraylist.aya:10: impl[T:ToString] ArrayList[T]
 std/src/arraylist.aya:11: fn expand(ref mut self)
@@ -1529,11 +1529,11 @@ std/src/list.aya:3: fn index(ref self, int index)->T;
 std/src/list.aya:4: fn to_string(ref self)->String;
 std/src/list.aya:5: fn len(ref self)->int;
 std/src/list.aya:6: fn iter(ref self, fn(T) f);
-std/src/math.aya:4: pub fn abs(int x) -> int
-std/src/math.aya:9: pub fn min(int a, int b) -> int
-std/src/math.aya:14: pub fn max(int a, int b) -> int
-std/src/math.aya:19: pub fn clamp(int x, int lo, int hi) -> int
-std/src/math.aya:25: pub fn pow(int base, int exp) -> int
+std/src/math.aya:5: pub fn abs(int x) -> int
+std/src/math.aya:11: pub fn min(int a, int b) -> int
+std/src/math.aya:17: pub fn max(int a, int b) -> int
+std/src/math.aya:23: pub fn clamp(int x, int lo, int hi) -> int
+std/src/math.aya:30: pub fn pow(int base, int exp) -> int
 std/src/std.aya:9: pub interface Error
 std/src/std.aya:10: fn what(ref self) -> String;
 std/src/std.aya:13: pub enum Result[T, E]
@@ -1685,6 +1685,7 @@ example/test_cfg.aya:9: fn on_unix() -> int { return 2 }
 example/test_cfg.aya:12: fn not_windows() -> int { return 3 }
 example/test_cfg.aya:14: fn main() -> int
 example/test_comments.aya:3: fn main() -> int
+example/test_eff_import.aya:4: fn main() -> int
 example/test_effects.aya:6: fn parse(int x) -> int { return x }
 example/test_effects.aya:10: fn pure_fn() -> int { return 0 }
 example/test_effects.aya:13: fn id[T](T x) -> T { return x }

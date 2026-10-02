@@ -37,6 +37,7 @@ impl crate::hir::lower::Ctx {
             name: name_sym,
             params: hir_params.clone(),
             return_type: hir_ret.clone(),
+            effects: crate::hir::effects::EffectDecl::default(),
         });
         self.fn_map.entry(name_sym).or_default().push(fn_id);
 
