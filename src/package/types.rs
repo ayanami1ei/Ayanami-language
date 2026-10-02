@@ -9,6 +9,8 @@ pub struct Package {
     pub symbols: Vec<PackageSymbol>,
     pub generic_sources: Vec<String>,
     pub lir_data: Vec<u8>,
+    /// A3c：HIR 推断摘要（仅内存；打包时用于生成 effects tokens）
+    pub effect_summaries: std::collections::HashMap<String, crate::hir::effects::EffectSummary>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -16,9 +18,8 @@ pub enum PackageSymbol {
     Fn {
         name: String,
         signature: String,
-        /// A3c：效应摘要（显式空集）随包导出，供消费者生成 LLVM 属性
-        no_throws: bool,
-        no_effects: bool,
+        /// A3c：效应 tokens（d:/i:/pure/no_error/throws:...）随包导出
+        flags: Vec<String>,
     },
     Struct {
         name: String,
@@ -37,8 +38,7 @@ pub enum ImportedSymbol {
     Fn {
         name: String,
         sig: String,
-        no_throws: bool,
-        no_effects: bool,
+        flags: Vec<String>,
     },
     Struct {
         name: String,

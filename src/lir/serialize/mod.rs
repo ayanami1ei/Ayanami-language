@@ -192,7 +192,10 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
         });
     }
 
-    Ok(LirProgram { strings, fn_names, functions, vtables, struct_defs, generic_struct_params, extern_decls })
+    Ok(LirProgram {
+        strings, fn_names, functions, vtables, struct_defs, generic_struct_params, extern_decls,
+        effect_summaries: std::collections::HashMap::new(),
+    })
 }
 
 

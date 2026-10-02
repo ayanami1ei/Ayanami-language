@@ -87,6 +87,13 @@ fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet> {
     for imp in &hir.imported_fns {
         names.insert(imp.fn_id, imp.name.as_str());
     }
+    // 导入函数的已知效应（声明 ∪ 包导出的推断事实）
+    let mut imported_known: HashMap<crate::hir::ty::FnId, EffectSet> = HashMap::new();
+    for imp in &hir.imported_fns {
+        let mut s = declared_to_set(&imp.effects);
+        s.union(&imp.inferred);
+        imported_known.insert(imp.fn_id, s);
+    }
     let names_io: HashSet<crate::hir::ty::FnId> = names.iter()
         .filter(|(_, n)| IO_NAMES.contains(&n.as_str()))
         .map(|(id, _)| *id)
@@ -115,7 +122,10 @@ fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet> {
                 if let Some(v) = c.err_construct {
                     set.throws.insert(v);
                 }
-                if let Some(callee) = inferred.get(&c.fn_id).or_else(|| known.get(&c.fn_id)) {
+                if let Some(callee) = inferred.get(&c.fn_id)
+                    .or_else(|| known.get(&c.fn_id))
+                    .or_else(|| imported_known.get(&c.fn_id))
+                {
                     set.union(callee);
                 } else {
                     // 不可见目标（导入/未声明的 extern）

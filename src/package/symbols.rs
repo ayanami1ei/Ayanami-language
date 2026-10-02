@@ -10,11 +10,20 @@ impl Package {
             symbols: Vec::new(),
             generic_sources: Vec::new(),
             lir_data: Vec::new(),
+            effect_summaries: std::collections::HashMap::new(),
         }
     }
 
     /// Collect symbols from top-level AST statements.
     /// If `all` is true, include all functions (ignore visibility).
+    /// A3c：注入 HIR 推断摘要（函数全名 → 摘要）。
+    pub fn set_effect_summaries(
+        &mut self,
+        map: std::collections::HashMap<String, crate::hir::effects::EffectSummary>,
+    ) {
+        self.effect_summaries = map;
+    }
+
     pub fn collect_symbols(&mut self, stmts: &[Stmt]) {
         self.collect_symbols_with_prefix(stmts, false, "")
     }
@@ -47,14 +56,15 @@ impl Package {
                         full_name,
                         params.iter().map(|(_, t)| type_to_string(t)).collect::<Vec<_>>().join(","),
                         type_to_string(return_type));
-                    let (no_throws, no_effects) = crate::hir::effects::parse(attrs)
-                        .map(|d| (d.no_throws(), d.no_effects()))
-                        .unwrap_or((false, false));
+                    let declared = crate::hir::effects::parse(attrs).unwrap_or_default();
+                    let inferred = self.effect_summaries.get(&full_name)
+                        .map(|s| s.inferred.clone())
+                        .unwrap_or_default();
+                    let summary = crate::hir::effects::EffectSummary { declared, inferred };
                     self.symbols.push(PackageSymbol::Fn {
                         name: full_name,
                         signature: sig,
-                        no_throws,
-                        no_effects,
+                        flags: summary.tokens(),
                     });
                     if !generic_params.is_empty() {
                         // Serialize generic function AST to source code

@@ -82,6 +82,74 @@ impl EffectDecl {
     }
 }
 
+/// 打包/导入用的效应摘要（声明 + 本轮推断事实）。
+#[derive(Debug, Clone, Default)]
+pub struct EffectSummary {
+    pub declared: EffectDecl,
+    pub inferred: crate::hir::effects::infer::EffectSet,
+}
+
+impl EffectSummary {
+    /// 编码为 `.lcl` flags tokens（无 `+`/`,`；名称均为标识符）。
+    pub fn tokens(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut push = |t: String| {
+            if !out.contains(&t) { out.push(t); }
+        };
+        for e in &self.declared.effects {
+            push(format!("d:{}", e.as_str()));
+        }
+        if self.declared.pure { push("pure".into()); }
+        if self.declared.no_error { push("no_error".into()); }
+        match &self.declared.throws {
+            Some(ThrowsDecl::OpenEmpty) => push("throws:open".into()),
+            Some(ThrowsDecl::Unknown) => push("throws:any".into()),
+            Some(ThrowsDecl::Types(ts)) => {
+                let list: Vec<String> = ts.iter().map(|t| t.as_str()).collect();
+                push(format!("throws:{}", list.join("|")));
+            }
+            None => {}
+        }
+        for e in &self.inferred.effects {
+            push(format!("i:{}", e));
+        }
+        if !self.inferred.throws.is_empty() {
+            push("i:throws".into());
+        }
+        out
+    }
+
+    /// 从 `.lcl` flags tokens 还原（兼容旧 `t`/`e` 单字符）。
+    pub fn from_tokens(tokens: &[String]) -> Self {
+        let mut declared = EffectDecl::default();
+        let mut inferred = crate::hir::effects::infer::EffectSet::default();
+        for t in tokens {
+            if t == "t" { declared.no_error = true; continue; }
+            if t == "e" { declared.pure = true; continue; }
+            if let Some(rest) = t.strip_prefix("d:") {
+                declared.effects.push(Symbol::intern(rest));
+            } else if let Some(rest) = t.strip_prefix("i:") {
+                if rest == "throws" {
+                    inferred.throws.insert("?".into());
+                } else {
+                    inferred.effects.insert(rest.to_string());
+                }
+            } else if t == "pure" {
+                declared.pure = true;
+            } else if t == "no_error" {
+                declared.no_error = true;
+            } else if let Some(rest) = t.strip_prefix("throws:") {
+                declared.throws = Some(match rest {
+                    "open" => ThrowsDecl::OpenEmpty,
+                    "any" => ThrowsDecl::Unknown,
+                    list => ThrowsDecl::Types(list.split('|').map(Symbol::intern).collect()),
+                });
+            }
+        }
+        Self { declared, inferred }
+    }
+}
+
 /// 解析函数级效应注解。
 pub fn parse(attrs: &[Attr]) -> Result<EffectDecl> {
     let mut decl = EffectDecl::default();

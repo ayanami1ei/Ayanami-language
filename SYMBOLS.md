@@ -27,7 +27,7 @@ src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:18: pub(crate) fn cmd_install(args: &[String])
 src/compiler/build/compile.rs:6: pub fn compile_file(
-src/compiler/build/compile.rs:126: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
+src/compiler/build/compile.rs:128: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:124: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:141: pub(super) fn merge_symbols(
@@ -41,8 +41,8 @@ src/compiler/build/mod.rs:18: mod target;
 src/compiler/build/mod.rs:25: pub fn build_source(src_path: &str, code: &str) -> Result<()>
 src/compiler/build/mod.rs:30: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
-src/compiler/build/package.rs:20: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:70: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:21: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
+src/compiler/build/package.rs:72: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/target.rs:4: pub fn build_source_with_target(
 src/compiler/build/target.rs:105: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<()>
@@ -180,14 +180,14 @@ src/hir/effects/infer.rs:40: pub fn set_verify_effects(v: bool)
 src/hir/effects/infer.rs:44: pub fn verify_effects() -> bool
 src/hir/effects/infer.rs:49: pub fn analyze(hir: &mut HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
 src/hir/effects/infer.rs:62: fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet>
-src/hir/effects/infer.rs:145: fn declared_to_set(d: &EffectDecl) -> EffectSet
-src/hir/effects/infer.rs:153: pub(super) fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
-src/hir/effects/infer.rs:163: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
-src/hir/effects/infer.rs:174: struct CallInfo
-src/hir/effects/infer.rs:181: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
-src/hir/effects/infer.rs:227: fn state_marker() -> CallInfo
-src/hir/effects/infer.rs:231: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
-src/hir/effects/infer.rs:235: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:155: fn declared_to_set(d: &EffectDecl) -> EffectSet
+src/hir/effects/infer.rs:163: pub(super) fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
+src/hir/effects/infer.rs:173: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
+src/hir/effects/infer.rs:184: struct CallInfo
+src/hir/effects/infer.rs:191: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:237: fn state_marker() -> CallInfo
+src/hir/effects/infer.rs:241: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
+src/hir/effects/infer.rs:245: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
 src/hir/effects/mod.rs:15: pub const BUILTIN_EFFECTS: &[&str] = &["io", "state", "alloc"];
 src/hir/effects/mod.rs:18: pub(crate) const IO_NAMES: &[&str] = &[
 src/hir/effects/mod.rs:24: pub mod diag;
@@ -202,10 +202,14 @@ src/hir/effects/mod.rs:69: impl EffectDecl
 src/hir/effects/mod.rs:70: pub fn has_effect(&self, name: &str) -> bool
 src/hir/effects/mod.rs:75: pub fn no_effects(&self) -> bool
 src/hir/effects/mod.rs:80: pub fn no_throws(&self) -> bool
-src/hir/effects/mod.rs:86: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
-src/hir/effects/mod.rs:107: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
-src/hir/effects/mod.rs:128: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
-src/hir/effects/mod.rs:145: fn bad_throws(a: &Attr) -> Error
+src/hir/effects/mod.rs:87: pub struct EffectSummary
+src/hir/effects/mod.rs:92: impl EffectSummary
+src/hir/effects/mod.rs:94: pub fn tokens(&self) -> Vec<String>
+src/hir/effects/mod.rs:123: pub fn from_tokens(tokens: &[String]) -> Self
+src/hir/effects/mod.rs:154: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
+src/hir/effects/mod.rs:175: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
+src/hir/effects/mod.rs:196: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
+src/hir/effects/mod.rs:213: fn bad_throws(a: &Attr) -> Error
 src/hir/effects/scan.rs:8: pub(super) enum Obs
 src/hir/effects/scan.rs:15: impl Obs
 src/hir/effects/scan.rs:17: pub(super) fn site_of(&self, kind: &str) -> Option<(usize, usize)>
@@ -224,7 +228,7 @@ src/hir/item.rs:42: pub struct HirInterfaceMethod
 src/hir/item.rs:50: pub struct HirFn
 src/hir/item.rs:73: pub enum HirItem
 src/hir/item.rs:89: pub struct ImportedFnSig
-src/hir/item.rs:101: pub struct HirProgram
+src/hir/item.rs:103: pub struct HirProgram
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
@@ -283,8 +287,8 @@ src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_02.rs:4: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
 src/hir/lower/body/part_03.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_03.rs:6: pub(crate) fn build_vtables(&mut self) -> Result<()>
-src/hir/lower/body/part_03.rs:71: pub(crate) fn try_match_interface(
-src/hir/lower/body/part_03.rs:130: pub(crate) fn try_match_generic_interface(
+src/hir/lower/body/part_03.rs:72: pub(crate) fn try_match_interface(
+src/hir/lower/body/part_03.rs:131: pub(crate) fn try_match_generic_interface(
 src/hir/lower/body/part_04.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_04.rs:4: pub(crate) fn infer_iface_generic(
 src/hir/lower/body/part_04.rs:17: pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
@@ -366,9 +370,9 @@ src/hir/lower/mod.rs:2: pub mod helpers;
 src/hir/lower/mod.rs:3: pub mod to_mir;
 src/hir/lower/mod.rs:15: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
 src/hir/lower/mod.rs:31: pub(crate) struct FnSig
-src/hir/lower/mod.rs:44: pub(crate) struct InterfaceReg
-src/hir/lower/mod.rs:51: mod ctx;
-src/hir/lower/mod.rs:67: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:46: pub(crate) struct InterfaceReg
+src/hir/lower/mod.rs:53: mod ctx;
+src/hir/lower/mod.rs:69: pub fn lower_program(program: &Program) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
@@ -902,20 +906,20 @@ src/lir/ir/nodes_d.rs:47: pub struct LirEffects
 src/lir/ir/nodes_d.rs:53: pub struct LirFn
 src/lir/ir/nodes_d.rs:73: pub struct VtableDesc
 src/lir/ir/nodes_d.rs:79: pub struct LirProgram
-src/lir/ir/nodes_d.rs:93: pub(crate) fn put_u32(buf: &mut Vec<u8>, v: u32) { buf.extend_from_slice(&v.to_le_bytes()); }
-src/lir/ir/nodes_d.rs:94: pub(crate) fn put_u64(buf: &mut Vec<u8>, v: u64) { buf.extend_from_slice(&v.to_le_bytes()); }
-src/lir/ir/nodes_d.rs:95: pub(crate) fn put_str(buf: &mut Vec<u8>, s: &str)
-src/lir/ir/nodes_d.rs:101: pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType)
-src/lir/ir/nodes_d.rs:126: pub(crate) fn put_value(buf: &mut Vec<u8>, v: &LirValue)
-src/lir/ir/nodes_d.rs:139: pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral)
-src/lir/ir/nodes_d.rs:154: pub trait LirLowerCtx
-src/lir/ir/nodes_d.rs:155: fn next_tmp(&mut self) -> u64;
-src/lir/ir/nodes_d.rs:156: fn emit(&mut self, inst: LirNodeBox);
-src/lir/ir/nodes_d.rs:157: fn str_map(&self) -> &HashMap<String, u64>;
-src/lir/ir/nodes_d.rs:158: fn loop_stack(&self) -> &Vec<(String, String)>;
-src/lir/ir/nodes_d.rs:159: fn loop_stack_mut(&mut self) -> &mut Vec<(String, String)>;
-src/lir/ir/nodes_d.rs:160: fn next_block_label(&mut self, prefix: &str) -> String;
-src/lir/ir/nodes_d.rs:161: fn set_current_block(&mut self, label: String);
+src/lir/ir/nodes_d.rs:95: pub(crate) fn put_u32(buf: &mut Vec<u8>, v: u32) { buf.extend_from_slice(&v.to_le_bytes()); }
+src/lir/ir/nodes_d.rs:96: pub(crate) fn put_u64(buf: &mut Vec<u8>, v: u64) { buf.extend_from_slice(&v.to_le_bytes()); }
+src/lir/ir/nodes_d.rs:97: pub(crate) fn put_str(buf: &mut Vec<u8>, s: &str)
+src/lir/ir/nodes_d.rs:103: pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType)
+src/lir/ir/nodes_d.rs:128: pub(crate) fn put_value(buf: &mut Vec<u8>, v: &LirValue)
+src/lir/ir/nodes_d.rs:141: pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral)
+src/lir/ir/nodes_d.rs:156: pub trait LirLowerCtx
+src/lir/ir/nodes_d.rs:157: fn next_tmp(&mut self) -> u64;
+src/lir/ir/nodes_d.rs:158: fn emit(&mut self, inst: LirNodeBox);
+src/lir/ir/nodes_d.rs:159: fn str_map(&self) -> &HashMap<String, u64>;
+src/lir/ir/nodes_d.rs:160: fn loop_stack(&self) -> &Vec<(String, String)>;
+src/lir/ir/nodes_d.rs:161: fn loop_stack_mut(&mut self) -> &mut Vec<(String, String)>;
+src/lir/ir/nodes_d.rs:162: fn next_block_label(&mut self, prefix: &str) -> String;
+src/lir/ir/nodes_d.rs:163: fn set_current_block(&mut self, label: String);
 src/lir/ir/nodes_e.rs:3: impl LirNode for SLirDropValue
 src/lir/ir/nodes_e.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_e.rs:5: fn kind(&self) -> &'static str { "DropValue" }
@@ -1172,7 +1176,8 @@ src/lir/lower/mod.rs:15: mod mir_stmts;
 src/lir/lower/mod.rs:16: mod names;
 src/lir/lower/mod.rs:17: mod strings;
 src/lir/lower/mod.rs:18: mod util;
-src/lir/lower/mod.rs:25: pub fn lower_program(mir: &MirProgram) -> LirProgram
+src/lir/lower/mod.rs:21: fn collect_effect_summaries(items: &[MirItem], out: &mut HashMap<String, crate::hir::effects::EffectSummary>)
+src/lir/lower/mod.rs:41: pub fn lower_program(mir: &MirProgram) -> LirProgram
 src/lir/lower/names.rs:3: pub(super) fn collect_fn_names(mir: &MirProgram) -> HashMap<FnId, String>
 src/lir/lower/names.rs:9: pub(super) fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<FnId, String>)
 src/lir/lower/names.rs:28: pub(super) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String
@@ -1199,10 +1204,10 @@ src/lir/serialize/decode.rs:25: pub(super) fn inst(&mut self) -> Result<LirNodeB
 src/lir/serialize/decode.rs:204: pub(super) fn read_fn(&mut self) -> Result<LirFn>
 src/lir/serialize/mod.rs:11: pub fn program_to_bytes(p: &LirProgram) -> Vec<u8>
 src/lir/serialize/mod.rs:94: pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram>
-src/lir/serialize/mod.rs:203: struct Reader<'a>
-src/lir/serialize/mod.rs:208: mod decode;
-src/lir/serialize/mod.rs:209: mod reader;
-src/lir/serialize/mod.rs:210: mod write;
+src/lir/serialize/mod.rs:206: struct Reader<'a>
+src/lir/serialize/mod.rs:211: mod decode;
+src/lir/serialize/mod.rs:212: mod reader;
+src/lir/serialize/mod.rs:213: mod write;
 src/lir/serialize/reader.rs:3: impl<'a> Reader<'a>
 src/lir/serialize/reader.rs:4: pub(super) fn read(&mut self, n: usize) -> Result<&'a [u8]>
 src/lir/serialize/reader.rs:12: pub(super) fn u32(&mut self) -> Result<u32>
@@ -1321,7 +1326,7 @@ src/mir/lower/mod.rs:10: mod ctx;
 src/mir/lower/mod.rs:11: mod functions;
 src/mir/lower/mod.rs:12: mod mem;
 src/mir/lower/mod.rs:16: pub fn lower_program(hir: &HirProgram) -> crate::error::Result<MirProgram>
-src/mir/lower/mod.rs:40: struct Ctx
+src/mir/lower/mod.rs:41: struct Ctx
 src/mir/mem/drop.rs:6: pub struct DropStrategy;
 src/mir/mem/drop.rs:8: impl MemStrategy for DropStrategy
 src/mir/mem/drop.rs:9: fn on_scope_end(&self, var: VarId, _ty: &HirType) -> Vec<MemAction>
@@ -1349,15 +1354,15 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:69: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:66: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:13: impl ProjectConfig
 src/package/config.rs:14: pub fn load(toml_content: &str) -> Self
 src/package/config.rs:60: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
 src/package/config.rs:77: pub fn resolve_target(&self, file_path: &Path) -> &str
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:82: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:91: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:89: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:98: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
 src/package/mod.rs:7: mod load;
@@ -1366,17 +1371,18 @@ src/package/mod.rs:9: mod target;
 src/package/mod.rs:10: mod types;
 src/package/symbols.rs:4: impl Package
 src/package/symbols.rs:5: pub fn new(name: String, version: String) -> Self
-src/package/symbols.rs:18: pub fn collect_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:23: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:27: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
-src/package/symbols.rs:34: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
+src/package/symbols.rs:20: pub fn set_effect_summaries(
+src/package/symbols.rs:27: pub fn collect_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:32: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:36: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
+src/package/symbols.rs:43: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
 src/package/target.rs:6: pub enum TargetType
 src/package/target.rs:12: impl TargetType
 src/package/target.rs:13: pub fn as_str(&self) -> &'static str
 src/package/target.rs:21: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
-src/package/types.rs:15: pub enum PackageSymbol
-src/package/types.rs:36: pub enum ImportedSymbol
+src/package/types.rs:17: pub enum PackageSymbol
+src/package/types.rs:37: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:5: pub struct Block
 src/parser/ast/block.rs:10: impl Block

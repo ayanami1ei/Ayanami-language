@@ -29,12 +29,9 @@ impl Package {
             body.push_str("[symbols]\n");
             for sym in &self.symbols {
                 match sym {
-                    PackageSymbol::Fn { name, signature, no_throws, no_effects } => {
-                        // 格式：name,flags,signature（flags 在前，避免与签名内逗号冲突）
-                        let mut flags = String::new();
-                        if *no_throws { flags.push('t'); }
-                        if *no_effects { flags.push('e'); }
-                        body.push_str(&format!("fn=\"{},{},{}\"\n", name, flags, signature));
+                    PackageSymbol::Fn { name, signature, flags } => {
+                        // 格式：name,flags,signature（flags 为 '+' 连接 tokens，无逗号）
+                        body.push_str(&format!("fn=\"{},{},{}\"\n", name, flags.join("+"), signature));
                     }
                     PackageSymbol::Struct { name } => {
                         body.push_str(&format!("struct=\"{}\"\n", name));

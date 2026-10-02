@@ -31,6 +31,8 @@ pub(super) fn strip_generic_name(name: &Symbol) -> Symbol {
 pub(crate) struct FnSig {
     /// A3c：效应声明（包导入时来自 .lcl 摘要）
     pub(crate) effects: crate::hir::effects::EffectDecl,
+    /// A3c：包导出的推断事实（导入函数）
+    pub(crate) inferred: crate::hir::effects::EffectSet,
     /// 函数名称
     pub name: Symbol,
     /// 参数列表：(参数名, 参数类型)
@@ -85,6 +87,7 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
             params: sig.params.clone(), return_type: sig.return_type.clone(),
             attrs: Vec::new(),
             effects: sig.effects.clone(),
+            inferred: sig.inferred.clone(),
         })
         .collect();
 

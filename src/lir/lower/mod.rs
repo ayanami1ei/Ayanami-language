@@ -17,6 +17,22 @@ mod names;
 mod strings;
 mod util;
 
+/// A3c：递归收集定义函数的效应摘要。
+fn collect_effect_summaries(items: &[MirItem], out: &mut HashMap<String, crate::hir::effects::EffectSummary>) {
+    for item in items {
+        match item {
+            MirItem::Fn(f) => {
+                out.insert(f.name.as_str(), crate::hir::effects::EffectSummary {
+                    declared: f.effects.clone(),
+                    inferred: f.inferred.clone(),
+                });
+            }
+            MirItem::Namespace { items, .. } => collect_effect_summaries(items, out),
+            _ => {}
+        }
+    }
+}
+
 use ctx::LowerCtx;
 use fn_lower::{lower_items, lower_stmts};
 use names::{collect_fn_names, mangle};
@@ -88,6 +104,10 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         VtableDesc { name, fn_ids: ve.method_fn_ids.clone() }
     }).collect();
 
+    // A3c：收集本节函数的效应摘要（打包导出用；不参与序列化）
+    let mut effect_summaries: HashMap<String, crate::hir::effects::EffectSummary> = HashMap::new();
+    collect_effect_summaries(&mir.items, &mut effect_summaries);
+
     LirProgram {
         strings,
         fn_names,
@@ -96,5 +116,6 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         struct_defs: mir.struct_defs.clone(),
         generic_struct_params: mir.generic_struct_params.clone(),
         extern_decls,
+        effect_summaries,
     }
 }

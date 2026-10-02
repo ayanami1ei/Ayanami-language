@@ -37,17 +37,24 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             if let Some(rest) = line.strip_prefix("fn=") {
                 let val = parse_ini_value(rest);
                 if let Some((name, rest)) = val.split_once(',') {
-                    // 新格式 name,flags,sig；旧格式 name,sig（无 flags）。
-                    // flags 只可能由 t/e 组成，否则视为旧格式。
+                    // 新格式 name,flags,sig；旧格式 name,sig。
+                    // flags 可能为旧单字符 t/e，或 '+' 连接的 artifacts tokens。
                     let (flags, sig) = match rest.split_once(',') {
-                        Some((f, s)) if f.chars().all(|c| c == 't' || c == 'e') => (f, s),
+                        Some((f, s)) if !f.contains('(') && !f.contains("->") => (f, s),
                         _ => ("", rest),
+                    };
+                    let tokens: Vec<String> = if flags.is_empty() {
+                        Vec::new()
+                    } else if flags.contains('+') {
+                        flags.split('+').map(|s| s.to_string()).collect()
+                    } else {
+                        // 旧格式可能直接是 t/e 的组合
+                        flags.chars().map(|c| c.to_string()).collect()
                     };
                     symbols.push(ImportedSymbol::Fn {
                         name: name.to_string(),
                         sig: sig.to_string(),
-                        no_throws: flags.contains('t'),
-                        no_effects: flags.contains('e'),
+                        flags: tokens,
                     });
                 }
             } else if let Some(rest) = line.strip_prefix("struct=") {
