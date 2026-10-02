@@ -15,7 +15,10 @@ pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNode
     let arg_ty = arg.expr_type();
     let converted = match param_ty {
         HirType::Unique(pt) => {
-            if arg_ty == *pt.as_ref() {
+            // Copy 类型（int/float/char/bool）无需装箱
+            if pt.as_ref().is_copy() {
+                arg
+            } else if arg_ty == *pt.as_ref() {
                 match param_ty {
                     HirType::Unique(_) => SToUnique { expr: arg, ty: param_ty.clone() }.into(),
                     _ => arg,

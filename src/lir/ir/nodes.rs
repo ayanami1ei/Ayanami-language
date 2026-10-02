@@ -20,7 +20,7 @@ s_lir!(SLirBrCond { cond: LirValue, true_block: String, false_block: String });
 s_lir!(SLirRet { val: Option<(LirValue, HirType)> });
 s_lir!(SLirMakeFatPtr { dest: u64, malloc_tmp: u64, bc_tmp: u64, vtable_gep_tmp: u64, iv_tmp: u64, value_src: LirValue, value_ty: HirType, vtable_name: String, ty: HirType });
 s_lir!(SLirFieldAccess { dest: u64, gep_tmp: u64, src: LirValue, field_index: usize, field_ty: HirType, struct_ty: HirType });
-s_lir!(SLirAsm { dest: Option<u64>, template: String, output_constraints: Vec<String>, input_operands: Vec<(LirValue, HirType)>, input_constraints: Vec<String>, ret_ty: HirType });
+s_lir!(SLirAsm { dest: Option<u64>, template: String, output_constraints: Vec<String>, output_operands: Vec<(LirValue, HirType, Option<VarId>)>, input_operands: Vec<(LirValue, HirType)>, input_constraints: Vec<String>, ret_ty: HirType });
 s_lir!(SLirRefInst { dest: u64, var_id: VarId, mutable: bool, ty: HirType });
 s_lir!(SLirRefTmp { dest: u64, alloca_tmp: u64, src: LirValue, mutable: bool, ty: HirType });
 s_lir!(SLirArraySized { dest: u64, malloc_tmp: u64, count_tmp: u64, size_tmp: u64, elem_count: LirValue, elem_size: u64, elem_ty: HirType, ty: HirType });

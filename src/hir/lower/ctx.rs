@@ -55,13 +55,22 @@ pub(crate) struct Ctx {
 impl Ctx {
     /// 创建新的降级上下文
     pub fn new() -> Self {
+        // 内置 String 结构体：字符串字面量无需 import 即可使用
+        let mut struct_defs = HashMap::new();
+        struct_defs.insert(
+            Symbol::intern("String"),
+            vec![
+                HirStructField { name: Symbol::intern("data"), ty: HirType::Unique(Box::new(HirType::Array(Box::new(HirType::Char)))) },
+                HirStructField { name: Symbol::intern("len"), ty: HirType::Int },
+            ],
+        );
         Self {
             fns: Vec::new(),
             fn_map: HashMap::new(),
             interfaces: HashMap::new(),
             vtables: Vec::new(),
             type_ifaces: HashMap::new(),
-            struct_defs: HashMap::new(),
+            struct_defs,
             generic_struct_params: HashMap::new(),
             generic_fns: Vec::new(),
             specialized_fns: Vec::new(),

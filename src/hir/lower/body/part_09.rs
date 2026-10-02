@@ -69,6 +69,10 @@ impl crate::hir::lower::Ctx {
                 let hir_inner = self.lower_expr(inner)?;
                 self.allow_bare_array = false;
                 let inner_ty = hir_inner.expr_type();
+                // Copy 类型的 unique 无意义（装箱会被复制语义抵消）：零开销传递
+                if inner_ty.is_copy() {
+                    return Ok(hir_inner);
+                }
                 let ty = HirType::Unique(Box::new(strip_ownership(inner_ty)));
                 Ok(SToUnique { expr: hir_inner, ty }.into())
             }

@@ -4,7 +4,7 @@
 @lexer {
     keyword: "fn", "return", "if", "else", "true", "false", "while",
              "for", "in", "match", "enum", "struct", "interface", "impl",
-             "pub", "unique", "ref", "mut", "extern", "import", "as",
+             "pub", "unique", "ref", "mut", "extern", "import", "as", "asm",
              "break", "continue", "self", "move", "clone", "inline", "let"
     operator: "+" (prec:5, assoc:left)
               "-" (prec:5, assoc:left)

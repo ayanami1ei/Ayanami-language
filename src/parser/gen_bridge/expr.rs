@@ -125,17 +125,18 @@ pub fn node_to_expr(node: &Node) -> Result<Expr> {
             Ok(Expr::EnumConstruct { enum_name, variant_name, tuple_args: args, named_args: vec![], span: default_span() })
         }
         "AsmExpr" => {
-            let template = get_str(node, "template")?;
-            let outputs = node.children("outputs").iter().map(|n| {
-                let c = get_str(*n, "constraint")?;
-                let e = node_to_expr((*n).child("expr").ok_or_else(|| Error::Parse("missing expr".into()))?)?;
-                Ok::<_, Error>((c, Box::new(e)))
-            }).collect::<std::result::Result<_, _>>()?;
-            let inputs = node.children("inputs").iter().map(|n| {
-                let c = get_str(*n, "constraint")?;
-                let e = node_to_expr((*n).child("expr").ok_or_else(|| Error::Parse("missing expr".into()))?)?;
-                Ok::<_, Error>((c, Box::new(e)))
-            }).collect::<std::result::Result<_, _>>()?;
+            // 生成解析器的字段：string_literal / asm_output_list / asm_input_list
+            let template = get_str(node, "string_literal")?;
+            let collect_list = |list: Option<&Node>, item: &str| -> std::result::Result<Vec<(String, Box<Expr>)>, Error> {
+                let Some(list) = list else { return Ok(vec![]) };
+                list.children(item).iter().map(|n| {
+                    let c = get_str(*n, "string_literal")?;
+                    let e = node_to_expr((*n).child("expr").ok_or_else(|| Error::Parse("missing expr".into()))?)?;
+                    Ok::<_, Error>((c, Box::new(e)))
+                }).collect()
+            };
+            let outputs = collect_list(node.child("asm_output_list"), "asm_output")?;
+            let inputs = collect_list(node.child("asm_input_list"), "asm_input")?;
             Ok(Expr::Asm { template, outputs, inputs, span: default_span() })
         }
         kind => Err(Error::Parse(format!("unknown expr kind: {}", kind))),

@@ -11,6 +11,17 @@ impl crate::hir::lower::Ctx {
         if let HirType::Unique(inner) = arg_ty {
             if param_ty == inner.as_ref() { return true; }
         }
+        // 数组：Array 与 ArraySized 在元素类型一致时兼容（定长缓冲区可传入不定长形参）
+        {
+            let p_inner = strip_ownership_ref(param_ty);
+            let a_inner = strip_ownership_ref(arg_ty);
+            let arrays_ok = match (p_inner, a_inner) {
+                (HirType::Array(p), HirType::ArraySized(a, _))
+                | (HirType::ArraySized(p, _), HirType::Array(a)) => p == a,
+                _ => false,
+            };
+            if arrays_ok { return true; }
+        }
         // ref/ref mut 形参：允许传裸值（自动借用）或已借用值
         if let HirType::Ref(inner, _) = param_ty {
             if arg_ty == inner.as_ref() || matches!(arg_ty, HirType::Ref(..)) {

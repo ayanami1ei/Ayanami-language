@@ -71,7 +71,21 @@ struct String {
 文件：`std/std.lcl`，等价于导入 `io`、`string`、`math`，并包含
 `Error` 接口与 `Result[T, E]` 枚举（`try_unwrap(self)`）。
 
-## 待迁移
+## list / arraylist / linkedlist — 集合
 
-`std/src/pending/` 下的 `list`、`linkedlist`、`arraylist` 仍是旧内存模型
-（`shared`/`weak`）的源码，尚未迁移到 `unique`/`ref`，暂不纳入构建。
+| 模块 | 说明 |
+|------|------|
+| `list` | `List[T]` 接口：`push(ref mut self, T)` / `index(ref self, int) -> T` / `to_string(ref self) -> String` / `len(ref self) -> int` / `iter(ref self, fn(T))` |
+| `arraylist` | `ArrayList[T]` 顺序表：`unique [T]` 缓冲，自动扩容 |
+| `linkedlist` | `LinkedList[T]`：新所有权模型下改为数组缓冲实现，接口与 `List` 一致 |
+
+```ayanami
+import "arraylist";
+
+fn main() -> int {
+    a = ArrayList[int] { data = null, len = 0, capability = 0 }
+    a.push(1)
+    a.push(2)
+    return a.index(1)     // 2
+}
+```

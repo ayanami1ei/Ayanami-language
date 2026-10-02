@@ -156,6 +156,15 @@ impl<'a> Reader<'a> {
                 let oc_count = self.u32()?;
                 let mut output_constraints = Vec::new();
                 for _ in 0..oc_count { output_constraints.push(self.str()?); }
+                let oo_count = self.u32()?;
+                let mut output_operands = Vec::new();
+                for _ in 0..oo_count {
+                    let v = self.value()?;
+                    let t = self.ty()?;
+                    let vr = self.u32()?;
+                    let var = if vr == 0xFFFFFFFF { None } else { Some(VarId(vr as usize)) };
+                    output_operands.push((v, t, var));
+                }
                 let io_count = self.u32()?;
                 let mut input_operands = Vec::new();
                 for _ in 0..io_count { input_operands.push((self.value()?, self.ty()?)); }
@@ -163,7 +172,7 @@ impl<'a> Reader<'a> {
                 let mut input_constraints = Vec::new();
                 for _ in 0..ic_count { input_constraints.push(self.str()?); }
                 let ret_ty = self.ty()?;
-                Ok(SLirAsm { dest, template, output_constraints, input_operands, input_constraints, ret_ty }.into())
+                Ok(SLirAsm { dest, template, output_constraints, output_operands, input_operands, input_constraints, ret_ty }.into())
             }
             25 => {
                 let d = self.u64()?;

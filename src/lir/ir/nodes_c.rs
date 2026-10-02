@@ -11,14 +11,23 @@ impl LirNode for SLirAsm {
             all.extend(self.input_constraints.iter().cloned());
             all.join(",")
         };
+        // 注意：LLVM 内联汇编的输出操作数不放进参数列表，仅通过返回值 + 回写
+        let mut lines = Vec::new();
         let args_str: Vec<String> = self.input_operands.iter()
             .map(|(v, t)| format!("{} {}", ctx.llvm_type(t), ctx.value_ref(v, t)))
             .collect();
         if let Some(d) = self.dest {
-            vec![format!("%t{} = call {} asm sideeffect \"{}\", \"{}\"({})", d, ret_llvm, self.template, constraint_str, args_str.join(", "))]
+            lines.push(format!("%t{} = call {} asm sideeffect \"{}\", \"{}\"({})", d, ret_llvm, self.template, constraint_str, args_str.join(", ")));
+            for (_, t, var) in &self.output_operands {
+                if let Some(id) = var {
+                    lines.push(format!("store {} %t{}, ptr %v{}, align 8", ctx.llvm_type(t), d, id.0));
+                }
+            }
+            lines
         } else {
             let args = if args_str.is_empty() { String::from("()") } else { format!("({})", args_str.join(", ")) };
-            vec![format!("call void asm sideeffect \"{}\", \"{}\"{}", self.template, constraint_str, args)]
+            lines.push(format!("call void asm sideeffect \"{}\", \"{}\"{}", self.template, constraint_str, args));
+            lines
         }
     }
     fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
@@ -30,6 +39,11 @@ impl LirNode for SLirAsm {
         put_str(buf, &self.template);
         put_u32(buf, self.output_constraints.len() as u32);
         for c in &self.output_constraints { put_str(buf, c); }
+        put_u32(buf, self.output_operands.len() as u32);
+        for (v, t, var) in &self.output_operands {
+            put_value(buf, v); put_type(buf, t);
+            put_u32(buf, var.map_or(0xFFFFFFFF, |x| x.0 as u32));
+        }
         put_u32(buf, self.input_operands.len() as u32);
         for (v, t) in &self.input_operands { put_value(buf, v); put_type(buf, t); }
         put_u32(buf, self.input_constraints.len() as u32);

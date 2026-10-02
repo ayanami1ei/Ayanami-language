@@ -190,7 +190,7 @@ impl Parser {
                                     self.expect_delimiter(Delimiter::LParen)?;
                                     let constraint = match self.peek().map(|t| &t.kind) {
                                         Some(TokenKind::Keyword(Keyword::Reg)) => {
-                                            self.advance(); "r".to_string()
+                                            self.advance(); "=r".to_string()
                                         }
                                         _ => return Err(self.error("expected reg in asm out")),
                                     };

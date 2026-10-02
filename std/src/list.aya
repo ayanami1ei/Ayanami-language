@@ -1,0 +1,7 @@
+pub interface List[T:ToString]{
+    fn push(ref mut self, T val);
+    fn index(ref self, int index)->T;
+    fn to_string(ref self)->String;
+    fn len(ref self)->int;
+    fn iter(ref self, fn(T) f);
+}

@@ -1,7 +1,7 @@
 // @generated
 #[allow(unused)]
 
-pub const KEYWORDS: &[&str] = &["fn", "return", "if", "else", "true", "false", "while", "for", "in", "match", "enum", "struct", "interface", "impl", "pub", "unique", "ref", "mut", "extern", "import", "as", "break", "continue", "self", "move", "clone", "inline", "let"];
+pub const KEYWORDS: &[&str] = &["fn", "return", "if", "else", "true", "false", "while", "for", "in", "match", "enum", "struct", "interface", "impl", "pub", "unique", "ref", "mut", "extern", "import", "as", "asm", "break", "continue", "self", "move", "clone", "inline", "let"];
 
 pub fn tokenize(input: &str) -> Vec<asuka::runtime::Token> {
     let mut lex = asuka::runtime::Lexer::new(input);
@@ -41,8 +41,8 @@ pub fn tokenize(input: &str) -> Vec<asuka::runtime::Token> {
                 else { tokens.push(lex.read_fixed("<", "<")); }
             }
             '=' => {
-                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='>' { tokens.push(lex.read_fixed("=>", "=>")); }
                 if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='=' { tokens.push(lex.read_fixed("==", "==")); }
+                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='>' { tokens.push(lex.read_fixed("=>", "=>")); }
                 else { tokens.push(lex.read_fixed("=", "=")); }
             }
             '>' => {
