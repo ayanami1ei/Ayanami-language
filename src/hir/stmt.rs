@@ -34,6 +34,8 @@ pub enum HirStmt {
     Break,
     Continue,
     Expr(HirNodeBox),
+    /// A2c：`#[assume(cond)]` → llvm.assume
+    Assume(HirNodeBox),
     Block(Vec<HirStmt>),
 }
 

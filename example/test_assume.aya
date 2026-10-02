@@ -1,0 +1,13 @@
+// A2c：#[assume(cond)] → llvm.assume（向优化器声明事实）
+#[assume(n > 0)]
+fn dec(int n) -> int { return n - 1 }
+
+#[assume(x == x)]
+#[assume(x < 1000)]
+fn id(int x) -> int { return x }
+
+fn main() -> int {
+    a = dec(5)
+    b = id(3)
+    return a - 4 + b - 3
+}

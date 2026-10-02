@@ -122,6 +122,7 @@ s_mstmt!(SMirContinueStmt { });
 s_mstmt!(SMirExprStmt { expr: MirNodeBox });
 s_mstmt!(SMirBlockStmt { stmts: Vec<MirStmtBox> });
 s_mstmt!(SMirDropStmt { var: VarId, ty: HirType });
+s_mstmt!(SMirAssumeStmt { cond: MirNodeBox });
 
 macro_rules! impl_into_mir_node_box {
     ($($ty:ident),* $(,)?) => {
@@ -139,7 +140,7 @@ macro_rules! impl_into_mir_stmt_box {
         })*
     };
 }
-impl_into_mir_stmt_box!(SMirAssignStmt, SMirFieldAssignStmt, SMirIndexAssignStmt, SMirReturnStmt, SMirIfStmt, SMirWhileStmt, SMirBreakStmt, SMirContinueStmt, SMirExprStmt, SMirBlockStmt, SMirDropStmt);
+impl_into_mir_stmt_box!(SMirAssignStmt, SMirFieldAssignStmt, SMirIndexAssignStmt, SMirReturnStmt, SMirIfStmt, SMirWhileStmt, SMirBreakStmt, SMirContinueStmt, SMirExprStmt, SMirBlockStmt, SMirDropStmt, SMirAssumeStmt);
 
 #[derive(Debug, Clone)]
 pub struct MirLocal {

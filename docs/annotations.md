@@ -109,7 +109,7 @@ extern "C" fn strlen(unique [char] s) -> int;
   release 构建转为 `llvm.assume`（可被优化器利用）。
 - `#[ensures(cond)]`：后置条件，`result` 绑定返回值。
 - `#[invariant(cond)]`：循环不变式（语句级标注），debug 每轮校验、release `llvm.assume`。
-- `#[assume(cond)]`：无条件向优化器声明事实。
+- `#[assume(cond)]`：无条件向优化器声明事实（已实现，A2c）。
 
 契约条件必须是无副作用的 bool 表达式；debug 与 release 语义差异必须在文档与报错中明确。
 
@@ -121,6 +121,16 @@ extern "C" fn strlen(unique [char] s) -> int;
 - `AttrArg::Expr(expr)`：任意表达式（`requires(x > 0)`、`inline(always)`），
   由手写解析器 `parse_attr_arg` 解析，formatter 往返保真；
 - LIR 侧经 `lir/lower/util.rs::attrs_to_lir` 渲染为字符串，`LirAttr` 格式不变。
+
+### A2c `#[assume]`（已完成，2026-10）
+
+- 函数级标注：`#[assume(cond)]` 可重复，条件在形参绑定后求值；
+- 校验（`hir/contracts.rs`）：恰好一个表达式实参；条件须为 bool 值或比较运算
+  （HIR 中比较保持操作数类型，Bool 结果由 MIR→LIR 决定，故用 `HirNode::is_comparison` 判定）；
+- 链路：`HirStmt::Assume` → `SMirAssumeStmt` → `SLirAssume`（tag 28）→
+  `call void @llvm.assume(i1 ...)`，位于函数入口 alloca/参数存储之后；
+- 运行时为零开销；`opt -O2` 可据此优化（如消除冗余分支）。
+- `example/test_assume.aya`；反例：非 bool 条件、无实参、`key = value` 实参均报错。
 
 ### A2b `#[cfg]`（已完成，2026-10）
 
@@ -211,7 +221,7 @@ struct Holder['a] {
 
 - [x] A2a 标注实参结构化（`AttrArg`：`key = value` / 表达式），formatter 保真
 - [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致）
-- [ ] `#[assume(cond)]` → `llvm.assume`
+- [x] `#[assume(cond)]` → `llvm.assume`（A2c）
 - [ ] `#[requires]`/`#[ensures]` + debug/release 模式（运行检查 vs assume）
 - [ ] `#[invariant]` 语句级（循环）
 - [ ] 语句级 `#[cfg]`

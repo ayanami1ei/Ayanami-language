@@ -57,6 +57,10 @@ impl HirNode for SBin {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn is_comparison(&self) -> bool {
+        matches!(self.op,
+            BinaryOp::Eq | BinaryOp::Neq | BinaryOp::Lt | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Ge)
+    }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
         f(&*self.lhs);
         f(&*self.rhs);

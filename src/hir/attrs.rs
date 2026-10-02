@@ -3,6 +3,7 @@ use crate::parser::ast::{Attr, Program, Stmt};
 
 /// A0 属性白名单。A1 起逐个接入 LLVM 语义；未知属性一律报错（ADR-2）。
 pub const ALLOWED: &[&str] = &[
+    "assume",
     "cfg",
     "inline",
     "cold",
@@ -72,6 +73,7 @@ fn validate_stmt(stmt: &Stmt) -> Result<()> {
     match stmt {
         Stmt::FnDecl { attrs, params, param_attrs, .. } => {
             validate(attrs)?;
+            crate::hir::contracts::validate_fn_attrs(attrs)?;
             for (i, pa) in param_attrs.iter().enumerate() {
                 if let Some((_, ty)) = params.get(i) {
                     validate_param(pa, ty)?;

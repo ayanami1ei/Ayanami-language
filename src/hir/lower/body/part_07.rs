@@ -177,7 +177,22 @@ impl crate::hir::lower::Ctx {
             hir_params.push((*param_name, hir_ty));
         }
 
-        let hir_body = self.lower_block(body)?;
+        // A2c：函数级 #[assume(cond)] 前置于函数体（发射为 llvm.assume）
+        let mut prelude: Vec<HirStmt> = Vec::new();
+        for cond in crate::hir::contracts::assume_conditions(&attrs) {
+            let hir_cond = self.lower_expr(cond)?;
+            if hir_cond.expr_type() != HirType::Bool && !hir_cond.is_comparison() {
+                return Err(Error::Hir(format!(
+                    "#[assume] condition must be bool (at {}:{})", span.start_line, span.start_col)));
+            }
+            prelude.push(HirStmt::Assume(hir_cond));
+        }
+
+        let mut hir_body = self.lower_block(body)?;
+        if !prelude.is_empty() {
+            prelude.append(&mut hir_body.stmts);
+            hir_body.stmts = prelude;
+        }
 
         let locals = std::mem::take(&mut self.locals);
         Ok(HirFn {

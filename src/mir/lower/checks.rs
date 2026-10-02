@@ -19,6 +19,7 @@ fn collect_stmt_var_ids(stmt: &HirStmt, vars: &mut HashSet<VarId>) {
                 v.collect_var_ids(vars);
             }
         }
+        HirStmt::Assume(cond) => cond.collect_var_ids(vars),
         HirStmt::If { cond, then_block, elifs, else_block } => {
             cond.collect_var_ids(vars);
             for s in &then_block.stmts {

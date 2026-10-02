@@ -89,6 +89,7 @@ impl<'a> Emitter<'a> {
         self.wln("declare void @__ayanami_unique_free(i8*)");
         self.wln("declare void @llvm.memcpy.p0.p0.i64(i8*, i8*, i64, i1)");
         self.wln("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)");
+        self.wln("declare void @llvm.assume(i1)");
         self.wln("declare i32 @putchar(i32)");
         self.wln("declare i32 @printf(i8*, ...)");
         self.wln("");

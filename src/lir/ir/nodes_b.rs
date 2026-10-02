@@ -89,6 +89,23 @@ impl LirNode for SLirBrCond {
     }
 }
 
+impl LirNode for SLirAssume {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "Assume" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let c = ctx.value_ref(&self.cond, &HirType::Bool);
+        vec![format!("call void @llvm.assume(i1 {})", c)]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    assume {:?}", self.cond)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(28);
+        put_value(buf, &self.cond);
+    }
+}
+
 impl LirNode for SLirRet {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "Ret" }
