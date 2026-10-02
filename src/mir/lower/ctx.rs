@@ -150,26 +150,22 @@ impl Ctx {
     fn lower_return(&mut self, value: &Option<HirNodeBox>) -> Vec<MirStmtBox> {
         let mut stmts = Vec::new();
 
-        let mir_value = match value {
-            Some(v) => {
-                v.record_moves(&mut self.moved);
-                if v.as_move().is_some() {
-                    if let Some(var) = v.as_local() { self.moved.insert(var); }
-                }
-                let mut return_vars = HashSet::new();
-                v.collect_var_ids(&mut return_vars);
-                for var in &return_vars { self.moved.insert(*var); }
-                Some(v.lower_to_mir(&self.moved))
-            }
-            None => None,
-        };
-
-        let mut return_vars = HashSet::new();
-        if let Some(v) = value { v.collect_var_ids(&mut return_vars); }
+        // 先把返回值求值到临时变量，再做作用域清理，
+        // 避免 `return up.x` 这类表达式在 drop 之后才读取变量（use-after-free）。
+        let ret_var = value.as_ref().map(|v| {
+            let ty = v.expr_type();
+            let tmp = self.new_temp(ty);
+            let mir_value = v.lower_to_mir(&self.moved);
+            stmts.push(SMirAssignStmt {
+                target: SMirLocal { var: tmp, ty: self.var_types[&tmp].clone(), moved: false }.into(),
+                value: mir_value,
+            }.into());
+            tmp
+        });
 
         let alive_snapshot: Vec<VarId> = self.alive.iter().copied().collect();
         for var in &alive_snapshot {
-            if self.moved.contains(var) || return_vars.contains(var) { continue; }
+            if self.moved.contains(var) { continue; }
             let ty = self.var_types[var].clone();
             let strategy = strategy_for(&ty, &self.struct_defs);
             for action in strategy.on_scope_end(*var, &ty) {
@@ -178,18 +174,19 @@ impl Ctx {
         }
         self.alive.clear();
 
+        let mir_value = ret_var
+            .map(|var| SMirLocal { var, ty: self.var_types[&var].clone(), moved: false }.into());
         stmts.push(SMirReturnStmt { value: mir_value }.into());
 
-        for var in &return_vars {
-            if self.moved.contains(var) { continue; }
-            let ty = self.var_types[var].clone();
-            let strategy = strategy_for(&ty, &self.struct_defs);
-            for action in strategy.on_scope_end(*var, &ty) {
-                stmts.push(action_to_stmt(*var, &ty, &action));
-            }
-        }
-
         stmts
+    }
+
+    /// 申请一个仅供编译器内部使用的临时局部变量（返回语句求值用）。
+    fn new_temp(&mut self, ty: HirType) -> VarId {
+        let id = VarId(self.mir_locals.len());
+        self.mir_locals.push(MirLocal::new(Symbol::intern("__ret"), ty.clone(), false));
+        self.var_types.insert(id, ty);
+        id
     }
 
     fn lower_if(

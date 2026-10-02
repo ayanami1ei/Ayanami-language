@@ -64,7 +64,7 @@ impl LirNode for SLirArraySized {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let count_str = ctx.value_ref(&self.elem_count, &HirType::Int);
-        let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
+        let alloc_fn = "__ayanami_unique_alloc";
         vec![
             format!("%t{} = add i64 0, {}", self.count_tmp, count_str),
             format!("%t{} = mul i64 %t{}, {}", self.size_tmp, self.count_tmp, self.elem_size),
@@ -95,7 +95,7 @@ impl LirNode for SLirArrayLit {
         let elem_llvm = ctx.llvm_type(&self.elem_ty);
         let elem_size_val = llvm_type_size(&self.elem_ty).parse::<u64>().unwrap_or(8);
         let total_size = num_elems as u64 * elem_size_val;
-        let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
+        let alloc_fn = "__ayanami_unique_alloc";
         lines.push(format!("%t{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, total_size));
         lines.push(format!("%t{} = bitcast i8* %t{} to ptr", self.dest, self.malloc_tmp));
         for (i, ((val, _fty), gep_tmp)) in self.elems.iter().zip(self.elem_geps.iter()).enumerate() {

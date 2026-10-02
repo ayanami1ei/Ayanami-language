@@ -1,0 +1,21 @@
+// P1 内存管理验证：unique 离开作用域后必须释放
+// 退出码 = 存活分配数，期望为 0
+extern "C" fn __ayanami_live_allocs() -> int;
+
+struct Point {
+    int x
+    int y
+}
+
+fn make() -> int {
+    p = Point { x = 1, y = 2 };
+    q = unique p;
+    r = Point { x = 3, y = 4 };
+    s = unique r;
+    return q.x + s.y;
+}
+
+fn main() -> int {
+    v = make();
+    return __ayanami_live_allocs();
+}

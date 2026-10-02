@@ -36,6 +36,28 @@ void __ayanami_shared_release(void *ptr) {
 }
 
 // ──────────────────────────────────────────────
+//  Unique ownership (Box-like)
+// ──────────────────────────────────────────────
+
+static int64_t live_allocs = 0;
+
+void *__ayanami_unique_alloc(size_t size) {
+    void *p = malloc(size);
+    if (p) live_allocs++;
+    return p;
+}
+
+void __ayanami_unique_free(void *ptr) {
+    if (!ptr) return;
+    live_allocs--;
+    free(ptr);
+}
+
+int64_t __ayanami_live_allocs(void) {
+    return live_allocs;
+}
+
+// ──────────────────────────────────────────────
 //  I/O
 // ──────────────────────────────────────────────
 

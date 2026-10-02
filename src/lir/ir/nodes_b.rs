@@ -65,8 +65,7 @@ impl LirNode for SLirConv {
                 } else {
                     src_val.clone()
                 };
-                let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
-                lines.push(format!("%l{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, size));
+                lines.push(format!("%l{} = call i8* @__ayanami_unique_alloc(i64 {})", self.malloc_tmp, size));
                 lines.push(format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)", self.malloc_tmp, src_ptr, size));
                 lines.push(format!("%t{} = bitcast i8* %l{} to {}", self.dest, self.malloc_tmp, ctx.llvm_type(&self.ty)));
             }
@@ -89,12 +88,7 @@ impl LirNode for SLirDropValue {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let mut lines = Vec::new();
-        if needs_heap_ops(&self.ty) {
-            let tmp = ctx.tmp();
-            let llvm_ty = ctx.llvm_type(&self.ty);
-            lines.push(format!("%c{} = load {}, ptr %v{}, align 8", tmp, llvm_ty, self.var.0));
-            lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
-        }
+        emit_drop_value(ctx, &format!("%v{}", self.var.0), &self.ty, &mut lines);
         lines
     }
     fn display(&self, f: &mut dyn Write) -> std::fmt::Result {

@@ -14,12 +14,10 @@ pub trait MemStrategy {
     fn on_assign_overwrite(&self, var: VarId, ty: &HirType) -> Vec<MemAction>;
 }
 
-pub mod value;
-pub mod unique;
+pub mod drop;
 pub mod shared;
-pub mod struct_strategy;
+pub mod value;
 
-pub use value::ValueStrategy;
-pub use unique::UniqueStrategy;
+pub use drop::DropStrategy;
 pub use shared::SharedStrategy;
-pub use struct_strategy::StructStrategy;
+pub use value::ValueStrategy;
