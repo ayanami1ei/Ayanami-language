@@ -367,7 +367,7 @@ fn emit_lcl_package(
     dep_lcl_paths: &[PathBuf],
     stem: &std::ffi::OsStr,
 ) -> Result<(), String> {
-    let mut pkg = crate::package::Package::new(stem.to_string_lossy().into_owned(), "0.1.0".into());
+    let mut pkg = crate::package::Package::new(stem.to_string_lossy().into_owned(), env!("CARGO_PKG_VERSION").into());
     pkg.collect_all_symbols(&program.stmts);
     merge_symbols(&mut pkg, dep_lcl_paths);
     pkg.lir_data = crate::lir::serialize::program_to_bytes(lir_program);
@@ -400,7 +400,7 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<(), String> {
         matches!(s, crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main")
     });
 
-    let mut pkg = crate::package::Package::new(exe_name, "0.1.0".into());
+    let mut pkg = crate::package::Package::new(exe_name, env!("CARGO_PKG_VERSION").into());
     pkg.target_types = if has_main {
         vec![
             crate::package::TargetType::Executable,
@@ -559,7 +559,7 @@ pub fn build_source_with_target(
     eprintln!("build ok: {}", output_path.display());
 
     let lcl_path = out_path.join(format!("{}.lcl", name));
-    let mut pkg = crate::package::Package::new(name.to_string(), "0.1.0".into());
+    let mut pkg = crate::package::Package::new(name.to_string(), env!("CARGO_PKG_VERSION").into());
     pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);
     pkg.collect_symbols(&compiled.program.stmts);
     merge_symbols(&mut pkg, &compiled.dep_lcl_paths);

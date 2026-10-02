@@ -956,18 +956,18 @@ src/main.rs:56: fn find_project(dir: &Path) -> Option<(PathBuf, String)>
 src/main.rs:71: fn project_entry(project_dir: &Path) -> Option<PathBuf>
 src/main.rs:80: fn resolve_path(arg: Option<&str>) -> PathBuf
 src/main.rs:108: fn cmd_new(args: &[String])
-src/main.rs:148: fn cmd_fmt(args: &[String])
-src/main.rs:181: fn do_check(path: &Path) -> Result<(), String>
-src/main.rs:192: fn cmd_check(args: &[String])
-src/main.rs:209: fn watch_file(path: &Path)
-src/main.rs:251: fn cmd_package(args: &[String])
-src/main.rs:264: fn cmd_install(args: &[String])
-src/main.rs:276: fn cmd_defs(args: &[String])
-src/main.rs:307: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
-src/main.rs:344: fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
-src/main.rs:353: fn cmd_clean()
-src/main.rs:366: fn cmd_build(args: &[String])
-src/main.rs:385: fn cmd_run(args: &[String])
+src/main.rs:149: fn cmd_fmt(args: &[String])
+src/main.rs:182: fn do_check(path: &Path) -> Result<(), String>
+src/main.rs:193: fn cmd_check(args: &[String])
+src/main.rs:210: fn watch_file(path: &Path)
+src/main.rs:252: fn cmd_package(args: &[String])
+src/main.rs:265: fn cmd_install(args: &[String])
+src/main.rs:277: fn cmd_defs(args: &[String])
+src/main.rs:308: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
+src/main.rs:345: fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
+src/main.rs:354: fn cmd_clean()
+src/main.rs:367: fn cmd_build(args: &[String])
+src/main.rs:386: fn cmd_run(args: &[String])
 src/mir/borrow.rs:6: pub fn check_borrows(mir_fn: &MirFn) -> Result<(), String>
 src/mir/borrow.rs:11: struct Borrow
 src/mir/borrow.rs:17: struct BorrowChecker<'a>

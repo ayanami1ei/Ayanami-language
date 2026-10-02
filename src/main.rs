@@ -132,8 +132,9 @@ fn cmd_new(args: &[String]) {
     });
     let toml = dir.join("ayanami.toml");
     fs::write(&toml, format!(
-        "[package]\nname = \"{}\"\nversion = \"0.1.0\"\n\n[build]\ntarget = \"executable\"\n\n[build.targets]\n# \"src/utils.aya\" = \"static-lib\"\n# \"src/plugin.aya\" = \"dynamic-lib\"\n",
-        name
+        "[package]\nname = \"{}\"\nversion = \"{}\"\n\n[build]\ntarget = \"executable\"\n\n[build.targets]\n# \"src/utils.aya\" = \"static-lib\"\n# \"src/plugin.aya\" = \"dynamic-lib\"\n",
+        name,
+        env!("CARGO_PKG_VERSION")
     )).unwrap_or_else(|e| {
         eprintln!("error: failed to write ayanami.toml: {}", e);
         std::process::exit(1);

@@ -73,6 +73,21 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 - `release`：**发布分支**，从发布点拉出，只做发布修复与版本合并；发布用标签 `vX.Y.Z` 标记。
 - `origin/master`、`origin/runtime`、`rust-old` 是旧实现/历史分支，不要在其上开发。
 
+## 版本号同步（必须一起改）
+
+权威版本号是 `Cargo.toml` 的 `version`，必须等于最新发布标签 `vX.Y.Z`。改版本时以下位置同步：
+
+| 位置 | 说明 |
+|---|---|
+| `Cargo.toml` | 权威版本号 |
+| `Cargo.lock` | 跑 `cargo check` 自动更新 |
+| `vscode-ayanami/package.json` | VSCode 插件版本 |
+| `std/ayanami.toml` | 标准库包版本 |
+| `README.md` | 安装产物文件名、ayanami.toml 示例 |
+
+- 编译器源码禁止硬编码版本号：已统一用 `env!("CARGO_PKG_VERSION")` 自动跟随（`src/compiler/build.rs`、`src/main.rs` 的 `new` 模板）。
+- 发布流程：改版本 → `cargo check` → 构建 vsix/tar 产物 → 提交 → 打 `vX.Y.Z` 标签 → 推送分支和标签。
+
 ## 语言与文档索引
 
 - 语言语法、类型系统、所有权（`shared`/`unique`/`weak`）、泛型、枚举布局、操作符重载：见 `README.md`。
