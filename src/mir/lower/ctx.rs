@@ -1,154 +1,8 @@
-use crate::intern::Symbol;
-use std::collections::{HashMap, HashSet};
-
-use crate::hir::ir::*;
-use crate::mir::ir::*;
-use crate::mir::mem::*;
-
-fn strategy_for(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Box<dyn MemStrategy> {
-    match ty {
-        HirType::Unique(_) => Box::new(UniqueStrategy),
-        HirType::Shared(_) => Box::new(SharedStrategy),
-        HirType::Weak(_) => Box::new(ValueStrategy),
-        HirType::Named(s) => {
-            // Named struct — generate cleanup for each field
-            if let Some(fields) = struct_defs.get(s) {
-                let actions: Vec<(usize, HirType)> = fields.iter().enumerate()
-                    .filter_map(|(i, (_, ft))| match ft {
-                        HirType::Shared(_) | HirType::Unique(_) => Some((i, ft.clone())),
-                        _ => None,
-                    })
-                    .collect();
-                if actions.is_empty() {
-                    Box::new(ValueStrategy)
-                } else {
-                    Box::new(StructStrategy { fields: actions })
-                }
-            } else {
-                Box::new(ValueStrategy)
-            }
-        }
-        _ => Box::new(ValueStrategy),
-    }
-}
-
-fn action_to_stmt(_var: VarId, ty: &HirType, action: &MemAction) -> MirStmtBox {
-    match action {
-        MemAction::Drop(v) => SMirDropStmt { var: *v, ty: ty.clone() }.into(),
-        MemAction::Retain(v) => SMirRetainStmt { var: *v, ty: ty.clone() }.into(),
-        MemAction::Release(v) => SMirReleaseStmt { var: *v, ty: ty.clone() }.into(),
-    }
-}
-
-pub fn lower_program(hir: &HirProgram) -> MirProgram {
-    let struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>> = hir.struct_defs.iter().map(|(name, fields)| {
-        (*name, fields.iter().map(|f| (f.name, f.ty.clone())).collect())
-    }).collect();
-    MirProgram {
-        items: hir.items.iter().flat_map(|item| lower_item(item, &struct_defs)).collect(),
-        vtables: hir.vtables.clone(),
-        struct_defs: struct_defs.clone(),
-        generic_struct_params: hir.generic_struct_params.clone(),
-        imported_fns: hir.imported_fns.iter().map(|f| crate::hir::ir::ImportedFnSig {
-            fn_id: f.fn_id,
-            name: f.name,
-            params: f.params.clone(),
-            return_type: f.return_type.clone(),
-        }).collect(),
-    }
-}
-
-fn lower_item(item: &HirItem, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Vec<MirItem> {
-    match item {
-        HirItem::Fn(f) => vec![MirItem::Fn(lower_fn(f, struct_defs))],
-        HirItem::StructDef(def) => vec![MirItem::StructDef {
-            name: def.name,
-            fields: def.fields.iter().map(|f| (f.name, f.ty.clone())).collect(),
-        }],
-        HirItem::Namespace { name, items } => {
-            let inner: Vec<MirItem> = items.iter().flat_map(|item| lower_item(item, struct_defs)).collect();
-            vec![MirItem::Namespace { name: *name, items: inner }]
-        }
-        HirItem::InterfaceDef { .. } => vec![],
-    }
-}
-
-fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> MirFn {
-    if f.extern_c {
-        return MirFn {
-            fn_id: f.fn_id,
-            name: f.name,
-            is_inline: f.is_inline,
-            extern_c: f.extern_c,
-            params: f.params.clone(),
-            return_type: f.return_type.clone(),
-            locals: vec![],
-            body: vec![],
-        };
-    }
-
-    let mut ctx = Ctx::new(f, struct_defs);
-
-    let mut body = Vec::new();
-    for stmt in &f.body.stmts {
-        let mut stmts = ctx.lower_stmt(stmt);
-        body.append(&mut stmts);
-    }
-
-    let mut cleanup = Vec::new();
-    let alive_snapshot: Vec<VarId> = ctx.alive.iter().copied().collect();
-    for var in &alive_snapshot {
-        if ctx.moved.contains(var) { continue; }
-        let ty = ctx.var_types[var].clone();
-        let strategy = strategy_for(&ty, struct_defs);
-        for action in strategy.on_scope_end(*var, &ty) {
-            cleanup.push(action_to_stmt(*var, &ty, &action));
-        }
-    }
-    body.append(&mut cleanup);
-
-    for var in &alive_snapshot {
-        if ctx.moved.contains(var) { continue; }
-        let ty = &ctx.var_types[var];
-        let inner = match ty {
-            HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
-            other => other,
-        };
-        if let HirType::Named(type_name) = inner {
-            if let Some(fields) = struct_defs.get(type_name) {
-                for (_, field_ty) in fields {
-                    match field_ty {
-                        HirType::Unique(inner_field) => {}
-                        HirType::Shared(inner_field) => {}
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-
-    MirFn {
-        fn_id: f.fn_id,
-        name: f.name,
-        is_inline: f.is_inline,
-        extern_c: f.extern_c,
-        params: f.params.clone(),
-        return_type: f.return_type.clone(),
-        locals: ctx.mir_locals,
-        body,
-    }
-}
-
-struct Ctx {
-    mir_locals: Vec<MirLocal>,
-    var_types: HashMap<VarId, HirType>,
-    alive: HashSet<VarId>,
-    moved: HashSet<VarId>,
-    struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
-}
+use super::*;
+use super::mem::{action_to_stmt, strategy_for};
 
 impl Ctx {
-    fn new(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Self {
+    pub(super) fn new(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Self {
         let mut var_types = HashMap::new();
         let mut mir_locals = Vec::new();
         for (i, local) in f.locals.iter().enumerate() {
@@ -181,7 +35,7 @@ impl Ctx {
         stmts
     }
 
-    fn lower_stmt(&mut self, stmt: &HirStmt) -> Vec<MirStmtBox> {
+    pub(super) fn lower_stmt(&mut self, stmt: &HirStmt) -> Vec<MirStmtBox> {
         self.track_stmt_moves(stmt);
         match stmt {
             HirStmt::Assign { target, value } => self.lower_assign(target, value),
