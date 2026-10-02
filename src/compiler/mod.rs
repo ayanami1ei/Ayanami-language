@@ -4,6 +4,8 @@ pub mod debug;
 pub mod import;
 pub mod symdef;
 
+use crate::error::{Error, Result};
+
 pub use build::{
     build_source, build_source_to, build_source_with_target, compile_file,
     install_package, package_source, run_executable,
@@ -90,7 +92,7 @@ impl CompilerPipeline {
     }
 
     /// 阶段一：词法分析 — 将源代码切分为 Token 流
-    pub fn lex(&mut self) -> Result<&mut Self, String> {
+    pub fn lex(&mut self) -> Result<&mut Self> {
         self.tokens = {
             let mut lexer = crate::lexer::Lexer::new(&self.code);
             let tokens = lexer.tokenize_all();
@@ -103,26 +105,29 @@ impl CompilerPipeline {
     }
 
     /// 阶段二：语法分析 — 将 Token 流解析为抽象语法树（AST）
-    pub fn parse(&mut self) -> Result<&mut Self, String> {
-        let program = crate::parser::parse_source(&self.code)
-            .map_err(|e| format!("Parse error: {}", e))?;
-        self.ast = Some(program);
+    pub fn parse(&mut self) -> Result<&mut Self> {
+        self.ast = Some(crate::parser::parse_source(&self.code)?);
         Ok(self)
     }
 
     /// 阶段三：HIR 降级 — 将 AST 降级为高级中间表示（HIR）
     /// 完成名称解析、类型解析、虚函数表构建、运算符重载处理
-    pub fn lower_hir(&mut self) -> Result<&mut Self, String> {
-        let program = self.ast.as_ref().ok_or("No AST available — call parse() first")?;
-        let hir_program = crate::hir::lower_program(program)
-            .map_err(|e| format!("HIR error: {}", e))?;
+    pub fn lower_hir(&mut self) -> Result<&mut Self> {
+        let program = self
+            .ast
+            .as_ref()
+            .ok_or_else(|| Error::Compile("No AST available — call parse() first".into()))?;
+        let hir_program = crate::hir::lower_program(program)?;
         self.hir = Some(hir_program);
         Ok(self)
     }
 
     /// HIR 返回检查：确保所有非 void 函数都有 return 语句
-    pub fn check_returns(&mut self) -> Result<&mut Self, String> {
-        let hir = self.hir.as_ref().ok_or("No HIR available — call lower_hir() first")?;
+    pub fn check_returns(&mut self) -> Result<&mut Self> {
+        let hir = self
+            .hir
+            .as_ref()
+            .ok_or_else(|| Error::Compile("No HIR available — call lower_hir() first".into()))?;
         let _ = crate::compiler::check_hir_returns(hir, std::path::Path::new(""));
         Ok(self)
     }
@@ -138,12 +143,14 @@ impl CompilerPipeline {
     }
 
     /// MIR 借用检查：确保没有悬垂引用和重复释放
-    pub fn check_borrows(&mut self) -> Result<&mut Self, String> {
-        let mir = self.mir.as_ref().ok_or("No MIR available — call lower_mir() first")?;
+    pub fn check_borrows(&mut self) -> Result<&mut Self> {
+        let mir = self
+            .mir
+            .as_ref()
+            .ok_or_else(|| Error::Compile("No MIR available — call lower_mir() first".into()))?;
         for item in &mir.items {
             if let crate::mir::ir::MirItem::Fn(f) = item {
-                crate::mir::borrow::check_borrows(f)
-                    .map_err(|e| format!("borrow error: {}", e))?;
+                crate::mir::borrow::check_borrows(f)?;
             }
         }
         Ok(self)
@@ -168,7 +175,7 @@ impl CompilerPipeline {
     }
 
     /// 一键编译：执行完整管线（lex → parse → lower_hir → lower_mir → lower_lir → emit）
-    pub fn compile(&mut self) -> Result<&mut Self, String> {
+    pub fn compile(&mut self) -> Result<&mut Self> {
         self.lex()?
             .parse()?
             .lower_hir()?
@@ -204,7 +211,7 @@ impl CompilerPipeline {
 }
 
 /// 从源代码直接编译（完整管线一次完成）
-pub fn compile_source(code: &str) -> Result<CompileResult, String> {
+pub fn compile_source(code: &str) -> Result<CompileResult> {
     let mut pipeline = CompilerPipeline::new(code);
     pipeline.compile()?;
     Ok(pipeline.result())
@@ -212,7 +219,7 @@ pub fn compile_source(code: &str) -> Result<CompileResult, String> {
 
 /// 检查源代码（词法分析 → 语法分析 → HIR → MIR → 借用检查）
 /// 不生成 LIR 或 LLVM IR，仅用于前端验证
-pub fn check_source(code: &str, _out_dir: &str) -> Result<(), String> {
+pub fn check_source(code: &str, _out_dir: &str) -> Result<()> {
     let mut pipeline = CompilerPipeline::new(code);
     pipeline
         .lex()?

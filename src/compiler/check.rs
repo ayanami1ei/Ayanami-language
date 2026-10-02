@@ -1,7 +1,8 @@
+use crate::error::{Error, Result};
 use crate::hir::ir::{HirItem, HirProgram, HirStmt};
 use std::path::Path;
 
-pub fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<(), String> {
+pub fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<()> {
     for item in &hir.items {
         if let HirItem::Fn(f) = item {
             if f.extern_c {
@@ -19,13 +20,13 @@ pub fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<(), String
                 } else {
                     (1, 1)
                 };
-                return Err(format!(
+                return Err(Error::Hir(format!(
                     "{}:{}:{}: error: function `{}` has non-void return type but no return statement",
                     src_path.display(),
                     ln,
                     col,
                     f.name
-                ));
+                )));
             }
         }
     }

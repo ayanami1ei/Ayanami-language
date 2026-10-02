@@ -4,23 +4,23 @@
 > 查询：rg "关键词" SYMBOLS.md
 
 ## Rust
-src/compiler/build.rs:13: pub fn compile_file(
-src/compiler/build.rs:133: fn parse_and_check(code: &str, src_path: &Path) -> Result<Program, String>
-src/compiler/build.rs:147: fn resolve_dependencies(
-src/compiler/build.rs:261: fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram, String>
-src/compiler/build.rs:277: fn merge_dep_struct_defs(
-src/compiler/build.rs:294: fn build_target_artifact(
-src/compiler/build.rs:324: fn merge_symbols(
-src/compiler/build.rs:363: fn emit_lcl_package(
-src/compiler/build.rs:380: pub fn package_source(src_path: &str, _code: &str) -> Result<(), String>
-src/compiler/build.rs:430: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<(), String>
-src/compiler/build.rs:475: pub fn build_source(src_path: &str, code: &str) -> Result<(), String>
-src/compiler/build.rs:480: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<(), String>
-src/compiler/build.rs:485: pub fn build_source_with_target(
-src/compiler/build.rs:586: pub fn run_executable(exe_name: &str) -> Result<i32, String>
-src/compiler/check.rs:4: pub fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<(), String>
-src/compiler/check.rs:35: fn has_return_in_item(item: &HirItem) -> bool
-src/compiler/check.rs:69: fn has_return_in_stmt(s: &HirStmt) -> bool
+src/compiler/build.rs:14: pub fn compile_file(
+src/compiler/build.rs:134: fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
+src/compiler/build.rs:148: fn resolve_dependencies(
+src/compiler/build.rs:262: fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram>
+src/compiler/build.rs:278: fn merge_dep_struct_defs(
+src/compiler/build.rs:295: fn build_target_artifact(
+src/compiler/build.rs:325: fn merge_symbols(
+src/compiler/build.rs:364: fn emit_lcl_package(
+src/compiler/build.rs:381: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
+src/compiler/build.rs:431: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build.rs:476: pub fn build_source(src_path: &str, code: &str) -> Result<()>
+src/compiler/build.rs:481: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
+src/compiler/build.rs:486: pub fn build_source_with_target(
+src/compiler/build.rs:587: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<()>
+src/compiler/check.rs:36: fn has_return_in_item(item: &HirItem) -> bool
+src/compiler/check.rs:70: fn has_return_in_stmt(s: &HirStmt) -> bool
 src/compiler/debug.rs:5: fn pad(n: usize) -> String
 src/compiler/debug.rs:9: fn format_type(ty: &Type) -> String
 src/compiler/debug.rs:41: fn format_op(op: &BinaryOp) -> &str
@@ -38,42 +38,42 @@ src/compiler/mod.rs:2: pub mod check;
 src/compiler/mod.rs:3: pub mod debug;
 src/compiler/mod.rs:4: pub mod import;
 src/compiler/mod.rs:5: pub mod symdef;
-src/compiler/mod.rs:21: pub struct CompiledFile
-src/compiler/mod.rs:33: pub struct CompileResult
-src/compiler/mod.rs:61: pub struct CompilerPipeline
-src/compiler/mod.rs:78: impl CompilerPipeline
-src/compiler/mod.rs:80: pub fn new(code: &str) -> Self
-src/compiler/mod.rs:93: pub fn lex(&mut self) -> Result<&mut Self, String>
-src/compiler/mod.rs:106: pub fn parse(&mut self) -> Result<&mut Self, String>
-src/compiler/mod.rs:115: pub fn lower_hir(&mut self) -> Result<&mut Self, String>
-src/compiler/mod.rs:124: pub fn check_returns(&mut self) -> Result<&mut Self, String>
-src/compiler/mod.rs:132: pub fn lower_mir(&mut self) -> &mut Self
-src/compiler/mod.rs:141: pub fn check_borrows(&mut self) -> Result<&mut Self, String>
-src/compiler/mod.rs:154: pub fn lower_lir(&mut self) -> &mut Self
-src/compiler/mod.rs:163: pub fn emit(&mut self) -> &mut Self
-src/compiler/mod.rs:171: pub fn compile(&mut self) -> Result<&mut Self, String>
-src/compiler/mod.rs:182: pub fn result(&self) -> CompileResult
-src/compiler/mod.rs:191: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
-src/compiler/mod.rs:196: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
-src/compiler/mod.rs:201: pub fn ast_program(&self) -> Option<&Program>
-src/compiler/mod.rs:207: pub fn compile_source(code: &str) -> Result<CompileResult, String>
-src/compiler/mod.rs:215: pub fn check_source(code: &str, _out_dir: &str) -> Result<(), String>
+src/compiler/mod.rs:23: pub struct CompiledFile
+src/compiler/mod.rs:35: pub struct CompileResult
+src/compiler/mod.rs:63: pub struct CompilerPipeline
+src/compiler/mod.rs:80: impl CompilerPipeline
+src/compiler/mod.rs:82: pub fn new(code: &str) -> Self
+src/compiler/mod.rs:95: pub fn lex(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:108: pub fn parse(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:115: pub fn lower_hir(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:126: pub fn check_returns(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:137: pub fn lower_mir(&mut self) -> &mut Self
+src/compiler/mod.rs:146: pub fn check_borrows(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:161: pub fn lower_lir(&mut self) -> &mut Self
+src/compiler/mod.rs:170: pub fn emit(&mut self) -> &mut Self
+src/compiler/mod.rs:178: pub fn compile(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:189: pub fn result(&self) -> CompileResult
+src/compiler/mod.rs:198: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
+src/compiler/mod.rs:203: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
+src/compiler/mod.rs:208: pub fn ast_program(&self) -> Option<&Program>
+src/compiler/mod.rs:214: pub fn compile_source(code: &str) -> Result<CompileResult>
+src/compiler/mod.rs:222: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
 src/compiler/symdef.rs:5: pub struct SymDef
 src/compiler/symdef.rs:14: pub fn collect_defs_from_stmts(
 src/compiler/symdef.rs:25: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
 src/compiler/symdef.rs:135: pub fn defs_to_json(defs: &[SymDef]) -> String
-src/driver/mod.rs:10: fn find_llc() -> Result<(PathBuf, PathBuf), String>
-src/driver/mod.rs:25: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), String>
-src/driver/mod.rs:58: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<(), String>
-src/driver/mod.rs:63: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<(), String>
-src/driver/mod.rs:76: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<(), String>
-src/driver/mod.rs:82: fn find_runtime_c() -> Result<String, String>
-src/driver/mod.rs:110: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<(), String>
-src/driver/mod.rs:125: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<(), String>
-src/driver/mod.rs:136: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<(), String>
-src/driver/mod.rs:153: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<(), String>
-src/driver/mod.rs:173: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), String>
-src/driver/mod.rs:178: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<(), String>
+src/driver/mod.rs:11: fn find_llc() -> Result<(PathBuf, PathBuf)>
+src/driver/mod.rs:26: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:59: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:64: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:77: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:83: fn find_runtime_c() -> Result<String>
+src/driver/mod.rs:111: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:126: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:137: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:154: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
+src/driver/mod.rs:174: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:179: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter.rs:7: const INDENT: &str = "    ";
@@ -939,28 +939,28 @@ src/lir/mod.rs:13: pub mod lower;
 src/lir/mod.rs:14: pub mod display;
 src/lir/mod.rs:15: pub mod emit;
 src/lir/mod.rs:16: pub mod serialize;
-src/lir/serialize.rs:10: pub fn program_to_bytes(p: &LirProgram) -> Vec<u8>
-src/lir/serialize.rs:71: pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram, String>
-src/lir/serialize.rs:144: fn put_inst(buf: &mut Vec<u8>, inst: &LirNodeBox)
-src/lir/serialize.rs:148: fn put_fn(buf: &mut Vec<u8>, f: &LirFn)
-src/lir/serialize.rs:177: struct Reader<'a>
-src/lir/serialize.rs:182: impl<'a> Reader<'a>
-src/lir/serialize.rs:183: fn read(&mut self, n: usize) -> Result<&'a [u8], String>
-src/lir/serialize.rs:191: fn u32(&mut self) -> Result<u32, String>
-src/lir/serialize.rs:195: fn u64(&mut self) -> Result<u64, String>
-src/lir/serialize.rs:199: fn str(&mut self) -> Result<String, String>
-src/lir/serialize.rs:204: fn ty(&mut self) -> Result<HirType, String>
-src/lir/serialize.rs:233: fn literal(&mut self) -> Result<HirLiteral, String>
-src/lir/serialize.rs:244: fn value(&mut self) -> Result<LirValue, String>
-src/lir/serialize.rs:254: fn inst(&mut self) -> Result<LirNodeBox, String>
-src/lir/serialize.rs:415: fn read_fn(&mut self) -> Result<LirFn, String>
+src/lir/serialize.rs:11: pub fn program_to_bytes(p: &LirProgram) -> Vec<u8>
+src/lir/serialize.rs:72: pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram>
+src/lir/serialize.rs:145: fn put_inst(buf: &mut Vec<u8>, inst: &LirNodeBox)
+src/lir/serialize.rs:149: fn put_fn(buf: &mut Vec<u8>, f: &LirFn)
+src/lir/serialize.rs:178: struct Reader<'a>
+src/lir/serialize.rs:183: impl<'a> Reader<'a>
+src/lir/serialize.rs:184: fn read(&mut self, n: usize) -> Result<&'a [u8]>
+src/lir/serialize.rs:192: fn u32(&mut self) -> Result<u32>
+src/lir/serialize.rs:196: fn u64(&mut self) -> Result<u64>
+src/lir/serialize.rs:200: fn str(&mut self) -> Result<String>
+src/lir/serialize.rs:205: fn ty(&mut self) -> Result<HirType>
+src/lir/serialize.rs:234: fn literal(&mut self) -> Result<HirLiteral>
+src/lir/serialize.rs:245: fn value(&mut self) -> Result<LirValue>
+src/lir/serialize.rs:255: fn inst(&mut self) -> Result<LirNodeBox>
+src/lir/serialize.rs:416: fn read_fn(&mut self) -> Result<LirFn>
 src/main.rs:19: fn main()
 src/main.rs:56: fn find_project(dir: &Path) -> Option<(PathBuf, String)>
 src/main.rs:71: fn project_entry(project_dir: &Path) -> Option<PathBuf>
 src/main.rs:80: fn resolve_path(arg: Option<&str>) -> PathBuf
 src/main.rs:108: fn cmd_new(args: &[String])
 src/main.rs:149: fn cmd_fmt(args: &[String])
-src/main.rs:182: fn do_check(path: &Path) -> Result<(), String>
+src/main.rs:182: fn do_check(path: &Path) -> ayanami::error::Result<()>
 src/main.rs:193: fn cmd_check(args: &[String])
 src/main.rs:210: fn watch_file(path: &Path)
 src/main.rs:252: fn cmd_package(args: &[String])
@@ -1091,24 +1091,24 @@ src/package/config.rs:14: pub fn load(toml_content: &str) -> Self
 src/package/config.rs:60: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
 src/package/config.rs:77: pub fn resolve_target(&self, file_path: &Path) -> &str
 src/package/mod.rs:1: pub mod config;
-src/package/mod.rs:7: pub enum TargetType
-src/package/mod.rs:13: impl TargetType
-src/package/mod.rs:14: pub fn as_str(&self) -> &'static str
-src/package/mod.rs:22: pub fn from_str(s: &str) -> Option<Self>
-src/package/mod.rs:33: pub struct Package
-src/package/mod.rs:43: pub enum PackageSymbol
-src/package/mod.rs:59: impl Package
-src/package/mod.rs:60: pub fn new(name: String, version: String) -> Self
-src/package/mod.rs:73: pub fn collect_symbols(&mut self, stmts: &[Stmt])
-src/package/mod.rs:78: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
-src/package/mod.rs:82: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
-src/package/mod.rs:88: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
-src/package/mod.rs:192: pub fn to_bytes(&self) -> Vec<u8>
-src/package/mod.rs:252: pub fn write_to_file(&self, path: &str) -> Result<(), String>
-src/package/mod.rs:260: pub enum ImportedSymbol
-src/package/mod.rs:277: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>), String>
-src/package/mod.rs:345: fn parse_ini_value(s: &str) -> String
-src/package/mod.rs:354: fn type_to_string(ty: &Type) -> String
+src/package/mod.rs:8: pub enum TargetType
+src/package/mod.rs:14: impl TargetType
+src/package/mod.rs:15: pub fn as_str(&self) -> &'static str
+src/package/mod.rs:23: pub fn from_str(s: &str) -> Option<Self>
+src/package/mod.rs:34: pub struct Package
+src/package/mod.rs:44: pub enum PackageSymbol
+src/package/mod.rs:60: impl Package
+src/package/mod.rs:61: pub fn new(name: String, version: String) -> Self
+src/package/mod.rs:74: pub fn collect_symbols(&mut self, stmts: &[Stmt])
+src/package/mod.rs:79: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
+src/package/mod.rs:83: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
+src/package/mod.rs:89: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
+src/package/mod.rs:193: pub fn to_bytes(&self) -> Vec<u8>
+src/package/mod.rs:253: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/mod.rs:261: pub enum ImportedSymbol
+src/package/mod.rs:278: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
+src/package/mod.rs:346: fn parse_ini_value(s: &str) -> String
+src/package/mod.rs:355: fn type_to_string(ty: &Type) -> String
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:5: pub struct Block
 src/parser/ast/block.rs:10: impl Block

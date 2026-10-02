@@ -1,5 +1,6 @@
 pub mod config;
 
+use crate::error::{Error, Result};
 use crate::parser::ast::{Stmt, Type};
 
 /// What kind of artifact this package can produce.
@@ -249,9 +250,9 @@ impl Package {
         buf
     }
 
-    pub fn write_to_file(&self, path: &str) -> Result<(), String> {
+    pub fn write_to_file(&self, path: &str) -> Result<()> {
         std::fs::write(path, self.to_bytes())
-            .map_err(|e| format!("failed to write package: {}", e))
+            .map_err(|e| Error::Package(format!("failed to write package: {}", e)))
     }
 }
 
@@ -274,9 +275,9 @@ pub enum ImportedSymbol {
 }
 
 /// Parse a .lcl file and return the imported symbols, generic sources, LIR (binary), and target types.
-pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>), String> {
+pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)> {
     let data = std::fs::read(path)
-        .map_err(|e| format!("failed to read package '{}': {}", path, e))?;
+        .map_err(|e| Error::Package(format!("failed to read package '{}': {}", path, e)))?;
 
     // Find ===LIR=== marker in raw bytes (before UTF-8 decoding)
     let marker = b"===LIR===\n";
@@ -290,7 +291,7 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
 
     // Decode INI portion as UTF-8
     let body_str = std::str::from_utf8(ini_bytes)
-        .map_err(|e| format!("invalid UTF-8 in package INI: {}", e))?;
+        .map_err(|e| Error::Package(format!("invalid UTF-8 in package INI: {}", e)))?;
 
     let mut symbols = Vec::new();
     let mut sources = Vec::new();

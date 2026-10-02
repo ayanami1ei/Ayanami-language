@@ -1,3 +1,4 @@
+use crate::error::{Error, Result};
 use crate::hir::ir::{FnId, HirLiteral, HirType, VarId};
 use crate::intern::Symbol;
 use crate::mir::ir::MirLocal;
@@ -68,9 +69,9 @@ pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
 }
 
 /// Deserialize LirProgram from binary.
-pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram, String> {
+pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
     if data.len() < 4 || &data[0..4] != b"LIR2" {
-        return Err("invalid LIR data".into());
+        return Err(Error::Serialize("invalid LIR data".into()));
     }
     let mut pos = 4;
     let mut r = Reader { data, pos: &mut pos };
@@ -180,28 +181,28 @@ struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
-    fn read(&mut self, n: usize) -> Result<&'a [u8], String> {
+    fn read(&mut self, n: usize) -> Result<&'a [u8]> {
         if *self.pos + n > self.data.len() {
-            return Err("unexpected EOF".into());
+            return Err(Error::Serialize("unexpected EOF".into()));
         }
         let slice = &self.data[*self.pos..*self.pos + n];
         *self.pos += n;
         Ok(slice)
     }
-    fn u32(&mut self) -> Result<u32, String> {
+    fn u32(&mut self) -> Result<u32> {
         let b = self.read(4)?;
         Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     }
-    fn u64(&mut self) -> Result<u64, String> {
+    fn u64(&mut self) -> Result<u64> {
         let b = self.read(8)?;
         Ok(u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]))
     }
-    fn str(&mut self) -> Result<String, String> {
+    fn str(&mut self) -> Result<String> {
         let len = self.u32()? as usize;
         let b = self.read(len)?;
-        Ok(String::from_utf8(b.to_vec()).map_err(|e| format!("invalid string: {}", e))?)
+        Ok(String::from_utf8(b.to_vec()).map_err(|e| Error::Serialize(format!("invalid string: {}", e)))?)
     }
-    fn ty(&mut self) -> Result<HirType, String> {
+    fn ty(&mut self) -> Result<HirType> {
         let tag = self.read(1)?[0];
         match tag {
             0 => Ok(HirType::Int),
@@ -227,10 +228,10 @@ impl<'a> Reader<'a> {
                 let ret = Box::new(self.ty()?);
                 Ok(HirType::FnPtr(params, ret))
             }
-            _ => Err(format!("unknown type tag: {}", tag)),
+            _ => Err(Error::Serialize(format!("unknown type tag: {}", tag))),
         }
     }
-    fn literal(&mut self) -> Result<HirLiteral, String> {
+    fn literal(&mut self) -> Result<HirLiteral> {
         let tag = self.read(1)?[0];
         match tag {
             0 => Ok(HirLiteral::Int(self.u64()? as i64)),
@@ -238,20 +239,20 @@ impl<'a> Reader<'a> {
             2 => Ok(HirLiteral::Char(char::from_u32(self.u32()?).unwrap_or('\0'))),
             3 => Ok(HirLiteral::String(self.str()?)),
             4 => Ok(HirLiteral::Bool(self.read(1)?[0] != 0)),
-            _ => Err(format!("unknown literal tag: {}", tag)),
+            _ => Err(Error::Serialize(format!("unknown literal tag: {}", tag))),
         }
     }
-    fn value(&mut self) -> Result<LirValue, String> {
+    fn value(&mut self) -> Result<LirValue> {
         let tag = self.read(1)?[0];
         match tag {
             0 => Ok(LirValue::Var(VarId(self.u32()? as usize))),
             1 => Ok(LirValue::Tmp(self.u64()?)),
             2 => Ok(LirValue::Param(self.u64()?)),
             3 => { let l = self.literal()?; let t = self.ty()?; Ok(LirValue::Literal(l, t)) }
-            _ => Err(format!("unknown value tag: {}", tag)),
+            _ => Err(Error::Serialize(format!("unknown value tag: {}", tag))),
         }
     }
-    fn inst(&mut self) -> Result<LirNodeBox, String> {
+    fn inst(&mut self) -> Result<LirNodeBox> {
         let tag = self.read(1)?[0];
         match tag {
             0 => Ok(SLirAlloca { var: VarId(self.u32()? as usize), ty: self.ty()? }.into()),
@@ -269,12 +270,12 @@ impl<'a> Reader<'a> {
             }
             3 => {
                 let d = self.u64()?; let o = self.u32()?; let l = self.value()?; let r = self.value()?; let t = self.ty()?; let rt = self.ty()?;
-                let op = match o { 0 => BinaryOp::Add, 1 => BinaryOp::Sub, 2 => BinaryOp::Mul, 3 => BinaryOp::Div, 4 => BinaryOp::Mod, 5 => BinaryOp::Eq, 6 => BinaryOp::Neq, 7 => BinaryOp::Lt, 8 => BinaryOp::Gt, 9 => BinaryOp::Le, 10 => BinaryOp::Ge, 11 => BinaryOp::And, 12 => BinaryOp::Or, _ => return Err("unknown BinaryOp".into()) };
+                let op = match o { 0 => BinaryOp::Add, 1 => BinaryOp::Sub, 2 => BinaryOp::Mul, 3 => BinaryOp::Div, 4 => BinaryOp::Mod, 5 => BinaryOp::Eq, 6 => BinaryOp::Neq, 7 => BinaryOp::Lt, 8 => BinaryOp::Gt, 9 => BinaryOp::Le, 10 => BinaryOp::Ge, 11 => BinaryOp::And, 12 => BinaryOp::Or, _ => return Err(Error::Serialize("unknown BinaryOp".into())) };
                 Ok(SLirBinOp { dest: d, op, lhs: l, rhs: r, ty: t, result_ty: rt }.into())
             }
             4 => {
                 let d = self.u64()?; let o = self.u32()?; let s = self.value()?; let t = self.ty()?;
-                let op = match o { 0 => crate::parser::ast::UnaryOp::Neg, 1 => crate::parser::ast::UnaryOp::Not, _ => return Err("unknown UnaryOp".into()) };
+                let op = match o { 0 => crate::parser::ast::UnaryOp::Neg, 1 => crate::parser::ast::UnaryOp::Not, _ => return Err(Error::Serialize("unknown UnaryOp".into())) };
                 Ok(SLirUnaryOp { dest: d, op, src: s, ty: t }.into())
             }
             5 => {
@@ -291,7 +292,7 @@ impl<'a> Reader<'a> {
             7 => {
                 let d = self.u64()?; let at = self.u64()?; let mt = self.u64()?;
                 let s = self.value()?; let k = self.u32()?; let st = self.ty()?; let t = self.ty()?;
-                let kind = match k { 0 => ConvKind::ToUnique, 1 => ConvKind::ToShared, 2 => ConvKind::ToWeak, _ => return Err("unknown ConvKind".into()) };
+                let kind = match k { 0 => ConvKind::ToUnique, 1 => ConvKind::ToShared, 2 => ConvKind::ToWeak, _ => return Err(Error::Serialize("unknown ConvKind".into())) };
                 Ok(SLirConv { dest: d, alloca_tmp: at, malloc_tmp: mt, src: s, kind, src_ty: st, ty: t }.into())
             }
             8 => Ok(SLirDropValue { var: VarId(self.u32()? as usize), ty: self.ty()? }.into()),
@@ -409,10 +410,10 @@ impl<'a> Reader<'a> {
                 let fid = FnId(self.u32()? as usize);
                 Ok(SLirFnAddr { dest: d, fn_id: fid }.into())
             }
-            _ => Err(format!("unknown inst tag: {}", tag)),
+            _ => Err(Error::Serialize(format!("unknown inst tag: {}", tag))),
         }
     }
-    fn read_fn(&mut self) -> Result<LirFn, String> {
+    fn read_fn(&mut self) -> Result<LirFn> {
         let fid = FnId(self.u32()? as usize);
         let is_inline = self.read(1)?[0] != 0;
         let extern_c = self.read(1)?[0] != 0;

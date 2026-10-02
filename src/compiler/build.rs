@@ -1,3 +1,4 @@
+use crate::error::{Error, Result};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,13 +18,13 @@ pub fn compile_file(
     compiling: &mut HashSet<PathBuf>,
     cache: &mut HashMap<PathBuf, CompiledFile>,
     target_override: Option<&str>,
-) -> Result<CompiledFile, String> {
+) -> Result<CompiledFile> {
     let canonical = src_path
         .canonicalize()
-        .map_err(|e| format!("cannot resolve '{}': {}", src_path.display(), e))?;
+        .map_err(|e| Error::Import(format!("cannot resolve '{}': {}", src_path.display(), e)))?;
 
     if compiling.contains(&canonical) {
-        return Err(format!("circular import detected: {}", src_path.display()));
+        return Err(Error::CircularImport { path: canonical.clone() });
     }
 
     if let Some(cached) = cache.get(&canonical) {
@@ -50,7 +51,7 @@ pub fn compile_file(
     compiling.insert(canonical.clone());
 
     let code = fs::read_to_string(src_path)
-        .map_err(|e| format!("failed to read '{}': {}", src_path.display(), e))?;
+        .map_err(|e| Error::Compile(format!("failed to read '{}': {}", src_path.display(), e)))?;
 
     let program = parse_and_check(&code, src_path)?;
 
@@ -71,7 +72,7 @@ pub fn compile_file(
     let lcl_path = out_dir.join(stem).with_extension("lcl");
 
     crate::driver::ir_to_object(&llvm_ir, &own_obj)
-        .map_err(|e| format!("llc failed for {}: {}", src_path.display(), e))?;
+        .map_err(|e| Error::Compile(format!("llc failed for {}: {}", src_path.display(), e)))?;
 
     build_target_artifact(
         target_override,
@@ -130,7 +131,7 @@ pub fn compile_file(
     Ok(result)
 }
 
-fn parse_and_check(code: &str, src_path: &Path) -> Result<Program, String> {
+fn parse_and_check(code: &str, src_path: &Path) -> Result<Program> {
     let mut lexer = crate::lexer::Lexer::new(code);
     let tokens = lexer.tokenize_all();
     let filtered: Vec<_> = tokens
@@ -141,7 +142,7 @@ fn parse_and_check(code: &str, src_path: &Path) -> Result<Program, String> {
     let mut parser = crate::parser::Parser::new(filtered);
     parser
         .parse_program()
-        .map_err(|e| format!("{}: error: {}", src_path.display(), e))
+        .map_err(|e| Error::Compile(format!("{}: {}", src_path.display(), e)))
 }
 
 fn resolve_dependencies(
@@ -151,7 +152,7 @@ fn resolve_dependencies(
     compiling: &mut HashSet<PathBuf>,
     cache: &mut HashMap<PathBuf, CompiledFile>,
     program: &Program,
-) -> Result<(Vec<PathBuf>, Vec<String>, Vec<PathBuf>, Vec<Stmt>), String> {
+) -> Result<(Vec<PathBuf>, Vec<String>, Vec<PathBuf>, Vec<Stmt>)> {
     let mut dep_obj_paths = Vec::new();
     let mut dep_link_flags = Vec::new();
     let mut dep_lcl_paths = Vec::new();
@@ -167,11 +168,11 @@ fn resolve_dependencies(
                     if direct.exists() {
                         direct
                     } else {
-                        return Err(format!(
+                        return Err(Error::Compile(format!(
                             "cannot resolve import '{}' from {}: not found",
                             path,
                             base_dir.display()
-                        ));
+                        )));
                     }
                 }
             };
@@ -237,7 +238,7 @@ fn resolve_dependencies(
                                 {
                                     let llvm_ir = crate::lir::emit_program(&lir_prog);
                                     crate::driver::ir_to_object(&llvm_ir, &o_path)
-                                        .map_err(|e| format!("llc failed for {}: {}", path.display(), e))?;
+                                        .map_err(|e| Error::Compile(format!("llc failed for {}: {}", path.display(), e)))?;
                                 }
                             }
                         }
@@ -258,9 +259,9 @@ fn resolve_dependencies(
     Ok((dep_obj_paths, dep_link_flags, dep_lcl_paths, new_stmts))
 }
 
-fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram, String> {
+fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram> {
     let hir_program = crate::hir::lower_program(&program)
-        .map_err(|e| format!("{}: error: {}", src_path.display(), e))?;
+        .map_err(|e| Error::Compile(format!("{}: {}", src_path.display(), e)))?;
 
     check_hir_returns(&hir_program, src_path)?;
 
@@ -268,7 +269,7 @@ fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::Li
     for item in &mir_program.items {
         if let crate::mir::ir::MirItem::Fn(f) = item {
             crate::mir::borrow::check_borrows(f)
-                .map_err(|e| format!("{}: borrow error: {}", src_path.display(), e))?;
+                .map_err(|e| Error::Compile(format!("{}: {}", src_path.display(), e)))?;
         }
     }
     Ok(crate::lir::lower_program(&mir_program))
@@ -298,7 +299,7 @@ fn build_target_artifact(
     own_obj: &Path,
     out_dir: &Path,
     stem: &std::ffi::OsStr,
-) -> Result<(), String> {
+) -> Result<()> {
     if dep_obj_paths.is_empty() && dep_link_flags.is_empty() {
         let target = target_override.unwrap_or("static-lib");
         let stem_str = stem.to_string_lossy();
@@ -366,18 +367,18 @@ fn emit_lcl_package(
     lcl_path: &Path,
     dep_lcl_paths: &[PathBuf],
     stem: &std::ffi::OsStr,
-) -> Result<(), String> {
+) -> Result<()> {
     let mut pkg = crate::package::Package::new(stem.to_string_lossy().into_owned(), env!("CARGO_PKG_VERSION").into());
     pkg.collect_all_symbols(&program.stmts);
     merge_symbols(&mut pkg, dep_lcl_paths);
     pkg.lir_data = crate::lir::serialize::program_to_bytes(lir_program);
     pkg.write_to_file(&lcl_path.to_string_lossy())
-        .map_err(|e| format!("package write failed for {}: {}", lcl_path.display(), e))?;
+        .map_err(|e| Error::Compile(format!("package write failed for {}: {}", lcl_path.display(), e)))?;
     Ok(())
 }
 
 /// Package a source file into a .lcl (LIR + symbols + metadata), no executable.
-pub fn package_source(src_path: &str, _code: &str) -> Result<(), String> {
+pub fn package_source(src_path: &str, _code: &str) -> Result<()> {
     let path = std::path::Path::new(src_path);
     let base_dir = path.parent().unwrap_or(std::path::Path::new("."));
     let tmp_dir = std::env::temp_dir().join(format!("ayanami_pkg_{}", std::process::id()));
@@ -419,7 +420,7 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<(), String> {
 
     let lcl_name = format!("{}.lcl", src_path.strip_suffix(".aya").unwrap_or(src_path));
     pkg.write_to_file(&lcl_name)
-        .map_err(|e| format!("package write failed: {}", e))?;
+        .map_err(|e| Error::Compile(format!("package write failed: {}", e)))?;
     eprintln!("package: {}", lcl_name);
 
     std::fs::remove_dir_all(&tmp_dir).ok();
@@ -427,12 +428,12 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<(), String> {
 }
 
 /// Install a .lcl package: read LIR, emit LLVM IR, build executable or library.
-pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<(), String> {
+pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()> {
     let (_, _, lir_binary, target_types) =
-        crate::package::load_package(lcl_path).map_err(|e| format!("failed to load package: {}", e))?;
+        crate::package::load_package(lcl_path).map_err(|e| Error::Compile(format!("failed to load package: {}", e)))?;
 
     let lir_program = crate::lir::serialize::program_from_bytes(&lir_binary)
-        .map_err(|e| format!("failed to deserialize LIR: {}", e))?;
+        .map_err(|e| Error::Compile(format!("failed to deserialize LIR: {}", e)))?;
 
     let llvm_ir = crate::lir::emit_program(&lir_program);
 
@@ -445,7 +446,7 @@ pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<(), 
     let tt = target_type
         .and_then(|s| crate::package::TargetType::from_str(s))
         .or_else(|| target_types.first().copied())
-        .ok_or_else(|| "no target type specified and none in package".to_string())?;
+        .ok_or_else(|| Error::Compile("no target type specified and none in package".into()))?;
 
     match tt {
         crate::package::TargetType::Executable => {
@@ -472,12 +473,12 @@ pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<(), 
 }
 
 /// Build a source file into an executable, generating a .lcl package alongside.
-pub fn build_source(src_path: &str, code: &str) -> Result<(), String> {
+pub fn build_source(src_path: &str, code: &str) -> Result<()> {
     build_source_to(src_path, code, "build")
 }
 
 /// Build with explicit output directory, using recursive import compilation.
-pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<(), String> {
+pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()> {
     build_source_with_target(src_path, _code, out_dir, None)
 }
 
@@ -487,10 +488,10 @@ pub fn build_source_with_target(
     _code: &str,
     out_dir: &str,
     target_override: Option<&str>,
-) -> Result<(), String> {
+) -> Result<()> {
     let out_path = Path::new(out_dir);
     std::fs::create_dir_all(out_path)
-        .map_err(|e| format!("failed to create output dir '{}': {}", out_dir, e))?;
+        .map_err(|e| Error::Compile(format!("failed to create output dir '{}': {}", out_dir, e)))?;
 
     let src_path = Path::new(src_path);
     let base_dir = src_path.parent().unwrap_or(Path::new("."));
@@ -522,7 +523,7 @@ pub fn build_source_with_target(
                 &compiled.link_flags,
                 &exe_path,
             )
-            .map_err(|e| format!("link failed: {}", e))?;
+            .map_err(|e| Error::Compile(format!("link failed: {}", e)))?;
             exe_path
         }
         "static-lib" => {
@@ -536,9 +537,9 @@ pub fn build_source_with_target(
                 for o in &compiled.obj_paths {
                     cmd.arg(o);
                 }
-                let status = cmd.status().map_err(|e| format!("failed to run ar: {}", e))?;
+                let status = cmd.status().map_err(|e| Error::Compile(format!("failed to run ar: {}", e)))?;
                 if !status.success() {
-                    return Err("ar failed".into());
+                    return Err(Error::Compile("ar failed".into()));
                 }
             }
             lib_path
@@ -553,7 +554,7 @@ pub fn build_source_with_target(
             }
             so_path
         }
-        _ => return Err(format!("unknown target type: {}", target)),
+        _ => return Err(Error::Compile(format!("unknown target type: {}", target))),
     };
 
     eprintln!("build ok: {}", output_path.display());
@@ -576,14 +577,14 @@ pub fn build_source_with_target(
         ]
     };
     pkg.write_to_file(&lcl_path.to_string_lossy())
-        .map_err(|e| format!("package write failed: {}", e))?;
+        .map_err(|e| Error::Compile(format!("package write failed: {}", e)))?;
     eprintln!("package: {}", lcl_path.display());
 
     Ok(())
 }
 
 /// Run a built executable.  Looks in `build/` first, then cwd.
-pub fn run_executable(exe_name: &str) -> Result<i32, String> {
+pub fn run_executable(exe_name: &str) -> Result<i32> {
     let build_path = format!("build/{}", exe_name);
     let exe_path = if std::path::Path::new(&build_path).exists() {
         build_path
@@ -593,6 +594,6 @@ pub fn run_executable(exe_name: &str) -> Result<i32, String> {
     eprintln!("running: {}", exe_path);
     let status = std::process::Command::new(&exe_path)
         .status()
-        .map_err(|e| format!("failed to run '{}': {}", exe_path, e))?;
+        .map_err(|e| Error::Compile(format!("failed to run '{}': {}", exe_path, e)))?;
     Ok(status.code().unwrap_or(-1))
 }
