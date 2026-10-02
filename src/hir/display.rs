@@ -166,6 +166,10 @@ fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}Assume", p)?;
             write_expr(cond, level + 1, w)?;
         }
+        HirStmt::Require { cond, line, col } => {
+            writeln!(w, "{}Require({}:{})", p, line, col)?;
+            write_expr(cond, level + 1, w)?;
+        }
         HirStmt::Block(stmts) => {
             writeln!(w, "{}Block {{", p)?;
             for s in stmts {

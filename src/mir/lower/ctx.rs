@@ -77,6 +77,12 @@ impl Ctx {
                 cond.record_moves(&mut self.moved);
                 vec![SMirAssumeStmt { cond: cond.lower_to_mir(&self.moved) }.into()]
             }
+            HirStmt::Require { cond, line, col } => {
+                cond.record_moves(&mut self.moved);
+                vec![SMirRequireStmt {
+                    cond: cond.lower_to_mir(&self.moved), line: *line as u64, col: *col as u64,
+                }.into()]
+            }
         }
     }
 
@@ -100,6 +106,7 @@ impl Ctx {
             HirStmt::Break | HirStmt::Continue => {}
             HirStmt::Expr(expr) => expr.record_moves(&mut self.moved),
             HirStmt::Assume(cond) => cond.record_moves(&mut self.moved),
+            HirStmt::Require { cond, .. } => cond.record_moves(&mut self.moved),
             HirStmt::Block(stmts) => { for s in stmts { self.track_stmt_moves(s); } }
         }
     }

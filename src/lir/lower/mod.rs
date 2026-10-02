@@ -11,6 +11,7 @@ mod ctx;
 mod fn_lower;
 mod mir_expr;
 mod mir_expr2;
+mod mir_contract;
 mod mir_stmts;
 mod names;
 mod strings;

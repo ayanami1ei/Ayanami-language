@@ -1,0 +1,13 @@
+// A2d：前置条件（默认运行检查；AYANAMI_CHECKS=0 退化为 llvm.assume）
+#[requires(n > 0)]
+fn dec(int n) -> int { return n - 1 }
+
+#[requires(x >= 0)]
+#[requires(x < 100)]
+fn clamp100(int x) -> int { return x }
+
+fn main() -> int {
+    a = dec(5)
+    b = clamp100(50)
+    return a - 4 + b - 50
+}

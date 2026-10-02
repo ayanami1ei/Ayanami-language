@@ -106,6 +106,32 @@ impl LirNode for SLirAssume {
     }
 }
 
+impl LirNode for SLirRequireCheck {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "RequireCheck" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let c = ctx.value_ref(&self.cond, &HirType::Bool);
+        let t = ctx.tmp();
+        vec![
+            format!("br i1 {}, label %contract_ok_{}, label %contract_fail_{}", c, t, t),
+            format!("contract_fail_{}:", t),
+            format!("call void @__ayanami_require_fail(i64 {}, i64 {})", self.line, self.col),
+            "unreachable".to_string(),
+            format!("contract_ok_{}:", t),
+        ]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    require({}:{}) {:?}", self.line, self.col, self.cond)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(29);
+        put_value(buf, &self.cond);
+        put_u64(buf, self.line);
+        put_u64(buf, self.col);
+    }
+}
+
 impl LirNode for SLirRet {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "Ret" }

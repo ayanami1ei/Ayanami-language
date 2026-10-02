@@ -36,6 +36,8 @@ pub enum HirStmt {
     Expr(HirNodeBox),
     /// A2c：`#[assume(cond)]` → llvm.assume
     Assume(HirNodeBox),
+    /// A2d：`#[requires(cond)]` 运行检查（失败 abort 并报位置）
+    Require { cond: HirNodeBox, line: usize, col: usize },
     Block(Vec<HirStmt>),
 }
 

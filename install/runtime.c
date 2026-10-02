@@ -30,6 +30,20 @@ int64_t __ayanami_live_allocs(void) {
 }
 
 // ──────────────────────────────────────────────
+//  Contracts (A2d)
+// ──────────────────────────────────────────────
+
+void __ayanami_require_fail(int64_t line, int64_t col) {
+    fprintf(stderr, "requires failed at %ld:%ld\n", (long)line, (long)col);
+    abort();
+}
+
+void __ayanami_ensure_fail(int64_t line, int64_t col) {
+    fprintf(stderr, "ensures failed at %ld:%ld\n", (long)line, (long)col);
+    abort();
+}
+
+// ──────────────────────────────────────────────
 //  I/O
 // ──────────────────────────────────────────────
 

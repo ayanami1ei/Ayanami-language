@@ -105,8 +105,8 @@ extern "C" fn strlen(unique [char] s) -> int;
 ## 5. 条件与契约（A2）
 
 - `#[cfg(target = "linux")]`：编译期裁剪 item；已实现（A2b）。
-- `#[requires(cond)]`：函数前置条件。debug 构建插入运行检查（失败 abort 并报位置）；
-  release 构建转为 `llvm.assume`（可被优化器利用）。
+- `#[requires(cond)]`：函数前置条件（已实现运行检查，A2d）。默认插入运行检查
+  （失败打印位置并 abort）；`AYANAMI_CHECKS=0` 时转为 `llvm.assume`。
 - `#[ensures(cond)]`：后置条件，`result` 绑定返回值。
 - `#[invariant(cond)]`：循环不变式（语句级标注），debug 每轮校验、release `llvm.assume`。
 - `#[assume(cond)]`：无条件向优化器声明事实（已实现，A2c）。
@@ -121,6 +121,16 @@ extern "C" fn strlen(unique [char] s) -> int;
 - `AttrArg::Expr(expr)`：任意表达式（`requires(x > 0)`、`inline(always)`），
   由手写解析器 `parse_attr_arg` 解析，formatter 往返保真；
 - LIR 侧经 `lir/lower/util.rs::attrs_to_lir` 渲染为字符串，`LirAttr` 格式不变。
+
+### A2d `#[requires]`（已完成运行检查，2026-10）
+
+- 校验与 assume 同规（恰好一个表达式实参；bool 或比较运算）；
+- 链路：`HirStmt::Require` → `SMirRequireStmt` → `SLirRequireCheck`（tag 29）→
+  `br i1 %c, label %contract_ok_N, label %contract_fail_N`；失败分支调用
+  `__ayanami_require_fail(line, col)`（runtime.c，noreturn，打印 `requires failed at L:C` 后 abort）；
+- `AYANAMI_CHECKS=0`：退化为 `llvm.assume`（发布语义）；
+- `example/test_requires.aya`（含多条件）；违反契约时退出码为 SIGABRT。
+- `ensures`/`invariant` 待后续；当前无独立 debug/release 模式，以 `AYANAMI_CHECKS` 区分。
 
 ### A2c `#[assume]`（已完成，2026-10）
 
@@ -222,7 +232,9 @@ struct Holder['a] {
 - [x] A2a 标注实参结构化（`AttrArg`：`key = value` / 表达式），formatter 保真
 - [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致）
 - [x] `#[assume(cond)]` → `llvm.assume`（A2c）
-- [ ] `#[requires]`/`#[ensures]` + debug/release 模式（运行检查 vs assume）
+- [x] `#[requires]` 运行检查 / `AYANAMI_CHECKS=0` → assume（A2d）
+- [ ] `#[ensures(result)]` 后置条件（return 点注入检查）
+- [ ] 显式 debug/release 模式（CLI `--release`），替代环境变量
 - [ ] `#[invariant]` 语句级（循环）
 - [ ] 语句级 `#[cfg]`
 
