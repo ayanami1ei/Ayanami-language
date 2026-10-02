@@ -1145,7 +1145,7 @@ src/mir/lower/ctx.rs:185: fn new_temp(&mut self, ty: HirType) -> VarId
 src/mir/lower/ctx.rs:192: fn lower_if(
 src/mir/lower/ctx.rs:212: fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock) -> Vec<MirStmtBox>
 src/mir/lower/ctx.rs:218: fn lower_block(&mut self, stmts: &[HirStmt]) -> Vec<MirStmtBox>
-src/mir/lower/ctx.rs:227: fn mark_alive(&mut self, var: VarId)
+src/mir/lower/ctx.rs:247: fn mark_alive(&mut self, var: VarId)
 src/mir/lower/functions.rs:4: pub(super) fn lower_item(item: &HirItem, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Vec<MirItem>
 src/mir/lower/functions.rs:19: fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> MirFn
 src/mir/lower/mem.rs:8: fn needs_drop(ty: &HirType, _struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
@@ -1528,6 +1528,9 @@ example/test_import.aya:3: fn main() -> int
 example/test_memory.aya:5: struct Point
 example/test_memory.aya:10: fn make() -> int
 example/test_memory.aya:18: fn main() -> int
+example/test_memory_loop.aya:5: struct Point
+example/test_memory_loop.aya:10: fn loop_allocs() -> int
+example/test_memory_loop.aya:20: fn main() -> int
 example/test_ns.aya:2: fn add(int a, int b) -> int
 example/test_ns.aya:7: fn main() -> int
 example/test_ns_main.aya:2: fn add(int a, int b) -> int

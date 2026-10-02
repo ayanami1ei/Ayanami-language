@@ -217,9 +217,29 @@ impl Ctx {
 
     fn lower_block(&mut self, stmts: &[HirStmt]) -> Vec<MirStmtBox> {
         let mut mir_stmts = Vec::new();
+        let before: HashSet<VarId> = self.alive.clone();
         for stmt in stmts {
             let mut lowered = self.lower_stmt(stmt);
             mir_stmts.append(&mut lowered);
+        }
+
+        // 块结束：释放块内新声明且未被移动的变量（循环体内每轮都会执行）。
+        // 以 break/continue 结尾的块跳过，避免在终结指令之后发射清理代码。
+        let terminates = matches!(stmts.last(), Some(HirStmt::Break | HirStmt::Continue));
+        if !terminates {
+            let mut scoped: Vec<VarId> = self.alive.difference(&before).copied().collect();
+            scoped.sort_by_key(|v| v.0);
+            for var in scoped {
+                self.alive.remove(&var);
+                if self.moved.contains(&var) {
+                    continue;
+                }
+                let ty = self.var_types[&var].clone();
+                let strategy = strategy_for(&ty, &self.struct_defs);
+                for action in strategy.on_scope_end(var, &ty) {
+                    mir_stmts.push(action_to_stmt(var, &ty, &action));
+                }
+            }
         }
         mir_stmts
     }
