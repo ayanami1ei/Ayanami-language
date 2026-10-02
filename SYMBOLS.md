@@ -171,6 +171,7 @@ src/hir/display.rs:44: fn write_item(item: &HirItem, level: usize, w: &mut impl 
 src/hir/display.rs:89: fn write_block(block: &HirBlock, level: usize, w: &mut impl Write) -> std::fmt::Result
 src/hir/display.rs:99: pub(crate) fn write_expr(expr: &HirNodeBox, level: usize, w: &mut impl Write) -> std::fmt::Result
 src/hir/display.rs:103: fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Result
+src/hir/effects/diag.rs:9: pub(super) fn diagnostics(hir: &HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
 src/hir/effects/infer.rs:17: pub struct EffectSet
 src/hir/effects/infer.rs:28: impl EffectSet
 src/hir/effects/infer.rs:29: fn union(&mut self, o: &EffectSet)
@@ -179,32 +180,32 @@ src/hir/effects/infer.rs:40: pub fn set_verify_effects(v: bool)
 src/hir/effects/infer.rs:44: pub fn verify_effects() -> bool
 src/hir/effects/infer.rs:49: pub fn analyze(hir: &mut HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
 src/hir/effects/infer.rs:62: fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet>
-src/hir/effects/infer.rs:145: fn diagnostics(hir: &HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
-src/hir/effects/infer.rs:215: fn declared_to_set(d: &EffectDecl) -> EffectSet
-src/hir/effects/infer.rs:223: fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
-src/hir/effects/infer.rs:233: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
-src/hir/effects/infer.rs:244: struct CallInfo
-src/hir/effects/infer.rs:251: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
-src/hir/effects/infer.rs:297: fn state_marker() -> CallInfo
-src/hir/effects/infer.rs:301: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
-src/hir/effects/infer.rs:305: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:145: fn declared_to_set(d: &EffectDecl) -> EffectSet
+src/hir/effects/infer.rs:153: pub(super) fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
+src/hir/effects/infer.rs:163: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
+src/hir/effects/infer.rs:174: struct CallInfo
+src/hir/effects/infer.rs:181: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:227: fn state_marker() -> CallInfo
+src/hir/effects/infer.rs:231: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
+src/hir/effects/infer.rs:235: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
 src/hir/effects/mod.rs:15: pub const BUILTIN_EFFECTS: &[&str] = &["io", "state", "alloc"];
 src/hir/effects/mod.rs:18: pub(crate) const IO_NAMES: &[&str] = &[
-src/hir/effects/mod.rs:24: pub mod infer;
-src/hir/effects/mod.rs:25: pub mod scan;
-src/hir/effects/mod.rs:30: static EXTRA_EFFECTS: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
-src/hir/effects/mod.rs:32: pub fn register_effect(name: &str)
-src/hir/effects/mod.rs:40: pub fn is_effect(name: &str) -> bool
-src/hir/effects/mod.rs:46: pub enum ThrowsDecl
-src/hir/effects/mod.rs:57: pub struct EffectDecl
-src/hir/effects/mod.rs:68: impl EffectDecl
-src/hir/effects/mod.rs:69: pub fn has_effect(&self, name: &str) -> bool
-src/hir/effects/mod.rs:74: pub fn no_effects(&self) -> bool
-src/hir/effects/mod.rs:79: pub fn no_throws(&self) -> bool
-src/hir/effects/mod.rs:85: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
-src/hir/effects/mod.rs:106: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
-src/hir/effects/mod.rs:127: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
-src/hir/effects/mod.rs:144: fn bad_throws(a: &Attr) -> Error
+src/hir/effects/mod.rs:24: pub mod diag;
+src/hir/effects/mod.rs:25: pub mod infer;
+src/hir/effects/mod.rs:26: pub mod scan;
+src/hir/effects/mod.rs:31: static EXTRA_EFFECTS: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
+src/hir/effects/mod.rs:33: pub fn register_effect(name: &str)
+src/hir/effects/mod.rs:41: pub fn is_effect(name: &str) -> bool
+src/hir/effects/mod.rs:47: pub enum ThrowsDecl
+src/hir/effects/mod.rs:58: pub struct EffectDecl
+src/hir/effects/mod.rs:69: impl EffectDecl
+src/hir/effects/mod.rs:70: pub fn has_effect(&self, name: &str) -> bool
+src/hir/effects/mod.rs:75: pub fn no_effects(&self) -> bool
+src/hir/effects/mod.rs:80: pub fn no_throws(&self) -> bool
+src/hir/effects/mod.rs:86: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
+src/hir/effects/mod.rs:107: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
+src/hir/effects/mod.rs:128: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
+src/hir/effects/mod.rs:145: fn bad_throws(a: &Attr) -> Error
 src/hir/effects/scan.rs:8: pub(super) enum Obs
 src/hir/effects/scan.rs:15: impl Obs
 src/hir/effects/scan.rs:17: pub(super) fn site_of(&self, kind: &str) -> Option<(usize, usize)>
