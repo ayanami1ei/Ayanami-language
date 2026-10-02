@@ -14,7 +14,12 @@ pub trait HirNode: std::fmt::Debug {
     // Helper methods for pattern-match-free traversal
     fn as_local(&self) -> Option<VarId> { None }
     fn is_move_or_clone(&self) -> bool { false }
-    fn collect_var_ids(&self, vars: &mut HashSet<VarId>) {}
+    /// 遍历直接子节点（由各节点实现）。
+    fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode)) {}
+    /// 递归收集表达式引用的所有局部变量（默认经 `for_each_child` 下降）。
+    fn collect_var_ids(&self, vars: &mut HashSet<VarId>) {
+        self.for_each_child(&mut |c| c.collect_var_ids(vars));
+    }
     fn record_moves(&self, moved: &mut HashSet<VarId>) {}
     fn as_const(&self) -> Option<&HirLiteral> { None }
     fn as_move(&self) -> Option<&HirNodeBox> { None }

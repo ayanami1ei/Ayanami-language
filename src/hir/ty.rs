@@ -41,6 +41,22 @@ pub enum HirType {
     FnPtr(Vec<HirType>, Box<HirType>),
 }
 
+impl HirType {
+    /// Copy 类型：赋值/传参时不移动（仅基元、函数指针与借用）。
+    pub fn is_copy(&self) -> bool {
+        matches!(
+            self,
+            HirType::Int
+                | HirType::Float
+                | HirType::Char
+                | HirType::Bool
+                | HirType::Void
+                | HirType::FnPtr(..)
+                | HirType::Ref(..)
+        )
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum HirLiteral {
     Int(i64),

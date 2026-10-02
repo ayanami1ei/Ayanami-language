@@ -2,9 +2,8 @@ use super::*;
 
 pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox {
     let ty = expr.expr_type();
-    if matches!(ty, HirType::Unique(_))
-        && !expr.is_move_or_clone()
-    {
+    // 默认所有权：非 Copy 类型在赋值/传参时移动
+    if !ty.is_copy() && !expr.is_move_or_clone() {
         SMove { expr, ty }.into()
     } else {
         expr

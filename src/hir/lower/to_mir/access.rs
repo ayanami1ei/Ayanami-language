@@ -16,6 +16,9 @@ impl HirNode for SField {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.object);
+    }
 }
 
 impl HirNode for SStruct {
@@ -36,6 +39,9 @@ impl HirNode for SStruct {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        for (_, e) in &self.fields { f(&**e); }
+    }
 }
 
 impl HirNode for SArrLit {
@@ -52,6 +58,9 @@ impl HirNode for SArrLit {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        for e in &self.elems { f(&**e); }
+    }
 }
 
 impl HirNode for SArrSz {
@@ -70,6 +79,9 @@ impl HirNode for SArrSz {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.count);
+    }
 }
 
 impl HirNode for SRef {
@@ -84,6 +96,9 @@ impl HirNode for SRef {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.expr);
+    }
 }
 
 impl HirNode for SIdx {
@@ -104,4 +119,8 @@ impl HirNode for SIdx {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.object);
+        f(&*self.index);
+    }
 }

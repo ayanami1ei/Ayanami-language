@@ -11,6 +11,9 @@ impl HirNode for SVar {
     fn expr_type(&self) -> HirType { self.ty.clone() }
     fn as_local(&self) -> Option<VarId> { Some(self.var) }
     fn collect_var_ids(&self, vars: &mut HashSet<VarId>) { vars.insert(self.var); }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        
+    }
 }
 
 impl HirNode for SConst {
@@ -30,6 +33,9 @@ impl HirNode for SConst {
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
     fn as_const(&self) -> Option<&HirLiteral> { Some(&self.val) }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        
+    }
 }
 
 impl HirNode for SBin {
@@ -51,6 +57,10 @@ impl HirNode for SBin {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.lhs);
+        f(&*self.rhs);
+    }
 }
 
 impl HirNode for SUn {
@@ -64,6 +74,9 @@ impl HirNode for SUn {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.arg);
+    }
 }
 
 impl HirNode for SCall {
@@ -81,6 +94,9 @@ impl HirNode for SCall {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        for a in &self.args { f(&**a); }
+    }
 }
 
 impl HirNode for SMove {
@@ -100,6 +116,9 @@ impl HirNode for SMove {
         if let Some(id) = self.expr.as_local() { moved.insert(id); }
         self.expr.record_moves(moved);
     }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.expr);
+    }
 }
 
 impl HirNode for SClone {
@@ -115,6 +134,9 @@ impl HirNode for SClone {
     fn expr_type(&self) -> HirType { self.ty.clone() }
     fn is_move_or_clone(&self) -> bool { true }
     fn as_clone(&self) -> Option<&HirNodeBox> { Some(&self.expr) }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.expr);
+    }
 }
 
 impl HirNode for SToUnique {
@@ -128,6 +150,9 @@ impl HirNode for SToUnique {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.expr);
+    }
 }
 
 impl HirNode for SToShared {
@@ -141,6 +166,9 @@ impl HirNode for SToShared {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.expr);
+    }
 }
 
 impl HirNode for SToWeak {
@@ -154,4 +182,7 @@ impl HirNode for SToWeak {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.expr);
+    }
 }

@@ -23,6 +23,10 @@ impl HirNode for SAsm {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        for (_, e) in &self.outputs { f(&**e); }
+        for (_, e) in &self.inputs { f(&**e); }
+    }
 }
 
 impl HirNode for SVCall {
@@ -44,6 +48,10 @@ impl HirNode for SVCall {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.receiver);
+        for a in &self.args { f(&**a); }
+    }
 }
 
 impl HirNode for SMFP {
@@ -62,6 +70,9 @@ impl HirNode for SMFP {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.value);
+    }
 }
 
 impl HirNode for SFnPtr {
@@ -73,6 +84,9 @@ impl HirNode for SFnPtr {
         writeln!(w, "{:width$}FnPtr(fn{})", "", self.fn_id.0, width = level * 2)
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        
+    }
 }
 
 impl HirNode for SCallP {
@@ -88,6 +102,10 @@ impl HirNode for SCallP {
         writeln!(w, "{:width$}CallPtr", "", width = level * 2)
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.fn_ptr);
+        for a in &self.args { f(&**a); }
+    }
 }
 
 impl HirNode for SEnumC {
@@ -105,6 +123,9 @@ impl HirNode for SEnumC {
         writeln!(w, "{:width$}EnumConstruct {}.{}", "", self.enum_name, self.variant_name, width = level * 2)
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        for a in &self.args { f(&**a); }
+    }
 }
 
 impl HirNode for SEnumM {
@@ -123,4 +144,8 @@ impl HirNode for SEnumM {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.value);
+        for (_, e) in &self.arms { f(&**e); }
+    }
 }
