@@ -1,2 +1,4 @@
 pub use asuka::runtime;
-include!("ayanami_parser.rs");
+
+pub mod ayanami_parser;
+pub use ayanami_parser::*;

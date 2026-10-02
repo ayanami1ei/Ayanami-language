@@ -16,7 +16,8 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 | 打包 .lcl | `cargo run -q -- package example/test_struct.aya` |
 | 重新生成符号地图 | `./scripts/gen_symbols.sh` |
 | 校验符号地图是否过期 | `./scripts/gen_symbols.sh --check` |
-| 重新生成解析器 | `./gen_parser.sh`（会先编译 `../asuka`，较慢） |
+| 重新生成解析器 | `./gen_parser.sh`（会先编译 `../asuka`，再拆分生成物） |
+| 校验文件行数 | `./scripts/check_file_sizes.sh`（默认上限 300 行） |
 | 安装版 CLI | `cd install && ./ayanami run ../example/test_struct.aya` |
 
 - `install/` 是发布包：`ayanami`、bundled `llc`、`libLLVM.so.21.1`、`runtime.c`、预编译 `std/`。
@@ -66,6 +67,13 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 - 新增语言特性时同步整条链路：`ayanami.grammar` → AST → HIR → MIR → LIR → `emit` → example 用例。
 - 注释中英混排，跟随所在文件的既有风格。
 - 批量代码生成交给本地模型（见全局 `~/.config/opencode/AGENTS.md` 的 local-coder 政策）。
+
+## 文件组织
+
+- **单个 `.rs` 文件不超过 300 行**（目标 150~250），按职责拆到子目录 + `mod.rs`；校验：`./scripts/check_file_sizes.sh`。
+- 类型定义留在 `mod.rs`（子模块才能访问私有字段）；`impl` 块可放子模块，跨模块调用的方法标 `pub(crate)` / `pub(super)`。
+- 目录入口用 `mod` + `pub use` 保持对外路径不变。
+- `src/generated/ayanami_parser/` 由 `./gen_parser.sh` 生成（asuka 输出 + `scripts/split_generated_parser.py` 拆分），禁止手改；只改根目录 `ayanami.grammar` 后重新生成。
 
 ## 分支约定
 
