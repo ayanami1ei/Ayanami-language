@@ -3,6 +3,7 @@ pub mod helpers;
 pub mod to_mir;
 pub(crate) use helpers::*;
 
+use crate::error::{Error, Result};
 use std::collections::HashMap;
 use crate::intern::Symbol;
 use crate::parser::ast::*;
@@ -142,23 +143,23 @@ impl Ctx {
     }
 
     /// 查找结构体中某字段的索引位置
-    pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize, String> {
+    pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize> {
         let type_name = match struct_ty {
             HirType::Named(n) => *n,
             HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => {
                 return self.find_field_index(inner, field, span);
             }
-            _ => return Err(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
-                hir_type_display(struct_ty), field, span.start_line, span.start_col)),
+            _ => return Err(Error::Hir(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
+                hir_type_display(struct_ty), field, span.start_line, span.start_col))),
         };
         self.find_field_index_by_name(&type_name, field, span)
     }
 
     /// 按类型名查找字段索引（含泛型回退与替换）
-    fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize, String> {
+    fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize> {
         if let Some(fields) = self.struct_defs.get(type_name) {
             return fields.iter().position(|f| f.name == *field)
-                .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col));
+                .ok_or_else(|| Error::Hir(format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col)));
         }
         let base = strip_generic_name(type_name);
         if base != *type_name {
@@ -166,36 +167,36 @@ impl Ctx {
                 // 从类型名中提取泛型替换 e.g. LinkedListNode<int> → T=int
                 let subst = self.build_generic_subst(type_name, &base);
                 return fields.iter().position(|f| f.name == *field)
-                    .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col));
+                    .ok_or_else(|| Error::Hir(format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col)));
             }
         }
-        Err(format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))
+        Err(Error::Hir(format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col)))
     }
 
     /// 查找结构体中某字段的类型
-    pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType, String> {
+    pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType> {
         let type_name = match struct_ty {
             HirType::Named(n) => *n,
             HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => {
                 let inner_name = match inner.as_ref() {
                     HirType::Named(n) => *n,
-                    _ => return Err(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
-                        hir_type_display(struct_ty), field, span.start_line, span.start_col)),
+                    _ => return Err(Error::Hir(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
+                        hir_type_display(struct_ty), field, span.start_line, span.start_col))),
                 };
                 inner_name
             }
-            _ => return Err(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
-                hir_type_display(struct_ty), field, span.start_line, span.start_col)),
+            _ => return Err(Error::Hir(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
+                hir_type_display(struct_ty), field, span.start_line, span.start_col))),
         };
         self.find_field_type_by_name(&type_name, field, span)
     }
 
     /// 按类型名查找字段类型（含泛型回退与替换）
-    fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType, String> {
+    fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType> {
         if let Some(fields) = self.struct_defs.get(type_name) {
             return fields.iter().find(|f| f.name == *field)
                 .map(|f| f.ty.clone())
-                .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col));
+                .ok_or_else(|| Error::Hir(format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col)));
         }
         let base = strip_generic_name(type_name);
         if base != *type_name {
@@ -203,10 +204,10 @@ impl Ctx {
                 let subst = self.build_generic_subst(type_name, &base);
                 return fields.iter().find(|f| f.name == *field)
                     .map(|f| substitute_hir_type(&f.ty, &subst))
-                    .ok_or_else(|| format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col));
+                    .ok_or_else(|| Error::Hir(format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col)));
             }
         }
-        Err(format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col))
+        Err(Error::Hir(format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col)))
     }
 
     /// 从完整类型名（含泛型参数）构建替换映射
@@ -279,7 +280,7 @@ impl Ctx {
 /// 3. 降级阶段（lower_items）：递归处理所有语句/表达式，生成 HIR 节点
 ///
 /// 同时收集过程中产生的特化泛型函数，以及从其他模块导入的函数签名。
-pub fn lower_program(program: &Program) -> Result<HirProgram, String> {
+pub fn lower_program(program: &Program) -> Result<HirProgram> {
     let mut ctx = Ctx::new();
     ctx.collect_fns(&program.stmts)?;
     ctx.build_vtables()?;

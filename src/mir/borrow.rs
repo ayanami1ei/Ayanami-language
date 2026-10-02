@@ -1,9 +1,10 @@
+use crate::error::{Error, Result};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use crate::hir::ir::{VarId, HirType};
 use crate::mir::ir::*;
 
-pub fn check_borrows(mir_fn: &MirFn) -> Result<(), String> {
+pub fn check_borrows(mir_fn: &MirFn) -> Result<()> {
     let checker = BorrowChecker::new(mir_fn);
     checker.check()
 }
@@ -24,7 +25,7 @@ impl<'a> BorrowChecker<'a> {
         Self { mir_fn, active: RefCell::new(HashMap::new()) }
     }
 
-    fn check(&self) -> Result<(), String> {
+    fn check(&self) -> Result<()> {
         self.check_stmts(&self.mir_fn.body, 0);
         Ok(())
     }
@@ -46,12 +47,12 @@ impl<'a> BorrowChecker<'a> {
         }
     }
 
-    fn check_expr(&self, expr: &dyn MirNode) -> Result<(), String> {
+    fn check_expr(&self, expr: &dyn MirNode) -> Result<()> {
         if let Some(var) = expr.as_local() {
             let active = self.active.borrow();
             if let Some(borrows) = active.get(&var) {
                 if borrows.iter().any(|b| b.mutable) {
-                    return Err(format!("cannot read v{}, mutably borrowed", var.0));
+                    return Err(Error::Borrow(format!("cannot read v{}, mutably borrowed", var.0)));
                 }
             }
         }
@@ -64,15 +65,15 @@ impl<'a> BorrowChecker<'a> {
         Ok(())
     }
 
-    fn add_borrow(&self, var: VarId, mutable: bool) -> Result<(), String> {
+    fn add_borrow(&self, var: VarId, mutable: bool) -> Result<()> {
         let mut active = self.active.borrow_mut();
         if let Some(borrows) = active.get(&var) {
             for b in borrows {
                 if mutable || b.mutable {
-                    return Err(format!(
+                    return Err(Error::Borrow(format!(
                         "cannot borrow v{} as {}mut, already borrowed",
                         var.0, if mutable { "" } else { "im" }
-                    ));
+                    )));
                 }
             }
         }

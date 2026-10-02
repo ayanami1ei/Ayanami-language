@@ -1,3 +1,4 @@
+use crate::error::{Error, Result};
 use std::collections::HashMap;
 use crate::intern::Symbol;
 use crate::parser::ast::*;
@@ -11,7 +12,7 @@ impl super::Ctx {
     //  阶段 1：收集函数和接口签名
     // ----------------------------------------------------------------
 
-    pub(super) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<(), String> {
+    pub(super) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()> {
         for s in stmts {
             if let Stmt::Import { path, .. } = s {
             }
@@ -19,7 +20,7 @@ impl super::Ctx {
         self.collect_fns_with_ns(stmts, "")
     }
 
-    pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<(), String> {
+    pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()> {
         for stmt in stmts {
             match stmt {
                 Stmt::FnDecl { name, params, return_type, generic_params, .. } => {
@@ -151,7 +152,7 @@ impl super::Ctx {
                         }
                     };
                     let (imported_syms, sources, lir_binary, _) = crate::package::load_package(&pkg_path)
-                        .map_err(|e| format!("import error for '{}': {}", path, e))?;
+                        .map_err(|e| Error::Import(format!("import error for '{}': {}", path, e)))?;
 
                     // Merge struct definitions from the package's LIR data
                     if !lir_binary.is_empty() {
@@ -242,7 +243,7 @@ impl super::Ctx {
                                 // sig format: "fnName(param_types...)->ret_type"
                                 let sig_body = sig.trim_start_matches(name.as_str());
                                 let arrow_pos = sig_body.find(")->")
-                                    .ok_or_else(|| format!("invalid fn sig in package '{}': sig body `{}`", name, sig_body))?;
+                                    .ok_or_else(|| Error::Hir(format!("invalid fn sig in package '{}': sig body `{}`", name, sig_body)))?;
                                 let params_str = &sig_body[..arrow_pos];
                                 let ret_str = &sig_body[arrow_pos + 3..];
                                 // params_str is "(type1,type2" — strip leading '('
@@ -332,13 +333,13 @@ impl super::Ctx {
                             self.fn_map.entry(*name).or_default().push(fn_id);
                         } else {
                             let s = method.span();
-                            return Err(format!("unexpected non-FnDecl inside impl block (at {}:{})", s.start_line, s.start_col));
+                            return Err(Error::Hir(format!("unexpected non-FnDecl inside impl block (at {}:{})", s.start_line, s.start_col)));
                         }
                     }
                 }
                 _ => {
                     let s = stmt.span();
-                    return Err(format!("unexpected top-level statement outside function, namespace, interface, or impl block (at {}:{})", s.start_line, s.start_col));
+                    return Err(Error::Hir(format!("unexpected top-level statement outside function, namespace, interface, or impl block (at {}:{})", s.start_line, s.start_col)));
                 }
             }
         }
@@ -352,7 +353,7 @@ impl super::Ctx {
 
     /// For each impl block type, check which interfaces it satisfies
     /// (structural typing: methods with same name + compatible signatures)
-    pub(super) fn build_vtables(&mut self) -> Result<(), String> {
+    pub(super) fn build_vtables(&mut self) -> Result<()> {
         // Collect all impl types and their methods (owned copies to avoid borrow conflicts)
         let mut impl_methods: HashMap<Symbol, Vec<FnSig>> = HashMap::new();
         for sig in &self.fns {
@@ -419,7 +420,7 @@ impl super::Ctx {
     pub(super) fn try_match_interface(
         &mut self, iface_name: &Symbol, iface_reg: &InterfaceReg,
         type_name: &Symbol, methods: &[FnSig],
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         let mut vtable_fns: Vec<FnId> = Vec::new();
         vtable_fns.push(FnId(usize::MAX));
         let mut all_match = true;
@@ -452,10 +453,10 @@ impl super::Ctx {
                             iface_method.self_keyword.as_str(),
                             fsig.params[1..].iter().map(|(n, t)| format!(", {} {}", hir_type_display(t), n.as_str())).collect::<String>(),
                             hir_type_display(&fsig.return_type));
-                        return Err(format!(
+                        return Err(Error::Hir(format!(
                             "method `{}` in impl `{}` has wrong signature for interface `{}`:\n  expected {}\n  found    {}",
                             iface_method.name.as_str(), type_name.as_str(), iface_name.as_str(),
-                            iface_sig, impl_sig));
+                            iface_sig, impl_sig)));
                     }
                 }
                 None => { all_match = false; break; }
@@ -478,7 +479,7 @@ impl super::Ctx {
     pub(super) fn try_match_generic_interface(
         &mut self, iface_name: &Symbol, iface_reg: &InterfaceReg,
         type_name: &Symbol, methods: &[FnSig],
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         let gp_names: Vec<Symbol> = iface_reg.generic_params.iter().map(|(n, _)| *n).collect();
         let mut results: Vec<HashMap<Symbol, HirType>> = vec![HashMap::new()];
 
@@ -705,7 +706,7 @@ impl super::Ctx {
     }
 
     /// Ensure a specialized interface (e.g. "List<int>") is registered.
-    fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<(), String> {
+    fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<()> {
         if self.interfaces.contains_key(specialized_name) { return Ok(()); }
         let s = specialized_name.as_str();
         let base = crate::hir::lower::strip_generic_name(specialized_name);
@@ -747,7 +748,7 @@ impl super::Ctx {
         concrete_type: &Symbol,
         base_type: &Symbol,
         iface_name: &Symbol,
-    ) -> Result<(), String> {
+    ) -> Result<()> {
         let iface_reg = match self.interfaces.get(iface_name) {
             Some(r) => r.clone(),
             None => return Ok(()),
@@ -879,7 +880,7 @@ impl super::Ctx {
 
     /// Try to resolve a call by specializing a generic function.
     /// Returns the FnId of the newly-created specialized function on success.
-    pub(super) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId, String> {
+    pub(super) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId> {
         // Find matching generic function — prefer one where self's base type matches
         let arg_base = (!arg_types.is_empty()).then(|| {
             match strip_ownership_ref(&arg_types[0]) {
@@ -917,10 +918,10 @@ impl super::Ctx {
                 } else {
                     return Err(if self.fn_map.contains_key(name) {
                         let ats: Vec<String> = arg_types.iter().map(|t| format!("{:?}", t)).collect();
-                        format!("no matching overload of `{}` for argument types ({}); candidate(s) exist at {}:{}",
-                            name, ats.join(", "), span.start_line, span.start_col)
+                        Error::Hir(format!("no matching overload of `{}` for argument types ({}); candidate(s) exist at {}:{}",
+                            name, ats.join(", "), span.start_line, span.start_col))
                     } else {
-                        format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col)
+                        Error::Hir(format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col))
                     });
                 }
             }
@@ -928,14 +929,14 @@ impl super::Ctx {
 
         let (gf_name, gf_params, gf_stmt) = &self.generic_fns[gf_idx];
         let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, .. } = gf_stmt else {
-            return Err(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col));
+            return Err(Error::Hir(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col)));
         };
 
         if params.len() != arg_types.len() {
-            return Err(format!(
+            return Err(Error::Hir(format!(
                 "generic function `{}` takes {} argument(s) but {} given at {}:{}",
                 gf_name, params.len(), arg_types.len(), span.start_line, span.start_col
-            ));
+            )));
         }
 
         // Step 1: Infer concrete type for each generic parameter
@@ -954,10 +955,10 @@ impl super::Ctx {
         // Ensure all generic params were resolved
         for (gp_name, _) in gf_params {
             if !generic_mappings.contains_key(gp_name) {
-                return Err(format!(
+                return Err(Error::Hir(format!(
                     "cannot infer generic parameter `{}` for function `{}` at {}:{}",
                     gp_name, gf_name, span.start_line, span.start_col
-                ));
+                )));
             }
         }
 
@@ -965,7 +966,7 @@ impl super::Ctx {
         for (gp_name, constraint) in gf_params {
             if let Some(iface_name) = constraint {
                 let concrete_ty = generic_mappings.get(gp_name)
-                    .ok_or_else(|| format!("internal error: generic param `{}` not resolved at {}:{}", gp_name, span.start_line, span.start_col))?;
+                    .ok_or_else(|| Error::Hir(format!("internal error: generic param `{}` not resolved at {}:{}", gp_name, span.start_line, span.start_col)))?;
                 // 递归剥离所有权包装（Unique/Shared/Weak），
                 // 处理多层包装如 Unique(Shared(LinkedList)) → LinkedList
                 let mut concrete_inner = concrete_ty;
@@ -990,11 +991,11 @@ impl super::Ctx {
                                 .unwrap_or(false)
                         });
                         if !all_ok {
-                            return Err(format!(
+                            return Err(Error::Hir(format!(
                                 "type `{}` does not satisfy interface `{}` for generic parameter `{}` at {}:{}",
                                 hir_type_display(concrete_ty), iface_name, gp_name,
                                 span.start_line, span.start_col
-                            ));
+                            )));
                         }
                         // 直接标记为已实现，跳过后续 type_ifaces 检查
                         continue;
@@ -1004,11 +1005,11 @@ impl super::Ctx {
                     HirType::Char => Symbol::intern("char"),
                     HirType::Bool => Symbol::intern("bool"),
                     HirType::Array(_) => Symbol::intern("[int]"), // simplified
-                    _ => return Err(format!(
+                    _ => return Err(Error::Hir(format!(
                         "type `{}` does not satisfy interface `{}` for generic parameter `{}` at {}:{}",
                         hir_type_display(concrete_ty), iface_name, gp_name,
                         span.start_line, span.start_col
-                    )),
+                    ))),
                 };
                 let implements = self.type_ifaces.get(&concrete_type_name)
                     .map(|ifaces| {
@@ -1029,11 +1030,11 @@ impl super::Ctx {
                         || self.fn_map.contains_key(method_name)
                     });
                     if !has_matching_method {
-                        return Err(format!(
+                        return Err(Error::Hir(format!(
                             "type `{}` does not implement interface `{}` required by generic parameter `{}` at {}:{}",
                             hir_type_display(concrete_ty), iface_name, gp_name,
                             span.start_line, span.start_col
-                        ));
+                        )));
                     }
                 }
             }
@@ -1098,11 +1099,11 @@ impl super::Ctx {
     //  将 AST 中声明级别的节点递归降级为 HIR 节点
     // ----------------------------------------------------------------
 
-    pub(super) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>, String> {
+    pub(super) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>> {
         self.lower_items_with_ns(stmts, "")
     }
 
-    pub(super) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>, String> {
+    pub(super) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>> {
         let mut items = Vec::new();
         for stmt in stmts {
             match stmt {
@@ -1120,7 +1121,7 @@ impl super::Ctx {
                         .map(|(_, t)| ast_type_to_hir(t, &self.interfaces))
                         .collect();
                     let fn_id = self.find_fn_by_sig(full_name, &ptypes)
-                        .ok_or_else(|| format!("internal error: function `{}` not found at {}:{}", full_name, span.start_line, span.start_col))?;
+                        .ok_or_else(|| Error::Hir(format!("internal error: function `{}` not found at {}:{}", full_name, span.start_line, span.start_col)))?;
                     let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline, *extern_c, *span)?;
                     items.push(HirItem::Fn(hir_fn));
                 }
@@ -1192,7 +1193,7 @@ impl super::Ctx {
                             let fn_id = self.find_fn_by_sig(*name, &ptypes)
                                 .ok_or_else(|| {
                                     let s = method_stmt.span();
-                                    format!("internal error: method `{}` not found at {}:{}", name, s.start_line, s.start_col)
+                                    Error::Hir(format!("internal error: method `{}` not found at {}:{}", name, s.start_line, s.start_col))
                                 })?;
                             let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, Span::default())?;
                             items.push(HirItem::Fn(hir_fn));
@@ -1201,7 +1202,7 @@ impl super::Ctx {
                 }
                 _ => {
                     let s = stmt.span();
-                    return Err(format!("unexpected top-level statement (at {}:{})", s.start_line, s.start_col));
+                    return Err(Error::Hir(format!("unexpected top-level statement (at {}:{})", s.start_line, s.start_col)));
                 }
             }
         }
@@ -1250,7 +1251,7 @@ impl super::Ctx {
         is_inline: bool,
         extern_c: bool,
         span: Span,
-    ) -> Result<HirFn, String> {
+    ) -> Result<HirFn> {
         self.current_fn = fn_id;
         self.locals = Vec::new();
         self.scopes = Vec::new();
@@ -1290,7 +1291,7 @@ impl super::Ctx {
     //  块/语句降级：lower_block → lower_stmt → lower_for
     // ----------------------------------------------------------------
 
-    pub(super) fn lower_block(&mut self, block: &Block) -> Result<HirBlock, String> {
+    pub(super) fn lower_block(&mut self, block: &Block) -> Result<HirBlock> {
         self.push_scope();
         let mut stmts = Vec::new();
         for stmt in &block.stmts {
@@ -1300,7 +1301,7 @@ impl super::Ctx {
         Ok(HirBlock::new(stmts))
     }
 
-    pub(super) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt, String> {
+    pub(super) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt> {
         match stmt {
             Stmt::Assign { name, value, .. } => {
                 let hir_value = self.lower_expr(value)?;
@@ -1366,7 +1367,7 @@ impl super::Ctx {
                         let b = self.lower_block(eb);
                         c.and_then(|c| b.map(|b| (c, b)))
                     })
-                    .collect::<Result<Vec<_>, _>>()?;
+                    .collect::<std::result::Result<Vec<_>, _>>()?;
                 let hir_else = match else_block {
                     Some(b) => Some(self.lower_block(b)?),
                     None => None,
@@ -1391,7 +1392,7 @@ impl super::Ctx {
                 let value_ty = expr_type(&hir_value);
                 let value_ty_name = match &value_ty {
                     HirType::Named(n) => *n,
-                    _ => return Err(format!("match on non-enum type at {}:{}", span.start_line, span.start_col)),
+                    _ => return Err(Error::Hir(format!("match on non-enum type at {}:{}", span.start_line, span.start_col))),
                 };
                 let (val_var, _, _) = self.register_or_lookup(Symbol::intern("__match_val"), value_ty.clone());
                 let val_local: HirNodeBox = SVar { var: val_var, ty: value_ty.clone() }.into();
@@ -1450,7 +1451,7 @@ impl super::Ctx {
             }
             Stmt::Namespace { .. } | Stmt::FnDecl { .. } | Stmt::StructDef { .. } | Stmt::EnumDef { .. } | Stmt::InterfaceDef { .. } | Stmt::ImplBlock { .. } | Stmt::Import { .. } => {
                 let s = stmt.span();
-                Err(format!("unexpected declaration inside function body (at {}:{})", s.start_line, s.start_col))
+                Err(Error::Hir(format!("unexpected declaration inside function body (at {}:{})", s.start_line, s.start_col)))
             }
         }
     }
@@ -1462,7 +1463,7 @@ impl super::Ctx {
         end: &Expr,
         step: Option<&Expr>,
         body: &Block,
-    ) -> Result<HirStmt, String> {
+    ) -> Result<HirStmt> {
         self.push_scope();
 
         let hir_start = self.lower_expr(start)?;
@@ -1514,7 +1515,7 @@ impl super::Ctx {
     //  字段访问、结构体/数组字面量、指针比较等
     // ----------------------------------------------------------------
 
-    pub(super) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox, String> {
+    pub(super) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox> {
         match expr {
             Expr::Literal(lit) => self.lower_literal(lit),
             Expr::Ident(name, span) => {
@@ -1525,7 +1526,7 @@ impl super::Ctx {
                     if let Some(&first) = candidates.first() {
                         let sig = &self.fns[first.0];
                         if sig.params.is_empty() {
-                            return Err(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col));
+                            return Err(Error::Hir(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col)));
                         }
                         let params: Vec<HirType> = sig.params.iter().map(|(_, t)| t.clone()).collect();
                         let ret = sig.return_type.clone();
@@ -1533,7 +1534,7 @@ impl super::Ctx {
                         return Ok(SFnPtr { fn_id: first, ty: fnptr_ty }.into());
                     }
                 }
-                Err(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col))
+                Err(Error::Hir(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col)))
             }
             Expr::Binary { op, lhs, rhs, span } => {
                 let hir_lhs = self.lower_expr(lhs)?;
@@ -1613,7 +1614,7 @@ impl super::Ctx {
                 // Step 1: lower all arguments
                 let mut hir_args: Vec<HirNodeBox> = args.iter()
                     .map(|a| self.lower_expr(a))
-                    .collect::<Result<Vec<_>, _>>()?;
+                    .collect::<std::result::Result<Vec<_>, _>>()?;
 
                 // Step 2: extract arg types
                 let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
@@ -1637,7 +1638,7 @@ impl super::Ctx {
                                         return Ok(SCallP { fn_ptr, args: hir_args, ty: ret_ty }.into());
                                     }
                                 }
-                                return Err(format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col));
+                                return Err(Error::Hir(format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col)));
                             }
                         }
                     }
@@ -1716,7 +1717,7 @@ impl super::Ctx {
                 let target_ty = expr_type(&hir_target);
                 let hir_args: Vec<HirNodeBox> = args.iter()
                     .map(|a| self.lower_expr(a))
-                    .collect::<Result<Vec<_>, _>>()?;
+                    .collect::<std::result::Result<Vec<_>, _>>()?;
                 let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
                 let all_types = std::iter::once(target_ty.clone()).chain(arg_types.clone()).collect::<Vec<_>>();
                 // Check if target is a function pointer type
@@ -1734,8 +1735,8 @@ impl super::Ctx {
                     }).collect();
                     return Ok(SCall { fn_id, args: all_args, ty: ret_ty }.into());
                 }
-                Err(format!("type `{}` cannot be called as a function at {}:{}",
-                    hir_type_display(&target_ty), span.start_line, span.start_col))
+                Err(Error::Hir(format!("type `{}` cannot be called as a function at {}:{}",
+                    hir_type_display(&target_ty), span.start_line, span.start_col)))
             }
             Expr::TryOp(inner, span) => {
                 let hir_inner = self.lower_expr(inner)?;
@@ -1748,12 +1749,12 @@ impl super::Ctx {
                     let ret_ty = self.fns[fn_id.0].return_type.clone();
                     return Ok(SCall { fn_id, args: vec![hir_inner], ty: ret_ty }.into());
                 }
-                Err(format!("type `{:?}` cannot use `?` operator at {}:{}", inner_ty, span.start_line, span.start_col))
+                Err(Error::Hir(format!("type `{:?}` cannot use `?` operator at {}:{}", inner_ty, span.start_line, span.start_col)))
             }
             Expr::Match { .. } => todo!(),
             Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => {
                 if !named_args.is_empty() {
-                    return Err(format!("named fields in enum construct not yet supported at {}:{}", span.start_line, span.start_col));
+                    return Err(Error::Hir(format!("named fields in enum construct not yet supported at {}:{}", span.start_line, span.start_col)));
                 }
                 let tag = self.struct_defs.get(enum_name).map_or(0i64, |fields| {
                     let target = format!("_data_{}", variant_name);
@@ -1762,7 +1763,7 @@ impl super::Ctx {
                     }
                     0i64
                 });
-                let hir_args: Vec<HirNodeBox> = tuple_args.iter().map(|e| self.lower_expr(e)).collect::<Result<Vec<_>, _>>()?;
+                let hir_args: Vec<HirNodeBox> = tuple_args.iter().map(|e| self.lower_expr(e)).collect::<std::result::Result<Vec<_>, _>>()?;
                 let data_field = Symbol::intern(&format!("_data_{}", variant_name));
                 let var_struct_name = Symbol::intern(&format!("{}_{}", enum_name, variant_name));
                 let data_ty = HirType::Named(var_struct_name);
@@ -1800,7 +1801,7 @@ impl super::Ctx {
                 // Lower call arguments
                 let hir_args: Vec<HirNodeBox> = args.iter()
                     .map(|a| self.lower_expr(a))
-                    .collect::<Result<Vec<_>, _>>()?;
+                    .collect::<std::result::Result<Vec<_>, _>>()?;
 
                 let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
 
@@ -1814,11 +1815,11 @@ impl super::Ctx {
                         self.ensure_specialized_interface(&iface_name)?;
                     }
                     let iface_reg = self.interfaces.get(&iface_name)
-                        .ok_or_else(|| format!("unknown interface `{}` used as type (at {}:{})", iface_name, span.start_line, span.start_col))?;
+                        .ok_or_else(|| Error::Hir(format!("unknown interface `{}` used as type (at {}:{})", iface_name, span.start_line, span.start_col)))?;
 
                     let method_idx = iface_reg.methods.iter()
                         .position(|m| m.name == *method)
-                        .ok_or_else(|| format!("interface `{}` has no method `{}` (at {}:{})", iface_name, method, span.start_line, span.start_col))?;
+                        .ok_or_else(|| Error::Hir(format!("interface `{}` has no method `{}` (at {}:{})", iface_name, method, span.start_line, span.start_col)))?;
 
                     let ret_ty = iface_reg.methods[method_idx].return_type.clone();
                     return Ok(SVCall {
@@ -2052,7 +2053,7 @@ impl super::Ctx {
             }
             Expr::ArrayLiteral(elems, span) => {
                 if !self.allow_bare_array {
-                    return Err(format!("array literal must be prefixed with `shared`, `unique`, or `weak` (at {}:{})", span.start_line, span.start_col));
+                    return Err(Error::Hir(format!("array literal must be prefixed with `shared`, `unique`, or `weak` (at {}:{})", span.start_line, span.start_col)));
                 }
                 let mut hir_elems = Vec::new();
                 for e in elems {
@@ -2082,10 +2083,10 @@ impl super::Ctx {
                         self.ensure_specialized_interface(&iface_name)?;
                     }
                     let iface_reg = self.interfaces.get(&iface_name)
-                        .ok_or_else(|| format!("unknown interface `{}` used as type (at {}:{})", iface_name, span.start_line, span.start_col))?;
+                        .ok_or_else(|| Error::Hir(format!("unknown interface `{}` used as type (at {}:{})", iface_name, span.start_line, span.start_col)))?;
                     let method_idx = iface_reg.methods.iter()
                         .position(|m| m.name == Symbol::intern("index"))
-                        .ok_or_else(|| format!("interface `{}` has no method `index` (at {}:{})", iface_name, span.start_line, span.start_col))?;
+                        .ok_or_else(|| Error::Hir(format!("interface `{}` has no method `index` (at {}:{})", iface_name, span.start_line, span.start_col)))?;
                     let ret_ty = iface_reg.methods[method_idx].return_type.clone();
                     return Ok(SVCall {
                         receiver: hir_object,
@@ -2117,7 +2118,7 @@ impl super::Ctx {
                 }
                 let elem_ty = match &inner_ty {
                     HirType::Array(inner) | HirType::ArraySized(inner, _) => *inner.clone(),
-                    _ => return Err(format!("index on non-array type at {}:{}", span.start_line, span.start_col)),
+                    _ => return Err(Error::Hir(format!("index on non-array type at {}:{}", span.start_line, span.start_col))),
                 };
                 Ok(SIdx {
                     object: hir_object,
@@ -2204,7 +2205,7 @@ impl super::Ctx {
         }
     }
 
-    pub(super) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox, String> {
+    pub(super) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox> {
         match lit {
             Literal::Int(n, _) => Ok(SConst { val: HirLiteral::Int(*n), ty: HirType::Int }.into()),
             Literal::Float(n, _) => Ok(SConst { val: HirLiteral::Float(*n), ty: HirType::Float }.into()),

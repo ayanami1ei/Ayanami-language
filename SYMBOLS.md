@@ -110,35 +110,35 @@ src/hir/item.rs:50: pub struct HirFn
 src/hir/item.rs:63: pub enum HirItem
 src/hir/item.rs:79: pub struct ImportedFnSig
 src/hir/item.rs:87: pub struct HirProgram
-src/hir/lower/body.rs:9: impl super::Ctx
-src/hir/lower/body.rs:14: pub(super) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<(), String>
-src/hir/lower/body.rs:22: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<(), String>
-src/hir/lower/body.rs:355: pub(super) fn build_vtables(&mut self) -> Result<(), String>
-src/hir/lower/body.rs:419: pub(super) fn try_match_interface(
-src/hir/lower/body.rs:478: pub(super) fn try_match_generic_interface(
-src/hir/lower/body.rs:566: pub(super) fn infer_iface_generic(
-src/hir/lower/body.rs:579: pub(super) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
-src/hir/lower/body.rs:594: pub(super) fn type_matches(a: &HirType, b: &HirType) -> bool
-src/hir/lower/body.rs:607: pub(super) fn find_fn_by_sig(&self, name: Symbol, param_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body.rs:620: fn extract_concrete_type_name(ty: &HirType) -> Option<Symbol>
-src/hir/lower/body.rs:635: pub(super) fn is_fatptr_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
-src/hir/lower/body.rs:673: fn check_generic_fns_for_iface(&self, type_name: &Symbol, iface_name: &Symbol) -> bool
-src/hir/lower/body.rs:708: fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<(), String>
-src/hir/lower/body.rs:745: fn register_generic_vtable(
-src/hir/lower/body.rs:779: pub(super) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
-src/hir/lower/body.rs:798: pub(super) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body.rs:830: pub(super) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
-src/hir/lower/body.rs:860: pub(super) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body.rs:882: pub(super) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId, String>
-src/hir/lower/body.rs:1101: pub(super) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>, String>
-src/hir/lower/body.rs:1105: pub(super) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>, String>
-src/hir/lower/body.rs:1212: pub(super) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
-src/hir/lower/body.rs:1243: pub(super) fn lower_fn(
-src/hir/lower/body.rs:1293: pub(super) fn lower_block(&mut self, block: &Block) -> Result<HirBlock, String>
-src/hir/lower/body.rs:1303: pub(super) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt, String>
-src/hir/lower/body.rs:1458: pub(super) fn lower_for(
-src/hir/lower/body.rs:1517: pub(super) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox, String>
-src/hir/lower/body.rs:2207: pub(super) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox, String>
+src/hir/lower/body.rs:10: impl super::Ctx
+src/hir/lower/body.rs:15: pub(super) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
+src/hir/lower/body.rs:23: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
+src/hir/lower/body.rs:356: pub(super) fn build_vtables(&mut self) -> Result<()>
+src/hir/lower/body.rs:420: pub(super) fn try_match_interface(
+src/hir/lower/body.rs:479: pub(super) fn try_match_generic_interface(
+src/hir/lower/body.rs:567: pub(super) fn infer_iface_generic(
+src/hir/lower/body.rs:580: pub(super) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
+src/hir/lower/body.rs:595: pub(super) fn type_matches(a: &HirType, b: &HirType) -> bool
+src/hir/lower/body.rs:608: pub(super) fn find_fn_by_sig(&self, name: Symbol, param_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body.rs:621: fn extract_concrete_type_name(ty: &HirType) -> Option<Symbol>
+src/hir/lower/body.rs:636: pub(super) fn is_fatptr_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
+src/hir/lower/body.rs:674: fn check_generic_fns_for_iface(&self, type_name: &Symbol, iface_name: &Symbol) -> bool
+src/hir/lower/body.rs:709: fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<()>
+src/hir/lower/body.rs:746: fn register_generic_vtable(
+src/hir/lower/body.rs:780: pub(super) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
+src/hir/lower/body.rs:799: pub(super) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body.rs:831: pub(super) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
+src/hir/lower/body.rs:861: pub(super) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body.rs:883: pub(super) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
+src/hir/lower/body.rs:1102: pub(super) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>>
+src/hir/lower/body.rs:1106: pub(super) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
+src/hir/lower/body.rs:1213: pub(super) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
+src/hir/lower/body.rs:1244: pub(super) fn lower_fn(
+src/hir/lower/body.rs:1294: pub(super) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
+src/hir/lower/body.rs:1304: pub(super) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
+src/hir/lower/body.rs:1459: pub(super) fn lower_for(
+src/hir/lower/body.rs:1518: pub(super) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
+src/hir/lower/body.rs:2208: pub(super) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
 src/hir/lower/helpers.rs:17: pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox
 src/hir/lower/helpers.rs:29: pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
 src/hir/lower/helpers.rs:84: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
@@ -166,26 +166,26 @@ src/hir/lower/helpers.rs:669: pub(crate) fn is_pointer_type_for_cmp(ty: &HirType
 src/hir/lower/mod.rs:1: pub mod body;
 src/hir/lower/mod.rs:2: pub mod helpers;
 src/hir/lower/mod.rs:3: pub mod to_mir;
-src/hir/lower/mod.rs:14: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
-src/hir/lower/mod.rs:30: pub(crate) struct FnSig
-src/hir/lower/mod.rs:41: pub(crate) struct InterfaceReg
-src/hir/lower/mod.rs:66: pub(crate) struct Ctx
-src/hir/lower/mod.rs:99: impl Ctx
-src/hir/lower/mod.rs:101: pub fn new() -> Self
-src/hir/lower/mod.rs:126: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/mod.rs:129: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/mod.rs:132: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/mod.rs:137: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/mod.rs:145: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize, String>
-src/hir/lower/mod.rs:158: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize, String>
-src/hir/lower/mod.rs:176: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType, String>
-src/hir/lower/mod.rs:194: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType, String>
-src/hir/lower/mod.rs:213: fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/mod.rs:232: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
-src/hir/lower/mod.rs:237: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/mod.rs:246: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
-src/hir/lower/mod.rs:261: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/mod.rs:282: pub fn lower_program(program: &Program) -> Result<HirProgram, String>
+src/hir/lower/mod.rs:15: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
+src/hir/lower/mod.rs:31: pub(crate) struct FnSig
+src/hir/lower/mod.rs:42: pub(crate) struct InterfaceReg
+src/hir/lower/mod.rs:67: pub(crate) struct Ctx
+src/hir/lower/mod.rs:100: impl Ctx
+src/hir/lower/mod.rs:102: pub fn new() -> Self
+src/hir/lower/mod.rs:127: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/mod.rs:130: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/mod.rs:133: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/mod.rs:138: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/mod.rs:146: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/mod.rs:159: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/mod.rs:177: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/mod.rs:195: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/mod.rs:214: fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
+src/hir/lower/mod.rs:233: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/mod.rs:238: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/mod.rs:247: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/mod.rs:262: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/mod.rs:283: pub fn lower_program(program: &Program) -> Result<HirProgram>
 src/hir/lower/to_mir.rs:11: impl HirNode for SVar
 src/hir/lower/to_mir.rs:12: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir.rs:13: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
@@ -971,15 +971,15 @@ src/main.rs:345: fn load_config() -> Option<(PathBuf, ayanami::package::config::
 src/main.rs:354: fn cmd_clean()
 src/main.rs:367: fn cmd_build(args: &[String])
 src/main.rs:386: fn cmd_run(args: &[String])
-src/mir/borrow.rs:6: pub fn check_borrows(mir_fn: &MirFn) -> Result<(), String>
-src/mir/borrow.rs:11: struct Borrow
-src/mir/borrow.rs:17: struct BorrowChecker<'a>
-src/mir/borrow.rs:22: impl<'a> BorrowChecker<'a>
-src/mir/borrow.rs:23: fn new(mir_fn: &'a MirFn) -> Self
-src/mir/borrow.rs:27: fn check(&self) -> Result<(), String>
-src/mir/borrow.rs:32: fn check_stmts(&self, stmts: &[MirStmtBox], base: usize)
-src/mir/borrow.rs:49: fn check_expr(&self, expr: &dyn MirNode) -> Result<(), String>
-src/mir/borrow.rs:67: fn add_borrow(&self, var: VarId, mutable: bool) -> Result<(), String>
+src/mir/borrow.rs:7: pub fn check_borrows(mir_fn: &MirFn) -> Result<()>
+src/mir/borrow.rs:12: struct Borrow
+src/mir/borrow.rs:18: struct BorrowChecker<'a>
+src/mir/borrow.rs:23: impl<'a> BorrowChecker<'a>
+src/mir/borrow.rs:24: fn new(mir_fn: &'a MirFn) -> Self
+src/mir/borrow.rs:28: fn check(&self) -> Result<()>
+src/mir/borrow.rs:33: fn check_stmts(&self, stmts: &[MirStmtBox], base: usize)
+src/mir/borrow.rs:50: fn check_expr(&self, expr: &dyn MirNode) -> Result<()>
+src/mir/borrow.rs:68: fn add_borrow(&self, var: VarId, mutable: bool) -> Result<()>
 src/mir/display.rs:7: pub fn display_mir_program(program: &MirProgram)
 src/mir/display.rs:11: pub fn mir_program_to_string(program: &MirProgram) -> String
 src/mir/display.rs:20: fn pad(n: usize) -> String
