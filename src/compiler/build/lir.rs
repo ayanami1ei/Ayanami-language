@@ -6,7 +6,7 @@ pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::
 
     check_hir_returns(&hir_program, src_path)?;
 
-    let mir_program = crate::mir::lower_program(&hir_program);
+    let mir_program = crate::mir::lower_program(&hir_program)?;
     for item in &mir_program.items {
         if let crate::mir::ir::MirItem::Fn(f) = item {
             crate::mir::borrow::check_borrows(f)

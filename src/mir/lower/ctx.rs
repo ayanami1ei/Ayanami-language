@@ -1,5 +1,6 @@
 use super::*;
 use super::mem::{action_to_stmt, strategy_for};
+use crate::error::Error;
 
 impl Ctx {
     pub(super) fn new(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Self {
@@ -20,7 +21,14 @@ impl Ctx {
             alive.insert(VarId(i));
         }
 
-        Self { mir_locals, var_types, alive, moved: HashSet::new(), struct_defs: struct_defs.clone() }
+        Self {
+            mir_locals,
+            var_types,
+            alive,
+            moved: HashSet::new(),
+            struct_defs: struct_defs.clone(),
+            errors: Vec::new(),
+        }
     }
 
     fn emit_assign_cleanup(&self, var: &VarId) -> Vec<MirStmtBox> {
@@ -36,6 +44,7 @@ impl Ctx {
     }
 
     pub(super) fn lower_stmt(&mut self, stmt: &HirStmt) -> Vec<MirStmtBox> {
+        self.check_use_after_move(stmt);
         self.track_stmt_moves(stmt);
         match stmt {
             HirStmt::Assign { target, value } => self.lower_assign(target, value),
@@ -85,18 +94,8 @@ impl Ctx {
             HirStmt::Return { value } => {
                 if let Some(v) = value { v.record_moves(&mut self.moved); }
             }
-            HirStmt::If { cond, then_block, elifs, else_block } => {
-                cond.record_moves(&mut self.moved);
-                for s in then_block.stmts.iter()
-                    .chain(elifs.iter().flat_map(|(_, b)| &b.stmts))
-                    .chain(else_block.iter().flat_map(|b| &b.stmts)) {
-                    self.track_stmt_moves(s);
-                }
-            }
-            HirStmt::While { cond, body } => {
-                cond.record_moves(&mut self.moved);
-                for s in &body.stmts { self.track_stmt_moves(s); }
-            }
+            // 复合语句不预标记：子语句在各自 lower_stmt 中按顺序跟踪移动
+            HirStmt::If { .. } | HirStmt::While { .. } | HirStmt::Block(_) => {}
             HirStmt::Break | HirStmt::Continue => {}
             HirStmt::Expr(expr) => expr.record_moves(&mut self.moved),
             HirStmt::Block(stmts) => { for s in stmts { self.track_stmt_moves(s); } }
@@ -196,11 +195,15 @@ impl Ctx {
         elifs: &[(HirNodeBox, HirBlock)],
         else_block: &Option<HirBlock>,
     ) -> Vec<MirStmtBox> {
+        cond.record_moves(&mut self.moved);
         let mir_cond = cond.lower_to_mir(&self.moved);
         let mir_then = self.lower_block(&then_block.stmts);
         let mir_elifs: Vec<_> = elifs
             .iter()
-            .map(|(c, b)| (c.lower_to_mir(&self.moved), self.lower_block(&b.stmts)))
+            .map(|(c, b)| {
+                c.record_moves(&mut self.moved);
+                (c.lower_to_mir(&self.moved), self.lower_block(&b.stmts))
+            })
             .collect();
         let mir_else = else_block
             .as_ref()
@@ -210,6 +213,7 @@ impl Ctx {
     }
 
     fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock) -> Vec<MirStmtBox> {
+        cond.record_moves(&mut self.moved);
         let mir_cond = cond.lower_to_mir(&self.moved);
         let mir_body = self.lower_block(&body.stmts);
         vec![SMirWhileStmt { cond: mir_cond, body: mir_body }.into()]

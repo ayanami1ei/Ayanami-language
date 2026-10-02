@@ -1,24 +1,28 @@
 use super::*;
 use super::mem::{action_to_stmt, strategy_for};
+use crate::error::Result;
 
-pub(super) fn lower_item(item: &HirItem, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Vec<MirItem> {
+pub(super) fn lower_item(item: &HirItem, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Result<Vec<MirItem>> {
     match item {
-        HirItem::Fn(f) => vec![MirItem::Fn(lower_fn(f, struct_defs))],
-        HirItem::StructDef(def) => vec![MirItem::StructDef {
+        HirItem::Fn(f) => Ok(vec![MirItem::Fn(lower_fn(f, struct_defs)?)]),
+        HirItem::StructDef(def) => Ok(vec![MirItem::StructDef {
             name: def.name,
             fields: def.fields.iter().map(|f| (f.name, f.ty.clone())).collect(),
-        }],
+        }]),
         HirItem::Namespace { name, items } => {
-            let inner: Vec<MirItem> = items.iter().flat_map(|item| lower_item(item, struct_defs)).collect();
-            vec![MirItem::Namespace { name: *name, items: inner }]
+            let mut inner = Vec::new();
+            for item in items {
+                inner.extend(lower_item(item, struct_defs)?);
+            }
+            Ok(vec![MirItem::Namespace { name: *name, items: inner }])
         }
-        HirItem::InterfaceDef { .. } => vec![],
+        HirItem::InterfaceDef { .. } => Ok(vec![]),
     }
 }
 
-fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> MirFn {
+fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Result<MirFn> {
     if f.extern_c {
-        return MirFn {
+        return Ok(MirFn {
             fn_id: f.fn_id,
             name: f.name,
             is_inline: f.is_inline,
@@ -27,7 +31,7 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
             return_type: f.return_type.clone(),
             locals: vec![],
             body: vec![],
-        };
+        });
     }
 
     let mut ctx = Ctx::new(f, struct_defs);
@@ -50,27 +54,11 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
     }
     body.append(&mut cleanup);
 
-    for var in &alive_snapshot {
-        if ctx.moved.contains(var) { continue; }
-        let ty = &ctx.var_types[var];
-        let inner = match ty {
-            HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
-            other => other,
-        };
-        if let HirType::Named(type_name) = inner {
-            if let Some(fields) = struct_defs.get(type_name) {
-                for (_, field_ty) in fields {
-                    match field_ty {
-                        HirType::Unique(inner_field) => {}
-                        HirType::Shared(inner_field) => {}
-                        _ => {}
-                    }
-                }
-            }
-        }
+    if let Some(e) = ctx.errors.into_iter().next() {
+        return Err(e);
     }
 
-    MirFn {
+    Ok(MirFn {
         fn_id: f.fn_id,
         name: f.name,
         is_inline: f.is_inline,
@@ -79,5 +67,5 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
         return_type: f.return_type.clone(),
         locals: ctx.mir_locals,
         body,
-    }
+    })
 }

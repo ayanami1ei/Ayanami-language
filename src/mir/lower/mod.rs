@@ -6,18 +6,23 @@ use crate::mir::ir::*;
 use crate::mir::mem::*;
 
 
+mod checks;
 mod ctx;
 mod functions;
 mod mem;
 
 use functions::lower_item;
 
-pub fn lower_program(hir: &HirProgram) -> MirProgram {
+pub fn lower_program(hir: &HirProgram) -> crate::error::Result<MirProgram> {
     let struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>> = hir.struct_defs.iter().map(|(name, fields)| {
         (*name, fields.iter().map(|f| (f.name, f.ty.clone())).collect())
     }).collect();
-    MirProgram {
-        items: hir.items.iter().flat_map(|item| lower_item(item, &struct_defs)).collect(),
+    let mut items = Vec::new();
+    for item in &hir.items {
+        items.extend(lower_item(item, &struct_defs)?);
+    }
+    Ok(MirProgram {
+        items,
         vtables: hir.vtables.clone(),
         struct_defs: struct_defs.clone(),
         generic_struct_params: hir.generic_struct_params.clone(),
@@ -27,7 +32,7 @@ pub fn lower_program(hir: &HirProgram) -> MirProgram {
             params: f.params.clone(),
             return_type: f.return_type.clone(),
         }).collect(),
-    }
+    })
 }
 
 struct Ctx {
@@ -36,4 +41,5 @@ struct Ctx {
     alive: HashSet<VarId>,
     moved: HashSet<VarId>,
     struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
+    errors: Vec<crate::error::Error>,
 }

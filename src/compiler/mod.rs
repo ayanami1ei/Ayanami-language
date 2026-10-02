@@ -134,12 +134,12 @@ impl CompilerPipeline {
 
     /// 阶段四：MIR 降级 — 将 HIR 降级为中级中间表示（MIR）
     /// 展平控制流，插入内存管理指令（Drop/Retain/Release）
-    pub fn lower_mir(&mut self) -> &mut Self {
+    pub fn lower_mir(&mut self) -> Result<&mut Self> {
         let hir = self.hir.take().expect("No HIR available — call lower_hir() first");
-        let mir_program = crate::mir::lower_program(&hir);
+        let mir_program = crate::mir::lower_program(&hir)?;
         self.hir = Some(hir); // 保留 HIR 供后续使用
         self.mir = Some(mir_program);
-        self
+        Ok(self)
     }
 
     /// MIR 借用检查：确保没有悬垂引用和重复释放
@@ -179,7 +179,7 @@ impl CompilerPipeline {
         self.lex()?
             .parse()?
             .lower_hir()?
-            .lower_mir()
+            .lower_mir()?
             .lower_lir()
             .emit();
         Ok(self)
@@ -226,7 +226,7 @@ pub fn check_source(code: &str, _out_dir: &str) -> Result<()> {
         .parse()?
         .lower_hir()?
         .check_returns()?
-        .lower_mir()
+        .lower_mir()?
         .check_borrows()?;
     println!("check passed");
     Ok(())
