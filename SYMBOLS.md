@@ -754,13 +754,6 @@ src/lir/ir/nodes_c.rs:224: fn as_any(&self) -> &dyn std::any::Any { self }
 src/lir/ir/nodes_c.rs:225: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
 src/lir/ir/nodes_c.rs:258: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
 src/lir/ir/nodes_c.rs:261: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:271: impl LirNode for SLirIndexStore
-src/lir/ir/nodes_c.rs:272: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:273: fn kind(&self) -> &'static str { "IndexStore" }
-src/lir/ir/nodes_c.rs:274: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:275: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:298: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:301: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/ir/nodes_d.rs:3: impl LirNode for SLirCustom
 src/lir/ir/nodes_d.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_d.rs:5: fn kind(&self) -> &'static str { "Custom" }
@@ -807,6 +800,13 @@ src/lir/ir/nodes_e.rs:47: fn as_any(&self) -> &dyn std::any::Any { self }
 src/lir/ir/nodes_e.rs:48: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
 src/lir/ir/nodes_e.rs:58: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
 src/lir/ir/nodes_e.rs:62: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_e.rs:72: impl LirNode for SLirIndexStore
+src/lir/ir/nodes_e.rs:73: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_e.rs:74: fn kind(&self) -> &'static str { "IndexStore" }
+src/lir/ir/nodes_e.rs:75: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_e.rs:76: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_e.rs:99: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_e.rs:102: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/lower/ctx.rs:3: pub(super) struct LowerCtx<'a>
 src/lir/lower/ctx.rs:13: impl<'a> LowerCtx<'a>
 src/lir/lower/ctx.rs:14: pub(super) fn new(str_map: &'a HashMap<String, u64>) -> Self
