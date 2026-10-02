@@ -48,7 +48,7 @@ fn read_config(ref String path) -> Config { ... }
 |---|---|---|---|---|
 | 基础设施 | 全部 | 解析、校验、存储、序列化、展示 | A0 | 设计 |
 | 优化/代码生成 | `inline` `cold` `noreturn` `pure` `readonly` `nounwind` `willreturn` `noalias` `nonnull` | 映射 LLVM 函数/参数属性（含 extern 声明，跨语言优化） | A1 | 部分实现（函数级） |
-| 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 部分实现（cfg/assume/requires/ensures/invariant） |
+| 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 已完成（`--release` 切换） |
 | 效应 | `throws` `eff` | 效应检查与传播（Java 式必须处理或上抛）、`?` 统一 | A3 | 设计 |
 | 生命周期 | 类型参数 `'a`（不是标注） | 显式生命周期与 outlives 检查、字段引用 | A4 | 设计 |
 | 用户宏/插件 | `#[pkg::macro(...)]` | 标注 provider 解析；宏展开（声明式或编译期执行）；插件注册属性 | A5 | 设计（§8） |
@@ -106,7 +106,7 @@ extern "C" fn strlen(unique [char] s) -> int;
 
 - `#[cfg(target = "linux")]`：编译期裁剪 item 与语句；已实现（A2b/A2f）。
 - `#[requires(cond)]`：函数前置条件（已实现运行检查，A2d）。默认插入运行检查
-  （失败打印位置并 abort）；`AYANAMI_CHECKS=0` 时转为 `llvm.assume`。
+  （失败打印位置并 abort）；`--release`（或 `AYANAMI_CHECKS=0`）时转为 `llvm.assume`。
 - `#[ensures(cond)]`：后置条件，`result` 绑定返回值（已实现，A2e）。
 - `#[invariant(cond)]`：循环不变式（语句级标注），debug 每轮校验、release `llvm.assume`（已实现，A2f）。
 - `#[assume(cond)]`：无条件向优化器声明事实（已实现，A2c）。
@@ -170,7 +170,7 @@ extern "C" fn strlen(unique [char] s) -> int;
 - 链路：`HirStmt::Require` → `SMirRequireStmt` → `SLirRequireCheck`（tag 29）→
   `br i1 %c, label %contract_ok_N, label %contract_fail_N`；失败分支调用
   `__ayanami_require_fail(line, col)`（runtime.c，noreturn，打印 `requires failed at L:C` 后 abort）；
-- `AYANAMI_CHECKS=0`：退化为 `llvm.assume`（发布语义）；
+- `--release` / `AYANAMI_CHECKS=0`：退化为 `llvm.assume`（发布语义；环境变量优先）；
 - `example/test_requires.aya`（含多条件）；违反契约时退出码为 SIGABRT。
 - `ensures`/`invariant` 待后续；当前无独立 debug/release 模式，以 `AYANAMI_CHECKS` 区分。
 
@@ -295,17 +295,18 @@ struct Holder['a] {
 - [ ] 接口方法与 lambda 的形参标注（当前解析期拒绝）
 - [ ] `inline` 关键字与 `#[inline]` 语义统一
 
-### A2（部分完成，2026-10）
+### A2（已完成，2026-10）
 
 - [x] A2a 标注实参结构化（`AttrArg`：`key = value` / 表达式），formatter 保真
 - [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致）
-- [x] `#[assume(cond)]` → `llvm.assume`（A2c）
-- [x] `#[requires]` 运行检查 / `AYANAMI_CHECKS=0` → assume（A2d）
-- [x] `#[ensures(result)]` 后置条件（A2e；契约链路统一为 ContractKind）
-- [x] `#[invariant]` 循环不变式 + 语句级 `#[cfg]`（A2f）
-- [ ] 显式 debug/release 模式（CLI `--release`），替代环境变量
-- [ ] `#[invariant]` 语句级（循环）
-- [ ] 语句级 `#[cfg]`
+- [x] A2c `#[assume(cond)]` → `llvm.assume`
+- [x] A2d `#[requires]` 运行检查
+- [x] A2e `#[ensures(result)]` 后置条件（契约链路统一为 ContractKind）
+- [x] A2f `#[invariant]` 循环不变式 + 语句级 `#[cfg]`
+- [x] 显式 debug/release 模式：`--release`（运行检查转 assume；`AYANAMI_CHECKS` 环境变量优先）
+
+已知边界：`cfg` 谓词仅支持 target/arch 键值与裸标识符/`!`；
+`ensures` 兜底默认值仅基元类型；语句级标注暂不支持库宏。
 
 ### A5（设计，待拍板）
 

@@ -12,6 +12,8 @@ fn do_check(path: &Path) -> ayanami::error::Result<()> {
 }
 
 pub(crate) fn cmd_check(args: &[String]) {
+    let (args, release) = split_release(args);
+    apply_mode(release);
     let watch = args.first().map(|s| s.as_str()) == Some("--watch");
     let path_arg = if watch { args.get(1) } else { args.first() };
     let path = resolve_path(path_arg.map(|s| s.as_str()));

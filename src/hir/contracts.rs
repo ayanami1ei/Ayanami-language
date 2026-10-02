@@ -27,9 +27,26 @@ pub fn ensure_bool_condition(cond: &crate::hir::HirNodeBox, kind: &str, line: us
     Ok(())
 }
 
-/// `AYANAMI_CHECKS=0` 关闭运行检查（requires/ensures 退化为 assume），默认开启。
+/// release 模式全局开关（由 CLI `--release` 设置）。
+static RELEASE_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// 设置 release 模式（CLI 调用；进程级）。
+pub fn set_release(v: bool) {
+    RELEASE_MODE.store(v, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// 是否处于 release 模式。
+pub fn is_release() -> bool {
+    RELEASE_MODE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// 运行检查是否开启：release 关闭（requires/ensures/invariant 退化为 assume）。
+/// `AYANAMI_CHECKS=0/1` 环境变量优先，便于脚本与测试覆盖。
 pub fn checks_enabled() -> bool {
-    std::env::var("AYANAMI_CHECKS").map(|v| v != "0").unwrap_or(true)
+    if let Ok(v) = std::env::var("AYANAMI_CHECKS") {
+        return v != "0";
+    }
+    !is_release()
 }
 
 /// 提取 `#[requires(cond)]` 条件（表达式 + 行列），按声明顺序。

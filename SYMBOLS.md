@@ -5,10 +5,10 @@
 
 ## Rust
 src/cli/build.rs:3: pub(crate) fn cmd_build(args: &[String])
-src/cli/build.rs:22: pub(crate) fn cmd_run(args: &[String])
+src/cli/build.rs:24: pub(crate) fn cmd_run(args: &[String])
 src/cli/check.rs:3: fn do_check(path: &Path) -> ayanami::error::Result<()>
 src/cli/check.rs:14: pub(crate) fn cmd_check(args: &[String])
-src/cli/check.rs:31: fn watch_file(path: &Path)
+src/cli/check.rs:33: fn watch_file(path: &Path)
 src/cli/clean.rs:3: pub(crate) fn cmd_clean()
 src/cli/defs.rs:3: pub(crate) fn cmd_defs(args: &[String])
 src/cli/defs.rs:34: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
@@ -20,9 +20,11 @@ src/cli/mod.rs:10: pub(crate) mod defs;
 src/cli/mod.rs:11: pub(crate) mod fmt;
 src/cli/mod.rs:12: pub(crate) mod new;
 src/cli/mod.rs:13: pub(crate) mod package_install;
+src/cli/mod.rs:24: pub(crate) fn split_release(args: &[String]) -> (Vec<String>, bool)
+src/cli/mod.rs:38: pub(crate) fn apply_mode(release: bool)
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
-src/cli/package_install.rs:16: pub(crate) fn cmd_install(args: &[String])
+src/cli/package_install.rs:18: pub(crate) fn cmd_install(args: &[String])
 src/compiler/build/compile.rs:6: pub fn compile_file(
 src/compiler/build/compile.rs:126: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
@@ -151,12 +153,15 @@ src/hir/cfg.rs:121: fn eval_bare(e: &Expr, span: crate::span::Span) -> Result<bo
 src/hir/cfg.rs:138: fn unsupported(span: crate::span::Span) -> Error
 src/hir/contracts.rs:7: pub fn validate_fn_attrs(attrs: &[Attr]) -> Result<()>
 src/hir/contracts.rs:21: pub fn ensure_bool_condition(cond: &crate::hir::HirNodeBox, kind: &str, line: usize, col: usize) -> Result<()>
-src/hir/contracts.rs:31: pub fn checks_enabled() -> bool
-src/hir/contracts.rs:36: pub fn requires_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
-src/hir/contracts.rs:47: pub fn validate_invariant_attrs(attrs: &[Attr]) -> Result<()>
-src/hir/contracts.rs:62: pub fn invariant_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
-src/hir/contracts.rs:73: pub fn ensure_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
-src/hir/contracts.rs:84: pub fn assume_conditions(attrs: &[Attr]) -> Vec<&Expr>
+src/hir/contracts.rs:31: static RELEASE_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+src/hir/contracts.rs:34: pub fn set_release(v: bool)
+src/hir/contracts.rs:39: pub fn is_release() -> bool
+src/hir/contracts.rs:45: pub fn checks_enabled() -> bool
+src/hir/contracts.rs:53: pub fn requires_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
+src/hir/contracts.rs:64: pub fn validate_invariant_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/contracts.rs:79: pub fn invariant_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
+src/hir/contracts.rs:90: pub fn ensure_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
+src/hir/contracts.rs:101: pub fn assume_conditions(attrs: &[Attr]) -> Vec<&Expr>
 src/hir/display.rs:5: pub fn display_hir_program(program: &HirProgram)
 src/hir/display.rs:9: pub fn hir_program_to_string(program: &HirProgram) -> String
 src/hir/display.rs:18: pub(crate) fn pad(n: usize) -> String

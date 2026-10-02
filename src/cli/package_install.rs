@@ -1,6 +1,8 @@
 use super::*;
 
 pub(crate) fn cmd_package(args: &[String]) {
+    let (args, release) = split_release(args);
+    apply_mode(release);
     let path = resolve_path(args.first().map(|s| s.as_str()));
     let path_str = path.to_string_lossy().into_owned();
     let code = match std::fs::read_to_string(&path) {
