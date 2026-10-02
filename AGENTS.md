@@ -16,7 +16,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 | 打包 .lcl | `cargo run -q -- package example/test_struct.aya` |
 | 重新生成符号地图 | `./scripts/gen_symbols.sh` |
 | 校验符号地图是否过期 | `./scripts/gen_symbols.sh --check` |
-| 重新生成解析器 | `./gen_parser.sh`（会先编译 `../asuka`，再拆分生成物） |
+| 重新生成解析器 | `./gen_parser.sh`（会先编译 `asuka/` 子仓，再拆分生成物） |
 | 校验文件行数 | `./scripts/check_file_sizes.sh`（默认上限 300 行） |
 | 安装版 CLI | `cd install && ./ayanami run ../example/test_struct.aya` |
 
@@ -46,7 +46,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 
 1. **`src/generated/ayanami_parser.rs` 是生成产物，禁止手改。** 改语法必须改根目录 `ayanami.grammar`，然后跑 `./gen_parser.sh`。
 2. 解析有两条路径：Asuka 生成解析器 + 手写回退（`parser.rs`，桥接 `gen_bridge.rs`）。改文法时注意回退路径仍然可用。
-3. `../asuka` 是**独立仓库**的路径依赖（文法驱动解析器生成框架），改它会影响本项目。
+3. `asuka/` 是 **git 子仓**（文法驱动解析器生成框架）：在子仓内修改后要先在子仓提交并推送，主仓再提交新的子仓指针；`gen_parser.sh` 从子仓构建。
 4. `SYMBOLS.md`、`src/generated/`、`target/`、`build/` 都是产物或生成物，不要整读；`.lcl` 是二进制包，不要读。
 5. `example/*.aya`（26 个）是端到端测试的主要手段；新特性至少配一个 example 用例。
 6. `std/` 交付预编译 `.lcl`，源码为 `std/**/*.aya`。

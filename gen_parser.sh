@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-cd "$(dirname "$0")/../asuka"
+cd "$(dirname "$0")/asuka"
 cargo build --release 2>&1 | tail -2
 ASUKA_BIN="$(pwd)/target/release/asuka"
 cd - > /dev/null

@@ -1,0 +1,3 @@
+[submodule "asuka"]
+	path = asuka
+	url = git@github.com:ayanami1ei/asuka.git
