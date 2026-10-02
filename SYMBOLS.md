@@ -91,17 +91,18 @@ src/compiler/symdef.rs:29: pub fn collect_defs_from_stmts(
 src/compiler/symdef.rs:40: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
 src/compiler/symdef.rs:155: pub fn defs_to_json(defs: &[SymDef]) -> String
 src/driver/mod.rs:11: fn find_llc() -> Result<(PathBuf, PathBuf)>
-src/driver/mod.rs:26: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:59: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:64: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:77: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:83: fn find_runtime_c() -> Result<String>
-src/driver/mod.rs:111: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:126: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:137: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:154: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
-src/driver/mod.rs:174: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:179: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:29: fn find_opt() -> Option<(PathBuf, PathBuf)>
+src/driver/mod.rs:46: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:97: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:102: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:115: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:121: fn find_runtime_c() -> Result<String>
+src/driver/mod.rs:149: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:164: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:175: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:192: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
+src/driver/mod.rs:212: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:217: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter/expr.rs:4: pub(super) fn write_type(ty: &Type) -> String

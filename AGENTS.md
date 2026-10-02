@@ -23,7 +23,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 
 - `install/` 是发布包：`ayanami`、bundled `llc`、`libLLVM.so.21.1`、`runtime.c`、预编译 `std/`。
 - `cargo build` 有 60+ 条 warning 属常态，不是错误。
-- 编译 `.aya` 需要 `llc` 与 `gcc`：`cargo run` 用系统 `llc`（已装 `/usr/bin/llc`），安装版用同目录 bundled `llc`。
+- 编译 `.aya` 需要 `llc` 与 `gcc`：`cargo run` 用系统 `llc`（已装 `/usr/bin/llc`），安装版用同目录 bundled `llc`；`opt` 可选，用于 `-O2` 中端优化（`AYANAMI_OPT=0` 关闭）。
 
 ## 编译管线与入口
 

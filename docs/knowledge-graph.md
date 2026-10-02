@@ -125,7 +125,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 
 ## 6. 关系索引（压缩版）
 
-- 管线：`lexer → parser → hir → mir → lir → emit → driver`
+- 管线：`lexer → parser → hir → mir → lir → emit → opt -O2(可选) → llc → gcc`
 - 所有权：`HirType::Unique/Ref` —实现于→ `mir/mem` —检查于→ `mir/borrow` —发射于→ `lir/ir` —运行于→ `runtime.c`
 - 文法：`ayanami.grammar` —生成→ `src/generated/ayanami_parser` —桥接→ `parser/gen_bridge`
 - 包：`hir` —序列化→ `lir/serialize` —封装→ `package` —导入→ `compiler/import`

@@ -98,8 +98,9 @@ extern "C" fn strlen(unique [char] s) -> int;
 | `#[pure] #[nounwind] #[willreturn]` | 1（GVN 跨 FFI CSE） |
 | 无标注 | 2 |
 
-注：当前驱动只调用 `llc`（不做中端 GVN），属性先影响代码生成决策；
-要在默认流水线中获得跨 FFI 优化，需在驱动中接入 `opt`（列为 A1b 候选）。
+驱动已接入 `opt -O2`（A1c）：有 `opt` 时先中端优化再交给 `llc`，
+上述跨 FFI CSE 默认生效；`opt` 缺失或运行失败时自动回退未优化 IR，
+`AYANAMI_OPT=0` 可显式关闭。产物保留 `*.opt.ll` 便于查看优化结果。
 
 ## 5. 条件与契约（A2）
 
@@ -184,6 +185,7 @@ struct Holder['a] {
 - [x] `example/test_ffi_attrs.aya`（`strlen`/`abort`/`cold`/`inline`/`willreturn`）
 - [x] 参数级 `noalias`/`nonnull`（`FnParam = Attr* Type Ident`；仅指针类型）
 - [ ] 包导入函数的标注传递（`ImportedFnSig.attrs` 目前为空；形参/函数级均不随 .lcl 导出）
+- [x] 驱动接入 `opt -O2`（缺失/失败回退未优化；`AYANAMI_OPT=0` 关闭）
 - [ ] 接口方法与 lambda 的形参标注（当前解析期拒绝）
 - [ ] `inline` 关键字与 `#[inline]` 语义统一
 

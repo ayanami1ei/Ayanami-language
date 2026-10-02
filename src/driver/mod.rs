@@ -22,7 +22,27 @@ fn find_llc() -> Result<(PathBuf, PathBuf)> {
     Ok((PathBuf::from("llc"), PathBuf::new()))
 }
 
-/// Compile LLVM IR text → object file (.o) via `llc`.
+/// Find `opt` — check next to the ayanami binary first, then PATH.
+///
+/// Optimization is optional: when `opt` is missing (or `AYANAMI_OPT=0`),
+/// `ir_to_object` falls back to compiling the unoptimized IR with llc.
+fn find_opt() -> Option<(PathBuf, PathBuf)> {
+    if std::env::var("AYANAMI_OPT").map(|v| v == "0").unwrap_or(false) {
+        return None;
+    }
+    let exe = std::env::current_exe().ok();
+    if let Some(exe_path) = exe {
+        if let Some(exe_dir) = exe_path.parent() {
+            let local = exe_dir.join("opt");
+            if local.exists() {
+                return Some((local, exe_dir.to_path_buf()));
+            }
+        }
+    }
+    Some((PathBuf::from("opt"), PathBuf::new()))
+}
+
+/// Compile LLVM IR text → object file (.o) via `opt -O2` (optional) + `llc`.
 pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()> {
     let obj = obj_path.as_ref();
 
@@ -32,11 +52,29 @@ pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()> {
     std::fs::write(&ll_path, llvm_ir)
         .map_err(|e| Error::Driver(format!("failed to write .ll file: {}", e)))?;
 
+    // 中端优化（A1）：先跑 opt -O2，标注属性才能跨调用/跨 FFI 生效。
+    // opt 不存在或失败时回退未优化 IR，llc 照常编译。
+    let mut llc_input = ll_path.clone();
+    if let Some((opt_path, opt_dir)) = find_opt() {
+        let mut opt_ll = obj.to_path_buf();
+        opt_ll.set_extension("opt.ll");
+        let mut cmd = Command::new(&opt_path);
+        cmd.arg("-O2").arg("-S").arg(&ll_path).arg("-o").arg(&opt_ll);
+        if !opt_dir.as_os_str().is_empty() {
+            cmd.env("LD_LIBRARY_PATH", opt_dir.to_string_lossy().as_ref());
+        }
+        if let Ok(status) = cmd.status() {
+            if status.success() {
+                llc_input = opt_ll;
+            }
+        }
+    }
+
     let (llc_path, llc_dir) = find_llc()?;
     let mut cmd = Command::new(&llc_path);
     cmd.arg("-filetype=obj")
         .arg("-o").arg(obj)
-        .arg(&ll_path);
+        .arg(&llc_input);
 
     // If llc is bundled, set LD_LIBRARY_PATH so it can find its .so
     if !llc_dir.as_os_str().is_empty() {
