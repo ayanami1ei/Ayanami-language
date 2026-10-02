@@ -153,6 +153,10 @@ impl HirNode for SToUnique {
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
         f(&*self.expr);
     }
+    fn record_moves(&self, moved: &mut HashSet<VarId>) {
+        if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        self.expr.record_moves(moved);
+    }
 }
 
 impl HirNode for SToShared {
@@ -169,6 +173,10 @@ impl HirNode for SToShared {
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
         f(&*self.expr);
     }
+    fn record_moves(&self, moved: &mut HashSet<VarId>) {
+        if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        self.expr.record_moves(moved);
+    }
 }
 
 impl HirNode for SToWeak {
@@ -184,5 +192,9 @@ impl HirNode for SToWeak {
     fn expr_type(&self) -> HirType { self.ty.clone() }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
         f(&*self.expr);
+    }
+    fn record_moves(&self, moved: &mut HashSet<VarId>) {
+        if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        self.expr.record_moves(moved);
     }
 }

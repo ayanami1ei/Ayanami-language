@@ -82,7 +82,7 @@ impl crate::hir::lower::Ctx {
                     }
                 }
             }
-            hir_fields.push((*name, hir_val));
+            hir_fields.push((*name, implicit_move(hir_val)));
         }
         Ok(SStruct {
             type_name: concrete_name,
@@ -97,7 +97,7 @@ impl crate::hir::lower::Ctx {
         }
         let mut hir_elems = Vec::new();
         for e in elems {
-            hir_elems.push(self.lower_expr(e)?);
+            hir_elems.push(implicit_move(self.lower_expr(e)?));
         }
         let elem_ty = if !hir_elems.is_empty() {
             strip_ownership(expr_type(&hir_elems[0]))

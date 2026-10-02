@@ -12,7 +12,10 @@ impl crate::hir::lower::Ctx {
             }
             0i64
         });
-        let hir_args: Vec<HirNodeBox> = tuple_args.iter().map(|e| self.lower_expr(e)).collect::<std::result::Result<Vec<_>, _>>()?;
+        let hir_args: Vec<HirNodeBox> = tuple_args
+            .iter()
+            .map(|e| self.lower_expr(e).map(implicit_move))
+            .collect::<std::result::Result<Vec<_>, _>>()?;
         let data_field = Symbol::intern(&format!("_data_{}", variant_name));
         let var_struct_name = Symbol::intern(&format!("{}_{}", enum_name, variant_name));
         let data_ty = HirType::Named(var_struct_name);

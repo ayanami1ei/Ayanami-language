@@ -20,13 +20,13 @@ impl crate::hir::lower::Ctx {
                     Err(_) => {
                         // Step 3c: check if name is a variable with FnPtr type (function pointer call)
                         if let Some((var_id, ty, _)) = self.lookup_var(name) {
-                            if let HirType::FnPtr(_, _) = &ty {
+                            if let HirType::FnPtr(param_tys, ret_ty) = &ty {
                                 let fn_ptr: HirNodeBox = SVar { var: var_id, ty: ty.clone() }.into();
-                                let ret_ty = match &ty {
-                                    HirType::FnPtr(_, ret) => *ret.clone(),
-                                    _ => unreachable!(),
-                                };
-                                return Ok(SCallP { fn_ptr, args: hir_args, ty: ret_ty }.into());
+                                let param_tys = param_tys.clone();
+                                let args = hir_args.into_iter().enumerate().map(|(i, a)| {
+                                    if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
+                                }).collect();
+                                return Ok(SCallP { fn_ptr, args, ty: *ret_ty.clone() }.into());
                             }
                         }
                         return Err(Error::Hir(format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col)));
@@ -114,7 +114,10 @@ impl crate::hir::lower::Ctx {
         let all_types = std::iter::once(target_ty.clone()).chain(arg_types.clone()).collect::<Vec<_>>();
         // Check if target is a function pointer type
         if let HirType::FnPtr(param_tys, ret_ty) = &target_ty {
-            return Ok(SCallP { fn_ptr: hir_target, args: hir_args, ty: *ret_ty.clone() }.into());
+            let args = hir_args.into_iter().enumerate().map(|(i, a)| {
+                if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
+            }).collect();
+            return Ok(SCallP { fn_ptr: hir_target, args, ty: *ret_ty.clone() }.into());
         }
         if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("call"), &all_types) {
             let ret_ty = self.fns[fn_id.0].return_type.clone();

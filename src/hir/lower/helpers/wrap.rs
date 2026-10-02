@@ -13,7 +13,7 @@ pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox {
 /// 包装参数以匹配期望的参数类型（处理所有权转换）
 pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
     let arg_ty = arg.expr_type();
-    match param_ty {
+    let converted = match param_ty {
         HirType::Unique(pt) | HirType::Shared(pt) | HirType::Weak(pt) => {
             if arg_ty == *pt.as_ref() {
                 match param_ty {
@@ -62,6 +62,11 @@ pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNode
             }
         }
         _ => arg,
+    };
+    // 按值参数（含 unique）消费实参：插入移动；shared/weak 仍是借用/共享语义
+    match param_ty {
+        HirType::Shared(_) | HirType::Weak(_) => converted,
+        _ => implicit_move(converted),
     }
 }
 

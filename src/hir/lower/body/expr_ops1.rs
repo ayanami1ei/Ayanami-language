@@ -82,11 +82,11 @@ impl crate::hir::lower::Ctx {
         let inner_ty = expr_type(&hir_inner);
         if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("try_unwrap"), &[inner_ty.clone()]) {
             let ret_ty = self.fns[fn_id.0].return_type.clone();
-            return Ok(SCall { fn_id, args: vec![hir_inner], ty: ret_ty }.into());
+            return Ok(SCall { fn_id, args: vec![implicit_move(hir_inner)], ty: ret_ty }.into());
         }
         if let Ok(fn_id) = self.specialize_generic_call(&Symbol::intern("try_unwrap"), &[inner_ty.clone()], span) {
             let ret_ty = self.fns[fn_id.0].return_type.clone();
-            return Ok(SCall { fn_id, args: vec![hir_inner], ty: ret_ty }.into());
+            return Ok(SCall { fn_id, args: vec![implicit_move(hir_inner)], ty: ret_ty }.into());
         }
         Err(Error::Hir(format!("type `{:?}` cannot use `?` operator at {}:{}", inner_ty, span.start_line, span.start_col)))
     }
