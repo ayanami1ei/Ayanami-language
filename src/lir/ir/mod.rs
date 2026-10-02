@@ -185,6 +185,7 @@ mod nodes_a;
 mod nodes_b;
 mod nodes_c;
 mod nodes_d;
+mod nodes_e;
 
 pub use helpers::*;
 pub use nodes::*;

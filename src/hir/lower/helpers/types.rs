@@ -27,7 +27,11 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
 
 pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
     let s = s.trim();
-    if let Some(inner) = s.strip_prefix("shared ") {
+    if let Some(inner) = s.strip_prefix("ref mut ") {
+        HirType::Ref(Box::new(sig_str_to_hir(inner)), true)
+    } else if let Some(inner) = s.strip_prefix("ref ") {
+        HirType::Ref(Box::new(sig_str_to_hir(inner)), false)
+    } else if let Some(inner) = s.strip_prefix("shared ") {
         HirType::Shared(Box::new(sig_str_to_hir(inner)))
     } else if let Some(inner) = s.strip_prefix("unique ") {
         HirType::Unique(Box::new(sig_str_to_hir(inner)))
@@ -50,8 +54,8 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
     /// 将 AST 类型节点转换为 HIR 类型（含接口信息）
 fn is_iface_type(inner_hir: &HirType, interfaces: &HashMap<Symbol, super::InterfaceReg>) -> bool {
     match inner_hir {
-        HirType::Named(n) if interfaces.contains_key(n) => true,
-        HirType::Named(n) => {
+        HirType::Named(n) | HirType::FatPtr { name: n, .. } if interfaces.contains_key(n) => true,
+        HirType::Named(n) | HirType::FatPtr { name: n, .. } => {
             let base = strip_generic_name(n);
             base != *n && interfaces.contains_key(&base)
         }
@@ -81,6 +85,10 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
             else if name == "char" { HirType::Char }
             else if name == "void" { HirType::Void }
             else if name == "bool" { HirType::Bool }
+            else if interfaces.contains_key(s) {
+                // 裸接口类型：拥有所有权的胖指针（Box<dyn Trait>）
+                HirType::FatPtr { name: *s, kind: Box::new(HirType::Unique(Box::new(HirType::Void))) }
+            }
             else { HirType::Named(*s) }
         }
         Type::Unique(inner, _) => {
@@ -100,7 +108,17 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
             }
         }
         Type::Weak(inner, _) => HirType::Weak(Box::new(ast_type_to_hir(inner, interfaces))),
-        Type::Ref(inner, mutable, _) => HirType::Ref(Box::new(ast_type_to_hir(inner, interfaces)), *mutable),
+        Type::Ref(inner, mutable, _) => {
+            let inner_hir = ast_type_to_hir(inner, interfaces);
+            if is_iface_type(&inner_hir, interfaces) {
+                HirType::FatPtr {
+                    name: *extract_named(&inner_hir).unwrap(),
+                    kind: Box::new(HirType::Ref(Box::new(HirType::Void), *mutable)),
+                }
+            } else {
+                HirType::Ref(Box::new(inner_hir), *mutable)
+            }
+        }
         Type::FnPtr(params, ret, _) => HirType::FnPtr(
             params.iter().map(|p| ast_type_to_hir(p, interfaces)).collect(),
             Box::new(ast_type_to_hir(ret, interfaces)),
@@ -117,6 +135,7 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
 pub(crate) fn extract_named(ty: &HirType) -> Option<&Symbol> {
     match ty {
         HirType::Named(s) => Some(s),
+        HirType::FatPtr { name, .. } => Some(name),
         _ => None,
     }
 }

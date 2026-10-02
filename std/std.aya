@@ -1,7 +1,27 @@
 // Ayanami Standard Library
-// Import this to get all standard modules:
-//   import "std/std.aya";
-
 import "io.aya";
 import "string.aya";
 import "math.aya";
+// 注意：list/linkedlist/arraylist 尚未迁移到新所有权模型，
+// 暂不纳入 std 聚合包（可单独编译）。
+// import "list.aya";
+// import "linkedlist.aya";
+// import "arraylist.aya";
+
+pub interface Error {
+    fn what(ref self) -> String;
+}
+
+pub enum Result[T, E] {
+    Ok(T),
+    Err(E),
+}
+
+impl[T, E] Result[T, E] {
+    pub fn try_unwrap(self) -> T {
+        match self {
+            Ok(v) => v,
+            Err(_) => 0,
+        }
+    }
+}

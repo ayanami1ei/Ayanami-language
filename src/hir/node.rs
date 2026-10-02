@@ -20,7 +20,10 @@ pub trait HirNode: std::fmt::Debug {
     fn collect_var_ids(&self, vars: &mut HashSet<VarId>) {
         self.for_each_child(&mut |c| c.collect_var_ids(vars));
     }
-    fn record_moves(&self, moved: &mut HashSet<VarId>) {}
+    /// 递归记录被消费（移动）的变量（默认经 `for_each_child` 下降）
+    fn record_moves(&self, moved: &mut HashSet<VarId>) {
+        self.for_each_child(&mut |c| c.record_moves(moved));
+    }
     fn as_const(&self) -> Option<&HirLiteral> { None }
     fn as_move(&self) -> Option<&HirNodeBox> { None }
     fn as_clone(&self) -> Option<&HirNodeBox> { None }

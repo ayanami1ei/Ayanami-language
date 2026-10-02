@@ -11,13 +11,13 @@ pub fn getchar() -> int {
 pub fn putchar(int c) { 
     __ayanami_putchar(c); 
 }
-pub fn print(unique String n) { 
+pub fn print(ref String n) { 
     __ayanami_print_str(n.data, n.len); 
 }
 pub fn println() {
     __ayanami_print_ln(); 
 }
-pub fn println(unique String s) {
+pub fn println(ref String s) {
     print(s)
     println()
 }

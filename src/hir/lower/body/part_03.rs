@@ -9,7 +9,7 @@ impl crate::hir::lower::Ctx {
         for sig in &self.fns {
             if !sig.params.is_empty() {
                 let inner_ty = match &sig.params[0].1 {
-                    HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+                    HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) | HirType::Ref(inner, _) => inner.as_ref(),
                     other => other,
                 };
                 let type_name = match inner_ty {
@@ -33,7 +33,7 @@ impl crate::hir::lower::Ctx {
                 if params.is_empty() { continue; }
                 let param_ty = ast_type_to_hir(&params[0].1, &self.interfaces);
                 let inner_ty = match &param_ty {
-                    HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+                    HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) | HirType::Ref(inner, _) => inner.as_ref(),
                     other => other,
                 };
                 if let HirType::Named(n) = inner_ty {

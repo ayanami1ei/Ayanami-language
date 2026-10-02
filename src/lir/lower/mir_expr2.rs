@@ -185,12 +185,16 @@ impl MirNode for SMirArraySized {
 impl MirNode for SMirRef {
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
-        let var_id = match self.expr.as_local() {
-            Some(id) => id,
-            None => { let _ = self.expr.lower_to_lir(ctx); panic!("ref target must be a variable"); }
-        };
         let dest = ctx.next_tmp();
-        ctx.emit(SLirRefInst { dest, var_id, mutable: self.mutable, ty: self.ty.clone() }.into());
+        if let Some(var_id) = self.expr.as_local() {
+            ctx.emit(SLirRefInst { dest, var_id, mutable: self.mutable, ty: self.ty.clone() }.into());
+        } else {
+            // 临时值（如函数返回值）：溢出到栈槽后取引用
+            let pointee_ty = self.expr.expr_type();
+            let src = self.expr.lower_to_lir(ctx);
+            let alloca_tmp = ctx.next_tmp();
+            ctx.emit(SLirRefTmp { dest, alloca_tmp, src, mutable: self.mutable, ty: pointee_ty }.into());
+        }
         LirValue::Tmp(dest)
     }
     fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {

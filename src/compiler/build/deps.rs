@@ -84,7 +84,12 @@ pub(super) fn resolve_dependencies(
                         if path.extension().map(|e| e == "lcl") != Some(true) { continue; }
                         let o_name = path.file_stem().unwrap_or(std::ffi::OsStr::new("a"));
                         let o_path = out_dir.join(o_name).with_extension("o");
-                        if !o_path.exists() {
+                        // 缓存失效：.o 不存在，或 .lcl 比 .o 新
+                        let stale = match (path.metadata().and_then(|m| m.modified()), o_path.metadata().and_then(|m| m.modified())) {
+                            (Ok(lcl_t), Ok(o_t)) => lcl_t > o_t,
+                            _ => true,
+                        };
+                        if stale {
                             if let Ok((_, _, lir_binary, _)) =
                                 crate::package::load_package(&path.to_string_lossy())
                             {

@@ -1,0 +1,10 @@
+import "io"
+
+fn main() -> int {
+    s = "hello"
+    t = " world"
+    u = s + t
+    println(u)
+    println(42.to_string())
+    return 0
+}

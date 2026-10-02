@@ -92,17 +92,17 @@ impl crate::hir::lower::Ctx {
                         && self.type_ifaces[&ct].contains(iface_name) {
                         // Build fat pointer
                         let fatptr_ty = param_tys[i].clone();
-                        return SMFP { value: arg, concrete_type: ct, interface_name: *iface_name, ty: fatptr_ty }.into();
+                        return self.make_fatptr_arg(arg, &param_tys[i], ct, *iface_name);
                     }
                     let base_ct = crate::hir::lower::strip_generic_name(&ct);
                     if base_ct != ct && self.type_ifaces.contains_key(&base_ct)
                         && self.type_ifaces[&base_ct].contains(iface_name) {
                         let fatptr_ty = param_tys[i].clone();
-                        return SMFP { value: arg, concrete_type: ct, interface_name: *iface_name, ty: fatptr_ty }.into();
+                        return self.make_fatptr_arg(arg, &param_tys[i], ct, *iface_name);
                     }
                     if self.type_ifaces.contains_key(&ct) && self.type_ifaces[&ct].contains(iface_name) {
                         let fatptr_ty = param_tys[i].clone();
-                        return SMFP { value: arg, concrete_type: ct, interface_name: *iface_name, ty: fatptr_ty }.into();
+                        return self.make_fatptr_arg(arg, &param_tys[i], ct, *iface_name);
                     }
                 }
             }
@@ -146,6 +146,19 @@ impl crate::hir::lower::Ctx {
         }
         Err(Error::Hir(format!("type `{}` cannot be called as a function at {}:{}",
             hir_type_display(&target_ty), span.start_line, span.start_col)))
+    }
+
+    /// 构造接口胖指针实参：ref 形参对裸值自动借用（不装箱）；拥有型在 LIR 装箱。
+    fn make_fatptr_arg(&self, arg: HirNodeBox, param_ty: &HirType, ct: Symbol, iface: Symbol) -> HirNodeBox {
+        let arg_ty = expr_type(&arg);
+        let kind_ref = matches!(param_ty, HirType::FatPtr { kind, .. } if matches!(kind.as_ref(), HirType::Ref(..)));
+        let value = if kind_ref && !matches!(arg_ty, HirType::Ref(..)) {
+            let mutable = matches!(param_ty, HirType::FatPtr { kind, .. } if matches!(kind.as_ref(), HirType::Ref(_, true)));
+            SRef { expr: arg, mutable, ty: HirType::Ref(Box::new(arg_ty.clone()), mutable) }.into()
+        } else {
+            arg
+        };
+        SMFP { value, concrete_type: ct, interface_name: iface, ty: param_ty.clone() }.into()
     }
 
     pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox> {

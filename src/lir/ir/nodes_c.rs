@@ -38,26 +38,6 @@ impl LirNode for SLirAsm {
     }
 }
 
-impl LirNode for SLirRefInst {
-    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-    fn kind(&self) -> &'static str { "RefInst" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn emit(&self, _ctx: &mut LirEmitCtx) -> Vec<String> {
-        vec![format!("%t{} = getelementptr i8, ptr %v{}, i32 0", self.dest, self.var_id.0)]
-    }
-    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
-        let m = if self.mutable { "mut " } else { "" };
-        writeln!(f, "    t{} = ref_{}v{} : {:?}", self.dest, m, self.var_id.0, self.ty)
-    }
-    fn serialize(&self, buf: &mut Vec<u8>) {
-        buf.push(23);
-        put_u64(buf, self.dest);
-        put_u32(buf, self.var_id.0 as u32);
-        buf.push(if self.mutable { 1 } else { 0 });
-        put_type(buf, &self.ty);
-    }
-}
-
 impl LirNode for SLirArraySized {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "ArraySized" }
@@ -153,8 +133,16 @@ impl LirNode for SLirStructLit {
         let struct_llvm = format!("%struct.{}", sanitize_name(&self.struct_name.as_str()));
         lines.push(format!("%t{} = alloca {}, align 8", self.alloca_tmp, struct_llvm));
         for (i, ((val, fty), gep_tmp)) in self.fields.iter().zip(self.field_geps.iter()).enumerate() {
-            let val_str = ctx.value_ref(val, fty);
             let field_llvm = ctx.llvm_type(fty);
+            // Var 源是栈槽地址，需要 load 出值再存
+            let val_str = match val {
+                LirValue::Var(v) => {
+                    let t = ctx.tmp();
+                    lines.push(format!("%e{} = load {}, ptr %v{}, align 8", t, field_llvm, v.0));
+                    format!("%e{}", t)
+                }
+                _ => ctx.value_ref(val, fty),
+            };
             lines.push(format!("%t{} = getelementptr {}, ptr %t{}, i32 0, i32 {}", gep_tmp, struct_llvm, self.alloca_tmp, i));
             lines.push(format!("store {} {}, ptr %t{}", field_llvm, val_str, gep_tmp));
         }
@@ -232,8 +220,16 @@ impl LirNode for SLirFieldStore {
         };
         let struct_llvm = ctx.struct_llvm_name(struct_name)
             .unwrap_or_else(|| panic!("unknown struct type `{}`", struct_name));
-        let src_str = ctx.value_ref(&self.src, &self.field_ty);
         let field_llvm = ctx.llvm_type(&self.field_ty);
+        // Var 源需要 load 出值
+        let src_str = match &self.src {
+            LirValue::Var(v) => {
+                let t = ctx.tmp();
+                lines.push(format!("%e{} = load {}, ptr %v{}, align 8", t, field_llvm, v.0));
+                format!("%e{}", t)
+            }
+            _ => ctx.value_ref(&self.src, &self.field_ty),
+        };
         if matches!(&self.struct_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_) | HirType::Ref(..)) {
             lines.push(format!("%t{} = getelementptr {}, ptr %t{}, i32 0, i32 {}", self.gep_tmp, struct_llvm, self.dest, self.field_index));
             // Retain the new value before storing (shared pointer field)
@@ -267,13 +263,27 @@ impl LirNode for SLirIndexStore {
     fn kind(&self) -> &'static str { "IndexStore" }
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let mut lines = Vec::new();
         let elem_llvm = ctx.llvm_type(&self.elem_ty);
-        let src_str = ctx.value_ref(&self.src, &self.elem_ty);
-        let idx_str = ctx.value_ref(&self.index, &HirType::Int);
-        vec![
-            format!("%t{} = getelementptr {}, ptr %t{}, i64 {}", self.gep_tmp, elem_llvm, self.dest, idx_str),
-            format!("store {} {}, ptr %t{}", elem_llvm, src_str, self.gep_tmp),
-        ]
+        let src_str = match &self.src {
+            LirValue::Var(v) => {
+                let t = ctx.tmp();
+                lines.push(format!("%e{} = load {}, ptr %v{}, align 8", t, elem_llvm, v.0));
+                format!("%e{}", t)
+            }
+            _ => ctx.value_ref(&self.src, &self.elem_ty),
+        };
+        let idx_str = match &self.index {
+            LirValue::Var(v) => {
+                let t = ctx.tmp();
+                lines.push(format!("%e{} = load i64, ptr %v{}, align 8", t, v.0));
+                format!("%e{}", t)
+            }
+            _ => ctx.value_ref(&self.index, &HirType::Int),
+        };
+        lines.push(format!("%t{} = getelementptr {}, ptr %t{}, i64 {}", self.gep_tmp, elem_llvm, self.dest, idx_str));
+        lines.push(format!("store {} {}, ptr %t{}", elem_llvm, src_str, self.gep_tmp));
+        lines
     }
     fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
         writeln!(f, "    t{} = index_store elem_ty={:?}", self.dest, self.elem_ty)

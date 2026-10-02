@@ -113,7 +113,10 @@ impl HirNode for SMove {
     fn is_move_or_clone(&self) -> bool { true }
     fn as_move(&self) -> Option<&HirNodeBox> { Some(&self.expr) }
     fn record_moves(&self, moved: &mut HashSet<VarId>) {
-        if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        // Copy 类型不因转换/移动而失效
+        if !self.expr.expr_type().is_copy() {
+            if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        }
         self.expr.record_moves(moved);
     }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
@@ -154,7 +157,10 @@ impl HirNode for SToUnique {
         f(&*self.expr);
     }
     fn record_moves(&self, moved: &mut HashSet<VarId>) {
-        if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        // Copy 类型不因转换/移动而失效
+        if !self.expr.expr_type().is_copy() {
+            if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        }
         self.expr.record_moves(moved);
     }
 }
@@ -174,7 +180,10 @@ impl HirNode for SToShared {
         f(&*self.expr);
     }
     fn record_moves(&self, moved: &mut HashSet<VarId>) {
-        if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        // Copy 类型不因转换/移动而失效
+        if !self.expr.expr_type().is_copy() {
+            if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        }
         self.expr.record_moves(moved);
     }
 }
@@ -194,7 +203,10 @@ impl HirNode for SToWeak {
         f(&*self.expr);
     }
     fn record_moves(&self, moved: &mut HashSet<VarId>) {
-        if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        // Copy 类型不因转换/移动而失效
+        if !self.expr.expr_type().is_copy() {
+            if let Some(id) = self.expr.as_local() { moved.insert(id); }
+        }
         self.expr.record_moves(moved);
     }
 }

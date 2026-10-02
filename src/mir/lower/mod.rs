@@ -42,4 +42,5 @@ struct Ctx {
     moved: HashSet<VarId>,
     struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
     errors: Vec<crate::error::Error>,
+    return_type: HirType,
 }

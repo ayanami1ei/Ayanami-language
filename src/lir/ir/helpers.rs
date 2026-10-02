@@ -82,7 +82,8 @@ pub(super) fn is_pointer_type(ty: &HirType) -> bool {
 /// - 枚举（首字段为 `_tag`）暂不递归释放 payload（P1 已知缺口）。
 pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
-        HirType::Unique(_) | HirType::Shared(_) | HirType::FatPtr { .. } => true,
+        HirType::Unique(_) | HirType::Shared(_) => true,
+        HirType::FatPtr { kind, .. } => !matches!(kind.as_ref(), HirType::Ref(..)),
         HirType::Named(name) => {
             let Some(fields) = struct_defs.get(name) else { return false; };
             fields.iter().any(|(_, ft)| needs_drop(ft, struct_defs))
@@ -121,11 +122,23 @@ pub(super) fn emit_drop_value(
             lines.push(format!("%c{} = load ptr, ptr {}, align 8", tmp, slot));
             lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
         }
-        HirType::FatPtr { .. } => {
-            let tmp = ctx.tmp();
-            lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 0", tmp, slot));
-            lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", tmp, tmp));
-            lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
+        HirType::FatPtr { kind, .. } => {
+            match kind.as_ref() {
+                // 借用胖指针不拥有数据，无需释放
+                HirType::Ref(..) => {}
+                HirType::Unique(_) => {
+                    let tmp = ctx.tmp();
+                    lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 0", tmp, slot));
+                    lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", tmp, tmp));
+                    lines.push(format!("call void @__ayanami_unique_free(i8* %c{})", tmp));
+                }
+                _ => {
+                    let tmp = ctx.tmp();
+                    lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 0", tmp, slot));
+                    lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", tmp, tmp));
+                    lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
+                }
+            }
         }
         HirType::Named(name) => {
             let Some(fields) = ctx.prog.struct_defs.get(name).cloned() else { return; };

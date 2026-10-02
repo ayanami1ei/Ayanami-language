@@ -28,6 +28,7 @@ impl Ctx {
             moved: HashSet::new(),
             struct_defs: struct_defs.clone(),
             errors: Vec::new(),
+            return_type: f.return_type.clone(),
         }
     }
 
@@ -152,7 +153,8 @@ impl Ctx {
         // 先把返回值求值到临时变量，再做作用域清理，
         // 避免 `return up.x` 这类表达式在 drop 之后才读取变量（use-after-free）。
         let ret_var = value.as_ref().map(|v| {
-            let ty = v.expr_type();
+            // 临时变量使用函数返回类型（比较运算等表达式类型可能与返回类型不同）
+            let ty = self.return_type.clone();
             let tmp = self.new_temp(ty);
             let mir_value = v.lower_to_mir(&self.moved);
             stmts.push(SMirAssignStmt {

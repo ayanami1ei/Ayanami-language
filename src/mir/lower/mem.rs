@@ -5,7 +5,8 @@ use super::*;
 /// 枚举（首字段 `_tag`）的 payload 释放尚未实现，暂不自动 drop。
 fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
-        HirType::Unique(_) | HirType::Shared(_) | HirType::FatPtr { .. } => true,
+        HirType::Unique(_) | HirType::Shared(_) => true,
+        HirType::FatPtr { kind, .. } => !matches!(kind.as_ref(), HirType::Ref(..)),
         HirType::Named(name) => {
             let Some(fields) = struct_defs.get(name) else { return false; };
             fields.iter().any(|(_, ft)| needs_drop(ft, struct_defs))

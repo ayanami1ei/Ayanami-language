@@ -45,6 +45,11 @@ impl LirNode for SLirConv {
                 }
             }
             ConvKind::ToUnique => {
+                // 数组缓冲区已是堆指针：所有权直接转移，无需复制
+                if matches!(&self.src_ty, HirType::Array(_) | HirType::ArraySized(_, _)) {
+                    lines.push(format!("%t{} = bitcast ptr {} to ptr", self.dest, src_val));
+                    return lines;
+                }
                 let inner_ty = match &self.ty {
                     HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
                     _ => &self.ty,
@@ -79,73 +84,6 @@ impl LirNode for SLirConv {
         buf.push(7);
         put_u64(buf, self.dest); put_u64(buf, self.alloca_tmp); put_u64(buf, self.malloc_tmp);
         put_value(buf, &self.src); put_u32(buf, self.kind as u32); put_type(buf, &self.src_ty); put_type(buf, &self.ty);
-    }
-}
-
-impl LirNode for SLirDropValue {
-    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-    fn kind(&self) -> &'static str { "DropValue" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
-        let mut lines = Vec::new();
-        emit_drop_value(ctx, &format!("%v{}", self.var.0), &self.ty, &mut lines);
-        lines
-    }
-    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
-        writeln!(f, "    drop v{} : {:?}", self.var.0, self.ty)
-    }
-    fn serialize(&self, buf: &mut Vec<u8>) {
-        buf.push(8);
-        put_u32(buf, self.var.0 as u32);
-        put_type(buf, &self.ty);
-    }
-}
-
-impl LirNode for SLirRetainValue {
-    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-    fn kind(&self) -> &'static str { "RetainValue" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
-        let mut lines = Vec::new();
-        if needs_heap_ops(&self.ty) {
-            let tmp = ctx.tmp();
-            let llvm_ty = ctx.llvm_type(&self.ty);
-            lines.push(format!("%c{} = load {}, ptr %v{}, align 8", tmp, llvm_ty, self.var.0));
-            lines.push(format!("call void @__ayanami_shared_retain(i8* %c{})", tmp));
-        }
-        lines
-    }
-    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
-        writeln!(f, "    retain v{} : {:?}", self.var.0, self.ty)
-    }
-    fn serialize(&self, buf: &mut Vec<u8>) {
-        buf.push(9);
-        put_u32(buf, self.var.0 as u32);
-        put_type(buf, &self.ty);
-    }
-}
-
-impl LirNode for SLirReleaseValue {
-    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-    fn kind(&self) -> &'static str { "ReleaseValue" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
-        let mut lines = Vec::new();
-        if needs_heap_ops(&self.ty) {
-            let tmp = ctx.tmp();
-            let llvm_ty = ctx.llvm_type(&self.ty);
-            lines.push(format!("%c{} = load {}, ptr %v{}, align 8", tmp, llvm_ty, self.var.0));
-            lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
-        }
-        lines
-    }
-    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
-        writeln!(f, "    release v{} : {:?}", self.var.0, self.ty)
-    }
-    fn serialize(&self, buf: &mut Vec<u8>) {
-        buf.push(10);
-        put_u32(buf, self.var.0 as u32);
-        put_type(buf, &self.ty);
     }
 }
 
@@ -219,12 +157,22 @@ impl LirNode for SLirMakeFatPtr {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let mut lines = Vec::new();
-        let is_ptr_type = matches!(&self.value_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_));
-        let data_ptr = if is_ptr_type {
+        let kind = match &self.ty {
+            HirType::FatPtr { kind, .. } => kind.as_ref(),
+            _ => &HirType::Void,
+        };
+        let is_ptr_type = matches!(&self.value_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_) | HirType::Ref(..));
+        let data_ptr = if is_ptr_type || matches!(kind, HirType::Ref(..)) {
+            // 已是指针或借用胖指针：直接使用（ref 的 LIR 值就是指向值的地址）
             ctx.value_ref(&self.value_src, &self.value_ty)
         } else {
+            let alloc_fn = if matches!(kind, HirType::Unique(_)) {
+                "__ayanami_unique_alloc"
+            } else {
+                "__ayanami_shared_alloc"
+            };
             let size = struct_llvm_size(&self.value_ty, &ctx.prog.struct_defs);
-            lines.push(format!("%t{} = call i8* @__ayanami_shared_alloc(i64 {})", self.malloc_tmp, size));
+            lines.push(format!("%t{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, size));
             lines.push(format!("%t{} = bitcast i8* %t{} to ptr", self.bc_tmp, self.malloc_tmp));
             let val_llvm = ctx.llvm_type(&self.value_ty);
             let src_str = ctx.value_ref(&self.value_src, &self.value_ty);

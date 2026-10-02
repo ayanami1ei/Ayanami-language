@@ -150,6 +150,7 @@ impl<'a> Reader<'a> {
                 Ok(SLirIndexStore { dest: d, gep_tmp: gt, src: s, index: idx, elem_ty: et, array_ty: at }.into())
             }
             23 => { let d = self.u64()?; let vr = VarId(self.u32()? as usize); let m = self.read(1)?[0] != 0; let t = self.ty()?; Ok(SLirRefInst { dest: d, var_id: vr, mutable: m, ty: t }.into()) }
+            27 => { let d = self.u64()?; let a = self.u64()?; let s = self.value()?; let m = self.read(1)?[0] != 0; let t = self.ty()?; Ok(SLirRefTmp { dest: d, alloca_tmp: a, src: s, mutable: m, ty: t }.into()) }
             24 => {
                 let d_raw = self.u32()?;
                 let dest = if d_raw == 0xFFFFFFFF { None } else { Some(d_raw as u64) };

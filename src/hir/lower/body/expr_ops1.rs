@@ -41,6 +41,7 @@ impl crate::hir::lower::Ctx {
                 return Ok(SCall { fn_id, args, ty: ret_ty }.into());
             }
         }
+        // 注意：比较运算的 ty 保持操作数类型；结果类型（Bool）由 MIR→LIR 降级决定
         let binop_ty = if is_null_ptr_cmp {
             if lhs_is_null { rhs_ty.clone() } else { lhs_ty.clone() }
         } else {
@@ -69,7 +70,11 @@ impl crate::hir::lower::Ctx {
                 }
             }
         }
-        let ty = strip_ownership(arg_ty);
+        let ty = if matches!(op, UnaryOp::Not) {
+            HirType::Bool
+        } else {
+            strip_ownership(arg_ty)
+        };
         Ok(SUn {
             op: *op,
             arg: hir_arg,
