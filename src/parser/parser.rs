@@ -1,3 +1,4 @@
+use crate::error::{Error, Result};
 use crate::lexer::{Delimiter, Keyword, Token, TokenKind};
 use crate::intern::Symbol;
 use crate::parser::ast::{BinaryOp, Block, Expr, InterfaceMethod, Literal, Program, Stmt, Type, UnaryOp};
@@ -24,15 +25,15 @@ impl Parser {
         Some(tok)
     }
 
-    fn error(&self, msg: &str) -> String {
+    fn error(&self, msg: &str) -> Error {
         if let Some(tok) = self.peek() {
-            format!("{} (at {}:{})", msg, tok.line, tok.col)
+            Error::Parse(format!("{} (at {}:{})", msg, tok.line, tok.col))
         } else {
-            format!("{} (at end of file)", msg)
+            Error::Parse(format!("{} (at end of file)", msg))
         }
     }
 
-    fn expect_keyword(&mut self, kw: Keyword) -> Result<(), String> {
+    fn expect_keyword(&mut self, kw: Keyword) -> Result<()> {
         match self.peek() {
             Some(tok) if tok.kind == TokenKind::Keyword(kw) => {
                 self.advance();
@@ -43,7 +44,7 @@ impl Parser {
         }
     }
 
-    fn expect_delimiter(&mut self, d: Delimiter) -> Result<(), String> {
+    fn expect_delimiter(&mut self, d: Delimiter) -> Result<()> {
         match self.peek() {
             Some(tok) if tok.kind == TokenKind::Delimiter(d) => {
                 self.advance();
@@ -54,7 +55,7 @@ impl Parser {
         }
     }
 
-    fn expect_operator(&mut self, op: &str) -> Result<(), String> {
+    fn expect_operator(&mut self, op: &str) -> Result<()> {
         match self.peek() {
             Some(tok) if tok.kind == TokenKind::Operator(op.to_string()) => {
                 self.advance();
@@ -90,7 +91,7 @@ impl Parser {
 
     /// Consume `;` if present; otherwise, succeed if the next token
     /// starts a new statement or ends the current scope.
-    fn try_semicolon(&mut self) -> Result<(), String> {
+    fn try_semicolon(&mut self) -> Result<()> {
         match self.peek().map(|t| &t.kind) {
             Some(TokenKind::Delimiter(Delimiter::Semicolon)) => { self.advance(); Ok(()) }
             Some(kind) if Self::is_stmt_start(kind) || matches!(kind,
@@ -122,7 +123,7 @@ impl Parser {
         }
     }
 
-    fn expect_identifier(&mut self) -> Result<String, String> {
+    fn expect_identifier(&mut self) -> Result<String> {
         match self.peek() {
             Some(tok) if matches!(&tok.kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_)) => {
                 let kind = tok.kind.clone();
@@ -140,7 +141,7 @@ impl Parser {
 
     // ==================== Entry point ====================
 
-    pub fn parse_program(&mut self) -> Result<Program, String> {
+    pub fn parse_program(&mut self) -> Result<Program> {
         let mut stmts = Vec::new();
         while self.pos < self.tokens.len() {
             stmts.push(self.parse_stmt()?);
@@ -150,7 +151,7 @@ impl Parser {
 
     // ==================== Statements ====================
 
-    fn parse_stmt(&mut self) -> Result<Stmt, String> {
+    fn parse_stmt(&mut self) -> Result<Stmt> {
         let vis = self.parse_visibility();
         let is_inline = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Inline));
         if is_inline { self.advance(); }
@@ -214,7 +215,7 @@ impl Parser {
 
     /// Parse an assignment (with optional mut) or expression statement.
     /// Handles: mut v = expr, v = expr, expr.field = expr, expr[i] = expr, expr;
-    fn parse_any_assign_or_expr(&mut self) -> Result<Stmt, String> {
+    fn parse_any_assign_or_expr(&mut self) -> Result<Stmt> {
         let is_mut = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Mut));
         if is_mut { self.advance(); }
 
@@ -248,7 +249,7 @@ impl Parser {
         )).unwrap_or(false)
     }
 
-    fn parse_lambda(&mut self) -> Result<Expr, String> {
+    fn parse_lambda(&mut self) -> Result<Expr> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         // Already at LParen from caller
         self.advance(); // consume (
@@ -283,7 +284,7 @@ impl Parser {
         })
     }
 
-    fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool) -> Result<Stmt, String> {
+    fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let name = self.expect_identifier()?;
@@ -353,7 +354,7 @@ impl Parser {
         })
     }
 
-    fn parse_return(&mut self) -> Result<Stmt, String> {
+    fn parse_return(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let value = match self.peek().map(|t| &t.kind) {
@@ -369,7 +370,7 @@ impl Parser {
         Ok(Stmt::Return { value, span: start_span })
     }
 
-    fn parse_if(&mut self) -> Result<Stmt, String> {
+    fn parse_if(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let cond = self.parse_expr()?;
@@ -401,7 +402,7 @@ impl Parser {
         })
     }
 
-    fn parse_for(&mut self) -> Result<Stmt, String> {
+    fn parse_for(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let iter_name = self.expect_identifier()?;
@@ -428,7 +429,7 @@ impl Parser {
         })
     }
 
-    fn parse_while(&mut self) -> Result<Stmt, String> {
+    fn parse_while(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let cond = self.parse_expr()?;
@@ -438,7 +439,7 @@ impl Parser {
 
     // ==================== Match statement ====================
 
-    fn parse_match_stmt(&mut self) -> Result<Stmt, String> {
+    fn parse_match_stmt(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // match
         let value = self.parse_expr()?;
@@ -469,7 +470,7 @@ impl Parser {
         Ok(Stmt::Match { value: Box::new(value), arms, span: start_span })
     }
 
-    fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt, String> {
+    fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let name = self.expect_identifier()?;
@@ -492,7 +493,7 @@ impl Parser {
 
     // ==================== Struct definition ====================
 
-    fn parse_struct_def(&mut self, vis: Visibility) -> Result<Stmt, String> {
+    fn parse_struct_def(&mut self, vis: Visibility) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // struct
         let name = Symbol::intern(&self.expect_identifier()?);
@@ -531,7 +532,7 @@ impl Parser {
 
     // ==================== Enum definition ====================
 
-    fn parse_enum_def(&mut self, vis: Visibility) -> Result<Stmt, String> {
+    fn parse_enum_def(&mut self, vis: Visibility) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // enum
         let name = Symbol::intern(&self.expect_identifier()?);
@@ -599,7 +600,7 @@ impl Parser {
 
     // ==================== Interface definition ====================
 
-    fn parse_interface_def(&mut self) -> Result<Stmt, String> {
+    fn parse_interface_def(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // interface
         let name = self.expect_identifier()?;
@@ -642,7 +643,7 @@ impl Parser {
         })
     }
 
-    fn parse_interface_method(&mut self) -> Result<InterfaceMethod, String> {
+    fn parse_interface_method(&mut self) -> Result<InterfaceMethod> {
         self.expect_keyword(Keyword::Fn)?;
         let name = self.expect_identifier()?;
         self.expect_delimiter(Delimiter::LParen)?;
@@ -700,7 +701,7 @@ impl Parser {
 
     // ==================== Impl block ====================
 
-    fn parse_import(&mut self) -> Result<Stmt, String> {
+    fn parse_import(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // import
         let path = match self.peek().map(|t| &t.kind) {
@@ -715,7 +716,7 @@ impl Parser {
         Ok(Stmt::Import { path, span: start_span })
     }
 
-    fn parse_impl_block(&mut self) -> Result<Stmt, String> {
+    fn parse_impl_block(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // impl
         // Parse optional generic params: [T, U: Interface]
@@ -777,7 +778,7 @@ impl Parser {
     /// Parse a method inside an impl block.
     /// Converts `fn draw(shared self, ...)` into a regular FnDecl with
     /// the self parameter typed as `shared TypeName` (or `unique TypeName`).
-    fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt, String> {
+    fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt> {
         // Optional pub keyword
         if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Pub)) {
             self.advance();
@@ -909,7 +910,7 @@ impl Parser {
     }
 
 
-    fn parse_block(&mut self) -> Result<Block, String> {
+    fn parse_block(&mut self) -> Result<Block> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.expect_delimiter(Delimiter::LBrace)?;
         let mut stmts = Vec::new();
@@ -925,11 +926,11 @@ impl Parser {
 
     // ==================== Expressions ====================
 
-    fn parse_expr(&mut self) -> Result<Expr, String> {
+    fn parse_expr(&mut self) -> Result<Expr> {
         self.parse_or()
     }
 
-    fn parse_or(&mut self) -> Result<Expr, String> {
+    fn parse_or(&mut self) -> Result<Expr> {
         let mut left = self.parse_and()?;
         while self.peek().map(|t| t.kind == TokenKind::Operator("||".to_string())) == Some(true) {
             let op_span = self.peek().unwrap().span();
@@ -945,7 +946,7 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_and(&mut self) -> Result<Expr, String> {
+    fn parse_and(&mut self) -> Result<Expr> {
         let mut left = self.parse_compare()?;
         while self.peek().map(|t| t.kind == TokenKind::Operator("&&".to_string())) == Some(true) {
             let op_span = self.peek().unwrap().span();
@@ -961,7 +962,7 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_compare(&mut self) -> Result<Expr, String> {
+    fn parse_compare(&mut self) -> Result<Expr> {
         let mut left = self.parse_sum()?;
         while let Some(tok) = self.peek() {
             let op_span = tok.span();
@@ -994,7 +995,7 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_sum(&mut self) -> Result<Expr, String> {
+    fn parse_sum(&mut self) -> Result<Expr> {
         let mut left = self.parse_product()?;
         while let Some(tok) = self.peek() {
             let op_span = tok.span();
@@ -1023,7 +1024,7 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_product(&mut self) -> Result<Expr, String> {
+    fn parse_product(&mut self) -> Result<Expr> {
         let mut left = self.parse_unary()?;
         while let Some(tok) = self.peek() {
             let op_span = tok.span();
@@ -1053,7 +1054,7 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_unary(&mut self) -> Result<Expr, String> {
+    fn parse_unary(&mut self) -> Result<Expr> {
         let tok = self.peek().ok_or_else(|| self.error("expected expression"))?.clone();
         let span = tok.span();
         match &tok.kind {
@@ -1112,7 +1113,7 @@ impl Parser {
     }
 
     /// Parse postfix operations: function calls, indexing, method calls, field access.
-    fn parse_postfix(&mut self) -> Result<Expr, String> {
+    fn parse_postfix(&mut self) -> Result<Expr> {
         let mut expr = self.parse_atom()?;
         loop {
             let tok = self.peek().cloned();
@@ -1239,7 +1240,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn parse_atom(&mut self) -> Result<Expr, String> {
+    fn parse_atom(&mut self) -> Result<Expr> {
         let tok = self.peek().ok_or_else(|| self.error("expected expression"))?.clone();
         let span = tok.span();
         match tok.kind {
@@ -1512,7 +1513,7 @@ impl Parser {
 
     // ==================== Types ====================
 
-    fn parse_type(&mut self) -> Result<Type, String> {
+    fn parse_type(&mut self) -> Result<Type> {
         let tok = self.peek().ok_or_else(|| self.error("expected type"))?.clone();
         let span = tok.span();
         match tok.kind {
@@ -1542,7 +1543,7 @@ impl Parser {
         }
     }
 
-    fn parse_base_type(&mut self) -> Result<Type, String> {
+    fn parse_base_type(&mut self) -> Result<Type> {
         let tok = self.peek().ok_or_else(|| self.error("expected type"))?.clone();
         let span = tok.span();
         match tok.kind {
@@ -1616,7 +1617,7 @@ impl Parser {
 
     /// Handle :: as path separator: consume :: pairs that form namespace paths.
     /// Stops when :: is followed by ( or { (enum construct).
-    fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<(), String> {
+    fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()> {
         loop {
             match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Operator(s)) if s == "::" => {

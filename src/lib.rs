@@ -17,6 +17,7 @@
 pub mod generated;
 pub mod compiler;
 pub mod driver;
+pub mod error;
 pub mod formatter;
 pub mod hir;
 pub mod intern;

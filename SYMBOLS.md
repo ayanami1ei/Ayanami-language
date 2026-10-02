@@ -74,6 +74,8 @@ src/driver/mod.rs:136: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, l
 src/driver/mod.rs:153: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<(), String>
 src/driver/mod.rs:173: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<(), String>
 src/driver/mod.rs:178: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<(), String>
+src/error.rs:10: pub enum Error
+src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter.rs:7: const INDENT: &str = "    ";
 src/formatter.rs:9: pub fn format_program(program: &Program) -> String
 src/formatter.rs:21: fn write_stmt_separator(out: &mut String, stmt: &Stmt)
@@ -88,7 +90,7 @@ src/formatter.rs:342: fn write_expr(expr: &Expr) -> String
 src/formatter.rs:442: fn write_literal(lit: &Literal) -> String
 src/formatter.rs:462: fn write_bin_op(op: &BinaryOp) -> &str
 src/formatter.rs:480: fn vis_str(vis: &Visibility) -> &str
-src/formatter.rs:489: pub fn format_file(code: &str) -> Result<String, String>
+src/formatter.rs:489: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/hir/display.rs:5: pub fn display_hir_program(program: &HirProgram)
 src/hir/display.rs:9: pub fn hir_program_to_string(program: &HirProgram) -> String
 src/hir/display.rs:18: pub(crate) fn pad(n: usize) -> String
@@ -402,17 +404,18 @@ src/lexer/token_kind.rs:20: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Re
 src/lib.rs:17: pub mod generated;
 src/lib.rs:18: pub mod compiler;
 src/lib.rs:19: pub mod driver;
-src/lib.rs:20: pub mod formatter;
-src/lib.rs:21: pub mod hir;
-src/lib.rs:22: pub mod intern;
-src/lib.rs:23: pub mod lexer;
-src/lib.rs:24: pub mod lir;
-src/lib.rs:25: pub mod mir;
-src/lib.rs:26: pub mod package;
-src/lib.rs:27: pub mod parser;
-src/lib.rs:28: pub mod span;
-src/lib.rs:31: mod test_parse
-src/lib.rs:33: fn test_struct_literal_parse()
+src/lib.rs:20: pub mod error;
+src/lib.rs:21: pub mod formatter;
+src/lib.rs:22: pub mod hir;
+src/lib.rs:23: pub mod intern;
+src/lib.rs:24: pub mod lexer;
+src/lib.rs:25: pub mod lir;
+src/lib.rs:26: pub mod mir;
+src/lib.rs:27: pub mod package;
+src/lib.rs:28: pub mod parser;
+src/lib.rs:29: pub mod span;
+src/lib.rs:32: mod test_parse
+src/lib.rs:34: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
@@ -1143,67 +1146,67 @@ src/parser/ast/unary_op.rs:2: pub enum UnaryOp
 src/parser/ast/vis.rs:2: pub enum Visibility
 src/parser/ast/vis.rs:8: impl Visibility
 src/parser/ast/vis.rs:9: pub fn is_public(&self) -> bool
-src/parser/gen_bridge.rs:9: pub fn node_to_program(node: &Node) -> Result<crate::parser::ast::block::Block, String>
-src/parser/gen_bridge.rs:18: pub fn node_to_stmt(node: &Node) -> Result<Stmt, String>
-src/parser/gen_bridge.rs:93: pub fn node_to_expr(node: &Node) -> Result<Expr, String>
-src/parser/gen_bridge.rs:243: pub fn type_from_node(node: &Node) -> Result<Type, String>
-src/parser/gen_bridge.rs:286: fn get_str(node: &Node, field: &str) -> Result<String, String>
-src/parser/gen_bridge.rs:291: fn str_to_binop(s: &str) -> Result<BinaryOp, String>
-src/parser/gen_bridge.rs:303: fn params_from_node(node: &Node) -> Result<Vec<(Symbol, Type)>, String>
-src/parser/gen_bridge.rs:313: fn block_from_node(node: &Node) -> Result<crate::parser::ast::block::Block, String>
-src/parser/gen_bridge.rs:318: fn default_span() -> Span
+src/parser/gen_bridge.rs:10: pub fn node_to_program(node: &Node) -> Result<crate::parser::ast::block::Block>
+src/parser/gen_bridge.rs:19: pub fn node_to_stmt(node: &Node) -> Result<Stmt>
+src/parser/gen_bridge.rs:94: pub fn node_to_expr(node: &Node) -> Result<Expr>
+src/parser/gen_bridge.rs:244: pub fn type_from_node(node: &Node) -> Result<Type>
+src/parser/gen_bridge.rs:287: fn get_str(node: &Node, field: &str) -> Result<String>
+src/parser/gen_bridge.rs:292: fn str_to_binop(s: &str) -> Result<BinaryOp>
+src/parser/gen_bridge.rs:304: fn params_from_node(node: &Node) -> Result<Vec<(Symbol, Type)>>
+src/parser/gen_bridge.rs:314: fn block_from_node(node: &Node) -> Result<crate::parser::ast::block::Block>
+src/parser/gen_bridge.rs:319: fn default_span() -> Span
 src/parser/mod.rs:7: pub mod parser;
 src/parser/mod.rs:8: pub mod ast;
 src/parser/mod.rs:9: pub mod gen_bridge;
-src/parser/mod.rs:15: pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program, String>
-src/parser/mod.rs:32: fn fallback_parse(source: &str) -> Result<crate::parser::ast::program::Program, String>
-src/parser/parser.rs:7: pub struct Parser
-src/parser/parser.rs:12: impl Parser
-src/parser/parser.rs:13: pub fn new(tokens: Vec<Token>) -> Self
-src/parser/parser.rs:17: fn peek(&self) -> Option<&Token>
-src/parser/parser.rs:21: fn advance(&mut self) -> Option<Token>
-src/parser/parser.rs:27: fn error(&self, msg: &str) -> String
-src/parser/parser.rs:35: fn expect_keyword(&mut self, kw: Keyword) -> Result<(), String>
-src/parser/parser.rs:46: fn expect_delimiter(&mut self, d: Delimiter) -> Result<(), String>
-src/parser/parser.rs:57: fn expect_operator(&mut self, op: &str) -> Result<(), String>
-src/parser/parser.rs:69: fn is_stmt_only_keyword(kind: &TokenKind) -> bool
-src/parser/parser.rs:80: fn is_stmt_start(kind: &TokenKind) -> bool
-src/parser/parser.rs:93: fn try_semicolon(&mut self) -> Result<(), String>
-src/parser/parser.rs:104: fn parse_visibility(&mut self) -> Visibility
-src/parser/parser.rs:125: fn expect_identifier(&mut self) -> Result<String, String>
-src/parser/parser.rs:143: pub fn parse_program(&mut self) -> Result<Program, String>
-src/parser/parser.rs:153: fn parse_stmt(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:217: fn parse_any_assign_or_expr(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:243: fn is_type_start(&self, pos: usize) -> bool
-src/parser/parser.rs:251: fn parse_lambda(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:286: fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool) -> Result<Stmt, String>
-src/parser/parser.rs:356: fn parse_return(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:372: fn parse_if(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:404: fn parse_for(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:431: fn parse_while(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:441: fn parse_match_stmt(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:472: fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt, String>
-src/parser/parser.rs:495: fn parse_struct_def(&mut self, vis: Visibility) -> Result<Stmt, String>
-src/parser/parser.rs:534: fn parse_enum_def(&mut self, vis: Visibility) -> Result<Stmt, String>
-src/parser/parser.rs:602: fn parse_interface_def(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:645: fn parse_interface_method(&mut self) -> Result<InterfaceMethod, String>
-src/parser/parser.rs:703: fn parse_import(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:718: fn parse_impl_block(&mut self) -> Result<Stmt, String>
-src/parser/parser.rs:744: fn extract_type_name(ty: &Type) -> Symbol
-src/parser/parser.rs:780: fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt, String>
-src/parser/parser.rs:912: fn parse_block(&mut self) -> Result<Block, String>
-src/parser/parser.rs:928: fn parse_expr(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:932: fn parse_or(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:948: fn parse_and(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:964: fn parse_compare(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:997: fn parse_sum(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:1026: fn parse_product(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:1056: fn parse_unary(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:1115: fn parse_postfix(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:1242: fn parse_atom(&mut self) -> Result<Expr, String>
-src/parser/parser.rs:1515: fn parse_type(&mut self) -> Result<Type, String>
-src/parser/parser.rs:1545: fn parse_base_type(&mut self) -> Result<Type, String>
-src/parser/parser.rs:1619: fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<(), String>
+src/parser/mod.rs:17: pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program>
+src/parser/mod.rs:34: fn fallback_parse(source: &str) -> Result<crate::parser::ast::program::Program>
+src/parser/parser.rs:8: pub struct Parser
+src/parser/parser.rs:13: impl Parser
+src/parser/parser.rs:14: pub fn new(tokens: Vec<Token>) -> Self
+src/parser/parser.rs:18: fn peek(&self) -> Option<&Token>
+src/parser/parser.rs:22: fn advance(&mut self) -> Option<Token>
+src/parser/parser.rs:28: fn error(&self, msg: &str) -> Error
+src/parser/parser.rs:36: fn expect_keyword(&mut self, kw: Keyword) -> Result<()>
+src/parser/parser.rs:47: fn expect_delimiter(&mut self, d: Delimiter) -> Result<()>
+src/parser/parser.rs:58: fn expect_operator(&mut self, op: &str) -> Result<()>
+src/parser/parser.rs:70: fn is_stmt_only_keyword(kind: &TokenKind) -> bool
+src/parser/parser.rs:81: fn is_stmt_start(kind: &TokenKind) -> bool
+src/parser/parser.rs:94: fn try_semicolon(&mut self) -> Result<()>
+src/parser/parser.rs:105: fn parse_visibility(&mut self) -> Visibility
+src/parser/parser.rs:126: fn expect_identifier(&mut self) -> Result<String>
+src/parser/parser.rs:144: pub fn parse_program(&mut self) -> Result<Program>
+src/parser/parser.rs:154: fn parse_stmt(&mut self) -> Result<Stmt>
+src/parser/parser.rs:218: fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
+src/parser/parser.rs:244: fn is_type_start(&self, pos: usize) -> bool
+src/parser/parser.rs:252: fn parse_lambda(&mut self) -> Result<Expr>
+src/parser/parser.rs:287: fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool) -> Result<Stmt>
+src/parser/parser.rs:357: fn parse_return(&mut self) -> Result<Stmt>
+src/parser/parser.rs:373: fn parse_if(&mut self) -> Result<Stmt>
+src/parser/parser.rs:405: fn parse_for(&mut self) -> Result<Stmt>
+src/parser/parser.rs:432: fn parse_while(&mut self) -> Result<Stmt>
+src/parser/parser.rs:442: fn parse_match_stmt(&mut self) -> Result<Stmt>
+src/parser/parser.rs:473: fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser.rs:496: fn parse_struct_def(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser.rs:535: fn parse_enum_def(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser.rs:603: fn parse_interface_def(&mut self) -> Result<Stmt>
+src/parser/parser.rs:646: fn parse_interface_method(&mut self) -> Result<InterfaceMethod>
+src/parser/parser.rs:704: fn parse_import(&mut self) -> Result<Stmt>
+src/parser/parser.rs:719: fn parse_impl_block(&mut self) -> Result<Stmt>
+src/parser/parser.rs:745: fn extract_type_name(ty: &Type) -> Symbol
+src/parser/parser.rs:781: fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
+src/parser/parser.rs:913: fn parse_block(&mut self) -> Result<Block>
+src/parser/parser.rs:929: fn parse_expr(&mut self) -> Result<Expr>
+src/parser/parser.rs:933: fn parse_or(&mut self) -> Result<Expr>
+src/parser/parser.rs:949: fn parse_and(&mut self) -> Result<Expr>
+src/parser/parser.rs:965: fn parse_compare(&mut self) -> Result<Expr>
+src/parser/parser.rs:998: fn parse_sum(&mut self) -> Result<Expr>
+src/parser/parser.rs:1027: fn parse_product(&mut self) -> Result<Expr>
+src/parser/parser.rs:1057: fn parse_unary(&mut self) -> Result<Expr>
+src/parser/parser.rs:1116: fn parse_postfix(&mut self) -> Result<Expr>
+src/parser/parser.rs:1243: fn parse_atom(&mut self) -> Result<Expr>
+src/parser/parser.rs:1516: fn parse_type(&mut self) -> Result<Type>
+src/parser/parser.rs:1546: fn parse_base_type(&mut self) -> Result<Type>
+src/parser/parser.rs:1620: fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()>
 src/span.rs:5: pub struct Span
 src/span.rs:14: impl Span
 src/span.rs:15: pub fn new(

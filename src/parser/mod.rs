@@ -8,11 +8,13 @@ pub mod parser;
 pub mod ast;
 pub mod gen_bridge;
 
+use crate::error::Result;
+
 pub use parser::Parser;
 
 /// Parse source code using the generated parser (from Asuka grammar).
 /// Falls back to the hand-written parser if the generated one fails.
-pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program, String> {
+pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program> {
     // Use generated parser
     let tokens = crate::generated::tokenize(source);
     let mut p = crate::generated::Parser::new(tokens);
@@ -29,7 +31,7 @@ pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program
     }
 }
 
-fn fallback_parse(source: &str) -> Result<crate::parser::ast::program::Program, String> {
+fn fallback_parse(source: &str) -> Result<crate::parser::ast::program::Program> {
     let mut lexer = crate::lexer::Lexer::new(source);
     let tokens: Vec<_> = lexer.tokenize_all().into_iter()
         .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))

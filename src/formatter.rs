@@ -486,7 +486,7 @@ fn vis_str(vis: &Visibility) -> &str {
 }
 
 /// Format a single file: parse and re-format.
-pub fn format_file(code: &str) -> Result<String, String> {
+pub fn format_file(code: &str) -> crate::error::Result<String> {
     let mut lexer = crate::lexer::Lexer::new(code);
     let tokens = lexer.tokenize_all();
     let filtered: Vec<_> = tokens.into_iter()
