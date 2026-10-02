@@ -72,10 +72,11 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 - `rust`：**开发分支**，日常提交都进这里（跟踪 `origin/rust`）。
 - `release`：**发布分支**，从发布点拉出，只做发布修复与版本合并；发布用标签 `vX.Y.Z` 标记。
 - `origin/master`、`origin/runtime`、`rust-old` 是旧实现/历史分支，不要在其上开发。
+- 工作节奏：**每完成一个可验证的阶段就提交并推送**（`git push origin rust`）。
 
 ## 版本号同步（必须一起改）
 
-权威版本号是 `Cargo.toml` 的 `version`，必须等于最新发布标签 `vX.Y.Z`。改版本时以下位置同步：
+权威版本号是 `Cargo.toml` 的 `version`，不得低于最新发布标签 `vX.Y.Z`；发布时二者必须一致。改版本时以下位置同步：
 
 | 位置 | 说明 |
 |---|---|
@@ -86,7 +87,8 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 | `README.md` | 安装产物文件名、ayanami.toml 示例 |
 
 - 编译器源码禁止硬编码版本号：已统一用 `env!("CARGO_PKG_VERSION")` 自动跟随（`src/compiler/build.rs`、`src/main.rs` 的 `new` 模板）。
-- 发布流程：改版本 → `cargo check` → 构建 vsix/tar 产物 → 提交 → 打 `vX.Y.Z` 标签 → 推送分支和标签。
+- 校验：`./scripts/check_version.sh`（版本漂移时报错退出），发布前必跑。
+- 发布流程：改版本 → `cargo check` → `./scripts/check_version.sh` → 构建 vsix/tar 产物 → 提交 → 打 `vX.Y.Z` 标签 → 推送分支和标签。
 
 ## 语言与文档索引
 
