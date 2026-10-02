@@ -7,12 +7,6 @@ impl crate::hir::lower::Ctx {
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
                 let value_ty = expr_type(&hir_value);
-                if matches!(value_ty, HirType::Ref(..)) {
-                    return Err(Error::Hir(format!(
-                        "references cannot be stored in variables (at {}:{})",
-                        span.start_line, span.start_col
-                    )));
-                }
                 let (var_id, ty, _) = self.register_or_lookup(*name, value_ty);
                 Ok(HirStmt::Assign {
                     target: SVar { var: var_id, ty: ty.clone() }.into(),

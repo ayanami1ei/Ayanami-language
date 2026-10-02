@@ -22,7 +22,8 @@ impl MirStmtNode for SMirAssignStmt {
         self.value.display(level + 1, w)?;
         Ok(())
     }
-    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.target); f(&*self.value); }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.target); f(&*self.value); }    fn assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.target, &self.value)) }
+
 }
 
 impl MirStmtNode for SMirFieldAssignStmt {
@@ -53,7 +54,8 @@ impl MirStmtNode for SMirFieldAssignStmt {
         self.value.display(level + 1, w)?;
         Ok(())
     }
-    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.value); }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.value); }    fn field_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.value)) }
+
 }
 
 impl MirStmtNode for SMirIndexAssignStmt {
@@ -81,7 +83,8 @@ impl MirStmtNode for SMirIndexAssignStmt {
         self.value.display(level + 1, w)?;
         Ok(())
     }
-    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.index); f(&*self.value); }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.index); f(&*self.value); }    fn index_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.index, &self.value)) }
+
 }
 
 impl MirStmtNode for SMirReturnStmt {
@@ -149,7 +152,8 @@ impl MirStmtNode for SMirIfStmt {
         for s in &self.then_block { f(&**s); }
         for (_, b) in &self.elifs { for s in b { f(&**s); } }
         if let Some(b) = &self.else_block { for s in b { f(&**s); } }
-    }
+    }    fn as_if(&self) -> Option<IfParts<'_>> { Some((&self.cond, &self.then_block, &self.elifs, &self.else_block)) }
+
 }
 
 pub(super) fn lower_elifs(ctx: &mut dyn LirLowerCtx, elifs: &[(MirNodeBox, Vec<MirStmtBox>)], else_block: &Option<Vec<MirStmtBox>>, merge_lbl: &str) {
@@ -204,7 +208,8 @@ impl MirStmtNode for SMirWhileStmt {
         Ok(())
     }
     fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); }
-    fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.body { f(&**s); } }
+    fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.body { f(&**s); } }    fn as_while(&self) -> Option<WhileParts<'_>> { Some((&self.cond, &self.body)) }
+
 }
 
 impl MirStmtNode for SMirBreakStmt {
@@ -216,7 +221,8 @@ impl MirStmtNode for SMirBreakStmt {
     }
     fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
         writeln!(w, "{:width$}Break", "", width = level * 2)
-    }
+    }    fn is_break(&self) -> bool { true }
+
 }
 
 impl MirStmtNode for SMirContinueStmt {
@@ -228,7 +234,8 @@ impl MirStmtNode for SMirContinueStmt {
     }
     fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
         writeln!(w, "{:width$}Continue", "", width = level * 2)
-    }
+    }    fn is_continue(&self) -> bool { true }
+
 }
 
 impl MirStmtNode for SMirExprStmt {
@@ -241,7 +248,8 @@ impl MirStmtNode for SMirExprStmt {
         self.expr.display(level + 1, w)?;
         Ok(())
     }
-    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }    fn expr_part(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
+
 }
 
 impl MirStmtNode for SMirBlockStmt {
@@ -255,7 +263,8 @@ impl MirStmtNode for SMirBlockStmt {
         writeln!(w, "{:width$}}}", "", width = level * 2)?;
         Ok(())
     }
-    fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.stmts { f(&**s); } }
+    fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.stmts { f(&**s); } }    fn as_block(&self) -> Option<&[MirStmtBox]> { Some(&self.stmts) }
+
 }
 
 impl MirStmtNode for SMirDropStmt {

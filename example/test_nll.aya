@@ -1,0 +1,22 @@
+// NLL 风格借用检查验证：
+// - 借用在最后一次使用后失效（x.v = 5 合法）
+// - 临时借用按求值顺序释放（f(x) + g(x) 合法）
+struct S {
+    int v
+}
+
+fn f(ref S s) -> int { return s.v }
+
+fn g(ref mut S s) -> int {
+    s.v = s.v + 1
+    return s.v
+}
+
+fn main() -> int {
+    x = S { v = 1 };
+    r = ref x;
+    a = r.v;          // r 的最后一次使用
+    x.v = 5;          // 合法：r 的借用已失效
+    b = f(x) + g(x);  // 5 + 6
+    return b + a;     // 11 + 1 = 12
+}

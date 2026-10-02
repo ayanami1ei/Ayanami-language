@@ -140,7 +140,8 @@ impl MirNode for SMirCall {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for a in &self.args { f(&**a); } }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for a in &self.args { f(&**a); } }    fn is_call(&self) -> bool { true }
+
 }
 
 impl MirNode for SMirMove {
@@ -220,7 +221,8 @@ impl MirNode for SMirVirtualCall {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.receiver); for a in &self.args { f(&**a); } }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.receiver); for a in &self.args { f(&**a); } }    fn is_call(&self) -> bool { true }
+
 }
 
 impl MirNode for SMirMakeFatPtr {

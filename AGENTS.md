@@ -63,6 +63,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 ## 代码约定
 
 - 错误处理统一用 `src/error.rs` 的 `Error`（`thiserror` 派生，按阶段分变体）与 `crate::error::Result<T>`；**新代码禁止 `Result<_, String>`**。生成解析器（`src/generated/`）内部仍是 `String`，在边界转换。
+- 借用检查为 NLL 风格（`src/mir/borrow/`：CFG + liveness 驱动 loan 活性）：引用可存局部变量、最后一次使用后失效；不可返回、不可存入字段/数组。
 - IR 节点是 struct + trait object（`HirNode` / `MirNode`），字面量/节点转换走 `lower_to_mir`。
 - 新增语言特性时同步整条链路：`ayanami.grammar` → AST → HIR → MIR → LIR → `emit` → example 用例。
 - 注释中英混排，跟随所在文件的既有风格。

@@ -46,7 +46,8 @@ impl MirNode for SMirCallPtr {
         writeln!(w, "{:width$}CallPtr", "", width = level * 2)
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.fn_ptr); for a in &self.args { f(&**a); } }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.fn_ptr); for a in &self.args { f(&**a); } }    fn is_call(&self) -> bool { true }
+
 }
 
 impl MirNode for SMirEnumMatch {

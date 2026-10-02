@@ -13,11 +13,18 @@ pub trait MirNode: std::fmt::Debug {
     fn display(&self, level: usize, w: &mut dyn FmtWrite) -> std::fmt::Result;
     fn expr_type(&self) -> HirType;
     fn as_local(&self) -> Option<VarId> { None }
-    fn collect_var_ids(&self, vars: &mut HashSet<VarId>) {}
-    fn record_moves(&self, moved: &mut HashSet<VarId>) {}
+    /// 递归收集表达式引用的局部变量（默认经 for_each_child 下降）
+    fn collect_var_ids(&self, vars: &mut HashSet<VarId>) {
+        self.for_each_child(&mut |c| c.collect_var_ids(vars));
+    }
+    fn record_moves(&self, moved: &mut HashSet<VarId>) {
+        self.for_each_child(&mut |c| c.record_moves(moved));
+    }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) {}
     fn as_string_literal(&self) -> Option<&str> { None }
     fn as_ref(&self) -> Option<(VarId, bool)> { None }
+    /// 是否是函数/方法/函数指针调用（借用检查的求值上下文边界）
+    fn is_call(&self) -> bool { false }
 }
 
 #[derive(Debug)]
@@ -39,7 +46,20 @@ pub trait MirStmtNode: std::fmt::Debug {
     fn is_return(&self) -> bool { false }
     fn return_value(&self) -> Option<&MirNodeBox> { None }
     fn as_drop(&self) -> Option<(VarId, &HirType)> { None }
+    // ── 借用检查用访问器 ──
+    fn as_if(&self) -> Option<IfParts<'_>> { None }
+    fn as_while(&self) -> Option<WhileParts<'_>> { None }
+    fn as_block(&self) -> Option<&[MirStmtBox]> { None }
+    fn is_break(&self) -> bool { false }
+    fn is_continue(&self) -> bool { false }
+    fn assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
+    fn field_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
+    fn index_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox, &MirNodeBox)> { None }
+    fn expr_part(&self) -> Option<&MirNodeBox> { None }
 }
+
+pub type IfParts<'a> = (&'a MirNodeBox, &'a [MirStmtBox], &'a [(MirNodeBox, Vec<MirStmtBox>)], &'a Option<Vec<MirStmtBox>>);
+pub type WhileParts<'a> = (&'a MirNodeBox, &'a [MirStmtBox]);
 
 #[derive(Debug)]
 pub struct MirStmtBox(pub Box<dyn MirStmtNode>);
