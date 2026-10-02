@@ -171,32 +171,34 @@ src/hir/display.rs:44: fn write_item(item: &HirItem, level: usize, w: &mut impl 
 src/hir/display.rs:89: fn write_block(block: &HirBlock, level: usize, w: &mut impl Write) -> std::fmt::Result
 src/hir/display.rs:99: pub(crate) fn write_expr(expr: &HirNodeBox, level: usize, w: &mut impl Write) -> std::fmt::Result
 src/hir/display.rs:103: fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Result
-src/hir/effects.rs:13: pub const KNOWN_EFFECTS: &[&str] = &["io", "state", "alloc"];
-src/hir/effects.rs:17: pub struct EffectDecl
-src/hir/effects.rs:24: impl EffectDecl
-src/hir/effects.rs:26: pub fn no_effects(&self) -> bool
-src/hir/effects.rs:31: pub fn no_throws(&self) -> bool
-src/hir/effects.rs:37: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
-src/hir/effects.rs:72: fn parse_names(a: &Attr, kind: &str) -> Result<Vec<Symbol>>
-src/hir/effects.rs:86: fn bad_arg(kind: &str, a: &Attr) -> Error
-src/hir/effects.rs:104: pub struct EffectSet
-src/hir/effects.rs:109: impl EffectSet
-src/hir/effects.rs:110: fn union(&mut self, o: &EffectSet)
-src/hir/effects.rs:117: static VERIFY_EFFECTS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-src/hir/effects.rs:119: pub fn set_verify_effects(v: bool)
-src/hir/effects.rs:123: pub fn verify_effects() -> bool
-src/hir/effects.rs:128: const IO_NAMES: &[&str] = &[
-src/hir/effects.rs:135: pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
-src/hir/effects.rs:267: fn declared_to_set(d: &EffectDecl) -> EffectSet
-src/hir/effects.rs:284: fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
-src/hir/effects.rs:294: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<crate::hir::ty::FnId>)
-src/hir/effects.rs:334: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<crate::hir::ty::FnId>)
-src/hir/effects.rs:343: enum Obs
-src/hir/effects.rs:348: fn collect_ast_observations(program: &crate::parser::ast::Program) -> HashMap<String, Vec<Obs>>
-src/hir/effects.rs:356: fn qualify(prefix: &str, name: &str) -> String
-src/hir/effects.rs:360: fn scan_decl(stmt: &crate::parser::ast::Stmt, prefix: &str, map: &mut HashMap<String, Vec<Obs>>)
-src/hir/effects.rs:382: fn scan_body(stmt: &crate::parser::ast::Stmt, obs: &mut Vec<Obs>)
-src/hir/effects.rs:429: fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>)
+src/hir/effects/infer.rs:16: pub struct EffectSet
+src/hir/effects/infer.rs:21: impl EffectSet
+src/hir/effects/infer.rs:22: fn union(&mut self, o: &EffectSet)
+src/hir/effects/infer.rs:29: static VERIFY_EFFECTS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+src/hir/effects/infer.rs:31: pub fn set_verify_effects(v: bool)
+src/hir/effects/infer.rs:35: pub fn verify_effects() -> bool
+src/hir/effects/infer.rs:40: pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
+src/hir/effects/infer.rs:172: fn declared_to_set(d: &EffectDecl) -> EffectSet
+src/hir/effects/infer.rs:189: fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
+src/hir/effects/infer.rs:199: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<crate::hir::ty::FnId>)
+src/hir/effects/infer.rs:239: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<crate::hir::ty::FnId>)
+src/hir/effects/mod.rs:13: pub const KNOWN_EFFECTS: &[&str] = &["io", "state", "alloc"];
+src/hir/effects/mod.rs:17: pub struct EffectDecl
+src/hir/effects/mod.rs:24: impl EffectDecl
+src/hir/effects/mod.rs:26: pub fn no_effects(&self) -> bool
+src/hir/effects/mod.rs:31: pub fn no_throws(&self) -> bool
+src/hir/effects/mod.rs:37: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
+src/hir/effects/mod.rs:72: fn parse_names(a: &Attr, kind: &str) -> Result<Vec<Symbol>>
+src/hir/effects/mod.rs:86: fn bad_arg(kind: &str, a: &Attr) -> Error
+src/hir/effects/mod.rs:94: pub(crate) const IO_NAMES: &[&str] = &[
+src/hir/effects/mod.rs:100: pub mod infer;
+src/hir/effects/mod.rs:101: pub mod scan;
+src/hir/effects/scan.rs:8: pub(super) enum Obs
+src/hir/effects/scan.rs:13: pub(super) fn collect_ast_observations(program: &crate::parser::ast::Program) -> HashMap<String, Vec<Obs>>
+src/hir/effects/scan.rs:21: fn qualify(prefix: &str, name: &str) -> String
+src/hir/effects/scan.rs:25: fn scan_decl(stmt: &crate::parser::ast::Stmt, prefix: &str, map: &mut HashMap<String, Vec<Obs>>)
+src/hir/effects/scan.rs:47: fn scan_body(stmt: &crate::parser::ast::Stmt, obs: &mut Vec<Obs>)
+src/hir/effects/scan.rs:94: fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>)
 src/hir/item.rs:7: pub struct HirStructField
 src/hir/item.rs:13: pub struct HirStructDef
 src/hir/item.rs:19: pub struct HirLocal
