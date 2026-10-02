@@ -48,27 +48,35 @@ impl Parser {
             };
         }
         let tok = self.peek().ok_or_else(|| self.error("expected statement"))?.clone();
-        match tok.kind {
-            TokenKind::Keyword(Keyword::Fn) => self.parse_fn_decl(vis, is_inline, extern_c, attrs),
-            TokenKind::Keyword(Keyword::Return) => self.parse_return(),
-            TokenKind::Keyword(Keyword::If) => self.parse_if(),
-            TokenKind::Keyword(Keyword::For) => self.parse_for(),
-            TokenKind::Keyword(Keyword::While) => self.parse_while(),
-            TokenKind::Keyword(Keyword::Break) => Ok(Stmt::Break { span: tok.span() }),
-            TokenKind::Keyword(Keyword::Continue) => Ok(Stmt::Continue { span: tok.span() }),
-            TokenKind::Keyword(Keyword::Namespace) => self.parse_namespace(vis),
-            TokenKind::Keyword(Keyword::Struct) => self.parse_struct_def(vis, attrs),
-            TokenKind::Keyword(Keyword::Enum) => self.parse_enum_def(vis, attrs),
-            TokenKind::Keyword(Keyword::Interface) => self.parse_interface_def(attrs),
-            TokenKind::Keyword(Keyword::Impl) => self.parse_impl_block(attrs),
-            TokenKind::Keyword(Keyword::Match) => self.parse_match_stmt(),
-            TokenKind::Keyword(Keyword::Import) => self.parse_import(),
-            _ => {
-                if !attrs.is_empty() {
-                    return Err(self.error("attributes are only allowed on declarations"));
-                }
-                self.parse_any_assign_or_expr()
+        // A2f：语句级标注（#[cfg]/#[invariant]）包装非声明语句
+        let stmt = match tok.kind {
+            TokenKind::Keyword(Keyword::Fn) => return self.parse_fn_decl(vis, is_inline, extern_c, attrs),
+            TokenKind::Keyword(Keyword::Struct) => return self.parse_struct_def(vis, attrs),
+            TokenKind::Keyword(Keyword::Enum) => return self.parse_enum_def(vis, attrs),
+            TokenKind::Keyword(Keyword::Interface) => return self.parse_interface_def(attrs),
+            TokenKind::Keyword(Keyword::Impl) => return self.parse_impl_block(attrs),
+            TokenKind::Keyword(Keyword::Namespace) => {
+                if !attrs.is_empty() { return Err(self.error("attributes are not allowed on namespace")); }
+                return self.parse_namespace(vis);
             }
+            TokenKind::Keyword(Keyword::Import) => {
+                if !attrs.is_empty() { return Err(self.error("attributes are not allowed on import")); }
+                return self.parse_import();
+            }
+            TokenKind::Keyword(Keyword::Return) => self.parse_return()?,
+            TokenKind::Keyword(Keyword::If) => self.parse_if()?,
+            TokenKind::Keyword(Keyword::For) => self.parse_for()?,
+            TokenKind::Keyword(Keyword::While) => self.parse_while()?,
+            TokenKind::Keyword(Keyword::Break) => Stmt::Break { span: tok.span() },
+            TokenKind::Keyword(Keyword::Continue) => Stmt::Continue { span: tok.span() },
+            TokenKind::Keyword(Keyword::Match) => self.parse_match_stmt()?,
+            _ => self.parse_any_assign_or_expr()?,
+        };
+        if attrs.is_empty() {
+            Ok(stmt)
+        } else {
+            let span = stmt.span();
+            Ok(Stmt::Attributed { attrs, stmt: Box::new(stmt), span })
         }
     }
 

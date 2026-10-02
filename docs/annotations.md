@@ -48,7 +48,7 @@ fn read_config(ref String path) -> Config { ... }
 |---|---|---|---|---|
 | 基础设施 | 全部 | 解析、校验、存储、序列化、展示 | A0 | 设计 |
 | 优化/代码生成 | `inline` `cold` `noreturn` `pure` `readonly` `nounwind` `willreturn` `noalias` `nonnull` | 映射 LLVM 函数/参数属性（含 extern 声明，跨语言优化） | A1 | 部分实现（函数级） |
-| 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 部分实现（cfg/assume/requires/ensures） |
+| 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 部分实现（cfg/assume/requires/ensures/invariant） |
 | 效应 | `throws` `eff` | 效应检查与传播（Java 式必须处理或上抛）、`?` 统一 | A3 | 设计 |
 | 生命周期 | 类型参数 `'a`（不是标注） | 显式生命周期与 outlives 检查、字段引用 | A4 | 设计 |
 | 用户宏/插件 | `#[pkg::macro(...)]` | 标注 provider 解析；宏展开（声明式或编译期执行）；插件注册属性 | A5 | 设计（§8） |
@@ -104,11 +104,11 @@ extern "C" fn strlen(unique [char] s) -> int;
 
 ## 5. 条件与契约（A2）
 
-- `#[cfg(target = "linux")]`：编译期裁剪 item；已实现（A2b）。
+- `#[cfg(target = "linux")]`：编译期裁剪 item 与语句；已实现（A2b/A2f）。
 - `#[requires(cond)]`：函数前置条件（已实现运行检查，A2d）。默认插入运行检查
   （失败打印位置并 abort）；`AYANAMI_CHECKS=0` 时转为 `llvm.assume`。
 - `#[ensures(cond)]`：后置条件，`result` 绑定返回值（已实现，A2e）。
-- `#[invariant(cond)]`：循环不变式（语句级标注），debug 每轮校验、release `llvm.assume`。
+- `#[invariant(cond)]`：循环不变式（语句级标注），debug 每轮校验、release `llvm.assume`（已实现，A2f）。
 - `#[assume(cond)]`：无条件向优化器声明事实（已实现，A2c）。
 
 契约条件必须是无副作用的 bool 表达式；debug 与 release 语义差异必须在文档与报错中明确。
@@ -141,6 +141,17 @@ extern "C" fn strlen(unique [char] s) -> int;
   `call void @llvm.assume(i1 ...)`，位于函数入口 alloca/参数存储之后；
 - 运行时为零开销；`opt -O2` 可据此优化（如消除冗余分支）。
 - `example/test_assume.aya`；反例：非 bool 条件、无实参、`key = value` 实参均报错。
+
+### A2f 语句级标注（已完成，2026-10）
+
+- AST 新增包装 `Stmt::Attributed { attrs, stmt, span }`；文法 `Stmt = AttrList StmtKind`；
+  手写解析器对非声明语句保留前导标注（声明仍由各自解析器消费）。
+- 校验（`hir/attrs.rs`）：语句级仅允许内置 `cfg`/`invariant`；`invariant` 仅限 `while`/`for`；
+  库宏暂不允许出现在语句位置。
+- 语句级 `#[cfg]`：`hir/cfg.rs::filter_one` 递归过滤，覆盖函数体内语句与 `Attributed` 包装。
+- `#[invariant(cond)]`：每轮循环体首注入检查（`HirStmt::Contract{kind: Invariant}`）；
+  `for` 的迭代变量在作用域内可引用；`AYANAMI_CHECKS=0` 时退化为 `llvm.assume`。
+- formatter/泛型替换/调试打印均处理包装；`example/test_invariant.aya`。
 
 ### A2e `#[ensures]`（已完成，2026-10）
 
@@ -291,7 +302,7 @@ struct Holder['a] {
 - [x] `#[assume(cond)]` → `llvm.assume`（A2c）
 - [x] `#[requires]` 运行检查 / `AYANAMI_CHECKS=0` → assume（A2d）
 - [x] `#[ensures(result)]` 后置条件（A2e；契约链路统一为 ContractKind）
-- [ ] `#[invariant]` 循环不变式（语句级标注）
+- [x] `#[invariant]` 循环不变式 + 语句级 `#[cfg]`（A2f）
 - [ ] 显式 debug/release 模式（CLI `--release`），替代环境变量
 - [ ] `#[invariant]` 语句级（循环）
 - [ ] 语句级 `#[cfg]`

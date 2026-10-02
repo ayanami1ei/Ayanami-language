@@ -155,6 +155,10 @@ pub(super) fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
                 write_stmt(m, level + 1, w);
             }
         }
+        Stmt::Attributed { attrs, stmt, .. } => {
+            writeln!(w, "{}Attributed ({} attrs)", p, attrs.len()).unwrap();
+            write_stmt(stmt, level + 1, w);
+        }
         Stmt::Import { path, .. } => {
             writeln!(w, "{}Import {{ path: {} }}", p, path).unwrap();
         }

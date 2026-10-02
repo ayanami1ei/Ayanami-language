@@ -127,33 +127,36 @@ src/formatter/mod.rs:26: pub(crate) fn format_expr(expr: &Expr) -> String
 src/formatter/mod.rs:33: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:25: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:29: pub struct Imports
-src/hir/attrs.rs:36: impl Imports
-src/hir/attrs.rs:37: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:45: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:68: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:76: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:81: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:89: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:128: fn pending_macro(path: &str, a: &Attr) -> Error
-src/hir/attrs.rs:136: pub fn validate_program(program: &Program) -> Result<()>
-src/hir/attrs.rs:145: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
-src/hir/attrs.rs:168: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:26: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:30: pub struct Imports
+src/hir/attrs.rs:37: impl Imports
+src/hir/attrs.rs:38: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:46: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:69: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:77: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:82: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:90: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:129: fn pending_macro(path: &str, a: &Attr) -> Error
+src/hir/attrs.rs:137: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:146: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
+src/hir/attrs.rs:169: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
-src/hir/cfg.rs:50: pub fn stmt_enabled(stmt: &Stmt) -> bool
-src/hir/cfg.rs:54: fn attrs_of(stmt: &Stmt) -> Option<&[Attr]>
-src/hir/cfg.rs:65: fn cfg_enabled(attrs: Option<&[Attr]>) -> Result<bool>
-src/hir/cfg.rs:79: fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool>
-src/hir/cfg.rs:102: fn eval_bare(e: &Expr, span: crate::span::Span) -> Result<bool>
-src/hir/cfg.rs:119: fn unsupported(span: crate::span::Span) -> Error
+src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
+src/hir/cfg.rs:68: pub fn stmt_enabled(stmt: &Stmt) -> bool
+src/hir/cfg.rs:72: fn attrs_of(stmt: &Stmt) -> Option<&[Attr]>
+src/hir/cfg.rs:84: fn cfg_enabled(attrs: Option<&[Attr]>) -> Result<bool>
+src/hir/cfg.rs:98: fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool>
+src/hir/cfg.rs:121: fn eval_bare(e: &Expr, span: crate::span::Span) -> Result<bool>
+src/hir/cfg.rs:138: fn unsupported(span: crate::span::Span) -> Error
 src/hir/contracts.rs:7: pub fn validate_fn_attrs(attrs: &[Attr]) -> Result<()>
 src/hir/contracts.rs:21: pub fn ensure_bool_condition(cond: &crate::hir::HirNodeBox, kind: &str, line: usize, col: usize) -> Result<()>
 src/hir/contracts.rs:31: pub fn checks_enabled() -> bool
 src/hir/contracts.rs:36: pub fn requires_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
-src/hir/contracts.rs:47: pub fn ensure_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
-src/hir/contracts.rs:58: pub fn assume_conditions(attrs: &[Attr]) -> Vec<&Expr>
+src/hir/contracts.rs:47: pub fn validate_invariant_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/contracts.rs:62: pub fn invariant_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
+src/hir/contracts.rs:73: pub fn ensure_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
+src/hir/contracts.rs:84: pub fn assume_conditions(attrs: &[Attr]) -> Vec<&Expr>
 src/hir/display.rs:5: pub fn display_hir_program(program: &HirProgram)
 src/hir/display.rs:9: pub fn hir_program_to_string(program: &HirProgram) -> String
 src/hir/display.rs:18: pub(crate) fn pad(n: usize) -> String
@@ -179,11 +182,13 @@ src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_import.rs:4: pub(crate) fn collect_import(&mut self, path: &String, ns_prefix: &str) -> Result<()>
 src/hir/lower/body/ensure.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/ensure.rs:10: pub(crate) fn inject_ensures(
-src/hir/lower/body/ensure.rs:57: fn result_node(var: VarId, ty: &HirType) -> HirNodeBox
-src/hir/lower/body/ensure.rs:62: fn rewrite_returns(stmts: &mut Vec<HirStmt>, var: VarId, ty: &HirType, checks: &[HirStmt])
-src/hir/lower/body/ensure.rs:93: fn always_returns(stmts: &[HirStmt]) -> bool
-src/hir/lower/body/ensure.rs:106: fn default_literal(ty: &HirType) -> Option<HirLiteral>
-src/hir/lower/body/ensure.rs:117: fn append_default_return(
+src/hir/lower/body/ensure.rs:57: impl crate::hir::lower::Ctx
+src/hir/lower/body/ensure.rs:59: pub(crate) fn loop_check_stmts(
+src/hir/lower/body/ensure.rs:83: fn result_node(var: VarId, ty: &HirType) -> HirNodeBox
+src/hir/lower/body/ensure.rs:88: fn rewrite_returns(stmts: &mut Vec<HirStmt>, var: VarId, ty: &HirType, checks: &[HirStmt])
+src/hir/lower/body/ensure.rs:119: fn always_returns(stmts: &[HirStmt]) -> bool
+src/hir/lower/body/ensure.rs:132: fn default_literal(ty: &HirType) -> Option<HirLiteral>
+src/hir/lower/body/ensure.rs:143: fn append_default_return(
 src/hir/lower/body/expr_access.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_access.rs:4: pub(crate) fn lower_field_access(&mut self, object: &Box<Expr>, field: &Symbol, expr_span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_access.rs:17: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>) -> Result<HirNodeBox>
@@ -256,7 +261,8 @@ src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
 src/hir/lower/body/part_07.rs:230: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
-src/hir/lower/body/part_08.rs:171: pub(crate) fn lower_for(
+src/hir/lower/body/part_08.rs:179: pub(crate) fn lower_while(
+src/hir/lower/body/part_08.rs:195: pub(crate) fn lower_for(
 src/hir/lower/body/part_09.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_09.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
 src/hir/lower/body/part_10.rs:3: impl crate::hir::lower::Ctx
@@ -1341,8 +1347,8 @@ src/parser/ast/stmt.rs:51: pub enum EnumFields
 src/parser/ast/stmt.rs:58: pub struct EnumVariant
 src/parser/ast/stmt.rs:64: pub struct MatchArm
 src/parser/ast/stmt.rs:71: pub enum Stmt
-src/parser/ast/stmt.rs:187: impl Stmt
-src/parser/ast/stmt.rs:188: pub fn span(&self) -> Span
+src/parser/ast/stmt.rs:193: impl Stmt
+src/parser/ast/stmt.rs:194: pub fn span(&self) -> Span
 src/parser/ast/ty.rs:5: pub enum Type
 src/parser/ast/ty.rs:22: impl Type
 src/parser/ast/ty.rs:23: pub fn span(&self) -> Span
@@ -1424,9 +1430,9 @@ src/parser/parser/mod.rs:20: mod types;
 src/parser/parser/mod.rs:21: mod unary;
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:77: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:103: pub(super) fn is_type_start(&self, pos: usize) -> bool
-src/parser/parser/stmt.rs:111: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
+src/parser/parser/stmt.rs:85: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
+src/parser/parser/stmt.rs:111: pub(super) fn is_type_start(&self, pos: usize) -> bool
+src/parser/parser/stmt.rs:119: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
 src/parser/parser/types.rs:3: impl Parser
 src/parser/parser/types.rs:6: pub(super) fn parse_type(&mut self) -> Result<Type>
 src/parser/parser/types.rs:26: pub(super) fn parse_base_type(&mut self) -> Result<Type>
@@ -1650,6 +1656,8 @@ example/test_ffi_attrs.aya:24: fn always_returns() -> int { return 3 }
 example/test_ffi_attrs.aya:26: fn touch(#[nonnull] ref int x) -> int { return 0 }
 example/test_ffi_attrs.aya:28: fn main() -> int
 example/test_import.aya:3: fn main() -> int
+example/test_invariant.aya:3: fn win_only() -> int { return 1 }
+example/test_invariant.aya:5: fn main() -> int
 example/test_macro_import.aya:4: fn main() -> int
 example/test_memory.aya:5: struct Point
 example/test_memory.aya:10: fn make() -> int

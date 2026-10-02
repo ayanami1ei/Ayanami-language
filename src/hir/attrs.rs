@@ -9,6 +9,7 @@ pub const ALLOWED: &[&str] = &[
     "assume",
     "requires",
     "ensures",
+    "invariant",
     "cfg",
     "inline",
     "cold",
@@ -180,6 +181,34 @@ fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
         | Stmt::EnumDef { attrs, .. }
         | Stmt::InterfaceDef { attrs, .. }
         | Stmt::ImplBlock { attrs, .. } => validate(attrs, imports)?,
+        Stmt::Attributed { attrs, stmt, .. } => {
+            validate(attrs, imports)?;
+            for a in attrs {
+                if !a.is_builtin() {
+                    return Err(Error::Hir(format!(
+                        "library macro #[{}] is not allowed on statements (at {}:{})",
+                        a.path_str(), a.span.start_line, a.span.start_col
+                    )));
+                }
+                match a.name.as_str().as_str() {
+                    "cfg" => {}
+                    "invariant" => {
+                        crate::hir::contracts::validate_invariant_attrs(std::slice::from_ref(a))?;
+                        if !matches!(stmt.as_ref(), Stmt::While { .. } | Stmt::For { .. }) {
+                            return Err(Error::Hir(format!(
+                                "#[invariant] is only allowed on while/for loops (at {}:{})",
+                                a.span.start_line, a.span.start_col
+                            )));
+                        }
+                    }
+                    other => return Err(Error::Hir(format!(
+                        "attribute #[{}] is not allowed on statements (at {}:{})",
+                        other, a.span.start_line, a.span.start_col
+                    ))),
+                }
+            }
+            validate_stmt(stmt, imports)?;
+        }
         _ => {}
     }
     match stmt {

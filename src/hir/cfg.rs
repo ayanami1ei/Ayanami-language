@@ -15,35 +15,53 @@ pub fn filter_program(program: &Program) -> Result<Program> {
     Ok(Program::new(filter_stmts(&program.stmts)?))
 }
 
-/// 递归过滤语句列表：cfg 为假者删除。
+/// 递归过滤语句列表：cfg 为假者删除（含函数体内的语句级 cfg）。
 pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>> {
     let mut out = Vec::new();
     for stmt in stmts {
-        if !cfg_enabled(attrs_of(stmt))? {
-            continue;
-        }
-        match stmt {
-            Stmt::Namespace { vis, name, items, span } => out.push(Stmt::Namespace {
-                vis: *vis, name: *name, items: filter_stmts(items)?, span: *span,
-            }),
-            Stmt::ImplBlock { attrs, type_name, generic_params, methods, span } => out.push(Stmt::ImplBlock {
-                attrs: attrs.clone(), type_name: *type_name,
-                generic_params: generic_params.clone(), methods: filter_stmts(methods)?, span: *span,
-            }),
-            Stmt::InterfaceDef { attrs, name, generic_params, methods, span } => {
-                let mut kept = Vec::new();
-                for m in methods {
-                    if cfg_enabled(Some(&m.attrs))? { kept.push(m.clone()); }
-                }
-                out.push(Stmt::InterfaceDef {
-                    attrs: attrs.clone(), name: *name,
-                    generic_params: generic_params.clone(), methods: kept, span: *span,
-                });
-            }
-            other => out.push(other.clone()),
+        if let Some(s) = filter_one(stmt)? {
+            out.push(s);
         }
     }
     Ok(out)
+}
+
+fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>> {
+    if !cfg_enabled(attrs_of(stmt))? {
+        return Ok(None);
+    }
+    let filtered = match stmt {
+        Stmt::FnDecl { .. } => {
+            let mut f = stmt.clone();
+            if let Stmt::FnDecl { body, .. } = &mut f {
+                body.stmts = filter_stmts(&body.stmts)?;
+            }
+            f
+        }
+        Stmt::Namespace { vis, name, items, span } => Stmt::Namespace {
+            vis: *vis, name: *name, items: filter_stmts(items)?, span: *span,
+        },
+        Stmt::ImplBlock { attrs, type_name, generic_params, methods, span } => Stmt::ImplBlock {
+            attrs: attrs.clone(), type_name: *type_name,
+            generic_params: generic_params.clone(), methods: filter_stmts(methods)?, span: *span,
+        },
+        Stmt::InterfaceDef { attrs, name, generic_params, methods, span } => {
+            let mut kept = Vec::new();
+            for m in methods {
+                if cfg_enabled(Some(&m.attrs))? { kept.push(m.clone()); }
+            }
+            Stmt::InterfaceDef {
+                attrs: attrs.clone(), name: *name,
+                generic_params: generic_params.clone(), methods: kept, span: *span,
+            }
+        }
+        Stmt::Attributed { attrs, stmt: inner, span } => match filter_one(inner)? {
+            Some(inner) => Stmt::Attributed { attrs: attrs.clone(), stmt: Box::new(inner), span: *span },
+            None => return Ok(None),
+        },
+        other => other.clone(),
+    };
+    Ok(Some(filtered))
 }
 
 /// 该语句是否通过 cfg（供包导出等 AST 级消费者；无效 cfg 保守视为启用，交由 HIR 报错）。
@@ -57,7 +75,8 @@ fn attrs_of(stmt: &Stmt) -> Option<&[Attr]> {
         | Stmt::StructDef { attrs, .. }
         | Stmt::EnumDef { attrs, .. }
         | Stmt::InterfaceDef { attrs, .. }
-        | Stmt::ImplBlock { attrs, .. } => Some(attrs),
+        | Stmt::ImplBlock { attrs, .. }
+        | Stmt::Attributed { attrs, .. } => Some(attrs),
         _ => None,
     }
 }

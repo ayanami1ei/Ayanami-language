@@ -202,6 +202,10 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
             let _ = writeln!(out, "{}}}", i);
         }
+        Attributed { attrs, stmt, .. } => {
+            write_attrs(out, attrs, level);
+            write_stmt(out, stmt, level);
+        }
         Import { path, macros, .. } => {
             let i = indent(level);
             if macros.is_empty() {

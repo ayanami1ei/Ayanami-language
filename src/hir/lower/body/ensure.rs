@@ -54,6 +54,32 @@ impl crate::hir::lower::Ctx {
     }
 }
 
+impl crate::hir::lower::Ctx {
+    /// A2f：`#[invariant(cond)]` 检查语句（每轮循环体首）。
+    pub(crate) fn loop_check_stmts(
+        &mut self,
+        invariants: &[(&crate::parser::ast::Expr, usize, usize)],
+    ) -> Result<Vec<HirStmt>> {
+        let checks = crate::hir::contracts::checks_enabled();
+        let mut out = Vec::new();
+        for (cond, line, col) in invariants {
+            let hir_cond = self.lower_expr(cond)?;
+            crate::hir::contracts::ensure_bool_condition(&hir_cond, "invariant", *line, *col)?;
+            if checks {
+                out.push(HirStmt::Contract {
+                    kind: ContractKind::Invariant,
+                    cond: hir_cond,
+                    line: *line,
+                    col: *col,
+                });
+            } else {
+                out.push(HirStmt::Assume(hir_cond));
+            }
+        }
+        Ok(out)
+    }
+}
+
 fn result_node(var: VarId, ty: &HirType) -> HirNodeBox {
     SVar { var, ty: ty.clone() }.into()
 }

@@ -1,0 +1,21 @@
+// A2f：语句级标注 —— #[invariant] 循环不变式 + 语句级 #[cfg]
+#[cfg(target = "windows")]
+fn win_only() -> int { return 1 }
+
+fn main() -> int {
+    n = 0
+    #[invariant(n >= 0)]
+    while n < 3 {
+        n = n + 1
+    }
+
+    // 语句级 cfg：仅 windows 上执行
+    #[cfg(target = "windows")]
+    n = n + 100
+
+    #[invariant(i >= 0)]
+    for i in (0, 3) {
+    }
+
+    return n - 3
+}

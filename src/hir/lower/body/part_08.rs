@@ -92,12 +92,19 @@ impl crate::hir::lower::Ctx {
                 })
             }
             Stmt::For { iterator, start, end, step, body, .. } => {
-                self.lower_for(*iterator, start, end, step.as_ref(), body)
+                self.lower_for(*iterator, start, end, step.as_ref(), body, &[])
             }
-            Stmt::While { cond, body, .. } => {
-                let hir_cond = self.lower_expr(cond)?;
-                let hir_body = self.lower_block(body)?;
-                Ok(HirStmt::While { cond: hir_cond, body: hir_body })
+            Stmt::While { cond, body, .. } => self.lower_while(cond, body, &[]),
+            Stmt::Attributed { attrs, stmt: inner, .. } => {
+                // cfg 已在 hir::cfg::filter_program 中过滤，这里只剩 invariant
+                let invs = crate::hir::contracts::invariant_conditions(attrs);
+                match inner.as_ref() {
+                    Stmt::While { cond, body, .. } => self.lower_while(cond, body, &invs),
+                    Stmt::For { iterator, start, end, step, body, .. } => {
+                        self.lower_for(*iterator, start, end, step.as_ref(), body, &invs)
+                    }
+                    _ => self.lower_stmt(inner),
+                }
             }
             Stmt::Match { value, arms, span } => {
                 let hir_value = self.lower_expr(value)?;
@@ -168,6 +175,23 @@ impl crate::hir::lower::Ctx {
         }
     }
 
+    /// while 循环（可选 #[invariant] 检查注入到每轮体首）。
+    pub(crate) fn lower_while(
+        &mut self,
+        cond: &Expr,
+        body: &Block,
+        invariants: &[(&Expr, usize, usize)],
+    ) -> Result<HirStmt> {
+        let hir_cond = self.lower_expr(cond)?;
+        let mut hir_body = self.lower_block(body)?;
+        if !invariants.is_empty() {
+            let mut checks = self.loop_check_stmts(invariants)?;
+            checks.append(&mut hir_body.stmts);
+            hir_body.stmts = checks;
+        }
+        Ok(HirStmt::While { cond: hir_cond, body: hir_body })
+    }
+
     pub(crate) fn lower_for(
         &mut self,
         iter_name: Symbol,
@@ -175,6 +199,7 @@ impl crate::hir::lower::Ctx {
         end: &Expr,
         step: Option<&Expr>,
         body: &Block,
+        invariants: &[(&Expr, usize, usize)],
     ) -> Result<HirStmt> {
         self.push_scope();
 
@@ -197,6 +222,12 @@ impl crate::hir::lower::Ctx {
 
         let hir_body = self.lower_block(body)?;
         let mut body_stmts = hir_body.stmts;
+        // A2f：循环不变式（迭代变量仍在作用域内）
+        if !invariants.is_empty() {
+            let mut checks = self.loop_check_stmts(invariants)?;
+            checks.append(&mut body_stmts);
+            body_stmts = checks;
+        }
 
         let step_expr = match step {
             Some(s) => self.lower_expr(s)?,

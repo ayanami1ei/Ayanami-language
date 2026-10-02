@@ -43,6 +43,32 @@ pub fn requires_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)> {
     out
 }
 
+/// 校验循环不变式标注参数形态。
+pub fn validate_invariant_attrs(attrs: &[Attr]) -> Result<()> {
+    for a in attrs {
+        if a.name.as_str() == "invariant"
+            && (a.args.len() != 1 || !matches!(&a.args[0], AttrArg::Expr(_)))
+        {
+            return Err(Error::Hir(format!(
+                "#[invariant] requires exactly one condition expression (at {}:{})",
+                a.span.start_line, a.span.start_col
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// 提取 `#[invariant(cond)]`（表达式 + 行列），按声明顺序。
+pub fn invariant_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)> {
+    let mut out = Vec::new();
+    for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "invariant") {
+        if let Some(AttrArg::Expr(e)) = a.args.first() {
+            out.push((e.as_ref(), a.span.start_line, a.span.start_col));
+        }
+    }
+    out
+}
+
 /// 提取 `#[ensures(cond)]` 条件（表达式 + 行列），按声明顺序。
 pub fn ensure_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)> {
     let mut out = Vec::new();

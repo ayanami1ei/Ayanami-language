@@ -78,7 +78,8 @@
 
     Block         = "{" Stmt* "}";
 
-    Stmt          = VarDecl | FieldAssign | IndexAssign
+    Stmt          = AttrList StmtKind;
+    StmtKind      = VarDecl | FieldAssign | IndexAssign
                    | ReturnStmt | IfStmt | WhileStmt | ForStmt
                    | MatchStmt | BreakStmt | ContinueStmt
                    | ExprStmt | Block;

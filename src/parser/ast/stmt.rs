@@ -176,6 +176,12 @@ pub enum Stmt {
         methods: Vec<Stmt>,
         span: Span,
     },
+    /// A2f：语句级标注包装（`#[cfg]`/`#[invariant]`）
+    Attributed {
+        attrs: Vec<Attr>,
+        stmt: Box<Stmt>,
+        span: Span,
+    },
     Import {
         path: String,
         /// A5a：`import "pkg" { macro1, macro2 }` 的短名列表（宏展开 A5b）
@@ -203,6 +209,7 @@ impl Stmt {
             | Stmt::InterfaceDef { span, .. }
             | Stmt::ImplBlock { span, .. }
             | Stmt::Import { span, .. }
+            | Stmt::Attributed { span, .. }
             | Stmt::Break { span, .. }
             | Stmt::Continue { span, .. } => *span,
         }
