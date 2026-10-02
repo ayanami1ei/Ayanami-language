@@ -288,9 +288,22 @@ fn max[T: Ord](T a, T b) -> T { if a > b { return a; } return b; }
 
 ## 未来方向
 
+### 标注式编程（Attributes）
+
+用简短的标注向编译器声明意图与契约，驱动代码生成、优化、条件判定与效应检查。
+设计文档：[`docs/annotations.md`](docs/annotations.md)。示例：
+
+```ayanami
+#[inline]
+fn add(int a, int b) -> int { return a + b }
+
+#[pure]
+extern "C" fn strlen(unique [char] s) -> int;
+```
+
 ### 效应系统
 
-引入代数效应（algebraic effects），将副作用（IO、可变状态、异常、非确定性等）纳入类型系统。函数通过 `eff` 声明其可能产生的效应，编译器静态确保效应处理。
+引入代数效应（algebraic effects），将副作用（IO、可变状态、异常、非确定性等）纳入类型系统。函数通过 `eff`/`#[throws]` 声明其可能产生的效应，编译器静态确保效应处理（见标注系统 A3）。
 
 ### 代码设计平台
 

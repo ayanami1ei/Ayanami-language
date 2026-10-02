@@ -18,6 +18,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 | 校验符号地图是否过期 | `./scripts/gen_symbols.sh --check` |
 | 重新生成解析器 | `./gen_parser.sh`（会先编译 `asuka/` 子仓，再拆分生成物） |
 | 校验文件行数 | `./scripts/check_file_sizes.sh`（默认上限 300 行） |
+| 刷新模块依赖图 | `python3 scripts/gen_module_graph.py` |
 | 安装版 CLI | `cd install && ./ayanami run ../example/test_struct.aya` |
 
 - `install/` 是发布包：`ayanami`、bundled `llc`、`libLLVM.so.21.1`、`runtime.c`、预编译 `std/`。
@@ -110,8 +111,18 @@ cargo test
 - 校验：`./scripts/check_version.sh`（版本漂移时报错退出），发布前必跑。
 - 发布流程：改版本 → `cargo check` → `./scripts/check_version.sh` → 构建 vsix/tar 产物 → 提交 → 打 `vX.Y.Z` 标签 → 推送分支和标签。
 
+## 文档先行
+
+新功能/子系统必须**先写文档再动代码**：
+
+1. 设计文档写到 `docs/`（如 `docs/annotations.md`），含目标、语法/接口、语义、阶段、验收标准。
+2. 概念与代码的映射更新 `docs/knowledge-graph.md`；模块依赖变化后跑 `python3 scripts/gen_module_graph.py`。
+3. 实现落地后回到设计文档更新「实现状态」。
+
 ## 语言与文档索引
 
+- 知识图谱：`docs/knowledge-graph.md`（概念→代码地图）、`docs/module-graph.md`（生成物）。
+- 标注系统设计（标注式编程 A0–A5）：`docs/annotations.md`。
 - 语言语法、类型系统、所有权（默认移动 + `unique` + `ref`）、泛型、枚举布局、操作符重载：见 `README.md`。
 - 标准库 API：`std/README.md` 与 `std/**/*.aya`。
 - VSCode 插件：`vscode-ayanami/README.md`。
