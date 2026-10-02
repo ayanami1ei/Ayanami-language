@@ -16,6 +16,11 @@ pub(super) fn attr_arg_to_string(arg: &crate::parser::ast::AttrArg) -> String {
     }
 }
 
+/// A3b：声明效应 → LIR 布尔摘要（仅显式空集参与属性）。
+pub(super) fn lir_effects(d: &crate::hir::effects::EffectDecl) -> LirEffects {
+    LirEffects { no_throws: d.no_throws(), no_effects: d.no_effects() }
+}
+
 /// AST 标注列表 → LIR 标注列表
 pub(super) fn attrs_to_lir(attrs: &[crate::parser::ast::Attr]) -> Vec<LirAttr> {
     attrs.iter().map(|a| LirAttr {

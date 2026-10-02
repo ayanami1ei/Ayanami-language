@@ -620,17 +620,17 @@ src/lib.rs:34: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
-src/lir/emit/functions.rs:4: pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool) -> String
-src/lir/emit/functions.rs:31: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
-src/lir/emit/functions.rs:43: impl<'a> Emitter<'a>
-src/lir/emit/functions.rs:44: pub(super) fn emit_struct_defs(&mut self)
-src/lir/emit/functions.rs:60: pub(super) fn struct_llvm_name(&self, name: &Symbol) -> Option<String>
-src/lir/emit/functions.rs:76: pub(super) fn emit_string_globals(&mut self)
-src/lir/emit/functions.rs:96: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:135: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:152: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:158: pub(super) fn value_ref(&self, val: &LirValue, expected_ty: &HirType) -> String
-src/lir/emit/functions.rs:174: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:5: pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool, effects: LirEffects) -> String
+src/lir/emit/functions.rs:38: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
+src/lir/emit/functions.rs:50: impl<'a> Emitter<'a>
+src/lir/emit/functions.rs:51: pub(super) fn emit_struct_defs(&mut self)
+src/lir/emit/functions.rs:67: pub(super) fn struct_llvm_name(&self, name: &Symbol) -> Option<String>
+src/lir/emit/functions.rs:83: pub(super) fn emit_string_globals(&mut self)
+src/lir/emit/functions.rs:103: pub(super) fn emit_fn(&mut self, f: &LirFn)
+src/lir/emit/functions.rs:142: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:159: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:165: pub(super) fn value_ref(&self, val: &LirValue, expected_ty: &HirType) -> String
+src/lir/emit/functions.rs:181: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:19: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:29: struct Emitter<'a>
 src/lir/emit/mod.rs:37: impl<'a> Emitter<'a>
@@ -875,23 +875,24 @@ src/lir/ir/nodes_d.rs:12: fn serialize(&self, _buf: &mut Vec<u8>) {}
 src/lir/ir/nodes_d.rs:20: pub struct LirBlock
 src/lir/ir/nodes_d.rs:27: pub struct LirAttr
 src/lir/ir/nodes_d.rs:34: pub struct ExternDecl
-src/lir/ir/nodes_d.rs:44: pub struct LirFn
-src/lir/ir/nodes_d.rs:62: pub struct VtableDesc
-src/lir/ir/nodes_d.rs:68: pub struct LirProgram
-src/lir/ir/nodes_d.rs:82: pub(crate) fn put_u32(buf: &mut Vec<u8>, v: u32) { buf.extend_from_slice(&v.to_le_bytes()); }
-src/lir/ir/nodes_d.rs:83: pub(crate) fn put_u64(buf: &mut Vec<u8>, v: u64) { buf.extend_from_slice(&v.to_le_bytes()); }
-src/lir/ir/nodes_d.rs:84: pub(crate) fn put_str(buf: &mut Vec<u8>, s: &str)
-src/lir/ir/nodes_d.rs:90: pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType)
-src/lir/ir/nodes_d.rs:115: pub(crate) fn put_value(buf: &mut Vec<u8>, v: &LirValue)
-src/lir/ir/nodes_d.rs:128: pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral)
-src/lir/ir/nodes_d.rs:143: pub trait LirLowerCtx
-src/lir/ir/nodes_d.rs:144: fn next_tmp(&mut self) -> u64;
-src/lir/ir/nodes_d.rs:145: fn emit(&mut self, inst: LirNodeBox);
-src/lir/ir/nodes_d.rs:146: fn str_map(&self) -> &HashMap<String, u64>;
-src/lir/ir/nodes_d.rs:147: fn loop_stack(&self) -> &Vec<(String, String)>;
-src/lir/ir/nodes_d.rs:148: fn loop_stack_mut(&mut self) -> &mut Vec<(String, String)>;
-src/lir/ir/nodes_d.rs:149: fn next_block_label(&mut self, prefix: &str) -> String;
-src/lir/ir/nodes_d.rs:150: fn set_current_block(&mut self, label: String);
+src/lir/ir/nodes_d.rs:47: pub struct LirEffects
+src/lir/ir/nodes_d.rs:53: pub struct LirFn
+src/lir/ir/nodes_d.rs:73: pub struct VtableDesc
+src/lir/ir/nodes_d.rs:79: pub struct LirProgram
+src/lir/ir/nodes_d.rs:93: pub(crate) fn put_u32(buf: &mut Vec<u8>, v: u32) { buf.extend_from_slice(&v.to_le_bytes()); }
+src/lir/ir/nodes_d.rs:94: pub(crate) fn put_u64(buf: &mut Vec<u8>, v: u64) { buf.extend_from_slice(&v.to_le_bytes()); }
+src/lir/ir/nodes_d.rs:95: pub(crate) fn put_str(buf: &mut Vec<u8>, s: &str)
+src/lir/ir/nodes_d.rs:101: pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType)
+src/lir/ir/nodes_d.rs:126: pub(crate) fn put_value(buf: &mut Vec<u8>, v: &LirValue)
+src/lir/ir/nodes_d.rs:139: pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral)
+src/lir/ir/nodes_d.rs:154: pub trait LirLowerCtx
+src/lir/ir/nodes_d.rs:155: fn next_tmp(&mut self) -> u64;
+src/lir/ir/nodes_d.rs:156: fn emit(&mut self, inst: LirNodeBox);
+src/lir/ir/nodes_d.rs:157: fn str_map(&self) -> &HashMap<String, u64>;
+src/lir/ir/nodes_d.rs:158: fn loop_stack(&self) -> &Vec<(String, String)>;
+src/lir/ir/nodes_d.rs:159: fn loop_stack_mut(&mut self) -> &mut Vec<(String, String)>;
+src/lir/ir/nodes_d.rs:160: fn next_block_label(&mut self, prefix: &str) -> String;
+src/lir/ir/nodes_d.rs:161: fn set_current_block(&mut self, label: String);
 src/lir/ir/nodes_e.rs:3: impl LirNode for SLirDropValue
 src/lir/ir/nodes_e.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_e.rs:5: fn kind(&self) -> &'static str { "DropValue" }
@@ -938,11 +939,11 @@ src/lir/lower/fn_lower.rs:4: fn lir_attrs(f: &MirFn) -> Vec<LirAttr>
 src/lir/lower/fn_lower.rs:9: fn lir_param_attrs(f: &MirFn) -> Vec<Vec<LirAttr>>
 src/lir/lower/fn_lower.rs:13: pub(super) fn lower_items(item: &MirItem, str_map: &HashMap<String, u64>) -> Vec<LirFn>
 src/lir/lower/fn_lower.rs:23: pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn
-src/lir/lower/fn_lower.rs:83: pub(super) fn lower_stmts(ctx: &mut LowerCtx, stmts: &[MirStmtBox])
-src/lir/lower/fn_lower.rs:109: pub(super) fn lower_expr(ctx: &mut dyn LirLowerCtx, expr: &MirNodeBox) -> LirValue
-src/lir/lower/fn_lower.rs:113: pub(super) fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)>
-src/lir/lower/fn_lower.rs:126: pub(super) fn strip_ownership(ty: HirType) -> HirType
-src/lir/lower/fn_lower.rs:133: pub(super) fn type_size(ty: &HirType) -> u64
+src/lir/lower/fn_lower.rs:85: pub(super) fn lower_stmts(ctx: &mut LowerCtx, stmts: &[MirStmtBox])
+src/lir/lower/fn_lower.rs:111: pub(super) fn lower_expr(ctx: &mut dyn LirLowerCtx, expr: &MirNodeBox) -> LirValue
+src/lir/lower/fn_lower.rs:115: pub(super) fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)>
+src/lir/lower/fn_lower.rs:128: pub(super) fn strip_ownership(ty: HirType) -> HirType
+src/lir/lower/fn_lower.rs:135: pub(super) fn type_size(ty: &HirType) -> u64
 src/lir/lower/mir_contract.rs:3: impl MirStmtNode for SMirAssumeStmt
 src/lir/lower/mir_contract.rs:4: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
 src/lir/lower/mir_contract.rs:5: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
@@ -1159,9 +1160,10 @@ src/lir/lower/strings.rs:21: pub(super) fn collect_strings_stmts(stmts: &[MirStm
 src/lir/lower/strings.rs:29: pub(super) fn collect_strings_dyn(node: &dyn MirNode, out: &mut Vec<String>)
 src/lir/lower/util.rs:3: pub(super) fn write_stmt_block(stmts: &[MirStmtBox], level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
 src/lir/lower/util.rs:11: pub(super) fn attr_arg_to_string(arg: &crate::parser::ast::AttrArg) -> String
-src/lir/lower/util.rs:20: pub(super) fn attrs_to_lir(attrs: &[crate::parser::ast::Attr]) -> Vec<LirAttr>
-src/lir/lower/util.rs:28: pub(super) fn display_hir_type(ty: &HirType) -> String
-src/lir/lower/util.rs:32: pub(super) fn extract_var(val: &LirValue) -> VarId
+src/lir/lower/util.rs:20: pub(super) fn lir_effects(d: &crate::hir::effects::EffectDecl) -> LirEffects
+src/lir/lower/util.rs:25: pub(super) fn attrs_to_lir(attrs: &[crate::parser::ast::Attr]) -> Vec<LirAttr>
+src/lir/lower/util.rs:33: pub(super) fn display_hir_type(ty: &HirType) -> String
+src/lir/lower/util.rs:37: pub(super) fn extract_var(val: &LirValue) -> VarId
 src/lir/mod.rs:12: pub mod ir;
 src/lir/mod.rs:13: pub mod lower;
 src/lir/mod.rs:14: pub mod display;
@@ -1173,11 +1175,11 @@ src/lir/serialize/decode.rs:15: pub(super) fn value(&mut self) -> Result<LirValu
 src/lir/serialize/decode.rs:25: pub(super) fn inst(&mut self) -> Result<LirNodeBox>
 src/lir/serialize/decode.rs:204: pub(super) fn read_fn(&mut self) -> Result<LirFn>
 src/lir/serialize/mod.rs:11: pub fn program_to_bytes(p: &LirProgram) -> Vec<u8>
-src/lir/serialize/mod.rs:92: pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram>
-src/lir/serialize/mod.rs:196: struct Reader<'a>
-src/lir/serialize/mod.rs:201: mod decode;
-src/lir/serialize/mod.rs:202: mod reader;
-src/lir/serialize/mod.rs:203: mod write;
+src/lir/serialize/mod.rs:94: pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram>
+src/lir/serialize/mod.rs:203: struct Reader<'a>
+src/lir/serialize/mod.rs:208: mod decode;
+src/lir/serialize/mod.rs:209: mod reader;
+src/lir/serialize/mod.rs:210: mod write;
 src/lir/serialize/reader.rs:3: impl<'a> Reader<'a>
 src/lir/serialize/reader.rs:4: pub(super) fn read(&mut self, n: usize) -> Result<&'a [u8]>
 src/lir/serialize/reader.rs:12: pub(super) fn u32(&mut self) -> Result<u32>
@@ -1269,8 +1271,8 @@ src/mir/ir.rs:147: pub struct MirLocal
 src/mir/ir.rs:153: impl MirLocal
 src/mir/ir.rs:154: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
 src/mir/ir.rs:160: pub struct MirFn
-src/mir/ir.rs:176: pub enum MirItem
-src/mir/ir.rs:189: pub struct MirProgram
+src/mir/ir.rs:178: pub enum MirItem
+src/mir/ir.rs:191: pub struct MirProgram
 src/mir/lower/checks.rs:5: fn collect_stmt_var_ids(stmt: &HirStmt, vars: &mut HashSet<VarId>)
 src/mir/lower/checks.rs:57: impl Ctx
 src/mir/lower/checks.rs:60: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
@@ -1687,7 +1689,7 @@ example/test_effects.aya:6: fn parse(int x) -> int { return x }
 example/test_effects.aya:10: fn pure_fn() -> int { return 0 }
 example/test_effects.aya:13: fn id[T](T x) -> T { return x }
 example/test_effects.aya:17: fn declared_io() -> int { putchar(65); return 0 }
-example/test_effects.aya:19: fn main() -> int
+example/test_effects.aya:23: fn main() -> int
 example/test_ensures.aya:3: fn abs2(int x) -> int
 example/test_ensures.aya:9: fn inc(int n) -> int { return n + 1 }
 example/test_ensures.aya:12: fn fallthrough() -> int { }

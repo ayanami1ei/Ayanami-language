@@ -27,6 +27,8 @@ pub(super) fn put_fn(buf: &mut Vec<u8>, f: &LirFn) {
             for arg in &a.args { put_str(buf, arg); }
         }
     }
+    buf.push(if f.effects.no_throws { 1 } else { 0 });
+    buf.push(if f.effects.no_effects { 1 } else { 0 });
     put_str(buf, &f.name.as_str());
     put_type(buf, &f.return_type);
     put_u32(buf, f.params.len() as u32);

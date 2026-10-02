@@ -16,6 +16,10 @@ fn id[T](T x) -> T { return x }
 #[eff(io)]
 fn declared_io() -> int { putchar(65); return 0 }
 
+// A3b：显式空集 → 自动 LLVM 属性（extern 同样生效）
+#[throws()]
+extern "C" fn may_fail(int x) -> int;
+
 fn main() -> int {
     return pure_fn() + id(5) + parse(1) - 6
 }

@@ -83,6 +83,8 @@ pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
                 for arg in &a.args { put_str(&mut buf, arg); }
             }
         }
+        buf.push(if d.effects.no_throws { 1 } else { 0 });
+        buf.push(if d.effects.no_effects { 1 } else { 0 });
     }
 
     buf
@@ -182,7 +184,12 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
             }
             param_attrs.push(pv);
         }
-        extern_decls.push(ExternDecl { name, params, return_type, attrs, param_attrs });
+        let no_throws = r.read(1)?[0] != 0;
+        let no_effects = r.read(1)?[0] != 0;
+        extern_decls.push(ExternDecl {
+            name, params, return_type, attrs, param_attrs,
+            effects: LirEffects { no_throws, no_effects },
+        });
     }
 
     Ok(LirProgram { strings, fn_names, functions, vtables, struct_defs, generic_struct_params, extern_decls })

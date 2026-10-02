@@ -34,6 +34,7 @@ pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
             locals: f.locals.clone(),
             attrs: lir_attrs(f),
         param_attrs: lir_param_attrs(f),
+        effects: util::lir_effects(&f.effects),
             blocks: vec![],
             custom: Vec::new(),
         };
@@ -75,6 +76,7 @@ pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
         locals: f.locals.clone(),
         attrs: lir_attrs(f),
         param_attrs: lir_param_attrs(f),
+        effects: util::lir_effects(&f.effects),
         blocks,
         custom: Vec::new(),
     }

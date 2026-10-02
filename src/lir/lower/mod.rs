@@ -62,6 +62,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
                     return_type: f.return_type.clone(),
                     attrs: f.attrs.clone(),
                     param_attrs: f.param_attrs.clone(),
+                    effects: f.effects,
                 });
             }
         }
@@ -76,6 +77,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
             return_type: imp.return_type.clone(),
             attrs: util::attrs_to_lir(&imp.attrs),
             param_attrs: Vec::new(), // 包导入暂不携带形参标注
+            effects: LirEffects::default(), // 包导入暂不携带效应摘要（U3）
         });
     }
 

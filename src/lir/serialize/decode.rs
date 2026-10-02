@@ -228,6 +228,8 @@ impl<'a> Reader<'a> {
             }
             param_attrs.push(pv);
         }
+        let no_throws = self.read(1)?[0] != 0;
+        let no_effects = self.read(1)?[0] != 0;
         let name = Symbol::intern(&self.str()?);
         let ret = self.ty()?;
         let pc = self.u32()?;
@@ -250,6 +252,6 @@ impl<'a> Reader<'a> {
             for _ in 0..ic { insts.push(self.inst()?); }
             blocks.push(LirBlock { label, insts });
         }
-        Ok(LirFn { fn_id: fid, is_inline, extern_c, name, params, return_type: ret, locals, attrs, param_attrs, blocks, custom: Vec::new() })
+        Ok(LirFn { fn_id: fid, is_inline, extern_c, name, params, return_type: ret, locals, attrs, param_attrs, effects: LirEffects { no_throws, no_effects }, blocks, custom: Vec::new() })
     }
 }

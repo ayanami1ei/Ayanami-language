@@ -1,7 +1,8 @@
 use super::*;
 
-/// 标注 → LLVM 函数属性。默认信任（ADR-3）：误标后果自负。
-pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool) -> String {
+/// 标注 + 效应摘要 → LLVM 函数属性。默认信任（ADR-3）：误标后果自负。
+/// A3b：显式空集 `#[throws()]` → nounwind；`#[eff()]`/`#[pure]` → memory(none)。
+pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool, effects: LirEffects) -> String {
     let mut s = String::new();
     if is_inline {
         // 旧 inline 关键字：保持强制内联
@@ -23,6 +24,12 @@ pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool) -> String {
             "willreturn" => s.push_str(" willreturn"),
             _ => {}
         }
+    }
+    if effects.no_throws && !s.contains("nounwind") {
+        s.push_str(" nounwind");
+    }
+    if effects.no_effects && !s.contains("memory(") {
+        s.push_str(" memory(none)");
     }
     s
 }
@@ -102,7 +109,7 @@ impl<'a> Emitter<'a> {
             params_str.push(format!("{}{}", self.llvm_type(t), attrs));
         }
         let param_list = params_str.join(", ");
-        let inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline);
+        let inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline, f.effects);
 
         self.current_fn_ret_ty = f.return_type.clone();
 

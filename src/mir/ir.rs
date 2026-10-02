@@ -170,6 +170,8 @@ pub struct MirFn {
     pub attrs: Vec<crate::parser::ast::Attr>,
     /// 形参标注（与 params 等长并行；A1b）
     pub param_attrs: Vec<Vec<crate::parser::ast::Attr>>,
+    /// A3b：声明的效应（显式空集 → 自动 LLVM 属性）
+    pub effects: crate::hir::effects::EffectDecl,
 }
 
 #[derive(Debug, Clone)]

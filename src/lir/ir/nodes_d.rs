@@ -38,6 +38,15 @@ pub struct ExternDecl {
     pub attrs: Vec<LirAttr>,
     /// 形参标注（与 params 等长并行；A1b）
     pub param_attrs: Vec<Vec<LirAttr>>,
+    /// A3b：效应摘要（自动 LLVM 属性）
+    pub effects: LirEffects,
+}
+
+/// A3b：效应布尔摘要（显式空集标记）。
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct LirEffects {
+    pub no_throws: bool,
+    pub no_effects: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +61,8 @@ pub struct LirFn {
     pub attrs: Vec<LirAttr>,
     /// 形参标注（与 params 等长并行；A1b）
     pub param_attrs: Vec<Vec<LirAttr>>,
+    /// A3b：效应摘要（自动 LLVM 属性）
+    pub effects: LirEffects,
     pub blocks: Vec<LirBlock>,
     /// User-defined extension nodes (not in LirInst enum)
     pub custom: Vec<IrNode>,

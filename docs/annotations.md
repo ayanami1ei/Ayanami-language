@@ -206,7 +206,7 @@ extern "C" fn strlen(unique [char] s) -> int;
 
 | 编号 | 依据 | 动作 | 可获得的优化 |
 |---|---|---|---|
-| U1 | 显式空集注解 | 自动 LLVM 属性：`#[throws()]`→`nounwind`；无 io/state→`memory(read)`；不读不写→`memory(none)` | GVN/CSE、LICM、调用提升 |
+| U1 | 显式空集注解 | 自动 LLVM 属性：`#[throws()]`→`nounwind`；`#[eff()]`/`#[pure]`→`memory(none)`（已实现，A3b） | GVN/CSE、LICM、调用提升 |
 | U2 | `throws()` 空集 | `?` 恒等化 + Err 分支死代码消除 | 错误零成本抽象 |
 | U3 | 效应摘要进 `.lcl` | 包导入函数自动带属性（补 A1 缺口） | 跨包优化 |
 | U4 | 完全纯 + 常量参数 | 编译期执行折叠常量（复用 A5b 插件机制） | 免 const 系统的常量折叠 |
@@ -222,7 +222,9 @@ extern "C" fn strlen(unique [char] s) -> int;
 
 - A3a-1 注解语法/校验/存储 + 泛型实例继承（已完成）
 - A3a-2 推断（io/throws）+ AST 调用点定位 + `--verify-effects`（已完成）
-- A3b 显式空集注解 → 自动 LLVM 属性（U1）
+- A3b 显式空集注解 → 自动 LLVM 属性（U1，已完成）
+  - `EffectDecl` 经 MIR/LIR 变为 `LirEffects { no_throws, no_effects }`（含 extern 声明与序列化）
+  - `#[eff(ino/state/alloc 非空)]` 不生成 memory 属性；`memory(read)`（无 io/state 但有 alloc）待后续
 - A3c `?` 空效应消除（U2）+ `.lcl` 效应摘要（U3）
 - A3d `try/handle` 显式处理（后期）
 
@@ -353,7 +355,7 @@ struct Holder['a] {
 
 - [x] A3a-1 `#[throws]`/`#[eff]` 语法、校验、存储；泛型实例继承（顺带修复 A1 标注在特化实例丢失）
 - [x] A3a-2 推断提醒与出入定位（io/throws；AST 调用点定位；`--verify-effects`）
-- [ ] A3b 空集注解 → 自动 LLVM 属性（U1）
+- [x] A3b 空集注解 → 自动 LLVM 属性（U1：`#[throws()]`→nounwind、`#[eff()]`→memory(none)，含 extern 与 .lcl）
 - [ ] A3c `?` 空效应消除（U2）+ `.lcl` 效应摘要（U3）
 - [ ] A3d `try/handle`（后期）
 
