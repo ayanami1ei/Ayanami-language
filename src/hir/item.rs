@@ -57,6 +57,10 @@ pub struct HirFn {
     pub name: Symbol,
     pub is_inline: bool,
     pub extern_c: bool,
+    /// A3：是否导出接口（告警只在接口层提示）
+    pub is_pub: bool,
+    /// A3：本轮编译推断出的实际效应（默认最好情况；由 effects::analyze 填充）
+    pub inferred: crate::hir::effects::EffectSet,
     pub params: Vec<(Symbol, HirType)>,
     /// 形参标注（与 params 等长并行；A1b 起映射 LLVM 参数属性）
     pub param_attrs: Vec<Vec<crate::parser::ast::Attr>>,

@@ -109,6 +109,7 @@ impl HirNode for SCallP {
 }
 
 impl HirNode for SEnumC {
+    fn enum_variant(&self) -> Option<Symbol> { Some(self.variant_name) }
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirEnumConstruct {

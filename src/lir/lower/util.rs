@@ -16,9 +16,19 @@ pub(super) fn attr_arg_to_string(arg: &crate::parser::ast::AttrArg) -> String {
     }
 }
 
-/// A3b：声明效应 → LIR 布尔摘要（仅显式空集参与属性）。
-pub(super) fn lir_effects(d: &crate::hir::effects::EffectDecl) -> LirEffects {
-    LirEffects { no_throws: d.no_throws(), no_effects: d.no_effects() }
+/// A3b/A3：声明 + 推断 → LIR 布尔摘要。
+/// 定义函数：承诺或本轮推断均可作依据；extern/导入：只信任承诺（跨边界）。
+pub(super) fn lir_effects(
+    d: &crate::hir::effects::EffectDecl,
+    inf: &crate::hir::effects::EffectSet,
+    has_body: bool,
+) -> LirEffects {
+    LirEffects {
+        no_throws: d.no_throws()
+            || (has_body && !inf.may_unknown_errors && inf.throws.is_empty()),
+        no_effects: d.no_effects()
+            || (has_body && !inf.may_unknown_effects && inf.effects.is_empty()),
+    }
 }
 
 /// AST 标注列表 → LIR 标注列表

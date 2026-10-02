@@ -172,6 +172,8 @@ pub struct MirFn {
     pub param_attrs: Vec<Vec<crate::parser::ast::Attr>>,
     /// A3b：声明的效应（显式空集 → 自动 LLVM 属性）
     pub effects: crate::hir::effects::EffectDecl,
+    /// A3：推断出的实际效应（有效集合 = 声明 ∪ 推断）
+    pub inferred: crate::hir::effects::EffectSet,
 }
 
 #[derive(Debug, Clone)]

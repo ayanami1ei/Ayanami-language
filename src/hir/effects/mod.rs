@@ -24,7 +24,7 @@ pub(crate) const IO_NAMES: &[&str] = &[
 pub mod infer;
 pub mod scan;
 
-pub use infer::{check_effects, set_verify_effects, verify_effects, EffectSet};
+pub use infer::{analyze, set_verify_effects, verify_effects, EffectSet};
 
 /// A5 插件扩展点：注册新效应名（编译器内注册；源码/插件接入在后续阶段）。
 static EXTRA_EFFECTS: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));

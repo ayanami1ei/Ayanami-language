@@ -4,6 +4,7 @@ use std::fmt::Write as FmtWrite;
 use crate::mir::ir::MirNodeBox;
 use std::collections::HashSet;
 use crate::hir::ty::{VarId, HirType, HirLiteral};
+use crate::intern::Symbol;
 
 pub trait HirNode: std::fmt::Debug {
     fn clone_node(&self) -> Box<dyn HirNode>;
@@ -30,6 +31,10 @@ pub trait HirNode: std::fmt::Debug {
     fn is_comparison(&self) -> bool { false }
     /// A3a：静态调用目标（仅 SCall；函数指针/虚调用返回 None）。
     fn as_call(&self) -> Option<crate::hir::ty::FnId> { None }
+    /// A3：是否为堆分配构造（unique/数组/字符串字面量）。
+    fn is_alloc(&self) -> bool { false }
+    /// A3：枚举构造的变体名（仅 SEnumC）。
+    fn enum_variant(&self) -> Option<Symbol> { None }
     fn as_clone(&self) -> Option<&HirNodeBox> { None }
 }
 

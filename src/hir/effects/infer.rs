@@ -1,27 +1,36 @@
-//! A3a-2：效应推断（io/throws）与诊断。
-
-// ═══════════════════════════════════════════════════════════════════
-//  A3a-2：效应推断（辅助）与诊断
-// ═══════════════════════════════════════════════════════════════════
+//! A3：效应推断（辅助事实）与诊断。
+//!
+//! - 默认最好情况：从空集起步，扫函数体与调用链得到实际集合；
+//! - 有效效应 = 声明 ∪ 推断（属性生成见 `lir/lower/util.rs::lir_effects`）；
+//! - 告警：硬性出入（承诺与实际矛盾）报所有函数；缺失建议只对 pub 接口。
 
 use crate::error::{Error, Result};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
+use super::IO_NAMES;
 use crate::hir::{HirFn, HirItem, HirNode, HirProgram, HirStmt};
-use super::{EffectDecl, IO_NAMES};
+use crate::hir::effects::{EffectDecl, ThrowsDecl};
 
-/// 推断出的可能效应集合（advisory；`state`/`alloc` 暂不推断）。
+/// 推断出的实际效应（advisory）。
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EffectSet {
+    /// 可能失败（`?`/Err 构造/调用链）
     pub throws: BTreeSet<String>,
-    pub io: bool,
+    /// 具体效应名（io/state/alloc/...）
+    pub effects: BTreeSet<String>,
+    /// 调用了不可见 extern 且未承诺 pure → 优化保守
+    pub may_unknown_effects: bool,
+    /// 调用了不可见 extern 且未承诺 no_error → 优化保守
+    pub may_unknown_errors: bool,
 }
 
 impl EffectSet {
     fn union(&mut self, o: &EffectSet) {
-        self.io |= o.io;
         self.throws.extend(o.throws.iter().cloned());
+        self.effects.extend(o.effects.iter().cloned());
+        self.may_unknown_effects |= o.may_unknown_effects;
+        self.may_unknown_errors |= o.may_unknown_errors;
     }
 }
 
@@ -36,14 +45,41 @@ pub fn verify_effects() -> bool {
     VERIFY_EFFECTS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// 对 HIR 做效应推断并产生提醒/出入定位（不改变 codegen）。
-pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()> {
+/// 分析：推断 + 写入 HirFn.inferred + 诊断。
+pub fn analyze(hir: &mut HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()> {
+    let summaries = compute(hir);
+    // 写回每个 HirFn
+    for_each_fn_mut(&mut hir.items, &mut |f| {
+        if let Some(s) = summaries.get(&f.fn_id) {
+            f.inferred = s.clone();
+        }
+    });
+    diagnostics(hir, ast, src_path)?;
+    Ok(())
+}
+
+/// 调用图不动点推断。
+fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet> {
     let mut fns: Vec<&HirFn> = Vec::new();
     collect_fns(&hir.items, &mut fns);
-    if fns.is_empty() {
-        return Ok(());
+    let mut declared: HashMap<crate::hir::ty::FnId, EffectDecl> = HashMap::new();
+    let mut has_body: HashSet<crate::hir::ty::FnId> = HashSet::new();
+    for f in &fns {
+        declared.insert(f.fn_id, f.effects.clone());
+        if !(f.extern_c || f.body.stmts.is_empty()) {
+            has_body.insert(f.fn_id);
+        }
     }
 
+    // 无体函数（extern/导入）的已知效应来自声明
+    let mut known: HashMap<crate::hir::ty::FnId, EffectSet> = HashMap::new();
+    for f in &fns {
+        if !has_body.contains(&f.fn_id) {
+            known.insert(f.fn_id, declared_to_set(&f.effects));
+        }
+    }
+
+    // IO 原语判定：按函数名匹配
     let mut names: HashMap<crate::hir::ty::FnId, String> = HashMap::new();
     for f in &fns {
         names.insert(f.fn_id, f.name.as_str());
@@ -51,36 +87,47 @@ pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_pa
     for imp in &hir.imported_fns {
         names.insert(imp.fn_id, imp.name.as_str());
     }
+    let names_io: HashSet<crate::hir::ty::FnId> = names.iter()
+        .filter(|(_, n)| IO_NAMES.contains(&n.as_str()))
+        .map(|(id, _)| *id)
+        .collect();
 
-    // 无体函数（extern/导入）用声明作为已知集合
-    let mut known: HashMap<crate::hir::ty::FnId, EffectSet> = HashMap::new();
-    for f in &fns {
-        if f.extern_c || f.body.stmts.is_empty() {
-            known.insert(f.fn_id, declared_to_set(&f.effects));
-        }
-    }
-
-    // 不动点推断有体函数（单调增长，有限步收敛）
     let mut inferred: HashMap<crate::hir::ty::FnId, EffectSet> = HashMap::new();
     for _ in 0..=fns.len() {
         let mut changed = false;
         for f in &fns {
-            if f.extern_c || f.body.stmts.is_empty() {
+            if !has_body.contains(&f.fn_id) {
                 continue;
             }
             let mut calls = Vec::new();
             walk_stmts(&f.body.stmts, &mut calls);
             let mut set = EffectSet::default();
-            for id in calls {
-                let name = names.get(&id).cloned().unwrap_or_default();
-                if name.starts_with("try_unwrap") {
+            for c in calls {
+                for e in &c.effects {
+                    set.effects.insert(e.clone());
+                }
+                if c.try_unwrap {
                     set.throws.insert("?".to_string());
                 }
-                if IO_NAMES.contains(&name.as_str()) {
-                    set.io = true;
+                if names_io.contains(&c.fn_id) {
+                    set.effects.insert("io".to_string());
                 }
-                if let Some(callee) = inferred.get(&id).or_else(|| known.get(&id)) {
+                if let Some(v) = c.err_construct {
+                    set.throws.insert(v);
+                }
+                if let Some(callee) = inferred.get(&c.fn_id).or_else(|| known.get(&c.fn_id)) {
                     set.union(callee);
+                } else {
+                    // 不可见目标（导入/未声明的 extern）
+                    let d = declared.get(&c.fn_id);
+                    let pure = d.map_or(false, |d| d.pure);
+                    let no_error = d.map_or(false, |d| d.no_error);
+                    if !pure {
+                        set.may_unknown_effects = true;
+                    }
+                    if !no_error {
+                        set.may_unknown_errors = true;
+                    }
                 }
             }
             if inferred.get(&f.fn_id) != Some(&set) {
@@ -92,63 +139,59 @@ pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_pa
             break;
         }
     }
+    inferred
+}
 
-    // AST 定位：精确到调用点/`?` 的行列
+fn diagnostics(hir: &HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()> {
+    let mut fns: Vec<&HirFn> = Vec::new();
+    collect_fns(&hir.items, &mut fns);
     let obs = super::scan::collect_ast_observations(ast);
     let mut issues: Vec<String> = Vec::new();
+
     for f in &fns {
         if f.extern_c {
             continue;
         }
-        let actual = inferred.get(&f.fn_id).cloned().unwrap_or_default();
         let full = f.name.as_str();
         let sites = obs.get(&full).cloned().unwrap_or_default();
-        let loc = |s: Option<(usize, usize)>| {
-            s.map(|(l, c)| format!("{}:{}:{}", src_path.display(), l, c))
-                .unwrap_or_else(|| format!("{}:{}:{}", src_path.display(), f.span.start_line, f.span.start_col))
+        let inf = &f.inferred;
+        let loc = |l: usize, c: usize| format!("{}:{}:{}", src_path.display(), l, c);
+        let site_of = |kind: &str| -> Option<(usize, usize)> {
+            sites.iter().find_map(|o| o.site_of(kind))
         };
 
-        // io
-        if actual.io {
-            let site = sites.iter().find_map(|o| match o {
-                super::scan::Obs::Io(name, l, c) => Some((name.clone(), *l, *c)),
-                _ => None,
-            });
-            if f.effects.pure {
-                issues.push(format!(
-                    "{}: warning: function `{}` is #[pure] but calls `{}` (hard discrepancy)",
-                    loc(site.as_ref().map(|(_, l, c)| (*l, *c))),
-                    full,
-                    site.as_ref().map(|(n, _, _)| n.as_str()).unwrap_or("?"),
-                ));
-            } else if !f.effects.has_effect("io") {
-                issues.push(format!(
-                    "{}: warning: function `{}` may have effect `io` (call to `{}`); consider adding #[io]",
-                    loc(site.as_ref().map(|(_, l, c)| (*l, *c))),
-                    full,
-                    site.as_ref().map(|(n, _, _)| n.as_str()).unwrap_or("?"),
-                ));
+        // 硬性出入（所有函数）
+        if f.effects.pure {
+            for e in &inf.effects {
+                let (l, c) = site_of(e).unwrap_or((f.span.start_line, f.span.start_col));
+                issues.push(format!("{}: warning: function `{}` is #[pure] but has effect `{}` (hard discrepancy)", loc(l, c), full, e));
+            }
+            if !inf.throws.is_empty() {
+                let (l, c) = site_of("throws").unwrap_or((f.span.start_line, f.span.start_col));
+                issues.push(format!("{}: warning: function `{}` is #[pure] but may throw (hard discrepancy)", loc(l, c), full));
+            }
+            if inf.may_unknown_effects {
+                issues.push(format!("{}: warning: function `{}` is #[pure] but calls into unknown extern code (hard discrepancy)", loc(f.span.start_line, f.span.start_col), full));
+            }
+        }
+        if f.effects.no_error {
+            if !inf.throws.is_empty() {
+                let (l, c) = site_of("throws").unwrap_or((f.span.start_line, f.span.start_col));
+                issues.push(format!("{}: warning: function `{}` is #[no_error] but may throw (hard discrepancy)", loc(l, c), full));
             }
         }
 
-        // throws
-        if !actual.throws.is_empty() {
-            let site = sites.iter().find_map(|o| match o {
-                super::scan::Obs::Try(l, c) => Some((*l, *c)),
-                _ => None,
-            });
-            match &f.effects.throws {
-                None => issues.push(format!(
-                    "{}: warning: function `{}` may throw (`?`/调用可能抛错); consider adding #[throws(...)]",
-                    loc(site),
-                    full,
-                )),
-                Some(crate::hir::effects::ThrowsDecl::OpenEmpty) => issues.push(format!(
-                    "{}: warning: function `{}` declares #[throws()] but may throw (hard discrepancy)",
-                    loc(site),
-                    full,
-                )),
-                _ => {}
+        // 缺失建议（只对 pub 接口）
+        if f.is_pub && !f.effects.pure {
+            for e in &inf.effects {
+                if !f.effects.has_effect(e) {
+                    let (l, c) = site_of(e).unwrap_or((f.span.start_line, f.span.start_col));
+                    issues.push(format!("{}: warning: function `{}` may have effect `{}`; consider adding #[{}]", loc(l, c), full, e, e));
+                }
+            }
+            if !inf.throws.is_empty() && f.effects.throws.is_none() {
+                let (l, c) = site_of("throws").unwrap_or((f.span.start_line, f.span.start_col));
+                issues.push(format!("{}: warning: function `{}` may throw; consider adding #[throws(...)]", loc(l, c), full));
             }
         }
     }
@@ -172,9 +215,7 @@ pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_pa
 fn declared_to_set(d: &EffectDecl) -> EffectSet {
     let mut s = EffectSet::default();
     for e in &d.effects {
-        if e.as_str() == "io" {
-            s.io = true;
-        }
+        s.effects.insert(e.as_str());
     }
     s
 }
@@ -189,7 +230,25 @@ fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>) {
     }
 }
 
-fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<crate::hir::ty::FnId>) {
+fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn)) {
+    for it in items {
+        match it {
+            HirItem::Fn(hf) => f(hf),
+            HirItem::Namespace { items, .. } => for_each_fn_mut(items, f),
+            _ => {}
+        }
+    }
+}
+
+/// 收集到的单个调用点信息。
+struct CallInfo {
+    fn_id: crate::hir::ty::FnId,
+    try_unwrap: bool,
+    err_construct: Option<String>,
+    effects: BTreeSet<String>,
+}
+
+fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>) {
     for s in stmts {
         match s {
             HirStmt::Assign { target, value } => {
@@ -197,10 +256,16 @@ fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<crate::hir::ty::FnId>) {
                 walk_expr(&**value, calls);
             }
             HirStmt::FieldAssign { object, value, .. } => {
+                if is_observable_target(object) {
+                    calls.push(state_marker());
+                }
                 walk_expr(&**object, calls);
                 walk_expr(&**value, calls);
             }
             HirStmt::IndexAssign { object, index, value } => {
+                if is_observable_target(object) {
+                    calls.push(state_marker());
+                }
                 walk_expr(&**object, calls);
                 walk_expr(&**index, calls);
                 walk_expr(&**value, calls);
@@ -229,10 +294,33 @@ fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<crate::hir::ty::FnId>) {
     }
 }
 
-fn walk_expr(e: &dyn HirNode, calls: &mut Vec<crate::hir::ty::FnId>) {
+fn state_marker() -> CallInfo {
+    CallInfo { fn_id: crate::hir::ty::FnId(usize::MAX), try_unwrap: false, err_construct: None, effects: ["state".to_string()].into_iter().collect() }
+}
+
+fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool {
+    matches!(object.expr_type(), crate::hir::HirType::Ref(..) | crate::hir::HirType::Unique(..))
+}
+
+fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>) {
+    let mut info: Option<CallInfo> = None;
     if let Some(id) = e.as_call() {
-        calls.push(id);
+        info = Some(CallInfo { fn_id: id, try_unwrap: false, err_construct: None, effects: BTreeSet::new() });
+    }
+    if e.is_alloc() {
+        let i = info.get_or_insert_with(|| CallInfo { fn_id: crate::hir::ty::FnId(usize::MAX), try_unwrap: false, err_construct: None, effects: BTreeSet::new() });
+        i.effects.insert("alloc".to_string());
+    }
+    if let Some(v) = e.enum_variant() {
+        if v.as_str() == "Err" {
+            let i = info.get_or_insert_with(|| CallInfo { fn_id: crate::hir::ty::FnId(usize::MAX), try_unwrap: false, err_construct: None, effects: BTreeSet::new() });
+            i.err_construct = Some("err".to_string());
+        }
+    }
+    if let Some(mut i) = info {
+        // 名字已知的 IO 原语
+        let _ = &mut i;
+        calls.push(i);
     }
     e.for_each_child(&mut |c| walk_expr(c, calls));
 }
-

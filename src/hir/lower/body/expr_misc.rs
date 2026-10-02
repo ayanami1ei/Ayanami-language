@@ -47,7 +47,7 @@ impl crate::hir::lower::Ctx {
         // Save current locals/scope before lowering lambda function
         let saved_locals = std::mem::take(&mut self.locals);
         let saved_scopes = std::mem::replace(&mut self.scopes, Vec::new());
-        let hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, &tmp_block, false, false, block_span, vec![], vec![])?;
+        let hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, &tmp_block, false, false, block_span, vec![], vec![], false)?;
         // Restore parent function's locals/scope
         self.locals = saved_locals;
         self.scopes = saved_scopes;

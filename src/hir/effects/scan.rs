@@ -8,6 +8,21 @@ use super::IO_NAMES;
 pub(super) enum Obs {
     Io(String, usize, usize),
     Try(usize, usize),
+    Alloc(usize, usize),
+    State(usize, usize),
+}
+
+impl Obs {
+    /// 按效应名给出定位。
+    pub(super) fn site_of(&self, kind: &str) -> Option<(usize, usize)> {
+        match (self, kind) {
+            (Obs::Io(_, l, c), "io") => Some((*l, *c)),
+            (Obs::Try(l, c), "throws") => Some((*l, *c)),
+            (Obs::Alloc(l, c), "alloc") => Some((*l, *c)),
+            (Obs::State(l, c), "state") => Some((*l, *c)),
+            _ => None,
+        }
+    }
 }
 
 pub(super) fn collect_ast_observations(program: &crate::parser::ast::Program) -> HashMap<String, Vec<Obs>> {
@@ -48,11 +63,13 @@ fn scan_body(stmt: &crate::parser::ast::Stmt, obs: &mut Vec<Obs>) {
     use crate::parser::ast::Stmt;
     match stmt {
         Stmt::Assign { value, .. } => scan_expr(value, obs),
-        Stmt::FieldAssign { object, value, .. } => {
+        Stmt::FieldAssign { object, value, span, .. } => {
+            obs.push(Obs::State(span.start_line, span.start_col));
             scan_expr(object, obs);
             scan_expr(value, obs);
         }
-        Stmt::IndexAssign { object, index, value, .. } => {
+        Stmt::IndexAssign { object, index, value, span } => {
+            obs.push(Obs::State(span.start_line, span.start_col));
             scan_expr(object, obs);
             scan_expr(index, obs);
             scan_expr(value, obs);
@@ -105,7 +122,11 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
             }
             for a in args { scan_expr(a, obs); }
         }
-        Expr::Move(i, _) | Expr::Clone(i, _) | Expr::ToUnique(i, _) | Expr::Ref(i, _, _) => {
+        Expr::Move(i, _) | Expr::Clone(i, _) | Expr::Ref(i, _, _) => {
+            scan_expr(i, obs);
+        }
+        Expr::ToUnique(i, span) => {
+            obs.push(Obs::Alloc(span.start_line, span.start_col));
             scan_expr(i, obs);
         }
         Expr::MethodCall { object, args, .. } => {
@@ -116,10 +137,14 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
         Expr::StructLiteral { fields, .. } => {
             for (_, v) in fields { scan_expr(v, obs); }
         }
-        Expr::ArrayLiteral(elems, _) => {
+        Expr::ArrayLiteral(elems, span) => {
+            obs.push(Obs::Alloc(span.start_line, span.start_col));
             for x in elems { scan_expr(x, obs); }
         }
-        Expr::ArraySized { count, .. } => scan_expr(count, obs),
+        Expr::ArraySized { count, span, .. } => {
+            obs.push(Obs::Alloc(span.start_line, span.start_col));
+            scan_expr(count, obs);
+        }
         Expr::Asm { outputs, inputs, .. } => {
             for (_, x) in outputs { scan_expr(x, obs); }
             for (_, x) in inputs { scan_expr(x, obs); }
@@ -147,6 +172,12 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
         Expr::Lambda { body, .. } => {
             for s in body { scan_body(s, obs); }
         }
-        Expr::Literal(_) | Expr::Ident(..) | Expr::Null(_) => {}
+        Expr::Literal(lit) => {
+            if matches!(lit, crate::parser::ast::Literal::String(..)) {
+                let span = lit.span();
+                obs.push(Obs::Alloc(span.start_line, span.start_col));
+            }
+        }
+        Expr::Ident(..) | Expr::Null(_) => {}
     }
 }

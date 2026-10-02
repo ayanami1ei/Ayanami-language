@@ -45,6 +45,7 @@ impl HirNode for SStruct {
 }
 
 impl HirNode for SArrLit {
+    fn is_alloc(&self) -> bool { true }
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirArrayLiteral {
@@ -64,6 +65,7 @@ impl HirNode for SArrLit {
 }
 
 impl HirNode for SArrSz {
+    fn is_alloc(&self) -> bool { true }
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirArraySized {
