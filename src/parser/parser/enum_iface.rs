@@ -119,7 +119,7 @@ impl Parser {
         let name = self.expect_identifier()?;
         self.expect_delimiter(Delimiter::LParen)?;
 
-        // Parse self parameter: shared self or unique self
+        // Parse self parameter: ref/ref mut/unique/shared/self
         let self_keyword = match self.peek().map(|t| &t.kind) {
             Some(TokenKind::Keyword(Keyword::Shared)) => {
                 self.advance();
@@ -129,7 +129,17 @@ impl Parser {
                 self.advance();
                 Symbol::intern("unique")
             }
-            _ => return Err(self.error("expected 'shared' or 'unique' for self parameter in interface method")),
+            Some(TokenKind::Keyword(Keyword::Ref)) => {
+                self.advance();
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Mut)) {
+                    self.advance();
+                    Symbol::intern("refmut")
+                } else {
+                    Symbol::intern("ref")
+                }
+            }
+            Some(TokenKind::Keyword(Keyword::Self_)) => Symbol::intern("self"),
+            _ => return Err(self.error("expected 'ref', 'unique', 'shared' or 'self' for self parameter in interface method")),
         };
         let self_name = self.expect_identifier()?;
         if self_name != "self" {

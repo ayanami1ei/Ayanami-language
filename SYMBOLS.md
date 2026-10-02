@@ -199,9 +199,9 @@ src/hir/lower/body/part_04.rs:146: pub(crate) fn ensure_specialized_interface(&m
 src/hir/lower/body/part_04.rs:183: pub(crate) fn register_generic_vtable(
 src/hir/lower/body/part_05.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_05.rs:4: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
-src/hir/lower/body/part_05.rs:23: pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/part_05.rs:55: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
-src/hir/lower/body/part_05.rs:85: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/part_05.rs:34: pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/part_05.rs:66: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
+src/hir/lower/body/part_05.rs:105: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
 src/hir/lower/body/part_06.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_06.rs:6: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/part_07.rs:3: impl crate::hir::lower::Ctx
@@ -212,7 +212,7 @@ src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
 src/hir/lower/body/part_07.rs:196: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
-src/hir/lower/body/part_08.rs:159: pub(crate) fn lower_for(
+src/hir/lower/body/part_08.rs:177: pub(crate) fn lower_for(
 src/hir/lower/body/part_09.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_09.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
 src/hir/lower/body/part_10.rs:3: impl crate::hir::lower::Ctx
@@ -258,9 +258,9 @@ src/hir/lower/helpers/types.rs:176: pub(crate) fn is_null_literal(expr: &HirNode
 src/hir/lower/helpers/types.rs:181: pub(crate) fn is_pointer_type_for_cmp(ty: &HirType) -> bool
 src/hir/lower/helpers/wrap.rs:3: pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:14: pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:74: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:85: pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str>
-src/hir/lower/helpers/wrap.rs:104: pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str>
+src/hir/lower/helpers/wrap.rs:84: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
+src/hir/lower/helpers/wrap.rs:95: pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str>
+src/hir/lower/helpers/wrap.rs:114: pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str>
 src/hir/lower/mod.rs:1: pub mod body;
 src/hir/lower/mod.rs:2: pub mod helpers;
 src/hir/lower/mod.rs:3: pub mod to_mir;
@@ -1105,15 +1105,12 @@ src/main.rs:71: pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBu
 src/main.rs:80: pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf
 src/main.rs:108: mod cli;
 src/main.rs:112: pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
-src/mir/borrow.rs:7: pub fn check_borrows(mir_fn: &MirFn) -> Result<()>
-src/mir/borrow.rs:12: struct Borrow
-src/mir/borrow.rs:18: struct BorrowChecker<'a>
-src/mir/borrow.rs:23: impl<'a> BorrowChecker<'a>
-src/mir/borrow.rs:24: fn new(mir_fn: &'a MirFn) -> Self
-src/mir/borrow.rs:28: fn check(&self) -> Result<()>
-src/mir/borrow.rs:33: fn check_stmts(&self, stmts: &[MirStmtBox], base: usize)
-src/mir/borrow.rs:50: fn check_expr(&self, expr: &dyn MirNode) -> Result<()>
-src/mir/borrow.rs:68: fn add_borrow(&self, var: VarId, mutable: bool) -> Result<()>
+src/mir/borrow.rs:9: pub fn check_borrows(mir_fn: &MirFn) -> Result<()>
+src/mir/borrow.rs:24: struct ActiveBorrow
+src/mir/borrow.rs:29: struct BorrowChecker
+src/mir/borrow.rs:34: impl BorrowChecker
+src/mir/borrow.rs:35: fn check_stmts(&mut self, stmts: &[MirStmtBox])
+src/mir/borrow.rs:46: fn collect_borrows(&mut self, expr: &dyn MirNode)
 src/mir/display.rs:7: pub fn display_mir_program(program: &MirProgram)
 src/mir/display.rs:11: pub fn mir_program_to_string(program: &MirProgram) -> String
 src/mir/display.rs:20: fn pad(n: usize) -> String
@@ -1346,7 +1343,7 @@ src/parser/parser/impls.rs:6: pub(super) fn parse_import(&mut self) -> Result<St
 src/parser/parser/impls.rs:21: pub(super) fn parse_impl_block(&mut self) -> Result<Stmt>
 src/parser/parser/impls.rs:47: fn extract_type_name(ty: &Type) -> Symbol
 src/parser/parser/impls.rs:83: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
-src/parser/parser/impls.rs:215: pub(super) fn parse_block(&mut self) -> Result<Block>
+src/parser/parser/impls.rs:228: pub(super) fn parse_block(&mut self) -> Result<Block>
 src/parser/parser/mod.rs:8: pub struct Parser
 src/parser/parser/mod.rs:13: mod atom;
 src/parser/parser/mod.rs:14: mod core;
@@ -1608,6 +1605,12 @@ example/test_poly.aya:14: fn area(shared self) -> int
 example/test_poly.aya:17: fn describe(shared self) -> void {}
 example/test_poly.aya:20: fn double_area(shared Shape s) -> int
 example/test_poly.aya:25: fn main() -> int
+example/test_ref_self.aya:2: struct Counter
+example/test_ref_self.aya:6: impl Counter
+example/test_ref_self.aya:7: fn get(ref self) -> int
+example/test_ref_self.aya:10: fn inc(ref mut self)
+example/test_ref_self.aya:13: fn into(self) -> int
+example/test_ref_self.aya:18: fn main() -> int
 example/test_self.aya:1: fn main() -> int
 example/test_shared_struct.aya:1: struct Point
 example/test_shared_struct.aya:6: fn main() -> int

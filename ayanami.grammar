@@ -52,7 +52,7 @@
 
     InterfaceDef  = Vis? "interface" Ident GenericParams? "{" IfaceMethodList "}";
     IfaceMethod   = "fn" Ident "(" SelfParam ("," ParamList)? ")" ("->" Type)? ";";
-    SelfParam     = ("shared" | "unique") "self";
+    SelfParam     = ("shared" | "unique" | "ref" "mut"?) "self" | "self";
 
     ImplBlock     = Vis? "impl" GenericParams? Ident GenericArgs? "{" MethodList "}";
     Method        = Vis? "fn" Ident GenericParams? "(" SelfParam ("," ParamList)? ")" ("->" Type)? Block;

@@ -91,19 +91,19 @@ fn main() -> int {
 
 ## 类型系统
 
-| 类型 | 写法 | 说明 |
-|------|------|------|
-| 整数 | `int` | 64 位 |
-| 浮点 | `float` | 64 位 |
-| 字符 | `char` | 单字节 |
-| 布尔 | `bool` | `true` / `false` |
-| 字符串 | `String` | 标准库结构体 `{ unique [char] data, int len }` |
-| 数组 | `unique [int]` / `shared [int]` | 堆分配，必须显式内存管理 |
-| 结构体 | `Point` | 自定义，值语义 |
-| 枚举 | `Option[T]` | tag + union，支持方法派发 |
-| shared | `shared int` | 引用计数指针 |
-| unique | `unique int` | 独占所有权指针 |
-| weak | `weak int` | 弱引用 |
+| 类型   | 写法                                | 说明                                            |
+| ------ | ----------------------------------- | ----------------------------------------------- |
+| 整数   | `int`                             | 64 位                                           |
+| 浮点   | `float`                           | 64 位                                           |
+| 字符   | `char`                            | 单字节                                          |
+| 布尔   | `bool`                            | `true` / `false`                            |
+| 字符串 | `String`                          | 标准库结构体`{ unique [char] data, int len }` |
+| 数组   | `unique [int]` / `shared [int]` | 堆分配，必须显式内存管理                        |
+| 结构体 | `Point`                           | 自定义，值语义                                  |
+| 枚举   | `Option[T]`                       | tag + union，支持方法派发                       |
+| shared | `shared int`                      | 引用计数指针                                    |
+| unique | `unique int`                      | 独占所有权指针                                  |
+| weak   | `weak int`                        | 弱引用                                          |
 
 | 枚举 | `Color` | tag + union，支持方法派发 |
 
@@ -131,18 +131,22 @@ println("val: " + 42)     // String + int → 自动调用 to_string
 ## 语法
 
 ### 注释
+
 ```
 // 行注释
 /* 块注释 */
 ```
 
 ### 函数
+
 ```
 fn add(int a, int b) -> int { return a + b; }
 ```
+
 参数顺序：**类型 名称**。返回值用 `->`。
 
 ### 函数指针
+
 ```
 fn apply(int x, int y, fn(int,int)->int f) -> int {
     return f(x, y)
@@ -155,9 +159,11 @@ fn main() -> int {
     return apply(3, 4, f)
 }
 ```
+
 函数指针类型 `fn(T) -> U`，函数名可直接赋值给函数指针变量。
 
 ### 变量
+
 ```
 x = 42;                   // int
 f = 3.14;                 // float
@@ -168,6 +174,7 @@ p = Point { x = 1, y = 2 };
 ```
 
 ### 控制流
+
 ```
 if a > b { return 1; } elif a < b { return 2; } else { return 3; }
 while a < 10 { a = a + 1; }
@@ -177,6 +184,7 @@ break / continue                      // 循环控制
 ```
 
 ### 结构体
+
 ```
 struct Point {
     int x
@@ -186,6 +194,7 @@ p = Point { x = 10, y = 3 };
 ```
 
 ### 枚举
+
 ```
 enum Option[T] {
     Some(T),
@@ -218,6 +227,7 @@ println(x.get())  // 自动调用 Option_Some::get
 method 调用自动生成 `match e { V0 => e._data_V0.method(...), V1 => ... }`。
 
 ### 接口与 impl
+
 ```
 interface ToString {
     fn to_string(unique self) -> unique String;
@@ -237,13 +247,13 @@ impl Point: ToString {}  // 结构匹配：有 to_string 方法即自动实现�
 
 ### shared / unique / weak
 
-| 所有权 | 说明 |
-|--------|------|
-| `shared T` | 引用计数指针，可共享，自动释放 |
+| 所有权       | 说明                                         |
+| ------------ | -------------------------------------------- |
+| `shared T` | 引用计数指针，可共享，自动释放               |
 | `unique T` | 独占所有权指针，移动语义，离开作用域自动释放 |
-| `weak T` | 弱引用，不增加引用计数，用于遍历 |
+| `weak T`   | 弱引用，不增加引用计数，用于遍历             |
 
-`shared T` 可传入接受 `T` 或 `shared T` 参数的函数。  
+`shared T` 可传入接受 `T` 或 `shared T` 参数的函数。
 `unique T` 可传入接受 `T` 或 `unique T` 参数的函数。
 
 字符串拼接 `add[T:ToString](T a)` 支持 `unique T` 和 `shared T`：
@@ -254,21 +264,23 @@ println(s + " world")                           // 可用在拼接中
 ```
 
 ### 泛型
+
 ```ayanami
 fn identity[T](T a) -> T { return a; }
 fn max[T: Ord](T a, T b) -> T { if a > b { return a; } return b; }
 ```
+
 泛型通过单态化实现。约束使用接口名。
 
 ### 操作符重载
 
-| 操作符 | 方法名 |
-|--------|--------|
-| `+` `-` `*` `/` `%` | `add` `sub` `mul` `div` `rem` |
+| 操作符                                  | 方法名                                    |
+| --------------------------------------- | ----------------------------------------- |
+| `+` `-` `*` `/` `%`           | `add` `sub` `mul` `div` `rem`   |
 | `==` `!=` `<` `>` `<=` `>=` | `eq` `ne` `lt` `gt` `le` `ge` |
-| `-` `!`（一元） | `neg` `not` |
-| `a[i]` | `index(self, i)` |
-| `expr?` | `try_unwrap(expr)` |
+| `-` `!`（一元）                     | `neg` `not`                           |
+| `a[i]`                                | `index(self, i)`                        |
+| `expr?`                               | `try_unwrap(expr)`                      |
 
 ## 编译管线
 
@@ -279,19 +291,22 @@ fn max[T: Ord](T a, T b) -> T { if a > b { return a; } return b; }
 ## 未来方向
 
 ### 效应系统
+
 引入代数效应（algebraic effects），将副作用（IO、可变状态、异常、非确定性等）纳入类型系统。函数通过 `eff` 声明其可能产生的效应，编译器静态确保效应处理。
 
 ### 代码设计平台
+
 将编译器从离线工具转变为交互式开发平台的核心：
 
-| 阶段 | 能力 |
-|------|------|
+| 阶段             | 能力                                                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------- |
 | **开发期** | 解释执行某个 IR（待定：HIR / MIR / LIR），无需完整编译即可运行代码片段，获得类似 Python 的即时反馈与动态调试体验 |
-| **发布期** | 一次性编译为优化机器码，产物不含解释器或动态能力，用户侧零运行时开销 |
+| **发布期** | 一次性编译为优化机器码，产物不含解释器或动态能力，用户侧零运行时开销                                             |
 
 解释 IR 时可保留完整的类型信息与源码映射，支持断点、求值、热重载等 IDE 特性。发布路径则走现有 LLVM 后端生成原生二进制。
 
 ### 核心原则
+
 > 开发体验向动态语言看齐，部署产物向静态语言看齐。
 
 ## 示例

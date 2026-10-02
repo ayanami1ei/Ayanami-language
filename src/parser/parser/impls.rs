@@ -125,11 +125,15 @@ impl Parser {
 
         self.expect_delimiter(Delimiter::LParen)?;
 
-        // Parse optional self parameter: shared self or unique self
+        // Parse optional self parameter: ref/ref mut/unique/shared/self
         let mut params: Vec<(Symbol, Type)> = Vec::new();
-        let is_self_start = matches!(self.peek().map(|t| &t.kind), 
-            Some(TokenKind::Keyword(Keyword::Shared)) | Some(TokenKind::Keyword(Keyword::Unique)));
+        let is_self_start = matches!(self.peek().map(|t| &t.kind),
+            Some(TokenKind::Keyword(Keyword::Shared))
+                | Some(TokenKind::Keyword(Keyword::Unique))
+                | Some(TokenKind::Keyword(Keyword::Ref))
+                | Some(TokenKind::Keyword(Keyword::Self_)));
         if is_self_start {
+            let mut ref_mut = false;
             let self_keyword = match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Keyword(Keyword::Shared)) => {
                     self.advance();
@@ -139,7 +143,15 @@ impl Parser {
                     self.advance();
                     Symbol::intern("unique")
                 }
-                _ => unreachable!(),
+                Some(TokenKind::Keyword(Keyword::Ref)) => {
+                    self.advance();
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Mut)) {
+                        self.advance();
+                        ref_mut = true;
+                    }
+                    Symbol::intern("ref")
+                }
+                _ => Symbol::intern("self"),
             };
             let self_name = self.expect_identifier()?;
             if self_name != "self" {
@@ -153,10 +165,11 @@ impl Parser {
                     .collect();
                 Type::Generic(*impl_type, gp_names, Span::default())
             };
-            let self_type = if self_keyword.as_str() == "shared" {
-                Type::Shared(Box::new(base_self_type), Span::default())
-            } else {
-                Type::Unique(Box::new(base_self_type), Span::default())
+            let self_type = match self_keyword.as_str().as_str() {
+                "shared" => Type::Shared(Box::new(base_self_type), Span::default()),
+                "unique" => Type::Unique(Box::new(base_self_type), Span::default()),
+                "ref" => Type::Ref(Box::new(base_self_type), ref_mut, Span::default()),
+                _ => base_self_type, // 裸 self：消费
             };
             params.push((Symbol::intern("self"), self_type));
             // Parse remaining params

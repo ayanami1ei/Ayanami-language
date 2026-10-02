@@ -1,43 +1,6 @@
 use super::*;
 
 impl Parser {
-    pub fn pto_unique_expr(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("ToUniqueExpr");
-        self.0.expect("UNIQUE")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pto_shared_expr(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("ToSharedExpr");
-        self.0.expect("SHARED")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pto_weak_expr(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("ToWeakExpr");
-        self.0.expect("WEAK")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pref_expr(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("RefExpr");
-        self.0.expect("REF")?;
-        self.0.expect("MUT")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
     pub fn ptry_op(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("TryOp");
         if let asuka::runtime::Value::Node(child) = self.pexpr()? {
@@ -163,6 +126,37 @@ impl Parser {
             }
             self.0.expect(")")?;
         } // end group
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pasm_expr(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("AsmExpr");
+        self.0.expect("ASM")?;
+        self.0.expect("(")?;
+        if let asuka::runtime::Value::Node(child) = self.ps()? {
+            n.set("string_literal", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(":")?;
+        if let asuka::runtime::Value::Node(child) = self.pasm_output_list()? {
+            n.set("asm_output_list", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(":")?;
+        if let asuka::runtime::Value::Node(child) = self.pasm_input_list()? {
+            n.set("asm_input_list", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(")")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pasm_output(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("AsmOutput");
+        if let asuka::runtime::Value::Node(child) = self.ps()? {
+            n.set("string_literal", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(":")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 }

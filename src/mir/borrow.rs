@@ -1,83 +1,60 @@
 use crate::error::{Error, Result};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use crate::hir::ir::{VarId, HirType};
+use crate::hir::ir::{HirType, VarId};
 use crate::mir::ir::*;
 
+/// 借用检查（保守版）：
+/// - 借用是语句作用域的临时值：引用不能存入变量/字段、不能作为返回值逃逸；
+/// - 同一语句内对同一变量的冲突借用（可变 × 任意、任意 × 可变）报错；
+/// - 借用目标与使用顺序的完整生命周期分析（NLL）暂未实现。
 pub fn check_borrows(mir_fn: &MirFn) -> Result<()> {
-    let checker = BorrowChecker::new(mir_fn);
-    checker.check()
+    if matches!(mir_fn.return_type, HirType::Ref(..)) {
+        return Err(Error::Borrow(format!(
+            "function `{}` cannot return a reference: borrows cannot escape",
+            mir_fn.name.as_str()
+        )));
+    }
+    let mut checker = BorrowChecker { active: Vec::new(), errors: Vec::new() };
+    checker.check_stmts(&mir_fn.body);
+    match checker.errors.into_iter().next() {
+        Some(e) => Err(e),
+        None => Ok(()),
+    }
 }
 
-struct Borrow {
+struct ActiveBorrow {
     var: VarId,
     mutable: bool,
-    start: usize,
 }
 
-struct BorrowChecker<'a> {
-    mir_fn: &'a MirFn,
-    active: RefCell<HashMap<VarId, Vec<Borrow>>>,
+struct BorrowChecker {
+    active: Vec<ActiveBorrow>,
+    errors: Vec<Error>,
 }
 
-impl<'a> BorrowChecker<'a> {
-    fn new(mir_fn: &'a MirFn) -> Self {
-        Self { mir_fn, active: RefCell::new(HashMap::new()) }
-    }
-
-    fn check(&self) -> Result<()> {
-        self.check_stmts(&self.mir_fn.body, 0);
-        Ok(())
-    }
-
-    fn check_stmts(&self, stmts: &[MirStmtBox], base: usize) {
+impl BorrowChecker {
+    fn check_stmts(&mut self, stmts: &[MirStmtBox]) {
         for stmt in stmts {
-            let mut err = None;
-            stmt.for_each_child_expr(&mut |child| {
-                if let Err(e) = self.check_expr(child) {
-                    err = Some(e);
-                }
-            });
-            if let Some(e) = err { panic!("borrow error: {}", e); }
-            stmt.for_each_child_stmt(&mut |child| {
-                child.for_each_child_expr(&mut |c| {
-                    let _ = self.check_expr(c);
-                });
-            });
+            // 语句内创建的借用在该语句结束时全部释放
+            let saved = self.active.len();
+            stmt.for_each_child_expr(&mut |e| self.collect_borrows(e));
+            self.active.truncate(saved);
+            // 递归检查嵌套语句（各自独立的作用域）
+            stmt.for_each_child_stmt(&mut |s| self.check_stmts(&[MirStmtBox(s.clone_stmt())]));
         }
     }
 
-    fn check_expr(&self, expr: &dyn MirNode) -> Result<()> {
-        if let Some(var) = expr.as_local() {
-            let active = self.active.borrow();
-            if let Some(borrows) = active.get(&var) {
-                if borrows.iter().any(|b| b.mutable) {
-                    return Err(Error::Borrow(format!("cannot read v{}, mutably borrowed", var.0)));
-                }
-            }
-        }
+    fn collect_borrows(&mut self, expr: &dyn MirNode) {
         if let Some((var, mutable)) = expr.as_ref() {
-            self.add_borrow(var, mutable)?;
-        }
-        expr.for_each_child(&mut |child| {
-            let _ = self.check_expr(child);
-        });
-        Ok(())
-    }
-
-    fn add_borrow(&self, var: VarId, mutable: bool) -> Result<()> {
-        let mut active = self.active.borrow_mut();
-        if let Some(borrows) = active.get(&var) {
-            for b in borrows {
-                if mutable || b.mutable {
-                    return Err(Error::Borrow(format!(
-                        "cannot borrow v{} as {}mut, already borrowed",
-                        var.0, if mutable { "" } else { "im" }
-                    )));
-                }
+            if self.active.iter().any(|b| b.var == var && (b.mutable || mutable)) {
+                self.errors.push(Error::Borrow(format!(
+                    "cannot borrow v{} as {} while it is already borrowed in the same expression",
+                    var.0,
+                    if mutable { "mutable" } else { "immutable" }
+                )));
+            } else {
+                self.active.push(ActiveBorrow { var, mutable });
             }
         }
-        active.entry(var).or_default().push(Borrow { var, mutable, start: 0 });
-        Ok(())
+        expr.for_each_child(&mut |c| self.collect_borrows(c));
     }
 }

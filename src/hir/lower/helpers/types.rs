@@ -162,7 +162,7 @@ pub(crate) fn strip_ownership(ty: HirType) -> HirType {
     /// 剥去所有权包装的引用版本（不消耗所有权）
 pub(crate) fn strip_ownership_ref(ty: &HirType) -> &HirType {
     match ty {
-        HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+        HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) | HirType::Ref(inner, _) => inner.as_ref(),
         other => other,
     }
 }

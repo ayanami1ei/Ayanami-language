@@ -257,7 +257,7 @@ impl LirNode for SLirFieldAccess {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let inner = match &self.struct_ty {
-            HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+            HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) | HirType::Ref(inner, _) => inner.as_ref(),
             other => other,
         };
         let struct_name = match inner {
@@ -267,7 +267,7 @@ impl LirNode for SLirFieldAccess {
         let struct_llvm = ctx.struct_llvm_name(struct_name)
             .unwrap_or_else(|| panic!("unknown struct type `{}`", struct_name));
         let src_str = ctx.value_ref(&self.src, &self.struct_ty);
-        if matches!(&self.struct_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)) {
+        if matches!(&self.struct_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_) | HirType::Ref(..)) {
             vec![
                 format!("%t{} = getelementptr {}, ptr {}, i32 0, i32 {}", self.gep_tmp, struct_llvm, src_str, self.field_index),
                 format!("%t{} = load {}, ptr %t{}", self.dest, ctx.llvm_type(&self.field_ty), self.gep_tmp),

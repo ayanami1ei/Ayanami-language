@@ -1,34 +1,6 @@
 use super::*;
 
 impl Parser {
-    pub fn pindex_assign(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("IndexAssign");
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("[")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("]")?;
-        self.0.expect("=")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect(";")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn preturn_stmt(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("ReturnStmt");
-        self.0.expect("RETURN")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect(";")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
     pub fn pif_stmt(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("IfStmt");
         self.0.expect("IF")?;
@@ -160,6 +132,44 @@ impl Parser {
             n.set("expr", asuka::runtime::Value::Node(child));
         }
         self.0.expect(";")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn ppattern(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("Pattern");
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        { // group
+        let _g_saved = self.0.pos;
+            self.0.expect("(")?;
+            if let asuka::runtime::Value::Node(child) = self.ppattern_args()? {
+                n.set("pattern_args", asuka::runtime::Value::Node(child));
+            }
+            self.0.expect(")")?;
+        } // end group
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn ppattern_args(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("PatternArgs");
+        if let asuka::runtime::Value::Node(child) = self.ppattern()? {
+            n.set("pattern", asuka::runtime::Value::Node(child));
+        }
+        loop {
+            let _gr_saved = self.0.pos;
+            if let Ok(_) = (|| -> Result<(), String> {
+                    { // group
+                    let _g_saved = self.0.pos;
+                        self.0.expect(",")?;
+                        if let asuka::runtime::Value::Node(child) = self.ppattern()? {
+                            n.set("pattern", asuka::runtime::Value::Node(child));
+                        }
+                    } // end group
+                Ok(())
+        })() {}
+            else { self.0.pos = _gr_saved; break; }
+        }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 }

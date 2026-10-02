@@ -31,7 +31,7 @@ impl MirStmtNode for SMirFieldAssignStmt {
         let obj_ty = self.object.expr_type();
         let var_id = match self.object.as_local() {
             Some(id) => {
-                let is_value = !matches!(obj_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_));
+                let is_value = !matches!(obj_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_) | HirType::Ref(..));
                 if is_value { Some(id) } else { None }
             }
             None => None,

@@ -3,10 +3,16 @@ use super::*;
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt> {
         match stmt {
-            Stmt::Assign { name, value, .. } => {
+            Stmt::Assign { name, value, span, .. } => {
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
                 let value_ty = expr_type(&hir_value);
+                if matches!(value_ty, HirType::Ref(..)) {
+                    return Err(Error::Hir(format!(
+                        "references cannot be stored in variables (at {}:{})",
+                        span.start_line, span.start_col
+                    )));
+                }
                 let (var_id, ty, _) = self.register_or_lookup(*name, value_ty);
                 Ok(HirStmt::Assign {
                     target: SVar { var: var_id, ty: ty.clone() }.into(),
@@ -20,6 +26,12 @@ impl crate::hir::lower::Ctx {
                 let field_ty = self.find_field_type(&object_ty, field, stmt_span)?;
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
+                if matches!(expr_type(&hir_value), HirType::Ref(..)) {
+                    return Err(Error::Hir(format!(
+                        "references cannot be stored in fields (at {}:{})",
+                        stmt_span.start_line, stmt_span.start_col
+                    )));
+                }
                 Ok(HirStmt::FieldAssign {
                     object: hir_object,
                     field: *field,
@@ -28,11 +40,17 @@ impl crate::hir::lower::Ctx {
                     value: hir_value,
                 })
             }
-            Stmt::IndexAssign { object, index, value, .. } => {
+            Stmt::IndexAssign { object, index, value, span } => {
                 let hir_object = self.lower_expr(object)?;
                 let hir_index = self.lower_expr(index)?;
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
+                if matches!(expr_type(&hir_value), HirType::Ref(..)) {
+                    return Err(Error::Hir(format!(
+                        "references cannot be stored in arrays (at {}:{})",
+                        span.start_line, span.start_col
+                    )));
+                }
                 Ok(HirStmt::IndexAssign {
                     object: hir_object,
                     index: hir_index,

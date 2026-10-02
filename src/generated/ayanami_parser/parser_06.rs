@@ -1,44 +1,6 @@
 use super::*;
 
 impl Parser {
-    pub fn ppattern(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("Pattern");
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("ident", asuka::runtime::Value::Node(child));
-        }
-        { // group
-        let _g_saved = self.0.pos;
-            self.0.expect("(")?;
-            if let asuka::runtime::Value::Node(child) = self.ppattern_args()? {
-                n.set("pattern_args", asuka::runtime::Value::Node(child));
-            }
-            self.0.expect(")")?;
-        } // end group
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn ppattern_args(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("PatternArgs");
-        if let asuka::runtime::Value::Node(child) = self.ppattern()? {
-            n.set("pattern", asuka::runtime::Value::Node(child));
-        }
-        loop {
-            let _gr_saved = self.0.pos;
-            if let Ok(_) = (|| -> Result<(), String> {
-                    { // group
-                    let _g_saved = self.0.pos;
-                        self.0.expect(",")?;
-                        if let asuka::runtime::Value::Node(child) = self.ppattern()? {
-                            n.set("pattern", asuka::runtime::Value::Node(child));
-                        }
-                    } // end group
-                Ok(())
-        })() {}
-            else { self.0.pos = _gr_saved; break; }
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
     pub fn pexpr(&mut self) -> Result<asuka::runtime::Value, String> {
         if let Ok(val) = self.pbinary_expr() { return Ok(val); }
         if let Ok(val) = self.punary_expr() { return Ok(val); }
@@ -172,6 +134,44 @@ impl Parser {
         } // end group
         if let asuka::runtime::Value::Node(child) = self.pexpr()? {
             n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pfn_call_expr(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("FnCallExpr");
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("(")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr_list()? {
+            n.set("expr_list", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(")")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pcall_expr(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("CallExpr");
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("(")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr_list()? {
+            n.set("expr_list", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(")")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pfield_expr(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("FieldExpr");
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(".")?;
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }

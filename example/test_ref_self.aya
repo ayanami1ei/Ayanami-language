@@ -1,0 +1,24 @@
+// P3 借用接收者验证：ref self / ref mut self / 消费 self
+struct Counter {
+    int n
+}
+
+impl Counter {
+    fn get(ref self) -> int {
+        return self.n
+    }
+    fn inc(ref mut self) {
+        self.n = self.n + 1
+    }
+    fn into(self) -> int {
+        return self.n
+    }
+}
+
+fn main() -> int {
+    c = Counter { n = 41 };
+    c.inc();
+    d = c.get();
+    e = c.into();
+    return d;
+}

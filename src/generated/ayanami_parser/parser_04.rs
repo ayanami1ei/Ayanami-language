@@ -1,24 +1,6 @@
 use super::*;
 
 impl Parser {
-    pub fn pshared_type(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("SharedType");
-        self.0.expect("SHARED")?;
-        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
-            n.set("typ", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn punique_type(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("UniqueType");
-        self.0.expect("UNIQUE")?;
-        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
-            n.set("typ", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
     pub fn pweak_type(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("WeakType");
         self.0.expect("WEAK")?;
@@ -154,6 +136,34 @@ impl Parser {
             n.set("ident", asuka::runtime::Value::Node(child));
         }
         self.0.expect("=")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(";")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pindex_assign(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("IndexAssign");
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("[")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("]")?;
+        self.0.expect("=")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(";")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn preturn_stmt(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("ReturnStmt");
+        self.0.expect("RETURN")?;
         if let asuka::runtime::Value::Node(child) = self.pexpr()? {
             n.set("expr", asuka::runtime::Value::Node(child));
         }

@@ -61,6 +61,16 @@ pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNode
                 arg
             }
         }
+        HirType::Ref(pt, mutable) => {
+            // ref 参数：已是借用直接传；否则对同类型左值自动取引用
+            if matches!(&arg_ty, HirType::Ref(..)) {
+                arg
+            } else if arg_ty == **pt {
+                SRef { expr: arg, mutable: *mutable, ty: param_ty.clone() }.into()
+            } else {
+                arg
+            }
+        }
         _ => arg,
     };
     // 按值参数（含 unique）消费实参：插入移动；shared/weak 仍是借用/共享语义

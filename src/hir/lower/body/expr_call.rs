@@ -106,7 +106,7 @@ impl crate::hir::lower::Ctx {
                     }
                 }
             }
-            if matches!(param_tys[i], HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_)) {
+            if matches!(param_tys[i], HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::Ref(..)) {
                 wrap_arg_for_param(arg, &param_tys[i])
             } else {
                 arg

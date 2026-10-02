@@ -2,23 +2,12 @@ use super::*;
 
 impl Parser {
     pub fn pself_param(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("SelfParam");
-        { // group
-        let _g_saved = self.0.pos;
-            if self.0.tok().kind == "SHARED" {
-                let mut node = asuka::runtime::Node::new("shared");
-                self.0.expect("SHARED")?;
-                return Ok(asuka::runtime::Value::Node(Box::new(node)));
-            }
-            if self.0.tok().kind == "UNIQUE" {
-                let mut node = asuka::runtime::Node::new("unique");
-                self.0.expect("UNIQUE")?;
-                return Ok(asuka::runtime::Value::Node(Box::new(node)));
-            }
-            return Err(format!("no alt"));
-        } // end group
-        self.0.expect("SELF")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
+        if self.0.tok().kind == "SELF" {
+            let mut node = asuka::runtime::Node::new("self");
+            self.0.expect("SELF")?;
+            return Ok(asuka::runtime::Value::Node(Box::new(node)));
+        }
+        return Err(format!("no alt"));
     }
 
     pub fn pimpl_block(&mut self) -> Result<asuka::runtime::Value, String> {
@@ -166,6 +155,24 @@ impl Parser {
                 n.set("generic_args", asuka::runtime::Value::Node(child));
             }
         } // end group
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pshared_type(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("SharedType");
+        self.0.expect("SHARED")?;
+        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
+            n.set("typ", asuka::runtime::Value::Node(child));
+        }
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn punique_type(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("UniqueType");
+        self.0.expect("UNIQUE")?;
+        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
+            n.set("typ", asuka::runtime::Value::Node(child));
+        }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 }

@@ -1,37 +1,6 @@
 use super::*;
 
 impl Parser {
-    pub fn pasm_expr(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("AsmExpr");
-        self.0.expect("ASM")?;
-        self.0.expect("(")?;
-        if let asuka::runtime::Value::Node(child) = self.ps()? {
-            n.set("string_literal", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect(":")?;
-        if let asuka::runtime::Value::Node(child) = self.pasm_output_list()? {
-            n.set("asm_output_list", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect(":")?;
-        if let asuka::runtime::Value::Node(child) = self.pasm_input_list()? {
-            n.set("asm_input_list", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect(")")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pasm_output(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("AsmOutput");
-        if let asuka::runtime::Value::Node(child) = self.ps()? {
-            n.set("string_literal", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect(":")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
     pub fn pasm_output_list(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("AsmOutputList");
         if let asuka::runtime::Value::Node(child) = self.pasm_output()? {

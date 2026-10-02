@@ -15,6 +15,17 @@ impl crate::hir::lower::Ctx {
         if let HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) = arg_ty {
             if param_ty == inner.as_ref() { return true; }
         }
+        // ref/ref mut 形参：允许传裸值（自动借用）或已借用值
+        if let HirType::Ref(inner, _) = param_ty {
+            if arg_ty == inner.as_ref() || matches!(arg_ty, HirType::Ref(..)) {
+                return true;
+            }
+            if let HirType::Shared(a) | HirType::Unique(a) | HirType::Weak(a) = arg_ty {
+                if a.as_ref() == inner.as_ref() {
+                    return true;
+                }
+            }
+        }
         // FatPtr compatibility
         self.is_fatptr_compatible(param_ty, arg_ty)
     }
@@ -76,6 +87,15 @@ impl crate::hir::lower::Ctx {
         match param {
             HirType::Shared(inner) | HirType::Unique(inner) => {
                 if receiver == inner.as_ref() { return true; }
+            }
+            // 允许向 ref/ref mut self 传入裸类型（自动借用）
+            HirType::Ref(inner, _) => {
+                if receiver == inner.as_ref() { return true; }
+                let recv_inner2 = match receiver {
+                    HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
+                    other => other,
+                };
+                if recv_inner2 == inner.as_ref() { return true; }
             }
             _ => {}
         }
