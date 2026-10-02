@@ -1079,9 +1079,9 @@ src/mir/borrow/cfg.rs:105: fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<Va
 src/mir/borrow/liveness.rs:6: pub fn live_in(cfg: &cfg::Cfg) -> Vec<HashSet<VarId>>
 src/mir/borrow/loans.rs:7: struct Loan
 src/mir/borrow/loans.rs:17: pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()>
-src/mir/borrow/loans.rs:175: fn var_name(mir_fn: &MirFn, v: VarId) -> String
-src/mir/borrow/loans.rs:184: fn walk_stmt(
-src/mir/borrow/loans.rs:215: fn walk_expr(
+src/mir/borrow/loans.rs:193: fn var_name(mir_fn: &MirFn, v: VarId) -> String
+src/mir/borrow/loans.rs:202: fn walk_stmt(
+src/mir/borrow/loans.rs:233: fn walk_expr(
 src/mir/borrow/mod.rs:14: mod cfg;
 src/mir/borrow/mod.rs:15: mod liveness;
 src/mir/borrow/mod.rs:16: mod loans;

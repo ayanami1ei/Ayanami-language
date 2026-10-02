@@ -28,9 +28,21 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
                 continue;
             }
             if let Some((var, mutable)) = value.as_ref() {
+                if loans.contains_key(&r) {
+                    return Err(Error::Borrow(format!(
+                        "reference local `{}` cannot be reassigned (borrow checker limitation)",
+                        var_name(mir_fn, r)
+                    )));
+                }
                 loans.insert(r, Loan { var, mutable, origin: r });
             } else if let Some(src) = value.as_local() {
                 // 引用拷贝：r = s
+                if loans.contains_key(&r) {
+                    return Err(Error::Borrow(format!(
+                        "reference local `{}` cannot be reassigned (borrow checker limitation)",
+                        var_name(mir_fn, r)
+                    )));
+                }
                 if let Some(l) = loans.get(&src) {
                     loans.insert(r, Loan { var: l.var, mutable: l.mutable, origin: l.origin });
                 } else if let Some(&(_, mutable)) = ref_params.iter().find(|(v, _)| *v == src) {
@@ -55,6 +67,12 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
                 });
                 match found {
                     Some(l) => {
+                        if loans.contains_key(&r) {
+                            return Err(Error::Borrow(format!(
+                                "reference local `{}` cannot be reassigned (borrow checker limitation)",
+                                var_name(mir_fn, r)
+                            )));
+                        }
                         if ret_mut && !l.mutable {
                             return Err(Error::Borrow(format!(
                                 "cannot return `ref mut` from an immutable borrow of `{}`",
