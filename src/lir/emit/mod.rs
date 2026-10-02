@@ -83,8 +83,6 @@ impl<'a> Emitter<'a> {
         self.emit_vtable_globals();
 
         // Runtime declarations
-        self.wln("declare void @free(i8*)");
-        self.wln("declare i8* @malloc(i64)");
         self.wln("declare i8* @__ayanami_unique_alloc(i64)");
         self.wln("declare void @__ayanami_unique_free(i8*)");
         self.wln("declare void @llvm.memcpy.p0.p0.i64(i8*, i8*, i64, i1)");
@@ -93,8 +91,6 @@ impl<'a> Emitter<'a> {
         self.wln("declare void @__ayanami_require_fail(i64, i64) noreturn");
         self.wln("declare void @__ayanami_ensure_fail(i64, i64) noreturn");
         self.wln("declare void @__ayanami_invariant_fail(i64, i64) noreturn");
-        self.wln("declare i32 @putchar(i32)");
-        self.wln("declare i32 @printf(i8*, ...)");
         self.wln("");
 
         // Extern declarations（真实签名 + LLVM 属性）

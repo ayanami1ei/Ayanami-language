@@ -1,6 +1,7 @@
 pub mod attrs;
 pub mod cfg;
 pub mod contracts;
+pub mod effects;
 pub mod ir;
 pub mod ty;
 pub mod node;

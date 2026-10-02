@@ -129,19 +129,19 @@ src/formatter/mod.rs:26: pub(crate) fn format_expr(expr: &Expr) -> String
 src/formatter/mod.rs:33: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:26: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:30: pub struct Imports
-src/hir/attrs.rs:37: impl Imports
-src/hir/attrs.rs:38: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:46: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:69: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:77: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:82: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:90: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:129: fn pending_macro(path: &str, a: &Attr) -> Error
-src/hir/attrs.rs:137: pub fn validate_program(program: &Program) -> Result<()>
-src/hir/attrs.rs:146: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
-src/hir/attrs.rs:169: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:28: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:32: pub struct Imports
+src/hir/attrs.rs:39: impl Imports
+src/hir/attrs.rs:40: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:48: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:71: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:79: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:84: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:92: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:131: fn pending_macro(path: &str, a: &Attr) -> Error
+src/hir/attrs.rs:139: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:148: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
+src/hir/attrs.rs:171: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -170,6 +170,14 @@ src/hir/display.rs:44: fn write_item(item: &HirItem, level: usize, w: &mut impl 
 src/hir/display.rs:89: fn write_block(block: &HirBlock, level: usize, w: &mut impl Write) -> std::fmt::Result
 src/hir/display.rs:99: pub(crate) fn write_expr(expr: &HirNodeBox, level: usize, w: &mut impl Write) -> std::fmt::Result
 src/hir/display.rs:103: fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Result
+src/hir/effects.rs:13: pub const KNOWN_EFFECTS: &[&str] = &["io", "state", "alloc"];
+src/hir/effects.rs:17: pub struct EffectDecl
+src/hir/effects.rs:24: impl EffectDecl
+src/hir/effects.rs:26: pub fn no_effects(&self) -> bool
+src/hir/effects.rs:31: pub fn no_throws(&self) -> bool
+src/hir/effects.rs:37: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
+src/hir/effects.rs:72: fn parse_names(a: &Attr, kind: &str) -> Result<Vec<Symbol>>
+src/hir/effects.rs:86: fn bad_arg(kind: &str, a: &Attr) -> Error
 src/hir/item.rs:7: pub struct HirStructField
 src/hir/item.rs:13: pub struct HirStructDef
 src/hir/item.rs:19: pub struct HirLocal
@@ -178,9 +186,9 @@ src/hir/item.rs:26: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
 src/hir/item.rs:34: pub struct VtableEntry
 src/hir/item.rs:42: pub struct HirInterfaceMethod
 src/hir/item.rs:50: pub struct HirFn
-src/hir/item.rs:67: pub enum HirItem
-src/hir/item.rs:83: pub struct ImportedFnSig
-src/hir/item.rs:93: pub struct HirProgram
+src/hir/item.rs:69: pub enum HirItem
+src/hir/item.rs:85: pub struct ImportedFnSig
+src/hir/item.rs:95: pub struct HirProgram
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
@@ -263,7 +271,7 @@ src/hir/lower/body/part_07.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[S
 src/hir/lower/body/part_07.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
 src/hir/lower/body/part_07.rs:115: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
 src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
-src/hir/lower/body/part_07.rs:230: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
+src/hir/lower/body/part_07.rs:233: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
 src/hir/lower/body/part_08.rs:179: pub(crate) fn lower_while(
@@ -466,14 +474,15 @@ src/hir/lower/to_mir/mod.rs:13: mod call;
 src/hir/mod.rs:1: pub mod attrs;
 src/hir/mod.rs:2: pub mod cfg;
 src/hir/mod.rs:3: pub mod contracts;
-src/hir/mod.rs:4: pub mod ir;
-src/hir/mod.rs:5: pub mod ty;
-src/hir/mod.rs:6: pub mod node;
-src/hir/mod.rs:7: pub mod stmt;
-src/hir/mod.rs:8: pub mod item;
-src/hir/mod.rs:9: pub mod lower;
-src/hir/mod.rs:10: pub mod display;
-src/hir/mod.rs:28: pub struct $name
+src/hir/mod.rs:4: pub mod effects;
+src/hir/mod.rs:5: pub mod ir;
+src/hir/mod.rs:6: pub mod ty;
+src/hir/mod.rs:7: pub mod node;
+src/hir/mod.rs:8: pub mod stmt;
+src/hir/mod.rs:9: pub mod item;
+src/hir/mod.rs:10: pub mod lower;
+src/hir/mod.rs:11: pub mod display;
+src/hir/mod.rs:29: pub struct $name
 src/hir/node.rs:8: pub trait HirNode: std::fmt::Debug
 src/hir/node.rs:9: fn clone_node(&self) -> Box<dyn HirNode>;
 src/hir/node.rs:10: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
@@ -607,9 +616,9 @@ src/lir/emit/mod.rs:48: fn finish(self) -> String
 src/lir/emit/mod.rs:52: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:60: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:69: fn emit(&mut self)
-src/lir/emit/mod.rs:124: mod functions;
-src/lir/emit/mod.rs:125: mod types;
-src/lir/emit/mod.rs:126: mod vtable;
+src/lir/emit/mod.rs:120: mod functions;
+src/lir/emit/mod.rs:121: mod types;
+src/lir/emit/mod.rs:122: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
@@ -1396,7 +1405,7 @@ src/parser/parser/core.rs:95: pub(super) fn parse_visibility(&mut self) -> Visib
 src/parser/parser/core.rs:116: pub(super) fn expect_identifier(&mut self) -> Result<String>
 src/parser/parser/core.rs:134: pub fn parse_program(&mut self) -> Result<Program>
 src/parser/parser/core.rs:142: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
-src/parser/parser/core.rs:191: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
+src/parser/parser/core.rs:194: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/decl.rs:80: pub(super) fn parse_return(&mut self) -> Result<Stmt>
@@ -1651,6 +1660,10 @@ example/test_cfg.aya:9: fn on_unix() -> int { return 2 }
 example/test_cfg.aya:12: fn not_windows() -> int { return 3 }
 example/test_cfg.aya:14: fn main() -> int
 example/test_comments.aya:3: fn main() -> int
+example/test_effects.aya:6: fn parse(int x) -> int { return x }
+example/test_effects.aya:10: fn pure_fn() -> int { return 0 }
+example/test_effects.aya:13: fn id[T](T x) -> T { return x }
+example/test_effects.aya:15: fn main() -> int
 example/test_ensures.aya:3: fn abs2(int x) -> int
 example/test_ensures.aya:9: fn inc(int n) -> int { return n + 1 }
 example/test_ensures.aya:12: fn fallthrough() -> int { }

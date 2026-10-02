@@ -1,0 +1,17 @@
+// A3a：效应注解解析/存储（注解权威；推断与自动属性在后续阶段）
+#[eff(io)]
+extern "C" fn putchar(int c) -> int;
+
+#[throws(ParseError)]
+fn parse(int x) -> int { return x }
+
+#[throws()]
+#[eff()]
+fn pure_fn() -> int { return 0 }
+
+#[pure]
+fn id[T](T x) -> T { return x }
+
+fn main() -> int {
+    return pure_fn() + id(5) + parse(1) - 6
+}

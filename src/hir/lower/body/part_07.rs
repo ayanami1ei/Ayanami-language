@@ -158,6 +158,8 @@ impl crate::hir::lower::Ctx {
     ) -> Result<HirFn> {
         // A1：`#[inline]`/`#[inline(always)]` 不再并入关键字标记，
         // 由 LIR 发射层按标注区分 inlinehint / alwaysinline。
+        // A3a：解析效应注解（throws/eff；注解权威，推断在后续阶段）
+        let effects = crate::hir::effects::parse(&attrs)?;
         self.current_fn = fn_id;
         self.locals = Vec::new();
         self.scopes = Vec::new();
@@ -211,6 +213,7 @@ impl crate::hir::lower::Ctx {
         Ok(HirFn {
             span,
             attrs,
+            effects,
             param_attrs,
             fn_id,
             name,

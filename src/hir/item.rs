@@ -51,6 +51,8 @@ pub struct HirFn {
     pub span: Span,
     /// 声明上的标注（A0 起透传；A1 优化/A3 效应读取）
     pub attrs: Vec<crate::parser::ast::Attr>,
+    /// A3a：声明的效应集合（注解权威）
+    pub effects: crate::hir::effects::EffectDecl,
     pub fn_id: FnId,
     pub name: Symbol,
     pub is_inline: bool,

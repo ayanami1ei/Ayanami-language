@@ -10,6 +10,8 @@ pub const ALLOWED: &[&str] = &[
     "requires",
     "ensures",
     "invariant",
+    "throws",
+    "eff",
     "cfg",
     "inline",
     "cold",

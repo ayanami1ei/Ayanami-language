@@ -172,12 +172,15 @@ impl Parser {
             let mut args = Vec::new();
             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
                 self.advance();
-                loop {
-                    args.push(self.parse_attr_arg()?);
-                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
-                        break;
+                // 支持显式空集：#[throws()] / #[eff()]
+                if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                    loop {
+                        args.push(self.parse_attr_arg()?);
+                        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                            break;
+                        }
+                        self.expect_delimiter(Delimiter::Comma)?;
                     }
-                    self.expect_delimiter(Delimiter::Comma)?;
                 }
                 self.expect_delimiter(Delimiter::RParen)?;
             }
