@@ -48,10 +48,10 @@ fn read_config(ref String path) -> Config { ... }
 |---|---|---|---|---|
 | 基础设施 | 全部 | 解析、校验、存储、序列化、展示 | A0 | 设计 |
 | 优化/代码生成 | `inline` `cold` `noreturn` `pure` `readonly` `nounwind` `willreturn` `noalias` `nonnull` | 映射 LLVM 函数/参数属性（含 extern 声明，跨语言优化） | A1 | 部分实现（函数级） |
-| 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 设计 |
+| 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 部分实现（cfg/assume/requires） |
 | 效应 | `throws` `eff` | 效应检查与传播（Java 式必须处理或上抛）、`?` 统一 | A3 | 设计 |
 | 生命周期 | 类型参数 `'a`（不是标注） | 显式生命周期与 outlives 检查、字段引用 | A4 | 设计 |
-| 用户宏 | `#[my_macro(...)]` | token 展开、卫生性（或平台插件） | A5 | 远期 |
+| 用户宏/插件 | `#[pkg::macro(...)]` | 标注 provider 解析；宏展开（声明式或编译期执行）；插件注册属性 | A5 | 设计（§8） |
 
 ## 4. 优化标注（A1）与 LLVM 映射
 
@@ -122,15 +122,15 @@ extern "C" fn strlen(unique [char] s) -> int;
   由手写解析器 `parse_attr_arg` 解析，formatter 往返保真；
 - LIR 侧经 `lir/lower/util.rs::attrs_to_lir` 渲染为字符串，`LirAttr` 格式不变。
 
-### A2d `#[requires]`（已完成运行检查，2026-10）
+### A2b `#[cfg]`（已完成，2026-10）
 
-- 校验与 assume 同规（恰好一个表达式实参；bool 或比较运算）；
-- 链路：`HirStmt::Require` → `SMirRequireStmt` → `SLirRequireCheck`（tag 29）→
-  `br i1 %c, label %contract_ok_N, label %contract_fail_N`；失败分支调用
-  `__ayanami_require_fail(line, col)`（runtime.c，noreturn，打印 `requires failed at L:C` 后 abort）；
-- `AYANAMI_CHECKS=0`：退化为 `llvm.assume`（发布语义）；
-- `example/test_requires.aya`（含多条件）；违反契约时退出码为 SIGABRT。
-- `ensures`/`invariant` 待后续；当前无独立 debug/release 模式，以 `AYANAMI_CHECKS` 区分。
+- 求值点：HIR 降低前 `hir/cfg.rs::filter_program`，递归过滤顶层 /
+  namespace / impl / interface 方法；`validate_program` 先行，未知谓词报错（ADR-2）。
+- 谓词：`target = "linux"`、`arch = "x86_64"`、裸标识符
+  （`unix`/`windows`/`linux`/`macos`/`x86_64`/`aarch64`）、`!` 取反；
+  多个谓词/多个 `#[cfg]` 之间为「与」。
+- 包导出（`package/symbols.rs`）同样跳过被裁剪项；
+  `defs` 命令仍列出两侧（IDE 视角），语句级 cfg 待后续。
 
 ### A2c `#[assume]`（已完成，2026-10）
 
@@ -142,15 +142,15 @@ extern "C" fn strlen(unique [char] s) -> int;
 - 运行时为零开销；`opt -O2` 可据此优化（如消除冗余分支）。
 - `example/test_assume.aya`；反例：非 bool 条件、无实参、`key = value` 实参均报错。
 
-### A2b `#[cfg]`（已完成，2026-10）
+### A2d `#[requires]`（已完成运行检查，2026-10）
 
-- 求值点：HIR 降低前 `hir/cfg.rs::filter_program`，递归过滤顶层 /
-  namespace / impl / interface 方法；`validate_program` 先行，未知谓词报错（ADR-2）。
-- 谓词：`target = "linux"`、`arch = "x86_64"`、裸标识符
-  （`unix`/`windows`/`linux`/`macos`/`x86_64`/`aarch64`）、`!` 取反；
-  多个谓词/多个 `#[cfg]` 之间为「与」。
-- 包导出（`package/symbols.rs`）同样跳过被裁剪项；
-  `defs` 命令仍列出两侧（IDE 视角），语句级 cfg 待后续。
+- 校验与 assume 同规（恰好一个表达式实参；bool 或比较运算）；
+- 链路：`HirStmt::Require` → `SMirRequireStmt` → `SLirRequireCheck`（tag 29）→
+  `br i1 %c, label %contract_ok_N, label %contract_fail_N`；失败分支调用
+  `__ayanami_require_fail(line, col)`（runtime.c，noreturn，打印 `requires failed at L:C` 后 abort）；
+- `AYANAMI_CHECKS=0`：退化为 `llvm.assume`（发布语义）；
+- `example/test_requires.aya`（含多条件）；违反契约时退出码为 SIGABRT。
+- `ensures`/`invariant` 待后续；当前无独立 debug/release 模式，以 `AYANAMI_CHECKS` 区分。
 
 ## 6. 效应系统（A3）
 
@@ -181,16 +181,56 @@ struct Holder['a] {
 - 借用检查器扩展：loan 与 lifetime 的 outlives 约束、字段投影的 loan 传播。
 - 完成 A4 后，引用可合法存入字段，「与 Rust 的最大差距」补齐。
 
-## 8. 实现接口（跨包与工具）
+## 8. 用户宏与插件系统（A5，设计）
+
+目标：`#[...]` 不再只是编译器白名单——用户可以像 Rust 属性宏一样自己写标注；
+「语法 + 来源库」区分编译器内置优化、用户宏与编译器插件。
+
+### 8.1 命名与解析（provider）
+
+- 标注名升级为路径：`AttrPath = Ident ("::" Ident)*`（`#[inline]`、`#[mylib::getter]`）。
+- 解析域：
+  1. **编译器内置**：裸名（`inline`/`cfg`/`requires`/`assume`/...），`core::` 前缀等价；
+     内置名保留，库不可覆盖；未知裸名报错并提示是否缺少 `import`。
+  2. **库宏**：`<pkg>::<macro>`，必须由已 `import` 的包导出；
+     导入后允许裸名引用，重名时报错并要求写全路径。
+  3. **插件属性**（远期）：插件注册的编译器扩展属性，独立命名空间（如 `plugin::attr`）。
+- 宏只能展开出源码；若结果含内置标注，再由既有白名单与各 pass 处理。
+  「编译器优化」与「宏」由此分层：前者是保留内置，后者是纯源码变换。
+
+### 8.2 宏写法（执行模型候选，待拍板）
+
+| 模型 | 定义写法 | 能力 | 成本 |
+|---|---|---|---|
+| M1 声明式模板 | `#[macro] macro getters(Ident) { ... }` | 占位替换/重复展开，无任意计算 | 低 |
+| M2 编译期执行（推荐） | `#[macro] fn getter(Source item, Source args) -> Source { ... }`，编译器编译为插件 `.so` 后 dlopen 调用 | 任意 Ayanami 代码，等价 Rust proc-macro | 中 |
+| M3 外部插件 | C ABI / WASM 注册 provider | 任意语言、可注册编译器级属性 | 高（远期） |
+
+M2 实现要点（若拍板）：
+
+- 宏是 `pub` + `#[macro]` 的 Ayanami 函数，导出到 `.lcl` 的宏表（新 section）；
+- 首次使用时把宏源码编译为动态库（复用 `driver::ir_to_library(..., "dynamic-lib")`），
+  C ABI：`extern "C" fn(input: *const u8, len: usize) -> *mut u8`（长度前缀返回；源文本进/出）；
+- 展开：对带库宏标注的 item 依次调用 → 结果重新解析 → 内置标注校验 → 拼回 AST → 正常 HIR；
+- 缓存 `target/macros/<hash>.so`；信任模型同 Rust proc-macro（编译期执行，文档明示；WASM 沙箱远期）。
+
+### 8.3 展开时机与卫生性
+
+- 阶段：解析后、`validate_program`/`cfg` 过滤前；item 级优先，语句/表达式级后期。
+- 递归展开设上限并检测循环；错误带宏名 + 调用点。
+- 卫生性：M1 需专门设计；M2 由源文本拼接决定（文档明示风险），后期可提供带 span 的 AST 序列化 ABI。
+
+## 9. 实现接口（跨包与工具）
 
 | 层 | 载体 |
 |---|---|
 | AST | `Attr { name, args, span }`，挂在声明的 `attrs` 字段 |
 | HIR | `HirFn.attrs`、`HirStructField.attrs` 等，供各 pass 读取 |
-| 包 | `.lcl` 的 `generic_sources`（formatter 输出包含标注）+ `defs` JSON |
+| 包 | `.lcl` 的 `generic_sources`（formatter 输出包含标注）+ `defs` JSON；A5 计划新增宏表 section |
 | 工具 | `defs` JSON 带属性字段；LSP/VSCode 插件、未来的代码设计平台消费 |
+| 宏 | 计划：`AttrPath` 解析 → 宏表（`.lcl`）→ `target/macros/*.so`（A5） |
 
-## 9. 决策记录（ADR）
+## 10. 决策记录（ADR）
 
 | 编号 | 决策 | 理由 |
 |---|---|---|
@@ -199,8 +239,11 @@ struct Holder['a] {
 | ADR-3 | 优化承诺默认信任 | 与 Rust unsafe 一致；debug 校验留作可选后置 |
 | ADR-4 | 生命周期用类型参数 `'a` | 类型系统优先于标注；可读性与工具支持更好 |
 | ADR-5 | 先做 A0 基础设施 | 全链路保真后再挂语义，避免返工 |
+| ADR-6 | 内置标注保留裸名，库宏用 `pkg::macro`；import 后可裸名，重名报错 | 兼容现有代码，命名冲突可诊断 |
+| ADR-7 | 宏只做源码展开，不能直接产生编译器级优化属性 | 保持「优化承诺」可信；展开物再走白名单校验 |
+| ADR-8 | 宏执行模型待拍板（M1/M2/M3） | 能力/成本/安全三者权衡 |
 
-## 10. 实现状态
+## 11. 实现状态
 
 ### A0（已完成，2026-10）
 
@@ -237,6 +280,12 @@ struct Holder['a] {
 - [ ] 显式 debug/release 模式（CLI `--release`），替代环境变量
 - [ ] `#[invariant]` 语句级（循环）
 - [ ] 语句级 `#[cfg]`
+
+### A5（设计，待拍板）
+
+- [ ] A5a 标注名路径化（`pkg::macro`）+ provider 解析（纯解析/校验，不执行）
+- [ ] A5b 宏定义语法 + 执行模型（M1/M2 待拍板）+ item 级展开
+- [ ] A5c 卫生性 / 语句表达式宏 / 插件清单与权限（远期）
 
 ### 已知问题
 

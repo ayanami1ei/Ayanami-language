@@ -76,7 +76,7 @@ graph LR
     A1 --> A2[A2 条件与契约<br/>cfg/requires/assume]
     A2 --> A3[A3 效应系统<br/>throws/? 统一]
     A3 --> A4[A4 显式生命周期<br/>类型参数 'a]
-    A4 --> A5[A5 用户宏/插件]
+    A4 --> A5[A5 用户宏/插件<br/>provider/宏展开]
 ```
 
 | 实体 | 位置 | 状态 |
@@ -88,6 +88,7 @@ graph LR
 | extern 真实签名 | `lir/lower/mod.rs`（`extern_decls`） | A1 已完成 |
 | cfg 条件裁剪 | `hir/cfg.rs`、`package/symbols.rs` | A2b 已完成 |
 | 契约标注（assume/requires） | `hir/contracts.rs`、`HirStmt::Assume`/`Require` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d 已完成 |
+| 标注 provider/宏 | 计划：`AttrPath` 解析、`.lcl` 宏表、`target/macros/*.so` | A5 设计（docs/annotations.md §8） |
 | 效应检查 | `mir/` 或 HIR 新 pass | 未实现 |
 | 生命周期参数 | 类型系统 + `mir/borrow/` | 未实现 |
 
