@@ -135,9 +135,7 @@ impl Parser {
 
     pub fn ptyp(&mut self) -> Result<asuka::runtime::Value, String> {
         if let Ok(val) = self.ptype_base() { return Ok(val); }
-        if let Ok(val) = self.pshared_type() { return Ok(val); }
         if let Ok(val) = self.punique_type() { return Ok(val); }
-        if let Ok(val) = self.pweak_type() { return Ok(val); }
         if let Ok(val) = self.pfn_type() { return Ok(val); }
         if let Ok(val) = self.parray_type() { return Ok(val); }
         if let Ok(val) = self.pref_type() { return Ok(val); }
@@ -158,18 +156,19 @@ impl Parser {
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 
-    pub fn pshared_type(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("SharedType");
-        self.0.expect("SHARED")?;
+    pub fn punique_type(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("UniqueType");
+        self.0.expect("UNIQUE")?;
         if let asuka::runtime::Value::Node(child) = self.ptyp()? {
             n.set("typ", asuka::runtime::Value::Node(child));
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 
-    pub fn punique_type(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("UniqueType");
-        self.0.expect("UNIQUE")?;
+    pub fn pref_type(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("RefType");
+        self.0.expect("REF")?;
+        self.0.expect("MUT")?;
         if let asuka::runtime::Value::Node(child) = self.ptyp()? {
             n.set("typ", asuka::runtime::Value::Node(child));
         }

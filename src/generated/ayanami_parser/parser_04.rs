@@ -1,25 +1,6 @@
 use super::*;
 
 impl Parser {
-    pub fn pweak_type(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("WeakType");
-        self.0.expect("WEAK")?;
-        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
-            n.set("typ", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pref_type(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("RefType");
-        self.0.expect("REF")?;
-        self.0.expect("MUT")?;
-        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
-            n.set("typ", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
     pub fn pfn_type(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("FnType");
         self.0.expect("FN")?;

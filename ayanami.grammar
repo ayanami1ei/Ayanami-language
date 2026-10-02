@@ -4,7 +4,7 @@
 @lexer {
     keyword: "fn", "return", "if", "else", "true", "false", "while",
              "for", "in", "match", "enum", "struct", "interface", "impl",
-             "pub", "shared", "unique", "weak", "ref", "mut", "extern", "import", "as",
+             "pub", "unique", "ref", "mut", "extern", "import", "as",
              "break", "continue", "self", "move", "clone", "inline", "let"
     operator: "+" (prec:5, assoc:left)
               "-" (prec:5, assoc:left)
@@ -52,7 +52,7 @@
 
     InterfaceDef  = Vis? "interface" Ident GenericParams? "{" IfaceMethodList "}";
     IfaceMethod   = "fn" Ident "(" SelfParam ("," ParamList)? ")" ("->" Type)? ";";
-    SelfParam     = ("shared" | "unique" | "ref" "mut"?) "self" | "self";
+    SelfParam     = ("unique" | "ref" "mut"?) "self" | "self";
 
     ImplBlock     = Vis? "impl" GenericParams? Ident GenericArgs? "{" MethodList "}";
     Method        = Vis? "fn" Ident GenericParams? "(" SelfParam ("," ParamList)? ")" ("->" Type)? Block;
@@ -61,11 +61,9 @@
     GenericParams = "[" GenericParam ("," GenericParam)* "]";
     GenericParam  = Ident (":" Ident)?;
 
-    Type          = TypeBase | SharedType | UniqueType | WeakType | FnType | ArrayType | RefType;
+    Type          = TypeBase | UniqueType | FnType | ArrayType | RefType;
     TypeBase      = Ident (GenericArgs)?;
-    SharedType    = "shared" Type;
     UniqueType    = "unique" Type;
-    WeakType      = "weak" Type;
     RefType       = "ref" "mut"? Type;
     FnType        = "fn" "(" TypeList? ")" ("->" Type)?;
     ArrayType     = "[" Type (";" Expr)? "]";
@@ -98,7 +96,7 @@
                    | MethodCallExpr
                    | MatchExpr | IfExpr | BlockExpr
                    | LambdaExpr
-                   | MoveExpr | CloneExpr | ToUniqueExpr | ToSharedExpr | ToWeakExpr
+                   | MoveExpr | CloneExpr | ToUniqueExpr
                    | RefExpr | TryOp
                    | StructLiteral | ArrayLiteral | ArraySized
                    | EnumConstruct
@@ -122,8 +120,6 @@
     MoveExpr      = "move" Expr;
     CloneExpr     = "clone" Expr;
     ToUniqueExpr  = "unique" Expr;
-    ToSharedExpr  = "shared" Expr;
-    ToWeakExpr    = "weak" Expr;
     RefExpr       = "ref" "mut"? Expr;
     TryOp         = Expr "?";
 

@@ -8,9 +8,7 @@ fn main()->int{
     }
 }
 
-fn foo(unique int x, shared float y, weak char z)->unique int{
-    return x;
-}
+
 
 namespace math{
     fn add(int a, int b)->int{

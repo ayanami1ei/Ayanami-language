@@ -6,7 +6,7 @@ Ayanami 是一个自带 LLVM 后端、不需要系统预装 LLVM 的编译型语
 
 ```bash
 # 1. 下载并解压
-tar xzf ayanami-0.4.0-linux-x86_64.tar.gz
+tar xzf ayanami-0.5.0-linux-x86_64.tar.gz
 cd install
 
 # 2. 运行
@@ -37,10 +37,10 @@ install/
 
 ## VSCode 插件
 
-`ayanami-0.4.0.vsix` 位于项目根目录：
+`ayanami-0.5.0.vsix` 位于项目根目录：
 
 ```bash
-code --install-extension ayanami-0.4.0.vsix
+code --install-extension ayanami-0.5.0.vsix
 ```
 
 功能：语法高亮、代码补全（结构体字段、方法、变量类型推断）、保存/打开时错误检查、hover 文档、Run CodeLens。
@@ -66,7 +66,7 @@ ayanami clean              清除 build/ 目录
 ```toml
 [package]
 name = "my_project"
-version = "0.4.0"
+version = "0.5.0"
 
 [build]
 target = "executable"
@@ -98,12 +98,11 @@ fn main() -> int {
 | 字符   | `char`                            | 单字节                                          |
 | 布尔   | `bool`                            | `true` / `false`                            |
 | 字符串 | `String`                          | 标准库结构体`{ unique [char] data, int len }` |
-| 数组   | `unique [int]` / `shared [int]` | 堆分配，必须显式内存管理                        |
+| 数组   | `[int]` / `unique [int]`         | 堆缓冲区；`unique` 拥有并自动释放               |
 | 结构体 | `Point`                           | 自定义，值语义                                  |
 | 枚举   | `Option[T]`                       | tag + union，支持方法派发                       |
-| shared | `shared int`                      | 引用计数指针                                    |
-| unique | `unique int`                      | 独占所有权指针                                  |
-| weak   | `weak int`                        | 弱引用                                          |
+| unique | `unique int`                      | 独占所有权堆指针（Box），离开作用域自动释放     |
+| ref    | `ref int` / `ref mut int`         | 借用，不拥有、不可逃逸                          |
 
 | 枚举 | `Color` | tag + union，支持方法派发 |
 
@@ -119,7 +118,7 @@ import "math"     // abs, min, max, clamp, pow
 
 ```ayanami
 s = "Hello"
-t = s + " World"          // 拼接（支持 shared/unique String + 任意 ToString 类型）
+t = s + " World"          // 拼接（String 与任意 ToString 类型，自动借用）
 println(s.len())          // 长度
 println(s.copy())         // 深拷贝
 if s.eq(t) { ... }        // 相等比较
@@ -217,7 +216,7 @@ match x {
 
 // 变体方法
 impl Option_Some[T] {
-    fn get(shared self) -> T { return self._0 }
+    fn get(ref self) -> T { return self._0 }
 }
 // e.method() 自动按 tag 派发到对应变体的实现
 println(x.get())  // 自动调用 Option_Some::get
@@ -234,8 +233,8 @@ interface ToString {
 }
 
 impl Point {
-    // shared self 适合 to_string（不消费原值）
-    fn to_string(shared self) -> unique String {
+    // ref self 借用，不消费原值
+    fn to_string(ref self) -> String {
         return "(" + self.x + ", " + self.y + ")"
     }
 }
@@ -243,24 +242,23 @@ impl Point {
 impl Point: ToString {}  // 结构匹配：有 to_string 方法即自动实现接口
 ```
 
-方法必须写 `shared self` / `unique self`。`shared self` 借用，`unique self` 消费。
+方法接收者：`self` 消费、`ref self` 借用、`ref mut self` 可变借用（原语类型用 `self`，因为 Copy）。
 
-### shared / unique / weak
+### 所有权与借用
 
-| 所有权       | 说明                                         |
-| ------------ | -------------------------------------------- |
-| `shared T` | 引用计数指针，可共享，自动释放               |
-| `unique T` | 独占所有权指针，移动语义，离开作用域自动释放 |
-| `weak T`   | 弱引用，不增加引用计数，用于遍历             |
+- **默认所有权**：非 Copy 值在赋值/传参时移动（use-after-move 会报错）；Copy 类型为
+  `int` / `float` / `char` / `bool`（及函数指针）。
+- **`unique T`**：独占所有权堆指针（Box），移动语义，离开作用域递归释放。
+- **`ref T` / `ref mut T`**：借用，不拥有、不能返回或存入字段；调用时对同类型左值自动借用。
+- **接口**：`ref Shape` 是借用胖指针（不分配），`unique Shape` 是拥有所有权的胖指针。
+- 没有 `shared` / `weak` / GC：需要共享数据时用借用，或显式 `.copy()`。
 
-`shared T` 可传入接受 `T` 或 `shared T` 参数的函数。
-`unique T` 可传入接受 `T` 或 `unique T` 参数的函数。
-
-字符串拼接 `add[T:ToString](T a)` 支持 `unique T` 和 `shared T`：
+字符串拼接 `add[T:ToString](ref self, T a)` 对 String 与任意 ToString 类型生效：
 
 ```
-s = shared String { data = "hello", len = 5 }  // 共享字符串
-println(s + " world")                           // 可用在拼接中
+s = "hello"
+println(s + " world")     // String + String
+println("val: " + 42)     // String + int（自动调用 to_string）
 ```
 
 ### 泛型

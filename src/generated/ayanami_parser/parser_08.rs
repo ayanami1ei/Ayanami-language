@@ -1,21 +1,6 @@
 use super::*;
 
 impl Parser {
-    pub fn ptry_op(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("TryOp");
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("?")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pnull_expr(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("NullExpr");
-        self.0.expect("NULL")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
     pub fn parray_sized(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("ArraySized");
         self.0.expect("[")?;
@@ -156,6 +141,28 @@ impl Parser {
         self.0.expect(":")?;
         if let asuka::runtime::Value::Node(child) = self.pexpr()? {
             n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pasm_output_list(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("AsmOutputList");
+        if let asuka::runtime::Value::Node(child) = self.pasm_output()? {
+            n.set("asm_output", asuka::runtime::Value::Node(child));
+        }
+        loop {
+            let _gr_saved = self.0.pos;
+            if let Ok(_) = (|| -> Result<(), String> {
+                    { // group
+                    let _g_saved = self.0.pos;
+                        self.0.expect(",")?;
+                        if let asuka::runtime::Value::Node(child) = self.pasm_output()? {
+                            n.set("asm_output", asuka::runtime::Value::Node(child));
+                        }
+                    } // end group
+                Ok(())
+        })() {}
+            else { self.0.pos = _gr_saved; break; }
         }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }

@@ -1,20 +1,20 @@
 interface Shape {
-    fn area(shared self) -> int;
-    fn describe(shared self) -> void;
+    fn area(ref self) -> int;
+    fn describe(ref self) -> void;
 }
 
 impl int {
-    fn area(shared self) -> int {
+    fn area(self) -> int {
         return self;
     }
-    fn describe(shared self) -> void {}
+    fn describe(self) -> void {}
 }
 
 impl float {
-    fn area(shared self) -> int {
+    fn area(self) -> int {
         return 0;
     }
-    fn describe(shared self) -> void {}
+    fn describe(self) -> void {}
 }
 
 fn double_area(shared Shape s) -> int {

@@ -16,8 +16,6 @@ impl Parser {
         if let Ok(val) = self.pmove_expr() { return Ok(val); }
         if let Ok(val) = self.pclone_expr() { return Ok(val); }
         if let Ok(val) = self.pto_unique_expr() { return Ok(val); }
-        if let Ok(val) = self.pto_shared_expr() { return Ok(val); }
-        if let Ok(val) = self.pto_weak_expr() { return Ok(val); }
         if let Ok(val) = self.pref_expr() { return Ok(val); }
         if let Ok(val) = self.ptry_op() { return Ok(val); }
         if let Ok(val) = self.pstruct_literal() { return Ok(val); }
@@ -101,8 +99,6 @@ impl Parser {
         if let Ok(val) = self.pmove_expr() { return Ok(val); }
         if let Ok(val) = self.pclone_expr() { return Ok(val); }
         if let Ok(val) = self.pto_unique_expr() { return Ok(val); }
-        if let Ok(val) = self.pto_shared_expr() { return Ok(val); }
-        if let Ok(val) = self.pto_weak_expr() { return Ok(val); }
         if let Ok(val) = self.pref_expr() { return Ok(val); }
         if let Ok(val) = self.ptry_op() { return Ok(val); }
         if let Ok(val) = self.pstruct_literal() { return Ok(val); }

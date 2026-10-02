@@ -1,28 +1,6 @@
 use super::*;
 
 impl Parser {
-    pub fn pasm_output_list(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("AsmOutputList");
-        if let asuka::runtime::Value::Node(child) = self.pasm_output()? {
-            n.set("asm_output", asuka::runtime::Value::Node(child));
-        }
-        loop {
-            let _gr_saved = self.0.pos;
-            if let Ok(_) = (|| -> Result<(), String> {
-                    { // group
-                    let _g_saved = self.0.pos;
-                        self.0.expect(",")?;
-                        if let asuka::runtime::Value::Node(child) = self.pasm_output()? {
-                            n.set("asm_output", asuka::runtime::Value::Node(child));
-                        }
-                    } // end group
-                Ok(())
-        })() {}
-            else { self.0.pos = _gr_saved; break; }
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
     pub fn pasm_input(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("AsmInput");
         if let asuka::runtime::Value::Node(child) = self.ps()? {

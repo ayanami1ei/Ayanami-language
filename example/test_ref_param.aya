@@ -1,0 +1,13 @@
+// ref 参数与自动借用验证
+struct Box2 {
+    int v
+}
+
+fn get(ref Box2 b) -> int {
+    return b.v
+}
+
+fn main() -> int {
+    a = Box2 { v = 42 };
+    return get(a);
+}

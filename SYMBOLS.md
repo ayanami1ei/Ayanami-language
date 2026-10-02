@@ -1397,39 +1397,39 @@ std/math.aya:9: pub fn min(int a, int b) -> int
 std/math.aya:14: pub fn max(int a, int b) -> int
 std/math.aya:19: pub fn clamp(int x, int lo, int hi) -> int
 std/math.aya:25: pub fn pow(int base, int exp) -> int
-std/src/arraylist.aya:4: pub struct ArrayList[T:ToString]
-std/src/arraylist.aya:10: impl[T:ToString] ArrayList[T]
-std/src/arraylist.aya:11: fn expand(shared self)
-std/src/arraylist.aya:23: pub fn push(shared self, T val)
-std/src/arraylist.aya:29: pub fn index(shared self, int index)->T{ return self.data[index] }
-std/src/arraylist.aya:30: pub fn to_string(shared self)->unique String
-std/src/arraylist.aya:39: pub fn len(shared self)->int{ return self.len }
-std/src/arraylist.aya:41: pub fn iter(shared self, fn(T) f)
 std/src/io.aya:8: pub fn getchar() -> int
 std/src/io.aya:11: pub fn putchar(int c)
 std/src/io.aya:14: pub fn print(ref String n)
 std/src/io.aya:17: pub fn println()
 std/src/io.aya:20: pub fn println(ref String s)
-std/src/linkedlist.aya:4: struct LinkedListNode[T:ToString]
-std/src/linkedlist.aya:10: pub struct LinkedList[T:ToString]
-std/src/linkedlist.aya:17: pub fn new[T:ToString]()->shared LinkedList[T]
-std/src/linkedlist.aya:22: impl[T:ToString] LinkedList[T]
-std/src/linkedlist.aya:23: pub fn push(shared self, T val)
-std/src/linkedlist.aya:37: pub fn index(shared self, int index)->T
-std/src/linkedlist.aya:43: pub fn len(shared self)->int{ return self.len }
-std/src/linkedlist.aya:45: pub fn iter(shared self, fn(T) f)
-std/src/linkedlist.aya:53: pub fn to_string(shared self) -> unique String
-std/src/list.aya:1: pub interface List[T:ToString]
-std/src/list.aya:2: fn push(shared self, T val);
-std/src/list.aya:3: fn index(shared self, int index)->T;
-std/src/list.aya:4: fn to_string(shared self)->unique String;
-std/src/list.aya:5: fn len(shared self)->int;
-std/src/list.aya:6: fn iter(shared self, fn(T) f);
 std/src/math.aya:4: pub fn abs(int x) -> int
 std/src/math.aya:9: pub fn min(int a, int b) -> int
 std/src/math.aya:14: pub fn max(int a, int b) -> int
 std/src/math.aya:19: pub fn clamp(int x, int lo, int hi) -> int
 std/src/math.aya:25: pub fn pow(int base, int exp) -> int
+std/src/pending/arraylist.aya:4: pub struct ArrayList[T:ToString]
+std/src/pending/arraylist.aya:10: impl[T:ToString] ArrayList[T]
+std/src/pending/arraylist.aya:11: fn expand(shared self)
+std/src/pending/arraylist.aya:23: pub fn push(shared self, T val)
+std/src/pending/arraylist.aya:29: pub fn index(shared self, int index)->T{ return self.data[index] }
+std/src/pending/arraylist.aya:30: pub fn to_string(shared self)->unique String
+std/src/pending/arraylist.aya:39: pub fn len(shared self)->int{ return self.len }
+std/src/pending/arraylist.aya:41: pub fn iter(shared self, fn(T) f)
+std/src/pending/linkedlist.aya:4: struct LinkedListNode[T:ToString]
+std/src/pending/linkedlist.aya:10: pub struct LinkedList[T:ToString]
+std/src/pending/linkedlist.aya:17: pub fn new[T:ToString]()->shared LinkedList[T]
+std/src/pending/linkedlist.aya:22: impl[T:ToString] LinkedList[T]
+std/src/pending/linkedlist.aya:23: pub fn push(shared self, T val)
+std/src/pending/linkedlist.aya:37: pub fn index(shared self, int index)->T
+std/src/pending/linkedlist.aya:43: pub fn len(shared self)->int{ return self.len }
+std/src/pending/linkedlist.aya:45: pub fn iter(shared self, fn(T) f)
+std/src/pending/linkedlist.aya:53: pub fn to_string(shared self) -> unique String
+std/src/pending/list.aya:1: pub interface List[T:ToString]
+std/src/pending/list.aya:2: fn push(shared self, T val);
+std/src/pending/list.aya:3: fn index(shared self, int index)->T;
+std/src/pending/list.aya:4: fn to_string(shared self)->unique String;
+std/src/pending/list.aya:5: fn len(shared self)->int;
+std/src/pending/list.aya:6: fn iter(shared self, fn(T) f);
 std/src/std.aya:11: pub interface Error
 std/src/std.aya:12: fn what(ref self) -> String;
 std/src/std.aya:15: pub enum Result[T, E]
@@ -1562,9 +1562,8 @@ std/string.aya:201: pub fn ne(ref self, ref String other) -> bool
 std/string.aya:205: pub fn copy(ref self) -> String
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/test.aya:1: fn main()->int
-example/test.aya:11: fn foo(unique int x, shared float y, weak char z)->unique int
-example/test.aya:16: fn add(int a, int b)->int
-example/test.aya:19: fn sub(int a, int b)->int
+example/test.aya:14: fn add(int a, int b)->int
+example/test.aya:17: fn sub(int a, int b)->int
 example/test_array.aya:1: fn main() -> int
 example/test_array_param.aya:1: fn sum(unique [int] arr) -> int
 example/test_array_param.aya:5: fn main() -> int
@@ -1572,7 +1571,6 @@ example/test_asm.aya:1: fn main() -> int
 example/test_bool.aya:1: fn main() -> int
 example/test_bool2.aya:1: fn main() -> int
 example/test_comments.aya:3: fn main() -> int
-example/test_conv.aya:1: fn main() -> int
 example/test_import.aya:3: fn main() -> int
 example/test_memory.aya:5: struct Point
 example/test_memory.aya:10: fn make() -> int
@@ -1589,22 +1587,22 @@ example/test_ns.aya:7: fn main() -> int
 example/test_ns_main.aya:2: fn add(int a, int b) -> int
 example/test_ns_main.aya:7: fn main() -> int
 example/test_oop.aya:1: interface Drawable
-example/test_oop.aya:2: fn draw(shared self) -> void;
-example/test_oop.aya:3: fn get_id(shared self) -> int;
+example/test_oop.aya:2: fn draw(ref self) -> void;
+example/test_oop.aya:3: fn get_id(ref self) -> int;
 example/test_oop.aya:6: interface Resizable
-example/test_oop.aya:7: fn resize(shared self, int factor) -> int;
+example/test_oop.aya:7: fn resize(ref self, int factor) -> int;
 example/test_oop.aya:10: impl int
-example/test_oop.aya:11: fn draw(shared self) -> void {}
-example/test_oop.aya:12: fn get_id(shared self) -> int { return self; }
-example/test_oop.aya:13: fn resize(shared self, int factor) -> int { return self + factor; }
-example/test_oop.aya:14: fn triple(unique self) -> int { return self * 3; }
+example/test_oop.aya:11: fn draw(self) -> void {}
+example/test_oop.aya:12: fn get_id(self) -> int { return self; }
+example/test_oop.aya:13: fn resize(self, int factor) -> int { return self + factor; }
+example/test_oop.aya:14: fn triple(self) -> int { return self * 3; }
 example/test_oop.aya:17: impl float
-example/test_oop.aya:18: fn draw(shared self) -> void {}
-example/test_oop.aya:19: fn get_id(shared self) -> int { return 0; }
-example/test_oop.aya:20: fn resize(shared self, int factor) -> int { return 0; }
-example/test_oop.aya:23: fn render_drawable(shared Drawable d) -> void
-example/test_oop.aya:27: fn get_any_id(shared Drawable d) -> int
-example/test_oop.aya:31: fn scale(shared Resizable r, int f) -> int
+example/test_oop.aya:18: fn draw(self) -> void {}
+example/test_oop.aya:19: fn get_id(self) -> int { return 0; }
+example/test_oop.aya:20: fn resize(self, int factor) -> int { return 0; }
+example/test_oop.aya:23: fn render_drawable(ref Drawable d) -> void
+example/test_oop.aya:27: fn get_any_id(ref Drawable d) -> int
+example/test_oop.aya:31: fn scale(ref Resizable r, int f) -> int
 example/test_oop.aya:35: fn main() -> int
 example/test_op_overload.aya:1: struct Point
 example/test_op_overload.aya:6: impl Point
@@ -1614,16 +1612,19 @@ example/test_overload.aya:1: fn main()->int
 example/test_overload.aya:5: fn add(int a, int b)->int
 example/test_overload.aya:9: fn add(float a, float b)->float
 example/test_poly.aya:1: interface Shape
-example/test_poly.aya:2: fn area(shared self) -> int;
-example/test_poly.aya:3: fn describe(shared self) -> void;
+example/test_poly.aya:2: fn area(ref self) -> int;
+example/test_poly.aya:3: fn describe(ref self) -> void;
 example/test_poly.aya:6: impl int
-example/test_poly.aya:7: fn area(shared self) -> int
-example/test_poly.aya:10: fn describe(shared self) -> void {}
+example/test_poly.aya:7: fn area(self) -> int
+example/test_poly.aya:10: fn describe(self) -> void {}
 example/test_poly.aya:13: impl float
-example/test_poly.aya:14: fn area(shared self) -> int
-example/test_poly.aya:17: fn describe(shared self) -> void {}
+example/test_poly.aya:14: fn area(self) -> int
+example/test_poly.aya:17: fn describe(self) -> void {}
 example/test_poly.aya:20: fn double_area(shared Shape s) -> int
 example/test_poly.aya:25: fn main() -> int
+example/test_ref_param.aya:2: struct Box2
+example/test_ref_param.aya:6: fn get(ref Box2 b) -> int
+example/test_ref_param.aya:10: fn main() -> int
 example/test_ref_self.aya:2: struct Counter
 example/test_ref_self.aya:6: impl Counter
 example/test_ref_self.aya:7: fn get(ref self) -> int
@@ -1631,8 +1632,6 @@ example/test_ref_self.aya:10: fn inc(ref mut self)
 example/test_ref_self.aya:13: fn into(self) -> int
 example/test_ref_self.aya:18: fn main() -> int
 example/test_self.aya:1: fn main() -> int
-example/test_shared_struct.aya:1: struct Point
-example/test_shared_struct.aya:6: fn main() -> int
 example/test_std.aya:3: fn main() -> int
 example/test_std_io.aya:3: fn main() -> int
 example/test_struct.aya:1: struct Point

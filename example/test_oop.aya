@@ -1,34 +1,34 @@
 interface Drawable {
-    fn draw(shared self) -> void;
-    fn get_id(shared self) -> int;
+    fn draw(ref self) -> void;
+    fn get_id(ref self) -> int;
 }
 
 interface Resizable {
-    fn resize(shared self, int factor) -> int;
+    fn resize(ref self, int factor) -> int;
 }
 
 impl int {
-    fn draw(shared self) -> void {}
-    fn get_id(shared self) -> int { return self; }
-    fn resize(shared self, int factor) -> int { return self + factor; }
-    fn triple(unique self) -> int { return self * 3; }
+    fn draw(self) -> void {}
+    fn get_id(self) -> int { return self; }
+    fn resize(self, int factor) -> int { return self + factor; }
+    fn triple(self) -> int { return self * 3; }
 }
 
 impl float {
-    fn draw(shared self) -> void {}
-    fn get_id(shared self) -> int { return 0; }
-    fn resize(shared self, int factor) -> int { return 0; }
+    fn draw(self) -> void {}
+    fn get_id(self) -> int { return 0; }
+    fn resize(self, int factor) -> int { return 0; }
 }
 
-fn render_drawable(shared Drawable d) -> void {
+fn render_drawable(ref Drawable d) -> void {
     d.draw();
 }
 
-fn get_any_id(shared Drawable d) -> int {
+fn get_any_id(ref Drawable d) -> int {
     return d.get_id();
 }
 
-fn scale(shared Resizable r, int f) -> int {
+fn scale(ref Resizable r, int f) -> int {
     return r.resize(f);
 }
 

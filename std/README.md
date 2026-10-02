@@ -1,8 +1,11 @@
 # Ayanami 标准库
 
-标准库预编译为 `.lcl` + `.o`，存放在编译器同目录的 `std/` 文件夹中。
+标准库预编译为 `.lcl`，存放在编译器同目录的 `std/` 文件夹中。
 
 使用 `import "模块名"` 自动搜索并链接。
+
+内存模型（v0.5+）：默认所有权（非 Copy 值赋值即移动）、`unique` 独占堆指针、
+`ref` / `ref mut` 借用；不再有 `shared` / `weak` / 引用计数。
 
 ## io — 输入输出
 
@@ -12,38 +15,25 @@
 import "io";
 
 fn main() -> int {
-    print(42);          // 输出整数
-    println();          // 输出换行
-    putchar(65);        // 输出字符（ASCII 码）
-    c = getchar();      // 读取一个字符
-    return 0;
+    println("hello")            // 打印字符串（自动借用）
+    println(42.to_string())     // 打印整数
+    putchar(65);                // 输出字符（ASCII 码）
+    c = getchar();              // 读取一个字符
+    return 0
 }
 ```
 
 | 函数 | 说明 |
 |------|------|
-| `getchar()` | 读取一个字符，返回 int |
+| `getchar() -> int` | 读取一个字符 |
 | `putchar(int c)` | 输出一个字符（ASCII 码） |
-| `print(int n)` | 输出整数 |
+| `print(ref String n)` | 输出字符串（不消费） |
 | `println()` | 输出换行 |
+| `println(ref String s)` | 输出字符串并换行 |
 
 ## math — 数学函数
 
 文件：`std/math.lcl`
-
-```ayanami
-import "math";
-
-fn main() -> int {
-    print(abs(-42));     // 42
-    print(min(3, 7));    // 3
-    print(max(3, 7));    // 7
-    print(clamp(5, 0, 3));  // 3
-    print(pow(2, 10));      // 1024
-    println();
-    return 0;
-}
-```
 
 | 函数 | 说明 |
 |------|------|
@@ -53,27 +43,9 @@ fn main() -> int {
 | `clamp(int x, int lo, int hi)` | 限制范围 |
 | `pow(int base, int exp)` | 整数幂 |
 
-## std — 主入口
+## string — 字符串
 
-文件：`std/std.lcl`
-
-导入此模块即可使用所有标准库：
-
-```ayanami
-import "std";
-
-fn main() -> int {
-    print(42);
-    println();
-    return 0;
-}
-```
-
-等价于分别导入 `io`、`math`、`string`。
-
-## string — 字符串（WIP）
-
-文件：`std/string.aya`（未预编译，待完善）
+文件：`std/string.lcl`
 
 ```ayanami
 struct String {
@@ -84,21 +56,22 @@ struct String {
 
 | 方法 | 说明 |
 |------|------|
-| `String::from(unique [char])` | 从字符数组创建字符串 |
-| `s.len()` | 长度 |
-| `s.at(int i)` | 按索引访问字符 |
-| `s.print()` | 输出字符串 |
-| `to_string(int n)` | 整数转字符串 |
+| `s.len() -> int` | 长度 |
+| `s.index(int i) -> char` | 按索引访问字符（也可写 `s.data[i]`） |
+| `s.add(ref String other) -> String` | 拼接（`+` 运算符） |
+| `s.eq(ref String other) -> bool` | 相等比较（`==`） |
+| `s.copy() -> String` | 深拷贝 |
+| `s.to_string() -> String` | 消费 self 并返回（ToString 接口） |
+| `42.to_string()` | int/float/char/bool → String |
 
-## 多个模块
+`ToString` 接口签名：`fn to_string(self) -> String`（消费）。
 
-```ayanami
-import "io";
-import "math";
+## std — 主入口
 
-fn main() -> int {
-    print(abs(-42));
-    println();
-    return 0;
-}
-```
+文件：`std/std.lcl`，等价于导入 `io`、`string`、`math`，并包含
+`Error` 接口与 `Result[T, E]` 枚举（`try_unwrap(self)`）。
+
+## 待迁移
+
+`std/src/pending/` 下的 `list`、`linkedlist`、`arraylist` 仍是旧内存模型
+（`shared`/`weak`）的源码，尚未迁移到 `unique`/`ref`，暂不纳入构建。
