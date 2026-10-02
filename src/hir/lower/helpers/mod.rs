@@ -1,0 +1,26 @@
+// ============================================================
+//  辅助函数集 —— 供 HIR 降级过程中使用的工具函数
+//  包括：表达式类型推断、所有权转换、泛型参数推断、
+//  类型替换、类型格式化显示、运算符名映射等
+// ============================================================
+
+
+use std::collections::HashMap;
+use crate::intern::Symbol;
+use crate::parser::ast::*;
+use crate::span::Span;
+use crate::hir::*;
+use super::strip_generic_name;
+use super::InterfaceReg;
+
+    /// 自动插入 Move 包装：如果表达式是 unique 类型且尚未包装，则包装为 Move
+
+mod convert;
+mod substitute;
+mod types;
+mod wrap;
+
+pub use convert::*;
+pub use substitute::*;
+pub use types::*;
+pub use wrap::*;
