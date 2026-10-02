@@ -79,11 +79,13 @@ graph LR
     A4 --> A5[A5 用户宏/插件]
 ```
 
-| 实体 | 位置（计划） | 状态 |
+| 实体 | 位置 | 状态 |
 |---|---|---|
-| `#[...]` 语法/AST | `ayanami.grammar`、`parser/ast` | 未实现 |
-| 属性注册表/校验 | `hir/attrs`（待建） | 未实现 |
-| LLVM 属性映射 | `lir/emit/mod.rs`、`lir/ir` | 未实现 |
+| `#[...]` 语法/AST | `ayanami.grammar`、`parser/parser/core.rs`、`parser/ast` | A0 已完成 |
+| 属性注册表/校验 | `hir/attrs` | A0 已完成 |
+| 标注携带（MIR/LIR/包） | `mir/ir.rs`、`lir/ir/nodes_d.rs`（`LirAttr`/`ExternDecl`）、`lir/serialize` | A1 已完成 |
+| LLVM 属性映射 | `lir/emit/functions.rs`（`llvm_attr_suffix`）、`lir/emit/mod.rs` | A1 函数级已完成 |
+| extern 真实签名 | `lir/lower/mod.rs`（`extern_decls`） | A1 已完成 |
 | 效应检查 | `mir/` 或 HIR 新 pass | 未实现 |
 | 生命周期参数 | 类型系统 + `mir/borrow/` | 未实现 |
 
@@ -128,4 +130,4 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 文法：`ayanami.grammar` —生成→ `src/generated/ayanami_parser` —桥接→ `parser/gen_bridge`
 - 包：`hir` —序列化→ `lir/serialize` —封装→ `package` —导入→ `compiler/import`
 - 工具链：`check_all` ⊃ `check_version` + `check_file_sizes` + `gen_symbols --check`
-- 标注（计划）：`#[...]` —校验→ 注册表 —映射→ LLVM 属性（A1）—效应→ 调用图（A3）—生命周期→ 类型参数（A4）
+- 标注：`#[...]` —校验→ `hir/attrs` —携带→ MIR/LIR(`LirAttr`/`ExternDecl`) —映射→ LLVM 属性（A1 函数级）—计划→ 效应（A3）/生命周期（A4）

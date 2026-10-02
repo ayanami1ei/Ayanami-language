@@ -164,6 +164,8 @@ pub struct MirFn {
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,
     pub body: Vec<MirStmtBox>,
+    /// 声明标注（A1 起映射 LLVM 属性）
+    pub attrs: Vec<crate::parser::ast::Attr>,
 }
 
 #[derive(Debug, Clone)]

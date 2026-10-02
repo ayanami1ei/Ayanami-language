@@ -195,6 +195,15 @@ impl<'a> Reader<'a> {
         let fid = FnId(self.u32()? as usize);
         let is_inline = self.read(1)?[0] != 0;
         let extern_c = self.read(1)?[0] != 0;
+        let ac = self.u32()?;
+        let mut attrs = Vec::new();
+        for _ in 0..ac {
+            let an = self.str()?;
+            let argc = self.u32()?;
+            let mut args = Vec::new();
+            for _ in 0..argc { args.push(self.str()?); }
+            attrs.push(LirAttr { name: an, args });
+        }
         let name = Symbol::intern(&self.str()?);
         let ret = self.ty()?;
         let pc = self.u32()?;
@@ -217,6 +226,6 @@ impl<'a> Reader<'a> {
             for _ in 0..ic { insts.push(self.inst()?); }
             blocks.push(LirBlock { label, insts });
         }
-        Ok(LirFn { fn_id: fid, is_inline, extern_c, name, params, return_type: ret, locals, blocks, custom: Vec::new() })
+        Ok(LirFn { fn_id: fid, is_inline, extern_c, name, params, return_type: ret, locals, attrs, blocks, custom: Vec::new() })
     }
 }

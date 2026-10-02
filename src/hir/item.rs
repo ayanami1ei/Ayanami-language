@@ -83,6 +83,8 @@ pub struct ImportedFnSig {
     pub name: Symbol,
     pub params: Vec<(Symbol, HirType)>,
     pub return_type: HirType,
+    /// 包导入暂无标注（源码 extern 声明的标注走 HirFn.attrs）
+    pub attrs: Vec<crate::parser::ast::Attr>,
 }
 
 #[derive(Debug, Clone)]

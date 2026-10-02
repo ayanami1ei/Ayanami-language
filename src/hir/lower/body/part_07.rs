@@ -155,7 +155,8 @@ impl crate::hir::lower::Ctx {
         span: Span,
         attrs: Vec<crate::parser::ast::Attr>,
     ) -> Result<HirFn> {
-        let is_inline = is_inline || crate::hir::attrs::has(&attrs, "inline");
+        // A1：`#[inline]`/`#[inline(always)]` 不再并入关键字标记，
+        // 由 LIR 发射层按标注区分 inlinehint / alwaysinline。
         self.current_fn = fn_id;
         self.locals = Vec::new();
         self.scopes = Vec::new();

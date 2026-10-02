@@ -22,6 +22,22 @@ pub struct LirBlock {
     pub insts: Vec<LirNodeBox>,
 }
 
+/// 标注（名称 + 参数），LIR 层保留用于 LLVM 属性映射。
+#[derive(Debug, Clone, PartialEq)]
+pub struct LirAttr {
+    pub name: String,
+    pub args: Vec<String>,
+}
+
+/// 外部函数声明（含真实签名与标注，用于 `declare` 发射）。
+#[derive(Debug, Clone)]
+pub struct ExternDecl {
+    pub name: String,
+    pub params: Vec<HirType>,
+    pub return_type: HirType,
+    pub attrs: Vec<LirAttr>,
+}
+
 #[derive(Debug, Clone)]
 pub struct LirFn {
     pub fn_id: FnId,
@@ -31,6 +47,7 @@ pub struct LirFn {
     pub params: Vec<(Symbol, HirType)>,
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,
+    pub attrs: Vec<LirAttr>,
     pub blocks: Vec<LirBlock>,
     /// User-defined extension nodes (not in LirInst enum)
     pub custom: Vec<IrNode>,
@@ -51,7 +68,7 @@ pub struct LirProgram {
     pub vtables: Vec<VtableDesc>,
     pub struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
     pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
-    pub imported_fn_ids: HashSet<FnId>,
+    pub extern_decls: Vec<ExternDecl>,
 }
 
 // ═══════════════════════════════════════════════════════════════════

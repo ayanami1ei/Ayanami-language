@@ -79,6 +79,7 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
         .map(|(i, sig)| ImportedFnSig {
             fn_id: FnId(i), name: sig.name,
             params: sig.params.clone(), return_type: sig.return_type.clone(),
+            attrs: Vec::new(),
         })
         .collect();
 

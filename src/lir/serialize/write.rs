@@ -12,6 +12,12 @@ pub(super) fn put_fn(buf: &mut Vec<u8>, f: &LirFn) {
     put_u32(buf, f.fn_id.0 as u32);
     buf.push(if f.is_inline { 1 } else { 0 });
     buf.push(if f.extern_c { 1 } else { 0 });
+    put_u32(buf, f.attrs.len() as u32);
+    for a in &f.attrs {
+        put_str(buf, &a.name);
+        put_u32(buf, a.args.len() as u32);
+        for arg in &a.args { put_str(buf, arg); }
+    }
     put_str(buf, &f.name.as_str());
     put_type(buf, &f.return_type);
     put_u32(buf, f.params.len() as u32);

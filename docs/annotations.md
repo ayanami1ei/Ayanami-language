@@ -47,7 +47,7 @@ fn read_config(ref String path) -> Config { ... }
 | 类别 | 标注 | 编译器行为 | 阶段 | 状态 |
 |---|---|---|---|---|
 | 基础设施 | 全部 | 解析、校验、存储、序列化、展示 | A0 | 设计 |
-| 优化/代码生成 | `inline` `cold` `noreturn` `pure` `readonly` `nounwind` `willreturn` `noalias` `nonnull` | 映射 LLVM 函数/参数属性（含 extern 声明，跨语言优化） | A1 | 设计 |
+| 优化/代码生成 | `inline` `cold` `noreturn` `pure` `readonly` `nounwind` `willreturn` `noalias` `nonnull` | 映射 LLVM 函数/参数属性（含 extern 声明，跨语言优化） | A1 | 部分实现（函数级） |
 | 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 设计 |
 | 效应 | `throws` `eff` | 效应检查与传播（Java 式必须处理或上抛）、`?` 统一 | A3 | 设计 |
 | 生命周期 | 类型参数 `'a`（不是标注） | 显式生命周期与 outlives 检查、字段引用 | A4 | 设计 |
@@ -57,8 +57,8 @@ fn read_config(ref String path) -> Config { ... }
 
 | 标注 | 位置 | LLVM | 说明 |
 |---|---|---|---|
-| `#[inline]` | 函数 | `inlinehint` | 桥接现有 `inline` 关键字 |
-| `#[inline(always)]` | 函数 | `alwaysinline` | 强制内联 |
+| `#[inline]` | 函数 | `inlinehint` | 提示内联（已实现） |
+| `#[inline(always)]` | 函数 | `alwaysinline` | 强制内联（已实现；`inline` 关键字仍为 `alwaysinline`） |
 | `#[cold]` | 函数 | `cold` | 冷路径，影响分支布局 |
 | `#[noreturn]` | 函数 | `noreturn` | 不返回 |
 | `#[pure]` | 函数 | `memory(none)`（旧：`readnone`） | 无副作用、不读内存；可跨调用 CSE/下沉 |
@@ -74,11 +74,18 @@ fn read_config(ref String path) -> Config { ... }
 ```ayanami
 #[pure] #[nounwind]
 extern "C" fn strlen(unique [char] s) -> int;
+// 发射：declare i64 @strlen(ptr) memory(none) nounwind
 // 多次 strlen 调用可被合并/提升（调用者承诺正确性）
 ```
 
-前置条件：extern 声明目前发射为无签名的 `declare i64 @name()`，
-A1 必须先按 HIR 签名发射 `declare <ret> @name(<params>)`。
+实现要点（A1a 已完成）：
+
+- `LirProgram.extern_decls`（`lir/ir/nodes_d.rs`）携带真实签名（参数/返回 `HirType`）
+  与 `LirAttr`，由 `lir/lower/mod.rs` 从源码 `extern "C"` 声明与未定义的包导入函数构建；
+- 发射层按 `declare <ret> @name(<params>)<attrs>` 输出（`lir/emit/mod.rs`）；
+- 属性后缀统一由 `lir/emit/functions.rs::llvm_attr_suffix` 生成，定义与声明共用；
+- 字符串字面量的堆副本追加 NUL，保证可直接传给 C 字符串 API；
+- 包导入函数暂不带标注（`ImportedFnSig.attrs` 为空）。
 
 ## 5. 条件与契约（A2）
 
@@ -153,9 +160,22 @@ struct Holder['a] {
 - [ ] `requires/ensures/...` 参数表达式（A2 扩展文法）
 - [ ] Asuka 生成解析器桥接属性（见下方已知问题）
 
+### A1（部分完成，2026-10）
+
+- [x] extern 声明按 HIR 签名发射 `declare <ret> @name(<params>)`
+- [x] `MirFn`/`LirFn`/`LirProgram` 全链路保留标注（`LirAttr`、`ExternDecl`；`.lcl` 格式随之更新）
+- [x] 函数级 LLVM 映射：`cold` `noreturn` `pure`(`memory(none)`) `readonly`(`memory(read)`)
+      `nounwind` `willreturn` `inline`(`inlinehint`) `inline(always)`(`alwaysinline`)
+- [x] 字符串字面量堆副本 NUL 结尾（FFI 互操作）
+- [x] `example/test_ffi_attrs.aya`（`strlen`/`abort`/`cold`/`inline`/`willreturn`）
+- [ ] 参数级 `noalias`/`nonnull`：需要形参位置标注文法（`AttrList` on `FnParam`）
+- [ ] 包导入函数的标注传递（`ImportedFnSig.attrs` 目前为空）
+- [ ] `inline` 关键字与 `#[inline]` 语义统一
+
 ### 已知问题
 
 - **Asuka 生成解析器当前对所有真实程序解析失败（`no alt`）**，
   编译器实际依赖手写回退解析器；因此属性在生成解析器桥接（`gen_bridge`）
   中暂为透传空列表（代码中有 TODO）。修复生成解析器后需补桥接。
 - 属性参数当前仅支持标识符/整数/字符串字面量；表达式参数随 A2 扩展。
+- `.lcl` 包格式在 A1 变更后不向后兼容，需随编译器一起重新生成（std 已重建）。

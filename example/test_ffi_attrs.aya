@@ -1,0 +1,21 @@
+// A1：优化标注 → LLVM 属性（含 extern 声明，跨语言优化）
+#[pure]
+#[nounwind]
+extern "C" fn strlen(unique [char] s) -> int;
+
+#[noreturn]
+extern "C" fn abort();
+
+#[cold]
+fn rarely() -> int { return 1 }
+
+#[inline]
+fn fast() -> int { return 2 }
+
+#[willreturn]
+fn always_returns() -> int { return 3 }
+
+fn main() -> int {
+    s = "hello"
+    return strlen(s.data) - 5 + fast() - 2 + always_returns() - 3
+}

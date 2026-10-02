@@ -37,12 +37,44 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         }
     }
 
-    let functions: Vec<LirFn> = mir
+    let all_fns: Vec<LirFn> = mir
         .items
         .iter()
         .flat_map(|item| lower_items(item, &str_map))
-        .filter(|f| !(f.extern_c && f.blocks.is_empty()))
         .collect();
+
+    let functions: Vec<LirFn> = all_fns
+        .iter()
+        .filter(|f| !(f.extern_c && f.blocks.is_empty()))
+        .cloned()
+        .collect();
+    let defined_ids: std::collections::HashSet<FnId> = functions.iter().map(|f| f.fn_id).collect();
+
+    // 外部声明：源码 extern "C" 声明（带标注）+ 未定义的包导入函数（真实签名）
+    let mut extern_decls: Vec<ExternDecl> = Vec::new();
+    for f in &all_fns {
+        if f.extern_c && f.blocks.is_empty() {
+            if let Some(name) = fn_names.get(&f.fn_id) {
+                extern_decls.push(ExternDecl {
+                    name: name.clone(),
+                    params: f.params.iter().map(|(_, t)| t.clone()).collect(),
+                    return_type: f.return_type.clone(),
+                    attrs: f.attrs.clone(),
+                });
+            }
+        }
+    }
+    for imp in &mir.imported_fns {
+        if defined_ids.contains(&imp.fn_id) { continue; }
+        let name = fn_names.get(&imp.fn_id).cloned().unwrap_or_else(|| mangle("", &imp.name.as_str(), &imp.params));
+        if extern_decls.iter().any(|d| d.name == name) { continue; }
+        extern_decls.push(ExternDecl {
+            name,
+            params: imp.params.iter().map(|(_, t)| t.clone()).collect(),
+            return_type: imp.return_type.clone(),
+            attrs: imp.attrs.iter().map(|a| LirAttr { name: a.name.as_str().to_string(), args: a.args.clone() }).collect(),
+        });
+    }
 
     let vtables: Vec<VtableDesc> = mir.vtables.iter().map(|ve| {
         let name = format!("vtable_{}_{}",
@@ -51,12 +83,6 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         VtableDesc { name, fn_ids: ve.method_fn_ids.clone() }
     }).collect();
 
-    let defined_ids: std::collections::HashSet<FnId> = functions.iter().map(|f| f.fn_id).collect();
-    let imported_fn_ids: std::collections::HashSet<FnId> = fn_names.keys()
-        .filter(|id| !defined_ids.contains(id))
-        .copied()
-        .collect();
-
     LirProgram {
         strings,
         fn_names,
@@ -64,6 +90,6 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         vtables,
         struct_defs: mir.struct_defs.clone(),
         generic_struct_params: mir.generic_struct_params.clone(),
-        imported_fn_ids,
+        extern_decls,
     }
 }

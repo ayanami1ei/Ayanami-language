@@ -268,8 +268,11 @@ impl LirNode for SLirStrGlobal {
         let len = ctx.prog.strings.get(self.str_idx as usize).map(|s| s.len()).unwrap_or(0);
         let l = ctx.tmp();
         vec![
-            format!("%l{} = call i8* @__ayanami_unique_alloc(i64 {})", l, len.max(1)),
+            // 多分配 1 字节并写入 NUL，保证可传给 C 字符串函数（strlen 等）
+            format!("%l{} = call i8* @__ayanami_unique_alloc(i64 {})", l, len + 1),
             format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr @__str_{}, i64 {}, i1 false)", l, self.str_idx, len),
+            format!("%e{} = getelementptr i8, ptr %l{}, i64 {}", l, l, len),
+            format!("store i8 0, ptr %e{}", l),
             format!("%t{} = bitcast i8* %l{} to ptr", self.dest, l),
         ]
     }

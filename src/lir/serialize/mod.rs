@@ -61,9 +61,20 @@ pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
         }
     }
 
-    // imported_fn_ids
-    put_u32(&mut buf, p.imported_fn_ids.len() as u32);
-    for id in &p.imported_fn_ids { put_u32(&mut buf, id.0 as u32); }
+    // extern_decls（真实签名 + 标注）
+    put_u32(&mut buf, p.extern_decls.len() as u32);
+    for d in &p.extern_decls {
+        put_str(&mut buf, &d.name);
+        put_u32(&mut buf, d.params.len() as u32);
+        for t in &d.params { put_type(&mut buf, t); }
+        put_type(&mut buf, &d.return_type);
+        put_u32(&mut buf, d.attrs.len() as u32);
+        for a in &d.attrs {
+            put_str(&mut buf, &a.name);
+            put_u32(&mut buf, a.args.len() as u32);
+            for arg in &a.args { put_str(&mut buf, arg); }
+        }
+    }
 
     buf
 }
@@ -131,11 +142,27 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
         generic_struct_params.insert(name, params);
     }
 
-    let imp_count = r.u32()?;
-    let mut imported_fn_ids = std::collections::HashSet::new();
-    for _ in 0..imp_count { imported_fn_ids.insert(FnId(r.u32()? as usize)); }
+    let ed_count = r.u32()?;
+    let mut extern_decls = Vec::new();
+    for _ in 0..ed_count {
+        let name = r.str()?;
+        let pc = r.u32()?;
+        let mut params = Vec::new();
+        for _ in 0..pc { params.push(r.ty()?); }
+        let return_type = r.ty()?;
+        let ac = r.u32()?;
+        let mut attrs = Vec::new();
+        for _ in 0..ac {
+            let an = r.str()?;
+            let argc = r.u32()?;
+            let mut args = Vec::new();
+            for _ in 0..argc { args.push(r.str()?); }
+            attrs.push(LirAttr { name: an, args });
+        }
+        extern_decls.push(ExternDecl { name, params, return_type, attrs });
+    }
 
-    Ok(LirProgram { strings, fn_names, functions, vtables, struct_defs, generic_struct_params, imported_fn_ids })
+    Ok(LirProgram { strings, fn_names, functions, vtables, struct_defs, generic_struct_params, extern_decls })
 }
 
 

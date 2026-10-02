@@ -1,5 +1,32 @@
 use super::*;
 
+/// 标注 → LLVM 函数属性。默认信任（ADR-3）：误标后果自负。
+pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool) -> String {
+    let mut s = String::new();
+    if is_inline {
+        // 旧 inline 关键字：保持强制内联
+        s.push_str(" alwaysinline");
+    } else if let Some(a) = attrs.iter().find(|a| a.name == "inline") {
+        if a.args.iter().any(|x| x == "always") {
+            s.push_str(" alwaysinline");
+        } else {
+            s.push_str(" inlinehint");
+        }
+    }
+    for a in attrs {
+        match a.name.as_str() {
+            "cold" => s.push_str(" cold"),
+            "noreturn" => s.push_str(" noreturn"),
+            "pure" => s.push_str(" memory(none)"),
+            "readonly" => s.push_str(" memory(read)"),
+            "nounwind" => s.push_str(" nounwind"),
+            "willreturn" => s.push_str(" willreturn"),
+            _ => {}
+        }
+    }
+    s
+}
+
 impl<'a> Emitter<'a> {
     pub(super) fn emit_struct_defs(&mut self) {
         for (name, fields) in &self.prog.struct_defs {
@@ -62,7 +89,7 @@ impl<'a> Emitter<'a> {
             .map(|(_, t)| self.llvm_type(t))
             .collect();
         let param_list = params_str.join(", ");
-        let inline_attr = if f.is_inline { " alwaysinline" } else { "" };
+        let inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline);
 
         self.current_fn_ret_ty = f.return_type.clone();
 
