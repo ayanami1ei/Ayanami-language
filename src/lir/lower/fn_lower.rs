@@ -5,6 +5,13 @@ fn lir_attrs(f: &MirFn) -> Vec<LirAttr> {
     f.attrs.iter().map(|a| LirAttr { name: a.name.as_str().to_string(), args: a.args.clone() }).collect()
 }
 
+/// MIR 形参标注 → LIR 形参标注（与 params 等长并行）
+fn lir_param_attrs(f: &MirFn) -> Vec<Vec<LirAttr>> {
+    f.param_attrs.iter()
+        .map(|v| v.iter().map(|a| LirAttr { name: a.name.as_str().to_string(), args: a.args.clone() }).collect())
+        .collect()
+}
+
 pub(super) fn lower_items(item: &MirItem, str_map: &HashMap<String, u64>) -> Vec<LirFn> {
     match item {
         MirItem::Fn(f) => vec![lower_fn(f, str_map)],
@@ -28,6 +35,7 @@ pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
             return_type: f.return_type.clone(),
             locals: f.locals.clone(),
             attrs: lir_attrs(f),
+        param_attrs: lir_param_attrs(f),
             blocks: vec![],
             custom: Vec::new(),
         };
@@ -68,6 +76,7 @@ pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
         return_type: f.return_type.clone(),
         locals: f.locals.clone(),
         attrs: lir_attrs(f),
+        param_attrs: lir_param_attrs(f),
         blocks,
         custom: Vec::new(),
     }

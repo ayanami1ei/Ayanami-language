@@ -74,6 +74,15 @@ pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
             put_u32(&mut buf, a.args.len() as u32);
             for arg in &a.args { put_str(&mut buf, arg); }
         }
+        put_u32(&mut buf, d.param_attrs.len() as u32);
+        for pv in &d.param_attrs {
+            put_u32(&mut buf, pv.len() as u32);
+            for a in pv {
+                put_str(&mut buf, &a.name);
+                put_u32(&mut buf, a.args.len() as u32);
+                for arg in &a.args { put_str(&mut buf, arg); }
+            }
+        }
     }
 
     buf
@@ -159,7 +168,21 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
             for _ in 0..argc { args.push(r.str()?); }
             attrs.push(LirAttr { name: an, args });
         }
-        extern_decls.push(ExternDecl { name, params, return_type, attrs });
+        let pac = r.u32()?;
+        let mut param_attrs = Vec::new();
+        for _ in 0..pac {
+            let pvc = r.u32()?;
+            let mut pv = Vec::new();
+            for _ in 0..pvc {
+                let an = r.str()?;
+                let argc = r.u32()?;
+                let mut args = Vec::new();
+                for _ in 0..argc { args.push(r.str()?); }
+                pv.push(LirAttr { name: an, args });
+            }
+            param_attrs.push(pv);
+        }
+        extern_decls.push(ExternDecl { name, params, return_type, attrs, param_attrs });
     }
 
     Ok(LirProgram { strings, fn_names, functions, vtables, struct_defs, generic_struct_params, extern_decls })

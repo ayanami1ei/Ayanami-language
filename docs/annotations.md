@@ -65,8 +65,8 @@ fn read_config(ref String path) -> Config { ... }
 | `#[readonly]` | 函数 | `memory(read)`（旧：`readonly`） | 只读内存 |
 | `#[nounwind]` | 函数 | `nounwind` | 不抛异常（FFI 常见） |
 | `#[willreturn]` | 函数 | `willreturn` | 必然返回，可提升循环 |
-| `#[noalias]` | 指针参数 | `noalias` | 该指针不与其它指针别名 |
-| `#[nonnull]` | 指针参数 | `nonnull` | 参数非空 |
+| `#[noalias]` | 指针参数（ref/unique/[T]/fn） | `noalias` | 该指针不与其它指针别名（已实现，A1b） |
+| `#[nonnull]` | 指针参数（ref/unique/[T]/fn） | `nonnull` | 参数非空（已实现，A1b） |
 
 **跨语言优化**：以上标注用在 `extern "C"` 声明上时，属性进入
 `declare` 行，LLVM 即可跨越 FFI 调用做优化。例：
@@ -85,7 +85,11 @@ extern "C" fn strlen(unique [char] s) -> int;
 - 发射层按 `declare <ret> @name(<params>)<attrs>` 输出（`lir/emit/mod.rs`）；
 - 属性后缀统一由 `lir/emit/functions.rs::llvm_attr_suffix` 生成，定义与声明共用；
 - 字符串字面量的堆副本追加 NUL，保证可直接传给 C 字符串 API；
-- 包导入函数暂不带标注（`ImportedFnSig.attrs` 为空）。
+- 包导入函数暂不带标注（`ImportedFnSig.attrs` 为空）；
+- 形参标注（A1b）：`#[noalias]`/`#[nonnull]` 写在形参类型前（`fn f(#[nonnull] ref int x, #[noalias] unique [char] s)`），
+  经 `AST.param_attrs → HirFn/MirFn/LirFn.param_attrs → ExternDecl.param_attrs` 全链路到达
+  `define`/`declare` 的参数列表（如 `declare i32 @memcmp(ptr nonnull noalias, ptr nonnull noalias, i64)`）；
+  仅允许指针类型，接口方法与 lambda 的形参暂不支持（解析期报错）。
 
 优化效果实证（`opt -O2` 下，调用非内置 C 函数 `mystery` 两次）：
 
@@ -178,8 +182,9 @@ struct Holder['a] {
       `nounwind` `willreturn` `inline`(`inlinehint`) `inline(always)`(`alwaysinline`)
 - [x] 字符串字面量堆副本 NUL 结尾（FFI 互操作）
 - [x] `example/test_ffi_attrs.aya`（`strlen`/`abort`/`cold`/`inline`/`willreturn`）
-- [ ] 参数级 `noalias`/`nonnull`：需要形参位置标注文法（`AttrList` on `FnParam`）
-- [ ] 包导入函数的标注传递（`ImportedFnSig.attrs` 目前为空）
+- [x] 参数级 `noalias`/`nonnull`（`FnParam = Attr* Type Ident`；仅指针类型）
+- [ ] 包导入函数的标注传递（`ImportedFnSig.attrs` 目前为空；形参/函数级均不随 .lcl 导出）
+- [ ] 接口方法与 lambda 的形参标注（当前解析期拒绝）
 - [ ] `inline` 关键字与 `#[inline]` 语义统一
 
 ### 已知问题

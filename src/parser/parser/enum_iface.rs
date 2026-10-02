@@ -149,6 +149,10 @@ impl Parser {
         if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
             self.advance();
             loop {
+                let pattrs = self.parse_attr_list()?;
+                if !pattrs.is_empty() {
+                    return Err(self.error("parameter attributes are not supported in interface methods"));
+                }
                 let ptype = self.parse_type()?;
                 let pname = self.expect_identifier()?;
                 params.push((Symbol::intern(&pname), ptype));

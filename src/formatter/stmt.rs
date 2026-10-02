@@ -4,7 +4,7 @@ use super::expr::*;
 
 pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
     match stmt {
-        FnDecl { attrs, vis, is_inline, extern_c, name, generic_params, params, return_type, body, .. } => {
+        FnDecl { attrs, vis, is_inline, extern_c, name, generic_params, params, param_attrs, return_type, body, .. } => {
             write_attrs(out, attrs, level);
             let i = indent(level);
             if *extern_c {
@@ -18,7 +18,7 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
                 }
             }
             write_generic_params(out, generic_params);
-            write_params(out, params);
+            write_params(out, params, param_attrs);
             write_return_type(out, return_type);
             if *extern_c && body.stmts.is_empty() {
                 let _ = writeln!(out, ";");

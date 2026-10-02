@@ -32,6 +32,7 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
             locals: vec![],
             body: vec![],
             attrs: f.attrs.clone(),
+            param_attrs: f.param_attrs.clone(),
         });
     }
 
@@ -69,5 +70,6 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
         locals: ctx.mir_locals,
         body,
         attrs: f.attrs.clone(),
+            param_attrs: f.param_attrs.clone(),
     })
 }

@@ -9,7 +9,7 @@ impl crate::hir::lower::Ctx {
         let mut items = Vec::new();
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, params, return_type, body, is_inline, extern_c, generic_params, span, attrs, .. } => {
+                Stmt::FnDecl { name, params, return_type, body, is_inline, extern_c, generic_params, span, attrs, param_attrs, .. } => {
                     // Skip generic functions — they are specialized on demand
                     if !generic_params.is_empty() {
                         continue;
@@ -24,7 +24,7 @@ impl crate::hir::lower::Ctx {
                         .collect();
                     let fn_id = self.find_fn_by_sig(full_name, &ptypes)
                         .ok_or_else(|| Error::Hir(format!("internal error: function `{}` not found at {}:{}", full_name, span.start_line, span.start_col)))?;
-                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline, *extern_c, *span, attrs.clone())?;
+                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline, *extern_c, *span, attrs.clone(), param_attrs.clone())?;
                     items.push(HirItem::Fn(hir_fn));
                 }
                 Stmt::Namespace { name, items: ns_items, .. } => {
@@ -85,7 +85,7 @@ impl crate::hir::lower::Ctx {
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
                     // Flatten impl block: lower each method as a regular Fn
                     for method_stmt in methods {
-                        if let Stmt::FnDecl { name, params, return_type, body, generic_params, .. } = method_stmt {
+                        if let Stmt::FnDecl { name, params, return_type, body, generic_params, param_attrs, .. } = method_stmt {
                             if !generic_params.is_empty() || !impl_gp.is_empty() {
                                 continue; // generic methods are lowered during specialization
                             }
@@ -97,7 +97,7 @@ impl crate::hir::lower::Ctx {
                                     let s = method_stmt.span();
                                     Error::Hir(format!("internal error: method `{}` not found at {}:{}", name, s.start_line, s.start_col))
                                 })?;
-                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, Span::default(), vec![])?;
+                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, Span::default(), vec![], param_attrs.clone())?;
                             items.push(HirItem::Fn(hir_fn));
                         }
                     }
@@ -154,6 +154,7 @@ impl crate::hir::lower::Ctx {
         extern_c: bool,
         span: Span,
         attrs: Vec<crate::parser::ast::Attr>,
+        param_attrs: Vec<Vec<crate::parser::ast::Attr>>,
     ) -> Result<HirFn> {
         // A1：`#[inline]`/`#[inline(always)]` 不再并入关键字标记，
         // 由 LIR 发射层按标注区分 inlinehint / alwaysinline。
@@ -182,6 +183,7 @@ impl crate::hir::lower::Ctx {
         Ok(HirFn {
             span,
             attrs,
+            param_attrs,
             fn_id,
             name,
             is_inline,

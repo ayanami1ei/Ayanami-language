@@ -115,6 +115,10 @@ impl Parser {
         let mut params = Vec::new();
         if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
             loop {
+                let pattrs = self.parse_attr_list()?;
+                if !pattrs.is_empty() {
+                    return Err(self.error("parameter attributes are not supported in lambdas"));
+                }
                 let param_type = self.parse_type()?;
                 let param_name = self.expect_identifier()?;
                 params.push((Symbol::intern(&param_name), param_type));

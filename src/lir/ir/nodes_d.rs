@@ -36,6 +36,8 @@ pub struct ExternDecl {
     pub params: Vec<HirType>,
     pub return_type: HirType,
     pub attrs: Vec<LirAttr>,
+    /// 形参标注（与 params 等长并行；A1b）
+    pub param_attrs: Vec<Vec<LirAttr>>,
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +50,8 @@ pub struct LirFn {
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,
     pub attrs: Vec<LirAttr>,
+    /// 形参标注（与 params 等长并行；A1b）
+    pub param_attrs: Vec<Vec<LirAttr>>,
     pub blocks: Vec<LirBlock>,
     /// User-defined extension nodes (not in LirInst enum)
     pub custom: Vec<IrNode>,

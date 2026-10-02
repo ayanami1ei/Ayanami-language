@@ -30,8 +30,11 @@ impl Parser {
 
         self.expect_delimiter(Delimiter::LParen)?;
         let mut params = Vec::new();
+        let mut param_attrs: Vec<Vec<crate::parser::ast::Attr>> = Vec::new();
         if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
             loop {
+                // A1b：形参前导标注（#[noalias]/#[nonnull]）
+                param_attrs.push(self.parse_attr_list()?);
                 let param_type = self.parse_type()?;
                 let param_name = self.expect_identifier()?;
                 params.push((Symbol::intern(&param_name), param_type));
@@ -67,6 +70,7 @@ impl Parser {
             generic_params,
             name: Symbol::intern(&name),
             params,
+            param_attrs,
             return_type,
             body,
             span: start_span,

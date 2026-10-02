@@ -131,7 +131,7 @@ pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Ty
 /// Substitute generic type parameters in an AST Stmt.
 pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt {
     match stmt {
-        Stmt::FnDecl { attrs, vis, is_inline, extern_c, name, generic_params: _, params, return_type, body, span } => {
+        Stmt::FnDecl { attrs, vis, is_inline, extern_c, name, generic_params: _, params, param_attrs, return_type, body, span } => {
             Stmt::FnDecl {
                 attrs: attrs.clone(),
                 vis: *vis,
@@ -140,6 +140,7 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
                 name: *name,
                 generic_params: Vec::new(), // cleared: all generics are now concrete
                 params: params.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
+                param_attrs: param_attrs.clone(),
                 return_type: substitute_type_in_type(return_type, subst),
                 body: substitute_type_in_block(body, subst),
                 span: *span,

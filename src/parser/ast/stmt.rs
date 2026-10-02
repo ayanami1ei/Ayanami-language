@@ -52,6 +52,8 @@ pub enum Stmt {
         name: Symbol,
         generic_params: Vec<(Symbol, Option<Symbol>)>,  // (name, constraint_interface)
         params: Vec<(Symbol, Type)>,
+        /// 形参标注（与 params 等长并行；A1b：noalias/nonnull）
+        param_attrs: Vec<Vec<Attr>>,
         return_type: Type,
         body: Block,
         span: Span,

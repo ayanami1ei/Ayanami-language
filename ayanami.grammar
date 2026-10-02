@@ -41,7 +41,7 @@
     Namespace     = Vis? "namespace" Ident "{" Item* "}";
 
     FnDecl        = AttrList Vis? Inline? ExternC? "fn" Ident GenericParams? "(" ParamList ")" ("->" Type)? Block;
-    FnParam       = Type Ident;
+    FnParam       = Attr* Type Ident;  // A1b：形参标注（#[noalias]/#[nonnull]）
     ParamList     = FnParam ("," FnParam)*;
     Vis           = "pub" ("(" "crate" ")")?;
     Inline        = "inline";

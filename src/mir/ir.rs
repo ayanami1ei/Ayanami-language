@@ -166,6 +166,8 @@ pub struct MirFn {
     pub body: Vec<MirStmtBox>,
     /// 声明标注（A1 起映射 LLVM 属性）
     pub attrs: Vec<crate::parser::ast::Attr>,
+    /// 形参标注（与 params 等长并行；A1b）
+    pub param_attrs: Vec<Vec<crate::parser::ast::Attr>>,
 }
 
 #[derive(Debug, Clone)]

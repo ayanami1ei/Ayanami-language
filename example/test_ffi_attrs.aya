@@ -1,7 +1,15 @@
-// A1：优化标注 → LLVM 属性（含 extern 声明，跨语言优化）
+// A1：优化标注 → LLVM 属性（含 extern 声明与形参标注，跨语言优化）
 #[pure]
 #[nounwind]
 extern "C" fn strlen(unique [char] s) -> int;
+
+#[pure]
+#[nounwind]
+extern "C" fn memcmp(
+    #[nonnull] #[noalias] unique [char] a,
+    #[nonnull] #[noalias] unique [char] b,
+    int n
+) -> int;
 
 #[noreturn]
 extern "C" fn abort();
@@ -15,7 +23,12 @@ fn fast() -> int { return 2 }
 #[willreturn]
 fn always_returns() -> int { return 3 }
 
+fn touch(#[nonnull] ref int x) -> int { return 0 }
+
 fn main() -> int {
     s = "hello"
-    return strlen(s.data) - 5 + fast() - 2 + always_returns() - 3
+    t = "hello"
+    n = 1
+    return strlen(s.data) - 5 + memcmp(s.data, t.data, 5) + fast() - 2
+        + always_returns() - 3 + touch(ref n)
 }

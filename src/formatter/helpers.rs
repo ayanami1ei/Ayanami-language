@@ -52,10 +52,19 @@ pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<S
     let _ = write!(out, "]");
 }
 
-pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)]) {
+pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_attrs: &[Vec<crate::parser::ast::Attr>]) {
     let _ = write!(out, "(");
     for (i, (name, ty)) in params.iter().enumerate() {
         if i > 0 { let _ = write!(out, ", "); }
+        if let Some(attrs) = param_attrs.get(i) {
+            for a in attrs {
+                let _ = write!(out, "#[{}", a.name);
+                if !a.args.is_empty() {
+                    let _ = write!(out, "({})", a.args.join(", "));
+                }
+                let _ = write!(out, "] ");
+            }
+        }
         // Format impl method self parameter: shared self / unique self
         if name.as_str() == "self" {
             match ty {

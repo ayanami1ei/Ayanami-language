@@ -56,6 +56,8 @@ pub struct HirFn {
     pub is_inline: bool,
     pub extern_c: bool,
     pub params: Vec<(Symbol, HirType)>,
+    /// 形参标注（与 params 等长并行；A1b 起映射 LLVM 参数属性）
+    pub param_attrs: Vec<Vec<crate::parser::ast::Attr>>,
     pub return_type: HirType,
     pub locals: Vec<HirLocal>,
     pub body: HirBlock,

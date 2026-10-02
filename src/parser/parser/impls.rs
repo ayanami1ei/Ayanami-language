@@ -129,6 +129,7 @@ impl Parser {
 
         // Parse optional self parameter: ref/ref mut/unique/shared/self
         let mut params: Vec<(Symbol, Type)> = Vec::new();
+        let mut param_attrs: Vec<Vec<crate::parser::ast::Attr>> = Vec::new();
         let is_self_start = matches!(self.peek().map(|t| &t.kind),
             Some(TokenKind::Keyword(Keyword::Unique))
                 | Some(TokenKind::Keyword(Keyword::Ref))
@@ -168,10 +169,12 @@ impl Parser {
                 _ => base_self_type, // 裸 self：消费
             };
             params.push((Symbol::intern("self"), self_type));
+            param_attrs.push(Vec::new());
             // Parse remaining params
             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
                 self.advance();
                 loop {
+                    param_attrs.push(self.parse_attr_list()?);
                     let ptype = self.parse_type()?;
                     let pname = self.expect_identifier()?;
                     params.push((Symbol::intern(&pname), ptype));
@@ -187,6 +190,7 @@ impl Parser {
                 if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
                     break;
                 }
+                param_attrs.push(self.parse_attr_list()?);
                 let ptype = self.parse_type()?;
                 let pname = self.expect_identifier()?;
                 params.push((Symbol::intern(&pname), ptype));
@@ -215,6 +219,7 @@ impl Parser {
             generic_params,
             name,
             params,
+            param_attrs,
             return_type,
             body,
             span: start_span,

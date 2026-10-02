@@ -96,7 +96,12 @@ impl<'a> Emitter<'a> {
         // Extern declarations（真实签名 + LLVM 属性）
         for d in &self.prog.extern_decls {
             let ret = self.llvm_type(&d.return_type);
-            let params: Vec<String> = d.params.iter().map(|t| self.llvm_type(t)).collect();
+            let params: Vec<String> = d.params.iter().enumerate()
+                .map(|(i, t)| {
+                    let suffix = d.param_attrs.get(i).map(|v| functions::llvm_param_attrs(v)).unwrap_or_default();
+                    format!("{}{}", self.llvm_type(t), suffix)
+                })
+                .collect();
             let suffix = functions::llvm_attr_suffix(&d.attrs, false);
             self.wln_fmt(format_args!("declare {} @{}({}){}", ret, d.name, params.join(", "), suffix));
         }

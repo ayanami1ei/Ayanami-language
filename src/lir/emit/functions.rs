@@ -27,6 +27,19 @@ pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool) -> String {
     s
 }
 
+/// 形参标注 → LLVM 参数属性（A1b：仅 noalias/nonnull）。
+pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String {
+    let mut s = String::new();
+    for a in attrs {
+        match a.name.as_str() {
+            "noalias" => s.push_str(" noalias"),
+            "nonnull" => s.push_str(" nonnull"),
+            _ => {}
+        }
+    }
+    s
+}
+
 impl<'a> Emitter<'a> {
     pub(super) fn emit_struct_defs(&mut self) {
         for (name, fields) in &self.prog.struct_defs {
@@ -83,11 +96,11 @@ impl<'a> Emitter<'a> {
     pub(super) fn emit_fn(&mut self, f: &LirFn) {
         let fn_name = self.prog.fn_names[&f.fn_id].clone();
         let ret_ty = self.llvm_type(&f.return_type);
-        let params_str: Vec<String> = f
-            .params
-            .iter()
-            .map(|(_, t)| self.llvm_type(t))
-            .collect();
+        let mut params_str: Vec<String> = Vec::new();
+        for (i, (_, t)) in f.params.iter().enumerate() {
+            let attrs = f.param_attrs.get(i).map(|v| llvm_param_attrs(v)).unwrap_or_default();
+            params_str.push(format!("{}{}", self.llvm_type(t), attrs));
+        }
         let param_list = params_str.join(", ");
         let inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline);
 

@@ -14,6 +14,9 @@ pub const ALLOWED: &[&str] = &[
     "nonnull",
 ];
 
+/// 形参位置允许的属性（A1b）。
+pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+
 /// 属性是否出现在列表中。
 pub fn has(attrs: &[Attr], name: &str) -> bool {
     attrs.iter().any(|a| a.name.as_str() == name)
@@ -42,10 +45,39 @@ pub fn validate_program(program: &Program) -> Result<()> {
     Ok(())
 }
 
+/// 校验形参标注：仅 noalias/nonnull，且作用于指针类型（ref/unique/[T]/fn）。
+fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()> {
+    use crate::parser::ast::Type;
+    for a in attrs {
+        let name = a.name.as_str();
+        if !PARAM_ALLOWED.contains(&name.as_str()) {
+            return Err(Error::Hir(format!(
+                "attribute #[{}] is not allowed on parameters (at {}:{})",
+                name, a.span.start_line, a.span.start_col
+            )));
+        }
+        let is_ptr = matches!(ty, Type::Ref(..) | Type::Unique(..) | Type::Array(..) | Type::FnPtr(..));
+        if !is_ptr {
+            return Err(Error::Hir(format!(
+                "#[{}] requires a pointer parameter (at {}:{})",
+                name, a.span.start_line, a.span.start_col
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn validate_stmt(stmt: &Stmt) -> Result<()> {
     match stmt {
-        Stmt::FnDecl { attrs, .. }
-        | Stmt::StructDef { attrs, .. }
+        Stmt::FnDecl { attrs, params, param_attrs, .. } => {
+            validate(attrs)?;
+            for (i, pa) in param_attrs.iter().enumerate() {
+                if let Some((_, ty)) = params.get(i) {
+                    validate_param(pa, ty)?;
+                }
+            }
+        }
+        Stmt::StructDef { attrs, .. }
         | Stmt::EnumDef { attrs, .. }
         | Stmt::InterfaceDef { attrs, .. }
         | Stmt::ImplBlock { attrs, .. } => validate(attrs)?,

@@ -18,6 +18,15 @@ pub(super) fn put_fn(buf: &mut Vec<u8>, f: &LirFn) {
         put_u32(buf, a.args.len() as u32);
         for arg in &a.args { put_str(buf, arg); }
     }
+    put_u32(buf, f.param_attrs.len() as u32);
+    for pv in &f.param_attrs {
+        put_u32(buf, pv.len() as u32);
+        for a in pv {
+            put_str(buf, &a.name);
+            put_u32(buf, a.args.len() as u32);
+            for arg in &a.args { put_str(buf, arg); }
+        }
+    }
     put_str(buf, &f.name.as_str());
     put_type(buf, &f.return_type);
     put_u32(buf, f.params.len() as u32);

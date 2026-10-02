@@ -18,6 +18,7 @@ pub fn node_to_stmt(node: &Node) -> Result<Stmt> {
             };
             let ret_ty = node.child("return_type").map(|n| type_from_node(&n)).transpose()?
                 .unwrap_or(Type::Void(default_span()));
+            let param_attrs = vec![Vec::new(); params.len()];
             Ok(Stmt::FnDecl {
                 // TODO:A0 生成解析器当前对所有真实程序解析失败（走手写回退），
                 // 修复后从 node.child("attr_list") 读取属性
@@ -28,6 +29,7 @@ pub fn node_to_stmt(node: &Node) -> Result<Stmt> {
                 name: Symbol::intern(&get_str(node, "name")?),
                 generic_params: vec![],
                 params,
+                param_attrs,
                 return_type: ret_ty,
                 body,
                 span: default_span(),
