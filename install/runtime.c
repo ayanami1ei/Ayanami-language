@@ -43,6 +43,11 @@ void __ayanami_ensure_fail(int64_t line, int64_t col) {
     abort();
 }
 
+void __ayanami_invariant_fail(int64_t line, int64_t col) {
+    fprintf(stderr, "invariant failed at %ld:%ld\n", (long)line, (long)col);
+    abort();
+}
+
 // ──────────────────────────────────────────────
 //  I/O
 // ──────────────────────────────────────────────

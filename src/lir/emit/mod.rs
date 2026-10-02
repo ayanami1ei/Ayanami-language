@@ -92,6 +92,7 @@ impl<'a> Emitter<'a> {
         self.wln("declare void @llvm.assume(i1)");
         self.wln("declare void @__ayanami_require_fail(i64, i64) noreturn");
         self.wln("declare void @__ayanami_ensure_fail(i64, i64) noreturn");
+        self.wln("declare void @__ayanami_invariant_fail(i64, i64) noreturn");
         self.wln("declare i32 @putchar(i32)");
         self.wln("declare i32 @printf(i8*, ...)");
         self.wln("");

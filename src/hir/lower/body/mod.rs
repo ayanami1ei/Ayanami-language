@@ -16,6 +16,7 @@ mod part_06;
 mod part_07;
 mod part_08;
 mod part_09;
+mod ensure;
 mod part_10;
 mod collect_enum;
 mod collect_import;

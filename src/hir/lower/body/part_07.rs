@@ -191,13 +191,17 @@ impl crate::hir::lower::Ctx {
             let hir_cond = self.lower_expr(cond)?;
             crate::hir::contracts::ensure_bool_condition(&hir_cond, "requires", line, col)?;
             if checks {
-                prelude.push(HirStmt::Require { cond: hir_cond, line, col });
+                prelude.push(HirStmt::Contract { kind: ContractKind::Require, cond: hir_cond, line, col });
             } else {
                 prelude.push(HirStmt::Assume(hir_cond));
             }
         }
 
         let mut hir_body = self.lower_block(body)?;
+
+        // A2e：后置条件注入（result 绑定返回值）
+        self.inject_ensures(&mut hir_body, &attrs, &return_type, span)?;
+
         if !prelude.is_empty() {
             prelude.append(&mut hir_body.stmts);
             hir_body.stmts = prelude;

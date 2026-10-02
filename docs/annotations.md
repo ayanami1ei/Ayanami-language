@@ -48,7 +48,7 @@ fn read_config(ref String path) -> Config { ... }
 |---|---|---|---|---|
 | 基础设施 | 全部 | 解析、校验、存储、序列化、展示 | A0 | 设计 |
 | 优化/代码生成 | `inline` `cold` `noreturn` `pure` `readonly` `nounwind` `willreturn` `noalias` `nonnull` | 映射 LLVM 函数/参数属性（含 extern 声明，跨语言优化） | A1 | 部分实现（函数级） |
-| 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 部分实现（cfg/assume/requires） |
+| 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 部分实现（cfg/assume/requires/ensures） |
 | 效应 | `throws` `eff` | 效应检查与传播（Java 式必须处理或上抛）、`?` 统一 | A3 | 设计 |
 | 生命周期 | 类型参数 `'a`（不是标注） | 显式生命周期与 outlives 检查、字段引用 | A4 | 设计 |
 | 用户宏/插件 | `#[pkg::macro(...)]` | 标注 provider 解析；宏展开（声明式或编译期执行）；插件注册属性 | A5 | 设计（§8） |
@@ -107,7 +107,7 @@ extern "C" fn strlen(unique [char] s) -> int;
 - `#[cfg(target = "linux")]`：编译期裁剪 item；已实现（A2b）。
 - `#[requires(cond)]`：函数前置条件（已实现运行检查，A2d）。默认插入运行检查
   （失败打印位置并 abort）；`AYANAMI_CHECKS=0` 时转为 `llvm.assume`。
-- `#[ensures(cond)]`：后置条件，`result` 绑定返回值。
+- `#[ensures(cond)]`：后置条件，`result` 绑定返回值（已实现，A2e）。
 - `#[invariant(cond)]`：循环不变式（语句级标注），debug 每轮校验、release `llvm.assume`。
 - `#[assume(cond)]`：无条件向优化器声明事实（已实现，A2c）。
 
@@ -141,6 +141,17 @@ extern "C" fn strlen(unique [char] s) -> int;
   `call void @llvm.assume(i1 ...)`，位于函数入口 alloca/参数存储之后；
 - 运行时为零开销；`opt -O2` 可据此优化（如消除冗余分支）。
 - `example/test_assume.aya`；反例：非 bool 条件、无实参、`key = value` 实参均报错。
+
+### A2e `#[ensures]`（已完成，2026-10）
+
+- `result` 绑定返回值：为函数分配隐藏局部 `result`（可变），在 ensures 条件求值前绑定；
+- 注入点：递归重写所有 `return v` 为 `result = v; 检查…; return result`（含 if/elif/else/while/嵌套块）；
+- 兜底路径：无显式 return（或并非所有路径返回）时追加 `result = 默认值; 检查…; return result`，
+  默认值仅支持基元类型（int/float/bool/char），其余报错要求显式 return；
+- void 返回类型 + `#[ensures]` 报错；`AYANAMI_CHECKS=0` 时检查退化为 `llvm.assume`；
+- 契约链路统一为 `HirStmt::Contract { kind, cond, line, col }`
+  （`ContractKind::{Require, Ensure, Invariant}`）→ `SMirContractStmt` → `SLirContractCheck`（tag 29，kind 字节）；
+- `example/test_ensures.aya`；违反时 runtime 输出 `ensures failed at L:C` 后 abort。
 
 ### A2d `#[requires]`（已完成运行检查，2026-10）
 
@@ -279,7 +290,8 @@ struct Holder['a] {
 - [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致）
 - [x] `#[assume(cond)]` → `llvm.assume`（A2c）
 - [x] `#[requires]` 运行检查 / `AYANAMI_CHECKS=0` → assume（A2d）
-- [ ] `#[ensures(result)]` 后置条件（return 点注入检查）
+- [x] `#[ensures(result)]` 后置条件（A2e；契约链路统一为 ContractKind）
+- [ ] `#[invariant]` 循环不变式（语句级标注）
 - [ ] 显式 debug/release 模式（CLI `--release`），替代环境变量
 - [ ] `#[invariant]` 语句级（循环）
 - [ ] 语句级 `#[cfg]`

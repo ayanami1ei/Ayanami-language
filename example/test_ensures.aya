@@ -1,0 +1,16 @@
+// A2e：后置条件（result 绑定返回值；默认运行检查，AYANAMI_CHECKS=0 转 assume）
+#[ensures(result >= 0)]
+fn abs2(int x) -> int {
+    if x < 0 { return -x }
+    return x
+}
+
+#[ensures(result == n + 1)]
+fn inc(int n) -> int { return n + 1 }
+
+#[ensures(result == 0)]
+fn fallthrough() -> int { }
+
+fn main() -> int {
+    return abs2(-3) - 3 + inc(4) - 5 + fallthrough()
+}

@@ -60,6 +60,11 @@ fn has_return_in_item(item: &HirItem) -> bool {
                     }
                 }
             }
+            if let HirStmt::Block(stmts) = s {
+                if stmts.iter().any(|s2| has_return_in_stmt(s2)) {
+                    return true;
+                }
+            }
             false
         }),
         HirItem::StructDef(_) | HirItem::InterfaceDef { .. } => true,

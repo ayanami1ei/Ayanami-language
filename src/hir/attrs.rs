@@ -8,6 +8,7 @@ use crate::parser::ast::{Attr, Program, Stmt};
 pub const ALLOWED: &[&str] = &[
     "assume",
     "requires",
+    "ensures",
     "cfg",
     "inline",
     "cold",

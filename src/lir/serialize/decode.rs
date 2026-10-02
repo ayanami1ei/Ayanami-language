@@ -149,8 +149,13 @@ impl<'a> Reader<'a> {
             }
             23 => { let d = self.u64()?; let vr = VarId(self.u32()? as usize); let m = self.read(1)?[0] != 0; let t = self.ty()?; Ok(SLirRefInst { dest: d, var_id: vr, mutable: m, ty: t }.into()) }
             29 => {
+                let kind = match self.read(1)?[0] {
+                    0 => crate::hir::ContractKind::Require,
+                    1 => crate::hir::ContractKind::Ensure,
+                    _ => crate::hir::ContractKind::Invariant,
+                };
                 let c = self.value()?; let line = self.u64()?; let col = self.u64()?;
-                Ok(SLirRequireCheck { cond: c, line, col }.into())
+                Ok(SLirContractCheck { kind, cond: c, line, col }.into())
             }
             28 => { let c = self.value()?; Ok(SLirAssume { cond: c }.into()) }
             27 => { let d = self.u64()?; let a = self.u64()?; let s = self.value()?; let m = self.read(1)?[0] != 0; let t = self.ty()?; Ok(SLirRefTmp { dest: d, alloca_tmp: a, src: s, mutable: m, ty: t }.into()) }

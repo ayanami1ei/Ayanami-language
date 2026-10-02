@@ -87,7 +87,7 @@ graph LR
 | LLVM 属性映射 | `lir/emit/functions.rs`（`llvm_attr_suffix`/`llvm_param_attrs`）、`lir/emit/mod.rs` | A1 函数级+形参级已完成 |
 | extern 真实签名 | `lir/lower/mod.rs`（`extern_decls`） | A1 已完成 |
 | cfg 条件裁剪 | `hir/cfg.rs`、`package/symbols.rs` | A2b 已完成 |
-| 契约标注（assume/requires） | `hir/contracts.rs`、`HirStmt::Assume`/`Require` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d 已完成 |
+| 契约标注（assume/requires/ensures） | `hir/contracts.rs`、`hir/lower/body/ensure.rs`、`HirStmt::{Assume,Contract}` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d/A2e 已完成 |
 | 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs.rs`（Imports 解析）；计划 `.lcl` 宏表、`target/macros/*.so` | A5a 已完成，A5b 待做 |
 | 效应检查 | `mir/` 或 HIR 新 pass | 未实现 |
 | 生命周期参数 | 类型系统 + `mir/borrow/` | 未实现 |

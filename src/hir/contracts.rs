@@ -6,7 +6,7 @@ use crate::parser::ast::{Attr, AttrArg, Expr};
 /// 校验函数级契约标注的参数形态（假定已通过白名单校验）。
 pub fn validate_fn_attrs(attrs: &[Attr]) -> Result<()> {
     for a in attrs {
-        let needs_expr = matches!(a.name.as_str().as_str(), "assume" | "requires");
+        let needs_expr = matches!(a.name.as_str().as_str(), "assume" | "requires" | "ensures");
         if needs_expr && (a.args.len() != 1 || !matches!(&a.args[0], AttrArg::Expr(_))) {
             return Err(Error::Hir(format!(
                 "#[{}] requires exactly one condition expression (at {}:{})",
@@ -36,6 +36,17 @@ pub fn checks_enabled() -> bool {
 pub fn requires_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)> {
     let mut out = Vec::new();
     for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "requires") {
+        if let Some(AttrArg::Expr(e)) = a.args.first() {
+            out.push((e.as_ref(), a.span.start_line, a.span.start_col));
+        }
+    }
+    out
+}
+
+/// 提取 `#[ensures(cond)]` 条件（表达式 + 行列），按声明顺序。
+pub fn ensure_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)> {
+    let mut out = Vec::new();
+    for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "ensures") {
         if let Some(AttrArg::Expr(e)) = a.args.first() {
             out.push((e.as_ref(), a.span.start_line, a.span.start_col));
         }
