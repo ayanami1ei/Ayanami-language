@@ -22,7 +22,7 @@ fn stmt_attr_names(stmt: &Stmt) -> Vec<String> {
         | Stmt::ImplBlock { attrs, .. } => attrs,
         _ => return Vec::new(),
     };
-    attrs.iter().map(|a| a.name.as_str().to_string()).collect()
+    attrs.iter().map(|a| a.path_str()).collect()
 }
 
 /// Collect all symbol definitions from a list of statements with their locations.

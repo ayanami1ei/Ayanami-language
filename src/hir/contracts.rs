@@ -35,7 +35,7 @@ pub fn checks_enabled() -> bool {
 /// 提取 `#[requires(cond)]` 条件（表达式 + 行列），按声明顺序。
 pub fn requires_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)> {
     let mut out = Vec::new();
-    for a in attrs.iter().filter(|a| a.name.as_str() == "requires") {
+    for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "requires") {
         if let Some(AttrArg::Expr(e)) = a.args.first() {
             out.push((e.as_ref(), a.span.start_line, a.span.start_col));
         }
@@ -46,7 +46,7 @@ pub fn requires_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)> {
 /// 提取 `#[assume(cond)]` 条件表达式（按声明顺序）。
 pub fn assume_conditions(attrs: &[Attr]) -> Vec<&Expr> {
     let mut out = Vec::new();
-    for a in attrs.iter().filter(|a| a.name.as_str() == "assume") {
+    for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "assume") {
         if let Some(AttrArg::Expr(e)) = a.args.first() {
             out.push(e.as_ref());
         }

@@ -37,7 +37,7 @@ pub fn node_to_stmt(node: &Node) -> Result<Stmt> {
         }
         "Import" => {
             let path = get_str(node, "path")?;
-            Ok(Stmt::Import { path, span: default_span() })
+            Ok(Stmt::Import { path, macros: vec![], span: default_span() })
         }
         "ReturnStmt" => {
             let value = node.child("value").map(|n| node_to_expr(&n)).transpose()?;

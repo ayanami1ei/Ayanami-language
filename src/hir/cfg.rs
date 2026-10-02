@@ -64,7 +64,7 @@ fn attrs_of(stmt: &Stmt) -> Option<&[Attr]> {
 
 fn cfg_enabled(attrs: Option<&[Attr]>) -> Result<bool> {
     let Some(attrs) = attrs else { return Ok(true) };
-    for a in attrs.iter().filter(|a| a.name.as_str() == "cfg") {
+    for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "cfg") {
         if a.args.is_empty() {
             return Err(Error::Hir(format!(
                 "#[cfg] requires at least one predicate (at {}:{})", a.span.start_line, a.span.start_col)));

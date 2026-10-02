@@ -202,9 +202,14 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
             let _ = writeln!(out, "{}}}", i);
         }
-        Import { path, .. } => {
+        Import { path, macros, .. } => {
             let i = indent(level);
-            let _ = writeln!(out, "{}import \"{}\";", i, path);
+            if macros.is_empty() {
+                let _ = writeln!(out, "{}import \"{}\";", i, path);
+            } else {
+                let list: Vec<String> = macros.iter().map(|m| m.as_str()).collect();
+                let _ = writeln!(out, "{}import \"{}\" {{ {} }};", i, path, list.join(", "));
+            }
         }
         ExprStmt { expr, .. } => {
             let i = indent(level);

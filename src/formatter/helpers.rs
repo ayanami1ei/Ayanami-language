@@ -31,7 +31,7 @@ pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usiz
 /// 打印标注：`#[name]` / `#[name(arg, ...)]`
 pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize) {
     for a in attrs {
-        let _ = write!(out, "{}#[{}", indent(level), a.name);
+        let _ = write!(out, "{}#[{}", indent(level), a.path_str());
         if !a.args.is_empty() {
             let rendered: Vec<String> = a.args.iter().map(write_attr_arg).collect();
             let _ = write!(out, "({})", rendered.join(", "));
@@ -68,7 +68,7 @@ pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_at
         if i > 0 { let _ = write!(out, ", "); }
         if let Some(attrs) = param_attrs.get(i) {
             for a in attrs {
-                let _ = write!(out, "#[{}", a.name);
+                let _ = write!(out, "#[{}", a.path_str());
                 if !a.args.is_empty() {
                     let rendered: Vec<String> = a.args.iter().map(write_attr_arg).collect();
                     let _ = write!(out, "({})", rendered.join(", "));

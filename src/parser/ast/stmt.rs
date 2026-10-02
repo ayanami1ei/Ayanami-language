@@ -8,9 +8,26 @@ use crate::span::Span;
 /// 声明上的标注：`#[name]` / `#[name(arg, ...)]`
 #[derive(Debug, Clone)]
 pub struct Attr {
+    /// A5a：`pkg::macro` 前缀（内置裸名时为空，`core::` 为内置别名）
+    pub qualifier: Vec<Symbol>,
     pub name: Symbol,
     pub args: Vec<AttrArg>,
     pub span: Span,
+}
+
+impl Attr {
+    /// 是否为编译器内置标注（裸名或 `core::` 前缀）。
+    pub fn is_builtin(&self) -> bool {
+        self.qualifier.is_empty()
+            || (self.qualifier.len() == 1 && self.qualifier[0].as_str() == "core")
+    }
+
+    /// 完整路径文本（`inline` / `core::inline` / `pkg::macro`）。
+    pub fn path_str(&self) -> String {
+        let mut segs: Vec<String> = self.qualifier.iter().map(|s| s.as_str()).collect();
+        segs.push(self.name.as_str());
+        segs.join("::")
+    }
 }
 
 /// 标注实参（A2a）：`key = value`（如 cfg(target = "linux")）或任意表达式
@@ -161,6 +178,8 @@ pub enum Stmt {
     },
     Import {
         path: String,
+        /// A5a：`import "pkg" { macro1, macro2 }` 的短名列表（宏展开 A5b）
+        macros: Vec<Symbol>,
         span: Span,
     },
 }

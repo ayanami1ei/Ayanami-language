@@ -14,7 +14,7 @@ pub(super) fn resolve_dependencies(
     let mut new_stmts = Vec::new();
 
     for stmt in &program.stmts {
-        if let Stmt::Import { path, .. } = stmt {
+        if let Stmt::Import { path, macros, .. } = stmt {
             let resolved = resolve_import_path(path, base_dir);
             let dep_path = match resolved {
                 Some(p) => p,
@@ -66,12 +66,14 @@ pub(super) fn resolve_dependencies(
                 }
                 new_stmts.push(Stmt::Import {
                     path: lcl_name,
+                    macros: macros.clone(),
                     span: crate::span::Span::default(),
                 });
             } else {
                 let lcl_str = dep_path.to_string_lossy().into_owned();
                 new_stmts.push(Stmt::Import {
                     path: lcl_str,
+                    macros: macros.clone(),
                     span: crate::span::Span::default(),
                 });
 

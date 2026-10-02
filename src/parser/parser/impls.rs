@@ -14,8 +14,22 @@ impl Parser {
             }
             _ => return Err(self.error("expected package path string after `import`")),
         };
+        // A5a：可选短名列表 `{ macro1, macro2 }`
+        let mut macros = Vec::new();
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
+            self.advance();
+            loop {
+                let name = self.expect_identifier()?;
+                macros.push(Symbol::intern(&name));
+                match self.peek().map(|t| &t.kind) {
+                    Some(TokenKind::Delimiter(Delimiter::RBrace)) => { self.advance(); break; }
+                    Some(TokenKind::Delimiter(Delimiter::Comma)) => { self.advance(); }
+                    _ => return Err(self.error("expected ',' or '}' in import list")),
+                }
+            }
+        }
         self.try_semicolon()?;
-        Ok(Stmt::Import { path, span: start_span })
+        Ok(Stmt::Import { path, macros, span: start_span })
     }
 
     pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {

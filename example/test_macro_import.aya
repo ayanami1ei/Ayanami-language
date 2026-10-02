@@ -1,0 +1,6 @@
+// A5a：import 短名列表 `{ ... }`（宏展开执行在 A5b；此处验证解析/校验/格式化）
+import "../std/math.aya" { abs };
+
+fn main() -> int {
+    return abs(-3) - 3
+}

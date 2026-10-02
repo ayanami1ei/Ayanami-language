@@ -32,12 +32,14 @@
     Program       = Item*;
 
     AttrList      = Attr*;
-    Attr          = "#" "[" Ident AttrArgs? "]";
+    Attr          = "#" "[" AttrPath AttrArgs? "]";
+    AttrPath      = Ident ("::" Ident)*;
     AttrArg       = Ident | IntLiteral | StringLiteral;
     AttrArgs      = "(" AttrArg ("," AttrArg)* ")";
     Item          = FnDecl | StructDef | EnumDef | InterfaceDef | ImplBlock | Import | Namespace;
 
-    Import        = "import" StringLiteral ";";
+    Import        = "import" StringLiteral ("{" IdentList "}")? ";";
+    IdentList     = Ident ("," Ident)*;
     Namespace     = Vis? "namespace" Ident "{" Item* "}";
 
     FnDecl        = AttrList Vis? Inline? ExternC? "fn" Ident GenericParams? "(" ParamList ")" ("->" Type)? Block;

@@ -1,8 +1,8 @@
-// 标注（A0）验证：`#[inline]` 映射 alwaysinline；其余白名单属性校验并存储
+// 标注（A0/A5a）验证：`#[inline]` 映射 alwaysinline；`#[core::pure]` 为内置别名
 #[inline]
 fn add(int a, int b) -> int { return a + b }
 
-#[pure]
+#[core::pure]
 #[cold]
 extern "C" fn strlen(unique [char] s) -> int;
 

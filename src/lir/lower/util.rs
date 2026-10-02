@@ -19,7 +19,8 @@ pub(super) fn attr_arg_to_string(arg: &crate::parser::ast::AttrArg) -> String {
 /// AST 标注列表 → LIR 标注列表
 pub(super) fn attrs_to_lir(attrs: &[crate::parser::ast::Attr]) -> Vec<LirAttr> {
     attrs.iter().map(|a| LirAttr {
-        name: a.name.as_str().to_string(),
+        // 内置（含 core:: 别名）只保留末段名，库宏保留全路径（A5a）
+        name: if a.is_builtin() { a.name.as_str() } else { a.path_str() },
         args: a.args.iter().map(|x| attr_arg_to_string(x)).collect(),
     }).collect()
 }

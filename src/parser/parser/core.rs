@@ -150,13 +150,25 @@ impl Parser {
             let span = self.peek().map(|t| t.span()).unwrap_or_default();
             self.advance(); // '#'
             self.expect_delimiter(Delimiter::LBracket)?;
-            // 属性名允许关键字（如 inline）
-            let name_str = match self.peek().map(|t| t.kind.clone()) {
+            // A5a：属性名支持路径 `pkg::macro`；各段允许关键字（如 inline）
+            let mut segments: Vec<Symbol> = Vec::new();
+            let first = match self.peek().map(|t| t.kind.clone()) {
                 Some(TokenKind::Identifier(s)) => { self.advance(); s }
                 Some(TokenKind::Keyword(k)) => { self.advance(); k.to_string() }
                 _ => return Err(self.error("expected attribute name")),
             };
-            let name = Symbol::intern(&name_str);
+            segments.push(Symbol::intern(&first));
+            while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Operator(s)) if s == "::") {
+                self.advance();
+                let seg = match self.peek().map(|t| t.kind.clone()) {
+                    Some(TokenKind::Identifier(s)) => { self.advance(); s }
+                    Some(TokenKind::Keyword(k)) => { self.advance(); k.to_string() }
+                    _ => return Err(self.error("expected attribute path segment after `::`")),
+                };
+                segments.push(Symbol::intern(&seg));
+            }
+            let name = segments.pop().unwrap();
+            let qualifier = segments;
             let mut args = Vec::new();
             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
                 self.advance();
@@ -170,7 +182,7 @@ impl Parser {
                 self.expect_delimiter(Delimiter::RParen)?;
             }
             self.expect_delimiter(Delimiter::RBracket)?;
-            attrs.push(crate::parser::ast::Attr { name, args, span });
+            attrs.push(crate::parser::ast::Attr { qualifier, name, args, span });
         }
         Ok(attrs)
     }

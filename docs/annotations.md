@@ -197,22 +197,25 @@ struct Holder['a] {
   3. **插件属性**（远期）：插件注册的编译器扩展属性，独立命名空间（如 `plugin::attr`）。
 - 宏只能展开出源码；若结果含内置标注，再由既有白名单与各 pass 处理。
   「编译器优化」与「宏」由此分层：前者是保留内置，后者是纯源码变换。
+- **A5a 已实现**：`Attr.qualifier` + `AttrPath`（`pkg::macro`）解析与 formatter 往返；
+  `core::name` 为内置别名；`hir/attrs.rs::Imports` 汇总 import 并做 provider 解析；
+  `import "pkg" { a, b }` 短名列表（依赖改写保留列表）；库宏当前解析成功但报
+  “lands in A5b”。
 
-### 8.2 宏写法（执行模型候选，待拍板）
+### 8.2 宏写法（执行模型：M3，Ayanami 先行）
 
-| 模型 | 定义写法 | 能力 | 成本 |
-|---|---|---|---|
-| M1 声明式模板 | `#[macro] macro getters(Ident) { ... }` | 占位替换/重复展开，无任意计算 | 低 |
-| M2 编译期执行（推荐） | `#[macro] fn getter(Source item, Source args) -> Source { ... }`，编译器编译为插件 `.so` 后 dlopen 调用 | 任意 Ayanami 代码，等价 Rust proc-macro | 中 |
-| M3 外部插件 | C ABI / WASM 注册 provider | 任意语言、可注册编译器级属性 | 高（远期） |
+已拍板：**M3 外部插件 ABI**；首个实现语言为 Ayanami，其他语言按同一 ABI 后续接入。
 
-M2 实现要点（若拍板）：
-
-- 宏是 `pub` + `#[macro]` 的 Ayanami 函数，导出到 `.lcl` 的宏表（新 section）；
-- 首次使用时把宏源码编译为动态库（复用 `driver::ir_to_library(..., "dynamic-lib")`），
-  C ABI：`extern "C" fn(input: *const u8, len: usize) -> *mut u8`（长度前缀返回；源文本进/出）；
+- 插件 ABI（草案）：插件导出
+  `extern "C" fn __ayanami_macro_expand(input_ptr: *const u8, input_len: usize, out_len: *mut usize) -> *mut u8`，
+  源文本进 / 源文本出（长度前缀）；编译器 `dlopen` 调用（`libloading` 或裸 `dlopen`）。
+- Ayanami 宏：`pub` + `#[macro]` 函数，参数/返回为 `Source`（内建文本类型）；
+  编译器按需用现有后端编译为动态库（`driver::ir_to_library(..., "dynamic-lib")`），
+  导出到 `.lcl` 的宏表（新 section）。
 - 展开：对带库宏标注的 item 依次调用 → 结果重新解析 → 内置标注校验 → 拼回 AST → 正常 HIR；
-- 缓存 `target/macros/<hash>.so`；信任模型同 Rust proc-macro（编译期执行，文档明示；WASM 沙箱远期）。
+  递归展开设上限并检测循环，错误带宏名 + 调用点。
+- 缓存 `target/macros/<hash>.so`；信任模型同 Rust proc-macro（编译期执行，文档明示）；
+  WASM 沙箱与插件清单/权限为远期（A5c）。
 
 ### 8.3 展开时机与卫生性
 
@@ -241,7 +244,7 @@ M2 实现要点（若拍板）：
 | ADR-5 | 先做 A0 基础设施 | 全链路保真后再挂语义，避免返工 |
 | ADR-6 | 内置标注保留裸名，库宏用 `pkg::macro`；import 后可裸名，重名报错 | 兼容现有代码，命名冲突可诊断 |
 | ADR-7 | 宏只做源码展开，不能直接产生编译器级优化属性 | 保持「优化承诺」可信；展开物再走白名单校验 |
-| ADR-8 | 宏执行模型待拍板（M1/M2/M3） | 能力/成本/安全三者权衡 |
+| ADR-8 | 宏执行模型采用 M3 插件 ABI，Ayanami 先行 | 统一 ABI 便于多语言；先自举可复用现有后端 |
 
 ## 11. 实现状态
 
@@ -283,9 +286,9 @@ M2 实现要点（若拍板）：
 
 ### A5（设计，待拍板）
 
-- [ ] A5a 标注名路径化（`pkg::macro`）+ provider 解析（纯解析/校验，不执行）
-- [ ] A5b 宏定义语法 + 执行模型（M1/M2 待拍板）+ item 级展开
-- [ ] A5c 卫生性 / 语句表达式宏 / 插件清单与权限（远期）
+- [x] A5a 标注名路径化（`pkg::macro`）+ provider 解析 + `core::` 别名 + import 短名列表
+- [ ] A5b `#[macro]` 定义 + 宏表（.lcl）+ M3 插件 ABI（Ayanami 编译为 .so）+ item 级展开
+- [ ] A5c 其他语言插件 / WASM 沙箱 / 语句表达式宏 / 插件清单与权限（远期）
 
 ### 已知问题
 
