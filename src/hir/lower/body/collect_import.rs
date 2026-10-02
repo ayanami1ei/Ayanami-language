@@ -165,8 +165,10 @@ impl crate::hir::lower::Ctx {
                             params: hir_params,
                             return_type: hir_ret,
                             effects: crate::hir::effects::EffectDecl {
-                                throws: if *no_throws { Some(Vec::new()) } else { None },
-                                effs: if *no_effects { Some(Vec::new()) } else { None },
+                                effects: Vec::new(),
+                                pure: *no_effects,
+                                no_error: *no_throws,
+                                throws: None,
                             },
                         });
                         self.fn_map.entry(sym_name).or_default().push(fn_id);

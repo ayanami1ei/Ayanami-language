@@ -114,20 +114,20 @@ pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_pa
                 super::scan::Obs::Io(name, l, c) => Some((name.clone(), *l, *c)),
                 _ => None,
             });
-            match &f.effects.effs {
-                None => issues.push(format!(
-                    "{}: warning: function `{}` may have effect `io` (call to `{}`); consider adding #[eff(io)]",
+            if f.effects.pure {
+                issues.push(format!(
+                    "{}: warning: function `{}` is #[pure] but calls `{}` (hard discrepancy)",
                     loc(site.as_ref().map(|(_, l, c)| (*l, *c))),
                     full,
                     site.as_ref().map(|(n, _, _)| n.as_str()).unwrap_or("?"),
-                )),
-                Some(v) if !v.iter().any(|e| e.as_str() == "io") => issues.push(format!(
-                    "{}: warning: function `{}` declares #[eff] without `io` but calls `{}` (hard discrepancy)",
+                ));
+            } else if !f.effects.has_effect("io") {
+                issues.push(format!(
+                    "{}: warning: function `{}` may have effect `io` (call to `{}`); consider adding #[io]",
                     loc(site.as_ref().map(|(_, l, c)| (*l, *c))),
                     full,
                     site.as_ref().map(|(n, _, _)| n.as_str()).unwrap_or("?"),
-                )),
-                _ => {}
+                ));
             }
         }
 
@@ -143,7 +143,7 @@ pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_pa
                     loc(site),
                     full,
                 )),
-                Some(v) if v.is_empty() => issues.push(format!(
+                Some(crate::hir::effects::ThrowsDecl::OpenEmpty) => issues.push(format!(
                     "{}: warning: function `{}` declares #[throws()] but may throw (hard discrepancy)",
                     loc(site),
                     full,
@@ -171,16 +171,9 @@ pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_pa
 
 fn declared_to_set(d: &EffectDecl) -> EffectSet {
     let mut s = EffectSet::default();
-    if let Some(effs) = &d.effs {
-        for e in effs {
-            if e.as_str() == "io" {
-                s.io = true;
-            }
-        }
-    }
-    if let Some(ts) = &d.throws {
-        for t in ts {
-            s.throws.insert(t.as_str());
+    for e in &d.effects {
+        if e.as_str() == "io" {
+            s.io = true;
         }
     }
     s

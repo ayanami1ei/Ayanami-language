@@ -11,7 +11,7 @@ pub const ALLOWED: &[&str] = &[
     "ensures",
     "invariant",
     "throws",
-    "eff",
+    "no_error",
     "cfg",
     "inline",
     "cold",
@@ -92,7 +92,7 @@ pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()> {
 fn resolve(a: &Attr, imports: &Imports) -> Result<()> {
     let name = a.name.as_str();
     if a.is_builtin() {
-        if ALLOWED.contains(&name.as_str()) {
+        if ALLOWED.contains(&name.as_str()) || crate::hir::effects::is_effect(&name) {
             return Ok(());
         }
         // `import "pkg" { name }` 短名 → 库宏

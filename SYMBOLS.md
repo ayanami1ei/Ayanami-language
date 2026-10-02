@@ -179,20 +179,26 @@ src/hir/effects/infer.rs:31: pub fn set_verify_effects(v: bool)
 src/hir/effects/infer.rs:35: pub fn verify_effects() -> bool
 src/hir/effects/infer.rs:40: pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
 src/hir/effects/infer.rs:172: fn declared_to_set(d: &EffectDecl) -> EffectSet
-src/hir/effects/infer.rs:189: fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
-src/hir/effects/infer.rs:199: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<crate::hir::ty::FnId>)
-src/hir/effects/infer.rs:239: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<crate::hir::ty::FnId>)
-src/hir/effects/mod.rs:13: pub const KNOWN_EFFECTS: &[&str] = &["io", "state", "alloc"];
-src/hir/effects/mod.rs:17: pub struct EffectDecl
-src/hir/effects/mod.rs:24: impl EffectDecl
-src/hir/effects/mod.rs:26: pub fn no_effects(&self) -> bool
-src/hir/effects/mod.rs:31: pub fn no_throws(&self) -> bool
-src/hir/effects/mod.rs:37: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
-src/hir/effects/mod.rs:72: fn parse_names(a: &Attr, kind: &str) -> Result<Vec<Symbol>>
-src/hir/effects/mod.rs:86: fn bad_arg(kind: &str, a: &Attr) -> Error
-src/hir/effects/mod.rs:94: pub(crate) const IO_NAMES: &[&str] = &[
-src/hir/effects/mod.rs:100: pub mod infer;
-src/hir/effects/mod.rs:101: pub mod scan;
+src/hir/effects/infer.rs:182: fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
+src/hir/effects/infer.rs:192: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<crate::hir::ty::FnId>)
+src/hir/effects/infer.rs:232: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<crate::hir::ty::FnId>)
+src/hir/effects/mod.rs:15: pub const BUILTIN_EFFECTS: &[&str] = &["io", "state", "alloc"];
+src/hir/effects/mod.rs:18: pub(crate) const IO_NAMES: &[&str] = &[
+src/hir/effects/mod.rs:24: pub mod infer;
+src/hir/effects/mod.rs:25: pub mod scan;
+src/hir/effects/mod.rs:30: static EXTRA_EFFECTS: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
+src/hir/effects/mod.rs:32: pub fn register_effect(name: &str)
+src/hir/effects/mod.rs:40: pub fn is_effect(name: &str) -> bool
+src/hir/effects/mod.rs:46: pub enum ThrowsDecl
+src/hir/effects/mod.rs:57: pub struct EffectDecl
+src/hir/effects/mod.rs:68: impl EffectDecl
+src/hir/effects/mod.rs:69: pub fn has_effect(&self, name: &str) -> bool
+src/hir/effects/mod.rs:74: pub fn no_effects(&self) -> bool
+src/hir/effects/mod.rs:79: pub fn no_throws(&self) -> bool
+src/hir/effects/mod.rs:85: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
+src/hir/effects/mod.rs:106: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
+src/hir/effects/mod.rs:127: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
+src/hir/effects/mod.rs:144: fn bad_throws(a: &Attr) -> Error
 src/hir/effects/scan.rs:8: pub(super) enum Obs
 src/hir/effects/scan.rs:13: pub(super) fn collect_ast_observations(program: &crate::parser::ast::Program) -> HashMap<String, Vec<Obs>>
 src/hir/effects/scan.rs:21: fn qualify(prefix: &str, name: &str) -> String

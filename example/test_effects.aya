@@ -1,24 +1,24 @@
 // A3a：效应注解解析/存储（注解权威；推断与自动属性在后续阶段）
-#[eff(io)]
+#[io]
 extern "C" fn putchar(int c) -> int;
 
 #[throws(ParseError)]
 fn parse(int x) -> int { return x }
 
 #[throws()]
-#[eff()]
+#[pure]
 fn pure_fn() -> int { return 0 }
 
 #[pure]
 fn id[T](T x) -> T { return x }
 
 // 推断一致：内部调用 putchar，声明了 io → 无提醒
-#[eff(io)]
+#[io]
 fn declared_io() -> int { putchar(65); return 0 }
 
-// A3b：显式空集 → 自动 LLVM 属性（extern 同样生效）
-#[throws()]
-extern "C" fn may_fail(int x) -> int;
+// A3b（修正后）：#[pure]/#[no_error] 才产生优化承诺
+#[no_error]
+extern "C" fn no_fail(int x) -> int;
 
 fn main() -> int {
     return pure_fn() + id(5) + parse(1) - 6
