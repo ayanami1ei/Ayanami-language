@@ -74,7 +74,7 @@ graph TD
 graph LR
     A0[A0 基础设施<br/>语法/AST/HIR/fmt/defs] --> A1[A1 优化标注<br/>LLVM 属性/跨语言]
     A1 --> A2[A2 条件与契约<br/>cfg/requires/assume]
-    A2 --> A3[A3 效应系统<br/>throws/? 统一]
+    A2 --> A3[A3 效应系统<br/>注解权威/推断辅助]
     A3 --> A4[A4 显式生命周期<br/>类型参数 'a]
     A4 --> A5[A5 用户宏/插件<br/>provider/宏展开]
 ```
@@ -89,7 +89,7 @@ graph LR
 | cfg 条件裁剪 | `hir/cfg.rs`、`package/symbols.rs` | A2b 已完成（A2f 起含语句级） |
 | 契约标注（assume/requires/ensures/invariant） | `hir/contracts.rs`、`hir/lower/body/ensure.rs`、`HirStmt::{Assume,Contract}` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d/A2e/A2f 已完成 |
 | 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs.rs`（Imports 解析）；计划 `.lcl` 宏表、`target/macros/*.so` | A5a 已完成，A5b 待做 |
-| 效应检查 | `mir/` 或 HIR 新 pass | 未实现 |
+| 效应系统 | 计划：`hir/effects.rs` 推断 + 注解存储；A3a | 设计已定稿（§6） |
 | 生命周期参数 | 类型系统 + `mir/borrow/` | 未实现 |
 
 ## 4. 工具与流程
