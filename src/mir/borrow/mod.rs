@@ -20,11 +20,22 @@ use crate::hir::ir::{HirType, VarId};
 use crate::mir::ir::*;
 
 pub fn check_borrows(mir_fn: &MirFn) -> Result<()> {
-    if matches!(mir_fn.return_type, HirType::Ref(..)) {
+    // 引用参数（生命周期省略需要恰好一个）
+    let ref_params: Vec<(VarId, bool)> = mir_fn
+        .params
+        .iter()
+        .enumerate()
+        .filter_map(|(i, (_, ty))| match ty {
+            HirType::Ref(_, m) => Some((VarId(i), *m)),
+            _ => None,
+        })
+        .collect();
+    if matches!(mir_fn.return_type, HirType::Ref(..)) && ref_params.len() != 1 {
         return Err(Error::Borrow(format!(
-            "function `{}` cannot return a reference: borrows cannot escape",
-            mir_fn.name.as_str()
+            "function `{}` returns a reference but has {} reference parameters (lifetime elision requires exactly one)",
+            mir_fn.name.as_str(),
+            ref_params.len()
         )));
     }
-    loans::check_fn(mir_fn)
+    loans::check_fn(mir_fn, &ref_params)
 }

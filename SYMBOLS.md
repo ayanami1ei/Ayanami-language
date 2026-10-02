@@ -1075,11 +1075,11 @@ src/mir/borrow/cfg.rs:56: fn seq(&mut self, stmts: &'a [MirStmtBox], next: usize
 src/mir/borrow/cfg.rs:64: fn stmt(&mut self, s: &'a dyn MirStmtNode, next: usize, loops: &[(usize, usize)]) -> usize
 src/mir/borrow/cfg.rs:105: fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<VarId>) -> (HashSet<VarId>, HashSet<VarId>)
 src/mir/borrow/liveness.rs:6: pub fn live_in(cfg: &cfg::Cfg) -> Vec<HashSet<VarId>>
-src/mir/borrow/loans.rs:6: struct Loan
-src/mir/borrow/loans.rs:11: pub fn check_fn(mir_fn: &MirFn) -> Result<()>
-src/mir/borrow/loans.rs:111: fn var_name(mir_fn: &MirFn, v: VarId) -> String
-src/mir/borrow/loans.rs:120: fn walk_stmt(
-src/mir/borrow/loans.rs:151: fn walk_expr(
+src/mir/borrow/loans.rs:7: struct Loan
+src/mir/borrow/loans.rs:17: pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()>
+src/mir/borrow/loans.rs:175: fn var_name(mir_fn: &MirFn, v: VarId) -> String
+src/mir/borrow/loans.rs:184: fn walk_stmt(
+src/mir/borrow/loans.rs:215: fn walk_expr(
 src/mir/borrow/mod.rs:14: mod cfg;
 src/mir/borrow/mod.rs:15: mod liveness;
 src/mir/borrow/mod.rs:16: mod loans;
@@ -1596,6 +1596,9 @@ example/test_poly.aya:25: fn main() -> int
 example/test_ref_param.aya:2: struct Box2
 example/test_ref_param.aya:6: fn get(ref Box2 b) -> int
 example/test_ref_param.aya:10: fn main() -> int
+example/test_ref_return.aya:3: struct S
+example/test_ref_return.aya:7: fn pick(ref S s) -> ref S
+example/test_ref_return.aya:11: fn main() -> int
 example/test_ref_self.aya:2: struct Counter
 example/test_ref_self.aya:6: impl Counter
 example/test_ref_self.aya:7: fn get(ref self) -> int

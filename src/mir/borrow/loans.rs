@@ -1,33 +1,80 @@
 use std::collections::HashMap;
+
 use super::*;
 use super::cfg::Payload;
 
-/// 引用局部变量对应的借用。
+/// 引用局部变量/参数对应的借用。
 struct Loan {
+    /// 被借用的变量
     var: VarId,
     mutable: bool,
+    /// 借用的"来源"：ref 局部自身，或（拷贝时）来源参数/局部
+    origin: VarId,
 }
 
-pub fn check_fn(mir_fn: &MirFn) -> Result<()> {
+/// 检查入口。
+/// `ref_params`: 函数的引用参数（VarId, 是否可变）。
+pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
     let cfg = cfg::build(&mir_fn.body);
     let live_in = liveness::live_in(&cfg);
 
-    // 1) 收集 `r = ref x` / `r = ref mut x` 形式的引用局部变量
+    // 1) 收集引用局部变量：r = ref x / r = s（引用拷贝）/ r = f(args)（返回引用的调用）
     let mut loans: HashMap<VarId, Loan> = HashMap::new();
     for node in &cfg.nodes {
         if let Payload::Stmt(s) = &node.payload {
-            if let Some((target, value)) = s.assign_parts() {
-                if let Some(r) = target.as_local() {
-                    if matches!(target.expr_type(), HirType::Ref(..)) {
-                        let Some((var, mutable)) = value.as_ref() else {
+            let Some((target, value)) = s.assign_parts() else { continue };
+            let Some(r) = target.as_local() else { continue };
+            if !matches!(target.expr_type(), HirType::Ref(..)) {
+                continue;
+            }
+            if let Some((var, mutable)) = value.as_ref() {
+                loans.insert(r, Loan { var, mutable, origin: r });
+            } else if let Some(src) = value.as_local() {
+                // 引用拷贝：r = s
+                if let Some(l) = loans.get(&src) {
+                    loans.insert(r, Loan { var: l.var, mutable: l.mutable, origin: l.origin });
+                } else if let Some(&(_, mutable)) = ref_params.iter().find(|(v, _)| *v == src) {
+                    loans.insert(r, Loan { var: src, mutable, origin: src });
+                }
+            } else if value.is_call() {
+                // 返回引用的调用：借用目标来自实参中的引用
+                let ret_mut = matches!(value.expr_type(), HirType::Ref(_, true));
+                let mut found = None;
+                value.for_each_child(&mut |c| {
+                    if found.is_none() {
+                        if let Some((var, mutable)) = c.as_ref() {
+                            found = Some(Loan { var, mutable, origin: r });
+                        } else if let Some(src) = c.as_local() {
+                            if let Some(l) = loans.get(&src) {
+                                found = Some(Loan { var: l.var, mutable: l.mutable, origin: l.origin });
+                            } else if let Some(&(_, mutable)) = ref_params.iter().find(|(v, _)| *v == src) {
+                                found = Some(Loan { var: src, mutable, origin: src });
+                            }
+                        }
+                    }
+                });
+                match found {
+                    Some(l) => {
+                        if ret_mut && !l.mutable {
                             return Err(Error::Borrow(format!(
-                                "reference local `{}` must be initialized directly from `ref`/`ref mut`",
-                                var_name(mir_fn, r)
+                                "cannot return `ref mut` from an immutable borrow of `{}`",
+                                var_name(mir_fn, l.var)
                             )));
-                        };
-                        loans.insert(r, Loan { var, mutable });
+                        }
+                        loans.insert(r, Loan { var: l.var, mutable: ret_mut, origin: l.origin });
+                    }
+                    None => {
+                        return Err(Error::Borrow(format!(
+                            "call returning a reference has no reference argument (at assignment to `{}`)",
+                            var_name(mir_fn, r)
+                        )));
                     }
                 }
+            } else {
+                return Err(Error::Borrow(format!(
+                    "reference local `{}` must be initialized from `ref`, another reference, or a call returning a reference",
+                    var_name(mir_fn, r)
+                )));
             }
         }
     }
@@ -77,11 +124,27 @@ pub fn check_fn(mir_fn: &MirFn) -> Result<()> {
         }
 
         if let Payload::Stmt(s) = &node.payload {
+            // 返回引用：必须来自唯一的引用参数（生命周期省略）
+            if let Some(v) = s.return_value() {
+                if matches!(mir_fn.return_type, HirType::Ref(..)) {
+                    let ok = ref_params.iter().any(|(p, pm)| {
+                        (v.as_local() == Some(*p)
+                            || loans.get(&v.as_local().unwrap_or(*p)).map(|l| l.origin == *p).unwrap_or(false))
+                            && (!matches!(mir_fn.return_type, HirType::Ref(_, true)) || *pm)
+                    });
+                    if !ok {
+                        errors.push(format!(
+                            "returned reference must be derived from the elided reference parameter"
+                        ));
+                    }
+                }
+            }
             // 引用局部定义：检查新借用与已有活跃借用的冲突
             if let Some((target, value)) = s.assign_parts() {
                 if matches!(target.expr_type(), HirType::Ref(..)) {
                     let defining = target.as_local();
-                    if let Some((var, mutable)) = value.as_ref() {
+                    let borrowed = loans.get(&defining.unwrap_or(VarId(usize::MAX))).map(|l| (l.var, l.mutable));
+                    if let Some((var, mutable)) = borrowed {
                         let conflict = active.iter().any(|(r, l)| {
                             Some(*r) != defining && l.var == var && (l.mutable || mutable)
                         });
@@ -93,6 +156,7 @@ pub fn check_fn(mir_fn: &MirFn) -> Result<()> {
                             ));
                         }
                     }
+                    let _ = value;
                     continue; // 定义语句不再按临时借用遍历
                 }
             }

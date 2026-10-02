@@ -1,0 +1,17 @@
+// 引用返回 + 生命周期省略验证：
+// 恰好一个引用参数时，返回的引用视为来自该参数；NLL 在最后一次使用后失效
+struct S {
+    int v
+}
+
+fn pick(ref S s) -> ref S {
+    return s
+}
+
+fn main() -> int {
+    x = S { v = 7 };
+    r = pick(x);
+    a = r.v;
+    x.v = 9;      // 合法：r 的最后一次使用已过
+    return x.v;   // 9
+}
