@@ -74,6 +74,17 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 - 类型定义留在 `mod.rs`（子模块才能访问私有字段）；`impl` 块可放子模块，跨模块调用的方法标 `pub(crate)` / `pub(super)`。
 - 目录入口用 `mod` + `pub use` 保持对外路径不变。
 - `src/generated/ayanami_parser/` 由 `./gen_parser.sh` 生成（asuka 输出 + `scripts/split_generated_parser.py` 拆分），禁止手改；只改根目录 `ayanami.grammar` 后重新生成。
+- **改动代码后必须更新符号地图**：跑 `./scripts/gen_symbols.sh`（会刷新 `SYMBOLS.md` 的文件与行号），提交前 `./scripts/gen_symbols.sh --check` 必须通过。
+
+## 提交前检查
+
+每完成一段必须通过检查并推送（`git push origin rust`）：
+
+```bash
+./scripts/check_all.sh        # 版本号 + 文件行数 + 符号地图是否过期
+cargo check --all-targets
+cargo test
+```
 
 ## 分支约定
 
