@@ -20,21 +20,28 @@ pub(crate) use fmt::cmd_fmt;
 pub(crate) use new::cmd_new;
 pub(crate) use package_install::{cmd_install, cmd_package};
 
-/// A2：提取 `--release` 标志（其余参数保持顺序）。
-pub(crate) fn split_release(args: &[String]) -> (Vec<String>, bool) {
+/// 编译器 CLI 标志。
+pub(crate) struct CliFlags {
+    pub release: bool,
+    pub verify_effects: bool,
+}
+
+/// A2/A3：提取标志（`--release` / `--verify-effects`），其余参数保持顺序。
+pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags) {
     let mut rest = Vec::new();
-    let mut release = false;
+    let mut flags = CliFlags { release: false, verify_effects: false };
     for a in args {
-        if a == "--release" {
-            release = true;
-        } else {
-            rest.push(a.clone());
+        match a.as_str() {
+            "--release" => flags.release = true,
+            "--verify-effects" => flags.verify_effects = true,
+            _ => rest.push(a.clone()),
         }
     }
-    (rest, release)
+    (rest, flags)
 }
 
 /// 设置编译模式（进程级）。
-pub(crate) fn apply_mode(release: bool) {
-    ayanami::hir::contracts::set_release(release);
+pub(crate) fn apply_mode(flags: &CliFlags) {
+    ayanami::hir::contracts::set_release(flags.release);
+    ayanami::hir::effects::set_verify_effects(flags.verify_effects);
 }

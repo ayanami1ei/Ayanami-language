@@ -5,6 +5,7 @@ pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::
         .map_err(|e| Error::Compile(format!("{}: {}", src_path.display(), e)))?;
 
     check_hir_returns(&hir_program, src_path)?;
+    crate::hir::effects::check_effects(&hir_program, program, src_path)?;
 
     let mir_program = crate::mir::lower_program(&hir_program)?;
     for item in &mir_program.items {

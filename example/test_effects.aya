@@ -12,6 +12,10 @@ fn pure_fn() -> int { return 0 }
 #[pure]
 fn id[T](T x) -> T { return x }
 
+// 推断一致：内部调用 putchar，声明了 io → 无提醒
+#[eff(io)]
+fn declared_io() -> int { putchar(65); return 0 }
+
 fn main() -> int {
     return pure_fn() + id(5) + parse(1) - 6
 }

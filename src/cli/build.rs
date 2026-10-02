@@ -1,8 +1,8 @@
 use super::*;
 
 pub(crate) fn cmd_build(args: &[String]) {
-    let (args, release) = split_release(args);
-    apply_mode(release);
+    let (args, flags) = split_flags(args);
+    apply_mode(&flags);
     let path = resolve_path(args.first().map(|s| s.as_str()));
     let path_str = path.to_string_lossy().into_owned();
 
@@ -22,8 +22,8 @@ pub(crate) fn cmd_build(args: &[String]) {
 }
 
 pub(crate) fn cmd_run(args: &[String]) {
-    let (args, release) = split_release(args);
-    apply_mode(release);
+    let (args, flags) = split_flags(args);
+    apply_mode(&flags);
     let path = resolve_path(args.first().map(|s| s.as_str()));
     let path_str = path.to_string_lossy().into_owned();
 

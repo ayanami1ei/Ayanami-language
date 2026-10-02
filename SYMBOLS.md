@@ -20,8 +20,9 @@ src/cli/mod.rs:10: pub(crate) mod defs;
 src/cli/mod.rs:11: pub(crate) mod fmt;
 src/cli/mod.rs:12: pub(crate) mod new;
 src/cli/mod.rs:13: pub(crate) mod package_install;
-src/cli/mod.rs:24: pub(crate) fn split_release(args: &[String]) -> (Vec<String>, bool)
-src/cli/mod.rs:38: pub(crate) fn apply_mode(release: bool)
+src/cli/mod.rs:24: pub(crate) struct CliFlags
+src/cli/mod.rs:30: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
+src/cli/mod.rs:44: pub(crate) fn apply_mode(flags: &CliFlags)
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:18: pub(crate) fn cmd_install(args: &[String])
@@ -31,7 +32,7 @@ src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:124: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:141: pub(super) fn merge_symbols(
 src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram>
-src/compiler/build/lir.rs:19: pub(super) fn build_target_artifact(
+src/compiler/build/lir.rs:20: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:14: mod compile;
 src/compiler/build/mod.rs:15: mod deps;
 src/compiler/build/mod.rs:16: mod lir;
@@ -178,6 +179,24 @@ src/hir/effects.rs:31: pub fn no_throws(&self) -> bool
 src/hir/effects.rs:37: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
 src/hir/effects.rs:72: fn parse_names(a: &Attr, kind: &str) -> Result<Vec<Symbol>>
 src/hir/effects.rs:86: fn bad_arg(kind: &str, a: &Attr) -> Error
+src/hir/effects.rs:104: pub struct EffectSet
+src/hir/effects.rs:109: impl EffectSet
+src/hir/effects.rs:110: fn union(&mut self, o: &EffectSet)
+src/hir/effects.rs:117: static VERIFY_EFFECTS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+src/hir/effects.rs:119: pub fn set_verify_effects(v: bool)
+src/hir/effects.rs:123: pub fn verify_effects() -> bool
+src/hir/effects.rs:128: const IO_NAMES: &[&str] = &[
+src/hir/effects.rs:135: pub fn check_effects(hir: &HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
+src/hir/effects.rs:267: fn declared_to_set(d: &EffectDecl) -> EffectSet
+src/hir/effects.rs:284: fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
+src/hir/effects.rs:294: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<crate::hir::ty::FnId>)
+src/hir/effects.rs:334: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<crate::hir::ty::FnId>)
+src/hir/effects.rs:343: enum Obs
+src/hir/effects.rs:348: fn collect_ast_observations(program: &crate::parser::ast::Program) -> HashMap<String, Vec<Obs>>
+src/hir/effects.rs:356: fn qualify(prefix: &str, name: &str) -> String
+src/hir/effects.rs:360: fn scan_decl(stmt: &crate::parser::ast::Stmt, prefix: &str, map: &mut HashMap<String, Vec<Obs>>)
+src/hir/effects.rs:382: fn scan_body(stmt: &crate::parser::ast::Stmt, obs: &mut Vec<Obs>)
+src/hir/effects.rs:429: fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>)
 src/hir/item.rs:7: pub struct HirStructField
 src/hir/item.rs:13: pub struct HirStructDef
 src/hir/item.rs:19: pub struct HirLocal
@@ -398,34 +417,35 @@ src/hir/lower/to_mir/basic.rs:80: fn expr_type(&self) -> HirType { self.ty.clone
 src/hir/lower/to_mir/basic.rs:81: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
 src/hir/lower/to_mir/basic.rs:86: impl HirNode for SCall
 src/hir/lower/to_mir/basic.rs:87: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/basic.rs:88: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/basic.rs:95: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/basic.rs:100: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/basic.rs:101: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/basic.rs:106: impl HirNode for SMove
-src/hir/lower/to_mir/basic.rs:107: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/basic.rs:108: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/basic.rs:111: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/basic.rs:116: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/basic.rs:117: fn is_move_or_clone(&self) -> bool { true }
-src/hir/lower/to_mir/basic.rs:118: fn as_move(&self) -> Option<&HirNodeBox> { Some(&self.expr) }
-src/hir/lower/to_mir/basic.rs:119: fn record_moves(&self, moved: &mut HashSet<VarId>)
-src/hir/lower/to_mir/basic.rs:126: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/basic.rs:131: impl HirNode for SClone
-src/hir/lower/to_mir/basic.rs:132: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/basic.rs:133: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/basic.rs:136: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/basic.rs:141: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/basic.rs:142: fn is_move_or_clone(&self) -> bool { true }
-src/hir/lower/to_mir/basic.rs:143: fn as_clone(&self) -> Option<&HirNodeBox> { Some(&self.expr) }
-src/hir/lower/to_mir/basic.rs:144: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/basic.rs:149: impl HirNode for SToUnique
-src/hir/lower/to_mir/basic.rs:150: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/basic.rs:151: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/basic.rs:154: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/basic.rs:159: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/basic.rs:160: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/basic.rs:163: fn record_moves(&self, moved: &mut HashSet<VarId>)
+src/hir/lower/to_mir/basic.rs:88: fn as_call(&self) -> Option<FnId> { Some(self.fn_id) }
+src/hir/lower/to_mir/basic.rs:89: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/basic.rs:96: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/basic.rs:101: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/basic.rs:102: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/basic.rs:107: impl HirNode for SMove
+src/hir/lower/to_mir/basic.rs:108: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/basic.rs:109: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/basic.rs:112: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/basic.rs:117: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/basic.rs:118: fn is_move_or_clone(&self) -> bool { true }
+src/hir/lower/to_mir/basic.rs:119: fn as_move(&self) -> Option<&HirNodeBox> { Some(&self.expr) }
+src/hir/lower/to_mir/basic.rs:120: fn record_moves(&self, moved: &mut HashSet<VarId>)
+src/hir/lower/to_mir/basic.rs:127: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/basic.rs:132: impl HirNode for SClone
+src/hir/lower/to_mir/basic.rs:133: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/basic.rs:134: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/basic.rs:137: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/basic.rs:142: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/basic.rs:143: fn is_move_or_clone(&self) -> bool { true }
+src/hir/lower/to_mir/basic.rs:144: fn as_clone(&self) -> Option<&HirNodeBox> { Some(&self.expr) }
+src/hir/lower/to_mir/basic.rs:145: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/basic.rs:150: impl HirNode for SToUnique
+src/hir/lower/to_mir/basic.rs:151: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/basic.rs:152: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/basic.rs:155: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/basic.rs:160: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/basic.rs:161: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/basic.rs:164: fn record_moves(&self, moved: &mut HashSet<VarId>)
 src/hir/lower/to_mir/call.rs:3: impl HirNode for SAsm
 src/hir/lower/to_mir/call.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/call.rs:5: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
@@ -496,16 +516,17 @@ src/hir/node.rs:24: fn record_moves(&self, moved: &mut HashSet<VarId>)
 src/hir/node.rs:27: fn as_const(&self) -> Option<&HirLiteral> { None }
 src/hir/node.rs:28: fn as_move(&self) -> Option<&HirNodeBox> { None }
 src/hir/node.rs:30: fn is_comparison(&self) -> bool { false }
-src/hir/node.rs:31: fn as_clone(&self) -> Option<&HirNodeBox> { None }
-src/hir/node.rs:36: pub struct HirNodeBox(pub Box<dyn HirNode>);
-src/hir/node.rs:37: impl Clone for HirNodeBox
-src/hir/node.rs:38: fn clone(&self) -> Self { HirNodeBox(self.0.clone_node()) }
-src/hir/node.rs:40: impl std::ops::Deref for HirNodeBox
-src/hir/node.rs:41: type Target = dyn HirNode;
-src/hir/node.rs:42: fn deref(&self) -> &Self::Target { &*self.0 }
-src/hir/node.rs:44: impl From<HirNodeBox> for Box<dyn HirNode>
-src/hir/node.rs:45: fn from(b: HirNodeBox) -> Self { b.0 }
-src/hir/node.rs:54: fn from(v: $ty) -> Self { HirNodeBox(Box::new(v) as Box<dyn HirNode>) }
+src/hir/node.rs:32: fn as_call(&self) -> Option<crate::hir::ty::FnId> { None }
+src/hir/node.rs:33: fn as_clone(&self) -> Option<&HirNodeBox> { None }
+src/hir/node.rs:38: pub struct HirNodeBox(pub Box<dyn HirNode>);
+src/hir/node.rs:39: impl Clone for HirNodeBox
+src/hir/node.rs:40: fn clone(&self) -> Self { HirNodeBox(self.0.clone_node()) }
+src/hir/node.rs:42: impl std::ops::Deref for HirNodeBox
+src/hir/node.rs:43: type Target = dyn HirNode;
+src/hir/node.rs:44: fn deref(&self) -> &Self::Target { &*self.0 }
+src/hir/node.rs:46: impl From<HirNodeBox> for Box<dyn HirNode>
+src/hir/node.rs:47: fn from(b: HirNodeBox) -> Self { b.0 }
+src/hir/node.rs:56: fn from(v: $ty) -> Self { HirNodeBox(Box::new(v) as Box<dyn HirNode>) }
 src/hir/stmt.rs:5: pub enum ContractKind
 src/hir/stmt.rs:11: impl ContractKind
 src/hir/stmt.rs:12: pub fn label(&self) -> &'static str
@@ -1484,11 +1505,11 @@ std/src/arraylist.aya:29: pub fn index(ref self, int index)->T{ return self.data
 std/src/arraylist.aya:30: pub fn to_string(ref self)->String
 std/src/arraylist.aya:39: pub fn len(ref self)->int{ return self.len }
 std/src/arraylist.aya:41: pub fn iter(ref self, fn(T) f)
-std/src/io.aya:8: pub fn getchar() -> int
-std/src/io.aya:11: pub fn putchar(int c)
-std/src/io.aya:14: pub fn print(ref String n)
-std/src/io.aya:17: pub fn println()
-std/src/io.aya:20: pub fn println(ref String s)
+std/src/io.aya:12: pub fn getchar() -> int
+std/src/io.aya:15: pub fn putchar(int c)
+std/src/io.aya:18: pub fn print(ref String n)
+std/src/io.aya:21: pub fn println()
+std/src/io.aya:24: pub fn println(ref String s)
 std/src/linkedlist.aya:6: pub struct LinkedList[T:ToString]
 std/src/linkedlist.aya:13: pub fn new[T:ToString]()->LinkedList[T]
 std/src/linkedlist.aya:18: impl[T:ToString] LinkedList[T]
@@ -1663,7 +1684,8 @@ example/test_comments.aya:3: fn main() -> int
 example/test_effects.aya:6: fn parse(int x) -> int { return x }
 example/test_effects.aya:10: fn pure_fn() -> int { return 0 }
 example/test_effects.aya:13: fn id[T](T x) -> T { return x }
-example/test_effects.aya:15: fn main() -> int
+example/test_effects.aya:17: fn declared_io() -> int { putchar(65); return 0 }
+example/test_effects.aya:19: fn main() -> int
 example/test_ensures.aya:3: fn abs2(int x) -> int
 example/test_ensures.aya:9: fn inc(int n) -> int { return n + 1 }
 example/test_ensures.aya:12: fn fallthrough() -> int { }

@@ -85,6 +85,7 @@ impl HirNode for SUn {
 
 impl HirNode for SCall {
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn as_call(&self) -> Option<FnId> { Some(self.fn_id) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirCall {
             fn_id: self.fn_id,

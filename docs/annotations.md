@@ -196,7 +196,11 @@ extern "C" fn strlen(unique [char] s) -> int;
   给出带位置的建议（“调用 X 可能抛错，建议 `#[throws(...)]` 或 `?` 处理”）。
 - 用途二：**硬性出入定位**——注解比实际“更强”时（如 `#[eff()]` 但体内可证明 IO），
   在冲突调用点报出位置；比实际“更弱”（多声明）不报。
-- 推断不改变代码生成；仅显式注解参与优化。`--verify-effects` 可把提醒升级为错误。
+- 推断不改变代码生成；仅显式注解参与优化。`--verify-effects` 把提醒升级为错误。
+- 已实现（A3a-2）：`hir/effects.rs::check_effects` 在 HIR 降低后运行；
+  io 来源为已知 runtime/libc IO 调用与调用链传播；throws 来源为 `?`（`try_unwrap`）与调用链；
+  诊断位置来自 AST 调用点扫描（精确到行列）。`state`/`alloc` 推断、
+  虚调用/函数指针目标与 `.lcl` 摘要（U3）待后续。
 
 ### 6.3 利用（优化收益）
 
@@ -216,7 +220,8 @@ extern "C" fn strlen(unique [char] s) -> int;
 
 ### 6.5 里程碑
 
-- A3a 注解语法/校验/存储 + 泛型实例继承 + 推断与提醒/出入定位（不改变 codegen）
+- A3a-1 注解语法/校验/存储 + 泛型实例继承（已完成）
+- A3a-2 推断（io/throws）+ AST 调用点定位 + `--verify-effects`（已完成）
 - A3b 显式空集注解 → 自动 LLVM 属性（U1）
 - A3c `?` 空效应消除（U2）+ `.lcl` 效应摘要（U3）
 - A3d `try/handle` 显式处理（后期）
@@ -347,7 +352,7 @@ struct Holder['a] {
 ### A3（设计已定稿，进行中）
 
 - [x] A3a-1 `#[throws]`/`#[eff]` 语法、校验、存储；泛型实例继承（顺带修复 A1 标注在特化实例丢失）
-- [ ] A3a-2 推断提醒与出入定位（`hir/effects.rs` 推断 + 诊断；`--verify-effects`）
+- [x] A3a-2 推断提醒与出入定位（io/throws；AST 调用点定位；`--verify-effects`）
 - [ ] A3b 空集注解 → 自动 LLVM 属性（U1）
 - [ ] A3c `?` 空效应消除（U2）+ `.lcl` 效应摘要（U3）
 - [ ] A3d `try/handle`（后期）

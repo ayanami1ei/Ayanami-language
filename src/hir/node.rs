@@ -28,6 +28,8 @@ pub trait HirNode: std::fmt::Debug {
     fn as_move(&self) -> Option<&HirNodeBox> { None }
     /// A2c：是否为比较运算。HIR 中比较保持操作数类型，Bool 结果由 MIR→LIR 决定。
     fn is_comparison(&self) -> bool { false }
+    /// A3a：静态调用目标（仅 SCall；函数指针/虚调用返回 None）。
+    fn as_call(&self) -> Option<crate::hir::ty::FnId> { None }
     fn as_clone(&self) -> Option<&HirNodeBox> { None }
 }
 

@@ -22,13 +22,13 @@ fn main() {
         eprintln!("usage: ayanami <command> [args...]");
         eprintln!("commands:");
         eprintln!("  new <name>         创建新项目");
-        eprintln!("  check [--watch] [--release] <file/proj> 前端检查；--release 关闭运行检查（转 assume）");
+        eprintln!("  check [--watch] [--release] [--verify-effects] <file/proj> 前端检查");
         eprintln!("  fmt [file/dir]     格式化代码（类似 rustfmt）");
-        eprintln!("  package [--release] <file/proj> 打包为 .lcl（不生成可执行文件）");
-        eprintln!("  build [--release] [file/proj] 构建可执行文件 + .lcl 包");
+        eprintln!("  package [--release] [--verify-effects] <file/proj> 打包为 .lcl（不生成可执行文件）");
+        eprintln!("  build [--release] [--verify-effects] [file/proj] 构建可执行文件 + .lcl 包");
         eprintln!("  install <lcl>      从 .lcl 构建目标产物");
         eprintln!("  defs <file>        输出符号定义列表（JSON 格式）");
-        eprintln!("  run [--release] [file/proj] 构建并运行");
+        eprintln!("  run [--release] [--verify-effects] [file/proj] 构建并运行");
         eprintln!("  clean              清除 build/ 目录");
         std::process::exit(1);
     }
