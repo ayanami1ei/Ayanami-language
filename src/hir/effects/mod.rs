@@ -21,6 +21,7 @@ pub(crate) const IO_NAMES: &[&str] = &[
     "__ayanami_print_int", "__ayanami_print_str", "__ayanami_print_ln",
 ];
 
+pub mod diag;
 pub mod infer;
 pub mod scan;
 
