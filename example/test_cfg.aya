@@ -1,0 +1,16 @@
+// A2b：编译期条件裁剪（宿主目标；linux 上运行）
+#[cfg(target = "linux")]
+fn on_linux() -> int { return 0 }
+
+#[cfg(target = "windows")]
+fn on_windows() -> int { return 1 }
+
+#[cfg(unix)]
+fn on_unix() -> int { return 2 }
+
+#[cfg(!windows)]
+fn not_windows() -> int { return 3 }
+
+fn main() -> int {
+    return on_linux() + on_unix() + not_windows() - 5
+}

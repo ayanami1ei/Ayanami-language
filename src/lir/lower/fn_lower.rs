@@ -2,14 +2,12 @@ use super::*;
 
 /// MIR 标注 → LIR 标注
 fn lir_attrs(f: &MirFn) -> Vec<LirAttr> {
-    f.attrs.iter().map(|a| LirAttr { name: a.name.as_str().to_string(), args: a.args.clone() }).collect()
+    util::attrs_to_lir(&f.attrs)
 }
 
 /// MIR 形参标注 → LIR 形参标注（与 params 等长并行）
 fn lir_param_attrs(f: &MirFn) -> Vec<Vec<LirAttr>> {
-    f.param_attrs.iter()
-        .map(|v| v.iter().map(|a| LirAttr { name: a.name.as_str().to_string(), args: a.args.clone() }).collect())
-        .collect()
+    f.param_attrs.iter().map(|v| util::attrs_to_lir(v)).collect()
 }
 
 pub(super) fn lower_items(item: &MirItem, str_map: &HashMap<String, u64>) -> Vec<LirFn> {

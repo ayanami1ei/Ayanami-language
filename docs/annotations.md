@@ -104,8 +104,7 @@ extern "C" fn strlen(unique [char] s) -> int;
 
 ## 5. 条件与契约（A2）
 
-- `#[cfg(target = "linux")]`：编译期裁剪 item/语句；
-  条件表达式限定字面量与编译期常量，禁止副作用。
+- `#[cfg(target = "linux")]`：编译期裁剪 item；已实现（A2b）。
 - `#[requires(cond)]`：函数前置条件。debug 构建插入运行检查（失败 abort 并报位置）；
   release 构建转为 `llvm.assume`（可被优化器利用）。
 - `#[ensures(cond)]`：后置条件，`result` 绑定返回值。
@@ -113,6 +112,25 @@ extern "C" fn strlen(unique [char] s) -> int;
 - `#[assume(cond)]`：无条件向优化器声明事实。
 
 契约条件必须是无副作用的 bool 表达式；debug 与 release 语义差异必须在文档与报错中明确。
+
+### A2a 标注实参（已完成，2026-10）
+
+`Attr.args` 从字符串升级为 `AttrArg`：
+
+- `AttrArg::KeyValue(key, value)`：`cfg(target = "linux")`；
+- `AttrArg::Expr(expr)`：任意表达式（`requires(x > 0)`、`inline(always)`），
+  由手写解析器 `parse_attr_arg` 解析，formatter 往返保真；
+- LIR 侧经 `lir/lower/util.rs::attrs_to_lir` 渲染为字符串，`LirAttr` 格式不变。
+
+### A2b `#[cfg]`（已完成，2026-10）
+
+- 求值点：HIR 降低前 `hir/cfg.rs::filter_program`，递归过滤顶层 /
+  namespace / impl / interface 方法；`validate_program` 先行，未知谓词报错（ADR-2）。
+- 谓词：`target = "linux"`、`arch = "x86_64"`、裸标识符
+  （`unix`/`windows`/`linux`/`macos`/`x86_64`/`aarch64`）、`!` 取反；
+  多个谓词/多个 `#[cfg]` 之间为「与」。
+- 包导出（`package/symbols.rs`）同样跳过被裁剪项；
+  `defs` 命令仍列出两侧（IDE 视角），语句级 cfg 待后续。
 
 ## 6. 效应系统（A3）
 
@@ -189,6 +207,15 @@ struct Holder['a] {
 - [ ] 接口方法与 lambda 的形参标注（当前解析期拒绝）
 - [ ] `inline` 关键字与 `#[inline]` 语义统一
 
+### A2（部分完成，2026-10）
+
+- [x] A2a 标注实参结构化（`AttrArg`：`key = value` / 表达式），formatter 保真
+- [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致）
+- [ ] `#[assume(cond)]` → `llvm.assume`
+- [ ] `#[requires]`/`#[ensures]` + debug/release 模式（运行检查 vs assume）
+- [ ] `#[invariant]` 语句级（循环）
+- [ ] 语句级 `#[cfg]`
+
 ### 已知问题
 
 - **Asuka 生成解析器当前对所有真实程序解析失败（`no alt`）**，
@@ -196,3 +223,4 @@ struct Holder['a] {
   中暂为透传空列表（代码中有 TODO）。修复生成解析器后需补桥接。
 - 属性参数当前仅支持标识符/整数/字符串字面量；表达式参数随 A2 扩展。
 - `.lcl` 包格式在 A1 变更后不向后兼容，需随编译器一起重新生成（std 已重建）。
+- A2 剩余：`requires`/`ensures`/`assume`/`invariant` 与 debug/release 模式切换。

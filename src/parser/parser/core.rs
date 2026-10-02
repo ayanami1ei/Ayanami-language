@@ -161,13 +161,7 @@ impl Parser {
             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
                 self.advance();
                 loop {
-                    match self.peek().map(|t| t.kind.clone()) {
-                        Some(TokenKind::Identifier(s)) => { self.advance(); args.push(s); }
-                        Some(TokenKind::IntLiteral(s)) => { self.advance(); args.push(s); }
-                        Some(TokenKind::FloatLiteral(s)) => { self.advance(); args.push(s); }
-                        Some(TokenKind::StringLiteral(s)) => { self.advance(); args.push(s); }
-                        _ => return Err(self.error("expected attribute argument")),
-                    }
+                    args.push(self.parse_attr_arg()?);
                     if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
                         break;
                     }
@@ -179,5 +173,23 @@ impl Parser {
             attrs.push(crate::parser::ast::Attr { name, args, span });
         }
         Ok(attrs)
+    }
+
+    /// A2a：解析单个标注实参（`key = value` 或表达式）。
+    fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg> {
+        use crate::parser::ast::AttrArg;
+        let is_kv = matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Identifier(_)))
+            && matches!(self.tokens.get(self.pos + 1).map(|t| &t.kind),
+                        Some(TokenKind::Operator(s)) if s == "=");
+        if is_kv {
+            let key = match self.peek().map(|t| t.kind.clone()) {
+                Some(TokenKind::Identifier(s)) => { self.advance(); Symbol::intern(&s) }
+                _ => return Err(self.error("expected attribute key")),
+            };
+            self.advance(); // '='
+            let val = self.parse_attr_arg()?;
+            return Ok(AttrArg::KeyValue(key, Box::new(val)));
+        }
+        Ok(AttrArg::Expr(Box::new(self.parse_expr()?)))
     }
 }

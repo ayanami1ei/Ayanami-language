@@ -9,8 +9,16 @@ use crate::span::Span;
 #[derive(Debug, Clone)]
 pub struct Attr {
     pub name: Symbol,
-    pub args: Vec<String>,
+    pub args: Vec<AttrArg>,
     pub span: Span,
+}
+
+/// 标注实参（A2a）：`key = value`（如 cfg(target = "linux")）或任意表达式
+/// （如 requires(x > 0)、inline(always)）。
+#[derive(Debug, Clone)]
+pub enum AttrArg {
+    KeyValue(Symbol, Box<AttrArg>),
+    Expr(Box<Expr>),
 }
 
 #[derive(Debug, Clone)]

@@ -65,6 +65,8 @@ pub(crate) use ctx::Ctx;
 pub fn lower_program(program: &Program) -> Result<HirProgram> {
     // A0：先做属性白名单校验（未知属性报错）
     crate::hir::attrs::validate_program(program)?;
+    // A2b：#[cfg(...)] 编译期裁剪
+    let program = crate::hir::cfg::filter_program(program)?;
     let mut ctx = Ctx::new();
     ctx.collect_fns(&program.stmts)?;
     ctx.build_vtables()?;

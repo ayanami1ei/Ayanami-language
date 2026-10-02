@@ -33,9 +33,19 @@ pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize) {
     for a in attrs {
         let _ = write!(out, "{}#[{}", indent(level), a.name);
         if !a.args.is_empty() {
-            let _ = write!(out, "({})", a.args.join(", "));
+            let rendered: Vec<String> = a.args.iter().map(write_attr_arg).collect();
+            let _ = write!(out, "({})", rendered.join(", "));
         }
         let _ = writeln!(out, "]");
+    }
+}
+
+/// 标注实参 → 源码文本
+fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String {
+    use crate::parser::ast::AttrArg;
+    match arg {
+        AttrArg::KeyValue(k, v) => format!("{} = {}", k, write_attr_arg(v)),
+        AttrArg::Expr(e) => super::format_expr(e),
     }
 }
 
@@ -60,7 +70,8 @@ pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_at
             for a in attrs {
                 let _ = write!(out, "#[{}", a.name);
                 if !a.args.is_empty() {
-                    let _ = write!(out, "({})", a.args.join(", "));
+                    let rendered: Vec<String> = a.args.iter().map(write_attr_arg).collect();
+                    let _ = write!(out, "({})", rendered.join(", "));
                 }
                 let _ = write!(out, "] ");
             }

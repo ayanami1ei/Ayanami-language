@@ -7,6 +7,23 @@ pub(super) fn write_stmt_block(stmts: &[MirStmtBox], level: usize, w: &mut dyn s
     Ok(())
 }
 
+/// AST 标注实参 → LIR 字符串形式（A2a）
+pub(super) fn attr_arg_to_string(arg: &crate::parser::ast::AttrArg) -> String {
+    use crate::parser::ast::AttrArg;
+    match arg {
+        AttrArg::KeyValue(k, v) => format!("{} = {}", k, attr_arg_to_string(v)),
+        AttrArg::Expr(e) => crate::formatter::format_expr(e),
+    }
+}
+
+/// AST 标注列表 → LIR 标注列表
+pub(super) fn attrs_to_lir(attrs: &[crate::parser::ast::Attr]) -> Vec<LirAttr> {
+    attrs.iter().map(|a| LirAttr {
+        name: a.name.as_str().to_string(),
+        args: a.args.iter().map(|x| attr_arg_to_string(x)).collect(),
+    }).collect()
+}
+
 pub(super) fn display_hir_type(ty: &HirType) -> String {
     crate::hir::display::display_type(ty)
 }

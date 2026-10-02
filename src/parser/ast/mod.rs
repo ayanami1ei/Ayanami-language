@@ -13,7 +13,7 @@ pub use block::Block;
 pub use expr::Expr;
 pub use literal::Literal;
 pub use program::Program;
-pub use stmt::Attr;
+pub use stmt::{Attr, AttrArg};
 pub use stmt::InterfaceMethod;
 pub use stmt::Stmt;
 pub use ty::Type;

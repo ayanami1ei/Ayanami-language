@@ -26,6 +26,7 @@ impl Package {
 
     fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str) {
         for stmt in stmts {
+            if !crate::hir::cfg::stmt_enabled(stmt) { continue; }
             self.collect_stmt_symbols(stmt, all, ns_prefix);
         }
     }
@@ -77,6 +78,7 @@ impl Package {
                     // All methods reference the impl's generic params; skip individual symbols
                 } else {
                     for m in methods {
+                        if !crate::hir::cfg::stmt_enabled(m) { continue; }
                         if let Stmt::FnDecl { generic_params, .. } = m {
                             if !generic_params.is_empty() {
                                 continue; // 方法级泛型已包含在 generic_sources 中
@@ -125,6 +127,7 @@ impl Package {
                     format!("{}.{}", ns_prefix, name)
                 };
                 for item in items {
+                    if !crate::hir::cfg::stmt_enabled(item) { continue; }
                     self.collect_stmt_symbols(item, all, &nested);
                 }
             }

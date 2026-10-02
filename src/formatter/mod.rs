@@ -22,6 +22,11 @@ mod expr;
 mod helpers;
 mod stmt;
 
+/// 表达式 → 源码文本（A2a：标注实参渲染复用）
+pub(crate) fn format_expr(expr: &Expr) -> String {
+    expr::write_expr(expr)
+}
+
 use helpers::write_stmt_separator;
 use stmt::write_stmt;
 

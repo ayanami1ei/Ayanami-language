@@ -73,7 +73,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
             name,
             params: imp.params.iter().map(|(_, t)| t.clone()).collect(),
             return_type: imp.return_type.clone(),
-            attrs: imp.attrs.iter().map(|a| LirAttr { name: a.name.as_str().to_string(), args: a.args.clone() }).collect(),
+            attrs: util::attrs_to_lir(&imp.attrs),
             param_attrs: Vec::new(), // 包导入暂不携带形参标注
         });
     }

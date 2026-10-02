@@ -114,23 +114,33 @@ src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String,
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
 src/formatter/helpers.rs:32: pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize)
-src/formatter/helpers.rs:42: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)])
-src/formatter/helpers.rs:55: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_attrs: &[Vec<crate::parser::ast::Attr>])
-src/formatter/helpers.rs:83: pub(super) fn write_return_type(out: &mut String, ty: &Type)
+src/formatter/helpers.rs:44: fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String
+src/formatter/helpers.rs:52: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)])
+src/formatter/helpers.rs:65: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_attrs: &[Vec<crate::parser::ast::Attr>])
+src/formatter/helpers.rs:94: pub(super) fn write_return_type(out: &mut String, ty: &Type)
 src/formatter/mod.rs:7: const INDENT: &str = "    ";
 src/formatter/mod.rs:9: pub fn format_program(program: &Program) -> String
 src/formatter/mod.rs:21: mod expr;
 src/formatter/mod.rs:22: mod helpers;
 src/formatter/mod.rs:23: mod stmt;
-src/formatter/mod.rs:28: pub fn format_file(code: &str) -> crate::error::Result<String>
+src/formatter/mod.rs:26: pub(crate) fn format_expr(expr: &Expr) -> String
+src/formatter/mod.rs:33: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
 src/hir/attrs.rs:5: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:18: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:21: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:26: pub fn validate(attrs: &[Attr]) -> Result<()>
-src/hir/attrs.rs:41: pub fn validate_program(program: &Program) -> Result<()>
-src/hir/attrs.rs:49: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
-src/hir/attrs.rs:70: fn validate_stmt(stmt: &Stmt) -> Result<()>
+src/hir/attrs.rs:19: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:22: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:27: pub fn validate(attrs: &[Attr]) -> Result<()>
+src/hir/attrs.rs:42: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:50: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
+src/hir/attrs.rs:71: fn validate_stmt(stmt: &Stmt) -> Result<()>
+src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
+src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
+src/hir/cfg.rs:50: pub fn stmt_enabled(stmt: &Stmt) -> bool
+src/hir/cfg.rs:54: fn attrs_of(stmt: &Stmt) -> Option<&[Attr]>
+src/hir/cfg.rs:65: fn cfg_enabled(attrs: Option<&[Attr]>) -> Result<bool>
+src/hir/cfg.rs:79: fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool>
+src/hir/cfg.rs:102: fn eval_bare(e: &Expr, span: crate::span::Span) -> Result<bool>
+src/hir/cfg.rs:119: fn unsupported(span: crate::span::Span) -> Error
 src/hir/display.rs:5: pub fn display_hir_program(program: &HirProgram)
 src/hir/display.rs:9: pub fn hir_program_to_string(program: &HirProgram) -> String
 src/hir/display.rs:18: pub(crate) fn pad(n: usize) -> String
@@ -421,14 +431,15 @@ src/hir/lower/to_mir/mod.rs:11: mod access;
 src/hir/lower/to_mir/mod.rs:12: mod basic;
 src/hir/lower/to_mir/mod.rs:13: mod call;
 src/hir/mod.rs:1: pub mod attrs;
-src/hir/mod.rs:2: pub mod ir;
-src/hir/mod.rs:3: pub mod ty;
-src/hir/mod.rs:4: pub mod node;
-src/hir/mod.rs:5: pub mod stmt;
-src/hir/mod.rs:6: pub mod item;
-src/hir/mod.rs:7: pub mod lower;
-src/hir/mod.rs:8: pub mod display;
-src/hir/mod.rs:26: pub struct $name
+src/hir/mod.rs:2: pub mod cfg;
+src/hir/mod.rs:3: pub mod ir;
+src/hir/mod.rs:4: pub mod ty;
+src/hir/mod.rs:5: pub mod node;
+src/hir/mod.rs:6: pub mod stmt;
+src/hir/mod.rs:7: pub mod item;
+src/hir/mod.rs:8: pub mod lower;
+src/hir/mod.rs:9: pub mod display;
+src/hir/mod.rs:27: pub struct $name
 src/hir/node.rs:8: pub trait HirNode: std::fmt::Debug
 src/hir/node.rs:9: fn clone_node(&self) -> Box<dyn HirNode>;
 src/hir/node.rs:10: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
@@ -840,13 +851,13 @@ src/lir/lower/ctx.rs:75: fn next_block_label(&mut self, prefix: &str) -> String
 src/lir/lower/ctx.rs:78: fn set_current_block(&mut self, label: String)
 src/lir/lower/fn_lower.rs:4: fn lir_attrs(f: &MirFn) -> Vec<LirAttr>
 src/lir/lower/fn_lower.rs:9: fn lir_param_attrs(f: &MirFn) -> Vec<Vec<LirAttr>>
-src/lir/lower/fn_lower.rs:15: pub(super) fn lower_items(item: &MirItem, str_map: &HashMap<String, u64>) -> Vec<LirFn>
-src/lir/lower/fn_lower.rs:25: pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn
-src/lir/lower/fn_lower.rs:85: pub(super) fn lower_stmts(ctx: &mut LowerCtx, stmts: &[MirStmtBox])
-src/lir/lower/fn_lower.rs:111: pub(super) fn lower_expr(ctx: &mut dyn LirLowerCtx, expr: &MirNodeBox) -> LirValue
-src/lir/lower/fn_lower.rs:115: pub(super) fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)>
-src/lir/lower/fn_lower.rs:128: pub(super) fn strip_ownership(ty: HirType) -> HirType
-src/lir/lower/fn_lower.rs:135: pub(super) fn type_size(ty: &HirType) -> u64
+src/lir/lower/fn_lower.rs:13: pub(super) fn lower_items(item: &MirItem, str_map: &HashMap<String, u64>) -> Vec<LirFn>
+src/lir/lower/fn_lower.rs:23: pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn
+src/lir/lower/fn_lower.rs:83: pub(super) fn lower_stmts(ctx: &mut LowerCtx, stmts: &[MirStmtBox])
+src/lir/lower/fn_lower.rs:109: pub(super) fn lower_expr(ctx: &mut dyn LirLowerCtx, expr: &MirNodeBox) -> LirValue
+src/lir/lower/fn_lower.rs:113: pub(super) fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)>
+src/lir/lower/fn_lower.rs:126: pub(super) fn strip_ownership(ty: HirType) -> HirType
+src/lir/lower/fn_lower.rs:133: pub(super) fn type_size(ty: &HirType) -> u64
 src/lir/lower/mir_expr.rs:4: impl MirNode for SMirLocal
 src/lir/lower/mir_expr.rs:5: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
 src/lir/lower/mir_expr.rs:6: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
@@ -1051,8 +1062,10 @@ src/lir/lower/strings.rs:11: pub(super) fn collect_strings_items(items: &[MirIte
 src/lir/lower/strings.rs:21: pub(super) fn collect_strings_stmts(stmts: &[MirStmtBox], out: &mut Vec<String>)
 src/lir/lower/strings.rs:29: pub(super) fn collect_strings_dyn(node: &dyn MirNode, out: &mut Vec<String>)
 src/lir/lower/util.rs:3: pub(super) fn write_stmt_block(stmts: &[MirStmtBox], level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/util.rs:10: pub(super) fn display_hir_type(ty: &HirType) -> String
-src/lir/lower/util.rs:14: pub(super) fn extract_var(val: &LirValue) -> VarId
+src/lir/lower/util.rs:11: pub(super) fn attr_arg_to_string(arg: &crate::parser::ast::AttrArg) -> String
+src/lir/lower/util.rs:20: pub(super) fn attrs_to_lir(attrs: &[crate::parser::ast::Attr]) -> Vec<LirAttr>
+src/lir/lower/util.rs:27: pub(super) fn display_hir_type(ty: &HirType) -> String
+src/lir/lower/util.rs:31: pub(super) fn extract_var(val: &LirValue) -> VarId
 src/lir/mod.rs:12: pub mod ir;
 src/lir/mod.rs:13: pub mod lower;
 src/lir/mod.rs:14: pub mod display;
@@ -1235,7 +1248,7 @@ src/package/symbols.rs:5: pub fn new(name: String, version: String) -> Self
 src/package/symbols.rs:18: pub fn collect_symbols(&mut self, stmts: &[Stmt])
 src/package/symbols.rs:23: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
 src/package/symbols.rs:27: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
-src/package/symbols.rs:33: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
+src/package/symbols.rs:34: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
 src/package/target.rs:6: pub enum TargetType
 src/package/target.rs:12: impl TargetType
 src/package/target.rs:13: pub fn as_str(&self) -> &'static str
@@ -1266,13 +1279,14 @@ src/parser/ast/program.rs:4: pub struct Program
 src/parser/ast/program.rs:8: impl Program
 src/parser/ast/program.rs:9: pub fn new(stmts: Vec<Stmt>) -> Self
 src/parser/ast/stmt.rs:10: pub struct Attr
-src/parser/ast/stmt.rs:17: pub struct InterfaceMethod
-src/parser/ast/stmt.rs:26: pub enum EnumFields
-src/parser/ast/stmt.rs:33: pub struct EnumVariant
-src/parser/ast/stmt.rs:39: pub struct MatchArm
-src/parser/ast/stmt.rs:46: pub enum Stmt
-src/parser/ast/stmt.rs:160: impl Stmt
-src/parser/ast/stmt.rs:161: pub fn span(&self) -> Span
+src/parser/ast/stmt.rs:19: pub enum AttrArg
+src/parser/ast/stmt.rs:25: pub struct InterfaceMethod
+src/parser/ast/stmt.rs:34: pub enum EnumFields
+src/parser/ast/stmt.rs:41: pub struct EnumVariant
+src/parser/ast/stmt.rs:47: pub struct MatchArm
+src/parser/ast/stmt.rs:54: pub enum Stmt
+src/parser/ast/stmt.rs:168: impl Stmt
+src/parser/ast/stmt.rs:169: pub fn span(&self) -> Span
 src/parser/ast/ty.rs:5: pub enum Type
 src/parser/ast/ty.rs:22: impl Type
 src/parser/ast/ty.rs:23: pub fn span(&self) -> Span
@@ -1315,6 +1329,7 @@ src/parser/parser/core.rs:95: pub(super) fn parse_visibility(&mut self) -> Visib
 src/parser/parser/core.rs:116: pub(super) fn expect_identifier(&mut self) -> Result<String>
 src/parser/parser/core.rs:134: pub fn parse_program(&mut self) -> Result<Program>
 src/parser/parser/core.rs:142: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
+src/parser/parser/core.rs:179: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/decl.rs:80: pub(super) fn parse_return(&mut self) -> Result<Stmt>
@@ -1560,6 +1575,11 @@ example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }
 example/test_attrs.aya:9: fn main() -> int
 example/test_bool.aya:1: fn main() -> int
 example/test_bool2.aya:1: fn main() -> int
+example/test_cfg.aya:3: fn on_linux() -> int { return 0 }
+example/test_cfg.aya:6: fn on_windows() -> int { return 1 }
+example/test_cfg.aya:9: fn on_unix() -> int { return 2 }
+example/test_cfg.aya:12: fn not_windows() -> int { return 3 }
+example/test_cfg.aya:14: fn main() -> int
 example/test_comments.aya:3: fn main() -> int
 example/test_ffi_attrs.aya:18: fn rarely() -> int { return 1 }
 example/test_ffi_attrs.aya:21: fn fast() -> int { return 2 }

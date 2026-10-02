@@ -86,6 +86,7 @@ graph LR
 | 标注携带（MIR/LIR/包） | `mir/ir.rs`、`lir/ir/nodes_d.rs`（`LirAttr`/`ExternDecl`）、`lir/serialize` | A1 已完成 |
 | LLVM 属性映射 | `lir/emit/functions.rs`（`llvm_attr_suffix`/`llvm_param_attrs`）、`lir/emit/mod.rs` | A1 函数级+形参级已完成 |
 | extern 真实签名 | `lir/lower/mod.rs`（`extern_decls`） | A1 已完成 |
+| cfg 条件裁剪 | `hir/cfg.rs`、`package/symbols.rs` | A2b 已完成 |
 | 效应检查 | `mir/` 或 HIR 新 pass | 未实现 |
 | 生命周期参数 | 类型系统 + `mir/borrow/` | 未实现 |
 

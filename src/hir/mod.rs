@@ -1,4 +1,5 @@
 pub mod attrs;
+pub mod cfg;
 pub mod ir;
 pub mod ty;
 pub mod node;
