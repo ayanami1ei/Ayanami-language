@@ -67,6 +67,12 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 - 注释中英混排，跟随所在文件的既有风格。
 - 批量代码生成交给本地模型（见全局 `~/.config/opencode/AGENTS.md` 的 local-coder 政策）。
 
+## 分支约定
+
+- `rust`：**开发分支**，日常提交都进这里（跟踪 `origin/rust`）。
+- `release`：**发布分支**，从发布点拉出，只做发布修复与版本合并；发布用标签 `vX.Y.Z` 标记。
+- `origin/master`、`origin/runtime`、`rust-old` 是旧实现/历史分支，不要在其上开发。
+
 ## 语言与文档索引
 
 - 语言语法、类型系统、所有权（`shared`/`unique`/`weak`）、泛型、枚举布局、操作符重载：见 `README.md`。
