@@ -1,0 +1,294 @@
+use super::*;
+
+impl LirNode for SLirConv {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "Conv" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let mut lines = Vec::new();
+        let src_val = ctx.value_ref(&self.src, &self.src_ty);
+        let src_is_heap_ptr = matches!(&self.src_ty,
+            HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)
+        );
+        match &self.kind {
+            ConvKind::ToWeak => {
+                if src_is_heap_ptr {
+                    lines.push(format!("%t{} = bitcast ptr {} to ptr", self.dest, src_val));
+                } else {
+                    lines.push(format!("%t{} = bitcast ptr {} to ptr", self.dest, src_val));
+                }
+            }
+            ConvKind::ToShared => {
+                if src_is_heap_ptr {
+                    lines.push(format!("%t{} = bitcast ptr {} to ptr", self.dest, src_val));
+                    if matches!(&self.src_ty, HirType::Shared(_)) {
+                        lines.push(format!("call void @__ayanami_shared_retain(i8* %t{})", self.dest));
+                    }
+                } else {
+                    let inner_ty = match &self.ty {
+                        HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
+                        _ => &self.ty,
+                    };
+                    let size = struct_llvm_size(inner_ty, &ctx.prog.struct_defs);
+                    let src_ptr = if matches!(&self.src_ty, HirType::Named(s) if ctx.prog.struct_defs.contains_key(s)) {
+                        let src_llvm = ctx.llvm_type(&self.src_ty);
+                        lines.push(format!("%t{} = alloca {}, align 8", self.alloca_tmp, src_llvm));
+                        lines.push(format!("store {} {}, ptr %t{}", src_llvm, src_val, self.alloca_tmp));
+                        format!("%t{}", self.alloca_tmp)
+                    } else {
+                        src_val.clone()
+                    };
+                    let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
+                    lines.push(format!("%l{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, size));
+                    lines.push(format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)", self.malloc_tmp, src_ptr, size));
+                    lines.push(format!("%t{} = bitcast i8* %l{} to {}", self.dest, self.malloc_tmp, ctx.llvm_type(&self.ty)));
+                }
+            }
+            ConvKind::ToUnique => {
+                let inner_ty = match &self.ty {
+                    HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
+                    _ => &self.ty,
+                };
+                let size = struct_llvm_size(inner_ty, &ctx.prog.struct_defs);
+                let src_ptr = if matches!(&self.src_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool) {
+                    let src_llvm = ctx.llvm_type(&self.src_ty);
+                    let alloca = format!("%t{}", self.alloca_tmp);
+                    lines.push(format!("{} = alloca {}, align 8", alloca, src_llvm));
+                    lines.push(format!("store {} {}, ptr {}", src_llvm, src_val, alloca));
+                    alloca
+                } else if matches!(&self.src_ty, HirType::Named(s) if ctx.prog.struct_defs.contains_key(s)) {
+                    let src_llvm = ctx.llvm_type(&self.src_ty);
+                    let alloca = format!("%t{}", self.alloca_tmp);
+                    lines.push(format!("{} = alloca {}, align 8", alloca, src_llvm));
+                    lines.push(format!("store {} {}, ptr {}", src_llvm, src_val, alloca));
+                    alloca
+                } else {
+                    src_val.clone()
+                };
+                let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
+                lines.push(format!("%l{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, size));
+                lines.push(format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)", self.malloc_tmp, src_ptr, size));
+                lines.push(format!("%t{} = bitcast i8* %l{} to {}", self.dest, self.malloc_tmp, ctx.llvm_type(&self.ty)));
+            }
+        }
+        lines
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = conv {:?} -> {:?} : {:?}", self.dest, self.kind, self.src, self.ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(7);
+        put_u64(buf, self.dest); put_u64(buf, self.alloca_tmp); put_u64(buf, self.malloc_tmp);
+        put_value(buf, &self.src); put_u32(buf, self.kind as u32); put_type(buf, &self.src_ty); put_type(buf, &self.ty);
+    }
+}
+
+impl LirNode for SLirDropValue {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "DropValue" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let mut lines = Vec::new();
+        if needs_heap_ops(&self.ty) {
+            let tmp = ctx.tmp();
+            let llvm_ty = ctx.llvm_type(&self.ty);
+            lines.push(format!("%c{} = load {}, ptr %v{}, align 8", tmp, llvm_ty, self.var.0));
+            lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
+        }
+        lines
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    drop v{} : {:?}", self.var.0, self.ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(8);
+        put_u32(buf, self.var.0 as u32);
+        put_type(buf, &self.ty);
+    }
+}
+
+impl LirNode for SLirRetainValue {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "RetainValue" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let mut lines = Vec::new();
+        if needs_heap_ops(&self.ty) {
+            let tmp = ctx.tmp();
+            let llvm_ty = ctx.llvm_type(&self.ty);
+            lines.push(format!("%c{} = load {}, ptr %v{}, align 8", tmp, llvm_ty, self.var.0));
+            lines.push(format!("call void @__ayanami_shared_retain(i8* %c{})", tmp));
+        }
+        lines
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    retain v{} : {:?}", self.var.0, self.ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(9);
+        put_u32(buf, self.var.0 as u32);
+        put_type(buf, &self.ty);
+    }
+}
+
+impl LirNode for SLirReleaseValue {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "ReleaseValue" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let mut lines = Vec::new();
+        if needs_heap_ops(&self.ty) {
+            let tmp = ctx.tmp();
+            let llvm_ty = ctx.llvm_type(&self.ty);
+            lines.push(format!("%c{} = load {}, ptr %v{}, align 8", tmp, llvm_ty, self.var.0));
+            lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
+        }
+        lines
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    release v{} : {:?}", self.var.0, self.ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(10);
+        put_u32(buf, self.var.0 as u32);
+        put_type(buf, &self.ty);
+    }
+}
+
+impl LirNode for SLirBr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "Br" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, _ctx: &mut LirEmitCtx) -> Vec<String> {
+        vec![format!("br label %{}", self.label)]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    br %{}", self.label)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(11);
+        put_str(buf, &self.label);
+    }
+}
+
+impl LirNode for SLirBrCond {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "BrCond" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let c = ctx.value_ref(&self.cond, &HirType::Bool);
+        vec![format!("br i1 {}, label %{}, label %{}", c, self.true_block, self.false_block)]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    br_cond {:?} %{} %{}", self.cond, self.true_block, self.false_block)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(12);
+        put_value(buf, &self.cond);
+        put_str(buf, &self.true_block);
+        put_str(buf, &self.false_block);
+    }
+}
+
+impl LirNode for SLirRet {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "Ret" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        match &self.val {
+            Some((v, ty)) => {
+                let s = ctx.value_ref(v, ty);
+                let llvm_ty = ctx.llvm_type(&ctx.current_fn_ret_ty);
+                vec![format!("ret {} {}", llvm_ty, s)]
+            }
+            None => vec!["ret void".into()],
+        }
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        match &self.val {
+            Some((v, _)) => writeln!(f, "    ret {:?}", v),
+            None => writeln!(f, "    ret void"),
+        }
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(13);
+        match &self.val {
+            Some((v, t)) => { buf.push(1); put_value(buf, v); put_type(buf, t); }
+            None => { buf.push(0); }
+        }
+    }
+}
+
+impl LirNode for SLirMakeFatPtr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "MakeFatPtr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let mut lines = Vec::new();
+        let is_ptr_type = matches!(&self.value_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_));
+        let data_ptr = if is_ptr_type {
+            ctx.value_ref(&self.value_src, &self.value_ty)
+        } else {
+            let size = struct_llvm_size(&self.value_ty, &ctx.prog.struct_defs);
+            lines.push(format!("%t{} = call i8* @__ayanami_shared_alloc(i64 {})", self.malloc_tmp, size));
+            lines.push(format!("%t{} = bitcast i8* %t{} to ptr", self.bc_tmp, self.malloc_tmp));
+            let val_llvm = ctx.llvm_type(&self.value_ty);
+            let src_str = ctx.value_ref(&self.value_src, &self.value_ty);
+            lines.push(format!("store {} {}, ptr %t{}, align 8", val_llvm, src_str, self.bc_tmp));
+            format!("%t{}", self.malloc_tmp)
+        };
+        let vtable_elem_count = ctx.prog.vtables.iter()
+            .find(|v| v.name == self.vtable_name)
+            .map(|v| v.fn_ids.len())
+            .unwrap_or(1);
+        lines.push(format!("%t{} = getelementptr [{} x ptr], ptr @{}, i64 0, i64 0", self.vtable_gep_tmp, vtable_elem_count, self.vtable_name));
+        lines.push(format!("%t{} = insertvalue {{ ptr, ptr }} zeroinitializer, ptr {}, 0", self.iv_tmp, data_ptr));
+        lines.push(format!("%t{} = insertvalue {{ ptr, ptr }} %t{}, ptr %t{}, 1", self.dest, self.iv_tmp, self.vtable_gep_tmp));
+        lines
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = make_fatptr vtable={}", self.dest, self.vtable_name)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(14);
+        put_u64(buf, self.dest); put_u64(buf, self.malloc_tmp); put_u64(buf, self.bc_tmp);
+        put_u64(buf, self.vtable_gep_tmp); put_u64(buf, self.iv_tmp);
+        put_value(buf, &self.value_src); put_type(buf, &self.value_ty); put_str(buf, &self.vtable_name); put_type(buf, &self.ty);
+    }
+}
+
+impl LirNode for SLirFieldAccess {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "FieldAccess" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let inner = match &self.struct_ty {
+            HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+            other => other,
+        };
+        let struct_name = match inner {
+            HirType::Named(n) => n,
+            _ => unreachable!(),
+        };
+        let struct_llvm = ctx.struct_llvm_name(struct_name)
+            .unwrap_or_else(|| panic!("unknown struct type `{}`", struct_name));
+        let src_str = ctx.value_ref(&self.src, &self.struct_ty);
+        if matches!(&self.struct_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)) {
+            vec![
+                format!("%t{} = getelementptr {}, ptr {}, i32 0, i32 {}", self.gep_tmp, struct_llvm, src_str, self.field_index),
+                format!("%t{} = load {}, ptr %t{}", self.dest, ctx.llvm_type(&self.field_ty), self.gep_tmp),
+            ]
+        } else {
+            vec![format!("%t{} = extractvalue {} {}, {}", self.dest, struct_llvm, src_str, self.field_index)]
+        }
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = field_access field={} : {:?}", self.dest, self.field_index, self.field_ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(16);
+        put_u64(buf, self.dest); put_u64(buf, self.gep_tmp);
+        put_value(buf, &self.src); put_u32(buf, self.field_index as u32);
+        put_type(buf, &self.field_ty); put_type(buf, &self.struct_ty);
+    }
+}
