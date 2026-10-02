@@ -2,6 +2,20 @@ use super::*;
 
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox> {
+        // `Enum::Variant(args)` 被解析器合并为 `Enum.Variant`，按前缀类型分流
+        if let Some((enum_name, variant_name)) = name.as_str().split_once('.') {
+            let enum_sym = Symbol::intern(enum_name);
+            if self.is_enum_type(&enum_sym) {
+                return self.lower_enum_construct(
+                    &enum_sym,
+                    &Symbol::intern(variant_name),
+                    args,
+                    &vec![],
+                    span,
+                );
+            }
+        }
+
         // Step 1: lower all arguments
         let mut hir_args: Vec<HirNodeBox> = args.iter()
             .map(|a| self.lower_expr(a))

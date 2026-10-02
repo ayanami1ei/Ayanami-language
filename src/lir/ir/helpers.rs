@@ -85,9 +85,6 @@ pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol
         HirType::Unique(_) | HirType::Shared(_) | HirType::FatPtr { .. } => true,
         HirType::Named(name) => {
             let Some(fields) = struct_defs.get(name) else { return false; };
-            if fields.first().map(|(n, _)| n.as_str() == "_tag").unwrap_or(false) {
-                return false;
-            }
             fields.iter().any(|(_, ft)| needs_drop(ft, struct_defs))
         }
         _ => false,
@@ -132,9 +129,7 @@ pub(super) fn emit_drop_value(
         }
         HirType::Named(name) => {
             let Some(fields) = ctx.prog.struct_defs.get(name).cloned() else { return; };
-            if fields.first().map(|(n, _)| n.as_str() == "_tag").unwrap_or(false) {
-                return; // 枚举 payload 释放待实现
-            }
+            // 枚举也按字段递归释放：非活跃变体在构造时零初始化，null 释放是安全的
             let struct_llvm = ctx.llvm_type(ty);
             for (idx, (_, ft)) in fields.iter().enumerate() {
                 if !needs_drop(ft, &ctx.prog.struct_defs) {

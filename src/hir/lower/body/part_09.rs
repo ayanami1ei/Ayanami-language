@@ -5,6 +5,19 @@ impl crate::hir::lower::Ctx {
         match expr {
             Expr::Literal(lit) => self.lower_literal(lit),
             Expr::Ident(name, span) => {
+                // `Enum::Variant`（无参数）被解析器合并为 `Enum.Variant`
+                if let Some((enum_name, variant_name)) = name.as_str().split_once('.') {
+                    let enum_sym = Symbol::intern(enum_name);
+                    if self.is_enum_type(&enum_sym) {
+                        return self.lower_enum_construct(
+                            &enum_sym,
+                            &Symbol::intern(variant_name),
+                            &vec![],
+                            &vec![],
+                            span,
+                        );
+                    }
+                }
                 if let Some((var_id, ty, _)) = self.lookup_var(name) {
                     return Ok(SVar { var: var_id, ty }.into());
                 }
@@ -35,23 +48,20 @@ impl crate::hir::lower::Ctx {
                 let ty = hir_inner.expr_type();
                 Ok(SMove { expr: hir_inner, ty }.into())
             }
-            Expr::Clone(inner, _) => {
+            Expr::Clone(inner, span) => {
                 let hir_inner = self.lower_expr(inner)?;
                 let ty = hir_inner.expr_type();
-                match &ty {
-                    HirType::Shared(inner_ty) if needs_deep_copy(inner_ty) => {
-                        let new_ty = HirType::Shared(inner_ty.clone());
-                        Ok(SToShared { expr: SClone { expr: hir_inner, ty: ty.clone() }.into(), ty: new_ty }.into())
-                    }
-                    HirType::Unique(inner_ty) if needs_deep_copy(inner_ty) => {
-                        let new_ty = HirType::Unique(inner_ty.clone());
-                        Ok(SToUnique { expr: SClone { expr: hir_inner, ty: ty.clone() }.into(), ty: new_ty }.into())
-                    }
-                    _ if needs_deep_copy(&ty) => {
-                        let new_ty = HirType::Unique(Box::new(ty.clone()));
-                        Ok(SToUnique { expr: SClone { expr: hir_inner, ty: ty.clone() }.into(), ty: new_ty }.into())
-                    }
-                    _ => Ok(SClone { expr: hir_inner, ty }.into()),
+                // Copy 类型直接复制；拥有堆数据的类型没有通用深拷贝（数组运行时不带长度），
+                // 引导使用各类型的 `.copy()` 方法。
+                if ty.is_copy() {
+                    Ok(hir_inner)
+                } else {
+                    Err(Error::Hir(format!(
+                        "`clone` is not implemented for owned value of type {}; use `.copy()` instead (at {}:{})",
+                        crate::hir::display::display_type(&ty),
+                        span.start_line,
+                        span.start_col
+                    )))
                 }
             }
             Expr::ToUnique(inner, _) => {

@@ -151,8 +151,8 @@ src/hir/lower/body/expr_access.rs:94: pub(crate) fn lower_array_literal(&mut sel
 src/hir/lower/body/expr_access.rs:115: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_call.rs:4: pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_call.rs:106: pub(crate) fn lower_call_expr(&mut self, target: &Box<Expr>, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_call.rs:137: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_call.rs:120: pub(crate) fn lower_call_expr(&mut self, target: &Box<Expr>, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_call.rs:151: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_misc.rs:3: impl crate::hir::lower::Ctx
@@ -574,7 +574,7 @@ src/lir/ir/helpers.rs:39: pub(crate) fn struct_llvm_size(ty: &HirType, struct_de
 src/lir/ir/helpers.rs:56: pub(super) fn needs_heap_ops(ty: &HirType) -> bool
 src/lir/ir/helpers.rs:69: pub(super) fn is_pointer_type(ty: &HirType) -> bool
 src/lir/ir/helpers.rs:83: pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
-src/lir/ir/helpers.rs:98: pub(super) fn emit_drop_value(
+src/lir/ir/helpers.rs:95: pub(super) fn emit_drop_value(
 src/lir/ir/mod.rs:12: pub struct IrNode
 src/lir/ir/mod.rs:18: pub enum IrValue
 src/lir/ir/mod.rs:27: impl IrNode
@@ -1181,8 +1181,8 @@ src/mir/lower/ctx.rs:251: fn mark_alive(&mut self, var: VarId)
 src/mir/lower/functions.rs:5: pub(super) fn lower_item(item: &HirItem, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Result<Vec<MirItem>>
 src/mir/lower/functions.rs:23: fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Result<MirFn>
 src/mir/lower/mem.rs:6: fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
-src/mir/lower/mem.rs:20: pub(super) fn strategy_for(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Box<dyn MemStrategy>
-src/mir/lower/mem.rs:28: pub(super) fn action_to_stmt(_var: VarId, ty: &HirType, action: &MemAction) -> MirStmtBox
+src/mir/lower/mem.rs:17: pub(super) fn strategy_for(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Box<dyn MemStrategy>
+src/mir/lower/mem.rs:25: pub(super) fn action_to_stmt(_var: VarId, ty: &HirType, action: &MemAction) -> MirStmtBox
 src/mir/lower/mod.rs:9: mod checks;
 src/mir/lower/mod.rs:10: mod ctx;
 src/mir/lower/mod.rs:11: mod functions;
@@ -1561,6 +1561,10 @@ example/test_import.aya:3: fn main() -> int
 example/test_memory.aya:5: struct Point
 example/test_memory.aya:10: fn make() -> int
 example/test_memory.aya:18: fn main() -> int
+example/test_memory_enum.aya:4: struct Point
+example/test_memory_enum.aya:9: enum Maybe
+example/test_memory_enum.aya:14: fn make() -> int
+example/test_memory_enum.aya:21: fn main() -> int
 example/test_memory_loop.aya:5: struct Point
 example/test_memory_loop.aya:10: fn loop_allocs() -> int
 example/test_memory_loop.aya:20: fn main() -> int

@@ -8,9 +8,6 @@ fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>
         HirType::Unique(_) | HirType::Shared(_) | HirType::FatPtr { .. } => true,
         HirType::Named(name) => {
             let Some(fields) = struct_defs.get(name) else { return false; };
-            if fields.first().map(|(n, _)| n.as_str() == "_tag").unwrap_or(false) {
-                return false;
-            }
             fields.iter().any(|(_, ft)| needs_drop(ft, struct_defs))
         }
         _ => false,
