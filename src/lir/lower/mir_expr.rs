@@ -171,7 +171,7 @@ impl MirNode for SMirToUnique {
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let inner_val = self.expr.lower_to_lir(ctx);
-        let inner_ty = match &self.ty { HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(), _ => &self.ty };
+        let inner_ty = match &self.ty { HirType::Unique(i) => i.as_ref(), _ => &self.ty };
         if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
             let src = match inner_val {
                 LirValue::Tmp(_) => inner_val,
@@ -191,53 +191,7 @@ impl MirNode for SMirToUnique {
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
 }
 
-impl MirNode for SMirToShared {
-    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
-        let inner_val = self.expr.lower_to_lir(ctx);
-        let inner_ty = match &self.ty { HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(), _ => &self.ty };
-        if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
-            let src = match inner_val {
-                LirValue::Tmp(_) => inner_val,
-                _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&inner_val), ty: self.expr.expr_type() }.into()); LirValue::Tmp(t) }
-            };
-            let dest = ctx.next_tmp(); let alloca_tmp = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
-            ctx.emit(SLirConv { dest, alloca_tmp, malloc_tmp, src, kind: ConvKind::ToShared, src_ty: self.expr.expr_type(), ty: self.ty.clone() }.into());
-            LirValue::Tmp(dest)
-        } else { inner_val }
-    }
-    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
-        writeln!(w, "{:width$}ToShared(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
-        self.expr.display(level + 1, w)?;
-        Ok(())
-    }
-    fn expr_type(&self) -> HirType { self.ty.clone() }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-}
 
-impl MirNode for SMirToWeak {
-    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
-        let inner_val = self.expr.lower_to_lir(ctx);
-        let inner_ty = match &self.ty { HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(), _ => &self.ty };
-        if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
-            let src = match inner_val {
-                LirValue::Tmp(_) => inner_val,
-                _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&inner_val), ty: self.expr.expr_type() }.into()); LirValue::Tmp(t) }
-            };
-            let dest = ctx.next_tmp(); let alloca_tmp = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
-            ctx.emit(SLirConv { dest, alloca_tmp, malloc_tmp, src, kind: ConvKind::ToWeak, src_ty: self.expr.expr_type(), ty: self.ty.clone() }.into());
-            LirValue::Tmp(dest)
-        } else { inner_val }
-    }
-    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
-        writeln!(w, "{:width$}ToWeak(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
-        self.expr.display(level + 1, w)?;
-        Ok(())
-    }
-    fn expr_type(&self) -> HirType { self.ty.clone() }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-}
 
 impl MirNode for SMirVirtualCall {
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }

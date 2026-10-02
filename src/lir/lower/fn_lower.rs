@@ -80,12 +80,6 @@ pub(super) fn lower_stmts(ctx: &mut LowerCtx, stmts: &[MirStmtBox]) {
                 if let Some((id, ty)) = stmts[i].as_drop() {
                     ctx.emit(SLirDropValue { var: id, ty: ty.clone() }.into());
                     i += 1;
-                } else if let Some((id, ty)) = stmts[i].as_retain() {
-                    ctx.emit(SLirRetainValue { var: id, ty: ty.clone() }.into());
-                    i += 1;
-                } else if let Some((id, ty)) = stmts[i].as_release() {
-                    ctx.emit(SLirReleaseValue { var: id, ty: ty.clone() }.into());
-                    i += 1;
                 } else {
                     break;
                 }
@@ -109,7 +103,7 @@ pub(super) fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
         HirType::Float => Some((LirValue::Literal(HirLiteral::Float(0.0), HirType::Float), HirType::Float)),
         HirType::Char => Some((LirValue::Literal(HirLiteral::Char('\0'), HirType::Char), HirType::Char)),
         HirType::Bool => Some((LirValue::Literal(HirLiteral::Bool(false), HirType::Bool), HirType::Bool)),
-        HirType::Named(_) | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
+        HirType::Named(_) | HirType::Unique(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
             Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), ty.clone()))
         }
     }
@@ -117,7 +111,7 @@ pub(super) fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
 
 pub(super) fn strip_ownership(ty: HirType) -> HirType {
     match ty {
-        HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => *inner,
+        HirType::Unique(inner) => *inner,
         other => other,
     }
 }
@@ -128,7 +122,7 @@ pub(super) fn type_size(ty: &HirType) -> u64 {
         HirType::Char | HirType::Bool => 1,
         HirType::Void => 0,
         HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) => 16,
-        HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => type_size(inner),
+        HirType::Unique(inner) => type_size(inner),
         HirType::Ref(_, _) | HirType::FnPtr(..) => 8,
     }
 }

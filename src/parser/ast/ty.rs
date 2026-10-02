@@ -15,8 +15,6 @@ pub enum Type {
     Array(Box<Type>, Span),
     Ref(Box<Type>, bool, Span),  // ref T or ref mut T
     Unique(Box<Type>, Span),
-    Shared(Box<Type>, Span),
-    Weak(Box<Type>, Span),
     Self_(Span),
     FnPtr(Vec<Type>, Box<Type>, Span),
 }
@@ -33,8 +31,6 @@ impl Type {
             | Type::Array(_, s)
             | Type::Ref(_, _, s)
             | Type::Unique(_, s)
-            | Type::Shared(_, s)
-            | Type::Weak(_, s) => *s,
             | Type::FnPtr(_, _, s) => *s,
             Type::Named(_, s) => *s,
             Type::Self_(s) => *s,
@@ -44,7 +40,7 @@ impl Type {
 
     pub fn inner(&self) -> Option<&Type> {
         match self {
-            Type::Unique(ty, _) | Type::Shared(ty, _) | Type::Weak(ty, _) => Some(ty),
+            Type::Unique(ty, _) => Some(ty),
             _ => None,
         }
     }

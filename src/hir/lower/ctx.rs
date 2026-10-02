@@ -101,7 +101,7 @@ impl Ctx {
     pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize> {
         let type_name = match struct_ty {
             HirType::Named(n) => *n,
-            HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) | HirType::Ref(inner, _) => {
+            HirType::Unique(inner) | HirType::Ref(inner, _) => {
                 return self.find_field_index(inner, field, span);
             }
             _ => return Err(Error::Hir(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
@@ -132,7 +132,7 @@ impl Ctx {
     pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType> {
         let type_name = match struct_ty {
             HirType::Named(n) => *n,
-            HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) | HirType::Ref(inner, _) => {
+            HirType::Unique(inner) | HirType::Ref(inner, _) => {
                 let inner_name = match inner.as_ref() {
                     HirType::Named(n) => *n,
                     _ => return Err(Error::Hir(format!("类型 {} 没有字段 `{}` (位置 {}:{})",

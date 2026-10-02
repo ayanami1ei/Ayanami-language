@@ -15,8 +15,6 @@ pub(super) fn format_type(ty: &Type) -> String {
         Type::Named(s, _) => format!("Named({})", s),
         Type::Array(inner, _) => format!("[{}]", format_type(inner)),
         Type::Unique(inner, _) => format!("unique {}", format_type(inner)),
-        Type::Shared(inner, _) => format!("shared {}", format_type(inner)),
-        Type::Weak(inner, _) => format!("weak {}", format_type(inner)),
         Type::Generic(name, args, _) => format!(
             "{}[{}]",
             name,

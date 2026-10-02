@@ -20,8 +20,6 @@ pub(super) fn write_type(ty: &Type) -> String {
         Type::Named(s, _) => s.as_str().to_string(),
         Type::Array(inner, _) => format!("[{}]", write_type(inner)),
         Type::Unique(inner, _) => format!("unique {}", write_type(inner)),
-        Type::Shared(inner, _) => format!("shared {}", write_type(inner)),
-        Type::Weak(inner, _) => format!("weak {}", write_type(inner)),
         Type::Generic(name, args, _) => {
             let args_str: Vec<String> = args.iter().map(|a| write_type(a)).collect();
             format!("{}[{}]", name, args_str.join(", "))
@@ -58,8 +56,6 @@ pub(super) fn write_expr(expr: &Expr) -> String {
         Expr::Move(inner, _) => format!("move {}", write_expr(inner)),
         Expr::Clone(inner, _) => format!("clone {}", write_expr(inner)),
         Expr::ToUnique(inner, _) => format!("unique {}", write_expr(inner)),
-        Expr::ToShared(inner, _) => format!("shared {}", write_expr(inner)),
-        Expr::ToWeak(inner, _) => format!("weak {}", write_expr(inner)),
         Expr::MethodCall { object, method, args, .. } => {
             let args_str: Vec<String> = args.iter().map(|a| write_expr(a)).collect();
             format!("{}.{}({})", write_expr(object), method, args_str.join(", "))

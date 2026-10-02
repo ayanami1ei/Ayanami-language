@@ -3,16 +3,12 @@ use super::*;
 impl crate::hir::lower::Ctx {
     pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool {
         if param_ty == arg_ty { return true; }
-        // Shared/Unique value types: allow passing plain T to shared T
-        if let HirType::Shared(inner) = param_ty {
-            if arg_ty == inner.as_ref() { return true; }
-        }
         if let HirType::Unique(inner) = param_ty {
             if arg_ty == inner.as_ref() { return true; }
         }
         // Allow passing Shared(T)/Unique(T)/Weak(T) to plain T
         // (ownership wrapper is transparent for primitives)
-        if let HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) = arg_ty {
+        if let HirType::Unique(inner) = arg_ty {
             if param_ty == inner.as_ref() { return true; }
         }
         // ref/ref mut 形参：允许传裸值（自动借用）或已借用值
@@ -20,7 +16,7 @@ impl crate::hir::lower::Ctx {
             if arg_ty == inner.as_ref() || matches!(arg_ty, HirType::Ref(..)) {
                 return true;
             }
-            if let HirType::Shared(a) | HirType::Unique(a) | HirType::Weak(a) = arg_ty {
+            if let HirType::Unique(a) = arg_ty {
                 if a.as_ref() == inner.as_ref() {
                     return true;
                 }
@@ -68,14 +64,14 @@ impl crate::hir::lower::Ctx {
         // 逐层剥离接收者的所有权包装（Unique/Shared/Weak）
         // 处理多层包装如 Unique(Shared(T)) 的情况
         let recv_inner = match receiver {
-            HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
+            HirType::Unique(i) => i.as_ref(),
             other => other,
         };
         // 如果剥离后与参数完全相等，则匹配
         if recv_inner == param { return true; }
         // 再剥离参数的所有权包装
         let param_inner = match param {
-            HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
+            HirType::Unique(i) => i.as_ref(),
             other => other,
         };
         if recv_inner == param_inner { return true; }
@@ -85,14 +81,14 @@ impl crate::hir::lower::Ctx {
         }
         // 允许向 shared/unique self 传入裸类型（自动包装）
         match param {
-            HirType::Shared(inner) | HirType::Unique(inner) => {
+            HirType::Unique(inner) => {
                 if receiver == inner.as_ref() { return true; }
             }
             // 允许向 ref/ref mut self 传入裸类型（自动借用）
             HirType::Ref(inner, _) => {
                 if receiver == inner.as_ref() { return true; }
                 let recv_inner2 = match receiver {
-                    HirType::Shared(i) | HirType::Unique(i) | HirType::Weak(i) => i.as_ref(),
+                    HirType::Unique(i) => i.as_ref(),
                     other => other,
                 };
                 if recv_inner2 == inner.as_ref() { return true; }

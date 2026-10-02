@@ -93,7 +93,7 @@ impl crate::hir::lower::Ctx {
                 // 递归剥离所有权包装（Unique/Shared/Weak），
                 // 处理多层包装如 Unique(Shared(LinkedList)) → LinkedList
                 let mut concrete_inner = concrete_ty;
-                while matches!(concrete_inner, HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_)) {
+                while matches!(concrete_inner, HirType::Unique(_)) {
                     concrete_inner = strip_ownership_ref(concrete_inner);
                 }
                 let concrete_type_name = match concrete_inner {

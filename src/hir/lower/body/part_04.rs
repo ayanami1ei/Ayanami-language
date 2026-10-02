@@ -17,9 +17,7 @@ impl crate::hir::lower::Ctx {
     pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType {
         match ty {
             HirType::Named(n) if gp_names.contains(n) => subst.get(n).cloned().unwrap_or_else(|| ty.clone()),
-            HirType::Shared(inner) => HirType::Shared(Box::new(Self::substitute_iface_type(inner, subst, gp_names))),
             HirType::Unique(inner) => HirType::Unique(Box::new(Self::substitute_iface_type(inner, subst, gp_names))),
-            HirType::Weak(inner) => HirType::Weak(Box::new(Self::substitute_iface_type(inner, subst, gp_names))),
             HirType::FatPtr { name, kind } => HirType::FatPtr { name: *name, kind: Box::new(Self::substitute_iface_type(kind, subst, gp_names)) },
             HirType::FnPtr(params, ret) => HirType::FnPtr(
                 params.iter().map(|p| Self::substitute_iface_type(p, subst, gp_names)).collect(),
@@ -57,7 +55,7 @@ impl crate::hir::lower::Ctx {
     /// Extract a concrete type name from an HirType (stripping ownership).
     pub(crate) fn extract_concrete_type_name(ty: &HirType) -> Option<Symbol> {
         match ty {
-            HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => {
+            HirType::Unique(inner) => {
                 Self::extract_concrete_type_name(inner)
             }
             HirType::Named(n) => Some(*n),
@@ -74,7 +72,7 @@ impl crate::hir::lower::Ctx {
         // Check if param is FatPtr and arg is a concrete type that implements the interface
         if let HirType::FatPtr { name: iface_name, .. } = param_ty {
             let concrete = match arg_ty {
-                HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => {
+                HirType::Unique(inner) => {
                     if let HirType::Named(n) = inner.as_ref() { Some(*n) } else { None }
                 }
                 HirType::Named(n) => Some(*n),
@@ -121,7 +119,7 @@ impl crate::hir::lower::Ctx {
                     if params.is_empty() { return false; }
                     let self_ty = ast_type_to_hir(&params[0].1, &self.interfaces);
                     let self_inner = match &self_ty {
-                        HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+                        HirType::Unique(inner) => inner.as_ref(),
                         other => other,
                     };
                     let self_base = match self_inner {
@@ -193,7 +191,7 @@ impl crate::hir::lower::Ctx {
         let mut vtable_fns: Vec<FnId> = vec![FnId(usize::MAX)];
         let span = crate::span::Span::default();
         for iface_method in &iface_reg.methods {
-            let self_ty = HirType::Shared(Box::new(HirType::Named(*concrete_type)));
+            let self_ty = HirType::Ref(Box::new(HirType::Named(*concrete_type)), false);
             let mut arg_types = vec![self_ty];
             for (_, ift) in &iface_method.params {
                 arg_types.push(ift.clone());

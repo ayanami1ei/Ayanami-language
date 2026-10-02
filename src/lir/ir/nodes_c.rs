@@ -211,7 +211,7 @@ impl LirNode for SLirFieldStore {
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let mut lines = Vec::new();
         let inner = match &self.struct_ty {
-            HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) | HirType::Ref(inner, _) => inner.as_ref(),
+            HirType::Unique(inner) | HirType::Ref(inner, _) => inner.as_ref(),
             other => other,
         };
         let struct_name = match inner {
@@ -230,12 +230,8 @@ impl LirNode for SLirFieldStore {
             }
             _ => ctx.value_ref(&self.src, &self.field_ty),
         };
-        if matches!(&self.struct_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_) | HirType::Ref(..)) {
+        if matches!(&self.struct_ty, HirType::Unique(_) | HirType::Ref(..)) {
             lines.push(format!("%t{} = getelementptr {}, ptr %t{}, i32 0, i32 {}", self.gep_tmp, struct_llvm, self.dest, self.field_index));
-            // Retain the new value before storing (shared pointer field)
-            if matches!(&self.field_ty, HirType::Shared(_)) {
-                lines.push(format!("call void @__ayanami_shared_retain(i8* {})", src_str));
-            }
             lines.push(format!("store {} {}, ptr %t{}", field_llvm, src_str, self.gep_tmp));
         } else {
             let var_ty = ctx.llvm_type(&self.struct_ty);

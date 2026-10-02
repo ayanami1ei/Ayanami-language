@@ -26,8 +26,6 @@ pub enum HirType {
     Void,
     Bool,
     Unique(Box<HirType>),
-    Shared(Box<HirType>),
-    Weak(Box<HirType>),
     Named(Symbol),
     /// Fat pointer `{ data_ptr, vtable_ptr }` for interface dispatch.
     /// `name` is the interface name, `kind` preserves ownership (Shared/Unique).

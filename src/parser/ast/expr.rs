@@ -28,8 +28,6 @@ pub enum Expr {
     Move(Box<Expr>, Span),
     Clone(Box<Expr>, Span),
     ToUnique(Box<Expr>, Span),
-    ToShared(Box<Expr>, Span),
-    ToWeak(Box<Expr>, Span),
     MethodCall {
         object: Box<Expr>,
         method: Symbol,
@@ -101,8 +99,6 @@ impl Expr {
             |             Expr::Move(_, span)
             | Expr::Clone(_, span)
             | Expr::ToUnique(_, span)
-            | Expr::ToShared(_, span)
-            | Expr::ToWeak(_, span)
             | Expr::MethodCall { span, .. }
             | Expr::FieldAccess { span, .. }
             | Expr::StructLiteral { span, .. }

@@ -40,8 +40,6 @@ impl IrNode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConvKind {
     ToUnique,
-    ToShared,
-    ToWeak,
 }
 
 #[derive(Debug, Clone)]
@@ -78,7 +76,7 @@ impl LirEmitCtx<'_> {
                     "i8*".into()
                 }
             }
-            HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => {
+            HirType::Unique(inner) => {
                 if matches!(inner.as_ref(), HirType::Named(_) | HirType::FatPtr { .. }) {
                     "ptr".into()
                 } else {

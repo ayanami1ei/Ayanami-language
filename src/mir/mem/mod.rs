@@ -3,8 +3,6 @@ use crate::hir::ir::{HirType, VarId};
 #[derive(Debug, Clone)]
 pub enum MemAction {
     Drop(VarId),
-    Retain(VarId),
-    Release(VarId),
 }
 
 pub trait MemStrategy {
@@ -15,9 +13,7 @@ pub trait MemStrategy {
 }
 
 pub mod drop;
-pub mod shared;
 pub mod value;
 
 pub use drop::DropStrategy;
-pub use shared::SharedStrategy;
 pub use value::ValueStrategy;

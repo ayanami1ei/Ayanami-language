@@ -133,7 +133,7 @@ impl crate::hir::lower::Ctx {
                     }
                 }
             }
-            HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => {
+            HirType::Unique(inner) => {
                 Self::collect_gp_from_type(inner, out);
             }
             HirType::Array(inner) => Self::collect_gp_from_type(inner, out),

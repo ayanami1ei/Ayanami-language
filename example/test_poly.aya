@@ -17,7 +17,7 @@ impl float {
     fn describe(self) -> void {}
 }
 
-fn double_area(shared Shape s) -> int {
+fn double_area(ref Shape s) -> int {
     s.describe();
     return s.area() * 2;
 }

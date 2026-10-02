@@ -5,7 +5,7 @@ use super::*;
 /// 枚举（首字段 `_tag`）的 payload 释放尚未实现，暂不自动 drop。
 fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
-        HirType::Unique(_) | HirType::Shared(_) => true,
+        HirType::Unique(_) => true,
         HirType::FatPtr { kind, .. } => !matches!(kind.as_ref(), HirType::Ref(..)),
         HirType::Named(name) => {
             let Some(fields) = struct_defs.get(name) else { return false; };
@@ -17,7 +17,6 @@ fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>
 
 pub(super) fn strategy_for(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Box<dyn MemStrategy> {
     match ty {
-        HirType::Shared(_) => Box::new(SharedStrategy),
         _ if needs_drop(ty, struct_defs) => Box::new(DropStrategy),
         _ => Box::new(ValueStrategy),
     }
@@ -26,7 +25,5 @@ pub(super) fn strategy_for(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symb
 pub(super) fn action_to_stmt(_var: VarId, ty: &HirType, action: &MemAction) -> MirStmtBox {
     match action {
         MemAction::Drop(v) => SMirDropStmt { var: *v, ty: ty.clone() }.into(),
-        MemAction::Retain(v) => SMirRetainStmt { var: *v, ty: ty.clone() }.into(),
-        MemAction::Release(v) => SMirReleaseStmt { var: *v, ty: ty.clone() }.into(),
     }
 }

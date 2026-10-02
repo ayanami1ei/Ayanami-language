@@ -121,10 +121,6 @@ impl Parser {
 
         // Parse self parameter: ref/ref mut/unique/shared/self
         let self_keyword = match self.peek().map(|t| &t.kind) {
-            Some(TokenKind::Keyword(Keyword::Shared)) => {
-                self.advance();
-                Symbol::intern("shared")
-            }
             Some(TokenKind::Keyword(Keyword::Unique)) => {
                 self.advance();
                 Symbol::intern("unique")

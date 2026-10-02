@@ -15,17 +15,9 @@ pub fn type_from_node(node: &Node) -> Result<Type> {
                 _ => Ok(Type::Named(Symbol::intern(&name_str), default_span())),
             }
         }
-        "SharedType" => {
-            let inner = type_from_node(node.child("inner").ok_or_else(|| Error::Parse("missing inner".into()))?)?;
-            Ok(Type::Shared(Box::new(inner), default_span()))
-        }
         "UniqueType" => {
             let inner = type_from_node(node.child("inner").ok_or_else(|| Error::Parse("missing inner".into()))?)?;
             Ok(Type::Unique(Box::new(inner), default_span()))
-        }
-        "WeakType" => {
-            let inner = type_from_node(node.child("inner").ok_or_else(|| Error::Parse("missing inner".into()))?)?;
-            Ok(Type::Weak(Box::new(inner), default_span()))
         }
         "ArrayType" => {
             let inner = type_from_node(node.child("inner").ok_or_else(|| Error::Parse("missing inner".into()))?)?;

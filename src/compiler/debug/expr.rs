@@ -40,14 +40,6 @@ pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             writeln!(w, "{}ToUnique", pad(level)).unwrap();
             write_expr(expr, level + 1, w);
         }
-        Expr::ToShared(expr, _) => {
-            writeln!(w, "{}ToShared", pad(level)).unwrap();
-            write_expr(expr, level + 1, w);
-        }
-        Expr::ToWeak(expr, _) => {
-            writeln!(w, "{}ToWeak", pad(level)).unwrap();
-            write_expr(expr, level + 1, w);
-        }
         Expr::MethodCall {
             object, method, args, ..
         } => {

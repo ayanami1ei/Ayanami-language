@@ -28,7 +28,7 @@ pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
         HirType::Bool => "1",
         HirType::Void => "0",
         HirType::Named(_) | HirType::FatPtr { .. } => "16",
-        HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => llvm_type_size(inner),
+        HirType::Unique(inner) => llvm_type_size(inner),
         HirType::Array(_) | HirType::ArraySized(_, _) => "16",
         HirType::FnPtr(..) => "8",
         HirType::Ref(_, _) => "16",
@@ -42,12 +42,12 @@ pub(crate) fn struct_llvm_size(ty: &HirType, struct_defs: &std::collections::Has
             let total: u64 = fields.iter().map(|(_, ft)| {
                 let s = llvm_type_size(ft);
                 let n: u64 = s.parse().unwrap_or(8);
-                if matches!(ft, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)) { 8u64 } else { n }
+                if matches!(ft, HirType::Unique(_)) { 8u64 } else { n }
             }).sum();
             return total.to_string();
         }
     }
-    if let HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) = ty {
+    if let HirType::Unique(inner) = ty {
         return struct_llvm_size(inner, struct_defs);
     }
     llvm_type_size(ty).to_string()
@@ -56,7 +56,7 @@ pub(crate) fn struct_llvm_size(ty: &HirType, struct_defs: &std::collections::Has
 pub(super) fn needs_heap_ops(ty: &HirType) -> bool {
     match ty {
         HirType::FatPtr { .. } => true,
-        HirType::Unique(inner) | HirType::Shared(inner) | HirType::Weak(inner) => {
+        HirType::Unique(inner) => {
             matches!(inner.as_ref(), HirType::Named(_) | HirType::FatPtr { .. })
         }
         HirType::Named(_) => false,
@@ -69,8 +69,7 @@ pub(super) fn needs_heap_ops(ty: &HirType) -> bool {
 pub(super) fn is_pointer_type(ty: &HirType) -> bool {
     matches!(ty,
         HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_)
-        | HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_)
-        | HirType::Ref(_, _) | HirType::FnPtr(..)
+        | HirType::Unique(_) | HirType::Ref(_, _) | HirType::FnPtr(..)
     )
 }
 
@@ -82,7 +81,7 @@ pub(super) fn is_pointer_type(ty: &HirType) -> bool {
 /// - 枚举（首字段为 `_tag`）暂不递归释放 payload（P1 已知缺口）。
 pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
-        HirType::Unique(_) | HirType::Shared(_) => true,
+        HirType::Unique(_) => true,
         HirType::FatPtr { kind, .. } => !matches!(kind.as_ref(), HirType::Ref(..)),
         HirType::Named(name) => {
             let Some(fields) = struct_defs.get(name) else { return false; };
@@ -114,14 +113,6 @@ pub(super) fn emit_drop_value(
             }
             lines.push(format!("call void @__ayanami_unique_free(i8* {})", ptr));
         }
-        HirType::Shared(_) => {
-            if ctx.llvm_type(ty) != "ptr" {
-                return;
-            }
-            let tmp = ctx.tmp();
-            lines.push(format!("%c{} = load ptr, ptr {}, align 8", tmp, slot));
-            lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
-        }
         HirType::FatPtr { kind, .. } => {
             match kind.as_ref() {
                 // 借用胖指针不拥有数据，无需释放
@@ -132,12 +123,7 @@ pub(super) fn emit_drop_value(
                     lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", tmp, tmp));
                     lines.push(format!("call void @__ayanami_unique_free(i8* %c{})", tmp));
                 }
-                _ => {
-                    let tmp = ctx.tmp();
-                    lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 0", tmp, slot));
-                    lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", tmp, tmp));
-                    lines.push(format!("call void @__ayanami_shared_release(i8* %c{})", tmp));
-                }
+                _ => {}
             }
         }
         HirType::Named(name) => {

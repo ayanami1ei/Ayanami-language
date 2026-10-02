@@ -19,16 +19,6 @@ impl Parser {
                 let inner = self.parse_base_type()?;
                 Ok(Type::Ref(Box::new(inner), mutable, span))
             }
-            TokenKind::Keyword(Keyword::Shared) => {
-                self.advance();
-                let inner = self.parse_base_type()?;
-                Ok(Type::Shared(Box::new(inner), span))
-            }
-            TokenKind::Keyword(Keyword::Weak) => {
-                self.advance();
-                let inner = self.parse_base_type()?;
-                Ok(Type::Weak(Box::new(inner), span))
-            }
             _ => self.parse_base_type(),
         }
     }

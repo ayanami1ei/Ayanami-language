@@ -82,14 +82,6 @@ pub fn node_to_expr(node: &Node) -> Result<Expr> {
             let arg = node_to_expr(node.child("arg").ok_or_else(|| Error::Parse("missing arg".into()))?)?;
             Ok(Expr::ToUnique(Box::new(arg), default_span()))
         }
-        "ToSharedExpr" => {
-            let arg = node_to_expr(node.child("arg").ok_or_else(|| Error::Parse("missing arg".into()))?)?;
-            Ok(Expr::ToShared(Box::new(arg), default_span()))
-        }
-        "ToWeakExpr" => {
-            let arg = node_to_expr(node.child("arg").ok_or_else(|| Error::Parse("missing arg".into()))?)?;
-            Ok(Expr::ToWeak(Box::new(arg), default_span()))
-        }
         "RefExpr" => {
             let mutable = node.get("mutable").map(|v| matches!(v, Value::String(s) if s == "mut")).unwrap_or(false);
             let arg = node_to_expr(node.child("arg").ok_or_else(|| Error::Parse("missing arg".into()))?)?;

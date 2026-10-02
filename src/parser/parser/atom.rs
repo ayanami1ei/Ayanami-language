@@ -241,7 +241,7 @@ impl Parser {
                     matches!(&t.kind,
                         TokenKind::Keyword(Keyword::Int | Keyword::Float | Keyword::Char | Keyword::Bool)
                         | TokenKind::Identifier(_)
-                        | TokenKind::Keyword(Keyword::Shared | Keyword::Unique | Keyword::Weak)
+                        | TokenKind::Keyword(Keyword::Unique)
                     )
                 }).unwrap_or(false)
                 && self.pos + 1 < self.tokens.len()

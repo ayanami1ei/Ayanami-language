@@ -4,7 +4,7 @@ struct Point {
 }
 
 impl Point {
-    fn add(shared self, shared Point other) -> Point {
+    fn add(ref self, ref Point other) -> Point {
         a = self.x + other.x;
         b = self.y + other.y;
         return Point { x = a, y = b };

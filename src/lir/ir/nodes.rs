@@ -15,8 +15,6 @@ s_lir!(SLirFnAddr { dest: u64, fn_id: FnId });
 s_lir!(SLirStrGlobal { dest: u64, str_idx: u64 });
 s_lir!(SLirConv { dest: u64, alloca_tmp: u64, malloc_tmp: u64, src: LirValue, kind: ConvKind, src_ty: HirType, ty: HirType });
 s_lir!(SLirDropValue { var: VarId, ty: HirType });
-s_lir!(SLirRetainValue { var: VarId, ty: HirType });
-s_lir!(SLirReleaseValue { var: VarId, ty: HirType });
 s_lir!(SLirBr { label: String });
 s_lir!(SLirBrCond { cond: LirValue, true_block: String, false_block: String });
 s_lir!(SLirRet { val: Option<(LirValue, HirType)> });
@@ -41,7 +39,7 @@ s_lir!(SLirCustom { node: IrNode });
 impl_into_lir_node_box!(
     SLirAlloca, SLirStore, SLirLoad, SLirBinOp, SLirUnaryOp,
     SLirCall, SLirCallPtr, SLirFnAddr, SLirStrGlobal, SLirConv,
-    SLirDropValue, SLirRetainValue, SLirReleaseValue,
+    SLirDropValue,
     SLirBr, SLirBrCond, SLirRet,
     SLirMakeFatPtr, SLirFieldAccess, SLirAsm, SLirRefInst, SLirRefTmp,
     SLirArraySized, SLirArrayLit, SLirIndexAccess, SLirStructLit,

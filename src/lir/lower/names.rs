@@ -53,9 +53,7 @@ pub(super) fn type_to_mangle(ty: &HirType) -> String {
         HirType::Named(s) => s.as_str().replace('<', "_lt_").replace('>', "_gt_")
             .replace(',', "_c_").replace(' ', "_").replace('[', "_lb_").replace(']', "_rb_"),
         HirType::Unique(inner) => format!("unique_{}", type_to_mangle(inner)),
-        HirType::Shared(inner) => format!("shared_{}", type_to_mangle(inner)),
         HirType::FnPtr(..) => "fnptr".into(),
-        HirType::Weak(inner) => format!("weak_{}", type_to_mangle(inner)),
         HirType::FatPtr { name, .. } => format!("fatptr_{}", name.as_str().replace('<', "_lt_").replace('>', "_gt_")),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => format!("arr_{}", type_to_mangle(inner)),
         HirType::Ref(inner, _) => format!("ref_{}", type_to_mangle(inner)),

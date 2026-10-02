@@ -11,8 +11,6 @@ pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) 
             }
         }
         Type::Unique(inner, _) => Type::Unique(Box::new(substitute_type_in_type(inner, subst)), s),
-        Type::Shared(inner, _) => Type::Shared(Box::new(substitute_type_in_type(inner, subst)), s),
-        Type::Weak(inner, _) => Type::Weak(Box::new(substitute_type_in_type(inner, subst)), s),
         Type::Array(inner, _) => Type::Array(Box::new(substitute_type_in_type(inner, subst)), s),
         Type::Ref(inner, mutable, _) => Type::Ref(Box::new(substitute_type_in_type(inner, subst)), *mutable, s),
         Type::Int(_) => Type::Int(s),
@@ -72,8 +70,6 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
         Expr::Move(inner, span) => Expr::Move(Box::new(substitute_type_in_expr(inner, subst)), *span),
         Expr::Clone(inner, span) => Expr::Clone(Box::new(substitute_type_in_expr(inner, subst)), *span),
         Expr::ToUnique(inner, span) => Expr::ToUnique(Box::new(substitute_type_in_expr(inner, subst)), *span),
-        Expr::ToShared(inner, span) => Expr::ToShared(Box::new(substitute_type_in_expr(inner, subst)), *span),
-        Expr::ToWeak(inner, span) => Expr::ToWeak(Box::new(substitute_type_in_expr(inner, subst)), *span),
         Expr::FieldAccess { object, field, span } => Expr::FieldAccess {
             object: Box::new(substitute_type_in_expr(object, subst)),
             field: *field,

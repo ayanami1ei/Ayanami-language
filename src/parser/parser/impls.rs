@@ -48,7 +48,7 @@ impl Parser {
             match ty {
                 Type::Named(name, _) => *name,
                 Type::Generic(name, _, _) => *name,
-                Type::Unique(inner, _) | Type::Shared(inner, _) | Type::Weak(inner, _) => {
+                Type::Unique(inner, _) => {
                     extract_type_name(inner)
                 }
                 Type::Int(_) => Symbol::intern("int"),
@@ -128,17 +128,12 @@ impl Parser {
         // Parse optional self parameter: ref/ref mut/unique/shared/self
         let mut params: Vec<(Symbol, Type)> = Vec::new();
         let is_self_start = matches!(self.peek().map(|t| &t.kind),
-            Some(TokenKind::Keyword(Keyword::Shared))
-                | Some(TokenKind::Keyword(Keyword::Unique))
+            Some(TokenKind::Keyword(Keyword::Unique))
                 | Some(TokenKind::Keyword(Keyword::Ref))
                 | Some(TokenKind::Keyword(Keyword::Self_)));
         if is_self_start {
             let mut ref_mut = false;
             let self_keyword = match self.peek().map(|t| &t.kind) {
-                Some(TokenKind::Keyword(Keyword::Shared)) => {
-                    self.advance();
-                    Symbol::intern("shared")
-                }
                 Some(TokenKind::Keyword(Keyword::Unique)) => {
                     self.advance();
                     Symbol::intern("unique")
@@ -166,7 +161,6 @@ impl Parser {
                 Type::Generic(*impl_type, gp_names, Span::default())
             };
             let self_type = match self_keyword.as_str().as_str() {
-                "shared" => Type::Shared(Box::new(base_self_type), Span::default()),
                 "unique" => Type::Unique(Box::new(base_self_type), Span::default()),
                 "ref" => Type::Ref(Box::new(base_self_type), ref_mut, Span::default()),
                 _ => base_self_type, // 裸 self：消费

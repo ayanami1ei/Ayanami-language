@@ -14,42 +14,16 @@ pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox {
 pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
     let arg_ty = arg.expr_type();
     let converted = match param_ty {
-        HirType::Unique(pt) | HirType::Shared(pt) | HirType::Weak(pt) => {
+        HirType::Unique(pt) => {
             if arg_ty == *pt.as_ref() {
                 match param_ty {
                     HirType::Unique(_) => SToUnique { expr: arg, ty: param_ty.clone() }.into(),
-                    HirType::Shared(_) => SToShared { expr: arg, ty: param_ty.clone() }.into(),
-                    HirType::Weak(_) => SToWeak { expr: arg, ty: param_ty.clone() }.into(),
                     _ => arg,
                 }
             } else if let HirType::Unique(inner) = &arg_ty {
                 if **inner == *pt.as_ref() {
                     match param_ty {
                         HirType::Unique(_) => wrap_for_unique_param(arg, param_ty),
-                        HirType::Shared(_) => SToShared { expr: arg, ty: param_ty.clone() }.into(),
-                        HirType::Weak(_) => SToWeak { expr: arg, ty: param_ty.clone() }.into(),
-                        _ => arg,
-                    }
-                } else {
-                    arg
-                }
-            } else if let HirType::Shared(inner) = &arg_ty {
-                if **inner == *pt.as_ref() {
-                    match param_ty {
-                        HirType::Shared(_) => arg,
-                        HirType::Unique(_) => SToUnique { expr: arg, ty: param_ty.clone() }.into(),
-                        HirType::Weak(_) => SToWeak { expr: arg, ty: param_ty.clone() }.into(),
-                        _ => arg,
-                    }
-                } else {
-                    arg
-                }
-            } else if let HirType::Weak(inner) = &arg_ty {
-                if **inner == *pt.as_ref() {
-                    match param_ty {
-                        HirType::Weak(_) => arg,
-                        HirType::Shared(_) => SToShared { expr: arg, ty: param_ty.clone() }.into(),
-                        HirType::Unique(_) => SToUnique { expr: arg, ty: param_ty.clone() }.into(),
                         _ => arg,
                     }
                 } else {
@@ -75,7 +49,6 @@ pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNode
     };
     // 按值参数（含 unique）消费实参：插入移动；shared/weak 仍是借用/共享语义
     match param_ty {
-        HirType::Shared(_) | HirType::Weak(_) => converted,
         _ => implicit_move(converted),
     }
 }

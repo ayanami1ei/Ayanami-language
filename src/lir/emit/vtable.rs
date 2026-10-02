@@ -39,7 +39,7 @@ impl<'a> Emitter<'a> {
         self.prog.functions.iter().find(|f| f.fn_id == fn_id).map(|f| {
             f.params.first().map(|(_, t)| {
                 let inner = match t {
-                    HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+                    HirType::Unique(inner) => inner.as_ref(),
                     other => other,
                 };
                 matches!(inner, HirType::Int | HirType::Float | HirType::Char | HirType::Bool)
@@ -59,7 +59,7 @@ impl<'a> Emitter<'a> {
             .find(|f| f.fn_id == fn_id)
             .and_then(|f| f.params.first().map(|(_, t)| {
                 let inner = match t {
-                    HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => inner.as_ref(),
+                    HirType::Unique(inner) => inner.as_ref(),
                     other => other,
                 };
                 self.llvm_type(inner)

@@ -72,22 +72,6 @@ impl crate::hir::lower::Ctx {
                 let ty = HirType::Unique(Box::new(strip_ownership(inner_ty)));
                 Ok(SToUnique { expr: hir_inner, ty }.into())
             }
-            Expr::ToShared(inner, _) => {
-                self.allow_bare_array = true;
-                let hir_inner = self.lower_expr(inner)?;
-                self.allow_bare_array = false;
-                let inner_ty = hir_inner.expr_type();
-                let ty = HirType::Shared(Box::new(strip_ownership(inner_ty)));
-                Ok(SToShared { expr: hir_inner, ty }.into())
-            }
-            Expr::ToWeak(inner, _) => {
-                self.allow_bare_array = true;
-                let hir_inner = self.lower_expr(inner)?;
-                self.allow_bare_array = false;
-                let inner_ty = hir_inner.expr_type();
-                let ty = HirType::Weak(Box::new(strip_ownership(inner_ty)));
-                Ok(SToWeak { expr: hir_inner, ty }.into())
-            }
             Expr::FieldAccess { object, field, span: expr_span } => self.lower_field_access(object, field, expr_span),
             Expr::StructLiteral { type_name, generic_args, fields, .. } => self.lower_struct_literal(type_name, generic_args, fields),
             Expr::ArrayLiteral(elems, span) => self.lower_array_literal(elems, span),

@@ -31,7 +31,7 @@ impl MirStmtNode for SMirFieldAssignStmt {
         let obj_ty = self.object.expr_type();
         let var_id = match self.object.as_local() {
             Some(id) => {
-                let is_value = !matches!(obj_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_) | HirType::Ref(..));
+                let is_value = !matches!(obj_ty, HirType::Unique(_) | HirType::Ref(..));
                 if is_value { Some(id) } else { None }
             }
             None => None,
@@ -269,24 +269,4 @@ impl MirStmtNode for SMirDropStmt {
     fn as_drop(&self) -> Option<(VarId, &HirType)> { Some((self.var, &self.ty)) }
 }
 
-impl MirStmtNode for SMirRetainStmt {
-    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
-        ctx.emit(SLirRetainValue { var: self.var, ty: self.ty.clone() }.into());
-    }
-    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
-        writeln!(w, "{:width$}Retain(v{} : {})", "", self.var.0, display_hir_type(&self.ty), width = level * 2)
-    }
-    fn as_retain(&self) -> Option<(VarId, &HirType)> { Some((self.var, &self.ty)) }
-}
 
-impl MirStmtNode for SMirReleaseStmt {
-    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
-        ctx.emit(SLirReleaseValue { var: self.var, ty: self.ty.clone() }.into());
-    }
-    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
-        writeln!(w, "{:width$}Release(v{} : {})", "", self.var.0, display_hir_type(&self.ty), width = level * 2)
-    }
-    fn as_release(&self) -> Option<(VarId, &HirType)> { Some((self.var, &self.ty)) }
-}

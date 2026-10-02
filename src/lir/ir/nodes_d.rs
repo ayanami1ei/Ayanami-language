@@ -75,8 +75,6 @@ pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
         HirType::Bool => buf.push(4),
         HirType::Named(s) => { buf.push(5); put_str(buf, &s.as_str()); }
         HirType::Unique(inner) => { buf.push(6); put_type(buf, inner); }
-        HirType::Shared(inner) => { buf.push(7); put_type(buf, inner); }
-        HirType::Weak(inner) => { buf.push(8); put_type(buf, inner); }
         HirType::FatPtr { name, kind } => {
             buf.push(9);
             put_str(buf, &name.as_str());

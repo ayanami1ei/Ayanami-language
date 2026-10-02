@@ -8,42 +8,9 @@ impl LirNode for SLirConv {
         let mut lines = Vec::new();
         let src_val = ctx.value_ref(&self.src, &self.src_ty);
         let src_is_heap_ptr = matches!(&self.src_ty,
-            HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)
+            HirType::Unique(_)
         );
         match &self.kind {
-            ConvKind::ToWeak => {
-                if src_is_heap_ptr {
-                    lines.push(format!("%t{} = bitcast ptr {} to ptr", self.dest, src_val));
-                } else {
-                    lines.push(format!("%t{} = bitcast ptr {} to ptr", self.dest, src_val));
-                }
-            }
-            ConvKind::ToShared => {
-                if src_is_heap_ptr {
-                    lines.push(format!("%t{} = bitcast ptr {} to ptr", self.dest, src_val));
-                    if matches!(&self.src_ty, HirType::Shared(_)) {
-                        lines.push(format!("call void @__ayanami_shared_retain(i8* %t{})", self.dest));
-                    }
-                } else {
-                    let inner_ty = match &self.ty {
-                        HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
-                        _ => &self.ty,
-                    };
-                    let size = struct_llvm_size(inner_ty, &ctx.prog.struct_defs);
-                    let src_ptr = if matches!(&self.src_ty, HirType::Named(s) if ctx.prog.struct_defs.contains_key(s)) {
-                        let src_llvm = ctx.llvm_type(&self.src_ty);
-                        lines.push(format!("%t{} = alloca {}, align 8", self.alloca_tmp, src_llvm));
-                        lines.push(format!("store {} {}, ptr %t{}", src_llvm, src_val, self.alloca_tmp));
-                        format!("%t{}", self.alloca_tmp)
-                    } else {
-                        src_val.clone()
-                    };
-                    let alloc_fn = if needs_heap_ops(&self.ty) { "__ayanami_shared_alloc" } else { "malloc" };
-                    lines.push(format!("%l{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, size));
-                    lines.push(format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)", self.malloc_tmp, src_ptr, size));
-                    lines.push(format!("%t{} = bitcast i8* %l{} to {}", self.dest, self.malloc_tmp, ctx.llvm_type(&self.ty)));
-                }
-            }
             ConvKind::ToUnique => {
                 // 数组缓冲区已是堆指针：所有权直接转移，无需复制
                 if matches!(&self.src_ty, HirType::Array(_) | HirType::ArraySized(_, _)) {
@@ -51,7 +18,7 @@ impl LirNode for SLirConv {
                     return lines;
                 }
                 let inner_ty = match &self.ty {
-                    HirType::Unique(i) | HirType::Shared(i) | HirType::Weak(i) => i.as_ref(),
+                    HirType::Unique(i) => i.as_ref(),
                     _ => &self.ty,
                 };
                 let size = struct_llvm_size(inner_ty, &ctx.prog.struct_defs);
@@ -161,16 +128,12 @@ impl LirNode for SLirMakeFatPtr {
             HirType::FatPtr { kind, .. } => kind.as_ref(),
             _ => &HirType::Void,
         };
-        let is_ptr_type = matches!(&self.value_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_) | HirType::Ref(..));
+        let is_ptr_type = matches!(&self.value_ty, HirType::Unique(_) | HirType::Ref(..));
         let data_ptr = if is_ptr_type || matches!(kind, HirType::Ref(..)) {
             // 已是指针或借用胖指针：直接使用（ref 的 LIR 值就是指向值的地址）
             ctx.value_ref(&self.value_src, &self.value_ty)
         } else {
-            let alloc_fn = if matches!(kind, HirType::Unique(_)) {
-                "__ayanami_unique_alloc"
-            } else {
-                "__ayanami_shared_alloc"
-            };
+            let alloc_fn = "__ayanami_unique_alloc";
             let size = struct_llvm_size(&self.value_ty, &ctx.prog.struct_defs);
             lines.push(format!("%t{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, size));
             lines.push(format!("%t{} = bitcast i8* %t{} to ptr", self.bc_tmp, self.malloc_tmp));
@@ -205,7 +168,7 @@ impl LirNode for SLirFieldAccess {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let inner = match &self.struct_ty {
-            HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) | HirType::Ref(inner, _) => inner.as_ref(),
+            HirType::Unique(inner) | HirType::Ref(inner, _) => inner.as_ref(),
             other => other,
         };
         let struct_name = match inner {
@@ -215,7 +178,7 @@ impl LirNode for SLirFieldAccess {
         let struct_llvm = ctx.struct_llvm_name(struct_name)
             .unwrap_or_else(|| panic!("unknown struct type `{}`", struct_name));
         let src_str = ctx.value_ref(&self.src, &self.struct_ty);
-        if matches!(&self.struct_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_) | HirType::Ref(..)) {
+        if matches!(&self.struct_ty, HirType::Unique(_) | HirType::Ref(..)) {
             vec![
                 format!("%t{} = getelementptr {}, ptr {}, i32 0, i32 {}", self.gep_tmp, struct_llvm, src_str, self.field_index),
                 format!("%t{} = load {}, ptr %t{}", self.dest, ctx.llvm_type(&self.field_ty), self.gep_tmp),

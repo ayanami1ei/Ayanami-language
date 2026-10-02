@@ -32,8 +32,6 @@ impl<'a> Reader<'a> {
             4 => Ok(HirType::Bool),
             5 => { let s = Symbol::intern(&self.str()?); Ok(HirType::Named(s)) }
             6 => Ok(HirType::Unique(Box::new(self.ty()?))),
-            7 => Ok(HirType::Shared(Box::new(self.ty()?))),
-            8 => Ok(HirType::Weak(Box::new(self.ty()?))),
             9 => {
                 let name = Symbol::intern(&self.str()?);
                 let kind = Box::new(self.ty()?);

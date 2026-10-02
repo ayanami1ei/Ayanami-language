@@ -77,7 +77,7 @@ impl crate::hir::lower::Ctx {
             // Check if param expects FatPtr and arg is a concrete type that implements the interface
             if let HirType::FatPtr { name: iface_name, .. } = &param_tys[i] {
                 let concrete_type = match &arg_ty {
-                    HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => {
+                    HirType::Unique(inner) => {
                         if let HirType::Named(n) = inner.as_ref() { Some(*n) } else { None }
                     }
                     HirType::Named(n) => Some(*n),
@@ -106,7 +106,7 @@ impl crate::hir::lower::Ctx {
                     }
                 }
             }
-            if matches!(param_tys[i], HirType::Unique(_) | HirType::Shared(_) | HirType::Weak(_) | HirType::Ref(..)) {
+            if matches!(param_tys[i], HirType::Unique(_) | HirType::Ref(..)) {
                 wrap_arg_for_param(arg, &param_tys[i])
             } else {
                 arg
@@ -209,15 +209,16 @@ impl crate::hir::lower::Ctx {
                     if !var_fields.is_empty() {
                         let mut arms: Vec<(i64, HirNodeBox)> = Vec::new();
                         for (i, vf) in var_fields.iter().enumerate() {
-                            let shared_ty = HirType::Shared(Box::new(vf.ty.clone()));
-                            if let Some(fn_id) = self.resolve_method(&shared_ty, method, &arg_types) {
+                            let ref_ty = HirType::Ref(Box::new(vf.ty.clone()), false);
+                            if let Some(fn_id) = self.resolve_method(&ref_ty, method, &arg_types) {
                                 let ret_ty = self.fns[fn_id.0].return_type.clone();
-                                let data_expr: HirNodeBox = SToShared {
+                                let data_expr: HirNodeBox = SRef {
                                     expr: SField {
                                         object: receiver.clone(),
                                         field: vf.name, field_index: i + 1, ty: vf.ty.clone(),
                                     }.into(),
-                                    ty: shared_ty.clone(),
+                                    mutable: false,
+                                    ty: ref_ty.clone(),
                                 }.into();
                                 let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
                                     .map(|(_, t)| t.clone()).collect();

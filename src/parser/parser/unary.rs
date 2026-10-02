@@ -38,16 +38,6 @@ impl Parser {
                 let expr = self.parse_unary()?;
                 Ok(Expr::ToUnique(Box::new(expr), span))
             }
-            TokenKind::Keyword(Keyword::Shared) => {
-                self.advance();
-                let expr = self.parse_unary()?;
-                Ok(Expr::ToShared(Box::new(expr), span))
-            }
-            TokenKind::Keyword(Keyword::Weak) => {
-                self.advance();
-                let expr = self.parse_unary()?;
-                Ok(Expr::ToWeak(Box::new(expr), span))
-            }
             TokenKind::Keyword(Keyword::Ref) => {
                 self.advance();
                 let mutable = self.peek().map(|t| t.kind == TokenKind::Keyword(Keyword::Mut)).unwrap_or(false);

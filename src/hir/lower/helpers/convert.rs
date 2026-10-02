@@ -10,14 +10,11 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
         HirType::Void => Type::Void(s),
         HirType::Named(n) => Type::Named(*n, s),
         HirType::Unique(inner) => Type::Unique(Box::new(hir_type_to_ast_type(inner)), s),
-        HirType::Shared(inner) => Type::Shared(Box::new(hir_type_to_ast_type(inner)), s),
-        HirType::Weak(inner) => Type::Weak(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::FnPtr(..) => Type::Int(s),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => Type::Array(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::FatPtr { name, kind } => {
             let inner = Type::Named(*name, s);
             match kind.as_ref() {
-                HirType::Shared(_) => Type::Shared(Box::new(inner), s),
                 HirType::Unique(_) => Type::Unique(Box::new(inner), s),
                 _ => inner,
             }
@@ -65,10 +62,8 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
             None
         }
         (Type::Unique(inner, _), HirType::Unique(hir_inner)) => infer_generic_from_param(inner, hir_inner),
-        (Type::Shared(inner, _), HirType::Shared(hir_inner)) => infer_generic_from_param(inner, hir_inner),
-        (Type::Weak(inner, _), HirType::Weak(hir_inner)) => infer_generic_from_param(inner, hir_inner),
         // Param expects wrapper but arg is unwrapped (auto-wrap will handle)
-        (Type::Unique(inner, _) | Type::Shared(inner, _) | Type::Weak(inner, _), _) => {
+        (Type::Unique(inner, _), _) => {
             infer_generic_from_param(inner, arg_ty)
         }
         _ => None,
@@ -108,8 +103,6 @@ pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>
             ty.clone()
         }
         HirType::Unique(inner) => HirType::Unique(Box::new(substitute_hir_type(inner, subst))),
-        HirType::Shared(inner) => HirType::Shared(Box::new(substitute_hir_type(inner, subst))),
-        HirType::Weak(inner) => HirType::Weak(Box::new(substitute_hir_type(inner, subst))),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => HirType::Array(Box::new(substitute_hir_type(inner, subst))),
         HirType::Ref(inner, mutable) => HirType::Ref(Box::new(substitute_hir_type(inner, subst)), *mutable),
         HirType::FatPtr { name, kind } => HirType::FatPtr {

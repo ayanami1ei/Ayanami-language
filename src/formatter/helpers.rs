@@ -48,10 +48,6 @@ pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)]) {
         // Format impl method self parameter: shared self / unique self
         if name.as_str() == "self" {
             match ty {
-                Type::Shared(inner, _) if matches!(inner.as_ref(), Type::Named(_, _) | Type::Generic(_, _, _)) => {
-                    let _ = write!(out, "shared self");
-                    continue;
-                }
                 Type::Unique(inner, _) if matches!(inner.as_ref(), Type::Named(_, _) | Type::Generic(_, _, _)) => {
                     let _ = write!(out, "unique self");
                     continue;

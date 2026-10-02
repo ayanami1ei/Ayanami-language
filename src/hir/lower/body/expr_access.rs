@@ -77,7 +77,7 @@ impl crate::hir::lower::Ctx {
             // Coerce null literal to the correct pointer type
             if let Some(HirLiteral::Int(0)) = hir_val.as_const() {
                 if let Some(field_ty) = field_tys.get(name) {
-                    if matches!(field_ty, HirType::Shared(_) | HirType::Unique(_) | HirType::Weak(_)) {
+                    if matches!(field_ty, HirType::Unique(_)) {
                         hir_val = SConst { val: HirLiteral::Int(0), ty: field_ty.clone() }.into();
                     }
                 }

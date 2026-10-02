@@ -18,8 +18,6 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
             if *mutable { " mut" } else { "" },
             type_to_string_generic(inner, interfaces)),
         Type::Unique(inner, _) => format!("unique {}", type_to_string_generic(inner, interfaces)),
-        Type::Shared(inner, _) => format!("shared {}", type_to_string_generic(inner, interfaces)),
-        Type::Weak(inner, _) => format!("weak {}", type_to_string_generic(inner, interfaces)),
         Type::FnPtr(..) => "fn(...)".to_string(),
         Type::Self_(_) => "Self".into(),
     }
@@ -31,12 +29,8 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
         HirType::Ref(Box::new(sig_str_to_hir(inner)), true)
     } else if let Some(inner) = s.strip_prefix("ref ") {
         HirType::Ref(Box::new(sig_str_to_hir(inner)), false)
-    } else if let Some(inner) = s.strip_prefix("shared ") {
-        HirType::Shared(Box::new(sig_str_to_hir(inner)))
     } else if let Some(inner) = s.strip_prefix("unique ") {
         HirType::Unique(Box::new(sig_str_to_hir(inner)))
-    } else if let Some(inner) = s.strip_prefix("weak ") {
-        HirType::Weak(Box::new(sig_str_to_hir(inner)))
     } else if let Some(inner) = s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
         HirType::Array(Box::new(sig_str_to_hir(inner)))
     } else {
@@ -99,15 +93,6 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
                 HirType::Unique(Box::new(inner_hir))
             }
         }
-        Type::Shared(inner, _) => {
-            let inner_hir = ast_type_to_hir(inner, interfaces);
-            if is_iface_type(&inner_hir, interfaces) {
-                HirType::FatPtr { name: *extract_named(&inner_hir).unwrap(), kind: Box::new(HirType::Shared(Box::new(HirType::Void))) }
-            } else {
-                HirType::Shared(Box::new(inner_hir))
-            }
-        }
-        Type::Weak(inner, _) => HirType::Weak(Box::new(ast_type_to_hir(inner, interfaces))),
         Type::Ref(inner, mutable, _) => {
             let inner_hir = ast_type_to_hir(inner, interfaces);
             if is_iface_type(&inner_hir, interfaces) {
@@ -150,9 +135,7 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
         HirType::Bool => "bool".into(),
         HirType::Named(s) => s.as_str().to_string(),
         HirType::Unique(inner) => format!("unique {}", hir_type_display(inner)),
-        HirType::Shared(inner) => format!("shared {}", hir_type_display(inner)),
         HirType::FnPtr(..) => "fn(...)".into(),
-        HirType::Weak(inner) => format!("weak {}", hir_type_display(inner)),
         HirType::FatPtr { name, kind } => format!("{} {}", hir_type_display(kind), name.as_str()),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => format!("[{}]", hir_type_display(inner)),
         HirType::Ref(inner, mutable) => {
@@ -173,7 +156,7 @@ pub(crate) fn needs_deep_copy(ty: &HirType) -> bool {
 
 pub(crate) fn strip_ownership(ty: HirType) -> HirType {
     match ty {
-        HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) => *inner,
+        HirType::Unique(inner) => *inner,
         other => other,
     }
 }
@@ -181,7 +164,7 @@ pub(crate) fn strip_ownership(ty: HirType) -> HirType {
     /// 剥去所有权包装的引用版本（不消耗所有权）
 pub(crate) fn strip_ownership_ref(ty: &HirType) -> &HirType {
     match ty {
-        HirType::Shared(inner) | HirType::Unique(inner) | HirType::Weak(inner) | HirType::Ref(inner, _) => inner.as_ref(),
+        HirType::Unique(inner) | HirType::Ref(inner, _) => inner.as_ref(),
         other => other,
     }
 }
@@ -199,7 +182,7 @@ pub(crate) fn is_null_literal(expr: &HirNodeBox) -> bool {
 /// Check if a type is a pointer-like type for null comparison purposes.
 pub(crate) fn is_pointer_type_for_cmp(ty: &HirType) -> bool {
     matches!(ty,
-        HirType::Named(_) | HirType::Shared(_) | HirType::Unique(_)
-        | HirType::Weak(_) | HirType::FatPtr { .. } | HirType::Array(_)
+        HirType::Named(_) | HirType::Unique(_)
+        | HirType::FatPtr { .. } | HirType::Array(_)
     )
 }
