@@ -187,7 +187,7 @@ fn walk_stmt(
     mir_fn: &MirFn,
     errors: &mut Vec<String>,
 ) {
-    let mut stack: Vec<Vec<(VarId, bool)>> = vec![Vec::new()];
+    let mut stack: Vec<Vec<(VarId, bool, bool)>> = vec![Vec::new()];
     let mut roots: Vec<&dyn MirNode> = Vec::new();
     if let Some((_, v)) = stmt.assign_parts() {
         roots.push(&**v);
@@ -214,7 +214,7 @@ fn walk_stmt(
 
 fn walk_expr(
     node: &dyn MirNode,
-    stack: &mut Vec<Vec<(VarId, bool)>>,
+    stack: &mut Vec<Vec<(VarId, bool, bool)>>,
     active: &[(VarId, &Loan)],
     mir_fn: &MirFn,
     errors: &mut Vec<String>,
@@ -227,7 +227,7 @@ fn walk_expr(
             || stack
                 .iter()
                 .flatten()
-                .any(|(v, m)| *v == var && (*m || mutable));
+                .any(|(v, m, _)| *v == var && (*m || mutable));
         if conflict {
             errors.push(format!(
                 "cannot borrow `{}` as {}: already borrowed in this expression",
@@ -235,20 +235,39 @@ fn walk_expr(
                 if mutable { "mutable" } else { "immutable" }
             ));
         }
-        stack.last_mut().unwrap().push((var, mutable));
+        stack.last_mut().unwrap().push((var, mutable, false));
         return; // 不遍历 SMirRef 的目标
     }
     // 调用是求值上下文边界：调用结束后其内部临时借用全部释放
     if node.is_call() {
+        // 两阶段借用：接收者位置（第一个子节点）的可变借用先记为 reserved，
+        // 允许同一调用内后续参数读取该变量（s.add(s.v)）
         stack.push(Vec::new());
-        node.for_each_child(&mut |c| walk_expr(c, stack, active, mir_fn, errors));
+        let first = std::cell::Cell::new(true);
+        node.for_each_child(&mut |c| {
+            if first.replace(false) {
+                if let Some((var, true)) = c.as_ref() {
+                    let conflict = active.iter().any(|(_, l)| l.var == var && l.mutable)
+                        || stack.iter().flatten().any(|(v, m, _)| *v == var && *m);
+                    if conflict {
+                        errors.push(format!(
+                            "cannot borrow `{}` as mutable: already borrowed in this expression",
+                            var_name(mir_fn, var)
+                        ));
+                    }
+                    stack.last_mut().unwrap().push((var, true, true));
+                    return;
+                }
+            }
+            walk_expr(c, stack, active, mir_fn, errors);
+        });
         stack.pop();
         return;
     }
     // 读取检查：可变借用期间不可读取
     if let Some(v) = node.as_local() {
         let mutably_borrowed = active.iter().any(|(_, l)| l.mutable && l.var == v)
-            || stack.iter().flatten().any(|(bv, bm)| *bm && *bv == v);
+            || stack.iter().flatten().any(|(bv, bm, reserved)| *bm && !*reserved && *bv == v);
         if mutably_borrowed {
             errors.push(format!(
                 "cannot use `{}` because it is mutably borrowed",

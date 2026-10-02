@@ -1,0 +1,9 @@
+struct S { int v }
+impl S {
+    fn add(ref mut self, int x) { self.v = self.v + x }
+}
+fn main() -> int {
+    s = S { v = 1 };
+    s.add(s.v);
+    return s.v;
+}

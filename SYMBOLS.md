@@ -151,9 +151,10 @@ src/hir/lower/body/expr_access.rs:94: pub(crate) fn lower_array_literal(&mut sel
 src/hir/lower/body/expr_access.rs:115: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_call.rs:4: pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_call.rs:120: pub(crate) fn lower_call_expr(&mut self, target: &Box<Expr>, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_call.rs:152: fn make_fatptr_arg(&self, arg: HirNodeBox, param_ty: &HirType, ct: Symbol, iface: Symbol) -> HirNodeBox
-src/hir/lower/body/expr_call.rs:164: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_call.rs:129: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_call_extra.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_call_extra.rs:4: pub(crate) fn lower_call_expr(&mut self, target: &Box<Expr>, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_call_extra.rs:36: pub(crate) fn make_fatptr_arg(&self, arg: HirNodeBox, param_ty: &HirType, ct: Symbol, iface: Symbol) -> HirNodeBox
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_misc.rs:3: impl crate::hir::lower::Ctx
@@ -177,9 +178,10 @@ src/hir/lower/body/mod.rs:20: mod collect_enum;
 src/hir/lower/body/mod.rs:21: mod collect_import;
 src/hir/lower/body/mod.rs:22: mod expr_access;
 src/hir/lower/body/mod.rs:23: mod expr_call;
-src/hir/lower/body/mod.rs:24: mod expr_enum;
-src/hir/lower/body/mod.rs:25: mod expr_misc;
-src/hir/lower/body/mod.rs:26: mod expr_ops1;
+src/hir/lower/body/mod.rs:24: mod expr_call_extra;
+src/hir/lower/body/mod.rs:25: mod expr_enum;
+src/hir/lower/body/mod.rs:26: mod expr_misc;
+src/hir/lower/body/mod.rs:27: mod expr_ops1;
 src/hir/lower/body/part_01.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_01.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
 src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
@@ -1619,6 +1621,10 @@ example/test_struct_impl.aya:1: struct Point
 example/test_struct_impl.aya:6: impl Point
 example/test_struct_impl.aya:7: fn get_x(unique self) -> int
 example/test_struct_impl.aya:12: fn main() -> int
+example/test_two_phase.aya:1: struct S { int v }
+example/test_two_phase.aya:2: impl S
+example/test_two_phase.aya:3: fn add(ref mut self, int x) { self.v = self.v + x }
+example/test_two_phase.aya:5: fn main() -> int
 example/test_unique_struct.aya:1: struct Point
 example/test_unique_struct.aya:6: fn main() -> int
 example/test_vis.aya:1: pub fn main() -> int
