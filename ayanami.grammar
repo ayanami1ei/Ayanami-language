@@ -25,37 +25,42 @@
               "[" (prefix, group)
               "]" (prefix)
     punct: ";", "{", "}", "(", ")", "[", "]", ",", ":", "::", "->", "=>",
-           "_", "."
+           "_", ".", "#"
 }
 
 @ast {
     Program       = Item*;
+
+    AttrList      = Attr*;
+    Attr          = "#" "[" Ident AttrArgs? "]";
+    AttrArg       = Ident | IntLiteral | StringLiteral;
+    AttrArgs      = "(" AttrArg ("," AttrArg)* ")";
     Item          = FnDecl | StructDef | EnumDef | InterfaceDef | ImplBlock | Import | Namespace;
 
     Import        = "import" StringLiteral ";";
     Namespace     = Vis? "namespace" Ident "{" Item* "}";
 
-    FnDecl        = Vis? Inline? ExternC? "fn" Ident GenericParams? "(" ParamList ")" ("->" Type)? Block;
+    FnDecl        = AttrList Vis? Inline? ExternC? "fn" Ident GenericParams? "(" ParamList ")" ("->" Type)? Block;
     FnParam       = Type Ident;
     ParamList     = FnParam ("," FnParam)*;
     Vis           = "pub" ("(" "crate" ")")?;
     Inline        = "inline";
     ExternC       = "extern" StringLiteral;
 
-    StructDef     = Vis? "struct" Ident GenericParams? "{" FieldList "}";
+    StructDef     = AttrList Vis? "struct" Ident GenericParams? "{" FieldList "}";
     Field         = Type Ident;
     FieldList     = Field*;
 
-    EnumDef       = Vis? "enum" Ident GenericParams? "{" VariantList "}";
+    EnumDef       = AttrList Vis? "enum" Ident GenericParams? "{" VariantList "}";
     Variant       = Ident ("(" TypeList? ")")? ("{" FieldList "}")?;
     VariantList   = Variant ("," Variant)*;
 
-    InterfaceDef  = Vis? "interface" Ident GenericParams? "{" IfaceMethodList "}";
-    IfaceMethod   = "fn" Ident "(" SelfParam ("," ParamList)? ")" ("->" Type)? ";";
+    InterfaceDef  = AttrList Vis? "interface" Ident GenericParams? "{" IfaceMethodList "}";
+    IfaceMethod   = AttrList "fn" Ident "(" SelfParam ("," ParamList)? ")" ("->" Type)? ";";
     SelfParam     = ("unique" | "ref" "mut"?) "self" | "self";
 
-    ImplBlock     = Vis? "impl" GenericParams? Ident GenericArgs? "{" MethodList "}";
-    Method        = Vis? "fn" Ident GenericParams? "(" SelfParam ("," ParamList)? ")" ("->" Type)? Block;
+    ImplBlock     = AttrList Vis? "impl" GenericParams? Ident GenericArgs? "{" MethodList "}";
+    Method        = AttrList Vis? "fn" Ident GenericParams? "(" SelfParam ("," ParamList)? ")" ("->" Type)? Block;
     GenericArgs   = "[" Type ("," Type)* "]";
 
     GenericParams = "[" GenericParam ("," GenericParam)* "]";

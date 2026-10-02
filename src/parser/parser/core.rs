@@ -138,4 +138,46 @@ impl Parser {
         }
         Ok(Program::new(stmts))
     }
+    /// 解析前导标注：`#[name]` 或 `#[name(arg, ...)]`
+    pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>> {
+        let mut attrs = Vec::new();
+        loop {
+            let is_hash = matches!(
+                self.peek().map(|t| &t.kind),
+                Some(TokenKind::Operator(s)) if s == "#"
+            );
+            if !is_hash { break; }
+            let span = self.peek().map(|t| t.span()).unwrap_or_default();
+            self.advance(); // '#'
+            self.expect_delimiter(Delimiter::LBracket)?;
+            // 属性名允许关键字（如 inline）
+            let name_str = match self.peek().map(|t| t.kind.clone()) {
+                Some(TokenKind::Identifier(s)) => { self.advance(); s }
+                Some(TokenKind::Keyword(k)) => { self.advance(); k.to_string() }
+                _ => return Err(self.error("expected attribute name")),
+            };
+            let name = Symbol::intern(&name_str);
+            let mut args = Vec::new();
+            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
+                self.advance();
+                loop {
+                    match self.peek().map(|t| t.kind.clone()) {
+                        Some(TokenKind::Identifier(s)) => { self.advance(); args.push(s); }
+                        Some(TokenKind::IntLiteral(s)) => { self.advance(); args.push(s); }
+                        Some(TokenKind::FloatLiteral(s)) => { self.advance(); args.push(s); }
+                        Some(TokenKind::StringLiteral(s)) => { self.advance(); args.push(s); }
+                        _ => return Err(self.error("expected attribute argument")),
+                    }
+                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                        break;
+                    }
+                    self.expect_delimiter(Delimiter::Comma)?;
+                }
+                self.expect_delimiter(Delimiter::RParen)?;
+            }
+            self.expect_delimiter(Delimiter::RBracket)?;
+            attrs.push(crate::parser::ast::Attr { name, args, span });
+        }
+        Ok(attrs)
+    }
 }

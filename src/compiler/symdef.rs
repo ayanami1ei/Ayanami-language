@@ -8,6 +8,21 @@ pub struct SymDef {
     pub file: String,
     pub line: usize,
     pub col: usize,
+    /// 声明上的标注名（A0 起）
+    pub attrs: Vec<String>,
+}
+
+/// 提取声明上的标注名列表。
+fn stmt_attr_names(stmt: &Stmt) -> Vec<String> {
+    let attrs = match stmt {
+        Stmt::FnDecl { attrs, .. }
+        | Stmt::StructDef { attrs, .. }
+        | Stmt::EnumDef { attrs, .. }
+        | Stmt::InterfaceDef { attrs, .. }
+        | Stmt::ImplBlock { attrs, .. } => attrs,
+        _ => return Vec::new(),
+    };
+    attrs.iter().map(|a| a.name.as_str().to_string()).collect()
 }
 
 /// Collect all symbol definitions from a list of statements with their locations.
@@ -47,6 +62,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 file: file.into(),
                 line: span.start_line,
                 col: span.start_col,
+                attrs: stmt_attr_names(stmt),
             });
         }
         Stmt::StructDef {
@@ -71,6 +87,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 file: file.into(),
                 line: span.start_line,
                 col: span.start_col,
+                attrs: stmt_attr_names(stmt),
             });
         }
         Stmt::InterfaceDef {
@@ -87,6 +104,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 file: file.into(),
                 line: span.start_line,
                 col: span.start_col,
+                attrs: stmt_attr_names(stmt),
             });
         }
             Stmt::EnumDef { .. } => {}
@@ -101,6 +119,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 file: file.into(),
                 line: span.start_line,
                 col: span.start_col,
+                attrs: stmt_attr_names(stmt),
             });
         }
         Stmt::Namespace {
@@ -117,6 +136,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 file: file.into(),
                 line: span.start_line,
                 col: span.start_col,
+                attrs: stmt_attr_names(stmt),
             });
             let ns_prefix = if prefix.is_empty() {
                 name.as_str().to_string()
@@ -136,13 +156,19 @@ pub fn defs_to_json(defs: &[SymDef]) -> String {
     let mut items: Vec<String> = defs
         .iter()
         .map(|d| {
+            let attrs: Vec<String> = d
+                .attrs
+                .iter()
+                .map(|a| format!("\"{}\"", a.replace('\\', "\\\\").replace('"', "\\\"")))
+                .collect();
             format!(
-                r#"{{"name":"{}","kind":"{}","file":"{}","line":{},"col":{}}}"#,
+                r#"{{"name":"{}","kind":"{}","file":"{}","line":{},"col":{},"attrs":[{}]}}"#,
                 d.name.replace('\\', "\\\\").replace('"', "\\\""),
                 d.kind,
                 d.file.replace('\\', "\\\\").replace('"', "\\\""),
                 d.line,
-                d.col
+                d.col,
+                attrs.join(",")
             )
         })
         .collect();

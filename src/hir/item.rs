@@ -49,6 +49,8 @@ pub struct HirInterfaceMethod {
 #[derive(Debug, Clone)]
 pub struct HirFn {
     pub span: Span,
+    /// 声明上的标注（A0 起透传；A1 优化/A3 效应读取）
+    pub attrs: Vec<crate::parser::ast::Attr>,
     pub fn_id: FnId,
     pub name: Symbol,
     pub is_inline: bool,

@@ -18,6 +18,7 @@ pub fn tokenize(input: &str) -> Vec<asuka::runtime::Token> {
                 if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='=' { tokens.push(lex.read_fixed("!=", "!=")); }
                 else { tokens.push(lex.read_fixed("!", "!")); }
             }
+            '#' => tokens.push(lex.read_fixed("#", "#")),
             '%' => tokens.push(lex.read_fixed("%", "%")),
             '&' => tokens.push(lex.read_fixed("&&", "&&")),
             '(' => tokens.push(lex.read_fixed("(", "(")),
@@ -41,8 +42,8 @@ pub fn tokenize(input: &str) -> Vec<asuka::runtime::Token> {
                 else { tokens.push(lex.read_fixed("<", "<")); }
             }
             '=' => {
-                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='=' { tokens.push(lex.read_fixed("==", "==")); }
                 if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='>' { tokens.push(lex.read_fixed("=>", "=>")); }
+                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='=' { tokens.push(lex.read_fixed("==", "==")); }
                 else { tokens.push(lex.read_fixed("=", "=")); }
             }
             '>' => {
@@ -72,3 +73,4 @@ mod parser_06;
 mod parser_07;
 mod parser_08;
 mod parser_09;
+mod parser_10;

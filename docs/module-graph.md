@@ -26,10 +26,10 @@ graph LR
     driver --> error
     formatter --> intern
     formatter --> parser
-    hir -->|2| error
+    hir -->|3| error
     hir -->|7| intern
     hir -->|2| mir
-    hir -->|7| parser
+    hir -->|8| parser
     hir -->|5| span
     lexer --> span
     lir --> error
@@ -54,8 +54,8 @@ graph LR
 
 | 来源 | 目标 | 引用数 |
 | --- | --- | ---: |
+| `hir` | `parser` | 8 |
 | `hir` | `intern` | 7 |
-| `hir` | `parser` | 7 |
 | `mir` | `hir` | 7 |
 | `parser` | `span` | 7 |
 | `hir` | `span` | 5 |
@@ -65,10 +65,10 @@ graph LR
 | `lir` | `intern` | 4 |
 | `mir` | `error` | 4 |
 | `compiler` | `error` | 3 |
+| `hir` | `error` | 3 |
 | `lir` | `mir` | 3 |
 | `lir` | `parser` | 3 |
 | `parser` | `error` | 3 |
-| `hir` | `error` | 2 |
 | `hir` | `mir` | 2 |
 | `mir` | `intern` | 2 |
 | `compiler` | `hir` | 1 |

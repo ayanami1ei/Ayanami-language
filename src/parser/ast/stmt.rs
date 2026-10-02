@@ -5,8 +5,17 @@ use crate::parser::ast::ty::Type;
 use crate::parser::ast::vis::Visibility;
 use crate::span::Span;
 
+/// 声明上的标注：`#[name]` / `#[name(arg, ...)]`
+#[derive(Debug, Clone)]
+pub struct Attr {
+    pub name: Symbol,
+    pub args: Vec<String>,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone)]
 pub struct InterfaceMethod {
+    pub attrs: Vec<Attr>,
     pub name: Symbol,
     pub self_keyword: Symbol,   // "shared" or "unique"
     pub params: Vec<(Symbol, Type)>,
@@ -36,6 +45,7 @@ pub struct MatchArm {
 #[derive(Debug, Clone)]
 pub enum Stmt {
     FnDecl {
+        attrs: Vec<Attr>,
         vis: Visibility,
         is_inline: bool,
         extern_c: bool,
@@ -110,6 +120,7 @@ pub enum Stmt {
         span: Span,
     },
     StructDef {
+        attrs: Vec<Attr>,
         vis: Visibility,
         name: Symbol,
         generic_params: Vec<(Symbol, Option<Symbol>)>,
@@ -117,6 +128,7 @@ pub enum Stmt {
         span: Span,
     },
     EnumDef {
+        attrs: Vec<Attr>,
         vis: Visibility,
         name: Symbol,
         generic_params: Vec<(Symbol, Option<Symbol>)>,
@@ -124,12 +136,14 @@ pub enum Stmt {
         span: Span,
     },
     InterfaceDef {
+        attrs: Vec<Attr>,
         name: Symbol,
         generic_params: Vec<(Symbol, Option<Symbol>)>,
         methods: Vec<InterfaceMethod>,
         span: Span,
     },
     ImplBlock {
+        attrs: Vec<Attr>,
         type_name: Symbol,
         generic_params: Vec<(Symbol, Option<Symbol>)>,
         methods: Vec<Stmt>,

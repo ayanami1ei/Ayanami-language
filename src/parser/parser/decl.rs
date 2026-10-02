@@ -2,7 +2,7 @@ use super::*;
 
 impl Parser {
 
-    pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool) -> Result<Stmt> {
+    pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let name = self.expect_identifier()?;
@@ -62,6 +62,7 @@ impl Parser {
         };
 
         Ok(Stmt::FnDecl {
+            attrs,
             vis, is_inline, extern_c,
             generic_params,
             name: Symbol::intern(&name),
@@ -211,7 +212,7 @@ impl Parser {
 
     // ==================== Struct definition ====================
 
-    pub(super) fn parse_struct_def(&mut self, vis: Visibility) -> Result<Stmt> {
+    pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // struct
         let name = Symbol::intern(&self.expect_identifier()?);
@@ -245,6 +246,6 @@ impl Parser {
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Stmt::StructDef { vis, name, generic_params, fields, span: start_span })
+        Ok(Stmt::StructDef { attrs, vis, name, generic_params, fields, span: start_span })
     }
 }

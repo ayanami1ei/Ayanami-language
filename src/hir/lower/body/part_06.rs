@@ -206,7 +206,7 @@ impl crate::hir::lower::Ctx {
         let saved_locals = std::mem::take(&mut self.locals);
         let saved_scopes = std::mem::take(&mut self.scopes);
 
-        let hir_fn = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, Span::default())?;
+        let hir_fn = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, Span::default(), vec![])?;
 
         self.current_fn = saved_current_fn;
         self.locals = saved_locals;

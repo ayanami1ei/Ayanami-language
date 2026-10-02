@@ -4,6 +4,7 @@ impl Parser {
     // ==================== Statements ====================
 
     pub(super) fn parse_stmt(&mut self) -> Result<Stmt> {
+        let attrs = self.parse_attr_list()?;
         let vis = self.parse_visibility();
         let is_inline = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Inline));
         if is_inline { self.advance(); }
@@ -25,9 +26,10 @@ impl Parser {
                     Some(TokenKind::Delimiter(Delimiter::RBrace)) | None => break,
                     _ => {
                         // Expect fn declarations inside extern block
+                        let attrs2 = self.parse_attr_list()?;
                         let vis2 = self.parse_visibility();
                         let is_inline2 = false;
-                        let fn_stmt = self.parse_fn_decl(vis2, is_inline2, true)?;
+                        let fn_stmt = self.parse_fn_decl(vis2, is_inline2, true, attrs2)?;
                         items.push(fn_stmt);
                     }
                 }
@@ -47,7 +49,7 @@ impl Parser {
         }
         let tok = self.peek().ok_or_else(|| self.error("expected statement"))?.clone();
         match tok.kind {
-            TokenKind::Keyword(Keyword::Fn) => self.parse_fn_decl(vis, is_inline, extern_c),
+            TokenKind::Keyword(Keyword::Fn) => self.parse_fn_decl(vis, is_inline, extern_c, attrs),
             TokenKind::Keyword(Keyword::Return) => self.parse_return(),
             TokenKind::Keyword(Keyword::If) => self.parse_if(),
             TokenKind::Keyword(Keyword::For) => self.parse_for(),
@@ -55,13 +57,18 @@ impl Parser {
             TokenKind::Keyword(Keyword::Break) => Ok(Stmt::Break { span: tok.span() }),
             TokenKind::Keyword(Keyword::Continue) => Ok(Stmt::Continue { span: tok.span() }),
             TokenKind::Keyword(Keyword::Namespace) => self.parse_namespace(vis),
-            TokenKind::Keyword(Keyword::Struct) => self.parse_struct_def(vis),
-            TokenKind::Keyword(Keyword::Enum) => self.parse_enum_def(vis),
-            TokenKind::Keyword(Keyword::Interface) => self.parse_interface_def(),
-            TokenKind::Keyword(Keyword::Impl) => self.parse_impl_block(),
+            TokenKind::Keyword(Keyword::Struct) => self.parse_struct_def(vis, attrs),
+            TokenKind::Keyword(Keyword::Enum) => self.parse_enum_def(vis, attrs),
+            TokenKind::Keyword(Keyword::Interface) => self.parse_interface_def(attrs),
+            TokenKind::Keyword(Keyword::Impl) => self.parse_impl_block(attrs),
             TokenKind::Keyword(Keyword::Match) => self.parse_match_stmt(),
             TokenKind::Keyword(Keyword::Import) => self.parse_import(),
-            _ => self.parse_any_assign_or_expr(),
+            _ => {
+                if !attrs.is_empty() {
+                    return Err(self.error("attributes are only allowed on declarations"));
+                }
+                self.parse_any_assign_or_expr()
+            }
         }
     }
 

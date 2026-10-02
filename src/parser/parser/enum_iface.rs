@@ -3,7 +3,7 @@ use super::*;
 impl Parser {
     // ==================== Enum definition ====================
 
-    pub(super) fn parse_enum_def(&mut self, vis: Visibility) -> Result<Stmt> {
+    pub(super) fn parse_enum_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // enum
         let name = Symbol::intern(&self.expect_identifier()?);
@@ -66,12 +66,12 @@ impl Parser {
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Stmt::EnumDef { vis, name, generic_params, variants, span: start_span })
+        Ok(Stmt::EnumDef { attrs, vis, name, generic_params, variants, span: start_span })
     }
 
     // ==================== Interface definition ====================
 
-    pub(super) fn parse_interface_def(&mut self) -> Result<Stmt> {
+    pub(super) fn parse_interface_def(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // interface
         let name = self.expect_identifier()?;
@@ -107,6 +107,7 @@ impl Parser {
         }
         self.expect_delimiter(Delimiter::RBrace)?;
         Ok(Stmt::InterfaceDef {
+            attrs,
             name: Symbol::intern(&name),
             generic_params,
             methods,
@@ -115,6 +116,7 @@ impl Parser {
     }
 
     pub(super) fn parse_interface_method(&mut self) -> Result<InterfaceMethod> {
+        let attrs = self.parse_attr_list()?;
         self.expect_keyword(Keyword::Fn)?;
         let name = self.expect_identifier()?;
         self.expect_delimiter(Delimiter::LParen)?;
@@ -169,6 +171,7 @@ impl Parser {
         self.try_semicolon()?;
 
         Ok(InterfaceMethod {
+            attrs,
             name: Symbol::intern(&name),
             self_keyword,
             params,

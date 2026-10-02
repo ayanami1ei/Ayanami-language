@@ -1,0 +1,11 @@
+// 标注（A0）验证：`#[inline]` 映射 alwaysinline；其余白名单属性校验并存储
+#[inline]
+fn add(int a, int b) -> int { return a + b }
+
+#[pure]
+#[cold]
+extern "C" fn strlen(unique [char] s) -> int;
+
+fn main() -> int {
+    return add(1, 2)
+}

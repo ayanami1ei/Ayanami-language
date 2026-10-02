@@ -1,0 +1,65 @@
+use super::*;
+
+impl Parser {
+    pub fn pbool_literal(&mut self) -> Result<asuka::runtime::Value, String> {
+        if self.0.tok().kind == "TRUE" {
+            let mut node = asuka::runtime::Node::new("true");
+            self.0.expect("TRUE")?;
+            return Ok(asuka::runtime::Value::Node(Box::new(node)));
+        }
+        if self.0.tok().kind == "FALSE" {
+            let mut node = asuka::runtime::Node::new("false");
+            self.0.expect("FALSE")?;
+            return Ok(asuka::runtime::Value::Node(Box::new(node)));
+        }
+        return Err(format!("no alt"));
+    }
+
+    pub fn pint_literal(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("IntLiteral");
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("token", asuka::runtime::Value::Node(child));
+        }
+        { // group
+        let _g_saved = self.0.pos;
+            self.0.expect("INTLITERAL")?;
+        } // end group
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pfloat_literal(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("FloatLiteral");
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("token", asuka::runtime::Value::Node(child));
+        }
+        { // group
+        let _g_saved = self.0.pos;
+            self.0.expect("FLOATLITERAL")?;
+        } // end group
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pstring_literal(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("StringLiteral");
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("token", asuka::runtime::Value::Node(child));
+        }
+        { // group
+        let _g_saved = self.0.pos;
+            self.0.expect("STRLIT")?;
+        } // end group
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pchar_literal(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("CharLiteral");
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("token", asuka::runtime::Value::Node(child));
+        }
+        { // group
+        let _g_saved = self.0.pos;
+            self.0.expect("CHARLITERAL")?;
+        } // end group
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+}

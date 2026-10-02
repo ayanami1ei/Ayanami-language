@@ -28,6 +28,17 @@ pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usiz
     let _ = write!(out, "{}}}", i);
 }
 
+/// 打印标注：`#[name]` / `#[name(arg, ...)]`
+pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize) {
+    for a in attrs {
+        let _ = write!(out, "{}#[{}", indent(level), a.name);
+        if !a.args.is_empty() {
+            let _ = write!(out, "({})", a.args.join(", "));
+        }
+        let _ = writeln!(out, "]");
+    }
+}
+
 pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)]) {
     if params.is_empty() { return; }
     let _ = write!(out, "[");

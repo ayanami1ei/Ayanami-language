@@ -63,6 +63,8 @@ pub(crate) use ctx::Ctx;
 ///
 /// 同时收集过程中产生的特化泛型函数，以及从其他模块导入的函数签名。
 pub fn lower_program(program: &Program) -> Result<HirProgram> {
+    // A0：先做属性白名单校验（未知属性报错）
+    crate::hir::attrs::validate_program(program)?;
     let mut ctx = Ctx::new();
     ctx.collect_fns(&program.stmts)?;
     ctx.build_vtables()?;

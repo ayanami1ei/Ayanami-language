@@ -4,7 +4,8 @@ use super::expr::*;
 
 pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
     match stmt {
-        FnDecl { vis, is_inline, extern_c, name, generic_params, params, return_type, body, .. } => {
+        FnDecl { attrs, vis, is_inline, extern_c, name, generic_params, params, return_type, body, .. } => {
+            write_attrs(out, attrs, level);
             let i = indent(level);
             if *extern_c {
                 let _ = write!(out, "{}extern \"C\" fn {}", i, name);
@@ -111,7 +112,8 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
             let _ = writeln!(out, "{}}}", i);
         }
-        StructDef { vis, name, generic_params, fields, .. } => {
+        StructDef { attrs, vis, name, generic_params, fields, .. } => {
+            write_attrs(out, attrs, level);
             let i = indent(level);
             let vis_str = vis_str(vis);
             let _ = write!(out, "{}{}struct {}", i, vis_str, name);
@@ -126,7 +128,8 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
                 let _ = writeln!(out, "{}}}", i);
             }
         }
-        EnumDef { vis, name, generic_params, variants, .. } => {
+        EnumDef { attrs, vis, name, generic_params, variants, .. } => {
+            write_attrs(out, attrs, level);
             let i = indent(level);
             let vis_str = vis_str(vis);
             let _ = write!(out, "{}{}enum {}", i, vis_str, name);
@@ -151,12 +154,14 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
             let _ = writeln!(out, "{}}}", i);
         }
-        InterfaceDef { name, generic_params, methods, .. } => {
+        InterfaceDef { attrs, name, generic_params, methods, .. } => {
+            write_attrs(out, attrs, level);
             let i = indent(level);
             let _ = write!(out, "{}interface {}", i, name);
             write_generic_params(out, generic_params);
             let _ = writeln!(out, " {{");
             for m in methods {
+                write_attrs(out, &m.attrs, level + 1);
                 let _ = write!(out, "{}fn {}", indent(level + 1), m.name);
                 let _ = write!(out, "({} self", m.self_keyword);
                 for (pn, pt) in &m.params {
@@ -168,7 +173,8 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
             let _ = writeln!(out, "{}}}", i);
         }
-        ImplBlock { type_name, methods, generic_params, .. } => {
+        ImplBlock { attrs, type_name, methods, generic_params, .. } => {
+            write_attrs(out, attrs, level);
             let i = indent(level);
             let gp_str = if generic_params.is_empty() {
                 String::new()

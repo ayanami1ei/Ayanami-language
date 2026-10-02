@@ -131,8 +131,9 @@ pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Ty
 /// Substitute generic type parameters in an AST Stmt.
 pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt {
     match stmt {
-        Stmt::FnDecl { vis, is_inline, extern_c, name, generic_params: _, params, return_type, body, span } => {
+        Stmt::FnDecl { attrs, vis, is_inline, extern_c, name, generic_params: _, params, return_type, body, span } => {
             Stmt::FnDecl {
+                attrs: attrs.clone(),
                 vis: *vis,
                 is_inline: *is_inline,
                 extern_c: *extern_c,
@@ -197,18 +198,21 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             items: items.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
             span: *span,
         },
-        Stmt::StructDef { vis, name, fields, span, .. } => Stmt::StructDef {
+        Stmt::StructDef { attrs, vis, name, fields, span, .. } => Stmt::StructDef {
+            attrs: attrs.clone(),
             vis: *vis,
             name: *name,
             generic_params: Vec::new(),
             fields: fields.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
             span: *span,
         },
-        Stmt::InterfaceDef { name, methods, generic_params, span } => Stmt::InterfaceDef {
+        Stmt::InterfaceDef { attrs, name, methods, generic_params, span } => Stmt::InterfaceDef {
+            attrs: attrs.clone(),
             name: *name,
             generic_params: generic_params.clone(),
             methods: methods.iter().map(|m| {
                 InterfaceMethod {
+                    attrs: m.attrs.clone(),
                     name: m.name,
                     self_keyword: m.self_keyword,
                     params: m.params.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
@@ -217,7 +221,8 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             }).collect(),
             span: *span,
         },
-        Stmt::ImplBlock { type_name, generic_params, methods, span } => Stmt::ImplBlock {
+        Stmt::ImplBlock { attrs, type_name, generic_params, methods, span } => Stmt::ImplBlock {
+            attrs: attrs.clone(),
             type_name: *type_name,
             generic_params: generic_params.clone(),
             methods: methods.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),

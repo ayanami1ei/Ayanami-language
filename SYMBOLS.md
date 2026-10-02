@@ -86,9 +86,10 @@ src/compiler/mod.rs:208: pub fn ast_program(&self) -> Option<&Program>
 src/compiler/mod.rs:214: pub fn compile_source(code: &str) -> Result<CompileResult>
 src/compiler/mod.rs:222: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
 src/compiler/symdef.rs:5: pub struct SymDef
-src/compiler/symdef.rs:14: pub fn collect_defs_from_stmts(
-src/compiler/symdef.rs:25: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
-src/compiler/symdef.rs:135: pub fn defs_to_json(defs: &[SymDef]) -> String
+src/compiler/symdef.rs:16: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
+src/compiler/symdef.rs:29: pub fn collect_defs_from_stmts(
+src/compiler/symdef.rs:40: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
+src/compiler/symdef.rs:155: pub fn defs_to_json(defs: &[SymDef]) -> String
 src/driver/mod.rs:11: fn find_llc() -> Result<(PathBuf, PathBuf)>
 src/driver/mod.rs:26: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
 src/driver/mod.rs:59: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
@@ -111,9 +112,10 @@ src/formatter/expr.rs:174: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
-src/formatter/helpers.rs:31: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)])
-src/formatter/helpers.rs:44: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)])
-src/formatter/helpers.rs:63: pub(super) fn write_return_type(out: &mut String, ty: &Type)
+src/formatter/helpers.rs:32: pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize)
+src/formatter/helpers.rs:42: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)])
+src/formatter/helpers.rs:55: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)])
+src/formatter/helpers.rs:74: pub(super) fn write_return_type(out: &mut String, ty: &Type)
 src/formatter/mod.rs:7: const INDENT: &str = "    ";
 src/formatter/mod.rs:9: pub fn format_program(program: &Program) -> String
 src/formatter/mod.rs:21: mod expr;
@@ -121,6 +123,11 @@ src/formatter/mod.rs:22: mod helpers;
 src/formatter/mod.rs:23: mod stmt;
 src/formatter/mod.rs:28: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
+src/hir/attrs.rs:5: pub const ALLOWED: &[&str] = &[
+src/hir/attrs.rs:18: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:23: pub fn validate(attrs: &[Attr]) -> Result<()>
+src/hir/attrs.rs:38: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:45: fn validate_stmt(stmt: &Stmt) -> Result<()>
 src/hir/display.rs:5: pub fn display_hir_program(program: &HirProgram)
 src/hir/display.rs:9: pub fn hir_program_to_string(program: &HirProgram) -> String
 src/hir/display.rs:18: pub(crate) fn pad(n: usize) -> String
@@ -137,9 +144,9 @@ src/hir/item.rs:26: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
 src/hir/item.rs:34: pub struct VtableEntry
 src/hir/item.rs:42: pub struct HirInterfaceMethod
 src/hir/item.rs:50: pub struct HirFn
-src/hir/item.rs:63: pub enum HirItem
-src/hir/item.rs:79: pub struct ImportedFnSig
-src/hir/item.rs:87: pub struct HirProgram
+src/hir/item.rs:65: pub enum HirItem
+src/hir/item.rs:81: pub struct ImportedFnSig
+src/hir/item.rs:89: pub struct HirProgram
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
@@ -212,7 +219,7 @@ src/hir/lower/body/part_07.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[S
 src/hir/lower/body/part_07.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
 src/hir/lower/body/part_07.rs:115: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
 src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
-src/hir/lower/body/part_07.rs:196: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
+src/hir/lower/body/part_07.rs:199: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
 src/hir/lower/body/part_08.rs:171: pub(crate) fn lower_for(
@@ -410,14 +417,15 @@ src/hir/lower/to_mir/call.rs:147: fn for_each_child(&self, f: &mut dyn FnMut(&dy
 src/hir/lower/to_mir/mod.rs:11: mod access;
 src/hir/lower/to_mir/mod.rs:12: mod basic;
 src/hir/lower/to_mir/mod.rs:13: mod call;
-src/hir/mod.rs:1: pub mod ir;
-src/hir/mod.rs:2: pub mod ty;
-src/hir/mod.rs:3: pub mod node;
-src/hir/mod.rs:4: pub mod stmt;
-src/hir/mod.rs:5: pub mod item;
-src/hir/mod.rs:6: pub mod lower;
-src/hir/mod.rs:7: pub mod display;
-src/hir/mod.rs:25: pub struct $name
+src/hir/mod.rs:1: pub mod attrs;
+src/hir/mod.rs:2: pub mod ir;
+src/hir/mod.rs:3: pub mod ty;
+src/hir/mod.rs:4: pub mod node;
+src/hir/mod.rs:5: pub mod stmt;
+src/hir/mod.rs:6: pub mod item;
+src/hir/mod.rs:7: pub mod lower;
+src/hir/mod.rs:8: pub mod display;
+src/hir/mod.rs:26: pub struct $name
 src/hir/node.rs:8: pub trait HirNode: std::fmt::Debug
 src/hir/node.rs:9: fn clone_node(&self) -> Box<dyn HirNode>;
 src/hir/node.rs:10: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
@@ -1248,13 +1256,14 @@ src/parser/ast/mod.rs:9: pub mod vis;
 src/parser/ast/program.rs:4: pub struct Program
 src/parser/ast/program.rs:8: impl Program
 src/parser/ast/program.rs:9: pub fn new(stmts: Vec<Stmt>) -> Self
-src/parser/ast/stmt.rs:9: pub struct InterfaceMethod
-src/parser/ast/stmt.rs:17: pub enum EnumFields
-src/parser/ast/stmt.rs:24: pub struct EnumVariant
-src/parser/ast/stmt.rs:30: pub struct MatchArm
-src/parser/ast/stmt.rs:37: pub enum Stmt
-src/parser/ast/stmt.rs:144: impl Stmt
-src/parser/ast/stmt.rs:145: pub fn span(&self) -> Span
+src/parser/ast/stmt.rs:10: pub struct Attr
+src/parser/ast/stmt.rs:17: pub struct InterfaceMethod
+src/parser/ast/stmt.rs:26: pub enum EnumFields
+src/parser/ast/stmt.rs:33: pub struct EnumVariant
+src/parser/ast/stmt.rs:39: pub struct MatchArm
+src/parser/ast/stmt.rs:46: pub enum Stmt
+src/parser/ast/stmt.rs:158: impl Stmt
+src/parser/ast/stmt.rs:159: pub fn span(&self) -> Span
 src/parser/ast/ty.rs:5: pub enum Type
 src/parser/ast/ty.rs:22: impl Type
 src/parser/ast/ty.rs:23: pub fn span(&self) -> Span
@@ -1296,19 +1305,20 @@ src/parser/parser/core.rs:84: pub(super) fn try_semicolon(&mut self) -> Result<(
 src/parser/parser/core.rs:95: pub(super) fn parse_visibility(&mut self) -> Visibility
 src/parser/parser/core.rs:116: pub(super) fn expect_identifier(&mut self) -> Result<String>
 src/parser/parser/core.rs:134: pub fn parse_program(&mut self) -> Result<Program>
+src/parser/parser/core.rs:142: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
 src/parser/parser/decl.rs:3: impl Parser
-src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool) -> Result<Stmt>
-src/parser/parser/decl.rs:75: pub(super) fn parse_return(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:91: pub(super) fn parse_if(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:123: pub(super) fn parse_for(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:150: pub(super) fn parse_while(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:160: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:191: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
-src/parser/parser/decl.rs:214: pub(super) fn parse_struct_def(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
+src/parser/parser/decl.rs:76: pub(super) fn parse_return(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:92: pub(super) fn parse_if(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:124: pub(super) fn parse_for(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:151: pub(super) fn parse_while(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:161: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:192: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser/decl.rs:215: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:3: impl Parser
-src/parser/parser/enum_iface.rs:6: pub(super) fn parse_enum_def(&mut self, vis: Visibility) -> Result<Stmt>
-src/parser/parser/enum_iface.rs:74: pub(super) fn parse_interface_def(&mut self) -> Result<Stmt>
-src/parser/parser/enum_iface.rs:117: pub(super) fn parse_interface_method(&mut self) -> Result<InterfaceMethod>
+src/parser/parser/enum_iface.rs:6: pub(super) fn parse_enum_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
+src/parser/parser/enum_iface.rs:74: pub(super) fn parse_interface_def(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
+src/parser/parser/enum_iface.rs:118: pub(super) fn parse_interface_method(&mut self) -> Result<InterfaceMethod>
 src/parser/parser/expr.rs:3: impl Parser
 src/parser/parser/expr.rs:6: pub(super) fn parse_expr(&mut self) -> Result<Expr>
 src/parser/parser/expr.rs:10: pub(super) fn parse_or(&mut self) -> Result<Expr>
@@ -1318,10 +1328,10 @@ src/parser/parser/expr.rs:75: pub(super) fn parse_sum(&mut self) -> Result<Expr>
 src/parser/parser/expr.rs:104: pub(super) fn parse_product(&mut self) -> Result<Expr>
 src/parser/parser/impls.rs:3: impl Parser
 src/parser/parser/impls.rs:6: pub(super) fn parse_import(&mut self) -> Result<Stmt>
-src/parser/parser/impls.rs:21: pub(super) fn parse_impl_block(&mut self) -> Result<Stmt>
+src/parser/parser/impls.rs:21: pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/impls.rs:47: fn extract_type_name(ty: &Type) -> Symbol
-src/parser/parser/impls.rs:83: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
-src/parser/parser/impls.rs:222: pub(super) fn parse_block(&mut self) -> Result<Block>
+src/parser/parser/impls.rs:84: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
+src/parser/parser/impls.rs:225: pub(super) fn parse_block(&mut self) -> Result<Block>
 src/parser/parser/mod.rs:8: pub struct Parser
 src/parser/parser/mod.rs:13: mod atom;
 src/parser/parser/mod.rs:14: mod core;
@@ -1334,9 +1344,9 @@ src/parser/parser/mod.rs:20: mod types;
 src/parser/parser/mod.rs:21: mod unary;
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:70: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:96: pub(super) fn is_type_start(&self, pos: usize) -> bool
-src/parser/parser/stmt.rs:104: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
+src/parser/parser/stmt.rs:77: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
+src/parser/parser/stmt.rs:103: pub(super) fn is_type_start(&self, pos: usize) -> bool
+src/parser/parser/stmt.rs:111: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
 src/parser/parser/types.rs:3: impl Parser
 src/parser/parser/types.rs:6: pub(super) fn parse_type(&mut self) -> Result<Type>
 src/parser/parser/types.rs:26: pub(super) fn parse_base_type(&mut self) -> Result<Type>
@@ -1537,6 +1547,8 @@ example/test_array.aya:1: fn main() -> int
 example/test_array_param.aya:1: fn sum(unique [int] arr) -> int
 example/test_array_param.aya:5: fn main() -> int
 example/test_asm.aya:1: fn main() -> int
+example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }
+example/test_attrs.aya:9: fn main() -> int
 example/test_bool.aya:1: fn main() -> int
 example/test_bool2.aya:1: fn main() -> int
 example/test_comments.aya:3: fn main() -> int

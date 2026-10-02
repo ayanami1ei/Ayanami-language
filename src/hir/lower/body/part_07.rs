@@ -9,7 +9,7 @@ impl crate::hir::lower::Ctx {
         let mut items = Vec::new();
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, params, return_type, body, is_inline, extern_c, generic_params, span, .. } => {
+                Stmt::FnDecl { name, params, return_type, body, is_inline, extern_c, generic_params, span, attrs, .. } => {
                     // Skip generic functions — they are specialized on demand
                     if !generic_params.is_empty() {
                         continue;
@@ -24,7 +24,7 @@ impl crate::hir::lower::Ctx {
                         .collect();
                     let fn_id = self.find_fn_by_sig(full_name, &ptypes)
                         .ok_or_else(|| Error::Hir(format!("internal error: function `{}` not found at {}:{}", full_name, span.start_line, span.start_col)))?;
-                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline, *extern_c, *span)?;
+                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline, *extern_c, *span, attrs.clone())?;
                     items.push(HirItem::Fn(hir_fn));
                 }
                 Stmt::Namespace { name, items: ns_items, .. } => {
@@ -97,7 +97,7 @@ impl crate::hir::lower::Ctx {
                                     let s = method_stmt.span();
                                     Error::Hir(format!("internal error: method `{}` not found at {}:{}", name, s.start_line, s.start_col))
                                 })?;
-                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, Span::default())?;
+                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, Span::default(), vec![])?;
                             items.push(HirItem::Fn(hir_fn));
                         }
                     }
@@ -153,7 +153,9 @@ impl crate::hir::lower::Ctx {
         is_inline: bool,
         extern_c: bool,
         span: Span,
+        attrs: Vec<crate::parser::ast::Attr>,
     ) -> Result<HirFn> {
+        let is_inline = is_inline || crate::hir::attrs::has(&attrs, "inline");
         self.current_fn = fn_id;
         self.locals = Vec::new();
         self.scopes = Vec::new();
@@ -178,6 +180,7 @@ impl crate::hir::lower::Ctx {
         let locals = std::mem::take(&mut self.locals);
         Ok(HirFn {
             span,
+            attrs,
             fn_id,
             name,
             is_inline,

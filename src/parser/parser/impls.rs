@@ -18,7 +18,7 @@ impl Parser {
         Ok(Stmt::Import { path, span: start_span })
     }
 
-    pub(super) fn parse_impl_block(&mut self) -> Result<Stmt> {
+    pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // impl
         // Parse optional generic params: [T, U: Interface]
@@ -70,6 +70,7 @@ impl Parser {
         }
         self.expect_delimiter(Delimiter::RBrace)?;
         Ok(Stmt::ImplBlock {
+            attrs,
             type_name: type_sym,
             generic_params,
             methods,
@@ -81,6 +82,7 @@ impl Parser {
     /// Converts `fn draw(shared self, ...)` into a regular FnDecl with
     /// the self parameter typed as `shared TypeName` (or `unique TypeName`).
     pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt> {
+        let attrs = self.parse_attr_list()?;
         // Optional pub keyword
         if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Pub)) {
             self.advance();
@@ -206,6 +208,7 @@ impl Parser {
         let body = self.parse_block()?;
 
         Ok(Stmt::FnDecl {
+            attrs,
             vis: Visibility::Pub,
             is_inline: false,
             extern_c: false,
