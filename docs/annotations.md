@@ -87,6 +87,16 @@ extern "C" fn strlen(unique [char] s) -> int;
 - 字符串字面量的堆副本追加 NUL，保证可直接传给 C 字符串 API；
 - 包导入函数暂不带标注（`ImportedFnSig.attrs` 为空）。
 
+优化效果实证（`opt -O2` 下，调用非内置 C 函数 `mystery` 两次）：
+
+| 声明 | 优化后 `call @mystery` 次数 |
+|---|---|
+| `#[pure] #[nounwind] #[willreturn]` | 1（GVN 跨 FFI CSE） |
+| 无标注 | 2 |
+
+注：当前驱动只调用 `llc`（不做中端 GVN），属性先影响代码生成决策；
+要在默认流水线中获得跨 FFI 优化，需在驱动中接入 `opt`（列为 A1b 候选）。
+
 ## 5. 条件与契约（A2）
 
 - `#[cfg(target = "linux")]`：编译期裁剪 item/语句；
