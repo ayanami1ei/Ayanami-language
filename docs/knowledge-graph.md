@@ -90,6 +90,7 @@ graph LR
 | 契约标注（assume/requires/ensures/invariant） | `hir/contracts.rs`、`hir/lower/body/ensure.rs`、`HirStmt::{Assume,Contract}` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d/A2e/A2f 已完成 |
 | 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs.rs`（Imports 解析）；计划 `.lcl` 宏表、`target/macros/*.so` | A5a 已完成，A5b 待做 |
 | 效应系统 | `hir/effects/{mod,infer,scan}.rs`（注册表/推断/定位）、`LirEffects` 自动属性、`.lcl` 摘要 | A3 重构中（具体效应+默认推断） |
+| 错误传播 `?` | `hir/lower/body/expr_ops1.rs`（pending 语句内联 + 早退）、`ctx.variant_payload_type` | A3d 已完成（具体枚举） |
 | 生命周期参数 | 类型系统 + `mir/borrow/` | 未实现 |
 
 ## 4. 工具与流程

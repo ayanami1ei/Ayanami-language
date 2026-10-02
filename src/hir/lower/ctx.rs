@@ -50,6 +50,8 @@ pub(crate) struct Ctx {
     pub scopes: Vec<HashMap<Symbol, (VarId, HirType, bool)>>,
     /// 是否允许裸数组字面量（在 ToShared/ToUnique/ToWeak 内允许）
     pub allow_bare_array: bool,
+    /// A3d：表达式降级过程中产生的待插入语句（如 `?` 的早退控制流）
+    pub pending_stmts: Vec<HirStmt>,
 }
 
 impl Ctx {
@@ -80,6 +82,7 @@ impl Ctx {
             locals: Vec::new(),
             scopes: Vec::new(),
             allow_bare_array: false,
+            pending_stmts: Vec::new(),
         }
     }
 
@@ -172,6 +175,28 @@ impl Ctx {
             }
         }
         Err(Error::Hir(format!("未知结构体 `{}` (位置 {}:{})", type_name, span.start_line, span.start_col)))
+    }
+
+    /// A3d：取枚举 `_data_X` 变体结构体的首个载荷字段类型（处理泛型替换）。
+    pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType> {
+        let var_ty = self.find_field_type(enum_ty, data_field, span)?;
+        let var_name = match &var_ty {
+            HirType::Named(n) => *n,
+            _ => return Ok(var_ty),
+        };
+        let fields = self.struct_defs.get(&var_name)
+            .ok_or_else(|| Error::Hir(format!("未知变体结构体 `{}` (位置 {}:{})", var_name, span.start_line, span.start_col)))?;
+        let first = match fields.first() {
+            Some(f) => f.ty.clone(),
+            None => return Ok(HirType::Void),
+        };
+        let enum_name = match enum_ty {
+            HirType::Named(n) => *n,
+            _ => return Ok(first),
+        };
+        let base = strip_generic_name(&enum_name);
+        let subst = self.build_generic_subst(&enum_name, &base);
+        Ok(substitute_hir_type(&first, &subst))
     }
 
     /// 从完整类型名（含泛型参数）构建替换映射

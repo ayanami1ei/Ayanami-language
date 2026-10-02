@@ -160,6 +160,7 @@ impl crate::hir::lower::Ctx {
         // 由 LIR 发射层按标注区分 inlinehint / alwaysinline。
         // A3a：解析效应注解（throws/eff；注解权威，推断在后续阶段）
         let effects = crate::hir::effects::parse(&attrs)?;
+        let saved_pending = std::mem::take(&mut self.pending_stmts);
         self.current_fn = fn_id;
         self.locals = Vec::new();
         self.scopes = Vec::new();
@@ -209,6 +210,7 @@ impl crate::hir::lower::Ctx {
             hir_body.stmts = prelude;
         }
 
+        self.pending_stmts = saved_pending;
         let locals = std::mem::take(&mut self.locals);
         Ok(HirFn {
             span,
@@ -234,7 +236,12 @@ impl crate::hir::lower::Ctx {
         self.push_scope();
         let mut stmts = Vec::new();
         for stmt in &block.stmts {
-            stmts.push(self.lower_stmt(stmt)?);
+            let mark = self.pending_stmts.len();
+            let lowered = self.lower_stmt(stmt)?;
+            // A3d：表达式内联语句（如 `?`）必须先于本语句执行
+            let pending: Vec<HirStmt> = self.pending_stmts.split_off(mark);
+            stmts.extend(pending);
+            stmts.push(lowered);
         }
         self.pop_scope();
         Ok(HirBlock::new(stmts))

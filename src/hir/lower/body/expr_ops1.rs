@@ -82,17 +82,105 @@ impl crate::hir::lower::Ctx {
         }.into())
     }
 
+    /// A3d：`expr?` 真传播——`Ok(v)` 取值；`Err` 直接把整个 Result 返回（要求与函数返回类型一致）。
+    ///
+    /// 生成（内联到当前语句之前）：
+    /// ```text
+    /// __try_val = <expr>
+    /// if __try_val._tag == 0 { __try_ok = __try_val._data_Ok } else { return __try_val }
+    /// ```
+    /// 表达式结果 = `__try_ok`。
     pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox> {
         let hir_inner = self.lower_expr(inner)?;
         let inner_ty = expr_type(&hir_inner);
-        if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("try_unwrap"), &[inner_ty.clone()]) {
-            let ret_ty = self.fns[fn_id.0].return_type.clone();
-            return Ok(SCall { fn_id, args: vec![implicit_move(hir_inner)], ty: ret_ty }.into());
+        let fn_ret = self.fns[self.current_fn.0].return_type.clone();
+        if fn_ret != inner_ty {
+            return Err(Error::Hir(format!(
+                "cannot use `?`: expression type {} does not match function return type {} (at {}:{})",
+                hir_type_display(&inner_ty),
+                hir_type_display(&fn_ret),
+                span.start_line,
+                span.start_col
+            )));
         }
-        if let Ok(fn_id) = self.specialize_generic_call(&Symbol::intern("try_unwrap"), &[inner_ty.clone()], span) {
-            let ret_ty = self.fns[fn_id.0].return_type.clone();
-            return Ok(SCall { fn_id, args: vec![implicit_move(hir_inner)], ty: ret_ty }.into());
+
+        let tag_field = Symbol::intern("_tag");
+        let ok_field = Symbol::intern("_data_Ok");
+        let payload_field = Symbol::intern("_0");
+        let tag_index = self.find_field_index(&inner_ty, &tag_field, span)?;
+        let ok_index = self.find_field_index(&inner_ty, &ok_field, span)?;
+        let data_ty = self.find_field_type(&inner_ty, &ok_field, span)?;
+        let ok_ty = self.variant_payload_type(&inner_ty, &ok_field, span)?;
+        // 泛型枚举载荷结构体尚未单态化：变体字段仍是泛型参数时明确报错
+        if let HirType::Named(vn) = &data_ty {
+            if let Some(fields) = self.struct_defs.get(vn) {
+                if let Some(f0) = fields.first() {
+                    if let HirType::Named(pn) = &f0.ty {
+                        let gps = self.collected_generic_params(vn);
+                        if gps.iter().any(|(g, _)| g == pn) {
+                            return Err(Error::Hir(format!(
+                                "cannot use `?` on generic enum `{}`: payload monomorphization is not implemented yet (at {}:{})",
+                                hir_type_display(&inner_ty), span.start_line, span.start_col
+                            )));
+                        }
+                    }
+                }
+            }
         }
-        Err(Error::Hir(format!("type `{:?}` cannot use `?` operator at {}:{}", inner_ty, span.start_line, span.start_col)))
+
+        // __try_val = <expr>
+        let val_var = VarId(self.locals.len());
+        self.locals.push(HirLocal::new(Symbol::intern("__try_val"), inner_ty.clone(), false));
+        let val_node: HirNodeBox = SVar { var: val_var, ty: inner_ty.clone() }.into();
+        self.pending_stmts.push(HirStmt::Assign { target: val_node.clone(), value: hir_inner });
+
+        // __try_ok（结果）
+        let ok_var = VarId(self.locals.len());
+        self.locals.push(HirLocal::new(Symbol::intern("__try_ok"), ok_ty.clone(), true));
+
+        // 条件：__try_val._tag == 0（Ok 为声明序 0）
+        let tag_node: HirNodeBox = SField {
+            object: val_node.clone(),
+            field: tag_field,
+            field_index: tag_index,
+            ty: HirType::Int,
+        }.into();
+        let zero: HirNodeBox = SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into();
+        let cond: HirNodeBox = SBin {
+            op: BinaryOp::Eq,
+            lhs: tag_node,
+            rhs: zero,
+            ty: HirType::Int,
+        }.into();
+
+        // then: __try_ok = __try_val._data_Ok._0
+        let variant_node: HirNodeBox = SField {
+            object: val_node.clone(),
+            field: ok_field,
+            field_index: ok_index,
+            ty: data_ty,
+        }.into();
+        let ok_load: HirNodeBox = SField {
+            object: variant_node,
+            field: payload_field,
+            field_index: 0,
+            ty: ok_ty.clone(),
+        }.into();
+        let then_block = HirBlock::new(vec![HirStmt::Assign {
+            target: SVar { var: ok_var, ty: ok_ty.clone() }.into(),
+            value: ok_load,
+        }]);
+
+        // else: return __try_val（同类型的 Result）
+        let else_block = HirBlock::new(vec![HirStmt::Return { value: Some(val_node) }]);
+
+        self.pending_stmts.push(HirStmt::If {
+            cond,
+            then_block,
+            elifs: Vec::new(),
+            else_block: Some(else_block),
+        });
+
+        Ok(SVar { var: ok_var, ty: ok_ty }.into())
     }
 }

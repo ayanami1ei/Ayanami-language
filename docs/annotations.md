@@ -220,8 +220,11 @@ extern "C" fn strlen(unique [char] s) -> int;
 - 同编译单元：有效集合无错误来源 → `nounwind`；无 io/state/alloc → `memory(none)`。
 - 跨包：消费者对导入函数只信任**承诺位**生成属性（静态链接可用推断事实，动态边界保守）。
 - 承诺可跨动态边界；推断事实仅限同构建。
-- **U2（`?` 空效应消除）**：当前 `?` 实为 `std::Result.try_unwrap`（`Err => 0`），不是传播；
-  真正的 `?`/`Result` 错误传播要单独设计（A3d），本阶段不做。
+- **U2（`?` 错误传播）已实现（A3d，具体枚举）**：
+  `expr?` 生成 `tmp = expr; if tmp._tag == 0 { ok = tmp._data_Ok._0 } else { return tmp }`，
+  要求表达式类型与函数返回类型一致；Err 提前返回整个枚举值。
+  `Result[T,E]` 等**泛型枚举**的载荷结构体尚未单态化（`%struct.Result_Ok` 字段仍是 `ptr`），
+  对泛型枚举使用 `?` 会给出明确报错；结构体单态化待做。
 
 ### 6.5 里程碑
 
