@@ -1,237 +1,7 @@
-use crate::error::{Error, Result};
-use crate::hir::ir::{FnId, HirLiteral, HirType, VarId};
-use crate::intern::Symbol;
-use crate::mir::ir::MirLocal;
-use crate::parser::ast::BinaryOp;
-use std::collections::HashMap;
-
-use super::ir::*;
-
-/// Serialize LirProgram to compact binary.
-pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
-    let mut buf = Vec::new();
-    // Header
-    buf.extend_from_slice(b"LIR2");
-
-    // Strings
-    put_u32(&mut buf, p.strings.len() as u32);
-    for s in &p.strings { put_str(&mut buf, s); }
-
-    // fn_names
-    put_u32(&mut buf, p.fn_names.len() as u32);
-    for (k, v) in &p.fn_names {
-        put_u32(&mut buf, k.0 as u32);
-        put_str(&mut buf, v);
-    }
-
-    // Functions
-    put_u32(&mut buf, p.functions.len() as u32);
-    for f in &p.functions { put_fn(&mut buf, f); }
-
-    // Vtables
-    put_u32(&mut buf, p.vtables.len() as u32);
-    for v in &p.vtables {
-        put_str(&mut buf, &v.name);
-        put_u32(&mut buf, v.fn_ids.len() as u32);
-        for id in &v.fn_ids { put_u32(&mut buf, id.0 as u32); }
-    }
-
-    // struct_defs
-    put_u32(&mut buf, p.struct_defs.len() as u32);
-    for (name, fields) in &p.struct_defs {
-        put_str(&mut buf, &name.as_str());
-        put_u32(&mut buf, fields.len() as u32);
-        for (fn_name, ty) in fields {
-            put_str(&mut buf, &fn_name.as_str());
-            put_type(&mut buf, ty);
-        }
-    }
-
-    // generic_struct_params
-    put_u32(&mut buf, p.generic_struct_params.len() as u32);
-    for (name, params) in &p.generic_struct_params {
-        put_str(&mut buf, &name.as_str());
-        put_u32(&mut buf, params.len() as u32);
-        for (gp_name, constraint) in params {
-            put_str(&mut buf, &gp_name.as_str());
-            put_u32(&mut buf, constraint.map(|_| 1u32).unwrap_or(0));
-            if let Some(c) = constraint {
-                put_str(&mut buf, &c.as_str());
-            }
-        }
-    }
-
-    // imported_fn_ids
-    put_u32(&mut buf, p.imported_fn_ids.len() as u32);
-    for id in &p.imported_fn_ids { put_u32(&mut buf, id.0 as u32); }
-
-    buf
-}
-
-/// Deserialize LirProgram from binary.
-pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
-    if data.len() < 4 || &data[0..4] != b"LIR2" {
-        return Err(Error::Serialize("invalid LIR data".into()));
-    }
-    let mut pos = 4;
-    let mut r = Reader { data, pos: &mut pos };
-
-    let str_count = r.u32()?;
-    let mut strings = Vec::new();
-    for _ in 0..str_count { strings.push(r.str()?); }
-
-    let fn_count = r.u32()?;
-    let mut fn_names = HashMap::new();
-    for _ in 0..fn_count {
-        let k = FnId(r.u32()? as usize);
-        let v = r.str()?;
-        fn_names.insert(k, v);
-    }
-
-    let func_count = r.u32()?;
-    let mut functions = Vec::new();
-    for _ in 0..func_count { functions.push(r.read_fn()?); }
-
-    let vt_count = r.u32()?;
-    let mut vtables = Vec::new();
-    for _ in 0..vt_count {
-        let name = r.str()?;
-        let id_count = r.u32()?;
-        let mut fn_ids = Vec::new();
-        for _ in 0..id_count { fn_ids.push(FnId(r.u32()? as usize)); }
-        vtables.push(VtableDesc { name, fn_ids });
-    }
-
-    let sd_count = r.u32()?;
-    let mut struct_defs = HashMap::new();
-    for _ in 0..sd_count {
-        let name = Symbol::intern(&r.str()?);
-        let f_count = r.u32()?;
-        let mut fields = Vec::new();
-        for _ in 0..f_count {
-            let fn_name = Symbol::intern(&r.str()?);
-            let ty = r.ty()?;
-            fields.push((fn_name, ty));
-        }
-        struct_defs.insert(name, fields);
-    }
-
-    let gsp_count = r.u32()?;
-    let mut generic_struct_params = std::collections::HashMap::new();
-    for _ in 0..gsp_count {
-        let name = Symbol::intern(&r.str()?);
-        let p_count = r.u32()?;
-        let mut params = Vec::new();
-        for _ in 0..p_count {
-            let gp_name = Symbol::intern(&r.str()?);
-            let has_constraint = r.u32()?;
-            let constraint = if has_constraint != 0 { Some(Symbol::intern(&r.str()?)) } else { None };
-            params.push((gp_name, constraint));
-        }
-        generic_struct_params.insert(name, params);
-    }
-
-    let imp_count = r.u32()?;
-    let mut imported_fn_ids = std::collections::HashSet::new();
-    for _ in 0..imp_count { imported_fn_ids.insert(FnId(r.u32()? as usize)); }
-
-    Ok(LirProgram { strings, fn_names, functions, vtables, struct_defs, generic_struct_params, imported_fn_ids })
-}
-
-// ============================================================
-//  Writer helpers
-// ============================================================
-
-fn put_inst(buf: &mut Vec<u8>, inst: &LirNodeBox) {
-    inst.serialize(buf);
-}
-
-fn put_fn(buf: &mut Vec<u8>, f: &LirFn) {
-    put_u32(buf, f.fn_id.0 as u32);
-    buf.push(if f.is_inline { 1 } else { 0 });
-    buf.push(if f.extern_c { 1 } else { 0 });
-    put_str(buf, &f.name.as_str());
-    put_type(buf, &f.return_type);
-    put_u32(buf, f.params.len() as u32);
-    for (n, t) in &f.params {
-        put_str(buf, &n.as_str());
-        put_type(buf, t);
-    }
-    put_u32(buf, f.locals.len() as u32);
-    for l in &f.locals {
-        put_str(buf, &l.name.as_str());
-        put_type(buf, &l.ty);
-        buf.push(if l.mutable { 1 } else { 0 });
-    }
-    put_u32(buf, f.blocks.len() as u32);
-    for b in &f.blocks {
-        put_str(buf, &b.label);
-        put_u32(buf, b.insts.len() as u32);
-        for inst in &b.insts { put_inst(buf, inst); }
-    }
-}
-
-// ============================================================
-//  Reader helpers
-// ============================================================
-
-struct Reader<'a> {
-    data: &'a [u8],
-    pos: &'a mut usize,
-}
+use super::*;
 
 impl<'a> Reader<'a> {
-    fn read(&mut self, n: usize) -> Result<&'a [u8]> {
-        if *self.pos + n > self.data.len() {
-            return Err(Error::Serialize("unexpected EOF".into()));
-        }
-        let slice = &self.data[*self.pos..*self.pos + n];
-        *self.pos += n;
-        Ok(slice)
-    }
-    fn u32(&mut self) -> Result<u32> {
-        let b = self.read(4)?;
-        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-    }
-    fn u64(&mut self) -> Result<u64> {
-        let b = self.read(8)?;
-        Ok(u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]))
-    }
-    fn str(&mut self) -> Result<String> {
-        let len = self.u32()? as usize;
-        let b = self.read(len)?;
-        Ok(String::from_utf8(b.to_vec()).map_err(|e| Error::Serialize(format!("invalid string: {}", e)))?)
-    }
-    fn ty(&mut self) -> Result<HirType> {
-        let tag = self.read(1)?[0];
-        match tag {
-            0 => Ok(HirType::Int),
-            1 => Ok(HirType::Float),
-            2 => Ok(HirType::Char),
-            3 => Ok(HirType::Void),
-            4 => Ok(HirType::Bool),
-            5 => { let s = Symbol::intern(&self.str()?); Ok(HirType::Named(s)) }
-            6 => Ok(HirType::Unique(Box::new(self.ty()?))),
-            7 => Ok(HirType::Shared(Box::new(self.ty()?))),
-            8 => Ok(HirType::Weak(Box::new(self.ty()?))),
-            9 => {
-                let name = Symbol::intern(&self.str()?);
-                let kind = Box::new(self.ty()?);
-                Ok(HirType::FatPtr { name, kind })
-            }
-            10 => Ok(HirType::Array(Box::new(self.ty()?))),
-            11 => { let inner = Box::new(self.ty()?); let mutable = self.read(1)?[0] != 0; Ok(HirType::Ref(inner, mutable)) }
-            12 => {
-                let pc = self.u32()? as usize;
-                let mut params = Vec::with_capacity(pc);
-                for _ in 0..pc { params.push(self.ty()?); }
-                let ret = Box::new(self.ty()?);
-                Ok(HirType::FnPtr(params, ret))
-            }
-            _ => Err(Error::Serialize(format!("unknown type tag: {}", tag))),
-        }
-    }
-    fn literal(&mut self) -> Result<HirLiteral> {
+    pub(super) fn literal(&mut self) -> Result<HirLiteral> {
         let tag = self.read(1)?[0];
         match tag {
             0 => Ok(HirLiteral::Int(self.u64()? as i64)),
@@ -242,7 +12,7 @@ impl<'a> Reader<'a> {
             _ => Err(Error::Serialize(format!("unknown literal tag: {}", tag))),
         }
     }
-    fn value(&mut self) -> Result<LirValue> {
+    pub(super) fn value(&mut self) -> Result<LirValue> {
         let tag = self.read(1)?[0];
         match tag {
             0 => Ok(LirValue::Var(VarId(self.u32()? as usize))),
@@ -252,7 +22,7 @@ impl<'a> Reader<'a> {
             _ => Err(Error::Serialize(format!("unknown value tag: {}", tag))),
         }
     }
-    fn inst(&mut self) -> Result<LirNodeBox> {
+    pub(super) fn inst(&mut self) -> Result<LirNodeBox> {
         let tag = self.read(1)?[0];
         match tag {
             0 => Ok(SLirAlloca { var: VarId(self.u32()? as usize), ty: self.ty()? }.into()),
@@ -413,7 +183,7 @@ impl<'a> Reader<'a> {
             _ => Err(Error::Serialize(format!("unknown inst tag: {}", tag))),
         }
     }
-    fn read_fn(&mut self) -> Result<LirFn> {
+    pub(super) fn read_fn(&mut self) -> Result<LirFn> {
         let fid = FnId(self.u32()? as usize);
         let is_inline = self.read(1)?[0] != 0;
         let extern_c = self.read(1)?[0] != 0;
