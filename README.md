@@ -20,6 +20,7 @@ install/
 ├── ayanami           # 编译器本体
 ├── llc               # LLVM 静态编译器（bundled）
 ├── libLLVM.so.21.1   # LLVM 共享库
+├── libedit.so.2      # libLLVM 依赖（打包兼容副本）
 ├── runtime.c         # 运行时（libc 包装、RC 分配器）
 └── std/              # 标准库（预编译 .lcl）
     ├── string.lcl
@@ -41,7 +42,7 @@ install/
 
 ## 构建要求
 
-- **运行时依赖**：gcc（链接）、glibc
+- **运行时依赖**：gcc（链接）、glibc；bundled LLVM 依赖的 libedit 已随包提供
 - 不需要预装 LLVM（已 bundled）
 - 支持 Linux x86_64
 

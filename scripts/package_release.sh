@@ -42,6 +42,23 @@ if [ ! -f install/libLLVM.so.21.1 ]; then
 fi
 cp target/release/ayanami install/ayanami
 cp src/runtime.c install/runtime.c
+# bundled libLLVM 依赖 libedit.so.2；部分发行版只有 .so.0，打包兼容副本以自包含
+if [ ! -e install/libedit.so.2 ]; then
+    libedit_src=""
+    for cand in /usr/lib/libedit.so.2 /usr/lib/x86_64-linux-gnu/libedit.so.2 \
+                /usr/lib/libedit.so.0 /usr/lib/x86_64-linux-gnu/libedit.so.0; do
+        if [ -e "$cand" ]; then
+            libedit_src=$cand
+            break
+        fi
+    done
+    if [ -n "$libedit_src" ]; then
+        cp -L "$libedit_src" install/libedit.so.2
+        echo "已打包 libedit 兼容副本：$libedit_src -> install/libedit.so.2"
+    else
+        echo "警告：未找到 libedit，bundled llc 可能无法运行" >&2
+    fi
+fi
 rm -rf install/std
 mkdir -p install/std
 cp std/*.lcl install/std/

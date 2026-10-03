@@ -33,4 +33,5 @@ package-lock.json
 install/llc
 install/libLLVM.so.21.1
 install/ayanami
+install/libedit.so.2
 *.tar.gz
