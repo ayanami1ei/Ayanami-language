@@ -12,6 +12,9 @@ pub(super) fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut
             MirItem::Fn(f) => {
                 let name = if f.extern_c {
                     f.name.as_str().to_string()
+                } else if f.is_macro {
+                    // A5b：宏函数符号加保留前缀，避免与宏展开产物重名
+                    format!("__ayanami_macro_{}", mangle("", &f.name.as_str().replace('.', "__"), &f.params))
                 } else {
                     mangle("", &f.name.as_str().replace('.', "__"), &f.params)
                 };

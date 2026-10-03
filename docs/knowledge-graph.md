@@ -89,7 +89,7 @@ graph LR
 | extern 真实签名 | `lir/lower/mod.rs`（`extern_decls`） | A1 已完成 |
 | cfg 条件裁剪 | `hir/cfg.rs`、`package/symbols.rs` | A2b 已完成（A2f 起含语句级） |
 | 契约标注（assume/requires/ensures/invariant） | `hir/contracts.rs`、`hir/lower/body/ensure.rs`、`HirStmt::{Assume,Contract}` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d/A2e/A2f 已完成 |
-| 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs.rs`（Imports/宏校验）、`.lcl` 宏表（`macro=`）；计划 `target/macros/*.so` | A5a/A5b-1 已完成，A5b-2 待做 |
+| 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs*.rs`（Imports/宏校验）、`.lcl` 宏表、`compiler/macro_expand/{mod,plugin}.rs`（.so + dlopen） | A5a/A5b 已完成（MVP） |
 | 效应系统 | `hir/effects/{mod,infer,diag,scan}.rs`（注册表/推断/诊断）、`LirEffects` 自动属性、`.lcl` 效应 tokens（声明+推断+承诺） | A3 重构完成（Stage 1–3） |
 | 错误传播 `?` | `hir/lower/body/expr_ops1.rs`（pending 语句内联 + 早退）、`ctx.{variant_payload_type,instantiate_*}` | A3d 已完成（含泛型 Result 最小单态化） |
 | 生命周期参数 | 类型系统 + `mir/borrow/` | 未实现 |

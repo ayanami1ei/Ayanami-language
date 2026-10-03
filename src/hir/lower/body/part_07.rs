@@ -161,6 +161,7 @@ impl crate::hir::lower::Ctx {
         // 由 LIR 发射层按标注区分 inlinehint / alwaysinline。
         // A3a：解析效应注解（throws/eff；注解权威，推断在后续阶段）
         let effects = crate::hir::effects::parse(&attrs)?;
+        let is_macro = attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "macro");
         let saved_pending = std::mem::take(&mut self.pending_stmts);
         self.current_fn = fn_id;
         self.locals = Vec::new();
@@ -221,6 +222,7 @@ impl crate::hir::lower::Ctx {
             attrs,
             effects,
             is_pub,
+            is_macro,
             inferred: crate::hir::effects::EffectSet::default(),
             param_attrs,
             fn_id,

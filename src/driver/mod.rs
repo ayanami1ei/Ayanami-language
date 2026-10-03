@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Find `llc` — check next to the ayanami binary first, then PATH.
-fn find_llc() -> Result<(PathBuf, PathBuf)> {
+pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)> {
     let exe = std::env::current_exe().ok();
     if let Some(exe_path) = exe {
         if let Some(exe_dir) = exe_path.parent() {
@@ -118,7 +118,7 @@ pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> 
 
 /// Locate the runtime C file.
 /// Searches: exe dir → Cargo.toml parent → cwd parent.
-fn find_runtime_c() -> Result<String> {
+pub(crate) fn find_runtime_c() -> Result<String> {
     // First, try next to the executable (for release builds in build/)
     let exe = std::env::current_exe().ok();
     if let Some(exe_path) = exe {

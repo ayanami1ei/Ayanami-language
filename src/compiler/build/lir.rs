@@ -1,11 +1,13 @@
 use super::*;
 
 pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram> {
+    // A5b-2：先做用户宏展开（import 已重写为 .lcl 绝对路径）
+    let program = crate::compiler::macro_expand::expand(program, src_path)?;
     let mut hir_program = crate::hir::lower_program(&program)
         .map_err(|e| Error::Compile(format!("{}: {}", src_path.display(), e)))?;
 
     check_hir_returns(&hir_program, src_path)?;
-    crate::hir::effects::analyze(&mut hir_program, program, src_path)?;
+    crate::hir::effects::analyze(&mut hir_program, &program, src_path)?;
 
     let mir_program = crate::mir::lower_program(&hir_program)?;
     for item in &mir_program.items {

@@ -83,8 +83,9 @@ fn validate_macros_stmt(
             return;
         }
         // 已解析到宏：展开执行在 A5b-2
+        // 宏展开（A5b-2）应在 HIR 之前完成；这里出现说明展开遗漏
         *out = Err(Error::Hir(format!(
-            "macro #[{}] expansion is not implemented yet (A5b-2) (at {}:{})",
+            "macro #[{}] was not expanded (internal error) (at {}:{})",
             a.path_str(),
             a.span.start_line,
             a.span.start_col

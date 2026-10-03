@@ -174,6 +174,8 @@ pub struct MirFn {
     pub effects: crate::hir::effects::EffectDecl,
     /// A3：推断出的实际效应（有效集合 = 声明 ∪ 推断）
     pub inferred: crate::hir::effects::EffectSet,
+    /// A5b：用户宏（LIR 符号加保留前缀）
+    pub is_macro: bool,
 }
 
 #[derive(Debug, Clone)]

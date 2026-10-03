@@ -32,7 +32,7 @@ src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:124: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:141: pub(super) fn merge_symbols(
 src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram>
-src/compiler/build/lir.rs:20: pub(super) fn build_target_artifact(
+src/compiler/build/lir.rs:22: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:14: mod compile;
 src/compiler/build/mod.rs:15: mod deps;
 src/compiler/build/mod.rs:16: mod lir;
@@ -63,44 +63,69 @@ src/compiler/debug/stmt.rs:13: pub(super) fn write_stmt(stmt: &Stmt, level: usiz
 src/compiler/import.rs:2: pub fn find_std_dir() -> Option<std::path::PathBuf>
 src/compiler/import.rs:20: pub fn resolve_import_path(
 src/compiler/import.rs:84: pub fn load_config_for_file(file_path: &std::path::Path, _out_dir: &std::path::Path) -> Option<String>
+src/compiler/macro_expand/mod.rs:15: const MAX_DEPTH: usize = 32;
+src/compiler/macro_expand/mod.rs:17: mod plugin;
+src/compiler/macro_expand/mod.rs:20: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
+src/compiler/macro_expand/mod.rs:29: struct MacroCtx
+src/compiler/macro_expand/mod.rs:37: impl MacroCtx
+src/compiler/macro_expand/mod.rs:38: fn collect(program: &Program, src_path: &Path) -> Result<Self>
+src/compiler/macro_expand/mod.rs:45: fn resolve(&self, a: &Attr) -> Option<(String, String)>
+src/compiler/macro_expand/mod.rs:60: fn collect_imports(
+src/compiler/macro_expand/mod.rs:92: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:135: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:175: fn parse_source(code: &str) -> Result<Program>
+src/compiler/macro_expand/mod.rs:185: fn is_compiler_attr(a: &Attr) -> bool
+src/compiler/macro_expand/mod.rs:196: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/mod.rs:207: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/plugin.rs:10: mod dl
+src/compiler/macro_expand/plugin.rs:14: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+src/compiler/macro_expand/plugin.rs:15: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+src/compiler/macro_expand/plugin.rs:16: pub fn dlclose(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin.rs:19: const RTLD_NOW: c_int = 2;
+src/compiler/macro_expand/plugin.rs:25: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str) -> Result<String>
+src/compiler/macro_expand/plugin.rs:50: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize) -> Result<PathBuf>
+src/compiler/macro_expand/plugin.rs:124: type ExpandFn = unsafe extern "C" fn(*const u8, usize, *mut usize) -> *mut u8;
+src/compiler/macro_expand/plugin.rs:125: type FreeFn = unsafe extern "C" fn(*mut c_char);
+src/compiler/macro_expand/plugin.rs:127: fn call_plugin(so_path: &Path, symbol: &str, _arity: usize, input: &str) -> Result<String>
 src/compiler/mod.rs:1: pub mod build;
 src/compiler/mod.rs:2: pub mod check;
 src/compiler/mod.rs:3: pub mod debug;
 src/compiler/mod.rs:4: pub mod import;
-src/compiler/mod.rs:5: pub mod symdef;
-src/compiler/mod.rs:23: pub struct CompiledFile
-src/compiler/mod.rs:35: pub struct CompileResult
-src/compiler/mod.rs:63: pub struct CompilerPipeline
-src/compiler/mod.rs:80: impl CompilerPipeline
-src/compiler/mod.rs:82: pub fn new(code: &str) -> Self
-src/compiler/mod.rs:95: pub fn lex(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:108: pub fn parse(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:115: pub fn lower_hir(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:126: pub fn check_returns(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:137: pub fn lower_mir(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:146: pub fn check_borrows(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:161: pub fn lower_lir(&mut self) -> &mut Self
-src/compiler/mod.rs:170: pub fn emit(&mut self) -> &mut Self
-src/compiler/mod.rs:178: pub fn compile(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:189: pub fn result(&self) -> CompileResult
-src/compiler/mod.rs:198: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
-src/compiler/mod.rs:203: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
-src/compiler/mod.rs:208: pub fn ast_program(&self) -> Option<&Program>
-src/compiler/mod.rs:214: pub fn compile_source(code: &str) -> Result<CompileResult>
-src/compiler/mod.rs:222: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
+src/compiler/mod.rs:5: pub mod macro_expand;
+src/compiler/mod.rs:6: pub mod symdef;
+src/compiler/mod.rs:24: pub struct CompiledFile
+src/compiler/mod.rs:36: pub struct CompileResult
+src/compiler/mod.rs:64: pub struct CompilerPipeline
+src/compiler/mod.rs:81: impl CompilerPipeline
+src/compiler/mod.rs:83: pub fn new(code: &str) -> Self
+src/compiler/mod.rs:96: pub fn lex(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:109: pub fn parse(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:116: pub fn lower_hir(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:127: pub fn check_returns(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:138: pub fn lower_mir(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:147: pub fn check_borrows(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:162: pub fn lower_lir(&mut self) -> &mut Self
+src/compiler/mod.rs:171: pub fn emit(&mut self) -> &mut Self
+src/compiler/mod.rs:179: pub fn compile(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:190: pub fn result(&self) -> CompileResult
+src/compiler/mod.rs:199: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
+src/compiler/mod.rs:204: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
+src/compiler/mod.rs:209: pub fn ast_program(&self) -> Option<&Program>
+src/compiler/mod.rs:215: pub fn compile_source(code: &str) -> Result<CompileResult>
+src/compiler/mod.rs:223: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
 src/compiler/symdef.rs:5: pub struct SymDef
 src/compiler/symdef.rs:18: fn stmt_effect_tokens(stmt: &Stmt) -> Vec<String>
 src/compiler/symdef.rs:29: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
 src/compiler/symdef.rs:42: pub fn collect_defs_from_stmts(
 src/compiler/symdef.rs:53: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
 src/compiler/symdef.rs:177: pub fn defs_to_json(defs: &[SymDef]) -> String
-src/driver/mod.rs:11: fn find_llc() -> Result<(PathBuf, PathBuf)>
+src/driver/mod.rs:11: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
 src/driver/mod.rs:29: fn find_opt() -> Option<(PathBuf, PathBuf)>
 src/driver/mod.rs:46: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
 src/driver/mod.rs:97: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
 src/driver/mod.rs:102: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
 src/driver/mod.rs:115: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:121: fn find_runtime_c() -> Result<String>
+src/driver/mod.rs:121: pub(crate) fn find_runtime_c() -> Result<String>
 src/driver/mod.rs:149: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
 src/driver/mod.rs:164: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
 src/driver/mod.rs:175: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
@@ -230,9 +255,9 @@ src/hir/item.rs:26: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
 src/hir/item.rs:34: pub struct VtableEntry
 src/hir/item.rs:42: pub struct HirInterfaceMethod
 src/hir/item.rs:50: pub struct HirFn
-src/hir/item.rs:73: pub enum HirItem
-src/hir/item.rs:89: pub struct ImportedFnSig
-src/hir/item.rs:103: pub struct HirProgram
+src/hir/item.rs:75: pub enum HirItem
+src/hir/item.rs:91: pub struct ImportedFnSig
+src/hir/item.rs:105: pub struct HirProgram
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
@@ -316,7 +341,7 @@ src/hir/lower/body/part_07.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[S
 src/hir/lower/body/part_07.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
 src/hir/lower/body/part_07.rs:115: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
 src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
-src/hir/lower/body/part_07.rs:241: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
+src/hir/lower/body/part_07.rs:243: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
 src/hir/lower/body/part_08.rs:181: pub(crate) fn lower_while(
@@ -1197,8 +1222,8 @@ src/lir/lower/mod.rs:21: fn collect_effect_summaries(items: &[MirItem], out: &mu
 src/lir/lower/mod.rs:41: pub fn lower_program(mir: &MirProgram) -> LirProgram
 src/lir/lower/names.rs:3: pub(super) fn collect_fn_names(mir: &MirProgram) -> HashMap<FnId, String>
 src/lir/lower/names.rs:9: pub(super) fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<FnId, String>)
-src/lir/lower/names.rs:28: pub(super) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String
-src/lir/lower/names.rs:46: pub(super) fn type_to_mangle(ty: &HirType) -> String
+src/lir/lower/names.rs:31: pub(super) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String
+src/lir/lower/names.rs:49: pub(super) fn type_to_mangle(ty: &HirType) -> String
 src/lir/lower/strings.rs:3: pub(super) fn collect_strings(mir: &MirProgram) -> Vec<String>
 src/lir/lower/strings.rs:11: pub(super) fn collect_strings_items(items: &[MirItem], out: &mut Vec<String>)
 src/lir/lower/strings.rs:21: pub(super) fn collect_strings_stmts(stmts: &[MirStmtBox], out: &mut Vec<String>)
@@ -1316,8 +1341,8 @@ src/mir/ir.rs:147: pub struct MirLocal
 src/mir/ir.rs:153: impl MirLocal
 src/mir/ir.rs:154: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
 src/mir/ir.rs:160: pub struct MirFn
-src/mir/ir.rs:180: pub enum MirItem
-src/mir/ir.rs:193: pub struct MirProgram
+src/mir/ir.rs:182: pub enum MirItem
+src/mir/ir.rs:195: pub struct MirProgram
 src/mir/lower/checks.rs:5: fn collect_stmt_var_ids(stmt: &HirStmt, vars: &mut HashSet<VarId>)
 src/mir/lower/checks.rs:57: impl Ctx
 src/mir/lower/checks.rs:60: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)

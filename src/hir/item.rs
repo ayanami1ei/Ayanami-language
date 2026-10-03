@@ -59,6 +59,8 @@ pub struct HirFn {
     pub extern_c: bool,
     /// A3：是否导出接口（告警只在接口层提示）
     pub is_pub: bool,
+    /// A5b：是否为用户宏（LIR 符号加保留前缀，避免与展开产物重名）
+    pub is_macro: bool,
     /// A3：本轮编译推断出的实际效应（默认最好情况；由 effects::analyze 填充）
     pub inferred: crate::hir::effects::EffectSet,
     pub params: Vec<(Symbol, HirType)>,

@@ -374,7 +374,9 @@ struct Holder['a] {
 
 - [x] A5a 标注名路径化（`pkg::macro`）+ provider 解析 + `core::` 别名 + import 短名列表
 - [x] A5b-1 `#[macro]` 声明 + `.lcl` 宏表（`macro="name"`）+ `pkg::macro`/import 短名解析与存在性诊断
-- [ ] A5b-2 M3 插件 ABI（Ayanami 宏编译为 `.so`、dlopen 调用）+ item 级展开与重新校验
+- [x] A5b-2 M3 插件 ABI（Ayanami 优先）：宏库 LIR → llc(PIC) + C shim + runtime → `.so`；编译期 dlopen 调用；
+      item 级展开、输出重新解析、深度上限 32、`/tmp/ayanami-macros` 缓存
+      （v1 限制：宏签名 `fn(String) -> String`（0/1 参）、标注实参暂不支持、语句级宏不支持）
 - [ ] A5c 其他语言插件 / WASM 沙箱 / 语句表达式宏 / 插件清单与权限（远期）
 
 ### 已知问题

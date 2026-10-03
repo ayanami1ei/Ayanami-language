@@ -2,6 +2,7 @@ pub mod build;
 pub mod check;
 pub mod debug;
 pub mod import;
+pub mod macro_expand;
 pub mod symdef;
 
 use crate::error::{Error, Result};
