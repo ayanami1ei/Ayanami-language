@@ -330,6 +330,15 @@ extern "C" fn strlen(unique [char] s) -> int;
 
 > 开发体验向动态语言看齐，部署产物向静态语言看齐。
 
+## 教程
+
+《Ayanami 语言教程》（Rust 圣经风格，17 章）位于子仓 [`book/`](book/)：
+
+- 仓库：<https://github.com/ayanami1ei/ayanami-language-book>
+- 内容：安装、猜数字、基础语法、结构体、枚举、接口、泛型、所有权、数组、
+  标准库、错误处理、标注系统、生命周期、FFI / 汇编 / 宏、工具链、综合项目
+- 本地构建：`cd book && mdbook build`（或 `mdbook serve --open`）
+
 ## 示例
 
 见 [`example/`](example/)（26 个端到端用例）。
