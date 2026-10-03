@@ -29,6 +29,16 @@ install/
 
 编译器自动在同目录查找 `llc`、`std/`、`runtime.c`。
 
+## 从源码打包
+
+```bash
+./scripts/package_release.sh            # 生成 tar.gz 与 vsix
+./scripts/package_release.sh --no-vsix  # 只生成 tar.gz
+```
+
+脚本会先跑 `check_all.sh`（版本/行数/符号地图/零告警），再构建 release 二进制、
+重建 `std/` 预编译包、组装 `install/`（含 bundled `llc` 与 `libLLVM.so`）并打包。
+
 ## 构建要求
 
 - **运行时依赖**：gcc（链接）、glibc

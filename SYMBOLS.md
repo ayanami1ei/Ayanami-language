@@ -1581,11 +1581,11 @@ src/span.rs:62: impl std::fmt::Display for Span
 src/span.rs:63: fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
 
 ## Ayanami (.aya)
-std/io.aya:12: pub fn getchar() -> int
-std/io.aya:15: pub fn putchar(int c)
-std/io.aya:18: pub fn print(ref String n)
-std/io.aya:21: pub fn println()
-std/io.aya:24: pub fn println(ref String s)
+std/io.aya:13: pub fn getchar() -> int
+std/io.aya:17: pub fn putchar(int c)
+std/io.aya:21: pub fn print(ref String n)
+std/io.aya:25: pub fn println()
+std/io.aya:29: pub fn println(ref String s)
 std/main.aya:4: fn main()->int
 std/math.aya:5: pub fn abs(int x) -> int
 std/math.aya:11: pub fn min(int a, int b) -> int
@@ -1600,11 +1600,11 @@ std/src/arraylist.aya:29: pub fn index(ref self, int index)->T{ return self.data
 std/src/arraylist.aya:30: pub fn to_string(ref self)->String
 std/src/arraylist.aya:39: pub fn len(ref self)->int{ return self.len }
 std/src/arraylist.aya:41: pub fn iter(ref self, fn(T) f)
-std/src/io.aya:12: pub fn getchar() -> int
-std/src/io.aya:15: pub fn putchar(int c)
-std/src/io.aya:18: pub fn print(ref String n)
-std/src/io.aya:21: pub fn println()
-std/src/io.aya:24: pub fn println(ref String s)
+std/src/io.aya:13: pub fn getchar() -> int
+std/src/io.aya:17: pub fn putchar(int c)
+std/src/io.aya:21: pub fn print(ref String n)
+std/src/io.aya:25: pub fn println()
+std/src/io.aya:29: pub fn println(ref String s)
 std/src/linkedlist.aya:6: pub struct LinkedList[T:ToString]
 std/src/linkedlist.aya:13: pub fn new[T:ToString]()->LinkedList[T]
 std/src/linkedlist.aya:18: impl[T:ToString] LinkedList[T]

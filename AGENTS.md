@@ -16,6 +16,8 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 | 打包 .lcl | `cargo run -q -- package example/test_struct.aya` |
 | 重新生成符号地图 | `./scripts/gen_symbols.sh` |
 | 校验符号地图是否过期 | `./scripts/gen_symbols.sh --check` |
+| 零告警校验 | `./scripts/check_warnings.sh` |
+| 构建发布产物（tar + vsix） | `./scripts/package_release.sh` |
 | 重新生成解析器 | `./gen_parser.sh`（会先编译 `asuka/` 子仓，再拆分生成物） |
 | 校验文件行数 | `./scripts/check_file_sizes.sh`（默认上限 300 行） |
 | 刷新模块依赖图 | `python3 scripts/gen_module_graph.py` |
@@ -111,7 +113,7 @@ cargo test
 
 - 编译器源码禁止硬编码版本号：已统一用 `env!("CARGO_PKG_VERSION")` 自动跟随（`src/compiler/build.rs`、`src/main.rs` 的 `new` 模板）。
 - 校验：`./scripts/check_version.sh`（版本漂移时报错退出），发布前必跑。
-- 发布流程：改版本 → `cargo check` → `./scripts/check_version.sh` → 构建 vsix/tar 产物 → 提交 → 打 `vX.Y.Z` 标签 → 推送分支和标签。
+- 发布流程：改版本 → `cargo check` → `./scripts/check_version.sh` → `./scripts/package_release.sh`（构建 tar + vsix）→ 提交 → 打 `vX.Y.Z` 标签 → 推送分支和标签。
 
 ## 文档先行
 

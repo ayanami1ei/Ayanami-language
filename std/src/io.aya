@@ -9,18 +9,23 @@ extern "C" fn __ayanami_print_str(unique [char] s, int len);
 #[io]
 extern "C" fn __ayanami_print_ln();
 
+#[io]
 pub fn getchar() -> int { 
     return __ayanami_getchar() 
 }
+#[io]
 pub fn putchar(int c) { 
     __ayanami_putchar(c); 
 }
+#[io]
 pub fn print(ref String n) { 
     __ayanami_print_str(n.data, n.len); 
 }
+#[io]
 pub fn println() {
     __ayanami_print_ln(); 
 }
+#[io]
 pub fn println(ref String s) {
     print(s)
     println()
