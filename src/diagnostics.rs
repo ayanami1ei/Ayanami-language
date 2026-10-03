@@ -39,6 +39,9 @@ pub fn success(msg: &str) {
 /// 带源码片段与插入符的警告（A3 效应/契约诊断）。
 pub fn warning_at(file: &Path, line: usize, col: usize, msg: &str) {
     warning(msg);
+    if line == 0 {
+        return; // 无有效位置（如合成函数）
+    }
     if supports_color() {
         eprintln!("  {} {}:{}:{}", "-->".blue().bold(), file.display(), line, col);
     } else {

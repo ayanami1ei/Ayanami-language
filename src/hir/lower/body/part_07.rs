@@ -85,7 +85,7 @@ impl crate::hir::lower::Ctx {
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
                     // Flatten impl block: lower each method as a regular Fn
                     for method_stmt in methods {
-                        if let Stmt::FnDecl { name, params, return_type, body, generic_params, param_attrs, vis, .. } = method_stmt {
+                        if let Stmt::FnDecl { name, params, return_type, body, generic_params, param_attrs, attrs, vis, .. } = method_stmt {
                             if !generic_params.is_empty() || !impl_gp.is_empty() {
                                 continue; // generic methods are lowered during specialization
                             }
@@ -97,7 +97,7 @@ impl crate::hir::lower::Ctx {
                                     let s = method_stmt.span();
                                     Error::Hir(format!("internal error: method `{}` not found at {}:{}", name, s.start_line, s.start_col))
                                 })?;
-                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, Span::default(), vec![], param_attrs.clone(), vis.is_public())?;
+                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, method_stmt.span(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
                             items.push(HirItem::Fn(hir_fn));
                         }
                     }
