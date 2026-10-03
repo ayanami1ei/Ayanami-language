@@ -50,7 +50,7 @@ fn read_config(ref String path) -> Config { ... }
 | 优化/代码生成 | `inline` `cold` `noreturn` `pure` `readonly` `nounwind` `willreturn` `noalias` `nonnull` | 映射 LLVM 函数/参数属性（含 extern 声明，跨语言优化） | A1 | 部分实现（函数级） |
 | 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 已完成（`--release` 切换） |
 | 效应 | `io` `state` `alloc` `pure` `no_error` `throws` | 注册表 + 默认最好情况推断；承诺/事实分开导出 | A3 | 部分实现（§6 已定稿） |
-| 生命周期 | 类型参数 `'a`（不是标注） | 显式生命周期与 outlives 检查、字段引用 | A4 | 设计 |
+| 生命周期 | `#[follow_with(...)]` | 注解式引用存活契约；NLL 来源标记与字段引用检查 | A4 | 设计（docs/lifetimes.md） |
 | 用户宏/插件 | `#[pkg::macro(...)]` | 标注 provider 解析；宏展开（声明式或编译期执行）；插件注册属性 | A5 | 设计（§8） |
 
 ## 4. 优化标注（A1）与 LLVM 映射
@@ -234,20 +234,23 @@ extern "C" fn strlen(unique [char] s) -> int;
 - A3d `?`/`Result` 错误传播与空效应消除（待设计）
 - A3e `try/handle`（后期）
 
-## 7. 生命周期（A4，类型参数而非标注）
+## 7. 生命周期（A4，注解式 `follow_with`）
+
+不使用 Rust 风格 `'a` 类型语法；用注解声明“引用不会超过被引用对象”：
 
 ```ayanami
-fn pick['a](ref['a] S s) -> ref['a] S { return s }
+#[follow_with(s)]
+fn pick(ref S s) -> ref S { return s }
 
-struct Holder['a] {
-    ref['a] S item
+struct Holder {
+    #[follow_with(owner)]
+    ref S item
 }
 ```
 
-- 显式生命周期参数用于：函数返回引用、结构体字段存引用。
-- 现有「单引用参数省略」规则保留为缺省；多参数需要显式 `'a`。
-- 借用检查器扩展：loan 与 lifetime 的 outlives 约束、字段投影的 loan 传播。
-- 完成 A4 后，引用可合法存入字段，「与 Rust 的最大差距」补齐。
+- 多来源取最短；单引用参数省略规则保留。
+- 完整设计、检查规则与阶段（A4a 语法/校验、A4b 借用检查接入、A4c 跨函数）
+  见 `docs/lifetimes.md`。
 
 ## 8. 用户宏与插件系统（A5，设计）
 
@@ -308,7 +311,7 @@ struct Holder['a] {
 | ADR-1 | 语法用 `#[...]` | 与 Rust 一致，`inline` 等关键字可平滑迁移 |
 | ADR-2 | 未知标注报错 | 保证「只有注册表内的标注有语义」，避免魔法蔓延 |
 | ADR-3 | 优化承诺默认信任 | 与 Rust unsafe 一致；debug 校验留作可选后置 |
-| ADR-4 | 生命周期用类型参数 `'a` | 类型系统优先于标注；可读性与工具支持更好 |
+| ADR-4 | 生命周期用 `#[follow_with(...)]` 注解，不用 `'a` 类型参数 | `'a` 难读；注解声明“引用不超过被引用对象”，函数/字段照常写 |
 | ADR-5 | 先做 A0 基础设施 | 全链路保真后再挂语义，避免返工 |
 | ADR-6 | 内置标注保留裸名，库宏用 `pkg::macro`；import 后可裸名，重名报错 | 兼容现有代码，命名冲突可诊断 |
 | ADR-7 | 宏只做源码展开，不能直接产生编译器级优化属性 | 保持「优化承诺」可信；展开物再走白名单校验 |

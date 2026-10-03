@@ -14,6 +14,7 @@
 | `docs/module-graph.md` | 生成物：顶层模块依赖图（Mermaid） |
 | `docs/annotations.md` | 标注系统（标注式编程）设计：A0–A5 路线 |
 | `docs/generic-monomorphization.md` | 泛型结构体/枚举单态化（最小实现完成） |
+| `docs/lifetimes.md` | 注解式生命周期 `#[follow_with]` 设计（A4） |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |
 
@@ -92,7 +93,7 @@ graph LR
 | 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs*.rs`（Imports/宏校验）、`.lcl` 宏表、`compiler/macro_expand/{mod,plugin}.rs`（.so + dlopen） | A5a/A5b 已完成（MVP） |
 | 效应系统 | `hir/effects/{mod,infer,diag,scan}.rs`（注册表/推断/诊断）、`LirEffects` 自动属性、`.lcl` 效应 tokens（声明+推断+承诺） | A3 重构完成（Stage 1–3） |
 | 错误传播 `?` | `hir/lower/body/expr_ops1.rs`（pending 语句内联 + 早退）、`ctx.{variant_payload_type,instantiate_*}` | A3d 已完成（含泛型 Result 最小单态化） |
-| 生命周期参数 | 类型系统 + `mir/borrow/` | 未实现 |
+| 生命周期 `#[follow_with]` | 计划：字段属性文法 + `mir/borrow/` 来源标记 | A4 设计（docs/lifetimes.md） |
 
 ## 4. 工具与流程
 
