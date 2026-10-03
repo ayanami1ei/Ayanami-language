@@ -1,0 +1,52 @@
+// A6：复数（运算符重载 + 标量 + 复函数 + ToString 结构匹配）
+import "complex"
+
+fn main() -> int {
+    a = complex(3.0, 4.0)
+    b = complex(1.0, -2.0)
+
+    // ── 借用类操作（不消费 a/b）──
+    c = a + b
+    if c.re != 4.0 { return 1 }
+    if c.im != 2.0 { return 2 }
+
+    d = a * b
+    if d.re != 11.0 { return 3 }
+    if d.im != -2.0 { return 4 }
+
+    e = a / b
+    if e.re != -1.0 { return 5 }
+    if e.im != 2.0 { return 6 }
+
+    g = a * 2.0
+    if g.re != 6.0 { return 7 }
+    if g.im != 8.0 { return 8 }
+
+    if a.abs() != 5.0 { return 9 }
+    if a.norm_sq() != 25.0 { return 10 }
+
+    h = a.conj()
+    if h.im != -4.0 { return 11 }
+
+    p = complex(1.0, 1.0).pow(2)
+    if p.re != 0.0 { return 12 }
+    if p.im != 2.0 { return 13 }
+
+    if a != a { return 14 }
+    if a == b { return 15 }
+
+    // ── 消费类操作（各自使用一次）──
+    f = -complex(3.0, 4.0)
+    if f.re != -3.0 { return 16 }
+    if f.im != -4.0 { return 17 }
+
+    if a.to_string() != "3+4i" { return 18 }
+    if b.to_string() != "1-2i" { return 19 }
+    if complex(5.0, 0.0).to_string() != "5" { return 20 }
+    if complex(0.0, -3.0).to_string() != "-3i" { return 21 }
+
+    // ToString 结构匹配：String + Complex（消费一个新建值）
+    msg = "z=" + complex(3.0, 4.0)
+    if msg != "z=3+4i" { return 22 }
+    return 0
+}

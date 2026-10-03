@@ -1784,6 +1784,25 @@ std/src/arraylist.aya:46: pub fn pop(ref mut self) -> T
 std/src/arraylist.aya:51: pub fn is_empty(ref self) -> bool
 std/src/arraylist.aya:56: pub fn clear(ref mut self)
 std/src/arraylist.aya:60: pub fn iter(ref self, fn(T) f)
+std/src/complex.aya:5: pub struct Complex
+std/src/complex.aya:11: pub fn complex(float re, float im) -> Complex
+std/src/complex.aya:15: impl Complex
+std/src/complex.aya:17: pub fn add(ref self, ref Complex other) -> Complex
+std/src/complex.aya:22: pub fn sub(ref self, ref Complex other) -> Complex
+std/src/complex.aya:28: pub fn mul(ref self, ref Complex other) -> Complex
+std/src/complex.aya:37: pub fn div(ref self, ref Complex other) -> Complex
+std/src/complex.aya:48: pub fn add(ref self, float s) -> Complex
+std/src/complex.aya:53: pub fn sub(ref self, float s) -> Complex
+std/src/complex.aya:58: pub fn mul(ref self, float s) -> Complex
+std/src/complex.aya:63: pub fn div(ref self, float s) -> Complex
+std/src/complex.aya:68: pub fn neg(self) -> Complex
+std/src/complex.aya:73: pub fn eq(ref self, ref Complex other) -> bool
+std/src/complex.aya:78: pub fn ne(ref self, ref Complex other) -> bool
+std/src/complex.aya:85: pub fn norm_sq(ref self) -> float
+std/src/complex.aya:91: pub fn abs(ref self) -> float
+std/src/complex.aya:97: pub fn conj(ref self) -> Complex
+std/src/complex.aya:103: pub fn pow(ref self, int exp) -> Complex
+std/src/complex.aya:113: pub fn to_string(self) -> String
 std/src/io.aya:13: pub fn getchar() -> int
 std/src/io.aya:17: pub fn putchar(int c)
 std/src/io.aya:21: pub fn print(ref String n)
@@ -1851,15 +1870,15 @@ std/src/mir.aya:134: pub fn op_is_lt(int op) -> bool { return op == 8 }
 std/src/mir.aya:135: pub fn op_is_gt(int op) -> bool { return op == 9 }
 std/src/mir.aya:140: pub fn is_int_literal(ref MirFunction f, int idx) -> bool
 std/src/mir.aya:146: pub fn folded_int(ref MirFunction f, int idx) -> int
-std/src/std.aya:9: pub interface Error
-std/src/std.aya:10: fn what(ref self) -> String;
-std/src/std.aya:13: pub enum Result[T, E]
-std/src/std.aya:18: pub enum Option[T]
-std/src/std.aya:23: impl[T] Option[T]
-std/src/std.aya:24: pub fn unwrap_or(self, T default) -> T
-std/src/std.aya:31: pub fn is_some(self) -> bool
-std/src/std.aya:36: impl[T, E] Result[T, E]
-std/src/std.aya:37: pub fn try_unwrap(self) -> T
+std/src/std.aya:10: pub interface Error
+std/src/std.aya:11: fn what(ref self) -> String;
+std/src/std.aya:14: pub enum Result[T, E]
+std/src/std.aya:19: pub enum Option[T]
+std/src/std.aya:24: impl[T] Option[T]
+std/src/std.aya:25: pub fn unwrap_or(self, T default) -> T
+std/src/std.aya:32: pub fn is_some(self) -> bool
+std/src/std.aya:37: impl[T, E] Result[T, E]
+std/src/std.aya:38: pub fn try_unwrap(self) -> T
 std/src/string.aya:3: pub fn char_code(char c) -> int
 std/src/string.aya:7: pub struct String
 std/src/string.aya:12: interface ToString
@@ -2074,6 +2093,7 @@ example/test_check.aya:6: fn allocs() -> int
 example/test_check.aya:12: fn pure_ok(int a, int b) -> int
 example/test_check.aya:16: fn main() -> int
 example/test_comments.aya:3: fn main() -> int
+example/test_complex.aya:4: fn main() -> int
 example/test_constfold.aya:5: fn folded() -> int
 example/test_constfold.aya:10: fn folded_mul() -> int
 example/test_constfold.aya:16: fn folded_cmp_true() -> int
