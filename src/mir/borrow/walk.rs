@@ -14,7 +14,7 @@ pub(super) fn var_name(mir_fn: &MirFn, v: VarId) -> String {
 /// 语句内按求值顺序遍历临时借用：调用结束时释放该调用内的借用。
 pub(super) fn walk_stmt(
     stmt: &dyn MirStmtNode,
-    active: &[(VarId, &Loan)],
+    active: &[(VarId, VarId, bool)],
     mir_fn: &MirFn,
     errors: &mut Vec<String>,
 ) {
@@ -46,7 +46,7 @@ pub(super) fn walk_stmt(
 fn walk_expr(
     node: &dyn MirNode,
     stack: &mut Vec<Vec<(VarId, bool, bool)>>,
-    active: &[(VarId, &Loan)],
+    active: &[(VarId, VarId, bool)],
     mir_fn: &MirFn,
     errors: &mut Vec<String>,
 ) {
@@ -54,7 +54,7 @@ fn walk_expr(
     if let Some((var, mutable)) = node.as_ref() {
         let conflict = active
             .iter()
-            .any(|(_, l)| l.var == var && (l.mutable || mutable))
+            .any(|(_, v, m)| *v == var && (*m || mutable))
             || stack
                 .iter()
                 .flatten()
@@ -78,7 +78,7 @@ fn walk_expr(
         node.for_each_child(&mut |c| {
             if first.replace(false) {
                 if let Some((var, true)) = c.as_ref() {
-                    let conflict = active.iter().any(|(_, l)| l.var == var && l.mutable)
+                    let conflict = active.iter().any(|(_, v, m)| *v == var && *m)
                         || stack.iter().flatten().any(|(v, m, _)| *v == var && *m);
                     if conflict {
                         errors.push(format!(
@@ -97,7 +97,7 @@ fn walk_expr(
     }
     // 读取检查：可变借用期间不可读取
     if let Some(v) = node.as_local() {
-        let mutably_borrowed = active.iter().any(|(_, l)| l.mutable && l.var == v)
+        let mutably_borrowed = active.iter().any(|(_, bv, bm)| *bm && *bv == v)
             || stack.iter().flatten().any(|(bv, bm, reserved)| *bm && !*reserved && *bv == v);
         if mutably_borrowed {
             errors.push(format!(

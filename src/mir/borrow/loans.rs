@@ -11,6 +11,8 @@ pub(super) struct Loan {
     pub(super) mutable: bool,
     /// 借用的"来源"：ref 局部自身，或（拷贝时）来源参数/局部
     pub(super) origin: VarId,
+    /// A4c：多来源联合约束（follow_with(a, b) 取最短）
+    pub(super) extra: Vec<(VarId, bool)>,
 }
 
 /// 检查入口。
@@ -34,42 +36,54 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                 // A4b-2：结构体引用字段（值可能被 implicit_move 包一层）
                 let lit: &dyn MirNode = value.move_expr().map(|v| &**v).unwrap_or(&**value);
                 if let Some(fields) = lit.struct_literal_fields() {
+                    let mut primary: Option<Loan> = None;
+                    let mut extras: Vec<(VarId, bool)> = Vec::new();
+                    let mut bad = false;
                     for (_, fv) in fields {
                         if !matches!(fv.expr_type(), HirType::Ref(..)) {
                             continue;
                         }
-                        let origin = if let Some((var, _)) = fv.as_ref() {
-                            Some(Loan { var, mutable: matches!(fv.expr_type(), HirType::Ref(_, true)), origin: var })
+                        let resolved = if let Some((var, _)) = fv.as_ref() {
+                            Some(Loan { var, mutable: matches!(fv.expr_type(), HirType::Ref(_, true)), origin: var, extra: Vec::new() })
                         } else if let Some(src) = fv.as_local() {
                             if let Some(l) = loans.get(&src) {
-                                Some(Loan { var: l.var, mutable: l.mutable, origin: l.origin })
+                                Some(Loan { var: l.var, mutable: l.mutable, origin: l.origin, extra: Vec::new() })
                             } else if let Some(&(_, m)) = ref_params.iter().find(|(v, _)| *v == src) {
-                                Some(Loan { var: src, mutable: m, origin: src })
+                                Some(Loan { var: src, mutable: m, origin: src, extra: Vec::new() })
                             } else {
                                 None
                             }
                         } else {
                             None
                         };
-                        match origin {
+                        match resolved {
                             Some(l) => {
-                                if loans.contains_key(&r) {
-                                    return Err(Error::Borrow(format!(
-                                        "struct `{}` cannot hold reference fields from multiple/reassigned sources (borrow checker limitation)",
-                                        var_name(mir_fn, r)
-                                    )));
+                                if primary.is_none() {
+                                    primary = Some(l);
+                                } else {
+                                    extras.push((l.var, l.mutable));
                                 }
-                                loans.insert(r, l);
-                                defined_at.insert(r, node_idx);
-                                struct_ref_locals.insert(r);
                             }
-                            None => {
-                                return Err(Error::Borrow(format!(
-                                    "reference stored in field of `{}` must come directly from a reference parameter or local",
-                                    var_name(mir_fn, r)
-                                )));
-                            }
+                            None => bad = true,
                         }
+                    }
+                    if bad {
+                        return Err(Error::Borrow(format!(
+                            "reference stored in field of `{}` must come directly from a reference parameter or local",
+                            var_name(mir_fn, r)
+                        )));
+                    }
+                    if let Some(mut p) = primary {
+                        if loans.contains_key(&r) {
+                            return Err(Error::Borrow(format!(
+                                "struct `{}` cannot hold reference fields from multiple/reassigned sources (borrow checker limitation)",
+                                var_name(mir_fn, r)
+                            )));
+                        }
+                        p.extra = extras;
+                        loans.insert(r, p);
+                        defined_at.insert(r, node_idx);
+                        struct_ref_locals.insert(r);
                     }
                 }
                 continue;
@@ -81,7 +95,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                         var_name(mir_fn, r)
                     )));
                 }
-                loans.insert(r, Loan { var, mutable, origin: r });
+                loans.insert(r, Loan { var, mutable, origin: r, extra: Vec::new() });
             } else if let Some(src) = value.as_local() {
                 // 引用拷贝：r = s
                 if loans.contains_key(&r) {
@@ -91,45 +105,69 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                     )));
                 }
                 if let Some(l) = loans.get(&src) {
-                    loans.insert(r, Loan { var: l.var, mutable: l.mutable, origin: l.origin });
+                    loans.insert(r, Loan { var: l.var, mutable: l.mutable, origin: l.origin, extra: Vec::new() });
                 } else if let Some(&(_, mutable)) = ref_params.iter().find(|(v, _)| *v == src) {
-                    loans.insert(r, Loan { var: src, mutable, origin: src });
+                    loans.insert(r, Loan { var: src, mutable, origin: src, extra: Vec::new() });
                 }
             } else if value.is_call() {
                 // 返回引用的调用：借用目标来自实参中的引用
                 let ret_mut = matches!(value.expr_type(), HirType::Ref(_, true));
                 let mut found = None;
-                // A4c：若被调函数声明了 follow_with，按声明的来源选择实参位置
-                let want = value.call_fn_id()
+                // A4c：若被调函数声明了 follow_with，按声明的来源绑定实参（多来源联合约束）
+                let resolved = value.call_fn_id()
                     .and_then(|id| table.get(&id))
-                    .and_then(|info| info.resolved.first().map(|(_, idx)| *idx));
-                if let Some(want) = want {
+                    .map(|info| info.resolved.clone())
+                    .filter(|r| !r.is_empty());
+                if let Some(resolved) = resolved {
+                    let mut primary: Option<Loan> = None;
+                    let mut extras: Vec<(VarId, bool)> = Vec::new();
+                    let mut bad = false;
                     let mut idx = 0usize;
                     value.for_each_child(&mut |c| {
-                        if idx == want && found.is_none() {
-                            if let Some((var, mutable)) = c.as_ref() {
-                                found = Some(Loan { var, mutable, origin: r });
+                        if resolved.iter().any(|(_, ri)| *ri == idx) {
+                            let l = if let Some((var, mutable)) = c.as_ref() {
+                                Some(Loan { var, mutable, origin: r, extra: Vec::new() })
                             } else if let Some(src) = c.as_local() {
                                 if let Some(l) = loans.get(&src) {
-                                    found = Some(Loan { var: l.var, mutable: l.mutable, origin: l.origin });
+                                    Some(Loan { var: l.var, mutable: l.mutable, origin: l.origin, extra: Vec::new() })
                                 } else if let Some(&(_, mutable)) = ref_params.iter().find(|(v, _)| *v == src) {
-                                    found = Some(Loan { var: src, mutable, origin: src });
+                                    Some(Loan { var: src, mutable, origin: src, extra: Vec::new() })
+                                } else {
+                                    None
                                 }
+                            } else {
+                                None
+                            };
+                            match l {
+                                Some(l) => {
+                                    if primary.is_none() { primary = Some(l); } else { extras.push((l.var, l.mutable)); }
+                                }
+                                None => bad = true,
                             }
                         }
                         idx += 1;
                     });
+                    if bad {
+                        return Err(Error::Borrow(format!(
+                            "follow_with source argument of call assigned to `{}` is not a reference",
+                            var_name(mir_fn, r)
+                        )));
+                    }
+                    if let Some(mut p) = primary {
+                        p.extra = extras;
+                        found = Some(p);
+                    }
                 }
                 if found.is_none() {
                 value.for_each_child(&mut |c| {
                     if found.is_none() {
                         if let Some((var, mutable)) = c.as_ref() {
-                            found = Some(Loan { var, mutable, origin: r });
+                            found = Some(Loan { var, mutable, origin: r, extra: Vec::new() });
                         } else if let Some(src) = c.as_local() {
                             if let Some(l) = loans.get(&src) {
-                                found = Some(Loan { var: l.var, mutable: l.mutable, origin: l.origin });
+                                found = Some(Loan { var: l.var, mutable: l.mutable, origin: l.origin, extra: Vec::new() });
                             } else if let Some(&(_, mutable)) = ref_params.iter().find(|(v, _)| *v == src) {
-                                found = Some(Loan { var: src, mutable, origin: src });
+                                found = Some(Loan { var: src, mutable, origin: src, extra: Vec::new() });
                             }
                         }
                     }
@@ -149,7 +187,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                                 var_name(mir_fn, l.var)
                             )));
                         }
-                        loans.insert(r, Loan { var: l.var, mutable: ret_mut, origin: l.origin });
+                        loans.insert(r, Loan { var: l.var, mutable: ret_mut, origin: l.origin, extra: Vec::new() });
                     }
                     None => {
                         return Err(Error::Borrow(format!(
@@ -175,21 +213,26 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
 
     for (i, node) in cfg.nodes.iter().enumerate() {
         let live = &live_in[i];
-        let active: Vec<(VarId, &Loan)> = live
+        // A4c：扁平化（key, var, mutable），含多来源 extra 约束
+        let active: Vec<(VarId, VarId, bool)> = live
             .iter()
             .filter_map(|r| loans.get(r).map(|l| (*r, l)))
+            .flat_map(|(k, l)| {
+                std::iter::once((k, l.var, l.mutable))
+                    .chain(l.extra.iter().map(move |(v, m)| (k, *v, *m)))
+            })
             .collect();
 
         // 活跃借用之间的冲突（同一变量、至少一个可变）
         for a in 0..active.len() {
             for b in (a + 1)..active.len() {
-                let (_, la) = active[a];
-                let (_, lb) = active[b];
-                if la.var == lb.var && (la.mutable || lb.mutable) {
+                let (_, va, ma) = active[a];
+                let (_, vb, mb) = active[b];
+                if va == vb && (ma || mb) {
                     errors.push(format!(
                         "cannot borrow `{}` as {} because it is also borrowed",
-                        var_name(mir_fn, la.var),
-                        if la.mutable { "mutable" } else { "immutable" }
+                        var_name(mir_fn, va),
+                        if ma { "mutable" } else { "immutable" }
                     ));
                 }
             }
@@ -211,7 +254,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                 ));
                 continue;
             }
-            if active.iter().any(|(_, l)| l.var == *w) {
+            if active.iter().any(|(_, v, _)| *v == *w) {
                 errors.push(format!(
                     "cannot assign to or move `{}` because it is borrowed",
                     var_name(mir_fn, *w)
@@ -221,7 +264,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
 
         // 可变借用期间读取
         for u in &node.uses {
-            if active.iter().any(|(_, l)| l.mutable && l.var == *u) {
+            if active.iter().any(|(_, v, m)| *m && *v == *u) {
                 errors.push(format!(
                     "cannot use `{}` because it is mutably borrowed",
                     var_name(mir_fn, *u)
@@ -269,8 +312,8 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                     let defining = target.as_local();
                     let borrowed = loans.get(&defining.unwrap_or(VarId(usize::MAX))).map(|l| (l.var, l.mutable));
                     if let Some((var, mutable)) = borrowed {
-                        let conflict = active.iter().any(|(r, l)| {
-                            Some(*r) != defining && l.var == var && (l.mutable || mutable)
+                        let conflict = active.iter().any(|(k, v, m)| {
+                            Some(*k) != defining && *v == var && (*m || mutable)
                         });
                         if conflict {
                             errors.push(format!(

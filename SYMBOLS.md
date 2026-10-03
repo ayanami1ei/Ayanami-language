@@ -1287,7 +1287,7 @@ src/mir/borrow/follow.rs:64: fn collect_items(items: &[MirItem], out: &mut HashM
 src/mir/borrow/follow.rs:89: pub fn source_names(mir_fn: &MirFn) -> HashMap<VarId, Symbol>
 src/mir/borrow/liveness.rs:6: pub fn live_in(cfg: &cfg::Cfg) -> Vec<HashSet<VarId>>
 src/mir/borrow/loans.rs:8: pub(super) struct Loan
-src/mir/borrow/loans.rs:18: pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::FollowTable) -> Result<()>
+src/mir/borrow/loans.rs:20: pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::FollowTable) -> Result<()>
 src/mir/borrow/mod.rs:14: mod cfg;
 src/mir/borrow/mod.rs:15: mod follow;
 src/mir/borrow/mod.rs:16: mod liveness;
@@ -1797,7 +1797,9 @@ example/test_follow_with.aya:14: struct Holder
 example/test_follow_with.aya:21: fn read_item(ref S s) -> int
 example/test_follow_with.aya:28: fn pick_second(ref S a, ref S b) -> ref S { return b }
 example/test_follow_with.aya:31: fn caller(ref S x, ref S y) -> ref S
-example/test_follow_with.aya:36: fn main() -> int
+example/test_follow_with.aya:38: fn pick_ab(ref S a, ref S b) -> ref S { return b }
+example/test_follow_with.aya:41: fn joint(ref S x, ref S y) -> ref S
+example/test_follow_with.aya:46: fn main() -> int
 example/test_import.aya:3: fn main() -> int
 example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int

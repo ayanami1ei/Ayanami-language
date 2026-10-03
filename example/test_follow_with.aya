@@ -33,6 +33,16 @@ fn caller(ref S x, ref S y) -> ref S {
     return r
 }
 
+// 多来源联合约束：结果同时绑定 x 与 y（生命周期取最短）
+#[follow_with(b, a)]
+fn pick_ab(ref S a, ref S b) -> ref S { return b }
+
+#[follow_with(x, y)]
+fn joint(ref S x, ref S y) -> ref S {
+    r = pick_ab(x, y)
+    return r
+}
+
 fn main() -> int {
     return 0
 }
