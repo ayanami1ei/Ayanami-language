@@ -50,7 +50,7 @@
     ExternC       = "extern" StringLiteral;
 
     StructDef     = AttrList Vis? "struct" Ident GenericParams? "{" FieldList "}";
-    Field         = Type Ident;
+    Field         = AttrList? Type Ident;
     FieldList     = Field*;
 
     EnumDef       = AttrList Vis? "enum" Ident GenericParams? "{" VariantList "}";

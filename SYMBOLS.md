@@ -156,18 +156,21 @@ src/formatter/mod.rs:26: pub(crate) fn format_expr(expr: &Expr) -> String
 src/formatter/mod.rs:33: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
 src/hir/attrs.rs:9: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:30: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:34: pub struct Imports
-src/hir/attrs.rs:41: impl Imports
-src/hir/attrs.rs:42: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:50: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:73: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:83: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:88: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:96: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:133: pub fn validate_program(program: &Program) -> Result<()>
-src/hir/attrs.rs:141: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
-src/hir/attrs.rs:164: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:31: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:35: pub struct Imports
+src/hir/attrs.rs:42: impl Imports
+src/hir/attrs.rs:43: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:51: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:74: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:84: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:89: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:97: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:133: fn validate_follow_with(a: &Attr) -> Result<()>
+src/hir/attrs.rs:153: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/attrs.rs:160: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
+src/hir/attrs.rs:172: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:180: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
+src/hir/attrs.rs:203: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
 src/hir/attrs_macro.rs:12: fn is_compiler_attr(a: &Attr) -> bool
 src/hir/attrs_macro.rs:24: pub fn validate_macros(
 src/hir/attrs_macro.rs:37: fn validate_macros_stmt(
@@ -1457,8 +1460,8 @@ src/parser/ast/stmt.rs:51: pub enum EnumFields
 src/parser/ast/stmt.rs:58: pub struct EnumVariant
 src/parser/ast/stmt.rs:64: pub struct MatchArm
 src/parser/ast/stmt.rs:71: pub enum Stmt
-src/parser/ast/stmt.rs:193: impl Stmt
-src/parser/ast/stmt.rs:194: pub fn span(&self) -> Span
+src/parser/ast/stmt.rs:195: impl Stmt
+src/parser/ast/stmt.rs:196: pub fn span(&self) -> Span
 src/parser/ast/ty.rs:5: pub enum Type
 src/parser/ast/ty.rs:22: impl Type
 src/parser/ast/ty.rs:23: pub fn span(&self) -> Span
@@ -1772,6 +1775,10 @@ example/test_ffi_attrs.aya:21: fn fast() -> int { return 2 }
 example/test_ffi_attrs.aya:24: fn always_returns() -> int { return 3 }
 example/test_ffi_attrs.aya:26: fn touch(#[nonnull] ref int x) -> int { return 0 }
 example/test_ffi_attrs.aya:28: fn main() -> int
+example/test_follow_with.aya:2: struct S
+example/test_follow_with.aya:8: fn pick(ref S s) -> ref S { return s }
+example/test_follow_with.aya:10: struct Holder
+example/test_follow_with.aya:16: fn main() -> int
 example/test_import.aya:3: fn main() -> int
 example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int

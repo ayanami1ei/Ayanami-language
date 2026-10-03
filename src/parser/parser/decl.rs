@@ -239,10 +239,13 @@ impl Parser {
         }
         self.expect_delimiter(Delimiter::LBrace)?;
         let mut fields = Vec::new();
+        let mut field_attrs: Vec<Vec<crate::parser::ast::Attr>> = Vec::new();
         loop {
             match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Delimiter(Delimiter::RBrace)) | None => break,
                 _ => {
+                    // A4a：字段级属性（#[follow_with(...)]）
+                    field_attrs.push(self.parse_attr_list()?);
                     let field_type = self.parse_type()?;
                     let field_name = self.expect_identifier()?;
                     fields.push((Symbol::intern(&field_name), field_type));
@@ -250,6 +253,6 @@ impl Parser {
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Stmt::StructDef { attrs, vis, name, generic_params, fields, span: start_span })
+        Ok(Stmt::StructDef { attrs, vis, name, generic_params, fields, field_attrs, span: start_span })
     }
 }

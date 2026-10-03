@@ -152,6 +152,8 @@ pub enum Stmt {
         name: Symbol,
         generic_params: Vec<(Symbol, Option<Symbol>)>,
         fields: Vec<(Symbol, Type)>,
+        /// A4a：字段级属性（与 fields 等长并行，如 `#[follow_with(...)]`）
+        field_attrs: Vec<Vec<Attr>>,
         span: Span,
     },
     EnumDef {

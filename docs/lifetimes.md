@@ -1,6 +1,6 @@
 # 显式生命周期（A4，注解式 `follow_with`）
 
-> 状态：**设计定稿，待实现**（2026-10）。关联：`docs/annotations.md` §7、`docs/knowledge-graph.md`。
+> 状态：**A4a 已实现**（语法/校验）；A4b 借用检查接入待做（2026-10）。关联：`docs/annotations.md` §7、`docs/knowledge-graph.md`。
 > 决策：不使用 Rust 风格 `'a` 类型语法；生命周期关系用 `#[follow_with(...)]` 注解表达。
 
 ## 1. 目标与直觉
@@ -58,10 +58,10 @@ struct Holder {
 
 ## 5. 阶段与验收
 
-- **A4a 语法与校验（不改变借用检查）**
-  - `#[follow_with(...)]` 加入白名单；仅允许函数与结构体字段；
+- **A4a 语法与校验（已完成，2026-10）**
+  - `#[follow_with(...)]` 加入白名单；仅允许函数与结构体字段（枚举/接口/impl 报错）；
   - 字段级属性文法/AST/formatter 保真（`Field = AttrList? Type Ident`）；
-  - 参数/类型来源名解析与歧义诊断；`example/test_follow_with.aya` 通过 `check`/`fmt` 往返。
+  - 至少一个来源、来源必须为标识符；`example/test_follow_with.aya` check/build/fmt 通过。
 - **A4b 借用检查接入**
   - loan 来源标记 + 返回检查（含多来源取最短）+ 字段存引用的构造检查；
   - 负例：返回引用来自未声明来源、字段实例可能比引用活得久、多 ref 未注解。

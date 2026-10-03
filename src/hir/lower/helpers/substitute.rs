@@ -199,12 +199,13 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             items: items.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
             span: *span,
         },
-        Stmt::StructDef { attrs, vis, name, fields, span, .. } => Stmt::StructDef {
+        Stmt::StructDef { attrs, vis, name, fields, field_attrs, span, .. } => Stmt::StructDef {
             attrs: attrs.clone(),
             vis: *vis,
             name: *name,
             generic_params: Vec::new(),
             fields: fields.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
+            field_attrs: field_attrs.clone(),
             span: *span,
         },
         Stmt::InterfaceDef { attrs, name, methods, generic_params, span } => Stmt::InterfaceDef {

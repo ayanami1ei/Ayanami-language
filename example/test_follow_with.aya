@@ -1,0 +1,18 @@
+// A4a：注解式生命周期语法/校验（借用检查接入在 A4b）
+struct S {
+    int x
+}
+
+// 返回引用跟随参数 s（单引用省略规则下也可写，显式更清晰）
+#[follow_with(s)]
+fn pick(ref S s) -> ref S { return s }
+
+struct Holder {
+    // 字段引用跟随 owner（实例不晚于被引用对象失效）
+    #[follow_with(owner)]
+    ref S item
+}
+
+fn main() -> int {
+    return 0
+}

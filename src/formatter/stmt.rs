@@ -112,7 +112,7 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
             let _ = writeln!(out, "{}}}", i);
         }
-        StructDef { attrs, vis, name, generic_params, fields, .. } => {
+        StructDef { attrs, vis, name, generic_params, fields, field_attrs, .. } => {
             write_attrs(out, attrs, level);
             let i = indent(level);
             let vis_str = vis_str(vis);
@@ -122,7 +122,10 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
                 let _ = writeln!(out, ";");
             } else {
                 let _ = writeln!(out, " {{");
-                for (fname, fty) in fields {
+                for (idx, (fname, fty)) in fields.iter().enumerate() {
+                    if let Some(fa) = field_attrs.get(idx) {
+                        write_attrs(out, fa, level + 1);
+                    }
                     let _ = writeln!(out, "{}{} {}", indent(level + 1), write_type(fty), fname);
                 }
                 let _ = writeln!(out, "{}}}", i);

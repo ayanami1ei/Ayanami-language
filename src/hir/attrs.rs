@@ -12,6 +12,7 @@ pub const ALLOWED: &[&str] = &[
     "ensures",
     "invariant",
     "macro",
+    "follow_with",
     "throws",
     "no_error",
     "cfg",
@@ -128,6 +129,44 @@ fn resolve(a: &Attr, imports: &Imports) -> Result<()> {
     Ok(())
 }
 
+/// A4a：`#[follow_with(src, ...)]` 校验——至少一个来源，且为标识符。
+fn validate_follow_with(a: &Attr) -> Result<()> {
+    if a.args.is_empty() {
+        return Err(Error::Hir(format!(
+            "#[follow_with] requires at least one source name (at {}:{})",
+            a.span.start_line, a.span.start_col
+        )));
+    }
+    for arg in &a.args {
+        let ok = matches!(arg, crate::parser::ast::AttrArg::Expr(e)
+            if matches!(e.as_ref(), crate::parser::ast::Expr::Ident(..)));
+        if !ok {
+            return Err(Error::Hir(format!(
+                "#[follow_with] expects parameter/type names (at {}:{})",
+                a.span.start_line, a.span.start_col
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()> {
+    for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "follow_with") {
+        validate_follow_with(a)?;
+    }
+    Ok(())
+}
+
+fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()> {
+    for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "follow_with") {
+        return Err(Error::Hir(format!(
+            "#[follow_with] is only allowed on functions and struct fields (not on {}) (at {}:{})",
+            place, a.span.start_line, a.span.start_col
+        )));
+    }
+    Ok(())
+}
+
 /// 校验形参标注：仅内置 noalias/nonnull，且作用于指针类型（ref/unique/[T]/fn）。
 /// 递归校验整个程序的声明属性（含命名空间/impl/接口方法）。
 pub fn validate_program(program: &Program) -> Result<()> {
@@ -166,16 +205,34 @@ fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
         Stmt::FnDecl { attrs, params, param_attrs, .. } => {
             validate(attrs, imports)?;
             crate::hir::contracts::validate_fn_attrs(attrs)?;
+            validate_follow_with_attrs(attrs)?;
             for (i, pa) in param_attrs.iter().enumerate() {
                 if let Some((_, ty)) = params.get(i) {
                     validate_param(pa, ty)?;
                 }
             }
         }
-        Stmt::StructDef { attrs, .. }
-        | Stmt::EnumDef { attrs, .. }
+        Stmt::StructDef { attrs, field_attrs, .. } => {
+            validate(attrs, imports)?;
+            reject_follow_with(attrs, "struct declarations")?;
+            for fa in field_attrs {
+                for a in fa {
+                    if !(a.is_builtin() && a.name.as_str() == "follow_with") {
+                        return Err(Error::Hir(format!(
+                            "attribute #[{}] is not allowed on struct fields (at {}:{})",
+                            a.path_str(), a.span.start_line, a.span.start_col
+                        )));
+                    }
+                    validate_follow_with(a)?;
+                }
+            }
+        }
+        Stmt::EnumDef { attrs, .. }
         | Stmt::InterfaceDef { attrs, .. }
-        | Stmt::ImplBlock { attrs, .. } => validate(attrs, imports)?,
+        | Stmt::ImplBlock { attrs, .. } => {
+            validate(attrs, imports)?;
+            reject_follow_with(attrs, "this declaration")?;
+        }
         Stmt::Attributed { attrs, stmt, .. } => {
             validate(attrs, imports)?;
             for a in attrs {
