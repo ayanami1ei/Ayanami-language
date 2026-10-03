@@ -66,11 +66,33 @@ pub fn replace_int(ref mut MirFunction f, int idx, int value) {
     f.edit_i64[idx] = value
 }
 
+/// 标记替换为浮点字面量（bits 为 f64 的位模式）
+pub fn replace_float(ref mut MirFunction f, int idx, int bits) {
+    f.edit_kind[idx] = 2
+    f.edit_i64[idx] = bits
+}
+
+/// 标记替换为布尔字面量（value != 0）
+pub fn replace_bool(ref mut MirFunction f, int idx, int value) {
+    f.edit_kind[idx] = 3
+    f.edit_i64[idx] = value
+}
+
+/// 标记替换为字符字面量（code 为字符编码）
+pub fn replace_char(ref mut MirFunction f, int idx, int code) {
+    f.edit_kind[idx] = 4
+    f.edit_i64[idx] = code
+}
+
 // ── 运算符编码（与编译器一致）──
 
 pub fn op_is_add(int op) -> bool { return op == 1 }
 pub fn op_is_sub(int op) -> bool { return op == 2 }
 pub fn op_is_mul(int op) -> bool { return op == 3 }
+pub fn op_is_eq(int op) -> bool { return op == 6 }
+pub fn op_is_neq(int op) -> bool { return op == 7 }
+pub fn op_is_lt(int op) -> bool { return op == 8 }
+pub fn op_is_gt(int op) -> bool { return op == 9 }
 
 // ── 常量折叠辅助 ──
 

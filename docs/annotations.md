@@ -339,9 +339,12 @@ struct Holder {
   **`fn(ref mut MirFunction) -> void`**（就地修改，指针传参）。
 - **执行后校验**：schema 版本/长度校验；只读数组（结构/分析字段）不得变化；
   body 改写只能通过编辑数组表达；失败报「注解名 + 调用点 + 原因」。
-- **body 改写（schema v1 编辑面）**：`edit_kind[i]=1` 表示把第 i 个表达式节点替换为
-  `edit_i64[i]` 的整型字面量；编译器按 preorder 下标应用编辑并跳过被替换子树，
+- **body 改写（schema v1 编辑面）**：`edit_kind[i]` 表示把第 i 个表达式节点替换为
+  `edit_i64[i]` 的字面量（1=int、2=float 位模式、3=bool、4=char；比较节点按 MIR 语义
+  保留操作数类型，放行 bool 编辑）；编译器按 preorder 下标应用编辑并跳过被替换子树，
   **应用后由管线重跑借用检查**（常量折叠 demo 即验证此路径）。
+- **pass 不动点**：同一函数上的多个 pass 按源码顺序反复执行，直到 MIR blob 稳定
+  （上限 8 轮；不收敛报 `did not converge`），使单轮实现的 pass 可组合。
 - **能力边界**：允许修改效应声明；**禁止修改签名**；v1 仅函数内、仅整型表达式替换。
 - **只读检查（`#[check]`）**：签名 `fn(ref MirFunction) -> void`（不可变借用）；
   通过 stdlib `warn(msg)`/`error(msg)` 上报诊断（`__ayanami_diag_emit` 通道，
@@ -451,7 +454,9 @@ struct Holder {
       应用后重跑借用检查；demo `#[const_fold]`（`1 + 2 + 3` → `6`，`2*3 + 4*5` → `26`）
 - [x] A5d-3b `#[check]` 只读检查注解：`fn(ref MirFunction) -> void` + `warn`/`error` 诊断通道 +
       只读强制（blob 必须不变）；demo `check_lib`/`test_check`
-- [ ] A5d-3c 结构化 MIR schema（类型/调用/字段完整往返）、pass 顺序/不动点
+- [x] A5d-3c-1 字面量编辑扩展到 float/bool/char + pass 不动点（源码顺序、8 轮上限、
+      不收敛报错）；demo 常量折叠改为单轮 + 比较折叠（`br i1 1`/`br i1 0`）
+- [ ] A5d-3c-2 结构化 MIR schema（类型/调用/字段完整往返，支持一般表达式改写）
 - [ ] A5c-2 / A5d-3 `#[check]` 只读诊断、其他语言插件 / WASM 沙箱 / 表达式级宏 / 插件清单与权限（远期）
 
 ### 已知问题

@@ -57,9 +57,13 @@ pub(super) fn apply_passes(
     for item in &mut mir.items {
         let MirItem::Fn(f) = item else { continue };
         let attrs: Vec<Attr> = f.attrs.iter().filter(|a| !is_builtin_attr(a)).cloned().collect();
+        if attrs.is_empty() { continue; }
+
+        // 解析并分类（保持源码顺序）
+        let mut passes: Vec<(Attr, String, String)> = Vec::new();
+        let mut checks: Vec<(Attr, String, String)> = Vec::new();
         for a in attrs {
-            let resolved = tables.resolve(&a)?;
-            let Some((pkg, name, kind)) = resolved else {
+            let Some((pkg, name, kind)) = tables.resolve(&a)? else {
                 return Err(Error::Compile(format!(
                     "unknown annotation #[{}] at {}:{}", a.path_str(), a.span.start_line, a.span.start_col
                 )));
@@ -67,46 +71,69 @@ pub(super) fn apply_passes(
             let lcl = tables.lcl_path(&pkg).ok_or_else(|| Error::Compile(format!(
                 "package `{}` has no annotation table", pkg
             )))?;
-            let blob = serialize_fn(f, &purity);
             match kind {
-                crate::compiler::macro_expand::AnnKind::Pass => {
-                    let out = crate::compiler::macro_expand::invoke_pass(&lcl, &name, &blob)
+                crate::compiler::macro_expand::AnnKind::Pass => passes.push((a, lcl, name)),
+                crate::compiler::macro_expand::AnnKind::Check => checks.push((a, lcl, name)),
+                _ => {}
+            }
+        }
+
+        // pass 不动点：按源码顺序反复执行，直到 MIR blob 稳定（上限 8 轮）
+        if !passes.is_empty() {
+            let mut converged = false;
+            for _round in 0..8 {
+                let before = serialize_fn(f, &purity);
+                for (a, lcl, name) in &passes {
+                    let blob = serialize_fn(f, &purity);
+                    let out = crate::compiler::macro_expand::invoke_pass(lcl, name, &blob)
                         .map_err(|e| Error::Compile(format!(
                             "pass `#[{}]` at {}:{} failed: {}",
                             a.path_str(), a.span.start_line, a.span.start_col, e
                         )))?;
-                    let parsed = parse_output(&blob, &out, &a)?;
+                    let parsed = parse_output(&blob, &out, a)?;
                     let view = deserialize_view(&blob);
-                    apply_edits(f, &view, &parsed.edits, &a)?;
+                    apply_edits(f, &view, &parsed.edits, a)?;
                     f.effects.pure = parsed.pure;
                     f.effects.no_error = parsed.no_error;
                 }
-                crate::compiler::macro_expand::AnnKind::Check => {
-                    let (out, diags) = crate::compiler::macro_expand::invoke_check(&lcl, &name, &blob)
-                        .map_err(|e| Error::Compile(format!(
-                            "check `#[{}]` at {}:{} failed: {}",
-                            a.path_str(), a.span.start_line, a.span.start_col, e
-                        )))?;
-                    if out != blob {
-                        return Err(Error::Compile(format!(
-                            "check #[{}] modified the MIR; #[check] is read-only (at {}:{})",
-                            a.path_str(), a.span.start_line, a.span.start_col
-                        )));
-                    }
-                    for (level, msg) in diags {
-                        if level >= 2 {
-                            return Err(Error::Compile(format!(
-                                "check #[{}] at {}:{}: {}",
-                                a.path_str(), a.span.start_line, a.span.start_col, msg
-                            )));
-                        }
-                        eprintln!(
-                            "warning: {} (check #[{}] at {}:{})",
-                            msg, a.path_str(), a.span.start_line, a.span.start_col
-                        );
-                    }
+                if serialize_fn(f, &purity) == before {
+                    converged = true;
+                    break;
                 }
-                _ => {}
+            }
+            if !converged {
+                return Err(Error::Compile(format!(
+                    "passes on function `{}` did not converge after 8 rounds (conflicting passes?)",
+                    f.name.as_str()
+                )));
+            }
+        }
+
+        // 检查注解在收敛后的 MIR 上运行（只读）
+        for (a, lcl, name) in &checks {
+            let blob = serialize_fn(f, &purity);
+            let (out, diags) = crate::compiler::macro_expand::invoke_check(lcl, name, &blob)
+                .map_err(|e| Error::Compile(format!(
+                    "check `#[{}]` at {}:{} failed: {}",
+                    a.path_str(), a.span.start_line, a.span.start_col, e
+                )))?;
+            if out != blob {
+                return Err(Error::Compile(format!(
+                    "check #[{}] modified the MIR; #[check] is read-only (at {}:{})",
+                    a.path_str(), a.span.start_line, a.span.start_col
+                )));
+            }
+            for (level, msg) in diags {
+                if level >= 2 {
+                    return Err(Error::Compile(format!(
+                        "check #[{}] at {}:{}: {}",
+                        a.path_str(), a.span.start_line, a.span.start_col, msg
+                    )));
+                }
+                eprintln!(
+                    "warning: {} (check #[{}] at {}:{})",
+                    msg, a.path_str(), a.span.start_line, a.span.start_col
+                );
             }
         }
     }

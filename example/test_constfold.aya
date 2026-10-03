@@ -11,8 +11,23 @@ fn folded_mul() -> int {
     return 2 * 3 + 4 * 5
 }
 
+// 比较折叠为 bool 字面量（1 < 2 恒真）
+#[constfold_lib::const_fold]
+fn folded_cmp_true() -> int {
+    if 1 < 2 { return 7 }
+    return 0
+}
+
+#[constfold_lib::const_fold]
+fn folded_cmp_false() -> int {
+    if 3 < 2 { return 1 }
+    return 9
+}
+
 fn main() -> int {
     if folded() != 6 { return 1 }
     if folded_mul() != 26 { return 2 }
+    if folded_cmp_true() != 7 { return 3 }
+    if folded_cmp_false() != 9 { return 4 }
     return 0
 }

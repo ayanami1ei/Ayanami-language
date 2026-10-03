@@ -27,24 +27,34 @@ fn compute_sizes(child_counts: &[i64]) -> Vec<usize> {
 fn apply_expr(e: &mut MirNodeBox, view: &FlatView, edits: &EditView, sizes: &[usize], idx: &mut usize, a: &Attr) -> Result<()> {
     let i = *idx;
     *idx += 1;
-    if edits.kind.get(i).copied().unwrap_or(0) != 0 {
+    let edit_kind = edits.kind.get(i).copied().unwrap_or(0);
+    if edit_kind != 0 {
         if view.arrays[0][i] != KIND_EXPR {
             return Err(Error::Compile(format!(
                 "pass #[{}]: edit target {} is not an expression (at {}:{})",
                 a.path_str(), i, a.span.start_line, a.span.start_col
             )));
         }
+        let v = edits.value.get(i).copied().unwrap_or(0);
         let ty = e.expr_type();
-        if ty != HirType::Int {
-            return Err(Error::Compile(format!(
-                "pass #[{}]: only int literal replacement is supported (target type `{}` at {}:{})",
-                a.path_str(), crate::hir::display::display_type(&ty), a.span.start_line, a.span.start_col
-            )));
-        }
-        *e = SMirLiteral {
-            val: HirLiteral::Int(edits.value.get(i).copied().unwrap_or(0)),
-            ty: HirType::Int,
-        }.into();
+        // 比较节点在 MIR 中保留操作数类型，bool 结果由 MIR→LIR 决定；
+        // 因此允许把比较节点（ops 6..=11）替换为 bool 字面量。
+        let is_cmp = matches!(view.arrays[7].get(i).copied().unwrap_or(0), 6..=11);
+        let (val, lit_ty) = match edit_kind {
+            1 if ty == HirType::Int => (HirLiteral::Int(v), HirType::Int),
+            2 if ty == HirType::Float => (HirLiteral::Float(f64::from_bits(v as u64)), HirType::Float),
+            3 if ty == HirType::Bool || is_cmp => (HirLiteral::Bool(v != 0), HirType::Bool),
+            4 if ty == HirType::Char => (HirLiteral::Char(v as u8 as char), HirType::Char),
+            _ => {
+                return Err(Error::Compile(format!(
+                    "pass #[{}]: literal edit kind {} does not match target type `{}` (at {}:{})",
+                    a.path_str(), edit_kind,
+                    crate::hir::display::display_type(&ty),
+                    a.span.start_line, a.span.start_col
+                )));
+            }
+        };
+        *e = SMirLiteral { val, ty: lit_ty }.into();
         *idx = i + sizes[i];
         return Ok(());
     }

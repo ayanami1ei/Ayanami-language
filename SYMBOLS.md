@@ -47,8 +47,8 @@ src/compiler/build/package.rs:74: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
 src/compiler/build/package.rs:84: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/passes/apply.rs:11: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
 src/compiler/build/passes/apply.rs:27: fn apply_expr(e: &mut MirNodeBox, view: &FlatView, edits: &EditView, sizes: &[usize], idx: &mut usize, a: &Attr) -> Result<()>
-src/compiler/build/passes/apply.rs:60: fn apply_stmt(s: &mut dyn MirStmtNode, view: &FlatView, edits: &EditView, sizes: &[usize], idx: &mut usize, a: &Attr) -> Result<()>
-src/compiler/build/passes/apply.rs:85: pub(super) fn apply_edits(f: &mut MirFn, view: &FlatView, edits: &EditView, a: &Attr) -> Result<()>
+src/compiler/build/passes/apply.rs:70: fn apply_stmt(s: &mut dyn MirStmtNode, view: &FlatView, edits: &EditView, sizes: &[usize], idx: &mut usize, a: &Attr) -> Result<()>
+src/compiler/build/passes/apply.rs:95: pub(super) fn apply_edits(f: &mut MirFn, view: &FlatView, edits: &EditView, a: &Attr) -> Result<()>
 src/compiler/build/passes/flat.rs:11: pub(super) const SCHEMA_VERSION: i64 = 2;
 src/compiler/build/passes/flat.rs:13: pub(super) const HEADER_WORDS: usize = 4;
 src/compiler/build/passes/flat.rs:15: pub(super) const ARRAY_COUNT: usize = 13;
@@ -1788,11 +1788,18 @@ std/src/mir.aya:35: pub fn scan_effects(ref MirFunction f) -> bool
 std/src/mir.aya:52: pub fn warn(String msg)
 std/src/mir.aya:57: pub fn error(String msg)
 std/src/mir.aya:64: pub fn replace_int(ref mut MirFunction f, int idx, int value)
-std/src/mir.aya:71: pub fn op_is_add(int op) -> bool { return op == 1 }
-std/src/mir.aya:72: pub fn op_is_sub(int op) -> bool { return op == 2 }
-std/src/mir.aya:73: pub fn op_is_mul(int op) -> bool { return op == 3 }
-std/src/mir.aya:78: pub fn is_int_literal(ref MirFunction f, int idx) -> bool
-std/src/mir.aya:84: pub fn folded_int(ref MirFunction f, int idx) -> int
+std/src/mir.aya:70: pub fn replace_float(ref mut MirFunction f, int idx, int bits)
+std/src/mir.aya:76: pub fn replace_bool(ref mut MirFunction f, int idx, int value)
+std/src/mir.aya:82: pub fn replace_char(ref mut MirFunction f, int idx, int code)
+std/src/mir.aya:89: pub fn op_is_add(int op) -> bool { return op == 1 }
+std/src/mir.aya:90: pub fn op_is_sub(int op) -> bool { return op == 2 }
+std/src/mir.aya:91: pub fn op_is_mul(int op) -> bool { return op == 3 }
+std/src/mir.aya:92: pub fn op_is_eq(int op) -> bool { return op == 6 }
+std/src/mir.aya:93: pub fn op_is_neq(int op) -> bool { return op == 7 }
+std/src/mir.aya:94: pub fn op_is_lt(int op) -> bool { return op == 8 }
+std/src/mir.aya:95: pub fn op_is_gt(int op) -> bool { return op == 9 }
+std/src/mir.aya:100: pub fn is_int_literal(ref MirFunction f, int idx) -> bool
+std/src/mir.aya:106: pub fn folded_int(ref MirFunction f, int idx) -> int
 std/src/std.aya:9: pub interface Error
 std/src/std.aya:10: fn what(ref self) -> String;
 std/src/std.aya:13: pub enum Result[T, E]
@@ -1924,7 +1931,11 @@ std/string.aya:199: pub fn eq(ref self, ref String other) -> bool
 std/string.aya:211: pub fn ne(ref self, ref String other) -> bool
 std/string.aya:217: pub fn copy(ref self) -> String
 example/check_lib.aya:5: pub fn warn_side_effects(ref MirFunction f)
-example/constfold_lib.aya:5: pub fn const_fold(ref mut MirFunction f)
+example/constfold_lib.aya:4: fn lt_int(int a, int b) -> int
+example/constfold_lib.aya:9: fn gt_int(int a, int b) -> int
+example/constfold_lib.aya:14: fn eq_int(int a, int b) -> int
+example/constfold_lib.aya:19: fn neq_int(int a, int b) -> int
+example/constfold_lib.aya:25: pub fn const_fold(ref mut MirFunction f)
 example/macro_lib.aya:6: pub fn answer() -> String { return "fn answer() -> int { return 42 }" }
 example/macro_lib.aya:10: pub fn keep(String input) -> String { return input }
 example/macro_lib.aya:15: pub fn emit_const(String input, String name, String value) -> String
@@ -1961,7 +1972,9 @@ example/test_check.aya:16: fn main() -> int
 example/test_comments.aya:3: fn main() -> int
 example/test_constfold.aya:5: fn folded() -> int
 example/test_constfold.aya:10: fn folded_mul() -> int
-example/test_constfold.aya:14: fn main() -> int
+example/test_constfold.aya:16: fn folded_cmp_true() -> int
+example/test_constfold.aya:22: fn folded_cmp_false() -> int
+example/test_constfold.aya:27: fn main() -> int
 example/test_conv.aya:2: fn take(int x) -> int { return x }
 example/test_conv.aya:3: fn takef(float x) -> float { return x }
 example/test_conv.aya:4: fn ret_char() -> int { return 'a' }
