@@ -24,11 +24,9 @@ impl MirNode for SMirLiteral {
             HirLiteral::String(s) => {
                 let idx = match ctx.str_map().get(s) {
                     Some(i) => *i,
-                    None => {
-                        eprintln!("DEBUG: missing string in str_map: {:?} (len {})", s, s.len());
-                        // Fallback: add it dynamically (shouldn't happen)
-                        0
-                    }
+                    // 内部不变量：collect_strings 必须收集所有字面量。
+                    // 静默回退到 0 会产生错误代码，这里直接失败以暴露问题。
+                    None => panic!("internal error: string literal {:?} missing from string pool", s),
                 };
                 let is_string_struct = match &self.ty {
                     HirType::Named(sym) => sym.as_str() == "String",

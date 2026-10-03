@@ -66,6 +66,13 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
         (Type::Unique(inner, _), _) => {
             infer_generic_from_param(inner, arg_ty)
         }
+        // 借用形参（如 ref Box[T]）→ 继续推导内层
+        (Type::Ref(inner, _, _), _) => infer_generic_from_param(inner, arg_ty),
+        // 数组形参（[T]）→ 从拥有/借用数组的元素类型推导
+        (Type::Array(inner, _), _) => match strip_ownership_ref(arg_ty) {
+            HirType::Array(a) | HirType::ArraySized(a, _) => infer_generic_from_param(inner, a),
+            _ => None,
+        },
         _ => None,
     }
 }

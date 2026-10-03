@@ -76,14 +76,13 @@ pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_at
                 let _ = write!(out, "] ");
             }
         }
-        // Format impl method self parameter: shared self / unique self
+        // impl/interface 方法 self 形参：ref self / ref mut self / self（unique self 兼容旧包）
         if name.as_str() == "self" {
             match ty {
-                Type::Unique(inner, _) if matches!(inner.as_ref(), Type::Named(_, _) | Type::Generic(_, _, _)) => {
-                    let _ = write!(out, "unique self");
-                    continue;
-                }
-                _ => {}
+                Type::Ref(_, true, _) => { let _ = write!(out, "ref mut self"); continue; }
+                Type::Ref(_, false, _) => { let _ = write!(out, "ref self"); continue; }
+                Type::Unique(_, _) => { let _ = write!(out, "unique self"); continue; }
+                _ => { let _ = write!(out, "self"); continue; }
             }
         }
         let _ = write!(out, "{} {}", write_type(ty), name);

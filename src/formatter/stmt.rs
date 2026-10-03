@@ -166,7 +166,13 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             for m in methods {
                 write_attrs(out, &m.attrs, level + 1);
                 let _ = write!(out, "{}fn {}", indent(level + 1), m.name);
-                let _ = write!(out, "({} self", m.self_keyword);
+                // self 关键字往返：self / ref self / ref mut self（refmut 必须拆开写）
+                let self_str = match m.self_keyword.as_str().as_str() {
+                    "ref" => "ref self",
+                    "refmut" => "ref mut self",
+                    _ => "self",
+                };
+                let _ = write!(out, "({}", self_str);
                 for (pn, pt) in &m.params {
                     let _ = write!(out, ", {} {}", write_type(pt), pn);
                 }

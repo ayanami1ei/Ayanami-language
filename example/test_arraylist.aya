@@ -1,0 +1,14 @@
+import "arraylist"
+
+fn main() -> int {
+    a = ArrayList[int] { data = null, len = 0, capability = 0 }
+    a.push(10)
+    a.push(20)
+    a.push(30)
+    if a.len() != 3 { return 1 }
+    if a.index(0) != 10 { return 2 }
+    if a.index(2) != 30 { return 3 }
+    s = a.to_string()
+    if s != "[10, 20, 30]" { return 4 }
+    return 0
+}

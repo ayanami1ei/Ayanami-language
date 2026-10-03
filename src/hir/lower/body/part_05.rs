@@ -153,7 +153,12 @@ impl crate::hir::lower::Ctx {
             if !Ctx::receiver_matches_param(receiver_type, &sig.params[0].1) { continue; }
             let remaining = &sig.params[1..];
             if remaining.len() != arg_types.len() { continue; }
-            if remaining.iter().zip(arg_types).all(|((_, pt), at)| pt == at || same_base_name(pt, at)) {
+            if remaining.iter().zip(arg_types).all(|((_, pt), at)| {
+                pt == at
+                    || same_base_name(pt, at)
+                    || strip_ownership_ref(pt) == strip_ownership_ref(at)
+                    || same_base_name(strip_ownership_ref(pt), strip_ownership_ref(at))
+            }) {
                 return Some(fn_id);
             }
         }

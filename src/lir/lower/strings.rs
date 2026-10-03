@@ -20,10 +20,18 @@ pub(super) fn collect_strings_items(items: &[MirItem], out: &mut Vec<String>) {
 
 pub(super) fn collect_strings_stmts(stmts: &[MirStmtBox], out: &mut Vec<String>) {
     for stmt in stmts {
-        stmt.for_each_child_expr(&mut |child| {
-            collect_strings_dyn(child, out);
-        });
+        collect_strings_stmt(&**stmt, out);
     }
+}
+
+/// 递归收集单条语句：直接子表达式 + 嵌套语句（while/if/block 体内）
+pub(super) fn collect_strings_stmt(stmt: &dyn MirStmtNode, out: &mut Vec<String>) {
+    stmt.for_each_child_expr(&mut |child| {
+        collect_strings_dyn(child, out);
+    });
+    stmt.for_each_child_stmt(&mut |child| {
+        collect_strings_stmt(child, out);
+    });
 }
 
 pub(super) fn collect_strings_dyn(node: &dyn MirNode, out: &mut Vec<String>) {
