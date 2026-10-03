@@ -18,7 +18,6 @@ pub(super) struct Loan {
 pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::FollowTable) -> Result<()> {
     let cfg = cfg::build(&mir_fn.body);
     let live_in = liveness::live_in(&cfg);
-
     let (loans, defined_at, struct_ref_locals) = super::collect::collect(mir_fn, ref_params, table, &cfg)?;
 
     // A4b：解析 #[follow_with] 来源 → 引用参数

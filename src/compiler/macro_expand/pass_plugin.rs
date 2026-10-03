@@ -104,7 +104,7 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
     gcc.arg("-shared").arg("-fPIC");
     for o in &link_objs { gcc.arg(o); }
     let status = gcc
-        .arg(&shim_path).arg(&runtime)
+        .arg(&shim_path).arg(&runtime).arg("-lm")
         .arg("-o").arg(&so_path)
         .status()
         .map_err(|e| Error::Compile(format!("pass gcc: {}", e)))?;

@@ -77,36 +77,37 @@ pub(super) fn resolve_dependencies(
                     span: crate::span::Span::default(),
                 });
 
-                // 编译该 .lcl 及其同目录下所有 .lcl 文件为 .o
-                // （因为 std.lcl 依赖 string.lcl、io.lcl 等，它们的函数必须参与链接）
-                let lcl_dir = dep_path.parent().unwrap_or(std::path::Path::new("."));
-                if let Ok(entries) = std::fs::read_dir(lcl_dir) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.extension().map(|e| e == "lcl") != Some(true) { continue; }
-                        let o_name = path.file_stem().unwrap_or(std::ffi::OsStr::new("a"));
-                        let o_path = out_dir.join(o_name).with_extension("o");
-                        // 缓存失效：.o 不存在，或 .lcl 比 .o 新
-                        let stale = match (path.metadata().and_then(|m| m.modified()), o_path.metadata().and_then(|m| m.modified())) {
-                            (Ok(lcl_t), Ok(o_t)) => lcl_t > o_t,
-                            _ => true,
-                        };
-                        if stale {
-                            if let Ok((_, _, lir_binary, _)) =
-                                crate::package::load_package(&path.to_string_lossy())
+                // 编译该 .lcl 及其依赖闭包（[deps]）为 .o；不再扫描整个目录，
+                // 避免把无关/陈旧的 .lcl 编成同名对象覆盖正确产物。
+                let mut queue: Vec<PathBuf> = vec![dep_path.clone()];
+                let mut seen: HashSet<PathBuf> = HashSet::new();
+                while let Some(path) = queue.pop() {
+                    if !seen.insert(path.clone()) { continue; }
+                    let o_name = path.file_stem().unwrap_or(std::ffi::OsStr::new("a"));
+                    let o_path = out_dir.join(o_name).with_extension("o");
+                    // 缓存失效：.o 不存在，或 .lcl 不比 .o 旧
+                    let stale = match (path.metadata().and_then(|m| m.modified()), o_path.metadata().and_then(|m| m.modified())) {
+                        (Ok(lcl_t), Ok(o_t)) => lcl_t >= o_t,
+                        _ => true,
+                    };
+                    if stale {
+                        if let Ok((_, _, lir_binary, _)) =
+                            crate::package::load_package(&path.to_string_lossy())
+                        {
+                            if let Ok(lir_prog) =
+                                crate::lir::serialize::program_from_bytes(&lir_binary)
                             {
-                                if let Ok(lir_prog) =
-                                    crate::lir::serialize::program_from_bytes(&lir_binary)
-                                {
-                                    let llvm_ir = crate::lir::emit_program(&lir_prog);
-                                    crate::driver::ir_to_object(&llvm_ir, &o_path)
-                                        .map_err(|e| Error::Compile(format!("llc failed for {}: {}", path.display(), e)))?;
-                                }
+                                let llvm_ir = crate::lir::emit_program(&lir_prog);
+                                crate::driver::ir_to_object(&llvm_ir, &o_path)
+                                    .map_err(|e| Error::Compile(format!("llc failed for {}: {}", path.display(), e)))?;
                             }
                         }
-                        if o_path.exists() && !dep_obj_paths.contains(&o_path) {
-                            dep_obj_paths.push(o_path);
-                        }
+                    }
+                    if o_path.exists() && !dep_obj_paths.contains(&o_path) {
+                        dep_obj_paths.push(o_path);
+                    }
+                    for d in crate::package::resolve_package_deps(&path.to_string_lossy()) {
+                        queue.push(d);
                     }
                 }
                 if !dep_lcl_paths.contains(&dep_path) {

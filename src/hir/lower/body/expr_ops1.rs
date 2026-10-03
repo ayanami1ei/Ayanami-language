@@ -41,8 +41,11 @@ impl crate::hir::lower::Ctx {
                 return Ok(SCall { fn_id, args, ty: ret_ty }.into());
             }
         }
-        // 注意：比较运算的 ty 保持操作数类型；结果类型（Bool）由 MIR→LIR 降级决定
-        let binop_ty = if is_null_ptr_cmp {
+        // 注意：比较运算的 ty 保持操作数类型；结果类型（Bool）由 MIR→LIR 降级决定。
+        // 逻辑与/或的结果是 bool，直接给 Bool 类型。
+        let binop_ty = if matches!(op, BinaryOp::And | BinaryOp::Or) {
+            HirType::Bool
+        } else if is_null_ptr_cmp {
             if lhs_is_null { rhs_ty.clone() } else { lhs_ty.clone() }
         } else {
             inner_ty

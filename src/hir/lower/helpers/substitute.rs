@@ -1,3 +1,4 @@
+use crate::parser::ast::stmt::MatchArm;
 use super::*;
 
 pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type {
@@ -188,7 +189,15 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             body: substitute_type_in_block(body, subst),
             span: *span,
         },
-        Stmt::Match { .. } => todo!(),
+        Stmt::Match { value, arms, span } => Stmt::Match {
+            value: Box::new(substitute_type_in_expr(value, subst)),
+            arms: arms.iter().map(|a| MatchArm {
+                variant_name: a.variant_name,
+                bindings: a.bindings.clone(),
+                body: substitute_type_in_expr(&a.body, subst),
+            }).collect(),
+            span: *span,
+        },
         Stmt::ExprStmt { expr, span } => Stmt::ExprStmt {
             expr: substitute_type_in_expr(expr, subst),
             span: *span,

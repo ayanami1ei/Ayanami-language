@@ -104,6 +104,35 @@ fn parse_ini_value(s: &str) -> String {
     }
 }
 
+/// 递归解析 .lcl 的依赖闭包（`[deps]` 段按 stem 记录）：
+/// 每个 stem 依次在引用方目录、std 目录、cwd 查找；返回去重后的路径（不含入口自身）。
+pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let mut queue = vec![std::path::PathBuf::from(path)];
+    while let Some(p) = queue.pop() {
+        let dir = p.parent().map(|d| d.to_path_buf()).unwrap_or_else(|| std::path::PathBuf::from("."));
+        for stem in load_package_deps(&p.to_string_lossy()).unwrap_or_default() {
+            let local = dir.join(format!("{}.lcl", stem));
+            let candidate = if local.exists() {
+                Some(local)
+            } else if let Some(std) = crate::compiler::find_std_dir() {
+                let sp = std.join(format!("{}.lcl", stem));
+                if sp.exists() { Some(sp) } else { None }
+            } else {
+                None
+            };
+            if let Some(c) = candidate {
+                if seen.insert(c.clone()) {
+                    out.push(c.clone());
+                    queue.push(c);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// A5b-3：读取 .lcl 的依赖包 stem 列表（`[deps]` 段；旧包/无依赖返回空）。
 pub fn load_package_deps(path: &str) -> Result<Vec<String>> {
     let data = std::fs::read(path)

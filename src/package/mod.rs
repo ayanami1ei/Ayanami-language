@@ -9,6 +9,6 @@ mod symbols;
 mod target;
 mod types;
 
-pub use load::{load_package, load_package_deps};
+pub use load::{load_package, load_package_deps, resolve_package_deps};
 pub use target::TargetType;
 pub use types::{ImportedSymbol, Package, PackageSymbol};

@@ -67,8 +67,16 @@ impl Parser {
             TokenKind::Keyword(Keyword::If) => self.parse_if()?,
             TokenKind::Keyword(Keyword::For) => self.parse_for()?,
             TokenKind::Keyword(Keyword::While) => self.parse_while()?,
-            TokenKind::Keyword(Keyword::Break) => Stmt::Break { span: tok.span() },
-            TokenKind::Keyword(Keyword::Continue) => Stmt::Continue { span: tok.span() },
+            TokenKind::Keyword(Keyword::Break) => {
+                self.advance();
+                self.try_semicolon()?;
+                Stmt::Break { span: tok.span() }
+            }
+            TokenKind::Keyword(Keyword::Continue) => {
+                self.advance();
+                self.try_semicolon()?;
+                Stmt::Continue { span: tok.span() }
+            }
             TokenKind::Keyword(Keyword::Match) => self.parse_match_stmt()?,
             _ => self.parse_any_assign_or_expr()?,
         };

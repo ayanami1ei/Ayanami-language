@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <math.h>
 
 #define RC_HEADER(ptr)  (((int64_t *)(ptr)) - 1)
 
@@ -12,6 +13,14 @@
 // ──────────────────────────────────────────────
 
 static int64_t live_allocs = 0;
+
+/* A6：标准库辅助 —— int→char 与数学函数 */
+char __ayanami_int_to_char(long long c) {
+    return (char)c;
+}
+double __ayanami_sqrt(double x) { return sqrt(x); }
+double __ayanami_floor(double x) { return floor(x); }
+double __ayanami_ceil(double x) { return ceil(x); }
 
 /* A5d-3b：诊断通道弱符号（可执行文件里为 no-op；插件 shim 提供强定义） */
 typedef struct { char* data; long len; } __ayanami_diag_buf;

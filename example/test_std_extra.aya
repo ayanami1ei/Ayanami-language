@@ -1,0 +1,58 @@
+// A6：print/println 重载、浮点数学、ArrayList 扩展、Option
+import "std"
+
+fn math_checks() -> int {
+    if sqrt(16.0) < 3.99 { return 1 }
+    if floor(2.9) != 2.0 { return 2 }
+    if ceil(2.1) != 3.0 { return 3 }
+    if abs(-2.5) != 2.5 { return 4 }
+    if min(3.0, 1.5) != 1.5 { return 5 }
+    if max(3, 7) != 7 { return 6 }
+    if clamp(5.0, 0.0, 1.0) != 1.0 { return 7 }
+    if pow(2.0, 3) != 8.0 { return 8 }
+    return 0
+}
+
+fn list_checks() -> int {
+    a = ArrayList[int] { data = null, len = 0, capability = 0 }
+    if !a.is_empty() { return 1 }
+    a.push(10)
+    a.push(20)
+    a.set(0, 15)
+    if a.index(0) != 15 { return 2 }
+    if a.pop() != 20 { return 3 }
+    if a.len() != 1 { return 4 }
+    a.clear()
+    if !a.is_empty() { return 5 }
+    return 0
+}
+
+fn maybe(int x) -> Option[int] {
+    if x > 0 { return Option::Some(x) }
+    return Option::None()
+}
+
+fn option_checks() -> int {
+    if maybe(3).unwrap_or(0) != 3 { return 1 }
+    if maybe(-1).unwrap_or(7) != 7 { return 2 }
+    if !maybe(1).is_some() { return 3 }
+    if maybe(0).is_some() { return 4 }
+    return 0
+}
+
+fn main() -> int {
+    r = math_checks()
+    if r != 0 { return 100 + r }
+    r = list_checks()
+    if r != 0 { return 200 + r }
+    r = option_checks()
+    if r != 0 { return 300 + r }
+
+    println("std extra ok")
+    println(42)
+    println(3.5)
+    println(true)
+    print('!')
+    println()
+    return 0
+}

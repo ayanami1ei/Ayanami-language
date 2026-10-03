@@ -1,0 +1,52 @@
+// A6：字符串与字符工具
+import "string"
+
+fn text_checks() -> int {
+    s = "  Hello, World!  "
+    t = s.trim()
+    if t != "Hello, World!" { return 1 }
+    if !t.starts_with("Hello") { return 2 }
+    if !t.ends_with("World!") { return 3 }
+    if !t.contains("o, W") { return 4 }
+    if t.index_of("World") != 7 { return 5 }
+    if t.substring(0, 5) != "Hello" { return 6 }
+    if t.to_upper() != "HELLO, WORLD!" { return 7 }
+    if t.to_lower() != "hello, world!" { return 8 }
+    if "abcabc".index_of("bc") != 1 { return 9 }
+    if "abc".repeat(3) != "abcabcabc" { return 10 }
+    if !"".is_empty() { return 11 }
+    if "abc".index_of("z") != -1 { return 12 }
+    return 0
+}
+
+fn parse_checks() -> int {
+    if "42".parse_int() != 42 { return 1 }
+    if "-17".parse_int() != -17 { return 2 }
+    if "  7 ".parse_int() != 7 { return 3 }
+    if !"123".is_int() { return 4 }
+    if "12a".is_int() { return 5 }
+    return 0
+}
+
+fn char_checks() -> int {
+    c = 'A'
+    if !c.is_alpha() { return 1 }
+    if !c.is_upper() { return 2 }
+    if c.to_lower() != 'a' { return 3 }
+    if '7'.to_digit() != 7 { return 4 }
+    if !' '.is_space() { return 5 }
+    if !'x'.is_lower() { return 6 }
+    if '9'.to_upper() != '9' { return 7 }
+    if !'z'.is_alnum() { return 8 }
+    return 0
+}
+
+fn main() -> int {
+    r = text_checks()
+    if r != 0 { return 100 + r }
+    r = parse_checks()
+    if r != 0 { return 200 + r }
+    r = char_checks()
+    if r != 0 { return 300 + r }
+    return 0
+}

@@ -4,7 +4,7 @@ impl crate::hir::lower::Ctx {
     pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()> {
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, params, return_type, generic_params, .. } => {
+                Stmt::FnDecl { name, params, return_type, generic_params, extern_c, .. } => {
                     let full_name = if ns_prefix.is_empty() {
                         *name
                     } else {
@@ -17,9 +17,18 @@ impl crate::hir::lower::Ctx {
                         continue;
                     }
                     let hir_return = ast_type_to_hir(return_type, &self.interfaces);
-                    let hir_params = params.iter()
+                    let hir_params: Vec<(Symbol, crate::hir::ty::HirType)> = params.iter()
                         .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
                         .collect();
+                    // extern 声明若与已导入的同签名函数重复，直接复用（避免重载歧义；
+                    // 导入侧形参名为空，比较时只看类型）
+                    if *extern_c && self.fns.iter().any(|s| {
+                        s.name == full_name
+                            && s.params.len() == hir_params.len()
+                            && s.params.iter().zip(&hir_params).all(|(a, b)| a.1 == b.1)
+                    }) {
+                        continue;
+                    }
                     let fn_id = FnId(self.fns.len());
                     self.fns.push(FnSig {
                         name: full_name,

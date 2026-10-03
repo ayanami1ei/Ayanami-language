@@ -29,10 +29,10 @@ src/cli/package_install.rs:18: pub(crate) fn cmd_install(args: &[String])
 src/compiler/build/compile.rs:6: pub fn compile_file(
 src/compiler/build/compile.rs:128: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
-src/compiler/build/deps.rs:124: pub(super) fn merge_dep_struct_defs(
-src/compiler/build/deps.rs:141: pub(super) fn merge_symbols(
+src/compiler/build/deps.rs:125: pub(super) fn merge_dep_struct_defs(
+src/compiler/build/deps.rs:142: pub(super) fn merge_symbols(
 src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram>
-src/compiler/build/lir.rs:25: pub(super) fn build_target_artifact(
+src/compiler/build/lir.rs:23: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:14: mod compile;
 src/compiler/build/mod.rs:15: mod deps;
 src/compiler/build/mod.rs:16: mod lir;
@@ -389,8 +389,8 @@ src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: 
 src/hir/lower/body/expr_misc.rs:24: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Vec<Stmt>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_ops1.rs:58: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
-src/hir/lower/body/expr_ops1.rs:93: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_ops1.rs:61: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
+src/hir/lower/body/expr_ops1.rs:96: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/mod.rs:10: mod part_01;
 src/hir/lower/body/mod.rs:11: mod part_02;
 src/hir/lower/body/mod.rs:12: mod part_03;
@@ -484,10 +484,10 @@ src/hir/lower/helpers/mod.rs:19: mod convert;
 src/hir/lower/helpers/mod.rs:20: mod substitute;
 src/hir/lower/helpers/mod.rs:21: mod types;
 src/hir/lower/helpers/mod.rs:22: mod wrap;
-src/hir/lower/helpers/substitute.rs:3: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
-src/hir/lower/helpers/substitute.rs:29: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
-src/hir/lower/helpers/substitute.rs:124: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
-src/hir/lower/helpers/substitute.rs:132: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
+src/hir/lower/helpers/substitute.rs:4: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
+src/hir/lower/helpers/substitute.rs:30: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
+src/hir/lower/helpers/substitute.rs:125: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
+src/hir/lower/helpers/substitute.rs:133: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
 src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String
 src/hir/lower/helpers/types.rs:26: pub(crate) fn sig_str_to_hir(s: &str) -> HirType
 src/hir/lower/helpers/types.rs:49: fn is_iface_type(inner_hir: &HirType, interfaces: &HashMap<Symbol, super::InterfaceReg>) -> bool
@@ -1585,8 +1585,9 @@ src/package/config.rs:60: pub fn resolve_import<'a>(&'a self, import_path: &str,
 src/package/config.rs:77: pub fn resolve_target(&self, file_path: &Path) -> &str
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
 src/package/load.rs:98: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:108: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:138: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:109: pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf>
+src/package/load.rs:137: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:167: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
 src/package/mod.rs:7: mod load;
@@ -1723,9 +1724,9 @@ src/parser/parser/mod.rs:22: mod types;
 src/parser/parser/mod.rs:23: mod unary;
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:85: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:111: pub(super) fn is_type_start(&self, pos: usize) -> bool
-src/parser/parser/stmt.rs:119: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
+src/parser/parser/stmt.rs:93: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
+src/parser/parser/stmt.rs:119: pub(super) fn is_type_start(&self, pos: usize) -> bool
+src/parser/parser/stmt.rs:127: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
 src/parser/parser/types.rs:3: impl Parser
 src/parser/parser/types.rs:6: pub(super) fn parse_type(&mut self) -> Result<Type>
 src/parser/parser/types.rs:24: pub(super) fn parse_base_type(&mut self) -> Result<Type>
@@ -1749,12 +1750,28 @@ std/io.aya:17: pub fn putchar(int c)
 std/io.aya:21: pub fn print(ref String n)
 std/io.aya:25: pub fn println()
 std/io.aya:29: pub fn println(ref String s)
+std/io.aya:44: pub fn print(int n)
+std/io.aya:49: pub fn print(float f)
+std/io.aya:56: pub fn print(bool b)
+std/io.aya:65: pub fn print(char c)
+std/io.aya:71: pub fn println(int n)
+std/io.aya:77: pub fn println(float f)
+std/io.aya:83: pub fn println(bool b)
+std/io.aya:89: pub fn println(char c)
 std/main.aya:4: fn main()->int
 std/math.aya:5: pub fn abs(int x) -> int
 std/math.aya:11: pub fn min(int a, int b) -> int
 std/math.aya:17: pub fn max(int a, int b) -> int
 std/math.aya:23: pub fn clamp(int x, int lo, int hi) -> int
 std/math.aya:30: pub fn pow(int base, int exp) -> int
+std/math.aya:45: pub fn abs(float x) -> float
+std/math.aya:51: pub fn min(float a, float b) -> float
+std/math.aya:57: pub fn max(float a, float b) -> float
+std/math.aya:63: pub fn clamp(float x, float lo, float hi) -> float
+std/math.aya:70: pub fn sqrt(float x) -> float { return __ayanami_sqrt(x) }
+std/math.aya:73: pub fn floor(float x) -> float { return __ayanami_floor(x) }
+std/math.aya:76: pub fn ceil(float x) -> float { return __ayanami_ceil(x) }
+std/math.aya:79: pub fn pow(float base, int exp) -> float
 std/src/arraylist.aya:4: pub struct ArrayList[T:ToString]
 std/src/arraylist.aya:10: impl[T:ToString] ArrayList[T]
 std/src/arraylist.aya:11: fn expand(ref mut self)
@@ -1762,12 +1779,24 @@ std/src/arraylist.aya:23: pub fn push(ref mut self, T val)
 std/src/arraylist.aya:29: pub fn index(ref self, int index)->T{ return self.data[index] }
 std/src/arraylist.aya:30: pub fn to_string(ref self)->String
 std/src/arraylist.aya:39: pub fn len(ref self)->int{ return self.len }
-std/src/arraylist.aya:41: pub fn iter(ref self, fn(T) f)
+std/src/arraylist.aya:41: pub fn set(ref mut self, int i, T v)
+std/src/arraylist.aya:46: pub fn pop(ref mut self) -> T
+std/src/arraylist.aya:51: pub fn is_empty(ref self) -> bool
+std/src/arraylist.aya:56: pub fn clear(ref mut self)
+std/src/arraylist.aya:60: pub fn iter(ref self, fn(T) f)
 std/src/io.aya:13: pub fn getchar() -> int
 std/src/io.aya:17: pub fn putchar(int c)
 std/src/io.aya:21: pub fn print(ref String n)
 std/src/io.aya:25: pub fn println()
 std/src/io.aya:29: pub fn println(ref String s)
+std/src/io.aya:44: pub fn print(int n)
+std/src/io.aya:49: pub fn print(float f)
+std/src/io.aya:56: pub fn print(bool b)
+std/src/io.aya:65: pub fn print(char c)
+std/src/io.aya:71: pub fn println(int n)
+std/src/io.aya:77: pub fn println(float f)
+std/src/io.aya:83: pub fn println(bool b)
+std/src/io.aya:89: pub fn println(char c)
 std/src/linkedlist.aya:6: pub struct LinkedList[T:ToString]
 std/src/linkedlist.aya:13: pub fn new[T:ToString]()->LinkedList[T]
 std/src/linkedlist.aya:18: impl[T:ToString] LinkedList[T]
@@ -1788,6 +1817,14 @@ std/src/math.aya:11: pub fn min(int a, int b) -> int
 std/src/math.aya:17: pub fn max(int a, int b) -> int
 std/src/math.aya:23: pub fn clamp(int x, int lo, int hi) -> int
 std/src/math.aya:30: pub fn pow(int base, int exp) -> int
+std/src/math.aya:45: pub fn abs(float x) -> float
+std/src/math.aya:51: pub fn min(float a, float b) -> float
+std/src/math.aya:57: pub fn max(float a, float b) -> float
+std/src/math.aya:63: pub fn clamp(float x, float lo, float hi) -> float
+std/src/math.aya:70: pub fn sqrt(float x) -> float { return __ayanami_sqrt(x) }
+std/src/math.aya:73: pub fn floor(float x) -> float { return __ayanami_floor(x) }
+std/src/math.aya:76: pub fn ceil(float x) -> float { return __ayanami_ceil(x) }
+std/src/math.aya:79: pub fn pow(float base, int exp) -> float
 std/src/mir.aya:14: pub struct MirFunction
 std/src/mir.aya:37: pub fn scan_effects(ref MirFunction f) -> bool
 std/src/mir.aya:54: pub fn warn(String msg)
@@ -1817,133 +1854,185 @@ std/src/mir.aya:146: pub fn folded_int(ref MirFunction f, int idx) -> int
 std/src/std.aya:9: pub interface Error
 std/src/std.aya:10: fn what(ref self) -> String;
 std/src/std.aya:13: pub enum Result[T, E]
-std/src/std.aya:18: impl[T, E] Result[T, E]
-std/src/std.aya:19: pub fn try_unwrap(self) -> T
-std/src/string.aya:1: pub struct String
-std/src/string.aya:6: pub interface ToString
-std/src/string.aya:7: fn to_string(self)->String;
-std/src/string.aya:10: pub interface Error
-std/src/string.aya:11: fn what(ref self) -> String;
-std/src/string.aya:14: pub enum Result[T, E]
-std/src/string.aya:19: impl[T, E] Result[T, E]
-std/src/string.aya:20: pub fn try_unwrap(self) -> T
-std/src/string.aya:28: impl int
-std/src/string.aya:31: fn to_string(self) -> String
-std/src/string.aya:67: impl float
-std/src/string.aya:68: fn to_string(self) -> String
-std/src/string.aya:75: impl char
-std/src/string.aya:78: fn to_string(self) -> String
-std/src/string.aya:83: impl bool
-std/src/string.aya:86: fn to_string(self) -> String
-std/src/string.aya:99: impl int
-std/src/string.aya:100: pub fn add(self, int other) -> int { return self + other }
-std/src/string.aya:101: pub fn sub(self, int other) -> int { return self - other }
-std/src/string.aya:102: pub fn mul(self, int other) -> int { return self * other }
-std/src/string.aya:103: pub fn div(self, int other) -> int { return self / other }
-std/src/string.aya:104: pub fn rem(self, int other) -> int { return self % other }
-std/src/string.aya:106: pub fn eq(self, int other) -> bool { return self == other }
-std/src/string.aya:107: pub fn ne(self, int other) -> bool { return self != other }
-std/src/string.aya:108: pub fn lt(self, int other) -> bool { return self < other }
-std/src/string.aya:109: pub fn gt(self, int other) -> bool { return self > other }
-std/src/string.aya:110: pub fn le(self, int other) -> bool { return self <= other }
-std/src/string.aya:111: pub fn ge(self, int other) -> bool { return self >= other }
-std/src/string.aya:113: pub fn neg(self) -> int { return -self }
-std/src/string.aya:120: impl float
-std/src/string.aya:121: pub fn add(self, float other) -> float { return self + other }
-std/src/string.aya:122: pub fn sub(self, float other) -> float { return self - other }
-std/src/string.aya:123: pub fn mul(self, float other) -> float { return self * other }
-std/src/string.aya:124: pub fn div(self, float other) -> float { return self / other }
-std/src/string.aya:126: pub fn eq(self, float other) -> bool { return self == other }
-std/src/string.aya:127: pub fn ne(self, float other) -> bool { return self != other }
-std/src/string.aya:128: pub fn lt(self, float other) -> bool { return self < other }
-std/src/string.aya:129: pub fn gt(self, float other) -> bool { return self > other }
-std/src/string.aya:130: pub fn le(self, float other) -> bool { return self <= other }
-std/src/string.aya:131: pub fn ge(self, float other) -> bool { return self >= other }
-std/src/string.aya:133: pub fn neg(self) -> float { return -self }
-std/src/string.aya:140: impl char
-std/src/string.aya:141: pub fn eq(self, char other) -> bool { return self == other }
-std/src/string.aya:142: pub fn ne(self, char other) -> bool { return self != other }
-std/src/string.aya:143: pub fn lt(self, char other) -> bool { return self < other }
-std/src/string.aya:144: pub fn gt(self, char other) -> bool { return self > other }
-std/src/string.aya:145: pub fn le(self, char other) -> bool { return self <= other }
-std/src/string.aya:146: pub fn ge(self, char other) -> bool { return self >= other }
-std/src/string.aya:153: impl bool
-std/src/string.aya:154: pub fn eq(self, bool other) -> bool { return self == other }
-std/src/string.aya:155: pub fn ne(self, bool other) -> bool { return self != other }
-std/src/string.aya:162: impl String
-std/src/string.aya:164: pub fn to_string(self) -> String
-std/src/string.aya:168: pub fn index(ref self, int i) -> char
-std/src/string.aya:172: pub fn len(ref self) -> int
-std/src/string.aya:178: pub fn add(ref self, ref String other) -> String
-std/src/string.aya:194: pub fn add[T:ToString](ref self, T a) -> String
-std/src/string.aya:199: pub fn eq(ref self, ref String other) -> bool
-std/src/string.aya:211: pub fn ne(ref self, ref String other) -> bool
-std/src/string.aya:217: pub fn copy(ref self) -> String
+std/src/std.aya:18: pub enum Option[T]
+std/src/std.aya:23: impl[T] Option[T]
+std/src/std.aya:24: pub fn unwrap_or(self, T default) -> T
+std/src/std.aya:31: pub fn is_some(self) -> bool
+std/src/std.aya:36: impl[T, E] Result[T, E]
+std/src/std.aya:37: pub fn try_unwrap(self) -> T
+std/src/string.aya:3: pub fn char_code(char c) -> int
+std/src/string.aya:7: pub struct String
+std/src/string.aya:12: interface ToString
+std/src/string.aya:13: fn to_string(self) -> String;
+std/src/string.aya:16: interface Error
+std/src/string.aya:17: fn what(ref self) -> String;
+std/src/string.aya:20: pub enum Result[T, E]
+std/src/string.aya:25: impl[T, E] Result[T, E]
+std/src/string.aya:26: pub fn try_unwrap(self) -> T
+std/src/string.aya:34: impl int
+std/src/string.aya:37: pub fn to_string(self) -> String
+std/src/string.aya:74: impl float
+std/src/string.aya:75: pub fn to_string(self) -> String
+std/src/string.aya:82: impl char
+std/src/string.aya:85: pub fn to_string(self) -> String
+std/src/string.aya:90: impl bool
+std/src/string.aya:93: pub fn to_string(self) -> String
+std/src/string.aya:102: impl int
+std/src/string.aya:103: pub fn add(self, int other) -> int
+std/src/string.aya:106: pub fn sub(self, int other) -> int
+std/src/string.aya:109: pub fn mul(self, int other) -> int
+std/src/string.aya:112: pub fn div(self, int other) -> int
+std/src/string.aya:115: pub fn rem(self, int other) -> int
+std/src/string.aya:118: pub fn eq(self, int other) -> bool
+std/src/string.aya:121: pub fn ne(self, int other) -> bool
+std/src/string.aya:124: pub fn lt(self, int other) -> bool
+std/src/string.aya:127: pub fn gt(self, int other) -> bool
+std/src/string.aya:130: pub fn le(self, int other) -> bool
+std/src/string.aya:133: pub fn ge(self, int other) -> bool
+std/src/string.aya:136: pub fn neg(self) -> int
+std/src/string.aya:141: impl float
+std/src/string.aya:142: pub fn add(self, float other) -> float
+std/src/string.aya:145: pub fn sub(self, float other) -> float
+std/src/string.aya:148: pub fn mul(self, float other) -> float
+std/src/string.aya:151: pub fn div(self, float other) -> float
+std/src/string.aya:154: pub fn eq(self, float other) -> bool
+std/src/string.aya:157: pub fn ne(self, float other) -> bool
+std/src/string.aya:160: pub fn lt(self, float other) -> bool
+std/src/string.aya:163: pub fn gt(self, float other) -> bool
+std/src/string.aya:166: pub fn le(self, float other) -> bool
+std/src/string.aya:169: pub fn ge(self, float other) -> bool
+std/src/string.aya:172: pub fn neg(self) -> float
+std/src/string.aya:177: impl char
+std/src/string.aya:178: pub fn eq(self, char other) -> bool
+std/src/string.aya:181: pub fn ne(self, char other) -> bool
+std/src/string.aya:184: pub fn lt(self, char other) -> bool
+std/src/string.aya:187: pub fn gt(self, char other) -> bool
+std/src/string.aya:190: pub fn le(self, char other) -> bool
+std/src/string.aya:193: pub fn ge(self, char other) -> bool
+std/src/string.aya:197: pub fn is_digit(self) -> bool
+std/src/string.aya:202: pub fn is_alpha(self) -> bool
+std/src/string.aya:213: pub fn is_alnum(self) -> bool
+std/src/string.aya:220: pub fn is_space(self) -> bool
+std/src/string.aya:231: pub fn is_upper(self) -> bool
+std/src/string.aya:236: pub fn is_lower(self) -> bool
+std/src/string.aya:241: pub fn to_digit(self) -> int
+std/src/string.aya:246: pub fn to_upper(self) -> char
+std/src/string.aya:254: pub fn to_lower(self) -> char
+std/src/string.aya:263: impl bool
+std/src/string.aya:264: pub fn eq(self, bool other) -> bool
+std/src/string.aya:267: pub fn ne(self, bool other) -> bool
+std/src/string.aya:272: impl String
+std/src/string.aya:273: pub fn to_string(self) -> String
+std/src/string.aya:276: pub fn index(ref self, int i) -> char
+std/src/string.aya:279: pub fn len(ref self) -> int
+std/src/string.aya:284: pub fn add(ref self, ref String other) -> String
+std/src/string.aya:297: pub fn add[T: ToString](ref self, T a) -> String
+std/src/string.aya:301: pub fn eq(ref self, ref String other) -> bool
+std/src/string.aya:312: pub fn ne(ref self, ref String other) -> bool
+std/src/string.aya:317: pub fn copy(ref self) -> String
+std/src/string.aya:325: pub fn is_empty(ref self) -> bool
+std/src/string.aya:329: pub fn index_of(ref self, ref String needle) -> int
+std/src/string.aya:352: pub fn contains(ref self, ref String needle) -> bool
+std/src/string.aya:359: pub fn starts_with(ref self, ref String prefix) -> bool
+std/src/string.aya:371: pub fn ends_with(ref self, ref String suffix) -> bool
+std/src/string.aya:385: pub fn substring(ref self, int start, int end) -> String
+std/src/string.aya:406: pub fn trim(ref self) -> String
+std/src/string.aya:427: pub fn to_upper(ref self) -> String
+std/src/string.aya:436: pub fn to_lower(ref self) -> String
+std/src/string.aya:445: pub fn repeat(ref self, int times) -> String
+std/src/string.aya:456: pub fn parse_int(ref self) -> int
+std/src/string.aya:492: pub fn is_int(ref self) -> bool
 std/std.aya:9: pub interface Error
 std/std.aya:10: fn what(ref self) -> String;
 std/std.aya:13: pub enum Result[T, E]
-std/std.aya:18: impl[T, E] Result[T, E]
-std/std.aya:19: pub fn try_unwrap(self) -> T
-std/string.aya:1: pub struct String
-std/string.aya:6: pub interface ToString
-std/string.aya:7: fn to_string(self)->String;
-std/string.aya:10: pub interface Error
-std/string.aya:11: fn what(ref self) -> String;
-std/string.aya:14: pub enum Result[T, E]
-std/string.aya:19: impl[T, E] Result[T, E]
-std/string.aya:20: pub fn try_unwrap(self) -> T
-std/string.aya:28: impl int
-std/string.aya:31: fn to_string(self) -> String
-std/string.aya:67: impl float
-std/string.aya:68: fn to_string(self) -> String
-std/string.aya:75: impl char
-std/string.aya:78: fn to_string(self) -> String
-std/string.aya:83: impl bool
-std/string.aya:86: fn to_string(self) -> String
-std/string.aya:99: impl int
-std/string.aya:100: pub fn add(self, int other) -> int { return self + other }
-std/string.aya:101: pub fn sub(self, int other) -> int { return self - other }
-std/string.aya:102: pub fn mul(self, int other) -> int { return self * other }
-std/string.aya:103: pub fn div(self, int other) -> int { return self / other }
-std/string.aya:104: pub fn rem(self, int other) -> int { return self % other }
-std/string.aya:106: pub fn eq(self, int other) -> bool { return self == other }
-std/string.aya:107: pub fn ne(self, int other) -> bool { return self != other }
-std/string.aya:108: pub fn lt(self, int other) -> bool { return self < other }
-std/string.aya:109: pub fn gt(self, int other) -> bool { return self > other }
-std/string.aya:110: pub fn le(self, int other) -> bool { return self <= other }
-std/string.aya:111: pub fn ge(self, int other) -> bool { return self >= other }
-std/string.aya:113: pub fn neg(self) -> int { return -self }
-std/string.aya:120: impl float
-std/string.aya:121: pub fn add(self, float other) -> float { return self + other }
-std/string.aya:122: pub fn sub(self, float other) -> float { return self - other }
-std/string.aya:123: pub fn mul(self, float other) -> float { return self * other }
-std/string.aya:124: pub fn div(self, float other) -> float { return self / other }
-std/string.aya:126: pub fn eq(self, float other) -> bool { return self == other }
-std/string.aya:127: pub fn ne(self, float other) -> bool { return self != other }
-std/string.aya:128: pub fn lt(self, float other) -> bool { return self < other }
-std/string.aya:129: pub fn gt(self, float other) -> bool { return self > other }
-std/string.aya:130: pub fn le(self, float other) -> bool { return self <= other }
-std/string.aya:131: pub fn ge(self, float other) -> bool { return self >= other }
-std/string.aya:133: pub fn neg(self) -> float { return -self }
-std/string.aya:140: impl char
-std/string.aya:141: pub fn eq(self, char other) -> bool { return self == other }
-std/string.aya:142: pub fn ne(self, char other) -> bool { return self != other }
-std/string.aya:143: pub fn lt(self, char other) -> bool { return self < other }
-std/string.aya:144: pub fn gt(self, char other) -> bool { return self > other }
-std/string.aya:145: pub fn le(self, char other) -> bool { return self <= other }
-std/string.aya:146: pub fn ge(self, char other) -> bool { return self >= other }
-std/string.aya:153: impl bool
-std/string.aya:154: pub fn eq(self, bool other) -> bool { return self == other }
-std/string.aya:155: pub fn ne(self, bool other) -> bool { return self != other }
-std/string.aya:162: impl String
-std/string.aya:164: pub fn to_string(self) -> String
-std/string.aya:168: pub fn index(ref self, int i) -> char
-std/string.aya:172: pub fn len(ref self) -> int
-std/string.aya:178: pub fn add(ref self, ref String other) -> String
-std/string.aya:194: pub fn add[T:ToString](ref self, T a) -> String
-std/string.aya:199: pub fn eq(ref self, ref String other) -> bool
-std/string.aya:211: pub fn ne(ref self, ref String other) -> bool
-std/string.aya:217: pub fn copy(ref self) -> String
+std/std.aya:18: pub enum Option[T]
+std/std.aya:23: impl[T] Option[T]
+std/std.aya:24: pub fn unwrap_or(self, T default) -> T
+std/std.aya:31: pub fn is_some(self) -> bool
+std/std.aya:36: impl[T, E] Result[T, E]
+std/std.aya:37: pub fn try_unwrap(self) -> T
+std/string.aya:3: pub fn char_code(char c) -> int
+std/string.aya:7: pub struct String
+std/string.aya:12: interface ToString
+std/string.aya:13: fn to_string(self) -> String;
+std/string.aya:16: interface Error
+std/string.aya:17: fn what(ref self) -> String;
+std/string.aya:20: pub enum Result[T, E]
+std/string.aya:25: impl[T, E] Result[T, E]
+std/string.aya:26: pub fn try_unwrap(self) -> T
+std/string.aya:34: impl int
+std/string.aya:37: pub fn to_string(self) -> String
+std/string.aya:74: impl float
+std/string.aya:75: pub fn to_string(self) -> String
+std/string.aya:82: impl char
+std/string.aya:85: pub fn to_string(self) -> String
+std/string.aya:90: impl bool
+std/string.aya:93: pub fn to_string(self) -> String
+std/string.aya:102: impl int
+std/string.aya:103: pub fn add(self, int other) -> int
+std/string.aya:106: pub fn sub(self, int other) -> int
+std/string.aya:109: pub fn mul(self, int other) -> int
+std/string.aya:112: pub fn div(self, int other) -> int
+std/string.aya:115: pub fn rem(self, int other) -> int
+std/string.aya:118: pub fn eq(self, int other) -> bool
+std/string.aya:121: pub fn ne(self, int other) -> bool
+std/string.aya:124: pub fn lt(self, int other) -> bool
+std/string.aya:127: pub fn gt(self, int other) -> bool
+std/string.aya:130: pub fn le(self, int other) -> bool
+std/string.aya:133: pub fn ge(self, int other) -> bool
+std/string.aya:136: pub fn neg(self) -> int
+std/string.aya:141: impl float
+std/string.aya:142: pub fn add(self, float other) -> float
+std/string.aya:145: pub fn sub(self, float other) -> float
+std/string.aya:148: pub fn mul(self, float other) -> float
+std/string.aya:151: pub fn div(self, float other) -> float
+std/string.aya:154: pub fn eq(self, float other) -> bool
+std/string.aya:157: pub fn ne(self, float other) -> bool
+std/string.aya:160: pub fn lt(self, float other) -> bool
+std/string.aya:163: pub fn gt(self, float other) -> bool
+std/string.aya:166: pub fn le(self, float other) -> bool
+std/string.aya:169: pub fn ge(self, float other) -> bool
+std/string.aya:172: pub fn neg(self) -> float
+std/string.aya:177: impl char
+std/string.aya:178: pub fn eq(self, char other) -> bool
+std/string.aya:181: pub fn ne(self, char other) -> bool
+std/string.aya:184: pub fn lt(self, char other) -> bool
+std/string.aya:187: pub fn gt(self, char other) -> bool
+std/string.aya:190: pub fn le(self, char other) -> bool
+std/string.aya:193: pub fn ge(self, char other) -> bool
+std/string.aya:197: pub fn is_digit(self) -> bool
+std/string.aya:202: pub fn is_alpha(self) -> bool
+std/string.aya:213: pub fn is_alnum(self) -> bool
+std/string.aya:220: pub fn is_space(self) -> bool
+std/string.aya:231: pub fn is_upper(self) -> bool
+std/string.aya:236: pub fn is_lower(self) -> bool
+std/string.aya:241: pub fn to_digit(self) -> int
+std/string.aya:246: pub fn to_upper(self) -> char
+std/string.aya:254: pub fn to_lower(self) -> char
+std/string.aya:263: impl bool
+std/string.aya:264: pub fn eq(self, bool other) -> bool
+std/string.aya:267: pub fn ne(self, bool other) -> bool
+std/string.aya:272: impl String
+std/string.aya:273: pub fn to_string(self) -> String
+std/string.aya:276: pub fn index(ref self, int i) -> char
+std/string.aya:279: pub fn len(ref self) -> int
+std/string.aya:284: pub fn add(ref self, ref String other) -> String
+std/string.aya:297: pub fn add[T: ToString](ref self, T a) -> String
+std/string.aya:301: pub fn eq(ref self, ref String other) -> bool
+std/string.aya:312: pub fn ne(ref self, ref String other) -> bool
+std/string.aya:317: pub fn copy(ref self) -> String
+std/string.aya:325: pub fn is_empty(ref self) -> bool
+std/string.aya:329: pub fn index_of(ref self, ref String needle) -> int
+std/string.aya:352: pub fn contains(ref self, ref String needle) -> bool
+std/string.aya:359: pub fn starts_with(ref self, ref String prefix) -> bool
+std/string.aya:371: pub fn ends_with(ref self, ref String suffix) -> bool
+std/string.aya:385: pub fn substring(ref self, int start, int end) -> String
+std/string.aya:406: pub fn trim(ref self) -> String
+std/string.aya:427: pub fn to_upper(ref self) -> String
+std/string.aya:436: pub fn to_lower(ref self) -> String
+std/string.aya:445: pub fn repeat(ref self, int times) -> String
+std/string.aya:456: pub fn parse_int(ref self) -> int
+std/string.aya:492: pub fn is_int(ref self) -> bool
 example/check_lib.aya:5: pub fn warn_side_effects(ref MirFunction f)
 example/const_prop_lib.aya:5: pub fn const_prop(ref mut MirFunction f)
 example/constfold_lib.aya:4: fn lt_int(int a, int b) -> int
@@ -2108,7 +2197,16 @@ example/test_requires.aya:7: fn clamp100(int x) -> int { return x }
 example/test_requires.aya:9: fn main() -> int
 example/test_self.aya:1: fn main() -> int
 example/test_std.aya:3: fn main() -> int
+example/test_std_extra.aya:4: fn math_checks() -> int
+example/test_std_extra.aya:16: fn list_checks() -> int
+example/test_std_extra.aya:30: fn maybe(int x) -> Option[int]
+example/test_std_extra.aya:35: fn option_checks() -> int
+example/test_std_extra.aya:43: fn main() -> int
 example/test_std_io.aya:3: fn main() -> int
+example/test_std_text.aya:4: fn text_checks() -> int
+example/test_std_text.aya:22: fn parse_checks() -> int
+example/test_std_text.aya:31: fn char_checks() -> int
+example/test_std_text.aya:44: fn main() -> int
 example/test_struct.aya:1: struct Point
 example/test_struct.aya:6: fn main() -> int
 example/test_struct2.aya:1: struct Point

@@ -217,7 +217,7 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, de
         gcc.arg(o);
     }
     let status = gcc
-        .arg(&shim_path).arg(&runtime)
+        .arg(&shim_path).arg(&runtime).arg("-lm")
         .arg("-o").arg(&so_path)
         .status()
         .map_err(|e| Error::Compile(format!("macro gcc: {}", e)))?;

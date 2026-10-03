@@ -112,7 +112,7 @@ pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], 
     cmd.arg("-no-pie");
     for o in obj_paths { cmd.arg(o); }
     for f in extra_flags { cmd.arg(f); }
-    cmd.arg(&runtime_c).arg("-o").arg(exe_path.as_ref());
+    cmd.arg(&runtime_c).arg("-lm").arg("-o").arg(exe_path.as_ref());
     let status = cmd.status().map_err(|e| Error::Driver(format!("failed to run gcc: {}", e)))?;
     if !status.success() { return Err(Error::Driver("gcc link failed".into())); }
     Ok(())

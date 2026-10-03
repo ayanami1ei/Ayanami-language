@@ -5,10 +5,8 @@ pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::
     let program = crate::compiler::macro_expand::expand(program, src_path)?;
     let mut hir_program = crate::hir::lower_program(&program)
         .map_err(|e| Error::Compile(format!("{}: {}", src_path.display(), e)))?;
-
     check_hir_returns(&hir_program, src_path)?;
     crate::hir::effects::analyze(&mut hir_program, &program, src_path)?;
-
     let mut mir_program = crate::mir::lower_program(&hir_program)?;
     // A5d-2：应用 MIR 优化注解（#[pass]）
     super::passes::apply_passes(&mut mir_program, &hir_program, &program, src_path)?;

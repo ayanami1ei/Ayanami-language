@@ -30,3 +30,63 @@ pub fn println(ref String s) {
     print(s)
     println()
 }
+
+// ── A6：常用类型的 print/println 重载 ──
+
+#[io]
+extern "C" fn __ayanami_print_int(int n);
+#[io]
+extern "C" fn __ayanami_float_len(float n) -> int;
+#[io]
+extern "C" fn __ayanami_float_str(float n, int len) -> [char];
+
+#[io]
+pub fn print(int n) {
+    __ayanami_print_int(n)
+}
+
+#[io]
+pub fn print(float f) {
+    n = __ayanami_float_len(f)
+    data = __ayanami_float_str(f, n)
+    __ayanami_print_str(data, n)
+}
+
+#[io]
+pub fn print(bool b) {
+    if b {
+        print("true")
+    } else {
+        print("false")
+    }
+}
+
+#[io]
+pub fn print(char c) {
+    buf = [c]
+    __ayanami_print_str(buf, 1)
+}
+
+#[io]
+pub fn println(int n) {
+    print(n)
+    println()
+}
+
+#[io]
+pub fn println(float f) {
+    print(f)
+    println()
+}
+
+#[io]
+pub fn println(bool b) {
+    print(b)
+    println()
+}
+
+#[io]
+pub fn println(char c) {
+    print(c)
+    println()
+}

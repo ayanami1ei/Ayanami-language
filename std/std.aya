@@ -15,6 +15,24 @@ pub enum Result[T, E] {
     Err(E),
 }
 
+pub enum Option[T] {
+    Some(T),
+    None,
+}
+
+impl[T] Option[T] {
+    pub fn unwrap_or(self, T default) -> T {
+        if self._tag == 0 {
+            return self._data_Some._0
+        }
+        return default
+    }
+
+    pub fn is_some(self) -> bool {
+        return self._tag == 0
+    }
+}
+
 impl[T, E] Result[T, E] {
     pub fn try_unwrap(self) -> T {
         match self {

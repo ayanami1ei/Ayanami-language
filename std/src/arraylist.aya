@@ -38,6 +38,25 @@ impl[T:ToString] ArrayList[T]{
     }
     pub fn len(ref self)->int{ return self.len }
 
+    pub fn set(ref mut self, int i, T v) {
+        self.data[i] = v
+    }
+
+    /// 弹出末元素（调用方需自行保证非空）
+    pub fn pop(ref mut self) -> T {
+        self.len = self.len - 1
+        return self.data[self.len]
+    }
+
+    pub fn is_empty(ref self) -> bool {
+        return self.len == 0
+    }
+
+    /// 清空（保留底层缓冲，元素不做逐个释放）
+    pub fn clear(ref mut self) {
+        self.len = 0
+    }
+
     pub fn iter(ref self, fn(T) f) {
         for i in (0, self.len) {
             f(self.data[i])
