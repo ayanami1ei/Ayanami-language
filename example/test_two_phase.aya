@@ -1,5 +1,6 @@
 struct S { int v }
 impl S {
+    #[state]
     fn add(ref mut self, int x) { self.v = self.v + x }
 }
 fn main() -> int {

@@ -1,3 +1,4 @@
 // A5b：宏库示例（编译期执行，见 test_macro.aya）
+#[alloc]
 #[macro]
 pub fn answer() -> String { return "fn answer() -> int { return 42 }" }

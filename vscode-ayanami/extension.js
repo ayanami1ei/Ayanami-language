@@ -480,35 +480,76 @@ function activate(context) {
             }
 
             if (out) {
-                for (const line of out.split('\n')) {
-                    const t = line.trim();
+                let pending = null; // { message, severity, line, col }
+                const pushDiag = (l, c, message, severity) => {
+                    const start = new vscode.Position(Math.max(0, l), Math.max(0, c));
+                    diagnostics.push(new vscode.Diagnostic(
+                        new vscode.Range(start, new vscode.Position(start.line, start.character + 1)),
+                        message, severity));
+                };
+                for (const raw of out.split('\n')) {
+                    const t = raw.trim();
                     if (!t || t.startsWith('stage') || t.startsWith('check passed') || t.startsWith('building') || t.startsWith('build ok')) continue;
+                    // 源码片段装饰行（| / N | / ^）
+                    if (/^\|/.test(t) || /^\d+\s*\|/.test(t) || /^\^+\s*$/.test(t)) continue;
 
-                    // Format: file:line:col: error: message (primary)
+                    // 位置行：--> file:line:col
+                    const loc = t.match(/^-->\s*(.+?):(\d+):(\d+)\s*$/);
+                    if (loc) {
+                        if (pending) {
+                            pushDiag(parseInt(loc[2]) - 1, parseInt(loc[3]) - 1, pending.message, pending.severity);
+                            pending = null;
+                        }
+                        continue;
+                    }
+
+                    // warning:/error: 前缀（可能带 (at line:col)）
+                    const w = t.match(/^(warning|error):\s*(.+)$/);
+                    if (w) {
+                        let message = w[2];
+                        let line = 0, col = 0;
+                        const at = message.match(/^(.*?)\s*\(at (\d+):(\d+)\)\s*$/);
+                        if (at) { message = at[1]; line = parseInt(at[2]) - 1; col = parseInt(at[3]) - 1; }
+                        pending = {
+                            message,
+                            severity: w[1] === 'warning' ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error,
+                            line, col,
+                        };
+                        continue;
+                    }
+
+                    // file:line:col: message
                     const cl = t.match(/^([^:]+):(\d+):(\d+):\s*(.+)/);
                     if (cl) {
-                        const l = Math.max(0, parseInt(cl[2]) - 1);
-                        diagnostics.push(new vscode.Diagnostic(new vscode.Range(l, 0, l, 1000), cl[4], vscode.DiagnosticSeverity.Error));
+                        pushDiag(parseInt(cl[2]) - 1, 0, cl[4], vscode.DiagnosticSeverity.Error);
                         continue;
                     }
 
-                    // Format: ... (at line:col)
+                    // ... (at line:col)
                     const at = t.match(/at (\d+):(\d+)\)?$/);
                     if (at) {
-                        const l = Math.max(0, parseInt(at[1]) - 1);
                         const msg = t.replace(/\s*\(?at \d+:\d+\)?\s*$/, '').replace(/^[^:]+:\s*/, '');
-                        diagnostics.push(new vscode.Diagnostic(new vscode.Range(l, 0, l, 1000), msg, vscode.DiagnosticSeverity.Error));
+                        pushDiag(parseInt(at[1]) - 1, 0, msg, vscode.DiagnosticSeverity.Error);
                         continue;
                     }
 
-                    // Fallback
-                    diagnostics.push(new vscode.Diagnostic(new vscode.Range(0, 0, 0, 10), t, vscode.DiagnosticSeverity.Error));
+                    // 命令级失败摘要：按错误挂到文件头，不误报为源码错误
+                    if (/^(check|build|run|package|install) failed/.test(t)) {
+                        pending = { message: t, severity: vscode.DiagnosticSeverity.Error, line: 0, col: 0 };
+                        continue;
+                    }
+                    pending = { message: t, severity: vscode.DiagnosticSeverity.Warning, line: 0, col: 0 };
+                }
+                if (pending) {
+                    pushDiag(pending.line, pending.col, pending.message, pending.severity);
                 }
             }
 
             if (diagnostics.length > 0) {
-                statusFn(`${diagnostics.length} error(s)`);
-                if (log) log.appendLine(`${diagnostics.length} error(s) found`);
+                const errs = diagnostics.filter(d => d.severity === vscode.DiagnosticSeverity.Error).length;
+                const warns = diagnostics.length - errs;
+                statusFn(errs > 0 ? `${errs} error(s)` : `${warns} warning(s)`);
+                if (log) log.appendLine(`${errs} error(s), ${warns} warning(s) found`);
             }
 
             collection.set(doc.uri, diagnostics);

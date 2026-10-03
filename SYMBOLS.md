@@ -1755,7 +1755,7 @@ std/string.aya:194: pub fn add[T:ToString](ref self, T a) -> String
 std/string.aya:199: pub fn eq(ref self, ref String other) -> bool
 std/string.aya:211: pub fn ne(ref self, ref String other) -> bool
 std/string.aya:217: pub fn copy(ref self) -> String
-example/macro_lib.aya:3: pub fn answer() -> String { return "fn answer() -> int { return 42 }" }
+example/macro_lib.aya:4: pub fn answer() -> String { return "fn answer() -> int { return 42 }" }
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/test.aya:1: fn main()->int
 example/test.aya:14: fn add(int a, int b)->int
@@ -1871,9 +1871,9 @@ example/test_ref_return.aya:11: fn main() -> int
 example/test_ref_self.aya:2: struct Counter
 example/test_ref_self.aya:6: impl Counter
 example/test_ref_self.aya:7: fn get(ref self) -> int
-example/test_ref_self.aya:10: fn inc(ref mut self)
-example/test_ref_self.aya:13: fn into(self) -> int
-example/test_ref_self.aya:18: fn main() -> int
+example/test_ref_self.aya:11: fn inc(ref mut self)
+example/test_ref_self.aya:14: fn into(self) -> int
+example/test_ref_self.aya:19: fn main() -> int
 example/test_requires.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_requires.aya:7: fn clamp100(int x) -> int { return x }
 example/test_requires.aya:9: fn main() -> int
@@ -1897,8 +1897,8 @@ example/test_try.aya:15: fn take(Result[int, int] r) -> int { return r._tag }
 example/test_try.aya:17: fn main() -> int
 example/test_two_phase.aya:1: struct S { int v }
 example/test_two_phase.aya:2: impl S
-example/test_two_phase.aya:3: fn add(ref mut self, int x) { self.v = self.v + x }
-example/test_two_phase.aya:5: fn main() -> int
+example/test_two_phase.aya:4: fn add(ref mut self, int x) { self.v = self.v + x }
+example/test_two_phase.aya:6: fn main() -> int
 example/test_unique_struct.aya:1: struct Point
 example/test_unique_struct.aya:6: fn main() -> int
 example/test_vis.aya:1: pub fn main() -> int
