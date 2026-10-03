@@ -20,12 +20,57 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
     let live_in = liveness::live_in(&cfg);
 
     // 1) 收集引用局部变量：r = ref x / r = s（引用拷贝）/ r = f(args)（返回引用的调用）
+    //    A4b-2：结构体字面量的引用字段 → 以结构体局部为键登记 loan
     let mut loans: HashMap<VarId, Loan> = HashMap::new();
-    for node in &cfg.nodes {
+    let mut defined_at: HashMap<VarId, usize> = HashMap::new();
+    // A4b-2：含引用字段的结构体局部（v1 禁止整体移动/返回）
+    let mut struct_ref_locals: std::collections::HashSet<VarId> = std::collections::HashSet::new();
+    for (node_idx, node) in cfg.nodes.iter().enumerate() {
         if let Payload::Stmt(s) = &node.payload {
             let Some((target, value)) = s.assign_parts() else { continue };
             let Some(r) = target.as_local() else { continue };
             if !matches!(target.expr_type(), HirType::Ref(..)) {
+                // A4b-2：结构体引用字段（值可能被 implicit_move 包一层）
+                let lit: &dyn MirNode = value.move_expr().map(|v| &**v).unwrap_or(&**value);
+                if let Some(fields) = lit.struct_literal_fields() {
+                    for (_, fv) in fields {
+                        if !matches!(fv.expr_type(), HirType::Ref(..)) {
+                            continue;
+                        }
+                        let origin = if let Some((var, _)) = fv.as_ref() {
+                            Some(Loan { var, mutable: matches!(fv.expr_type(), HirType::Ref(_, true)), origin: var })
+                        } else if let Some(src) = fv.as_local() {
+                            if let Some(l) = loans.get(&src) {
+                                Some(Loan { var: l.var, mutable: l.mutable, origin: l.origin })
+                            } else if let Some(&(_, m)) = ref_params.iter().find(|(v, _)| *v == src) {
+                                Some(Loan { var: src, mutable: m, origin: src })
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+                        match origin {
+                            Some(l) => {
+                                if loans.contains_key(&r) {
+                                    return Err(Error::Borrow(format!(
+                                        "struct `{}` cannot hold reference fields from multiple/reassigned sources (borrow checker limitation)",
+                                        var_name(mir_fn, r)
+                                    )));
+                                }
+                                loans.insert(r, l);
+                                defined_at.insert(r, node_idx);
+                                struct_ref_locals.insert(r);
+                            }
+                            None => {
+                                return Err(Error::Borrow(format!(
+                                    "reference stored in field of `{}` must come directly from a reference parameter or local",
+                                    var_name(mir_fn, r)
+                                )));
+                            }
+                        }
+                    }
+                }
                 continue;
             }
             if let Some((var, mutable)) = value.as_ref() {
@@ -102,7 +147,6 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
     let declared: Vec<(crate::intern::Symbol, VarId)> = mir_fn.follow_sources.iter()
         .map(|s| super::follow::match_source(mir_fn, s, ref_params).map(|v| (*s, v)))
         .collect::<Result<Vec<_>>>()?;
-
     let mut errors: Vec<String> = Vec::new();
 
     for (i, node) in cfg.nodes.iter().enumerate() {
@@ -126,9 +170,23 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
                 }
             }
         }
-
-        // 借用期间写入/移动/drop 被借用的变量
+        // 借用期间写入/移动/drop 被借用的变量（结构体引用字段的首次定义除外）
+        let defined = if let Payload::Stmt(s) = &node.payload {
+            s.assign_parts().and_then(|(t, _)| t.as_local())
+        } else {
+            None
+        };
         for w in &node.writes {
+            if Some(*w) == defined && defined_at.get(w) == Some(&i) {
+                continue;
+            }
+            if struct_ref_locals.contains(w) {
+                errors.push(format!(
+                    "struct `{}` contains reference fields and cannot be moved/returned (borrow checker limitation)",
+                    var_name(mir_fn, *w)
+                ));
+                continue;
+            }
             if active.iter().any(|(_, l)| l.var == *w) {
                 errors.push(format!(
                     "cannot assign to or move `{}` because it is borrowed",

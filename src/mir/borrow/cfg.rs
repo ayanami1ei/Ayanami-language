@@ -111,6 +111,10 @@ fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<VarId>) -> (HashSet<VarId>, H
             defs.insert(v);
             writes.insert(v);
         }
+        // 移动语义：被 move 的局部计入 writes（借用期间移动需报错）
+        if let Some(inner) = value.move_expr().and_then(|m| m.as_local()) {
+            writes.insert(inner);
+        }
     }
     if let Some((obj, value)) = s.field_assign_parts() {
         obj.collect_var_ids(uses);
@@ -129,6 +133,11 @@ fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<VarId>) -> (HashSet<VarId>, H
     }
     if let Some(v) = s.return_value() {
         v.collect_var_ids(uses);
+        // 返回即移动：局部变量计入 writes（借用期间返回被借用变量/含引用字段的结构体需报错）
+        let local = v.as_local().or_else(|| v.move_expr().and_then(|m| m.as_local()));
+        if let Some(local) = local {
+            writes.insert(local);
+        }
     }
     if let Some(e) = s.expr_part() {
         e.collect_var_ids(uses);

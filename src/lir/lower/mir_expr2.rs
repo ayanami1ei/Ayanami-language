@@ -121,6 +121,7 @@ impl MirNode for SMirFieldAccess {
 
 impl MirNode for SMirStructLiteral {
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn struct_literal_fields(&self) -> Option<&[(Symbol, MirNodeBox)]> { Some(&self.fields) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let lowered_fields: Vec<_> = self.fields.iter().map(|(_, e)| {
             let val = e.lower_to_lir(ctx); let fty = e.expr_type(); (val, fty)

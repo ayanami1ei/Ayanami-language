@@ -25,6 +25,10 @@ pub trait MirNode: std::fmt::Debug {
     fn as_ref(&self) -> Option<(VarId, bool)> { None }
     /// 是否是函数/方法/函数指针调用（借用检查的求值上下文边界）
     fn is_call(&self) -> bool { false }
+    /// A4b-2：结构体字面量的字段（仅 SMirStructLiteral）
+    fn struct_literal_fields(&self) -> Option<&[(Symbol, MirNodeBox)]> { None }
+    /// A4b-2：解包移动（仅 SMirMove），用于查看被移动的字面量
+    fn move_expr(&self) -> Option<&MirNodeBox> { None }
 }
 
 #[derive(Debug)]

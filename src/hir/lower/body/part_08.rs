@@ -20,9 +20,12 @@ impl crate::hir::lower::Ctx {
                 let field_ty = self.find_field_type(&object_ty, field, stmt_span)?;
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
-                if matches!(expr_type(&hir_value), HirType::Ref(..)) {
+                // A4b-2：引用字段允许存储（非引用字段仍拒绝）
+                if matches!(expr_type(&hir_value), HirType::Ref(..))
+                    && !matches!(field_ty, HirType::Ref(..))
+                {
                     return Err(Error::Hir(format!(
-                        "references cannot be stored in fields (at {}:{})",
+                        "references cannot be stored in non-reference fields (at {}:{})",
                         stmt_span.start_line, stmt_span.start_col
                     )));
                 }

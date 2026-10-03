@@ -145,6 +145,7 @@ impl MirNode for SMirCall {
 }
 
 impl MirNode for SMirMove {
+    fn move_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue { self.expr.lower_to_lir(ctx) }
     fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {

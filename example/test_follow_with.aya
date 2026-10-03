@@ -17,6 +17,12 @@ struct Holder {
     ref S item
 }
 
+// 字段存引用：以实例为键登记 loan（v1：实例不可移动/返回）
+fn read_item(ref S s) -> int {
+    h = Holder { item = s }
+    return 0
+}
+
 fn main() -> int {
     return 0
 }
