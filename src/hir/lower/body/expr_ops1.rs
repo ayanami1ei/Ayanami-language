@@ -2,10 +2,37 @@ use super::*;
 
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox> {
-        let hir_lhs = self.lower_expr(lhs)?;
-        let hir_rhs = self.lower_expr(rhs)?;
-        let lhs_ty = expr_type(&hir_lhs);
-        let rhs_ty = expr_type(&hir_rhs);
+        let mut hir_lhs = self.lower_expr(lhs)?;
+        let mut hir_rhs = self.lower_expr(rhs)?;
+        let mut lhs_ty = expr_type(&hir_lhs);
+        let mut rhs_ty = expr_type(&hir_rhs);
+        // A6：基元混合类型统一提升（char→int、int/char→float），
+        // 否则内建运算按左操作数类型发射会生成非法 IR。
+        {
+            let l = strip_ownership(lhs_ty.clone()).clone();
+            let r = strip_ownership(rhs_ty.clone()).clone();
+            if l != r {
+                // 比较表达式在 HIR 中保留操作数类型，但语义上是 bool
+                let l_bool = l == HirType::Bool || hir_lhs.is_comparison();
+                let r_bool = r == HirType::Bool || hir_rhs.is_comparison();
+                let common = if l_bool && r_bool {
+                    Some(HirType::Bool)
+                } else {
+                    match (&l, &r) {
+                        (HirType::Float, HirType::Int) | (HirType::Int, HirType::Float)
+                        | (HirType::Float, HirType::Char) | (HirType::Char, HirType::Float) => Some(HirType::Float),
+                        (HirType::Char, HirType::Int) | (HirType::Int, HirType::Char) => Some(HirType::Int),
+                        _ => None,
+                    }
+                };
+                if let Some(c) = common {
+                    hir_lhs = coerce_expr(hir_lhs, &c, span)?;
+                    hir_rhs = coerce_expr(hir_rhs, &c, span)?;
+                    lhs_ty = c.clone();
+                    rhs_ty = c.clone();
+                }
+            }
+        }
         let inner_ty = strip_ownership(lhs_ty.clone());
         // Detect null-vs-pointer comparison (null is lowered to Int(0))
         // Only treat as pointer comparison when the non-null side's inner type is NOT primitive

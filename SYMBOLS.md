@@ -389,8 +389,8 @@ src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: 
 src/hir/lower/body/expr_misc.rs:24: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Vec<Stmt>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_ops1.rs:61: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
-src/hir/lower/body/expr_ops1.rs:96: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_ops1.rs:88: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
+src/hir/lower/body/expr_ops1.rs:123: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/mod.rs:10: mod part_01;
 src/hir/lower/body/mod.rs:11: mod part_02;
 src/hir/lower/body/mod.rs:12: mod part_03;
@@ -2153,6 +2153,8 @@ example/test_memory_enum.aya:9: fn make() -> int
 example/test_memory_enum.aya:15: fn main() -> int
 example/test_memory_loop.aya:5: fn loop_allocs() -> int
 example/test_memory_loop.aya:14: fn main() -> int
+example/test_negative.aya:2: fn take(int x) -> int { return x }
+example/test_negative.aya:4: fn main() -> int
 example/test_nll.aya:4: struct S
 example/test_nll.aya:8: fn f(ref S s) -> int { return s.v }
 example/test_nll.aya:10: fn g(ref mut S s) -> int

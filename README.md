@@ -249,7 +249,8 @@ impl Point {
     }
 }
 
-impl Point: ToString {}  // 结构匹配：有 to_string 方法即自动实现接口
+// 接口采用 Go 式结构匹配：方法名/形参/返回类型齐全即自动实现接口，
+// 无需（也不支持）`impl Point: ToString {}` 这类显式声明；self 关键字不参与匹配。
 ```
 
 方法接收者：`self` 消费、`ref self` 借用、`ref mut self` 可变借用（原语类型用 `self`，因为 Copy）。
