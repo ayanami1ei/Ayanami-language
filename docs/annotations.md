@@ -329,16 +329,17 @@ struct Holder {
 
 - **产物与跨平台**：注解库打包为 `.lcl`（LIR + `macro=`/`pass=` 表）；宿主插件由使用方编译器
   从 LIR 现场构建（llc PIC + shim + 依赖链接）并缓存；**不随包分发 `.so`**，天然跨平台。
-- **MIR 公开**：`std/mir.aya` 定义函数级子集类型
-  （`MirFunction`/`MirLocal`/`MirStmt`/`MirExpr`/`MirType`/`MirEffects`）与二进制编解码；
-  schema 带版本号，不匹配拒绝加载。编译器 Rust 侧实现同格式序列化。
-- **桥接（ABI v3 扩展）**：编译器把 `MirFunction` 序列化为 blob →
-  shim 调用 `__ayanami_pass_run(AyaBuf input, AyaBufList args) -> AyaBuf` →
-  插件解码为类型、改写、编码返回 → 编译器反序列化。
-- **执行后重查**：结构校验（局部变量索引/类型一致）→ 重跑借用检查 → 重算效应；
-  失败报「注解名 + 调用点 + 校验原因」。
-- **能力边界**：允许修改效应声明（推断重算）；**禁止修改签名**
-  （`params`/`return_type`/`name`/`extern_c`）；v1 仅函数内改写。
+- **MIR 公开（schema v0）**：`std/mir.aya` 定义扁平 preorder 视图
+  （`MirFunction`：`pure`/`no_error`/`node_count` + `kinds`/`is_call`/`callee_pure`/
+  `is_alloc`/`is_asm`/`is_store`/`child_counts` 并行 `[int]` 数组）；
+  schema 带版本号，不匹配拒绝加载。
+- **桥接（生成式 C，ABI v3 扩展）**：编译器把 `MirFunction` 序列化为 blob →
+  shim 解码为与 `std/mir.aya` 布局一致的 C 结构体 → 调用用户 pass →
+  编码回 blob → 编译器反序列化。聚合传值 ABI 不可移植，故 v0 约定为
+  **`fn(ref mut MirFunction) -> void`**（就地修改，指针传参）。
+- **执行后校验**：schema 版本/长度校验；v0 只允许效应字段（`pure`/`no_error`）变化，
+  body 变化直接报错；失败报「注解名 + 调用点 + 原因」。
+- **能力边界**：允许修改效应声明；**禁止修改签名**；v0 仅函数内、body 只读。
 - **解析**：与宏一致——`import` 自动作用域（该包导出的注解全部进入裸名表）、
   `pkg::name` 消歧、重名报错；声明侧校验 `fn(MirFunction) -> MirFunction`。
 - **信任**：原生插件 = 编译期执行代码，信任级同宏；版本校验与沙箱后置。
@@ -436,8 +437,10 @@ struct Holder {
 - [x] A5c-1 语句级宏：块内 `#[pkg::macro(args...)]` 语句 → 源码进出、可展开多条、递归展开；
       函数体与 `if`/`for`/`while` 块遍历；`#[cfg]`/`#[invariant]` 等编译器标注保留
 - [ ] A5d-1 注解分类：`#[pass]` 声明 + `.lcl` `pass=` 表 + import 自动作用域/全限定解析 + 签名校验
-- [ ] A5d-2 MIR 优化插件：`std/mir.aya` 类型与编解码 + 插件 ABI v3（结构体）+ pass 后重查 +
-      首个 demo pass（把可证明无副作用的函数提升为现有 `#[pure]` 承诺）+ example
+- [x] A5d-2 MIR 优化插件：`std/mir.aya` 扁平视图 + 生成式 C 桥接（schema v0）+ 执行后校验 +
+      demo `#[auto_pure]`（把可证明无副作用的函数提升为现有 `#[pure]` 承诺）；
+      v0 约定 `fn(ref mut MirFunction) -> void`、body 只读（改写报错）、可改效应
+- [ ] A5d-3 完整 MIR schema（结构化类型 + body 改写）、pass 顺序/不动点、`#[check]` 只读诊断
 - [ ] A5c-2 / A5d-3 `#[check]` 只读诊断、其他语言插件 / WASM 沙箱 / 表达式级宏 / 插件清单与权限（远期）
 
 ### 已知问题

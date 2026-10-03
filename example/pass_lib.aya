@@ -1,0 +1,14 @@
+// A5d-2：MIR 优化注解 demo —— 自动把可证明无副作用的函数提升为 pure 承诺
+import "mir"
+
+#[pass]
+pub fn auto_pure(ref mut MirFunction f) {
+    ok = false
+    if f.node_count != 0 {
+        ok = scan_effects(f)
+    }
+    if ok {
+        f.pure = 1
+        f.no_error = 1
+    }
+}

@@ -1,0 +1,20 @@
+// A5d-2：MIR 优化注解（#[pass]）—— 自动 pure 提升
+import "string"
+import "pass_lib.aya"
+
+#[pass_lib::auto_pure]
+fn pure_add(int a, int b) -> int {
+    return a + b
+}
+
+#[pass_lib::auto_pure]
+fn impure_len() -> int {
+    s = "hello"
+    return s.len()
+}
+
+fn main() -> int {
+    if pure_add(2, 3) != 5 { return 1 }
+    if impure_len() != 5 { return 2 }
+    return 0
+}

@@ -57,8 +57,9 @@ pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNode
         }
         _ => arg,
     };
-    // 按值参数（含 unique）消费实参：插入移动；shared/weak 仍是借用/共享语义
+    // 按值参数（含 unique）消费实参：插入移动；ref/shared/weak 是借用/共享语义
     match param_ty {
+        HirType::Ref(..) => converted,
         _ => implicit_move(converted),
     }
 }

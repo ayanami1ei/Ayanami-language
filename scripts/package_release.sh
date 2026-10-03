@@ -26,7 +26,7 @@ echo "== 2/5 构建 release 二进制 =="
 cargo build --release
 
 echo "== 3/5 重建 std 预编译包 =="
-for m in string io math list arraylist linkedlist std; do
+for m in string io math list arraylist linkedlist mir std; do
     ./target/release/ayanami package "std/src/$m.aya" >/dev/null
 done
 cp std/src/*.lcl std/

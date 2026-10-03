@@ -8,9 +8,9 @@ use std::process::Command;
 use crate::error::{Error, Result};
 
 /// 插件 ABI 版本：签名变化时必须递增（参与 .so 缓存键，避免复用旧 shim）。
-const ABI_VERSION: u32 = 3;
+pub(super) const ABI_VERSION: u32 = 3;
 
-mod dl {
+pub(super) mod dl {
     use super::*;
     #[link(name = "dl")]
     unsafe extern "C" {
@@ -20,7 +20,7 @@ mod dl {
         pub fn dlerror() -> *mut c_char;
     }
 }
-const RTLD_NOW: c_int = 2;
+pub(super) const RTLD_NOW: c_int = 2;
 
 /// ABI v3：文本缓冲（与 Ayanami String 布局一致，减少裸指针参数）
 #[repr(C)]
@@ -71,7 +71,7 @@ pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args:
 }
 
 /// llc PIC 编译单个 .ll → .o
-fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()> {
+pub(super) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()> {
     let (llc, llc_dir) = crate::driver::find_llc()?;
     let mut cmd = Command::new(&llc);
     cmd.arg("-filetype=obj").arg("-relocation-model=pic")
@@ -87,7 +87,7 @@ fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()> {
 
 /// A5b-3：递归解析宏库依赖的 .lcl（`.lcl` 的 `[deps]` 段按 stem 记录）。
 /// 每个 stem 依次在引用方目录、std 目录、cwd 查找；返回去重后的依赖路径。
-fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>> {
+pub(super) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>> {
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
     let mut queue = vec![PathBuf::from(lcl_path)];

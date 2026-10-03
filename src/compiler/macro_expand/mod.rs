@@ -12,11 +12,12 @@ use std::path::{Path, PathBuf};
 use crate::error::{Error, Result};
 use crate::parser::ast::{Attr, Block, Program, Stmt};
 
-use annotations::{AnnKind, AnnotationTables};
+pub(crate) use annotations::{AnnKind, AnnotationTables};
 
 const MAX_DEPTH: usize = 32;
 
 mod annotations;
+mod pass_plugin;
 mod plugin;
 
 /// 展开入口：在 HIR 降级前调用（此时 import 已重写为 .lcl 绝对路径）。
@@ -27,6 +28,16 @@ pub fn expand(program: &Program, src_path: &Path) -> Result<Program> {
     }
     let stmts = expand_stmts(&program.stmts, &ctx, 0)?;
     Ok(Program::new(stmts))
+}
+
+/// A5d-2：从 import（已重写为 .lcl）收集注解表
+pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables> {
+    AnnotationTables::collect(stmts)
+}
+
+/// A5d-2：调用 MIR pass 插件
+pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>> {
+    pass_plugin::invoke_pass(lcl_path, name, blob)
 }
 
 struct MacroCtx {

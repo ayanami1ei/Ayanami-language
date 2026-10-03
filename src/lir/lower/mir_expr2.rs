@@ -144,6 +144,7 @@ impl MirNode for SMirStructLiteral {
 }
 
 impl MirNode for SMirArrayLiteral {
+    fn is_alloc(&self) -> bool { true }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let lowered: Vec<_> = self.elems.iter().map(|e| {
@@ -166,6 +167,7 @@ impl MirNode for SMirArrayLiteral {
 }
 
 impl MirNode for SMirArraySized {
+    fn is_alloc(&self) -> bool { true }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let dest = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
@@ -241,6 +243,7 @@ impl MirNode for SMirIndex {
 }
 
 impl MirNode for SMirAsm {
+    fn is_asm(&self) -> bool { true }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let is_void = matches!(&self.ty, HirType::Void);

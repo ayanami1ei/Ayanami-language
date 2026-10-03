@@ -119,12 +119,21 @@ impl LirNode for SLirIndexAccess {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let elem_llvm = ctx.llvm_type(&self.elem_ty);
+        let result_llvm = ctx.llvm_type(&self.ty);
         let arr_str = ctx.value_ref(&self.arr, &self.ty);
         let idx_str = ctx.value_ref(&self.index, &HirType::Int);
+        let gep = format!("%t{} = getelementptr {}, ptr {}, i64 {}", self.gep_tmp, elem_llvm, arr_str, idx_str);
+        if elem_llvm == result_llvm {
+            // 同类型：直接 load 到目标临时量，避免对聚合类型做非法 bitcast
+            return vec![
+                gep,
+                format!("%t{} = load {}, ptr %t{}", self.dest, elem_llvm, self.gep_tmp),
+            ];
+        }
         vec![
-            format!("%t{} = getelementptr {}, ptr {}, i64 {}", self.gep_tmp, elem_llvm, arr_str, idx_str),
+            gep,
             format!("%t{} = load {}, ptr %t{}", self.load_tmp, elem_llvm, self.gep_tmp),
-            format!("%t{} = bitcast {} %t{} to {}", self.dest, elem_llvm, self.load_tmp, ctx.llvm_type(&self.ty)),
+            format!("%t{} = bitcast {} %t{} to {}", self.dest, elem_llvm, self.load_tmp, result_llvm),
         ]
     }
     fn display(&self, f: &mut dyn Write) -> std::fmt::Result {

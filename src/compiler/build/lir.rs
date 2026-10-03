@@ -9,25 +9,9 @@ pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::
     check_hir_returns(&hir_program, src_path)?;
     crate::hir::effects::analyze(&mut hir_program, &program, src_path)?;
 
-    let mir_program = crate::mir::lower_program(&hir_program)?;
-    // A5d-1：优化注解（#[pass]）保留到 MIR 阶段；执行器（A5d-2）接入前明确报错
-    for item in &mir_program.items {
-        if let crate::mir::ir::MirItem::Fn(f) = item {
-            for a in &f.attrs {
-                let name = a.name.as_str();
-                let builtin = (a.is_builtin()
-                    || (a.qualifier.len() == 1 && a.qualifier[0].as_str() == "core"))
-                    && (crate::hir::attrs::ALLOWED.contains(&name.as_str())
-                        || crate::hir::effects::is_effect(&name));
-                if !builtin {
-                    return Err(Error::Compile(format!(
-                        "optimization annotation #[{}] is not executable yet (A5d-2 pending) at {}:{}",
-                        a.path_str(), a.span.start_line, a.span.start_col
-                    )));
-                }
-            }
-        }
-    }
+    let mut mir_program = crate::mir::lower_program(&hir_program)?;
+    // A5d-2：应用 MIR 优化注解（#[pass]）
+    super::passes::apply_passes(&mut mir_program, &hir_program, &program, src_path)?;
     let follow_table = crate::mir::borrow::build_follow_table(&mir_program);
     for item in &mir_program.items {
         if let crate::mir::ir::MirItem::Fn(f) = item {

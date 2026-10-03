@@ -19,14 +19,14 @@ pub(super) struct PkgAnnotations {
 
 /// 注解类别
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum AnnKind {
+pub(crate) enum AnnKind {
     Macro,
     Pass,
 }
 
 /// 已导入包的注解表
 #[derive(Default)]
-pub(super) struct AnnotationTables {
+pub(crate) struct AnnotationTables {
     pkgs: HashMap<String, PkgAnnotations>,
 }
 

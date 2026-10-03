@@ -15,6 +15,7 @@ mod compile;
 mod deps;
 mod lir;
 mod package;
+mod passes;
 mod target;
 
 pub use target::build_source_with_target;

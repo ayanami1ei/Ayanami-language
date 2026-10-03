@@ -31,6 +31,10 @@ pub trait MirNode: std::fmt::Debug {
     fn move_expr(&self) -> Option<&MirNodeBox> { None }
     /// A4c：静态调用目标（仅 SMirCall）
     fn call_fn_id(&self) -> Option<crate::hir::ty::FnId> { None }
+    /// A5d：是否为堆分配节点（字符串字面量/数组/装箱/克隆）
+    fn is_alloc(&self) -> bool { false }
+    /// A5d：是否为内联汇编
+    fn is_asm(&self) -> bool { false }
 }
 
 #[derive(Debug)]

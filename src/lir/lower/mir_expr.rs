@@ -74,6 +74,7 @@ impl MirNode for SMirLiteral {
     fn as_string_literal(&self) -> Option<&str> {
         match &self.val { HirLiteral::String(s) => Some(s.as_str()), _ => None }
     }
+    fn is_alloc(&self) -> bool { matches!(self.val, HirLiteral::String(_)) }
 }
 
 impl MirNode for SMirBinary {
@@ -169,6 +170,7 @@ impl MirNode for SMirClone {
 }
 
 impl MirNode for SMirToUnique {
+    fn is_alloc(&self) -> bool { true }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let inner_val = self.expr.lower_to_lir(ctx);
