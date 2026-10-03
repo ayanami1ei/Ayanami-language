@@ -131,6 +131,10 @@ impl crate::hir::lower::Ctx {
             }
             for sym in &imported_syms {
                 match sym {
+                    crate::package::ImportedSymbol::Macro { name } => {
+                        let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
+                        self.imported_macros.entry(stem).or_default().push(Symbol::intern(name));
+                    }
                     crate::package::ImportedSymbol::Fn { name, sig, flags } => {
                         // sig format: "fnName(param_types...)->ret_type"
                         let sig_body = sig.trim_start_matches(name.as_str());

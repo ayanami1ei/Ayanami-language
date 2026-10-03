@@ -51,6 +51,8 @@ pub(crate) struct Ctx {
     pub allow_bare_array: bool,
     /// A3d：表达式降级过程中产生的待插入语句（如 `?` 的早退控制流）
     pub pending_stmts: Vec<HirStmt>,
+    /// A5b：包导入的宏表（包 stem → 宏名）
+    pub imported_macros: HashMap<Symbol, Vec<Symbol>>,
 }
 
 impl Ctx {
@@ -82,6 +84,7 @@ impl Ctx {
             scopes: Vec::new(),
             allow_bare_array: false,
             pending_stmts: Vec::new(),
+            imported_macros: HashMap::new(),
         }
     }
 

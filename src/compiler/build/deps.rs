@@ -164,6 +164,9 @@ pub(super) fn merge_symbols(
                     crate::package::ImportedSymbol::Interface { name } => {
                         PackageSymbol::Interface { name }
                     }
+                    crate::package::ImportedSymbol::Macro { name } => {
+                        PackageSymbol::Macro { name }
+                    }
                 };
                 if !pkg.symbols.contains(&pkg_sym) {
                     pkg.symbols.push(pkg_sym);

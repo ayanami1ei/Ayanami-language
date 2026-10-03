@@ -42,6 +42,9 @@ impl Package {
                     PackageSymbol::Interface { name } => {
                         body.push_str(&format!("interface=\"{}\"\n", name));
                     }
+                    PackageSymbol::Macro { name } => {
+                        body.push_str(&format!("macro=\"{}\"\n", name));
+                    }
                 }
             }
             body.push_str("\n");

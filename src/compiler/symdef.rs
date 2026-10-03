@@ -57,6 +57,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
             name,
             span,
             vis,
+            attrs,
             ..
         } => {
             let qualified = if prefix.is_empty() {
@@ -64,9 +65,12 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
             } else {
                 format!("{}.{}", prefix, name)
             };
+            let is_macro = attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "macro");
             defs.push(SymDef {
                 name: qualified,
-                kind: if matches!(vis, Visibility::Pub) {
+                kind: if is_macro {
+                    "macro"
+                } else if matches!(vis, Visibility::Pub) {
                     "pub fn"
                 } else {
                     "fn"

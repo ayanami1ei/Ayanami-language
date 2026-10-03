@@ -1,4 +1,5 @@
 pub mod attrs;
+pub mod attrs_macro;
 pub mod cfg;
 pub mod contracts;
 pub mod effects;

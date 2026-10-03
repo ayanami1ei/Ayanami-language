@@ -66,6 +66,9 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             } else if let Some(rest) = line.strip_prefix("interface=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Interface { name: val });
+            } else if let Some(rest) = line.strip_prefix("macro=") {
+                let val = parse_ini_value(rest);
+                symbols.push(ImportedSymbol::Macro { name: val });
             }
         } else if in_generics {
             if let Some(rest) = line.strip_prefix("source=") {

@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::error::{Error, Result};
+use crate::intern::Symbol;
 use crate::parser::ast::{Attr, Program, Stmt};
 
 /// A0 属性白名单（编译器内置）。A1 起逐个接入 LLVM 语义；未知属性一律报错（ADR-2）。
@@ -10,6 +11,7 @@ pub const ALLOWED: &[&str] = &[
     "requires",
     "ensures",
     "invariant",
+    "macro",
     "throws",
     "no_error",
     "cfg",
@@ -75,6 +77,8 @@ pub fn pkg_stem(path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
+pub use super::attrs_macro::validate_macros;
+
 /// 属性是否出现在列表中（仅内置名，忽略 `core::` 前缀）。
 pub fn has(attrs: &[Attr], name: &str) -> bool {
     attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == name)
@@ -95,14 +99,10 @@ fn resolve(a: &Attr, imports: &Imports) -> Result<()> {
         if ALLOWED.contains(&name.as_str()) || crate::hir::effects::is_effect(&name) {
             return Ok(());
         }
-        // `import "pkg" { name }` 短名 → 库宏
+        // `import "pkg" { name }` 短名 → 库宏（存在性由 validate_macros 校验）
         if a.qualifier.is_empty() {
-            if let Some(pkg) = imports
-                .macros
-                .iter()
-                .find_map(|(p, ms)| ms.iter().any(|m| m == &name).then(|| p.clone()))
-            {
-                return Err(pending_macro(&format!("{}::{}", pkg, name), a));
+            if imports.macros.iter().any(|(_, ms)| ms.iter().any(|m| m == &name)) {
+                return Ok(());
             }
         }
         return Err(Error::Hir(format!(
@@ -124,17 +124,11 @@ fn resolve(a: &Attr, imports: &Imports) -> Result<()> {
             a.span.start_col
         )));
     }
-    Err(pending_macro(&a.path_str(), a))
+    // 存在性与展开检查推迟到 validate_macros（imports 已加载宏表）
+    Ok(())
 }
 
-/// A5a：库宏已能解析到包，但宏插件执行在 A5b。
-fn pending_macro(path: &str, a: &Attr) -> Error {
-    Error::Hir(format!(
-        "library macro #[{}] is recognized but macro expansion lands in A5b (at {}:{})",
-        path, a.span.start_line, a.span.start_col
-    ))
-}
-
+/// 校验形参标注：仅内置 noalias/nonnull，且作用于指针类型（ref/unique/[T]/fn）。
 /// 递归校验整个程序的声明属性（含命名空间/impl/接口方法）。
 pub fn validate_program(program: &Program) -> Result<()> {
     let imports = Imports::collect(program);
@@ -144,7 +138,6 @@ pub fn validate_program(program: &Program) -> Result<()> {
     Ok(())
 }
 
-/// 校验形参标注：仅内置 noalias/nonnull，且作用于指针类型（ref/unique/[T]/fn）。
 fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()> {
     use crate::parser::ast::Type;
     for a in attrs {

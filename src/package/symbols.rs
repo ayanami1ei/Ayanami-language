@@ -46,6 +46,18 @@ impl Package {
                 if !generic_params.is_empty() {
                     return; // Generic functions stored in generic_sources via ImplBlock or parent
                 }
+                // A5b：宏单独入宏表，不作为普通函数导出
+                if attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "macro") {
+                    if all || vis.is_public() {
+                        let full_name = if ns_prefix.is_empty() {
+                            name.as_str().to_string()
+                        } else {
+                            format!("{}.{}", ns_prefix, name)
+                        };
+                        self.symbols.push(PackageSymbol::Macro { name: full_name });
+                    }
+                    return;
+                }
                 if all || vis.is_public() {
                     let full_name = if ns_prefix.is_empty() {
                         name.as_str().to_string()

@@ -30,6 +30,10 @@ pub enum PackageSymbol {
     Interface {
         name: String,
     },
+    /// A5b：导出的宏（`#[macro]` 函数）
+    Macro {
+        name: String,
+    },
 }
 
 /// Parsed symbol from a .lcl package file.
@@ -47,6 +51,10 @@ pub enum ImportedSymbol {
         name: String,
     },
     Interface {
+        name: String,
+    },
+    /// A5b：包导出的宏
+    Macro {
         name: String,
     },
 }

@@ -93,7 +93,7 @@ src/compiler/symdef.rs:18: fn stmt_effect_tokens(stmt: &Stmt) -> Vec<String>
 src/compiler/symdef.rs:29: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
 src/compiler/symdef.rs:42: pub fn collect_defs_from_stmts(
 src/compiler/symdef.rs:53: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
-src/compiler/symdef.rs:173: pub fn defs_to_json(defs: &[SymDef]) -> String
+src/compiler/symdef.rs:177: pub fn defs_to_json(defs: &[SymDef]) -> String
 src/driver/mod.rs:11: fn find_llc() -> Result<(PathBuf, PathBuf)>
 src/driver/mod.rs:29: fn find_opt() -> Option<(PathBuf, PathBuf)>
 src/driver/mod.rs:46: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
@@ -130,20 +130,22 @@ src/formatter/mod.rs:23: mod stmt;
 src/formatter/mod.rs:26: pub(crate) fn format_expr(expr: &Expr) -> String
 src/formatter/mod.rs:33: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
-src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:28: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:32: pub struct Imports
-src/hir/attrs.rs:39: impl Imports
-src/hir/attrs.rs:40: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:48: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:71: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:79: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:84: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:92: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:131: fn pending_macro(path: &str, a: &Attr) -> Error
-src/hir/attrs.rs:139: pub fn validate_program(program: &Program) -> Result<()>
-src/hir/attrs.rs:148: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
-src/hir/attrs.rs:171: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:9: pub const ALLOWED: &[&str] = &[
+src/hir/attrs.rs:30: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:34: pub struct Imports
+src/hir/attrs.rs:41: impl Imports
+src/hir/attrs.rs:42: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:50: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:73: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:83: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:88: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:96: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:133: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:141: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
+src/hir/attrs.rs:164: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs_macro.rs:12: fn is_compiler_attr(a: &Attr) -> bool
+src/hir/attrs_macro.rs:24: pub fn validate_macros(
+src/hir/attrs_macro.rs:37: fn validate_macros_stmt(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -324,22 +326,22 @@ src/hir/lower/body/part_09.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr
 src/hir/lower/body/part_10.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_10.rs:4: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:56: impl Ctx
-src/hir/lower/ctx.rs:58: pub fn new() -> Self
-src/hir/lower/ctx.rs:93: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:96: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:99: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:104: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:112: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:125: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:143: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:161: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:180: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:202: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx.rs:221: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
-src/hir/lower/ctx.rs:226: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:235: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
-src/hir/lower/ctx.rs:250: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:58: impl Ctx
+src/hir/lower/ctx.rs:60: pub fn new() -> Self
+src/hir/lower/ctx.rs:96: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:99: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:102: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:107: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:115: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:128: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:146: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:164: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:183: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:205: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
+src/hir/lower/ctx.rs:224: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/ctx.rs:229: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:238: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx.rs:253: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
@@ -531,17 +533,18 @@ src/hir/lower/to_mir/mod.rs:11: mod access;
 src/hir/lower/to_mir/mod.rs:12: mod basic;
 src/hir/lower/to_mir/mod.rs:13: mod call;
 src/hir/mod.rs:1: pub mod attrs;
-src/hir/mod.rs:2: pub mod cfg;
-src/hir/mod.rs:3: pub mod contracts;
-src/hir/mod.rs:4: pub mod effects;
-src/hir/mod.rs:5: pub mod ir;
-src/hir/mod.rs:6: pub mod ty;
-src/hir/mod.rs:7: pub mod node;
-src/hir/mod.rs:8: pub mod stmt;
-src/hir/mod.rs:9: pub mod item;
-src/hir/mod.rs:10: pub mod lower;
-src/hir/mod.rs:11: pub mod display;
-src/hir/mod.rs:29: pub struct $name
+src/hir/mod.rs:2: pub mod attrs_macro;
+src/hir/mod.rs:3: pub mod cfg;
+src/hir/mod.rs:4: pub mod contracts;
+src/hir/mod.rs:5: pub mod effects;
+src/hir/mod.rs:6: pub mod ir;
+src/hir/mod.rs:7: pub mod ty;
+src/hir/mod.rs:8: pub mod node;
+src/hir/mod.rs:9: pub mod stmt;
+src/hir/mod.rs:10: pub mod item;
+src/hir/mod.rs:11: pub mod lower;
+src/hir/mod.rs:12: pub mod display;
+src/hir/mod.rs:30: pub struct $name
 src/hir/node.rs:9: pub trait HirNode: std::fmt::Debug
 src/hir/node.rs:10: fn clone_node(&self) -> Box<dyn HirNode>;
 src/hir/node.rs:11: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
@@ -1368,15 +1371,15 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:66: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:69: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:13: impl ProjectConfig
 src/package/config.rs:14: pub fn load(toml_content: &str) -> Self
 src/package/config.rs:60: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
 src/package/config.rs:77: pub fn resolve_target(&self, file_path: &Path) -> &str
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:89: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:98: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:92: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:101: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
 src/package/mod.rs:7: mod load;
@@ -1396,7 +1399,7 @@ src/package/target.rs:13: pub fn as_str(&self) -> &'static str
 src/package/target.rs:21: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:17: pub enum PackageSymbol
-src/package/types.rs:37: pub enum ImportedSymbol
+src/package/types.rs:41: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:5: pub struct Block
 src/parser/ast/block.rs:10: impl Block
