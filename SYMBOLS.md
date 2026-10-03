@@ -41,8 +41,9 @@ src/compiler/build/mod.rs:18: mod target;
 src/compiler/build/mod.rs:25: pub fn build_source(src_path: &str, code: &str) -> Result<()>
 src/compiler/build/mod.rs:30: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
-src/compiler/build/package.rs:21: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:72: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:22: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
+src/compiler/build/package.rs:74: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
+src/compiler/build/package.rs:84: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/target.rs:4: pub fn build_source_with_target(
 src/compiler/build/target.rs:105: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<()>
@@ -73,20 +74,27 @@ src/compiler/macro_expand/mod.rs:45: fn resolve(&self, a: &Attr) -> Option<(Stri
 src/compiler/macro_expand/mod.rs:60: fn collect_imports(
 src/compiler/macro_expand/mod.rs:92: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/mod.rs:135: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:175: fn parse_source(code: &str) -> Result<Program>
-src/compiler/macro_expand/mod.rs:185: fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/mod.rs:196: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/mod.rs:207: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
-src/compiler/macro_expand/plugin.rs:10: mod dl
-src/compiler/macro_expand/plugin.rs:14: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
-src/compiler/macro_expand/plugin.rs:15: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-src/compiler/macro_expand/plugin.rs:16: pub fn dlclose(handle: *mut c_void) -> c_int;
-src/compiler/macro_expand/plugin.rs:19: const RTLD_NOW: c_int = 2;
-src/compiler/macro_expand/plugin.rs:25: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str) -> Result<String>
-src/compiler/macro_expand/plugin.rs:50: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize) -> Result<PathBuf>
-src/compiler/macro_expand/plugin.rs:124: type ExpandFn = unsafe extern "C" fn(*const u8, usize, *mut usize) -> *mut u8;
-src/compiler/macro_expand/plugin.rs:125: type FreeFn = unsafe extern "C" fn(*mut c_char);
-src/compiler/macro_expand/plugin.rs:127: fn call_plugin(so_path: &Path, symbol: &str, _arity: usize, input: &str) -> Result<String>
+src/compiler/macro_expand/mod.rs:171: fn parse_source(code: &str) -> Result<Program>
+src/compiler/macro_expand/mod.rs:181: fn is_compiler_attr(a: &Attr) -> bool
+src/compiler/macro_expand/mod.rs:192: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/mod.rs:203: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/plugin.rs:11: const ABI_VERSION: u32 = 2;
+src/compiler/macro_expand/plugin.rs:13: mod dl
+src/compiler/macro_expand/plugin.rs:17: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+src/compiler/macro_expand/plugin.rs:18: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+src/compiler/macro_expand/plugin.rs:19: pub fn dlclose(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin.rs:20: pub fn dlerror() -> *mut c_char;
+src/compiler/macro_expand/plugin.rs:23: const RTLD_NOW: c_int = 2;
+src/compiler/macro_expand/plugin.rs:29: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String]) -> Result<String>
+src/compiler/macro_expand/plugin.rs:60: fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
+src/compiler/macro_expand/plugin.rs:76: fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
+src/compiler/macro_expand/plugin.rs:98: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
+src/compiler/macro_expand/plugin.rs:114: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, dep_lcls: &[String]) -> Result<PathBuf>
+src/compiler/macro_expand/plugin.rs:181: static char* dup_str(const char* p, long n) {{\n\
+src/compiler/macro_expand/plugin.rs:187: const char* const* args, const long* arg_lens, long argc,\n\
+src/compiler/macro_expand/plugin.rs:224: type ExpandFn = unsafe extern "C" fn(
+src/compiler/macro_expand/plugin.rs:232: type FreeFn = unsafe extern "C" fn(*mut c_char);
+src/compiler/macro_expand/plugin.rs:234: fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String]) -> Result<String>
 src/compiler/mod.rs:1: pub mod build;
 src/compiler/mod.rs:2: pub mod check;
 src/compiler/mod.rs:3: pub mod debug;
@@ -148,7 +156,7 @@ src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String,
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
 src/formatter/helpers.rs:32: pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize)
-src/formatter/helpers.rs:44: fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String
+src/formatter/helpers.rs:44: pub(super) fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String
 src/formatter/helpers.rs:52: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)])
 src/formatter/helpers.rs:65: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_attrs: &[Vec<crate::parser::ast::Attr>])
 src/formatter/helpers.rs:93: pub(super) fn write_return_type(out: &mut String, ty: &Type)
@@ -158,7 +166,8 @@ src/formatter/mod.rs:21: mod expr;
 src/formatter/mod.rs:22: mod helpers;
 src/formatter/mod.rs:23: mod stmt;
 src/formatter/mod.rs:26: pub(crate) fn format_expr(expr: &Expr) -> String
-src/formatter/mod.rs:33: pub fn format_file(code: &str) -> crate::error::Result<String>
+src/formatter/mod.rs:31: pub(crate) fn format_attr_arg(arg: &AttrArg) -> String
+src/formatter/mod.rs:38: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
 src/hir/attrs.rs:30: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
@@ -1434,7 +1443,7 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:69: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:78: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:13: impl ProjectConfig
 src/package/config.rs:14: pub fn load(toml_content: &str) -> Self
@@ -1442,7 +1451,8 @@ src/package/config.rs:60: pub fn resolve_import<'a>(&'a self, import_path: &str,
 src/package/config.rs:77: pub fn resolve_target(&self, file_path: &Path) -> &str
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
 src/package/load.rs:92: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:101: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:102: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:132: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
 src/package/mod.rs:7: mod load;
@@ -1451,18 +1461,18 @@ src/package/mod.rs:9: mod target;
 src/package/mod.rs:10: mod types;
 src/package/symbols.rs:4: impl Package
 src/package/symbols.rs:5: pub fn new(name: String, version: String) -> Self
-src/package/symbols.rs:20: pub fn set_effect_summaries(
-src/package/symbols.rs:27: pub fn collect_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:32: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:36: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
-src/package/symbols.rs:43: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
+src/package/symbols.rs:21: pub fn set_effect_summaries(
+src/package/symbols.rs:28: pub fn collect_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:33: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:37: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
+src/package/symbols.rs:44: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
 src/package/target.rs:4: pub enum TargetType
 src/package/target.rs:10: impl TargetType
 src/package/target.rs:11: pub fn as_str(&self) -> &'static str
 src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
-src/package/types.rs:17: pub enum PackageSymbol
-src/package/types.rs:41: pub enum ImportedSymbol
+src/package/types.rs:19: pub enum PackageSymbol
+src/package/types.rs:43: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:5: pub struct Block
 src/parser/ast/block.rs:10: impl Block
@@ -1773,7 +1783,10 @@ std/string.aya:194: pub fn add[T:ToString](ref self, T a) -> String
 std/string.aya:199: pub fn eq(ref self, ref String other) -> bool
 std/string.aya:211: pub fn ne(ref self, ref String other) -> bool
 std/string.aya:217: pub fn copy(ref self) -> String
-example/macro_lib.aya:4: pub fn answer() -> String { return "fn answer() -> int { return 42 }" }
+example/macro_lib.aya:6: pub fn answer() -> String { return "fn answer() -> int { return 42 }" }
+example/macro_lib.aya:10: pub fn keep(String input) -> String { return input }
+example/macro_lib.aya:15: pub fn emit_const(String input, String name, String value) -> String
+example/macro_lib.aya:23: pub fn show(String input, String arg) -> String
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/test.aya:1: fn main()->int
 example/test.aya:14: fn add(int a, int b)->int
@@ -1834,6 +1847,10 @@ example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int
 example/test_macro.aya:5: fn placeholder() -> int { return 0 }
 example/test_macro.aya:7: fn main() -> int { return answer() - 42 }
+example/test_macro_args.aya:5: fn kept() -> int { return 7 }
+example/test_macro_args.aya:8: fn placeholder() -> int { return 0 }
+example/test_macro_args.aya:11: fn shown_placeholder() -> int { return 0 }
+example/test_macro_args.aya:13: fn main() -> int
 example/test_macro_import.aya:4: fn main() -> int
 example/test_memory.aya:5: fn make() -> int
 example/test_memory.aya:11: fn main() -> int

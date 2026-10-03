@@ -41,7 +41,7 @@ pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize) {
 }
 
 /// 标注实参 → 源码文本
-fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String {
+pub(super) fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String {
     use crate::parser::ast::AttrArg;
     match arg {
         AttrArg::KeyValue(k, v) => format!("{} = {}", k, write_attr_arg(v)),

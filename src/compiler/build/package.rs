@@ -12,6 +12,7 @@ pub(super) fn emit_lcl_package(
     pkg.set_effect_summaries(lir_program.effect_summaries.clone());
     pkg.collect_all_symbols(&program.stmts);
     merge_symbols(&mut pkg, dep_lcl_paths);
+    pkg.deps = dep_stems(dep_lcl_paths);
     pkg.lir_data = crate::lir::serialize::program_to_bytes(lir_program);
     pkg.write_to_file(&lcl_path.to_string_lossy())
         .map_err(|e| Error::Compile(format!("package write failed for {}: {}", lcl_path.display(), e)))?;
@@ -57,6 +58,7 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<()> {
     pkg.set_effect_summaries(compiled.lir_program.effect_summaries.clone());
     pkg.collect_all_symbols(&compiled.program.stmts);
     merge_symbols(&mut pkg, &compiled.dep_lcl_paths);
+    pkg.deps = dep_stems(&compiled.dep_lcl_paths);
     pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);
 
     let lcl_name = format!("{}.lcl", src_path.strip_suffix(".aya").unwrap_or(src_path));
@@ -66,6 +68,16 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<()> {
 
     std::fs::remove_dir_all(&tmp_dir).ok();
     Ok(())
+}
+
+/// 依赖 lcl 路径 → 包 stem（去重排序；A5b-3 宏插件递归链接用）
+fn dep_stems(paths: &[PathBuf]) -> Vec<String> {
+    let mut out: Vec<String> = paths.iter()
+        .filter_map(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned()))
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 /// Install a .lcl package: read LIR, emit LLVM IR, build executable or library.

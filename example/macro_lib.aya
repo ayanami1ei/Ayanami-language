@@ -1,4 +1,25 @@
 // A5b：宏库示例（编译期执行，见 test_macro.aya）
+import "string"
+
 #[alloc]
 #[macro]
 pub fn answer() -> String { return "fn answer() -> int { return 42 }" }
+
+// A5b-3：宏实参（input = item 源码；其后依次是实参的源码文本）
+#[macro]
+pub fn keep(String input) -> String { return input }
+
+#[alloc]
+#[state]
+#[macro]
+pub fn emit_const(String input, String name, String value) -> String {
+    return "fn " + name + "() -> int { return " + value + " }"
+}
+
+// 字符串字面量实参按源码文本传入（含引号），可直接拼进生成源码
+#[alloc]
+#[state]
+#[macro]
+pub fn show(String input, String arg) -> String {
+    return "fn shown() -> String { return " + arg + " }"
+}

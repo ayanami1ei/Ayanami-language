@@ -1,8 +1,8 @@
-//! A5b-2：用户宏展开（M3 插件 ABI，Ayanami 优先）。
+//! A5b-2/A5b-3：用户宏展开（M3 插件 ABI v2，Ayanami 优先）。
 //!
 //! 流程：
 //! 1. 从已重写为 `.lcl` 的 import 收集宏表（`macro=` 行）与短名映射；
-//! 2. 对带库宏标注的 item：格式化其源码 → 从宏库 LIR 构建插件 `.so`
+//! 2. 对带库宏标注的 item：格式化其源码 + 渲染标注实参 → 从宏库 LIR 构建插件 `.so`
 //!    （llc -relocation-model=pic + C shim + runtime.c）→ dlopen 调用 → 得到新源码；
 //! 3. 重新解析并递归展开（深度上限 32），输出替换原 item。
 
@@ -137,12 +137,8 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
         attrs.iter().find(|a| !is_compiler_attr(a)).cloned()
     });
     let Some(attr) = macro_attr else { return Ok(vec![stmt.clone()]); };
-    if !attr.args.is_empty() {
-        return Err(Error::Compile(format!(
-            "macro arguments are not supported yet: #[{}] (at {}:{})",
-            attr.path_str(), attr.span.start_line, attr.span.start_col
-        )));
-    }
+    // A5b-3：实参按源码文本传入（字符串字面量含引号，`k = v` 保留键值形式）
+    let args: Vec<String> = attr.args.iter().map(crate::formatter::format_attr_arg).collect();
     let Some((pkg, macro_name)) = ctx.resolve(&attr) else {
         return Err(Error::Compile(format!(
             "macro #[{}] cannot be resolved (at {}:{})",
@@ -166,7 +162,7 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     }
     let input = crate::formatter::format_program(&Program::new(vec![input_stmt]));
 
-    let output = plugin::invoke_plugin(lcl_path, &macro_name, &input)?;
+    let output = plugin::invoke_plugin(lcl_path, &macro_name, &input, &args)?;
 
     let parsed = parse_source(&output)?;
     expand_stmts(&parsed.stmts, ctx, depth + 1)

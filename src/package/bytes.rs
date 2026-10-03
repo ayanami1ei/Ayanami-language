@@ -57,6 +57,15 @@ impl Package {
         }
         body.push_str("\n");
 
+        // A5b-3：依赖包 stem（宏插件构建时递归解析并链接）
+        if !self.deps.is_empty() {
+            body.push_str("[deps]\n");
+            for d in &self.deps {
+                body.push_str(&format!("import=\"{}\"\n", d));
+            }
+            body.push_str("\n");
+        }
+
         // LIR metadata (empty, binary follows after marker)
         body.push_str("[lir]\n");
         body.push_str("\n");

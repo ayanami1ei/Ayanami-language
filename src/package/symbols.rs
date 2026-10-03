@@ -10,6 +10,7 @@ impl Package {
             symbols: Vec::new(),
             generic_sources: Vec::new(),
             lir_data: Vec::new(),
+            deps: Vec::new(),
             effect_summaries: std::collections::HashMap::new(),
         }
     }

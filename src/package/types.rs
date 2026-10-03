@@ -9,6 +9,8 @@ pub struct Package {
     pub symbols: Vec<PackageSymbol>,
     pub generic_sources: Vec<String>,
     pub lir_data: Vec<u8>,
+    /// A5b-3：依赖包 stem 列表（构建宏插件 .so 时递归链接）
+    pub deps: Vec<String>,
     /// A3c：HIR 推断摘要（仅内存；打包时用于生成 effects tokens）
     pub effect_summaries: std::collections::HashMap<String, crate::hir::effects::EffectSummary>,
 }

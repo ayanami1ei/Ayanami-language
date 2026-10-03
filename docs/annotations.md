@@ -280,7 +280,13 @@ struct Holder {
 - 插件 ABI（草案）：插件导出
   `extern "C" fn __ayanami_macro_expand(input_ptr: *const u8, input_len: usize, out_len: *mut usize) -> *mut u8`，
   源文本进 / 源文本出（长度前缀）；编译器 `dlopen` 调用（`libloading` 或裸 `dlopen`）。
-- Ayanami 宏：`pub` + `#[macro]` 函数，参数/返回为 `Source`（内建文本类型）；
+- **A5b-3 宏参数约定**：宏函数形参为 `fn(String input, String a1, ..., String aN) -> String`：
+  第 1 参是带宏 item 的源码文本（已去掉宏标注本身），其后依次是标注实参的源码文本；
+  实参按书写形式传入（字符串字面量含引号，`k = v` 保留键值形式）。
+  无实参时仍可用 `fn() -> String`（不接收 item 源码）或 `fn(String) -> String`（仅 item 源码）。
+- **A5b-3 插件 ABI v2**：`__ayanami_macro_expand(in, in_len, args, arg_lens, argc, out_len)`；
+  shim 把输入复制到可转移所有权的缓冲区（宏内消费/释放均安全）；插件缓存键包含 ABI 版本。
+- Ayanami 宏：`pub` + `#[macro]` 函数，参数/返回为 `Source`（内建文本类型；v2 暂以 `String` 承载）；
   编译器按需用现有后端编译为动态库（`driver::ir_to_library(..., "dynamic-lib")`），
   导出到 `.lcl` 的宏表（新 section）。
 - 展开：对带库宏标注的 item 依次调用 → 结果重新解析 → 内置标注校验 → 拼回 AST → 正常 HIR；
@@ -300,9 +306,9 @@ struct Holder {
 |---|---|
 | AST | `Attr { name, args, span }`，挂在声明的 `attrs` 字段 |
 | HIR | `HirFn.attrs`、`HirStructField.attrs` 等，供各 pass 读取 |
-| 包 | `.lcl` 的 `generic_sources`（formatter 输出包含标注）+ `defs` JSON；A5 计划新增宏表 section |
+| 包 | `.lcl` 的 `generic_sources`（formatter 输出包含标注）+ `defs` JSON；A5b 已实现宏表（`macro=`）与依赖表（`[deps]`） |
 | 工具 | `defs` JSON 带属性字段；LSP/VSCode 插件、未来的代码设计平台消费 |
-| 宏 | 计划：`AttrPath` 解析 → 宏表（`.lcl`）→ `target/macros/*.so`（A5） |
+| 宏 | 已实现：`AttrPath` 解析 → 宏表（`.lcl`）→ 插件 `.so`（`/tmp/ayanami-macros`，ABI v2） |
 
 ## 10. 决策记录（ADR）
 
@@ -379,7 +385,9 @@ struct Holder {
 - [x] A5b-1 `#[macro]` 声明 + `.lcl` 宏表（`macro="name"`）+ `pkg::macro`/import 短名解析与存在性诊断
 - [x] A5b-2 M3 插件 ABI（Ayanami 优先）：宏库 LIR → llc(PIC) + C shim + runtime → `.so`；编译期 dlopen 调用；
       item 级展开、输出重新解析、深度上限 32、`/tmp/ayanami-macros` 缓存
-      （v1 限制：宏签名 `fn(String) -> String`（0/1 参）、标注实参暂不支持、语句级宏不支持）
+- [x] A5b-3 宏实参：`#[pkg::macro(args...)]` → 宏形参 `(String input, String ...args) -> String`，
+      实参按源码文本传入；插件 ABI v2（args 数组）+ shim 输入拷贝 + 缓存键含 ABI 版本
+      （v1 遗留限制：语句级宏不支持，属 A5c）
 - [ ] A5c 其他语言插件 / WASM 沙箱 / 语句表达式宏 / 插件清单与权限（远期）
 
 ### 已知问题

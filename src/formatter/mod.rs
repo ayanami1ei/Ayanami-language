@@ -27,6 +27,11 @@ pub(crate) fn format_expr(expr: &Expr) -> String {
     expr::write_expr(expr)
 }
 
+/// 标注实参 → 源码文本（A5b-3：宏实参渲染复用）
+pub(crate) fn format_attr_arg(arg: &AttrArg) -> String {
+    helpers::write_attr_arg(arg)
+}
+
 use helpers::write_stmt_separator;
 use stmt::write_stmt;
 

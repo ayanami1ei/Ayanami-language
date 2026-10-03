@@ -1,0 +1,18 @@
+// A5b-3：宏实参（input = item 源码；其后依次为实参的源码文本）
+import "macro_lib.aya"
+
+#[macro_lib::keep]
+fn kept() -> int { return 7 }
+
+#[macro_lib::emit_const(meaning, 42)]
+fn placeholder() -> int { return 0 }
+
+#[macro_lib::show("hi")]
+fn shown_placeholder() -> int { return 0 }
+
+fn main() -> int {
+    if kept() != 7 { return 1 }
+    if meaning() != 42 { return 2 }
+    if shown() != "hi" { return 3 }
+    return 0
+}

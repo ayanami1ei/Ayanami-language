@@ -98,6 +98,37 @@ fn parse_ini_value(s: &str) -> String {
     }
 }
 
+/// A5b-3：读取 .lcl 的依赖包 stem 列表（`[deps]` 段；旧包/无依赖返回空）。
+pub fn load_package_deps(path: &str) -> Result<Vec<String>> {
+    let data = std::fs::read(path)
+        .map_err(|e| Error::Package(format!("failed to read package '{}': {}", path, e)))?;
+    if data.len() <= 12 {
+        return Ok(Vec::new());
+    }
+    let marker = b"===LIR===\n";
+    let ini_bytes = match data[12..].windows(marker.len()).position(|w| w == marker) {
+        Some(pos) => &data[12..12 + pos],
+        None => &data[12..],
+    };
+    let body_str = std::str::from_utf8(ini_bytes)
+        .map_err(|e| Error::Package(format!("invalid UTF-8 in package INI: {}", e)))?;
+    let mut deps = Vec::new();
+    let mut in_deps = false;
+    for line in body_str.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            in_deps = line.starts_with("[deps]");
+            continue;
+        }
+        if in_deps {
+            if let Some(rest) = line.strip_prefix("import=") {
+                deps.push(parse_ini_value(rest));
+            }
+        }
+    }
+    Ok(deps)
+}
+
 pub(super) fn type_to_string(ty: &Type) -> String {
     match ty {
         Type::Default | Type::FnPtr(..) => "???".into(),
