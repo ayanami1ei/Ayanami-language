@@ -23,6 +23,16 @@ fn read_item(ref S s) -> int {
     return 0
 }
 
+// 跨函数传播：调用结果按被调函数的 follow_with 绑定实参来源
+#[follow_with(b)]
+fn pick_second(ref S a, ref S b) -> ref S { return b }
+
+#[follow_with(y)]
+fn caller(ref S x, ref S y) -> ref S {
+    r = pick_second(x, y)
+    return r
+}
+
 fn main() -> int {
     return 0
 }

@@ -10,9 +10,10 @@ pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::
     crate::hir::effects::analyze(&mut hir_program, &program, src_path)?;
 
     let mir_program = crate::mir::lower_program(&hir_program)?;
+    let follow_table = crate::mir::borrow::build_follow_table(&mir_program);
     for item in &mir_program.items {
         if let crate::mir::ir::MirItem::Fn(f) = item {
-            crate::mir::borrow::check_borrows(f)
+            crate::mir::borrow::check_borrows(f, &follow_table)
                 .map_err(|e| Error::Compile(format!("{}: {}", src_path.display(), e)))?;
         }
     }

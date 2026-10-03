@@ -29,6 +29,8 @@ pub trait MirNode: std::fmt::Debug {
     fn struct_literal_fields(&self) -> Option<&[(Symbol, MirNodeBox)]> { None }
     /// A4b-2：解包移动（仅 SMirMove），用于查看被移动的字面量
     fn move_expr(&self) -> Option<&MirNodeBox> { None }
+    /// A4c：静态调用目标（仅 SMirCall）
+    fn call_fn_id(&self) -> Option<crate::hir::ty::FnId> { None }
 }
 
 #[derive(Debug)]

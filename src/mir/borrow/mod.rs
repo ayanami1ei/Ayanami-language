@@ -18,10 +18,20 @@ mod loans;
 mod walk;
 
 use crate::error::{Error, Result};
+use std::collections::HashMap;
+
 use crate::hir::ir::{HirType, VarId};
 use crate::mir::ir::*;
 
-pub fn check_borrows(mir_fn: &MirFn) -> Result<()> {
+/// A4c：跨函数 `follow_with` 表（FnId → 来源解析）。
+pub type FollowTable = HashMap<crate::hir::ty::FnId, follow::FollowInfo>;
+
+/// 从 MIR 程序构建来源表。
+pub fn build_follow_table(mir: &MirProgram) -> FollowTable {
+    follow::build_table(mir)
+}
+
+pub fn check_borrows(mir_fn: &MirFn, table: &FollowTable) -> Result<()> {
     // 引用参数（生命周期省略需要恰好一个）
     let ref_params: Vec<(VarId, bool)> = mir_fn
         .params
@@ -42,5 +52,5 @@ pub fn check_borrows(mir_fn: &MirFn) -> Result<()> {
         }
         // A4b：多来源由 #[follow_with] 声明（存在性/歧义在 loans 中校验）
     }
-    loans::check_fn(mir_fn, &ref_params)
+    loans::check_fn(mir_fn, &ref_params, table)
 }

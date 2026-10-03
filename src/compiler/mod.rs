@@ -149,9 +149,10 @@ impl CompilerPipeline {
             .mir
             .as_ref()
             .ok_or_else(|| Error::Compile("No MIR available — call lower_mir() first".into()))?;
+        let table = crate::mir::borrow::build_follow_table(mir);
         for item in &mir.items {
             if let crate::mir::ir::MirItem::Fn(f) = item {
-                crate::mir::borrow::check_borrows(f)?;
+                crate::mir::borrow::check_borrows(f, &table)?;
             }
         }
         Ok(self)

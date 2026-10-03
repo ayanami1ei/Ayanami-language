@@ -15,7 +15,7 @@ pub(super) struct Loan {
 
 /// 检查入口。
 /// `ref_params`: 函数的引用参数（VarId, 是否可变）。
-pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
+pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::FollowTable) -> Result<()> {
     let cfg = cfg::build(&mir_fn.body);
     let live_in = liveness::live_in(&cfg);
 
@@ -25,7 +25,8 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
     let mut defined_at: HashMap<VarId, usize> = HashMap::new();
     // A4b-2：含引用字段的结构体局部（v1 禁止整体移动/返回）
     let mut struct_ref_locals: std::collections::HashSet<VarId> = std::collections::HashSet::new();
-    for (node_idx, node) in cfg.nodes.iter().enumerate() {
+    // cfg 节点按源码逆序构建；收集借用来源时按源码顺序遍历
+    for (node_idx, node) in cfg.nodes.iter().enumerate().rev() {
         if let Payload::Stmt(s) = &node.payload {
             let Some((target, value)) = s.assign_parts() else { continue };
             let Some(r) = target.as_local() else { continue };
@@ -98,6 +99,28 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
                 // 返回引用的调用：借用目标来自实参中的引用
                 let ret_mut = matches!(value.expr_type(), HirType::Ref(_, true));
                 let mut found = None;
+                // A4c：若被调函数声明了 follow_with，按声明的来源选择实参位置
+                let want = value.call_fn_id()
+                    .and_then(|id| table.get(&id))
+                    .and_then(|info| info.resolved.first().map(|(_, idx)| *idx));
+                if let Some(want) = want {
+                    let mut idx = 0usize;
+                    value.for_each_child(&mut |c| {
+                        if idx == want && found.is_none() {
+                            if let Some((var, mutable)) = c.as_ref() {
+                                found = Some(Loan { var, mutable, origin: r });
+                            } else if let Some(src) = c.as_local() {
+                                if let Some(l) = loans.get(&src) {
+                                    found = Some(Loan { var: l.var, mutable: l.mutable, origin: l.origin });
+                                } else if let Some(&(_, mutable)) = ref_params.iter().find(|(v, _)| *v == src) {
+                                    found = Some(Loan { var: src, mutable, origin: src });
+                                }
+                            }
+                        }
+                        idx += 1;
+                    });
+                }
+                if found.is_none() {
                 value.for_each_child(&mut |c| {
                     if found.is_none() {
                         if let Some((var, mutable)) = c.as_ref() {
@@ -111,6 +134,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
                         }
                     }
                 });
+                }
                 match found {
                     Some(l) => {
                         if loans.contains_key(&r) {

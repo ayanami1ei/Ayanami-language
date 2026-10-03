@@ -122,6 +122,7 @@ impl MirNode for SMirUnary {
 
 impl MirNode for SMirCall {
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn call_fn_id(&self) -> Option<crate::hir::ty::FnId> { Some(self.fn_id) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let lowered_args: Vec<_> = self.args.iter().map(|a| {
             let val = a.lower_to_lir(ctx);

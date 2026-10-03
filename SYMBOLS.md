@@ -32,7 +32,7 @@ src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:124: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:141: pub(super) fn merge_symbols(
 src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram>
-src/compiler/build/lir.rs:22: pub(super) fn build_target_artifact(
+src/compiler/build/lir.rs:23: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:14: mod compile;
 src/compiler/build/mod.rs:15: mod deps;
 src/compiler/build/mod.rs:16: mod lir;
@@ -104,15 +104,15 @@ src/compiler/mod.rs:116: pub fn lower_hir(&mut self) -> Result<&mut Self>
 src/compiler/mod.rs:127: pub fn check_returns(&mut self) -> Result<&mut Self>
 src/compiler/mod.rs:138: pub fn lower_mir(&mut self) -> Result<&mut Self>
 src/compiler/mod.rs:147: pub fn check_borrows(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:162: pub fn lower_lir(&mut self) -> &mut Self
-src/compiler/mod.rs:171: pub fn emit(&mut self) -> &mut Self
-src/compiler/mod.rs:179: pub fn compile(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:190: pub fn result(&self) -> CompileResult
-src/compiler/mod.rs:199: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
-src/compiler/mod.rs:204: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
-src/compiler/mod.rs:209: pub fn ast_program(&self) -> Option<&Program>
-src/compiler/mod.rs:215: pub fn compile_source(code: &str) -> Result<CompileResult>
-src/compiler/mod.rs:223: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
+src/compiler/mod.rs:163: pub fn lower_lir(&mut self) -> &mut Self
+src/compiler/mod.rs:172: pub fn emit(&mut self) -> &mut Self
+src/compiler/mod.rs:180: pub fn compile(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:191: pub fn result(&self) -> CompileResult
+src/compiler/mod.rs:200: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
+src/compiler/mod.rs:205: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
+src/compiler/mod.rs:210: pub fn ast_program(&self) -> Option<&Program>
+src/compiler/mod.rs:216: pub fn compile_source(code: &str) -> Result<CompileResult>
+src/compiler/mod.rs:224: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
 src/compiler/symdef.rs:5: pub struct SymDef
 src/compiler/symdef.rs:18: fn stmt_effect_tokens(stmt: &Stmt) -> Vec<String>
 src/compiler/symdef.rs:29: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
@@ -1053,41 +1053,42 @@ src/lir/lower/mir_expr.rs:119: fn expr_type(&self) -> HirType { self.ty.clone() 
 src/lir/lower/mir_expr.rs:120: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.arg); }
 src/lir/lower/mir_expr.rs:123: impl MirNode for SMirCall
 src/lir/lower/mir_expr.rs:124: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr.rs:125: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr.rs:137: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr.rs:142: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr.rs:143: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for a in &self.args { f(&**a); } }    fn is_call(&self) -> bool { true }
-src/lir/lower/mir_expr.rs:147: impl MirNode for SMirMove
-src/lir/lower/mir_expr.rs:148: fn move_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
-src/lir/lower/mir_expr.rs:149: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr.rs:150: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue { self.expr.lower_to_lir(ctx) }
-src/lir/lower/mir_expr.rs:151: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr.rs:156: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr.rs:157: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-src/lir/lower/mir_expr.rs:160: impl MirNode for SMirClone
-src/lir/lower/mir_expr.rs:161: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr.rs:162: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue { self.expr.lower_to_lir(ctx) }
-src/lir/lower/mir_expr.rs:163: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr.rs:168: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr.rs:169: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-src/lir/lower/mir_expr.rs:172: impl MirNode for SMirToUnique
-src/lir/lower/mir_expr.rs:173: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr.rs:174: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr.rs:187: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr.rs:192: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr.rs:193: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-src/lir/lower/mir_expr.rs:198: impl MirNode for SMirVirtualCall
-src/lir/lower/mir_expr.rs:199: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr.rs:200: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr.rs:217: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr.rs:224: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr.rs:225: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.receiver); for a in &self.args { f(&**a); } }    fn is_call(&self) -> bool { true }
-src/lir/lower/mir_expr.rs:229: impl MirNode for SMirMakeFatPtr
-src/lir/lower/mir_expr.rs:230: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr.rs:231: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr.rs:245: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr.rs:250: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr.rs:251: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.value); }
+src/lir/lower/mir_expr.rs:125: fn call_fn_id(&self) -> Option<crate::hir::ty::FnId> { Some(self.fn_id) }
+src/lir/lower/mir_expr.rs:126: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr.rs:138: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr.rs:143: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr.rs:144: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for a in &self.args { f(&**a); } }    fn is_call(&self) -> bool { true }
+src/lir/lower/mir_expr.rs:148: impl MirNode for SMirMove
+src/lir/lower/mir_expr.rs:149: fn move_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
+src/lir/lower/mir_expr.rs:150: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr.rs:151: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue { self.expr.lower_to_lir(ctx) }
+src/lir/lower/mir_expr.rs:152: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr.rs:157: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr.rs:158: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+src/lir/lower/mir_expr.rs:161: impl MirNode for SMirClone
+src/lir/lower/mir_expr.rs:162: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr.rs:163: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue { self.expr.lower_to_lir(ctx) }
+src/lir/lower/mir_expr.rs:164: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr.rs:169: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr.rs:170: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+src/lir/lower/mir_expr.rs:173: impl MirNode for SMirToUnique
+src/lir/lower/mir_expr.rs:174: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr.rs:175: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr.rs:188: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr.rs:193: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr.rs:194: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+src/lir/lower/mir_expr.rs:199: impl MirNode for SMirVirtualCall
+src/lir/lower/mir_expr.rs:200: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr.rs:201: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr.rs:218: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr.rs:225: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr.rs:226: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.receiver); for a in &self.args { f(&**a); } }    fn is_call(&self) -> bool { true }
+src/lir/lower/mir_expr.rs:230: impl MirNode for SMirMakeFatPtr
+src/lir/lower/mir_expr.rs:231: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr.rs:232: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr.rs:246: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr.rs:251: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr.rs:252: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.value); }
 src/lir/lower/mir_expr2.rs:5: impl MirNode for SMirEnumConstruct
 src/lir/lower/mir_expr2.rs:6: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
 src/lir/lower/mir_expr2.rs:7: fn lower_to_lir(&self, _ctx: &mut dyn LirLowerCtx) -> LirValue
@@ -1279,17 +1280,22 @@ src/mir/borrow/cfg.rs:42: fn push(&mut self, payload: Payload<'a>, succ: Vec<usi
 src/mir/borrow/cfg.rs:56: fn seq(&mut self, stmts: &'a [MirStmtBox], next: usize, loops: &[(usize, usize)]) -> usize
 src/mir/borrow/cfg.rs:64: fn stmt(&mut self, s: &'a dyn MirStmtNode, next: usize, loops: &[(usize, usize)]) -> usize
 src/mir/borrow/cfg.rs:105: fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<VarId>) -> (HashSet<VarId>, HashSet<VarId>)
-src/mir/borrow/follow.rs:11: pub fn match_source(
-src/mir/borrow/follow.rs:51: pub fn source_names(mir_fn: &MirFn) -> HashMap<VarId, Symbol>
+src/mir/borrow/follow.rs:12: pub fn match_source(
+src/mir/borrow/follow.rs:53: pub struct FollowInfo
+src/mir/borrow/follow.rs:58: pub fn build_table(mir: &MirProgram) -> HashMap<FnId, FollowInfo>
+src/mir/borrow/follow.rs:64: fn collect_items(items: &[MirItem], out: &mut HashMap<FnId, FollowInfo>)
+src/mir/borrow/follow.rs:89: pub fn source_names(mir_fn: &MirFn) -> HashMap<VarId, Symbol>
 src/mir/borrow/liveness.rs:6: pub fn live_in(cfg: &cfg::Cfg) -> Vec<HashSet<VarId>>
 src/mir/borrow/loans.rs:8: pub(super) struct Loan
-src/mir/borrow/loans.rs:18: pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()>
+src/mir/borrow/loans.rs:18: pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::FollowTable) -> Result<()>
 src/mir/borrow/mod.rs:14: mod cfg;
 src/mir/borrow/mod.rs:15: mod follow;
 src/mir/borrow/mod.rs:16: mod liveness;
 src/mir/borrow/mod.rs:17: mod loans;
 src/mir/borrow/mod.rs:18: mod walk;
-src/mir/borrow/mod.rs:24: pub fn check_borrows(mir_fn: &MirFn) -> Result<()>
+src/mir/borrow/mod.rs:27: pub type FollowTable = HashMap<crate::hir::ty::FnId, follow::FollowInfo>;
+src/mir/borrow/mod.rs:30: pub fn build_follow_table(mir: &MirProgram) -> FollowTable
+src/mir/borrow/mod.rs:34: pub fn check_borrows(mir_fn: &MirFn, table: &FollowTable) -> Result<()>
 src/mir/borrow/walk.rs:6: pub(super) fn var_name(mir_fn: &MirFn, v: VarId) -> String
 src/mir/borrow/walk.rs:15: pub(super) fn walk_stmt(
 src/mir/borrow/walk.rs:46: fn walk_expr(
@@ -1312,48 +1318,49 @@ src/mir/ir.rs:25: fn as_ref(&self) -> Option<(VarId, bool)> { None }
 src/mir/ir.rs:27: fn is_call(&self) -> bool { false }
 src/mir/ir.rs:29: fn struct_literal_fields(&self) -> Option<&[(Symbol, MirNodeBox)]> { None }
 src/mir/ir.rs:31: fn move_expr(&self) -> Option<&MirNodeBox> { None }
-src/mir/ir.rs:35: pub struct MirNodeBox(pub Box<dyn MirNode>);
-src/mir/ir.rs:36: impl Clone for MirNodeBox
-src/mir/ir.rs:37: fn clone(&self) -> Self { MirNodeBox(self.0.clone_node()) }
-src/mir/ir.rs:39: impl std::ops::Deref for MirNodeBox
-src/mir/ir.rs:40: type Target = dyn MirNode;
-src/mir/ir.rs:41: fn deref(&self) -> &Self::Target { &*self.0 }
-src/mir/ir.rs:44: pub trait MirStmtNode: std::fmt::Debug
-src/mir/ir.rs:45: fn clone_stmt(&self) -> Box<dyn MirStmtNode>;
-src/mir/ir.rs:46: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx);
-src/mir/ir.rs:47: fn display_stmt(&self, level: usize, w: &mut dyn FmtWrite) -> std::fmt::Result;
-src/mir/ir.rs:48: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) {}
-src/mir/ir.rs:49: fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) {}
-src/mir/ir.rs:50: fn is_return(&self) -> bool { false }
-src/mir/ir.rs:51: fn return_value(&self) -> Option<&MirNodeBox> { None }
-src/mir/ir.rs:52: fn as_drop(&self) -> Option<(VarId, &HirType)> { None }
-src/mir/ir.rs:54: fn as_if(&self) -> Option<IfParts<'_>> { None }
-src/mir/ir.rs:55: fn as_while(&self) -> Option<WhileParts<'_>> { None }
-src/mir/ir.rs:56: fn as_block(&self) -> Option<&[MirStmtBox]> { None }
-src/mir/ir.rs:57: fn is_break(&self) -> bool { false }
-src/mir/ir.rs:58: fn is_continue(&self) -> bool { false }
-src/mir/ir.rs:59: fn assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
-src/mir/ir.rs:60: fn field_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
-src/mir/ir.rs:61: fn index_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox, &MirNodeBox)> { None }
-src/mir/ir.rs:62: fn expr_part(&self) -> Option<&MirNodeBox> { None }
-src/mir/ir.rs:65: pub type IfParts<'a> = (&'a MirNodeBox, &'a [MirStmtBox], &'a [(MirNodeBox, Vec<MirStmtBox>)], &'a Option<Vec<MirStmtBox>>);
-src/mir/ir.rs:66: pub type WhileParts<'a> = (&'a MirNodeBox, &'a [MirStmtBox]);
-src/mir/ir.rs:69: pub struct MirStmtBox(pub Box<dyn MirStmtNode>);
-src/mir/ir.rs:70: impl Clone for MirStmtBox
-src/mir/ir.rs:71: fn clone(&self) -> Self { MirStmtBox(self.0.clone_stmt()) }
-src/mir/ir.rs:73: impl std::ops::Deref for MirStmtBox
-src/mir/ir.rs:74: type Target = dyn MirStmtNode;
-src/mir/ir.rs:75: fn deref(&self) -> &Self::Target { &*self.0 }
-src/mir/ir.rs:81: pub struct $name { $(pub $field: $ty),* }
-src/mir/ir.rs:89: pub struct $name { $(pub $field: $ty),* }
-src/mir/ir.rs:135: fn from(v: $ty) -> Self { MirNodeBox(Box::new(v) as Box<dyn MirNode>) }
-src/mir/ir.rs:144: fn from(v: $ty) -> Self { MirStmtBox(Box::new(v) as Box<dyn MirStmtNode>) }
-src/mir/ir.rs:151: pub struct MirLocal
-src/mir/ir.rs:157: impl MirLocal
-src/mir/ir.rs:158: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
-src/mir/ir.rs:164: pub struct MirFn
-src/mir/ir.rs:188: pub enum MirItem
-src/mir/ir.rs:201: pub struct MirProgram
+src/mir/ir.rs:33: fn call_fn_id(&self) -> Option<crate::hir::ty::FnId> { None }
+src/mir/ir.rs:37: pub struct MirNodeBox(pub Box<dyn MirNode>);
+src/mir/ir.rs:38: impl Clone for MirNodeBox
+src/mir/ir.rs:39: fn clone(&self) -> Self { MirNodeBox(self.0.clone_node()) }
+src/mir/ir.rs:41: impl std::ops::Deref for MirNodeBox
+src/mir/ir.rs:42: type Target = dyn MirNode;
+src/mir/ir.rs:43: fn deref(&self) -> &Self::Target { &*self.0 }
+src/mir/ir.rs:46: pub trait MirStmtNode: std::fmt::Debug
+src/mir/ir.rs:47: fn clone_stmt(&self) -> Box<dyn MirStmtNode>;
+src/mir/ir.rs:48: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx);
+src/mir/ir.rs:49: fn display_stmt(&self, level: usize, w: &mut dyn FmtWrite) -> std::fmt::Result;
+src/mir/ir.rs:50: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) {}
+src/mir/ir.rs:51: fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) {}
+src/mir/ir.rs:52: fn is_return(&self) -> bool { false }
+src/mir/ir.rs:53: fn return_value(&self) -> Option<&MirNodeBox> { None }
+src/mir/ir.rs:54: fn as_drop(&self) -> Option<(VarId, &HirType)> { None }
+src/mir/ir.rs:56: fn as_if(&self) -> Option<IfParts<'_>> { None }
+src/mir/ir.rs:57: fn as_while(&self) -> Option<WhileParts<'_>> { None }
+src/mir/ir.rs:58: fn as_block(&self) -> Option<&[MirStmtBox]> { None }
+src/mir/ir.rs:59: fn is_break(&self) -> bool { false }
+src/mir/ir.rs:60: fn is_continue(&self) -> bool { false }
+src/mir/ir.rs:61: fn assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
+src/mir/ir.rs:62: fn field_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
+src/mir/ir.rs:63: fn index_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox, &MirNodeBox)> { None }
+src/mir/ir.rs:64: fn expr_part(&self) -> Option<&MirNodeBox> { None }
+src/mir/ir.rs:67: pub type IfParts<'a> = (&'a MirNodeBox, &'a [MirStmtBox], &'a [(MirNodeBox, Vec<MirStmtBox>)], &'a Option<Vec<MirStmtBox>>);
+src/mir/ir.rs:68: pub type WhileParts<'a> = (&'a MirNodeBox, &'a [MirStmtBox]);
+src/mir/ir.rs:71: pub struct MirStmtBox(pub Box<dyn MirStmtNode>);
+src/mir/ir.rs:72: impl Clone for MirStmtBox
+src/mir/ir.rs:73: fn clone(&self) -> Self { MirStmtBox(self.0.clone_stmt()) }
+src/mir/ir.rs:75: impl std::ops::Deref for MirStmtBox
+src/mir/ir.rs:76: type Target = dyn MirStmtNode;
+src/mir/ir.rs:77: fn deref(&self) -> &Self::Target { &*self.0 }
+src/mir/ir.rs:83: pub struct $name { $(pub $field: $ty),* }
+src/mir/ir.rs:91: pub struct $name { $(pub $field: $ty),* }
+src/mir/ir.rs:137: fn from(v: $ty) -> Self { MirNodeBox(Box::new(v) as Box<dyn MirNode>) }
+src/mir/ir.rs:146: fn from(v: $ty) -> Self { MirStmtBox(Box::new(v) as Box<dyn MirStmtNode>) }
+src/mir/ir.rs:153: pub struct MirLocal
+src/mir/ir.rs:159: impl MirLocal
+src/mir/ir.rs:160: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
+src/mir/ir.rs:166: pub struct MirFn
+src/mir/ir.rs:190: pub enum MirItem
+src/mir/ir.rs:203: pub struct MirProgram
 src/mir/lower/checks.rs:5: fn collect_stmt_var_ids(stmt: &HirStmt, vars: &mut HashSet<VarId>)
 src/mir/lower/checks.rs:57: impl Ctx
 src/mir/lower/checks.rs:60: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
@@ -1788,7 +1795,9 @@ example/test_follow_with.aya:8: fn pick(ref S s) -> ref S { return s }
 example/test_follow_with.aya:12: fn first(ref S a, ref S b) -> ref S { return a }
 example/test_follow_with.aya:14: struct Holder
 example/test_follow_with.aya:21: fn read_item(ref S s) -> int
-example/test_follow_with.aya:26: fn main() -> int
+example/test_follow_with.aya:28: fn pick_second(ref S a, ref S b) -> ref S { return b }
+example/test_follow_with.aya:31: fn caller(ref S x, ref S y) -> ref S
+example/test_follow_with.aya:36: fn main() -> int
 example/test_import.aya:3: fn main() -> int
 example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int
