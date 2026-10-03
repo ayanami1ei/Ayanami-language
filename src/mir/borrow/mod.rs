@@ -12,6 +12,7 @@
 //! 限制：引用不可返回、不可存入字段/数组（无生命周期注解）。
 
 mod cfg;
+mod collect;
 mod follow;
 mod liveness;
 mod loans;

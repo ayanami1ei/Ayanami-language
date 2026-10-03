@@ -1280,6 +1280,7 @@ src/mir/borrow/cfg.rs:42: fn push(&mut self, payload: Payload<'a>, succ: Vec<usi
 src/mir/borrow/cfg.rs:56: fn seq(&mut self, stmts: &'a [MirStmtBox], next: usize, loops: &[(usize, usize)]) -> usize
 src/mir/borrow/cfg.rs:64: fn stmt(&mut self, s: &'a dyn MirStmtNode, next: usize, loops: &[(usize, usize)]) -> usize
 src/mir/borrow/cfg.rs:105: fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<VarId>) -> (HashSet<VarId>, HashSet<VarId>)
+src/mir/borrow/collect.rs:11: pub(super) fn collect(
 src/mir/borrow/follow.rs:12: pub fn match_source(
 src/mir/borrow/follow.rs:53: pub struct FollowInfo
 src/mir/borrow/follow.rs:58: pub fn build_table(mir: &MirProgram) -> HashMap<FnId, FollowInfo>
@@ -1289,13 +1290,14 @@ src/mir/borrow/liveness.rs:6: pub fn live_in(cfg: &cfg::Cfg) -> Vec<HashSet<VarI
 src/mir/borrow/loans.rs:8: pub(super) struct Loan
 src/mir/borrow/loans.rs:20: pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::FollowTable) -> Result<()>
 src/mir/borrow/mod.rs:14: mod cfg;
-src/mir/borrow/mod.rs:15: mod follow;
-src/mir/borrow/mod.rs:16: mod liveness;
-src/mir/borrow/mod.rs:17: mod loans;
-src/mir/borrow/mod.rs:18: mod walk;
-src/mir/borrow/mod.rs:27: pub type FollowTable = HashMap<crate::hir::ty::FnId, follow::FollowInfo>;
-src/mir/borrow/mod.rs:30: pub fn build_follow_table(mir: &MirProgram) -> FollowTable
-src/mir/borrow/mod.rs:34: pub fn check_borrows(mir_fn: &MirFn, table: &FollowTable) -> Result<()>
+src/mir/borrow/mod.rs:15: mod collect;
+src/mir/borrow/mod.rs:16: mod follow;
+src/mir/borrow/mod.rs:17: mod liveness;
+src/mir/borrow/mod.rs:18: mod loans;
+src/mir/borrow/mod.rs:19: mod walk;
+src/mir/borrow/mod.rs:28: pub type FollowTable = HashMap<crate::hir::ty::FnId, follow::FollowInfo>;
+src/mir/borrow/mod.rs:31: pub fn build_follow_table(mir: &MirProgram) -> FollowTable
+src/mir/borrow/mod.rs:35: pub fn check_borrows(mir_fn: &MirFn, table: &FollowTable) -> Result<()>
 src/mir/borrow/walk.rs:6: pub(super) fn var_name(mir_fn: &MirFn, v: VarId) -> String
 src/mir/borrow/walk.rs:15: pub(super) fn walk_stmt(
 src/mir/borrow/walk.rs:46: fn walk_expr(
