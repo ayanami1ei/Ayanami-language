@@ -1,0 +1,7 @@
+// A5b：用户宏展开（导入宏库 → 编译期插件执行 → 替换 item）
+import "macro_lib.aya"
+
+#[macro_lib::answer]
+fn placeholder() -> int { return 0 }
+
+fn main() -> int { return answer() - 42 }

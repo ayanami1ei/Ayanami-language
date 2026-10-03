@@ -1735,6 +1735,7 @@ std/string.aya:184: pub fn add[T:ToString](ref self, T a) -> String
 std/string.aya:189: pub fn eq(ref self, ref String other) -> bool
 std/string.aya:201: pub fn ne(ref self, ref String other) -> bool
 std/string.aya:205: pub fn copy(ref self) -> String
+example/macro_lib.aya:3: pub fn answer() -> String { return "fn answer() -> int { return 42 }" }
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/test.aya:1: fn main()->int
 example/test.aya:14: fn add(int a, int b)->int
@@ -1774,6 +1775,8 @@ example/test_ffi_attrs.aya:28: fn main() -> int
 example/test_import.aya:3: fn main() -> int
 example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int
+example/test_macro.aya:5: fn placeholder() -> int { return 0 }
+example/test_macro.aya:7: fn main() -> int { return answer() - 42 }
 example/test_macro_import.aya:4: fn main() -> int
 example/test_memory.aya:5: struct Point
 example/test_memory.aya:10: fn make() -> int
