@@ -258,9 +258,9 @@ src/hir/item.rs:26: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
 src/hir/item.rs:34: pub struct VtableEntry
 src/hir/item.rs:42: pub struct HirInterfaceMethod
 src/hir/item.rs:50: pub struct HirFn
-src/hir/item.rs:75: pub enum HirItem
-src/hir/item.rs:91: pub struct ImportedFnSig
-src/hir/item.rs:105: pub struct HirProgram
+src/hir/item.rs:77: pub enum HirItem
+src/hir/item.rs:93: pub struct ImportedFnSig
+src/hir/item.rs:107: pub struct HirProgram
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
@@ -344,7 +344,7 @@ src/hir/lower/body/part_07.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[S
 src/hir/lower/body/part_07.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
 src/hir/lower/body/part_07.rs:115: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
 src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
-src/hir/lower/body/part_07.rs:243: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
+src/hir/lower/body/part_07.rs:255: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
 src/hir/lower/body/part_08.rs:181: pub(crate) fn lower_while(
@@ -1277,16 +1277,20 @@ src/mir/borrow/cfg.rs:42: fn push(&mut self, payload: Payload<'a>, succ: Vec<usi
 src/mir/borrow/cfg.rs:56: fn seq(&mut self, stmts: &'a [MirStmtBox], next: usize, loops: &[(usize, usize)]) -> usize
 src/mir/borrow/cfg.rs:64: fn stmt(&mut self, s: &'a dyn MirStmtNode, next: usize, loops: &[(usize, usize)]) -> usize
 src/mir/borrow/cfg.rs:105: fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<VarId>) -> (HashSet<VarId>, HashSet<VarId>)
+src/mir/borrow/follow.rs:11: pub fn match_source(
+src/mir/borrow/follow.rs:51: pub fn source_names(mir_fn: &MirFn) -> HashMap<VarId, Symbol>
 src/mir/borrow/liveness.rs:6: pub fn live_in(cfg: &cfg::Cfg) -> Vec<HashSet<VarId>>
-src/mir/borrow/loans.rs:7: struct Loan
-src/mir/borrow/loans.rs:17: pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()>
-src/mir/borrow/loans.rs:193: fn var_name(mir_fn: &MirFn, v: VarId) -> String
-src/mir/borrow/loans.rs:202: fn walk_stmt(
-src/mir/borrow/loans.rs:233: fn walk_expr(
+src/mir/borrow/loans.rs:8: pub(super) struct Loan
+src/mir/borrow/loans.rs:18: pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()>
 src/mir/borrow/mod.rs:14: mod cfg;
-src/mir/borrow/mod.rs:15: mod liveness;
-src/mir/borrow/mod.rs:16: mod loans;
-src/mir/borrow/mod.rs:22: pub fn check_borrows(mir_fn: &MirFn) -> Result<()>
+src/mir/borrow/mod.rs:15: mod follow;
+src/mir/borrow/mod.rs:16: mod liveness;
+src/mir/borrow/mod.rs:17: mod loans;
+src/mir/borrow/mod.rs:18: mod walk;
+src/mir/borrow/mod.rs:24: pub fn check_borrows(mir_fn: &MirFn) -> Result<()>
+src/mir/borrow/walk.rs:6: pub(super) fn var_name(mir_fn: &MirFn, v: VarId) -> String
+src/mir/borrow/walk.rs:15: pub(super) fn walk_stmt(
+src/mir/borrow/walk.rs:46: fn walk_expr(
 src/mir/display.rs:7: pub fn display_mir_program(program: &MirProgram)
 src/mir/display.rs:11: pub fn mir_program_to_string(program: &MirProgram) -> String
 src/mir/display.rs:20: fn pad(n: usize) -> String
@@ -1344,8 +1348,8 @@ src/mir/ir.rs:147: pub struct MirLocal
 src/mir/ir.rs:153: impl MirLocal
 src/mir/ir.rs:154: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
 src/mir/ir.rs:160: pub struct MirFn
-src/mir/ir.rs:182: pub enum MirItem
-src/mir/ir.rs:195: pub struct MirProgram
+src/mir/ir.rs:184: pub enum MirItem
+src/mir/ir.rs:197: pub struct MirProgram
 src/mir/lower/checks.rs:5: fn collect_stmt_var_ids(stmt: &HirStmt, vars: &mut HashSet<VarId>)
 src/mir/lower/checks.rs:57: impl Ctx
 src/mir/lower/checks.rs:60: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
@@ -1777,8 +1781,9 @@ example/test_ffi_attrs.aya:26: fn touch(#[nonnull] ref int x) -> int { return 0 
 example/test_ffi_attrs.aya:28: fn main() -> int
 example/test_follow_with.aya:2: struct S
 example/test_follow_with.aya:8: fn pick(ref S s) -> ref S { return s }
-example/test_follow_with.aya:10: struct Holder
-example/test_follow_with.aya:16: fn main() -> int
+example/test_follow_with.aya:12: fn first(ref S a, ref S b) -> ref S { return a }
+example/test_follow_with.aya:14: struct Holder
+example/test_follow_with.aya:20: fn main() -> int
 example/test_import.aya:3: fn main() -> int
 example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int

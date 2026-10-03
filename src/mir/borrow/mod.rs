@@ -12,8 +12,10 @@
 //! 限制：引用不可返回、不可存入字段/数组（无生命周期注解）。
 
 mod cfg;
+mod follow;
 mod liveness;
 mod loans;
+mod walk;
 
 use crate::error::{Error, Result};
 use crate::hir::ir::{HirType, VarId};
@@ -31,11 +33,14 @@ pub fn check_borrows(mir_fn: &MirFn) -> Result<()> {
         })
         .collect();
     if matches!(mir_fn.return_type, HirType::Ref(..)) && ref_params.len() != 1 {
-        return Err(Error::Borrow(format!(
-            "function `{}` returns a reference but has {} reference parameters (lifetime elision requires exactly one)",
-            mir_fn.name.as_str(),
-            ref_params.len()
-        )));
+        if mir_fn.follow_sources.is_empty() {
+            return Err(Error::Borrow(format!(
+                "function `{}` returns a reference but has {} reference parameters; add #[follow_with(param, ...)] to declare the source(s)",
+                mir_fn.name.as_str(),
+                ref_params.len()
+            )));
+        }
+        // A4b：多来源由 #[follow_with] 声明（存在性/歧义在 loans 中校验）
     }
     loans::check_fn(mir_fn, &ref_params)
 }

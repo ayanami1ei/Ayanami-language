@@ -36,6 +36,7 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
             effects: f.effects.clone(),
             inferred: f.inferred.clone(),
             is_macro: f.is_macro,
+            follow_sources: f.follow_sources.clone(),
         });
     }
 
@@ -77,5 +78,6 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
             effects: f.effects.clone(),
             inferred: f.inferred.clone(),
             is_macro: f.is_macro,
+            follow_sources: f.follow_sources.clone(),
     })
 }

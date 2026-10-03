@@ -162,6 +162,17 @@ impl crate::hir::lower::Ctx {
         // A3a：解析效应注解（throws/eff；注解权威，推断在后续阶段）
         let effects = crate::hir::effects::parse(&attrs)?;
         let is_macro = attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "macro");
+        let follow_sources: Vec<Symbol> = attrs.iter()
+            .filter(|a| a.is_builtin() && a.name.as_str() == "follow_with")
+            .flat_map(|a| a.args.iter())
+            .filter_map(|arg| match arg {
+                crate::parser::ast::AttrArg::Expr(e) => match e.as_ref() {
+                    Expr::Ident(s, _) => Some(*s),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect();
         let saved_pending = std::mem::take(&mut self.pending_stmts);
         self.current_fn = fn_id;
         self.locals = Vec::new();
@@ -223,6 +234,7 @@ impl crate::hir::lower::Ctx {
             effects,
             is_pub,
             is_macro,
+            follow_sources,
             inferred: crate::hir::effects::EffectSet::default(),
             param_attrs,
             fn_id,

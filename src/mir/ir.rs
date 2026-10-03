@@ -176,6 +176,8 @@ pub struct MirFn {
     pub inferred: crate::hir::effects::EffectSet,
     /// A5b：用户宏（LIR 符号加保留前缀）
     pub is_macro: bool,
+    /// A4b：`#[follow_with]` 来源（参数名/类型名）
+    pub follow_sources: Vec<crate::intern::Symbol>,
 }
 
 #[derive(Debug, Clone)]

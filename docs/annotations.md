@@ -50,7 +50,7 @@ fn read_config(ref String path) -> Config { ... }
 | 优化/代码生成 | `inline` `cold` `noreturn` `pure` `readonly` `nounwind` `willreturn` `noalias` `nonnull` | 映射 LLVM 函数/参数属性（含 extern 声明，跨语言优化） | A1 | 部分实现（函数级） |
 | 条件/契约 | `cfg` `requires` `ensures` `invariant` `assume` | 条件编译；debug 运行时检查 + release `llvm.assume` | A2 | 已完成（`--release` 切换） |
 | 效应 | `io` `state` `alloc` `pure` `no_error` `throws` | 注册表 + 默认最好情况推断；承诺/事实分开导出 | A3 | 部分实现（§6 已定稿） |
-| 生命周期 | `#[follow_with(...)]` | 注解式引用存活契约；NLL 来源标记与字段引用检查 | A4 | 部分实现（A4a 语法/校验） |
+| 生命周期 | `#[follow_with(...)]` | 注解式引用存活契约；NLL 来源标记与字段引用检查 | A4 | 部分实现（A4a + A4b-1 返回检查） |
 | 用户宏/插件 | `#[pkg::macro(...)]` | 标注 provider 解析；宏展开（声明式或编译期执行）；插件注册属性 | A5 | 设计（§8） |
 
 ## 4. 优化标注（A1）与 LLVM 映射

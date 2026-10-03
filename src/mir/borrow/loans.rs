@@ -2,14 +2,15 @@ use std::collections::HashMap;
 
 use super::*;
 use super::cfg::Payload;
+use super::walk::{var_name, walk_stmt};
 
 /// 引用局部变量/参数对应的借用。
-struct Loan {
+pub(super) struct Loan {
     /// 被借用的变量
-    var: VarId,
-    mutable: bool,
+    pub(super) var: VarId,
+    pub(super) mutable: bool,
     /// 借用的"来源"：ref 局部自身，或（拷贝时）来源参数/局部
-    origin: VarId,
+    pub(super) origin: VarId,
 }
 
 /// 检查入口。
@@ -97,6 +98,11 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
         }
     }
 
+    // A4b：解析 #[follow_with] 来源 → 引用参数
+    let declared: Vec<(crate::intern::Symbol, VarId)> = mir_fn.follow_sources.iter()
+        .map(|s| super::follow::match_source(mir_fn, s, ref_params).map(|v| (*s, v)))
+        .collect::<Result<Vec<_>>>()?;
+
     let mut errors: Vec<String> = Vec::new();
 
     for (i, node) in cfg.nodes.iter().enumerate() {
@@ -145,15 +151,33 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
             // 返回引用：必须来自唯一的引用参数（生命周期省略）
             if let Some(v) = s.return_value() {
                 if matches!(mir_fn.return_type, HirType::Ref(..)) {
-                    let ok = ref_params.iter().any(|(p, pm)| {
-                        (v.as_local() == Some(*p)
-                            || loans.get(&v.as_local().unwrap_or(*p)).map(|l| l.origin == *p).unwrap_or(false))
-                            && (!matches!(mir_fn.return_type, HirType::Ref(_, true)) || *pm)
+                    let origin = v.as_local().and_then(|lv| {
+                        if ref_params.iter().any(|(p, _)| *p == lv) {
+                            Some(lv)
+                        } else {
+                            loans.get(&lv).map(|l| l.origin)
+                        }
                     });
-                    if !ok {
-                        errors.push(format!(
-                            "returned reference must be derived from the elided reference parameter"
-                        ));
+                    if !declared.is_empty() {
+                        // A4b：返回引用必须跟随声明的来源之一
+                        let ok = origin.map_or(false, |o| declared.iter().any(|(_, p)| *p == o));
+                        let mut_ok = !matches!(mir_fn.return_type, HirType::Ref(_, true))
+                            || origin.map_or(false, |o| ref_params.iter().any(|(p, m)| *p == o && *m));
+                        if !ok || !mut_ok {
+                            errors.push(format!(
+                                "returned reference must follow one of the #[follow_with(...)] sources"
+                            ));
+                        }
+                    } else {
+                        let ok = ref_params.iter().any(|(p, pm)| {
+                            (origin == Some(*p))
+                                && (!matches!(mir_fn.return_type, HirType::Ref(_, true)) || *pm)
+                        });
+                        if !ok {
+                            errors.push(format!(
+                                "returned reference must be derived from the elided reference parameter"
+                            ));
+                        }
                     }
                 }
             }
@@ -188,110 +212,4 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)]) -> Result<()> {
         return Err(Error::Borrow(e));
     }
     Ok(())
-}
-
-fn var_name(mir_fn: &MirFn, v: VarId) -> String {
-    mir_fn
-        .locals
-        .get(v.0)
-        .map(|l| l.name.as_str())
-        .unwrap_or_else(|| format!("v{}", v.0))
-}
-
-/// 语句内按求值顺序遍历临时借用：调用结束时释放该调用内的借用。
-fn walk_stmt(
-    stmt: &dyn MirStmtNode,
-    active: &[(VarId, &Loan)],
-    mir_fn: &MirFn,
-    errors: &mut Vec<String>,
-) {
-    let mut stack: Vec<Vec<(VarId, bool, bool)>> = vec![Vec::new()];
-    let mut roots: Vec<&dyn MirNode> = Vec::new();
-    if let Some((_, v)) = stmt.assign_parts() {
-        roots.push(&**v);
-    }
-    if let Some((o, v)) = stmt.field_assign_parts() {
-        roots.push(&**o);
-        roots.push(&**v);
-    }
-    if let Some((o, i, v)) = stmt.index_assign_parts() {
-        roots.push(&**o);
-        roots.push(&**i);
-        roots.push(&**v);
-    }
-    if let Some(v) = stmt.return_value() {
-        roots.push(&**v);
-    }
-    if let Some(e) = stmt.expr_part() {
-        roots.push(&**e);
-    }
-    for r in roots {
-        walk_expr(r, &mut stack, active, mir_fn, errors);
-    }
-}
-
-fn walk_expr(
-    node: &dyn MirNode,
-    stack: &mut Vec<Vec<(VarId, bool, bool)>>,
-    active: &[(VarId, &Loan)],
-    mir_fn: &MirFn,
-    errors: &mut Vec<String>,
-) {
-    // 新借用（ref / ref mut）
-    if let Some((var, mutable)) = node.as_ref() {
-        let conflict = active
-            .iter()
-            .any(|(_, l)| l.var == var && (l.mutable || mutable))
-            || stack
-                .iter()
-                .flatten()
-                .any(|(v, m, _)| *v == var && (*m || mutable));
-        if conflict {
-            errors.push(format!(
-                "cannot borrow `{}` as {}: already borrowed in this expression",
-                var_name(mir_fn, var),
-                if mutable { "mutable" } else { "immutable" }
-            ));
-        }
-        stack.last_mut().unwrap().push((var, mutable, false));
-        return; // 不遍历 SMirRef 的目标
-    }
-    // 调用是求值上下文边界：调用结束后其内部临时借用全部释放
-    if node.is_call() {
-        // 两阶段借用：接收者位置（第一个子节点）的可变借用先记为 reserved，
-        // 允许同一调用内后续参数读取该变量（s.add(s.v)）
-        stack.push(Vec::new());
-        let first = std::cell::Cell::new(true);
-        node.for_each_child(&mut |c| {
-            if first.replace(false) {
-                if let Some((var, true)) = c.as_ref() {
-                    let conflict = active.iter().any(|(_, l)| l.var == var && l.mutable)
-                        || stack.iter().flatten().any(|(v, m, _)| *v == var && *m);
-                    if conflict {
-                        errors.push(format!(
-                            "cannot borrow `{}` as mutable: already borrowed in this expression",
-                            var_name(mir_fn, var)
-                        ));
-                    }
-                    stack.last_mut().unwrap().push((var, true, true));
-                    return;
-                }
-            }
-            walk_expr(c, stack, active, mir_fn, errors);
-        });
-        stack.pop();
-        return;
-    }
-    // 读取检查：可变借用期间不可读取
-    if let Some(v) = node.as_local() {
-        let mutably_borrowed = active.iter().any(|(_, l)| l.mutable && l.var == v)
-            || stack.iter().flatten().any(|(bv, bm, reserved)| *bm && !*reserved && *bv == v);
-        if mutably_borrowed {
-            errors.push(format!(
-                "cannot use `{}` because it is mutably borrowed",
-                var_name(mir_fn, v)
-            ));
-        }
-    }
-    node.for_each_child(&mut |c| walk_expr(c, stack, active, mir_fn, errors));
 }

@@ -7,6 +7,10 @@ struct S {
 #[follow_with(s)]
 fn pick(ref S s) -> ref S { return s }
 
+// 多来源：返回引用跟随 a（生命周期取最短）
+#[follow_with(a)]
+fn first(ref S a, ref S b) -> ref S { return a }
+
 struct Holder {
     // 字段引用跟随 owner（实例不晚于被引用对象失效）
     #[follow_with(owner)]

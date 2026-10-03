@@ -1,6 +1,6 @@
 # 显式生命周期（A4，注解式 `follow_with`）
 
-> 状态：**A4a 已实现**（语法/校验）；A4b 借用检查接入待做（2026-10）。关联：`docs/annotations.md` §7、`docs/knowledge-graph.md`。
+> 状态：**A4a 语法/校验 + A4b-1 返回检查已实现**；字段存引用（A4b-2）待做（2026-10）。关联：`docs/annotations.md` §7、`docs/knowledge-graph.md`。
 > 决策：不使用 Rust 风格 `'a` 类型语法；生命周期关系用 `#[follow_with(...)]` 注解表达。
 
 ## 1. 目标与直觉
@@ -62,9 +62,13 @@ struct Holder {
   - `#[follow_with(...)]` 加入白名单；仅允许函数与结构体字段（枚举/接口/impl 报错）；
   - 字段级属性文法/AST/formatter 保真（`Field = AttrList? Type Ident`）；
   - 至少一个来源、来源必须为标识符；`example/test_follow_with.aya` check/build/fmt 通过。
-- **A4b 借用检查接入**
-  - loan 来源标记 + 返回检查（含多来源取最短）+ 字段存引用的构造检查；
-  - 负例：返回引用来自未声明来源、字段实例可能比引用活得久、多 ref 未注解。
+- **A4b-1 返回检查（已完成，2026-10）**
+  - `HirFn/MirFn.follow_sources`；`borrow/follow.rs::match_source`（参数名优先、类型名唯一匹配、歧义报错）；
+  - 返回引用必须跟随声明来源之一（多来源=取最短语义）；未注解的多 ref 返回报错并提示补 `#[follow_with]`；
+  - 负例：返回来自未声明来源、同名类型歧义、多 ref 未注解，均带诊断。
+- **A4b-2 字段存引用（待做）**
+  - 允许 `ref T` 字段；构造点校验字段 loan 覆盖实例作用域；
+  - 需同步改 `mir/lower` 的字段存储限制与 LIR 字段读写。
 - **A4c 跨函数与工具**
   - 跨函数 `follow_with` 传播；`defs`/IDE 展示来源关系。
 
