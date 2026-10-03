@@ -11,9 +11,14 @@ fn outer(int x) -> Result[int, int] {
     return Result::Ok(v * 10)
 }
 
+// 调用实参上下文：泛型枚举构造按形参类型实例化
+fn take(Result[int, int] r) -> int { return r._tag }
+
 fn main() -> int {
     a = outer(1)
     b = outer(-5)
-    // a 应为 Ok（_tag=0），b 应为 Err（_tag=1，由 ? 提前返回）
-    return a._tag + b._tag - 1
+    c = take(Result::Ok(7))
+    d = take(Result::Err(7))
+    // a 应为 Ok（0），b 应为 Err（1），c=0，d=1
+    return a._tag + b._tag - 1 + c + d - 1
 }

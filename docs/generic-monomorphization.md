@@ -76,7 +76,8 @@
 - `lower_fn` 对返回/参数类型调用 `instantiate_type`。
 - 实测 `example/test_try.aya`（`Result[int,int]` + `?`）exit 0；
   IR：`%struct.Result_lt_int_c_int_gt_ = { i64, %struct.Result_Ok_lt_int_c_int_gt_, %struct.Result_Err_lt_int_c_int_gt_ }`。
-- 待补：调用实参/带类型标注赋值的期望类型上下文；`defs`/包导出对实例化结构的可见性说明。
+- 已补：调用实参/方法实参期望类型（`adapt_enum_args` + 基名宽松重载解析回退）；
+  待补：带类型标注赋值（语法目前无注解）、函数指针实参的实例化重写已有、`defs` 可见性说明。
 
 ## 5. 影响面与风险
 

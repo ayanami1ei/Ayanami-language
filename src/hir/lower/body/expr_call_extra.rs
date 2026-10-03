@@ -12,9 +12,11 @@ impl crate::hir::lower::Ctx {
         let all_types = std::iter::once(target_ty.clone()).chain(arg_types.clone()).collect::<Vec<_>>();
         // Check if target is a function pointer type
         if let HirType::FnPtr(param_tys, ret_ty) = &target_ty {
-            let args = hir_args.into_iter().enumerate().map(|(i, a)| {
+            let param_tys = param_tys.clone();
+            let args: Vec<HirNodeBox> = hir_args.into_iter().enumerate().map(|(i, a)| {
                 if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
             }).collect();
+            let args = self.adapt_enum_args(args, &param_tys)?;
             return Ok(SCallP { fn_ptr: hir_target, args, ty: *ret_ty.clone() }.into());
         }
         if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("call"), &all_types) {
@@ -26,6 +28,7 @@ impl crate::hir::lower::Ctx {
                 if i >= param_tys.len() { return arg; }
                 wrap_arg_for_param(arg, &param_tys[i])
             }).collect();
+            let all_args = self.adapt_enum_args(all_args, &param_tys)?;
             return Ok(SCall { fn_id, args: all_args, ty: ret_ty }.into());
         }
         Err(Error::Hir(format!("type `{}` cannot be called as a function at {}:{}",

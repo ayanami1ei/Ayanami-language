@@ -76,6 +76,24 @@ impl crate::hir::lower::Ctx {
         Ok(())
     }
 
+    /// 泛型单态化：按形参类型批量重写调用实参中的枚举构造。
+    pub fn adapt_enum_args(
+        &mut self,
+        args: Vec<HirNodeBox>,
+        param_tys: &[HirType],
+    ) -> Result<Vec<HirNodeBox>> {
+        let mut out = Vec::with_capacity(args.len());
+        for (i, a) in args.into_iter().enumerate() {
+            let a = if i < param_tys.len() {
+                self.instantiate_enum_value(a, &param_tys[i])?
+            } else {
+                a
+            };
+            out.push(a);
+        }
+        Ok(out)
+    }
+
     /// 泛型单态化：把枚举构造的基名 `SStruct` 重写为期望的实例化名。
     pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox> {
         let HirType::Named(ename) = expected else { return Ok(node); };

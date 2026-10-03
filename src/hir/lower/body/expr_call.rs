@@ -37,9 +37,10 @@ impl crate::hir::lower::Ctx {
                             if let HirType::FnPtr(param_tys, ret_ty) = &ty {
                                 let fn_ptr: HirNodeBox = SVar { var: var_id, ty: ty.clone() }.into();
                                 let param_tys = param_tys.clone();
-                                let args = hir_args.into_iter().enumerate().map(|(i, a)| {
+                                let args: Vec<HirNodeBox> = hir_args.into_iter().enumerate().map(|(i, a)| {
                                     if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
                                 }).collect();
+                                let args = self.adapt_enum_args(args, &param_tys)?;
                                 return Ok(SCallP { fn_ptr, args, ty: *ret_ty.clone() }.into());
                             }
                         }
@@ -122,6 +123,7 @@ impl crate::hir::lower::Ctx {
             }
         }).collect();
 
+        let hir_args = self.adapt_enum_args(hir_args, &param_tys)?;
         let ty = self.fns[fn_id.0].return_type.clone();
         Ok(SCall { fn_id, args: hir_args, ty }.into())
     }
@@ -168,7 +170,7 @@ impl crate::hir::lower::Ctx {
         // Enum method dispatch: e.method() → EnumMatch over all variants
         if let HirType::Named(type_name) = receiver_inner {
             if self.is_enum_type(type_name) {
-                if let Some(enum_fields) = self.struct_defs.get(type_name) {
+                if let Some(enum_fields) = self.struct_defs.get(type_name).cloned() {
                     let var_fields: Vec<_> = enum_fields.iter().skip(1)
                         .filter(|f| f.name.as_str().starts_with("_data_")).collect();
                     if !var_fields.is_empty() {
@@ -193,6 +195,7 @@ impl crate::hir::lower::Ctx {
                                     if j >= param_tys.len() { return arg; }
                                     wrap_arg_for_param(arg, &param_tys[j])
                                 }).collect();
+                                let all_args = self.adapt_enum_args(all_args, &param_tys)?;
                                 arms.push((i as i64, SCall { fn_id, args: all_args, ty: ret_ty }.into()));
                             }
                         }
@@ -254,6 +257,7 @@ impl crate::hir::lower::Ctx {
             if i >= param_tys.len() { return arg; }
             wrap_arg_for_param(arg, &param_tys[i])
         }).collect();
+        let all_args = self.adapt_enum_args(all_args, &param_tys)?;
 
         let ty = self.fns[fn_id.0].return_type.clone();
         Ok(SCall { fn_id, args: all_args, ty }.into())

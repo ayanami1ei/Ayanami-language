@@ -1,5 +1,16 @@
 use super::*;
 
+/// 泛型单态化：两类型是否为同一基名（Named 去泛型参数后相等）。
+fn same_base_name(a: &HirType, b: &HirType) -> bool {
+    match (a, b) {
+        (HirType::Named(x), HirType::Named(y)) => {
+            let (xb, yb) = (crate::hir::lower::strip_generic_name(x), crate::hir::lower::strip_generic_name(y));
+            xb == yb && (x != y || xb == *x)
+        }
+        _ => false,
+    }
+}
+
 impl crate::hir::lower::Ctx {
     pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool {
         if param_ty == arg_ty { return true; }
@@ -56,10 +67,24 @@ impl crate::hir::lower::Ctx {
             })
             .collect();
         if matches.len() == 1 {
-            Some(matches[0])
+            return Some(matches[0]);
+        }
+        if matches.len() > 1 {
+            return None;
+        }
+        // 泛型单态化回退：实参仍是基名（Result）而形参已实例化（Result<int,int>）时按基名匹配
+        let lenient: Vec<FnId> = candidates.iter().copied()
+            .filter(|&fn_id| {
+                let sig = &self.fns[fn_id.0];
+                sig.params.len() == arg_types.len()
+                    && sig.params.iter().zip(arg_types).all(|((_, pt), at)| {
+                        self.param_compatible(pt, at) || same_base_name(pt, at)
+                    })
+            })
+            .collect();
+        if lenient.len() == 1 {
+            Some(lenient[0])
         } else {
-            if matches.len() > 1 {
-            }
             None
         }
     }
@@ -118,6 +143,17 @@ impl crate::hir::lower::Ctx {
             let remaining = &sig.params[1..];
             if remaining.len() != arg_types.len() { continue; }
             if remaining.iter().zip(arg_types).all(|((_, pt), at)| pt == at) {
+                return Some(fn_id);
+            }
+        }
+        // 泛型单态化回退：实参是基名而形参已实例化
+        for &fn_id in candidates {
+            let sig = &self.fns[fn_id.0];
+            if sig.params.is_empty() { continue; }
+            if !Ctx::receiver_matches_param(receiver_type, &sig.params[0].1) { continue; }
+            let remaining = &sig.params[1..];
+            if remaining.len() != arg_types.len() { continue; }
+            if remaining.iter().zip(arg_types).all(|((_, pt), at)| pt == at || same_base_name(pt, at)) {
                 return Some(fn_id);
             }
         }
