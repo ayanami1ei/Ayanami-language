@@ -1,4 +1,4 @@
-//! A5b-2/A5b-3：宏插件构建（llc PIC + C shim + runtime）与 dlopen 调用（ABI v2）。
+//! A5b-2/A5b-3：宏插件构建（llc PIC + C shim + runtime）与 dlopen 调用（ABI v3，结构体封装）。
 
 use std::ffi::{CString, c_char, c_int, c_void};
 use std::hash::{Hash, Hasher};
@@ -8,7 +8,7 @@ use std::process::Command;
 use crate::error::{Error, Result};
 
 /// 插件 ABI 版本：签名变化时必须递增（参与 .so 缓存键，避免复用旧 shim）。
-const ABI_VERSION: u32 = 2;
+const ABI_VERSION: u32 = 3;
 
 mod dl {
     use super::*;
@@ -21,6 +21,20 @@ mod dl {
     }
 }
 const RTLD_NOW: c_int = 2;
+
+/// ABI v3：文本缓冲（与 Ayanami String 布局一致，减少裸指针参数）
+#[repr(C)]
+pub(super) struct AyaBuf {
+    pub data: *mut u8,
+    pub len: usize,
+}
+
+/// ABI v3：文本缓冲数组（宏/pass 实参）
+#[repr(C)]
+pub(super) struct AyaBufList {
+    pub items: *const AyaBuf,
+    pub count: usize,
+}
 
 // ═══════════════════════════════════════════════════════════════════
 //  插件构建与调用
@@ -160,41 +174,35 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, de
         link_objs.push(dep_obj);
     }
 
-    // C shim：C ABI ↔ Ayanami String（{i8*, i64}）；ABI v2 传实参数组
+    // C shim：C ABI ↔ Ayanami String（{char*, long}）；ABI v3 用结构体封装
     let mut locals = String::new();
     let mut call_args = String::new();
     if arity >= 1 {
-        locals.push_str("    AyaStr s = { dup_str(in, in_len), in_len };\n");
+        locals.push_str("    AyaBuf s = dup_buf(input);\n");
         call_args.push_str("s");
         for i in 0..(arity - 1) {
-            locals.push_str(&format!(
-                "    AyaStr a{i} = {{ dup_str(args[{i}], arg_lens[{i}]), arg_lens[{i}] }};\n"
-            ));
+            locals.push_str(&format!("    AyaBuf a{i} = dup_buf(args.items[{i}]);\n"));
             call_args.push_str(&format!(", a{i}"));
         }
     }
-    let param_types = if arity == 0 { "void".to_string() } else { vec!["AyaStr"; arity].join(", ") };
+    let param_types = if arity == 0 { "void".to_string() } else { vec!["AyaBuf"; arity].join(", ") };
     let shim = format!(
         "#include <stdlib.h>\n#include <string.h>\n\
-         typedef struct {{ char* data; long len; }} AyaStr;\n\
-         extern AyaStr {symbol}({param_types});\n\
-         static char* dup_str(const char* p, long n) {{\n\
-             char* q = (char*)malloc((size_t)n + 1);\n\
-             if (q) {{ memcpy(q, p, (size_t)n); q[n] = 0; }}\n\
-             return q;\n\
+         typedef struct {{ char* data; long len; }} AyaBuf;\n\
+         typedef struct {{ const AyaBuf* items; long count; }} AyaBufList;\n\
+         extern AyaBuf {symbol}({param_types});\n\
+         static AyaBuf dup_buf(AyaBuf b) {{\n\
+             AyaBuf r; r.len = b.len;\n\
+             r.data = (char*)malloc((size_t)b.len + 1);\n\
+             if (r.data) {{ memcpy(r.data, b.data, (size_t)b.len); r.data[b.len] = 0; }}\n\
+             return r;\n\
          }}\n\
-         char* __ayanami_macro_expand(const char* in, long in_len,\n\
-                                      const char* const* args, const long* arg_lens, long argc,\n\
-                                      long* out_len) {{\n\
-             (void)argc; (void)args; (void)arg_lens; (void)in; (void)in_len;\n\
+         AyaBuf __ayanami_macro_expand(AyaBuf input, AyaBufList args) {{\n\
+             (void)args;\n\
          {locals}\
-             AyaStr r = {symbol}({call_args});\n\
-             *out_len = r.len;\n\
-             char* out = (char*)malloc((size_t)r.len + 1);\n\
-             if (out) {{ memcpy(out, r.data, (size_t)r.len); out[r.len] = 0; }}\n\
-             return out;\n\
+             return {symbol}({call_args});\n\
          }}\n\
-         void __ayanami_macro_free(char* p) {{ free(p); }}\n",
+         void __ayanami_macro_free(AyaBuf b) {{ free(b.data); }}\n",
         symbol = symbol,
         param_types = param_types,
         locals = locals,
@@ -221,21 +229,17 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, de
     Ok(so_path)
 }
 
-type ExpandFn = unsafe extern "C" fn(
-    *const u8,
-    usize,
-    *const *const u8,
-    *const usize,
-    usize,
-    *mut usize,
-) -> *mut u8;
-type FreeFn = unsafe extern "C" fn(*mut c_char);
+type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
+type FreeFn = unsafe extern "C" fn(AyaBuf);
 
 fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String]) -> Result<String> {
     let c_path = CString::new(so_path.to_string_lossy().as_bytes())
         .map_err(|_| Error::Compile("macro path contains NUL".into()))?;
-    let arg_ptrs: Vec<*const u8> = args.iter().map(|a| a.as_ptr()).collect();
-    let arg_lens: Vec<usize> = args.iter().map(|a| a.len()).collect();
+    let arg_bufs: Vec<AyaBuf> = args.iter()
+        .map(|a| AyaBuf { data: a.as_ptr() as *mut u8, len: a.len() })
+        .collect();
+    let arg_list = AyaBufList { items: arg_bufs.as_ptr(), count: arg_bufs.len() };
+    let in_buf = AyaBuf { data: input.as_ptr() as *mut u8, len: input.len() };
     unsafe {
         let handle = dl::dlopen(c_path.as_ptr(), RTLD_NOW);
         if handle.is_null() {
@@ -258,20 +262,15 @@ fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String]) -> Re
             )));
         }
         let expand: ExpandFn = std::mem::transmute(expand_ptr);
-        let mut out_len = 0usize;
-        let out = expand(
-            input.as_ptr(), input.len(),
-            arg_ptrs.as_ptr(), arg_lens.as_ptr(), args.len(),
-            &mut out_len,
-        );
-        if out.is_null() {
+        let out = expand(in_buf, arg_list);
+        if out.data.is_null() {
             dl::dlclose(handle);
             return Err(Error::Compile(format!("macro `{}` returned null", symbol)));
         }
-        let bytes = std::slice::from_raw_parts(out, out_len).to_vec();
+        let bytes = std::slice::from_raw_parts(out.data, out.len).to_vec();
         if !free_ptr.is_null() {
             let free: FreeFn = std::mem::transmute(free_ptr);
-            free(out as *mut c_char);
+            free(out);
         }
         dl::dlclose(handle);
         String::from_utf8(bytes).map_err(|e| Error::Compile(format!("macro output not UTF-8: {}", e)))

@@ -36,6 +36,10 @@ pub enum PackageSymbol {
     Macro {
         name: String,
     },
+    /// A5d：导出的 MIR 优化注解（`#[pass]` 函数）
+    Pass {
+        name: String,
+    },
 }
 
 /// Parsed symbol from a .lcl package file.
@@ -57,6 +61,10 @@ pub enum ImportedSymbol {
     },
     /// A5b：包导出的宏
     Macro {
+        name: String,
+    },
+    /// A5d：包导出的 MIR 优化注解
+    Pass {
         name: String,
     },
 }

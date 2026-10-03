@@ -284,8 +284,15 @@ struct Holder {
   第 1 参是带宏 item 的源码文本（已去掉宏标注本身），其后依次是标注实参的源码文本；
   实参按书写形式传入（字符串字面量含引号，`k = v` 保留键值形式）。
   无实参时仍可用 `fn() -> String`（不接收 item 源码）或 `fn(String) -> String`（仅 item 源码）。
-- **A5b-3 插件 ABI v2**：`__ayanami_macro_expand(in, in_len, args, arg_lens, argc, out_len)`；
-  shim 把输入复制到可转移所有权的缓冲区（宏内消费/释放均安全）；插件缓存键包含 ABI 版本。
+- **A5b-3 插件 ABI（v3 起结构体化，减少裸指针与参数个数）**：
+  ```c
+  typedef struct { char* data; long len; } AyaBuf;
+  typedef struct { const AyaBuf* items; long count; } AyaBufList;
+  AyaBuf __ayanami_macro_expand(AyaBuf input, AyaBufList args);
+  void   __ayanami_macro_free(AyaBuf);
+  ```
+  shim 把输入复制到可转移所有权的缓冲区（宏内消费/释放均安全）；缓存键包含 ABI 版本。
+  v2 的「裸指针 + 长度 + 数组指针」形式废弃。
 - Ayanami 宏：`pub` + `#[macro]` 函数，参数/返回为 `Source`（内建文本类型；v2 暂以 `String` 承载）；
   编译器按需用现有后端编译为动态库（`driver::ir_to_library(..., "dynamic-lib")`），
   导出到 `.lcl` 的宏表（新 section）。
@@ -308,6 +315,33 @@ struct Holder {
 - 遍历：函数体、`if`/`elif`/`else`、`for`/`while` 块内均展开；仅含编译器标注的
   `Attributed` 原样保留（`cfg` 过滤仍在其后执行）。
 - 表达式级宏、其他语言插件、WASM 沙箱、插件清单与权限为远期（A5c-2）。
+
+### 8.5 注解分类与 MIR 优化插件（A5d）
+
+注解是大类，不用单一 `#[attr]` 表达；按类别给不同的声明、接口与阶段：
+
+| 类别 | 标记 | 接口 | 阶段 |
+|---|---|---|---|
+| 编译器原语 | 保留名（`cfg`/`inline`/效应/契约/`follow_with`） | 编译器内部 | 各 pass |
+| 宏注解 | `#[macro]` | 源码 → 源码 | 解析后展开 |
+| 优化注解 | `#[pass]` | MIR 函数 → MIR 函数 | MIR 降级后 |
+| 检查注解（后置） | `#[check]` | MIR 函数 → 诊断（只读） | MIR 降级后 |
+
+- **产物与跨平台**：注解库打包为 `.lcl`（LIR + `macro=`/`pass=` 表）；宿主插件由使用方编译器
+  从 LIR 现场构建（llc PIC + shim + 依赖链接）并缓存；**不随包分发 `.so`**，天然跨平台。
+- **MIR 公开**：`std/mir.aya` 定义函数级子集类型
+  （`MirFunction`/`MirLocal`/`MirStmt`/`MirExpr`/`MirType`/`MirEffects`）与二进制编解码；
+  schema 带版本号，不匹配拒绝加载。编译器 Rust 侧实现同格式序列化。
+- **桥接（ABI v3 扩展）**：编译器把 `MirFunction` 序列化为 blob →
+  shim 调用 `__ayanami_pass_run(AyaBuf input, AyaBufList args) -> AyaBuf` →
+  插件解码为类型、改写、编码返回 → 编译器反序列化。
+- **执行后重查**：结构校验（局部变量索引/类型一致）→ 重跑借用检查 → 重算效应；
+  失败报「注解名 + 调用点 + 校验原因」。
+- **能力边界**：允许修改效应声明（推断重算）；**禁止修改签名**
+  （`params`/`return_type`/`name`/`extern_c`）；v1 仅函数内改写。
+- **解析**：与宏一致——`import` 自动作用域（该包导出的注解全部进入裸名表）、
+  `pkg::name` 消歧、重名报错；声明侧校验 `fn(MirFunction) -> MirFunction`。
+- **信任**：原生插件 = 编译期执行代码，信任级同宏；版本校验与沙箱后置。
 
 ## 9. 实现接口（跨包与工具）
 
@@ -338,6 +372,8 @@ struct Holder {
 | ADR-13 | 默认最好情况：默认空集 + 推断补全；注解用于 FFI/承诺/预留 | 少量样板，忘写也能推断，宽容 |
 | ADR-14 | `#[no_error]` 才是 `nounwind` 承诺；`#[throws()]` 是开放槽位 | 接口未来加错误不改符号，优化只信承诺 |
 | ADR-15 | `state` 只算可观察修改（全局/堆/ref mut），局部变量暂不算 | 先保守可用，需要再加 |
+| ADR-16 | 注解按类别分层（原语/宏/pass/check），不用单一 `#[attr]` 标记 | 各类接口、阶段、信任级不同，单一标记无法表达 |
+| ADR-17 | MIR 插件可改效应、禁改签名，执行后重跑结构/借用/效应检查 | 保留优化自由度，同时守住内存安全与 ABI 稳定 |
 
 ## 11. 实现状态
 
@@ -399,7 +435,10 @@ struct Holder {
       `.lcl` `[deps]` 依赖表 + 宏插件递归链接依赖对象
 - [x] A5c-1 语句级宏：块内 `#[pkg::macro(args...)]` 语句 → 源码进出、可展开多条、递归展开；
       函数体与 `if`/`for`/`while` 块遍历；`#[cfg]`/`#[invariant]` 等编译器标注保留
-- [ ] A5c-2 其他语言插件 / WASM 沙箱 / 表达式级宏 / 插件清单与权限（远期）
+- [ ] A5d-1 注解分类：`#[pass]` 声明 + `.lcl` `pass=` 表 + import 自动作用域/全限定解析 + 签名校验
+- [ ] A5d-2 MIR 优化插件：`std/mir.aya` 类型与编解码 + 插件 ABI v3（结构体）+ pass 后重查 +
+      首个 demo pass（把可证明无副作用的函数提升为现有 `#[pure]` 承诺）+ example
+- [ ] A5c-2 / A5d-3 `#[check]` 只读诊断、其他语言插件 / WASM 沙箱 / 表达式级宏 / 插件清单与权限（远期）
 
 ### 已知问题
 

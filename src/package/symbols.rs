@@ -59,6 +59,18 @@ impl Package {
                     }
                     return;
                 }
+                // A5d：优化注解单独入 pass 表，不作为普通函数导出
+                if attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "pass") {
+                    if all || vis.is_public() {
+                        let full_name = if ns_prefix.is_empty() {
+                            name.as_str().to_string()
+                        } else {
+                            format!("{}.{}", ns_prefix, name)
+                        };
+                        self.symbols.push(PackageSymbol::Pass { name: full_name });
+                    }
+                    return;
+                }
                 if all || vis.is_public() {
                     let full_name = if ns_prefix.is_empty() {
                         name.as_str().to_string()

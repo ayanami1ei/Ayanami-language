@@ -167,6 +167,9 @@ pub(super) fn merge_symbols(
                     crate::package::ImportedSymbol::Macro { name } => {
                         PackageSymbol::Macro { name }
                     }
+                    crate::package::ImportedSymbol::Pass { name } => {
+                        PackageSymbol::Pass { name }
+                    }
                 };
                 if !pkg.symbols.contains(&pkg_sym) {
                     pkg.symbols.push(pkg_sym);

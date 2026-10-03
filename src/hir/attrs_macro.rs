@@ -1,4 +1,8 @@
-//! A5b：宏引用校验（导入加载后；展开执行在 A5b-2）。
+//! A5b/A5d：库注解引用校验（导入加载后）。
+//!
+//! - 宏注解（`#[macro]`）必须已被宏展开消费，残留即内部错误；
+//! - 优化注解（`#[pass]`）保留到 MIR 阶段执行，这里只校验存在性；
+//! - 裸名自动作用域：跨所有已导入包查找，重名报歧义。
 
 use std::collections::HashMap;
 
@@ -6,7 +10,7 @@ use crate::error::{Error, Result};
 use crate::intern::Symbol;
 use crate::parser::ast::{Attr, Program, Stmt};
 
-use super::attrs::{Imports, ALLOWED};
+use super::attrs::ALLOWED;
 
 /// 是否为编译器内置属性（白名单或注册效应；含 `core::` 别名）。
 fn is_compiler_attr(a: &Attr) -> bool {
@@ -20,24 +24,74 @@ fn is_compiler_attr(a: &Attr) -> bool {
     false
 }
 
-/// A5b：导入加载完成后校验宏引用（存在性；展开执行在 A5b-2）。
+/// 导入加载完成后校验库注解引用。
 pub fn validate_macros(
     program: &Program,
-    tables: &HashMap<Symbol, Vec<Symbol>>,
+    macros: &HashMap<Symbol, Vec<Symbol>>,
+    passes: &HashMap<Symbol, Vec<Symbol>>,
 ) -> Result<()> {
-    let imports = Imports::collect(program);
     let mut out = Ok(());
     for stmt in &program.stmts {
-        validate_macros_stmt(stmt, tables, &imports, &mut out);
+        validate_macros_stmt(stmt, macros, passes, &mut out);
         if out.is_err() { return out; }
     }
     out
 }
 
+/// 注解类别
+enum AnnKind { Macro, Pass }
+
+/// 查找注解：全限定查指定包；裸名跨所有已导入包。
+/// 返回 Ok(Some(kind)) / Ok(None)（未找到）/ Err（裸名歧义）。
+fn lookup_annotation(
+    a: &Attr,
+    macros: &HashMap<Symbol, Vec<Symbol>>,
+    passes: &HashMap<Symbol, Vec<Symbol>>,
+) -> Result<Option<AnnKind>> {
+    let name = a.name.as_str();
+    if !a.qualifier.is_empty() {
+        let pkg = a.qualifier[0];
+        let rest: Vec<String> = a.qualifier[1..].iter().map(|s| s.as_str()).collect();
+        let qualified = if rest.is_empty() { name.clone() } else { format!("{}.{}", rest.join("."), name) };
+        if macros.get(&pkg).map_or(false, |ms| ms.iter().any(|m| m.as_str() == qualified)) {
+            return Ok(Some(AnnKind::Macro));
+        }
+        if passes.get(&pkg).map_or(false, |ms| ms.iter().any(|m| m.as_str() == qualified)) {
+            return Ok(Some(AnnKind::Pass));
+        }
+        return Ok(None);
+    }
+    let mut hits: Vec<(String, AnnKind)> = Vec::new();
+    for (pkg, ms) in macros {
+        if ms.iter().any(|m| m.as_str() == name) {
+            hits.push((pkg.as_str(), AnnKind::Macro));
+        }
+    }
+    for (pkg, ms) in passes {
+        if ms.iter().any(|m| m.as_str() == name) {
+            hits.push((pkg.as_str(), AnnKind::Pass));
+        }
+    }
+    match hits.len() {
+        0 => Ok(None),
+        1 => Ok(Some(match hits[0].1 {
+            AnnKind::Macro => AnnKind::Macro,
+            AnnKind::Pass => AnnKind::Pass,
+        })),
+        _ => {
+            let list: Vec<String> = hits.iter().map(|(p, _)| format!("{}::{}", p, name)).collect();
+            Err(Error::Hir(format!(
+                "ambiguous annotation #[{}]: exported by multiple packages ({}); use a qualified name (at {}:{})",
+                name, list.join(", "), a.span.start_line, a.span.start_col
+            )))
+        }
+    }
+}
+
 fn validate_macros_stmt(
     stmt: &Stmt,
-    tables: &HashMap<Symbol, Vec<Symbol>>,
-    imports: &Imports,
+    macros: &HashMap<Symbol, Vec<Symbol>>,
+    passes: &HashMap<Symbol, Vec<Symbol>>,
     out: &mut Result<()>,
 ) {
     let attrs: Vec<&Attr> = match stmt {
@@ -53,60 +107,43 @@ fn validate_macros_stmt(
         if is_compiler_attr(a) {
             continue;
         }
-        let name = a.name.as_str();
-        let (pkg_sym, found) = if !a.qualifier.is_empty() {
-            let pkg = a.qualifier[0];
-            let rest: Vec<String> = a.qualifier[1..].iter().map(|s| s.as_str()).collect();
-            let qualified = if rest.is_empty() { name.clone() } else { format!("{}.{}", rest.join("."), name) };
-            let found = tables.get(&pkg).map_or(false, |ms| {
-                ms.iter().any(|m| m.as_str() == qualified || m.as_str() == name)
-            });
-            (Some(pkg), found)
-        } else {
-            match imports.macros.iter().find_map(|(p, ms)| ms.iter().any(|m| m == &name).then(|| p.clone())) {
-                Some(pkg_sym) => {
-                    let pkg = Symbol::intern(&pkg_sym);
-                    let found = tables.get(&pkg).map_or(false, |ms| ms.iter().any(|m| m.as_str() == name));
-                    (Some(pkg), found)
-                }
-                None => (None, false),
+        match lookup_annotation(a, macros, passes) {
+            Err(e) => { *out = Err(e); return; }
+            Ok(None) => {
+                *out = Err(Error::Hir(format!(
+                    "unknown annotation #[{}]: not exported by any imported package (at {}:{})",
+                    a.path_str(), a.span.start_line, a.span.start_col
+                )));
+                return;
             }
-        };
-        if !found {
-            *out = Err(Error::Hir(format!(
-                "macro #[{}] not found in package `{}` (at {}:{})",
-                a.path_str(),
-                pkg_sym.map(|s| s.as_str()).unwrap_or_default(),
-                a.span.start_line,
-                a.span.start_col
-            )));
-            return;
+            Ok(Some(AnnKind::Pass)) => {
+                // 优化注解保留到 MIR 阶段执行
+            }
+            Ok(Some(AnnKind::Macro)) => {
+                // 宏展开应在 HIR 之前完成；这里出现说明展开遗漏
+                *out = Err(Error::Hir(format!(
+                    "macro #[{}] was not expanded (internal error) (at {}:{})",
+                    a.path_str(), a.span.start_line, a.span.start_col
+                )));
+                return;
+            }
         }
-        // 已解析到宏：展开执行在 A5b-2
-        // 宏展开（A5b-2）应在 HIR 之前完成；这里出现说明展开遗漏
-        *out = Err(Error::Hir(format!(
-            "macro #[{}] was not expanded (internal error) (at {}:{})",
-            a.path_str(),
-            a.span.start_line,
-            a.span.start_col
-        )));
-        return;
     }
     match stmt {
-        Stmt::FnDecl { body, .. } => validate_block(body, tables, imports, out),
+        Stmt::FnDecl { body, .. } => validate_block(body, macros, passes, out),
         Stmt::If { then_block, elifs, else_block, .. } => {
-            validate_block(then_block, tables, imports, out);
-            for (_, b) in elifs { validate_block(b, tables, imports, out); }
-            if let Some(b) = else_block { validate_block(b, tables, imports, out); }
+            validate_block(then_block, macros, passes, out);
+            for (_, b) in elifs { validate_block(b, macros, passes, out); }
+            if let Some(b) = else_block { validate_block(b, macros, passes, out); }
         }
         Stmt::For { body, .. } | Stmt::While { body, .. } => {
-            validate_block(body, tables, imports, out);
+            validate_block(body, macros, passes, out);
         }
         Stmt::Namespace { items, .. } => {
-            for s in items { validate_macros_stmt(s, tables, imports, out); if out.is_err() { return; } }
+            for s in items { validate_macros_stmt(s, macros, passes, out); if out.is_err() { return; } }
         }
         Stmt::ImplBlock { methods, .. } => {
-            for s in methods { validate_macros_stmt(s, tables, imports, out); if out.is_err() { return; } }
+            for s in methods { validate_macros_stmt(s, macros, passes, out); if out.is_err() { return; } }
         }
         Stmt::InterfaceDef { methods, .. } => {
             for m in methods {
@@ -120,19 +157,19 @@ fn validate_macros_stmt(
                 }
             }
         }
-        Stmt::Attributed { stmt: inner, .. } => validate_macros_stmt(inner, tables, imports, out),
+        Stmt::Attributed { stmt: inner, .. } => validate_macros_stmt(inner, macros, passes, out),
         _ => {}
     }
 }
 
 fn validate_block(
     block: &crate::parser::ast::Block,
-    tables: &HashMap<Symbol, Vec<Symbol>>,
-    imports: &Imports,
+    macros: &HashMap<Symbol, Vec<Symbol>>,
+    passes: &HashMap<Symbol, Vec<Symbol>>,
     out: &mut Result<()>,
 ) {
     for s in &block.stmts {
-        validate_macros_stmt(s, tables, imports, out);
+        validate_macros_stmt(s, macros, passes, out);
         if out.is_err() { return; }
     }
 }

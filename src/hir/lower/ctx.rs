@@ -53,6 +53,8 @@ pub(crate) struct Ctx {
     pub pending_stmts: Vec<HirStmt>,
     /// A5b：包导入的宏表（包 stem → 宏名）
     pub imported_macros: HashMap<Symbol, Vec<Symbol>>,
+    /// A5d：导入包的优化注解表（pass 名）
+    pub imported_passes: HashMap<Symbol, Vec<Symbol>>,
 }
 
 impl Ctx {
@@ -85,6 +87,7 @@ impl Ctx {
             allow_bare_array: false,
             pending_stmts: Vec::new(),
             imported_macros: HashMap::new(),
+            imported_passes: HashMap::new(),
         }
     }
 

@@ -75,7 +75,7 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
     let mut ctx = Ctx::new();
     ctx.collect_fns(&program.stmts)?;
     // A5b：导入加载完成后校验宏引用
-    crate::hir::attrs::validate_macros(&program, &ctx.imported_macros)?;
+    crate::hir::attrs::validate_macros(&program, &ctx.imported_macros, &ctx.imported_passes)?;
     ctx.build_vtables()?;
     let mut items = ctx.lower_items(&program.stmts)?;
 

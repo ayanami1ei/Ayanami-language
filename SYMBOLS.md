@@ -32,7 +32,7 @@ src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:124: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:141: pub(super) fn merge_symbols(
 src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram>
-src/compiler/build/lir.rs:23: pub(super) fn build_target_artifact(
+src/compiler/build/lir.rs:41: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:14: mod compile;
 src/compiler/build/mod.rs:15: mod deps;
 src/compiler/build/mod.rs:16: mod lir;
@@ -64,39 +64,48 @@ src/compiler/debug/stmt.rs:13: pub(super) fn write_stmt(stmt: &Stmt, level: usiz
 src/compiler/import.rs:2: pub fn find_std_dir() -> Option<std::path::PathBuf>
 src/compiler/import.rs:20: pub fn resolve_import_path(
 src/compiler/import.rs:84: pub fn load_config_for_file(file_path: &std::path::Path, _out_dir: &std::path::Path) -> Option<String>
-src/compiler/macro_expand/mod.rs:15: const MAX_DEPTH: usize = 32;
-src/compiler/macro_expand/mod.rs:17: mod plugin;
-src/compiler/macro_expand/mod.rs:20: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
-src/compiler/macro_expand/mod.rs:29: struct MacroCtx
+src/compiler/macro_expand/annotations.rs:14: pub(super) struct PkgAnnotations
+src/compiler/macro_expand/annotations.rs:22: pub(super) enum AnnKind
+src/compiler/macro_expand/annotations.rs:29: pub(super) struct AnnotationTables
+src/compiler/macro_expand/annotations.rs:33: impl AnnotationTables
+src/compiler/macro_expand/annotations.rs:34: pub fn is_empty(&self) -> bool
+src/compiler/macro_expand/annotations.rs:38: pub fn collect(stmts: &[Stmt]) -> Result<Self>
+src/compiler/macro_expand/annotations.rs:44: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()>
+src/compiler/macro_expand/annotations.rs:78: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind)>>
+src/compiler/macro_expand/annotations.rs:117: pub fn lcl_path(&self, pkg: &str) -> Option<String>
+src/compiler/macro_expand/mod.rs:17: const MAX_DEPTH: usize = 32;
+src/compiler/macro_expand/mod.rs:19: mod annotations;
+src/compiler/macro_expand/mod.rs:20: mod plugin;
+src/compiler/macro_expand/mod.rs:23: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
+src/compiler/macro_expand/mod.rs:32: struct MacroCtx
 src/compiler/macro_expand/mod.rs:37: impl MacroCtx
 src/compiler/macro_expand/mod.rs:38: fn collect(program: &Program, src_path: &Path) -> Result<Self>
-src/compiler/macro_expand/mod.rs:45: fn resolve(&self, a: &Attr) -> Option<(String, String)>
-src/compiler/macro_expand/mod.rs:60: fn collect_imports(
-src/compiler/macro_expand/mod.rs:92: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:109: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
-src/compiler/macro_expand/mod.rs:202: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)>
-src/compiler/macro_expand/mod.rs:223: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:243: fn parse_source(code: &str) -> Result<Program>
-src/compiler/macro_expand/mod.rs:253: fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/mod.rs:264: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/mod.rs:275: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
-src/compiler/macro_expand/plugin.rs:11: const ABI_VERSION: u32 = 2;
+src/compiler/macro_expand/mod.rs:45: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:62: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
+src/compiler/macro_expand/mod.rs:155: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)>
+src/compiler/macro_expand/mod.rs:176: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:203: fn parse_source(code: &str) -> Result<Program>
+src/compiler/macro_expand/mod.rs:213: fn is_compiler_attr(a: &Attr) -> bool
+src/compiler/macro_expand/mod.rs:224: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/mod.rs:235: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/plugin.rs:11: const ABI_VERSION: u32 = 3;
 src/compiler/macro_expand/plugin.rs:13: mod dl
 src/compiler/macro_expand/plugin.rs:17: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
 src/compiler/macro_expand/plugin.rs:18: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
 src/compiler/macro_expand/plugin.rs:19: pub fn dlclose(handle: *mut c_void) -> c_int;
 src/compiler/macro_expand/plugin.rs:20: pub fn dlerror() -> *mut c_char;
 src/compiler/macro_expand/plugin.rs:23: const RTLD_NOW: c_int = 2;
-src/compiler/macro_expand/plugin.rs:29: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String]) -> Result<String>
-src/compiler/macro_expand/plugin.rs:60: fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
-src/compiler/macro_expand/plugin.rs:76: fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
-src/compiler/macro_expand/plugin.rs:98: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
-src/compiler/macro_expand/plugin.rs:114: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, dep_lcls: &[String]) -> Result<PathBuf>
-src/compiler/macro_expand/plugin.rs:181: static char* dup_str(const char* p, long n) {{\n\
-src/compiler/macro_expand/plugin.rs:187: const char* const* args, const long* arg_lens, long argc,\n\
-src/compiler/macro_expand/plugin.rs:224: type ExpandFn = unsafe extern "C" fn(
-src/compiler/macro_expand/plugin.rs:232: type FreeFn = unsafe extern "C" fn(*mut c_char);
-src/compiler/macro_expand/plugin.rs:234: fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String]) -> Result<String>
+src/compiler/macro_expand/plugin.rs:27: pub(super) struct AyaBuf
+src/compiler/macro_expand/plugin.rs:34: pub(super) struct AyaBufList
+src/compiler/macro_expand/plugin.rs:43: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String]) -> Result<String>
+src/compiler/macro_expand/plugin.rs:74: fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
+src/compiler/macro_expand/plugin.rs:90: fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
+src/compiler/macro_expand/plugin.rs:112: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
+src/compiler/macro_expand/plugin.rs:128: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, dep_lcls: &[String]) -> Result<PathBuf>
+src/compiler/macro_expand/plugin.rs:194: static AyaBuf dup_buf(AyaBuf b) {{\n\
+src/compiler/macro_expand/plugin.rs:232: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
+src/compiler/macro_expand/plugin.rs:233: type FreeFn = unsafe extern "C" fn(AyaBuf);
+src/compiler/macro_expand/plugin.rs:235: fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String]) -> Result<String>
 src/compiler/mod.rs:1: pub mod build;
 src/compiler/mod.rs:2: pub mod check;
 src/compiler/mod.rs:3: pub mod debug;
@@ -172,25 +181,27 @@ src/formatter/mod.rs:31: pub(crate) fn format_attr_arg(arg: &AttrArg) -> String
 src/formatter/mod.rs:38: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:30: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:34: pub struct Imports
-src/hir/attrs.rs:41: impl Imports
-src/hir/attrs.rs:42: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:50: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:73: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:83: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:88: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:96: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:31: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:35: pub struct Imports
+src/hir/attrs.rs:42: impl Imports
+src/hir/attrs.rs:43: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:51: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:74: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:84: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:89: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:97: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
 src/hir/attrs.rs:132: fn validate_follow_with(a: &Attr) -> Result<()>
 src/hir/attrs.rs:152: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
 src/hir/attrs.rs:159: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs.rs:171: pub fn validate_program(program: &Program) -> Result<()>
 src/hir/attrs.rs:179: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
 src/hir/attrs.rs:202: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
-src/hir/attrs_macro.rs:12: fn is_compiler_attr(a: &Attr) -> bool
-src/hir/attrs_macro.rs:24: pub fn validate_macros(
-src/hir/attrs_macro.rs:37: fn validate_macros_stmt(
-src/hir/attrs_macro.rs:128: fn validate_block(
+src/hir/attrs_macro.rs:16: fn is_compiler_attr(a: &Attr) -> bool
+src/hir/attrs_macro.rs:28: pub fn validate_macros(
+src/hir/attrs_macro.rs:42: enum AnnKind { Macro, Pass }
+src/hir/attrs_macro.rs:46: fn lookup_annotation(
+src/hir/attrs_macro.rs:91: fn validate_macros_stmt(
+src/hir/attrs_macro.rs:165: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -371,22 +382,22 @@ src/hir/lower/body/part_09.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr
 src/hir/lower/body/part_10.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_10.rs:4: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:58: impl Ctx
-src/hir/lower/ctx.rs:60: pub fn new() -> Self
-src/hir/lower/ctx.rs:96: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:99: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:102: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:107: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:115: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:128: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:145: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:163: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:182: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:204: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx.rs:223: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
-src/hir/lower/ctx.rs:228: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:237: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
-src/hir/lower/ctx.rs:252: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:60: impl Ctx
+src/hir/lower/ctx.rs:62: pub fn new() -> Self
+src/hir/lower/ctx.rs:99: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:102: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:105: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:110: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:118: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:131: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:148: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:166: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:185: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:207: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
+src/hir/lower/ctx.rs:226: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/ctx.rs:231: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:240: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx.rs:255: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
@@ -1446,16 +1457,16 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:78: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:81: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:13: impl ProjectConfig
 src/package/config.rs:14: pub fn load(toml_content: &str) -> Self
 src/package/config.rs:60: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
 src/package/config.rs:77: pub fn resolve_target(&self, file_path: &Path) -> &str
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:92: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:102: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:132: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:95: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:105: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:135: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
 src/package/mod.rs:7: mod load;
@@ -1475,7 +1486,7 @@ src/package/target.rs:11: pub fn as_str(&self) -> &'static str
 src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:19: pub enum PackageSymbol
-src/package/types.rs:43: pub enum ImportedSymbol
+src/package/types.rs:47: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:5: pub struct Block
 src/parser/ast/block.rs:10: impl Block
@@ -1796,6 +1807,8 @@ example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/test.aya:1: fn main()->int
 example/test.aya:14: fn add(int a, int b)->int
 example/test.aya:17: fn sub(int a, int b)->int
+example/test_annotation_scope.aya:5: fn placeholder() -> int { return 0 }
+example/test_annotation_scope.aya:7: fn main() -> int { return answer() - 42 }
 example/test_array.aya:1: fn main() -> int
 example/test_array_param.aya:1: fn sum([int] arr) -> int
 example/test_array_param.aya:5: fn main() -> int

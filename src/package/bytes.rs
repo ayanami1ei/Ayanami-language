@@ -45,6 +45,9 @@ impl Package {
                     PackageSymbol::Macro { name } => {
                         body.push_str(&format!("macro=\"{}\"\n", name));
                     }
+                    PackageSymbol::Pass { name } => {
+                        body.push_str(&format!("pass=\"{}\"\n", name));
+                    }
                 }
             }
             body.push_str("\n");

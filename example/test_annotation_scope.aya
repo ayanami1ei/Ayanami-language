@@ -1,0 +1,7 @@
+// A5d-1：import 自动作用域——库导出的注解可直接裸名使用
+import "macro_lib.aya"
+
+#[answer]
+fn placeholder() -> int { return 0 }
+
+fn main() -> int { return answer() - 42 }

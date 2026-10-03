@@ -1,25 +1,28 @@
-//! A5b-2/A5b-3：用户宏展开（M3 插件 ABI v2，Ayanami 优先）。
+//! A5b-2/A5b-3/A5d-1：用户注解展开（宏，M3 插件 ABI v3，Ayanami 优先）。
 //!
 //! 流程：
-//! 1. 从已重写为 `.lcl` 的 import 收集宏表（`macro=` 行）与短名映射；
-//! 2. 对带库宏标注的 item：格式化其源码 + 渲染标注实参 → 从宏库 LIR 构建插件 `.so`
+//! 1. 从已重写为 `.lcl` 的 import 收集注解表（`macro=` / `pass=`）；
+//! 2. 宏注解：格式化 item 源码 + 渲染标注实参 → 从宏库 LIR 构建插件 `.so`
 //!    （llc -relocation-model=pic + C shim + runtime.c）→ dlopen 调用 → 得到新源码；
+//!    优化注解（`#[pass]`）不在此展开，留给 MIR 阶段；
 //! 3. 重新解析并递归展开（深度上限 32），输出替换原 item。
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
 use crate::parser::ast::{Attr, Block, Program, Stmt};
 
+use annotations::{AnnKind, AnnotationTables};
+
 const MAX_DEPTH: usize = 32;
 
+mod annotations;
 mod plugin;
 
 /// 展开入口：在 HIR 降级前调用（此时 import 已重写为 .lcl 绝对路径）。
 pub fn expand(program: &Program, src_path: &Path) -> Result<Program> {
     let ctx = MacroCtx::collect(program, src_path)?;
-    if ctx.tables.is_empty() && ctx.short.is_empty() {
+    if ctx.tables.is_empty() {
         return Ok(program.clone());
     }
     let stmts = expand_stmts(&program.stmts, &ctx, 0)?;
@@ -27,67 +30,17 @@ pub fn expand(program: &Program, src_path: &Path) -> Result<Program> {
 }
 
 struct MacroCtx {
-    /// 包 stem → (lcl 路径, 宏名列表)
-    tables: HashMap<String, (String, Vec<String>)>,
-    /// import 短名 → 包 stem
-    short: HashMap<String, String>,
+    tables: AnnotationTables,
     src_path: PathBuf,
 }
 
 impl MacroCtx {
     fn collect(program: &Program, src_path: &Path) -> Result<Self> {
-        let mut tables = HashMap::new();
-        let mut short = HashMap::new();
-        collect_imports(&program.stmts, &mut tables, &mut short)?;
-        Ok(Self { tables, short, src_path: src_path.to_path_buf() })
-    }
-
-    fn resolve(&self, a: &Attr) -> Option<(String, String)> {
-        let name = a.name.as_str();
-        if !a.qualifier.is_empty() {
-            let pkg = a.qualifier[0].as_str();
-            let rest: Vec<String> = a.qualifier[1..].iter().map(|s| s.as_str()).collect();
-            let macro_name = if rest.is_empty() { name } else { format!("{}.{}", rest.join("."), name) };
-            if self.tables.contains_key(&pkg) {
-                return Some((pkg, macro_name));
-            }
-            return None;
-        }
-        self.short.get(&name).map(|pkg| (pkg.clone(), name))
+        let tables = AnnotationTables::collect(&program.stmts)?;
+        Ok(Self { tables, src_path: src_path.to_path_buf() })
     }
 }
 
-fn collect_imports(
-    stmts: &[Stmt],
-    tables: &mut HashMap<String, (String, Vec<String>)>,
-    short: &mut HashMap<String, String>,
-) -> Result<()> {
-    for stmt in stmts {
-        match stmt {
-            Stmt::Import { path, macros, .. } => {
-                let stem = Path::new(path)
-                    .file_stem()
-                    .map(|s| s.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| path.clone());
-                let (syms, _src, _lir, _tt) = crate::package::load_package(path)
-                    .map_err(|e| Error::Compile(format!("macro import '{}': {}", path, e)))?;
-                let names: Vec<String> = syms.iter().filter_map(|s| match s {
-                    crate::package::ImportedSymbol::Macro { name } => Some(name.clone()),
-                    _ => None,
-                }).collect();
-                for m in macros {
-                    short.insert(m.as_str(), stem.clone());
-                }
-                if !names.is_empty() || !macros.is_empty() {
-                    tables.insert(stem, (path.clone(), names));
-                }
-            }
-            Stmt::Namespace { items, .. } => collect_imports(items, tables, short)?,
-            _ => {}
-        }
-    }
-    Ok(())
-}
 
 fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     if depth > MAX_DEPTH {
@@ -201,29 +154,36 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
 /// 解析并校验宏标注 → (lcl 路径, 宏名, 实参源码文本)
 fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)> {
     let args: Vec<String> = attr.args.iter().map(crate::formatter::format_attr_arg).collect();
-    let Some((pkg, macro_name)) = ctx.resolve(attr) else {
-        return Err(Error::Compile(format!(
+    match ctx.tables.resolve(attr)? {
+        Some((pkg, macro_name, AnnKind::Macro)) => {
+            let lcl_path = ctx.tables.lcl_path(&pkg).ok_or_else(|| Error::Compile(format!(
+                "package `{}` has no annotation table", pkg
+            )))?;
+            Ok((lcl_path, macro_name, args))
+        }
+        Some((pkg, name, AnnKind::Pass)) => Err(Error::Compile(format!(
+            "`#[{}]` is an optimization annotation (`{}::{}`), not a macro (at {}:{})",
+            attr.path_str(), pkg, name, attr.span.start_line, attr.span.start_col
+        ))),
+        None => Err(Error::Compile(format!(
             "macro #[{}] cannot be resolved (at {}:{})",
             attr.path_str(), attr.span.start_line, attr.span.start_col
-        )));
-    };
-    let Some((lcl_path, names)) = ctx.tables.get(&pkg) else {
-        return Err(Error::Compile(format!("package `{}` has no macro table", pkg)));
-    };
-    if !names.iter().any(|n| n == &macro_name) {
-        return Err(Error::Compile(format!(
-            "macro `{}` not found in package `{}` (at {}:{})",
-            macro_name, pkg, attr.span.start_line, attr.span.start_col
-        )));
+        ))),
     }
-    Ok((lcl_path.clone(), macro_name, args))
 }
 
 /// 展开单个 item：无宏标注则原样返回；有则调用插件并递归展开输出。
 fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
-    let macro_attr = attrs_of(stmt).and_then(|attrs| {
-        attrs.iter().find(|a| !is_compiler_attr(a)).cloned()
-    });
+    // 只挑「解析为宏」的标注展开；pass 注解与未知标注留给后续阶段/校验
+    let mut macro_attr = None;
+    if let Some(attrs) = attrs_of(stmt) {
+        for a in attrs.iter().filter(|a| !is_compiler_attr(a)) {
+            if let Some((_, _, AnnKind::Macro)) = ctx.tables.resolve(a)? {
+                macro_attr = Some(a.clone());
+                break;
+            }
+        }
+    }
     let Some(attr) = macro_attr else { return Ok(vec![stmt.clone()]); };
     let (lcl_path, macro_name, args) = resolve_macro_call(ctx, &attr)?;
 

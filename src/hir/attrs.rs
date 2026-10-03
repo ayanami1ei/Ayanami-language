@@ -11,6 +11,7 @@ pub const ALLOWED: &[&str] = &[
     "ensures",
     "invariant",
     "macro",
+    "pass",
     "follow_with",
     "throws",
     "no_error",
@@ -99,11 +100,10 @@ fn resolve(a: &Attr, imports: &Imports) -> Result<()> {
         if ALLOWED.contains(&name.as_str()) || crate::hir::effects::is_effect(&name) {
             return Ok(());
         }
-        // `import "pkg" { name }` 短名 → 库宏（存在性由 validate_macros 校验）
+        // 裸名库注解（宏/pass）：import 自动作用域，存在性在导入加载后校验
+        // （validate_annotations），这里无法提前判定，延后处理。
         if a.qualifier.is_empty() {
-            if imports.macros.iter().any(|(_, ms)| ms.iter().any(|m| m == &name)) {
-                return Ok(());
-            }
+            return Ok(());
         }
         return Err(Error::Hir(format!(
             "unknown attribute #[{}] (at {}:{})",
