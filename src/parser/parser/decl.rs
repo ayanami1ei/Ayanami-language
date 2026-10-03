@@ -93,17 +93,25 @@ impl Parser {
         Ok(Stmt::Return { value, span: start_span })
     }
 
+    /// 条件表达式：禁止 `ident {` 被解析为结构体字面量
+    pub(super) fn parse_cond_expr(&mut self) -> Result<Expr> {
+        self.struct_lit_depth += 1;
+        let r = self.parse_expr();
+        self.struct_lit_depth -= 1;
+        r
+    }
+
     pub(super) fn parse_if(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
-        let cond = self.parse_expr()?;
+        let cond = self.parse_cond_expr()?;
         let then_block = self.parse_block()?;
         let mut elifs = Vec::new();
         loop {
             match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Keyword(Keyword::Elif)) => {
                     self.advance();
-                    let elif_cond = self.parse_expr()?;
+                    let elif_cond = self.parse_cond_expr()?;
                     let elif_block = self.parse_block()?;
                     elifs.push((elif_cond, elif_block));
                 }
@@ -155,7 +163,7 @@ impl Parser {
     pub(super) fn parse_while(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
-        let cond = self.parse_expr()?;
+        let cond = self.parse_cond_expr()?;
         let body = self.parse_block()?;
         Ok(Stmt::While { cond, body, span: start_span })
     }

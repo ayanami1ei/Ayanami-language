@@ -8,6 +8,8 @@ use crate::span::Span;
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
+    /// >0 时禁止把 `ident {` 当作结构体字面量（if/while 条件上下文）
+    struct_lit_depth: u32,
 }
 
 mod atom;

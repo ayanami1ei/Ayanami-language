@@ -8,13 +8,13 @@ use crate::mir::ir::{BinaryOp, HirLiteral, MirFn, MirNode, MirStmtNode, UnaryOp}
 use crate::parser::ast::Attr;
 
 /// schema 版本（首字段；C 桥接与编译器必须一致）
-pub(super) const SCHEMA_VERSION: i64 = 2;
+pub(super) const SCHEMA_VERSION: i64 = 3;
 /// 头部字段数：version / pure / no_error / node_count
 pub(super) const HEADER_WORDS: usize = 4;
-/// 数组个数：v0 七项 + ops/lit_kinds/lit_i64/lit_f64 + edit_kind/edit_i64
-pub(super) const ARRAY_COUNT: usize = 13;
-/// 只读数组个数（前 11 个；后 2 个是编辑数组）
-pub(super) const READONLY_ARRAYS: usize = 11;
+/// 数组个数：v0 七项 + ops/lit_kinds/lit_i64/lit_f64 + stmt_kinds/var_ids + 编辑数组
+pub(super) const ARRAY_COUNT: usize = 15;
+/// 只读数组个数（前 13 个；后 2 个是编辑数组）
+pub(super) const READONLY_ARRAYS: usize = 13;
 
 pub(super) const KIND_FN: i64 = 0;
 pub(super) const KIND_STMT: i64 = 1;
@@ -35,11 +35,11 @@ impl FlatView {
     }
 
     /// 顺序：kinds,is_call,callee_pure,is_alloc,is_asm,is_store,child_counts,
-    /// ops,lit_kinds,lit_i64,lit_f64,edit_kind,edit_i64
+    /// ops,lit_kinds,lit_i64,lit_f64,stmt_kinds,var_ids,edit_kind,edit_i64
     #[allow(clippy::too_many_arguments)]
-    fn push(&mut self, kind: i64, call: bool, callee_pure: bool, alloc: bool, asm: bool, store: bool, op: i64, lit_kind: i64, lit_i64: i64, lit_f64: i64) -> usize {
+    fn push(&mut self, kind: i64, call: bool, callee_pure: bool, alloc: bool, asm: bool, store: bool, op: i64, lit_kind: i64, lit_i64: i64, lit_f64: i64, stmt_kind: i64, var_id: i64) -> usize {
         let idx = self.len();
-        let vals = [kind, call as i64, callee_pure as i64, alloc as i64, asm as i64, store as i64, 0, op, lit_kind, lit_i64, lit_f64, 0, 0];
+        let vals = [kind, call as i64, callee_pure as i64, alloc as i64, asm as i64, store as i64, 0, op, lit_kind, lit_i64, lit_f64, stmt_kind, var_id, 0, 0];
         for (a, v) in self.arrays.iter_mut().zip(vals) {
             a.push(v);
         }
@@ -108,16 +108,33 @@ fn walk_expr(e: &dyn MirNode, v: &mut FlatView) -> usize {
         Some((val, _ty)) => (lit_kind(val), lit_i64(val), lit_f64(val)),
         None => (0, 0, 0),
     };
-    let idx = v.push(KIND_EXPR, e.is_call(), callee_pure, e.is_alloc(), e.is_asm(), false, op, lk, li, lf);
+    // var_ids 采用 +1 编码（0 = 非局部变量）
+    let var_id = e.as_local().map(|v| v.0 as i64 + 1).unwrap_or(0);
+    let idx = v.push(KIND_EXPR, e.is_call(), callee_pure, e.is_alloc(), e.is_asm(), false, op, lk, li, lf, 0, var_id);
     let mut n = 0;
     e.for_each_child(&mut |c| { walk_expr(c, v); n += 1; });
     v.set_child_count(idx, n);
     idx
 }
 
+fn stmt_kind(s: &dyn MirStmtNode) -> i64 {
+    if s.assign_parts().is_some() { 1 }
+    else if s.field_assign_parts().is_some() { 2 }
+    else if s.index_assign_parts().is_some() { 3 }
+    else if s.is_return() { 4 }
+    else if s.as_if().is_some() { 5 }
+    else if s.as_while().is_some() { 6 }
+    else if s.is_break() { 7 }
+    else if s.is_continue() { 8 }
+    else if s.expr_part().is_some() { 9 }
+    else if s.as_block().is_some() { 10 }
+    else if s.as_drop().is_some() { 11 }
+    else { 0 }
+}
+
 fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize {
     let is_store = s.field_assign_parts().is_some() || s.index_assign_parts().is_some();
-    let idx = v.push(KIND_STMT, false, false, false, false, is_store, 0, 0, 0, 0);
+    let idx = v.push(KIND_STMT, false, false, false, false, is_store, 0, 0, 0, 0, stmt_kind(s), 0);
     let mut n = 0;
     s.for_each_child_stmt(&mut |c| { walk_stmt(c, v); n += 1; });
     s.for_each_child_expr(&mut |c| { walk_expr(c, v); n += 1; });
@@ -132,7 +149,7 @@ fn push_i64(buf: &mut Vec<u8>, v: i64) {
 /// MirFn → 扁平视图 blob（schema v1）
 pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8> {
     let mut v = FlatView::new(purity.clone());
-    let root = v.push(KIND_FN, false, false, false, false, false, 0, 0, 0, 0);
+    let root = v.push(KIND_FN, false, false, false, false, false, 0, 0, 0, 0, 0, 0);
     let mut n = 0;
     for s in &f.body {
         walk_stmt(&**s, &mut v);

@@ -45,14 +45,17 @@ src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
 src/compiler/build/package.rs:22: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
 src/compiler/build/package.rs:74: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
 src/compiler/build/package.rs:84: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
-src/compiler/build/passes/apply.rs:11: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
-src/compiler/build/passes/apply.rs:27: fn apply_expr(e: &mut MirNodeBox, view: &FlatView, edits: &EditView, sizes: &[usize], idx: &mut usize, a: &Attr) -> Result<()>
-src/compiler/build/passes/apply.rs:70: fn apply_stmt(s: &mut dyn MirStmtNode, view: &FlatView, edits: &EditView, sizes: &[usize], idx: &mut usize, a: &Attr) -> Result<()>
-src/compiler/build/passes/apply.rs:95: pub(super) fn apply_edits(f: &mut MirFn, view: &FlatView, edits: &EditView, a: &Attr) -> Result<()>
-src/compiler/build/passes/flat.rs:11: pub(super) const SCHEMA_VERSION: i64 = 2;
+src/compiler/build/passes/apply.rs:18: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
+src/compiler/build/passes/apply.rs:35: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
+src/compiler/build/passes/apply.rs:42: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
+src/compiler/build/passes/apply.rs:48: fn collect_clones(f: &MirFn, n: usize) -> Vec<Option<MirNodeBox>>
+src/compiler/build/passes/apply.rs:57: fn apply_expr(
+src/compiler/build/passes/apply.rs:140: fn apply_stmt(
+src/compiler/build/passes/apply.rs:179: pub(super) fn apply_edits(f: &mut MirFn, view: &FlatView, edits: &EditView, a: &Attr) -> Result<()>
+src/compiler/build/passes/flat.rs:11: pub(super) const SCHEMA_VERSION: i64 = 3;
 src/compiler/build/passes/flat.rs:13: pub(super) const HEADER_WORDS: usize = 4;
-src/compiler/build/passes/flat.rs:15: pub(super) const ARRAY_COUNT: usize = 13;
-src/compiler/build/passes/flat.rs:17: pub(super) const READONLY_ARRAYS: usize = 11;
+src/compiler/build/passes/flat.rs:15: pub(super) const ARRAY_COUNT: usize = 15;
+src/compiler/build/passes/flat.rs:17: pub(super) const READONLY_ARRAYS: usize = 13;
 src/compiler/build/passes/flat.rs:19: pub(super) const KIND_FN: i64 = 0;
 src/compiler/build/passes/flat.rs:20: pub(super) const KIND_STMT: i64 = 1;
 src/compiler/build/passes/flat.rs:21: pub(super) const KIND_EXPR: i64 = 2;
@@ -60,7 +63,7 @@ src/compiler/build/passes/flat.rs:23: pub(super) struct FlatView
 src/compiler/build/passes/flat.rs:28: impl FlatView
 src/compiler/build/passes/flat.rs:29: pub(super) fn new(purity: HashMap<FnId, bool>) -> Self
 src/compiler/build/passes/flat.rs:33: pub(super) fn len(&self) -> usize
-src/compiler/build/passes/flat.rs:40: fn push(&mut self, kind: i64, call: bool, callee_pure: bool, alloc: bool, asm: bool, store: bool, op: i64, lit_kind: i64, lit_i64: i64, lit_f64: i64) -> usize
+src/compiler/build/passes/flat.rs:40: fn push(&mut self, kind: i64, call: bool, callee_pure: bool, alloc: bool, asm: bool, store: bool, op: i64, lit_kind: i64, lit_i64: i64, lit_f64: i64, stmt_kind: i64, var_id: i64) -> usize
 src/compiler/build/passes/flat.rs:49: fn set_child_count(&mut self, idx: usize, n: i64)
 src/compiler/build/passes/flat.rs:54: fn op_code(op: BinaryOp) -> i64
 src/compiler/build/passes/flat.rs:64: fn unary_code(op: UnaryOp) -> i64
@@ -68,14 +71,15 @@ src/compiler/build/passes/flat.rs:70: fn lit_kind(v: &HirLiteral) -> i64
 src/compiler/build/passes/flat.rs:80: fn lit_i64(v: &HirLiteral) -> i64
 src/compiler/build/passes/flat.rs:89: fn lit_f64(v: &HirLiteral) -> i64
 src/compiler/build/passes/flat.rs:96: fn walk_expr(e: &dyn MirNode, v: &mut FlatView) -> usize
-src/compiler/build/passes/flat.rs:118: fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize
-src/compiler/build/passes/flat.rs:128: fn push_i64(buf: &mut Vec<u8>, v: i64)
-src/compiler/build/passes/flat.rs:133: pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8>
-src/compiler/build/passes/flat.rs:156: pub(super) fn read_i64(buf: &[u8], off: usize) -> i64
-src/compiler/build/passes/flat.rs:162: pub(super) struct EditView
-src/compiler/build/passes/flat.rs:167: pub(super) struct PassOutput
-src/compiler/build/passes/flat.rs:174: pub(super) fn parse_output(input: &[u8], out: &[u8], a: &Attr) -> Result<PassOutput>
-src/compiler/build/passes/flat.rs:202: pub(super) fn deserialize_view(blob: &[u8]) -> FlatView
+src/compiler/build/passes/flat.rs:120: fn stmt_kind(s: &dyn MirStmtNode) -> i64
+src/compiler/build/passes/flat.rs:135: fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize
+src/compiler/build/passes/flat.rs:145: fn push_i64(buf: &mut Vec<u8>, v: i64)
+src/compiler/build/passes/flat.rs:150: pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8>
+src/compiler/build/passes/flat.rs:173: pub(super) fn read_i64(buf: &[u8], off: usize) -> i64
+src/compiler/build/passes/flat.rs:179: pub(super) struct EditView
+src/compiler/build/passes/flat.rs:184: pub(super) struct PassOutput
+src/compiler/build/passes/flat.rs:191: pub(super) fn parse_output(input: &[u8], out: &[u8], a: &Attr) -> Result<PassOutput>
+src/compiler/build/passes/flat.rs:219: pub(super) fn deserialize_view(blob: &[u8]) -> FlatView
 src/compiler/build/passes/mod.rs:15: mod apply;
 src/compiler/build/passes/mod.rs:16: mod flat;
 src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<FnId, bool>
@@ -137,22 +141,22 @@ src/compiler/macro_expand/mod.rs:220: fn parse_source(code: &str) -> Result<Prog
 src/compiler/macro_expand/mod.rs:230: fn is_compiler_attr(a: &Attr) -> bool
 src/compiler/macro_expand/mod.rs:241: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
 src/compiler/macro_expand/mod.rs:252: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
-src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 2;
+src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 3;
 src/compiler/macro_expand/pass_plugin.rs:21: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
 src/compiler/macro_expand/pass_plugin.rs:47: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
 src/compiler/macro_expand/pass_plugin.rs:52: fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &[String]) -> Result<PathBuf>
 src/compiler/macro_expand/pass_plugin.rs:118: fn pass_shim(symbol: &str) -> String
 src/compiler/macro_expand/pass_plugin.rs:125: const long long *kinds, *is_call, *callee_pure, *is_alloc, *is_asm, *is_store, *child_counts,\n\
-src/compiler/macro_expand/pass_plugin.rs:129: static long long rd64(const char* p) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:134: static long long* rd_arr(const char* p, long* pos, long long n) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:140: static void wr64(char* p, long long v) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:144: static char* g_diag = 0;\n\
-src/compiler/macro_expand/pass_plugin.rs:145: static long g_diag_len = 0;\n\
-src/compiler/macro_expand/pass_plugin.rs:159: static MirFunction mir_decode(const char* p, long len) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:181: static AyaBuf mir_encode(MirFunction f) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:216: type RunFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
-src/compiler/macro_expand/pass_plugin.rs:217: type FreeFn = unsafe extern "C" fn(AyaBuf);
-src/compiler/macro_expand/pass_plugin.rs:219: fn call_pass(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/pass_plugin.rs:130: static long long rd64(const char* p) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:135: static long long* rd_arr(const char* p, long* pos, long long n) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:141: static void wr64(char* p, long long v) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:145: static char* g_diag = 0;\n\
+src/compiler/macro_expand/pass_plugin.rs:146: static long g_diag_len = 0;\n\
+src/compiler/macro_expand/pass_plugin.rs:160: static MirFunction mir_decode(const char* p, long len) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:184: static AyaBuf mir_encode(MirFunction f) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:221: type RunFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
+src/compiler/macro_expand/pass_plugin.rs:222: type FreeFn = unsafe extern "C" fn(AyaBuf);
+src/compiler/macro_expand/pass_plugin.rs:224: fn call_pass(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<Vec<u8>>
 src/compiler/macro_expand/plugin.rs:11: pub(super) const ABI_VERSION: u32 = 4;
 src/compiler/macro_expand/plugin.rs:13: pub(super) mod dl
 src/compiler/macro_expand/plugin.rs:17: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
@@ -1683,12 +1687,13 @@ src/parser/parser/core.rs:194: fn parse_attr_arg(&mut self) -> Result<crate::par
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/decl.rs:80: pub(super) fn parse_return(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:96: pub(super) fn parse_if(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:128: pub(super) fn parse_for(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:155: pub(super) fn parse_while(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:165: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:196: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
-src/parser/parser/decl.rs:219: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
+src/parser/parser/decl.rs:97: pub(super) fn parse_cond_expr(&mut self) -> Result<Expr>
+src/parser/parser/decl.rs:104: pub(super) fn parse_if(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:136: pub(super) fn parse_for(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:163: pub(super) fn parse_while(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:173: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:204: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser/decl.rs:227: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:3: impl Parser
 src/parser/parser/enum_iface.rs:6: pub(super) fn parse_enum_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:74: pub(super) fn parse_interface_def(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
@@ -1707,15 +1712,15 @@ src/parser/parser/impls.rs:61: fn extract_type_name(ty: &Type) -> Symbol
 src/parser/parser/impls.rs:98: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
 src/parser/parser/impls.rs:243: pub(super) fn parse_block(&mut self) -> Result<Block>
 src/parser/parser/mod.rs:8: pub struct Parser
-src/parser/parser/mod.rs:13: mod atom;
-src/parser/parser/mod.rs:14: mod core;
-src/parser/parser/mod.rs:15: mod decl;
-src/parser/parser/mod.rs:16: mod enum_iface;
-src/parser/parser/mod.rs:17: mod expr;
-src/parser/parser/mod.rs:18: mod impls;
-src/parser/parser/mod.rs:19: mod stmt;
-src/parser/parser/mod.rs:20: mod types;
-src/parser/parser/mod.rs:21: mod unary;
+src/parser/parser/mod.rs:15: mod atom;
+src/parser/parser/mod.rs:16: mod core;
+src/parser/parser/mod.rs:17: mod decl;
+src/parser/parser/mod.rs:18: mod enum_iface;
+src/parser/parser/mod.rs:19: mod expr;
+src/parser/parser/mod.rs:20: mod impls;
+src/parser/parser/mod.rs:21: mod stmt;
+src/parser/parser/mod.rs:22: mod types;
+src/parser/parser/mod.rs:23: mod unary;
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
 src/parser/parser/stmt.rs:85: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
@@ -1784,22 +1789,31 @@ std/src/math.aya:17: pub fn max(int a, int b) -> int
 std/src/math.aya:23: pub fn clamp(int x, int lo, int hi) -> int
 std/src/math.aya:30: pub fn pow(int base, int exp) -> int
 std/src/mir.aya:14: pub struct MirFunction
-std/src/mir.aya:35: pub fn scan_effects(ref MirFunction f) -> bool
-std/src/mir.aya:52: pub fn warn(String msg)
-std/src/mir.aya:57: pub fn error(String msg)
-std/src/mir.aya:64: pub fn replace_int(ref mut MirFunction f, int idx, int value)
-std/src/mir.aya:70: pub fn replace_float(ref mut MirFunction f, int idx, int bits)
-std/src/mir.aya:76: pub fn replace_bool(ref mut MirFunction f, int idx, int value)
-std/src/mir.aya:82: pub fn replace_char(ref mut MirFunction f, int idx, int code)
-std/src/mir.aya:89: pub fn op_is_add(int op) -> bool { return op == 1 }
-std/src/mir.aya:90: pub fn op_is_sub(int op) -> bool { return op == 2 }
-std/src/mir.aya:91: pub fn op_is_mul(int op) -> bool { return op == 3 }
-std/src/mir.aya:92: pub fn op_is_eq(int op) -> bool { return op == 6 }
-std/src/mir.aya:93: pub fn op_is_neq(int op) -> bool { return op == 7 }
-std/src/mir.aya:94: pub fn op_is_lt(int op) -> bool { return op == 8 }
-std/src/mir.aya:95: pub fn op_is_gt(int op) -> bool { return op == 9 }
-std/src/mir.aya:100: pub fn is_int_literal(ref MirFunction f, int idx) -> bool
-std/src/mir.aya:106: pub fn folded_int(ref MirFunction f, int idx) -> int
+std/src/mir.aya:37: pub fn scan_effects(ref MirFunction f) -> bool
+std/src/mir.aya:54: pub fn warn(String msg)
+std/src/mir.aya:59: pub fn error(String msg)
+std/src/mir.aya:66: pub fn replace_int(ref mut MirFunction f, int idx, int value)
+std/src/mir.aya:72: pub fn replace_float(ref mut MirFunction f, int idx, int bits)
+std/src/mir.aya:78: pub fn replace_bool(ref mut MirFunction f, int idx, int value)
+std/src/mir.aya:84: pub fn replace_char(ref mut MirFunction f, int idx, int code)
+std/src/mir.aya:90: pub fn replace_with(ref mut MirFunction f, int idx, int src)
+std/src/mir.aya:96: pub fn delete_stmt(ref mut MirFunction f, int idx)
+std/src/mir.aya:101: pub fn subtree_sizes(ref MirFunction f) -> [int]
+std/src/mir.aya:120: pub fn stmt_is_assign(int k) -> bool { return k == 1 }
+std/src/mir.aya:121: pub fn stmt_is_return(int k) -> bool { return k == 4 }
+std/src/mir.aya:122: pub fn stmt_is_if(int k) -> bool { return k == 5 }
+std/src/mir.aya:123: pub fn stmt_is_while(int k) -> bool { return k == 6 }
+std/src/mir.aya:124: pub fn stmt_is_break(int k) -> bool { return k == 7 }
+std/src/mir.aya:125: pub fn stmt_is_continue(int k) -> bool { return k == 8 }
+std/src/mir.aya:129: pub fn op_is_add(int op) -> bool { return op == 1 }
+std/src/mir.aya:130: pub fn op_is_sub(int op) -> bool { return op == 2 }
+std/src/mir.aya:131: pub fn op_is_mul(int op) -> bool { return op == 3 }
+std/src/mir.aya:132: pub fn op_is_eq(int op) -> bool { return op == 6 }
+std/src/mir.aya:133: pub fn op_is_neq(int op) -> bool { return op == 7 }
+std/src/mir.aya:134: pub fn op_is_lt(int op) -> bool { return op == 8 }
+std/src/mir.aya:135: pub fn op_is_gt(int op) -> bool { return op == 9 }
+std/src/mir.aya:140: pub fn is_int_literal(ref MirFunction f, int idx) -> bool
+std/src/mir.aya:146: pub fn folded_int(ref MirFunction f, int idx) -> int
 std/src/std.aya:9: pub interface Error
 std/src/std.aya:10: fn what(ref self) -> String;
 std/src/std.aya:13: pub enum Result[T, E]
@@ -1931,6 +1945,7 @@ std/string.aya:199: pub fn eq(ref self, ref String other) -> bool
 std/string.aya:211: pub fn ne(ref self, ref String other) -> bool
 std/string.aya:217: pub fn copy(ref self) -> String
 example/check_lib.aya:5: pub fn warn_side_effects(ref MirFunction f)
+example/const_prop_lib.aya:5: pub fn const_prop(ref mut MirFunction f)
 example/constfold_lib.aya:4: fn lt_int(int a, int b) -> int
 example/constfold_lib.aya:9: fn gt_int(int a, int b) -> int
 example/constfold_lib.aya:14: fn eq_int(int a, int b) -> int
@@ -1975,6 +1990,8 @@ example/test_constfold.aya:10: fn folded_mul() -> int
 example/test_constfold.aya:16: fn folded_cmp_true() -> int
 example/test_constfold.aya:22: fn folded_cmp_false() -> int
 example/test_constfold.aya:27: fn main() -> int
+example/test_constprop.aya:7: fn prop_fold() -> int
+example/test_constprop.aya:13: fn main() -> int
 example/test_conv.aya:2: fn take(int x) -> int { return x }
 example/test_conv.aya:3: fn takef(float x) -> float { return x }
 example/test_conv.aya:4: fn ret_char() -> int { return 'a' }

@@ -26,6 +26,8 @@ pub struct MirFunction {
     [int] lit_kinds
     [int] lit_i64
     [int] lit_f64
+    [int] stmt_kinds
+    [int] var_ids
     [int] edit_kind
     [int] edit_i64
 }
@@ -83,6 +85,44 @@ pub fn replace_char(ref mut MirFunction f, int idx, int code) {
     f.edit_kind[idx] = 4
     f.edit_i64[idx] = code
 }
+
+/// 标记用第 src 个表达式节点的克隆替换第 idx 个节点（类型必须一致）
+pub fn replace_with(ref mut MirFunction f, int idx, int src) {
+    f.edit_kind[idx] = 5
+    f.edit_i64[idx] = src
+}
+
+/// 标记删除第 idx 个语句节点（替换为空块）
+pub fn delete_stmt(ref mut MirFunction f, int idx) {
+    f.edit_kind[idx] = 6
+}
+
+/// preorder 子树大小表（下标与扁平视图一致）
+pub fn subtree_sizes(ref MirFunction f) -> [int] {
+    n = f.node_count
+    size = [int; n]
+    i = n - 1
+    while i >= 0 {
+        s = 1
+        c = i + 1
+        for k in (0, f.child_counts[i]) {
+            s = s + size[c]
+            c = c + size[c]
+        }
+        size[i] = s
+        i = i - 1
+    }
+    return size
+}
+
+// ── 语句种类（与编译器一致）──
+
+pub fn stmt_is_assign(int k) -> bool { return k == 1 }
+pub fn stmt_is_return(int k) -> bool { return k == 4 }
+pub fn stmt_is_if(int k) -> bool { return k == 5 }
+pub fn stmt_is_while(int k) -> bool { return k == 6 }
+pub fn stmt_is_break(int k) -> bool { return k == 7 }
+pub fn stmt_is_continue(int k) -> bool { return k == 8 }
 
 // ── 运算符编码（与编译器一致）──
 

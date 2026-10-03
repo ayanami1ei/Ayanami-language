@@ -43,7 +43,7 @@ impl Parser {
                     && matches!(&self.tokens[self.pos + 4].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
                     && self.pos + 5 < self.tokens.len()
                     && self.tokens[self.pos + 5].kind == TokenKind::Operator("=".to_string());
-                if is_generic_struct {
+                if is_generic_struct && self.struct_lit_depth == 0 {
                     self.advance(); // consume [
                     let mut generic_args = Vec::new();
                     loop {
@@ -102,7 +102,7 @@ impl Parser {
                         let looks_like_struct = self.pos + 2 < self.tokens.len()
                             && matches!(&self.tokens[self.pos + 1].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
                             && self.tokens[self.pos + 2].kind == TokenKind::Operator("=".to_string());
-                        if !looks_like_struct {
+                        if !looks_like_struct || self.struct_lit_depth > 0 {
                             return Ok(Expr::Ident(name_sym, span));
                         }
 

@@ -2,7 +2,7 @@ use super::*;
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, pos: 0 }
+        Self { tokens, pos: 0, struct_lit_depth: 0 }
     }
 
     pub(super) fn peek(&self) -> Option<&Token> {

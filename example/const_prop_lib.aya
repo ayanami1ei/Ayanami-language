@@ -1,0 +1,71 @@
+// A5d-3c-2：MIR 优化注解 demo —— 常量传播（直线代码；配合常量折叠与不动点）
+import "mir"
+
+#[pass]
+pub fn const_prop(ref mut MirFunction f) {
+    if f.node_count == 0 {
+        return
+    }
+    n = f.node_count
+    // 含控制流/循环时放弃（不做 CFG 分析）
+    for i in (0, n) {
+        if f.kinds[i] == 1 {
+            if stmt_is_if(f.stmt_kinds[i]) {
+                return
+            }
+            if stmt_is_while(f.stmt_kinds[i]) {
+                return
+            }
+            if stmt_is_break(f.stmt_kinds[i]) {
+                return
+            }
+            if stmt_is_continue(f.stmt_kinds[i]) {
+                return
+            }
+        }
+    }
+    size = subtree_sizes(f)
+    maxv = 0
+    for i in (0, n) {
+        if f.var_ids[i] > maxv {
+            maxv = f.var_ids[i]
+        }
+    }
+    if maxv == 0 {
+        return
+    }
+    defined = [int; maxv + 1]
+    def_idx = [int; maxv + 1]
+    targets = [int; n]
+    for i in (0, n) {
+        if f.kinds[i] == 1 {
+            if stmt_is_assign(f.stmt_kinds[i]) {
+                t = i + 1
+                if f.var_ids[t] > 0 {
+                    targets[t] = 1
+                    v = t + size[t]
+                    var = f.var_ids[t]
+                    if is_int_literal(f, v) {
+                        defined[var] = 1
+                        def_idx[var] = v
+                    } else {
+                        defined[var] = 0
+                    }
+                }
+            }
+        } else {
+            if f.kinds[i] == 2 {
+                if f.var_ids[i] > 0 {
+                    if targets[i] == 0 {
+                        var = f.var_ids[i]
+                        if defined[var] == 1 {
+                            if def_idx[var] != i {
+                                f.replace_with(i, def_idx[var])
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,8 +1,15 @@
-//! A5d-3：把插件编辑应用到 MIR body（preorder 下标对齐）。
+//! A5d-3c-2：把插件编辑应用到 MIR body（preorder 下标对齐）。
+//!
+//! 编辑种类：
+//! 1/2/3/4 = int/float/bool/char 字面量替换；
+//! 5 = 克隆替换（`edit_i64` 为源表达式节点下标，类型必须一致）；
+//! 6 = 删除语句（替换为空块）。
 
 use crate::error::{Error, Result};
 use crate::hir::ty::HirType;
-use crate::mir::ir::{HirLiteral, MirFn, MirNodeBox, MirStmtNode, SMirLiteral};
+use crate::mir::ir::{
+    HirLiteral, MirFn, MirNode, MirNodeBox, MirStmtBox, MirStmtNode, SMirBlockStmt, SMirLiteral,
+};
 use crate::parser::ast::Attr;
 
 use super::flat::{EditView, FlatView, KIND_EXPR};
@@ -24,7 +31,38 @@ fn compute_sizes(child_counts: &[i64]) -> Vec<usize> {
     sizes
 }
 
-fn apply_expr(e: &mut MirNodeBox, view: &FlatView, edits: &EditView, sizes: &[usize], idx: &mut usize, a: &Attr) -> Result<()> {
+/// 不可变 preorder 收集表达式节点克隆（按扁平视图下标对齐）
+fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize) {
+    let i = *idx;
+    *idx += 1;
+    out[i] = Some(MirNodeBox(e.clone_node()));
+    e.for_each_child(&mut |c| collect_expr(c, out, idx));
+}
+
+fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize) {
+    *idx += 1;
+    s.for_each_child_stmt(&mut |c| collect_stmt(c, out, idx));
+    s.for_each_child_expr(&mut |e| collect_expr(e, out, idx));
+}
+
+fn collect_clones(f: &MirFn, n: usize) -> Vec<Option<MirNodeBox>> {
+    let mut out = vec![None; n];
+    let mut idx = 1usize; // 根节点
+    for s in &f.body {
+        collect_stmt(&**s, &mut out, &mut idx);
+    }
+    out
+}
+
+fn apply_expr(
+    e: &mut MirNodeBox,
+    view: &FlatView,
+    edits: &EditView,
+    clones: &[Option<MirNodeBox>],
+    sizes: &[usize],
+    idx: &mut usize,
+    a: &Attr,
+) -> Result<()> {
     let i = *idx;
     *idx += 1;
     let edit_kind = edits.kind.get(i).copied().unwrap_or(0);
@@ -36,6 +74,38 @@ fn apply_expr(e: &mut MirNodeBox, view: &FlatView, edits: &EditView, sizes: &[us
             )));
         }
         let v = edits.value.get(i).copied().unwrap_or(0);
+        if edit_kind == 5 {
+            let j = v.max(0) as usize;
+            if j >= clones.len() || view.arrays[0].get(j).copied().unwrap_or(0) != KIND_EXPR {
+                return Err(Error::Compile(format!(
+                    "pass #[{}]: replace_with source {} is not an expression (at {}:{})",
+                    a.path_str(), j, a.span.start_line, a.span.start_col
+                )));
+            }
+            let src = clones[j].as_ref().ok_or_else(|| Error::Compile(format!(
+                "pass #[{}]: replace_with source {} is unavailable (at {}:{})",
+                a.path_str(), j, a.span.start_line, a.span.start_col
+            )))?;
+            let ty = e.expr_type();
+            if src.expr_type() != ty {
+                return Err(Error::Compile(format!(
+                    "pass #[{}]: replace_with type mismatch (`{}` vs `{}` at {}:{})",
+                    a.path_str(),
+                    crate::hir::display::display_type(&src.expr_type()),
+                    crate::hir::display::display_type(&ty),
+                    a.span.start_line, a.span.start_col
+                )));
+            }
+            *e = src.clone();
+            *idx = i + sizes[i];
+            return Ok(());
+        }
+        if edit_kind == 6 {
+            return Err(Error::Compile(format!(
+                "pass #[{}]: delete_stmt is only allowed on statements (node {} at {}:{})",
+                a.path_str(), i, a.span.start_line, a.span.start_col
+            )));
+        }
         let ty = e.expr_type();
         // 比较节点在 MIR 中保留操作数类型，bool 结果由 MIR→LIR 决定；
         // 因此允许把比较节点（ops 6..=11）替换为 bool 字面量。
@@ -61,31 +131,45 @@ fn apply_expr(e: &mut MirNodeBox, view: &FlatView, edits: &EditView, sizes: &[us
     let mut err: Option<Error> = None;
     e.for_each_child_mut(&mut |c| {
         if err.is_none() {
-            if let Err(x) = apply_expr(c, view, edits, sizes, idx, a) { err = Some(x); }
+            if let Err(x) = apply_expr(c, view, edits, clones, sizes, idx, a) { err = Some(x); }
         }
     });
     match err { Some(x) => Err(x), None => Ok(()) }
 }
 
-fn apply_stmt(s: &mut dyn MirStmtNode, view: &FlatView, edits: &EditView, sizes: &[usize], idx: &mut usize, a: &Attr) -> Result<()> {
+fn apply_stmt(
+    s: &mut MirStmtBox,
+    view: &FlatView,
+    edits: &EditView,
+    clones: &[Option<MirNodeBox>],
+    sizes: &[usize],
+    idx: &mut usize,
+    a: &Attr,
+) -> Result<()> {
     let i = *idx;
     *idx += 1;
-    if edits.kind.get(i).copied().unwrap_or(0) != 0 {
-        return Err(Error::Compile(format!(
-            "pass #[{}]: edits are only supported on expressions (node {} at {}:{})",
-            a.path_str(), i, a.span.start_line, a.span.start_col
-        )));
+    let edit_kind = edits.kind.get(i).copied().unwrap_or(0);
+    if edit_kind != 0 {
+        if edit_kind != 6 {
+            return Err(Error::Compile(format!(
+                "pass #[{}]: statements only support delete_stmt (node {} at {}:{})",
+                a.path_str(), i, a.span.start_line, a.span.start_col
+            )));
+        }
+        *s = SMirBlockStmt { stmts: Vec::new() }.into();
+        *idx = i + sizes[i];
+        return Ok(());
     }
     let mut err: Option<Error> = None;
     s.for_each_child_stmt_mut(&mut |c| {
         if err.is_none() {
-            if let Err(x) = apply_stmt(&mut **c, view, edits, sizes, idx, a) { err = Some(x); }
+            if let Err(x) = apply_stmt(c, view, edits, clones, sizes, idx, a) { err = Some(x); }
         }
     });
     if err.is_none() {
         s.for_each_child_expr_mut(&mut |e| {
             if err.is_none() {
-                if let Err(x) = apply_expr(e, view, edits, sizes, idx, a) { err = Some(x); }
+                if let Err(x) = apply_expr(e, view, edits, clones, sizes, idx, a) { err = Some(x); }
             }
         });
     }
@@ -96,11 +180,11 @@ pub(super) fn apply_edits(f: &mut MirFn, view: &FlatView, edits: &EditView, a: &
     if edits.kind.iter().all(|k| *k == 0) {
         return Ok(());
     }
+    let clones = collect_clones(f, view.arrays[0].len());
     let sizes = compute_sizes(&view.arrays[6]);
-    let mut idx = 0usize;
-    idx += 1; // 根节点
+    let mut idx = 1usize; // 根节点
     for s in f.body.iter_mut() {
-        apply_stmt(&mut **s, view, edits, &sizes, &mut idx, a)?;
+        apply_stmt(s, view, edits, &clones, &sizes, &mut idx, a)?;
     }
     Ok(())
 }
