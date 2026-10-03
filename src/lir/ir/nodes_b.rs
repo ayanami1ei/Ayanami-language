@@ -41,6 +41,17 @@ impl LirNode for SLirConv {
                 lines.push(format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 {}, i1 false)", self.malloc_tmp, src_ptr, size));
                 lines.push(format!("%t{} = bitcast i8* %l{} to {}", self.dest, self.malloc_tmp, ctx.llvm_type(&self.ty)));
             }
+            ConvKind::Cast => {
+                let from = ctx.llvm_type(&self.src_ty);
+                let to = ctx.llvm_type(&self.ty);
+                let op = match (&self.src_ty, &self.ty) {
+                    (HirType::Char, HirType::Int) => "zext",
+                    (HirType::Char, HirType::Float) => "uitofp",
+                    (HirType::Int, HirType::Float) => "sitofp",
+                    _ => "bitcast",
+                };
+                lines.push(format!("%t{} = {} {} {} to {}", self.dest, op, from, src_val, to));
+            }
         }
         lines
     }

@@ -115,6 +115,9 @@ impl crate::hir::lower::Ctx {
             }
             if matches!(param_tys[i], HirType::Unique(_) | HirType::Ref(..)) {
                 wrap_arg_for_param(arg, &param_tys[i])
+            } else if implicit_cast_ok(&arg_ty, &param_tys[i]) {
+                // 按值基元参数的隐式数值转换（char→int / int→float / char→float）
+                SCast { expr: arg, ty: strip_ownership_ref(&param_tys[i]).clone() }.into()
             } else {
                 arg
             }

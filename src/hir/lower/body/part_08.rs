@@ -3,8 +3,13 @@ use super::*;
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt> {
         match stmt {
-            Stmt::Assign { name, value, span: _, .. } => {
+            Stmt::Assign { name, value, span, .. } => {
                 let hir_value = self.lower_expr(value)?;
+                // 已存在的变量：按既有类型做隐式数值转换
+                let hir_value = match self.lookup_var(name) {
+                    Some((_, var_ty, _)) => coerce_expr(hir_value, &var_ty, span)?,
+                    None => hir_value,
+                };
                 let hir_value = implicit_move(hir_value);
                 let value_ty = expr_type(&hir_value);
                 let (var_id, ty, _) = self.register_or_lookup(*name, value_ty);
@@ -19,6 +24,8 @@ impl crate::hir::lower::Ctx {
                 let field_index = self.find_field_index(&object_ty, field, stmt_span)?;
                 let field_ty = self.find_field_type(&object_ty, field, stmt_span)?;
                 let hir_value = self.lower_expr(value)?;
+                // 字段类型隐式数值转换
+                let hir_value = coerce_expr(hir_value, &field_ty, stmt_span)?;
                 let hir_value = implicit_move(hir_value);
                 // A4b-2：引用字段允许存储（非引用字段仍拒绝）
                 if matches!(expr_type(&hir_value), HirType::Ref(..))
@@ -54,13 +61,15 @@ impl crate::hir::lower::Ctx {
                     value: hir_value,
                 })
             }
-            Stmt::Return { value, .. } => {
+            Stmt::Return { value, span } => {
                 let hir_value = match value {
                     Some(v) => {
                         let expr = self.lower_expr(v)?;
+                        // 隐式数值转换：按函数返回类型
+                        let fn_ret = self.fns[self.current_fn.0].return_type.clone();
+                        let expr = coerce_expr(expr, &fn_ret, span)?;
                         let expr_ty = expr_type(&expr);
                         // 若函数返回 unique T，但表达式是裸 T，自动包装为 ToUnique
-                        let fn_ret = self.fns[self.current_fn.0].return_type.clone();
                         let wrapped = match (&fn_ret, &expr_ty) {
                             (HirType::Unique(pt), _) if *pt.as_ref() == expr_ty => {
                                 SToUnique { expr, ty: fn_ret.clone() }.into()

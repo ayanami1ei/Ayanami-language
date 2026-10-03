@@ -72,6 +72,23 @@ impl crate::hir::lower::Ctx {
         if matches.len() > 1 {
             return None;
         }
+        // 隐式数值转换回退（char→int / int→float / char→float）：
+        // 仅在无精确匹配时参与，避免与精确重载竞争
+        let casts: Vec<FnId> = candidates.iter().copied()
+            .filter(|&fn_id| {
+                let sig = &self.fns[fn_id.0];
+                sig.params.len() == arg_types.len()
+                    && sig.params.iter().zip(arg_types).all(|((_, pt), at)| {
+                        self.param_compatible(pt, at) || implicit_cast_ok(at, pt)
+                    })
+            })
+            .collect();
+        if casts.len() == 1 {
+            return Some(casts[0]);
+        }
+        if casts.len() > 1 {
+            return None;
+        }
         // 泛型单态化回退：实参仍是基名（Result）而形参已实例化（Result<int,int>）时按基名匹配
         let lenient: Vec<FnId> = candidates.iter().copied()
             .filter(|&fn_id| {
@@ -158,6 +175,8 @@ impl crate::hir::lower::Ctx {
                     || same_base_name(pt, at)
                     || strip_ownership_ref(pt) == strip_ownership_ref(at)
                     || same_base_name(strip_ownership_ref(pt), strip_ownership_ref(at))
+                    || implicit_cast_ok(at, pt)
+                    || implicit_cast_ok(strip_ownership_ref(at), strip_ownership_ref(pt))
             }) {
                 return Some(fn_id);
             }

@@ -192,6 +192,31 @@ impl MirNode for SMirToUnique {
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
 }
 
+impl MirNode for SMirCast {
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let src = self.expr.lower_to_lir(ctx);
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirConv {
+            dest,
+            alloca_tmp: 0,
+            malloc_tmp: 0,
+            src,
+            kind: ConvKind::Cast,
+            src_ty: self.expr.expr_type(),
+            ty: self.ty.clone(),
+        }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Cast(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+}
+
 
 
 impl MirNode for SMirVirtualCall {

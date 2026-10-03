@@ -62,7 +62,7 @@ impl<'a> Reader<'a> {
             7 => {
                 let d = self.u64()?; let at = self.u64()?; let mt = self.u64()?;
                 let s = self.value()?; let k = self.u32()?; let st = self.ty()?; let t = self.ty()?;
-                let kind = match k { 0 => ConvKind::ToUnique, _ => return Err(Error::Serialize("unknown ConvKind".into())) };
+                let kind = match k { 0 => ConvKind::ToUnique, 1 => ConvKind::Cast, _ => return Err(Error::Serialize("unknown ConvKind".into())) };
                 Ok(SLirConv { dest: d, alloca_tmp: at, malloc_tmp: mt, src: s, kind, src_ty: st, ty: t }.into())
             }
             8 => Ok(SLirDropValue { var: VarId(self.u32()? as usize), ty: self.ty()? }.into()),

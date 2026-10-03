@@ -40,6 +40,7 @@ impl IrNode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConvKind {
     ToUnique,
+    Cast,
 }
 
 #[derive(Debug, Clone)]

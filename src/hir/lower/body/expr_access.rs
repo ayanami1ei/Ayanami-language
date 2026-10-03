@@ -82,6 +82,10 @@ impl crate::hir::lower::Ctx {
                     }
                 }
             }
+            // 字段类型隐式数值转换
+            if let Some(field_ty) = field_tys.get(name) {
+                hir_val = coerce_expr(hir_val, field_ty, &expr.span())?;
+            }
             hir_fields.push((*name, implicit_move(hir_val)));
         }
         Ok(SStruct {

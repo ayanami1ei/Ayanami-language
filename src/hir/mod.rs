@@ -41,6 +41,7 @@ s_hir!(SVar { var: VarId, ty: HirType });
 s_hir!(SMove { expr: HirNodeBox, ty: HirType });
 s_hir!(SClone { expr: HirNodeBox, ty: HirType });
 s_hir!(SToUnique { expr: HirNodeBox, ty: HirType });
+s_hir!(SCast { expr: HirNodeBox, ty: HirType });
 s_hir!(SField { object: HirNodeBox, field: Symbol, field_index: usize, ty: HirType });
 s_hir!(SStruct { type_name: Symbol, fields: Vec<(Symbol, HirNodeBox)>, ty: HirType });
 s_hir!(SArrLit { elems: Vec<HirNodeBox>, ty: HirType });

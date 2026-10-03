@@ -13,6 +13,13 @@ pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox {
 /// 包装参数以匹配期望的参数类型（处理所有权转换）
 pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
     let arg_ty = arg.expr_type();
+    // 隐式数值转换：char→int / int→float / char→float
+    let arg = if implicit_cast_ok(&arg_ty, param_ty) {
+        SCast { expr: arg, ty: strip_ownership_ref(param_ty).clone() }.into()
+    } else {
+        arg
+    };
+    let arg_ty = arg.expr_type();
     let converted = match param_ty {
         HirType::Unique(pt) => {
             // Copy 类型（int/float/char/bool）无需装箱
