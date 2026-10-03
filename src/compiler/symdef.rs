@@ -10,6 +10,19 @@ pub struct SymDef {
     pub col: usize,
     /// 声明上的标注名（A0 起）
     pub attrs: Vec<String>,
+    /// A3：效应 tokens（声明 + 推断事实 + 承诺 + throws 槽位）
+    pub effects: Vec<String>,
+}
+
+/// A3：声明上的效应 tokens（无推断；推断由 CLI 侧接 HIR 摘要合并）。
+fn stmt_effect_tokens(stmt: &Stmt) -> Vec<String> {
+    let attrs = match stmt {
+        Stmt::FnDecl { attrs, .. } => attrs,
+        _ => return Vec::new(),
+    };
+    crate::hir::effects::parse(attrs)
+        .map(|d| crate::hir::effects::EffectSummary { declared: d, inferred: Default::default() }.tokens())
+        .unwrap_or_default()
 }
 
 /// 提取声明上的标注名列表。
@@ -63,6 +76,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 line: span.start_line,
                 col: span.start_col,
                 attrs: stmt_attr_names(stmt),
+                effects: stmt_effect_tokens(stmt),
             });
         }
         Stmt::StructDef {
@@ -88,6 +102,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 line: span.start_line,
                 col: span.start_col,
                 attrs: stmt_attr_names(stmt),
+                effects: Vec::new(),
             });
         }
         Stmt::InterfaceDef {
@@ -105,6 +120,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 line: span.start_line,
                 col: span.start_col,
                 attrs: stmt_attr_names(stmt),
+                effects: Vec::new(),
             });
         }
             Stmt::EnumDef { .. } => {}
@@ -120,6 +136,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 line: span.start_line,
                 col: span.start_col,
                 attrs: stmt_attr_names(stmt),
+                effects: Vec::new(),
             });
         }
         Stmt::Namespace {
@@ -137,6 +154,7 @@ fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<
                 line: span.start_line,
                 col: span.start_col,
                 attrs: stmt_attr_names(stmt),
+                effects: Vec::new(),
             });
             let ns_prefix = if prefix.is_empty() {
                 name.as_str().to_string()
@@ -161,14 +179,20 @@ pub fn defs_to_json(defs: &[SymDef]) -> String {
                 .iter()
                 .map(|a| format!("\"{}\"", a.replace('\\', "\\\\").replace('"', "\\\"")))
                 .collect();
+            let effects: Vec<String> = d
+                .effects
+                .iter()
+                .map(|a| format!("\"{}\"", a.replace('\\', "\\\\").replace('"', "\\\"")))
+                .collect();
             format!(
-                r#"{{"name":"{}","kind":"{}","file":"{}","line":{},"col":{},"attrs":[{}]}}"#,
+                r#"{{"name":"{}","kind":"{}","file":"{}","line":{},"col":{},"attrs":[{}],"effects":[{}]}}"#,
                 d.name.replace('\\', "\\\\").replace('"', "\\\""),
                 d.kind,
                 d.file.replace('\\', "\\\\").replace('"', "\\\""),
                 d.line,
                 d.col,
-                attrs.join(",")
+                attrs.join(","),
+                effects.join(",")
             )
         })
         .collect();

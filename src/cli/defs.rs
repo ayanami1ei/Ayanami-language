@@ -23,6 +23,15 @@ pub(crate) fn cmd_defs(args: &[String]) {
     };
     let mut defs = Vec::new();
     ayanami::compiler::collect_defs_from_stmts(&program.stmts, &path_str, "", &mut defs);
+    // A3：尽力接 HIR 推断摘要（失败则只保留声明 tokens）
+    if let Ok(hir) = ayanami::hir::lower_program(&program) {
+        let summaries = ayanami::hir::effects::infer::summarize(&hir);
+        for d in defs.iter_mut() {
+            if let Some(s) = summaries.get(&d.name) {
+                d.effects = s.tokens();
+            }
+        }
+    }
     // Also collect from recursively resolved .aya imports
     let mut visited = std::collections::HashSet::new();
     visited.insert(path.canonicalize().unwrap_or_else(|_| path.to_path_buf()));

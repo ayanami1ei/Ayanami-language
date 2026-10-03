@@ -58,6 +58,21 @@ pub fn analyze(hir: &mut HirProgram, ast: &crate::parser::ast::Program, src_path
     Ok(())
 }
 
+/// 静默摘要：函数名 → 摘要（不写回、不告警；供 `defs` 等工具）。
+pub fn summarize(hir: &HirProgram) -> HashMap<String, crate::hir::effects::EffectSummary> {
+    let mut fns: Vec<&HirFn> = Vec::new();
+    collect_fns(&hir.items, &mut fns);
+    let inf = compute(hir);
+    let mut out = HashMap::new();
+    for f in fns {
+        out.insert(f.name.as_str(), crate::hir::effects::EffectSummary {
+            declared: f.effects.clone(),
+            inferred: inf.get(&f.fn_id).cloned().unwrap_or_default(),
+        });
+    }
+    out
+}
+
 /// 调用图不动点推断。
 fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet> {
     let mut fns: Vec<&HirFn> = Vec::new();

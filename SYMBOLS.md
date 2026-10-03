@@ -11,7 +11,7 @@ src/cli/check.rs:14: pub(crate) fn cmd_check(args: &[String])
 src/cli/check.rs:33: fn watch_file(path: &Path)
 src/cli/clean.rs:3: pub(crate) fn cmd_clean()
 src/cli/defs.rs:3: pub(crate) fn cmd_defs(args: &[String])
-src/cli/defs.rs:34: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
+src/cli/defs.rs:43: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
 src/cli/fmt.rs:3: pub(crate) fn cmd_fmt(args: &[String])
 src/cli/mod.rs:7: pub(crate) mod build;
 src/cli/mod.rs:8: pub(crate) mod check;
@@ -89,10 +89,11 @@ src/compiler/mod.rs:208: pub fn ast_program(&self) -> Option<&Program>
 src/compiler/mod.rs:214: pub fn compile_source(code: &str) -> Result<CompileResult>
 src/compiler/mod.rs:222: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
 src/compiler/symdef.rs:5: pub struct SymDef
-src/compiler/symdef.rs:16: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
-src/compiler/symdef.rs:29: pub fn collect_defs_from_stmts(
-src/compiler/symdef.rs:40: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
-src/compiler/symdef.rs:155: pub fn defs_to_json(defs: &[SymDef]) -> String
+src/compiler/symdef.rs:18: fn stmt_effect_tokens(stmt: &Stmt) -> Vec<String>
+src/compiler/symdef.rs:29: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
+src/compiler/symdef.rs:42: pub fn collect_defs_from_stmts(
+src/compiler/symdef.rs:53: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
+src/compiler/symdef.rs:173: pub fn defs_to_json(defs: &[SymDef]) -> String
 src/driver/mod.rs:11: fn find_llc() -> Result<(PathBuf, PathBuf)>
 src/driver/mod.rs:29: fn find_opt() -> Option<(PathBuf, PathBuf)>
 src/driver/mod.rs:46: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
@@ -179,15 +180,16 @@ src/hir/effects/infer.rs:38: static VERIFY_EFFECTS: std::sync::atomic::AtomicBoo
 src/hir/effects/infer.rs:40: pub fn set_verify_effects(v: bool)
 src/hir/effects/infer.rs:44: pub fn verify_effects() -> bool
 src/hir/effects/infer.rs:49: pub fn analyze(hir: &mut HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
-src/hir/effects/infer.rs:62: fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet>
-src/hir/effects/infer.rs:155: fn declared_to_set(d: &EffectDecl) -> EffectSet
-src/hir/effects/infer.rs:163: pub(super) fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
-src/hir/effects/infer.rs:173: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
-src/hir/effects/infer.rs:184: struct CallInfo
-src/hir/effects/infer.rs:191: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
-src/hir/effects/infer.rs:237: fn state_marker() -> CallInfo
-src/hir/effects/infer.rs:241: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
-src/hir/effects/infer.rs:245: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:62: pub fn summarize(hir: &HirProgram) -> HashMap<String, crate::hir::effects::EffectSummary>
+src/hir/effects/infer.rs:77: fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet>
+src/hir/effects/infer.rs:170: fn declared_to_set(d: &EffectDecl) -> EffectSet
+src/hir/effects/infer.rs:178: pub(super) fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
+src/hir/effects/infer.rs:188: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
+src/hir/effects/infer.rs:199: struct CallInfo
+src/hir/effects/infer.rs:206: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:252: fn state_marker() -> CallInfo
+src/hir/effects/infer.rs:256: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
+src/hir/effects/infer.rs:260: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
 src/hir/effects/mod.rs:15: pub const BUILTIN_EFFECTS: &[&str] = &["io", "state", "alloc"];
 src/hir/effects/mod.rs:18: pub(crate) const IO_NAMES: &[&str] = &[
 src/hir/effects/mod.rs:24: pub mod diag;
