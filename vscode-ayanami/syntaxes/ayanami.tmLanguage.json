@@ -8,6 +8,7 @@
     { "include": "#strings" },
     { "include": "#chars" },
     { "include": "#numbers" },
+    { "include": "#annotations" },
     { "include": "#keywords" },
     { "include": "#types" },
     { "include": "#struct-names" },
@@ -42,15 +43,28 @@
         { "name": "constant.numeric.integer.aya", "match": "\\b[0-9]+\\b" }
       ]
     },
+    "annotations": {
+      "patterns": [
+        {
+          "name": "meta.annotation.aya",
+          "match": "#\\[([a-zA-Z_][a-zA-Z0-9_:]*)(\\([^\\]]*\\))?\\]",
+          "captures": {
+            "1": { "name": "entity.name.function.annotation.aya" },
+            "2": { "name": "variable.parameter.annotation.aya" }
+          }
+        },
+        { "name": "invalid.illegal.annotation.aya", "match": "#\\[" }
+      ]
+    },
     "keywords": {
       "patterns": [
         {
           "name": "keyword.control.aya",
-          "match": "\\b(if|elif|else|for|in|while|return|break|continue)\\b"
+          "match": "\\b(if|elif|else|for|in|while|return|break|continue|match)\\b"
         },
         {
           "name": "keyword.declaration.aya",
-          "match": "\\b(fn|struct|namespace|interface|impl|import|pub|crate|mut)\\b"
+          "match": "\\b(fn|struct|enum|namespace|interface|impl|import|pub|crate|mut|extern|inline|macro|asm)\\b"
         },
         {
           "name": "keyword.operator.aya",
@@ -58,7 +72,7 @@
         },
         {
           "name": "storage.modifier.aya",
-          "match": "\\b(shared|unique|weak)\\b"
+          "match": "\\b(unique|ref)\\b"
         },
         {
           "name": "constant.language.aya",

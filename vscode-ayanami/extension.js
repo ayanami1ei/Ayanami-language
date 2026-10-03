@@ -61,6 +61,31 @@ function activate(context) {
             const items = [];
             const linePrefix = document.lineAt(position).text.slice(0, position.character);
 
+            // 标注补全：`#[` 后建议内置标注（A0–A4）
+            const attrMatch = linePrefix.match(/#\[([\w:]*)$/);
+            if (attrMatch) {
+                const anns = [
+                    ['inline', 'inline hint'], ['inline(always)', 'force inline'],
+                    ['cold', 'cold path'], ['noreturn', 'does not return'],
+                    ['pure', 'promise no effects (memory(none))'], ['readonly', 'readonly memory'],
+                    ['nounwind', 'no unwind'], ['willreturn', 'always returns'],
+                    ['noalias', 'pointer does not alias'], ['nonnull', 'non-null pointer'],
+                    ['no_error', 'promise never fails'],
+                    ['io', 'may perform IO'], ['state', 'may mutate state'], ['alloc', 'may allocate'],
+                    ['cfg(target = "linux")', 'compile-time target'],
+                    ['assume(cond)', 'assume condition'], ['requires(cond)', 'precondition'],
+                    ['ensures(result)', 'postcondition'], ['invariant(cond)', 'loop invariant'],
+                    ['throws(E)', 'may throw E'], ['throws(_)', 'unknown throws'],
+                    ['throws()', 'no known errors (open slot)'],
+                    ['follow_with(source)', 'reference lifetime source'],
+                    ['macro', 'user macro'],
+                ];
+                for (const [label, detail] of anns) {
+                    items.push(makeItem(label, vscode.CompletionItemKind.EnumMember, detail));
+                }
+                return items;
+            }
+
             const dotMatch = linePrefix.match(/(\w+)\.$/);
             const nsMatch = linePrefix.match(/(\w+)::$/);
             const afterArrow = linePrefix.match(/->\s*$/);
@@ -181,17 +206,15 @@ function activate(context) {
                 { label: 'interface', kind: vscode.CompletionItemKind.Keyword, detail: 'interface definition' },
                 { label: 'impl', kind: vscode.CompletionItemKind.Keyword, detail: 'impl block' },
                 { label: 'pub', kind: vscode.CompletionItemKind.Keyword, detail: 'public' },
-                { label: 'shared', kind: vscode.CompletionItemKind.Keyword, detail: 'shared ownership' },
-                { label: 'unique', kind: vscode.CompletionItemKind.Keyword, detail: 'unique ownership' },
-                { label: 'weak', kind: vscode.CompletionItemKind.Keyword, detail: 'weak reference' },
+                { label: 'unique', kind: vscode.CompletionItemKind.Keyword, detail: 'unique ownership (Box)' },
+                { label: 'ref', kind: vscode.CompletionItemKind.Keyword, detail: 'borrow (ref / ref mut)' },
+                { label: 'extern', kind: vscode.CompletionItemKind.Keyword, detail: 'extern "C" declaration' },
+                { label: 'inline', kind: vscode.CompletionItemKind.Keyword, detail: 'inline function' },
+                { label: 'asm', kind: vscode.CompletionItemKind.Keyword, detail: 'inline assembly' },
                 { label: 'true', kind: vscode.CompletionItemKind.Keyword, detail: 'boolean true' },
                 { label: 'false', kind: vscode.CompletionItemKind.Keyword, detail: 'boolean false' },
                 { label: 'null', kind: vscode.CompletionItemKind.Keyword, detail: 'null value' },
                 { label: 'in', kind: vscode.CompletionItemKind.Keyword, detail: 'for iterator' },
-                { label: 'break', kind: vscode.CompletionItemKind.Keyword, detail: 'break loop' },
-                { label: 'continue', kind: vscode.CompletionItemKind.Keyword, detail: 'continue loop' },
-                { label: 'enum', kind: vscode.CompletionItemKind.Keyword, detail: 'enum definition' },
-                { label: 'match', kind: vscode.CompletionItemKind.Keyword, detail: 'match expression' },
             ];
             for (const kw of keywords) {
                 items.push(new vscode.CompletionItem(kw.label, kw.kind));
