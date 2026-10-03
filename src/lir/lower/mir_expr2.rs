@@ -151,7 +151,8 @@ impl MirNode for SMirArrayLiteral {
         }).collect();
         let dest = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
         let elem_geps: Vec<u64> = lowered.iter().map(|_| ctx.next_tmp()).collect();
-        let elem_ty = match &self.ty { HirType::Array(inner) | HirType::ArraySized(inner, _) => *inner.clone(), _ => HirType::Int };
+        // `[..]` 现在直接是 Unique(Array/ArraySized)：先剥拥有包装再取元素类型
+        let elem_ty = match strip_ownership(self.ty.clone()) { HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(), _ => HirType::Int };
         ctx.emit(SLirArrayLit { dest, malloc_tmp, elem_geps, elems: lowered, elem_ty, ty: self.ty.clone() }.into());
         LirValue::Tmp(dest)
     }
@@ -223,7 +224,7 @@ impl MirNode for SMirIndex {
         };
         let dest = ctx.next_tmp(); let gep_tmp = ctx.next_tmp(); let load_tmp = ctx.next_tmp();
         let obj_ty = strip_ownership(self.object.expr_type());
-        let elem_ty = match &obj_ty { HirType::Array(inner) | HirType::ArraySized(inner, _) => *inner.clone(), _ => self.ty.clone() };
+        let elem_ty = match strip_ownership(obj_ty.clone()) { HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(), _ => self.ty.clone() };
         ctx.emit(SLirIndexAccess { dest, gep_tmp, load_tmp, arr: LirValue::Tmp(arr_tmp), index: idx_val, elem_ty, ty: self.ty.clone() }.into());
         LirValue::Tmp(dest)
     }

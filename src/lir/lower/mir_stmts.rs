@@ -67,7 +67,8 @@ impl MirStmtNode for SMirIndexAssignStmt {
         let src_val = self.value.lower_to_lir(ctx);
         let gep_tmp = ctx.next_tmp();
         let obj_ty = strip_ownership(self.object.expr_type());
-        let elem_ty = match &obj_ty { HirType::Array(inner) | HirType::ArraySized(inner, _) => *inner.clone(), _ => HirType::Int };
+        // 数组现在直接是 Unique(Array/ArraySized)：先剥拥有包装再取元素类型
+        let elem_ty = match strip_ownership(obj_ty.clone()) { HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(), _ => HirType::Int };
         ctx.emit(SLirIndexStore { dest: obj_tmp, gep_tmp, src: src_val, index: idx_val, elem_ty, array_ty: self.object.expr_type() }.into());
     }
     fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
