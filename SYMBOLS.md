@@ -283,7 +283,7 @@ src/hir/lower/body/expr_access.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_access.rs:4: pub(crate) fn lower_field_access(&mut self, object: &Box<Expr>, field: &Symbol, expr_span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_access.rs:17: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_access.rs:94: pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:115: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:114: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_call.rs:4: pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call.rs:128: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
@@ -396,13 +396,13 @@ src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type
 src/hir/lower/helpers/types.rs:26: pub(crate) fn sig_str_to_hir(s: &str) -> HirType
 src/hir/lower/helpers/types.rs:49: fn is_iface_type(inner_hir: &HirType, interfaces: &HashMap<Symbol, super::InterfaceReg>) -> bool
 src/hir/lower/helpers/types.rs:60: pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> HirType
-src/hir/lower/helpers/types.rs:120: pub(crate) fn extract_named(ty: &HirType) -> Option<&Symbol>
-src/hir/lower/helpers/types.rs:129: pub(crate) fn hir_type_display(ty: &HirType) -> String
-src/hir/lower/helpers/types.rs:154: pub(crate) fn strip_ownership(ty: HirType) -> HirType
-src/hir/lower/helpers/types.rs:162: pub(crate) fn strip_ownership_ref(ty: &HirType) -> &HirType
-src/hir/lower/helpers/types.rs:170: pub(crate) fn expr_type(expr: &HirNodeBox) -> HirType
-src/hir/lower/helpers/types.rs:175: pub(crate) fn is_null_literal(expr: &HirNodeBox) -> bool
-src/hir/lower/helpers/types.rs:180: pub(crate) fn is_pointer_type_for_cmp(ty: &HirType) -> bool
+src/hir/lower/helpers/types.rs:121: pub(crate) fn extract_named(ty: &HirType) -> Option<&Symbol>
+src/hir/lower/helpers/types.rs:130: pub(crate) fn hir_type_display(ty: &HirType) -> String
+src/hir/lower/helpers/types.rs:155: pub(crate) fn strip_ownership(ty: HirType) -> HirType
+src/hir/lower/helpers/types.rs:163: pub(crate) fn strip_ownership_ref(ty: &HirType) -> &HirType
+src/hir/lower/helpers/types.rs:171: pub(crate) fn expr_type(expr: &HirNodeBox) -> HirType
+src/hir/lower/helpers/types.rs:176: pub(crate) fn is_null_literal(expr: &HirNodeBox) -> bool
+src/hir/lower/helpers/types.rs:181: pub(crate) fn is_pointer_type_for_cmp(ty: &HirType) -> bool
 src/hir/lower/helpers/wrap.rs:3: pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:14: pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:60: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
@@ -1547,7 +1547,7 @@ src/parser/parser/impls.rs:6: pub(super) fn parse_import(&mut self) -> Result<St
 src/parser/parser/impls.rs:35: pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/impls.rs:61: fn extract_type_name(ty: &Type) -> Symbol
 src/parser/parser/impls.rs:98: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
-src/parser/parser/impls.rs:244: pub(super) fn parse_block(&mut self) -> Result<Block>
+src/parser/parser/impls.rs:243: pub(super) fn parse_block(&mut self) -> Result<Block>
 src/parser/parser/mod.rs:8: pub struct Parser
 src/parser/parser/mod.rs:13: mod atom;
 src/parser/parser/mod.rs:14: mod core;
@@ -1565,11 +1565,11 @@ src/parser/parser/stmt.rs:111: pub(super) fn is_type_start(&self, pos: usize) ->
 src/parser/parser/stmt.rs:119: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
 src/parser/parser/types.rs:3: impl Parser
 src/parser/parser/types.rs:6: pub(super) fn parse_type(&mut self) -> Result<Type>
-src/parser/parser/types.rs:26: pub(super) fn parse_base_type(&mut self) -> Result<Type>
-src/parser/parser/types.rs:100: pub(super) fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()>
+src/parser/parser/types.rs:24: pub(super) fn parse_base_type(&mut self) -> Result<Type>
+src/parser/parser/types.rs:98: pub(super) fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()>
 src/parser/parser/unary.rs:3: impl Parser
 src/parser/parser/unary.rs:4: pub(super) fn parse_unary(&mut self) -> Result<Expr>
-src/parser/parser/unary.rs:53: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
+src/parser/parser/unary.rs:51: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
 src/span.rs:5: pub struct Span
 src/span.rs:14: impl Span
 src/span.rs:15: pub fn new(
@@ -1761,7 +1761,7 @@ example/test.aya:1: fn main()->int
 example/test.aya:14: fn add(int a, int b)->int
 example/test.aya:17: fn sub(int a, int b)->int
 example/test_array.aya:1: fn main() -> int
-example/test_array_param.aya:1: fn sum(unique [int] arr) -> int
+example/test_array_param.aya:1: fn sum([int] arr) -> int
 example/test_array_param.aya:5: fn main() -> int
 example/test_asm.aya:1: fn main() -> int
 example/test_assume.aya:3: fn dec(int n) -> int { return n - 1 }
@@ -1787,11 +1787,11 @@ example/test_ensures.aya:3: fn abs2(int x) -> int
 example/test_ensures.aya:9: fn inc(int n) -> int { return n + 1 }
 example/test_ensures.aya:12: fn fallthrough() -> int { }
 example/test_ensures.aya:14: fn main() -> int
-example/test_ffi_attrs.aya:18: fn rarely() -> int { return 1 }
-example/test_ffi_attrs.aya:21: fn fast() -> int { return 2 }
-example/test_ffi_attrs.aya:24: fn always_returns() -> int { return 3 }
-example/test_ffi_attrs.aya:26: fn touch(#[nonnull] ref int x) -> int { return 0 }
-example/test_ffi_attrs.aya:28: fn main() -> int
+example/test_ffi_attrs.aya:22: fn rarely() -> int { return 1 }
+example/test_ffi_attrs.aya:25: fn fast() -> int { return 2 }
+example/test_ffi_attrs.aya:28: fn always_returns() -> int { return 3 }
+example/test_ffi_attrs.aya:30: fn touch(#[nonnull] ref int x) -> int { return 0 }
+example/test_ffi_attrs.aya:32: fn main() -> int
 example/test_follow_with.aya:2: struct S
 example/test_follow_with.aya:8: fn pick(ref S s) -> ref S { return s }
 example/test_follow_with.aya:12: fn first(ref S a, ref S b) -> ref S { return a }
@@ -1808,16 +1808,13 @@ example/test_invariant.aya:5: fn main() -> int
 example/test_macro.aya:5: fn placeholder() -> int { return 0 }
 example/test_macro.aya:7: fn main() -> int { return answer() - 42 }
 example/test_macro_import.aya:4: fn main() -> int
-example/test_memory.aya:5: struct Point
-example/test_memory.aya:10: fn make() -> int
-example/test_memory.aya:18: fn main() -> int
-example/test_memory_enum.aya:4: struct Point
-example/test_memory_enum.aya:9: enum Maybe
-example/test_memory_enum.aya:14: fn make() -> int
-example/test_memory_enum.aya:21: fn main() -> int
-example/test_memory_loop.aya:5: struct Point
-example/test_memory_loop.aya:10: fn loop_allocs() -> int
-example/test_memory_loop.aya:20: fn main() -> int
+example/test_memory.aya:5: fn make() -> int
+example/test_memory.aya:11: fn main() -> int
+example/test_memory_enum.aya:4: enum Maybe
+example/test_memory_enum.aya:9: fn make() -> int
+example/test_memory_enum.aya:15: fn main() -> int
+example/test_memory_loop.aya:5: fn loop_allocs() -> int
+example/test_memory_loop.aya:14: fn main() -> int
 example/test_nll.aya:4: struct S
 example/test_nll.aya:8: fn f(ref S s) -> int { return s.v }
 example/test_nll.aya:10: fn g(ref mut S s) -> int
@@ -1889,7 +1886,7 @@ example/test_struct_fn.aya:6: fn add_points(Point a, Point b) -> Point
 example/test_struct_fn.aya:11: fn main() -> int
 example/test_struct_impl.aya:1: struct Point
 example/test_struct_impl.aya:6: impl Point
-example/test_struct_impl.aya:7: fn get_x(unique self) -> int
+example/test_struct_impl.aya:7: fn get_x(self) -> int
 example/test_struct_impl.aya:12: fn main() -> int
 example/test_try.aya:4: fn inner(int x) -> Result[int, int]
 example/test_try.aya:9: fn outer(int x) -> Result[int, int]
@@ -1899,7 +1896,7 @@ example/test_two_phase.aya:1: struct S { int v }
 example/test_two_phase.aya:2: impl S
 example/test_two_phase.aya:4: fn add(ref mut self, int x) { self.v = self.v + x }
 example/test_two_phase.aya:6: fn main() -> int
-example/test_unique_struct.aya:1: struct Point
-example/test_unique_struct.aya:6: fn main() -> int
+example/test_unique_struct.aya:2: struct Point
+example/test_unique_struct.aya:7: fn main() -> int
 example/test_vis.aya:1: pub fn main() -> int
 example/test_vis2.aya:6: pub fn main() -> int

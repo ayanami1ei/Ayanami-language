@@ -1,13 +1,17 @@
 // A1：优化标注 → LLVM 属性（含 extern 声明与形参标注，跨语言优化）
 #[pure]
 #[nounwind]
-extern "C" fn strlen(unique [char] s) -> int;
+extern "C" fn strlen([char] s) -> int;
 
 #[pure]
 #[nounwind]
 extern "C" fn memcmp(
-    #[nonnull] #[noalias] unique [char] a,
-    #[nonnull] #[noalias] unique [char] b,
+    #[nonnull] 
+    #[noalias] 
+    [char] a,
+    #[nonnull] 
+    #[noalias] 
+    [char] b,
     int n
 ) -> int;
 

@@ -1,17 +1,11 @@
-// P1 块级作用域释放验证：循环内每轮分配的 unique 必须在当轮释放
+// P1 块级作用域释放验证：循环内每轮分配的拥有数组必须在当轮释放
 // 退出码 = 存活分配数，期望为 0
 extern "C" fn __ayanami_live_allocs() -> int;
-
-struct Point {
-    int x
-    int y
-}
 
 fn loop_allocs() -> int {
     i = 0;
     while i < 3 {
-        p = Point { x = i, y = 0 };
-        q = unique p;
+        q = [i, 0]
         i = i + 1;
     }
     return 0;

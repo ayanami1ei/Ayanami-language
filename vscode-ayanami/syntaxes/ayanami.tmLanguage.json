@@ -72,7 +72,7 @@
         },
         {
           "name": "storage.modifier.aya",
-          "match": "\\b(unique|ref)\\b"
+          "match": "\\bref\\b"
         },
         {
           "name": "constant.language.aya",

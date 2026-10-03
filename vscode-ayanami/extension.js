@@ -206,7 +206,6 @@ function activate(context) {
                 { label: 'interface', kind: vscode.CompletionItemKind.Keyword, detail: 'interface definition' },
                 { label: 'impl', kind: vscode.CompletionItemKind.Keyword, detail: 'impl block' },
                 { label: 'pub', kind: vscode.CompletionItemKind.Keyword, detail: 'public' },
-                { label: 'unique', kind: vscode.CompletionItemKind.Keyword, detail: 'unique ownership (Box)' },
                 { label: 'ref', kind: vscode.CompletionItemKind.Keyword, detail: 'borrow (ref / ref mut)' },
                 { label: 'extern', kind: vscode.CompletionItemKind.Keyword, detail: 'extern "C" declaration' },
                 { label: 'inline', kind: vscode.CompletionItemKind.Keyword, detail: 'inline function' },
@@ -261,7 +260,7 @@ function activate(context) {
                 { label: 'for', insert: 'for ${1:i} in (${2:start}, ${3:end}) {\n    ${4}\n}' },
                 { label: 'namespace', insert: 'namespace ${1:name} {\n    ${2}\n}' },
                 { label: 'import', insert: 'import "${1:path}"' },
-                { label: 'arr sized', insert: 'unique [${1:int}; ${2:10}]' },
+                { label: 'arr sized', insert: '[${1:int}; ${2:10}]' },
                 { label: 'impl add', insert: 'fn add(shared self, shared ${1:Type} other) -> ${1:Type} {\n    ${2}\n}' },
             ];
             for (const s of snippets) {
@@ -326,7 +325,6 @@ function activate(context) {
                 'import': '**import** — import module\n\n`import "path"`',
                 'namespace': '**namespace** — namespace\n\n`namespace name { fn ... }` — accessed via `name::fn()`',
                 'shared': '**shared** — shared ownership (refcounted heap)\n\n`shared T` — multiple references, runtime refcounting',
-                'unique': '**unique** — unique ownership\n\n`unique T` — single owner, deterministic free',
                 'weak': '**weak** — weak reference (non-owning)\n\n`weak T` — does not affect refcount, must be promoted',
                 'move': '**move** — transfer ownership\n\n`move x` — consumes the value, `x` becomes unavailable',
                 'clone': '**clone** — deep copy\n\n`clone x` — creates an independent copy',
@@ -339,7 +337,7 @@ function activate(context) {
                 'true': '**true** — boolean literal',
                 'false': '**false** — boolean literal',
                 'pub': '**pub** — make item visible outside the module',
-                'null': '**null** — nullable pointer value\n\n`shared T` or `unique T` can be null. Compare with `== null`.',
+                'null': '**null** — nullable pointer value\n\n拥有指针可为 null，用 `== null` 比较。',
             };
             if (keywordDocs[word]) {
                 return new vscode.Hover(new vscode.MarkdownString(keywordDocs[word]));
@@ -356,7 +354,7 @@ function activate(context) {
             const hints = [];
             const varTypes = scanVariableTypes(document);
 
-            const excludeVars = new Set(['fn', 'for', 'if', 'elif', 'else', 'while', 'return', 'import', 'struct', 'namespace', 'impl', 'interface', 'pub', 'move', 'clone', 'shared', 'unique', 'weak', 'ref', 'mut', 'true', 'false', 'null']);
+            const excludeVars = new Set(['fn', 'for', 'if', 'elif', 'else', 'while', 'return', 'import', 'struct', 'namespace', 'impl', 'interface', 'pub', 'move', 'clone', 'ref', 'mut', 'true', 'false', 'null']);
 
             const text = document.getText();
 
@@ -977,7 +975,7 @@ function getFieldType(doc, typeName, fieldName) {
     for (const line of lines) {
         const trimmed = line.trim();
         // Pattern: [ownership] Type fieldname
-        const fm = trimmed.match(/^(?:(?:shared|unique|weak)\s+)?(\w+)\s+(\w+)$/);
+        const fm = trimmed.match(/^(?:(?:ref\s+)?(\w+))\s+(\w+)$/);
         if (fm && fm[2] === fieldName) {
             return fm[1];
         }
@@ -997,11 +995,11 @@ function scanVariableTypes(doc) {
         const varName = m[1];
         const rhs = m[2].trim();
 
-        // 剥离所有权前缀（unique/shared/weak），用于后续模式匹配
-        let coreRhs = rhs.replace(/^(?:unique|shared|weak)\s+/, '');
+        // 剥离借用前缀（ref），用于后续模式匹配
+        let coreRhs = rhs.replace(/^ref\s+/, '');
         const ownership = rhs !== coreRhs ? rhs.split(/\s+/)[0] : null;
 
-        // Struct constructor: unique String { ... } or String { ... }
+        // Struct constructor: String { ... }
         const structMatch = coreRhs.match(/^(\w+)\s*\{/);
         if (structMatch) {
             varTypes.set(varName, structMatch[1]);
@@ -1038,7 +1036,7 @@ function scanVariableTypes(doc) {
             varTypes.set(varName, 'bool');
             continue;
         }
-        // List literal: unique [char; 10] or [int; n]
+        // List literal: [char; 10] or [int; n]
         const arrMatch = coreRhs.match(/^\[(\w+)\s*;/);
         if (arrMatch) {
             varTypes.set(varName, '[' + arrMatch[1] + ']');
@@ -1167,10 +1165,10 @@ function scanVariableTypes(doc) {
         for (const p of params) {
             const parts = p.trim().split(/\s+/);
             if (parts.length >= 2) {
-                // Handle: unique String param, shared int param, int param
+                // Handle: ref T param / T param
                 let typeName = parts[parts.length - 2];
                 let paramName = parts[parts.length - 1];
-                if (['shared', 'unique', 'weak', 'ref'].includes(typeName) && parts.length >= 3) {
+                if (['ref'].includes(typeName) && parts.length >= 3) {
                     typeName = parts[parts.length - 3];
                     paramName = parts[parts.length - 1];
                 }

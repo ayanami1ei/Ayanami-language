@@ -108,11 +108,10 @@ fn main() -> int {
 | 浮点   | `float`                           | 64 位                                           |
 | 字符   | `char`                            | 单字节                                          |
 | 布尔   | `bool`                            | `true` / `false`                            |
-| 字符串 | `String`                          | 标准库结构体`{ unique [char] data, int len }` |
-| 数组   | `[int]` / `unique [int]`         | 堆缓冲区；`unique` 拥有并自动释放               |
+| 字符串 | `String`                          | 标准库结构体 `{ [char] data, int len }` |
+| 数组   | `[int]`                          | 拥有堆缓冲区，离开作用域自动释放；借用写 `ref [int]` |
 | 结构体 | `Point`                           | 自定义，值语义                                  |
 | 枚举   | `Option[T]`                       | tag + union，支持方法派发                       |
-| unique | `unique int`                      | 独占所有权堆指针（Box），离开作用域自动释放     |
 | ref    | `ref int` / `ref mut int`         | 借用，不拥有、不可逃逸                          |
 
 | 枚举 | `Color` | tag + union，支持方法派发 |
@@ -240,7 +239,7 @@ method 调用自动生成 `match e { V0 => e._data_V0.method(...), V1 => ... }`�
 
 ```
 interface ToString {
-    fn to_string(unique self) -> unique String;
+    fn to_string(self) -> String;
 }
 
 impl Point {
@@ -259,9 +258,9 @@ impl Point: ToString {}  // 结构匹配：有 to_string 方法即自动实现�
 
 - **默认所有权**：非 Copy 值在赋值/传参时移动（use-after-move 会报错）；Copy 类型为
   `int` / `float` / `char` / `bool`（及函数指针）。
-- **`unique T`**：独占所有权堆指针（Box），移动语义，离开作用域递归释放。
+- **拥有堆数组**：`[T]` / `[T; n]` 为拥有堆缓冲，移动语义，离开作用域递归释放（借用写 `ref [T]`）。
 - **`ref T` / `ref mut T`**：借用，不拥有；调用时对同类型左值自动借用。引用可存入局部变量，借用在其最后一次使用后失效（NLL）；可作为返回值（生命周期省略：恰好一个引用参数时，返回引用视为来自该参数）；仍不可存入字段/数组。
-- **接口**：`ref Shape` 是借用胖指针（不分配），`unique Shape` 是拥有所有权的胖指针。
+- **接口**：`ref Shape` 是借用胖指针（不分配），`Shape` 是拥有所有权的胖指针。
 - 没有 `shared` / `weak` / GC：需要共享数据时用借用，或显式 `.copy()`。
 
 字符串拼接 `add[T:ToString](ref self, T a)` 对 String 与任意 ToString 类型生效：

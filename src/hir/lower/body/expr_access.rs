@@ -92,9 +92,7 @@ impl crate::hir::lower::Ctx {
     }
 
     pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox> {
-        if !self.allow_bare_array {
-            return Err(Error::Hir(format!("array literal must be prefixed with `shared`, `unique`, or `weak` (at {}:{})", span.start_line, span.start_col)));
-        }
+        let _ = span;
         let mut hir_elems = Vec::new();
         for e in elems {
             hir_elems.push(implicit_move(self.lower_expr(e)?));
@@ -104,10 +102,11 @@ impl crate::hir::lower::Ctx {
         } else {
             HirType::Int
         };
+        // `[a, b, ...]` 拥有堆数组
         let ty = if !hir_elems.is_empty() {
-            HirType::ArraySized(Box::new(elem_ty.clone()), hir_elems.len())
+            HirType::Unique(Box::new(HirType::ArraySized(Box::new(elem_ty.clone()), hir_elems.len())))
         } else {
-            HirType::Array(Box::new(elem_ty))
+            HirType::Unique(Box::new(HirType::Array(Box::new(elem_ty))))
         };
         Ok(SArrLit { elems: hir_elems, ty }.into())
     }

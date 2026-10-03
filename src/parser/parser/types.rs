@@ -8,9 +8,7 @@ impl Parser {
         let span = tok.span();
         match tok.kind {
             TokenKind::Keyword(Keyword::Unique) => {
-                self.advance();
-                let inner = self.parse_base_type()?;
-                Ok(Type::Unique(Box::new(inner), span))
+                Err(self.error("`unique` has been removed: ownership is the default; write `[T]`/`[T; n]` for owned arrays"))
             }
             TokenKind::Keyword(Keyword::Ref) => {
                 self.advance();

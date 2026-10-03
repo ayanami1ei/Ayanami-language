@@ -4,7 +4,7 @@ import "list"
 // 说明：链表曾基于 shared/weak 节点链；新所有权模型暂不支持"借用 unique 字段遍历"，
 // 因此改为数组缓冲实现，保持相同的 List 接口（行为等价：顺序表）。
 pub struct LinkedList[T:ToString] {
-    unique [T] data
+    [T] data
     int len
     int capability
 }
@@ -19,9 +19,9 @@ impl[T:ToString] LinkedList[T] {
     fn expand(ref mut self){
         if self.capability == 0 {
             self.capability = 1
-            self.data = unique [T; 1]
+            self.data = [T; 1]
         } else {
-            tmp = unique [T; self.capability * 2]
+            tmp = [T; self.capability * 2]
             for i in (0, self.len) { tmp[i] = self.data[i] }
             self.data = tmp
             self.capability = self.capability * 2

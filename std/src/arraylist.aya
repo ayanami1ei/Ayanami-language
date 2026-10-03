@@ -2,7 +2,7 @@ import "string"
 import "list"
 
 pub struct ArrayList[T:ToString]{
-    unique [T] data
+    [T] data
     int len
     int capability
 }
@@ -11,9 +11,9 @@ impl[T:ToString] ArrayList[T]{
     fn expand(ref mut self){
         if self.capability == 0 {
             self.capability = 1
-            self.data = unique [T; 1]
+            self.data = [T; 1]
         } else {
-            tmp = unique [T; self.capability * 2]
+            tmp = [T; self.capability * 2]
             for i in (0, self.len) { tmp[i] = self.data[i] }
             self.data = tmp
             self.capability = self.capability * 2

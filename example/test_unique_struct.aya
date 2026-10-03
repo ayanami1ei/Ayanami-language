@@ -1,3 +1,4 @@
+// 所有权移动验证（unique 已移除：值默认拥有，赋值即移动）
 struct Point {
     int x
     int y
@@ -5,6 +6,6 @@ struct Point {
 
 fn main() -> int {
     p = Point { x = 10, y = 3 };
-    up = unique p;
-    return up.x;
+    q = p;
+    return q.x;
 }

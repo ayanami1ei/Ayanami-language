@@ -1,19 +1,13 @@
 // P2 枚举 payload 释放验证：非活跃变体零初始化，drop 后无存活分配
 extern "C" fn __ayanami_live_allocs() -> int;
 
-struct Point {
-    int x
-    int y
-}
-
 enum Maybe {
-    Some(unique Point),
+    Some([int]),
     None,
 }
 
 fn make() -> int {
-    p = Point { x = 1, y = 2 };
-    a = Maybe::Some(unique p);
+    a = Maybe::Some([1, 2]);
     b = Maybe::None;
     return 0;
 }

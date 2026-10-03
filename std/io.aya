@@ -5,7 +5,7 @@ extern "C" fn __ayanami_getchar() -> int;
 #[io]
 extern "C" fn __ayanami_putchar(int c);
 #[io]
-extern "C" fn __ayanami_print_str(unique [char] s, int len);
+extern "C" fn __ayanami_print_str([char] s, int len);
 #[io]
 extern "C" fn __ayanami_print_ln();
 

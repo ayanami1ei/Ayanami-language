@@ -127,7 +127,7 @@ cargo test
 
 - 知识图谱：`docs/knowledge-graph.md`（概念→代码地图）、`docs/module-graph.md`（生成物）。
 - 标注系统设计（标注式编程 A0–A5）：`docs/annotations.md`。
-- 语言语法、类型系统、所有权（默认移动 + `unique` + `ref`）、泛型、枚举布局、操作符重载：见 `README.md`。
+- 语言语法、类型系统、所有权（默认移动 + `ref`/`ref mut`）、泛型、枚举布局、操作符重载：见 `README.md`。
 - 标准库 API：`std/README.md` 与 `std/**/*.aya`。
 - VSCode 插件：`vscode-ayanami/README.md`。
-- 快速事实：参数顺序是 `类型 名称`；默认所有权（非 Copy 值移动），`unique` 是独占堆指针，`self` 消费 / `ref self` 借用 / `ref mut self` 可变借用（原语用 `self`）；无 `shared`/`weak`/GC；泛型单态化；枚举字段 `_tag` / `_data_V`；操作符映射到 `add` / `eq` / `index` 等方法。
+- 快速事实：参数顺序是 `类型 名称`；默认所有权（非 Copy 值移动），`[T]`/`[T; n]` 为拥有堆数组，`self` 消费 / `ref self` 借用 / `ref mut self` 可变借用（原语用 `self`）；无 `unique`/`shared`/`weak`/GC；泛型单态化；枚举字段 `_tag` / `_data_V`；操作符映射到 `add` / `eq` / `index` 等方法。

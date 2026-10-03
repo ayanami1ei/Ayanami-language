@@ -4,8 +4,8 @@
 
 使用 `import "模块名"` 自动搜索并链接。
 
-内存模型（v0.5+）：默认所有权（非 Copy 值赋值即移动）、`unique` 独占堆指针、
-`ref` / `ref mut` 借用；不再有 `shared` / `weak` / 引用计数。
+内存模型（v0.5+）：默认所有权（非 Copy 值赋值即移动）、`[T]`/`[T; n]` 拥有堆数组、
+`ref` / `ref mut` 借用；不再有 `unique` / `shared` / `weak` / 引用计数。
 
 ## io — 输入输出
 
@@ -49,7 +49,7 @@ fn main() -> int {
 
 ```ayanami
 struct String {
-    unique [char] data
+    [char] data
     int len
 }
 ```
@@ -76,7 +76,7 @@ struct String {
 | 模块 | 说明 |
 |------|------|
 | `list` | `List[T]` 接口：`push(ref mut self, T)` / `index(ref self, int) -> T` / `to_string(ref self) -> String` / `len(ref self) -> int` / `iter(ref self, fn(T))` |
-| `arraylist` | `ArrayList[T]` 顺序表：`unique [T]` 缓冲，自动扩容 |
+| `arraylist` | `ArrayList[T]` 顺序表：`[T]` 缓冲，自动扩容 |
 | `linkedlist` | `LinkedList[T]`：新所有权模型下改为数组缓冲实现，接口与 `List` 一致 |
 
 ```ayanami

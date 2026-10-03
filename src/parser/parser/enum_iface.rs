@@ -124,8 +124,7 @@ impl Parser {
         // Parse self parameter: ref/ref mut/unique/shared/self
         let self_keyword = match self.peek().map(|t| &t.kind) {
             Some(TokenKind::Keyword(Keyword::Unique)) => {
-                self.advance();
-                Symbol::intern("unique")
+                return Err(self.error("`unique self` has been removed: use `self`, `ref self`, or `ref mut self`"));
             }
             Some(TokenKind::Keyword(Keyword::Ref)) => {
                 self.advance();

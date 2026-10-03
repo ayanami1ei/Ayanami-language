@@ -4,7 +4,7 @@ fn add(int a, int b) -> int { return a + b }
 
 #[core::pure]
 #[cold]
-extern "C" fn strlen(unique [char] s) -> int;
+extern "C" fn strlen([char] s) -> int;
 
 fn main() -> int {
     return add(1, 2)

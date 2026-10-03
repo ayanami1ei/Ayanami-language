@@ -4,7 +4,7 @@
 @lexer {
     keyword: "fn", "return", "if", "else", "true", "false", "while",
              "for", "in", "match", "enum", "struct", "interface", "impl",
-             "pub", "unique", "ref", "mut", "extern", "import", "as", "asm",
+             "pub", "ref", "mut", "extern", "import", "as", "asm",
              "break", "continue", "self", "move", "clone", "inline", "let"
     operator: "+" (prec:5, assoc:left)
               "-" (prec:5, assoc:left)
@@ -59,7 +59,7 @@
 
     InterfaceDef  = AttrList Vis? "interface" Ident GenericParams? "{" IfaceMethodList "}";
     IfaceMethod   = AttrList "fn" Ident "(" SelfParam ("," ParamList)? ")" ("->" Type)? ";";
-    SelfParam     = ("unique" | "ref" "mut"?) "self" | "self";
+    SelfParam     = ("ref" "mut"?) "self" | "self";
 
     ImplBlock     = AttrList Vis? "impl" GenericParams? Ident GenericArgs? "{" MethodList "}";
     Method        = AttrList Vis? "fn" Ident GenericParams? "(" SelfParam ("," ParamList)? ")" ("->" Type)? Block;
@@ -68,9 +68,8 @@
     GenericParams = "[" GenericParam ("," GenericParam)* "]";
     GenericParam  = Ident (":" Ident)?;
 
-    Type          = TypeBase | UniqueType | FnType | ArrayType | RefType;
+    Type          = TypeBase | FnType | ArrayType | RefType;
     TypeBase      = Ident (GenericArgs)?;
-    UniqueType    = "unique" Type;
     RefType       = "ref" "mut"? Type;
     FnType        = "fn" "(" TypeList? ")" ("->" Type)?;
     ArrayType     = "[" Type (";" Expr)? "]";
@@ -104,7 +103,7 @@
                    | MethodCallExpr
                    | MatchExpr | IfExpr | BlockExpr
                    | LambdaExpr
-                   | MoveExpr | CloneExpr | ToUniqueExpr
+                   | MoveExpr | CloneExpr
                    | RefExpr | TryOp
                    | StructLiteral | ArrayLiteral | ArraySized
                    | EnumConstruct
@@ -127,7 +126,6 @@
 
     MoveExpr      = "move" Expr;
     CloneExpr     = "clone" Expr;
-    ToUniqueExpr  = "unique" Expr;
     RefExpr       = "ref" "mut"? Expr;
     TryOp         = Expr "?";
 

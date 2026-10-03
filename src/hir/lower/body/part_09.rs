@@ -94,9 +94,9 @@ impl crate::hir::lower::Ctx {
                 let elem_ty = ast_type_to_hir(elem_type, &self.interfaces);
                 // If count is a compile-time constant, use ArraySized type
                 let ty = if let Some(HirLiteral::Int(n)) = hir_count.as_const() {
-                    HirType::ArraySized(Box::new(elem_ty.clone()), *n as usize)
+                    HirType::Unique(Box::new(HirType::ArraySized(Box::new(elem_ty.clone()), *n as usize)))
                 } else {
-                    HirType::Array(Box::new(elem_ty.clone()))
+                    HirType::Unique(Box::new(HirType::Array(Box::new(elem_ty.clone()))))
                 };
                 Ok(SArrSz { count: hir_count, elem_ty, ty }.into())
             }

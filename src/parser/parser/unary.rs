@@ -34,9 +34,7 @@ impl Parser {
                 Ok(Expr::Clone(Box::new(expr), span))
             }
             TokenKind::Keyword(Keyword::Unique) => {
-                self.advance();
-                let expr = self.parse_unary()?;
-                Ok(Expr::ToUnique(Box::new(expr), span))
+                Err(self.error("`unique` has been removed: values are owned by default; array literals are written `[..]`"))
             }
             TokenKind::Keyword(Keyword::Ref) => {
                 self.advance();

@@ -4,7 +4,7 @@ struct Point {
 }
 
 impl Point {
-    fn get_x(unique self) -> int {
+    fn get_x(self) -> int {
         return self.x;
     }
 }

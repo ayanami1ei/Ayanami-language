@@ -65,15 +65,15 @@ fn read_config(ref String path) -> Config { ... }
 | `#[readonly]` | 函数 | `memory(read)`（旧：`readonly`） | 只读内存 |
 | `#[nounwind]` | 函数 | `nounwind` | 不抛异常（FFI 常见） |
 | `#[willreturn]` | 函数 | `willreturn` | 必然返回，可提升循环 |
-| `#[noalias]` | 指针参数（ref/unique/[T]/fn） | `noalias` | 该指针不与其它指针别名（已实现，A1b） |
-| `#[nonnull]` | 指针参数（ref/unique/[T]/fn） | `nonnull` | 参数非空（已实现，A1b） |
+| `#[noalias]` | 指针参数（ref/[T]/fn） | `noalias` | 该指针不与其它指针别名（已实现，A1b） |
+| `#[nonnull]` | 指针参数（ref/[T]/fn） | `nonnull` | 参数非空（已实现，A1b） |
 
 **跨语言优化**：以上标注用在 `extern "C"` 声明上时，属性进入
 `declare` 行，LLVM 即可跨越 FFI 调用做优化。例：
 
 ```ayanami
 #[pure] #[nounwind]
-extern "C" fn strlen(unique [char] s) -> int;
+extern "C" fn strlen([char] s) -> int;
 // 发射：declare i64 @strlen(ptr) memory(none) nounwind
 // 多次 strlen 调用可被合并/提升（调用者承诺正确性）
 ```
@@ -86,7 +86,7 @@ extern "C" fn strlen(unique [char] s) -> int;
 - 属性后缀统一由 `lir/emit/functions.rs::llvm_attr_suffix` 生成，定义与声明共用；
 - 字符串字面量的堆副本追加 NUL，保证可直接传给 C 字符串 API；
 - 包导入函数暂不带标注（`ImportedFnSig.attrs` 为空）；
-- 形参标注（A1b）：`#[noalias]`/`#[nonnull]` 写在形参类型前（`fn f(#[nonnull] ref int x, #[noalias] unique [char] s)`），
+- 形参标注（A1b）：`#[noalias]`/`#[nonnull]` 写在形参类型前（`fn f(#[nonnull] ref int x, #[noalias] [char] s)`），
   经 `AST.param_attrs → HirFn/MirFn/LirFn.param_attrs → ExternDecl.param_attrs` 全链路到达
   `define`/`declare` 的参数列表（如 `declare i32 @memcmp(ptr nonnull noalias, ptr nonnull noalias, i64)`）；
   仅允许指针类型，接口方法与 lambda 的形参暂不支持（解析期报错）。
@@ -187,7 +187,7 @@ extern "C" fn strlen(unique [char] s) -> int;
 |---|---|
 | `#[io]` | 可能读/写外部世界（终端/文件/系统调用） |
 | `#[state]` | 可能修改可观察状态（全局/堆/`ref mut`；函数内局部变量暂不算） |
-| `#[alloc]` | 可能堆分配（`unique`/数组/字符串） |
+| `#[alloc]` | 可能堆分配（数组/字符串） |
 | `#[pure]` | 承诺无任何效应（封闭承诺）→ `memory(none)` |
 | `#[no_error]` | 承诺永不失败（封闭承诺）→ `nounwind` |
 | `#[throws]` / `#[throws(_)]` | 可能失败，错误类型未知（占位；调用方用 `?`，无需命名 E） |

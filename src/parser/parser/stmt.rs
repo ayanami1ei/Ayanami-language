@@ -111,7 +111,7 @@ impl Parser {
     pub(super) fn is_type_start(&self, pos: usize) -> bool {
         self.tokens.get(pos).map(|t| matches!(&t.kind,
             TokenKind::Keyword(Keyword::Int | Keyword::Float | Keyword::Char | Keyword::Bool
-                | Keyword::Unique | Keyword::Ref | Keyword::Mut | Keyword::Fn)
+                | Keyword::Ref | Keyword::Mut | Keyword::Fn)
             | TokenKind::Identifier(_)
         )).unwrap_or(false)
     }

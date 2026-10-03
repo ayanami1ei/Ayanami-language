@@ -64,7 +64,8 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         Type::Char(_) => HirType::Char,
         Type::Bool(_) => HirType::Bool,
         Type::Void(_) => HirType::Void,
-        Type::Array(inner, _) => HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))),
+        // `[T]` 即拥有堆数组（unique 已移除；借用写 `ref [T]`）
+        Type::Array(inner, _) => HirType::Unique(Box::new(HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))))),
         Type::Generic(name, args, _) => {
             // Encode generic instantiation as a unique named type
             let args_str: Vec<String> = args.iter()
