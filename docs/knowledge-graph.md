@@ -13,6 +13,7 @@
 | `docs/knowledge-graph.md` | 本文件：概念与代码的映射 |
 | `docs/module-graph.md` | 生成物：顶层模块依赖图（Mermaid） |
 | `docs/annotations.md` | 标注系统（标注式编程）设计：A0–A5 路线 |
+| `docs/generic-monomorphization.md` | 泛型结构体/枚举单态化设计（`?` on `Result[T,E]` 前置） |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |
 
