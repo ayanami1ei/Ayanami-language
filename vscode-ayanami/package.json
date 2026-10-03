@@ -2,7 +2,7 @@
   "name": "ayanami",
   "displayName": "Ayanami Language",
   "description": "Ayanami language support",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "publisher": "ayanami",
   "engines": {
     "vscode": "^1.60.0"

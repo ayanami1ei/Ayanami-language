@@ -1,6 +1,6 @@
 [package]
 name = "std"
-version = "0.6.3"
+version = "0.6.4"
 
 [build]
 #target = "static-lib"
