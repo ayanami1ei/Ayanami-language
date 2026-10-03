@@ -223,8 +223,8 @@ extern "C" fn strlen(unique [char] s) -> int;
 - **U2（`?` 错误传播）已实现（A3d，具体枚举）**：
   `expr?` 生成 `tmp = expr; if tmp._tag == 0 { ok = tmp._data_Ok._0 } else { return tmp }`，
   要求表达式类型与函数返回类型一致；Err 提前返回整个枚举值。
-  `Result[T,E]` 等**泛型枚举**的载荷结构体尚未单态化（`%struct.Result_Ok` 字段仍是 `ptr`），
-  对泛型枚举使用 `?` 会给出明确报错；结构体单态化待做。
+  泛型枚举已做**最小单态化**（`docs/generic-monomorphization.md`）：
+  `Result[int,int]` 上 `?` 可用并以 `test_try.aya` 验收；调用实参/带标注赋值等期望类型上下文待补。
 
 ### 6.5 里程碑
 

@@ -1,22 +1,19 @@
-// A3d：`?` 真错误传播（Err 提前返回整个枚举值；要求与函数返回类型一致）
-enum Res {
-    Ok(int),
-    Err(int),
+// A3d：`?` 真错误传播 + 泛型枚举单态化（Result[int,int]）
+import "../std/std.aya"
+
+fn inner(int x) -> Result[int, int] {
+    if x < 0 { return Result::Err(x) }
+    return Result::Ok(x + 1)
 }
 
-fn inner(int x) -> Res {
-    if x < 0 { return Res::Err(x) }
-    return Res::Ok(x + 1)
-}
-
-fn outer(int x) -> Res {
+fn outer(int x) -> Result[int, int] {
     v = inner(x)?
-    return Res::Ok(v * 10)
+    return Result::Ok(v * 10)
 }
 
 fn main() -> int {
     a = outer(1)
     b = outer(-5)
-    // a 应为 Ok（_tag=0），b 应为 Err（_tag=1）
+    // a 应为 Ok（_tag=0），b 应为 Err（_tag=1，由 ? 提前返回）
     return a._tag + b._tag - 1
 }

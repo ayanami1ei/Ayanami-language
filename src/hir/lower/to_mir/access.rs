@@ -23,6 +23,7 @@ impl HirNode for SField {
 
 impl HirNode for SStruct {
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn as_struct_cloned(&self) -> Option<SStruct> { Some(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirStructLiteral {
             type_name: self.type_name,

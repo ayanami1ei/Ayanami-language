@@ -57,13 +57,15 @@ impl crate::hir::lower::Ctx {
                         let expr = self.lower_expr(v)?;
                         let expr_ty = expr_type(&expr);
                         // 若函数返回 unique T，但表达式是裸 T，自动包装为 ToUnique
-                        let fn_ret = &self.fns[self.current_fn.0].return_type;
-                        let wrapped = match (fn_ret, &expr_ty) {
+                        let fn_ret = self.fns[self.current_fn.0].return_type.clone();
+                        let wrapped = match (&fn_ret, &expr_ty) {
                             (HirType::Unique(pt), _) if *pt.as_ref() == expr_ty => {
                                 SToUnique { expr, ty: fn_ret.clone() }.into()
                             }
                             _ => expr,
                         };
+                        // 泛型单态化：枚举构造按返回类型实例化
+                        let wrapped = self.instantiate_enum_value(wrapped, &fn_ret)?;
                         Some(implicit_move(wrapped))
                     }
                     None => None,

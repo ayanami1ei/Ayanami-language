@@ -13,7 +13,7 @@
 | `docs/knowledge-graph.md` | 本文件：概念与代码的映射 |
 | `docs/module-graph.md` | 生成物：顶层模块依赖图（Mermaid） |
 | `docs/annotations.md` | 标注系统（标注式编程）设计：A0–A5 路线 |
-| `docs/generic-monomorphization.md` | 泛型结构体/枚举单态化设计（`?` on `Result[T,E]` 前置） |
+| `docs/generic-monomorphization.md` | 泛型结构体/枚举单态化（最小实现完成） |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |
 
@@ -91,7 +91,7 @@ graph LR
 | 契约标注（assume/requires/ensures/invariant） | `hir/contracts.rs`、`hir/lower/body/ensure.rs`、`HirStmt::{Assume,Contract}` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d/A2e/A2f 已完成 |
 | 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs.rs`（Imports 解析）；计划 `.lcl` 宏表、`target/macros/*.so` | A5a 已完成，A5b 待做 |
 | 效应系统 | `hir/effects/{mod,infer,diag,scan}.rs`（注册表/推断/诊断）、`LirEffects` 自动属性、`.lcl` 效应 tokens（声明+推断+承诺） | A3 重构完成（Stage 1–3） |
-| 错误传播 `?` | `hir/lower/body/expr_ops1.rs`（pending 语句内联 + 早退）、`ctx.variant_payload_type` | A3d 已完成（具体枚举） |
+| 错误传播 `?` | `hir/lower/body/expr_ops1.rs`（pending 语句内联 + 早退）、`ctx.{variant_payload_type,instantiate_*}` | A3d 已完成（含泛型 Result 最小单态化） |
 | 生命周期参数 | 类型系统 + `mir/borrow/` | 未实现 |
 
 ## 4. 工具与流程

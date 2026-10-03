@@ -168,6 +168,8 @@ impl crate::hir::lower::Ctx {
 
         let sig = &self.fns[fn_id.0];
         let return_type = sig.return_type.clone();
+        // 泛型单态化：签名类型先实例化
+        self.instantiate_type(&return_type)?;
 
         // Push global scope for params
         self.push_scope();
@@ -175,6 +177,7 @@ impl crate::hir::lower::Ctx {
         let mut hir_params = Vec::new();
         for (param_name, param_type) in ast_params {
             let hir_ty = ast_type_to_hir(param_type, &self.interfaces);
+            self.instantiate_type(&hir_ty)?;
             let var_id = VarId(self.locals.len());
             self.locals.push(HirLocal::new(*param_name, hir_ty.clone(), false));
             self.bind_var(*param_name, var_id, hir_ty.clone(), false);

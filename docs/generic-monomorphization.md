@@ -1,6 +1,7 @@
 # 泛型结构体/枚举单态化（设计）
 
-> 状态：**设计完成，未实现**（2026-10）。关联：`docs/annotations.md` §6.4（U2）、`docs/knowledge-graph.md`。
+> 状态：**最小实现已完成**（2026-10）：签名类型触发实例化 + return 上下文构造重写；
+> 其余期望类型上下文（调用实参、带标注赋值）待补。关联：`docs/annotations.md` §6.4（U2）、`docs/knowledge-graph.md`。
 > 背景：`?` 已实现真错误传播（A3d），但对 `Result[T,E]` 等泛型枚举会报
 > “payload monomorphization is not implemented yet”。
 
@@ -65,6 +66,17 @@
 - 泛型结构体字段访问（如 `Pair[int]`）类型正确、无 llc 错误。
 - 全量 example check/run 回归、std 重建、`cargo test`/`check_all` 通过。
 - `?` 的示例不再报 “payload monomorphization”。
+
+## 4.1 实现记录（2026-10）
+
+- `Ctx::instantiate_type/named`：签名/递归类型按需实例化 `struct_defs`（变体名改写 `Base_Variant<args>`、
+  字段替换、变体结构体同 subst 实例化、嵌套递归；以完整名为键幂等）。
+- `Ctx::instantiate_enum_value`：`return` 上下文把基名 `SStruct` 递归重写为实例化名
+  （变体字面量改名；`SConst` 占位符用 `with_type` 重打类型 → `zeroinitializer`）。
+- `lower_fn` 对返回/参数类型调用 `instantiate_type`。
+- 实测 `example/test_try.aya`（`Result[int,int]` + `?`）exit 0；
+  IR：`%struct.Result_lt_int_c_int_gt_ = { i64, %struct.Result_Ok_lt_int_c_int_gt_, %struct.Result_Err_lt_int_c_int_gt_ }`。
+- 待补：调用实参/带类型标注赋值的期望类型上下文；`defs`/包导出对实例化结构的可见性说明。
 
 ## 5. 影响面与风险
 

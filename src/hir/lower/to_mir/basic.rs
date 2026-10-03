@@ -18,6 +18,9 @@ impl HirNode for SVar {
 
 impl HirNode for SConst {
     fn is_alloc(&self) -> bool { matches!(self.val, HirLiteral::String(_)) }
+    fn with_type(&self, ty: HirType) -> Option<HirNodeBox> {
+        Some(SConst { val: self.val.clone(), ty }.into())
+    }
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
     fn lower_to_mir(&self, _moved: &HashSet<VarId>) -> MirNodeBox {
         SMirLiteral { val: self.val.clone(), ty: self.ty.clone() }.into()
