@@ -21,6 +21,8 @@ pub trait MirNode: std::fmt::Debug {
         self.for_each_child(&mut |c| c.record_moves(moved));
     }
     fn for_each_child(&self, _f: &mut dyn FnMut(&dyn MirNode)) {}
+    /// A5d-3：可变子节点遍历（pass body 改写用）
+    fn for_each_child_mut(&mut self, _f: &mut dyn FnMut(&mut MirNodeBox)) {}
     fn as_string_literal(&self) -> Option<&str> { None }
     fn as_ref(&self) -> Option<(VarId, bool)> { None }
     /// 是否是函数/方法/函数指针调用（借用检查的求值上下文边界）
@@ -35,6 +37,10 @@ pub trait MirNode: std::fmt::Debug {
     fn is_alloc(&self) -> bool { false }
     /// A5d：是否为内联汇编
     fn is_asm(&self) -> bool { false }
+    /// A5d-3：二元/一元运算符与字面量（pass 常量折叠用）
+    fn binary_op(&self) -> Option<BinaryOp> { None }
+    fn unary_op(&self) -> Option<UnaryOp> { None }
+    fn literal_value(&self) -> Option<(&HirLiteral, &HirType)> { None }
 }
 
 #[derive(Debug)]
@@ -46,6 +52,9 @@ impl std::ops::Deref for MirNodeBox {
     type Target = dyn MirNode;
     fn deref(&self) -> &Self::Target { &*self.0 }
 }
+impl std::ops::DerefMut for MirNodeBox {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut *self.0 }
+}
 
 pub trait MirStmtNode: std::fmt::Debug {
     fn clone_stmt(&self) -> Box<dyn MirStmtNode>;
@@ -53,6 +62,9 @@ pub trait MirStmtNode: std::fmt::Debug {
     fn display_stmt(&self, level: usize, w: &mut dyn FmtWrite) -> std::fmt::Result;
     fn for_each_child_expr(&self, _f: &mut dyn FnMut(&dyn MirNode)) {}
     fn for_each_child_stmt(&self, _f: &mut dyn FnMut(&dyn MirStmtNode)) {}
+    /// A5d-3：可变子表达式/子语句遍历（pass body 改写用）
+    fn for_each_child_expr_mut(&mut self, _f: &mut dyn FnMut(&mut MirNodeBox)) {}
+    fn for_each_child_stmt_mut(&mut self, _f: &mut dyn FnMut(&mut MirStmtBox)) {}
     fn is_return(&self) -> bool { false }
     fn return_value(&self) -> Option<&MirNodeBox> { None }
     fn as_drop(&self) -> Option<(VarId, &HirType)> { None }
@@ -79,6 +91,9 @@ impl Clone for MirStmtBox {
 impl std::ops::Deref for MirStmtBox {
     type Target = dyn MirStmtNode;
     fn deref(&self) -> &Self::Target { &*self.0 }
+}
+impl std::ops::DerefMut for MirStmtBox {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut *self.0 }
 }
 
 macro_rules! s_mir {

@@ -337,9 +337,12 @@ struct Holder {
   shim 解码为与 `std/mir.aya` 布局一致的 C 结构体 → 调用用户 pass →
   编码回 blob → 编译器反序列化。聚合传值 ABI 不可移植，故 v0 约定为
   **`fn(ref mut MirFunction) -> void`**（就地修改，指针传参）。
-- **执行后校验**：schema 版本/长度校验；v0 只允许效应字段（`pure`/`no_error`）变化，
-  body 变化直接报错；失败报「注解名 + 调用点 + 原因」。
-- **能力边界**：允许修改效应声明；**禁止修改签名**；v0 仅函数内、body 只读。
+- **执行后校验**：schema 版本/长度校验；只读数组（结构/分析字段）不得变化；
+  body 改写只能通过编辑数组表达；失败报「注解名 + 调用点 + 原因」。
+- **body 改写（schema v1 编辑面）**：`edit_kind[i]=1` 表示把第 i 个表达式节点替换为
+  `edit_i64[i]` 的整型字面量；编译器按 preorder 下标应用编辑并跳过被替换子树，
+  **应用后由管线重跑借用检查**（常量折叠 demo 即验证此路径）。
+- **能力边界**：允许修改效应声明；**禁止修改签名**；v1 仅函数内、仅整型表达式替换。
 - **解析**：与宏一致——`import` 自动作用域（该包导出的注解全部进入裸名表）、
   `pkg::name` 消歧、重名报错；声明侧校验 `fn(MirFunction) -> MirFunction`。
 - **信任**：原生插件 = 编译期执行代码，信任级同宏；版本校验与沙箱后置。
@@ -440,7 +443,9 @@ struct Holder {
 - [x] A5d-2 MIR 优化插件：`std/mir.aya` 扁平视图 + 生成式 C 桥接（schema v0）+ 执行后校验 +
       demo `#[auto_pure]`（把可证明无副作用的函数提升为现有 `#[pure]` 承诺）；
       v0 约定 `fn(ref mut MirFunction) -> void`、body 只读（改写报错）、可改效应
-- [ ] A5d-3 完整 MIR schema（结构化类型 + body 改写）、pass 顺序/不动点、`#[check]` 只读诊断
+- [x] A5d-3a body 改写编辑面：`edit_kind/edit_i64` 表达式整型常量替换 + preorder 下标应用 +
+      应用后重跑借用检查；demo `#[const_fold]`（`1 + 2 + 3` → `6`，`2*3 + 4*5` → `26`）
+- [ ] A5d-3b 结构化 MIR schema（类型/调用/字面量完整往返）、pass 顺序/不动点、`#[check]` 只读诊断
 - [ ] A5c-2 / A5d-3 `#[check]` 只读诊断、其他语言插件 / WASM 沙箱 / 表达式级宏 / 插件清单与权限（远期）
 
 ### 已知问题

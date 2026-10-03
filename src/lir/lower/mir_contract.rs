@@ -1,6 +1,7 @@
 use super::*;
 
 impl MirStmtNode for SMirAssumeStmt {
+    fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
         let cond = self.cond.lower_to_lir(ctx);
@@ -16,6 +17,7 @@ impl MirStmtNode for SMirAssumeStmt {
 }
 
 impl MirStmtNode for SMirContractStmt {
+    fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
         let cond = self.cond.lower_to_lir(ctx);

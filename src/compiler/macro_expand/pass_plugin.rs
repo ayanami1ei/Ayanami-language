@@ -14,7 +14,7 @@ use crate::error::{Error, Result};
 use crate::intern::Symbol;
 
 /// 与 `compiler/build/passes.rs::SCHEMA_VERSION` 保持一致
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>> {
     let (_syms, _src, lir_binary, _tt) = crate::package::load_package(lcl_path)
@@ -114,7 +114,8 @@ fn pass_shim(symbol: &str) -> String {
          typedef struct {{ const AyaBuf* items; long count; }} AyaBufList;\n\
          typedef struct {{\n\
              long long pure, no_error, node_count;\n\
-             const long long *kinds, *is_call, *callee_pure, *is_alloc, *is_asm, *is_store, *child_counts;\n\
+             const long long *kinds, *is_call, *callee_pure, *is_alloc, *is_asm, *is_store, *child_counts,\n\
+                         *ops, *lit_kinds, *lit_i64, *lit_f64, *edit_kind, *edit_i64;\n\
          }} MirFunction;\n\
          extern void {symbol}(MirFunction*);\n\
          static long long rd64(const char* p) {{\n\
@@ -146,11 +147,17 @@ fn pass_shim(symbol: &str) -> String {
              f.is_asm = rd_arr(p, &pos, n);\n\
              f.is_store = rd_arr(p, &pos, n);\n\
              f.child_counts = rd_arr(p, &pos, n);\n\
+             f.ops = rd_arr(p, &pos, n);\n\
+             f.lit_kinds = rd_arr(p, &pos, n);\n\
+             f.lit_i64 = rd_arr(p, &pos, n);\n\
+             f.lit_f64 = rd_arr(p, &pos, n);\n\
+             f.edit_kind = rd_arr(p, &pos, n);\n\
+             f.edit_i64 = rd_arr(p, &pos, n);\n\
              return f;\n\
          }}\n\
          static AyaBuf mir_encode(MirFunction f) {{\n\
              long long n = f.node_count; long long i;\n\
-             long total = 4*8 + n*7*8; long pos = 0;\n\
+             long total = 4*8 + n*13*8; long pos = 0;\n\
              char* out = (char*)malloc((size_t)total + 1);\n\
              wr64(out+pos, {ver}); pos += 8;\n\
              wr64(out+pos, f.pure); pos += 8;\n\
@@ -163,6 +170,12 @@ fn pass_shim(symbol: &str) -> String {
              for (i = 0; i < n; i++) {{ wr64(out+pos, f.is_asm[i]); pos += 8; }}\n\
              for (i = 0; i < n; i++) {{ wr64(out+pos, f.is_store[i]); pos += 8; }}\n\
              for (i = 0; i < n; i++) {{ wr64(out+pos, f.child_counts[i]); pos += 8; }}\n\
+             for (i = 0; i < n; i++) {{ wr64(out+pos, f.ops[i]); pos += 8; }}\n\
+             for (i = 0; i < n; i++) {{ wr64(out+pos, f.lit_kinds[i]); pos += 8; }}\n\
+             for (i = 0; i < n; i++) {{ wr64(out+pos, f.lit_i64[i]); pos += 8; }}\n\
+             for (i = 0; i < n; i++) {{ wr64(out+pos, f.lit_f64[i]); pos += 8; }}\n\
+             for (i = 0; i < n; i++) {{ wr64(out+pos, f.edit_kind[i]); pos += 8; }}\n\
+             for (i = 0; i < n; i++) {{ wr64(out+pos, f.edit_i64[i]); pos += 8; }}\n\
              AyaBuf b; b.data = out; b.len = pos; return b;\n\
          }}\n\
          AyaBuf __ayanami_pass_run(AyaBuf input, AyaBufList args) {{\n\

@@ -1,0 +1,18 @@
+// A5d-3：MIR body 改写（常量折叠）+ 应用后重跑借用检查
+import "constfold_lib.aya"
+
+#[constfold_lib::const_fold]
+fn folded() -> int {
+    return 1 + 2 + 3
+}
+
+#[constfold_lib::const_fold]
+fn folded_mul() -> int {
+    return 2 * 3 + 4 * 5
+}
+
+fn main() -> int {
+    if folded() != 6 { return 1 }
+    if folded_mul() != 26 { return 2 }
+    return 0
+}

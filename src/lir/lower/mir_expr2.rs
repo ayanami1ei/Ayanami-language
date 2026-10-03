@@ -3,6 +3,7 @@ use super::util::*;
 use super::fn_lower::{strip_ownership, type_size};
 
 impl MirNode for SMirEnumConstruct {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for a in &mut self.args { f(a); } }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, _ctx: &mut dyn LirLowerCtx) -> LirValue {
         LirValue::Literal(HirLiteral::Int(0), HirType::Int)
@@ -28,6 +29,7 @@ impl MirNode for SMirFnPtr {
 }
 
 impl MirNode for SMirCallPtr {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.fn_ptr); for a in &mut self.args { f(a); } }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let fn_val = self.fn_ptr.lower_to_lir(ctx);
@@ -51,6 +53,7 @@ impl MirNode for SMirCallPtr {
 }
 
 impl MirNode for SMirEnumMatch {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.value); for (_, e) in &mut self.arms { f(e); } }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let val = self.value.lower_to_lir(ctx);
@@ -99,6 +102,7 @@ impl MirNode for SMirEnumMatch {
 }
 
 impl MirNode for SMirFieldAccess {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let obj_val = self.object.lower_to_lir(ctx);
@@ -120,6 +124,7 @@ impl MirNode for SMirFieldAccess {
 }
 
 impl MirNode for SMirStructLiteral {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for (_, e) in &mut self.fields { f(e); } }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn struct_literal_fields(&self) -> Option<&[(Symbol, MirNodeBox)]> { Some(&self.fields) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
@@ -144,6 +149,7 @@ impl MirNode for SMirStructLiteral {
 }
 
 impl MirNode for SMirArrayLiteral {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for a in &mut self.elems { f(a); } }
     fn is_alloc(&self) -> bool { true }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
@@ -167,6 +173,7 @@ impl MirNode for SMirArrayLiteral {
 }
 
 impl MirNode for SMirArraySized {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.count); }
     fn is_alloc(&self) -> bool { true }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
@@ -188,6 +195,7 @@ impl MirNode for SMirArraySized {
 }
 
 impl MirNode for SMirRef {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let dest = ctx.next_tmp();
@@ -216,6 +224,7 @@ impl MirNode for SMirRef {
 }
 
 impl MirNode for SMirIndex {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let arr_val = self.object.lower_to_lir(ctx);
@@ -243,6 +252,7 @@ impl MirNode for SMirIndex {
 }
 
 impl MirNode for SMirAsm {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for (_, e) in &mut self.outputs { f(e); } for (_, e) in &mut self.inputs { f(e); } }
     fn is_asm(&self) -> bool { true }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {

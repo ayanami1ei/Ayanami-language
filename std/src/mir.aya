@@ -1,10 +1,15 @@
-// A5d-2：MIR 优化注解的公开视图（schema v0，扁平 preorder）
+// A5d-3：MIR 优化注解的公开视图（schema v1，扁平 preorder）
 //
 // 布局与编译器生成的 C 桥接一一对应：
 //   int  → i64；[int] → 堆数组指针；字段顺序固定。
 // 节点按 preorder 排列：child_counts[i] 是第 i 个节点的直接子节点数，
 // 函数体根节点为下标 0（空函数 node_count == 0）。
-// v0 约束：pass 只能改效应（pure/no_error），body 只读；改 body 会被编译器拒绝。
+//
+// 约定：
+// - pure/no_error 可直接改写；
+// - 其余只读数组不得修改；
+// - body 改写通过编辑数组表达：edit_kind[i]=1 表示把第 i 个表达式节点替换为
+//   edit_i64[i] 的整型字面量（目前仅支持 int）；编译器应用后会重跑借用检查。
 
 pub struct MirFunction {
     int pure
@@ -17,6 +22,12 @@ pub struct MirFunction {
     [int] is_asm
     [int] is_store
     [int] child_counts
+    [int] ops
+    [int] lit_kinds
+    [int] lit_i64
+    [int] lit_f64
+    [int] edit_kind
+    [int] edit_i64
 }
 
 /// 无副作用扫描：调用（且被调方非 pure）、堆分配、汇编、字段/索引写
@@ -31,4 +42,32 @@ pub fn scan_effects(ref MirFunction f) -> bool {
         }
     }
     return true
+}
+
+// ── 编辑辅助 ──
+
+/// 标记第 idx 个表达式节点替换为整型字面量 value
+pub fn replace_int(ref mut MirFunction f, int idx, int value) {
+    f.edit_kind[idx] = 1
+    f.edit_i64[idx] = value
+}
+
+// ── 运算符编码（与编译器一致）──
+
+pub fn op_is_add(int op) -> bool { return op == 1 }
+pub fn op_is_sub(int op) -> bool { return op == 2 }
+pub fn op_is_mul(int op) -> bool { return op == 3 }
+
+// ── 常量折叠辅助 ──
+
+/// 第 idx 个节点是否可当作 int 字面量（原始字面量或已被编辑为字面量）
+pub fn is_int_literal(ref MirFunction f, int idx) -> bool {
+    if f.edit_kind[idx] == 1 { return true }
+    return f.lit_kinds[idx] == 1
+}
+
+/// 取第 idx 个节点的 int 字面量值（编辑优先）
+pub fn folded_int(ref MirFunction f, int idx) -> int {
+    if f.edit_kind[idx] == 1 { return f.edit_i64[idx] }
+    return f.lit_i64[idx]
 }
