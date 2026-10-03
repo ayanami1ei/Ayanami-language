@@ -45,7 +45,7 @@ fn main() {
         "run" => cmd_run(&args[2..]),
         "clean" => cmd_clean(),
         _ => {
-            eprintln!("unknown command: {}", command);
+            ayanami::diagnostics::error(&format!("unknown command: {}", command));
             std::process::exit(1);
         }
     }

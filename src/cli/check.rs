@@ -22,8 +22,8 @@ pub(crate) fn cmd_check(args: &[String]) {
         eprintln!("error: check requires a .aya file"); std::process::exit(1);
     }
     match do_check(&path) {
-        Ok(_) => println!("check passed: {}", path.display()),
-        Err(e) => { eprintln!("check failed: {}", e); std::process::exit(1); }
+        Ok(_) => ayanami::diagnostics::success(&format!("check passed: {}", path.display())),
+        Err(e) => { ayanami::diagnostics::error(&format!("check failed: {}", e)); std::process::exit(1); }
     }
     if watch {
         watch_file(&path);
@@ -64,7 +64,7 @@ fn watch_file(path: &Path) {
                         "\ncheck passed: {}",
                         canonical.display()
                     ),
-                    Err(e) => eprintln!("\ncheck failed: {}", e),
+                    Err(e) => ayanami::diagnostics::error(&format!("check failed: {}", e)),
                 }
             }
             Err(e) => eprintln!("watch error: {}", e),

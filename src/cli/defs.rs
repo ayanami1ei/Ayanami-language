@@ -19,7 +19,7 @@ pub(crate) fn cmd_defs(args: &[String]) {
     let mut parser = ayanami::parser::Parser::new(filtered);
     let program = match parser.parse_program() {
         Ok(p) => p,
-        Err(e) => { eprintln!("parse error: {}", e); std::process::exit(1); }
+        Err(e) => { ayanami::diagnostics::error(&format!("parse error: {}", e)); std::process::exit(1); }
     };
     let mut defs = Vec::new();
     ayanami::compiler::collect_defs_from_stmts(&program.stmts, &path_str, "", &mut defs);

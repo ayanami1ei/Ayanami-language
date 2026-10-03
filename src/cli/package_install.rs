@@ -11,7 +11,7 @@ pub(crate) fn cmd_package(args: &[String]) {
     };
     match ayanami::compiler::package_source(&path_str, &code) {
         Ok(()) => {}
-        Err(e) => { eprintln!("package failed: {}", e); std::process::exit(1); }
+        Err(e) => { ayanami::diagnostics::error(&format!("package failed: {}", e)); std::process::exit(1); }
     }
 }
 
@@ -23,6 +23,6 @@ pub(crate) fn cmd_install(args: &[String]) {
     let lcl_path = &args[0];
     match ayanami::compiler::install_package(lcl_path, None) {
         Ok(()) => {}
-        Err(e) => { eprintln!("install failed: {}", e); std::process::exit(1); }
+        Err(e) => { ayanami::diagnostics::error(&format!("install failed: {}", e)); std::process::exit(1); }
     }
 }

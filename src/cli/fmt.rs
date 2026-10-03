@@ -27,7 +27,7 @@ pub(crate) fn cmd_fmt(args: &[String]) {
             print!("{}", formatted);
         }
         Err(e) => {
-            eprintln!("fmt error: {}", e);
+            ayanami::diagnostics::error(&format!("fmt error: {}", e));
             std::process::exit(1);
         }
     }

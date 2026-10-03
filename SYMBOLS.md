@@ -119,6 +119,11 @@ src/compiler/symdef.rs:29: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
 src/compiler/symdef.rs:42: pub fn collect_defs_from_stmts(
 src/compiler/symdef.rs:53: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
 src/compiler/symdef.rs:177: pub fn defs_to_json(defs: &[SymDef]) -> String
+src/diagnostics.rs:10: pub fn supports_color() -> bool
+src/diagnostics.rs:14: pub fn error(msg: &str)
+src/diagnostics.rs:22: pub fn warning(msg: &str)
+src/diagnostics.rs:31: pub fn success(msg: &str)
+src/diagnostics.rs:40: pub fn warning_at(file: &Path, line: usize, col: usize, msg: &str)
 src/driver/mod.rs:11: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
 src/driver/mod.rs:29: fn find_opt() -> Option<(PathBuf, PathBuf)>
 src/driver/mod.rs:46: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
@@ -676,19 +681,20 @@ src/lexer/token_kind.rs:19: impl fmt::Display for TokenKind
 src/lexer/token_kind.rs:20: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 src/lib.rs:17: pub mod generated;
 src/lib.rs:18: pub mod compiler;
-src/lib.rs:19: pub mod driver;
-src/lib.rs:20: pub mod error;
-src/lib.rs:21: pub mod formatter;
-src/lib.rs:22: pub mod hir;
-src/lib.rs:23: pub mod intern;
-src/lib.rs:24: pub mod lexer;
-src/lib.rs:25: pub mod lir;
-src/lib.rs:26: pub mod mir;
-src/lib.rs:27: pub mod package;
-src/lib.rs:28: pub mod parser;
-src/lib.rs:29: pub mod span;
-src/lib.rs:32: mod test_parse
-src/lib.rs:34: fn test_struct_literal_parse()
+src/lib.rs:19: pub mod diagnostics;
+src/lib.rs:20: pub mod driver;
+src/lib.rs:21: pub mod error;
+src/lib.rs:22: pub mod formatter;
+src/lib.rs:23: pub mod hir;
+src/lib.rs:24: pub mod intern;
+src/lib.rs:25: pub mod lexer;
+src/lib.rs:26: pub mod lir;
+src/lib.rs:27: pub mod mir;
+src/lib.rs:28: pub mod package;
+src/lib.rs:29: pub mod parser;
+src/lib.rs:30: pub mod span;
+src/lib.rs:33: mod test_parse
+src/lib.rs:35: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
