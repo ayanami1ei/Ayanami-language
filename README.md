@@ -43,7 +43,7 @@ install/
 ## 构建要求
 
 - **运行时依赖**：gcc（链接）、glibc；bundled LLVM 依赖的 libedit 已随包提供
-- 不需要预装 LLVM（已 bundled）
+- 不需要预装 LLVM（已 bundled；安装版默认不运行 `opt` 中端优化，除非同目录提供匹配的 `opt`）
 - 支持 Linux x86_64
 
 ## VSCode 插件

@@ -24,9 +24,11 @@ pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)> {
 
 /// Find `opt` — check next to the ayanami binary first, then PATH.
 ///
+/// `local_only` 用于 bundled llc 场景：系统 `opt` 可能与 bundled LLVM 版本不一致
+/// （例如 opt 22 产出的属性 bundled llc 21 不认识），此时只用同目录 `opt`。
 /// Optimization is optional: when `opt` is missing (or `AYANAMI_OPT=0`),
 /// `ir_to_object` falls back to compiling the unoptimized IR with llc.
-fn find_opt() -> Option<(PathBuf, PathBuf)> {
+fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)> {
     if std::env::var("AYANAMI_OPT").map(|v| v == "0").unwrap_or(false) {
         return None;
     }
@@ -38,6 +40,9 @@ fn find_opt() -> Option<(PathBuf, PathBuf)> {
                 return Some((local, exe_dir.to_path_buf()));
             }
         }
+    }
+    if local_only {
+        return None;
     }
     Some((PathBuf::from("opt"), PathBuf::new()))
 }
@@ -52,10 +57,13 @@ pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()> {
     std::fs::write(&ll_path, llvm_ir)
         .map_err(|e| Error::Driver(format!("failed to write .ll file: {}", e)))?;
 
+    let (llc_path, llc_dir) = find_llc()?;
+    let llc_is_local = !llc_dir.as_os_str().is_empty();
+
     // 中端优化（A1）：先跑 opt -O2，标注属性才能跨调用/跨 FFI 生效。
-    // opt 不存在或失败时回退未优化 IR，llc 照常编译。
+    // bundled llc 场景只用同目录 opt（避免版本不匹配）；缺失/失败回退未优化 IR。
     let mut llc_input = ll_path.clone();
-    if let Some((opt_path, opt_dir)) = find_opt() {
+    if let Some((opt_path, opt_dir)) = find_opt(llc_is_local) {
         let mut opt_ll = obj.to_path_buf();
         opt_ll.set_extension("opt.ll");
         let mut cmd = Command::new(&opt_path);
@@ -70,7 +78,6 @@ pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()> {
         }
     }
 
-    let (llc_path, llc_dir) = find_llc()?;
     let mut cmd = Command::new(&llc_path);
     cmd.arg("-filetype=obj")
         .arg("-o").arg(obj)

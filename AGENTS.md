@@ -27,7 +27,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 - **零告警要求**：`cargo check --all-targets` 不得输出任何 warning（生成代码 `src/generated/`
   已在模块级关闭；`asuka/` 子仓同样保持零告警）。校验：`./scripts/check_warnings.sh`，
   已并入 `./scripts/check_all.sh`。
-- 编译 `.aya` 需要 `llc` 与 `gcc`：`cargo run` 用系统 `llc`（已装 `/usr/bin/llc`），安装版用同目录 bundled `llc`；`opt` 可选，用于 `-O2` 中端优化（`AYANAMI_OPT=0` 关闭）。
+- 编译 `.aya` 需要 `llc` 与 `gcc`：`cargo run` 用系统 `llc`（已装 `/usr/bin/llc`），安装版用同目录 bundled `llc`；`opt` 可选，用于 `-O2` 中端优化（`AYANAMI_OPT=0` 关闭）；bundled llc 场景只用同目录 `opt`，避免与系统 opt 版本不一致。
 
 ## 编译管线与入口
 
