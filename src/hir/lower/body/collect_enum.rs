@@ -8,7 +8,7 @@ impl crate::hir::lower::Ctx {
         name: &Symbol,
         variants: &Vec<EnumVariant>,
         generic_params: &Vec<(Symbol, Option<Symbol>)>,
-        ns_prefix: &str,
+        _ns_prefix: &str,
     ) -> Result<()> {
             for variant in variants {
                 let var_struct_name = Symbol::intern(&format!("{}_{}", name, variant.name));

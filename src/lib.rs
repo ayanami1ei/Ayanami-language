@@ -14,6 +14,8 @@
 // 11. span       → 源代码位置跟踪
 // ============================================================
 
+// 生成产物（gen_parser.sh / scripts/split_generated_parser.py），禁止手改；整体关闭告警
+#[allow(warnings)]
 pub mod generated;
 pub mod compiler;
 pub mod diagnostics;

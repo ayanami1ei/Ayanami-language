@@ -1,7 +1,6 @@
 //! A4/NLL：借用检查的语句/表达式遍历辅助。
 
 use super::*;
-use super::loans::Loan;
 
 pub(super) fn var_name(mir_fn: &MirFn, v: VarId) -> String {
     mir_fn

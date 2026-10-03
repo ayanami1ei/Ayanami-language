@@ -134,7 +134,6 @@ impl Ctx {
         if base != *type_name {
             if let Some(fields) = self.struct_defs.get(&base) {
                 // 从类型名中提取泛型替换 e.g. LinkedListNode<int> → T=int
-                let subst = self.build_generic_subst(type_name, &base);
                 return fields.iter().position(|f| f.name == *field)
                     .ok_or_else(|| Error::Hir(format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col)));
             }
@@ -240,7 +239,7 @@ impl Ctx {
             local.ty = new_ty.clone();
         }
         for scope in self.scopes.iter_mut() {
-            for (_, (id, ty, mutable)) in scope.iter_mut() {
+            for (_, (id, ty, _mutable)) in scope.iter_mut() {
                 if *id == var_id {
                     *ty = new_ty;
                     return;

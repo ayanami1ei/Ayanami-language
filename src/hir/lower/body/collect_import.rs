@@ -1,7 +1,7 @@
 use super::*;
 
 impl crate::hir::lower::Ctx {
-    pub(crate) fn collect_import(&mut self, path: &String, ns_prefix: &str) -> Result<()> {
+    pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str) -> Result<()> {
             let pkg_path = if std::path::Path::new(path).exists() {
                 path.clone()
             } else {
@@ -49,8 +49,6 @@ impl crate::hir::lower::Ctx {
             // Merge struct definitions from the package's LIR data
             if !lir_binary.is_empty() {
                 let dep_lir = crate::lir::serialize::program_from_bytes(&lir_binary);
-                if let Err(e) = &dep_lir {
-                }
                 if let Ok(dep_lir) = dep_lir {
                     // 先保存 generic_struct_params（需在 struct_defs 被消费前读取）
                     let gsp_from_lir: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>> =
@@ -91,7 +89,7 @@ impl crate::hir::lower::Ctx {
                 let mut parser = crate::parser::Parser::new(filtered);
                 let parsed = match parser.parse_program() {
                     Ok(p) => p,
-                    Err(e) => { continue; }
+                    Err(_) => { continue; }
                 };
                     for stmt in &parsed.stmts {
                         match stmt {

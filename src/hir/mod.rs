@@ -11,7 +11,6 @@ pub mod item;
 pub mod lower;
 pub mod display;
 
-pub use ty::*;
 pub use node::*;
 pub use stmt::*;
 pub use item::*;

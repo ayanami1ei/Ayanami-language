@@ -3,7 +3,7 @@ use super::*;
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt> {
         match stmt {
-            Stmt::Assign { name, value, span, .. } => {
+            Stmt::Assign { name, value, span: _, .. } => {
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
                 let value_ty = expr_type(&hir_value);

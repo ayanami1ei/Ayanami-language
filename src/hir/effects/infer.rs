@@ -4,13 +4,13 @@
 //! - 有效效应 = 声明 ∪ 推断（属性生成见 `lir/lower/util.rs::lir_effects`）；
 //! - 告警：硬性出入（承诺与实际矛盾）报所有函数；缺失建议只对 pub 接口。
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
 use super::IO_NAMES;
 use crate::hir::{HirFn, HirItem, HirNode, HirProgram, HirStmt};
-use crate::hir::effects::{EffectDecl, ThrowsDecl};
+use crate::hir::effects::EffectDecl;
 
 /// 推断出的实际效应（advisory）。
 #[derive(Debug, Clone, Default, PartialEq)]

@@ -101,17 +101,14 @@ impl crate::hir::lower::Ctx {
                     if self.type_ifaces.contains_key(&ct)
                         && self.type_ifaces[&ct].contains(iface_name) {
                         // Build fat pointer
-                        let fatptr_ty = param_tys[i].clone();
                         return self.make_fatptr_arg(arg, &param_tys[i], ct, *iface_name);
                     }
                     let base_ct = crate::hir::lower::strip_generic_name(&ct);
                     if base_ct != ct && self.type_ifaces.contains_key(&base_ct)
                         && self.type_ifaces[&base_ct].contains(iface_name) {
-                        let fatptr_ty = param_tys[i].clone();
                         return self.make_fatptr_arg(arg, &param_tys[i], ct, *iface_name);
                     }
                     if self.type_ifaces.contains_key(&ct) && self.type_ifaces[&ct].contains(iface_name) {
-                        let fatptr_ty = param_tys[i].clone();
                         return self.make_fatptr_arg(arg, &param_tys[i], ct, *iface_name);
                     }
                 }

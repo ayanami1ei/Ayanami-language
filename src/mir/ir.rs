@@ -20,7 +20,7 @@ pub trait MirNode: std::fmt::Debug {
     fn record_moves(&self, moved: &mut HashSet<VarId>) {
         self.for_each_child(&mut |c| c.record_moves(moved));
     }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) {}
+    fn for_each_child(&self, _f: &mut dyn FnMut(&dyn MirNode)) {}
     fn as_string_literal(&self) -> Option<&str> { None }
     fn as_ref(&self) -> Option<(VarId, bool)> { None }
     /// 是否是函数/方法/函数指针调用（借用检查的求值上下文边界）
@@ -47,8 +47,8 @@ pub trait MirStmtNode: std::fmt::Debug {
     fn clone_stmt(&self) -> Box<dyn MirStmtNode>;
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx);
     fn display_stmt(&self, level: usize, w: &mut dyn FmtWrite) -> std::fmt::Result;
-    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) {}
-    fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) {}
+    fn for_each_child_expr(&self, _f: &mut dyn FnMut(&dyn MirNode)) {}
+    fn for_each_child_stmt(&self, _f: &mut dyn FnMut(&dyn MirStmtNode)) {}
     fn is_return(&self) -> bool { false }
     fn return_value(&self) -> Option<&MirNodeBox> { None }
     fn as_drop(&self) -> Option<(VarId, &HirType)> { None }

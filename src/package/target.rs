@@ -1,5 +1,3 @@
-use super::*;
-
 
 /// What kind of artifact this package can produce.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

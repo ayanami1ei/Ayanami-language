@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use super::ir::*;
-use crate::hir::ir::{HirLiteral, HirType, VarId};
+
 use crate::hir::display::display_type;
 
 pub fn display_mir_program(program: &MirProgram) {

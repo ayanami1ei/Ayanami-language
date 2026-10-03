@@ -67,8 +67,6 @@ impl crate::hir::lower::Ctx {
         let mut generic_mappings: HashMap<Symbol, HirType> = HashMap::new();
         for ((_, param_ty), arg_ty) in params.iter().zip(arg_types.iter()) {
             let result = infer_generic_from_param(param_ty, arg_ty);
-            if let Some((n, _)) = &result {
-            }
             if let Some((gp_name, hir_concrete)) = result {
                 if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
                     generic_mappings.insert(gp_name, hir_concrete.clone());

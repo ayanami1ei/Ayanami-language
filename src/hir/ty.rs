@@ -1,7 +1,4 @@
-use std::collections::HashMap;
 use crate::intern::Symbol;
-use crate::parser::ast::{BinaryOp, UnaryOp};
-use crate::span::Span;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct VarId(pub usize);

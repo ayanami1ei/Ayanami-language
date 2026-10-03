@@ -6,10 +6,6 @@ impl crate::hir::lower::Ctx {
     // ----------------------------------------------------------------
 
     pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()> {
-        for s in stmts {
-            if let Stmt::Import { path, .. } = s {
-            }
-        }
         self.collect_fns_with_ns(stmts, "")
     }
 }

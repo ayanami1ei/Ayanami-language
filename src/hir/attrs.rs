@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::error::{Error, Result};
-use crate::intern::Symbol;
 use crate::parser::ast::{Attr, Program, Stmt};
 
 /// A0 属性白名单（编译器内置）。A1 起逐个接入 LLVM 语义；未知属性一律报错（ADR-2）。

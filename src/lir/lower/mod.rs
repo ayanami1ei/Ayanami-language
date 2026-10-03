@@ -34,7 +34,7 @@ fn collect_effect_summaries(items: &[MirItem], out: &mut HashMap<String, crate::
 }
 
 use ctx::LowerCtx;
-use fn_lower::{lower_items, lower_stmts};
+use fn_lower::lower_items;
 use names::{collect_fn_names, mangle};
 use strings::collect_strings;
 

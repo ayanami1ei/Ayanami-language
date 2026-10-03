@@ -85,12 +85,3 @@ fn collect_items(items: &[MirItem], out: &mut HashMap<FnId, FollowInfo>) {
     }
 }
 
-/// 供未来跨函数传播使用：来源名 → 参数名集合。
-pub fn source_names(mir_fn: &MirFn) -> HashMap<VarId, Symbol> {
-    mir_fn
-        .params
-        .iter()
-        .enumerate()
-        .map(|(i, (n, _))| (VarId(i), *n))
-        .collect()
-}

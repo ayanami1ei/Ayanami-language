@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::HashSet;
 use crate::intern::Symbol;
 use crate::mir::ir::*;
 use crate::hir::*;

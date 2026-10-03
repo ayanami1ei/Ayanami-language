@@ -11,8 +11,7 @@ impl HirNode for SVar {
     fn expr_type(&self) -> HirType { self.ty.clone() }
     fn as_local(&self) -> Option<VarId> { Some(self.var) }
     fn collect_var_ids(&self, vars: &mut HashSet<VarId>) { vars.insert(self.var); }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
-        
+    fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode)) {
     }
 }
 
@@ -37,8 +36,7 @@ impl HirNode for SConst {
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
     fn as_const(&self) -> Option<&HirLiteral> { Some(&self.val) }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
-        
+    fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode)) {
     }
 }
 

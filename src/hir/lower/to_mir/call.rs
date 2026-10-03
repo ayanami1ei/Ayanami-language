@@ -84,8 +84,7 @@ impl HirNode for SFnPtr {
         writeln!(w, "{:width$}FnPtr(fn{})", "", self.fn_id.0, width = level * 2)
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
-        
+    fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode)) {
     }
 }
 

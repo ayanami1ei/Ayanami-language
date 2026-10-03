@@ -1,5 +1,4 @@
 use super::*;
-use super::helpers::*;
 
 pub(super) fn write_type(ty: &Type) -> String {
     match ty {

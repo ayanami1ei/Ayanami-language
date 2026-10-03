@@ -2,9 +2,6 @@ use super::*;
 use super::util::*;
 use super::fn_lower::strip_ownership;
 
-pub(super) fn block_ends_with_ret(stmts: &[MirStmtBox]) -> bool {
-    stmts.iter().any(|s| s.is_return())
-}
 
 impl MirStmtNode for SMirAssignStmt {
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }

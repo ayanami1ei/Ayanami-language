@@ -64,21 +64,6 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    pub(super) fn struct_llvm_name(&self, name: &Symbol) -> Option<String> {
-        // 尝试完整类型名，再尝试剥离泛型参数后的基名
-        if self.prog.struct_defs.contains_key(name) {
-            return Some(format!("%struct.{}", sanitize_name(&name.as_str())));
-        }
-        let s = name.as_str();
-        let base = s.find('<').or_else(|| s.find('[')).map(|p| &s[..p]);
-        if let Some(base) = base {
-            let base_sym = Symbol::intern(base);
-            if self.prog.struct_defs.contains_key(&base_sym) {
-                return Some(format!("%struct.{}", sanitize_name(base)));
-            }
-        }
-        None
-    }
 
     pub(super) fn emit_string_globals(&mut self) {
         for (i, s) in self.prog.strings.iter().enumerate() {
@@ -162,14 +147,6 @@ impl<'a> Emitter<'a> {
         t
     }
 
-    pub(super) fn value_ref(&self, val: &LirValue, expected_ty: &HirType) -> String {
-        match val {
-            LirValue::Tmp(t) => format!("%t{}", t),
-            LirValue::Param(i) => format!("%{}", i),
-            LirValue::Var(v) => format!("%v{}", v.0),
-            LirValue::Literal(lit, _) => lit_to_string(lit, expected_ty),
-        }
-    }
 }
 
 // ----------------------------------------------------------------

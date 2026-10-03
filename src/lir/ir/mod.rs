@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{HashMap, BTreeMap};
 use std::fmt::Write;
 
 use crate::hir::ir::{FnId, HirLiteral, HirType, VarId};

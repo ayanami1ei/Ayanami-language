@@ -53,18 +53,6 @@ pub(crate) fn struct_llvm_size(ty: &HirType, struct_defs: &std::collections::Has
     llvm_type_size(ty).to_string()
 }
 
-pub(super) fn needs_heap_ops(ty: &HirType) -> bool {
-    match ty {
-        HirType::FatPtr { .. } => true,
-        HirType::Unique(inner) => {
-            matches!(inner.as_ref(), HirType::Named(_) | HirType::FatPtr { .. })
-        }
-        HirType::Named(_) => false,
-        HirType::Array(_) | HirType::ArraySized(_, _) => false,
-        HirType::Ref(_, _) => false,
-        _ => false,
-    }
-}
 
 pub(super) fn is_pointer_type(ty: &HirType) -> bool {
     matches!(ty,

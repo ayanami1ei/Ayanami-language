@@ -149,9 +149,6 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
 }
 
 /// Check if a type needs deep copy (heap-allocated data).
-pub(crate) fn needs_deep_copy(ty: &HirType) -> bool {
-    matches!(ty, HirType::Named(_) | HirType::Array(_) | HirType::FatPtr { .. })
-}
 
 
 pub(crate) fn strip_ownership(ty: HirType) -> HirType {

@@ -1,6 +1,5 @@
 use super::*;
 use super::mem::{action_to_stmt, strategy_for};
-use crate::error::Error;
 
 impl Ctx {
     pub(super) fn new(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Self {
@@ -103,7 +102,7 @@ impl Ctx {
                 if let Some(v) = value { v.record_moves(&mut self.moved); }
             }
             // 复合语句不预标记：子语句在各自 lower_stmt 中按顺序跟踪移动
-            HirStmt::If { .. } | HirStmt::While { .. } | HirStmt::Block(_) => {}
+            HirStmt::If { .. } | HirStmt::While { .. } => {}
             HirStmt::Break | HirStmt::Continue => {}
             HirStmt::Expr(expr) => expr.record_moves(&mut self.moved),
             HirStmt::Assume(cond) => cond.record_moves(&mut self.moved),

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::*;
 use super::cfg::Payload;
 use super::walk::{var_name, walk_stmt};

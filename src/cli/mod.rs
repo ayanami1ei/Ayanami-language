@@ -1,8 +1,8 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
-use crate::{find_project, load_config, project_entry, resolve_path};
+use crate::{load_config, resolve_path};
 
 pub(crate) mod build;
 pub(crate) mod check;

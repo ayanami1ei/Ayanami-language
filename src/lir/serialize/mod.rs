@@ -212,4 +212,4 @@ mod decode;
 mod reader;
 mod write;
 
-use write::{put_fn, put_inst};
+use write::put_fn;

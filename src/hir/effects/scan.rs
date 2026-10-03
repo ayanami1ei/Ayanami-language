@@ -6,7 +6,7 @@ use super::IO_NAMES;
 /// AST 观测点（用于精确行列定位）。
 #[derive(Clone)]
 pub(super) enum Obs {
-    Io(String, usize, usize),
+    Io(usize, usize),
     Try(usize, usize),
     Alloc(usize, usize),
     State(usize, usize),
@@ -16,7 +16,7 @@ impl Obs {
     /// 按效应名给出定位。
     pub(super) fn site_of(&self, kind: &str) -> Option<(usize, usize)> {
         match (self, kind) {
-            (Obs::Io(_, l, c), "io") => Some((*l, *c)),
+            (Obs::Io(l, c), "io") => Some((*l, *c)),
             (Obs::Try(l, c), "throws") => Some((*l, *c)),
             (Obs::Alloc(l, c), "alloc") => Some((*l, *c)),
             (Obs::State(l, c), "state") => Some((*l, *c)),
@@ -118,7 +118,7 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
         Expr::Unary { arg, .. } => scan_expr(arg, obs),
         Expr::FnCall { name, args, span } => {
             if IO_NAMES.contains(&name.as_str().as_str()) {
-                obs.push(Obs::Io(name.as_str(), span.start_line, span.start_col));
+                obs.push(Obs::Io(span.start_line, span.start_col));
             }
             for a in args { scan_expr(a, obs); }
         }

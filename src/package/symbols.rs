@@ -89,7 +89,7 @@ impl Package {
                 }
             }
             Stmt::EnumDef { .. } => {}
-            Stmt::ImplBlock { type_name, methods, generic_params, .. } => {
+            Stmt::ImplBlock { type_name: _, methods, generic_params, .. } => {
                 let has_generic = !generic_params.is_empty()
                     || methods.iter().any(|m| matches!(m, Stmt::FnDecl { generic_params, .. } if !generic_params.is_empty()));
                 if has_generic {
@@ -125,7 +125,7 @@ impl Package {
                     });
                 }
             }
-            Stmt::InterfaceDef { name, methods, generic_params, .. } => {
+            Stmt::InterfaceDef { name, methods: _, generic_params: _, .. } => {
                 self.symbols.push(PackageSymbol::Interface {
                     name: name.as_str().to_string(),
                 });
@@ -135,12 +135,6 @@ impl Package {
                 };
                 let src = crate::formatter::format_program(&prog);
                 self.generic_sources.push(src);
-            }
-            Stmt::EnumDef { .. } => {}
-            Stmt::ImplBlock { methods, .. } => {
-                for m in methods {
-                    self.collect_stmt_symbols(m, all, ns_prefix);
-                }
             }
             Stmt::Namespace { vis, name, items, .. } => {
                 if all || vis.is_public() {

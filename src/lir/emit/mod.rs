@@ -9,9 +9,8 @@
 //  6. 结构体和数组的内存布局与存取
 // ============================================================
 
-use crate::intern::Symbol;
-use crate::hir::ir::{FnId, HirLiteral, HirType};
-use crate::parser::ast::{BinaryOp, UnaryOp};
+use crate::hir::ir::{FnId, HirType};
+
 
 use super::ir::*;
 

@@ -14,7 +14,6 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

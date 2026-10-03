@@ -7,7 +7,7 @@ impl LirNode for SLirConv {
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let mut lines = Vec::new();
         let src_val = ctx.value_ref(&self.src, &self.src_ty);
-        let src_is_heap_ptr = matches!(&self.src_ty,
+        let _src_is_heap_ptr = matches!(&self.src_ty,
             HirType::Unique(_)
         );
         match &self.kind {

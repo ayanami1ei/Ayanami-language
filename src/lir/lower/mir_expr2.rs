@@ -247,7 +247,7 @@ impl MirNode for SMirAsm {
         let input_vals: Vec<_> = self.inputs.iter()
             .map(|(c, e)| { let v = e.lower_to_lir(ctx); (v, (c.clone(), e.expr_type())) }).collect();
         let output_operands: Vec<(LirValue, HirType, Option<VarId>)> = self.outputs.iter()
-            .map(|(c, e)| { let v = e.lower_to_lir(ctx); (v, e.expr_type(), e.as_local()) }).collect();
+            .map(|(_c, e)| { let v = e.lower_to_lir(ctx); (v, e.expr_type(), e.as_local()) }).collect();
         let output_constraints: Vec<String> = self.outputs.iter().map(|(c, _)| c.clone()).collect();
         let input_constraints: Vec<String> = input_vals.iter().map(|(_, (c, _))| c.clone()).collect();
         let input_operands: Vec<(LirValue, HirType)> = input_vals.into_iter().map(|(v, (_, t))| (v, t)).collect();

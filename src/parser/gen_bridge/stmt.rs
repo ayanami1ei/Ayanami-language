@@ -3,7 +3,6 @@ use super::*;
 pub fn node_to_stmt(node: &Node) -> Result<Stmt> {
     match node.kind.as_str() {
         "FnDecl" => {
-            let name = get_str(node, "name")?;
             let params_node = node.child("params");
             let body_node = node.child("body");
             let params = if let Some(pn) = params_node {
@@ -73,7 +72,7 @@ pub fn node_to_stmt(node: &Node) -> Result<Stmt> {
         }
         "Block" => {
             let stmts = node.children("stmts");
-            let items: Vec<Stmt> = stmts.iter().map(|n| node_to_stmt(*n)).collect::<std::result::Result<_, _>>()?;
+            let _items: Vec<Stmt> = stmts.iter().map(|n| node_to_stmt(*n)).collect::<std::result::Result<_, _>>()?;
             Ok(Stmt::ExprStmt { expr: Expr::Literal(Literal::Int(0, default_span())), span: default_span() })
         }
         kind => Err(Error::Parse(format!("unknown stmt kind: {}", kind))),
