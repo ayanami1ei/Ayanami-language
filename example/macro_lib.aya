@@ -23,3 +23,16 @@ pub fn emit_const(String input, String name, String value) -> String {
 pub fn show(String input, String arg) -> String {
     return "fn shown() -> String { return " + arg + " }"
 }
+
+// A5c-1：语句级宏（input = 语句源码；输出可展开为多条语句）
+#[alloc]
+#[state]
+#[macro]
+pub fn twice(String input) -> String { return input + input }
+
+#[alloc]
+#[state]
+#[macro]
+pub fn guarded(String input, String cond) -> String {
+    return "if " + cond + " {" + input + "}"
+}

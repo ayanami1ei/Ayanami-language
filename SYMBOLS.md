@@ -73,11 +73,13 @@ src/compiler/macro_expand/mod.rs:38: fn collect(program: &Program, src_path: &Pa
 src/compiler/macro_expand/mod.rs:45: fn resolve(&self, a: &Attr) -> Option<(String, String)>
 src/compiler/macro_expand/mod.rs:60: fn collect_imports(
 src/compiler/macro_expand/mod.rs:92: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:135: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:171: fn parse_source(code: &str) -> Result<Program>
-src/compiler/macro_expand/mod.rs:181: fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/mod.rs:192: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/mod.rs:203: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/mod.rs:109: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
+src/compiler/macro_expand/mod.rs:202: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)>
+src/compiler/macro_expand/mod.rs:223: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:243: fn parse_source(code: &str) -> Result<Program>
+src/compiler/macro_expand/mod.rs:253: fn is_compiler_attr(a: &Attr) -> bool
+src/compiler/macro_expand/mod.rs:264: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/mod.rs:275: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
 src/compiler/macro_expand/plugin.rs:11: const ABI_VERSION: u32 = 2;
 src/compiler/macro_expand/plugin.rs:13: mod dl
 src/compiler/macro_expand/plugin.rs:17: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
@@ -188,6 +190,7 @@ src/hir/attrs.rs:202: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result
 src/hir/attrs_macro.rs:12: fn is_compiler_attr(a: &Attr) -> bool
 src/hir/attrs_macro.rs:24: pub fn validate_macros(
 src/hir/attrs_macro.rs:37: fn validate_macros_stmt(
+src/hir/attrs_macro.rs:128: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -1787,6 +1790,8 @@ example/macro_lib.aya:6: pub fn answer() -> String { return "fn answer() -> int 
 example/macro_lib.aya:10: pub fn keep(String input) -> String { return input }
 example/macro_lib.aya:15: pub fn emit_const(String input, String name, String value) -> String
 example/macro_lib.aya:23: pub fn show(String input, String arg) -> String
+example/macro_lib.aya:31: pub fn twice(String input) -> String { return input + input }
+example/macro_lib.aya:36: pub fn guarded(String input, String cond) -> String
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/test.aya:1: fn main()->int
 example/test.aya:14: fn add(int a, int b)->int
@@ -1852,6 +1857,8 @@ example/test_macro_args.aya:8: fn placeholder() -> int { return 0 }
 example/test_macro_args.aya:11: fn shown_placeholder() -> int { return 0 }
 example/test_macro_args.aya:13: fn main() -> int
 example/test_macro_import.aya:4: fn main() -> int
+example/test_macro_stmt.aya:4: fn helper() -> int
+example/test_macro_stmt.aya:11: fn main() -> int
 example/test_memory.aya:5: fn make() -> int
 example/test_memory.aya:11: fn main() -> int
 example/test_memory_enum.aya:4: enum Maybe

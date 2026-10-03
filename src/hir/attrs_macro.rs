@@ -93,6 +93,15 @@ fn validate_macros_stmt(
         return;
     }
     match stmt {
+        Stmt::FnDecl { body, .. } => validate_block(body, tables, imports, out),
+        Stmt::If { then_block, elifs, else_block, .. } => {
+            validate_block(then_block, tables, imports, out);
+            for (_, b) in elifs { validate_block(b, tables, imports, out); }
+            if let Some(b) = else_block { validate_block(b, tables, imports, out); }
+        }
+        Stmt::For { body, .. } | Stmt::While { body, .. } => {
+            validate_block(body, tables, imports, out);
+        }
         Stmt::Namespace { items, .. } => {
             for s in items { validate_macros_stmt(s, tables, imports, out); if out.is_err() { return; } }
         }
@@ -113,5 +122,17 @@ fn validate_macros_stmt(
         }
         Stmt::Attributed { stmt: inner, .. } => validate_macros_stmt(inner, tables, imports, out),
         _ => {}
+    }
+}
+
+fn validate_block(
+    block: &crate::parser::ast::Block,
+    tables: &HashMap<Symbol, Vec<Symbol>>,
+    imports: &Imports,
+    out: &mut Result<()>,
+) {
+    for s in &block.stmts {
+        validate_macros_stmt(s, tables, imports, out);
+        if out.is_err() { return; }
     }
 }

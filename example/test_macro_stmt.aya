@@ -1,0 +1,44 @@
+// A5c-1：语句级宏（函数体/嵌套块内展开，输出可多条语句）
+import "macro_lib.aya"
+
+fn helper() -> int {
+    y = 0
+    #[macro_lib::twice]
+    y = y + 1
+    return y
+}
+
+fn main() -> int {
+    x = 0
+    #[macro_lib::twice]
+    x = x + 1
+    if x != 2 { return 1 }
+
+    #[macro_lib::guarded(x > 0)]
+    x = x + 10
+    if x != 12 { return 2 }
+
+    if x == 12 {
+        #[macro_lib::twice]
+        x = x + 1
+    }
+    if x != 14 { return 3 }
+
+    if helper() != 2 { return 4 }
+
+    // while 块内展开
+    i = 0
+    while i < 1 {
+        #[macro_lib::twice]
+        x = x + 1
+        i = i + 1
+    }
+    if x != 16 { return 5 }
+
+    // 与编译器标注共存（cfg 过滤在展开之后）
+    #[cfg(linux)]
+    #[macro_lib::twice]
+    x = x + 1
+    if x != 18 { return 6 }
+    return 0
+}

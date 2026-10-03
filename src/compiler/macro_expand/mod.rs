@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
-use crate::parser::ast::{Attr, Program, Stmt};
+use crate::parser::ast::{Attr, Block, Program, Stmt};
 
 const MAX_DEPTH: usize = 32;
 
@@ -98,48 +98,110 @@ fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt
     }
     let mut out = Vec::new();
     for stmt in stmts {
-        match stmt {
-            Stmt::Namespace { vis, name, items, span } => {
-                out.push(Stmt::Namespace {
-                    vis: *vis, name: *name,
-                    items: expand_stmts(items, ctx, depth + 1)?, span: *span,
-                });
-            }
-            Stmt::ImplBlock { attrs, type_name, generic_params, methods, span } => {
-                out.push(Stmt::ImplBlock {
-                    attrs: attrs.clone(), type_name: *type_name,
-                    generic_params: generic_params.clone(),
-                    methods: expand_stmts(methods, ctx, depth + 1)?, span: *span,
-                });
-            }
-            Stmt::Attributed { attrs, stmt: inner, span } => {
-                if attrs.iter().any(|a| !is_compiler_attr(a)) {
-                    return Err(Error::Compile(format!(
-                        "statement-level macros are not supported yet (at {}:{})",
-                        span.start_line, span.start_col
-                    )));
-                }
-                out.push(Stmt::Attributed {
-                    attrs: attrs.clone(),
-                    stmt: Box::new(expand_one(inner, ctx, depth)?.into_iter().next().unwrap_or_else(|| (**inner).clone())),
-                    span: *span,
-                });
-            }
-            other => out.extend(expand_one(other, ctx, depth)?),
+        for s in expand_one(stmt, ctx, depth)? {
+            expand_nested(s, &mut out, ctx, depth)?;
         }
     }
     Ok(out)
 }
 
-/// 展开单个 item：无宏标注则原样返回；有则调用插件并递归展开输出。
-fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
-    let macro_attr = attrs_of(stmt).and_then(|attrs| {
-        attrs.iter().find(|a| !is_compiler_attr(a)).cloned()
-    });
-    let Some(attr) = macro_attr else { return Ok(vec![stmt.clone()]); };
-    // A5b-3：实参按源码文本传入（字符串字面量含引号，`k = v` 保留键值形式）
+/// 展开 item 后的下降：递归处理函数体/控制流块内的语句级宏（A5c-1）。
+fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()> {
+    match stmt {
+        // 语句级宏：去掉目标宏标注后作为输入，输出重新解析为语句序列并递归展开
+        Stmt::Attributed { attrs, stmt: inner, span }
+            if attrs.iter().any(|a| !is_compiler_attr(a)) =>
+        {
+            let attr = attrs.iter().find(|a| !is_compiler_attr(a)).cloned().unwrap();
+            let (lcl_path, macro_name, args) = resolve_macro_call(ctx, &attr)?;
+            let remaining: Vec<Attr> = attrs.iter()
+                .filter(|a| a.path_str() != attr.path_str())
+                .cloned()
+                .collect();
+            let input = if remaining.is_empty() {
+                crate::formatter::format_program(&Program::new(vec![*inner]))
+            } else {
+                crate::formatter::format_program(&Program::new(vec![Stmt::Attributed {
+                    attrs: remaining,
+                    stmt: inner,
+                    span,
+                }]))
+            };
+            let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args)?;
+            let parsed = parse_source(&output)?;
+            for s in &parsed.stmts {
+                for e in expand_one(s, ctx, depth + 1)? {
+                    expand_nested(e, out, ctx, depth + 1)?;
+                }
+            }
+            Ok(())
+        }
+        // 仅编译器标注（cfg/invariant）：保留包装，下降内部
+        Stmt::Attributed { attrs, stmt: inner, span } => {
+            let mut inner_out = Vec::new();
+            expand_nested(*inner, &mut inner_out, ctx, depth)?;
+            let mut iter = inner_out.into_iter();
+            if let Some(first) = iter.next() {
+                out.push(Stmt::Attributed { attrs, stmt: Box::new(first), span });
+                out.extend(iter);
+            }
+            Ok(())
+        }
+        Stmt::FnDecl {
+            attrs, vis, is_inline, extern_c, name, generic_params,
+            params, param_attrs, return_type, body, span,
+        } => {
+            let body = Block::new(expand_stmts(&body.stmts, ctx, depth + 1)?, body.span);
+            out.push(Stmt::FnDecl {
+                attrs, vis, is_inline, extern_c, name, generic_params,
+                params, param_attrs, return_type, body, span,
+            });
+            Ok(())
+        }
+        Stmt::If { cond, then_block, elifs, else_block, span } => {
+            let then_block = Block::new(expand_stmts(&then_block.stmts, ctx, depth + 1)?, then_block.span);
+            let elifs = elifs.into_iter().map(|(c, b)| {
+                let nb = Block::new(expand_stmts(&b.stmts, ctx, depth + 1)?, b.span);
+                Ok((c, nb))
+            }).collect::<Result<Vec<_>>>()?;
+            let else_block = match else_block {
+                Some(b) => Some(Block::new(expand_stmts(&b.stmts, ctx, depth + 1)?, b.span)),
+                None => None,
+            };
+            out.push(Stmt::If { cond, then_block, elifs, else_block, span });
+            Ok(())
+        }
+        Stmt::For { iterator, start, end, step, body, span } => {
+            let body = Block::new(expand_stmts(&body.stmts, ctx, depth + 1)?, body.span);
+            out.push(Stmt::For { iterator, start, end, step, body, span });
+            Ok(())
+        }
+        Stmt::While { cond, body, span } => {
+            let body = Block::new(expand_stmts(&body.stmts, ctx, depth + 1)?, body.span);
+            out.push(Stmt::While { cond, body, span });
+            Ok(())
+        }
+        Stmt::Namespace { vis, name, items, span } => {
+            let items = expand_stmts(&items, ctx, depth + 1)?;
+            out.push(Stmt::Namespace { vis, name, items, span });
+            Ok(())
+        }
+        Stmt::ImplBlock { attrs, type_name, generic_params, methods, span } => {
+            let methods = expand_stmts(&methods, ctx, depth + 1)?;
+            out.push(Stmt::ImplBlock { attrs, type_name, generic_params, methods, span });
+            Ok(())
+        }
+        other => {
+            out.push(other);
+            Ok(())
+        }
+    }
+}
+
+/// 解析并校验宏标注 → (lcl 路径, 宏名, 实参源码文本)
+fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)> {
     let args: Vec<String> = attr.args.iter().map(crate::formatter::format_attr_arg).collect();
-    let Some((pkg, macro_name)) = ctx.resolve(&attr) else {
+    let Some((pkg, macro_name)) = ctx.resolve(attr) else {
         return Err(Error::Compile(format!(
             "macro #[{}] cannot be resolved (at {}:{})",
             attr.path_str(), attr.span.start_line, attr.span.start_col
@@ -154,6 +216,16 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
             macro_name, pkg, attr.span.start_line, attr.span.start_col
         )));
     }
+    Ok((lcl_path.clone(), macro_name, args))
+}
+
+/// 展开单个 item：无宏标注则原样返回；有则调用插件并递归展开输出。
+fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
+    let macro_attr = attrs_of(stmt).and_then(|attrs| {
+        attrs.iter().find(|a| !is_compiler_attr(a)).cloned()
+    });
+    let Some(attr) = macro_attr else { return Ok(vec![stmt.clone()]); };
+    let (lcl_path, macro_name, args) = resolve_macro_call(ctx, &attr)?;
 
     // 去掉被调用的宏标注后格式化 item 源码
     let mut input_stmt = stmt.clone();
@@ -162,7 +234,7 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     }
     let input = crate::formatter::format_program(&Program::new(vec![input_stmt]));
 
-    let output = plugin::invoke_plugin(lcl_path, &macro_name, &input, &args)?;
+    let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args)?;
 
     let parsed = parse_source(&output)?;
     expand_stmts(&parsed.stmts, ctx, depth + 1)

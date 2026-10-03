@@ -296,9 +296,18 @@ struct Holder {
 
 ### 8.3 展开时机与卫生性
 
-- 阶段：解析后、`validate_program`/`cfg` 过滤前；item 级优先，语句/表达式级后期。
+- 阶段：解析后、`validate_program`/`cfg` 过滤前；item 级与语句级（A5c-1）已实现，表达式级后期。
 - 递归展开设上限并检测循环；错误带宏名 + 调用点。
 - 卫生性：M1 需专门设计；M2 由源文本拼接决定（文档明示风险），后期可提供带 span 的 AST 序列化 ABI。
+
+### 8.4 语句级宏（A5c-1）
+
+- 语法：块内任意非声明语句前写 `#[pkg::macro(args...)]`（解析器已产出 `Stmt::Attributed`）。
+- 语义：输入为「去掉目标宏标注后的语句源码」（保留其余标注，含 `#[cfg]`/`#[invariant]`）；
+  输出源码重新解析为语句序列并递归展开后原位拼接；允许展开为多条语句。
+- 遍历：函数体、`if`/`elif`/`else`、`for`/`while` 块内均展开；仅含编译器标注的
+  `Attributed` 原样保留（`cfg` 过滤仍在其后执行）。
+- 表达式级宏、其他语言插件、WASM 沙箱、插件清单与权限为远期（A5c-2）。
 
 ## 9. 实现接口（跨包与工具）
 
@@ -386,9 +395,11 @@ struct Holder {
 - [x] A5b-2 M3 插件 ABI（Ayanami 优先）：宏库 LIR → llc(PIC) + C shim + runtime → `.so`；编译期 dlopen 调用；
       item 级展开、输出重新解析、深度上限 32、`/tmp/ayanami-macros` 缓存
 - [x] A5b-3 宏实参：`#[pkg::macro(args...)]` → 宏形参 `(String input, String ...args) -> String`，
-      实参按源码文本传入；插件 ABI v2（args 数组）+ shim 输入拷贝 + 缓存键含 ABI 版本
-      （v1 遗留限制：语句级宏不支持，属 A5c）
-- [ ] A5c 其他语言插件 / WASM 沙箱 / 语句表达式宏 / 插件清单与权限（远期）
+      实参按源码文本传入；插件 ABI v2（args 数组）+ shim 输入拷贝 + 缓存键含 ABI 版本；
+      `.lcl` `[deps]` 依赖表 + 宏插件递归链接依赖对象
+- [x] A5c-1 语句级宏：块内 `#[pkg::macro(args...)]` 语句 → 源码进出、可展开多条、递归展开；
+      函数体与 `if`/`for`/`while` 块遍历；`#[cfg]`/`#[invariant]` 等编译器标注保留
+- [ ] A5c-2 其他语言插件 / WASM 沙箱 / 表达式级宏 / 插件清单与权限（远期）
 
 ### 已知问题
 
