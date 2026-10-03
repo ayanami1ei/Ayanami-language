@@ -40,6 +40,10 @@ pub enum PackageSymbol {
     Pass {
         name: String,
     },
+    /// A5d：导出的 MIR 只读检查注解（`#[check]` 函数）
+    Check {
+        name: String,
+    },
 }
 
 /// Parsed symbol from a .lcl package file.
@@ -65,6 +69,10 @@ pub enum ImportedSymbol {
     },
     /// A5d：包导出的 MIR 优化注解
     Pass {
+        name: String,
+    },
+    /// A5d：包导出的 MIR 只读检查注解
+    Check {
         name: String,
     },
 }

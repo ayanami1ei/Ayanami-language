@@ -8,7 +8,7 @@ use std::process::Command;
 use crate::error::{Error, Result};
 
 /// 插件 ABI 版本：签名变化时必须递增（参与 .so 缓存键，避免复用旧 shim）。
-pub(super) const ABI_VERSION: u32 = 3;
+pub(super) const ABI_VERSION: u32 = 4;
 
 pub(super) mod dl {
     use super::*;

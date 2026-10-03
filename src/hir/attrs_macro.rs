@@ -29,17 +29,18 @@ pub fn validate_macros(
     program: &Program,
     macros: &HashMap<Symbol, Vec<Symbol>>,
     passes: &HashMap<Symbol, Vec<Symbol>>,
+    checks: &HashMap<Symbol, Vec<Symbol>>,
 ) -> Result<()> {
     let mut out = Ok(());
     for stmt in &program.stmts {
-        validate_macros_stmt(stmt, macros, passes, &mut out);
+        validate_macros_stmt(stmt, macros, passes, checks, &mut out);
         if out.is_err() { return out; }
     }
     out
 }
 
 /// 注解类别
-enum AnnKind { Macro, Pass }
+enum AnnKind { Macro, Pass, Check }
 
 /// 查找注解：全限定查指定包；裸名跨所有已导入包。
 /// 返回 Ok(Some(kind)) / Ok(None)（未找到）/ Err（裸名歧义）。
@@ -47,6 +48,7 @@ fn lookup_annotation(
     a: &Attr,
     macros: &HashMap<Symbol, Vec<Symbol>>,
     passes: &HashMap<Symbol, Vec<Symbol>>,
+    checks: &HashMap<Symbol, Vec<Symbol>>,
 ) -> Result<Option<AnnKind>> {
     let name = a.name.as_str();
     if !a.qualifier.is_empty() {
@@ -58,6 +60,9 @@ fn lookup_annotation(
         }
         if passes.get(&pkg).map_or(false, |ms| ms.iter().any(|m| m.as_str() == qualified)) {
             return Ok(Some(AnnKind::Pass));
+        }
+        if checks.get(&pkg).map_or(false, |ms| ms.iter().any(|m| m.as_str() == qualified)) {
+            return Ok(Some(AnnKind::Check));
         }
         return Ok(None);
     }
@@ -72,11 +77,17 @@ fn lookup_annotation(
             hits.push((pkg.as_str(), AnnKind::Pass));
         }
     }
+    for (pkg, ms) in checks {
+        if ms.iter().any(|m| m.as_str() == name) {
+            hits.push((pkg.as_str(), AnnKind::Check));
+        }
+    }
     match hits.len() {
         0 => Ok(None),
         1 => Ok(Some(match hits[0].1 {
             AnnKind::Macro => AnnKind::Macro,
             AnnKind::Pass => AnnKind::Pass,
+            AnnKind::Check => AnnKind::Check,
         })),
         _ => {
             let list: Vec<String> = hits.iter().map(|(p, _)| format!("{}::{}", p, name)).collect();
@@ -92,6 +103,7 @@ fn validate_macros_stmt(
     stmt: &Stmt,
     macros: &HashMap<Symbol, Vec<Symbol>>,
     passes: &HashMap<Symbol, Vec<Symbol>>,
+    checks: &HashMap<Symbol, Vec<Symbol>>,
     out: &mut Result<()>,
 ) {
     let attrs: Vec<&Attr> = match stmt {
@@ -107,7 +119,7 @@ fn validate_macros_stmt(
         if is_compiler_attr(a) {
             continue;
         }
-        match lookup_annotation(a, macros, passes) {
+        match lookup_annotation(a, macros, passes, checks) {
             Err(e) => { *out = Err(e); return; }
             Ok(None) => {
                 *out = Err(Error::Hir(format!(
@@ -116,8 +128,8 @@ fn validate_macros_stmt(
                 )));
                 return;
             }
-            Ok(Some(AnnKind::Pass)) => {
-                // 优化注解保留到 MIR 阶段执行
+            Ok(Some(AnnKind::Pass)) | Ok(Some(AnnKind::Check)) => {
+                // 优化/检查注解保留到 MIR 阶段执行
             }
             Ok(Some(AnnKind::Macro)) => {
                 // 宏展开应在 HIR 之前完成；这里出现说明展开遗漏
@@ -130,20 +142,20 @@ fn validate_macros_stmt(
         }
     }
     match stmt {
-        Stmt::FnDecl { body, .. } => validate_block(body, macros, passes, out),
+        Stmt::FnDecl { body, .. } => validate_block(body, macros, passes, checks, out),
         Stmt::If { then_block, elifs, else_block, .. } => {
-            validate_block(then_block, macros, passes, out);
-            for (_, b) in elifs { validate_block(b, macros, passes, out); }
-            if let Some(b) = else_block { validate_block(b, macros, passes, out); }
+            validate_block(then_block, macros, passes, checks, out);
+            for (_, b) in elifs { validate_block(b, macros, passes, checks, out); }
+            if let Some(b) = else_block { validate_block(b, macros, passes, checks, out); }
         }
         Stmt::For { body, .. } | Stmt::While { body, .. } => {
-            validate_block(body, macros, passes, out);
+            validate_block(body, macros, passes, checks, out);
         }
         Stmt::Namespace { items, .. } => {
-            for s in items { validate_macros_stmt(s, macros, passes, out); if out.is_err() { return; } }
+            for s in items { validate_macros_stmt(s, macros, passes, checks, out); if out.is_err() { return; } }
         }
         Stmt::ImplBlock { methods, .. } => {
-            for s in methods { validate_macros_stmt(s, macros, passes, out); if out.is_err() { return; } }
+            for s in methods { validate_macros_stmt(s, macros, passes, checks, out); if out.is_err() { return; } }
         }
         Stmt::InterfaceDef { methods, .. } => {
             for m in methods {
@@ -157,7 +169,7 @@ fn validate_macros_stmt(
                 }
             }
         }
-        Stmt::Attributed { stmt: inner, .. } => validate_macros_stmt(inner, macros, passes, out),
+        Stmt::Attributed { stmt: inner, .. } => validate_macros_stmt(inner, macros, passes, checks, out),
         _ => {}
     }
 }
@@ -166,10 +178,11 @@ fn validate_block(
     block: &crate::parser::ast::Block,
     macros: &HashMap<Symbol, Vec<Symbol>>,
     passes: &HashMap<Symbol, Vec<Symbol>>,
+    checks: &HashMap<Symbol, Vec<Symbol>>,
     out: &mut Result<()>,
 ) {
     for s in &block.stmts {
-        validate_macros_stmt(s, macros, passes, out);
+        validate_macros_stmt(s, macros, passes, checks, out);
         if out.is_err() { return; }
     }
 }

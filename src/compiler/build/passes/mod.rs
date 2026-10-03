@@ -64,23 +64,50 @@ pub(super) fn apply_passes(
                     "unknown annotation #[{}] at {}:{}", a.path_str(), a.span.start_line, a.span.start_col
                 )));
             };
-            if kind != crate::compiler::macro_expand::AnnKind::Pass {
-                continue;
-            }
             let lcl = tables.lcl_path(&pkg).ok_or_else(|| Error::Compile(format!(
                 "package `{}` has no annotation table", pkg
             )))?;
             let blob = serialize_fn(f, &purity);
-            let out = crate::compiler::macro_expand::invoke_pass(&lcl, &name, &blob)
-                .map_err(|e| Error::Compile(format!(
-                    "pass `#[{}]` at {}:{} failed: {}",
-                    a.path_str(), a.span.start_line, a.span.start_col, e
-                )))?;
-            let parsed = parse_output(&blob, &out, &a)?;
-            let view = deserialize_view(&blob);
-            apply_edits(f, &view, &parsed.edits, &a)?;
-            f.effects.pure = parsed.pure;
-            f.effects.no_error = parsed.no_error;
+            match kind {
+                crate::compiler::macro_expand::AnnKind::Pass => {
+                    let out = crate::compiler::macro_expand::invoke_pass(&lcl, &name, &blob)
+                        .map_err(|e| Error::Compile(format!(
+                            "pass `#[{}]` at {}:{} failed: {}",
+                            a.path_str(), a.span.start_line, a.span.start_col, e
+                        )))?;
+                    let parsed = parse_output(&blob, &out, &a)?;
+                    let view = deserialize_view(&blob);
+                    apply_edits(f, &view, &parsed.edits, &a)?;
+                    f.effects.pure = parsed.pure;
+                    f.effects.no_error = parsed.no_error;
+                }
+                crate::compiler::macro_expand::AnnKind::Check => {
+                    let (out, diags) = crate::compiler::macro_expand::invoke_check(&lcl, &name, &blob)
+                        .map_err(|e| Error::Compile(format!(
+                            "check `#[{}]` at {}:{} failed: {}",
+                            a.path_str(), a.span.start_line, a.span.start_col, e
+                        )))?;
+                    if out != blob {
+                        return Err(Error::Compile(format!(
+                            "check #[{}] modified the MIR; #[check] is read-only (at {}:{})",
+                            a.path_str(), a.span.start_line, a.span.start_col
+                        )));
+                    }
+                    for (level, msg) in diags {
+                        if level >= 2 {
+                            return Err(Error::Compile(format!(
+                                "check #[{}] at {}:{}: {}",
+                                a.path_str(), a.span.start_line, a.span.start_col, msg
+                            )));
+                        }
+                        eprintln!(
+                            "warning: {} (check #[{}] at {}:{})",
+                            msg, a.path_str(), a.span.start_line, a.span.start_col
+                        );
+                    }
+                }
+                _ => {}
+            }
         }
     }
     Ok(())

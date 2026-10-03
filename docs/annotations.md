@@ -325,7 +325,7 @@ struct Holder {
 | 编译器原语 | 保留名（`cfg`/`inline`/效应/契约/`follow_with`） | 编译器内部 | 各 pass |
 | 宏注解 | `#[macro]` | 源码 → 源码 | 解析后展开 |
 | 优化注解 | `#[pass]` | MIR 函数 → MIR 函数 | MIR 降级后 |
-| 检查注解（后置） | `#[check]` | MIR 函数 → 诊断（只读） | MIR 降级后 |
+| 检查注解 | `#[check]` | MIR 函数 → 诊断（只读） | MIR 降级后 |
 
 - **产物与跨平台**：注解库打包为 `.lcl`（LIR + `macro=`/`pass=` 表）；宿主插件由使用方编译器
   从 LIR 现场构建（llc PIC + shim + 依赖链接）并缓存；**不随包分发 `.so`**，天然跨平台。
@@ -343,6 +343,10 @@ struct Holder {
   `edit_i64[i]` 的整型字面量；编译器按 preorder 下标应用编辑并跳过被替换子树，
   **应用后由管线重跑借用检查**（常量折叠 demo 即验证此路径）。
 - **能力边界**：允许修改效应声明；**禁止修改签名**；v1 仅函数内、仅整型表达式替换。
+- **只读检查（`#[check]`）**：签名 `fn(ref MirFunction) -> void`（不可变借用）；
+  通过 stdlib `warn(msg)`/`error(msg)` 上报诊断（`__ayanami_diag_emit` 通道，
+  runtime.c 提供弱符号空实现、插件 shim 强定义）；error 级失败编译；
+  插件返回的 blob 必须与输入完全一致（改 MIR 直接报错）。
 - **解析**：与宏一致——`import` 自动作用域（该包导出的注解全部进入裸名表）、
   `pkg::name` 消歧、重名报错；声明侧校验 `fn(MirFunction) -> MirFunction`。
 - **信任**：原生插件 = 编译期执行代码，信任级同宏；版本校验与沙箱后置。
@@ -445,7 +449,9 @@ struct Holder {
       v0 约定 `fn(ref mut MirFunction) -> void`、body 只读（改写报错）、可改效应
 - [x] A5d-3a body 改写编辑面：`edit_kind/edit_i64` 表达式整型常量替换 + preorder 下标应用 +
       应用后重跑借用检查；demo `#[const_fold]`（`1 + 2 + 3` → `6`，`2*3 + 4*5` → `26`）
-- [ ] A5d-3b 结构化 MIR schema（类型/调用/字面量完整往返）、pass 顺序/不动点、`#[check]` 只读诊断
+- [x] A5d-3b `#[check]` 只读检查注解：`fn(ref MirFunction) -> void` + `warn`/`error` 诊断通道 +
+      只读强制（blob 必须不变）；demo `check_lib`/`test_check`
+- [ ] A5d-3c 结构化 MIR schema（类型/调用/字段完整往返）、pass 顺序/不动点
 - [ ] A5c-2 / A5d-3 `#[check]` 只读诊断、其他语言插件 / WASM 沙箱 / 表达式级宏 / 插件清单与权限（远期）
 
 ### 已知问题

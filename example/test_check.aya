@@ -1,0 +1,20 @@
+// A5d-3b：MIR 只读检查注解（#[check]）—— 诊断不影响编译结果
+import "check_lib.aya"
+import "string"
+
+#[check_lib::warn_side_effects]
+fn allocs() -> int {
+    s = "hello"
+    return s.len()
+}
+
+#[check_lib::warn_side_effects]
+fn pure_ok(int a, int b) -> int {
+    return a + b
+}
+
+fn main() -> int {
+    if allocs() != 5 { return 1 }
+    if pure_ok(1, 2) != 3 { return 2 }
+    return 0
+}

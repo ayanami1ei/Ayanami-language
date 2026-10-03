@@ -17,6 +17,7 @@ pub(crate) use annotations::{AnnKind, AnnotationTables};
 const MAX_DEPTH: usize = 32;
 
 mod annotations;
+mod check_plugin;
 mod pass_plugin;
 mod plugin;
 
@@ -38,6 +39,11 @@ pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables> {
 /// A5d-2：调用 MIR pass 插件
 pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>> {
     pass_plugin::invoke_pass(lcl_path, name, blob)
+}
+
+/// A5d-3b：调用 MIR 只读检查插件（返回 blob + 诊断）
+pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)> {
+    check_plugin::invoke_check(lcl_path, name, blob)
 }
 
 struct MacroCtx {
@@ -172,8 +178,8 @@ fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Ve
             )))?;
             Ok((lcl_path, macro_name, args))
         }
-        Some((pkg, name, AnnKind::Pass)) => Err(Error::Compile(format!(
-            "`#[{}]` is an optimization annotation (`{}::{}`), not a macro (at {}:{})",
+        Some((pkg, name, AnnKind::Pass)) | Some((pkg, name, AnnKind::Check)) => Err(Error::Compile(format!(
+            "`#[{}]` is a MIR annotation (`{}::{}`), not a macro (at {}:{})",
             attr.path_str(), pkg, name, attr.span.start_line, attr.span.start_col
         ))),
         None => Err(Error::Compile(format!(

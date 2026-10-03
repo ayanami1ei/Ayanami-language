@@ -13,6 +13,13 @@
 
 static int64_t live_allocs = 0;
 
+/* A5d-3b：诊断通道弱符号（可执行文件里为 no-op；插件 shim 提供强定义） */
+typedef struct { char* data; long len; } __ayanami_diag_buf;
+__attribute__((weak)) void __ayanami_diag_emit(long long level, __ayanami_diag_buf msg) {
+    (void)level;
+    (void)msg;
+}
+
 void *__ayanami_unique_alloc(size_t size) {
     void *p = malloc(size);
     if (p) live_allocs++;

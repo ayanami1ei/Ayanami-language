@@ -12,6 +12,7 @@ pub const ALLOWED: &[&str] = &[
     "invariant",
     "macro",
     "pass",
+    "check",
     "follow_with",
     "throws",
     "no_error",

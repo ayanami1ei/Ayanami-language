@@ -15,6 +15,7 @@ pub(super) struct PkgAnnotations {
     pub lcl_path: String,
     pub macros: Vec<String>,
     pub passes: Vec<String>,
+    pub checks: Vec<String>,
 }
 
 /// 注解类别
@@ -22,6 +23,7 @@ pub(super) struct PkgAnnotations {
 pub(crate) enum AnnKind {
     Macro,
     Pass,
+    Check,
 }
 
 /// 已导入包的注解表
@@ -53,6 +55,7 @@ impl AnnotationTables {
                         match s {
                             crate::package::ImportedSymbol::Macro { name } => pkg.macros.push(name),
                             crate::package::ImportedSymbol::Pass { name } => pkg.passes.push(name),
+                            crate::package::ImportedSymbol::Check { name } => pkg.checks.push(name),
                             _ => {}
                         }
                     }
@@ -61,6 +64,7 @@ impl AnnotationTables {
                         Some(existing) => {
                             existing.macros.extend(pkg.macros);
                             existing.passes.extend(pkg.passes);
+                            existing.checks.extend(pkg.checks);
                         }
                         None => { self.pkgs.insert(stem, pkg); }
                     }
@@ -88,6 +92,9 @@ impl AnnotationTables {
             if p.passes.iter().any(|m| *m == ann) {
                 return Ok(Some((pkg, ann, AnnKind::Pass)));
             }
+            if p.checks.iter().any(|m| *m == ann) {
+                return Ok(Some((pkg, ann, AnnKind::Check)));
+            }
             return Ok(None);
         }
         let mut hits: Vec<(String, AnnKind)> = Vec::new();
@@ -96,6 +103,8 @@ impl AnnotationTables {
                 hits.push((pkg.clone(), AnnKind::Macro));
             } else if p.passes.iter().any(|m| *m == name) {
                 hits.push((pkg.clone(), AnnKind::Pass));
+            } else if p.checks.iter().any(|m| *m == name) {
+                hits.push((pkg.clone(), AnnKind::Check));
             }
         }
         match hits.len() {

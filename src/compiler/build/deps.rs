@@ -170,6 +170,9 @@ pub(super) fn merge_symbols(
                     crate::package::ImportedSymbol::Pass { name } => {
                         PackageSymbol::Pass { name }
                     }
+                    crate::package::ImportedSymbol::Check { name } => {
+                        PackageSymbol::Check { name }
+                    }
                 };
                 if !pkg.symbols.contains(&pkg_sym) {
                     pkg.symbols.push(pkg_sym);

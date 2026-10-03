@@ -55,6 +55,8 @@ pub(crate) struct Ctx {
     pub imported_macros: HashMap<Symbol, Vec<Symbol>>,
     /// A5d：导入包的优化注解表（pass 名）
     pub imported_passes: HashMap<Symbol, Vec<Symbol>>,
+    /// A5d：导入包的只读检查注解表（check 名）
+    pub imported_checks: HashMap<Symbol, Vec<Symbol>>,
 }
 
 impl Ctx {
@@ -88,6 +90,7 @@ impl Ctx {
             pending_stmts: Vec::new(),
             imported_macros: HashMap::new(),
             imported_passes: HashMap::new(),
+            imported_checks: HashMap::new(),
         }
     }
 

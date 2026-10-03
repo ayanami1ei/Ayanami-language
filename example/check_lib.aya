@@ -1,0 +1,10 @@
+// A5d-3b：只读检查注解 demo —— 报告可能有副作用的函数
+import "mir"
+
+#[check]
+pub fn warn_side_effects(ref MirFunction f) {
+    if f.node_count == 0 { return }
+    if !scan_effects(f) {
+        warn("function may have side effects")
+    }
+}

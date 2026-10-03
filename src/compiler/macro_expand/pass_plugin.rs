@@ -16,28 +16,36 @@ use crate::intern::Symbol;
 /// 与 `compiler/build/passes.rs::SCHEMA_VERSION` 保持一致
 const SCHEMA_VERSION: i64 = 2;
 
-pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>> {
+/// 加载并构建 MIR 注解插件（pass/check 共用）；返回 (.so 路径, 符号名)
+/// `want_mut=true`：pass（`ref mut`）；`false`：check（只读 `ref`）
+pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)> {
     let (_syms, _src, lir_binary, _tt) = crate::package::load_package(lcl_path)
-        .map_err(|e| Error::Compile(format!("pass package '{}': {}", lcl_path, e)))?;
+        .map_err(|e| Error::Compile(format!("MIR annotation package '{}': {}", lcl_path, e)))?;
     let lir = crate::lir::serialize::program_from_bytes(&lir_binary)
-        .map_err(|e| Error::Compile(format!("pass LIR decode: {}", e)))?;
-    let f = lir.functions.iter().find(|f| f.name.as_str() == pass_name)
-        .ok_or_else(|| Error::Compile(format!("pass `{}` has no compiled body in `{}`", pass_name, lcl_path)))?;
+        .map_err(|e| Error::Compile(format!("MIR annotation LIR decode: {}", e)))?;
+    let f = lir.functions.iter().find(|f| f.name.as_str() == ann_name)
+        .ok_or_else(|| Error::Compile(format!("MIR annotation `{}` has no compiled body in `{}`", ann_name, lcl_path)))?;
     let symbol = lir.fn_names.get(&f.fn_id)
-        .ok_or_else(|| Error::Compile(format!("pass `{}` has no symbol", pass_name)))?
+        .ok_or_else(|| Error::Compile(format!("MIR annotation `{}` has no symbol", ann_name)))?
         .clone();
     let mir_ty = crate::hir::ty::HirType::Named(Symbol::intern("MirFunction"));
     let sig_ok = f.params.len() == 1
-        && matches!(&f.params[0].1, crate::hir::ty::HirType::Ref(inner, true) if **inner == mir_ty)
+        && matches!(&f.params[0].1, crate::hir::ty::HirType::Ref(inner, m) if **inner == mir_ty && *m == want_mut)
         && f.return_type == crate::hir::ty::HirType::Void;
     if !sig_ok {
+        let expected = if want_mut { "fn(ref mut MirFunction) -> void" } else { "fn(ref MirFunction) -> void" };
         return Err(Error::Compile(format!(
-            "pass `{}` must have signature fn(ref mut MirFunction) -> void, found {} param(s)",
-            pass_name, f.params.len()
+            "MIR annotation `{}` must have signature {}, found {} param(s)",
+            ann_name, expected, f.params.len()
         )));
     }
     let deps = resolve_dep_lcls(lcl_path)?;
     let so_path = build_pass_plugin(&lir, &symbol, &deps)?;
+    Ok((so_path, symbol))
+}
+
+pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>> {
+    let (so_path, symbol) = build_for(lcl_path, pass_name, true)?;
     call_pass(&so_path, &symbol, blob)
 }
 
@@ -132,6 +140,21 @@ fn pass_shim(symbol: &str) -> String {
          static void wr64(char* p, long long v) {{\n\
              int i;\n\
              for (i = 0; i < 8; i++) {{ p[i] = (char)(v & 0xff); v >>= 8; }}\n\
+         }}\n\
+         static char* g_diag = 0;\n\
+         static long g_diag_len = 0;\n\
+         void __ayanami_diag_emit(long long level, AyaBuf msg) {{\n\
+             char* nb = (char*)realloc(g_diag, (size_t)(g_diag_len + 16 + msg.len));\n\
+             if (!nb) return;\n\
+             g_diag = nb;\n\
+             wr64(g_diag + g_diag_len, level); g_diag_len += 8;\n\
+             wr64(g_diag + g_diag_len, msg.len); g_diag_len += 8;\n\
+             memcpy(g_diag + g_diag_len, msg.data, (size_t)msg.len); g_diag_len += msg.len;\n\
+         }}\n\
+         AyaBuf __ayanami_diag_take(void) {{\n\
+             AyaBuf b; b.data = g_diag; b.len = g_diag_len;\n\
+             g_diag = 0; g_diag_len = 0;\n\
+             return b;\n\
          }}\n\
          static MirFunction mir_decode(const char* p, long len) {{\n\
              MirFunction f; long pos = 0; long long n; (void)len;\n\

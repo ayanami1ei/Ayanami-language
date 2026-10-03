@@ -48,6 +48,9 @@ impl Package {
                     PackageSymbol::Pass { name } => {
                         body.push_str(&format!("pass=\"{}\"\n", name));
                     }
+                    PackageSymbol::Check { name } => {
+                        body.push_str(&format!("check=\"{}\"\n", name));
+                    }
                 }
             }
             body.push_str("\n");

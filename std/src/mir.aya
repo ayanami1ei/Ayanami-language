@@ -44,6 +44,20 @@ pub fn scan_effects(ref MirFunction f) -> bool {
     return true
 }
 
+// ── 检查注解诊断通道（由插件 shim 提供实现）──
+
+extern "C" fn __ayanami_diag_emit(int level, String msg);
+
+/// 上报 warning 级诊断（1）
+pub fn warn(String msg) {
+    __ayanami_diag_emit(1, msg)
+}
+
+/// 上报 error 级诊断（2，会导致编译失败）
+pub fn error(String msg) {
+    __ayanami_diag_emit(2, msg)
+}
+
 // ── 编辑辅助 ──
 
 /// 标记第 idx 个表达式节点替换为整型字面量 value
