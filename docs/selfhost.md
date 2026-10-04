@@ -53,6 +53,12 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 7. **同一程序里 std 被多个源文件各自 import 会破坏泛型方法解析**（bd `Ayanami-language-8xa`）。
    base 模块一律不 `import "std"`，边界用自有结构体（如 `ReadResult`）而不是 `Option`。
 8. `extern` 调用会消耗**局部**数组实参（标记 moved），但**不消耗形参**——这是坑 2 中 forget 模式的原理。
+9. **`if`/`else` 分支里首次赋值的变量不会逃出分支**（块作用域）：`if c { x = 1 } else { x = 2 }` 之后用 `x`
+   会报 `undefined variable x`。要先在分支外赋初值（`x = 0`），再在分支里改。
+10. **泛型 impl 方法体里的编译错误会被吞掉**（GitHub issue #72）：整个 impl 被丢弃，调用方只报
+   `type X has no method Y`。遇到「没有该方法」先检查该 impl 全部方法体（尤其私有方法），不要怀疑签名。
+11. 发现 rust/编译器缺陷时用 `gh issue create --repo ayanami1ei/Ayanami-language` 提 issue（附最小复现），
+   并在 bd 里记录 issue 链接（bead 描述）。已提：#72 泛型 impl 错误被吞、#73 lcl 不消耗数组实参、#74 重复 import std。
 
 ## 3. 目录结构
 

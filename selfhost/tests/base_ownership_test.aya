@@ -1,0 +1,61 @@
+// M1 所有权模式验收：确认 base 依赖的构造模式在 stage-0 下安全（分配压力下内容不悬空）
+import "io";
+import "aya_sb";
+import "aya_map";
+
+struct Holder {
+    String s
+    int n
+}
+
+fn make_holder() -> Holder {
+    b = StringBuf::new();
+    b.push_str("holder");
+    h = Holder { s = b.to_string(), n = 7 };
+    return h;
+}
+
+fn main() -> int {
+    // 1. StringBuf.to_string 跨函数 + 分配压力
+    b = StringBuf::new();
+    b.push_str("hello");
+    s = b.to_string();
+    t = "XYZXYZXYZ";
+    u = t + t;
+    if s != "hello" { println("fail: sb"); return 1 }
+
+    // 2. 结构体字段里的 String 跨函数返回
+    h = make_holder();
+    v = u + t;
+    if h.n != 7 { println("fail: holder n"); return 2 }
+    if h.s != "holder" { println("fail: holder s"); return 3 }
+
+    // 3. [String; n] 元素赋值（copy）+ 分配压力
+    lit = "alpha";
+    arr = [String; 4];
+    arr[0] = lit.copy();
+    arr[1] = s.copy();
+    w = u + u;
+    if arr[0] != "alpha" { println("fail: arr0"); return 4 }
+    if arr[1] != "hello" { println("fail: arr1"); return 5 }
+
+    // 4. IntMap[int] 与分配交叉
+    m = IntMap::new[int]();
+    for i in (0, 100) { m.put(i, i + 1) }
+    x = u + t;
+    if m.get(50) != 51 { println("fail: map"); return 6 }
+
+    // 5. 字面量拼接/比较
+    p = "a" + "b";
+    q = u + t;
+    if p != "ab" { println("fail: lit"); return 7 }
+
+    // 6. substring/copy 跨函数（std 安全构造）
+    base = "hello world";
+    sub = base.substring(0, 5);
+    y = q + w;
+    if sub != "hello" { println("fail: sub"); return 8 }
+
+    println("base_ownership ok");
+    return 0;
+}

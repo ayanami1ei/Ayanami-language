@@ -1,0 +1,56 @@
+// M1 base/map 验收：IntMap[V] 增删查改/覆盖/扩容
+import "io";
+import "aya_map";
+
+fn main() -> int {
+    m = IntMap::new[int]();
+    if m.len() != 0 { println("fail: empty len"); return 1 }
+    if m.has(1) { println("fail: empty has"); return 2 }
+
+    m.put(1, 100);
+    m.put(2, 200);
+    m.put(3, 300);
+    if m.len() != 3 { println("fail: len 3"); return 3 }
+    if !m.has(2) { println("fail: has 2"); return 4 }
+    if m.has(99) { println("fail: has 99"); return 5 }
+    if m.get(2) != 200 { println("fail: get 2"); return 6 }
+
+    m.put(2, 222);
+    if m.get(2) != 222 { println("fail: overwrite"); return 7 }
+    if m.len() != 3 { println("fail: len after overwrite"); return 8 }
+
+    // 扩容压力：1000 个顺序键
+    m2 = IntMap::new[int]();
+    for i in (0, 1000) {
+        m2.put(i, i * 2);
+    }
+    if m2.len() != 1000 { println("fail: big len"); return 9 }
+    for i in (0, 1000) {
+        if !m2.has(i) { println("fail: big has"); return 10 }
+        if m2.get(i) != i * 2 { println("fail: big get"); return 11 }
+    }
+    if m2.has(1000) { println("fail: big has extra"); return 12 }
+
+    // 稀疏大键
+    m3 = IntMap::new[int]();
+    m3.put(1000003, 7);
+    m3.put(7, 9);
+    if m3.get(1000003) != 7 { println("fail: sparse 1"); return 13 }
+    if m3.get(7) != 9 { println("fail: sparse 2"); return 14 }
+    if m3.has(8) { println("fail: sparse has"); return 15 }
+
+    // 负数键
+    m4 = IntMap::new[int]();
+    m4.put(-5, 55);
+    if m4.get(-5) != 55 { println("fail: neg"); return 16 }
+
+    // 遍历接口
+    total = 0;
+    for i in (0, m2.capacity()) {
+        if m2.is_used(i) { total = total + 1 }
+    }
+    if total != 1000 { println("fail: iterate"); return 17 }
+
+    println("base_map ok");
+    return 0;
+}

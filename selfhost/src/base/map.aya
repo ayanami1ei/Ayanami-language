@@ -1,0 +1,123 @@
+
+pub struct IntMap[T] {
+    [T] values
+    [int] keys
+    [bool] used
+    int len
+    int cap
+}
+
+pub namespace IntMap {
+    pub fn new[T]() -> IntMap[T] {
+        return IntMap[T] { values = null, keys = null, used = null, len = 0, cap = 0 }
+    }
+    pub fn with_capacity[T](int cap) -> IntMap[T] {
+        if cap <= 0 {
+            return IntMap[T] { values = null, keys = null, used = null, len = 0, cap = 0 }
+        }
+        return IntMap[T] { values = [T; cap], keys = [int; cap], used = [bool; cap], len = 0, cap = cap }
+    }
+}
+
+impl[T] IntMap[T] {
+    fn grow(ref mut self) {
+        old_cap = self.cap
+        new_cap = 16
+        if old_cap != 0 {
+            new_cap = old_cap * 2
+        }
+        old_values = self.values
+        old_keys = self.keys
+        old_used = self.used
+        self.values = [T; new_cap]
+        self.keys = [int; new_cap]
+        self.used = [bool; new_cap]
+        self.cap = new_cap
+        self.len = 0
+        for i in (0, old_cap) {
+            if old_used[i] {
+                self.put(old_keys[i], old_values[i])
+            }
+        }
+    }
+    fn slot_of(ref self, int key) -> int {
+        h = key % self.cap
+        if h < 0 {
+            h = h + self.cap
+        }
+        return h
+    }
+    pub fn len(ref self) -> int {
+        return self.len
+    }
+    pub fn capacity(ref self) -> int {
+        return self.cap
+    }
+    pub fn put(ref mut self, int key, T value) {
+        if self.cap == 0 {
+            self.grow()
+        }
+        next = self.len + 1
+        load = next * 10
+        bound = self.cap * 7
+        if load >= bound {
+            self.grow()
+        }
+        i = key % self.cap
+        if i < 0 {
+            i = i + self.cap
+        }
+        while self.used[i] {
+            if self.keys[i] == key {
+                self.values[i] = value
+                return
+            }
+            i = i + 1
+            if i >= self.cap {
+                i = 0
+            }
+        }
+        self.keys[i] = key
+        self.values[i] = value
+        self.used[i] = true
+        self.len = self.len + 1
+    }
+    pub fn has(ref self, int key) -> bool {
+        if self.cap == 0 {
+            return false
+        }
+        i = self.slot_of(key)
+        while self.used[i] {
+            if self.keys[i] == key {
+                return true
+            }
+            i = i + 1
+            if i >= self.cap {
+                i = 0
+            }
+        }
+        return false
+    }
+    pub fn get(ref self, int key) -> T {
+        i = self.slot_of(key)
+        while self.used[i] {
+            if self.keys[i] == key {
+                return self.values[i]
+            }
+            i = i + 1
+            if i >= self.cap {
+                i = 0
+            }
+        }
+        return self.values[0]
+    }
+    pub fn is_used(ref self, int i) -> bool {
+        return self.used[i]
+    }
+    pub fn key_at(ref self, int i) -> int {
+        return self.keys[i]
+    }
+    pub fn value_at(ref self, int i) -> T {
+        return self.values[i]
+    }
+}
