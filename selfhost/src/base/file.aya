@@ -1,14 +1,14 @@
 import "string";
+import "aya_sb";
 
 // 文件读写（FFI；FILE* 用 int 承载，x86-64 指针/整数同寄存器）
-// 注意：本模块不 import "std"（跨源文件重复 import std 会触发泛型方法解析缺陷），
-// 结果类型用自有结构体而非 Option。
+// 单字节读写走 fread/fwrite + ref int 槽：
+//   - 返回 size_t（i64）ABI 干净；C 的 int（fgetc）上 32 位是脏的，EOF 会变小正数
+//   - ref int 形参不搬移 [char]，避免所有权移动
 extern "C" fn fopen([char] path, [char] mode) -> int;
 extern "C" fn fclose(int f) -> int;
-extern "C" fn fgetc(int f) -> int;
-extern "C" fn fputc(int c, int f) -> int;
-extern "C" fn fseek(int f, int off, int whence) -> int;
-extern "C" fn ftell(int f) -> int;
+extern "C" fn fread(ref int slot, int size, int n, int f) -> int;
+extern "C" fn fwrite(ref int slot, int size, int n, int f) -> int;
 extern "C" fn __ayanami_int_to_char(int c) -> char;
 
 /// 读取结果：ok=false 时 data 为空串
@@ -17,7 +17,7 @@ pub struct ReadResult {
     String data
 }
 
-fn to_cstr(ref String s) -> [char] {
+pub fn to_cstr(ref String s) -> [char] {
     buf = [char; s.len + 1];
     for i in (0, s.len) {
         buf[i] = s.index(i);
@@ -34,29 +34,21 @@ fn open_mode(ref String path, [char] mode_chars, int mode_len) -> int {
 }
 
 /// 读整个文件；不存在/读失败时 ok=false
+/// 不依赖 ftell（/proc 文件 size 为 0），逐字节 + 倍增缓冲
 pub fn read_file(ref String path) -> ReadResult {
     f = open_mode(path, ['r', 'b'], 2);
     if f == 0 {
         return ReadResult { ok = false, data = String::empty() };
     }
-    fseek(f, 0, 2);
-    n = ftell(f);
-    fseek(f, 0, 0);
-    if n <= 0 {
-        fclose(f);
-        return ReadResult { ok = true, data = String::empty() };
-    }
-    buf = [char; n];
-    for i in (0, n) {
-        c = fgetc(f);
-        if c < 0 {
-            fclose(f);
-            return ReadResult { ok = false, data = String::empty() };
-        }
-        buf[i] = __ayanami_int_to_char(c);
+    acc = StringBuf::new();
+    while true {
+        slot = 0;
+        got = fread(slot, 1, 1, f);
+        if got != 1 { break; }
+        acc.push(__ayanami_int_to_char(slot));
     }
     fclose(f);
-    return ReadResult { ok = true, data = String::new(buf, n) };
+    return ReadResult { ok = true, data = acc.to_string() };
 }
 
 /// 写整个文件；失败返回 false
@@ -64,7 +56,12 @@ pub fn write_file(ref String path, ref String data) -> bool {
     f = open_mode(path, ['w', 'b'], 2);
     if f == 0 { return false; }
     for i in (0, data.len) {
-        fputc(char_code(data.index(i)), f);
+        slot = char_code(data.index(i));
+        wrote = fwrite(slot, 1, 1, f);
+        if wrote != 1 {
+            fclose(f);
+            return false;
+        }
     }
     fclose(f);
     return true;

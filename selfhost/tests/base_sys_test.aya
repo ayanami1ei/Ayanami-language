@@ -1,0 +1,28 @@
+// M1 base/sys 验收：argv / env / system
+import "io";
+import "aya_sys";
+
+fn main() -> int {
+    a = Args::load();
+    if a.len() <= 0 { println("fail: no args"); return 1 }
+    p = a.get(0);
+    if p.len == 0 { println("fail: arg0 empty"); return 2 }
+
+    cmd = "true";
+    if run(cmd) != 0 { println("fail: run true"); return 3 }
+    cmd2 = "false";
+    if run(cmd2) != 1 { println("fail: run false"); return 4 }
+
+    k = "AYANAMI_SELFHOST_NOT_SET_XYZ";
+    e = env(k);
+    if e.len != 0 { println("fail: env missing"); return 5 }
+
+    k2 = "PATH";
+    path = env(k2);
+    if path.len == 0 { println("fail: env PATH"); return 6 }
+    slash = "/";
+    if !path.contains(slash) { println("fail: PATH content"); return 7 }
+
+    println("base_sys ok");
+    return 0;
+}

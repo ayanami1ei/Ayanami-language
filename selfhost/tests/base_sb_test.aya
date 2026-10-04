@@ -1,0 +1,36 @@
+// M1 base/sb 验收：拼接/扩容/整数转换/清空/导出 String
+import "io";
+import "aya_sb";
+
+fn main() -> int {
+    b = StringBuf::new();
+    b.push('a');
+    b.push('b');
+    b.push_str("cd");
+    if b.len() != 4 { println("fail: len"); return 1 }
+    s = b.to_string();
+    if s != "abcd" { println("fail: to_string"); return 2 }
+
+    b.clear();
+    if b.len() != 0 { println("fail: clear"); return 3 }
+
+    b.push_int(12345);
+    b.push_str("|");
+    b.push_int(-7);
+    b.push_int(0);
+    t = b.to_string();
+    if t != "12345|-70" { println("fail: ints"); return 4 }
+
+    big = StringBuf::with_capacity(2);
+    for i in (0, 100) { big.push('x') }
+    if big.len() != 100 { println("fail: grow len"); return 5 }
+    u = big.to_string();
+    if u.len != 100 { println("fail: grow str"); return 6 }
+
+    c = StringBuf::new();
+    c.push_str("");
+    if c.len() != 0 { println("fail: empty str"); return 7 }
+
+    println("base_sb ok");
+    return 0;
+}

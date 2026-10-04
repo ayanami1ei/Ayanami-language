@@ -1,0 +1,85 @@
+import "string";
+
+// 字符串构建器（编译器内部用；不 import std，避免重复 import std 的泛型缺陷）
+extern "C" fn __ayanami_int_to_char(int c) -> char;
+
+pub struct StringBuf {
+    [char] data
+    int len
+    int cap
+}
+
+pub namespace StringBuf {
+    pub fn new() -> StringBuf {
+        return StringBuf { data = null, len = 0, cap = 0 };
+    }
+
+    pub fn with_capacity(int cap) -> StringBuf {
+        if cap <= 0 {
+            return StringBuf::new();
+        }
+        return StringBuf { data = [char; cap], len = 0, cap = cap };
+    }
+}
+
+impl StringBuf {
+    pub fn len(ref self) -> int { return self.len }
+
+    fn ensure(ref mut self, int extra) {
+        if self.len + extra <= self.cap { return; }
+        new_cap = self.cap * 2;
+        if new_cap < self.len + extra { new_cap = self.len + extra; }
+        if new_cap < 8 { new_cap = 8; }
+        tmp = [char; new_cap];
+        for i in (0, self.len) {
+            tmp[i] = self.data[i];
+        }
+        self.data = tmp;
+        self.cap = new_cap;
+    }
+
+    pub fn push(ref mut self, char c) {
+        self.ensure(1);
+        self.data[self.len] = c;
+        self.len = self.len + 1;
+    }
+
+    pub fn push_str(ref mut self, ref String s) {
+        self.ensure(s.len);
+        for i in (0, s.len) {
+            self.data[self.len] = s.index(i);
+            self.len = self.len + 1;
+        }
+    }
+
+    fn push_int_pos(ref mut self, int v) {
+        if v >= 10 {
+            self.push_int_pos(v / 10);
+        }
+        self.push(__ayanami_int_to_char(48 + v % 10));
+    }
+
+    pub fn push_int(ref mut self, int v) {
+        if v == 0 {
+            self.push('0');
+            return;
+        }
+        if v < 0 {
+            self.push('-');
+            v = -v;
+        }
+        self.push_int_pos(v);
+    }
+
+    pub fn clear(ref mut self) {
+        self.len = 0;
+    }
+
+    pub fn to_string(ref self) -> String {
+        res = [char; self.len];
+        for i in (0, self.len) {
+            res[i] = self.data[i];
+        }
+        return String::new(res, self.len);
+    }
+}

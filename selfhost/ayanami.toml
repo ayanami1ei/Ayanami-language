@@ -1,0 +1,11 @@
+[package]
+name = "ayanami-selfhost"
+version = "0.6.5"
+
+[dependencies]
+aya_file = "src/base/file.aya"
+aya_sb = "src/base/sb.aya"
+aya_sys = "src/base/sys.aya"
+aya_map = "src/base/map.aya"
+aya_intern = "src/base/intern.aya"
+aya_log = "src/base/log.aya"

@@ -1,0 +1,74 @@
+import "string";
+import "aya_file";
+
+// 进程/环境/命令行（编译器内部；不 import std，避免重复 import std 的泛型缺陷）
+extern "C" fn system([char] cmd) -> int;
+extern "C" fn exit(int code);
+
+pub struct Args {
+    [String] items
+    int count
+}
+
+pub namespace Args {
+    /// 从 /proc/self/cmdline 读取 argv（NUL 分隔）
+    pub fn load() -> Args {
+        r = read_file("/proc/self/cmdline");
+        if !r.ok { return Args { items = [String; 0], count = 0 }; }
+        data = r.data;
+        n = 0;
+        for i in (0, data.len) {
+            if data.index(i) == '\0' { n = n + 1; }
+        }
+        items = [String; n];
+        k = 0;
+        start = 0;
+        for i in (0, data.len) {
+            if data.index(i) == '\0' {
+                items[k] = data.substring(start, i);
+                k = k + 1;
+                start = i + 1;
+            }
+        }
+        return Args { items = items, count = n };
+    }
+}
+
+impl Args {
+    pub fn len(ref self) -> int { return self.count }
+    pub fn get(ref self, int i) -> String { return self.items[i] }
+}
+
+/// 从 /proc/self/environ 读取环境变量；不存在返回空串
+pub fn env(ref String key) -> String {
+    r = read_file("/proc/self/environ");
+    if !r.ok { return String::empty(); }
+    data = r.data;
+    i = 0;
+    while i < data.len {
+        j = i;
+        while j < data.len && data.index(j) != '\0' {
+            j = j + 1;
+        }
+        if entry_matches(data, i, j, key) {
+            return data.substring(i + key.len + 1, j);
+        }
+        i = j + 1;
+    }
+    return String::empty();
+}
+
+fn entry_matches(ref String data, int start, int end, ref String key) -> bool {
+    if start + key.len >= end { return false; }
+    for k in (0, key.len) {
+        if data.index(start + k) != key.index(k) { return false; }
+    }
+    return data.index(start + key.len) == '=';
+}
+
+/// 执行 shell 命令；返回退出码（C system 状态 / 256）
+pub fn run(ref String cmd) -> int {
+    cmd_c = to_cstr(cmd);
+    st = system(cmd_c);
+    return st / 256;
+}

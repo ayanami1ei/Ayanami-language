@@ -1,6 +1,6 @@
 // M1 base/file 验收：读写/存在性/空文件/覆盖写（不用 std，避免重复 import std 的缺陷）
 import "io";
-import "../src/base/file.aya";
+import "aya_file";
 
 fn main() -> int {
     path = "/tmp/opencode/selfhost_file_test.txt";
