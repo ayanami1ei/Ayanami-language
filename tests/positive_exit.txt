@@ -30,6 +30,7 @@ test_generic_impl_multi.aya 0
 test_import.aya 30
 test_int_width.aya 0
 test_invariant.aya 0
+test_literals.aya 0
 test_macro.aya 0
 test_macro_args.aya 0
 test_macro_fn.aya 0

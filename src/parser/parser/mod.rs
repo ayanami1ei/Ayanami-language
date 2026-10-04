@@ -18,6 +18,7 @@ mod decl;
 mod enum_iface;
 mod expr;
 mod impls;
+mod literal_text;
 mod macro_call;
 mod stmt;
 mod types;

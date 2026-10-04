@@ -42,6 +42,7 @@ pub(super) fn write_expr(expr: &Expr) -> String {
 pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
     match expr {
         Expr::Literal(lit) => write_literal(lit),
+        Expr::Suffixed { lit, suffix, .. } => format!("{}{}", write_literal(lit), suffix.as_str()),
         // 解析器把 `A::B` 合并为 `A.B`；格式化时恢复 `::`（`.` 只用于字段/方法）
         Expr::Ident(name, _) => name.as_str().replace('.', "::"),
         Expr::Binary { op, lhs, rhs, .. } => {

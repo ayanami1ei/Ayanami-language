@@ -25,6 +25,12 @@ pub enum Expr {
         span: Span,
     },
     Literal(Literal),
+    /// M1.5：带类型后缀的字面量（`1u8` / `1.5f32`）
+    Suffixed {
+        lit: Literal,
+        suffix: Symbol,
+        span: Span,
+    },
     Ident(Symbol, Span),
     FnCall {
         name: Symbol,
@@ -109,6 +115,7 @@ impl Expr {
         match self {
             Expr::Binary { span, .. }
             | Expr::Cast { span, .. }
+            | Expr::Suffixed { span, .. }
             | Expr::Unary { span, .. }
             | Expr::FnCall { span, .. }
             |             Expr::Move(_, span)

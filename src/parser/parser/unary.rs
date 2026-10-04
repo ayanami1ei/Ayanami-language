@@ -8,6 +8,17 @@ impl Parser {
             TokenKind::Operator(s) if s == "-" => {
                 self.advance();
                 let expr = self.parse_unary()?;
+                // M1.5：负号折进带后缀字面量，保证 -128i8 的范围检查正确
+                if let Expr::Suffixed { lit, suffix, span: sp } = expr {
+                    let neg = match lit {
+                        Literal::Int(n, lsp) => Literal::Int(-n, lsp),
+                        Literal::Float(f, lsp) => Literal::Float(-f, lsp),
+                        other => {
+                            return Ok(Expr::Unary { op: UnaryOp::Neg, arg: Box::new(Expr::Literal(other)), span });
+                        }
+                    };
+                    return Ok(Expr::Suffixed { lit: neg, suffix, span: sp });
+                }
                 Ok(Expr::Unary {
                     op: UnaryOp::Neg,
                     arg: Box::new(expr),

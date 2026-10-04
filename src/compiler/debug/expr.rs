@@ -7,6 +7,9 @@ pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
         Expr::Literal(lit) => {
             writeln!(w, "{}{}", pad(level), format_literal(lit)).unwrap();
         }
+        Expr::Suffixed { lit, suffix, .. } => {
+            writeln!(w, "{}{}{}", pad(level), format_literal(lit), suffix).unwrap();
+        }
         Expr::MacroCall { name, args, .. } => {
             writeln!(w, "{}MacroCall({})", pad(level), name).unwrap();
             for a in args { write_expr(a, level + 1, w); }

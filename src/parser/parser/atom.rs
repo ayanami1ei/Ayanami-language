@@ -1,5 +1,7 @@
 use super::*;
 
+use super::literal_text::{parse_int_text, split_literal_suffix};
+
 impl Parser {
     pub(super) fn parse_atom(&mut self) -> Result<Expr> {
         let tok = self.peek().ok_or_else(|| self.error("expected expression"))?.clone();
@@ -10,13 +12,23 @@ impl Parser {
             TokenKind::Operator(ref op) if op == "#" => self.parse_macro_call(),
             TokenKind::IntLiteral(s) => {
                 self.advance();
-                let n = s.parse::<i64>().map_err(|_| self.error("invalid integer literal"))?;
-                Ok(Expr::Literal(Literal::Int(n, span)))
+                let (val_str, suffix) = split_literal_suffix(&s);
+                let digits = val_str.replace('_', "");
+                let n = parse_int_text(&digits).ok_or_else(|| self.error("invalid integer literal"))?;
+                match suffix {
+                    Some(sfx) => Ok(Expr::Suffixed { lit: Literal::Int(n, span), suffix: Symbol::intern(sfx), span }),
+                    None => Ok(Expr::Literal(Literal::Int(n, span))),
+                }
             }
             TokenKind::FloatLiteral(s) => {
                 self.advance();
-                let n = s.parse::<f64>().map_err(|_| self.error("invalid float literal"))?;
-                Ok(Expr::Literal(Literal::Float(n, span)))
+                let (val_str, suffix) = split_literal_suffix(&s);
+                let text = val_str.replace('_', "");
+                let n = text.parse::<f64>().map_err(|_| self.error("invalid float literal"))?;
+                match suffix {
+                    Some(sfx) => Ok(Expr::Suffixed { lit: Literal::Float(n, span), suffix: Symbol::intern(sfx), span }),
+                    None => Ok(Expr::Literal(Literal::Float(n, span))),
+                }
             }
             TokenKind::CharLiteral(s) => {
                 self.advance();

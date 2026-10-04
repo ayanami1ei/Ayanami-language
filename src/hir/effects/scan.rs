@@ -182,6 +182,6 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
                 obs.push(Obs::Alloc(span.start_line, span.start_col));
             }
         }
-        Expr::Ident(..) | Expr::Null(_) => {}
+        Expr::Ident(..) | Expr::Null(_) | Expr::Suffixed { .. } => {}
     }
 }

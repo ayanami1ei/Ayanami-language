@@ -1,0 +1,23 @@
+// M1.5：字面量后缀 / 进制 / 下划线 / 指数
+fn main() -> int {
+    if 0xFF != 255 { return 1 }
+    if 0b1010 != 10 { return 2 }
+    if 0o17 != 15 { return 3 }
+    if 1_000_000 != 1000000 { return 4 }
+    if 0xFF_FF != 65535 { return 5 }
+    if 1u8 + 2u8 != 3 { return 6 }
+    if 200u8 != 200 { return 7 }
+    if 1i32 + 2i32 != 3 { return 8 }
+    if 1.5f32 + 1.5f32 != 3.0f32 { return 9 }
+    if 3f64 != 3.0 { return 10 }
+    if 1u64 != 1 { return 11 }
+    if 100usize != 100 { return 12 }
+    if -128i8 != -128 { return 13 }     // 负号折进后缀字面量（范围检查正确）
+    if -1i32 != -1 { return 14 }
+    if 1i8 + 1i8 != 2i8 { return 15 }
+    if 1e3 != 1000.0 { return 16 }
+    if 1.5e-3 != 0.0015 { return 17 }
+    if (0x10 as u8) != 16 { return 18 }
+    if 0x1_F != 31 { return 19 }
+    return 0
+}

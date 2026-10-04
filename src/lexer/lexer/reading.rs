@@ -34,26 +34,55 @@ impl<'a> Lexer<'a> {
         let start_byte = self.byte_offset;
         let mut s = String::new();
         let mut is_float = false;
-        while let Some(c) = self.peek() {
-            if c.is_ascii_digit() {
-                s.push(self.bump().unwrap());
-            } else {
-                break;
-            }
-        }
-        if let Some('.') = self.peek()
-            && let Some(nxt) = self.peek_next()
-            && nxt.is_ascii_digit()
+        // 进制前缀：0x / 0b / 0o（M1.5）
+        let radix = if self.peek() == Some('0')
+            && matches!(self.peek_next(), Some('x' | 'X' | 'b' | 'B' | 'o' | 'O'))
         {
-            is_float = true;
             s.push(self.bump().unwrap());
-            while let Some(c) = self.peek() {
-                if c.is_ascii_digit() {
-                    s.push(self.bump().unwrap());
-                } else {
-                    break;
+            let p = self.bump().unwrap();
+            let r = match p { 'x' | 'X' => 16, 'b' | 'B' => 2, _ => 8 };
+            s.push(p);
+            r
+        } else {
+            10
+        };
+        let digit_ok = |c: char| match radix {
+            16 => c.is_ascii_hexdigit(),
+            2 => c == '0' || c == '1',
+            8 => ('0'..='7').contains(&c),
+            _ => c.is_ascii_digit(),
+        };
+        while let Some(c) = self.peek() {
+            if digit_ok(c) || c == '_' { s.push(self.bump().unwrap()); } else { break; }
+        }
+        if radix == 10 {
+            // 小数部分
+            if self.peek() == Some('.')
+                && self.peek_next().map(|c| c.is_ascii_digit() || c == '_').unwrap_or(false)
+            {
+                is_float = true;
+                s.push(self.bump().unwrap());
+                while let Some(c) = self.peek() {
+                    if c.is_ascii_digit() || c == '_' { s.push(self.bump().unwrap()); } else { break; }
                 }
             }
+            // 指数部分 e[+-]digits
+            if matches!(self.peek(), Some('e' | 'E')) {
+                let mut j = self.pos + 1;
+                if matches!(self.chars.get(j), Some('+' | '-')) { j += 1; }
+                if self.chars.get(j).map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                    is_float = true;
+                    s.push(self.bump().unwrap());
+                    if matches!(self.peek(), Some('+' | '-')) { s.push(self.bump().unwrap()); }
+                    while let Some(c) = self.peek() {
+                        if c.is_ascii_digit() || c == '_' { s.push(self.bump().unwrap()); } else { break; }
+                    }
+                }
+            }
+        }
+        // 后缀：u8 / i32 / f64 / usize 等
+        while let Some(c) = self.peek() {
+            if c.is_ascii_alphanumeric() || c == '_' { s.push(self.bump().unwrap()); } else { break; }
         }
         (s, is_float, start_line, start_col, start_byte)
     }

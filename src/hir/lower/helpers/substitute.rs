@@ -46,6 +46,7 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
             span: *span,
         },
         Expr::Literal(_) => expr.clone(),
+        Expr::Suffixed { .. } => expr.clone(),
         Expr::Ident(_, _) => expr.clone(),
         Expr::MacroCall { name, args, span } => Expr::MacroCall {
             name: *name,

@@ -4,6 +4,7 @@ impl crate::hir::lower::Ctx {
     pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox> {
         match expr {
             Expr::Literal(lit) => self.lower_literal(lit),
+            Expr::Suffixed { lit, suffix, span } => self.lower_suffixed(lit, suffix, span),
             Expr::Ident(name, span) => {
                 // `Enum::Variant`（无参数）被解析器合并为 `Enum.Variant`
                 if let Some((enum_name, variant_name)) = name.as_str().split_once('.') {

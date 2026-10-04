@@ -254,10 +254,10 @@ src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter/expr.rs:4: pub(super) fn write_type(ty: &Type) -> String
 src/formatter/expr.rs:38: pub(super) fn write_expr(expr: &Expr) -> String
 src/formatter/expr.rs:42: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
-src/formatter/expr.rs:172: fn asm_constraint(c: &str) -> &str
-src/formatter/expr.rs:176: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:220: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:243: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:173: fn asm_constraint(c: &str) -> &str
+src/formatter/expr.rs:177: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:221: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:244: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
@@ -443,7 +443,9 @@ src/hir/lower/body/iface_match.rs:109: pub(crate) fn check_generic_fns_for_iface
 src/hir/lower/body/iface_match.rs:144: pub(crate) fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<()>
 src/hir/lower/body/iface_match.rs:181: pub(crate) fn register_generic_vtable(
 src/hir/lower/body/literal.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/literal.rs:4: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
+src/hir/lower/body/literal.rs:5: pub(crate) fn lower_suffixed(&mut self, lit: &Literal, suffix: &Symbol, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/literal.rs:38: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
+src/hir/lower/body/literal.rs:50: fn check_literal_range(n: i64, ty: &HirType, span: &Span) -> Result<()>
 src/hir/lower/body/lower_items.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/lower_items.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>>
 src/hir/lower/body/lower_items.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
@@ -565,8 +567,8 @@ src/hir/lower/helpers/mod.rs:22: mod types;
 src/hir/lower/helpers/mod.rs:23: mod wrap;
 src/hir/lower/helpers/substitute.rs:4: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
 src/hir/lower/helpers/substitute.rs:30: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
-src/hir/lower/helpers/substitute.rs:144: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
-src/hir/lower/helpers/substitute.rs:153: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
+src/hir/lower/helpers/substitute.rs:145: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
+src/hir/lower/helpers/substitute.rs:154: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
 src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String
 src/hir/lower/helpers/types.rs:28: pub(crate) fn fixed_width_int(name: &str) -> Option<(u8, bool)>
 src/hir/lower/helpers/types.rs:38: pub(crate) fn intn_name(bits: u8, signed: bool) -> String
@@ -859,9 +861,9 @@ src/lexer/lexer/reading.rs:4: pub(super) fn is_ident_start(c: char) -> bool
 src/lexer/lexer/reading.rs:7: pub(super) fn is_ident_continue(c: char) -> bool
 src/lexer/lexer/reading.rs:11: pub(super) fn read_identifier_or_keyword(&mut self) -> (String, usize, usize, usize)
 src/lexer/lexer/reading.rs:31: pub(super) fn read_number(&mut self) -> (String, bool, usize, usize, usize)
-src/lexer/lexer/reading.rs:62: fn read_escape(&mut self) -> Option<char>
-src/lexer/lexer/reading.rs:82: pub(super) fn read_char_literal(&mut self) -> (String, usize, usize, usize)
-src/lexer/lexer/reading.rs:109: pub(super) fn read_string_literal(&mut self) -> (String, usize, usize, usize)
+src/lexer/lexer/reading.rs:91: fn read_escape(&mut self) -> Option<char>
+src/lexer/lexer/reading.rs:111: pub(super) fn read_char_literal(&mut self) -> (String, usize, usize, usize)
+src/lexer/lexer/reading.rs:138: pub(super) fn read_string_literal(&mut self) -> (String, usize, usize, usize)
 src/lexer/mod.rs:8: pub mod delimiter;
 src/lexer/mod.rs:9: pub mod keyword;
 src/lexer/mod.rs:10: pub mod lexer;
@@ -1736,8 +1738,8 @@ src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block
 src/parser/ast/block.rs:14: pub fn new(stmts: Vec<Stmt>, span: Span) -> Self
 src/parser/ast/expr.rs:9: pub enum Expr
-src/parser/ast/expr.rs:107: impl Expr
-src/parser/ast/expr.rs:108: pub fn span(&self) -> Span
+src/parser/ast/expr.rs:113: impl Expr
+src/parser/ast/expr.rs:114: pub fn span(&self) -> Span
 src/parser/ast/literal.rs:4: pub enum Literal
 src/parser/ast/literal.rs:12: impl Literal
 src/parser/ast/literal.rs:13: pub fn span(&self) -> Span
@@ -1777,8 +1779,8 @@ src/parser/mod.rs:7: pub mod parser;
 src/parser/mod.rs:8: pub mod ast;
 src/parser/mod.rs:15: pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program>
 src/parser/mod.rs:25: pub fn parse_expression(source: &str) -> Result<crate::parser::ast::expr::Expr>
-src/parser/parser/atom.rs:3: impl Parser
-src/parser/parser/atom.rs:4: pub(super) fn parse_atom(&mut self) -> Result<Expr>
+src/parser/parser/atom.rs:5: impl Parser
+src/parser/parser/atom.rs:6: pub(super) fn parse_atom(&mut self) -> Result<Expr>
 src/parser/parser/core.rs:3: impl Parser
 src/parser/parser/core.rs:4: pub fn new(tokens: Vec<Token>) -> Self
 src/parser/parser/core.rs:8: pub(super) fn peek(&self) -> Option<&Token>
@@ -1829,6 +1831,8 @@ src/parser/parser/impls.rs:35: pub(super) fn parse_impl_block(&mut self, attrs: 
 src/parser/parser/impls.rs:61: fn extract_type_name(ty: &Type) -> Symbol
 src/parser/parser/impls.rs:98: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
 src/parser/parser/impls.rs:243: pub(super) fn parse_block(&mut self) -> Result<Block>
+src/parser/parser/literal_text.rs:4: pub(super) fn split_literal_suffix(s: &str) -> (&str, Option<&str>)
+src/parser/parser/literal_text.rs:25: pub(super) fn parse_int_text(s: &str) -> Option<i64>
 src/parser/parser/macro_call.rs:3: impl Parser
 src/parser/parser/macro_call.rs:5: pub(super) fn parse_macro_call(&mut self) -> Result<Expr>
 src/parser/parser/mod.rs:8: pub struct Parser
@@ -1838,10 +1842,11 @@ src/parser/parser/mod.rs:17: mod decl;
 src/parser/parser/mod.rs:18: mod enum_iface;
 src/parser/parser/mod.rs:19: mod expr;
 src/parser/parser/mod.rs:20: mod impls;
-src/parser/parser/mod.rs:21: mod macro_call;
-src/parser/parser/mod.rs:22: mod stmt;
-src/parser/parser/mod.rs:23: mod types;
-src/parser/parser/mod.rs:24: mod unary;
+src/parser/parser/mod.rs:21: mod literal_text;
+src/parser/parser/mod.rs:22: mod macro_call;
+src/parser/parser/mod.rs:23: mod stmt;
+src/parser/parser/mod.rs:24: mod types;
+src/parser/parser/mod.rs:25: mod unary;
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
 src/parser/parser/stmt.rs:93: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
@@ -1853,7 +1858,7 @@ src/parser/parser/types.rs:24: pub(super) fn parse_base_type(&mut self) -> Resul
 src/parser/parser/types.rs:98: pub(super) fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()>
 src/parser/parser/unary.rs:3: impl Parser
 src/parser/parser/unary.rs:4: pub(super) fn parse_unary(&mut self) -> Result<Expr>
-src/parser/parser/unary.rs:60: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
+src/parser/parser/unary.rs:71: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
 src/span.rs:5: pub struct Span
 src/span.rs:14: impl Span
 src/span.rs:15: pub fn new(
@@ -2020,6 +2025,7 @@ example/test_int_width.aya:23: fn plus32(self, i32 other) -> i32 { return self +
 example/test_int_width.aya:26: fn main() -> int
 example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int
+example/test_literals.aya:2: fn main() -> int
 example/test_macro.aya:5: fn placeholder() -> int { return 0 }
 example/test_macro.aya:7: fn main() -> int { return answer() - 42 }
 example/test_macro_args.aya:5: fn kept() -> int { return 7 }
