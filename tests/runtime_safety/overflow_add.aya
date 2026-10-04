@@ -1,0 +1,5 @@
+// 整数溢出（M1.7）：debug 构建 panic；release 构建静默回绕（i64::MAX + 1 == i64::MIN）
+fn main() -> int {
+    a = 9223372036854775807;
+    return a + 1;
+}

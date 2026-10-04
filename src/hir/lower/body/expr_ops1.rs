@@ -133,6 +133,13 @@ impl crate::hir::lower::Ctx {
                 }.into()
             } else { hir_rhs }
         } else { hir_rhs };
+        // M1.7：debug 构建对整数 + / - * 做溢出检查（release 直接回绕）
+        if !crate::hir::contracts::is_release()
+            && matches!(inner_ty, HirType::Int | HirType::IntN { .. })
+            && let Some(op_name) = ovf_op_name(op)
+        {
+            return Ok(self.lower_ovf_call(op_name, &inner_ty, hir_lhs, hir_rhs, span));
+        }
         // 注意：比较运算的 ty 保持操作数类型；结果类型（Bool）由 MIR→LIR 降级决定。
         // 逻辑与/或的结果是 bool，直接给 Bool 类型。
         let binop_ty = if matches!(op, BinaryOp::And | BinaryOp::Or) {

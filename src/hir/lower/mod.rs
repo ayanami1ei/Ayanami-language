@@ -105,6 +105,9 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
     ctx.build_vtables()?;
     let mut items = ctx.lower_items(&program.stmts)?;
 
+    // M1.7：追加合成的外部运行时助手（溢出检查），使其进入 MIR/LIR 并发射 declare
+    for f in ctx.synth_externs.drain(..) { items.push(HirItem::Fn(f)); }
+
     // 收集已定义函数的 ID，找出哪些是外部导入的
     let defined_ids: std::collections::HashSet<_> = items.iter().filter_map(|item| {
         if let HirItem::Fn(f) = item { Some(f.fn_id) } else { None }

@@ -17,12 +17,14 @@ use super::InterfaceReg;
 
 mod caller;
 mod coerce;
+mod overflow;
 mod convert;
 mod substitute;
 mod types;
 mod wrap;
 
 pub(crate) use caller::*;
+pub(crate) use overflow::*;
 pub(crate) use coerce::*;
 pub(crate) use convert::*;
 pub(crate) use substitute::*;

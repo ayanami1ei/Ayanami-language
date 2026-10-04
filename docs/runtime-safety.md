@@ -19,6 +19,7 @@ thread 'main' panicked at <file>:<line>:<col>:
 | `ArrayList.pop` 空表 | panic：`pop from empty ArrayList` | 用户调用行 |
 | `LinkedList.index` 越界 | 同上（len/index） | 用户调用行 |
 | 用户 `#panic("msg")` | panic：`msg` | 调用点（宏展开） |
+| 整数溢出（debug 构建） | panic：`attempt to add/subtract/multiply with overflow` | 表达式位置（`a + b`） |
 
 ## 未检查：UB / 平台相关
 
@@ -26,10 +27,12 @@ thread 'main' panicked at <file>:<line>:<col>:
 |---|---|---|
 | 裸数组 `[T]` / `[T; n]` 越界 | 不检查（运行时无长度信息） | M5 之后：fat pointer 或编译器插检查 |
 | `int / 0`、`int % 0` | 无诊断（SIGFPE / UB；实测退出码非 101） | M1 数值语义 |
-| 整数溢出 | 静默 wrap（LLVM `add` 语义；进程退出码取低 8 位） | M1：debug panic / release wrap + `checked_*` |
 | `null` 解引用 | SIGSEGV（无诊断） | M5 unsafe 边界 |
 | 分配失败（malloc 返回 null） | 继续使用（UB） | 待定（M5） |
 | unique 双重释放 / 悬垂 | 不保证（无 RC/GC）；借用检查阻止常见情形 | 明确为 unsafe 能力 |
+
+整数溢出在 `--release` 下静默回绕（LLVM `add`/`sub`/`mul` 语义）；debug 下按上表 panic。
+`checked_*` / `wrapping_*` / `saturating_*` / `overflowing_*` 方法由 std 子仓提供（0i6.7）。
 
 ## 编译期拒绝（不是运行时错误）
 
@@ -42,5 +45,5 @@ thread 'main' panicked at <file>:<line>:<col>:
 ## 测试
 
 - `tests/runtime_safety/manifest.txt`：文件、期望退出码、可选输出子串
-- 覆盖：String/ArrayList 越界、空表 pop、用户 panic、溢出 wrap
+- 覆盖：String/ArrayList 越界、空表 pop、用户 panic、整数溢出（debug panic）
 - 未覆盖（平台相关，仅文档化）：除零、null、裸数组越界

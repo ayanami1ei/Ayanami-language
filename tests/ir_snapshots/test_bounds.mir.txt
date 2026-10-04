@@ -19,7 +19,7 @@ MIR Program
         target:
         Local(v1 : Int)
         value:
-        Call(fn78, ty: Int)
+        Call(fn80, ty: Int)
           Ref(ty: ref Named(ArrayList<int>))
             Local(v0 : Named(ArrayList<int>))
           Literal(Int(5))
@@ -35,6 +35,12 @@ MIR Program
         Literal(Int(0))
       Return
         Local(v2 : Int)
+│ │ }
+│ Fn __ayanami_ovf_add_i64 (a: Int, b: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 0]
+│ │ Block {
+│ │ }
+│ Fn __ayanami_ovf_mul_i64 (a: Int, b: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 0]
+│ │ Block {
 │ │ }
 │ Fn ArrayList.new () -> Named(ArrayList<int>) [locals: 1]
 │   local __ret: Named(ArrayList<int>)
@@ -92,12 +98,13 @@ MIR Program
             Move(ty: unique [Int])
               ArraySized { elem_ty: Int, ty: unique [Int] }
                 count:
-                Binary { op: Mul, ty: Int }
-                  lhs:
+                Call(fn79, ty: Int)
                   FieldAccess capability ty=Int
                     Local(v0 : ref mut Named(ArrayList<int>))
-                  rhs:
                   Literal(Int(2))
+                  Literal(Int(9))
+                  Literal(Int(39))
+                  Literal(String("example/test_bounds.aya"))
           Assign
             target:
             Local(v2 : Int)
@@ -145,12 +152,13 @@ MIR Program
             object:
             Local(v0 : ref mut Named(ArrayList<int>))
             value:
-            Binary { op: Mul, ty: Int }
-              lhs:
+            Call(fn79, ty: Int)
               FieldAccess capability ty=Int
                 Local(v0 : ref mut Named(ArrayList<int>))
-              rhs:
               Literal(Int(2))
+              Literal(Int(14))
+              Literal(Int(47))
+              Literal(String("example/test_bounds.aya"))
         }
 │ │ }
 │ Fn push (self: ref mut Named(ArrayList<int>), val: Int) -> Void [locals: 2]
@@ -161,19 +169,20 @@ MIR Program
         cond:
         Binary { op: Ge, ty: Int }
           lhs:
-          Binary { op: Add, ty: Int }
-            lhs:
+          Call(fn77, ty: Int)
             FieldAccess len ty=Int
               Local(v0 : ref mut Named(ArrayList<int>))
-            rhs:
             Literal(Int(1))
+            Literal(Int(20))
+            Literal(Int(21))
+            Literal(String("example/test_bounds.aya"))
           rhs:
           FieldAccess capability ty=Int
             Local(v0 : ref mut Named(ArrayList<int>))
         then:
         Block {
           Expr
-            Call(fn77, ty: Void)
+            Call(fn78, ty: Void)
               Local(v0 : ref mut Named(ArrayList<int>))
         }
       IndexAssign
@@ -189,12 +198,13 @@ MIR Program
         object:
         Local(v0 : ref mut Named(ArrayList<int>))
         value:
-        Binary { op: Add, ty: Int }
-          lhs:
+        Call(fn77, ty: Int)
           FieldAccess len ty=Int
             Local(v0 : ref mut Named(ArrayList<int>))
-          rhs:
           Literal(Int(1))
+          Literal(Int(24))
+          Literal(Int(29))
+          Literal(String("example/test_bounds.aya"))
 │ │ }
 │ Fn index (self: ref Named(ArrayList<int>), index: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 6]
 │   local self: ref Named(ArrayList<int>)

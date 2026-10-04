@@ -1,5 +1,6 @@
 LIR Program
-Strings: 0 entries
+Strings: 1 entries
+  @__str_0 = "example/macro_lib.aya"
 
 fn main (fn_id=73) -> Int [10 blocks]
   local x: Int
@@ -19,49 +20,57 @@ entry:
     alloca v5 : Int
     alloca v6 : Int
     alloca v7 : Int
-    t0 = Add Literal(Int(3), Int) Literal(Int(3), Int) : Int
-    store Tmp(0) -> v0 : Int
-    t1 = load v0 : Int
-    t2 = Neq Tmp(1) Literal(Int(6), Int) : Int
-    br_cond Tmp(2) %then0 %else1
+    t0 = str_global @__str_0
+    t1 = struct_lit String (2 fields)
+    t5 = call fn74 (Literal(Int(3), Int):Int, Literal(Int(3), Int):Int, Literal(Int(1), Int):Int, Literal(Int(4), Int):Int, Tmp(1):Named(Symbol(N))) : Int
+    store Tmp(5) -> v0 : Int
+    t6 = load v0 : Int
+    t7 = Neq Tmp(6) Literal(Int(6), Int) : Int
+    br_cond Tmp(7) %then0 %else1
 then0:
     store Literal(Int(1), Int) -> v3 : Int
-    t3 = load v3 : Int
-    ret Tmp(3)
+    t8 = load v3 : Int
+    ret Tmp(8)
     br %ifcont2
 else1:
     br %ifcont2
 ifcont2:
-    t4 = Add Literal(Int(1), Int) Literal(Int(1), Int) : Int
-    t5 = Add Literal(Int(1), Int) Literal(Int(1), Int) : Int
-    t6 = Add Tmp(4) Tmp(5) : Int
-    store Tmp(6) -> v1 : Int
-    t7 = load v1 : Int
-    t8 = Neq Tmp(7) Literal(Int(4), Int) : Int
-    br_cond Tmp(8) %then3 %else4
+    t9 = str_global @__str_0
+    t10 = struct_lit String (2 fields)
+    t14 = call fn74 (Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(4), Int):Int, Tmp(10):Named(Symbol(N))) : Int
+    t15 = str_global @__str_0
+    t16 = struct_lit String (2 fields)
+    t20 = call fn74 (Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(4), Int):Int, Tmp(16):Named(Symbol(N))) : Int
+    t21 = str_global @__str_0
+    t22 = struct_lit String (2 fields)
+    t26 = call fn74 (Tmp(14):Int, Tmp(20):Int, Literal(Int(1), Int):Int, Literal(Int(13), Int):Int, Tmp(22):Named(Symbol(N))) : Int
+    store Tmp(26) -> v1 : Int
+    t27 = load v1 : Int
+    t28 = Neq Tmp(27) Literal(Int(4), Int) : Int
+    br_cond Tmp(28) %then3 %else4
 then3:
     store Literal(Int(2), Int) -> v4 : Int
-    t9 = load v4 : Int
-    ret Tmp(9)
+    t29 = load v4 : Int
+    ret Tmp(29)
     br %ifcont5
 else4:
     br %ifcont5
 ifcont5:
     store Literal(Int(12), Int) -> v2 : Int
-    t10 = load v2 : Int
-    t11 = Le Tmp(10) Literal(Int(0), Int) : Int
-    br_cond Tmp(11) %then6 %else7
+    t30 = load v2 : Int
+    t31 = Le Tmp(30) Literal(Int(0), Int) : Int
+    br_cond Tmp(31) %then6 %else7
 then6:
     store Literal(Int(3), Int) -> v5 : Int
-    t12 = load v5 : Int
-    ret Tmp(12)
+    t32 = load v5 : Int
+    ret Tmp(32)
     br %ifcont8
 else7:
     br %ifcont8
 ifcont8:
     store Literal(Int(0), Int) -> v6 : Int
-    t13 = load v6 : Int
-    ret Tmp(13)
+    t33 = load v6 : Int
+    ret Tmp(33)
     store Literal(Int(0), Int) -> v7 : Int
-    t14 = load v7 : Int
-    ret Tmp(14)
+    t34 = load v7 : Int
+    ret Tmp(34)

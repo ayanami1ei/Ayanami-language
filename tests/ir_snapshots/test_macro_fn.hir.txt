@@ -8,11 +8,12 @@ HIR Program
 │ │ │   target:
         Local(v0 : Int)
 │ │ │   value:
-        Binary { op: Add, ty: Int }
-          lhs:
+        Call(fn74, ty: Int)
           Literal(Int(3))
-          rhs:
           Literal(Int(3))
+          Literal(Int(1))
+          Literal(Int(4))
+          Literal(String("example/macro_lib.aya"))
 │ │ │ If
 │ │ │   cond:
         Binary { op: Neq, ty: Int }
@@ -29,19 +30,22 @@ HIR Program
 │ │ │   target:
         Local(v1 : Int)
 │ │ │   value:
-        Binary { op: Add, ty: Int }
-          lhs:
-          Binary { op: Add, ty: Int }
-            lhs:
+        Call(fn74, ty: Int)
+          Call(fn74, ty: Int)
             Literal(Int(1))
-            rhs:
             Literal(Int(1))
-          rhs:
-          Binary { op: Add, ty: Int }
-            lhs:
             Literal(Int(1))
-            rhs:
+            Literal(Int(4))
+            Literal(String("example/macro_lib.aya"))
+          Call(fn74, ty: Int)
             Literal(Int(1))
+            Literal(Int(1))
+            Literal(Int(1))
+            Literal(Int(4))
+            Literal(String("example/macro_lib.aya"))
+          Literal(Int(1))
+          Literal(Int(13))
+          Literal(String("example/macro_lib.aya"))
 │ │ │ If
 │ │ │   cond:
         Binary { op: Neq, ty: Int }
@@ -75,4 +79,7 @@ HIR Program
         Literal(Int(0))
 │ │ │ Return
         Literal(Int(0))
+│ │ }
+│ Fn __ayanami_ovf_add_i64 (a: Int, b: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 0]
+│ │ Block {
 │ │ }

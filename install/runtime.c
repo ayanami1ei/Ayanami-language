@@ -101,6 +101,55 @@ void __ayanami_panic_bounds_at(long long line, long long col, __ayanami_str_view
 }
 
 // ──────────────────────────────────────────────
+//  Overflow checks (M1.7, debug builds)
+//  `a + b` 等降级为 __ayanami_ovf_{add,sub,mul}_{iN,uN}(a, b, line, col, file)
+// ──────────────────────────────────────────────
+#define __AYANAMI_OVF(name, T, op, msg) \
+    T __ayanami_ovf_##name(T a, T b, long long line, long long col, __ayanami_str_view file) { \
+        T r; \
+        if (__builtin_##op##_overflow(a, b, &r)) { \
+            __ayanami_panic_print(line, col, file.data, file.len, msg, (long)strlen(msg)); \
+        } \
+        __ayanami_unique_free((void*)file.data); \
+        return r; \
+    }
+
+__AYANAMI_OVF(add_i8, int8_t, add, "attempt to add with overflow")
+__AYANAMI_OVF(add_i16, int16_t, add, "attempt to add with overflow")
+__AYANAMI_OVF(add_i32, int32_t, add, "attempt to add with overflow")
+__AYANAMI_OVF(add_i64, int64_t, add, "attempt to add with overflow")
+__AYANAMI_OVF(add_i128, __int128, add, "attempt to add with overflow")
+__AYANAMI_OVF(add_u8, uint8_t, add, "attempt to add with overflow")
+__AYANAMI_OVF(add_u16, uint16_t, add, "attempt to add with overflow")
+__AYANAMI_OVF(add_u32, uint32_t, add, "attempt to add with overflow")
+__AYANAMI_OVF(add_u64, uint64_t, add, "attempt to add with overflow")
+__AYANAMI_OVF(add_u128, unsigned __int128, add, "attempt to add with overflow")
+
+__AYANAMI_OVF(sub_i8, int8_t, sub, "attempt to subtract with overflow")
+__AYANAMI_OVF(sub_i16, int16_t, sub, "attempt to subtract with overflow")
+__AYANAMI_OVF(sub_i32, int32_t, sub, "attempt to subtract with overflow")
+__AYANAMI_OVF(sub_i64, int64_t, sub, "attempt to subtract with overflow")
+__AYANAMI_OVF(sub_i128, __int128, sub, "attempt to subtract with overflow")
+__AYANAMI_OVF(sub_u8, uint8_t, sub, "attempt to subtract with overflow")
+__AYANAMI_OVF(sub_u16, uint16_t, sub, "attempt to subtract with overflow")
+__AYANAMI_OVF(sub_u32, uint32_t, sub, "attempt to subtract with overflow")
+__AYANAMI_OVF(sub_u64, uint64_t, sub, "attempt to subtract with overflow")
+__AYANAMI_OVF(sub_u128, unsigned __int128, sub, "attempt to subtract with overflow")
+
+__AYANAMI_OVF(mul_i8, int8_t, mul, "attempt to multiply with overflow")
+__AYANAMI_OVF(mul_i16, int16_t, mul, "attempt to multiply with overflow")
+__AYANAMI_OVF(mul_i32, int32_t, mul, "attempt to multiply with overflow")
+__AYANAMI_OVF(mul_i64, int64_t, mul, "attempt to multiply with overflow")
+__AYANAMI_OVF(mul_i128, __int128, mul, "attempt to multiply with overflow")
+__AYANAMI_OVF(mul_u8, uint8_t, mul, "attempt to multiply with overflow")
+__AYANAMI_OVF(mul_u16, uint16_t, mul, "attempt to multiply with overflow")
+__AYANAMI_OVF(mul_u32, uint32_t, mul, "attempt to multiply with overflow")
+__AYANAMI_OVF(mul_u64, uint64_t, mul, "attempt to multiply with overflow")
+__AYANAMI_OVF(mul_u128, unsigned __int128, mul, "attempt to multiply with overflow")
+
+#undef __AYANAMI_OVF
+
+// ──────────────────────────────────────────────
 //  Contracts (A2d)
 // ──────────────────────────────────────────────
 

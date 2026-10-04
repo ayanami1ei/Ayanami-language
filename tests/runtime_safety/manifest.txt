@@ -3,4 +3,4 @@ panic_bounds_string.aya 101 index out of bounds
 panic_bounds_arraylist.aya 101 index out of bounds
 panic_pop_empty.aya 101 pop from empty ArrayList
 panic_user.aya 101 boom
-overflow_wrap.aya 0
+overflow_add.aya 101 attempt to add with overflow

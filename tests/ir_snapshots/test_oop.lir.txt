@@ -1,5 +1,6 @@
 LIR Program
-Strings: 0 entries
+Strings: 1 entries
+  @__str_0 = "example/test_oop.aya"
 
 fn draw (fn_id=0) -> Void [1 blocks]
   local self: Int
@@ -30,10 +31,12 @@ entry:
     store Param(1) -> v1 : Int
     t0 = load v0 : Int
     t1 = load v1 : Int
-    t2 = Add Tmp(0) Tmp(1) : Int
-    store Tmp(2) -> v2 : Int
-    t3 = load v2 : Int
-    ret Tmp(3)
+    t2 = str_global @__str_0
+    t3 = struct_lit String (2 fields)
+    t7 = call fn11 (Tmp(0):Int, Tmp(1):Int, Literal(Int(13), Int):Int, Literal(Int(54), Int):Int, Tmp(3):Named(Symbol(N))) : Int
+    store Tmp(7) -> v2 : Int
+    t8 = load v2 : Int
+    ret Tmp(8)
 fn triple (fn_id=3) -> Int [1 blocks]
   local self: Int
   local __ret: Int
@@ -42,10 +45,12 @@ entry:
     alloca v1 : Int
     store Param(0) -> v0 : Int
     t0 = load v0 : Int
-    t1 = Mul Tmp(0) Literal(Int(3), Int) : Int
-    store Tmp(1) -> v1 : Int
-    t2 = load v1 : Int
-    ret Tmp(2)
+    t1 = str_global @__str_0
+    t2 = struct_lit String (2 fields)
+    t6 = call fn12 (Tmp(0):Int, Literal(Int(3), Int):Int, Literal(Int(14), Int):Int, Literal(Int(42), Int):Int, Tmp(2):Named(Symbol(N))) : Int
+    store Tmp(6) -> v1 : Int
+    t7 = load v1 : Int
+    ret Tmp(7)
 fn draw (fn_id=4) -> Void [1 blocks]
   local self: Float
 entry:
@@ -160,16 +165,24 @@ entry:
     store Tmp(41) -> v6 : Int
     t42 = load v4 : Int
     t43 = load v5 : Int
-    t44 = Add Tmp(42) Tmp(43) : Int
-    t45 = load v6 : Int
-    t46 = Add Tmp(44) Tmp(45) : Int
-    t47 = load v2 : Int
-    t48 = Sub Tmp(46) Tmp(47) : Int
-    t49 = load v3 : Int
-    t50 = Sub Tmp(48) Tmp(49) : Int
-    store Tmp(50) -> v7 : Int
-    t51 = load v7 : Int
-    ret Tmp(51)
+    t44 = str_global @__str_0
+    t45 = struct_lit String (2 fields)
+    t49 = call fn11 (Tmp(42):Int, Tmp(43):Int, Literal(Int(50), Int):Int, Literal(Int(19), Int):Int, Tmp(45):Named(Symbol(N))) : Int
+    t50 = load v6 : Int
+    t51 = str_global @__str_0
+    t52 = struct_lit String (2 fields)
+    t56 = call fn11 (Tmp(49):Int, Tmp(50):Int, Literal(Int(50), Int):Int, Literal(Int(29), Int):Int, Tmp(52):Named(Symbol(N))) : Int
+    t57 = load v2 : Int
+    t58 = str_global @__str_0
+    t59 = struct_lit String (2 fields)
+    t63 = call fn13 (Tmp(56):Int, Tmp(57):Int, Literal(Int(50), Int):Int, Literal(Int(33), Int):Int, Tmp(59):Named(Symbol(N))) : Int
+    t64 = load v3 : Int
+    t65 = str_global @__str_0
+    t66 = struct_lit String (2 fields)
+    t70 = call fn13 (Tmp(63):Int, Tmp(64):Int, Literal(Int(50), Int):Int, Literal(Int(39), Int):Int, Tmp(66):Named(Symbol(N))) : Int
+    store Tmp(70) -> v7 : Int
+    t71 = load v7 : Int
+    ret Tmp(71)
     store Literal(Int(0), Int) -> v8 : Int
-    t52 = load v8 : Int
-    ret Tmp(52)
+    t72 = load v8 : Int
+    ret Tmp(72)

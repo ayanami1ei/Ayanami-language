@@ -1,6 +1,7 @@
 LIR Program
-Strings: 1 entries
-  @__str_0 = "hi"
+Strings: 2 entries
+  @__str_0 = "example/test_ref_auto.aya"
+  @__str_1 = "hi"
 
 fn bump (fn_id=73) -> Void [1 blocks]
   local i: Ref(Int, true)
@@ -10,7 +11,9 @@ entry:
     t0 = load v0 : Ref(Int, true)
     t1 = load v0 : Ref(Int, true)
     t2 = index_access elem_ty=Int
-    t5 = Add Tmp(2) Literal(Int(1), Int) : Int
+    t5 = str_global @__str_0
+    t6 = struct_lit String (2 fields)
+    t10 = call fn80 (Tmp(2):Int, Literal(Int(1), Int):Int, Literal(Int(6), Int):Int, Literal(Int(11), Int):Int, Tmp(6):Named(Symbol(N))) : Int
     t0 = index_store elem_ty=Int
     ret void
 fn bump_by (fn_id=74) -> Int [4 blocks]
@@ -48,10 +51,12 @@ entry:
     alloca v1 : Int
     store Param(0) -> v0 : Int
     t0 = load v0 : Int
-    t1 = Add Tmp(0) Literal(Int(1), Int) : Int
-    store Tmp(1) -> v1 : Int
-    t2 = load v1 : Int
-    ret Tmp(2)
+    t1 = str_global @__str_0
+    t2 = struct_lit String (2 fields)
+    t6 = call fn80 (Tmp(0):Int, Literal(Int(1), Int):Int, Literal(Int(17), Int):Int, Literal(Int(14), Int):Int, Tmp(2):Named(Symbol(N))) : Int
+    store Tmp(6) -> v1 : Int
+    t7 = load v1 : Int
+    ret Tmp(7)
 fn via_value (fn_id=76) -> Int [1 blocks]
   local i: Ref(Int, true)
   local __ret: Int
@@ -78,7 +83,9 @@ entry:
     t2 = index_access elem_ty=Int
     t5 = load v0 : Ref(Int, false)
     t6 = index_access elem_ty=Int
-    t9 = Add Tmp(2) Tmp(6) : Int
+    t9 = str_global @__str_0
+    t10 = struct_lit String (2 fields)
+    t14 = call fn80 (Tmp(2):Int, Tmp(6):Int, Literal(Int(25), Int):Int, Literal(Int(15), Int):Int, Tmp(10):Named(Symbol(N))) : Int
     t0 = index_store elem_ty=Int
     ret void
 fn set_hi (fn_id=78) -> Void [1 blocks]
@@ -87,7 +94,7 @@ entry:
     alloca v0 : Ref(Named(Symbol(N)), true)
     store Param(0) -> v0 : Ref(Named(Symbol(N)), true)
     t0 = load v0 : Ref(Named(Symbol(N)), true)
-    t1 = str_global @__str_0
+    t1 = str_global @__str_1
     t2 = struct_lit String (2 fields)
     t0 = index_store elem_ty=Named(Symbol(N))
     ret void
@@ -226,7 +233,7 @@ ifcont20:
     t30 = ref_mut v6 : Ref(Named(Symbol(N)), true)
     _ = call fn78 (Tmp(30):Ref(Named(Symbol(N)), true)) : Void
     t31 = ref_v6 : Ref(Named(Symbol(N)), false)
-    t33 = str_global @__str_0
+    t33 = str_global @__str_1
     t34 = struct_lit String (2 fields)
     t32 = ref_tmp_ : Named(Symbol(N))
     t39 = call fn59 (Tmp(31):Ref(Named(Symbol(N)), false), Tmp(32):Ref(Named(Symbol(N)), false)) : Bool
