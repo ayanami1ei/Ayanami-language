@@ -314,7 +314,19 @@ struct Holder {
   输出源码重新解析为语句序列并递归展开后原位拼接；允许展开为多条语句。
 - 遍历：函数体、`if`/`elif`/`else`、`for`/`while` 块内均展开；仅含编译器标注的
   `Attributed` 原样保留（`cfg` 过滤仍在其后执行）。
-- 表达式级宏、其他语言插件、WASM 沙箱、插件清单与权限为远期（A5c-2）。
+- 表达式级宏（函数宏）见 8.5；其他语言插件、WASM 沙箱、插件清单与权限为远期。
+
+### 8.5 函数宏（A5c-2，表达式级）
+
+- 语法：表达式位置 `#name(args)` / `#pkg::name(args)`；`fmt` 原样保留，不展开。
+- 语义：在 HIR 降级时展开——解析宏所在 `.lcl` → 调用宏插件 → 返回源码按表达式回填并递归展开（上限 32）。
+- 调用点信息：宏形参可用保留名 `__line`（int）/`__col`（int）/`__file`（String），
+  编译器按调用点自动填充（等价 Rust `line!()`/`column!()`/`file!()`）。
+- 插件 ABI v5：`__ayanami_macro_expand(input, args, line, col, file)`。
+- 首个消费者：`std/panic.aya` 的 `#panic("msg")` → `panic_at(line, col, file, msg)`
+  → runtime `__ayanami_panic_at` 打印 `runtime error: ... --> file:line:col` + 源码片段，退出码 101。
+- 标准库越界检查：`String.index` / `ArrayList.index/set/pop` / `LinkedList.index` 调用
+  `panic_bounds_at`（值为准、位置暂为 0/0；函数级 `#[track_caller]` 为后续项）。
 
 ### 8.5 注解分类与 MIR 优化插件（A5d）
 
@@ -463,7 +475,9 @@ struct Holder {
       demo `const_prop`（常量传播 + 折叠 + 不动点 → `ret i64 12`）、未用赋值删除
 - [x] 顺带修复解析器：if/while 条件禁用结构体字面量（`if i > x { ... }` 曾被解析为 `x { x = i }`）
 - [ ] A5d-4 更完整 MIR schema（类型/调用/字段完整往返）与跨函数 pass（远期）
-- [ ] A5c-2 / A5d-3 `#[check]` 只读诊断、其他语言插件 / WASM 沙箱 / 表达式级宏 / 插件清单与权限（远期）
+- [x] A5c-2 函数宏（表达式级）：`#name(args)` + 保留参数 `__line/__col/__file` + ABI v5 +
+      `#panic`（运行时 panic + 源码定位 + 退出码 101）+ 标准库越界检查
+- [ ] A5c-2 后续：函数级 `#[track_caller]`（std panic 指向用户调用行）、其它语言插件 / WASM 沙箱 / 插件清单与权限（远期）
 
 ### 已知问题
 

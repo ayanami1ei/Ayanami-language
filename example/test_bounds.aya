@@ -1,0 +1,8 @@
+// A5c-2：标准库越界检查（运行时 panic + 退出码 101）
+import "arraylist";
+
+fn main() -> int {
+    a = ArrayList::new[int]();
+    a.push(1);
+    return a.index(5);
+}

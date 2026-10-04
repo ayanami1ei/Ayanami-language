@@ -1,4 +1,5 @@
 import "string"
+import "panic"
 import "list"
 
 pub struct ArrayList[T]{
@@ -45,17 +46,22 @@ impl[T] ArrayList[T]{
         self.len = self.len + 1
     }
 
-    pub fn index(ref self, int index)->T{ return self.data[index] }
+    pub fn index(ref self, int index)->T{
+        if index < 0 || index >= self.len { panic_bounds_at(0, 0, String { data = null, len = 0 }, index, self.len) }
+        return self.data[index]
+    }
     pub fn len(ref self)->int{ return self.len }
 
 #[state]
     pub fn set(ref mut self, int i, T v) {
+        if i < 0 || i >= self.len { panic_bounds_at(0, 0, String { data = null, len = 0 }, i, self.len) }
         self.data[i] = v
     }
 
     /// 弹出末元素（调用方需自行保证非空）
 #[state]
     pub fn pop(ref mut self) -> T {
+        if self.len <= 0 { panic_at(0, 0, String { data = null, len = 0 }, "pop from empty ArrayList") }
         self.len = self.len - 1
         return self.data[self.len]
     }

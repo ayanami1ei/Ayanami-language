@@ -282,6 +282,13 @@ fn max[T: Ord](T a, T b) -> T { if a > b { return a; } return b; }
 
 泛型通过单态化实现。约束使用接口名。
 
+函数宏用 `#name(args)` 调用（表达式级，编译期展开，可捕获调用点）：
+
+```ayanami
+import "panic";
+#panic("boom");        // runtime error: boom --> file.aya:行:列，退出码 101
+```
+
 命名空间函数可用显式泛型实参调用：`ns.fn[T1, T2](args)`（普通调用仍靠形参推导；显式实参优先）。
 标准库构造函数即此形式，例如 `ArrayList::new[int]()`、`ArrayList::with_capacity[String](8)`、
 `LinkedList::new[int]()`、`String::empty()` / `String::new(buf, len)`。

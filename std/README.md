@@ -144,3 +144,17 @@ fn main() -> int {
     return a.index(1)     // 2
 }
 ```
+
+## 运行时 panic（`#panic`）
+
+```ayanami
+import "panic";
+
+fn main() -> int {
+    #panic("boom");        // runtime error: boom --> file.aya:4:5，退出码 101
+}
+```
+
+- 函数宏在调用点展开，自动带 `__line/__col/__file`
+- 集合越界/空表 `pop` 会在运行时 panic（`runtime error: index out of bounds: the len is ... but the index is ...`）
+- panic 输出 stderr，程序退出码 **101**

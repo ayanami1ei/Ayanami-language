@@ -1,7 +1,6 @@
 import "string"
 
-// A5c-2：运行时 panic（退出码 101）
-// 函数宏 `#panic("msg")` 在调用点展开，自动带上 __line/__col/__file
+// A5c-2：用户侧 panic（函数宏 `#panic("msg")`，调用点位置 + 退出码 101）
 
 #[pure]
 #[noreturn]
@@ -9,32 +8,42 @@ extern "C" fn __ayanami_panic_at(int line, int col, String file, String msg) -> 
 
 #[pure]
 #[noreturn]
-extern "C" fn __ayanami_panic_bounds_at(int line, int col, String file, int index, int len) -> void;
-
-/// 带调用点的 panic（一般由 `#panic` 宏生成调用）
-#[pure]
-#[noreturn]
 pub fn panic_at(int line, int col, String file, String msg) -> void {
     __ayanami_panic_at(line, col, file, msg);
 }
 
-/// 带调用点的越界 panic（标准库集合检查用）
-#[pure]
-#[noreturn]
-pub fn panic_bounds_at(int line, int col, String file, int index, int len) -> void {
-    __ayanami_panic_bounds_at(line, col, file, index, len);
-}
-
+// 注：宏体只用非泛型函数（add(ref String)/int.to_string），避免把共享泛型特化
+// 烘焙进 .lcl 导致与其它对象重复定义
 #[alloc]
 #[state]
 #[macro]
 pub fn panic(String input, String msg, int __line, int __col, String __file) -> String {
-    return "panic_at(" + __line + ", " + __col + ", \"" + __file + "\", " + msg + ")"
+    res = "panic_at(";
+    res = res.add(__line.to_string());
+    res = res.add(", ");
+    res = res.add(__col.to_string());
+    res = res.add(", \"");
+    res = res.add(__file);
+    res = res.add("\", ");
+    res = res.add(msg);
+    res = res.add(")");
+    return res;
 }
 
 #[alloc]
 #[state]
 #[macro]
 pub fn panic_bounds(String input, String index, String len, int __line, int __col, String __file) -> String {
-    return "panic_bounds_at(" + __line + ", " + __col + ", \"" + __file + "\", " + index + ", " + len + ")"
+    res = "panic_bounds_at(";
+    res = res.add(__line.to_string());
+    res = res.add(", ");
+    res = res.add(__col.to_string());
+    res = res.add(", \"");
+    res = res.add(__file);
+    res = res.add("\", ");
+    res = res.add(index);
+    res = res.add(", ");
+    res = res.add(len);
+    res = res.add(")");
+    return res;
 }

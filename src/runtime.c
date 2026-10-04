@@ -64,7 +64,7 @@ static void __ayanami_panic_print(long long line, long long col,
     fputs("runtime error: ", stderr);
     __ayanami_print_view(msg, msg_len);
     fputc('\n', stderr);
-    if (file && file_len > 0) {
+    if (line > 0 && file && file_len > 0) {
         char* path = (char*)malloc((size_t)file_len + 1);
         if (path) {
             memcpy(path, file, (size_t)file_len);

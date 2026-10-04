@@ -1,4 +1,5 @@
 import "string"
+import "panic"
 import "list"
 
 // 说明：链表曾基于 shared/weak 节点链；新所有权模型暂不支持"借用 unique 字段遍历"，
@@ -39,6 +40,7 @@ impl[T] LinkedList[T] {
     }
 
     pub fn index(ref self, int index)->T{
+        if index < 0 || index >= self.len { panic_bounds_at(0, 0, String { data = null, len = 0 }, index, self.len) }
         return self.data[index]
     }
 
