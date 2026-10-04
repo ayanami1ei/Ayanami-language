@@ -28,6 +28,7 @@ fn main() {
         eprintln!("  install <lcl>      从 .lcl 构建目标产物");
         eprintln!("  defs <file>        输出符号定义列表（JSON 格式）");
     eprintln!("  types <file>       输出变量类型列表（JSON，供编辑器 inlay hints）");
+    eprintln!("  dump <stage> <file> 输出 IR 阶段文本（ast|hir|mir|lir|llvm）");
         eprintln!("  run [--release] [--verify-effects] [file/proj] 构建并运行");
         eprintln!("  clean              清除 build/ 目录");
         std::process::exit(1);
@@ -43,6 +44,7 @@ fn main() {
         "install" => cmd_install(&args[2..]),
         "defs" => cmd_defs(&args[2..]),
         "types" => cmd_types(&args[2..]),
+        "dump" => cmd_dump(&args[2..]),
         "run" => cmd_run(&args[2..]),
         "clean" => cmd_clean(),
         _ => {
@@ -108,7 +110,7 @@ pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf {
 
 mod cli;
 
-pub(crate) use cli::{cmd_build, cmd_check, cmd_clean, cmd_defs, cmd_fmt, cmd_install, cmd_new, cmd_package, cmd_run, cmd_types};
+pub(crate) use cli::{cmd_build, cmd_check, cmd_clean, cmd_defs, cmd_fmt, cmd_install, cmd_new, cmd_package, cmd_run, cmd_dump, cmd_types};
 
 pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)> {
     let cwd = std::env::current_dir().ok()?;

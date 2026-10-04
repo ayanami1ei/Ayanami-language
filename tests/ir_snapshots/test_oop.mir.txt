@@ -1,0 +1,219 @@
+MIR Program
+│ Fn draw (self: Int) -> Void [locals: 1]
+│   local self: Int
+│ │ Block {
+│ │ }
+│ Fn get_id (self: Int) -> Int [locals: 2]
+│   local self: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v1 : Int)
+        value:
+        Local(v0 : Int)
+      Return
+        Local(v1 : Int)
+│ │ }
+│ Fn resize (self: Int, factor: Int) -> Int [locals: 3]
+│   local self: Int
+│   local factor: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v2 : Int)
+        value:
+        Binary { op: Add, ty: Int }
+          lhs:
+          Local(v0 : Int)
+          rhs:
+          Local(v1 : Int)
+      Return
+        Local(v2 : Int)
+│ │ }
+│ Fn triple (self: Int) -> Int [locals: 2]
+│   local self: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v1 : Int)
+        value:
+        Binary { op: Mul, ty: Int }
+          lhs:
+          Local(v0 : Int)
+          rhs:
+          Literal(Int(3))
+      Return
+        Local(v1 : Int)
+│ │ }
+│ Fn draw (self: Float) -> Void [locals: 1]
+│   local self: Float
+│ │ Block {
+│ │ }
+│ Fn get_id (self: Float) -> Int [locals: 2]
+│   local self: Float
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v1 : Int)
+        value:
+        Literal(Int(0))
+      Return
+        Local(v1 : Int)
+│ │ }
+│ Fn resize (self: Float, factor: Int) -> Int [locals: 3]
+│   local self: Float
+│   local factor: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v2 : Int)
+        value:
+        Literal(Int(0))
+      Return
+        Local(v2 : Int)
+│ │ }
+│ Fn render_drawable (d: fatptr(Drawable, ref Void)) -> Void [locals: 1]
+│   local d: fatptr(Drawable, ref Void)
+│ │ Block {
+      Expr
+        VirtualCall iface=Drawable method=0 ty=Void
+          receiver:
+          Local(v0 : fatptr(Drawable, ref Void))
+│ │ }
+│ Fn get_any_id (d: fatptr(Drawable, ref Void)) -> Int [locals: 2]
+│   local d: fatptr(Drawable, ref Void)
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v1 : Int)
+        value:
+        VirtualCall iface=Drawable method=1 ty=Int
+          receiver:
+          Local(v0 : fatptr(Drawable, ref Void))
+      Return
+        Local(v1 : Int)
+│ │ }
+│ Fn scale (r: fatptr(Resizable, ref Void), f: Int) -> Int [locals: 3]
+│   local r: fatptr(Resizable, ref Void)
+│   local f: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v2 : Int)
+        value:
+        VirtualCall iface=Resizable method=0 ty=Int
+          receiver:
+          Local(v0 : fatptr(Resizable, ref Void))
+          Local(v1 : Int)
+      Return
+        Local(v2 : Int)
+│ │ }
+│ Fn main () -> Int [locals: 9]
+│   local a: Int
+│   local b: Float
+│   local id1: Int
+│   local id2: Int
+│   local result: Int
+│   local result2: Int
+│   local t: Int
+│   local __ret: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v0 : Int)
+        value:
+        Literal(Int(42))
+      Assign
+        target:
+        Local(v1 : Float)
+        value:
+        Literal(Float(3))
+      Expr
+        Call(fn7, ty: Void)
+          MakeFatPtr int -> Drawable ty=fatptr(Drawable, ref Void)
+            Ref(ty: ref Int)
+              Local(v0 : Int)
+      Expr
+        Call(fn7, ty: Void)
+          MakeFatPtr float -> Drawable ty=fatptr(Drawable, ref Void)
+            Ref(ty: ref Float)
+              Local(v1 : Float)
+      Assign
+        target:
+        Local(v2 : Int)
+        value:
+        Call(fn8, ty: Int)
+          MakeFatPtr int -> Drawable ty=fatptr(Drawable, ref Void)
+            Ref(ty: ref Int)
+              Local(v0 : Int)
+      Assign
+        target:
+        Local(v3 : Int)
+        value:
+        Call(fn8, ty: Int)
+          MakeFatPtr float -> Drawable ty=fatptr(Drawable, ref Void)
+            Ref(ty: ref Float)
+              Local(v1 : Float)
+      Assign
+        target:
+        Local(v4 : Int)
+        value:
+        Call(fn9, ty: Int)
+          MakeFatPtr int -> Resizable ty=fatptr(Resizable, ref Void)
+            Ref(ty: ref Int)
+              Local(v0 : Int)
+          Literal(Int(8))
+      Assign
+        target:
+        Local(v5 : Int)
+        value:
+        Call(fn9, ty: Int)
+          MakeFatPtr float -> Resizable ty=fatptr(Resizable, ref Void)
+            Ref(ty: ref Float)
+              Local(v1 : Float)
+          Literal(Int(5))
+      Assign
+        target:
+        Local(v6 : Int)
+        value:
+        Call(fn3, ty: Int)
+          Local(v0 : Int)
+      Assign
+        target:
+        Local(v7 : Int)
+        value:
+        Binary { op: Sub, ty: Int }
+          lhs:
+          Binary { op: Sub, ty: Int }
+            lhs:
+            Binary { op: Add, ty: Int }
+              lhs:
+              Binary { op: Add, ty: Int }
+                lhs:
+                Local(v4 : Int)
+                rhs:
+                Local(v5 : Int)
+              rhs:
+              Local(v6 : Int)
+            rhs:
+            Local(v2 : Int)
+          rhs:
+          Local(v3 : Int)
+      Return
+        Local(v7 : Int)
+      Assign
+        target:
+        Local(v8 : Int)
+        value:
+        Literal(Int(0))
+      Return
+        Local(v8 : Int)
+│ │ }

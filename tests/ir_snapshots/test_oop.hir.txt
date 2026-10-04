@@ -1,0 +1,170 @@
+HIR Program
+│ InterfaceDef Drawable
+│   fn draw() -> Void
+│   fn get_id() -> Int
+│ InterfaceDef Resizable
+│   fn resize(factor: Int) -> Int
+│ Fn draw (self: Int) -> Void [locals: 1]
+│   local self: Int
+│ │ Block {
+│ │ }
+│ Fn get_id (self: Int) -> Int [locals: 1]
+│   local self: Int
+│ │ Block {
+│ │ │ Return
+        Local(v0 : Int)
+│ │ }
+│ Fn resize (self: Int, factor: Int) -> Int [locals: 2]
+│   local self: Int
+│   local factor: Int
+│ │ Block {
+│ │ │ Return
+        Binary { op: Add, ty: Int }
+          lhs:
+          Local(v0 : Int)
+          rhs:
+          Local(v1 : Int)
+│ │ }
+│ Fn triple (self: Int) -> Int [locals: 1]
+│   local self: Int
+│ │ Block {
+│ │ │ Return
+        Binary { op: Mul, ty: Int }
+          lhs:
+          Local(v0 : Int)
+          rhs:
+          Literal(Int(3))
+│ │ }
+│ Fn draw (self: Float) -> Void [locals: 1]
+│   local self: Float
+│ │ Block {
+│ │ }
+│ Fn get_id (self: Float) -> Int [locals: 1]
+│   local self: Float
+│ │ Block {
+│ │ │ Return
+        Literal(Int(0))
+│ │ }
+│ Fn resize (self: Float, factor: Int) -> Int [locals: 2]
+│   local self: Float
+│   local factor: Int
+│ │ Block {
+│ │ │ Return
+        Literal(Int(0))
+│ │ }
+│ Fn render_drawable (d: fatptr(Drawable, ref Void)) -> Void [locals: 1]
+│   local d: fatptr(Drawable, ref Void)
+│ │ Block {
+│ │ │ Expr
+        VirtualCall iface=Drawable method=0 ty=Void
+          receiver:
+          Local(v0 : fatptr(Drawable, ref Void))
+│ │ }
+│ Fn get_any_id (d: fatptr(Drawable, ref Void)) -> Int [locals: 1]
+│   local d: fatptr(Drawable, ref Void)
+│ │ Block {
+│ │ │ Return
+        VirtualCall iface=Drawable method=1 ty=Int
+          receiver:
+          Local(v0 : fatptr(Drawable, ref Void))
+│ │ }
+│ Fn scale (r: fatptr(Resizable, ref Void), f: Int) -> Int [locals: 2]
+│   local r: fatptr(Resizable, ref Void)
+│   local f: Int
+│ │ Block {
+│ │ │ Return
+        VirtualCall iface=Resizable method=0 ty=Int
+          receiver:
+          Local(v0 : fatptr(Resizable, ref Void))
+          Local(v1 : Int)
+│ │ }
+│ Fn main () -> Int [locals: 7]
+│   local a: Int
+│   local b: Float
+│   local id1: Int
+│   local id2: Int
+│   local result: Int
+│   local result2: Int
+│   local t: Int
+│ │ Block {
+│ │ │ Assign
+│ │ │   target:
+        Local(v0 : Int)
+│ │ │   value:
+        Literal(Int(42))
+│ │ │ Assign
+│ │ │   target:
+        Local(v1 : Float)
+│ │ │   value:
+        Literal(Float(3))
+│ │ │ Expr
+        Call(fn7, ty: Void)
+          MakeFatPtr int -> Drawable ty=fatptr(Drawable, ref Void)
+            Ref(ty: ref Int)
+              Local(v0 : Int)
+│ │ │ Expr
+        Call(fn7, ty: Void)
+          MakeFatPtr float -> Drawable ty=fatptr(Drawable, ref Void)
+            Ref(ty: ref Float)
+              Local(v1 : Float)
+│ │ │ Assign
+│ │ │   target:
+        Local(v2 : Int)
+│ │ │   value:
+        Call(fn8, ty: Int)
+          MakeFatPtr int -> Drawable ty=fatptr(Drawable, ref Void)
+            Ref(ty: ref Int)
+              Local(v0 : Int)
+│ │ │ Assign
+│ │ │   target:
+        Local(v3 : Int)
+│ │ │   value:
+        Call(fn8, ty: Int)
+          MakeFatPtr float -> Drawable ty=fatptr(Drawable, ref Void)
+            Ref(ty: ref Float)
+              Local(v1 : Float)
+│ │ │ Assign
+│ │ │   target:
+        Local(v4 : Int)
+│ │ │   value:
+        Call(fn9, ty: Int)
+          MakeFatPtr int -> Resizable ty=fatptr(Resizable, ref Void)
+            Ref(ty: ref Int)
+              Local(v0 : Int)
+          Literal(Int(8))
+│ │ │ Assign
+│ │ │   target:
+        Local(v5 : Int)
+│ │ │   value:
+        Call(fn9, ty: Int)
+          MakeFatPtr float -> Resizable ty=fatptr(Resizable, ref Void)
+            Ref(ty: ref Float)
+              Local(v1 : Float)
+          Literal(Int(5))
+│ │ │ Assign
+│ │ │   target:
+        Local(v6 : Int)
+│ │ │   value:
+        Call(fn3, ty: Int)
+          Local(v0 : Int)
+│ │ │ Return
+        Binary { op: Sub, ty: Int }
+          lhs:
+          Binary { op: Sub, ty: Int }
+            lhs:
+            Binary { op: Add, ty: Int }
+              lhs:
+              Binary { op: Add, ty: Int }
+                lhs:
+                Local(v4 : Int)
+                rhs:
+                Local(v5 : Int)
+              rhs:
+              Local(v6 : Int)
+            rhs:
+            Local(v2 : Int)
+          rhs:
+          Local(v3 : Int)
+│ │ │ Return
+        Literal(Int(0))
+│ │ }

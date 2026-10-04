@@ -1,0 +1,108 @@
+MIR Program
+│ Fn main () -> Int [locals: 8]
+│   local x: Int
+│   local y: Int
+│   local l: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v0 : Int)
+        value:
+        Binary { op: Add, ty: Int }
+          lhs:
+          Literal(Int(3))
+          rhs:
+          Literal(Int(3))
+      If
+        cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v0 : Int)
+          rhs:
+          Literal(Int(6))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v3 : Int)
+            value:
+            Literal(Int(1))
+          Return
+            Local(v3 : Int)
+        }
+      Assign
+        target:
+        Local(v1 : Int)
+        value:
+        Binary { op: Add, ty: Int }
+          lhs:
+          Binary { op: Add, ty: Int }
+            lhs:
+            Literal(Int(1))
+            rhs:
+            Literal(Int(1))
+          rhs:
+          Binary { op: Add, ty: Int }
+            lhs:
+            Literal(Int(1))
+            rhs:
+            Literal(Int(1))
+      If
+        cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v1 : Int)
+          rhs:
+          Literal(Int(4))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v4 : Int)
+            value:
+            Literal(Int(2))
+          Return
+            Local(v4 : Int)
+        }
+      Assign
+        target:
+        Local(v2 : Int)
+        value:
+        Literal(Int(12))
+      If
+        cond:
+        Binary { op: Le, ty: Int }
+          lhs:
+          Local(v2 : Int)
+          rhs:
+          Literal(Int(0))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v5 : Int)
+            value:
+            Literal(Int(3))
+          Return
+            Local(v5 : Int)
+        }
+      Assign
+        target:
+        Local(v6 : Int)
+        value:
+        Literal(Int(0))
+      Return
+        Local(v6 : Int)
+      Assign
+        target:
+        Local(v7 : Int)
+        value:
+        Literal(Int(0))
+      Return
+        Local(v7 : Int)
+│ │ }

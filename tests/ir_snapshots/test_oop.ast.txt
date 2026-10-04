@@ -1,0 +1,155 @@
+Program
+│ InterfaceDef { name: Drawable }
+│   fn draw() -> Named(void)
+│   fn get_id() -> Int
+│ InterfaceDef { name: Resizable }
+│   fn resize(factor: Int) -> Int
+│ ImplBlock { name: int }
+│ │ FnDecl { name: draw, return: Named(void) }
+│ │     self: Named(int)
+│ │   body:
+│ │ │ Block {
+│ │ │ }
+│ │ FnDecl { name: get_id, return: Int }
+│ │     self: Named(int)
+│ │   body:
+│ │ │ Block {
+│ │ │ │ Return
+│ │ │ │ │ Ident(self)
+│ │ │ }
+│ │ FnDecl { name: resize, return: Int }
+│ │     self: Named(int)
+│ │     factor: Int
+│ │   body:
+│ │ │ Block {
+│ │ │ │ Return
+│ │ │ │ │ Binary { op: Add }
+│ │ │ │ │   lhs:
+│ │ │ │ │ │ Ident(self)
+│ │ │ │ │   rhs:
+│ │ │ │ │ │ Ident(factor)
+│ │ │ }
+│ │ FnDecl { name: triple, return: Int }
+│ │     self: Named(int)
+│ │   body:
+│ │ │ Block {
+│ │ │ │ Return
+│ │ │ │ │ Binary { op: Mul }
+│ │ │ │ │   lhs:
+│ │ │ │ │ │ Ident(self)
+│ │ │ │ │   rhs:
+│ │ │ │ │ │ Int(3)
+│ │ │ }
+│ ImplBlock { name: float }
+│ │ FnDecl { name: draw, return: Named(void) }
+│ │     self: Named(float)
+│ │   body:
+│ │ │ Block {
+│ │ │ }
+│ │ FnDecl { name: get_id, return: Int }
+│ │     self: Named(float)
+│ │   body:
+│ │ │ Block {
+│ │ │ │ Return
+│ │ │ │ │ Int(0)
+│ │ │ }
+│ │ FnDecl { name: resize, return: Int }
+│ │     self: Named(float)
+│ │     factor: Int
+│ │   body:
+│ │ │ Block {
+│ │ │ │ Return
+│ │ │ │ │ Int(0)
+│ │ │ }
+│ FnDecl { name: render_drawable, return: Named(void) }
+│     d: ref Named(Drawable)
+│   body:
+│ │ Block {
+│ │ │ ExprStmt
+│ │ │ │ MethodCall { method: draw }
+│ │ │ │   object:
+│ │ │ │ │ Ident(d)
+│ │ }
+│ FnDecl { name: get_any_id, return: Int }
+│     d: ref Named(Drawable)
+│   body:
+│ │ Block {
+│ │ │ Return
+│ │ │ │ MethodCall { method: get_id }
+│ │ │ │   object:
+│ │ │ │ │ Ident(d)
+│ │ }
+│ FnDecl { name: scale, return: Int }
+│     r: ref Named(Resizable)
+│     f: Int
+│   body:
+│ │ Block {
+│ │ │ Return
+│ │ │ │ MethodCall { method: resize }
+│ │ │ │   object:
+│ │ │ │ │ Ident(r)
+│ │ │ │ │ Ident(f)
+│ │ }
+│ FnDecl { name: main, return: Int }
+│   body:
+│ │ Block {
+│ │ │ Assign { name: a }
+│ │ │   value:
+│ │ │ │ Int(42)
+│ │ │ Assign { name: b }
+│ │ │   value:
+│ │ │ │ Float(3)
+│ │ │ ExprStmt
+│ │ │ │ FnCall { name: render_drawable }
+│ │ │ │   args:
+│ │ │ │ │ Ident(a)
+│ │ │ ExprStmt
+│ │ │ │ FnCall { name: render_drawable }
+│ │ │ │   args:
+│ │ │ │ │ Ident(b)
+│ │ │ Assign { name: id1 }
+│ │ │   value:
+│ │ │ │ FnCall { name: get_any_id }
+│ │ │ │   args:
+│ │ │ │ │ Ident(a)
+│ │ │ Assign { name: id2 }
+│ │ │   value:
+│ │ │ │ FnCall { name: get_any_id }
+│ │ │ │   args:
+│ │ │ │ │ Ident(b)
+│ │ │ Assign { name: result }
+│ │ │   value:
+│ │ │ │ FnCall { name: scale }
+│ │ │ │   args:
+│ │ │ │ │ Ident(a)
+│ │ │ │ │ Int(8)
+│ │ │ Assign { name: result2 }
+│ │ │   value:
+│ │ │ │ FnCall { name: scale }
+│ │ │ │   args:
+│ │ │ │ │ Ident(b)
+│ │ │ │ │ Int(5)
+│ │ │ Assign { name: t }
+│ │ │   value:
+│ │ │ │ MethodCall { method: triple }
+│ │ │ │   object:
+│ │ │ │ │ Ident(a)
+│ │ │ Return
+│ │ │ │ Binary { op: Sub }
+│ │ │ │   lhs:
+│ │ │ │ │ Binary { op: Sub }
+│ │ │ │ │   lhs:
+│ │ │ │ │ │ Binary { op: Add }
+│ │ │ │ │ │   lhs:
+│ │ │ │ │ │ │ Binary { op: Add }
+│ │ │ │ │ │ │   lhs:
+│ │ │ │ │ │ │ │ Ident(result)
+│ │ │ │ │ │ │   rhs:
+│ │ │ │ │ │ │ │ Ident(result2)
+│ │ │ │ │ │   rhs:
+│ │ │ │ │ │ │ Ident(t)
+│ │ │ │ │   rhs:
+│ │ │ │ │ │ Ident(id1)
+│ │ │ │   rhs:
+│ │ │ │ │ Ident(id2)
+│ │ }

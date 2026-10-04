@@ -1,0 +1,19 @@
+Program
+│ StructDef { name: Point }
+│   x: Int
+│   y: Int
+│ FnDecl { name: main, return: Int }
+│   body:
+│ │ Block {
+│ │ │ Assign { name: p }
+│ │ │   value:
+│ │ │ │ StructLiteral { type: Point }
+│ │ │ │   x =
+│ │ │ │ │ Int(1)
+│ │ │ │   y =
+│ │ │ │ │ Int(2)
+│ │ │ Return
+│ │ │ │ FieldAccess { field: x }
+│ │ │ │   object:
+│ │ │ │ │ Ident(p)
+│ │ }

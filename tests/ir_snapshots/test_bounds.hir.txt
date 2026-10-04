@@ -1,0 +1,224 @@
+HIR Program
+│ Fn main () -> Int [locals: 1]
+│   local a: Named(ArrayList<int>)
+│ │ Block {
+│ │ │ Assign
+│ │ │   target:
+        Local(v0 : Named(ArrayList<int>))
+│ │ │   value:
+        Move(ty: Named(ArrayList<int>))
+          Call(fn75, ty: Named(ArrayList<int>))
+│ │ │ Expr
+        Call(fn76, ty: Void)
+          Ref(mut ty: ref mut Named(ArrayList<int>))
+            Local(v0 : Named(ArrayList<int>))
+          Literal(Int(1))
+│ │ │ Return
+        Call(fn78, ty: Int)
+          Ref(ty: ref Named(ArrayList<int>))
+            Local(v0 : Named(ArrayList<int>))
+          Literal(Int(5))
+          Literal(Int(7))
+          Literal(Int(13))
+          Literal(String("example/test_bounds.aya"))
+│ │ │ Return
+        Literal(Int(0))
+│ │ }
+│ Fn ArrayList.new () -> Named(ArrayList<int>) [locals: 0]
+│ │ Block {
+│ │ │ Return
+        Move(ty: Named(ArrayList<int>))
+          StructLiteral ArrayList<int> fields=3 ty=Named(ArrayList<int>)
+            data:
+            Literal(Int(0))
+            len:
+            Literal(Int(0))
+            capability:
+            Literal(Int(0))
+│ │ }
+│ Fn expand (self: ref mut Named(ArrayList<int>)) -> Void [locals: 3]
+│   local self: ref mut Named(ArrayList<int>)
+│   local tmp: unique [Int]
+│   local i: Int
+│ │ Block {
+│ │ │ If
+│ │ │   cond:
+        Binary { op: Eq, ty: Int }
+          lhs:
+          FieldAccess capability ty=Int
+            Local(v0 : ref mut Named(ArrayList<int>))
+          rhs:
+          Literal(Int(0))
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ FieldAssign field=capability index=2
+│ │ │ │ │   object:
+            Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │ │ │   value:
+            Literal(Int(1))
+│ │ │ │ │ FieldAssign field=data index=0
+│ │ │ │ │   object:
+            Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │ │ │   value:
+            Move(ty: unique [Int])
+              ArraySized { elem_ty: Int, ty: unique [Int] }
+                count:
+                Literal(Int(1))
+│ │ │ │ }
+│ │ │   else:
+│ │ │ │ Block {
+│ │ │ │ │ Assign
+│ │ │ │ │   target:
+            Local(v1 : unique [Int])
+│ │ │ │ │   value:
+            Move(ty: unique [Int])
+              ArraySized { elem_ty: Int, ty: unique [Int] }
+                count:
+                Binary { op: Mul, ty: Int }
+                  lhs:
+                  FieldAccess capability ty=Int
+                    Local(v0 : ref mut Named(ArrayList<int>))
+                  rhs:
+                  Literal(Int(2))
+│ │ │ │ │ Block {
+│ │ │ │ │ │ Assign
+│ │ │ │ │ │   target:
+              Local(v2 : Int)
+│ │ │ │ │ │   value:
+              Literal(Int(0))
+│ │ │ │ │ │ While
+│ │ │ │ │ │   cond:
+              Binary { op: Lt, ty: Int }
+                lhs:
+                Local(v2 : Int)
+                rhs:
+                FieldAccess len ty=Int
+                  Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │ │ │ │   body:
+│ │ │ │ │ │ │ Block {
+│ │ │ │ │ │ │ │ IndexAssign
+│ │ │ │ │ │ │ │   object:
+                  Local(v1 : unique [Int])
+│ │ │ │ │ │ │ │   index:
+                  Local(v2 : Int)
+│ │ │ │ │ │ │ │   value:
+                  Index ty=Int
+                    object:
+                    FieldAccess data ty=[Int]
+                      Local(v0 : ref mut Named(ArrayList<int>))
+                    index:
+                    Local(v2 : Int)
+│ │ │ │ │ │ │ │ Assign
+│ │ │ │ │ │ │ │   target:
+                  Local(v2 : Int)
+│ │ │ │ │ │ │ │   value:
+                  Binary { op: Add, ty: Int }
+                    lhs:
+                    Local(v2 : Int)
+                    rhs:
+                    Literal(Int(1))
+│ │ │ │ │ │ │ }
+│ │ │ │ │ }
+│ │ │ │ │ FieldAssign field=data index=0
+│ │ │ │ │   object:
+            Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │ │ │   value:
+            Move(ty: unique [Int])
+              Local(v1 : unique [Int])
+│ │ │ │ │ FieldAssign field=capability index=2
+│ │ │ │ │   object:
+            Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │ │ │   value:
+            Binary { op: Mul, ty: Int }
+              lhs:
+              FieldAccess capability ty=Int
+                Local(v0 : ref mut Named(ArrayList<int>))
+              rhs:
+              Literal(Int(2))
+│ │ │ │ }
+│ │ }
+│ Fn push (self: ref mut Named(ArrayList<int>), val: Int) -> Void [locals: 2]
+│   local self: ref mut Named(ArrayList<int>)
+│   local val: Int
+│ │ Block {
+│ │ │ If
+│ │ │   cond:
+        Binary { op: Ge, ty: Int }
+          lhs:
+          Binary { op: Add, ty: Int }
+            lhs:
+            FieldAccess len ty=Int
+              Local(v0 : ref mut Named(ArrayList<int>))
+            rhs:
+            Literal(Int(1))
+          rhs:
+          FieldAccess capability ty=Int
+            Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Expr
+            Call(fn77, ty: Void)
+              Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │ │ }
+│ │ │ IndexAssign
+│ │ │   object:
+        FieldAccess data ty=[Int]
+          Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │   index:
+        FieldAccess len ty=Int
+          Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │   value:
+        Local(v1 : Int)
+│ │ │ FieldAssign field=len index=1
+│ │ │   object:
+        Local(v0 : ref mut Named(ArrayList<int>))
+│ │ │   value:
+        Binary { op: Add, ty: Int }
+          lhs:
+          FieldAccess len ty=Int
+            Local(v0 : ref mut Named(ArrayList<int>))
+          rhs:
+          Literal(Int(1))
+│ │ }
+│ Fn index (self: ref Named(ArrayList<int>), index: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 5]
+│   local self: ref Named(ArrayList<int>)
+│   local index: Int
+│   local __line: Int
+│   local __col: Int
+│   local __file: Named(String)
+│ │ Block {
+│ │ │ If
+│ │ │   cond:
+        Binary { op: Or, ty: Bool }
+          lhs:
+          Binary { op: Lt, ty: Int }
+            lhs:
+            Local(v1 : Int)
+            rhs:
+            Literal(Int(0))
+          rhs:
+          Binary { op: Ge, ty: Int }
+            lhs:
+            Local(v1 : Int)
+            rhs:
+            FieldAccess len ty=Int
+              Local(v0 : ref Named(ArrayList<int>))
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Expr
+            Call(fn3, ty: Void)
+              Local(v2 : Int)
+              Local(v3 : Int)
+              Local(v4 : Named(String))
+              Local(v1 : Int)
+              FieldAccess len ty=Int
+                Local(v0 : ref Named(ArrayList<int>))
+│ │ │ │ }
+│ │ │ Return
+        Index ty=Int
+          object:
+          FieldAccess data ty=[Int]
+            Local(v0 : ref Named(ArrayList<int>))
+          index:
+          Local(v1 : Int)
+│ │ }

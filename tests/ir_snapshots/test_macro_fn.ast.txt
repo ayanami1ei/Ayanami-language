@@ -1,0 +1,56 @@
+Program
+│ Import { path: <TMP>/macro_lib.lcl }
+│ FnDecl { name: main, return: Int }
+│   body:
+│ │ Block {
+│ │ │ Assign { name: x }
+│ │ │   value:
+│ │ │ │ MacroCall(double)
+│ │ │ │ │ Int(3)
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(x)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(6)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(1)
+│ │ │ │ }
+│ │ │ Assign { name: y }
+│ │ │   value:
+│ │ │ │ MacroCall(double)
+│ │ │ │ │ MacroCall(double)
+│ │ │ │ │ │ Int(1)
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(y)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(4)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(2)
+│ │ │ │ }
+│ │ │ Assign { name: l }
+│ │ │   value:
+│ │ │ │ MacroCall(my_line)
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Le }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(l)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(0)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(3)
+│ │ │ │ }
+│ │ │ Return
+│ │ │ │ Int(0)
+│ │ }

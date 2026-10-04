@@ -1,0 +1,222 @@
+Program
+│ Import { path: <ROOT>/target/debug/std/string.lcl }
+│ FnDecl { name: bump, return: Void }
+│     i: ref mut Int
+│   body:
+│ │ Block {
+│ │ │ Assign { name: i }
+│ │ │   value:
+│ │ │ │ Binary { op: Add }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(i)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(1)
+│ │ }
+│ FnDecl { name: bump_by, return: Int }
+│     i: ref mut Int
+│     n: Int
+│   body:
+│ │ Block {
+│ │ │ While
+│ │ │ │ Binary { op: Lt }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(i)
+│ │ │ │   rhs:
+│ │ │ │ │ Ident(n)
+│ │ │ │ Block {
+│ │ │ │ │ ExprStmt
+│ │ │ │ │ │ FnCall { name: bump }
+│ │ │ │ │ │   args:
+│ │ │ │ │ │ │ Ident(i)
+│ │ │ │ }
+│ │ │ Return
+│ │ │ │ Ident(i)
+│ │ }
+│ FnDecl { name: add_one, return: Int }
+│     v: Int
+│   body:
+│ │ Block {
+│ │ │ Return
+│ │ │ │ Binary { op: Add }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(v)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(1)
+│ │ }
+│ FnDecl { name: via_value, return: Int }
+│     i: ref mut Int
+│   body:
+│ │ Block {
+│ │ │ Return
+│ │ │ │ FnCall { name: add_one }
+│ │ │ │   args:
+│ │ │ │ │ Ident(i)
+│ │ }
+│ FnDecl { name: total, return: Void }
+│     i: ref Int
+│     acc: ref mut Int
+│   body:
+│ │ Block {
+│ │ │ Assign { name: acc }
+│ │ │   value:
+│ │ │ │ Binary { op: Add }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(acc)
+│ │ │ │   rhs:
+│ │ │ │ │ Ident(i)
+│ │ }
+│ FnDecl { name: set_hi, return: Void }
+│     s: ref mut Named(String)
+│   body:
+│ │ Block {
+│ │ │ Assign { name: s }
+│ │ │   value:
+│ │ │ │ String("hi")
+│ │ }
+│ FnDecl { name: main, return: Int }
+│   body:
+│ │ Block {
+│ │ │ Assign { name: x }
+│ │ │   value:
+│ │ │ │ Int(0)
+│ │ │ ExprStmt
+│ │ │ │ FnCall { name: bump }
+│ │ │ │   args:
+│ │ │ │ │ Ident(x)
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(x)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(1)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(1)
+│ │ │ │ }
+│ │ │ Assign { name: y }
+│ │ │   value:
+│ │ │ │ Int(0)
+│ │ │ Assign { name: r }
+│ │ │   value:
+│ │ │ │ FnCall { name: bump_by }
+│ │ │ │   args:
+│ │ │ │ │ Ident(y)
+│ │ │ │ │ Int(3)
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(r)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(3)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(2)
+│ │ │ │ }
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(y)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(3)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(3)
+│ │ │ │ }
+│ │ │ Assign { name: a }
+│ │ │   value:
+│ │ │ │ Int(10)
+│ │ │ Assign { name: b }
+│ │ │   value:
+│ │ │ │ Int(0)
+│ │ │ ExprStmt
+│ │ │ │ FnCall { name: total }
+│ │ │ │   args:
+│ │ │ │ │ Ident(a)
+│ │ │ │ │ Ident(b)
+│ │ │ ExprStmt
+│ │ │ │ FnCall { name: total }
+│ │ │ │   args:
+│ │ │ │ │ Ident(a)
+│ │ │ │ │ Ident(b)
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(b)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(20)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(4)
+│ │ │ │ }
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(a)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(10)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(5)
+│ │ │ │ }
+│ │ │ Assign { name: c }
+│ │ │   value:
+│ │ │ │ Int(5)
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ FnCall { name: via_value }
+│ │ │ │ │   args:
+│ │ │ │ │ │ Ident(c)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(6)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(6)
+│ │ │ │ }
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(c)
+│ │ │ │   rhs:
+│ │ │ │ │ Int(5)
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(7)
+│ │ │ │ }
+│ │ │ Assign { name: s }
+│ │ │   value:
+│ │ │ │ FnCall { name: String.empty }
+│ │ │ │   args:
+│ │ │ ExprStmt
+│ │ │ │ FnCall { name: set_hi }
+│ │ │ │   args:
+│ │ │ │ │ Ident(s)
+│ │ │ If
+│ │ │   cond:
+│ │ │ │ Binary { op: Neq }
+│ │ │ │   lhs:
+│ │ │ │ │ Ident(s)
+│ │ │ │   rhs:
+│ │ │ │ │ String("hi")
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+│ │ │ │ │ │ Int(8)
+│ │ │ │ }
+│ │ │ Return
+│ │ │ │ Int(0)
+│ │ }

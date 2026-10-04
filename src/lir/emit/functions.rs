@@ -65,7 +65,10 @@ pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String {
 
 impl<'a> Emitter<'a> {
     pub(super) fn emit_struct_defs(&mut self) {
-        for (name, fields) in &self.prog.struct_defs {
+        // 稳定输出：HashMap 迭代顺序不定，按名称排序保证可复现
+        let mut defs: Vec<_> = self.prog.struct_defs.iter().collect();
+        defs.sort_by(|a, b| a.0.as_str().cmp(&b.0.as_str()));
+        for (name, fields) in defs {
             let field_types: Vec<String> = fields.iter()
                 .map(|(_, ty)| self.llvm_type(ty))
                 .collect();

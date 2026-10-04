@@ -1,0 +1,20 @@
+Program
+│ Import { path: <ROOT>/target/debug/std/arraylist.lcl }
+│ FnDecl { name: main, return: Int }
+│   body:
+│ │ Block {
+│ │ │ Assign { name: a }
+│ │ │   value:
+│ │ │ │ FnCall { name: ArrayList.new }
+│ │ │ │   args:
+│ │ │ ExprStmt
+│ │ │ │ MethodCall { method: push }
+│ │ │ │   object:
+│ │ │ │ │ Ident(a)
+│ │ │ │ │ Int(1)
+│ │ │ Return
+│ │ │ │ MethodCall { method: index }
+│ │ │ │   object:
+│ │ │ │ │ Ident(a)
+│ │ │ │ │ Int(5)
+│ │ }

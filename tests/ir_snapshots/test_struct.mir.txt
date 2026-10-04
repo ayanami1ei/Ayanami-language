@@ -1,0 +1,33 @@
+MIR Program
+│ StructDef Point fields=[x:Int, y:Int]
+│ Fn main () -> Int [locals: 3]
+│   local p: Named(Point)
+│   local __ret: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v0 : Named(Point))
+        value:
+        Move(ty: Named(Point))
+          StructLiteral Point fields=2 ty=Named(Point)
+            x:
+            Literal(Int(1))
+            y:
+            Literal(Int(2))
+      Assign
+        target:
+        Local(v1 : Int)
+        value:
+        FieldAccess x ty=Int
+          Local(v0 : Named(Point))
+      Return
+        Local(v1 : Int)
+      Assign
+        target:
+        Local(v2 : Int)
+        value:
+        Literal(Int(0))
+      Return
+        Local(v2 : Int)
+│ │ }

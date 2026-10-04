@@ -1,0 +1,247 @@
+LIR Program
+Strings: 1 entries
+  @__str_0 = "hi"
+
+fn bump (fn_id=73) -> Void [1 blocks]
+  local i: Ref(Int, true)
+entry:
+    alloca v0 : Ref(Int, true)
+    store Param(0) -> v0 : Ref(Int, true)
+    t0 = load v0 : Ref(Int, true)
+    t1 = load v0 : Ref(Int, true)
+    t2 = index_access elem_ty=Int
+    t5 = Add Tmp(2) Literal(Int(1), Int) : Int
+    t0 = index_store elem_ty=Int
+    ret void
+fn bump_by (fn_id=74) -> Int [4 blocks]
+  local i: Ref(Int, true)
+  local n: Int
+  local __ret: Int
+entry:
+    alloca v0 : Ref(Int, true)
+    alloca v1 : Int
+    alloca v2 : Int
+    store Param(0) -> v0 : Ref(Int, true)
+    store Param(1) -> v1 : Int
+    br %while.cond0
+while.cond0:
+    t0 = load v0 : Ref(Int, true)
+    t1 = index_access elem_ty=Int
+    t4 = load v1 : Int
+    t5 = Lt Tmp(1) Tmp(4) : Int
+    br_cond Tmp(5) %while.body1 %while.end2
+while.body1:
+    t6 = load v0 : Ref(Int, true)
+    _ = call fn73 (Tmp(6):Ref(Int, true)) : Void
+    br %while.cond0
+while.end2:
+    t7 = load v0 : Ref(Int, true)
+    t8 = index_access elem_ty=Int
+    store Tmp(8) -> v2 : Int
+    t11 = load v2 : Int
+    ret Tmp(11)
+fn add_one (fn_id=75) -> Int [1 blocks]
+  local v: Int
+  local __ret: Int
+entry:
+    alloca v0 : Int
+    alloca v1 : Int
+    store Param(0) -> v0 : Int
+    t0 = load v0 : Int
+    t1 = Add Tmp(0) Literal(Int(1), Int) : Int
+    store Tmp(1) -> v1 : Int
+    t2 = load v1 : Int
+    ret Tmp(2)
+fn via_value (fn_id=76) -> Int [1 blocks]
+  local i: Ref(Int, true)
+  local __ret: Int
+entry:
+    alloca v0 : Ref(Int, true)
+    alloca v1 : Int
+    store Param(0) -> v0 : Ref(Int, true)
+    t0 = load v0 : Ref(Int, true)
+    t1 = index_access elem_ty=Int
+    t4 = call fn75 (Tmp(1):Int) : Int
+    store Tmp(4) -> v1 : Int
+    t5 = load v1 : Int
+    ret Tmp(5)
+fn total (fn_id=77) -> Void [1 blocks]
+  local i: Ref(Int, false)
+  local acc: Ref(Int, true)
+entry:
+    alloca v0 : Ref(Int, false)
+    alloca v1 : Ref(Int, true)
+    store Param(0) -> v0 : Ref(Int, false)
+    store Param(1) -> v1 : Ref(Int, true)
+    t0 = load v1 : Ref(Int, true)
+    t1 = load v1 : Ref(Int, true)
+    t2 = index_access elem_ty=Int
+    t5 = load v0 : Ref(Int, false)
+    t6 = index_access elem_ty=Int
+    t9 = Add Tmp(2) Tmp(6) : Int
+    t0 = index_store elem_ty=Int
+    ret void
+fn set_hi (fn_id=78) -> Void [1 blocks]
+  local s: Ref(Named(Symbol(10)), true)
+entry:
+    alloca v0 : Ref(Named(Symbol(10)), true)
+    store Param(0) -> v0 : Ref(Named(Symbol(10)), true)
+    t0 = load v0 : Ref(Named(Symbol(10)), true)
+    t1 = str_global @__str_0
+    t2 = struct_lit String (2 fields)
+    t0 = index_store elem_ty=Named(Symbol(10))
+    ret void
+fn main (fn_id=79) -> Int [25 blocks]
+  local x: Int
+  local y: Int
+  local r: Int
+  local a: Int
+  local b: Int
+  local c: Int
+  local s: Named(Symbol(10))
+  local __ret: Int
+  local __ret: Int
+  local __ret: Int
+  local __ret: Int
+  local __ret: Int
+  local __ret: Int
+  local __ret: Int
+  local __ret: Int
+  local __ret: Int
+  local __ret: Int
+entry:
+    alloca v0 : Int
+    alloca v1 : Int
+    alloca v2 : Int
+    alloca v3 : Int
+    alloca v4 : Int
+    alloca v5 : Int
+    alloca v6 : Named(Symbol(10))
+    alloca v7 : Int
+    alloca v8 : Int
+    alloca v9 : Int
+    alloca v10 : Int
+    alloca v11 : Int
+    alloca v12 : Int
+    alloca v13 : Int
+    alloca v14 : Int
+    alloca v15 : Int
+    alloca v16 : Int
+    store Literal(Int(0), Int) -> v0 : Int
+    t0 = ref_mut v0 : Ref(Int, true)
+    _ = call fn73 (Tmp(0):Ref(Int, true)) : Void
+    t1 = load v0 : Int
+    t2 = Neq Tmp(1) Literal(Int(1), Int) : Int
+    br_cond Tmp(2) %then0 %else1
+then0:
+    store Literal(Int(1), Int) -> v7 : Int
+    t3 = load v7 : Int
+    ret Tmp(3)
+    br %ifcont2
+else1:
+    br %ifcont2
+ifcont2:
+    store Literal(Int(0), Int) -> v1 : Int
+    t4 = ref_mut v1 : Ref(Int, true)
+    t5 = call fn74 (Tmp(4):Ref(Int, true), Literal(Int(3), Int):Int) : Int
+    store Tmp(5) -> v2 : Int
+    t6 = load v2 : Int
+    t7 = Neq Tmp(6) Literal(Int(3), Int) : Int
+    br_cond Tmp(7) %then3 %else4
+then3:
+    store Literal(Int(2), Int) -> v8 : Int
+    t8 = load v8 : Int
+    ret Tmp(8)
+    br %ifcont5
+else4:
+    br %ifcont5
+ifcont5:
+    t9 = load v1 : Int
+    t10 = Neq Tmp(9) Literal(Int(3), Int) : Int
+    br_cond Tmp(10) %then6 %else7
+then6:
+    store Literal(Int(3), Int) -> v9 : Int
+    t11 = load v9 : Int
+    ret Tmp(11)
+    br %ifcont8
+else7:
+    br %ifcont8
+ifcont8:
+    store Literal(Int(10), Int) -> v3 : Int
+    store Literal(Int(0), Int) -> v4 : Int
+    t12 = ref_v3 : Ref(Int, false)
+    t13 = ref_mut v4 : Ref(Int, true)
+    _ = call fn77 (Tmp(12):Ref(Int, false), Tmp(13):Ref(Int, true)) : Void
+    t14 = ref_v3 : Ref(Int, false)
+    t15 = ref_mut v4 : Ref(Int, true)
+    _ = call fn77 (Tmp(14):Ref(Int, false), Tmp(15):Ref(Int, true)) : Void
+    t16 = load v4 : Int
+    t17 = Neq Tmp(16) Literal(Int(20), Int) : Int
+    br_cond Tmp(17) %then9 %else10
+then9:
+    store Literal(Int(4), Int) -> v10 : Int
+    t18 = load v10 : Int
+    ret Tmp(18)
+    br %ifcont11
+else10:
+    br %ifcont11
+ifcont11:
+    t19 = load v3 : Int
+    t20 = Neq Tmp(19) Literal(Int(10), Int) : Int
+    br_cond Tmp(20) %then12 %else13
+then12:
+    store Literal(Int(5), Int) -> v11 : Int
+    t21 = load v11 : Int
+    ret Tmp(21)
+    br %ifcont14
+else13:
+    br %ifcont14
+ifcont14:
+    store Literal(Int(5), Int) -> v5 : Int
+    t22 = ref_mut v5 : Ref(Int, true)
+    t23 = call fn76 (Tmp(22):Ref(Int, true)) : Int
+    t24 = Neq Tmp(23) Literal(Int(6), Int) : Int
+    br_cond Tmp(24) %then15 %else16
+then15:
+    store Literal(Int(6), Int) -> v12 : Int
+    t25 = load v12 : Int
+    ret Tmp(25)
+    br %ifcont17
+else16:
+    br %ifcont17
+ifcont17:
+    t26 = load v5 : Int
+    t27 = Neq Tmp(26) Literal(Int(5), Int) : Int
+    br_cond Tmp(27) %then18 %else19
+then18:
+    store Literal(Int(7), Int) -> v13 : Int
+    t28 = load v13 : Int
+    ret Tmp(28)
+    br %ifcont20
+else19:
+    br %ifcont20
+ifcont20:
+    t29 = call fn51 () : Named(Symbol(10))
+    store Tmp(29) -> v6 : Named(Symbol(10))
+    t30 = ref_mut v6 : Ref(Named(Symbol(10)), true)
+    _ = call fn78 (Tmp(30):Ref(Named(Symbol(10)), true)) : Void
+    t31 = ref_v6 : Ref(Named(Symbol(10)), false)
+    t33 = str_global @__str_0
+    t34 = struct_lit String (2 fields)
+    t32 = ref_tmp_ : Named(Symbol(10))
+    t39 = call fn59 (Tmp(31):Ref(Named(Symbol(10)), false), Tmp(32):Ref(Named(Symbol(10)), false)) : Bool
+    br_cond Tmp(39) %then21 %else22
+then21:
+    store Literal(Int(8), Int) -> v14 : Int
+    t40 = load v14 : Int
+    ret Tmp(40)
+    br %ifcont23
+else22:
+    br %ifcont23
+ifcont23:
+    store Literal(Int(0), Int) -> v15 : Int
+    t41 = load v15 : Int
+    ret Tmp(41)
+    store Literal(Int(0), Int) -> v16 : Int
+    t42 = load v16 : Int
+    ret Tmp(42)

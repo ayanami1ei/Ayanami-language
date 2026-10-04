@@ -16,6 +16,7 @@ cd "$(dirname "$0")/.."
 
 if [ "${AYANAMI_SKIP_REGRESSION:-0}" != "1" ]; then
     ./scripts/regression.sh
+    ./scripts/ir_snapshot.sh
 fi
 
 echo "all checks passed"

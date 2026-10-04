@@ -1,0 +1,21 @@
+LIR Program
+Strings: 0 entries
+
+fn main (fn_id=0) -> Int [1 blocks]
+  local p: Named(Symbol(1))
+  local __ret: Int
+  local __ret: Int
+entry:
+    alloca v0 : Named(Symbol(1))
+    alloca v1 : Int
+    alloca v2 : Int
+    t0 = struct_lit Point (2 fields)
+    store Tmp(0) -> v0 : Named(Symbol(1))
+    t4 = load v0 : Named(Symbol(1))
+    t5 = field_access field=0 : Int
+    store Tmp(5) -> v1 : Int
+    t7 = load v1 : Int
+    ret Tmp(7)
+    store Literal(Int(0), Int) -> v2 : Int
+    t8 = load v2 : Int
+    ret Tmp(8)

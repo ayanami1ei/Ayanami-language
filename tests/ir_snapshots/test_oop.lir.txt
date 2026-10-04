@@ -1,0 +1,175 @@
+LIR Program
+Strings: 0 entries
+
+fn draw (fn_id=0) -> Void [1 blocks]
+  local self: Int
+entry:
+    alloca v0 : Int
+    store Param(0) -> v0 : Int
+    ret void
+fn get_id (fn_id=1) -> Int [1 blocks]
+  local self: Int
+  local __ret: Int
+entry:
+    alloca v0 : Int
+    alloca v1 : Int
+    store Param(0) -> v0 : Int
+    t0 = load v0 : Int
+    store Tmp(0) -> v1 : Int
+    t1 = load v1 : Int
+    ret Tmp(1)
+fn resize (fn_id=2) -> Int [1 blocks]
+  local self: Int
+  local factor: Int
+  local __ret: Int
+entry:
+    alloca v0 : Int
+    alloca v1 : Int
+    alloca v2 : Int
+    store Param(0) -> v0 : Int
+    store Param(1) -> v1 : Int
+    t0 = load v0 : Int
+    t1 = load v1 : Int
+    t2 = Add Tmp(0) Tmp(1) : Int
+    store Tmp(2) -> v2 : Int
+    t3 = load v2 : Int
+    ret Tmp(3)
+fn triple (fn_id=3) -> Int [1 blocks]
+  local self: Int
+  local __ret: Int
+entry:
+    alloca v0 : Int
+    alloca v1 : Int
+    store Param(0) -> v0 : Int
+    t0 = load v0 : Int
+    t1 = Mul Tmp(0) Literal(Int(3), Int) : Int
+    store Tmp(1) -> v1 : Int
+    t2 = load v1 : Int
+    ret Tmp(2)
+fn draw (fn_id=4) -> Void [1 blocks]
+  local self: Float
+entry:
+    alloca v0 : Float
+    store Param(0) -> v0 : Float
+    ret void
+fn get_id (fn_id=5) -> Int [1 blocks]
+  local self: Float
+  local __ret: Int
+entry:
+    alloca v0 : Float
+    alloca v1 : Int
+    store Param(0) -> v0 : Float
+    store Literal(Int(0), Int) -> v1 : Int
+    t0 = load v1 : Int
+    ret Tmp(0)
+fn resize (fn_id=6) -> Int [1 blocks]
+  local self: Float
+  local factor: Int
+  local __ret: Int
+entry:
+    alloca v0 : Float
+    alloca v1 : Int
+    alloca v2 : Int
+    store Param(0) -> v0 : Float
+    store Param(1) -> v1 : Int
+    store Literal(Int(0), Int) -> v2 : Int
+    t0 = load v2 : Int
+    ret Tmp(0)
+fn render_drawable (fn_id=7) -> Void [1 blocks]
+  local d: FatPtr { name: Symbol(5), kind: Ref(Void, false) }
+entry:
+    alloca v0 : FatPtr { name: Symbol(5), kind: Ref(Void, false) }
+    store Param(0) -> v0 : FatPtr { name: Symbol(5), kind: Ref(Void, false) }
+    t0 = load v0 : FatPtr { name: Symbol(5), kind: Ref(Void, false) }
+    _ = virtual_call [receiver=t0, slot=1]
+    ret void
+fn get_any_id (fn_id=8) -> Int [1 blocks]
+  local d: FatPtr { name: Symbol(5), kind: Ref(Void, false) }
+  local __ret: Int
+entry:
+    alloca v0 : FatPtr { name: Symbol(5), kind: Ref(Void, false) }
+    alloca v1 : Int
+    store Param(0) -> v0 : FatPtr { name: Symbol(5), kind: Ref(Void, false) }
+    t0 = load v0 : FatPtr { name: Symbol(5), kind: Ref(Void, false) }
+    t1 = virtual_call [receiver=t0, slot=2]
+    store Tmp(1) -> v1 : Int
+    t6 = load v1 : Int
+    ret Tmp(6)
+fn scale (fn_id=9) -> Int [1 blocks]
+  local r: FatPtr { name: Symbol(8), kind: Ref(Void, false) }
+  local f: Int
+  local __ret: Int
+entry:
+    alloca v0 : FatPtr { name: Symbol(8), kind: Ref(Void, false) }
+    alloca v1 : Int
+    alloca v2 : Int
+    store Param(0) -> v0 : FatPtr { name: Symbol(8), kind: Ref(Void, false) }
+    store Param(1) -> v1 : Int
+    t0 = load v0 : FatPtr { name: Symbol(8), kind: Ref(Void, false) }
+    t1 = load v1 : Int
+    t2 = virtual_call [receiver=t0, slot=1]
+    store Tmp(2) -> v2 : Int
+    t7 = load v2 : Int
+    ret Tmp(7)
+fn main (fn_id=10) -> Int [1 blocks]
+  local a: Int
+  local b: Float
+  local id1: Int
+  local id2: Int
+  local result: Int
+  local result2: Int
+  local t: Int
+  local __ret: Int
+  local __ret: Int
+entry:
+    alloca v0 : Int
+    alloca v1 : Float
+    alloca v2 : Int
+    alloca v3 : Int
+    alloca v4 : Int
+    alloca v5 : Int
+    alloca v6 : Int
+    alloca v7 : Int
+    alloca v8 : Int
+    store Literal(Int(42), Int) -> v0 : Int
+    store Literal(Float(3.0), Float) -> v1 : Float
+    t0 = ref_v0 : Ref(Int, false)
+    t1 = make_fatptr vtable=vtable_int_Drawable
+    _ = call fn7 (Tmp(1):FatPtr { name: Symbol(5), kind: Ref(Void, false) }) : Void
+    t6 = ref_v1 : Ref(Float, false)
+    t7 = make_fatptr vtable=vtable_float_Drawable
+    _ = call fn7 (Tmp(7):FatPtr { name: Symbol(5), kind: Ref(Void, false) }) : Void
+    t12 = ref_v0 : Ref(Int, false)
+    t13 = make_fatptr vtable=vtable_int_Drawable
+    t18 = call fn8 (Tmp(13):FatPtr { name: Symbol(5), kind: Ref(Void, false) }) : Int
+    store Tmp(18) -> v2 : Int
+    t19 = ref_v1 : Ref(Float, false)
+    t20 = make_fatptr vtable=vtable_float_Drawable
+    t25 = call fn8 (Tmp(20):FatPtr { name: Symbol(5), kind: Ref(Void, false) }) : Int
+    store Tmp(25) -> v3 : Int
+    t26 = ref_v0 : Ref(Int, false)
+    t27 = make_fatptr vtable=vtable_int_Resizable
+    t32 = call fn9 (Tmp(27):FatPtr { name: Symbol(8), kind: Ref(Void, false) }, Literal(Int(8), Int):Int) : Int
+    store Tmp(32) -> v4 : Int
+    t33 = ref_v1 : Ref(Float, false)
+    t34 = make_fatptr vtable=vtable_float_Resizable
+    t39 = call fn9 (Tmp(34):FatPtr { name: Symbol(8), kind: Ref(Void, false) }, Literal(Int(5), Int):Int) : Int
+    store Tmp(39) -> v5 : Int
+    t40 = load v0 : Int
+    t41 = call fn3 (Tmp(40):Int) : Int
+    store Tmp(41) -> v6 : Int
+    t42 = load v4 : Int
+    t43 = load v5 : Int
+    t44 = Add Tmp(42) Tmp(43) : Int
+    t45 = load v6 : Int
+    t46 = Add Tmp(44) Tmp(45) : Int
+    t47 = load v2 : Int
+    t48 = Sub Tmp(46) Tmp(47) : Int
+    t49 = load v3 : Int
+    t50 = Sub Tmp(48) Tmp(49) : Int
+    store Tmp(50) -> v7 : Int
+    t51 = load v7 : Int
+    ret Tmp(51)
+    store Literal(Int(0), Int) -> v8 : Int
+    t52 = load v8 : Int
+    ret Tmp(52)

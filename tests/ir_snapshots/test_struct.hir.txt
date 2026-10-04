@@ -1,0 +1,21 @@
+HIR Program
+│ StructDef Point fields=[x: Int, y: Int]
+│ Fn main () -> Int [locals: 1]
+│   local p: Named(Point)
+│ │ Block {
+│ │ │ Assign
+│ │ │   target:
+        Local(v0 : Named(Point))
+│ │ │   value:
+        Move(ty: Named(Point))
+          StructLiteral Point fields=2 ty=Named(Point)
+            x:
+            Literal(Int(1))
+            y:
+            Literal(Int(2))
+│ │ │ Return
+        FieldAccess x ty=Int
+          Local(v0 : Named(Point))
+│ │ │ Return
+        Literal(Int(0))
+│ │ }

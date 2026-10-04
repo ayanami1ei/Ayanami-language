@@ -1,0 +1,330 @@
+MIR Program
+│ Fn bump (i: ref mut Int) -> Void [locals: 1]
+│   local i: ref mut Int
+│ │ Block {
+      DerefAssign
+        target:
+        Local(v0 : ref mut Int)
+        value:
+        Binary { op: Add, ty: Int }
+          lhs:
+          Deref ty=Int
+            Local(v0 : ref mut Int)
+          rhs:
+          Literal(Int(1))
+│ │ }
+│ Fn bump_by (i: ref mut Int, n: Int) -> Int [locals: 3]
+│   local i: ref mut Int
+│   local n: Int
+│   local __ret: Int
+│ │ Block {
+      While
+        cond:
+        Binary { op: Lt, ty: Int }
+          lhs:
+          Deref ty=Int
+            Local(v0 : ref mut Int)
+          rhs:
+          Local(v1 : Int)
+        body:
+        Block {
+          Expr
+            Call(fn73, ty: Void)
+              Local(v0 : ref mut Int)
+        }
+      Assign
+        target:
+        Local(v2 : Int)
+        value:
+        Deref ty=Int
+          Local(v0 : ref mut Int)
+      Return
+        Local(v2 : Int)
+│ │ }
+│ Fn add_one (v: Int) -> Int [locals: 2]
+│   local v: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v1 : Int)
+        value:
+        Binary { op: Add, ty: Int }
+          lhs:
+          Local(v0 : Int)
+          rhs:
+          Literal(Int(1))
+      Return
+        Local(v1 : Int)
+│ │ }
+│ Fn via_value (i: ref mut Int) -> Int [locals: 2]
+│   local i: ref mut Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v1 : Int)
+        value:
+        Call(fn75, ty: Int)
+          Deref ty=Int
+            Local(v0 : ref mut Int)
+      Return
+        Local(v1 : Int)
+│ │ }
+│ Fn total (i: ref Int, acc: ref mut Int) -> Void [locals: 2]
+│   local i: ref Int
+│   local acc: ref mut Int
+│ │ Block {
+      DerefAssign
+        target:
+        Local(v1 : ref mut Int)
+        value:
+        Binary { op: Add, ty: Int }
+          lhs:
+          Deref ty=Int
+            Local(v1 : ref mut Int)
+          rhs:
+          Deref ty=Int
+            Local(v0 : ref Int)
+│ │ }
+│ Fn set_hi (s: ref mut Named(String)) -> Void [locals: 1]
+│   local s: ref mut Named(String)
+│ │ Block {
+      DerefAssign
+        target:
+        Local(v0 : ref mut Named(String))
+        value:
+        Move(ty: Named(String))
+          Literal(String("hi"))
+│ │ }
+│ Fn main () -> Int [locals: 17]
+│   local x: Int
+│   local y: Int
+│   local r: Int
+│   local a: Int
+│   local b: Int
+│   local c: Int
+│   local s: Named(String)
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│   local __ret: Int
+│ │ Block {
+      Assign
+        target:
+        Local(v0 : Int)
+        value:
+        Literal(Int(0))
+      Expr
+        Call(fn73, ty: Void)
+          Ref(mut ty: ref mut Int)
+            Local(v0 : Int)
+      If
+        cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v0 : Int)
+          rhs:
+          Literal(Int(1))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v7 : Int)
+            value:
+            Literal(Int(1))
+          Return
+            Local(v7 : Int)
+        }
+      Assign
+        target:
+        Local(v1 : Int)
+        value:
+        Literal(Int(0))
+      Assign
+        target:
+        Local(v2 : Int)
+        value:
+        Call(fn74, ty: Int)
+          Ref(mut ty: ref mut Int)
+            Local(v1 : Int)
+          Literal(Int(3))
+      If
+        cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v2 : Int)
+          rhs:
+          Literal(Int(3))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v8 : Int)
+            value:
+            Literal(Int(2))
+          Return
+            Local(v8 : Int)
+        }
+      If
+        cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v1 : Int)
+          rhs:
+          Literal(Int(3))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v9 : Int)
+            value:
+            Literal(Int(3))
+          Return
+            Local(v9 : Int)
+        }
+      Assign
+        target:
+        Local(v3 : Int)
+        value:
+        Literal(Int(10))
+      Assign
+        target:
+        Local(v4 : Int)
+        value:
+        Literal(Int(0))
+      Expr
+        Call(fn77, ty: Void)
+          Ref(ty: ref Int)
+            Local(v3 : Int)
+          Ref(mut ty: ref mut Int)
+            Local(v4 : Int)
+      Expr
+        Call(fn77, ty: Void)
+          Ref(ty: ref Int)
+            Local(v3 : Int)
+          Ref(mut ty: ref mut Int)
+            Local(v4 : Int)
+      If
+        cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v4 : Int)
+          rhs:
+          Literal(Int(20))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v10 : Int)
+            value:
+            Literal(Int(4))
+          Return
+            Local(v10 : Int)
+        }
+      If
+        cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v3 : Int)
+          rhs:
+          Literal(Int(10))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v11 : Int)
+            value:
+            Literal(Int(5))
+          Return
+            Local(v11 : Int)
+        }
+      Assign
+        target:
+        Local(v5 : Int)
+        value:
+        Literal(Int(5))
+      If
+        cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Call(fn76, ty: Int)
+            Ref(mut ty: ref mut Int)
+              Local(v5 : Int)
+          rhs:
+          Literal(Int(6))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v12 : Int)
+            value:
+            Literal(Int(6))
+          Return
+            Local(v12 : Int)
+        }
+      If
+        cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v5 : Int)
+          rhs:
+          Literal(Int(5))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v13 : Int)
+            value:
+            Literal(Int(7))
+          Return
+            Local(v13 : Int)
+        }
+      Assign
+        target:
+        Local(v6 : Named(String))
+        value:
+        Move(ty: Named(String))
+          Call(fn51, ty: Named(String))
+      Expr
+        Call(fn78, ty: Void)
+          Ref(mut ty: ref mut Named(String))
+            Local(v6 : Named(String))
+      If
+        cond:
+        Call(fn59, ty: Bool)
+          Ref(ty: ref Named(String))
+            Local(v6 : Named(String))
+          Ref(ty: ref Named(String))
+            Literal(String("hi"))
+        then:
+        Block {
+          Assign
+            target:
+            Local(v14 : Int)
+            value:
+            Literal(Int(8))
+          Return
+            Local(v14 : Int)
+        }
+      Assign
+        target:
+        Local(v15 : Int)
+        value:
+        Literal(Int(0))
+      Return
+        Local(v15 : Int)
+      Assign
+        target:
+        Local(v16 : Int)
+        value:
+        Literal(Int(0))
+      Return
+        Local(v16 : Int)
+│ │ }

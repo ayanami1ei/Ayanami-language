@@ -1,0 +1,78 @@
+HIR Program
+│ Fn main () -> Int [locals: 3]
+│   local x: Int
+│   local y: Int
+│   local l: Int
+│ │ Block {
+│ │ │ Assign
+│ │ │   target:
+        Local(v0 : Int)
+│ │ │   value:
+        Binary { op: Add, ty: Int }
+          lhs:
+          Literal(Int(3))
+          rhs:
+          Literal(Int(3))
+│ │ │ If
+│ │ │   cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v0 : Int)
+          rhs:
+          Literal(Int(6))
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+            Literal(Int(1))
+│ │ │ │ }
+│ │ │ Assign
+│ │ │   target:
+        Local(v1 : Int)
+│ │ │   value:
+        Binary { op: Add, ty: Int }
+          lhs:
+          Binary { op: Add, ty: Int }
+            lhs:
+            Literal(Int(1))
+            rhs:
+            Literal(Int(1))
+          rhs:
+          Binary { op: Add, ty: Int }
+            lhs:
+            Literal(Int(1))
+            rhs:
+            Literal(Int(1))
+│ │ │ If
+│ │ │   cond:
+        Binary { op: Neq, ty: Int }
+          lhs:
+          Local(v1 : Int)
+          rhs:
+          Literal(Int(4))
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+            Literal(Int(2))
+│ │ │ │ }
+│ │ │ Assign
+│ │ │   target:
+        Local(v2 : Int)
+│ │ │   value:
+        Literal(Int(12))
+│ │ │ If
+│ │ │   cond:
+        Binary { op: Le, ty: Int }
+          lhs:
+          Local(v2 : Int)
+          rhs:
+          Literal(Int(0))
+│ │ │   then:
+│ │ │ │ Block {
+│ │ │ │ │ Return
+            Literal(Int(3))
+│ │ │ │ }
+│ │ │ Return
+        Literal(Int(0))
+│ │ │ Return
+        Literal(Int(0))
+│ │ }
