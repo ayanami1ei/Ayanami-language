@@ -21,6 +21,7 @@ trap 'rm -f "$tmpfile"' EXIT
     echo ""
     echo "> 本文件由 scripts/gen_symbols.sh 自动生成，请勿手改。重新生成：./scripts/gen_symbols.sh"
     echo "> 查询：rg \"关键词\" SYMBOLS.md"
+    echo "> 标准库（std/）符号由 [Ayanami-std](https://github.com/ayanami1ei/Ayanami-std) 子仓自行维护，见其 SYMBOLS.md。"
     echo ""
     echo "## Rust"
 } > "$tmpfile"
@@ -37,15 +38,6 @@ rg --line-number --sort path --no-heading --color never \
     echo ""
     echo "## Ayanami (.aya)"
 } >> "$tmpfile"
-
-if [[ -d "std" ]]; then
-    rg --line-number --sort path --no-heading --color never \
-        '^[[:space:]]*(pub[[:space:]]+)?(fn|struct|enum|interface|impl|type)([^A-Za-z0-9_]|$)' \
-        --glob="*.aya" \
-        std \
-        | sed -E 's/^([^:]+:[0-9]+:)[[:space:]]*/\1 /; s/[[:space:]]+$//; s/[[:space:]]*\{$//' \
-        >> "$tmpfile" || true
-fi
 
 if [[ -d "example" ]]; then
     rg --line-number --sort path --no-heading --color never \

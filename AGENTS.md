@@ -61,7 +61,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 
 1. 先查符号地图：`rg "关键词" SYMBOLS.md`
    - 每行格式为 `路径:行号: 签名`，一次检索即可定位；不要整读 `SYMBOLS.md`（约 100KB）。
-   - 覆盖 Rust 源码 + `std/`、`example/` 的 `.aya`，不含 `src/generated/`。
+   - 覆盖 Rust 源码 + `example/` 的 `.aya`，不含 `src/generated/`；`std/` 符号由 std 子仓自行维护，不进入主仓符号地图。
 2. 再精读目标文件的相邻代码：`rg -n -C 5 "符号名" <文件>`。
 3. 改完代码若增删了定义，跑 `./scripts/gen_symbols.sh` 更新索引，保持 `--check` 通过。
 4. 大范围探索先派子代理，只把结论带回主会话。
