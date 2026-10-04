@@ -2,6 +2,23 @@ use super::*;
 
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox> {
+        // `Type.method(...)`：类型名不是变量；若有同名命名空间函数/类型，提示用 `::`
+        if let Expr::Ident(rname, _) = object.as_ref() {
+            if self.lookup_var(rname).is_none() {
+                let qualified = Symbol::intern(&format!("{}.{}", rname, method));
+                let has_ns_fn = self.fn_map.contains_key(&qualified)
+                    || self.generic_fns.iter().any(|(n, _, _)| *n == qualified);
+                let is_type = self.struct_defs.contains_key(rname)
+                    || self.is_enum_type(rname)
+                    || self.type_ifaces.contains_key(rname);
+                if has_ns_fn || is_type {
+                    return Err(Error::Hir(format!(
+                        "type `{}` has no method `{}`; associated functions use `{}::{}()` (namespace call) at {}:{}",
+                        rname, method, rname, method, span.start_line, span.start_col
+                    )));
+                }
+            }
+        }
         // Lower the receiver first
         let receiver = self.lower_expr(object)?;
         let receiver_ty = expr_type(&receiver);

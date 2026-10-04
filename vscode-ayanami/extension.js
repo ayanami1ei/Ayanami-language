@@ -148,6 +148,27 @@ function activate(context) {
                 const varName = dotMatch[1];
                 const typeName = receiverTypeAt(varTypes, varName, position);
                 const baseType = typeName ? String(typeName).split('<')[0].split('[')[0].trim() : null;
+                if (!baseType) {
+                    // 类型名后写 `.`：提示关联函数并改写为 `Type::fn`
+                    const isTypeName = structs.some((x) => x.name === varName)
+                        || allEnums.some((e) => e.name === varName)
+                        || namespaces.includes(varName);
+                    const nsFns = fnByNs[varName] || [];
+                    if (isTypeName && nsFns.length) {
+                        const dotStart = new vscode.Position(position.line, Math.max(0, position.character - varName.length - 1));
+                        const seenNs = new Set();
+                        for (const fnName of nsFns) {
+                            if (seenNs.has(fnName)) continue;
+                            seenNs.add(fnName);
+                            const item = makeItem(fnName, vscode.CompletionItemKind.Function, `${varName}::${fnName}()（关联函数）`);
+                            item.range = new vscode.Range(dotStart, position);
+                            item.insertText = `${varName}::${fnName}`;
+                            item.filterText = fnName;
+                            items.push(item);
+                        }
+                    }
+                    return items;
+                }
                 if (baseType) {
                     const seenFields = new Set();
                     const st = structs.find((x) => x.name === baseType);
@@ -1094,7 +1115,9 @@ function scanFunctions(doc) {
 function groupByNamespace(fns) {
     const groups = {};
     for (const f of fns) {
-        const parts = f.split('.');
+        const full = typeof f === 'string' ? f : (f && f.name);
+        if (!full) continue;
+        const parts = full.split('.');
         if (parts.length > 1) {
             const ns = parts.slice(0, -1).join('.');
             const name = parts[parts.length - 1];
@@ -1209,8 +1232,8 @@ function scanVariableTypes(doc) {
             varTypes.set(varName, structMatch[1]);
             continue;
         }
-        // Enum constructor: EnumType::Variant(args)
-        const enumMatch = coreRhs.match(/^(\w+)::\w+\s*\(/);
+        // Enum constructor / 关联函数: Type::Variant(args) 或 Type::new[T](args)
+        const enumMatch = coreRhs.match(/^(\w+)::\w+(?:\[[^\]]*\])?\s*\(/);
         if (enumMatch) {
             varTypes.set(varName, enumMatch[1]);
             continue;
