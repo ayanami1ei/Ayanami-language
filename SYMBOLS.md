@@ -12,18 +12,20 @@ src/cli/check.rs:36: fn watch_file(path: &Path)
 src/cli/clean.rs:3: pub(crate) fn cmd_clean()
 src/cli/defs.rs:3: pub(crate) fn cmd_defs(args: &[String])
 src/cli/defs.rs:43: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
+src/cli/dump.rs:4: pub(crate) fn cmd_dump(args: &[String])
 src/cli/fmt.rs:3: pub(crate) fn cmd_fmt(args: &[String])
 src/cli/mod.rs:7: pub(crate) mod build;
 src/cli/mod.rs:8: pub(crate) mod check;
 src/cli/mod.rs:9: pub(crate) mod clean;
 src/cli/mod.rs:10: pub(crate) mod defs;
-src/cli/mod.rs:11: pub(crate) mod fmt;
-src/cli/mod.rs:12: pub(crate) mod new;
-src/cli/mod.rs:13: pub(crate) mod types;
-src/cli/mod.rs:14: pub(crate) mod package_install;
-src/cli/mod.rs:26: pub(crate) struct CliFlags
-src/cli/mod.rs:32: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
-src/cli/mod.rs:46: pub(crate) fn apply_mode(flags: &CliFlags)
+src/cli/mod.rs:11: pub(crate) mod dump;
+src/cli/mod.rs:12: pub(crate) mod fmt;
+src/cli/mod.rs:13: pub(crate) mod new;
+src/cli/mod.rs:14: pub(crate) mod types;
+src/cli/mod.rs:15: pub(crate) mod package_install;
+src/cli/mod.rs:28: pub(crate) struct CliFlags
+src/cli/mod.rs:34: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
+src/cli/mod.rs:48: pub(crate) fn apply_mode(flags: &CliFlags)
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
@@ -876,11 +878,11 @@ src/lir/emit/functions.rs:14: pub(super) fn llvm_attr_suffix(
 src/lir/emit/functions.rs:54: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
 src/lir/emit/functions.rs:66: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:67: pub(super) fn emit_struct_defs(&mut self)
-src/lir/emit/functions.rs:84: pub(super) fn emit_string_globals(&mut self)
-src/lir/emit/functions.rs:104: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:144: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:161: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:175: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:87: pub(super) fn emit_string_globals(&mut self)
+src/lir/emit/functions.rs:107: pub(super) fn emit_fn(&mut self, f: &LirFn)
+src/lir/emit/functions.rs:147: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:164: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:178: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -1507,11 +1509,11 @@ src/lir/serialize/reader.rs:25: pub(super) fn ty(&mut self) -> Result<HirType>
 src/lir/serialize/write.rs:7: pub(super) fn put_inst(buf: &mut Vec<u8>, inst: &LirNodeBox)
 src/lir/serialize/write.rs:11: pub(super) fn put_fn(buf: &mut Vec<u8>, f: &LirFn)
 src/main.rs:18: fn main()
-src/main.rs:57: pub(crate) fn find_project(dir: &Path) -> Option<(PathBuf, String)>
-src/main.rs:72: pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBuf>
-src/main.rs:81: pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf
-src/main.rs:109: mod cli;
-src/main.rs:113: pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
+src/main.rs:59: pub(crate) fn find_project(dir: &Path) -> Option<(PathBuf, String)>
+src/main.rs:74: pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBuf>
+src/main.rs:83: pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf
+src/main.rs:111: mod cli;
+src/main.rs:115: pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
 src/mir/borrow/cfg.rs:5: pub enum Payload<'a>
 src/mir/borrow/cfg.rs:14: pub struct Node<'a>
 src/mir/borrow/cfg.rs:25: pub struct Cfg<'a>
