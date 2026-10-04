@@ -73,7 +73,7 @@ Rust 风格的基本整数类型：显式位宽与符号、无隐式提升、溢
 |---|---|
 | HIR 类型变体 | `src/hir/ty.rs` → `HirType::IntN { bits, signed }` |
 | 类型名解析 | `src/hir/lower/helpers/types.rs` → `fixed_width_int`（AST `Named` 与 `.lcl` 签名共用） |
-| 字面量适配 | `src/hir/lower/helpers/coerce.rs`（`as_int_literal` / `retype_int_literal`）、`expr_ops1.rs`、`wrap.rs`、`part_05.rs`（字面量感知重载解析） |
+| 字面量适配 | `src/hir/lower/helpers/coerce.rs`（`as_int_literal` / `retype_int_literal`）、`expr_ops1.rs`、`wrap.rs`、`overload_resolve.rs`（字面量感知重载解析） |
 | 负数数 | `HirNode::as_neg_int_literal`（`src/hir/lower/to_mir/basic.rs`） |
 | LLVM 发射 | `src/lir/emit/types.rs`、`src/lir/ir/nodes_a.rs`（算术 / 比较 / 一元负号） |
 | 布局与名字 | `src/lir/ir/helpers.rs`、`src/lir/lower/names.rs`、`src/lir/serialize/reader.rs`（类型 tag 13） |

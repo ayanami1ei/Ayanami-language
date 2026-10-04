@@ -7,7 +7,7 @@
 
 ## 1. 现状与问题
 
-- 泛型**函数**已单态化（`hir/lower/body/part_06.rs`）。
+- 泛型**函数**已单态化（`hir/lower/body/generic_specialize.rs`）。
 - 泛型**结构体/枚举**只有「基名」定义：
   - `struct_defs["Result"] = [ _tag: Int, _data_Ok: Named("Result_Ok"), _data_Err: Named("Result_Err") ]`
   - `struct_defs["Result_Ok"] = [ _0: Named(T) ]`（泛型参数未替换）
@@ -82,7 +82,7 @@
 ## 5. 影响面与风险
 
 - 涉及：`hir/lower/ctx.rs`（实例化）、`hir/lower/helpers/types.rs`（替换）、
-  `hir/lower/body/expr_enum.rs`（构造）、`hir/lower/body/part_07.rs`/`part_06.rs`（触发点）、
+  `hir/lower/body/expr_enum.rs`（构造）、`hir/lower/body/lower_items.rs`/`generic_specialize.rs`（触发点）、
   `hir/node.rs`（`SStruct` 重建辅助）。
 - 风险：期望类型缺失时的实例化选择（保守报错）；同一基名不同实例化的 LLVM 类型隔离
   （以完整名为键即可）；泛型方法自引用（`Result[T,E]` 泛型 impl）需先实例化再看方法体。

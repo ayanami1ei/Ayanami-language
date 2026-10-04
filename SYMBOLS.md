@@ -389,8 +389,12 @@ src/hir/lower/body/block_lower.rs:8: pub(crate) fn lower_block(&mut self, block:
 src/hir/lower/body/block_lower.rs:14: pub(crate) fn lower_block_impl(&mut self, block: &Block, tail_as_value: bool) -> Result<(HirBlock, Option<HirNodeBox>)>
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
+src/hir/lower/body/collect_fns.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/collect_fns.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_import.rs:4: pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str, stmt_span: crate::span::Span) -> Result<()>
+src/hir/lower/body/collect_ns.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/collect_ns.rs:4: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
 src/hir/lower/body/ensure.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/ensure.rs:10: pub(crate) fn inject_ensures(
 src/hir/lower/body/ensure.rs:57: impl crate::hir::lower::Ctx
@@ -414,6 +418,8 @@ src/hir/lower/body/expr_cast.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_cast.rs:5: pub(crate) fn lower_cast(&mut self, inner: &Box<Expr>, ty: &Type, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_lower.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_lower.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
 src/hir/lower/body/expr_method.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_method.rs:4: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_misc.rs:3: impl crate::hir::lower::Ctx
@@ -423,6 +429,26 @@ src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:153: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:198: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/generic_specialize.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
+src/hir/lower/body/generic_specialize.rs:11: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId>
+src/hir/lower/body/iface_match.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/iface_match.rs:4: pub(crate) fn infer_iface_generic(
+src/hir/lower/body/iface_match.rs:17: pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
+src/hir/lower/body/iface_match.rs:30: pub(crate) fn type_matches(a: &HirType, b: &HirType) -> bool
+src/hir/lower/body/iface_match.rs:43: pub(crate) fn find_fn_by_sig(&self, name: Symbol, param_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/iface_match.rs:56: pub(crate) fn extract_concrete_type_name(ty: &HirType) -> Option<Symbol>
+src/hir/lower/body/iface_match.rs:71: pub(crate) fn is_fatptr_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
+src/hir/lower/body/iface_match.rs:109: pub(crate) fn check_generic_fns_for_iface(&self, type_name: &Symbol, iface_name: &Symbol) -> bool
+src/hir/lower/body/iface_match.rs:144: pub(crate) fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<()>
+src/hir/lower/body/iface_match.rs:181: pub(crate) fn register_generic_vtable(
+src/hir/lower/body/literal.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/literal.rs:4: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
+src/hir/lower/body/lower_items.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/lower_items.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>>
+src/hir/lower/body/lower_items.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
+src/hir/lower/body/lower_items.rs:115: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
+src/hir/lower/body/lower_items.rs:146: pub(crate) fn lower_fn(
 src/hir/lower/body/macro_call.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_lower.rs:7: impl crate::hir::lower::Ctx
@@ -435,22 +461,22 @@ src/hir/lower/body/match_lower.rs:117: fn enum_variant_count(&self, name: &Symbo
 src/hir/lower/body/match_lower.rs:124: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
 src/hir/lower/body/match_lower.rs:151: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_lower.rs:202: fn match_result_type(a: &HirType, b: &HirType) -> HirType
-src/hir/lower/body/mod.rs:10: mod part_01;
-src/hir/lower/body/mod.rs:11: mod part_02;
-src/hir/lower/body/mod.rs:12: mod part_03;
-src/hir/lower/body/mod.rs:13: mod part_04;
-src/hir/lower/body/mod.rs:14: mod part_05;
-src/hir/lower/body/mod.rs:15: mod part_06;
-src/hir/lower/body/mod.rs:16: mod part_07;
-src/hir/lower/body/mod.rs:17: mod part_08;
+src/hir/lower/body/mod.rs:10: mod collect_fns;
+src/hir/lower/body/mod.rs:11: mod collect_ns;
+src/hir/lower/body/mod.rs:12: mod vtables;
+src/hir/lower/body/mod.rs:13: mod iface_match;
+src/hir/lower/body/mod.rs:14: mod overload_resolve;
+src/hir/lower/body/mod.rs:15: mod generic_specialize;
+src/hir/lower/body/mod.rs:16: mod lower_items;
+src/hir/lower/body/mod.rs:17: mod stmt_lower;
 src/hir/lower/body/mod.rs:18: mod ref_assign;
 src/hir/lower/body/mod.rs:19: mod expr_method;
 src/hir/lower/body/mod.rs:20: mod match_lower;
 src/hir/lower/body/mod.rs:21: mod usage_infer;
 src/hir/lower/body/mod.rs:22: mod macro_call;
-src/hir/lower/body/mod.rs:23: mod part_09;
+src/hir/lower/body/mod.rs:23: mod expr_lower;
 src/hir/lower/body/mod.rs:24: mod ensure;
-src/hir/lower/body/mod.rs:25: mod part_10;
+src/hir/lower/body/mod.rs:25: mod literal;
 src/hir/lower/body/mod.rs:26: mod collect_enum;
 src/hir/lower/body/mod.rs:27: mod collect_import;
 src/hir/lower/body/mod.rs:28: mod expr_access;
@@ -461,55 +487,29 @@ src/hir/lower/body/mod.rs:32: mod expr_cast;
 src/hir/lower/body/mod.rs:33: mod expr_enum;
 src/hir/lower/body/mod.rs:34: mod expr_misc;
 src/hir/lower/body/mod.rs:35: mod expr_ops1;
-src/hir/lower/body/part_01.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_01.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
-src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_02.rs:4: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
-src/hir/lower/body/part_03.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_03.rs:6: pub(crate) fn build_vtables(&mut self) -> Result<()>
-src/hir/lower/body/part_03.rs:75: pub(crate) fn try_match_interface(
-src/hir/lower/body/part_03.rs:137: pub(crate) fn try_match_generic_interface(
-src/hir/lower/body/part_04.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_04.rs:4: pub(crate) fn infer_iface_generic(
-src/hir/lower/body/part_04.rs:17: pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
-src/hir/lower/body/part_04.rs:30: pub(crate) fn type_matches(a: &HirType, b: &HirType) -> bool
-src/hir/lower/body/part_04.rs:43: pub(crate) fn find_fn_by_sig(&self, name: Symbol, param_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/part_04.rs:56: pub(crate) fn extract_concrete_type_name(ty: &HirType) -> Option<Symbol>
-src/hir/lower/body/part_04.rs:71: pub(crate) fn is_fatptr_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
-src/hir/lower/body/part_04.rs:109: pub(crate) fn check_generic_fns_for_iface(&self, type_name: &Symbol, iface_name: &Symbol) -> bool
-src/hir/lower/body/part_04.rs:144: pub(crate) fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<()>
-src/hir/lower/body/part_04.rs:181: pub(crate) fn register_generic_vtable(
-src/hir/lower/body/part_05.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
-src/hir/lower/body/part_05.rs:14: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_05.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
-src/hir/lower/body/part_05.rs:52: pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/part_05.rs:120: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
-src/hir/lower/body/part_05.rs:160: pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
-src/hir/lower/body/part_05.rs:180: pub(crate) fn resolve_method_literals(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
-src/hir/lower/body/part_05.rs:203: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/part_06.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_06.rs:6: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
-src/hir/lower/body/part_06.rs:11: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId>
-src/hir/lower/body/part_07.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_07.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>>
-src/hir/lower/body/part_07.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
-src/hir/lower/body/part_07.rs:115: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
-src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
-src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
-src/hir/lower/body/part_08.rs:161: pub(crate) fn lower_while(
-src/hir/lower/body/part_08.rs:178: pub(crate) fn lower_for(
-src/hir/lower/body/part_09.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_09.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
-src/hir/lower/body/part_10.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/part_10.rs:4: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
+src/hir/lower/body/overload_resolve.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
+src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
+src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
+src/hir/lower/body/overload_resolve.rs:52: pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/overload_resolve.rs:120: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
+src/hir/lower/body/overload_resolve.rs:160: pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
+src/hir/lower/body/overload_resolve.rs:180: pub(crate) fn resolve_method_literals(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
+src/hir/lower/body/overload_resolve.rs:203: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
 src/hir/lower/body/ref_assign.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/ref_assign.rs:6: pub(crate) fn try_lower_ref_assign(
+src/hir/lower/body/stmt_lower.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/stmt_lower.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
+src/hir/lower/body/stmt_lower.rs:161: pub(crate) fn lower_while(
+src/hir/lower/body/stmt_lower.rs:178: pub(crate) fn lower_for(
 src/hir/lower/body/usage_infer.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/usage_infer.rs:10: pub(crate) fn collect_usage_hints(&self, stmts: &[Stmt]) -> HashMap<Symbol, Vec<Type>>
 src/hir/lower/body/usage_infer.rs:26: fn find_elem_usage_stmts(&self, var: &Symbol, stmts: &[Stmt]) -> Option<Type>
 src/hir/lower/body/usage_infer.rs:51: fn find_elem_usage(&self, var: &Symbol, stmt: &Stmt) -> Option<Type>
 src/hir/lower/body/usage_infer.rs:69: fn infer_expr_type_ast(&self, e: &Expr) -> Option<Type>
+src/hir/lower/body/vtables.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/vtables.rs:6: pub(crate) fn build_vtables(&mut self) -> Result<()>
+src/hir/lower/body/vtables.rs:75: pub(crate) fn try_match_interface(
+src/hir/lower/body/vtables.rs:137: pub(crate) fn try_match_generic_interface(
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
 src/hir/lower/ctx.rs:70: impl Ctx
 src/hir/lower/ctx.rs:72: pub fn new() -> Self
