@@ -38,7 +38,7 @@ cmd_sync() {
     fi
     after=$(git rev-parse HEAD)
     echo "== submodules（book/asuka 跟随远端）=="
-    git submodule update --remote book asuka std
+    git submodule update --init --remote book asuka std
     echo "== stage-0：rust 有更新则重建 release =="
     if [[ "$before" != "$after" || ! -x "$ROOT/target/release/ayanami" ]]; then
         cargo build --release
