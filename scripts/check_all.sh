@@ -14,4 +14,8 @@ cd "$(dirname "$0")/.."
 ./scripts/gen_symbols.sh --check
 ./scripts/check_warnings.sh
 
+if [ "${AYANAMI_SKIP_REGRESSION:-0}" != "1" ]; then
+    ./scripts/regression.sh
+fi
+
 echo "all checks passed"

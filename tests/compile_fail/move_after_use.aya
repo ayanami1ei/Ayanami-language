@@ -1,0 +1,8 @@
+import "string";
+
+fn main() -> int {
+    s = "abc";
+    t = s;
+    u = s;
+    return 0;
+}

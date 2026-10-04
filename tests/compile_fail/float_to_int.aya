@@ -1,0 +1,2 @@
+fn f() -> int { return 1.5; }
+fn main() -> int { return f(); }

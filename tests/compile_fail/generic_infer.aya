@@ -1,0 +1,2 @@
+import "arraylist";
+fn main() -> int { a = ArrayList::new(); return 0; }

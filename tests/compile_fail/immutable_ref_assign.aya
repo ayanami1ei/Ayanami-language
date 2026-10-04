@@ -1,0 +1,2 @@
+fn f(ref int i) { i = 1; }
+fn main() -> int { x = 0; f(x); return 0; }

@@ -1,0 +1,2 @@
+import "definitely_missing_pkg";
+fn main() -> int { return 0; }

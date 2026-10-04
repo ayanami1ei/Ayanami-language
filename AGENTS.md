@@ -87,7 +87,8 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 每完成一段必须通过检查并推送（`git push origin rust`）：
 
 ```bash
-./scripts/check_all.sh        # 版本号 + 文件行数 + 符号地图是否过期
+./scripts/check_all.sh        # 版本号 + 文件行数 + 符号地图 + 零告警 + 语言回归
+./scripts/regression.sh       # 单独跑正/负回归（check_all 已包含；AYANAMI_SKIP_REGRESSION=1 可跳过）
 cargo check --all-targets
 cargo test
 ```

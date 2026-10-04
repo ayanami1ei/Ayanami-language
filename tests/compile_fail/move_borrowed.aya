@@ -1,0 +1,8 @@
+import "arraylist";
+
+fn main() -> int {
+    a = ArrayList::new[int]();
+    r = ref a;
+    a = ArrayList::new[int]();
+    return r.len();
+}
