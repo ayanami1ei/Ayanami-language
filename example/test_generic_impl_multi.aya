@@ -1,0 +1,45 @@
+// #68：双泛型参数 impl 的方法解析与单态化（return match）
+pub enum Pair[A, B] {
+    P(A),
+    Q(B),
+}
+
+impl[A, B] Pair[A, B] {
+    pub fn first(self) -> A {
+        return match self {
+            P(v) => v,
+            Q(_) => 0,
+        }
+    }
+    pub fn second(self) -> B {
+        return match self {
+            P(_) => 0,
+            Q(v) => v,
+        }
+    }
+}
+
+pub enum Wrap[T] { W(T) }
+
+impl[T] Wrap[T] {
+    pub fn get(self) -> T {
+        return match self {
+            W(v) => v,
+        }
+    }
+}
+
+fn mk_p() -> Pair[int, int] { return Pair::P(5) }
+fn mk_q() -> Pair[int, int] { return Pair::Q(7) }
+fn mk_f() -> Pair[float, int] { return Pair::P(2.5) }
+fn mk_w() -> Wrap[int] { return Wrap::W(9) }
+
+fn main() -> int {
+    if mk_p().first() != 5 { return 1 }
+    if mk_q().second() != 7 { return 2 }
+    if mk_p().second() != 0 { return 3 }
+    if mk_q().first() != 0 { return 4 }
+    if mk_f().first() != 2.5 { return 5 }     // A=float 实例化
+    if mk_w().get() != 9 { return 6 }         // 单参数泛型（同样修复）
+    return 0
+}

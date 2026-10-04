@@ -431,6 +431,7 @@ src/hir/lower/body/match_lower.rs:89: fn build_match_if(
 src/hir/lower/body/match_lower.rs:117: fn enum_variant_count(&self, name: &Symbol) -> usize
 src/hir/lower/body/match_lower.rs:124: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
 src/hir/lower/body/match_lower.rs:151: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/match_lower.rs:202: fn match_result_type(a: &HirType, b: &HirType) -> HirType
 src/hir/lower/body/mod.rs:10: mod part_01;
 src/hir/lower/body/mod.rs:11: mod part_02;
 src/hir/lower/body/mod.rs:12: mod part_03;
@@ -528,8 +529,8 @@ src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol,
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
 src/hir/lower/ctx_mono.rs:35: pub fn instantiate_named(&mut self, name: Symbol) -> Result<()>
-src/hir/lower/ctx_mono.rs:80: pub fn adapt_enum_args(
-src/hir/lower/ctx_mono.rs:98: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
+src/hir/lower/ctx_mono.rs:81: pub fn adapt_enum_args(
+src/hir/lower/ctx_mono.rs:99: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
 src/hir/lower/helpers/caller.rs:7: pub(crate) fn is_hidden_param(name: &Symbol) -> bool
 src/hir/lower/helpers/caller.rs:12: pub(crate) fn count_hidden_params(params: &[(Symbol, HirType)]) -> usize
 src/hir/lower/helpers/caller.rs:17: pub(crate) fn count_hidden_names<T>(params: &[(Symbol, T)]) -> usize
@@ -546,8 +547,9 @@ src/hir/lower/helpers/coerce.rs:47: pub(crate) fn retype_int_literal(expr: HirNo
 src/hir/lower/helpers/coerce.rs:54: fn is_primitive(ty: &HirType) -> bool
 src/hir/lower/helpers/coerce.rs:62: pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/helpers/convert.rs:3: pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type
-src/hir/lower/helpers/convert.rs:29: pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Option<(Symbol, HirType)>
-src/hir/lower/helpers/convert.rs:81: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
+src/hir/lower/helpers/convert.rs:29: pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Vec<(Symbol, HirType)>
+src/hir/lower/helpers/convert.rs:83: fn split_generic_args(s: &str) -> Vec<&str>
+src/hir/lower/helpers/convert.rs:99: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
 src/hir/lower/helpers/mod.rs:18: mod caller;
 src/hir/lower/helpers/mod.rs:19: mod coerce;
 src/hir/lower/helpers/mod.rs:20: mod convert;
@@ -556,8 +558,8 @@ src/hir/lower/helpers/mod.rs:22: mod types;
 src/hir/lower/helpers/mod.rs:23: mod wrap;
 src/hir/lower/helpers/substitute.rs:4: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
 src/hir/lower/helpers/substitute.rs:30: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
-src/hir/lower/helpers/substitute.rs:136: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
-src/hir/lower/helpers/substitute.rs:144: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
+src/hir/lower/helpers/substitute.rs:144: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
+src/hir/lower/helpers/substitute.rs:152: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
 src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String
 src/hir/lower/helpers/types.rs:28: pub(crate) fn fixed_width_int(name: &str) -> Option<(u8, bool)>
 src/hir/lower/helpers/types.rs:38: pub(crate) fn intn_name(bits: u8, signed: bool) -> String
@@ -579,15 +581,16 @@ src/hir/lower/helpers/wrap.rs:119: pub(crate) fn unary_op_to_fn_name(op: &UnaryO
 src/hir/lower/mod.rs:1: pub mod body;
 src/hir/lower/mod.rs:2: pub mod helpers;
 src/hir/lower/mod.rs:3: pub mod to_mir;
-src/hir/lower/mod.rs:15: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
-src/hir/lower/mod.rs:31: pub(crate) struct FnSig
-src/hir/lower/mod.rs:50: pub(crate) struct InterfaceReg
-src/hir/lower/mod.rs:57: mod ctx;
-src/hir/lower/mod.rs:58: mod ctx_mono;
-src/hir/lower/mod.rs:75: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-src/hir/lower/mod.rs:77: pub fn set_source_path(path: &std::path::Path)
-src/hir/lower/mod.rs:81: pub(crate) fn source_path() -> String
-src/hir/lower/mod.rs:85: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:16: pub(super) fn variant_struct_name(enum_name: &Symbol, variant: &Symbol) -> Symbol
+src/hir/lower/mod.rs:26: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
+src/hir/lower/mod.rs:42: pub(crate) struct FnSig
+src/hir/lower/mod.rs:61: pub(crate) struct InterfaceReg
+src/hir/lower/mod.rs:68: mod ctx;
+src/hir/lower/mod.rs:69: mod ctx_mono;
+src/hir/lower/mod.rs:86: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+src/hir/lower/mod.rs:88: pub fn set_source_path(path: &std::path::Path)
+src/hir/lower/mod.rs:92: pub(crate) fn source_path() -> String
+src/hir/lower/mod.rs:96: pub fn lower_program(program: &Program) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
@@ -1976,6 +1979,18 @@ example/test_follow_with.aya:31: fn caller(ref S x, ref S y) -> ref S
 example/test_follow_with.aya:38: fn pick_ab(ref S a, ref S b) -> ref S { return b }
 example/test_follow_with.aya:41: fn joint(ref S x, ref S y) -> ref S
 example/test_follow_with.aya:46: fn main() -> int
+example/test_generic_impl_multi.aya:2: pub enum Pair[A, B]
+example/test_generic_impl_multi.aya:7: impl[A, B] Pair[A, B]
+example/test_generic_impl_multi.aya:8: pub fn first(self) -> A
+example/test_generic_impl_multi.aya:14: pub fn second(self) -> B
+example/test_generic_impl_multi.aya:22: pub enum Wrap[T] { W(T) }
+example/test_generic_impl_multi.aya:24: impl[T] Wrap[T]
+example/test_generic_impl_multi.aya:25: pub fn get(self) -> T
+example/test_generic_impl_multi.aya:32: fn mk_p() -> Pair[int, int] { return Pair::P(5) }
+example/test_generic_impl_multi.aya:33: fn mk_q() -> Pair[int, int] { return Pair::Q(7) }
+example/test_generic_impl_multi.aya:34: fn mk_f() -> Pair[float, int] { return Pair::P(2.5) }
+example/test_generic_impl_multi.aya:35: fn mk_w() -> Wrap[int] { return Wrap::W(9) }
+example/test_generic_impl_multi.aya:37: fn main() -> int
 example/test_import.aya:3: fn main() -> int
 example/test_int_width.aya:2: fn add32(i32 a, i32 b) -> i32 { return a + b }
 example/test_int_width.aya:3: fn sub32(i32 a, i32 b) -> i32 { return a - b }

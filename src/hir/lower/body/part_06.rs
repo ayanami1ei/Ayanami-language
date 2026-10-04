@@ -92,10 +92,9 @@ impl crate::hir::lower::Ctx {
             }
         } else {
             for ((_, param_ty), arg_ty) in params.iter().take(visible).zip(arg_types.iter()) {
-                let result = infer_generic_from_param(param_ty, arg_ty);
-                if let Some((gp_name, hir_concrete)) = result {
+                for (gp_name, hir_concrete) in infer_generic_from_param(param_ty, arg_ty) {
                     if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
-                        generic_mappings.insert(gp_name, hir_concrete.clone());
+                        generic_mappings.insert(gp_name, hir_concrete);
                     }
                 }
             }

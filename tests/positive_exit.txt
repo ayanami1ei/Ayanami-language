@@ -25,6 +25,7 @@ test_effects.aya 0
 test_ensures.aya 0
 test_ffi_attrs.aya 0
 test_follow_with.aya 0
+test_generic_impl_multi.aya 0
 test_import.aya 30
 test_int_width.aya 0
 test_invariant.aya 0

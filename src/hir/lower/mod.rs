@@ -12,6 +12,17 @@ use crate::hir::*;
 
 /// 从类型名中剥离泛型参数
 /// 例如 "LinkedListNode<T>" → "LinkedListNode"，也处理 "LinkedListNode[T]"
+/// 泛型枚举的变体结构体名：`Base<args>_Variant` → `Base_Variant<args>`
+pub(super) fn variant_struct_name(enum_name: &Symbol, variant: &Symbol) -> Symbol {
+    let s = enum_name.as_str();
+    if let Some(pos) = s.find('<') {
+        let (base, suffix) = (&s[..pos], &s[pos..]);
+        Symbol::intern(&format!("{}_{}{}", base, variant, suffix))
+    } else {
+        Symbol::intern(&format!("{}_{}", enum_name, variant))
+    }
+}
+
 pub(super) fn strip_generic_name(name: &Symbol) -> Symbol {
     let s = name.as_str();
     let pos = s.find('<').or_else(|| s.find('['));

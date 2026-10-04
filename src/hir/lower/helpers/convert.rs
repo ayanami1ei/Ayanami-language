@@ -25,24 +25,26 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
 }
 
 /// Given an AST param type and the corresponding HirType from the lowered arg,
-/// extract the binding for a generic parameter name (if the param type uses it).
-pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Option<(Symbol, HirType)> {
+/// extract bindings for **all** generic parameter names used by the param type.
+pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Vec<(Symbol, HirType)> {
     match (param_ty, arg_ty) {
-        (Type::Named(name, _), _) => Some((*name, arg_ty.clone())),
-        // Generic("LinkedList", [Named("T")]) vs Named("LinkedList<int>") → infer T = int
+        (Type::Named(name, _), _) => vec![(*name, arg_ty.clone())],
+        // Generic("Pair", [A, B]) vs Named("Pair<int,int>") → A = int, B = int
         (Type::Generic(name, params, _), _) => {
+            let mut out = Vec::new();
             let base = name.as_str();
             // 剥离所有所有权包装，获取底层的 Named 类型名
             let stripped = strip_ownership_ref(arg_ty);
             let arg_name = match stripped {
                 HirType::Named(n) => n.as_str(),
-                _ => return None,
+                _ => return out,
             };
             // 如果 arg 本身就是泛型参数（如 Named("T")），直接映射
             for gp in params.iter() {
                 if let Type::Named(gp_name, _) = gp {
                     if arg_name == gp_name.as_str() {
-                        return Some((*gp_name, arg_ty.clone()));
+                        out.push((*gp_name, arg_ty.clone()));
+                        return out;
                     }
                 }
             }
@@ -50,17 +52,16 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
             if let Some(start) = arg_name.find('<') {
                 if &arg_name[..start] == base {
                     let inner = arg_name[start..].trim_start_matches('<').trim_end_matches('>');
-                    let inner_parts: Vec<&str> = inner.split(',').collect();
+                    let inner_parts = split_generic_args(inner);
                     // Decode each inner part: "int" → Int, "String" → Named("String")
                     for (gp, inner_str) in params.iter().zip(inner_parts.iter()) {
                         if let Type::Named(gp_name, _) = gp {
-                            let hir_inner = sig_str_to_hir(inner_str.trim());
-                            return Some((*gp_name, hir_inner));
+                            out.push((*gp_name, sig_str_to_hir(inner_str.trim())));
                         }
                     }
                 }
             }
-            None
+            out
         }
         (Type::Unique(inner, _), HirType::Unique(hir_inner)) => infer_generic_from_param(inner, hir_inner),
         // Param expects wrapper but arg is unwrapped (auto-wrap will handle)
@@ -72,10 +73,27 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
         // 数组形参（[T]）→ 从拥有/借用数组的元素类型推导
         (Type::Array(inner, _), _) => match strip_ownership_ref(arg_ty) {
             HirType::Array(a) | HirType::ArraySized(a, _) => infer_generic_from_param(inner, a),
-            _ => None,
+            _ => Vec::new(),
         },
-        _ => None,
+        _ => Vec::new(),
     }
+}
+
+/// 按顶层逗号切分泛型实参（忽略嵌套 `<>` / `[]` 内的逗号）
+fn split_generic_args(s: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut depth = 0i32;
+    let mut start = 0usize;
+    for (i, c) in s.char_indices() {
+        match c {
+            '<' | '[' => depth += 1,
+            '>' | ']' => depth -= 1,
+            ',' if depth == 0 => { out.push(&s[start..i]); start = i + 1; }
+            _ => {}
+        }
+    }
+    out.push(&s[start..]);
+    out
 }
 
 pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType {

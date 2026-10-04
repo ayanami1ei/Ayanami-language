@@ -113,7 +113,15 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
             Box::new(substitute_type_in_expr(inner, subst)),
             *span,
         ),
-        Expr::Match { .. } => todo!(),
+        Expr::Match { value, arms, span } => Expr::Match {
+            value: Box::new(substitute_type_in_expr(value, subst)),
+            arms: arms.iter().map(|a| crate::parser::ast::stmt::MatchArm {
+                variant_name: a.variant_name,
+                bindings: a.bindings.clone(),
+                body: substitute_type_in_expr(&a.body, subst),
+            }).collect(),
+            span: *span,
+        },
         Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => {
             Expr::EnumConstruct {
                 enum_name: *enum_name,
@@ -124,8 +132,8 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
             }
         }
         Expr::Lambda { params, return_type, body, span } => Expr::Lambda {
-            params: params.clone(),
-            return_type: return_type.clone(),
+            params: params.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
+            return_type: substitute_type_in_type(return_type, subst),
             body: body.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
             span: *span,
         },
