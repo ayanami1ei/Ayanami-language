@@ -174,6 +174,7 @@ impl crate::hir::lower::Ctx {
             })
             .collect();
         let saved_pending = std::mem::take(&mut self.pending_stmts);
+        let saved_hints = std::mem::take(&mut self.usage_hints);
         self.current_fn = fn_id;
         self.locals = Vec::new();
         self.scopes = Vec::new();
@@ -235,6 +236,7 @@ impl crate::hir::lower::Ctx {
         }
 
         self.pending_stmts = saved_pending;
+        self.usage_hints = saved_hints;
         let locals = std::mem::take(&mut self.locals);
         Ok(HirFn {
             span,
@@ -262,6 +264,8 @@ impl crate::hir::lower::Ctx {
 
     pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock> {
         self.push_scope();
+        let saved_hints = std::mem::take(&mut self.usage_hints);
+        self.usage_hints = self.collect_usage_hints(&block.stmts);
         let mut stmts = Vec::new();
         for stmt in &block.stmts {
             let mark = self.pending_stmts.len();
@@ -271,6 +275,7 @@ impl crate::hir::lower::Ctx {
             stmts.extend(pending);
             stmts.push(lowered);
         }
+        self.usage_hints = saved_hints;
         self.pop_scope();
         Ok(HirBlock::new(stmts))
     }

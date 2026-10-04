@@ -7,7 +7,13 @@ impl crate::hir::lower::Ctx {
                 if let Some(stmt) = self.try_lower_ref_assign(name, value, span)? {
                     return Ok(stmt);
                 }
-                let hir_value = self.lower_expr(value)?;
+                // 后续用法推断出的泛型实参（如 `res = ArrayList::new(); res.push(TokenType::...)`）
+                let hint = self.usage_hints.get(name).cloned();
+                let hir_value = match (value, hint.as_ref()) {
+                    (Expr::FnCall { name: fname, args, generic_args, .. }, Some(h))
+                        if generic_args.is_empty() => self.lower_fn_call(fname, args, Some(h), span)?,
+                    _ => self.lower_expr(value)?,
+                };
                 // 已存在的变量：按既有类型做隐式数值转换
                 let hir_value = match self.lookup_var(name) {
                     Some((_, var_ty, _)) => coerce_expr(hir_value, &var_ty, span)?,

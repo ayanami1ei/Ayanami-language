@@ -429,17 +429,18 @@ src/hir/lower/body/mod.rs:17: mod part_08;
 src/hir/lower/body/mod.rs:18: mod ref_assign;
 src/hir/lower/body/mod.rs:19: mod expr_method;
 src/hir/lower/body/mod.rs:20: mod match_lower;
-src/hir/lower/body/mod.rs:21: mod part_09;
-src/hir/lower/body/mod.rs:22: mod ensure;
-src/hir/lower/body/mod.rs:23: mod part_10;
-src/hir/lower/body/mod.rs:24: mod collect_enum;
-src/hir/lower/body/mod.rs:25: mod collect_import;
-src/hir/lower/body/mod.rs:26: mod expr_access;
-src/hir/lower/body/mod.rs:27: mod expr_call;
-src/hir/lower/body/mod.rs:28: mod expr_call_extra;
-src/hir/lower/body/mod.rs:29: mod expr_enum;
-src/hir/lower/body/mod.rs:30: mod expr_misc;
-src/hir/lower/body/mod.rs:31: mod expr_ops1;
+src/hir/lower/body/mod.rs:21: mod usage_infer;
+src/hir/lower/body/mod.rs:22: mod part_09;
+src/hir/lower/body/mod.rs:23: mod ensure;
+src/hir/lower/body/mod.rs:24: mod part_10;
+src/hir/lower/body/mod.rs:25: mod collect_enum;
+src/hir/lower/body/mod.rs:26: mod collect_import;
+src/hir/lower/body/mod.rs:27: mod expr_access;
+src/hir/lower/body/mod.rs:28: mod expr_call;
+src/hir/lower/body/mod.rs:29: mod expr_call_extra;
+src/hir/lower/body/mod.rs:30: mod expr_enum;
+src/hir/lower/body/mod.rs:31: mod expr_misc;
+src/hir/lower/body/mod.rs:32: mod expr_ops1;
 src/hir/lower/body/part_01.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_01.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
 src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
@@ -472,35 +473,40 @@ src/hir/lower/body/part_07.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[S
 src/hir/lower/body/part_07.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
 src/hir/lower/body/part_07.rs:115: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
 src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
-src/hir/lower/body/part_07.rs:263: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
+src/hir/lower/body/part_07.rs:265: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
-src/hir/lower/body/part_08.rs:155: pub(crate) fn lower_while(
-src/hir/lower/body/part_08.rs:172: pub(crate) fn lower_for(
+src/hir/lower/body/part_08.rs:161: pub(crate) fn lower_while(
+src/hir/lower/body/part_08.rs:178: pub(crate) fn lower_for(
 src/hir/lower/body/part_09.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_09.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
 src/hir/lower/body/part_10.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_10.rs:4: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
 src/hir/lower/body/ref_assign.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/ref_assign.rs:6: pub(crate) fn try_lower_ref_assign(
+src/hir/lower/body/usage_infer.rs:8: impl crate::hir::lower::Ctx
+src/hir/lower/body/usage_infer.rs:10: pub(crate) fn collect_usage_hints(&self, stmts: &[Stmt]) -> HashMap<Symbol, Vec<Type>>
+src/hir/lower/body/usage_infer.rs:26: fn find_elem_usage_stmts(&self, var: &Symbol, stmts: &[Stmt]) -> Option<Type>
+src/hir/lower/body/usage_infer.rs:51: fn find_elem_usage(&self, var: &Symbol, stmt: &Stmt) -> Option<Type>
+src/hir/lower/body/usage_infer.rs:69: fn infer_expr_type_ast(&self, e: &Expr) -> Option<Type>
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:64: impl Ctx
-src/hir/lower/ctx.rs:66: pub fn new() -> Self
-src/hir/lower/ctx.rs:105: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:108: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:111: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:116: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:124: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:137: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:154: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:172: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:191: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:213: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx.rs:232: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
-src/hir/lower/ctx.rs:237: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:246: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
-src/hir/lower/ctx.rs:262: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:275: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:66: impl Ctx
+src/hir/lower/ctx.rs:68: pub fn new() -> Self
+src/hir/lower/ctx.rs:108: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:111: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:114: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:119: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:127: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:140: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:157: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:175: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:194: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:216: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
+src/hir/lower/ctx.rs:235: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/ctx.rs:240: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:249: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx.rs:265: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:278: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
@@ -1441,8 +1447,9 @@ src/lir/lower/mod.rs:22: fn collect_effect_summaries(items: &[MirItem], out: &mu
 src/lir/lower/mod.rs:42: pub fn lower_program(mir: &MirProgram) -> LirProgram
 src/lir/lower/names.rs:3: pub(super) fn collect_fn_names(mir: &MirProgram) -> HashMap<FnId, String>
 src/lir/lower/names.rs:9: pub(super) fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<FnId, String>)
-src/lir/lower/names.rs:31: pub(super) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String
-src/lir/lower/names.rs:49: pub(super) fn type_to_mangle(ty: &HirType) -> String
+src/lir/lower/names.rs:34: fn unique_fn_name(base: &str, f: &MirFn, map: &HashMap<FnId, String>) -> String
+src/lir/lower/names.rs:46: pub(super) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String
+src/lir/lower/names.rs:64: pub(super) fn type_to_mangle(ty: &HirType) -> String
 src/lir/lower/strings.rs:3: pub(super) fn collect_strings(mir: &MirProgram) -> Vec<String>
 src/lir/lower/strings.rs:11: pub(super) fn collect_strings_items(items: &[MirItem], out: &mut Vec<String>)
 src/lir/lower/strings.rs:21: pub(super) fn collect_strings_stmts(stmts: &[MirStmtBox], out: &mut Vec<String>)
@@ -2320,5 +2327,8 @@ example/test_two_phase.aya:4: fn add(ref mut self, int x) { self.v = self.v + x 
 example/test_two_phase.aya:6: fn main() -> int
 example/test_unique_struct.aya:2: struct Point
 example/test_unique_struct.aya:7: fn main() -> int
+example/test_usage_infer.aya:5: enum E
+example/test_usage_infer.aya:10: fn make() -> E { return E::A(1); }
+example/test_usage_infer.aya:12: fn main() -> int
 example/test_vis.aya:1: pub fn main() -> int
 example/test_vis2.aya:6: pub fn main() -> int

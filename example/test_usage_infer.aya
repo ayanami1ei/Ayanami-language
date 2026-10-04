@@ -1,0 +1,41 @@
+// 泛型实参按后续用法推断：ArrayList::new() 后 push 的元素类型决定 T
+import "arraylist";
+import "linkedlist";
+
+enum E {
+    A(int),
+    B(char),
+}
+
+fn make() -> E { return E::A(1); }
+
+fn main() -> int {
+    a = ArrayList::new();
+    a.push(E::A(1));
+    if a.index(0)._data_A._0 != 1 { return 1 }
+
+    b = ArrayList::new();
+    b.push(7);
+    if b.index(0) != 7 { return 2 }
+
+    c = ArrayList::new();
+    c.push("hi");
+    if c.index(0) != "hi" { return 3 }
+
+    d = ArrayList::new();
+    d.push(make());
+    if d.index(0)._tag != 0 { return 4 }
+
+    l = LinkedList::new();
+    l.push(3.5);
+    if l.index(0) != 3.5 { return 5 }
+
+    // 嵌套块里的用法也能推断
+    e = ArrayList::new();
+    for i in (0, 1) {
+        e.push(E::B('x'));
+    }
+    if e.index(0)._tag != 1 { return 6 }
+
+    return 0;
+}

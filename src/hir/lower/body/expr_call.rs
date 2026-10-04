@@ -26,8 +26,16 @@ impl crate::hir::lower::Ctx {
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();
 
+        // Step 3：显式泛型实参优先（零参构造函数特化后参数表相同，
+        // 重载解析无法区分返回类型，必须先按显式实参特化）
+        let explicit_id = match explicit {
+            Some(types) => self.specialize_generic_call_with(name, &arg_types, Some(types), span).ok(),
+            None => None,
+        };
         // Step 3: resolve overloaded function（先按原类型，再按解引用类型）
-        let fn_id = match self.resolve_fn_call(name, &arg_types)
+        let fn_id = match explicit_id {
+            Some(fid) => fid,
+            None => match self.resolve_fn_call(name, &arg_types)
             .or_else(|| self.resolve_fn_call(name, &deref_arg_types))
         {
             Some(fid) => fid,
@@ -72,7 +80,7 @@ impl crate::hir::lower::Ctx {
                     }
                 }
             }
-        };
+        } };
 
         // Step 4: wrap args into fat pointers where needed, apply implicit moves
         // Pre-register vtables for generic impl → interface (before the closure that can't use ?)

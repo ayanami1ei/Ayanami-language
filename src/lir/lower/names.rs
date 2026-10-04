@@ -16,7 +16,8 @@ pub(super) fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut
                     // A5b：宏函数符号加保留前缀，避免与宏展开产物重名
                     format!("__ayanami_macro_{}", mangle("", &f.name.as_str().replace('.', "__"), &f.params))
                 } else {
-                    mangle("", &f.name.as_str().replace('.', "__"), &f.params)
+                    let base = mangle("", &f.name.as_str().replace('.', "__"), &f.params);
+                    unique_fn_name(&base, f, map)
                 };
                 map.insert(f.fn_id, name);
             }
@@ -26,6 +27,20 @@ pub(super) fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut
             }
         }
     }
+}
+
+/// 同名同参数、仅返回类型不同的特化（如零参构造函数 `ArrayList.new`）
+/// 追加返回类型/ID 消歧，避免 LLVM 重复定义
+fn unique_fn_name(base: &str, f: &MirFn, map: &HashMap<FnId, String>) -> String {
+    let used = |n: &str| map.values().any(|v| v == n);
+    if !used(base) {
+        return base.to_string();
+    }
+    let with_ret = format!("{}_{}", base, type_to_mangle(&f.return_type));
+    if !used(&with_ret) {
+        return with_ret;
+    }
+    format!("{}_{}", with_ret, f.fn_id.0)
 }
 
 pub(super) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String {
