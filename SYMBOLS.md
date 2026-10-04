@@ -444,8 +444,8 @@ src/hir/lower/body/iface_match.rs:144: pub(crate) fn ensure_specialized_interfac
 src/hir/lower/body/iface_match.rs:181: pub(crate) fn register_generic_vtable(
 src/hir/lower/body/literal.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/literal.rs:5: pub(crate) fn lower_suffixed(&mut self, lit: &Literal, suffix: &Symbol, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/literal.rs:38: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
-src/hir/lower/body/literal.rs:50: fn check_literal_range(n: i64, ty: &HirType, span: &Span) -> Result<()>
+src/hir/lower/body/literal.rs:34: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
+src/hir/lower/body/literal.rs:46: fn check_literal_range(n: i64, ty: &HirType, span: &Span) -> Result<()>
 src/hir/lower/body/lower_items.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/lower_items.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>>
 src/hir/lower/body/lower_items.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
@@ -575,18 +575,18 @@ src/hir/lower/helpers/substitute.rs:30: pub(crate) fn substitute_type_in_expr(ex
 src/hir/lower/helpers/substitute.rs:145: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
 src/hir/lower/helpers/substitute.rs:154: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
 src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String
-src/hir/lower/helpers/types.rs:28: pub(crate) fn fixed_width_int(name: &str) -> Option<(u8, bool)>
-src/hir/lower/helpers/types.rs:38: pub(crate) fn intn_name(bits: u8, signed: bool) -> String
-src/hir/lower/helpers/types.rs:42: pub(crate) fn sig_str_to_hir(s: &str) -> HirType
-src/hir/lower/helpers/types.rs:70: fn is_iface_type(inner_hir: &HirType, interfaces: &HashMap<Symbol, super::InterfaceReg>) -> bool
-src/hir/lower/helpers/types.rs:81: pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> HirType
-src/hir/lower/helpers/types.rs:145: pub(crate) fn extract_named(ty: &HirType) -> Option<&Symbol>
-src/hir/lower/helpers/types.rs:154: pub(crate) fn hir_type_display(ty: &HirType) -> String
-src/hir/lower/helpers/types.rs:181: pub(crate) fn strip_ownership(ty: HirType) -> HirType
-src/hir/lower/helpers/types.rs:189: pub(crate) fn strip_ownership_ref(ty: &HirType) -> &HirType
-src/hir/lower/helpers/types.rs:197: pub(crate) fn expr_type(expr: &HirNodeBox) -> HirType
-src/hir/lower/helpers/types.rs:202: pub(crate) fn is_null_literal(expr: &HirNodeBox) -> bool
-src/hir/lower/helpers/types.rs:207: pub(crate) fn is_pointer_type_for_cmp(ty: &HirType) -> bool
+src/hir/lower/helpers/types.rs:28: pub(crate) fn fixed_width_type(name: &str) -> Option<HirType>
+src/hir/lower/helpers/types.rs:47: pub(crate) fn intn_name(bits: u8, signed: bool) -> String
+src/hir/lower/helpers/types.rs:51: pub(crate) fn sig_str_to_hir(s: &str) -> HirType
+src/hir/lower/helpers/types.rs:75: fn is_iface_type(inner_hir: &HirType, interfaces: &HashMap<Symbol, super::InterfaceReg>) -> bool
+src/hir/lower/helpers/types.rs:86: pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> HirType
+src/hir/lower/helpers/types.rs:146: pub(crate) fn extract_named(ty: &HirType) -> Option<&Symbol>
+src/hir/lower/helpers/types.rs:155: pub(crate) fn hir_type_display(ty: &HirType) -> String
+src/hir/lower/helpers/types.rs:182: pub(crate) fn strip_ownership(ty: HirType) -> HirType
+src/hir/lower/helpers/types.rs:190: pub(crate) fn strip_ownership_ref(ty: &HirType) -> &HirType
+src/hir/lower/helpers/types.rs:198: pub(crate) fn expr_type(expr: &HirNodeBox) -> HirType
+src/hir/lower/helpers/types.rs:203: pub(crate) fn is_null_literal(expr: &HirNodeBox) -> bool
+src/hir/lower/helpers/types.rs:208: pub(crate) fn is_pointer_type_for_cmp(ty: &HirType) -> bool
 src/hir/lower/helpers/wrap.rs:3: pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:14: pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:90: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
@@ -2168,6 +2168,9 @@ example/test_two_phase.aya:1: struct S { int v }
 example/test_two_phase.aya:2: impl S
 example/test_two_phase.aya:4: fn add(ref mut self, int x) { self.v = self.v + x }
 example/test_two_phase.aya:6: fn main() -> int
+example/test_type_alias.aya:2: fn takes_i64(i64 x) -> i64 { return x }
+example/test_type_alias.aya:3: fn takes_int(int x) -> int { return x }
+example/test_type_alias.aya:4: fn main() -> int
 example/test_unique_struct.aya:2: struct Point
 example/test_unique_struct.aya:7: fn main() -> int
 example/test_unit_type.aya:2: fn nothing() -> ()

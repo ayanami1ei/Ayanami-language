@@ -1,0 +1,18 @@
+// M1.10：int/float 是 i64/f64 的兼容别名（同一类型）；u64 ≡ usize
+fn takes_i64(i64 x) -> i64 { return x }
+fn takes_int(int x) -> int { return x }
+fn main() -> int {
+    a = 5
+    if takes_i64(a) != 5 { return 1 }      // int → i64 参数（同型）
+    b = 7i64
+    if takes_int(b) != 7 { return 2 }      // i64 字面量 → int 参数
+    if a + b != 12 { return 3 }            // int + i64 同型
+    f = 1.5
+    g = 2.5f64
+    if f + g != 4.0 { return 4 }           // float + f64 同型
+    s = 3usize
+    u = 3u64
+    if s + u != 6 { return 5 }             // usize ≡ u64
+    if (1isize) + a != 6 { return 6 }      // isize ≡ int
+    return 0
+}

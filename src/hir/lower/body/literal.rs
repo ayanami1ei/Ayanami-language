@@ -4,15 +4,11 @@ impl crate::hir::lower::Ctx {
     /// M1.5：带后缀字面量（`1u8` / `1.5f32`），含溢出范围检查
     pub(crate) fn lower_suffixed(&mut self, lit: &Literal, suffix: &Symbol, span: &Span) -> Result<HirNodeBox> {
         let name = suffix.as_str();
-        let ty = match name.as_str() {
-            "f32" => HirType::F32,
-            "f64" => HirType::Float,
-            other => match fixed_width_int(other) {
-                Some((bits, signed)) => HirType::IntN { bits, signed },
-                None => return Err(Error::Hir(format!(
-                    "unknown literal suffix `{}` (at {}:{})", name, span.start_line, span.start_col
-                ))),
-            },
+        let ty = match fixed_width_type(&name) {
+            Some(t) => t,
+            None => return Err(Error::Hir(format!(
+                "unknown literal suffix `{}` (at {}:{})", name, span.start_line, span.start_col
+            ))),
         };
         match lit {
             Literal::Int(n, _) => {

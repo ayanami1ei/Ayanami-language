@@ -67,6 +67,7 @@ test_struct_fn.aya 15
 test_struct_impl.aya 42
 test_track_caller.aya 0
 test_try.aya 0
+test_type_alias.aya 0
 test_two_phase.aya 2
 test_unique_struct.aya 10
 test_unit_type.aya 0

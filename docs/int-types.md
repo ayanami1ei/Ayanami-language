@@ -82,6 +82,17 @@ Rust 风格的基本整数类型：显式位宽与符号、无隐式提升、溢
 - `char` 现状：无符号字节（`zext` / `uitofp`），字符串是字节缓冲；`char as int` 得到 0..255。
 - 迁移方向（未来任务）：`char` = 32-bit Unicode scalar、`String` = UTF-8，同步 std 与字面量转义。
 
+## 默认类型与别名（M1.10）
+
+- 默认类型：无后缀整数字面量为 `int`（= i64）；无后缀浮点为 `float`（= f64）。
+- 兼容别名（**同一类型**，可自由混用）：
+  - `int` ≡ `i64` ≡ `isize`
+  - `float` ≡ `f64`
+  - `u64` ≡ `usize`
+- 决策：**不把默认整数迁移到 i32**。std/FFI 全以 i64 为基（`String.len`、`ArrayList.len`、C `long long`），
+  迁移收益低、破坏面大；Rust 风格代码可直接写 `i32` / `i64` / `f32` / `f64`，与 `int` / `float` 互操作。
+- 归一后的显示名：`Int` → `int`、`Float` → `float`（诊断/IR 中沿用）。
+
 ## 实现位置
 
 | 环节 | 位置 |
