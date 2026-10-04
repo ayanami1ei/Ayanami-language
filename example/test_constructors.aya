@@ -1,0 +1,32 @@
+// A6：标准库构造函数（显式泛型调用 ns.fn[T](...)）
+import "string"
+import "arraylist"
+import "linkedlist"
+
+fn main() -> int {
+    // ArrayList
+    a = ArrayList::new[int]()
+    if !a.is_empty() { return 1 }
+    a.push(7)
+    if a.index(0) != 7 { return 2 }
+
+    b = ArrayList::with_capacity[String](4)
+    if b.is_empty() != true { return 3 }
+    b.push("hi")
+    if b.index(0) != "hi" { return 4 }
+
+    // LinkedList
+    c = LinkedList::new[int]()
+    c.push(1)
+    c.push(2)
+    if c.len() != 2 { return 5 }
+
+    // String（从 [char] 缓冲构造）
+    buf = ['a', 'b', 'c']
+    s = String::new(buf, 3)
+    if s.len() != 3 { return 6 }
+    if s.index(1) != 'b' { return 7 }
+    if s != "abc" { return 8 }
+
+    return 0
+}

@@ -110,6 +110,17 @@ impl crate::hir::lower::Ctx {
                                     }
                                 }
                             }
+                            Stmt::Namespace { name, items, .. } => {
+                                let prefix = name.as_str();
+                                for it in items {
+                                    if let Stmt::FnDecl { name: fn_name, generic_params, .. } = it {
+                                        if !generic_params.is_empty() {
+                                            let full = Symbol::intern(&format!("{}.{}", prefix, fn_name));
+                                            self.generic_fns.push((full, generic_params.clone(), it.clone()));
+                                        }
+                                    }
+                                }
+                            }
                             Stmt::InterfaceDef { name, methods, generic_params, .. } => {
                                 let hir_methods = methods.iter().map(|m| {
                                     crate::hir::ir::HirInterfaceMethod {

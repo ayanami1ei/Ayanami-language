@@ -167,6 +167,21 @@ impl Package {
                         name: name.as_str().to_string(),
                     });
                 }
+                // 命名空间内含泛型函数时，整体序列化到 generic_sources，
+                // 供导入侧按 `Name.fn` 前缀注册
+                let has_generic = items.iter().any(|it| match it {
+                    Stmt::FnDecl { generic_params, .. } => !generic_params.is_empty(),
+                    Stmt::ImplBlock { generic_params, methods, .. } => {
+                        !generic_params.is_empty()
+                            || methods.iter().any(|m| matches!(m, Stmt::FnDecl { generic_params, .. } if !generic_params.is_empty()))
+                    }
+                    _ => false,
+                });
+                if has_generic && (all || vis.is_public()) {
+                    let prog = crate::parser::ast::Program { stmts: vec![stmt.clone()] };
+                    let src = crate::formatter::format_program(&prog);
+                    self.generic_sources.push(src);
+                }
                 let nested = if ns_prefix.is_empty() {
                     name.as_str().to_string()
                 } else {

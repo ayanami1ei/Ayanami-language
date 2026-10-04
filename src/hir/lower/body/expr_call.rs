@@ -1,7 +1,8 @@
 use super::*;
 
 impl crate::hir::lower::Ctx {
-    pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox> {
+    /// `explicit`：显式泛型实参（`ns.fn[T](...)`，普通调用为 None）
+    pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, explicit: Option<&Vec<Type>>, span: &Span) -> Result<HirNodeBox> {
         // `Enum::Variant(args)` 被解析器合并为 `Enum.Variant`，按前缀类型分流
         if let Some((enum_name, variant_name)) = name.as_str().split_once('.') {
             let enum_sym = Symbol::intern(enum_name);
@@ -29,9 +30,9 @@ impl crate::hir::lower::Ctx {
             Some(fid) => fid,
             None => {
                 // Step 3b: try generic specialization
-                match self.specialize_generic_call(name, &arg_types, span) {
+                match self.specialize_generic_call_with(name, &arg_types, explicit, span) {
                     Ok(fid) => fid,
-                    Err(_) => {
+                    Err(e) => {
                         // Step 3c: check if name is a variable with FnPtr type (function pointer call)
                         if let Some((var_id, ty, _)) = self.lookup_var(name) {
                             if let HirType::FnPtr(param_tys, ret_ty) = &ty {
@@ -44,7 +45,8 @@ impl crate::hir::lower::Ctx {
                                 return Ok(SCallP { fn_ptr, args, ty: *ret_ty.clone() }.into());
                             }
                         }
-                        return Err(Error::Hir(format!("undefined function `{}` at {}:{}", name, span.start_line, span.start_col)));
+                        // 传播真实原因（cannot infer / no matching overload / undefined）
+                        return Err(e);
                     }
                 }
             }

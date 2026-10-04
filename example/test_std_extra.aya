@@ -14,7 +14,7 @@ fn math_checks() -> int {
 }
 
 fn list_checks() -> int {
-    a = ArrayList[int] { data = null, len = 0, capability = 0 }
+    a = ArrayList::new[int]()
     if !a.is_empty() { return 1 }
     a.push(10)
     a.push(20)

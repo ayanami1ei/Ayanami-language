@@ -4,6 +4,11 @@ impl crate::hir::lower::Ctx {
     /// Try to resolve a call by specializing a generic function.
     /// Returns the FnId of the newly-created specialized function on success.
     pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId> {
+        self.specialize_generic_call_with(name, arg_types, None, span)
+    }
+
+    /// `explicit`：显式泛型实参（优先于形参推导）
+    pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId> {
         // Find matching generic function — prefer one where self's base type matches
         let arg_base = (!arg_types.is_empty()).then(|| {
             match strip_ownership_ref(&arg_types[0]) {
@@ -62,14 +67,26 @@ impl crate::hir::lower::Ctx {
             )));
         }
 
-        // Step 1: Infer concrete type for each generic parameter
+        // Step 1: 显式泛型实参优先，否则按形参推导
         let generic_names: Vec<Symbol> = gf_params.iter().map(|(n, _)| *n).collect();
         let mut generic_mappings: HashMap<Symbol, HirType> = HashMap::new();
-        for ((_, param_ty), arg_ty) in params.iter().zip(arg_types.iter()) {
-            let result = infer_generic_from_param(param_ty, arg_ty);
-            if let Some((gp_name, hir_concrete)) = result {
-                if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
-                    generic_mappings.insert(gp_name, hir_concrete.clone());
+        if let Some(types) = explicit {
+            if types.len() != gf_params.len() {
+                return Err(Error::Hir(format!(
+                    "generic function `{}` expects {} type argument(s), found {} at {}:{}",
+                    gf_name, gf_params.len(), types.len(), span.start_line, span.start_col
+                )));
+            }
+            for ((gp_name, _), ty) in gf_params.iter().zip(types.iter()) {
+                generic_mappings.insert(*gp_name, ast_type_to_hir(ty, &self.interfaces));
+            }
+        } else {
+            for ((_, param_ty), arg_ty) in params.iter().zip(arg_types.iter()) {
+                let result = infer_generic_from_param(param_ty, arg_ty);
+                if let Some((gp_name, hir_concrete)) = result {
+                    if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
+                        generic_mappings.insert(gp_name, hir_concrete.clone());
+                    }
                 }
             }
         }

@@ -104,6 +104,24 @@ struct String {
 `Error` 接口、`Result[T, E]`（`try_unwrap(self)`）与 `Option[T]`
 （`unwrap_or(self, default)` / `is_some(self)`）枚举。
 
+## 构造函数（显式泛型调用）
+
+命名空间构造函数用 `类型::new[T](...)` 形式（显式泛型实参；省略时需能从上下文推导 T）：
+
+| 构造 | 说明 |
+|------|------|
+| `ArrayList::new[T]()` | 空表 |
+| `ArrayList::with_capacity[T](n)` | 预分配容量 |
+| `LinkedList::new[T]()` | 空链表 |
+| `String::new([char] data, int len)` | 从拥有所有权的字符缓冲构造 |
+
+```ayanami
+a = ArrayList::new[int]()
+b = ArrayList::with_capacity[String](8)
+c = LinkedList::new[int]()
+s = String::new(['h', 'i'], 2)
+```
+
 ## list / arraylist / linkedlist — 集合
 
 | 模块 | 说明 |

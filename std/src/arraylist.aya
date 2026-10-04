@@ -7,6 +7,20 @@ pub struct ArrayList[T:ToString]{
     int capability
 }
 
+pub namespace ArrayList {
+    /// 空表
+    pub fn new[T:ToString]() -> ArrayList[T] {
+        return ArrayList[T] { data = null, len = 0, capability = 0 }
+    }
+    /// 预分配容量（cap <= 0 时等价于 new）
+    pub fn with_capacity[T:ToString](int cap) -> ArrayList[T] {
+        if cap <= 0 {
+            return ArrayList[T] { data = null, len = 0, capability = 0 }
+        }
+        return ArrayList[T] { data = [T; cap], len = 0, capability = cap }
+    }
+}
+
 impl[T:ToString] ArrayList[T]{
     fn expand(ref mut self){
         if self.capability == 0 {

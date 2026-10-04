@@ -73,13 +73,50 @@ impl Parser {
                     // If expr is an Ident, convert to FnCall
                     if let Expr::Ident(name, _) = &expr {
                         let name = *name;
-                        expr = Expr::FnCall { name, args, span };
+                        expr = Expr::FnCall { name, args, generic_args: Vec::new(), span };
                     } else {
                         expr = Expr::CallExpr { target: Box::new(expr), args, span };
                     }
                 }
-                // Indexing: expr[index]
+                // 显式泛型调用：ns.fn[T1, T2](args)（仅限含 `::` 的路径，避免与索引歧义）
                 Some(TokenKind::Delimiter(Delimiter::LBracket)) => {
+                    if let Expr::Ident(name, _) = &expr {
+                        if name.as_str().contains('.') {
+                            let saved = self.pos;
+                            self.advance(); // [
+                            let mut tys: Vec<Type> = Vec::new();
+                            let mut ok = true;
+                            loop {
+                                match self.parse_type() {
+                                    Ok(t) => tys.push(t),
+                                    Err(_) => { ok = false; break; }
+                                }
+                                match self.peek().map(|t| &t.kind) {
+                                    Some(TokenKind::Delimiter(Delimiter::RBracket)) => break,
+                                    Some(TokenKind::Delimiter(Delimiter::Comma)) => { self.advance(); }
+                                    _ => { ok = false; break; }
+                                }
+                            }
+                            if ok && self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
+                                self.advance(); // ]
+                                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
+                                    self.advance(); // (
+                                    let mut args = Vec::new();
+                                    if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                                        loop {
+                                            args.push(self.parse_expr()?);
+                                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
+                                            self.expect_delimiter(Delimiter::Comma)?;
+                                        }
+                                    }
+                                    self.expect_delimiter(Delimiter::RParen)?;
+                                    expr = Expr::FnCall { name: *name, args, generic_args: tys, span };
+                                    continue;
+                                }
+                            }
+                            self.pos = saved; // 回退为普通索引
+                        }
+                    }
                     self.advance();
                     let index = self.parse_expr()?;
                     self.expect_delimiter(Delimiter::RBracket)?;

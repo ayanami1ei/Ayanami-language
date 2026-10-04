@@ -89,7 +89,7 @@ impl Parser {
                             }
                         }
                         self.expect_delimiter(Delimiter::RParen)?;
-                        Ok(Expr::FnCall { name: name_sym, args, span })
+                        Ok(Expr::FnCall { name: name_sym, args, generic_args: Vec::new(), span })
                     }
                     Some(TokenKind::Delimiter(Delimiter::LBrace)) => {
                         // Try to parse as struct literal: ident { field = val, ... }

@@ -55,6 +55,9 @@ pub(super) fn type_to_mangle(ty: &HirType) -> String {
         HirType::Bool => "bool".into(),
         HirType::Named(s) => s.as_str().replace('<', "_lt_").replace('>', "_gt_")
             .replace(',', "_c_").replace(' ', "_").replace('[', "_lb_").replace(']', "_rb_"),
+        // `[T]` 在 HIR 中是 Unique(Array(T))，导入签名字符串里是 Array(T)：
+        // 二者按同一名字 mangle，保证定义与调用链接一致
+        HirType::Unique(inner) if matches!(&**inner, HirType::Array(_) | HirType::ArraySized(_, _)) => type_to_mangle(inner),
         HirType::Unique(inner) => format!("unique_{}", type_to_mangle(inner)),
         HirType::FnPtr(..) => "fnptr".into(),
         HirType::FatPtr { name, .. } => format!("fatptr_{}", name.as_str().replace('<', "_lt_").replace('>', "_gt_")),

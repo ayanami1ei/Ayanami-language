@@ -47,7 +47,7 @@ pub fn node_to_expr(node: &Node) -> Result<Expr> {
         "FnCallExpr" => {
             let name = Symbol::intern(&get_str(node, "name")?);
             let args = node.children("args").iter().map(|n| node_to_expr(*n)).collect::<std::result::Result<_, _>>()?;
-            Ok(Expr::FnCall { name, args, span: default_span() })
+            Ok(Expr::FnCall { name, args, generic_args: Vec::new(), span: default_span() })
         }
         "CallExpr" => {
             let target = node_to_expr(node.child("target").ok_or_else(|| Error::Parse("missing target".into()))?)?;

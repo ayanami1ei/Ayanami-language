@@ -37,7 +37,7 @@ impl crate::hir::lower::Ctx {
             }
             Expr::Binary { op, lhs, rhs, span } => self.lower_binary(op, lhs, rhs, span),
             Expr::Unary { op, arg, .. } => self.lower_unary(op, arg),
-            Expr::FnCall { name, args, span } => self.lower_fn_call(name, args, span),
+            Expr::FnCall { name, args, generic_args, span } => self.lower_fn_call(name, args, if generic_args.is_empty() { None } else { Some(generic_args) }, span),
             Expr::CallExpr { target, args, span } => self.lower_call_expr(target, args, span),
             Expr::TryOp(inner, span) => self.lower_try_op(inner, span),
             Expr::Match { .. } => todo!(),

@@ -281,6 +281,10 @@ fn max[T: Ord](T a, T b) -> T { if a > b { return a; } return b; }
 
 泛型通过单态化实现。约束使用接口名。
 
+命名空间函数可用显式泛型实参调用：`ns.fn[T1, T2](args)`（普通调用仍靠形参推导；显式实参优先）。
+标准库构造函数即此形式，例如 `ArrayList::new[int]()`、`ArrayList::with_capacity[String](8)`、
+`LinkedList::new[int]()`、`String::new(buf, len)`。
+
 ### 操作符重载
 
 | 操作符                                  | 方法名                                    |

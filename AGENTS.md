@@ -94,7 +94,10 @@ cargo test
 
 ## 分支约定
 
-- `rust`：**开发分支**，日常提交都进这里（跟踪 `origin/rust`）。
+- `rust`：**集成分支**，功能分支合入这里（跟踪 `origin/rust`）。
+- **每个新功能/子系统开一个新分支**：从 `rust` 拉出主题分支（如 `std-constructors`、`span-diagnostics`），
+  在分支上完成、验证并推送；完成后合回 `rust`（优先 `--ff-only`）并删除该分支。
+  `rust` 上只保留合并提交与紧急小修，不在 `rust` 上直接开发新功能。
 - `release`：**发布分支**，从发布点拉出，只做发布修复与版本合并；发布用标签 `vX.Y.Z` 标记。
 - `origin/master`、`origin/runtime`、`rust-old` 是旧实现/历史分支，不要在其上开发。
 - 工作节奏：**每完成一个可验证的阶段就提交并推送**（`git push origin rust`）。

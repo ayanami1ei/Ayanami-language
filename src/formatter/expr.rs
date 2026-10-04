@@ -48,9 +48,14 @@ pub(super) fn write_expr(expr: &Expr) -> String {
             };
             format!("{}{}", op_str, write_expr(arg))
         }
-        Expr::FnCall { name, args, .. } => {
+        Expr::FnCall { name, args, generic_args, .. } => {
             let args_str: Vec<String> = args.iter().map(|a| write_expr(a)).collect();
-            format!("{}({})", name, args_str.join(", "))
+            let generic_str = if generic_args.is_empty() {
+                String::new()
+            } else {
+                format!("[{}]", generic_args.iter().map(write_type).collect::<Vec<_>>().join(", "))
+            };
+            format!("{}{}({})", name, generic_str, args_str.join(", "))
         }
         Expr::Move(inner, _) => format!("move {}", write_expr(inner)),
         Expr::Clone(inner, _) => format!("clone {}", write_expr(inner)),

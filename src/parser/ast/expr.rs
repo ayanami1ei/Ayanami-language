@@ -23,6 +23,8 @@ pub enum Expr {
     FnCall {
         name: Symbol,
         args: Vec<Expr>,
+        /// 显式泛型实参（`ns.fn[T1, T2](...)`；普通调用为空）
+        generic_args: Vec<Type>,
         span: Span,
     },
     Move(Box<Expr>, Span),

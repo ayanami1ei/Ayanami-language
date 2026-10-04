@@ -1,7 +1,7 @@
 import "arraylist"
 
 fn main() -> int {
-    a = ArrayList[int] { data = null, len = 0, capability = 0 }
+    a = ArrayList::new[int]()
     a.push(10)
     a.push(20)
     a.push(30)
