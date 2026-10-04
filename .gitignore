@@ -42,3 +42,6 @@ install/libedit.so.2
 .beads-credential-key
 .beads/proxieddb/
 *.gate.lock*
+
+# selfhost 知识库索引（生成物）
+tools/kb/index.json

@@ -1,0 +1,8 @@
+// Ayanami 自举编译器（stage-1）入口 —— M0：验证可被 stage-0 编译运行
+import "io";
+
+fn main() -> int {
+    println("ayanami selfhost (stage-1)");
+    println("usage: ayanami <check|build|run|package> <file.aya>");
+    return 0;
+}
