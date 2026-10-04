@@ -5,6 +5,7 @@ impl Parser {
         let tok = self.peek().ok_or_else(|| self.error("expected expression"))?.clone();
         let span = tok.span();
         match tok.kind {
+            TokenKind::Keyword(Keyword::Match) => self.parse_match_expr(),
             TokenKind::IntLiteral(s) => {
                 self.advance();
                 let n = s.parse::<i64>().map_err(|_| self.error("invalid integer literal"))?;

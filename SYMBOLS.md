@@ -407,6 +407,15 @@ src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:95: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:130: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/match_lower.rs:7: impl crate::hir::lower::Ctx
+src/hir/lower/body/match_lower.rs:9: fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, Symbol)>
+src/hir/lower/body/match_lower.rs:29: fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
+src/hir/lower/body/match_lower.rs:44: fn match_arm_bindings(
+src/hir/lower/body/match_lower.rs:81: fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)>
+src/hir/lower/body/match_lower.rs:89: fn build_match_if(
+src/hir/lower/body/match_lower.rs:117: fn enum_variant_count(&self, name: &Symbol) -> usize
+src/hir/lower/body/match_lower.rs:124: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
+src/hir/lower/body/match_lower.rs:151: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/mod.rs:10: mod part_01;
 src/hir/lower/body/mod.rs:11: mod part_02;
 src/hir/lower/body/mod.rs:12: mod part_03;
@@ -417,17 +426,18 @@ src/hir/lower/body/mod.rs:16: mod part_07;
 src/hir/lower/body/mod.rs:17: mod part_08;
 src/hir/lower/body/mod.rs:18: mod ref_assign;
 src/hir/lower/body/mod.rs:19: mod expr_method;
-src/hir/lower/body/mod.rs:20: mod part_09;
-src/hir/lower/body/mod.rs:21: mod ensure;
-src/hir/lower/body/mod.rs:22: mod part_10;
-src/hir/lower/body/mod.rs:23: mod collect_enum;
-src/hir/lower/body/mod.rs:24: mod collect_import;
-src/hir/lower/body/mod.rs:25: mod expr_access;
-src/hir/lower/body/mod.rs:26: mod expr_call;
-src/hir/lower/body/mod.rs:27: mod expr_call_extra;
-src/hir/lower/body/mod.rs:28: mod expr_enum;
-src/hir/lower/body/mod.rs:29: mod expr_misc;
-src/hir/lower/body/mod.rs:30: mod expr_ops1;
+src/hir/lower/body/mod.rs:20: mod match_lower;
+src/hir/lower/body/mod.rs:21: mod part_09;
+src/hir/lower/body/mod.rs:22: mod ensure;
+src/hir/lower/body/mod.rs:23: mod part_10;
+src/hir/lower/body/mod.rs:24: mod collect_enum;
+src/hir/lower/body/mod.rs:25: mod collect_import;
+src/hir/lower/body/mod.rs:26: mod expr_access;
+src/hir/lower/body/mod.rs:27: mod expr_call;
+src/hir/lower/body/mod.rs:28: mod expr_call_extra;
+src/hir/lower/body/mod.rs:29: mod expr_enum;
+src/hir/lower/body/mod.rs:30: mod expr_misc;
+src/hir/lower/body/mod.rs:31: mod expr_ops1;
 src/hir/lower/body/part_01.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_01.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
 src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
@@ -450,8 +460,8 @@ src/hir/lower/body/part_05.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> 
 src/hir/lower/body/part_05.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_05.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
 src/hir/lower/body/part_05.rs:52: pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/part_05.rs:115: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
-src/hir/lower/body/part_05.rs:154: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/part_05.rs:118: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
+src/hir/lower/body/part_05.rs:157: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
 src/hir/lower/body/part_06.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_06.rs:6: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/part_06.rs:11: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId>
@@ -463,8 +473,8 @@ src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
 src/hir/lower/body/part_07.rs:255: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
-src/hir/lower/body/part_08.rs:200: pub(crate) fn lower_while(
-src/hir/lower/body/part_08.rs:217: pub(crate) fn lower_for(
+src/hir/lower/body/part_08.rs:145: pub(crate) fn lower_while(
+src/hir/lower/body/part_08.rs:162: pub(crate) fn lower_for(
 src/hir/lower/body/part_09.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_09.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
 src/hir/lower/body/part_10.rs:3: impl crate::hir::lower::Ctx
@@ -472,23 +482,23 @@ src/hir/lower/body/part_10.rs:4: pub(crate) fn lower_literal(&mut self, lit: &Li
 src/hir/lower/body/ref_assign.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/ref_assign.rs:6: pub(crate) fn try_lower_ref_assign(
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:62: impl Ctx
-src/hir/lower/ctx.rs:64: pub fn new() -> Self
-src/hir/lower/ctx.rs:102: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:105: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:108: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:113: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:121: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:134: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:151: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:169: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:188: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:210: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx.rs:229: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
-src/hir/lower/ctx.rs:234: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:243: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
-src/hir/lower/ctx.rs:259: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:272: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:64: impl Ctx
+src/hir/lower/ctx.rs:66: pub fn new() -> Self
+src/hir/lower/ctx.rs:105: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:108: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:111: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:116: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:124: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:137: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:154: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:172: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:191: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:213: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
+src/hir/lower/ctx.rs:232: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/ctx.rs:237: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:246: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx.rs:262: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:275: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
@@ -1733,12 +1743,12 @@ src/parser/parser/core.rs:37: pub(super) fn expect_delimiter(&mut self, d: Delim
 src/parser/parser/core.rs:48: pub(super) fn expect_operator(&mut self, op: &str) -> Result<()>
 src/parser/parser/core.rs:60: pub(super) fn is_stmt_only_keyword(kind: &TokenKind) -> bool
 src/parser/parser/core.rs:71: pub(super) fn is_stmt_start(kind: &TokenKind) -> bool
-src/parser/parser/core.rs:84: pub(super) fn try_semicolon(&mut self) -> Result<()>
-src/parser/parser/core.rs:95: pub(super) fn parse_visibility(&mut self) -> Visibility
-src/parser/parser/core.rs:116: pub(super) fn expect_identifier(&mut self) -> Result<String>
-src/parser/parser/core.rs:134: pub fn parse_program(&mut self) -> Result<Program>
-src/parser/parser/core.rs:142: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
-src/parser/parser/core.rs:194: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
+src/parser/parser/core.rs:85: pub(super) fn try_semicolon(&mut self) -> Result<()>
+src/parser/parser/core.rs:96: pub(super) fn parse_visibility(&mut self) -> Visibility
+src/parser/parser/core.rs:117: pub(super) fn expect_identifier(&mut self) -> Result<String>
+src/parser/parser/core.rs:135: pub fn parse_program(&mut self) -> Result<Program>
+src/parser/parser/core.rs:143: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
+src/parser/parser/core.rs:195: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/decl.rs:80: pub(super) fn parse_return(&mut self) -> Result<Stmt>
@@ -1747,8 +1757,9 @@ src/parser/parser/decl.rs:104: pub(super) fn parse_if(&mut self) -> Result<Stmt>
 src/parser/parser/decl.rs:136: pub(super) fn parse_for(&mut self) -> Result<Stmt>
 src/parser/parser/decl.rs:163: pub(super) fn parse_while(&mut self) -> Result<Stmt>
 src/parser/parser/decl.rs:173: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:204: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
-src/parser/parser/decl.rs:227: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
+src/parser/parser/decl.rs:181: pub(super) fn parse_match_expr(&mut self) -> Result<Expr>
+src/parser/parser/decl.rs:215: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser/decl.rs:238: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:3: impl Parser
 src/parser/parser/enum_iface.rs:6: pub(super) fn parse_enum_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:74: pub(super) fn parse_interface_def(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
@@ -2192,6 +2203,10 @@ example/test_macro_args.aya:13: fn main() -> int
 example/test_macro_import.aya:4: fn main() -> int
 example/test_macro_stmt.aya:4: fn helper() -> int
 example/test_macro_stmt.aya:11: fn main() -> int
+example/test_match_expr.aya:5: enum TokenType
+example/test_match_expr.aya:11: impl TokenType
+example/test_match_expr.aya:12: fn to_string(ref self) -> String
+example/test_match_expr.aya:21: fn main() -> int
 example/test_memory.aya:5: fn make() -> int
 example/test_memory.aya:11: fn main() -> int
 example/test_memory_enum.aya:4: enum Maybe

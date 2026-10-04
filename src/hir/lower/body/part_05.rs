@@ -76,6 +76,9 @@ impl crate::hir::lower::Ctx {
         // 仅在无精确匹配时参与，避免与精确重载竞争
         let casts: Vec<FnId> = candidates.iter().copied()
             .filter(|&fn_id| {
+                // 泛型特化实例不参与隐式转换回退：
+                // 否则 `add[char]` 会被 `add[int]`（char→int 转换）抢走
+                if self.specialized_ids.contains(&fn_id) { return false; }
                 let sig = &self.fns[fn_id.0];
                 sig.params.len() == arg_types.len()
                     && sig.params.iter().zip(arg_types).all(|((_, pt), at)| {
@@ -163,8 +166,25 @@ impl crate::hir::lower::Ctx {
                 return Some(fn_id);
             }
         }
-        // 泛型单态化回退：实参是基名而形参已实例化
+        // 泛型单态化回退：实参是基名而形参已实例化（精确/基名匹配，含特化实例）
         for &fn_id in candidates {
+            let sig = &self.fns[fn_id.0];
+            if sig.params.is_empty() { continue; }
+            if !Ctx::receiver_matches_param(receiver_type, &sig.params[0].1) { continue; }
+            let remaining = &sig.params[1..];
+            if remaining.len() != arg_types.len() { continue; }
+            if remaining.iter().zip(arg_types).all(|((_, pt), at)| {
+                pt == at
+                    || same_base_name(pt, at)
+                    || strip_ownership_ref(pt) == strip_ownership_ref(at)
+                    || same_base_name(strip_ownership_ref(pt), strip_ownership_ref(at))
+            }) {
+                return Some(fn_id);
+            }
+        }
+        // 隐式转换回退（跳过泛型特化实例，避免串型）
+        for &fn_id in candidates {
+            if self.specialized_ids.contains(&fn_id) { continue; }
             let sig = &self.fns[fn_id.0];
             if sig.params.is_empty() { continue; }
             if !Ctx::receiver_matches_param(receiver_type, &sig.params[0].1) { continue; }

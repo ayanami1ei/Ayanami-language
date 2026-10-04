@@ -127,62 +127,7 @@ impl crate::hir::lower::Ctx {
                     _ => self.lower_stmt(inner),
                 }
             }
-            Stmt::Match { value, arms, span } => {
-                let hir_value = self.lower_expr(value)?;
-                let value_ty = expr_type(&hir_value);
-                let value_ty_name = match &value_ty {
-                    HirType::Named(n) => *n,
-                    _ => return Err(Error::Hir(format!("match on non-enum type at {}:{}", span.start_line, span.start_col))),
-                };
-                let (val_var, _, _) = self.register_or_lookup(Symbol::intern("__match_val"), value_ty.clone());
-                let val_local: HirNodeBox = SVar { var: val_var, ty: value_ty.clone() }.into();
-                let store_val = HirStmt::Assign { target: val_local, value: hir_value, span: *span };
-                let mut conds: Vec<HirNodeBox> = Vec::new();
-                let mut blocks: Vec<HirBlock> = Vec::new();
-                for (i, arm) in arms.iter().enumerate() {
-                    let tag_cmp: HirNodeBox = SBin {
-                        op: crate::parser::ast::BinaryOp::Eq,
-                        lhs: SField {
-                            object: SVar { var: val_var, ty: value_ty.clone() }.into(),
-                            field: Symbol::intern("_tag"), field_index: 0, ty: HirType::Int,
-                        }.into(),
-                        rhs: SConst { val: HirLiteral::Int(i as i64), ty: HirType::Int }.into(),
-                        ty: HirType::Int,
-                    }.into();
-                    conds.push(tag_cmp);
-                    let data_field = Symbol::intern(&format!("_data_{}", arm.variant_name));
-                    let var_struct = Symbol::intern(&format!("{}_{}", value_ty_name, arm.variant_name));
-                    let mut arm_stmts = Vec::new();
-                    for (j, (bind_name, _)) in arm.bindings.iter().enumerate() {
-                        let inner_acc: HirNodeBox = SField {
-                            object: SVar { var: val_var, ty: value_ty.clone() }.into(),
-                            field: data_field, field_index: i + 1, ty: HirType::Named(var_struct),
-                        }.into();
-                        let fval: HirNodeBox = SField {
-                            object: inner_acc,
-                            field: Symbol::intern(&format!("_{}", j)), field_index: j, ty: HirType::Int,
-                        }.into();
-                        let (bid, _, _) = self.register_or_lookup(*bind_name, HirType::Int);
-                        arm_stmts.push(HirStmt::Assign { target: SVar { var: bid, ty: HirType::Int }.into(), value: fval, span: *span });
-                    }
-                    arm_stmts.push(HirStmt::Expr { expr: self.lower_expr(&arm.body)?, span: *span });
-                    blocks.push(HirBlock { stmts: arm_stmts });
-                }
-                if conds.is_empty() {
-                    return Ok(HirStmt::Expr { expr: SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into(), span: *span });
-                }
-                let first_cond = conds.remove(0);
-                let first_block = blocks.remove(0);
-                let else_block = if !blocks.is_empty() && blocks.len() == conds.len() {
-                    blocks.pop()
-                } else {
-                    None
-                };
-                let elifs: Vec<(HirNodeBox, HirBlock)> = conds.into_iter().zip(blocks.into_iter()).collect();
-                Ok(HirStmt::Block { stmts: vec![store_val, HirStmt::If {
-                    cond: first_cond, then_block: first_block, elifs, else_block, span: *span,
-                }], span: *span })
-            }
+            Stmt::Match { value, arms, span } => self.lower_match_stmt(value, arms, span),
             Stmt::Break { span } => Ok(HirStmt::Break { span: *span }),
             Stmt::Continue { span } => Ok(HirStmt::Continue { span: *span }),
             Stmt::ExprStmt { expr, span } => {

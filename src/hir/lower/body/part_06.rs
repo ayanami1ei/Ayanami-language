@@ -218,6 +218,7 @@ impl crate::hir::lower::Ctx {
                         inferred: Default::default(),
         });
         self.fn_map.entry(*name).or_default().push(fid);
+        self.specialized_ids.insert(fid);
 
         // Step 5: Lower the specialized function body
         let saved_current_fn = self.current_fn;

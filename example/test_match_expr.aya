@@ -1,0 +1,26 @@
+// match 表达式（`return match self`）：ref 接收者、载荷绑定类型、
+// 以及泛型特化不与隐式 char→int 转换串型（Number(int) 分支在前，Operator(char) 在后）
+import "string";
+
+enum TokenType {
+    Number(int),
+    Operator(char),
+    Variable(String),
+}
+
+impl TokenType {
+    fn to_string(ref self) -> String {
+        return match self {
+            Number(n) => "Number: " + n,
+            Operator(c) => "Operator: " + c,
+            Variable(v) => "Variable: " + v,
+        }
+    }
+}
+
+fn main() -> int {
+    if TokenType::Number(1).to_string() != "Number: 1" { return 1 }
+    if TokenType::Operator('=').to_string() != "Operator: =" { return 2 }
+    if TokenType::Variable("a").to_string() != "Variable: a" { return 3 }
+    return 0;
+}

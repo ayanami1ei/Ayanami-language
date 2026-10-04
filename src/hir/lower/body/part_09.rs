@@ -40,7 +40,7 @@ impl crate::hir::lower::Ctx {
             Expr::FnCall { name, args, generic_args, span } => self.lower_fn_call(name, args, if generic_args.is_empty() { None } else { Some(generic_args) }, span),
             Expr::CallExpr { target, args, span } => self.lower_call_expr(target, args, span),
             Expr::TryOp(inner, span) => self.lower_try_op(inner, span),
-            Expr::Match { .. } => todo!(),
+            Expr::Match { value, arms, span } => self.lower_match_expr(value, arms, span),
             Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => self.lower_enum_construct(enum_name, variant_name, tuple_args, named_args, span),
             Expr::MethodCall { object, method, args, span } => self.lower_method_call(object, method, args, span),
             Expr::Move(inner, _) => {

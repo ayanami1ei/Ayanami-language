@@ -171,9 +171,20 @@ impl Parser {
     // ==================== Match statement ====================
 
     pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt> {
+        match self.parse_match_expr()? {
+            Expr::Match { value, arms, span } => Ok(Stmt::Match { value, arms, span }),
+            _ => unreachable!(),
+        }
+    }
+
+    /// `match` 作为表达式（`return match ...` 等位置）
+    pub(super) fn parse_match_expr(&mut self) -> Result<Expr> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // match
-        let value = self.parse_expr()?;
+        self.struct_lit_depth += 1;
+        let value = self.parse_expr();
+        self.struct_lit_depth -= 1;
+        let value = value?;
         self.expect_delimiter(Delimiter::LBrace)?;
         let mut arms = Vec::new();
         loop {
@@ -198,7 +209,7 @@ impl Parser {
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Stmt::Match { value: Box::new(value), arms, span: start_span })
+        Ok(Expr::Match { value: Box::new(value), arms, span: start_span })
     }
 
     pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt> {
