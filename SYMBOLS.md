@@ -1453,7 +1453,7 @@ src/mir/borrow/mod.rs:31: pub fn build_follow_table(mir: &MirProgram) -> FollowT
 src/mir/borrow/mod.rs:35: pub fn check_borrows(mir_fn: &MirFn, table: &FollowTable) -> Result<()>
 src/mir/borrow/walk.rs:5: pub(super) fn var_name(mir_fn: &MirFn, v: VarId) -> String
 src/mir/borrow/walk.rs:14: pub(super) fn walk_stmt(
-src/mir/borrow/walk.rs:45: fn walk_expr(
+src/mir/borrow/walk.rs:51: fn walk_expr(
 src/mir/display.rs:7: pub fn display_mir_program(program: &MirProgram)
 src/mir/display.rs:11: pub fn mir_program_to_string(program: &MirProgram) -> String
 src/mir/display.rs:20: fn pad(n: usize) -> String

@@ -17,6 +17,12 @@ pub(super) fn walk_stmt(
     mir_fn: &MirFn,
     errors: &mut Vec<String>,
 ) {
+    let sp = stmt.span();
+    let at = if sp.start_line > 0 {
+        format!(" (at {}:{})", sp.start_line, sp.start_col)
+    } else {
+        String::new()
+    };
     let mut stack: Vec<Vec<(VarId, bool, bool)>> = vec![Vec::new()];
     let mut roots: Vec<&dyn MirNode> = Vec::new();
     if let Some((_, v)) = stmt.assign_parts() {
@@ -38,7 +44,7 @@ pub(super) fn walk_stmt(
         roots.push(&**e);
     }
     for r in roots {
-        walk_expr(r, &mut stack, active, mir_fn, errors);
+        walk_expr(r, &mut stack, active, mir_fn, errors, &at);
     }
 }
 
@@ -48,6 +54,7 @@ fn walk_expr(
     active: &[(VarId, VarId, bool)],
     mir_fn: &MirFn,
     errors: &mut Vec<String>,
+    at: &str,
 ) {
     // 新借用（ref / ref mut）
     if let Some((var, mutable)) = node.as_ref() {
@@ -60,9 +67,10 @@ fn walk_expr(
                 .any(|(v, m, _)| *v == var && (*m || mutable));
         if conflict {
             errors.push(format!(
-                "cannot borrow `{}` as {}: already borrowed in this expression",
+                "cannot borrow `{}` as {}: already borrowed in this expression{}",
                 var_name(mir_fn, var),
-                if mutable { "mutable" } else { "immutable" }
+                if mutable { "mutable" } else { "immutable" },
+                at
             ));
         }
         stack.last_mut().unwrap().push((var, mutable, false));
@@ -81,15 +89,16 @@ fn walk_expr(
                         || stack.iter().flatten().any(|(v, m, _)| *v == var && *m);
                     if conflict {
                         errors.push(format!(
-                            "cannot borrow `{}` as mutable: already borrowed in this expression",
-                            var_name(mir_fn, var)
+                            "cannot borrow `{}` as mutable: already borrowed in this expression{}",
+                            var_name(mir_fn, var),
+                            at
                         ));
                     }
                     stack.last_mut().unwrap().push((var, true, true));
                     return;
                 }
             }
-            walk_expr(c, stack, active, mir_fn, errors);
+            walk_expr(c, stack, active, mir_fn, errors, at);
         });
         stack.pop();
         return;
@@ -100,10 +109,11 @@ fn walk_expr(
             || stack.iter().flatten().any(|(bv, bm, reserved)| *bm && !*reserved && *bv == v);
         if mutably_borrowed {
             errors.push(format!(
-                "cannot use `{}` because it is mutably borrowed",
-                var_name(mir_fn, v)
+                "cannot use `{}` because it is mutably borrowed{}",
+                var_name(mir_fn, v),
+                at
             ));
         }
     }
-    node.for_each_child(&mut |c| walk_expr(c, stack, active, mir_fn, errors));
+    node.for_each_child(&mut |c| walk_expr(c, stack, active, mir_fn, errors, at));
 }
