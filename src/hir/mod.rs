@@ -25,7 +25,7 @@ use crate::hir::ty::{VarId, FnId, HirType, HirLiteral};
 
 macro_rules! s_hir {
     ($name:ident { $($field:ident: $ty:ty),* $(,)? }) => {
-        #[derive(Debug, Clone, asuka::IrNode)]
+        #[derive(Debug, Clone)]
         pub struct $name {
             $(pub $field: $ty),*
         }

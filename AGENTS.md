@@ -18,15 +18,13 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 | 校验符号地图是否过期 | `./scripts/gen_symbols.sh --check` |
 | 零告警校验 | `./scripts/check_warnings.sh` |
 | 构建发布产物（tar + vsix） | `./scripts/package_release.sh` |
-| 重新生成解析器 | `./gen_parser.sh`（会先编译 `asuka/` 子仓，再拆分生成物） |
 | 校验文件行数 | `./scripts/check_file_sizes.sh`（默认上限 300 行） |
 | 刷新模块依赖图 | `python3 scripts/gen_module_graph.py` |
 | 安装版 CLI | `cd install && ./ayanami run ../example/test_struct.aya` |
-| 初始化子仓 | `git submodule update --init --recursive`（`std/`、`asuka/`、`book/`） |
+| 初始化子仓 | `git submodule update --init --recursive`（`std/`、`book/`） |
 
 - `install/` 是发布包：`ayanami`、bundled `llc`、`libLLVM.so.21.1`、`runtime.c`、预编译 `std/`。
-- **零告警要求**：`cargo check --all-targets` 不得输出任何 warning（生成代码 `src/generated/`
-  已在模块级关闭；`asuka/` 子仓同样保持零告警）。校验：`./scripts/check_warnings.sh`，
+- **零告警要求**：`cargo check --all-targets` 不得输出任何 warning。校验：`./scripts/check_warnings.sh`，
   已并入 `./scripts/check_all.sh`。
 - 编译 `.aya` 需要 `llc` 与 `gcc`：`cargo run` 用系统 `llc`（已装 `/usr/bin/llc`），安装版用同目录 bundled `llc`；`opt` 可选，用于 `-O2` 中端优化（`AYANAMI_OPT=0` 关闭）；bundled llc 场景只用同目录 `opt`，避免与系统 opt 版本不一致。
 
@@ -50,18 +48,17 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 
 ## 关键陷阱
 
-1. **`src/generated/ayanami_parser.rs` 是生成产物，禁止手改。** 改语法必须改根目录 `ayanami.grammar`，然后跑 `./gen_parser.sh`。
-2. 解析有两条路径：Asuka 生成解析器 + 手写回退（`parser.rs`，桥接 `gen_bridge.rs`）。改文法时注意回退路径仍然可用。
-3. `asuka/` 与 `std/`（[Ayanami-std](https://github.com/ayanami1ei/Ayanami-std)）都是 **git 子仓**：在子仓内修改后要先在子仓提交并推送，主仓再提交新的子仓指针。`gen_parser.sh` 从 asuka 子仓构建；`std/` 源码在子仓 `src/`，主仓只更新指针。
-4. `SYMBOLS.md`、`src/generated/`、`target/`、`build/` 都是产物或生成物，不要整读；`.lcl` 是二进制包，不要读。
-5. `example/*.aya`（26 个）是端到端测试的主要手段；新特性至少配一个 example 用例。
-6. `std/` 交付预编译 `.lcl`，源码在子仓 `std/src/**/*.aya`；根目录 `std/*.aya` 是指向 `src/` 的符号链接。构建/安装 `.lcl` 用子仓 `scripts/build.sh`（开发态安装到 `target/debug/std`）。
+1. **解析器是手写递归下降**（`src/parser/parser/`，AST 在 `src/parser/ast/`）：唯一解析路径，无生成解析器/回退路径（asuka 生成器与 `ayanami.grammar` 已于 2026-10 移除，不要重新引入文法生成）。
+2. `SYMBOLS.md`、`target/`、`build/` 都是产物或生成物，不要整读；`.lcl` 是二进制包，不要读。
+3. `example/*.aya`（26 个）是端到端测试的主要手段；新特性至少配一个 example 用例。
+4. `std/` 交付预编译 `.lcl`，源码在子仓 `std/src/**/*.aya`；根目录 `std/*.aya` 是指向 `src/` 的符号链接。构建/安装 `.lcl` 用子仓 `scripts/build.sh`（开发态安装到 `target/debug/std`）。
+5. `std/`、`book/` 是 git 子仓：在子仓内修改后要先在子仓提交并推送，主仓再提交新的子仓指针。
 
 ## 定位代码（省 token 的关键）
 
 1. 先查符号地图：`rg "关键词" SYMBOLS.md`
    - 每行格式为 `路径:行号: 签名`，一次检索即可定位；不要整读 `SYMBOLS.md`（约 100KB）。
-   - 覆盖 Rust 源码 + `example/` 的 `.aya`，不含 `src/generated/`；`std/` 符号由 std 子仓自行维护，不进入主仓符号地图。
+   - 覆盖 Rust 源码 + `example/` 的 `.aya`；`std/` 符号由 std 子仓自行维护，不进入主仓符号地图。
 2. 再精读目标文件的相邻代码：`rg -n -C 5 "符号名" <文件>`。
 3. 改完代码若增删了定义，跑 `./scripts/gen_symbols.sh` 更新索引，保持 `--check` 通过。
 4. 大范围探索先派子代理，只把结论带回主会话。
@@ -80,9 +77,8 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 - **单个 `.rs` 文件不超过 300 行**（目标 150~250），按职责拆到子目录 + `mod.rs`；校验：`./scripts/check_file_sizes.sh`。
 - 类型定义留在 `mod.rs`（子模块才能访问私有字段）；`impl` 块可放子模块，跨模块调用的方法标 `pub(crate)` / `pub(super)`。
 - 目录入口用 `mod` + `pub use` 保持对外路径不变。
-- `src/generated/ayanami_parser/` 由 `./gen_parser.sh` 生成（asuka 输出 + `scripts/split_generated_parser.py` 拆分），禁止手改；只改根目录 `ayanami.grammar` 后重新生成。
 - **改动代码后必须更新符号地图**：跑 `./scripts/gen_symbols.sh`（会刷新 `SYMBOLS.md` 的文件与行号），提交前 `./scripts/gen_symbols.sh --check` 必须通过。
-- `std/`、`asuka/`、`book/` 是 git 子仓（见「关键陷阱」）；子仓内改动先在子仓提交推送，再更新主仓指针。
+- `std/`、`book/` 是 git 子仓（见「关键陷阱」）；子仓内改动先在子仓提交推送，再更新主仓指针。
 
 ## 提交前检查
 

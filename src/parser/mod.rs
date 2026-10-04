@@ -6,29 +6,19 @@
 #[allow(clippy::module_inception)]
 pub mod parser;
 pub mod ast;
-pub mod gen_bridge;
 
 use crate::error::Result;
 
 pub use parser::Parser;
 
-/// Parse source code using the generated parser (from Asuka grammar).
-/// Falls back to the hand-written parser if the generated one fails.
+/// 解析源码为 AST（手写递归下降解析器，唯一解析路径）
 pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program> {
-    // Use generated parser
-    let tokens = crate::generated::tokenize(source);
-    let mut p = crate::generated::Parser::new(tokens);
-    match p.pprogram() {
-        Ok(val) => {
-            if let asuka::runtime::Value::Node(node) = val {
-                let block = gen_bridge::node_to_program(&node)?;
-                Ok(crate::parser::ast::program::Program::new(block.stmts))
-            } else {
-                fallback_parse(source)
-            }
-        }
-        Err(_) => fallback_parse(source),
-    }
+    let mut lexer = crate::lexer::Lexer::new(source);
+    let tokens: Vec<_> = lexer.tokenize_all().into_iter()
+        .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
+        .collect();
+    let mut hp = crate::parser::Parser::new(tokens);
+    hp.parse_program()
 }
 
 /// A5c-2：解析单个表达式（函数宏展开产物用）
@@ -41,11 +31,3 @@ pub fn parse_expression(source: &str) -> Result<crate::parser::ast::expr::Expr> 
     p.parse_expr_entry()
 }
 
-fn fallback_parse(source: &str) -> Result<crate::parser::ast::program::Program> {
-    let mut lexer = crate::lexer::Lexer::new(source);
-    let tokens: Vec<_> = lexer.tokenize_all().into_iter()
-        .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
-        .collect();
-    let mut hp = crate::parser::Parser::new(tokens);
-    hp.parse_program()
-}

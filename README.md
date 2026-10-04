@@ -40,7 +40,7 @@ install/
 脚本会先跑 `check_all.sh`（版本/行数/符号地图/零告警 + 语言正负回归 + IR 快照），再构建 release 二进制、
 重建 `std/` 预编译包、组装 `install/`（含 bundled `llc` 与 `libLLVM.so`）并打包。
 
-本仓库使用子仓：`std/`（[Ayanami-std](https://github.com/ayanami1ei/Ayanami-std)）、`asuka/`、`book/`；
+本仓库使用子仓：`std/`（[Ayanami-std](https://github.com/ayanami1ei/Ayanami-std)）、`book/`；
 从源码克隆后先执行 `git submodule update --init --recursive`。
 
 ## 构建要求

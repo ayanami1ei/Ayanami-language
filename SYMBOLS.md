@@ -873,22 +873,21 @@ src/lexer/token.rs:45: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 src/lexer/token_kind.rs:7: pub enum TokenKind
 src/lexer/token_kind.rs:19: impl fmt::Display for TokenKind
 src/lexer/token_kind.rs:20: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-src/lib.rs:19: pub mod generated;
-src/lib.rs:20: pub mod compiler;
-src/lib.rs:21: pub mod diagnostics;
-src/lib.rs:22: pub mod driver;
-src/lib.rs:23: pub mod error;
-src/lib.rs:24: pub mod formatter;
-src/lib.rs:25: pub mod hir;
-src/lib.rs:26: pub mod intern;
-src/lib.rs:27: pub mod lexer;
-src/lib.rs:28: pub mod lir;
-src/lib.rs:29: pub mod mir;
-src/lib.rs:30: pub mod package;
-src/lib.rs:31: pub mod parser;
-src/lib.rs:32: pub mod span;
-src/lib.rs:35: mod test_parse
-src/lib.rs:37: fn test_struct_literal_parse()
+src/lib.rs:17: pub mod compiler;
+src/lib.rs:18: pub mod diagnostics;
+src/lib.rs:19: pub mod driver;
+src/lib.rs:20: pub mod error;
+src/lib.rs:21: pub mod formatter;
+src/lib.rs:22: pub mod hir;
+src/lib.rs:23: pub mod intern;
+src/lib.rs:24: pub mod lexer;
+src/lib.rs:25: pub mod lir;
+src/lib.rs:26: pub mod mir;
+src/lib.rs:27: pub mod package;
+src/lib.rs:28: pub mod parser;
+src/lib.rs:29: pub mod span;
+src/lib.rs:32: mod test_parse
+src/lib.rs:34: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
@@ -1766,25 +1765,10 @@ src/parser/ast/unary_op.rs:2: pub enum UnaryOp
 src/parser/ast/vis.rs:2: pub enum Visibility
 src/parser/ast/vis.rs:8: impl Visibility
 src/parser/ast/vis.rs:9: pub fn is_public(&self) -> bool
-src/parser/gen_bridge/expr.rs:4: fn cast_target_from_expr(e: &Expr) -> Result<Type>
-src/parser/gen_bridge/expr.rs:18: pub fn node_to_expr(node: &Node) -> Result<Expr>
-src/parser/gen_bridge/mod.rs:10: pub fn node_to_program(node: &Node) -> Result<crate::parser::ast::block::Block>
-src/parser/gen_bridge/mod.rs:20: mod expr;
-src/parser/gen_bridge/mod.rs:21: mod stmt;
-src/parser/gen_bridge/mod.rs:22: mod ty;
-src/parser/gen_bridge/mod.rs:27: fn get_str(node: &Node, field: &str) -> Result<String>
-src/parser/gen_bridge/mod.rs:32: fn str_to_binop(s: &str) -> Result<BinaryOp>
-src/parser/gen_bridge/mod.rs:46: fn params_from_node(node: &Node) -> Result<Vec<(Symbol, Type)>>
-src/parser/gen_bridge/mod.rs:56: fn block_from_node(node: &Node) -> Result<crate::parser::ast::block::Block>
-src/parser/gen_bridge/mod.rs:61: fn default_span() -> Span
-src/parser/gen_bridge/stmt.rs:3: pub fn node_to_stmt(node: &Node) -> Result<Stmt>
-src/parser/gen_bridge/ty.rs:3: pub fn type_from_node(node: &Node) -> Result<Type>
 src/parser/mod.rs:7: pub mod parser;
 src/parser/mod.rs:8: pub mod ast;
-src/parser/mod.rs:9: pub mod gen_bridge;
-src/parser/mod.rs:17: pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program>
-src/parser/mod.rs:35: pub fn parse_expression(source: &str) -> Result<crate::parser::ast::expr::Expr>
-src/parser/mod.rs:44: fn fallback_parse(source: &str) -> Result<crate::parser::ast::program::Program>
+src/parser/mod.rs:15: pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program>
+src/parser/mod.rs:25: pub fn parse_expression(source: &str) -> Result<crate::parser::ast::expr::Expr>
 src/parser/parser/atom.rs:3: impl Parser
 src/parser/parser/atom.rs:4: pub(super) fn parse_atom(&mut self) -> Result<Expr>
 src/parser/parser/core.rs:3: impl Parser

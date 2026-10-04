@@ -38,8 +38,7 @@ graph LR
 |---|---|---|
 | CLI | `src/main.rs`、`src/cli/` | `cmd_*` |
 | 词法 | `src/lexer/` | `Lexer::tokenize_all` |
-| 语法 | `src/parser/` | `parse_source`、`gen_bridge::node_to_program` |
-| 文法 | `ayanami.grammar` + `asuka/`（子仓） | `./gen_parser.sh` |
+| 语法 | `src/parser/` | `parse_source`、手写解析器 `parser/` |
 | HIR | `src/hir/lower/` | `lower_program`、`to_mir.rs` |
 | MIR | `src/mir/lower/` | `lower_program`、`mem/`、`borrow/` |
 | LIR | `src/lir/lower/`、`src/lir/emit/` | `lower_program`、`emit_program` |
@@ -110,7 +109,6 @@ graph LR
     GEN[gen_symbols.sh] --> SYM[SYMBOLS.md]
     MG[gen_module_graph.py] --> MGM[docs/module-graph.md]
     SPLIT[check_file_sizes.sh] 
-    PARSER[gen_parser.sh] -->|asuka 子仓| GENP[src/generated/ayanami_parser/]
 ```
 
 | 脚本 | 作用 |
@@ -120,8 +118,6 @@ graph LR
 | `scripts/gen_module_graph.py` | 生成本文件同目录的 `module-graph.md` |
 | `scripts/check_version.sh` | Cargo/插件/std/标签版本一致 |
 | `scripts/check_file_sizes.sh` | 单文件 ≤300 行 |
-| `scripts/split_generated_parser.py` | 拆分 asuka 生成的解析器 |
-| `gen_parser.sh` | 从子仓 asuka 重新生成解析器并拆分 |
 
 ## 5. 常用查询
 
