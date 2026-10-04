@@ -1,0 +1,38 @@
+// M1.2：位运算 << >> & | ^ ~（含定宽整数与有符号/无符号右移）
+fn shl_u8(u8 a, u8 b) -> u8 { return a << b }
+fn shr_u8(u8 a, u8 b) -> u8 { return a >> b }
+fn shr_i8(i8 a, i8 b) -> i8 { return a >> b }
+fn bitand32(i32 a, i32 b) -> i32 { return a & b }
+fn bitor32(i32 a, i32 b) -> i32 { return a | b }
+fn bitxor32(i32 a, i32 b) -> i32 { return a ^ b }
+fn bitnot_i32(i32 a) -> i32 { return ~a }
+fn shl32(i32 a, i32 b) -> i32 { return a << b }
+
+impl i32 {
+    fn bit_and32(self, i32 other) -> i32 { return self & other }
+}
+
+fn main() -> int {
+    if (12 & 10) != 8 { return 1 }
+    if (12 | 10) != 14 { return 2 }
+    if (12 ^ 10) != 6 { return 3 }
+    if ~0 != -1 { return 4 }
+    if (1 << 4) != 16 { return 5 }
+    if (256 >> 4) != 16 { return 6 }
+    if (-8 >> 1) != -4 { return 7 }          // 算术右移
+    if (1 | 2 ^ 3 & 4) != 3 { return 8 }     // 优先级：& > ^ > |
+    if (~0 & 3) != 3 { return 9 }            // ~ 高于 &
+    if shl_u8(1, 4) != 16 { return 10 }
+    if shr_u8(200, 1) != 100 { return 11 }   // 无符号逻辑右移（有符号会得 -28）
+    if shr_i8(-8, 1) != -4 { return 12 }     // 有符号算术右移
+    if bitand32(12, 10) != 8 { return 13 }
+    if bitor32(12, 10) != 14 { return 14 }
+    if bitxor32(12, 10) != 6 { return 15 }
+    if bitnot_i32(0) != -1 { return 16 }
+    if shl32(1, 30) != 1073741824 { return 17 }
+    x = bitand32(12, 12)
+    if x.bit_and32(10) != 8 { return 18 }    // 方法调用 + 字面量适配
+    if !(true & true) { return 19 }          // bool 位运算
+    if (true | false) != true { return 20 }
+    return 0
+}

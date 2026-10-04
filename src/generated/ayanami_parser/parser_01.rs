@@ -63,13 +63,35 @@ impl Parser {
         let mut n = asuka::runtime::Node::new("Attr");
         self.0.expect("#")?;
         self.0.expect("[")?;
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("ident", asuka::runtime::Value::Node(child));
+        if let asuka::runtime::Value::Node(child) = self.pattr_path()? {
+            n.set("attr_path", asuka::runtime::Value::Node(child));
         }
         if let asuka::runtime::Value::Node(child) = self.pattr_args()? {
             n.set("attr_args", asuka::runtime::Value::Node(child));
         }
         self.0.expect("]")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pattr_path(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("AttrPath");
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        loop {
+            let _gr_saved = self.0.pos;
+            if let Ok(_) = (|| -> Result<(), String> {
+                    { // group
+                    let _g_saved = self.0.pos;
+                        self.0.expect("::")?;
+                        if let asuka::runtime::Value::Node(child) = self.pi()? {
+                            n.set("ident", asuka::runtime::Value::Node(child));
+                        }
+                    } // end group
+                Ok(())
+        })() {}
+            else { self.0.pos = _gr_saved; break; }
+        }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 
@@ -127,31 +149,15 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.ps()? {
             n.set("string_literal", asuka::runtime::Value::Node(child));
         }
-        self.0.expect(";")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pnamespace(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("Namespace");
-        if let asuka::runtime::Value::Node(child) = self.pvis()? {
-            n.set("vis", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("NAMESPACE")?;
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("ident", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("{")?;
-        loop {
-            let saved = self.0.pos;
-            match self.0.tok() {
-                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
-                _ => {}
+        { // group
+        let _g_saved = self.0.pos;
+            self.0.expect("{")?;
+            if let asuka::runtime::Value::Node(child) = self.pident_list()? {
+                n.set("ident_list", asuka::runtime::Value::Node(child));
             }
-            if let asuka::runtime::Value::Node(child) = self.pitem()? {
-                n.set("item", asuka::runtime::Value::Node(child));
-            } else { break; }
-        }
-        self.0.expect("}")?;
+            self.0.expect("}")?;
+        } // end group
+        self.0.expect(";")?;
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 }

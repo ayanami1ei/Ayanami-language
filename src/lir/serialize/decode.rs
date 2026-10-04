@@ -40,12 +40,12 @@ impl<'a> Reader<'a> {
             }
             3 => {
                 let d = self.u64()?; let o = self.u32()?; let l = self.value()?; let r = self.value()?; let t = self.ty()?; let rt = self.ty()?;
-                let op = match o { 0 => BinaryOp::Add, 1 => BinaryOp::Sub, 2 => BinaryOp::Mul, 3 => BinaryOp::Div, 4 => BinaryOp::Mod, 5 => BinaryOp::Eq, 6 => BinaryOp::Neq, 7 => BinaryOp::Lt, 8 => BinaryOp::Gt, 9 => BinaryOp::Le, 10 => BinaryOp::Ge, 11 => BinaryOp::And, 12 => BinaryOp::Or, _ => return Err(Error::Serialize("unknown BinaryOp".into())) };
+                let op = match o { 0 => BinaryOp::Add, 1 => BinaryOp::Sub, 2 => BinaryOp::Mul, 3 => BinaryOp::Div, 4 => BinaryOp::Mod, 5 => BinaryOp::Eq, 6 => BinaryOp::Neq, 7 => BinaryOp::Lt, 8 => BinaryOp::Gt, 9 => BinaryOp::Le, 10 => BinaryOp::Ge, 11 => BinaryOp::And, 12 => BinaryOp::Or, 13 => BinaryOp::BitAnd, 14 => BinaryOp::BitOr, 15 => BinaryOp::BitXor, 16 => BinaryOp::Shl, 17 => BinaryOp::Shr, _ => return Err(Error::Serialize("unknown BinaryOp".into())) };
                 Ok(SLirBinOp { dest: d, op, lhs: l, rhs: r, ty: t, result_ty: rt }.into())
             }
             4 => {
                 let d = self.u64()?; let o = self.u32()?; let s = self.value()?; let t = self.ty()?;
-                let op = match o { 0 => crate::parser::ast::UnaryOp::Neg, 1 => crate::parser::ast::UnaryOp::Not, _ => return Err(Error::Serialize("unknown UnaryOp".into())) };
+                let op = match o { 0 => crate::parser::ast::UnaryOp::Neg, 1 => crate::parser::ast::UnaryOp::Not, 2 => crate::parser::ast::UnaryOp::BitNot, _ => return Err(Error::Serialize("unknown UnaryOp".into())) };
                 Ok(SLirUnaryOp { dest: d, op, src: s, ty: t }.into())
             }
             5 => {

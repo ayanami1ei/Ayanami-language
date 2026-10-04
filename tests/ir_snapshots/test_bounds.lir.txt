@@ -17,7 +17,7 @@ entry:
     t2 = ref_v0 : Ref(Named(Symbol(136)), false)
     t3 = str_global @__str_0
     t4 = struct_lit String (2 fields)
-    t8 = call fn78 (Tmp(2):Ref(Named(Symbol(136)), false), Literal(Int(5), Int):Int, Literal(Int(7), Int):Int, Literal(Int(13), Int):Int, Tmp(4):Named(Symbol(11))) : Int
+    t8 = call fn78 (Tmp(2):Ref(Named(Symbol(136)), false), Literal(Int(5), Int):Int, Literal(Int(7), Int):Int, Literal(Int(13), Int):Int, Tmp(4):Named(Symbol(15))) : Int
     store Tmp(8) -> v1 : Int
     t9 = load v1 : Int
     ret Tmp(9)
@@ -129,20 +129,20 @@ fn index (fn_id=78) -> Int [4 blocks]
   local index: Int
   local __line: Int
   local __col: Int
-  local __file: Named(Symbol(11))
+  local __file: Named(Symbol(15))
   local __ret: Int
 entry:
     alloca v0 : Ref(Named(Symbol(136)), false)
     alloca v1 : Int
     alloca v2 : Int
     alloca v3 : Int
-    alloca v4 : Named(Symbol(11))
+    alloca v4 : Named(Symbol(15))
     alloca v5 : Int
     store Param(0) -> v0 : Ref(Named(Symbol(136)), false)
     store Param(1) -> v1 : Int
     store Param(2) -> v2 : Int
     store Param(3) -> v3 : Int
-    store Param(4) -> v4 : Named(Symbol(11))
+    store Param(4) -> v4 : Named(Symbol(15))
     t0 = load v1 : Int
     t1 = Lt Tmp(0) Literal(Int(0), Int) : Int
     t2 = load v1 : Int
@@ -154,11 +154,11 @@ entry:
 then0:
     t8 = load v2 : Int
     t9 = load v3 : Int
-    t10 = load v4 : Named(Symbol(11))
+    t10 = load v4 : Named(Symbol(15))
     t11 = load v1 : Int
     t12 = load v0 : Ref(Named(Symbol(136)), false)
     t13 = field_access field=1 : Int
-    _ = call fn3 (Tmp(8):Int, Tmp(9):Int, Tmp(10):Named(Symbol(11)), Tmp(11):Int, Tmp(13):Int) : Void
+    _ = call fn3 (Tmp(8):Int, Tmp(9):Int, Tmp(10):Named(Symbol(15)), Tmp(11):Int, Tmp(13):Int) : Void
     br %ifcont2
 else1:
     br %ifcont2

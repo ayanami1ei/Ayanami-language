@@ -1,0 +1,7 @@
+fn f(float a) -> float {
+    return a & 1.0
+}
+
+fn main() -> int {
+    return 0
+}

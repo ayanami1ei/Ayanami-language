@@ -110,6 +110,22 @@ impl LirNode for SLirBinOp {
                 let op = if *signed { "srem" } else { "urem" };
                 vec![format!("%t{} = {} i{} {}, {}", self.dest, op, bits, l, r)]
             }
+            (BinaryOp::BitAnd | BinaryOp::BitOr | BinaryOp::BitXor,
+             HirType::Int | HirType::Char | HirType::Bool | HirType::IntN { .. }) => {
+                let w = icmp_llvm(&self.ty);
+                let op = match self.op { BinaryOp::BitAnd => "and", BinaryOp::BitOr => "or", _ => "xor" };
+                vec![format!("%t{} = {} {} {}, {}", self.dest, op, w, l, r)]
+            }
+            (BinaryOp::Shl, HirType::Int | HirType::Char | HirType::IntN { .. }) => {
+                let w = icmp_llvm(&self.ty);
+                vec![format!("%t{} = shl {} {}, {}", self.dest, w, l, r)]
+            }
+            (BinaryOp::Shr, HirType::Int | HirType::Char | HirType::IntN { .. }) => {
+                let w = icmp_llvm(&self.ty);
+                let unsigned = matches!(&self.ty, HirType::Char | HirType::IntN { signed: false, .. });
+                let op = if unsigned { "lshr" } else { "ashr" };
+                vec![format!("%t{} = {} {} {}, {}", self.dest, op, w, l, r)]
+            }
             (BinaryOp::Eq, _) if self.ty != HirType::Float => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp eq ptr {}, {}", self.dest, l, r)] }
@@ -176,6 +192,9 @@ impl LirNode for SLirUnaryOp {
             (UnaryOp::Neg, HirType::IntN { bits, .. }) => vec![format!("%t{} = sub i{} 0, {}", self.dest, bits, s)],
             (UnaryOp::Neg, HirType::Float) => vec![format!("%t{} = fsub double -0.0, {}", self.dest, s)],
             (UnaryOp::Not, _) => vec![format!("%t{} = xor i1 1, {}", self.dest, s)],
+            (UnaryOp::BitNot, HirType::Int) => vec![format!("%t{} = xor i64 -1, {}", self.dest, s)],
+            (UnaryOp::BitNot, HirType::Char) => vec![format!("%t{} = xor i8 -1, {}", self.dest, s)],
+            (UnaryOp::BitNot, HirType::IntN { bits, .. }) => vec![format!("%t{} = xor i{} -1, {}", self.dest, bits, s)],
             _ => vec![],
         }
     }

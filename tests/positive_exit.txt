@@ -7,6 +7,7 @@ test_arraylist.aya 0
 test_asm.aya 10
 test_assume.aya 0
 test_attrs.aya 3
+test_bitwise.aya 0
 test_bool.aya 1
 test_bool2.aya 1
 test_bounds.aya 101

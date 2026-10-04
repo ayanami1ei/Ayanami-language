@@ -23,6 +23,15 @@ impl Parser {
                     span,
                 })
             }
+            TokenKind::Operator(s) if s == "~" => {
+                self.advance();
+                let expr = self.parse_unary()?;
+                Ok(Expr::Unary {
+                    op: UnaryOp::BitNot,
+                    arg: Box::new(expr),
+                    span,
+                })
+            }
             TokenKind::Keyword(Keyword::Move) => {
                 self.advance();
                 let expr = self.parse_unary()?;

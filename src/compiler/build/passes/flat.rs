@@ -57,13 +57,14 @@ fn op_code(op: BinaryOp) -> i64 {
         BinaryOp::Div => 4, BinaryOp::Mod => 5, BinaryOp::Eq => 6,
         BinaryOp::Neq => 7, BinaryOp::Lt => 8, BinaryOp::Gt => 9,
         BinaryOp::Le => 10, BinaryOp::Ge => 11, BinaryOp::And => 12,
-        BinaryOp::Or => 13,
+        BinaryOp::Or => 13, BinaryOp::BitAnd => 14, BinaryOp::BitOr => 15,
+        BinaryOp::BitXor => 16, BinaryOp::Shl => 17, BinaryOp::Shr => 18,
     }
 }
 
 fn unary_code(op: UnaryOp) -> i64 {
     match op {
-        UnaryOp::Neg => 20, UnaryOp::Not => 21,
+        UnaryOp::Neg => 20, UnaryOp::Not => 21, UnaryOp::BitNot => 22,
     }
 }
 

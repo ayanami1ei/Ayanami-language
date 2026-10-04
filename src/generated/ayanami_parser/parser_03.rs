@@ -1,6 +1,81 @@
 use super::*;
 
 impl Parser {
+    pub fn pstruct_def(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("StructDef");
+        if let asuka::runtime::Value::Node(child) = self.pattr_list()? {
+            n.set("attr_list", asuka::runtime::Value::Node(child));
+        }
+        if let asuka::runtime::Value::Node(child) = self.pvis()? {
+            n.set("vis", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("STRUCT")?;
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        if let asuka::runtime::Value::Node(child) = self.pgeneric_params()? {
+            n.set("generic_params", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("{")?;
+        if let asuka::runtime::Value::Node(child) = self.pfield_list()? {
+            n.set("field_list", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("}")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pfield(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("Field");
+        if let asuka::runtime::Value::Node(child) = self.pattr_list()? {
+            n.set("attr_list", asuka::runtime::Value::Node(child));
+        }
+        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
+            n.set("typ", asuka::runtime::Value::Node(child));
+        }
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pfield_list(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("FieldList");
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pfield()? {
+                n.set("field", asuka::runtime::Value::Node(child));
+            } else { break; }
+        }
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn penum_def(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("EnumDef");
+        if let asuka::runtime::Value::Node(child) = self.pattr_list()? {
+            n.set("attr_list", asuka::runtime::Value::Node(child));
+        }
+        if let asuka::runtime::Value::Node(child) = self.pvis()? {
+            n.set("vis", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("ENUM")?;
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        if let asuka::runtime::Value::Node(child) = self.pgeneric_params()? {
+            n.set("generic_params", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("{")?;
+        if let asuka::runtime::Value::Node(child) = self.pvariant_list()? {
+            n.set("variant_list", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("}")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
     pub fn pvariant(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("Variant");
         if let asuka::runtime::Value::Node(child) = self.pi()? {
@@ -99,81 +174,6 @@ impl Parser {
             }
         } // end group
         self.0.expect(";")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pself_param(&mut self) -> Result<asuka::runtime::Value, String> {
-        if self.0.tok().kind == "SELF" {
-            let mut node = asuka::runtime::Node::new("self");
-            self.0.expect("SELF")?;
-            return Ok(asuka::runtime::Value::Node(Box::new(node)));
-        }
-        return Err(format!("no alt"));
-    }
-
-    pub fn pimpl_block(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("ImplBlock");
-        if let asuka::runtime::Value::Node(child) = self.pattr_list()? {
-            n.set("attr_list", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pvis()? {
-            n.set("vis", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("IMPL")?;
-        if let asuka::runtime::Value::Node(child) = self.pgeneric_params()? {
-            n.set("generic_params", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("ident", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pgeneric_args()? {
-            n.set("generic_args", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("{")?;
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("method_list", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("}")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pmethod(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("Method");
-        if let asuka::runtime::Value::Node(child) = self.pattr_list()? {
-            n.set("attr_list", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pvis()? {
-            n.set("vis", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("FN")?;
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("ident", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pgeneric_params()? {
-            n.set("generic_params", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("(")?;
-        if let asuka::runtime::Value::Node(child) = self.pself_param()? {
-            n.set("self_param", asuka::runtime::Value::Node(child));
-        }
-        { // group
-        let _g_saved = self.0.pos;
-            self.0.expect(",")?;
-            if let asuka::runtime::Value::Node(child) = self.pparam_list()? {
-                n.set("param_list", asuka::runtime::Value::Node(child));
-            }
-        } // end group
-        self.0.expect(")")?;
-        { // group
-        let _g_saved = self.0.pos;
-            self.0.expect("->")?;
-            if let asuka::runtime::Value::Node(child) = self.ptyp()? {
-                n.set("typ", asuka::runtime::Value::Node(child));
-            }
-        } // end group
-        if let asuka::runtime::Value::Node(child) = self.pblock()? {
-            n.set("block", asuka::runtime::Value::Node(child));
-        }
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 }

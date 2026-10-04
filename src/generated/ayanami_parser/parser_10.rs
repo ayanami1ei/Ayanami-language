@@ -1,6 +1,40 @@
 use super::*;
 
 impl Parser {
+    pub fn pasm_input(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("AsmInput");
+        if let asuka::runtime::Value::Node(child) = self.ps()? {
+            n.set("string_literal", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(":")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pasm_input_list(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("AsmInputList");
+        if let asuka::runtime::Value::Node(child) = self.pasm_input()? {
+            n.set("asm_input", asuka::runtime::Value::Node(child));
+        }
+        loop {
+            let _gr_saved = self.0.pos;
+            if let Ok(_) = (|| -> Result<(), String> {
+                    { // group
+                    let _g_saved = self.0.pos;
+                        self.0.expect(",")?;
+                        if let asuka::runtime::Value::Node(child) = self.pasm_input()? {
+                            n.set("asm_input", asuka::runtime::Value::Node(child));
+                        }
+                    } // end group
+                Ok(())
+        })() {}
+            else { self.0.pos = _gr_saved; break; }
+        }
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
     pub fn pbool_literal(&mut self) -> Result<asuka::runtime::Value, String> {
         if self.0.tok().kind == "TRUE" {
             let mut node = asuka::runtime::Node::new("true");

@@ -39,7 +39,7 @@ pub fn node_to_expr(node: &Node) -> Result<Expr> {
             let op_str = get_str(node, "op")?;
             let arg = node_to_expr(node.child("arg").ok_or_else(|| Error::Parse("missing arg".into()))?)?;
             let op = match op_str.as_str() {
-                "-" => UnaryOp::Neg, "!" => UnaryOp::Not,
+                "-" => UnaryOp::Neg, "!" => UnaryOp::Not, "~" => UnaryOp::BitNot,
                 _ => return Err(Error::Parse(format!("unknown unary op: {}", op_str))),
             };
             Ok(Expr::Unary { op, arg: Box::new(arg), span: default_span() })

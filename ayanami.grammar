@@ -6,22 +6,28 @@
              "for", "in", "match", "enum", "struct", "interface", "impl",
              "pub", "ref", "mut", "extern", "import", "as", "asm",
              "break", "continue", "self", "move", "clone", "inline", "let"
-    operator: "+" (prec:5, assoc:left)
-              "-" (prec:5, assoc:left)
-              "*" (prec:6, assoc:left)
-              "/" (prec:6, assoc:left)
-              "%" (prec:6, assoc:left)
-              "==" (prec:3, assoc:left)
-              "!=" (prec:3, assoc:left)
-              "<" (prec:3, assoc:left)
-              ">" (prec:3, assoc:left)
-              "<=" (prec:3, assoc:left)
-              ">=" (prec:3, assoc:left)
+    operator: "=" (prec:2, assoc:right)
+              "||" (prec:3, assoc:left)
               "&&" (prec:4, assoc:left)
-              "||" (prec:4, assoc:left)
-              "=" (prec:2, assoc:right)
+              "==" (prec:5, assoc:left)
+              "!=" (prec:5, assoc:left)
+              "<" (prec:5, assoc:left)
+              ">" (prec:5, assoc:left)
+              "<=" (prec:5, assoc:left)
+              ">=" (prec:5, assoc:left)
+              "|" (prec:6, assoc:left)
+              "^" (prec:7, assoc:left)
+              "&" (prec:8, assoc:left)
+              "<<" (prec:9, assoc:left)
+              ">>" (prec:9, assoc:left)
+              "+" (prec:10, assoc:left)
+              "-" (prec:10, assoc:left)
+              "*" (prec:11, assoc:left)
+              "/" (prec:11, assoc:left)
+              "%" (prec:11, assoc:left)
               "!" (prefix)
-              "-" (prefix, prec:7)
+              "~" (prefix)
+              "-" (prefix, prec:12)
               "[" (prefix, group)
               "]" (prefix)
     punct: ";", "{", "}", "(", ")", "[", "]", ",", ":", "::", "->", "=>",
@@ -111,7 +117,7 @@
                    | Ident | IntLiteral | FloatLiteral | StringLiteral | CharLiteral | BoolLiteral;
 
     BinaryExpr    = Expr operator Expr;
-    UnaryExpr     = ("-" | "!") Expr;
+    UnaryExpr     = ("-" | "!" | "~") Expr;
     FnCallExpr    = Ident "(" ExprList? ")";
     CallExpr      = Expr "(" ExprList? ")";
     FieldExpr     = Expr "." Ident;

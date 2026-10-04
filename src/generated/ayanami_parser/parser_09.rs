@@ -1,6 +1,33 @@
 use super::*;
 
 impl Parser {
+    pub fn parray_sized(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("ArraySized");
+        self.0.expect("[")?;
+        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
+            n.set("typ", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(";")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("]")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pstruct_literal(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("StructLiteral");
+        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
+            n.set("typ", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("{")?;
+        if let asuka::runtime::Value::Node(child) = self.pfield_init_list()? {
+            n.set("field_init_list", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("}")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
     pub fn pfield_init(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("FieldInit");
         if let asuka::runtime::Value::Node(child) = self.pi()? {
@@ -131,40 +158,6 @@ impl Parser {
                         self.0.expect(",")?;
                         if let asuka::runtime::Value::Node(child) = self.pasm_output()? {
                             n.set("asm_output", asuka::runtime::Value::Node(child));
-                        }
-                    } // end group
-                Ok(())
-        })() {}
-            else { self.0.pos = _gr_saved; break; }
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pasm_input(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("AsmInput");
-        if let asuka::runtime::Value::Node(child) = self.ps()? {
-            n.set("string_literal", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect(":")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pasm_input_list(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("AsmInputList");
-        if let asuka::runtime::Value::Node(child) = self.pasm_input()? {
-            n.set("asm_input", asuka::runtime::Value::Node(child));
-        }
-        loop {
-            let _gr_saved = self.0.pos;
-            if let Ok(_) = (|| -> Result<(), String> {
-                    { // group
-                    let _g_saved = self.0.pos;
-                        self.0.expect(",")?;
-                        if let asuka::runtime::Value::Node(child) = self.pasm_input()? {
-                            n.set("asm_input", asuka::runtime::Value::Node(child));
                         }
                     } // end group
                 Ok(())

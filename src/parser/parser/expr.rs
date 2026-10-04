@@ -45,7 +45,7 @@ impl Parser {
     }
 
     pub(super) fn parse_compare(&mut self) -> Result<Expr> {
-        let mut left = self.parse_sum()?;
+        let mut left = self.parse_bitor()?;
         while let Some(tok) = self.peek() {
             let op_span = tok.span();
             let op = match &tok.kind {
@@ -56,6 +56,83 @@ impl Parser {
                     ">=" => Some(BinaryOp::Ge),
                     "<" => Some(BinaryOp::Lt),
                     ">" => Some(BinaryOp::Gt),
+                    _ => None,
+                },
+                _ => None,
+            };
+            match op {
+                Some(op) => {
+                    self.advance();
+                    let right = self.parse_bitor()?;
+                    left = Expr::Binary {
+                        op,
+                        lhs: Box::new(left),
+                        rhs: Box::new(right),
+                        span: op_span,
+                    };
+                }
+                None => break,
+            }
+        }
+        Ok(left)
+    }
+
+    pub(super) fn parse_bitor(&mut self) -> Result<Expr> {
+        let mut left = self.parse_bitxor()?;
+        while self.peek().map(|t| t.kind == TokenKind::Operator("|".to_string())) == Some(true) {
+            let op_span = self.peek().unwrap().span();
+            self.advance();
+            let right = self.parse_bitxor()?;
+            left = Expr::Binary {
+                op: BinaryOp::BitOr,
+                lhs: Box::new(left),
+                rhs: Box::new(right),
+                span: op_span,
+            };
+        }
+        Ok(left)
+    }
+
+    pub(super) fn parse_bitxor(&mut self) -> Result<Expr> {
+        let mut left = self.parse_bitand()?;
+        while self.peek().map(|t| t.kind == TokenKind::Operator("^".to_string())) == Some(true) {
+            let op_span = self.peek().unwrap().span();
+            self.advance();
+            let right = self.parse_bitand()?;
+            left = Expr::Binary {
+                op: BinaryOp::BitXor,
+                lhs: Box::new(left),
+                rhs: Box::new(right),
+                span: op_span,
+            };
+        }
+        Ok(left)
+    }
+
+    pub(super) fn parse_bitand(&mut self) -> Result<Expr> {
+        let mut left = self.parse_shift()?;
+        while self.peek().map(|t| t.kind == TokenKind::Operator("&".to_string())) == Some(true) {
+            let op_span = self.peek().unwrap().span();
+            self.advance();
+            let right = self.parse_shift()?;
+            left = Expr::Binary {
+                op: BinaryOp::BitAnd,
+                lhs: Box::new(left),
+                rhs: Box::new(right),
+                span: op_span,
+            };
+        }
+        Ok(left)
+    }
+
+    pub(super) fn parse_shift(&mut self) -> Result<Expr> {
+        let mut left = self.parse_sum()?;
+        while let Some(tok) = self.peek() {
+            let op_span = tok.span();
+            let op = match &tok.kind {
+                TokenKind::Operator(s) => match s.as_str() {
+                    "<<" => Some(BinaryOp::Shl),
+                    ">>" => Some(BinaryOp::Shr),
                     _ => None,
                 },
                 _ => None,

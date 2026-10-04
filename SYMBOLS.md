@@ -76,20 +76,20 @@ src/compiler/build/passes/flat.rs:33: pub(super) fn len(&self) -> usize
 src/compiler/build/passes/flat.rs:40: fn push(&mut self, kind: i64, call: bool, callee_pure: bool, alloc: bool, asm: bool, store: bool, op: i64, lit_kind: i64, lit_i64: i64, lit_f64: i64, stmt_kind: i64, var_id: i64) -> usize
 src/compiler/build/passes/flat.rs:49: fn set_child_count(&mut self, idx: usize, n: i64)
 src/compiler/build/passes/flat.rs:54: fn op_code(op: BinaryOp) -> i64
-src/compiler/build/passes/flat.rs:64: fn unary_code(op: UnaryOp) -> i64
-src/compiler/build/passes/flat.rs:70: fn lit_kind(v: &HirLiteral) -> i64
-src/compiler/build/passes/flat.rs:80: fn lit_i64(v: &HirLiteral) -> i64
-src/compiler/build/passes/flat.rs:89: fn lit_f64(v: &HirLiteral) -> i64
-src/compiler/build/passes/flat.rs:96: fn walk_expr(e: &dyn MirNode, v: &mut FlatView) -> usize
-src/compiler/build/passes/flat.rs:120: fn stmt_kind(s: &dyn MirStmtNode) -> i64
-src/compiler/build/passes/flat.rs:136: fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize
-src/compiler/build/passes/flat.rs:146: fn push_i64(buf: &mut Vec<u8>, v: i64)
-src/compiler/build/passes/flat.rs:151: pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8>
-src/compiler/build/passes/flat.rs:174: pub(super) fn read_i64(buf: &[u8], off: usize) -> i64
-src/compiler/build/passes/flat.rs:180: pub(super) struct EditView
-src/compiler/build/passes/flat.rs:185: pub(super) struct PassOutput
-src/compiler/build/passes/flat.rs:192: pub(super) fn parse_output(input: &[u8], out: &[u8], a: &Attr) -> Result<PassOutput>
-src/compiler/build/passes/flat.rs:220: pub(super) fn deserialize_view(blob: &[u8]) -> FlatView
+src/compiler/build/passes/flat.rs:65: fn unary_code(op: UnaryOp) -> i64
+src/compiler/build/passes/flat.rs:71: fn lit_kind(v: &HirLiteral) -> i64
+src/compiler/build/passes/flat.rs:81: fn lit_i64(v: &HirLiteral) -> i64
+src/compiler/build/passes/flat.rs:90: fn lit_f64(v: &HirLiteral) -> i64
+src/compiler/build/passes/flat.rs:97: fn walk_expr(e: &dyn MirNode, v: &mut FlatView) -> usize
+src/compiler/build/passes/flat.rs:121: fn stmt_kind(s: &dyn MirStmtNode) -> i64
+src/compiler/build/passes/flat.rs:137: fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize
+src/compiler/build/passes/flat.rs:147: fn push_i64(buf: &mut Vec<u8>, v: i64)
+src/compiler/build/passes/flat.rs:152: pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8>
+src/compiler/build/passes/flat.rs:175: pub(super) fn read_i64(buf: &[u8], off: usize) -> i64
+src/compiler/build/passes/flat.rs:181: pub(super) struct EditView
+src/compiler/build/passes/flat.rs:186: pub(super) struct PassOutput
+src/compiler/build/passes/flat.rs:193: pub(super) fn parse_output(input: &[u8], out: &[u8], a: &Attr) -> Result<PassOutput>
+src/compiler/build/passes/flat.rs:221: pub(super) fn deserialize_view(blob: &[u8]) -> FlatView
 src/compiler/build/passes/mod.rs:15: mod apply;
 src/compiler/build/passes/mod.rs:16: mod flat;
 src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<FnId, bool>
@@ -104,8 +104,8 @@ src/compiler/debug/expr.rs:5: pub(super) fn write_expr(expr: &Expr, level: usize
 src/compiler/debug/format.rs:3: pub(super) fn pad(n: usize) -> String
 src/compiler/debug/format.rs:7: pub(super) fn format_type(ty: &Type) -> String
 src/compiler/debug/format.rs:37: pub(super) fn format_op(op: &BinaryOp) -> &str
-src/compiler/debug/format.rs:55: pub(super) fn format_unary(op: &UnaryOp) -> &str
-src/compiler/debug/format.rs:62: pub(super) fn format_literal(lit: &Literal) -> String
+src/compiler/debug/format.rs:60: pub(super) fn format_unary(op: &UnaryOp) -> &str
+src/compiler/debug/format.rs:68: pub(super) fn format_literal(lit: &Literal) -> String
 src/compiler/debug/mod.rs:5: mod expr;
 src/compiler/debug/mod.rs:6: mod format;
 src/compiler/debug/mod.rs:7: mod stmt;
@@ -253,10 +253,10 @@ src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter/expr.rs:4: pub(super) fn write_type(ty: &Type) -> String
 src/formatter/expr.rs:38: pub(super) fn write_expr(expr: &Expr) -> String
 src/formatter/expr.rs:42: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
-src/formatter/expr.rs:168: fn asm_constraint(c: &str) -> &str
-src/formatter/expr.rs:172: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:216: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:234: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:169: fn asm_constraint(c: &str) -> &str
+src/formatter/expr.rs:173: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:217: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:240: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
@@ -415,8 +415,8 @@ src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: 
 src/hir/lower/body/expr_misc.rs:24: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Vec<Stmt>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_ops1.rs:116: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
-src/hir/lower/body/expr_ops1.rs:153: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_ops1.rs:130: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
+src/hir/lower/body/expr_ops1.rs:175: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/macro_call.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_lower.rs:7: impl crate::hir::lower::Ctx
@@ -571,7 +571,7 @@ src/hir/lower/helpers/wrap.rs:3: pub(crate) fn implicit_move(expr: HirNodeBox) -
 src/hir/lower/helpers/wrap.rs:14: pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:84: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:95: pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str>
-src/hir/lower/helpers/wrap.rs:114: pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str>
+src/hir/lower/helpers/wrap.rs:119: pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str>
 src/hir/lower/mod.rs:1: pub mod body;
 src/hir/lower/mod.rs:2: pub mod helpers;
 src/hir/lower/mod.rs:3: pub mod to_mir;
@@ -985,36 +985,36 @@ src/lir/ir/nodes_a.rs:72: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(se
 src/lir/ir/nodes_a.rs:73: fn kind(&self) -> &'static str { "BinOp" }
 src/lir/ir/nodes_a.rs:74: fn as_any(&self) -> &dyn std::any::Any { self }
 src/lir/ir/nodes_a.rs:75: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:154: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:157: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:168: impl LirNode for SLirUnaryOp
-src/lir/ir/nodes_a.rs:169: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:170: fn kind(&self) -> &'static str { "UnaryOp" }
-src/lir/ir/nodes_a.rs:171: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:172: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:182: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:185: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:194: impl LirNode for SLirCall
-src/lir/ir/nodes_a.rs:195: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:196: fn kind(&self) -> &'static str { "Call" }
-src/lir/ir/nodes_a.rs:197: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:198: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:214: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:219: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:229: impl LirNode for SLirCallPtr
-src/lir/ir/nodes_a.rs:230: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:231: fn kind(&self) -> &'static str { "CallPtr" }
-src/lir/ir/nodes_a.rs:232: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:233: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:244: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:248: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:258: impl LirNode for SLirFnAddr
-src/lir/ir/nodes_a.rs:259: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:260: fn kind(&self) -> &'static str { "FnAddr" }
-src/lir/ir/nodes_a.rs:261: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:262: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:266: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:269: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:170: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:173: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:184: impl LirNode for SLirUnaryOp
+src/lir/ir/nodes_a.rs:185: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:186: fn kind(&self) -> &'static str { "UnaryOp" }
+src/lir/ir/nodes_a.rs:187: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:188: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:201: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:204: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:213: impl LirNode for SLirCall
+src/lir/ir/nodes_a.rs:214: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:215: fn kind(&self) -> &'static str { "Call" }
+src/lir/ir/nodes_a.rs:216: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:217: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:233: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:238: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:248: impl LirNode for SLirCallPtr
+src/lir/ir/nodes_a.rs:249: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:250: fn kind(&self) -> &'static str { "CallPtr" }
+src/lir/ir/nodes_a.rs:251: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:252: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:263: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:267: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:277: impl LirNode for SLirFnAddr
+src/lir/ir/nodes_a.rs:278: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:279: fn kind(&self) -> &'static str { "FnAddr" }
+src/lir/ir/nodes_a.rs:280: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:281: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:285: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:288: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/ir/nodes_b.rs:3: impl LirNode for SLirConv
 src/lir/ir/nodes_b.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_b.rs:5: fn kind(&self) -> &'static str { "Conv" }
@@ -1762,9 +1762,9 @@ src/parser/gen_bridge/mod.rs:21: mod stmt;
 src/parser/gen_bridge/mod.rs:22: mod ty;
 src/parser/gen_bridge/mod.rs:27: fn get_str(node: &Node, field: &str) -> Result<String>
 src/parser/gen_bridge/mod.rs:32: fn str_to_binop(s: &str) -> Result<BinaryOp>
-src/parser/gen_bridge/mod.rs:44: fn params_from_node(node: &Node) -> Result<Vec<(Symbol, Type)>>
-src/parser/gen_bridge/mod.rs:54: fn block_from_node(node: &Node) -> Result<crate::parser::ast::block::Block>
-src/parser/gen_bridge/mod.rs:59: fn default_span() -> Span
+src/parser/gen_bridge/mod.rs:46: fn params_from_node(node: &Node) -> Result<Vec<(Symbol, Type)>>
+src/parser/gen_bridge/mod.rs:56: fn block_from_node(node: &Node) -> Result<crate::parser::ast::block::Block>
+src/parser/gen_bridge/mod.rs:61: fn default_span() -> Span
 src/parser/gen_bridge/stmt.rs:3: pub fn node_to_stmt(node: &Node) -> Result<Stmt>
 src/parser/gen_bridge/ty.rs:3: pub fn type_from_node(node: &Node) -> Result<Type>
 src/parser/mod.rs:7: pub mod parser;
@@ -1812,8 +1812,12 @@ src/parser/parser/expr.rs:11: pub(super) fn parse_expr(&mut self) -> Result<Expr
 src/parser/parser/expr.rs:15: pub(super) fn parse_or(&mut self) -> Result<Expr>
 src/parser/parser/expr.rs:31: pub(super) fn parse_and(&mut self) -> Result<Expr>
 src/parser/parser/expr.rs:47: pub(super) fn parse_compare(&mut self) -> Result<Expr>
-src/parser/parser/expr.rs:80: pub(super) fn parse_sum(&mut self) -> Result<Expr>
-src/parser/parser/expr.rs:109: pub(super) fn parse_product(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:80: pub(super) fn parse_bitor(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:96: pub(super) fn parse_bitxor(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:112: pub(super) fn parse_bitand(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:128: pub(super) fn parse_shift(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:157: pub(super) fn parse_sum(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:186: pub(super) fn parse_product(&mut self) -> Result<Expr>
 src/parser/parser/impls.rs:3: impl Parser
 src/parser/parser/impls.rs:6: pub(super) fn parse_import(&mut self) -> Result<Stmt>
 src/parser/parser/impls.rs:35: pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
@@ -1844,7 +1848,7 @@ src/parser/parser/types.rs:24: pub(super) fn parse_base_type(&mut self) -> Resul
 src/parser/parser/types.rs:98: pub(super) fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()>
 src/parser/parser/unary.rs:3: impl Parser
 src/parser/parser/unary.rs:4: pub(super) fn parse_unary(&mut self) -> Result<Expr>
-src/parser/parser/unary.rs:51: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
+src/parser/parser/unary.rs:60: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
 src/span.rs:5: pub struct Span
 src/span.rs:14: impl Span
 src/span.rs:15: pub fn new(
@@ -1856,33 +1860,7 @@ src/span.rs:62: impl std::fmt::Display for Span
 src/span.rs:63: fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
 
 ## Ayanami (.aya)
-std/io.aya:13: pub fn getchar() -> int
-std/io.aya:17: pub fn putchar(int c)
-std/io.aya:21: pub fn print(ref String n)
-std/io.aya:25: pub fn println()
-std/io.aya:29: pub fn println(ref String s)
-std/io.aya:44: pub fn print(int n)
-std/io.aya:49: pub fn print(float f)
-std/io.aya:56: pub fn print(bool b)
-std/io.aya:65: pub fn print(char c)
-std/io.aya:71: pub fn println(int n)
-std/io.aya:77: pub fn println(float f)
-std/io.aya:83: pub fn println(bool b)
-std/io.aya:89: pub fn println(char c)
 std/main.aya:4: fn main()->int
-std/math.aya:5: pub fn abs(int x) -> int
-std/math.aya:11: pub fn min(int a, int b) -> int
-std/math.aya:17: pub fn max(int a, int b) -> int
-std/math.aya:23: pub fn clamp(int x, int lo, int hi) -> int
-std/math.aya:30: pub fn pow(int base, int exp) -> int
-std/math.aya:45: pub fn abs(float x) -> float
-std/math.aya:51: pub fn min(float a, float b) -> float
-std/math.aya:57: pub fn max(float a, float b) -> float
-std/math.aya:63: pub fn clamp(float x, float lo, float hi) -> float
-std/math.aya:70: pub fn sqrt(float x) -> float { return __ayanami_sqrt(x) }
-std/math.aya:73: pub fn floor(float x) -> float { return __ayanami_floor(x) }
-std/math.aya:76: pub fn ceil(float x) -> float { return __ayanami_ceil(x) }
-std/math.aya:79: pub fn pow(float base, int exp) -> float
 std/src/arraylist.aya:5: pub struct ArrayList[T]
 std/src/arraylist.aya:13: pub fn new[T]() -> ArrayList[T]
 std/src/arraylist.aya:18: pub fn with_capacity[T](int cap) -> ArrayList[T]
@@ -2063,104 +2041,18 @@ std/src/string.aya:468: pub fn to_lower(ref self) -> String
 std/src/string.aya:477: pub fn repeat(ref self, int times) -> String
 std/src/string.aya:488: pub fn parse_int(ref self) -> int
 std/src/string.aya:524: pub fn is_int(ref self) -> bool
-std/std.aya:9: pub interface Error
-std/std.aya:10: fn what(ref self) -> String;
-std/std.aya:13: pub enum Result[T, E]
-std/std.aya:18: pub enum Option[T]
-std/std.aya:23: impl[T] Option[T]
-std/std.aya:24: pub fn unwrap_or(self, T default) -> T
-std/std.aya:31: pub fn is_some(self) -> bool
-std/std.aya:36: impl[T, E] Result[T, E]
-std/std.aya:37: pub fn try_unwrap(self) -> T
-std/string.aya:3: pub fn char_code(char c) -> int
-std/string.aya:7: pub struct String
-std/string.aya:12: interface ToString
-std/string.aya:13: fn to_string(self) -> String;
-std/string.aya:16: interface Error
-std/string.aya:17: fn what(ref self) -> String;
-std/string.aya:20: pub enum Result[T, E]
-std/string.aya:25: impl[T, E] Result[T, E]
-std/string.aya:26: pub fn try_unwrap(self) -> T
-std/string.aya:34: impl int
-std/string.aya:37: pub fn to_string(self) -> String
-std/string.aya:74: impl float
-std/string.aya:75: pub fn to_string(self) -> String
-std/string.aya:82: impl char
-std/string.aya:85: pub fn to_string(self) -> String
-std/string.aya:90: impl bool
-std/string.aya:93: pub fn to_string(self) -> String
-std/string.aya:102: impl int
-std/string.aya:103: pub fn add(self, int other) -> int
-std/string.aya:106: pub fn sub(self, int other) -> int
-std/string.aya:109: pub fn mul(self, int other) -> int
-std/string.aya:112: pub fn div(self, int other) -> int
-std/string.aya:115: pub fn rem(self, int other) -> int
-std/string.aya:118: pub fn eq(self, int other) -> bool
-std/string.aya:121: pub fn ne(self, int other) -> bool
-std/string.aya:124: pub fn lt(self, int other) -> bool
-std/string.aya:127: pub fn gt(self, int other) -> bool
-std/string.aya:130: pub fn le(self, int other) -> bool
-std/string.aya:133: pub fn ge(self, int other) -> bool
-std/string.aya:136: pub fn neg(self) -> int
-std/string.aya:141: impl float
-std/string.aya:142: pub fn add(self, float other) -> float
-std/string.aya:145: pub fn sub(self, float other) -> float
-std/string.aya:148: pub fn mul(self, float other) -> float
-std/string.aya:151: pub fn div(self, float other) -> float
-std/string.aya:154: pub fn eq(self, float other) -> bool
-std/string.aya:157: pub fn ne(self, float other) -> bool
-std/string.aya:160: pub fn lt(self, float other) -> bool
-std/string.aya:163: pub fn gt(self, float other) -> bool
-std/string.aya:166: pub fn le(self, float other) -> bool
-std/string.aya:169: pub fn ge(self, float other) -> bool
-std/string.aya:172: pub fn neg(self) -> float
-std/string.aya:177: impl char
-std/string.aya:178: pub fn eq(self, char other) -> bool
-std/string.aya:181: pub fn ne(self, char other) -> bool
-std/string.aya:184: pub fn lt(self, char other) -> bool
-std/string.aya:187: pub fn gt(self, char other) -> bool
-std/string.aya:190: pub fn le(self, char other) -> bool
-std/string.aya:193: pub fn ge(self, char other) -> bool
-std/string.aya:197: pub fn is_digit(self) -> bool
-std/string.aya:202: pub fn is_alpha(self) -> bool
-std/string.aya:213: pub fn is_alnum(self) -> bool
-std/string.aya:220: pub fn is_space(self) -> bool
-std/string.aya:231: pub fn is_upper(self) -> bool
-std/string.aya:236: pub fn is_lower(self) -> bool
-std/string.aya:241: pub fn to_digit(self) -> int
-std/string.aya:246: pub fn to_upper(self) -> char
-std/string.aya:254: pub fn to_lower(self) -> char
-std/string.aya:263: impl bool
-std/string.aya:264: pub fn eq(self, bool other) -> bool
-std/string.aya:267: pub fn ne(self, bool other) -> bool
-std/string.aya:272: impl String
-std/string.aya:273: pub fn to_string(self) -> String
-std/string.aya:276: pub fn index(ref self, int i) -> char
-std/string.aya:279: pub fn len(ref self) -> int
-std/string.aya:284: pub fn add(ref self, ref String other) -> String
-std/string.aya:297: pub fn add[T: ToString](ref self, T a) -> String
-std/string.aya:301: pub fn eq(ref self, ref String other) -> bool
-std/string.aya:312: pub fn ne(ref self, ref String other) -> bool
-std/string.aya:317: pub fn copy(ref self) -> String
-std/string.aya:325: pub fn is_empty(ref self) -> bool
-std/string.aya:329: pub fn index_of(ref self, ref String needle) -> int
-std/string.aya:352: pub fn contains(ref self, ref String needle) -> bool
-std/string.aya:359: pub fn starts_with(ref self, ref String prefix) -> bool
-std/string.aya:371: pub fn ends_with(ref self, ref String suffix) -> bool
-std/string.aya:385: pub fn substring(ref self, int start, int end) -> String
-std/string.aya:406: pub fn trim(ref self) -> String
-std/string.aya:427: pub fn to_upper(ref self) -> String
-std/string.aya:436: pub fn to_lower(ref self) -> String
-std/string.aya:445: pub fn repeat(ref self, int times) -> String
-std/string.aya:456: pub fn parse_int(ref self) -> int
-std/string.aya:492: pub fn is_int(ref self) -> bool
 example/check_lib.aya:5: pub fn warn_side_effects(ref MirFunction f)
 example/const_prop_lib.aya:5: pub fn const_prop(ref mut MirFunction f)
-example/constfold_lib.aya:4: fn lt_int(int a, int b) -> int
-example/constfold_lib.aya:9: fn gt_int(int a, int b) -> int
-example/constfold_lib.aya:14: fn eq_int(int a, int b) -> int
-example/constfold_lib.aya:19: fn neq_int(int a, int b) -> int
-example/constfold_lib.aya:25: pub fn const_fold(ref mut MirFunction f)
+example/constfold_lib.aya:5: fn op_is_band(int op) -> bool { return op == 14 }
+example/constfold_lib.aya:6: fn op_is_bor(int op) -> bool { return op == 15 }
+example/constfold_lib.aya:7: fn op_is_bxor(int op) -> bool { return op == 16 }
+example/constfold_lib.aya:8: fn op_is_shl(int op) -> bool { return op == 17 }
+example/constfold_lib.aya:9: fn op_is_shr(int op) -> bool { return op == 18 }
+example/constfold_lib.aya:11: fn lt_int(int a, int b) -> int
+example/constfold_lib.aya:16: fn gt_int(int a, int b) -> int
+example/constfold_lib.aya:21: fn eq_int(int a, int b) -> int
+example/constfold_lib.aya:26: fn neq_int(int a, int b) -> int
+example/constfold_lib.aya:32: pub fn const_fold(ref mut MirFunction f)
 example/macro_lib.aya:6: pub fn answer() -> String { return "fn answer() -> int { return 42 }" }
 example/macro_lib.aya:10: pub fn keep(String input) -> String { return input }
 example/macro_lib.aya:15: pub fn emit_const(String input, String name, String value) -> String
@@ -2189,6 +2081,17 @@ example/test_assume.aya:7: fn id(int x) -> int { return x }
 example/test_assume.aya:9: fn main() -> int
 example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }
 example/test_attrs.aya:9: fn main() -> int
+example/test_bitwise.aya:2: fn shl_u8(u8 a, u8 b) -> u8 { return a << b }
+example/test_bitwise.aya:3: fn shr_u8(u8 a, u8 b) -> u8 { return a >> b }
+example/test_bitwise.aya:4: fn shr_i8(i8 a, i8 b) -> i8 { return a >> b }
+example/test_bitwise.aya:5: fn bitand32(i32 a, i32 b) -> i32 { return a & b }
+example/test_bitwise.aya:6: fn bitor32(i32 a, i32 b) -> i32 { return a | b }
+example/test_bitwise.aya:7: fn bitxor32(i32 a, i32 b) -> i32 { return a ^ b }
+example/test_bitwise.aya:8: fn bitnot_i32(i32 a) -> i32 { return ~a }
+example/test_bitwise.aya:9: fn shl32(i32 a, i32 b) -> i32 { return a << b }
+example/test_bitwise.aya:11: impl i32
+example/test_bitwise.aya:12: fn bit_and32(self, i32 other) -> i32 { return self & other }
+example/test_bitwise.aya:15: fn main() -> int
 example/test_bool.aya:1: fn main() -> int
 example/test_bool2.aya:1: fn main() -> int
 example/test_bounds.aya:4: fn main() -> int
@@ -2207,7 +2110,9 @@ example/test_constfold.aya:5: fn folded() -> int
 example/test_constfold.aya:10: fn folded_mul() -> int
 example/test_constfold.aya:16: fn folded_cmp_true() -> int
 example/test_constfold.aya:22: fn folded_cmp_false() -> int
-example/test_constfold.aya:27: fn main() -> int
+example/test_constfold.aya:29: fn folded_bitand() -> int
+example/test_constfold.aya:34: fn folded_shl() -> int
+example/test_constfold.aya:38: fn main() -> int
 example/test_constprop.aya:7: fn prop_fold() -> int
 example/test_constprop.aya:13: fn main() -> int
 example/test_constructors.aya:6: fn main() -> int

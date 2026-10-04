@@ -55,7 +55,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 3. `asuka/` 与 `std/`（[Ayanami-std](https://github.com/ayanami1ei/Ayanami-std)）都是 **git 子仓**：在子仓内修改后要先在子仓提交并推送，主仓再提交新的子仓指针。`gen_parser.sh` 从 asuka 子仓构建；`std/` 源码在子仓 `src/`，主仓只更新指针。
 4. `SYMBOLS.md`、`src/generated/`、`target/`、`build/` 都是产物或生成物，不要整读；`.lcl` 是二进制包，不要读。
 5. `example/*.aya`（26 个）是端到端测试的主要手段；新特性至少配一个 example 用例。
-6. `std/` 交付预编译 `.lcl`，源码在子仓 `std/src/**/*.aya`；根目录 `std/*.aya` 是历史遗留副本（开发态 import 优先命中它们），改标准库以 `src/` 为准。
+6. `std/` 交付预编译 `.lcl`，源码在子仓 `std/src/**/*.aya`；根目录 `std/*.aya` 是指向 `src/` 的符号链接。构建/安装 `.lcl` 用子仓 `scripts/build.sh`（开发态安装到 `target/debug/std`）。
 
 ## 定位代码（省 token 的关键）
 

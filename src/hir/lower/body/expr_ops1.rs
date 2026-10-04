@@ -54,6 +54,20 @@ impl crate::hir::lower::Ctx {
             }
         }
         let inner_ty = strip_ownership(lhs_ty.clone());
+        // M1.2：位运算仅适用于整数（`&`/`|`/`^` 也适用于 bool），移位不适用于 bool
+        let is_bitwise = matches!(op, BinaryOp::BitAnd | BinaryOp::BitOr | BinaryOp::BitXor | BinaryOp::Shl | BinaryOp::Shr);
+        if is_bitwise && matches!(inner_ty, HirType::Float) {
+            return Err(Error::Hir(format!(
+                "cannot apply bitwise operator to `float` (at {}:{})",
+                span.start_line, span.start_col
+            )));
+        }
+        if matches!(op, BinaryOp::Shl | BinaryOp::Shr) && matches!(inner_ty, HirType::Bool) {
+            return Err(Error::Hir(format!(
+                "cannot shift `bool` (at {}:{})",
+                span.start_line, span.start_col
+            )));
+        }
         // Detect null-vs-pointer comparison (null is lowered to Int(0))
         // Only treat as pointer comparison when the non-null side's inner type is NOT primitive
         // (e.g. Shared(Node) vs null, but NOT Unique(Int) == 0 — int is passed by value)
@@ -117,6 +131,14 @@ impl crate::hir::lower::Ctx {
         let hir_arg = auto_deref(self.lower_expr(arg)?);
         let arg_ty = expr_type(&hir_arg);
         let inner_ty = strip_ownership(arg_ty.clone());
+        // M1.2：`~` 仅适用于整数/char
+        if matches!(op, UnaryOp::BitNot) && matches!(inner_ty, HirType::Float | HirType::Bool) {
+            return Err(Error::Hir(format!(
+                "cannot apply `~` to `{}` (at {}:{})",
+                hir_type_display(&inner_ty),
+                arg.span().start_line, arg.span().start_col
+            )));
+        }
         // Try operator overloading (skip for primitive types)
         let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
         if !is_primitive {

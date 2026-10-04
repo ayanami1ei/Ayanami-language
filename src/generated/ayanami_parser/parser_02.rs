@@ -1,6 +1,52 @@
 use super::*;
 
 impl Parser {
+    pub fn pident_list(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("IdentList");
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        loop {
+            let _gr_saved = self.0.pos;
+            if let Ok(_) = (|| -> Result<(), String> {
+                    { // group
+                    let _g_saved = self.0.pos;
+                        self.0.expect(",")?;
+                        if let asuka::runtime::Value::Node(child) = self.pi()? {
+                            n.set("ident", asuka::runtime::Value::Node(child));
+                        }
+                    } // end group
+                Ok(())
+        })() {}
+            else { self.0.pos = _gr_saved; break; }
+        }
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pnamespace(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("Namespace");
+        if let asuka::runtime::Value::Node(child) = self.pvis()? {
+            n.set("vis", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("NAMESPACE")?;
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("{")?;
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pitem()? {
+                n.set("item", asuka::runtime::Value::Node(child));
+            } else { break; }
+        }
+        self.0.expect("}")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
     pub fn pfn_decl(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("FnDecl");
         if let asuka::runtime::Value::Node(child) = self.pattr_list()? {
@@ -42,6 +88,16 @@ impl Parser {
 
     pub fn pfn_param(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("FnParam");
+        loop {
+            let saved = self.0.pos;
+            match self.0.tok() {
+                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
+                _ => {}
+            }
+            if let asuka::runtime::Value::Node(child) = self.pattr()? {
+                n.set("attr", asuka::runtime::Value::Node(child));
+            } else { break; }
+        }
         if let asuka::runtime::Value::Node(child) = self.ptyp()? {
             n.set("typ", asuka::runtime::Value::Node(child));
         }
@@ -97,78 +153,6 @@ impl Parser {
         if let asuka::runtime::Value::Node(child) = self.ps()? {
             n.set("string_literal", asuka::runtime::Value::Node(child));
         }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pstruct_def(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("StructDef");
-        if let asuka::runtime::Value::Node(child) = self.pattr_list()? {
-            n.set("attr_list", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pvis()? {
-            n.set("vis", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("STRUCT")?;
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("ident", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pgeneric_params()? {
-            n.set("generic_params", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("{")?;
-        if let asuka::runtime::Value::Node(child) = self.pfield_list()? {
-            n.set("field_list", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("}")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pfield(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("Field");
-        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
-            n.set("typ", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("ident", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pfield_list(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("FieldList");
-        loop {
-            let saved = self.0.pos;
-            match self.0.tok() {
-                asuka::runtime::Token { kind, .. } if matches!(kind.as_str(), "EOF" | "}" | ";") => break,
-                _ => {}
-            }
-            if let asuka::runtime::Value::Node(child) = self.pfield()? {
-                n.set("field", asuka::runtime::Value::Node(child));
-            } else { break; }
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn penum_def(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("EnumDef");
-        if let asuka::runtime::Value::Node(child) = self.pattr_list()? {
-            n.set("attr_list", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pvis()? {
-            n.set("vis", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("ENUM")?;
-        if let asuka::runtime::Value::Node(child) = self.pi()? {
-            n.set("ident", asuka::runtime::Value::Node(child));
-        }
-        if let asuka::runtime::Value::Node(child) = self.pgeneric_params()? {
-            n.set("generic_params", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("{")?;
-        if let asuka::runtime::Value::Node(child) = self.pvariant_list()? {
-            n.set("variant_list", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("}")?;
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 }

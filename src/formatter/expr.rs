@@ -51,6 +51,7 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
             let op_str = match op {
                 UnaryOp::Neg => "-",
                 UnaryOp::Not => "!",
+                UnaryOp::BitNot => "~",
             };
             format!("{}{}", op_str, write_expr_at(arg, level))
         }
@@ -228,6 +229,11 @@ pub(super) fn write_bin_op(op: &BinaryOp) -> &str {
         BinaryOp::Ge => ">=",
         BinaryOp::And => "&&",
         BinaryOp::Or => "||",
+        BinaryOp::BitAnd => "&",
+        BinaryOp::BitOr => "|",
+        BinaryOp::BitXor => "^",
+        BinaryOp::Shl => "<<",
+        BinaryOp::Shr => ">>",
     }
 }
 

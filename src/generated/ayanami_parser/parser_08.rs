@@ -1,6 +1,48 @@
 use super::*;
 
 impl Parser {
+    pub fn pfield_expr(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("FieldExpr");
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(".")?;
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pindex_expr(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("IndexExpr");
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("[")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("]")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
+    pub fn pmethod_call_expr(&mut self) -> Result<asuka::runtime::Value, String> {
+        let mut n = asuka::runtime::Node::new("MethodCallExpr");
+        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
+            n.set("expr", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(".")?;
+        if let asuka::runtime::Value::Node(child) = self.pi()? {
+            n.set("ident", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect("(")?;
+        if let asuka::runtime::Value::Node(child) = self.pexpr_list()? {
+            n.set("expr_list", asuka::runtime::Value::Node(child));
+        }
+        self.0.expect(")")?;
+        Ok(asuka::runtime::Value::Node(Box::new(n)))
+    }
+
     pub fn pmatch_expr(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("MatchExpr");
         self.0.expect("MATCH")?;
@@ -107,15 +149,6 @@ impl Parser {
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 
-    pub fn pto_unique_expr(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("ToUniqueExpr");
-        self.0.expect("UNIQUE")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
     pub fn pref_expr(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("RefExpr");
         self.0.expect("REF")?;
@@ -138,33 +171,6 @@ impl Parser {
     pub fn pnull_expr(&mut self) -> Result<asuka::runtime::Value, String> {
         let mut n = asuka::runtime::Node::new("NullExpr");
         self.0.expect("NULL")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn parray_sized(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("ArraySized");
-        self.0.expect("[")?;
-        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
-            n.set("typ", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect(";")?;
-        if let asuka::runtime::Value::Node(child) = self.pexpr()? {
-            n.set("expr", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("]")?;
-        Ok(asuka::runtime::Value::Node(Box::new(n)))
-    }
-
-    pub fn pstruct_literal(&mut self) -> Result<asuka::runtime::Value, String> {
-        let mut n = asuka::runtime::Node::new("StructLiteral");
-        if let asuka::runtime::Value::Node(child) = self.ptyp()? {
-            n.set("typ", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("{")?;
-        if let asuka::runtime::Value::Node(child) = self.pfield_init_list()? {
-            n.set("field_init_list", asuka::runtime::Value::Node(child));
-        }
-        self.0.expect("}")?;
         Ok(asuka::runtime::Value::Node(Box::new(n)))
     }
 }

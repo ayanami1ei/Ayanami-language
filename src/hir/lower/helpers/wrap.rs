@@ -105,6 +105,11 @@ pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str> {
         BinaryOp::Gt => Some("gt"),
         BinaryOp::Le => Some("le"),
         BinaryOp::Ge => Some("ge"),
+        BinaryOp::BitAnd => Some("bitand"),
+        BinaryOp::BitOr => Some("bitor"),
+        BinaryOp::BitXor => Some("bitxor"),
+        BinaryOp::Shl => Some("shl"),
+        BinaryOp::Shr => Some("shr"),
         BinaryOp::And | BinaryOp::Or => None, // logical ops not overloadable
     }
 }
@@ -115,5 +120,6 @@ pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str> {
     match op {
         UnaryOp::Neg => Some("neg"),
         UnaryOp::Not => Some("not"),
+        UnaryOp::BitNot => Some("bitnot"),
     }
 }

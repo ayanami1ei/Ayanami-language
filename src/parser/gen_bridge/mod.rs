@@ -37,6 +37,8 @@ fn str_to_binop(s: &str) -> Result<BinaryOp> {
         "<" => Ok(BinaryOp::Lt), ">" => Ok(BinaryOp::Gt),
         "<=" => Ok(BinaryOp::Le), ">=" => Ok(BinaryOp::Ge),
         "&&" => Ok(BinaryOp::And), "||" => Ok(BinaryOp::Or),
+        "&" => Ok(BinaryOp::BitAnd), "|" => Ok(BinaryOp::BitOr), "^" => Ok(BinaryOp::BitXor),
+        "<<" => Ok(BinaryOp::Shl), ">>" => Ok(BinaryOp::Shr),
         _ => Err(Error::Parse(format!("unknown operator: {}", s))),
     }
 }
