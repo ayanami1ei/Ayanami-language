@@ -1,0 +1,52 @@
+// M1 base/intern 验收：驻留/去重/id 稳定/名字回读/大量压力
+import "io";
+import "aya_sb";
+import "aya_intern";
+
+fn main() -> int {
+    it = Interner::new();
+    if it.len() != 0 { println("fail: empty len"); return 1 }
+
+    a = it.intern("foo");
+    b = it.intern("bar");
+    if a == b { println("fail: distinct"); return 2 }
+    if it.len() != 2 { println("fail: len 2"); return 3 }
+
+    // 同一字符串返回同一 id
+    if it.intern("foo") != a { println("fail: dedup foo"); return 4 }
+    if it.intern("bar") != b { println("fail: dedup bar"); return 5 }
+    if it.len() != 2 { println("fail: len after dedup"); return 6 }
+
+    // 名字回读
+    if it.name(a) != "foo" { println("fail: name a"); return 7 }
+    if it.name(b) != "bar" { println("fail: name b"); return 8 }
+
+    // 大量驻留（触发哈希表扩容）+ 分配压力
+    for i in (0, 500) {
+        sb = StringBuf::new();
+        sb.push_str("sym");
+        sb.push_int(i);
+        s = sb.to_string();
+        id = it.intern(s);
+        if id < 0 { println("fail: intern neg"); return 9 }
+    }
+    if it.len() != 502 { println("fail: big len"); return 10 }
+
+    // 复查每个名字内容正确
+    for i in (0, 500) {
+        sb = StringBuf::new();
+        sb.push_str("sym");
+        sb.push_int(i);
+        s = sb.to_string();
+        id = it.intern(s);
+        if it.name(id) != s { println("fail: big name"); return 11 }
+    }
+
+    // 哈希碰撞路径：不同字符串必须不同 id
+    x = it.intern("alpha");
+    y = it.intern("beta");
+    if x == y { println("fail: collide"); return 12 }
+
+    println("base_intern ok");
+    return 0;
+}

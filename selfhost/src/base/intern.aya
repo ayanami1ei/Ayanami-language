@@ -1,0 +1,71 @@
+import "string";
+
+// 字符串驻留表：id 稳定，比较 id 即 O(1)
+//
+// 注意（issue #91）：嵌套结构体字段的 ref mut 变更会丢失，所以槽位表不用
+// IntMap 字段，而是内联成自己的数组字段（数组元素/标量字段赋值不受影响）。
+pub struct Interner {
+    [String] names
+    int used
+    int cap
+    [int] keys
+    [int] vals
+    [bool] taken
+    int slot_len
+    int slot_cap
+}
+
+pub namespace Interner {
+    pub fn new() -> Interner {
+        it = Interner { names = [String; 65536], used = 0, cap = 65536, keys = [int; 65536], vals = [int; 65536], taken = [bool; 65536], slot_len = 0, slot_cap = 65536 };
+        return it;
+    }
+}
+
+impl Interner {
+    /// 驻留字符串，返回稳定 id
+    pub fn intern(ref mut self, ref String s) -> int {
+        h = str_hash(s);
+        i = h % self.slot_cap;
+        while self.taken[i] {
+            if self.keys[i] == h {
+                id = self.vals[i];
+                if self.names[id] == s {
+                    return id;
+                }
+            }
+            i = i + 1;
+            if i >= self.slot_cap {
+                i = 0;
+            }
+        }
+        id = self.used;
+        self.names[id] = s.copy();
+        self.keys[i] = h;
+        self.vals[i] = id;
+        self.taken[i] = true;
+        self.slot_len = self.slot_len + 1;
+        self.used = self.used + 1;
+        return id;
+    }
+
+    /// 按 id 取回名字（返回拥有副本）
+    pub fn name(ref self, int id) -> String {
+        return self.names[id].copy();
+    }
+
+    pub fn len(ref self) -> int {
+        return self.used;
+    }
+}
+
+/// 字符串哈希（乘 31，模大素数，避免溢出）
+fn str_hash(ref String s) -> int {
+    h = 0;
+    for i in (0, s.len) {
+        t = h * 31;
+        t = t + char_code(s.index(i));
+        h = t % 1000000007;
+    }
+    return h;
+}
