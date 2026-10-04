@@ -1,7 +1,0 @@
-// 集合接口：元素类型无约束；to_string 等需要 ToString 的方法在具体类型上
-pub interface List[T]{
-    fn push(ref mut self, T val);
-    fn index(ref self, int index)->T;
-    fn len(ref self)->int;
-    fn iter(ref self, fn(T) f);
-}

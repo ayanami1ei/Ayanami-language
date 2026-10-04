@@ -4,3 +4,7 @@
 [submodule "book"]
 	path = book
 	url = git@github.com:ayanami1ei/ayanami-language-book.git
+[submodule "std"]
+	path = std
+	url = git@github.com:ayanami1ei/Ayanami-std.git
+	branch = main
