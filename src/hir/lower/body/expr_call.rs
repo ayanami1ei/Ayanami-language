@@ -233,7 +233,18 @@ impl crate::hir::lower::Ctx {
             None => {
                 let mut all_param_types = vec![receiver_ty.clone()];
                 all_param_types.extend(deref_arg_types.iter().cloned());
-                let fid = self.specialize_generic_call(method, &all_param_types, span)?;
+                let fid = match self.specialize_generic_call(method, &all_param_types, span) {
+                    Ok(fid) => fid,
+                    Err(_) => {
+                        return Err(Error::Hir(format!(
+                            "type `{}` has no method `{}` for argument types ({}) at {}:{}",
+                            hir_type_display(&receiver_ty),
+                            method,
+                            arg_types.iter().map(hir_type_display).collect::<Vec<_>>().join(", "),
+                            span.start_line, span.start_col
+                        )));
+                    }
+                };
                 // 泛型推导成功后，尝试更新接收者变量的类型
                 if let Some(var_id) = receiver.as_local() {
                     let spec_param_ty = &self.fns[fid.0].params[0].1;

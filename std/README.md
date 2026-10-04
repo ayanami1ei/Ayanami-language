@@ -135,7 +135,7 @@ s = String::new(['h', 'i'], 2)
 import "arraylist";
 
 fn main() -> int {
-    a = ArrayList[int] { data = null, len = 0, capability = 0 }
+    a = ArrayList::new[int]()
     a.push(1)
     a.push(2)
     return a.index(1)     // 2
