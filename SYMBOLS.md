@@ -393,12 +393,13 @@ src/hir/lower/body/expr_access.rs:98: pub(crate) fn lower_array_literal(&mut sel
 src/hir/lower/body/expr_access.rs:118: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_call.rs:5: pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, explicit: Option<&Vec<Type>>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_call.rs:144: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call_extra.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_call_extra.rs:4: pub(crate) fn lower_call_expr(&mut self, target: &Box<Expr>, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call_extra.rs:39: pub(crate) fn make_fatptr_arg(&self, arg: HirNodeBox, param_ty: &HirType, ct: Symbol, iface: Symbol) -> HirNodeBox
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_method.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_method.rs:4: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_misc.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_misc.rs:24: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Vec<Stmt>) -> Result<HirNodeBox>
@@ -415,17 +416,18 @@ src/hir/lower/body/mod.rs:15: mod part_06;
 src/hir/lower/body/mod.rs:16: mod part_07;
 src/hir/lower/body/mod.rs:17: mod part_08;
 src/hir/lower/body/mod.rs:18: mod ref_assign;
-src/hir/lower/body/mod.rs:19: mod part_09;
-src/hir/lower/body/mod.rs:20: mod ensure;
-src/hir/lower/body/mod.rs:21: mod part_10;
-src/hir/lower/body/mod.rs:22: mod collect_enum;
-src/hir/lower/body/mod.rs:23: mod collect_import;
-src/hir/lower/body/mod.rs:24: mod expr_access;
-src/hir/lower/body/mod.rs:25: mod expr_call;
-src/hir/lower/body/mod.rs:26: mod expr_call_extra;
-src/hir/lower/body/mod.rs:27: mod expr_enum;
-src/hir/lower/body/mod.rs:28: mod expr_misc;
-src/hir/lower/body/mod.rs:29: mod expr_ops1;
+src/hir/lower/body/mod.rs:19: mod expr_method;
+src/hir/lower/body/mod.rs:20: mod part_09;
+src/hir/lower/body/mod.rs:21: mod ensure;
+src/hir/lower/body/mod.rs:22: mod part_10;
+src/hir/lower/body/mod.rs:23: mod collect_enum;
+src/hir/lower/body/mod.rs:24: mod collect_import;
+src/hir/lower/body/mod.rs:25: mod expr_access;
+src/hir/lower/body/mod.rs:26: mod expr_call;
+src/hir/lower/body/mod.rs:27: mod expr_call_extra;
+src/hir/lower/body/mod.rs:28: mod expr_enum;
+src/hir/lower/body/mod.rs:29: mod expr_misc;
+src/hir/lower/body/mod.rs:30: mod expr_ops1;
 src/hir/lower/body/part_01.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_01.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
 src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
@@ -485,7 +487,8 @@ src/hir/lower/ctx.rs:210: pub(crate) fn build_generic_subst(&self, type_name: &S
 src/hir/lower/ctx.rs:229: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
 src/hir/lower/ctx.rs:234: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
 src/hir/lower/ctx.rs:243: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
-src/hir/lower/ctx.rs:258: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:259: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:272: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>

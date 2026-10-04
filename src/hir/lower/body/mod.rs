@@ -16,6 +16,7 @@ mod part_06;
 mod part_07;
 mod part_08;
 mod ref_assign;
+mod expr_method;
 mod part_09;
 mod ensure;
 mod part_10;

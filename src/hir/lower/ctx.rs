@@ -255,6 +255,20 @@ impl Ctx {
     }
 
     /// Check if a type is an enum (has _tag field as first field)
+    /// 接收者类型是否已知（本地定义/导入/接口）；用于“是否缺少 import”提示
+    pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool {
+        match strip_ownership_ref(ty) {
+            HirType::Named(n) => {
+                let base = crate::hir::lower::strip_generic_name(n);
+                self.struct_defs.contains_key(n)
+                    || self.struct_defs.contains_key(&base)
+                    || self.is_enum_type(n)
+                    || self.type_ifaces.contains_key(n)
+            }
+            _ => true,
+        }
+    }
+
     pub fn is_enum_type(&self, type_name: &Symbol) -> bool {
         self.struct_defs.get(type_name)
             .and_then(|fields| fields.first())
