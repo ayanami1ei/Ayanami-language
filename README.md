@@ -355,3 +355,20 @@ extern "C" fn strlen(unique [char] s) -> int;
 ## 示例
 
 见 [`example/`](example/)（26 个端到端用例）。
+
+## CLI 输出（cargo 风格）
+
+```
+   Compiling main
+    Finished in 0.12s
+     Running `build/main`
+```
+
+- 状态词绿色加粗（TTY 下），`NO_COLOR` 关闭颜色
+- 退出码 0 不打印；非 0 时红色 `error: process didn't exit successfully: ... (exit code: N)` 并以该码退出
+- 运行时 panic（红色，Rust 风格）：
+
+```
+thread 'main' panicked at main.aya:4:5:
+boom
+```

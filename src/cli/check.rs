@@ -22,6 +22,8 @@ pub(crate) fn cmd_check(args: &[String]) {
         eprintln!("error: check requires a .aya file"); std::process::exit(1);
     }
     ayanami::hir::lower::set_source_path(&path);
+    let stem = path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy().into_owned();
+    ayanami::diagnostics::status("Checking", &stem);
     match do_check(&path) {
         Ok(_) => ayanami::diagnostics::success(&format!("check passed: {}", path.display())),
         Err(e) => { ayanami::diagnostics::report_error(&path, &format!("check failed: {}", e)); std::process::exit(1); }

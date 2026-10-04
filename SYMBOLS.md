@@ -5,10 +5,10 @@
 
 ## Rust
 src/cli/build.rs:3: pub(crate) fn cmd_build(args: &[String])
-src/cli/build.rs:24: pub(crate) fn cmd_run(args: &[String])
+src/cli/build.rs:28: pub(crate) fn cmd_run(args: &[String])
 src/cli/check.rs:3: fn do_check(path: &Path) -> ayanami::error::Result<()>
 src/cli/check.rs:14: pub(crate) fn cmd_check(args: &[String])
-src/cli/check.rs:34: fn watch_file(path: &Path)
+src/cli/check.rs:36: fn watch_file(path: &Path)
 src/cli/clean.rs:3: pub(crate) fn cmd_clean()
 src/cli/defs.rs:3: pub(crate) fn cmd_defs(args: &[String])
 src/cli/defs.rs:43: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
@@ -26,7 +26,7 @@ src/cli/mod.rs:32: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, C
 src/cli/mod.rs:46: pub(crate) fn apply_mode(flags: &CliFlags)
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
-src/cli/package_install.rs:18: pub(crate) fn cmd_install(args: &[String])
+src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
 src/cli/types.rs:9: pub(crate) fn cmd_types(args: &[String])
 src/cli/types.rs:62: fn collect_items(items: &[HirItem], out: &mut Vec<(String, String, usize, usize)>)
 src/cli/types.rs:72: fn collect_fn(f: &HirFn, out: &mut Vec<(String, String, usize, usize)>)
@@ -51,8 +51,8 @@ src/compiler/build/mod.rs:26: pub fn build_source(src_path: &str, code: &str) ->
 src/compiler/build/mod.rs:31: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
 src/compiler/build/package.rs:22: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:74: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
-src/compiler/build/package.rs:84: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:73: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
+src/compiler/build/package.rs:83: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/passes/apply.rs:18: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
 src/compiler/build/passes/apply.rs:35: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
 src/compiler/build/passes/apply.rs:42: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
@@ -94,7 +94,7 @@ src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
 src/compiler/build/passes/mod.rs:46: pub(super) fn apply_passes(
 src/compiler/build/target.rs:4: pub fn build_source_with_target(
-src/compiler/build/target.rs:105: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:100: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:72: fn has_return_in_stmt(s: &HirStmt) -> bool
@@ -223,15 +223,16 @@ src/compiler/symdef.rs:177: pub fn defs_to_json(defs: &[SymDef]) -> String
 src/diagnostics.rs:11: pub fn supports_color() -> bool
 src/diagnostics.rs:15: pub fn error(msg: &str)
 src/diagnostics.rs:23: pub fn warning(msg: &str)
-src/diagnostics.rs:32: pub fn success(msg: &str)
-src/diagnostics.rs:40: enum Sev
-src/diagnostics.rs:45: fn at_location(sev: Sev, file: &Path, line: usize, col: usize, msg: &str)
-src/diagnostics.rs:81: pub fn error_at(file: &Path, line: usize, col: usize, msg: &str)
-src/diagnostics.rs:86: pub fn warning_at(file: &Path, line: usize, col: usize, msg: &str)
-src/diagnostics.rs:91: fn parse_error(raw: &str) -> (Option<String>, usize, usize, String)
-src/diagnostics.rs:143: fn parse_lc(s: &str) -> Option<(usize, usize)>
-src/diagnostics.rs:148: fn clean_error_message(msg: &str) -> String
-src/diagnostics.rs:180: pub fn report_error(default_file: &Path, raw: &str)
+src/diagnostics.rs:32: pub fn status(word: &str, msg: &str)
+src/diagnostics.rs:42: pub fn success(msg: &str)
+src/diagnostics.rs:50: enum Sev
+src/diagnostics.rs:55: fn at_location(sev: Sev, file: &Path, line: usize, col: usize, msg: &str)
+src/diagnostics.rs:91: pub fn error_at(file: &Path, line: usize, col: usize, msg: &str)
+src/diagnostics.rs:96: pub fn warning_at(file: &Path, line: usize, col: usize, msg: &str)
+src/diagnostics.rs:101: fn parse_error(raw: &str) -> (Option<String>, usize, usize, String)
+src/diagnostics.rs:153: fn parse_lc(s: &str) -> Option<(usize, usize)>
+src/diagnostics.rs:158: fn clean_error_message(msg: &str) -> String
+src/diagnostics.rs:190: pub fn report_error(default_file: &Path, raw: &str)
 src/driver/mod.rs:11: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
 src/driver/mod.rs:31: fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
 src/driver/mod.rs:51: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
@@ -1872,12 +1873,12 @@ std/src/arraylist.aya:43: pub fn push(ref mut self, T val)
 std/src/arraylist.aya:49: pub fn index(ref self, int index)->T
 std/src/arraylist.aya:53: pub fn len(ref self)->int{ return self.len }
 std/src/arraylist.aya:56: pub fn set(ref mut self, int i, T v)
-std/src/arraylist.aya:63: pub fn pop(ref mut self) -> T
-std/src/arraylist.aya:69: pub fn is_empty(ref self) -> bool
-std/src/arraylist.aya:75: pub fn clear(ref mut self)
-std/src/arraylist.aya:79: pub fn iter(ref self, fn(T) f)
-std/src/arraylist.aya:87: impl[T:ToString] ArrayList[T]
-std/src/arraylist.aya:90: pub fn to_string(ref self)->String
+std/src/arraylist.aya:64: pub fn pop(ref mut self) -> T
+std/src/arraylist.aya:70: pub fn is_empty(ref self) -> bool
+std/src/arraylist.aya:76: pub fn clear(ref mut self)
+std/src/arraylist.aya:80: pub fn iter(ref self, fn(T) f)
+std/src/arraylist.aya:88: impl[T:ToString] ArrayList[T]
+std/src/arraylist.aya:91: pub fn to_string(ref self)->String
 std/src/io.aya:13: pub fn getchar() -> int
 std/src/io.aya:17: pub fn putchar(int c)
 std/src/io.aya:22: pub fn print(ref String n)

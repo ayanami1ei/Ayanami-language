@@ -64,7 +64,6 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<()> {
     let lcl_name = format!("{}.lcl", src_path.strip_suffix(".aya").unwrap_or(src_path));
     pkg.write_to_file(&lcl_name)
         .map_err(|e| Error::Compile(format!("package write failed: {}", e)))?;
-    eprintln!("package: {}", lcl_name);
 
     std::fs::remove_dir_all(&tmp_dir).ok();
     Ok(())

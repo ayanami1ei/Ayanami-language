@@ -32,10 +32,9 @@ pub fn build_source_with_target(
         }
     });
 
-    let output_path = match target {
+    let _output_path = match target {
         "executable" => {
             let exe_path = out_path.join(&*name);
-            eprintln!("building {} -> {}", src_path.display(), exe_path.display());
             crate::driver::objects_to_exe_with_flags(
                 &compiled.obj_paths,
                 &compiled.link_flags,
@@ -46,7 +45,6 @@ pub fn build_source_with_target(
         }
         "static-lib" => {
             let lib_path = out_path.join(format!("lib{}.a", name));
-            eprintln!("building {} -> {}", src_path.display(), lib_path.display());
             if compiled.obj_paths.len() == 1 {
                 crate::driver::object_to_static_lib(&compiled.obj_paths[0], &lib_path)?;
             } else {
@@ -64,7 +62,6 @@ pub fn build_source_with_target(
         }
         "dynamic-lib" => {
             let so_path = out_path.join(format!("lib{}.so", name));
-            eprintln!("building {} -> {}", src_path.display(), so_path.display());
             if compiled.obj_paths.len() == 1 {
                 crate::driver::object_to_shared_lib(&compiled.obj_paths[0], &so_path)?;
             } else {
@@ -75,7 +72,6 @@ pub fn build_source_with_target(
         _ => return Err(Error::Compile(format!("unknown target type: {}", target))),
     };
 
-    eprintln!("build ok: {}", output_path.display());
 
     let lcl_path = out_path.join(format!("{}.lcl", name));
     let mut pkg = crate::package::Package::new(name.to_string(), env!("CARGO_PKG_VERSION").into());
@@ -96,7 +92,6 @@ pub fn build_source_with_target(
     };
     pkg.write_to_file(&lcl_path.to_string_lossy())
         .map_err(|e| Error::Compile(format!("package write failed: {}", e)))?;
-    eprintln!("package: {}", lcl_path.display());
 
     Ok(())
 }
@@ -109,7 +104,6 @@ pub fn run_executable(exe_name: &str) -> Result<i32> {
     } else {
         exe_name.to_string()
     };
-    eprintln!("running: {}", exe_path);
     let status = std::process::Command::new(&exe_path)
         .status()
         .map_err(|e| Error::Compile(format!("failed to run '{}': {}", exe_path, e)))?;

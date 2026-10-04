@@ -28,6 +28,16 @@ pub fn warning(msg: &str) {
     }
 }
 
+/// cargo 风格状态行：绿色加粗状态词，右对齐 12 列（stderr）。
+pub fn status(word: &str, msg: &str) {
+    let pad = " ".repeat(12usize.saturating_sub(word.len()));
+    if supports_color() {
+        eprintln!("{}{} {}", pad, word.green().bold(), msg);
+    } else {
+        eprintln!("{}{} {}", pad, word, msg);
+    }
+}
+
 /// 成功信息（stdout，保持可管道）。
 pub fn success(msg: &str) {
     if supports_color() {

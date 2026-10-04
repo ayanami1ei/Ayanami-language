@@ -59,6 +59,7 @@ impl[T] ArrayList[T]{
     }
 
     /// 弹出末元素（调用方需自行保证非空）
+#[alloc]
 #[state]
     pub fn pop(ref mut self) -> T {
         if self.len <= 0 { panic_at(0, 0, String { data = null, len = 0 }, "pop from empty ArrayList") }
