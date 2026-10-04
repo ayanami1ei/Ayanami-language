@@ -57,7 +57,7 @@ impl crate::hir::lower::Ctx {
             }
             Stmt::IndexAssign { object, index, value, span } => {
                 let hir_object = self.lower_expr(object)?;
-                let hir_index = self.lower_expr(index)?;
+                let hir_index = coerce_index(self.lower_expr(index)?, &HirType::Int, span)?;
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
                 if matches!(expr_type(&hir_value), HirType::Ref(..)) {

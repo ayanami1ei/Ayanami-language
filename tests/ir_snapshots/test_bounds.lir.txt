@@ -76,23 +76,24 @@ while.body4:
     t36 = field_access field=0 : Array(Int)
     t38 = load v2 : Int
     t39 = conv Cast -> Tmp(38) : IntN { bits: 64, signed: false }
-    t40 = index_access elem_ty=Int
+    t40 = conv Cast -> Tmp(39) : Int
+    t41 = index_access elem_ty=Int
     t33 = index_store elem_ty=Int
-    t44 = load v2 : Int
-    t45 = Add Tmp(44) Literal(Int(1), Int) : Int
-    store Tmp(45) -> v2 : Int
+    t45 = load v2 : Int
+    t46 = Add Tmp(45) Literal(Int(1), Int) : Int
+    store Tmp(46) -> v2 : Int
     br %while.cond3
 while.end5:
-    t46 = load v0 : Ref(Named(Symbol(N)), true)
-    t47 = load v1 : Unique(Array(Int))
-    t46 = field_store field=0 : Array(Int)
-    t50 = load v0 : Ref(Named(Symbol(N)), true)
+    t47 = load v0 : Ref(Named(Symbol(N)), true)
+    t48 = load v1 : Unique(Array(Int))
+    t47 = field_store field=0 : Array(Int)
     t51 = load v0 : Ref(Named(Symbol(N)), true)
-    t52 = field_access field=2 : IntN { bits: 64, signed: false }
-    t54 = str_global @__str_0
-    t55 = struct_lit String (2 fields)
-    t59 = call fn79 (Tmp(52):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(14), Int):Int, Literal(Int(47), Int):Int, Tmp(55):Named(Symbol(N))) : IntN { bits: 64, signed: false }
-    t50 = field_store field=2 : IntN { bits: 64, signed: false }
+    t52 = load v0 : Ref(Named(Symbol(N)), true)
+    t53 = field_access field=2 : IntN { bits: 64, signed: false }
+    t55 = str_global @__str_0
+    t56 = struct_lit String (2 fields)
+    t60 = call fn79 (Tmp(53):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(14), Int):Int, Literal(Int(47), Int):Int, Tmp(56):Named(Symbol(N))) : IntN { bits: 64, signed: false }
+    t51 = field_store field=2 : IntN { bits: 64, signed: false }
     br %ifcont2
 ifcont2:
     ret void
@@ -124,15 +125,16 @@ ifcont2:
     t15 = field_access field=0 : Array(Int)
     t17 = load v0 : Ref(Named(Symbol(N)), true)
     t18 = field_access field=1 : IntN { bits: 64, signed: false }
-    t20 = load v1 : Int
+    t20 = conv Cast -> Tmp(18) : Int
+    t21 = load v1 : Int
     t15 = index_store elem_ty=Int
-    t22 = load v0 : Ref(Named(Symbol(N)), true)
     t23 = load v0 : Ref(Named(Symbol(N)), true)
-    t24 = field_access field=1 : IntN { bits: 64, signed: false }
-    t26 = str_global @__str_0
-    t27 = struct_lit String (2 fields)
-    t31 = call fn77 (Tmp(24):IntN { bits: 64, signed: false }, Literal(Int(1), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(24), Int):Int, Literal(Int(29), Int):Int, Tmp(27):Named(Symbol(N))) : IntN { bits: 64, signed: false }
-    t22 = field_store field=1 : IntN { bits: 64, signed: false }
+    t24 = load v0 : Ref(Named(Symbol(N)), true)
+    t25 = field_access field=1 : IntN { bits: 64, signed: false }
+    t27 = str_global @__str_0
+    t28 = struct_lit String (2 fields)
+    t32 = call fn77 (Tmp(25):IntN { bits: 64, signed: false }, Literal(Int(1), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(24), Int):Int, Literal(Int(29), Int):Int, Tmp(28):Named(Symbol(N))) : IntN { bits: 64, signed: false }
+    t23 = field_store field=1 : IntN { bits: 64, signed: false }
     ret void
 fn index (fn_id=80) -> Int [4 blocks]
   local self: Ref(Named(Symbol(N)), false)
@@ -173,7 +175,8 @@ ifcont2:
     t12 = load v0 : Ref(Named(Symbol(N)), false)
     t13 = field_access field=0 : Array(Int)
     t15 = load v1 : IntN { bits: 64, signed: false }
-    t16 = index_access elem_ty=Int
-    store Tmp(16) -> v5 : Int
-    t19 = load v5 : Int
-    ret Tmp(19)
+    t16 = conv Cast -> Tmp(15) : Int
+    t17 = index_access elem_ty=Int
+    store Tmp(17) -> v5 : Int
+    t20 = load v5 : Int
+    ret Tmp(20)

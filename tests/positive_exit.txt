@@ -72,5 +72,6 @@ test_two_phase.aya 2
 test_unique_struct.aya 10
 test_unit_type.aya 0
 test_usage_infer.aya 0
+test_usize_index.aya 0
 test_vis.aya 42
 test_vis2.aya 10

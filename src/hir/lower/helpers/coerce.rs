@@ -51,6 +51,22 @@ pub(crate) fn is_numeric_literal(e: &HirNodeBox) -> bool {
     as_int_literal(e).is_some() || as_float_literal(e).is_some()
 }
 
+/// M1.8a：索引表达式统一为整数（与目标索引类型做显式整数转换）
+pub(crate) fn coerce_index(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox> {
+    let src = strip_ownership_ref(&expr.expr_type()).clone();
+    let tgt = strip_ownership_ref(target).clone();
+    if src == tgt {
+        return Ok(expr);
+    }
+    if is_int_type(&src) && is_int_type(&tgt) {
+        return Ok(SCast { expr, ty: tgt }.into());
+    }
+    Err(Error::Hir(format!(
+        "index must be an integer, found `{}` (at {}:{})",
+        hir_type_display(&src), span.start_line, span.start_col
+    )))
+}
+
 /// 浮点类型（float / f32）
 pub(crate) fn is_float_type(ty: &HirType) -> bool {
     matches!(strip_ownership_ref(ty), HirType::Float | HirType::F32)

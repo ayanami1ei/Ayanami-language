@@ -1,0 +1,18 @@
+// M1.8a：索引接受任意整数（usize / 窄整数统一转 i64 寻址）
+fn main() -> int {
+    a = [10, 20, 30]
+    i = 1usize
+    if a[i] != 20 { return 1 }
+    j = 2u8
+    if a[j] != 30 { return 2 }
+    k = 0
+    if a[k] != 10 { return 3 }
+    l = 1i32
+    if a[l] != 20 { return 4 }
+    a[1usize] = 99
+    if a[1] != 99 { return 5 }
+    m = [1, 2, 3]
+    m[2u8] = 7
+    if m[2] != 7 { return 6 }
+    return 0
+}

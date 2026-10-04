@@ -549,12 +549,13 @@ src/hir/lower/helpers/coerce.rs:26: pub(crate) fn deref_type(ty: &HirType) -> Hi
 src/hir/lower/helpers/coerce.rs:34: pub(crate) fn as_int_literal(e: &HirNodeBox) -> Option<i64>
 src/hir/lower/helpers/coerce.rs:42: pub(crate) fn as_float_literal(e: &HirNodeBox) -> Option<f64>
 src/hir/lower/helpers/coerce.rs:50: pub(crate) fn is_numeric_literal(e: &HirNodeBox) -> bool
-src/hir/lower/helpers/coerce.rs:55: pub(crate) fn is_float_type(ty: &HirType) -> bool
-src/hir/lower/helpers/coerce.rs:60: pub(crate) fn retype_float_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox
-src/hir/lower/helpers/coerce.rs:68: pub(crate) fn is_int_type(ty: &HirType) -> bool
-src/hir/lower/helpers/coerce.rs:73: pub(crate) fn retype_int_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox
-src/hir/lower/helpers/coerce.rs:80: fn is_primitive(ty: &HirType) -> bool
-src/hir/lower/helpers/coerce.rs:88: pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/helpers/coerce.rs:55: pub(crate) fn coerce_index(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/helpers/coerce.rs:71: pub(crate) fn is_float_type(ty: &HirType) -> bool
+src/hir/lower/helpers/coerce.rs:76: pub(crate) fn retype_float_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox
+src/hir/lower/helpers/coerce.rs:84: pub(crate) fn is_int_type(ty: &HirType) -> bool
+src/hir/lower/helpers/coerce.rs:89: pub(crate) fn retype_int_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox
+src/hir/lower/helpers/coerce.rs:96: fn is_primitive(ty: &HirType) -> bool
+src/hir/lower/helpers/coerce.rs:104: pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/helpers/convert.rs:3: pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type
 src/hir/lower/helpers/convert.rs:30: pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Vec<(Symbol, HirType)>
 src/hir/lower/helpers/convert.rs:84: fn split_generic_args(s: &str) -> Vec<&str>
@@ -2178,5 +2179,6 @@ example/test_unit_type.aya:6: fn main() -> int
 example/test_usage_infer.aya:5: enum E
 example/test_usage_infer.aya:10: fn make() -> E { return E::A(1); }
 example/test_usage_infer.aya:12: fn main() -> int
+example/test_usize_index.aya:2: fn main() -> int
 example/test_vis.aya:1: pub fn main() -> int
 example/test_vis2.aya:6: pub fn main() -> int
