@@ -40,6 +40,7 @@ impl crate::hir::lower::Ctx {
             effects: crate::hir::effects::EffectDecl::default(),
             inferred: Default::default(),
             span: crate::span::Span::default(),
+            hidden: 0,
         });
         self.fn_map.entry(name_sym).or_default().push(fn_id);
 

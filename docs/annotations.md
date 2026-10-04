@@ -326,7 +326,9 @@ struct Holder {
 - 首个消费者：`std/panic.aya` 的 `#panic("msg")` → `panic_at(line, col, file, msg)`
   → runtime `__ayanami_panic_at` 打印 `runtime error: ... --> file:line:col` + 源码片段，退出码 101。
 - 标准库越界检查：`String.index` / `ArrayList.index/set/pop` / `LinkedList.index` 调用
-  `panic_bounds_at`（值为准、位置暂为 0/0；函数级 `#[track_caller]` 为后续项）。
+  `panic_bounds_at`；**函数级 track_caller** 已实现：函数末尾声明保留参数
+  `int __line, int __col, String __file`，调用点自动填充（.lcl `fn=` flags 带 `caller`），
+  因此 std 越界 panic 会指向用户调用行。
 
 ### 8.5 注解分类与 MIR 优化插件（A5d）
 
@@ -477,7 +479,9 @@ struct Holder {
 - [ ] A5d-4 更完整 MIR schema（类型/调用/字段完整往返）与跨函数 pass（远期）
 - [x] A5c-2 函数宏（表达式级）：`#name(args)` + 保留参数 `__line/__col/__file` + ABI v5 +
       `#panic`（运行时 panic + 源码定位 + 退出码 101）+ 标准库越界检查
-- [ ] A5c-2 后续：函数级 `#[track_caller]`（std panic 指向用户调用行）、其它语言插件 / WASM 沙箱 / 插件清单与权限（远期）
+- [x] A5c-2 函数级 track_caller：保留参数 `__line/__col/__file` 调用点自动填充（含 .lcl `caller` 标记），
+      std 越界/空表 panic 指向用户调用行
+- [ ] A5c-2 后续：其它语言插件 / WASM 沙箱 / 插件清单与权限（远期）
 
 ### 已知问题
 

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <unistd.h>
 
 #define RC_HEADER(ptr)  (((int64_t *)(ptr)) - 1)
 
@@ -56,42 +57,35 @@ static void __ayanami_print_view(const char* data, long len) {
     if (data && len > 0) fwrite(data, 1, (size_t)len, stderr);
 }
 
-/// 打印 `runtime error: <msg>` + `--> file:line:col` + 源码行与插入符，然后退出 101
+/// 是否给 stderr 上色（TTY 且未设置 NO_COLOR）
+static int __ayanami_color_stderr(void) {
+    const char* no = getenv("NO_COLOR");
+    if (no && *no) return 0;
+    return isatty(2);
+}
+
+/// Rust 风格 panic：`thread 'main' panicked at file:line:col:`（红色）+ 消息，退出 101
 static void __ayanami_panic_print(long long line, long long col,
                                   const char* file, long file_len,
                                   const char* msg, long msg_len) {
     fflush(stdout);
-    fputs("runtime error: ", stderr);
+    int color = __ayanami_color_stderr();
+    if (line > 0 && file && file_len > 0) {
+        char loc[1200];
+        int n = (int)(file_len < 1000 ? file_len : 1000);
+        snprintf(loc, sizeof loc, "%.*s:%lld:%lld", n, file, line, col);
+        if (color) {
+            fprintf(stderr, "\x1b[1;31mthread 'main' panicked at %s:\x1b[0m\n", loc);
+        } else {
+            fprintf(stderr, "thread 'main' panicked at %s:\n", loc);
+        }
+    } else if (color) {
+        fputs("\x1b[1;31mthread 'main' panicked:\x1b[0m\n", stderr);
+    } else {
+        fputs("thread 'main' panicked:\n", stderr);
+    }
     __ayanami_print_view(msg, msg_len);
     fputc('\n', stderr);
-    if (line > 0 && file && file_len > 0) {
-        char* path = (char*)malloc((size_t)file_len + 1);
-        if (path) {
-            memcpy(path, file, (size_t)file_len);
-            path[file_len] = 0;
-            fprintf(stderr, "  --> %s:%lld:%lld\n", path, line, col);
-            // 源码片段（读不到就跳过）
-            FILE* f = fopen(path, "r");
-            if (f && line > 0) {
-                char buf[1024];
-                long long n = 0;
-                while (fgets(buf, sizeof buf, f)) {
-                    n++;
-                    if (n == line) {
-                        size_t len = strlen(buf);
-                        while (len > 0 && (buf[len-1] == '\n' || buf[len-1] == '\r')) buf[--len] = 0;
-                        fprintf(stderr, "   |\n%lld | %s\n   | ", line, buf);
-                        for (long long i = 1; i < col; i++) fputc(' ', stderr);
-                        fputs("^\n", stderr);
-                        break;
-                    }
-                }
-                fclose(f);
-            }
-            free(path);
-        }
-    }
-    fputs("note: runtime panic (exit code 101)\n", stderr);
     exit(101);
 }
 

@@ -41,6 +41,8 @@ pub(crate) struct FnSig {
     pub return_type: HirType,
     /// A6：声明位置（接口签名等诊断用）
     pub span: Span,
+    /// 末尾保留参数个数（函数级 track_caller：__line/__col/__file）
+    pub hidden: usize,
 }
 
 /// 接口注册信息 —— 记录接口的泛型参数和方法签名

@@ -1,0 +1,12 @@
+import "string";
+// A5c-2：函数级 track_caller（保留参数 __line/__col/__file 在调用点自动填充）
+fn where_am_i(int __line, int __col, String __file) -> int {
+    if __line <= 0 { return 1 }
+    if __col <= 0 { return 2 }
+    if __file == "" { return 3 }
+    return 0;
+}
+
+fn main() -> int {
+    return where_am_i();
+}

@@ -21,7 +21,8 @@ impl crate::hir::lower::Ctx {
         for (i, (gf_name, _, gf_stmt)) in self.generic_fns.iter().enumerate() {
             if gf_name != name { continue; }
             if let Stmt::FnDecl { params, .. } = gf_stmt {
-                if params.len() != arg_types.len() { continue; }
+                let visible = params.len().saturating_sub(count_hidden_names(params));
+                if visible != arg_types.len() { continue; }
                 if let Some(ab) = &arg_base {
                     if let Some(first) = params.first() {
                         let self_hir = ast_type_to_hir(&first.1, &self.interfaces);
@@ -40,8 +41,15 @@ impl crate::hir::lower::Ctx {
         let gf_idx = match best_gf_idx {
             Some(i) => i,
             None => {
-                // Fallback: just find by name
-                if let Some(i) = self.generic_fns.iter().position(|(gf_name, _, _)| gf_name == name) {
+                // Fallback: 同名且可见参数个数一致
+                if let Some(i) = self.generic_fns.iter().position(|(gf_name, _, gf_stmt)| {
+                    gf_name == name && match gf_stmt {
+                        Stmt::FnDecl { params, .. } => {
+                            params.len().saturating_sub(count_hidden_names(params)) == arg_types.len()
+                        }
+                        _ => false,
+                    }
+                }) {
                     i
                 } else {
                     return Err(if self.fn_map.contains_key(name) {
@@ -60,10 +68,12 @@ impl crate::hir::lower::Ctx {
             return Err(Error::Hir(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col)));
         };
 
-        if params.len() != arg_types.len() {
+        let hidden = count_hidden_names(params);
+        let visible = params.len().saturating_sub(hidden);
+        if visible != arg_types.len() {
             return Err(Error::Hir(format!(
                 "generic function `{}` takes {} argument(s) but {} given at {}:{}",
-                gf_name, params.len(), arg_types.len(), span.start_line, span.start_col
+                gf_name, visible, arg_types.len(), span.start_line, span.start_col
             )));
         }
 
@@ -81,7 +91,7 @@ impl crate::hir::lower::Ctx {
                 generic_mappings.insert(*gp_name, ast_type_to_hir(ty, &self.interfaces));
             }
         } else {
-            for ((_, param_ty), arg_ty) in params.iter().zip(arg_types.iter()) {
+            for ((_, param_ty), arg_ty) in params.iter().take(visible).zip(arg_types.iter()) {
                 let result = infer_generic_from_param(param_ty, arg_ty);
                 if let Some((gp_name, hir_concrete)) = result {
                     if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
@@ -209,6 +219,7 @@ impl crate::hir::lower::Ctx {
         }
 
         let fid = FnId(self.fns.len());
+        let hidden = count_hidden_params(&hir_params);
         self.fns.push(FnSig {
             name: *name,
             params: hir_params,
@@ -216,6 +227,7 @@ impl crate::hir::lower::Ctx {
             span: crate::span::Span::default(),
             effects: crate::hir::effects::EffectDecl::default(),
                         inferred: Default::default(),
+            hidden,
         });
         self.fn_map.entry(*name).or_default().push(fid);
         self.specialized_ids.insert(fid);

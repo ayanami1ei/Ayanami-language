@@ -39,8 +39,8 @@ impl[T] LinkedList[T] {
         self.len = self.len + 1
     }
 
-    pub fn index(ref self, int index)->T{
-        if index < 0 || index >= self.len { panic_bounds_at(0, 0, String { data = null, len = 0 }, index, self.len) }
+    pub fn index(ref self, int index, int __line, int __col, String __file)->T{
+        if index < 0 || index >= self.len { panic_bounds_at(__line, __col, __file, index, self.len) }
         return self.data[index]
     }
 

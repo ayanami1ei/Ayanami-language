@@ -190,6 +190,7 @@ impl crate::hir::lower::Ctx {
                         }
                         let fn_id = FnId(self.fns.len());
                         let summary = crate::hir::effects::EffectSummary::from_tokens(flags);
+                        let hidden = if flags.iter().any(|f| f == "caller") { 3 } else { 0 };
                         self.fns.push(FnSig {
                             name: sym_name,
                             params: hir_params,
@@ -197,6 +198,7 @@ impl crate::hir::lower::Ctx {
                             effects: summary.declared,
                             inferred: summary.inferred,
                             span: crate::span::Span::default(),
+                            hidden,
                         });
                         self.fn_map.entry(sym_name).or_default().push(fn_id);
                     }

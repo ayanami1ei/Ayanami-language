@@ -158,7 +158,12 @@ impl crate::hir::lower::Ctx {
             }
         }).collect();
 
-        let hir_args = self.adapt_enum_args(hir_args, &param_tys)?;
+        let mut hir_args = self.adapt_enum_args(hir_args, &param_tys)?;
+        // 函数级 track_caller：调用点信息作为隐藏实参追加
+        let hidden = self.fns[fn_id.0].hidden;
+        if hidden > 0 {
+            hir_args.extend(self.caller_hidden_args(span, hidden));
+        }
         let ty = self.fns[fn_id.0].return_type.clone();
         Ok(SCall { fn_id, args: hir_args, ty }.into())
     }

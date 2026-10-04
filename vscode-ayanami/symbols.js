@@ -153,11 +153,18 @@ function parseLclSymbols(text, file, syms) {
         // flags 与签名都以 ',' 分隔；签名从第一个含 '(' 或 '->' 的分段开始
         const idx = parts.findIndex((p, i) => i > 0 && (p.includes('(') || p.includes('->')));
         const rest = idx > 0 ? parts.slice(idx).join(',') : '';
+        const flags = idx > 0 ? parts.slice(1, idx).join('+') : '';
         const sm = rest.match(/^([\w.]+)\(([^)]*)\)(?:\s*->\s*(.+))?$/);
         if (sm) {
+            let params = sm[2];
+            // 函数级 track_caller：末尾 3 个保留参数不展示
+            if (flags.split('+').includes('caller')) {
+                const ps = params.split(',').map((x) => x.trim()).filter(Boolean);
+                params = ps.slice(0, Math.max(0, ps.length - 3)).join(',');
+            }
             syms.functions.push({
-                name, sig: `${name}(${sm[2]})${sm[3] ? ' -> ' + sm[3].trim() : ''}`,
-                params: sm[2], ret: (sm[3] || '').trim(), doc: '', attrs: [], line: 0, file,
+                name, sig: `${name}(${params})${sm[3] ? ' -> ' + sm[3].trim() : ''}`,
+                params, ret: (sm[3] || '').trim(), doc: '', attrs: [], line: 0, file,
             });
         }
     }

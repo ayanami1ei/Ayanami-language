@@ -98,10 +98,16 @@ impl Package {
                         .map(|s| s.inferred.clone())
                         .unwrap_or_default();
                     let summary = crate::hir::effects::EffectSummary { declared, inferred };
+                    let mut flags = summary.tokens();
+                    // 函数级 track_caller：末尾保留参数 __line/__col/__file
+                    let hidden = params.iter().rev()
+                        .take_while(|(n, _)| matches!(n.as_str().as_str(), "__line" | "__col" | "__file"))
+                        .count();
+                    if hidden > 0 { flags.push("caller".to_string()); }
                     self.symbols.push(PackageSymbol::Fn {
                         name: full_name,
                         signature: sig,
-                        flags: summary.tokens(),
+                        flags,
                     });
                     if !generic_params.is_empty() {
                         // Serialize generic function AST to source code
@@ -121,9 +127,14 @@ impl Package {
                     if !crate::hir::cfg::stmt_enabled(m) { continue; }
                     if let Stmt::FnDecl { name, params, return_type, vis, .. } = m {
                         if all || vis.is_public() {
+                            // hover 展示用：去掉末尾保留参数（__line/__col/__file）
+                            let visible = params.len()
+                                - params.iter().rev()
+                                    .take_while(|(n, _)| matches!(n.as_str().as_str(), "__line" | "__col" | "__file"))
+                                    .count();
                             let sig = format!("{}({})->{}",
                                 name,
-                                params.iter().map(|(_, t)| type_to_string(t)).collect::<Vec<_>>().join(","),
+                                params[..visible].iter().map(|(_, t)| type_to_string(t)).collect::<Vec<_>>().join(","),
                                 type_to_string(return_type))
                                 .replace("Self", &type_base)
                                 .replace("???", "fn(...)");

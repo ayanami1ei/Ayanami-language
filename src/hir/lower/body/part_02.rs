@@ -30,6 +30,7 @@ impl crate::hir::lower::Ctx {
                         continue;
                     }
                     let fn_id = FnId(self.fns.len());
+                    let hidden = count_hidden_params(&hir_params);
                     self.fns.push(FnSig {
                         name: full_name,
                         params: hir_params,
@@ -37,6 +38,7 @@ impl crate::hir::lower::Ctx {
                         effects: crate::hir::effects::EffectDecl::default(),
                         inferred: Default::default(),
                         span: *span,
+                        hidden,
                     });
                     self.fn_map.entry(full_name).or_default().push(fn_id);
                 }
@@ -86,10 +88,11 @@ impl crate::hir::lower::Ctx {
                                 continue;
                             }
                             let hir_return = ast_type_to_hir(return_type, &self.interfaces);
-                            let hir_params = params.iter()
+                            let hir_params: Vec<(Symbol, HirType)> = params.iter()
                                 .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
                                 .collect();
                             let fn_id = FnId(self.fns.len());
+                            let hidden = count_hidden_params(&hir_params);
                             self.fns.push(FnSig {
                                 name: *name,
                                 params: hir_params,
@@ -97,6 +100,7 @@ impl crate::hir::lower::Ctx {
                                 span: *method_span,
                                 effects: crate::hir::effects::EffectDecl::default(),
                         inferred: Default::default(),
+                        hidden,
                             });
                             self.fn_map.entry(*name).or_default().push(fn_id);
                         } else {

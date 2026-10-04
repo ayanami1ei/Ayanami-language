@@ -304,8 +304,8 @@ impl String {
     pub fn to_string(self) -> String {
         return self;
     }
-    pub fn index(ref self, int i) -> char {
-        if i < 0 || i >= self.len { panic_bounds_at(0, 0, String { data = null, len = 0 }, i, self.len) }
+    pub fn index(ref self, int i, int __line, int __col, String __file) -> char {
+        if i < 0 || i >= self.len { panic_bounds_at(__line, __col, __file, i, self.len) }
         return self.data[i];
     }
     pub fn len(ref self) -> int {

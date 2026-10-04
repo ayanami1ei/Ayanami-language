@@ -42,6 +42,7 @@ impl crate::hir::lower::Ctx {
                         .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
                         .collect();
                     let hir_return = ast_type_to_hir(return_type, &self.interfaces);
+                    let hidden = count_hidden_params(&hir_params);
                     impl_methods.entry(base).or_default().push(FnSig {
                         name: *gf_name,
                         params: hir_params,
@@ -49,6 +50,7 @@ impl crate::hir::lower::Ctx {
                         effects: crate::hir::effects::EffectDecl::default(),
                         inferred: Default::default(),
                         span: crate::span::Span::default(),
+                        hidden,
                     });
                 }
             }
@@ -81,8 +83,10 @@ impl crate::hir::lower::Ctx {
             let found = methods.iter().find(|m| m.name == iface_method.name);
             match found {
                 Some(fsig) => {
-                    let params_match = iface_method.params.len() == fsig.params.len() - 1
-                        && iface_method.params.iter().zip(&fsig.params[1..])
+                    let fsig_visible = fsig.params.len().saturating_sub(fsig.hidden);
+                    let params_match = fsig_visible >= 1
+                        && iface_method.params.len() == fsig_visible - 1
+                        && iface_method.params.iter().zip(&fsig.params[1..fsig_visible])
                             .all(|((_, ift), (_, ft))| Self::type_matches(&ift, &ft))
                         && Self::type_matches(&iface_method.return_type, &fsig.return_type);
                     if params_match {

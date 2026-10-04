@@ -60,8 +60,9 @@ impl crate::hir::lower::Ctx {
         let matches: Vec<FnId> = candidates.iter().copied()
             .filter(|&fn_id| {
                 let sig = &self.fns[fn_id.0];
-                sig.params.len() == arg_types.len()
-                    && sig.params.iter().zip(arg_types).all(|((_, pt), at)| {
+                let visible = sig.params.len().saturating_sub(sig.hidden);
+                visible == arg_types.len()
+                    && sig.params.iter().take(visible).zip(arg_types).all(|((_, pt), at)| {
                         self.param_compatible(pt, at)
                     })
             })
@@ -80,8 +81,9 @@ impl crate::hir::lower::Ctx {
                 // 否则 `add[char]` 会被 `add[int]`（char→int 转换）抢走
                 if self.specialized_ids.contains(&fn_id) { return false; }
                 let sig = &self.fns[fn_id.0];
-                sig.params.len() == arg_types.len()
-                    && sig.params.iter().zip(arg_types).all(|((_, pt), at)| {
+                let visible = sig.params.len().saturating_sub(sig.hidden);
+                visible == arg_types.len()
+                    && sig.params.iter().take(visible).zip(arg_types).all(|((_, pt), at)| {
                         self.param_compatible(pt, at) || implicit_cast_ok(at, pt)
                     })
             })
@@ -160,7 +162,9 @@ impl crate::hir::lower::Ctx {
             let sig = &self.fns[fn_id.0];
             if sig.params.is_empty() { continue; }
             if !Ctx::receiver_matches_param(receiver_type, &sig.params[0].1) { continue; }
-            let remaining = &sig.params[1..];
+            let visible = sig.params.len().saturating_sub(sig.hidden);
+            if visible == 0 { continue; }
+            let remaining = &sig.params[1..visible];
             if remaining.len() != arg_types.len() { continue; }
             if remaining.iter().zip(arg_types).all(|((_, pt), at)| pt == at) {
                 return Some(fn_id);
@@ -171,7 +175,9 @@ impl crate::hir::lower::Ctx {
             let sig = &self.fns[fn_id.0];
             if sig.params.is_empty() { continue; }
             if !Ctx::receiver_matches_param(receiver_type, &sig.params[0].1) { continue; }
-            let remaining = &sig.params[1..];
+            let visible = sig.params.len().saturating_sub(sig.hidden);
+            if visible == 0 { continue; }
+            let remaining = &sig.params[1..visible];
             if remaining.len() != arg_types.len() { continue; }
             if remaining.iter().zip(arg_types).all(|((_, pt), at)| {
                 pt == at
@@ -188,7 +194,9 @@ impl crate::hir::lower::Ctx {
             let sig = &self.fns[fn_id.0];
             if sig.params.is_empty() { continue; }
             if !Ctx::receiver_matches_param(receiver_type, &sig.params[0].1) { continue; }
-            let remaining = &sig.params[1..];
+            let visible = sig.params.len().saturating_sub(sig.hidden);
+            if visible == 0 { continue; }
+            let remaining = &sig.params[1..visible];
             if remaining.len() != arg_types.len() { continue; }
             if remaining.iter().zip(arg_types).all(|((_, pt), at)| {
                 pt == at

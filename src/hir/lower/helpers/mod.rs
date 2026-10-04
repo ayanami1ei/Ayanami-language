@@ -15,12 +15,14 @@ use super::InterfaceReg;
 
     /// 自动插入 Move 包装：如果表达式是 unique 类型且尚未包装，则包装为 Move
 
+mod caller;
 mod coerce;
 mod convert;
 mod substitute;
 mod types;
 mod wrap;
 
+pub(crate) use caller::*;
 pub(crate) use coerce::*;
 pub(crate) use convert::*;
 pub(crate) use substitute::*;

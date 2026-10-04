@@ -47,9 +47,12 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
                         Vec::new()
                     } else if flags.contains('+') {
                         flags.split('+').map(|s| s.to_string()).collect()
-                    } else {
-                        // 旧格式可能直接是 t/e 的组合
+                    } else if flags.len() <= 2 && flags.chars().all(|c| c == 't' || c == 'e') {
+                        // 旧格式：直接是 t/e 的组合
                         flags.chars().map(|c| c.to_string()).collect()
+                    } else {
+                        // 单个多字符 token（如 `caller`）
+                        vec![flags.to_string()]
                     };
                     symbols.push(ImportedSymbol::Fn {
                         name: name.to_string(),

@@ -168,7 +168,12 @@ impl crate::hir::lower::Ctx {
             if i >= param_tys.len() { return arg; }
             wrap_arg_for_param(arg, &param_tys[i])
         }).collect();
-        let all_args = self.adapt_enum_args(all_args, &param_tys)?;
+        let mut all_args = self.adapt_enum_args(all_args, &param_tys)?;
+        // 函数级 track_caller：调用点信息作为隐藏实参追加
+        let hidden = self.fns[fn_id.0].hidden;
+        if hidden > 0 {
+            all_args.extend(self.caller_hidden_args(span, hidden));
+        }
 
         let ty = self.fns[fn_id.0].return_type.clone();
         Ok(SCall { fn_id, args: all_args, ty }.into())

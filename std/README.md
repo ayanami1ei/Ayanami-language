@@ -156,5 +156,6 @@ fn main() -> int {
 ```
 
 - 函数宏在调用点展开，自动带 `__line/__col/__file`
-- 集合越界/空表 `pop` 会在运行时 panic（`runtime error: index out of bounds: the len is ... but the index is ...`）
+- 集合越界/空表 `pop` 会在运行时 panic，并指向**你的调用行**：
+  `thread 'main' panicked at main.aya:6:13: index out of bounds: the len is 1 but the index is 5`
 - panic 输出 stderr，程序退出码 **101**
