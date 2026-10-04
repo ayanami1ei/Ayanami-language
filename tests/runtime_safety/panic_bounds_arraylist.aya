@@ -1,0 +1,6 @@
+import "arraylist";
+
+fn main() -> int {
+    a = ArrayList::new[int]();
+    return a.index(5);
+}

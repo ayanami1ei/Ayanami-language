@@ -54,5 +54,22 @@ for f in tests/compile_fail/*.aya; do
     fi
 done
 
-echo "regression: positive=$pos negative=$neg failures=$fail"
+rt=0
+while read -r name code pat; do
+    [ -z "${name:-}" ] && continue
+    case "$name" in \#*) continue ;; esac
+    rt=$((rt + 1))
+    out=$(timeout 60 "$BIN" run "tests/runtime_safety/$name" 2>&1)
+    got=$?
+    if [ "$got" != "$code" ]; then
+        echo "FAIL tests/runtime_safety/$name: exit $got, want $code"
+        fail=$((fail + 1))
+    fi
+    if [ -n "${pat:-}" ] && ! grep -qF -- "$pat" <<<"$out"; then
+        echo "FAIL tests/runtime_safety/$name: output missing: $pat"
+        fail=$((fail + 1))
+    fi
+done < tests/runtime_safety/manifest.txt
+
+echo "regression: positive=$pos negative=$neg runtime=$rt failures=$fail"
 [ "$fail" -eq 0 ]
