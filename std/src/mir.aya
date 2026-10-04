@@ -63,41 +63,49 @@ pub fn error(String msg) {
 // ── 编辑辅助 ──
 
 /// 标记第 idx 个表达式节点替换为整型字面量 value
+#[state]
 pub fn replace_int(ref mut MirFunction f, int idx, int value) {
     f.edit_kind[idx] = 1
     f.edit_i64[idx] = value
 }
 
 /// 标记替换为浮点字面量（bits 为 f64 的位模式）
+#[state]
 pub fn replace_float(ref mut MirFunction f, int idx, int bits) {
     f.edit_kind[idx] = 2
     f.edit_i64[idx] = bits
 }
 
 /// 标记替换为布尔字面量（value != 0）
+#[state]
 pub fn replace_bool(ref mut MirFunction f, int idx, int value) {
     f.edit_kind[idx] = 3
     f.edit_i64[idx] = value
 }
 
 /// 标记替换为字符字面量（code 为字符编码）
+#[state]
 pub fn replace_char(ref mut MirFunction f, int idx, int code) {
     f.edit_kind[idx] = 4
     f.edit_i64[idx] = code
 }
 
 /// 标记用第 src 个表达式节点的克隆替换第 idx 个节点（类型必须一致）
+#[state]
 pub fn replace_with(ref mut MirFunction f, int idx, int src) {
     f.edit_kind[idx] = 5
     f.edit_i64[idx] = src
 }
 
 /// 标记删除第 idx 个语句节点（替换为空块）
+#[state]
 pub fn delete_stmt(ref mut MirFunction f, int idx) {
     f.edit_kind[idx] = 6
 }
 
 /// preorder 子树大小表（下标与扁平视图一致）
+#[alloc]
+#[state]
 pub fn subtree_sizes(ref MirFunction f) -> [int] {
     n = f.node_count
     size = [int; n]

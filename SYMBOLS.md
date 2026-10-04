@@ -1839,42 +1839,42 @@ std/math.aya:76: pub fn ceil(float x) -> float { return __ayanami_ceil(x) }
 std/math.aya:79: pub fn pow(float base, int exp) -> float
 std/src/arraylist.aya:4: pub struct ArrayList[T]
 std/src/arraylist.aya:12: pub fn new[T]() -> ArrayList[T]
-std/src/arraylist.aya:16: pub fn with_capacity[T](int cap) -> ArrayList[T]
-std/src/arraylist.aya:24: impl[T] ArrayList[T]
-std/src/arraylist.aya:25: fn expand(ref mut self)
-std/src/arraylist.aya:37: pub fn push(ref mut self, T val)
-std/src/arraylist.aya:43: pub fn index(ref self, int index)->T{ return self.data[index] }
-std/src/arraylist.aya:44: pub fn len(ref self)->int{ return self.len }
-std/src/arraylist.aya:46: pub fn set(ref mut self, int i, T v)
-std/src/arraylist.aya:51: pub fn pop(ref mut self) -> T
-std/src/arraylist.aya:56: pub fn is_empty(ref self) -> bool
-std/src/arraylist.aya:61: pub fn clear(ref mut self)
-std/src/arraylist.aya:65: pub fn iter(ref self, fn(T) f)
-std/src/arraylist.aya:73: impl[T:ToString] ArrayList[T]
-std/src/arraylist.aya:74: pub fn to_string(ref self)->String
+std/src/arraylist.aya:17: pub fn with_capacity[T](int cap) -> ArrayList[T]
+std/src/arraylist.aya:25: impl[T] ArrayList[T]
+std/src/arraylist.aya:28: fn expand(ref mut self)
+std/src/arraylist.aya:42: pub fn push(ref mut self, T val)
+std/src/arraylist.aya:48: pub fn index(ref self, int index)->T{ return self.data[index] }
+std/src/arraylist.aya:49: pub fn len(ref self)->int{ return self.len }
+std/src/arraylist.aya:52: pub fn set(ref mut self, int i, T v)
+std/src/arraylist.aya:58: pub fn pop(ref mut self) -> T
+std/src/arraylist.aya:63: pub fn is_empty(ref self) -> bool
+std/src/arraylist.aya:69: pub fn clear(ref mut self)
+std/src/arraylist.aya:73: pub fn iter(ref self, fn(T) f)
+std/src/arraylist.aya:81: impl[T:ToString] ArrayList[T]
+std/src/arraylist.aya:84: pub fn to_string(ref self)->String
 std/src/io.aya:13: pub fn getchar() -> int
 std/src/io.aya:17: pub fn putchar(int c)
-std/src/io.aya:21: pub fn print(ref String n)
-std/src/io.aya:25: pub fn println()
-std/src/io.aya:29: pub fn println(ref String s)
-std/src/io.aya:44: pub fn print(int n)
-std/src/io.aya:49: pub fn print(float f)
-std/src/io.aya:56: pub fn print(bool b)
-std/src/io.aya:65: pub fn print(char c)
-std/src/io.aya:71: pub fn println(int n)
-std/src/io.aya:77: pub fn println(float f)
-std/src/io.aya:83: pub fn println(bool b)
-std/src/io.aya:89: pub fn println(char c)
+std/src/io.aya:22: pub fn print(ref String n)
+std/src/io.aya:27: pub fn println()
+std/src/io.aya:32: pub fn println(ref String s)
+std/src/io.aya:48: pub fn print(int n)
+std/src/io.aya:54: pub fn print(float f)
+std/src/io.aya:62: pub fn print(bool b)
+std/src/io.aya:72: pub fn print(char c)
+std/src/io.aya:79: pub fn println(int n)
+std/src/io.aya:86: pub fn println(float f)
+std/src/io.aya:93: pub fn println(bool b)
+std/src/io.aya:100: pub fn println(char c)
 std/src/linkedlist.aya:6: pub struct LinkedList[T]
 std/src/linkedlist.aya:13: pub fn new[T]()->LinkedList[T]
 std/src/linkedlist.aya:18: impl[T] LinkedList[T]
-std/src/linkedlist.aya:19: fn expand(ref mut self)
-std/src/linkedlist.aya:31: pub fn push(ref mut self, T val)
-std/src/linkedlist.aya:37: pub fn index(ref self, int index)->T
-std/src/linkedlist.aya:41: pub fn len(ref self)->int{ return self.len }
-std/src/linkedlist.aya:43: pub fn iter(ref self, fn(T) f)
-std/src/linkedlist.aya:52: impl[T:ToString] LinkedList[T]
-std/src/linkedlist.aya:53: pub fn to_string(ref self) -> String
+std/src/linkedlist.aya:21: fn expand(ref mut self)
+std/src/linkedlist.aya:35: pub fn push(ref mut self, T val)
+std/src/linkedlist.aya:41: pub fn index(ref self, int index)->T
+std/src/linkedlist.aya:45: pub fn len(ref self)->int{ return self.len }
+std/src/linkedlist.aya:47: pub fn iter(ref self, fn(T) f)
+std/src/linkedlist.aya:56: impl[T:ToString] LinkedList[T]
+std/src/linkedlist.aya:59: pub fn to_string(ref self) -> String
 std/src/list.aya:2: pub interface List[T]
 std/src/list.aya:3: fn push(ref mut self, T val);
 std/src/list.aya:4: fn index(ref self, int index)->T;
@@ -1897,28 +1897,28 @@ std/src/mir.aya:14: pub struct MirFunction
 std/src/mir.aya:37: pub fn scan_effects(ref MirFunction f) -> bool
 std/src/mir.aya:54: pub fn warn(String msg)
 std/src/mir.aya:59: pub fn error(String msg)
-std/src/mir.aya:66: pub fn replace_int(ref mut MirFunction f, int idx, int value)
-std/src/mir.aya:72: pub fn replace_float(ref mut MirFunction f, int idx, int bits)
-std/src/mir.aya:78: pub fn replace_bool(ref mut MirFunction f, int idx, int value)
-std/src/mir.aya:84: pub fn replace_char(ref mut MirFunction f, int idx, int code)
-std/src/mir.aya:90: pub fn replace_with(ref mut MirFunction f, int idx, int src)
-std/src/mir.aya:96: pub fn delete_stmt(ref mut MirFunction f, int idx)
-std/src/mir.aya:101: pub fn subtree_sizes(ref MirFunction f) -> [int]
-std/src/mir.aya:120: pub fn stmt_is_assign(int k) -> bool { return k == 1 }
-std/src/mir.aya:121: pub fn stmt_is_return(int k) -> bool { return k == 4 }
-std/src/mir.aya:122: pub fn stmt_is_if(int k) -> bool { return k == 5 }
-std/src/mir.aya:123: pub fn stmt_is_while(int k) -> bool { return k == 6 }
-std/src/mir.aya:124: pub fn stmt_is_break(int k) -> bool { return k == 7 }
-std/src/mir.aya:125: pub fn stmt_is_continue(int k) -> bool { return k == 8 }
-std/src/mir.aya:129: pub fn op_is_add(int op) -> bool { return op == 1 }
-std/src/mir.aya:130: pub fn op_is_sub(int op) -> bool { return op == 2 }
-std/src/mir.aya:131: pub fn op_is_mul(int op) -> bool { return op == 3 }
-std/src/mir.aya:132: pub fn op_is_eq(int op) -> bool { return op == 6 }
-std/src/mir.aya:133: pub fn op_is_neq(int op) -> bool { return op == 7 }
-std/src/mir.aya:134: pub fn op_is_lt(int op) -> bool { return op == 8 }
-std/src/mir.aya:135: pub fn op_is_gt(int op) -> bool { return op == 9 }
-std/src/mir.aya:140: pub fn is_int_literal(ref MirFunction f, int idx) -> bool
-std/src/mir.aya:146: pub fn folded_int(ref MirFunction f, int idx) -> int
+std/src/mir.aya:67: pub fn replace_int(ref mut MirFunction f, int idx, int value)
+std/src/mir.aya:74: pub fn replace_float(ref mut MirFunction f, int idx, int bits)
+std/src/mir.aya:81: pub fn replace_bool(ref mut MirFunction f, int idx, int value)
+std/src/mir.aya:88: pub fn replace_char(ref mut MirFunction f, int idx, int code)
+std/src/mir.aya:95: pub fn replace_with(ref mut MirFunction f, int idx, int src)
+std/src/mir.aya:102: pub fn delete_stmt(ref mut MirFunction f, int idx)
+std/src/mir.aya:109: pub fn subtree_sizes(ref MirFunction f) -> [int]
+std/src/mir.aya:128: pub fn stmt_is_assign(int k) -> bool { return k == 1 }
+std/src/mir.aya:129: pub fn stmt_is_return(int k) -> bool { return k == 4 }
+std/src/mir.aya:130: pub fn stmt_is_if(int k) -> bool { return k == 5 }
+std/src/mir.aya:131: pub fn stmt_is_while(int k) -> bool { return k == 6 }
+std/src/mir.aya:132: pub fn stmt_is_break(int k) -> bool { return k == 7 }
+std/src/mir.aya:133: pub fn stmt_is_continue(int k) -> bool { return k == 8 }
+std/src/mir.aya:137: pub fn op_is_add(int op) -> bool { return op == 1 }
+std/src/mir.aya:138: pub fn op_is_sub(int op) -> bool { return op == 2 }
+std/src/mir.aya:139: pub fn op_is_mul(int op) -> bool { return op == 3 }
+std/src/mir.aya:140: pub fn op_is_eq(int op) -> bool { return op == 6 }
+std/src/mir.aya:141: pub fn op_is_neq(int op) -> bool { return op == 7 }
+std/src/mir.aya:142: pub fn op_is_lt(int op) -> bool { return op == 8 }
+std/src/mir.aya:143: pub fn op_is_gt(int op) -> bool { return op == 9 }
+std/src/mir.aya:148: pub fn is_int_literal(ref MirFunction f, int idx) -> bool
+std/src/mir.aya:154: pub fn folded_int(ref MirFunction f, int idx) -> int
 std/src/std.aya:9: pub interface Error
 std/src/std.aya:10: fn what(ref self) -> String;
 std/src/std.aya:13: pub enum Result[T, E]

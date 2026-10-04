@@ -17,14 +17,17 @@ pub fn getchar() -> int {
 pub fn putchar(int c) { 
     __ayanami_putchar(c); 
 }
+#[alloc]
 #[io]
 pub fn print(ref String n) { 
     __ayanami_print_str(n.data, n.len); 
 }
+#[alloc]
 #[io]
 pub fn println() {
     __ayanami_print_ln(); 
 }
+#[alloc]
 #[io]
 pub fn println(ref String s) {
     print(s)
@@ -40,11 +43,13 @@ extern "C" fn __ayanami_float_len(float n) -> int;
 #[io]
 extern "C" fn __ayanami_float_str(float n, int len) -> [char];
 
+#[alloc]
 #[io]
 pub fn print(int n) {
     __ayanami_print_int(n)
 }
 
+#[alloc]
 #[io]
 pub fn print(float f) {
     n = __ayanami_float_len(f)
@@ -52,6 +57,7 @@ pub fn print(float f) {
     __ayanami_print_str(data, n)
 }
 
+#[alloc]
 #[io]
 pub fn print(bool b) {
     if b {
@@ -61,30 +67,35 @@ pub fn print(bool b) {
     }
 }
 
+#[alloc]
 #[io]
 pub fn print(char c) {
     buf = [c]
     __ayanami_print_str(buf, 1)
 }
 
+#[alloc]
 #[io]
 pub fn println(int n) {
     print(n)
     println()
 }
 
+#[alloc]
 #[io]
 pub fn println(float f) {
     print(f)
     println()
 }
 
+#[alloc]
 #[io]
 pub fn println(bool b) {
     print(b)
     println()
 }
 
+#[alloc]
 #[io]
 pub fn println(char c) {
     print(c)

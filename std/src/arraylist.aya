@@ -13,6 +13,7 @@ pub namespace ArrayList {
         return ArrayList[T] { data = null, len = 0, capability = 0 }
     }
     /// 预分配容量（cap <= 0 时等价于 new）
+#[alloc]
     pub fn with_capacity[T](int cap) -> ArrayList[T] {
         if cap <= 0 {
             return ArrayList[T] { data = null, len = 0, capability = 0 }
@@ -22,6 +23,8 @@ pub namespace ArrayList {
 }
 
 impl[T] ArrayList[T]{
+#[alloc]
+#[state]
     fn expand(ref mut self){
         if self.capability == 0 {
             self.capability = 1
@@ -34,6 +37,8 @@ impl[T] ArrayList[T]{
         }
     }
 
+#[alloc]
+#[state]
     pub fn push(ref mut self, T val){
         if self.len + 1 >= self.capability { self.expand() }
         self.data[self.len] = val
@@ -43,11 +48,13 @@ impl[T] ArrayList[T]{
     pub fn index(ref self, int index)->T{ return self.data[index] }
     pub fn len(ref self)->int{ return self.len }
 
+#[state]
     pub fn set(ref mut self, int i, T v) {
         self.data[i] = v
     }
 
     /// 弹出末元素（调用方需自行保证非空）
+#[state]
     pub fn pop(ref mut self) -> T {
         self.len = self.len - 1
         return self.data[self.len]
@@ -58,6 +65,7 @@ impl[T] ArrayList[T]{
     }
 
     /// 清空（保留底层缓冲，元素不做逐个释放）
+#[state]
     pub fn clear(ref mut self) {
         self.len = 0
     }
@@ -71,6 +79,8 @@ impl[T] ArrayList[T]{
 
 /// 需要元素实现 ToString
 impl[T:ToString] ArrayList[T] {
+#[alloc]
+#[state]
     pub fn to_string(ref self)->String{
         res = "["
         for i in (0, self.len){

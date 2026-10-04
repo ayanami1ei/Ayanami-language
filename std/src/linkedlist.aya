@@ -16,6 +16,8 @@ pub namespace LinkedList{
 }
 
 impl[T] LinkedList[T] {
+#[alloc]
+#[state]
     fn expand(ref mut self){
         if self.capability == 0 {
             self.capability = 1
@@ -28,6 +30,8 @@ impl[T] LinkedList[T] {
         }
     }
 
+#[alloc]
+#[state]
     pub fn push(ref mut self, T val) {
         if self.len + 1 >= self.capability { self.expand() }
         self.data[self.len] = val
@@ -50,6 +54,8 @@ impl[T] LinkedList[T] {
 
 /// 需要元素实现 ToString
 impl[T:ToString] LinkedList[T] {
+#[alloc]
+#[state]
     pub fn to_string(ref self) -> String {
         res = "["
         for i in (0, self.len){
