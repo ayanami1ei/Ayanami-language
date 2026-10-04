@@ -26,9 +26,8 @@ pub fn to_cstr(ref String s) -> [char] {
     return buf;
 }
 
-fn open_mode(ref String path, [char] mode_chars, int mode_len) -> int {
+fn open_mode(ref String path, ref String mode) -> int {
     path_c = to_cstr(path);
-    mode = String::new(mode_chars, mode_len);
     mode_c = to_cstr(mode);
     return fopen(path_c, mode_c);
 }
@@ -36,7 +35,7 @@ fn open_mode(ref String path, [char] mode_chars, int mode_len) -> int {
 /// 读整个文件；不存在/读失败时 ok=false
 /// 不依赖 ftell（/proc 文件 size 为 0），逐字节 + 倍增缓冲
 pub fn read_file(ref String path) -> ReadResult {
-    f = open_mode(path, ['r', 'b'], 2);
+    f = open_mode(path, "rb");
     if f == 0 {
         return ReadResult { ok = false, data = String::empty() };
     }
@@ -53,7 +52,7 @@ pub fn read_file(ref String path) -> ReadResult {
 
 /// 写整个文件；失败返回 false
 pub fn write_file(ref String path, ref String data) -> bool {
-    f = open_mode(path, ['w', 'b'], 2);
+    f = open_mode(path, "wb");
     if f == 0 { return false; }
     for i in (0, data.len) {
         slot = char_code(data.index(i));
@@ -68,7 +67,7 @@ pub fn write_file(ref String path, ref String data) -> bool {
 }
 
 pub fn file_exists(ref String path) -> bool {
-    f = open_mode(path, ['r', 'b'], 2);
+    f = open_mode(path, "rb");
     if f == 0 { return false; }
     fclose(f);
     return true;

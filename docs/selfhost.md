@@ -21,8 +21,8 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 
 | 缺口 | 对策 |
 |---|---|
-| 无文件 IO（std io 只有控制台） | `selfhost/src/base/file.aya` 用 `extern "C"` 包 `fopen/fread/fwrite/fclose` |
-| 无 argv / 环境变量 | `/proc/self/cmdline`（NUL 分隔）读取 argv；`extern "C" getenv` 读环境变量 |
+| 无文件 IO（std io 只有控制台） | `selfhost/src/base/file.aya` 用 `extern "C"` 包 `fopen/fread/fwrite/fclose`；FILE\* 用 `int` 承载 |
+| 无 argv / 环境变量 | `/proc/self/cmdline`（NUL 分隔）读 argv；`/proc/self/environ` 读环境变量（不用 getenv：返回的 `[char]` 会被当拥有数组释放） |
 | 无 HashMap/HashSet | 自建 `IntMap[V]`（u32 键开放寻址）与字符串驻留表；`base/map.aya` |
 | 无闭包（lambda 不捕获） | 只用函数指针；上下文显式传参或放进 `ref mut` 的结构体方法 |
 | 引用不可存字段/数组 | **索引式 IR**（`Vec<Node>` + `NodeId(int)`），与 Rust 版 `FnId/VarId/Symbol` 设计一致 |
@@ -33,6 +33,26 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 | `for` 只能区间 | 遍历集合用 `while` + 索引；`ArrayList.iter(fn)` 仅用于无捕获回调 |
 | 无 `String` 格式化 | `base/sb.aya`（StringBuf：按块拼接，避免 O(n²)） |
 | 无 `std::process::Command` | `extern "C" system()` 调用 `llc`/`gcc`；路径来自环境变量 |
+
+### 2.1 已踩过的坑（实测，写代码必须遵守）
+
+1. **`[T]` 数组没有 `.len` 字段**（它是裸指针）。要带长度就另存 `int count`（见 `sys.Args`）。
+2. **不要用 `String::new(本地数组, len)` 构造 String**：std lcl 函数调用不会把 owned 数组实参标记为移动，
+   调用方仍在帧退出时释放该数组，返回的 String 悬空（bd `Ayanami-language-3hh`）。
+   正确做法：
+   - 用 `StringBuf.to_string()`（内部是「局部数组 → `String::new` → 再移入 extern 调用抑制释放」模式）；
+   - 或在**调用方**内联同样模式：`s = String::new(buf, n); strlen(buf);`（`buf` 必须是局部变量，
+     形参版本无效——extern 调用不消耗形参）；
+   - 或改用字符串字面量 / `substring` / `trim` / `copy` / `+` 等 std 安全构造。
+3. **C 的 `int` 返回值上 32 位是脏的**（如 `fgetc` 的 EOF 会变成大正数）。单字节读写用
+   `fread/fwrite` + `ref int` 单字节槽（size_t 返回，ABI 干净，且 `ref` 形参不搬移数组）。
+4. `out` 是保留关键字（asm 操作数），不能用作标识符。
+5. **嵌套导入按入口文件目录解析**，不是按当前文件目录。统一用 `selfhost/ayanami.toml` 的
+   `[dependencies]` 别名导入（`import "aya_file"` 等）。
+6. **/proc 文件 `ftell` 为 0**：读文件不能依赖 fseek/ftell 定长，要循环读到 EOF（`read_file` 已处理）。
+7. **同一程序里 std 被多个源文件各自 import 会破坏泛型方法解析**（bd `Ayanami-language-8xa`）。
+   base 模块一律不 `import "std"`，边界用自有结构体（如 `ReadResult`）而不是 `Option`。
+8. `extern` 调用会消耗**局部**数组实参（标记 moved），但**不消耗形参**——这是坑 2 中 forget 模式的原理。
 
 ## 3. 目录结构
 
