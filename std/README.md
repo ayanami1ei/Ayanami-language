@@ -98,32 +98,11 @@ struct String {
 
 `ToString` 接口签名：`fn to_string(self) -> String`（消费）。
 
-## complex — 复数
-
-文件：`std/complex.lcl`；`import "complex"`
-
-```ayanami
-struct Complex { float re; float im }
-complex(3.0, 4.0)          // 便捷构造
-```
-
-运算符（重载）：`+` / `-` / `*` / `/`（复数与 float 标量均可）、一元 `-`、`==` / `!=`。
-
-| 方法 | 说明 |
-|------|------|
-| `z.norm_sq() -> float` | 模平方 a²+b² |
-| `z.abs() -> float` | 模长 √(a²+b²) |
-| `z.conj() -> Complex` | 共轭 a-bi |
-| `z.pow(int exp) -> Complex` | 整数幂（exp >= 0） |
-| `z.to_string() -> String` | `3+4i` / `1-2i` / `5` / `-3i` |
-
-`Complex` 通过结构匹配实现 `ToString`，因此 `"z=" + z` 可直接拼接。
-
 ## std — 主入口
 
 文件：`std/std.lcl`，等价于导入 `io`、`string`、`math`，并包含
 `Error` 接口、`Result[T, E]`（`try_unwrap(self)`）与 `Option[T]`
-（`unwrap_or(self, default)` / `is_some(self)`）枚举，并包含 `complex`。
+（`unwrap_or(self, default)` / `is_some(self)`）枚举。
 
 ## list / arraylist / linkedlist — 集合
 
