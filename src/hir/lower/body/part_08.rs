@@ -68,6 +68,16 @@ impl crate::hir::lower::Ctx {
                 })
             }
             Stmt::Return { value, span } => {
+                if value.is_none() {
+                    let ret_ty = self.fns[self.current_fn.0].return_type.clone();
+                    if !matches!(ret_ty, HirType::Void) {
+                        let fn_name = self.fns[self.current_fn.0].name;
+                        return Err(Error::Hir(format!(
+                            "function `{}` returns `{}` but `return;` has no value (at {}:{})",
+                            fn_name, hir_type_display(&ret_ty), span.start_line, span.start_col
+                        )));
+                    }
+                }
                 let hir_value = match value {
                     Some(v) => {
                         let expr = self.lower_expr(v)?;

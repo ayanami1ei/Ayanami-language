@@ -1,4 +1,5 @@
 use super::*;
+use super::helpers::indent;
 
 pub(super) fn write_type(ty: &Type) -> String {
     match ty {
@@ -35,22 +36,26 @@ pub(super) fn write_type(ty: &Type) -> String {
 }
 
 pub(super) fn write_expr(expr: &Expr) -> String {
+    write_expr_at(expr, 0)
+}
+
+pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
     match expr {
         Expr::Literal(lit) => write_literal(lit),
         // 解析器把 `A::B` 合并为 `A.B`；格式化时恢复 `::`（`.` 只用于字段/方法）
         Expr::Ident(name, _) => name.as_str().replace('.', "::"),
         Expr::Binary { op, lhs, rhs, .. } => {
-            format!("{} {} {}", write_expr(lhs), write_bin_op(op), write_expr(rhs))
+            format!("{} {} {}", write_expr_at(lhs, level), write_bin_op(op), write_expr_at(rhs, level))
         }
         Expr::Unary { op, arg, .. } => {
             let op_str = match op {
                 UnaryOp::Neg => "-",
                 UnaryOp::Not => "!",
             };
-            format!("{}{}", op_str, write_expr(arg))
+            format!("{}{}", op_str, write_expr_at(arg, level))
         }
         Expr::FnCall { name, args, generic_args, .. } => {
-            let args_str: Vec<String> = args.iter().map(|a| write_expr(a)).collect();
+            let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
             let generic_str = if generic_args.is_empty() {
                 String::new()
             } else {
@@ -59,15 +64,15 @@ pub(super) fn write_expr(expr: &Expr) -> String {
             let name_str = name.as_str().replace('.', "::");
             format!("{}{}({})", name_str, generic_str, args_str.join(", "))
         }
-        Expr::Move(inner, _) => format!("move {}", write_expr(inner)),
-        Expr::Clone(inner, _) => format!("clone {}", write_expr(inner)),
-        Expr::ToUnique(inner, _) => format!("unique {}", write_expr(inner)),
+        Expr::Move(inner, _) => format!("move {}", write_expr_at(inner, level)),
+        Expr::Clone(inner, _) => format!("clone {}", write_expr_at(inner, level)),
+        Expr::ToUnique(inner, _) => format!("unique {}", write_expr_at(inner, level)),
         Expr::MethodCall { object, method, args, .. } => {
-            let args_str: Vec<String> = args.iter().map(|a| write_expr(a)).collect();
-            format!("{}.{}({})", write_expr(object), method, args_str.join(", "))
+            let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
+            format!("{}.{}({})", write_expr_at(object, level), method, args_str.join(", "))
         }
         Expr::FieldAccess { object, field, .. } => {
-            format!("{}.{}", write_expr(object), field)
+            format!("{}.{}", write_expr_at(object, level), field)
         }
         Expr::StructLiteral { type_name, generic_args, fields, .. } => {
             let generic_str = if generic_args.is_empty() {
@@ -77,64 +82,78 @@ pub(super) fn write_expr(expr: &Expr) -> String {
                 format!("[{}]", args_str.join(", "))
             };
             let fields_str: Vec<String> = fields.iter()
-                .map(|(n, v)| format!("{} = {}", n, write_expr(v)))
+                .map(|(n, v)| format!("{} = {}", n, write_expr_at(v, level)))
                 .collect();
             format!("{}{} {{ {} }}", type_name, generic_str, fields_str.join(", "))
         }
         Expr::ArrayLiteral(elems, _) => {
-            let elems_str: Vec<String> = elems.iter().map(|e| write_expr(e)).collect();
+            let elems_str: Vec<String> = elems.iter().map(|e| write_expr_at(e, level)).collect();
             format!("[{}]", elems_str.join(", "))
         }
         Expr::ArraySized { elem_type, count, .. } => {
-            format!("[{}; {}]", write_type(elem_type), write_expr(count))
+            format!("[{}; {}]", write_type(elem_type), write_expr_at(count, level))
         }
         Expr::Null(_) => "null".into(),
         Expr::Ref(inner, mutable, _) => {
             if *mutable {
-                format!("ref mut {}", write_expr(inner))
+                format!("ref mut {}", write_expr_at(inner, level))
             } else {
-                format!("ref {}", write_expr(inner))
+                format!("ref {}", write_expr_at(inner, level))
             }
         }
         Expr::Asm { template, outputs, inputs, .. } => {
             let mut parts = Vec::new();
             for (c, e) in outputs {
-                parts.push(format!("out({}) {}", c, write_expr(e)));
+                parts.push(format!("out({}) {}", c, write_expr_at(e, level)));
             }
             for (c, e) in inputs {
-                parts.push(format!("in({}) {}", c, write_expr(e)));
+                parts.push(format!("in({}) {}", c, write_expr_at(e, level)));
             }
             let extra = if parts.is_empty() { String::new() } else { format!(", {}", parts.join(", ")) };
             format!("asm(\"{}\"{})", template, extra)
         }
         Expr::Index { object, index, .. } => {
-            format!("{}[{}]", write_expr(object), write_expr(index))
+            format!("{}[{}]", write_expr_at(object, level), write_expr_at(index, level))
         }
         Expr::CallExpr { target, args, .. } => {
-            let args_str: Vec<String> = args.iter().map(|a| write_expr(a)).collect();
-            format!("{}({})", write_expr(target), args_str.join(", "))
+            let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
+            format!("{}({})", write_expr_at(target, level), args_str.join(", "))
         }
         Expr::TryOp(inner, _) => {
-            format!("{}?", write_expr(inner))
+            format!("{}?", write_expr_at(inner, level))
         }
-        Expr::Match { .. } => {
-            String::new()
+        Expr::Match { value, arms, .. } => {
+            let mut out = format!("match {} {{", write_expr_at(value, level));
+            for arm in arms {
+                let binds = if arm.bindings.is_empty() {
+                    String::new()
+                } else {
+                    format!("({})", arm.bindings.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>().join(", "))
+                };
+                out.push_str(&format!("\n{}{}{} => {},", indent(level + 1), arm.variant_name, binds, write_expr_at(&arm.body, level + 1)));
+            }
+            out.push_str(&format!("\n{}}}", indent(level)));
+            out
         }
         Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, .. } => {
             if !tuple_args.is_empty() {
-                format!("{}::{}({})", enum_name, variant_name, tuple_args.iter().map(|e| write_expr(e)).collect::<Vec<_>>().join(", "))
+                format!("{}::{}({})", enum_name, variant_name, tuple_args.iter().map(|e| write_expr_at(e, level)).collect::<Vec<_>>().join(", "))
             } else if !named_args.is_empty() {
-                format!("{}::{} {{ {} }}", enum_name, variant_name, named_args.iter().map(|(n, v)| format!("{} = {}", n, write_expr(v))).collect::<Vec<_>>().join(", "))
+                format!("{}::{} {{ {} }}", enum_name, variant_name, named_args.iter().map(|(n, v)| format!("{} = {}", n, write_expr_at(v, level))).collect::<Vec<_>>().join(", "))
             } else {
                 format!("{}::{}", enum_name, variant_name)
             }
         }
         Expr::Lambda { params, return_type, body, .. } => {
             let params_str: Vec<String> = params.iter().map(|(n, t)| format!("{} {}", write_type(t), n)).collect();
-            let mut buf = String::new();
-            for s in body { write_stmt(&mut buf, s, 1); }
-            let body_str = buf;
-            format!("({}) -> {} {{\n{}\n}}", params_str.join(", "), write_type(return_type), body_str)
+            let mut out = format!("({}) -> {} {{", params_str.join(", "), write_type(return_type));
+            for st in body {
+                out.push('\n');
+                write_stmt(&mut out, st, level + 1);
+            }
+            while out.ends_with('\n') { out.pop(); }
+            out.push_str(&format!("\n{}}}", indent(level)));
+            out
         }
     }
 }

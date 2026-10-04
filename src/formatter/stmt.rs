@@ -31,33 +31,33 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
         Assign { name, is_mut, value, .. } => {
             let i = indent(level);
             if *is_mut {
-                let _ = writeln!(out, "{}mut {} = {};", i, name, write_expr(value));
+                let _ = writeln!(out, "{}mut {} = {};", i, name, write_expr_at(value, level));
             } else {
-                let _ = writeln!(out, "{}{} = {};", i, name, write_expr(value));
+                let _ = writeln!(out, "{}{} = {};", i, name, write_expr_at(value, level));
             }
         }
         FieldAssign { object, field, value, .. } => {
             let i = indent(level);
-            let _ = writeln!(out, "{}{}.{} = {};", i, write_expr(object), field, write_expr(value));
+            let _ = writeln!(out, "{}{}.{} = {};", i, write_expr_at(object, level), field, write_expr_at(value, level));
         }
         IndexAssign { object, index, value, .. } => {
             let i = indent(level);
-            let _ = writeln!(out, "{}{}[{}] = {};", i, write_expr(object), write_expr(index), write_expr(value));
+            let _ = writeln!(out, "{}{}[{}] = {};", i, write_expr_at(object, level), write_expr_at(index, level), write_expr_at(value, level));
         }
         Return { value, .. } => {
             let i = indent(level);
             match value {
-                Some(v) => { let _ = writeln!(out, "{}return {};", i, write_expr(v)); }
+                Some(v) => { let _ = writeln!(out, "{}return {};", i, write_expr_at(v, level)); }
                 None => { let _ = writeln!(out, "{}return;", i); }
             }
         }
         If { cond, then_block, elifs, else_block, .. } => {
             let i = indent(level);
             let _ = write!(out, "{}if ", i);
-            let _ = write!(out, "{} ", write_expr(cond));
+            let _ = write!(out, "{} ", write_expr_at(cond, level));
             write_block_same_line(out, then_block, level);
             for (ec, eb) in elifs {
-                let _ = write!(out, " else if {} ", write_expr(ec));
+                let _ = write!(out, " else if {} ", write_expr_at(ec, level));
                 write_block_same_line(out, eb, level);
             }
             if let Some(eb) = else_block {
@@ -75,11 +75,11 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
         For { iterator, start, end, step, body, .. } => {
             let i = indent(level);
             let _ = write!(out, "{}for {} in (", i, iterator);
-            let _ = write!(out, "{}", write_expr(start));
+            let _ = write!(out, "{}", write_expr_at(start, level));
             let _ = write!(out, ", ");
-            let _ = write!(out, "{}", write_expr(end));
+            let _ = write!(out, "{}", write_expr_at(end, level));
             if let Some(s) = step {
-                let _ = write!(out, ", {}", write_expr(s));
+                let _ = write!(out, ", {}", write_expr_at(s, level));
             }
             let _ = write!(out, ") ");
             write_block_same_line(out, body, level);
@@ -87,19 +87,19 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
         }
         While { cond, body, .. } => {
             let i = indent(level);
-            let _ = write!(out, "{}while {} ", i, write_expr(cond));
+            let _ = write!(out, "{}while {} ", i, write_expr_at(cond, level));
             write_block_same_line(out, body, level);
             let _ = writeln!(out);
         }
         Match { value, arms, .. } => {
             let i = indent(level);
-            let _ = writeln!(out, "{}match {} {{", i, write_expr(value));
+            let _ = writeln!(out, "{}match {} {{", i, write_expr_at(value, level));
             for arm in arms {
                 let _ = write!(out, "{}{}", indent(level + 1), arm.variant_name);
                 if !arm.bindings.is_empty() {
                     let _ = write!(out, "({})", arm.bindings.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>().join(", "));
                 }
-                let _ = writeln!(out, " => {},", write_expr(&arm.body));
+                let _ = writeln!(out, " => {},", write_expr_at(&arm.body, level + 1));
             }
             let _ = writeln!(out, "{}}}", i);
         }
@@ -226,7 +226,7 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
         }
         ExprStmt { expr, .. } => {
             let i = indent(level);
-            let _ = writeln!(out, "{}{};", i, write_expr(expr));
+            let _ = writeln!(out, "{}{};", i, write_expr_at(expr, level));
         }
         Break { .. } => {
             let i = indent(level);

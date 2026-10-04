@@ -242,11 +242,12 @@ src/driver/mod.rs:219: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl As
 src/driver/mod.rs:224: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
-src/formatter/expr.rs:3: pub(super) fn write_type(ty: &Type) -> String
-src/formatter/expr.rs:37: pub(super) fn write_expr(expr: &Expr) -> String
-src/formatter/expr.rs:142: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:162: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:180: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:4: pub(super) fn write_type(ty: &Type) -> String
+src/formatter/expr.rs:38: pub(super) fn write_expr(expr: &Expr) -> String
+src/formatter/expr.rs:42: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
+src/formatter/expr.rs:161: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:181: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:199: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
@@ -470,11 +471,11 @@ src/hir/lower/body/part_07.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[S
 src/hir/lower/body/part_07.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
 src/hir/lower/body/part_07.rs:115: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
 src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
-src/hir/lower/body/part_07.rs:255: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
+src/hir/lower/body/part_07.rs:263: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
-src/hir/lower/body/part_08.rs:145: pub(crate) fn lower_while(
-src/hir/lower/body/part_08.rs:162: pub(crate) fn lower_for(
+src/hir/lower/body/part_08.rs:155: pub(crate) fn lower_while(
+src/hir/lower/body/part_08.rs:172: pub(crate) fn lower_for(
 src/hir/lower/body/part_09.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_09.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
 src/hir/lower/body/part_10.rs:3: impl crate::hir::lower::Ctx

@@ -221,6 +221,14 @@ impl crate::hir::lower::Ctx {
         // A2e：后置条件注入（result 绑定返回值）
         self.inject_ensures(&mut hir_body, &attrs, &return_type, span)?;
 
+        // `main` 缺省返回 0（C 语义）：显式 return 优先，末尾兜底
+        if name.as_str() == "main" && matches!(return_type, HirType::Int) {
+            hir_body.stmts.push(HirStmt::Return {
+                value: Some(SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into()),
+                span,
+            });
+        }
+
         if !prelude.is_empty() {
             prelude.append(&mut hir_body.stmts);
             hir_body.stmts = prelude;
