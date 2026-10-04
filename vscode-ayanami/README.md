@@ -30,3 +30,9 @@ Syntax highlighting and basic language support for `.aya` files.
 ## Configuration
 
 - `ayanami.compilerPath`：编译器路径（留空则从 PATH 查找）。
+
+## 类型提示（Inlay Hints）
+
+变量类型提示由编译器提供（`ayanami types <file>` 输出 HIR 推断结果），
+不是编辑器端猜测；编译器不可用或旧版本时回退到启发式扫描。
+支持 `: 类型` 标注（赋值声明处、`self`、`for` 迭代变量）。

@@ -1,6 +1,7 @@
 const vscode = require('vscode');
 const { parseCompilerOutput } = require('./diagnostics');
 const symbols = require('./symbols');
+const typesMod = require('./types');
 
 const KEYWORD_DOCS = {
             'fn': '**fn** — function declaration\n\n`fn name(params) -> ReturnType { body }`',
@@ -376,26 +377,39 @@ function activate(context) {
     const inlayHintsProvider = vscode.languages.registerInlayHintsProvider('ayanami', {
         provideInlayHints(document, range) {
             const hints = [];
-            const varTypes = scanVariableTypes(document);
-
+            const text = document.getText();
             const excludeVars = new Set(['fn', 'for', 'if', 'elif', 'else', 'while', 'return', 'import', 'struct', 'namespace', 'impl', 'interface', 'pub', 'move', 'clone', 'ref', 'mut', 'true', 'false', 'null']);
 
-            const text = document.getText();
-
             // 1. Variable assignments: name = expr → show : type after name
-            const assignRe = /(?:^|\n)(\s*)(\w+)\s*=/gm;
-            while ((m = assignRe.exec(text)) !== null) {
-                const varName = m[2];
-                if (excludeVars.has(varName)) continue;
-                const typeName = varTypes.get(varName);
-                if (!typeName) continue;
-                const nameStart = m[0].indexOf(varName, m[1].length);
-                const nameEnd = m.index + nameStart + varName.length;
-                const pos = document.positionAt(nameEnd);
-                if (pos.isBefore(range.start) || pos.isAfter(range.end)) continue;
-                const hint = new vscode.InlayHint(pos, `: ${typeName}`, vscode.InlayHintKind.Type);
-                hint.paddingRight = true;
-                hints.push(hint);
+            //    优先使用编译器 `types` 输出（真实推断）；不可用时回退启发式
+            const compilerTypes = getCompilerTypeEntries(document, context);
+            if (compilerTypes) {
+                for (const e of compilerTypes.entries) {
+                    const line = e.line - 1;
+                    const col = e.col - 1;
+                    if (line < 0 || line >= document.lineCount || col < 0) continue;
+                    const pos = new vscode.Position(line, col + e.name.length);
+                    if (pos.isBefore(range.start) || pos.isAfter(range.end)) continue;
+                    const hint = new vscode.InlayHint(pos, `: ${e.type}`, vscode.InlayHintKind.Type);
+                    hint.paddingRight = true;
+                    hints.push(hint);
+                }
+            } else {
+                const varTypes = scanVariableTypes(document);
+                const assignRe = /(?:^|\n)(\s*)(\w+)\s*=/gm;
+                while ((m = assignRe.exec(text)) !== null) {
+                    const varName = m[2];
+                    if (excludeVars.has(varName)) continue;
+                    const typeName = varTypes.get(varName);
+                    if (!typeName) continue;
+                    const nameStart = m[0].indexOf(varName, m[1].length);
+                    const nameEnd = m.index + nameStart + varName.length;
+                    const pos = document.positionAt(nameEnd);
+                    if (pos.isBefore(range.start) || pos.isAfter(range.end)) continue;
+                    const hint = new vscode.InlayHint(pos, `: ${typeName}`, vscode.InlayHintKind.Type);
+                    hint.paddingRight = true;
+                    hints.push(hint);
+                }
             }
 
             // 2. self in method params: self → : TypeName (from enclosing impl block)
@@ -749,6 +763,49 @@ function activate(context) {
         }
     });
     context.subscriptions.push(formatProvider);
+}
+
+// ─── Compiler variable types (cached per document version) ───────────
+const typeCache = new Map(); // uri -> { version, entries }
+
+function getCompilerTypeEntries(doc, ctx) {
+    try {
+        const key = doc.uri.toString();
+        const cached = typeCache.get(key);
+        if (cached && cached.version === doc.version) return cached;
+        const ayanamiPath = findAyanamiPath(ctx);
+        if (!ayanamiPath) return null;
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = doc.uri.fsPath;
+        let projectRoot = path.dirname(filePath);
+        for (let i = 0; i < 10; i++) {
+            if (fs.existsSync(path.join(projectRoot, 'ayanami.toml'))) break;
+            const parent = path.dirname(projectRoot);
+            if (parent === projectRoot) { projectRoot = path.dirname(filePath); break; }
+            projectRoot = parent;
+        }
+        const { execFileSync } = require('child_process');
+        let out = '';
+        try {
+            out = execFileSync(ayanamiPath, ['types', filePath], {
+                timeout: 5000,
+                encoding: 'utf8',
+                cwd: projectRoot,
+                stdio: ['pipe', 'pipe', 'pipe'],
+            });
+        } catch (e) {
+            out = e.stdout || '';
+        }
+        const parsed = typesMod.parseTypesOutput(out);
+        if (!out || out.indexOf('{"types"') === -1) return null; // 旧编译器/命令不可用 → 回退
+        const entries = typesMod.validateTypeEntries(doc.getText(), parsed);
+        const result = { version: doc.version, entries };
+        typeCache.set(key, result);
+        return result;
+    } catch (_) {
+        return null;
+    }
 }
 
 function findAyanamiPath(context) {

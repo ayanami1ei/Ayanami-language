@@ -101,5 +101,28 @@ const term = [
 d = parseCompilerOutput(term, '/tmp/opencode/diag1.aya', '/tmp/opencode');
 eq([d.length, d[0].line, d[0].col, d[0].message], [1, 2, 9, 'undefined function `undefined_fn`'], 'terminal error format');
 
+// 8) 编译器类型输出解析 + 位置校验
+const typesMod = require('./types');
+const tout = 'warning something\n{"types":[{"name":"res","type":"String","line":11,"col":5},{"name":"i","type":"int","line":21,"col":30}]}\n';
+const parsedTypes = typesMod.parseTypesOutput(tout);
+eq(parsedTypes.length, 2, 'types parse count');
+eq([parsedTypes[0].name, parsedTypes[0].type, parsedTypes[0].line, parsedTypes[0].col], ['res', 'String', 11, 5], 'types parse entry');
+eq(typesMod.parseTypesOutput('garbage').length, 0, 'types parse garbage');
+eq(typesMod.parseTypesOutput('').length, 0, 'types parse empty');
+const tsrc = ['fn f() -> int {', '    res = String::new();', '    for i in (0, 3) {', '    }', '}'].join('\n');
+const valid = typesMod.validateTypeEntries(tsrc, [
+    { name: 'res', type: 'String', line: 2, col: 5 },
+    { name: 'tmp', type: 'int', line: 4, col: 5 },
+    { name: 'i', type: 'int', line: 3, col: 9 },
+]);
+eq(valid.length, 2, 'types validate count');
+eq([valid[0].name, valid[0].line, valid[0].col], ['res', 2, 5], 'types validate keeps real decl');
+eq(valid[1].name, 'i', 'types validate keeps for-var position when present');
+const dup = typesMod.validateTypeEntries('    res = 1;\n    res = 2;\n', [
+    { name: 'res', type: 'int', line: 1, col: 5 },
+    { name: 'res', type: 'int', line: 1, col: 5 },
+]);
+eq(dup.length, 1, 'types validate dedupe');
+
 console.log(fails === 0 ? 'ALL EXT TESTS PASS' : `${fails} FAILURES`);
 process.exit(fails === 0 ? 0 : 1);

@@ -45,7 +45,7 @@ impl crate::hir::lower::Ctx {
                     i
                 } else {
                     return Err(if self.fn_map.contains_key(name) {
-                        let ats: Vec<String> = arg_types.iter().map(|t| format!("{:?}", t)).collect();
+                        let ats: Vec<String> = arg_types.iter().map(hir_type_display).collect();
                         Error::Hir(format!("no matching overload of `{}` for argument types ({}); candidate(s) exist at {}:{}",
                             name, ats.join(", "), span.start_line, span.start_col))
                     } else {

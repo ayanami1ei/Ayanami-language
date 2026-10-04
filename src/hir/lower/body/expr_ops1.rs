@@ -49,13 +49,20 @@ impl crate::hir::lower::Ctx {
         let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool);
         if !is_primitive && !is_null_ptr_cmp {
             if let Some(op_fn_name) = binary_op_to_fn_name(op) {
-                let param_types = [lhs_ty.clone(), rhs_ty];
+                let param_types = [lhs_ty.clone(), rhs_ty.clone()];
                 let fn_id = match self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
                     Some(fid) => fid,
                     None => {
                         match self.specialize_generic_call(&Symbol::intern(op_fn_name), &param_types, span) {
                             Ok(fid) => fid,
-                            Err(msg) => { return Err(msg); }
+                            Err(_) => {
+                                return Err(Error::Hir(format!(
+                                    "no matching overload of `{}` for argument types ({}, {}) at {}:{}",
+                                    op_fn_name,
+                                    hir_type_display(&lhs_ty), hir_type_display(&rhs_ty),
+                                    span.start_line, span.start_col
+                                )));
+                            }
                         }
                     }
                 };

@@ -19,13 +19,21 @@ src/cli/mod.rs:9: pub(crate) mod clean;
 src/cli/mod.rs:10: pub(crate) mod defs;
 src/cli/mod.rs:11: pub(crate) mod fmt;
 src/cli/mod.rs:12: pub(crate) mod new;
-src/cli/mod.rs:13: pub(crate) mod package_install;
-src/cli/mod.rs:24: pub(crate) struct CliFlags
-src/cli/mod.rs:30: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
-src/cli/mod.rs:44: pub(crate) fn apply_mode(flags: &CliFlags)
+src/cli/mod.rs:13: pub(crate) mod types;
+src/cli/mod.rs:14: pub(crate) mod package_install;
+src/cli/mod.rs:26: pub(crate) struct CliFlags
+src/cli/mod.rs:32: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
+src/cli/mod.rs:46: pub(crate) fn apply_mode(flags: &CliFlags)
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:18: pub(crate) fn cmd_install(args: &[String])
+src/cli/types.rs:9: pub(crate) fn cmd_types(args: &[String])
+src/cli/types.rs:62: fn collect_items(items: &[HirItem], out: &mut Vec<(String, String, usize, usize)>)
+src/cli/types.rs:72: fn collect_fn(f: &HirFn, out: &mut Vec<(String, String, usize, usize)>)
+src/cli/types.rs:78: fn walk_stmts(
+src/cli/types.rs:124: fn fmt_type(ty: &HirType) -> String
+src/cli/types.rs:143: fn name_at(code: &str, line: usize, col: usize, name: &str) -> bool
+src/cli/types.rs:160: fn esc(s: &str) -> String
 src/compiler/build/compile.rs:6: pub fn compile_file(
 src/compiler/build/compile.rs:128: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
@@ -396,8 +404,8 @@ src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: 
 src/hir/lower/body/expr_misc.rs:24: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Vec<Stmt>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_ops1.rs:88: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
-src/hir/lower/body/expr_ops1.rs:123: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_ops1.rs:95: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
+src/hir/lower/body/expr_ops1.rs:130: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/mod.rs:10: mod part_01;
 src/hir/lower/body/mod.rs:11: mod part_02;
 src/hir/lower/body/mod.rs:12: mod part_03;
@@ -1455,11 +1463,11 @@ src/lir/serialize/reader.rs:25: pub(super) fn ty(&mut self) -> Result<HirType>
 src/lir/serialize/write.rs:7: pub(super) fn put_inst(buf: &mut Vec<u8>, inst: &LirNodeBox)
 src/lir/serialize/write.rs:11: pub(super) fn put_fn(buf: &mut Vec<u8>, f: &LirFn)
 src/main.rs:18: fn main()
-src/main.rs:55: pub(crate) fn find_project(dir: &Path) -> Option<(PathBuf, String)>
-src/main.rs:70: pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBuf>
-src/main.rs:79: pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf
-src/main.rs:107: mod cli;
-src/main.rs:111: pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
+src/main.rs:57: pub(crate) fn find_project(dir: &Path) -> Option<(PathBuf, String)>
+src/main.rs:72: pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBuf>
+src/main.rs:81: pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf
+src/main.rs:109: mod cli;
+src/main.rs:113: pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
 src/mir/borrow/cfg.rs:5: pub enum Payload<'a>
 src/mir/borrow/cfg.rs:14: pub struct Node<'a>
 src/mir/borrow/cfg.rs:25: pub struct Cfg<'a>
