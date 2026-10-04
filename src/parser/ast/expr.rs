@@ -18,6 +18,12 @@ pub enum Expr {
         arg: Box<Expr>,
         span: Span,
     },
+    /// M1.3：显式类型转换 `expr as T`
+    Cast {
+        expr: Box<Expr>,
+        ty: Type,
+        span: Span,
+    },
     Literal(Literal),
     Ident(Symbol, Span),
     FnCall {
@@ -102,6 +108,7 @@ impl Expr {
     pub fn span(&self) -> Span {
         match self {
             Expr::Binary { span, .. }
+            | Expr::Cast { span, .. }
             | Expr::Unary { span, .. }
             | Expr::FnCall { span, .. }
             |             Expr::Move(_, span)

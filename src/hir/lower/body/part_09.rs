@@ -36,6 +36,7 @@ impl crate::hir::lower::Ctx {
                 Err(Error::Hir(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col)))
             }
             Expr::Binary { op, lhs, rhs, span } => self.lower_binary(op, lhs, rhs, span),
+            Expr::Cast { expr, ty, span } => self.lower_cast(expr, ty, span),
             Expr::Unary { op, arg, .. } => self.lower_unary(op, arg),
             Expr::FnCall { name, args, generic_args, span } => self.lower_fn_call(name, args, if generic_args.is_empty() { None } else { Some(generic_args) }, span),
             Expr::CallExpr { target, args, span } => self.lower_call_expr(target, args, span),

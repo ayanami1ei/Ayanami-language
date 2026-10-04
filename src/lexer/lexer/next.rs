@@ -26,6 +26,7 @@ impl<'a> Lexer<'a> {
                     "out" => TokenKind::Keyword(Keyword::Out),
                     "reg" => TokenKind::Keyword(Keyword::Reg),
                     "clobbers" => TokenKind::Keyword(Keyword::Clobbers),
+                    "as" => TokenKind::Keyword(Keyword::As),
                     "import" => TokenKind::Keyword(Keyword::Import),
                     "fn" => TokenKind::Keyword(Keyword::Fn),
                     "return" => TokenKind::Keyword(Keyword::Return),

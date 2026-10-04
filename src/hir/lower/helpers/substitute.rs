@@ -40,6 +40,11 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
             arg: Box::new(substitute_type_in_expr(arg, subst)),
             span: *span,
         },
+        Expr::Cast { expr, ty, span } => Expr::Cast {
+            expr: Box::new(substitute_type_in_expr(expr, subst)),
+            ty: substitute_type_in_type(ty, subst),
+            span: *span,
+        },
         Expr::Literal(_) => expr.clone(),
         Expr::Ident(_, _) => expr.clone(),
         Expr::MacroCall { name, args, span } => Expr::MacroCall {

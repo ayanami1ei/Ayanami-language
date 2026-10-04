@@ -1,0 +1,31 @@
+// M1.3：显式转换 as + 移位掩码
+fn main() -> int {
+    if (300 as u8) != 44 { return 1 }              // 截断：300 & 0xFF
+    if (1000 as i8) != -24 { return 2 }            // 截断：1000 & 0xFF = 232
+    if (200 as i8) != -56 { return 3 }
+    if (-1 as u8) != 255 { return 4 }              // 有符号 → 无符号截断
+    if (65 as char) != 'A' { return 5 }            // int → char
+    if ('A' as int) != 65 { return 6 }             // char → int（零扩展）
+    if (true as int) != 1 { return 7 }             // bool → int
+    if (false as u8) != 0 { return 8 }
+    if (3 as float) != 3.0 { return 9 }            // int → float
+    if (3.9 as int) != 3 { return 10 }             // float → int 截断
+    if (300.0 as u8) != 255 { return 11 }          // 浮点 → 整数：饱和
+    if (-1.0 as u8) != 0 { return 12 }
+    if (3.7 as i8) != 3 { return 13 }
+    if (200 as float) != 200.0 { return 14 }
+    if (5 as i32) + (2 as i32) != 7 { return 15 }  // as 比 + 紧
+    if (-5 as i32) != -5 { return 16 }             // 一元 - 比 as 紧
+    if (255 as u8) as int != 255 { return 17 }     // 链式
+    if (1 << 70) != 64 { return 18 }               // 移位量掩码：70 & 63 = 6
+    if (256 >> 70) != 4 { return 19 }
+    a = 5
+    if (a as u8) != 5 { return 20 }
+    if (300 as i16) as int != 300 { return 21 }    // 符号扩展
+    if (70000 as u16) as int != 4464 { return 22 } // 70000 & 0xFFFF
+    if (1 as i128) as int != 1 { return 23 }
+    if (65 as u8) as char != 'A' { return 24 }
+    if (a + 1) != 6 { return 25 }                  // 括号表达式（回归：lambda 误判）
+    if (a > 0) != true { return 26 }
+    return 0
+}

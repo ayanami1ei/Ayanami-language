@@ -183,8 +183,19 @@ impl Parser {
         Ok(left)
     }
 
+    pub(super) fn parse_cast(&mut self) -> Result<Expr> {
+        let mut expr = self.parse_unary()?;
+        while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Keyword(Keyword::As))) {
+            let span = self.peek().unwrap().span();
+            self.advance();
+            let ty = self.parse_type()?;
+            expr = Expr::Cast { expr: Box::new(expr), ty, span };
+        }
+        Ok(expr)
+    }
+
     pub(super) fn parse_product(&mut self) -> Result<Expr> {
-        let mut left = self.parse_unary()?;
+        let mut left = self.parse_cast()?;
         while let Some(tok) = self.peek() {
             let op_span = tok.span();
             let op = match &tok.kind {
@@ -199,7 +210,7 @@ impl Parser {
             match op {
                 Some(op) => {
                     self.advance();
-                    let right = self.parse_unary()?;
+                    let right = self.parse_cast()?;
                     left = Expr::Binary {
                         op,
                         lhs: Box::new(left),

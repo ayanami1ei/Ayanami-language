@@ -21,6 +21,10 @@ pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             writeln!(w, "{}  rhs:", pad(level)).unwrap();
             write_expr(rhs, level + 1, w);
         }
+        Expr::Cast { expr, ty, .. } => {
+            writeln!(w, "{}Cast(as {})", pad(level), format_type(ty)).unwrap();
+            write_expr(expr, level + 1, w);
+        }
         Expr::Unary { op, arg, .. } => {
             writeln!(w, "{}Unary {{ op: {} }}", pad(level), format_unary(op)).unwrap();
             write_expr(arg, level + 1, w);

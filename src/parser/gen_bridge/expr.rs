@@ -1,5 +1,20 @@
 use super::*;
 
+/// M1.3：`x as T` 的右操作数是类型名（解析为 Ident 表达式）
+fn cast_target_from_expr(e: &Expr) -> Result<Type> {
+    match e {
+        Expr::Ident(s, span) => Ok(match s.as_str().as_str() {
+            "int" => Type::Int(*span),
+            "float" => Type::Float(*span),
+            "char" => Type::Char(*span),
+            "bool" => Type::Bool(*span),
+            "void" => Type::Void(*span),
+            _ => Type::Named(*s, *span),
+        }),
+        _ => Err(Error::Parse("cast target must be a type name".into())),
+    }
+}
+
 pub fn node_to_expr(node: &Node) -> Result<Expr> {
     match node.kind.as_str() {
         "IntLiteral" => {
@@ -32,6 +47,10 @@ pub fn node_to_expr(node: &Node) -> Result<Expr> {
             let op_str = get_str(node, "op")?;
             let lhs = node_to_expr(node.child("lhs").ok_or_else(|| Error::Parse("missing lhs".into()))?)?;
             let rhs = node_to_expr(node.child("rhs").ok_or_else(|| Error::Parse("missing rhs".into()))?)?;
+            if op_str == "as" {
+                let ty = cast_target_from_expr(&rhs)?;
+                return Ok(Expr::Cast { expr: Box::new(lhs), ty, span: default_span() });
+            }
             let op = str_to_binop(&op_str)?;
             Ok(Expr::Binary { op, lhs: Box::new(lhs), rhs: Box::new(rhs), span: default_span() })
         }

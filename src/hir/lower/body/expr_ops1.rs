@@ -110,6 +110,23 @@ impl crate::hir::lower::Ctx {
                 return Ok(SCall { fn_id, args, ty: ret_ty }.into());
             }
         }
+        // M1.3：移位量按左操作数位宽掩码（Rust release 语义，所有构建模式一致）
+        let hir_rhs = if matches!(op, BinaryOp::Shl | BinaryOp::Shr) {
+            let bits: u32 = match &inner_ty {
+                HirType::Int => 64,
+                HirType::Char => 8,
+                HirType::IntN { bits, .. } => *bits as u32,
+                _ => 0,
+            };
+            if bits > 0 {
+                SBin {
+                    op: BinaryOp::BitAnd,
+                    lhs: hir_rhs,
+                    rhs: SConst { val: HirLiteral::Int((bits - 1) as i64), ty: rhs_ty.clone() }.into(),
+                    ty: rhs_ty.clone(),
+                }.into()
+            } else { hir_rhs }
+        } else { hir_rhs };
         // 注意：比较运算的 ty 保持操作数类型；结果类型（Bool）由 MIR→LIR 降级决定。
         // 逻辑与/或的结果是 bool，直接给 Bool 类型。
         let binop_ty = if matches!(op, BinaryOp::And | BinaryOp::Or) {

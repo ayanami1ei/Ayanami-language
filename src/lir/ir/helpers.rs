@@ -20,6 +20,17 @@ pub(crate) fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {
     }
 }
 
+/// 整数类类型 → (位宽, 是否有符号)；非整数返回 None
+pub(crate) fn int_info(ty: &HirType) -> Option<(u32, bool)> {
+    match ty {
+        HirType::Int => Some((64, true)),
+        HirType::IntN { bits, signed } => Some((*bits as u32, *signed)),
+        HirType::Char => Some((8, false)),
+        HirType::Bool => Some((1, false)),
+        _ => None,
+    }
+}
+
 pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
     match ty {
         HirType::Int => "8",

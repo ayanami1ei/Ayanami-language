@@ -227,7 +227,12 @@ impl Parser {
                 let is_lambda = self.pos + 1 < self.tokens.len()
                     && self.is_type_start(self.pos + 1);
                 if is_lambda {
-                    return self.parse_lambda();
+                    // 可能是 lambda；失败则回退为普通括号表达式（如 `(a + 1)`）
+                    let saved = self.pos;
+                    match self.parse_lambda() {
+                        Ok(l) => return Ok(l),
+                        Err(_) => self.pos = saved,
+                    }
                 }
                 self.advance();
                 let expr = self.parse_expr()?;

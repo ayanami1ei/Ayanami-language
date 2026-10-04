@@ -28,6 +28,7 @@ mod collect_import;
 mod expr_access;
 mod expr_call;
 mod expr_call_extra;
+mod expr_cast;
 mod expr_enum;
 mod expr_misc;
 mod expr_ops1;

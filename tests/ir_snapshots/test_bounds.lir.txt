@@ -3,57 +3,57 @@ Strings: 1 entries
   @__str_0 = "example/test_bounds.aya"
 
 fn main (fn_id=74) -> Int [1 blocks]
-  local a: Named(Symbol(136))
+  local a: Named(Symbol(N))
   local __ret: Int
   local __ret: Int
 entry:
-    alloca v0 : Named(Symbol(136))
+    alloca v0 : Named(Symbol(N))
     alloca v1 : Int
     alloca v2 : Int
-    t0 = call fn75 () : Named(Symbol(136))
-    store Tmp(0) -> v0 : Named(Symbol(136))
-    t1 = ref_mut v0 : Ref(Named(Symbol(136)), true)
-    _ = call fn76 (Tmp(1):Ref(Named(Symbol(136)), true), Literal(Int(1), Int):Int) : Void
-    t2 = ref_v0 : Ref(Named(Symbol(136)), false)
+    t0 = call fn75 () : Named(Symbol(N))
+    store Tmp(0) -> v0 : Named(Symbol(N))
+    t1 = ref_mut v0 : Ref(Named(Symbol(N)), true)
+    _ = call fn76 (Tmp(1):Ref(Named(Symbol(N)), true), Literal(Int(1), Int):Int) : Void
+    t2 = ref_v0 : Ref(Named(Symbol(N)), false)
     t3 = str_global @__str_0
     t4 = struct_lit String (2 fields)
-    t8 = call fn78 (Tmp(2):Ref(Named(Symbol(136)), false), Literal(Int(5), Int):Int, Literal(Int(7), Int):Int, Literal(Int(13), Int):Int, Tmp(4):Named(Symbol(15))) : Int
+    t8 = call fn78 (Tmp(2):Ref(Named(Symbol(N)), false), Literal(Int(5), Int):Int, Literal(Int(7), Int):Int, Literal(Int(13), Int):Int, Tmp(4):Named(Symbol(N))) : Int
     store Tmp(8) -> v1 : Int
     t9 = load v1 : Int
     ret Tmp(9)
     store Literal(Int(0), Int) -> v2 : Int
     t10 = load v2 : Int
     ret Tmp(10)
-fn ArrayList.new (fn_id=75) -> Named(Symbol(136)) [1 blocks]
-  local __ret: Named(Symbol(136))
+fn ArrayList.new (fn_id=75) -> Named(Symbol(N)) [1 blocks]
+  local __ret: Named(Symbol(N))
 entry:
-    alloca v0 : Named(Symbol(136))
+    alloca v0 : Named(Symbol(N))
     t0 = struct_lit ArrayList<int> (3 fields)
-    store Tmp(0) -> v0 : Named(Symbol(136))
-    t5 = load v0 : Named(Symbol(136))
+    store Tmp(0) -> v0 : Named(Symbol(N))
+    t5 = load v0 : Named(Symbol(N))
     ret Tmp(5)
 fn expand (fn_id=77) -> Void [7 blocks]
-  local self: Ref(Named(Symbol(136)), true)
+  local self: Ref(Named(Symbol(N)), true)
   local tmp: Unique(Array(Int))
   local i: Int
 entry:
-    alloca v0 : Ref(Named(Symbol(136)), true)
+    alloca v0 : Ref(Named(Symbol(N)), true)
     alloca v1 : Unique(Array(Int))
     alloca v2 : Int
-    store Param(0) -> v0 : Ref(Named(Symbol(136)), true)
-    t0 = load v0 : Ref(Named(Symbol(136)), true)
+    store Param(0) -> v0 : Ref(Named(Symbol(N)), true)
+    t0 = load v0 : Ref(Named(Symbol(N)), true)
     t1 = field_access field=2 : Int
     t3 = Eq Tmp(1) Literal(Int(0), Int) : Int
     br_cond Tmp(3) %then0 %else1
 then0:
-    t4 = load v0 : Ref(Named(Symbol(136)), true)
+    t4 = load v0 : Ref(Named(Symbol(N)), true)
     t4 = field_store field=2 : Int
-    t7 = load v0 : Ref(Named(Symbol(136)), true)
+    t7 = load v0 : Ref(Named(Symbol(N)), true)
     t8 = array_sized (count=Literal(Int(1), Int), elem_ty=Int)
     t7 = field_store field=0 : Array(Int)
     br %ifcont2
 else1:
-    t18 = load v0 : Ref(Named(Symbol(136)), true)
+    t18 = load v0 : Ref(Named(Symbol(N)), true)
     t19 = field_access field=2 : Int
     t21 = Mul Tmp(19) Literal(Int(2), Int) : Int
     t14 = array_sized (count=Tmp(21), elem_ty=Int)
@@ -62,14 +62,14 @@ else1:
     br %while.cond3
 while.cond3:
     t22 = load v2 : Int
-    t23 = load v0 : Ref(Named(Symbol(136)), true)
+    t23 = load v0 : Ref(Named(Symbol(N)), true)
     t24 = field_access field=1 : Int
     t26 = Lt Tmp(22) Tmp(24) : Int
     br_cond Tmp(26) %while.body4 %while.end5
 while.body4:
     t27 = load v1 : Unique(Array(Int))
     t28 = load v2 : Int
-    t29 = load v0 : Ref(Named(Symbol(136)), true)
+    t29 = load v0 : Ref(Named(Symbol(N)), true)
     t30 = field_access field=0 : Array(Int)
     t32 = load v2 : Int
     t33 = index_access elem_ty=Int
@@ -79,11 +79,11 @@ while.body4:
     store Tmp(38) -> v2 : Int
     br %while.cond3
 while.end5:
-    t39 = load v0 : Ref(Named(Symbol(136)), true)
+    t39 = load v0 : Ref(Named(Symbol(N)), true)
     t40 = load v1 : Unique(Array(Int))
     t39 = field_store field=0 : Array(Int)
-    t43 = load v0 : Ref(Named(Symbol(136)), true)
-    t44 = load v0 : Ref(Named(Symbol(136)), true)
+    t43 = load v0 : Ref(Named(Symbol(N)), true)
+    t44 = load v0 : Ref(Named(Symbol(N)), true)
     t45 = field_access field=2 : Int
     t47 = Mul Tmp(45) Literal(Int(2), Int) : Int
     t43 = field_store field=2 : Int
@@ -91,62 +91,62 @@ while.end5:
 ifcont2:
     ret void
 fn push (fn_id=76) -> Void [4 blocks]
-  local self: Ref(Named(Symbol(136)), true)
+  local self: Ref(Named(Symbol(N)), true)
   local val: Int
 entry:
-    alloca v0 : Ref(Named(Symbol(136)), true)
+    alloca v0 : Ref(Named(Symbol(N)), true)
     alloca v1 : Int
-    store Param(0) -> v0 : Ref(Named(Symbol(136)), true)
+    store Param(0) -> v0 : Ref(Named(Symbol(N)), true)
     store Param(1) -> v1 : Int
-    t0 = load v0 : Ref(Named(Symbol(136)), true)
+    t0 = load v0 : Ref(Named(Symbol(N)), true)
     t1 = field_access field=1 : Int
     t3 = Add Tmp(1) Literal(Int(1), Int) : Int
-    t4 = load v0 : Ref(Named(Symbol(136)), true)
+    t4 = load v0 : Ref(Named(Symbol(N)), true)
     t5 = field_access field=2 : Int
     t7 = Ge Tmp(3) Tmp(5) : Int
     br_cond Tmp(7) %then0 %else1
 then0:
-    t8 = load v0 : Ref(Named(Symbol(136)), true)
-    _ = call fn77 (Tmp(8):Ref(Named(Symbol(136)), true)) : Void
+    t8 = load v0 : Ref(Named(Symbol(N)), true)
+    _ = call fn77 (Tmp(8):Ref(Named(Symbol(N)), true)) : Void
     br %ifcont2
 else1:
     br %ifcont2
 ifcont2:
-    t9 = load v0 : Ref(Named(Symbol(136)), true)
+    t9 = load v0 : Ref(Named(Symbol(N)), true)
     t10 = field_access field=0 : Array(Int)
-    t12 = load v0 : Ref(Named(Symbol(136)), true)
+    t12 = load v0 : Ref(Named(Symbol(N)), true)
     t13 = field_access field=1 : Int
     t15 = load v1 : Int
     t10 = index_store elem_ty=Int
-    t17 = load v0 : Ref(Named(Symbol(136)), true)
-    t18 = load v0 : Ref(Named(Symbol(136)), true)
+    t17 = load v0 : Ref(Named(Symbol(N)), true)
+    t18 = load v0 : Ref(Named(Symbol(N)), true)
     t19 = field_access field=1 : Int
     t21 = Add Tmp(19) Literal(Int(1), Int) : Int
     t17 = field_store field=1 : Int
     ret void
 fn index (fn_id=78) -> Int [4 blocks]
-  local self: Ref(Named(Symbol(136)), false)
+  local self: Ref(Named(Symbol(N)), false)
   local index: Int
   local __line: Int
   local __col: Int
-  local __file: Named(Symbol(15))
+  local __file: Named(Symbol(N))
   local __ret: Int
 entry:
-    alloca v0 : Ref(Named(Symbol(136)), false)
+    alloca v0 : Ref(Named(Symbol(N)), false)
     alloca v1 : Int
     alloca v2 : Int
     alloca v3 : Int
-    alloca v4 : Named(Symbol(15))
+    alloca v4 : Named(Symbol(N))
     alloca v5 : Int
-    store Param(0) -> v0 : Ref(Named(Symbol(136)), false)
+    store Param(0) -> v0 : Ref(Named(Symbol(N)), false)
     store Param(1) -> v1 : Int
     store Param(2) -> v2 : Int
     store Param(3) -> v3 : Int
-    store Param(4) -> v4 : Named(Symbol(15))
+    store Param(4) -> v4 : Named(Symbol(N))
     t0 = load v1 : Int
     t1 = Lt Tmp(0) Literal(Int(0), Int) : Int
     t2 = load v1 : Int
-    t3 = load v0 : Ref(Named(Symbol(136)), false)
+    t3 = load v0 : Ref(Named(Symbol(N)), false)
     t4 = field_access field=1 : Int
     t6 = Ge Tmp(2) Tmp(4) : Int
     t7 = Or Tmp(1) Tmp(6) : Bool
@@ -154,16 +154,16 @@ entry:
 then0:
     t8 = load v2 : Int
     t9 = load v3 : Int
-    t10 = load v4 : Named(Symbol(15))
+    t10 = load v4 : Named(Symbol(N))
     t11 = load v1 : Int
-    t12 = load v0 : Ref(Named(Symbol(136)), false)
+    t12 = load v0 : Ref(Named(Symbol(N)), false)
     t13 = field_access field=1 : Int
-    _ = call fn3 (Tmp(8):Int, Tmp(9):Int, Tmp(10):Named(Symbol(15)), Tmp(11):Int, Tmp(13):Int) : Void
+    _ = call fn3 (Tmp(8):Int, Tmp(9):Int, Tmp(10):Named(Symbol(N)), Tmp(11):Int, Tmp(13):Int) : Void
     br %ifcont2
 else1:
     br %ifcont2
 ifcont2:
-    t15 = load v0 : Ref(Named(Symbol(136)), false)
+    t15 = load v0 : Ref(Named(Symbol(N)), false)
     t16 = field_access field=0 : Array(Int)
     t18 = load v1 : Int
     t19 = index_access elem_ty=Int

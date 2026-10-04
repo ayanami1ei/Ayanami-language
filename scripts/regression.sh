@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 
 BIN="target/debug/ayanami"
 if [ "${1:-}" = "--binary" ] && [ -n "${2:-}" ]; then BIN="$2"; fi
-if [ ! -x "$BIN" ]; then cargo build -q; fi
+if [ ! -x "$BIN" ] || [ "$BIN" = "target/debug/ayanami" ]; then cargo build -q; fi
 
 fail=0
 pos=0

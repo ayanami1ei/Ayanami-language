@@ -41,18 +41,18 @@ pub fn tokenize(input: &str) -> Vec<asuka::runtime::Token> {
             }
             ';' => tokens.push(lex.read_fixed(";", ";")),
             '<' => {
-                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='<' { tokens.push(lex.read_fixed("<<", "<<")); }
                 if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='=' { tokens.push(lex.read_fixed("<=", "<=")); }
+                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='<' { tokens.push(lex.read_fixed("<<", "<<")); }
                 else { tokens.push(lex.read_fixed("<", "<")); }
             }
             '=' => {
-                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='=' { tokens.push(lex.read_fixed("==", "==")); }
                 if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='>' { tokens.push(lex.read_fixed("=>", "=>")); }
+                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='=' { tokens.push(lex.read_fixed("==", "==")); }
                 else { tokens.push(lex.read_fixed("=", "=")); }
             }
             '>' => {
-                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='>' { tokens.push(lex.read_fixed(">>", ">>")); }
                 if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='=' { tokens.push(lex.read_fixed(">=", ">=")); }
+                if lex.pos+1<lex.chars.len() && lex.chars[lex.pos+1]=='>' { tokens.push(lex.read_fixed(">>", ">>")); }
                 else { tokens.push(lex.read_fixed(">", ">")); }
             }
             '[' => tokens.push(lex.read_fixed("[", "[")),

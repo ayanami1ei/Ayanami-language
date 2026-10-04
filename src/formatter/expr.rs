@@ -47,6 +47,9 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         Expr::Binary { op, lhs, rhs, .. } => {
             format!("{} {} {}", write_expr_at(lhs, level), write_bin_op(op), write_expr_at(rhs, level))
         }
+        Expr::Cast { expr, ty, .. } => {
+            format!("{} as {}", write_expr_at(expr, level), write_type(ty))
+        }
         Expr::Unary { op, arg, .. } => {
             let op_str = match op {
                 UnaryOp::Neg => "-",

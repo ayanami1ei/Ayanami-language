@@ -82,14 +82,14 @@ entry:
     t0 = index_store elem_ty=Int
     ret void
 fn set_hi (fn_id=78) -> Void [1 blocks]
-  local s: Ref(Named(Symbol(10)), true)
+  local s: Ref(Named(Symbol(N)), true)
 entry:
-    alloca v0 : Ref(Named(Symbol(10)), true)
-    store Param(0) -> v0 : Ref(Named(Symbol(10)), true)
-    t0 = load v0 : Ref(Named(Symbol(10)), true)
+    alloca v0 : Ref(Named(Symbol(N)), true)
+    store Param(0) -> v0 : Ref(Named(Symbol(N)), true)
+    t0 = load v0 : Ref(Named(Symbol(N)), true)
     t1 = str_global @__str_0
     t2 = struct_lit String (2 fields)
-    t0 = index_store elem_ty=Named(Symbol(10))
+    t0 = index_store elem_ty=Named(Symbol(N))
     ret void
 fn main (fn_id=79) -> Int [25 blocks]
   local x: Int
@@ -98,7 +98,7 @@ fn main (fn_id=79) -> Int [25 blocks]
   local a: Int
   local b: Int
   local c: Int
-  local s: Named(Symbol(10))
+  local s: Named(Symbol(N))
   local __ret: Int
   local __ret: Int
   local __ret: Int
@@ -116,7 +116,7 @@ entry:
     alloca v3 : Int
     alloca v4 : Int
     alloca v5 : Int
-    alloca v6 : Named(Symbol(10))
+    alloca v6 : Named(Symbol(N))
     alloca v7 : Int
     alloca v8 : Int
     alloca v9 : Int
@@ -221,15 +221,15 @@ then18:
 else19:
     br %ifcont20
 ifcont20:
-    t29 = call fn51 () : Named(Symbol(10))
-    store Tmp(29) -> v6 : Named(Symbol(10))
-    t30 = ref_mut v6 : Ref(Named(Symbol(10)), true)
-    _ = call fn78 (Tmp(30):Ref(Named(Symbol(10)), true)) : Void
-    t31 = ref_v6 : Ref(Named(Symbol(10)), false)
+    t29 = call fn51 () : Named(Symbol(N))
+    store Tmp(29) -> v6 : Named(Symbol(N))
+    t30 = ref_mut v6 : Ref(Named(Symbol(N)), true)
+    _ = call fn78 (Tmp(30):Ref(Named(Symbol(N)), true)) : Void
+    t31 = ref_v6 : Ref(Named(Symbol(N)), false)
     t33 = str_global @__str_0
     t34 = struct_lit String (2 fields)
-    t32 = ref_tmp_ : Named(Symbol(10))
-    t39 = call fn59 (Tmp(31):Ref(Named(Symbol(10)), false), Tmp(32):Ref(Named(Symbol(10)), false)) : Bool
+    t32 = ref_tmp_ : Named(Symbol(N))
+    t39 = call fn59 (Tmp(31):Ref(Named(Symbol(N)), false), Tmp(32):Ref(Named(Symbol(N)), false)) : Bool
     br_cond Tmp(39) %then21 %else22
 then21:
     store Literal(Int(8), Int) -> v14 : Int

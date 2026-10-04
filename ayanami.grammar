@@ -25,6 +25,7 @@
               "*" (prec:11, assoc:left)
               "/" (prec:11, assoc:left)
               "%" (prec:11, assoc:left)
+              "as" (prec:12, assoc:left)
               "!" (prefix)
               "~" (prefix)
               "-" (prefix, prec:12)
