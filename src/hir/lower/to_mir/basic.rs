@@ -80,6 +80,14 @@ impl HirNode for SUn {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn as_neg_int_literal(&self) -> Option<i64> {
+        if matches!(self.op, crate::parser::ast::UnaryOp::Neg) {
+            if let Some(HirLiteral::Int(n)) = self.arg.as_const() {
+                return Some(-*n);
+            }
+        }
+        None
+    }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
         f(&*self.arg);
     }

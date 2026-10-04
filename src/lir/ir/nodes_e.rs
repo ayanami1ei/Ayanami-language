@@ -106,3 +106,30 @@ impl LirNode for SLirIndexStore {
         put_type(buf, &self.elem_ty); put_type(buf, &self.array_ty);
     }
 }
+
+impl LirNode for SLirStrGlobal {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "StrGlobal" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        // 字符串字面量复制到堆上：String 值拥有其 data 缓冲区，作用域结束会释放
+        let len = ctx.prog.strings.get(self.str_idx as usize).map(|s| s.len()).unwrap_or(0);
+        let l = ctx.tmp();
+        vec![
+            // 多分配 1 字节并写入 NUL，保证可传给 C 字符串函数（strlen 等）
+            format!("%l{} = call i8* @__ayanami_unique_alloc(i64 {})", l, len + 1),
+            format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr @__str_{}, i64 {}, i1 false)", l, self.str_idx, len),
+            format!("%e{} = getelementptr i8, ptr %l{}, i64 {}", l, l, len),
+            format!("store i8 0, ptr %e{}", l),
+            format!("%t{} = bitcast i8* %l{} to ptr", self.dest, l),
+        ]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = str_global @__str_{}", self.dest, self.str_idx)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(6);
+        put_u64(buf, self.dest);
+        put_u64(buf, self.str_idx);
+    }
+}

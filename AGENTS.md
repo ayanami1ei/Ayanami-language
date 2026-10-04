@@ -22,6 +22,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 | 校验文件行数 | `./scripts/check_file_sizes.sh`（默认上限 300 行） |
 | 刷新模块依赖图 | `python3 scripts/gen_module_graph.py` |
 | 安装版 CLI | `cd install && ./ayanami run ../example/test_struct.aya` |
+| 初始化子仓 | `git submodule update --init --recursive`（`std/`、`asuka/`、`book/`） |
 
 - `install/` 是发布包：`ayanami`、bundled `llc`、`libLLVM.so.21.1`、`runtime.c`、预编译 `std/`。
 - **零告警要求**：`cargo check --all-targets` 不得输出任何 warning（生成代码 `src/generated/`
@@ -51,10 +52,10 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 
 1. **`src/generated/ayanami_parser.rs` 是生成产物，禁止手改。** 改语法必须改根目录 `ayanami.grammar`，然后跑 `./gen_parser.sh`。
 2. 解析有两条路径：Asuka 生成解析器 + 手写回退（`parser.rs`，桥接 `gen_bridge.rs`）。改文法时注意回退路径仍然可用。
-3. `asuka/` 是 **git 子仓**（文法驱动解析器生成框架）：在子仓内修改后要先在子仓提交并推送，主仓再提交新的子仓指针；`gen_parser.sh` 从子仓构建。
+3. `asuka/` 与 `std/`（[Ayanami-std](https://github.com/ayanami1ei/Ayanami-std)）都是 **git 子仓**：在子仓内修改后要先在子仓提交并推送，主仓再提交新的子仓指针。`gen_parser.sh` 从 asuka 子仓构建；`std/` 源码在子仓 `src/`，主仓只更新指针。
 4. `SYMBOLS.md`、`src/generated/`、`target/`、`build/` 都是产物或生成物，不要整读；`.lcl` 是二进制包，不要读。
 5. `example/*.aya`（26 个）是端到端测试的主要手段；新特性至少配一个 example 用例。
-6. `std/` 交付预编译 `.lcl`，源码为 `std/**/*.aya`。
+6. `std/` 交付预编译 `.lcl`，源码在子仓 `std/src/**/*.aya`；根目录 `std/*.aya` 是历史遗留副本（开发态 import 优先命中它们），改标准库以 `src/` 为准。
 
 ## 定位代码（省 token 的关键）
 
@@ -81,6 +82,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 - 目录入口用 `mod` + `pub use` 保持对外路径不变。
 - `src/generated/ayanami_parser/` 由 `./gen_parser.sh` 生成（asuka 输出 + `scripts/split_generated_parser.py` 拆分），禁止手改；只改根目录 `ayanami.grammar` 后重新生成。
 - **改动代码后必须更新符号地图**：跑 `./scripts/gen_symbols.sh`（会刷新 `SYMBOLS.md` 的文件与行号），提交前 `./scripts/gen_symbols.sh --check` 必须通过。
+- `std/`、`asuka/`、`book/` 是 git 子仓（见「关键陷阱」）；子仓内改动先在子仓提交推送，再更新主仓指针。
 
 ## 提交前检查
 
@@ -102,6 +104,7 @@ cargo test
 - `release`：**发布分支**，从发布点拉出，只做发布修复与版本合并；发布用标签 `vX.Y.Z` 标记。
 - `origin/master`、`origin/runtime`、`rust-old` 是旧实现/历史分支，不要在其上开发。
 - 工作节奏：**每完成一个可验证的阶段就提交并推送**（`git push origin rust`）。
+- `std/` 子仓改动直接在 [Ayanami-std](https://github.com/ayanami1ei/Ayanami-std) 的 `main` 上小步提交推送；主仓只更新子模块指针，不为 std 单独开主仓分支。
 
 ## 版本号同步（必须一起改）
 
@@ -112,7 +115,7 @@ cargo test
 | `Cargo.toml` | 权威版本号 |
 | `Cargo.lock` | 跑 `cargo check` 自动更新 |
 | `vscode-ayanami/package.json` | VSCode 插件版本 |
-| `std/ayanami.toml` | 标准库包版本 |
+| `std/ayanami.toml` | 标准库包版本（子仓 Ayanami-std；先在子仓提交，再更新主仓指针） |
 | `README.md` | 安装产物文件名、ayanami.toml 示例 |
 
 - 编译器源码禁止硬编码版本号：已统一用 `env!("CARGO_PKG_VERSION")` 自动跟随（`src/compiler/build.rs`、`src/main.rs` 的 `new` 模板）。
@@ -132,7 +135,7 @@ cargo test
 - 知识图谱：`docs/knowledge-graph.md`（概念→代码地图）、`docs/module-graph.md`（生成物）。
 - 标注系统设计（标注式编程 A0–A5）：`docs/annotations.md`。
 - 语言语法、类型系统、所有权（默认移动 + `ref`/`ref mut`）、泛型、枚举布局、操作符重载：见 `README.md`。
-- 标准库 API：`std/README.md` 与 `std/**/*.aya`。
+- 标准库 API：[Ayanami-std](https://github.com/ayanami1ei/Ayanami-std) 子仓的 `README.md` 与 `std/**/*.aya`。
 - VSCode 插件：`vscode-ayanami/README.md`。
 - 快速事实：参数顺序是 `类型 名称`；默认所有权（非 Copy 值移动），`[T]`/`[T; n]` 为拥有堆数组，`self` 消费 / `ref self` 借用 / `ref mut self` 可变借用（原语用 `self`）；无 `unique`/`shared`/`weak`/GC；泛型单态化；枚举字段 `_tag` / `_data_V`；操作符映射到 `add` / `eq` / `index` 等方法。
 

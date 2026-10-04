@@ -30,8 +30,29 @@ pub(crate) fn deref_type(ty: &HirType) -> HirType {
     }
 }
 
+/// 整数字面量节点？（SConst Int）
+pub(crate) fn as_int_literal(e: &HirNodeBox) -> Option<i64> {
+    match e.as_const() {
+        Some(HirLiteral::Int(n)) => Some(*n),
+        _ => e.as_neg_int_literal(),
+    }
+}
+
+/// 整数类型（int 或定宽整数）
+pub(crate) fn is_int_type(ty: &HirType) -> bool {
+    matches!(strip_ownership_ref(ty), HirType::Int | HirType::IntN { .. })
+}
+
+/// 把整数字面量重定型为目标整数类型（非字面量原样返回）
+pub(crate) fn retype_int_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox {
+    match as_int_literal(&expr) {
+        Some(n) => SConst { val: HirLiteral::Int(n), ty: strip_ownership_ref(target).clone() }.into(),
+        None => expr,
+    }
+}
+
 fn is_primitive(ty: &HirType) -> bool {
-    matches!(ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool)
+    matches!(ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. })
 }
 
 /// 按目标类型对表达式做隐式转换：
@@ -44,6 +65,12 @@ pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Re
     let src = expr.expr_type();
     let src_inner = strip_ownership_ref(&src).clone();
     let tgt_inner = strip_ownership_ref(target).clone();
+    // 整数字面量适配定宽整数（如 f(1) → i32 形参；Rust 风格字面量推断）
+    if let HirType::IntN { .. } = &tgt_inner {
+        if src_inner == HirType::Int && as_int_literal(&expr).is_some() {
+            return Ok(retype_int_literal(expr, &tgt_inner));
+        }
+    }
     if src_inner == tgt_inner {
         return Ok(expr);
     }

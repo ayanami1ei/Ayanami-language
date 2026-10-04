@@ -22,7 +22,7 @@ impl LirNode for SLirConv {
                     _ => &self.ty,
                 };
                 let size = struct_llvm_size(inner_ty, &ctx.prog.struct_defs);
-                let src_ptr = if matches!(&self.src_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool) {
+                let src_ptr = if matches!(&self.src_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. }) {
                     let src_llvm = ctx.llvm_type(&self.src_ty);
                     let alloca = format!("%t{}", self.alloca_tmp);
                     lines.push(format!("{} = alloca {}, align 8", alloca, src_llvm));

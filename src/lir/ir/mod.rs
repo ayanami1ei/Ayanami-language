@@ -70,6 +70,7 @@ impl LirEmitCtx<'_> {
             HirType::Char => "i8".into(),
             HirType::Bool => "i1".into(),
             HirType::Void => "void".into(),
+            HirType::IntN { bits, .. } => format!("i{}", bits),
             HirType::Named(s) => {
                 if self.prog.struct_defs.contains_key(s) {
                     return format!("%struct.{}", sanitize_name(&s.as_str()));

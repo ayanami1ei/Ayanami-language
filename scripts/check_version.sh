@@ -11,6 +11,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 cargo_ver=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+if [[ ! -f std/ayanami.toml ]]; then
+    echo "error: std 子仓未初始化，请先运行 git submodule update --init --recursive" >&2
+    exit 1
+fi
 std_ver=$(sed -n 's/^version = "\(.*\)"/\1/p' std/ayanami.toml | head -1)
 ext_ver=$(sed -n 's/.*"version": "\(.*\)".*/\1/p' vscode-ayanami/package.json | head -1)
 tag_ver=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null | sed 's/^v//' || true)

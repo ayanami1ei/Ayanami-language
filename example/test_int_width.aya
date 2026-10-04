@@ -1,0 +1,51 @@
+// M1.1：定宽整数 i8/i16/i32/i64/i128、u8/u16/u32/u64/u128、isize/usize
+fn add32(i32 a, i32 b) -> i32 { return a + b }
+fn sub32(i32 a, i32 b) -> i32 { return a - b }
+fn mul32(i32 a, i32 b) -> i32 { return a * b }
+fn add8(i8 a, i8 b) -> i8 { return a + b }
+fn div8(i8 a, i8 b) -> i8 { return a / b }
+fn add_u8(u8 a, u8 b) -> u8 { return a + b }
+fn div_u8(u8 a, u8 b) -> u8 { return a / b }
+fn mod_u8(u8 a, u8 b) -> u8 { return a % b }
+fn less_u8(u8 a, u8 b) -> bool { return a < b }
+fn less_i8(i8 a, i8 b) -> bool { return a < b }
+fn add_i16(i16 a, i16 b) -> i16 { return a + b }
+fn add_u16(u16 a, u16 b) -> u16 { return a + b }
+fn add_u32(u32 a, u32 b) -> u32 { return a + b }
+fn add_i64(i64 a, i64 b) -> i64 { return a + b }
+fn add_u64(u64 a, u64 b) -> u64 { return a + b }
+fn add_isize(isize a, isize b) -> isize { return a + b }
+fn add_usize(usize a, usize b) -> usize { return a + b }
+fn add_i128(i128 a, i128 b) -> i128 { return a + b }
+fn add_u128(u128 a, u128 b) -> u128 { return a + b }
+
+impl i32 {
+    fn plus32(self, i32 other) -> i32 { return self + other }
+}
+
+fn main() -> int {
+    if add32(1, 2) != 3 { return 1 }
+    if sub32(5, 7) != -2 { return 2 }
+    if mul32(6, 7) != 42 { return 3 }
+    if add8(127, 1) != add8(1, 127) { return 4 }   // i8 溢出回绕（-128 == -128）
+    if div8(-100, 2) != -50 { return 5 }           // 有符号除法
+    if add_u8(255, 1) != 0 { return 6 }            // u8 回绕
+    if add_u8(200, 100) != 44 { return 7 }         // 300 mod 256
+    if div_u8(200, 2) != 100 { return 8 }          // 无符号除法（有符号会得 -28）
+    if mod_u8(201, 100) != 1 { return 9 }          // 无符号取余（有符号会得 -55）
+    if less_u8(200, 100) { return 10 }             // 无符号比较：200 > 100
+    if !less_u8(100, 200) { return 11 }
+    if !less_i8(-1, 0) { return 12 }               // 有符号比较：-1 < 0
+    if add_i16(30000, 1000) != 31000 { return 13 }
+    if add_u16(60000, 1000) != 61000 { return 14 }
+    if add_u32(4000000000, 1) != 4000000001 { return 15 }
+    if add_i64(2, 3) != 5 { return 16 }
+    if add_u64(4000000000, 1) != 4000000001 { return 17 }
+    if add_isize(-1, 1) != 0 { return 18 }
+    if add_usize(1, 2) != 3 { return 19 }
+    if add_i128(1, 2) != 3 { return 20 }
+    if add_u128(1, 2) != 3 { return 21 }
+    x = add32(10, 0)
+    if x.plus32(5) != 15 { return 22 }             // 方法调用字面量适配
+    return 0
+}

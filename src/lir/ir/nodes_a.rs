@@ -76,14 +76,16 @@ impl LirNode for SLirBinOp {
         let l = ctx.value_ref(&self.lhs, &self.ty);
         let r = ctx.value_ref(&self.rhs, &self.ty);
         let is_ptr = l == "null" || r == "null" || l.contains("ptr") || r.contains("ptr");
-        let icmp_llvm = |ty: &HirType| -> &str {
+        let icmp_llvm = |ty: &HirType| -> String {
             match ty {
-                HirType::Char => "i8",
-                HirType::Bool => "i1",
-                HirType::Int => "i64",
-                _ => { if is_ptr { "ptr" } else { "i64" } }
+                HirType::Char => "i8".into(),
+                HirType::Bool => "i1".into(),
+                HirType::Int => "i64".into(),
+                HirType::IntN { bits, .. } => format!("i{}", bits),
+                _ => if is_ptr { "ptr".into() } else { "i64".into() },
             }
         };
+        let unsigned = matches!(&self.ty, HirType::IntN { signed: false, .. });
         match (&self.op, &self.ty) {
             (BinaryOp::Add, HirType::Int) => vec![format!("%t{} = add i64 {}, {}", self.dest, l, r)],
             (BinaryOp::Sub, HirType::Int) => vec![format!("%t{} = sub i64 {}, {}", self.dest, l, r)],
@@ -97,6 +99,17 @@ impl LirNode for SLirBinOp {
             (BinaryOp::Mod, HirType::Float) => vec![format!("%t{} = frem double {}, {}", self.dest, l, r)],
             (BinaryOp::Add, HirType::Char) => vec![format!("%t{} = add i8 {}, {}", self.dest, l, r)],
             (BinaryOp::Sub, HirType::Char) => vec![format!("%t{} = sub i8 {}, {}", self.dest, l, r)],
+            (BinaryOp::Add, HirType::IntN { bits, .. }) => vec![format!("%t{} = add i{} {}, {}", self.dest, bits, l, r)],
+            (BinaryOp::Sub, HirType::IntN { bits, .. }) => vec![format!("%t{} = sub i{} {}, {}", self.dest, bits, l, r)],
+            (BinaryOp::Mul, HirType::IntN { bits, .. }) => vec![format!("%t{} = mul i{} {}, {}", self.dest, bits, l, r)],
+            (BinaryOp::Div, HirType::IntN { bits, signed }) => {
+                let op = if *signed { "sdiv" } else { "udiv" };
+                vec![format!("%t{} = {} i{} {}, {}", self.dest, op, bits, l, r)]
+            }
+            (BinaryOp::Mod, HirType::IntN { bits, signed }) => {
+                let op = if *signed { "srem" } else { "urem" };
+                vec![format!("%t{} = {} i{} {}, {}", self.dest, op, bits, l, r)]
+            }
             (BinaryOp::Eq, _) if self.ty != HirType::Float => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp eq ptr {}, {}", self.dest, l, r)] }
@@ -110,22 +123,22 @@ impl LirNode for SLirBinOp {
             (BinaryOp::Lt, _) if self.ty != HirType::Float => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp ult ptr {}, {}", self.dest, l, r)] }
-                else { vec![format!("%t{} = icmp slt {} {}, {}", self.dest, llvm_int, l, r)] }
+                else { let p = if unsigned { "ult" } else { "slt" }; vec![format!("%t{} = icmp {} {} {}, {}", self.dest, p, llvm_int, l, r)] }
             }
             (BinaryOp::Gt, _) if self.ty != HirType::Float => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp ugt ptr {}, {}", self.dest, l, r)] }
-                else { vec![format!("%t{} = icmp sgt {} {}, {}", self.dest, llvm_int, l, r)] }
+                else { let p = if unsigned { "ugt" } else { "sgt" }; vec![format!("%t{} = icmp {} {} {}, {}", self.dest, p, llvm_int, l, r)] }
             }
             (BinaryOp::Le, _) if self.ty != HirType::Float => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp ule ptr {}, {}", self.dest, l, r)] }
-                else { vec![format!("%t{} = icmp sle {} {}, {}", self.dest, llvm_int, l, r)] }
+                else { let p = if unsigned { "ule" } else { "sle" }; vec![format!("%t{} = icmp {} {} {}, {}", self.dest, p, llvm_int, l, r)] }
             }
             (BinaryOp::Ge, _) if self.ty != HirType::Float => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp uge ptr {}, {}", self.dest, l, r)] }
-                else { vec![format!("%t{} = icmp sge {} {}, {}", self.dest, llvm_int, l, r)] }
+                else { let p = if unsigned { "uge" } else { "sge" }; vec![format!("%t{} = icmp {} {} {}, {}", self.dest, p, llvm_int, l, r)] }
             }
             (BinaryOp::Eq, HirType::Float) => vec![format!("%t{} = fcmp oeq double {}, {}", self.dest, l, r)],
             (BinaryOp::Neq, HirType::Float) => vec![format!("%t{} = fcmp one double {}, {}", self.dest, l, r)],
@@ -160,6 +173,7 @@ impl LirNode for SLirUnaryOp {
         let s = ctx.value_ref(&self.src, &self.ty);
         match (&self.op, &self.ty) {
             (UnaryOp::Neg, HirType::Int) => vec![format!("%t{} = sub i64 0, {}", self.dest, s)],
+            (UnaryOp::Neg, HirType::IntN { bits, .. }) => vec![format!("%t{} = sub i{} 0, {}", self.dest, bits, s)],
             (UnaryOp::Neg, HirType::Float) => vec![format!("%t{} = fsub double -0.0, {}", self.dest, s)],
             (UnaryOp::Not, _) => vec![format!("%t{} = xor i1 1, {}", self.dest, s)],
             _ => vec![],
@@ -258,31 +272,3 @@ impl LirNode for SLirFnAddr {
         put_u32(buf, self.fn_id.0 as u32);
     }
 }
-
-impl LirNode for SLirStrGlobal {
-    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-    fn kind(&self) -> &'static str { "StrGlobal" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
-        // 字符串字面量复制到堆上：String 值拥有其 data 缓冲区，作用域结束会释放
-        let len = ctx.prog.strings.get(self.str_idx as usize).map(|s| s.len()).unwrap_or(0);
-        let l = ctx.tmp();
-        vec![
-            // 多分配 1 字节并写入 NUL，保证可传给 C 字符串函数（strlen 等）
-            format!("%l{} = call i8* @__ayanami_unique_alloc(i64 {})", l, len + 1),
-            format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr @__str_{}, i64 {}, i1 false)", l, self.str_idx, len),
-            format!("%e{} = getelementptr i8, ptr %l{}, i64 {}", l, l, len),
-            format!("store i8 0, ptr %e{}", l),
-            format!("%t{} = bitcast i8* %l{} to ptr", self.dest, l),
-        ]
-    }
-    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
-        writeln!(f, "    t{} = str_global @__str_{}", self.dest, self.str_idx)
-    }
-    fn serialize(&self, buf: &mut Vec<u8>) {
-        buf.push(6);
-        put_u64(buf, self.dest);
-        put_u64(buf, self.str_idx);
-    }
-}
-

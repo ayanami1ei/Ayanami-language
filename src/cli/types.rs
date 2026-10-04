@@ -128,6 +128,7 @@ fn fmt_type(ty: &HirType) -> String {
         HirType::Char => "char".into(),
         HirType::Bool => "bool".into(),
         HirType::Void => "void".into(),
+        HirType::IntN { bits, signed } => format!("{}{}", if *signed { "i" } else { "u" }, bits),
         HirType::Named(n) => n.as_str().to_string(),
         HirType::Ref(inner, mutable) => {
             format!("ref{}{}", if *mutable { " mut" } else { "" }, fmt_type(inner))

@@ -9,8 +9,28 @@ impl crate::hir::lower::Ctx {
         // A6：基元混合类型统一提升（char→int、int/char→float），
         // 否则内建运算按左操作数类型发射会生成非法 IR。
         {
+            // 整数字面量适配到另一侧的定宽整数
+            {
+                let l0 = strip_ownership(lhs_ty.clone()).clone();
+                let r0 = strip_ownership(rhs_ty.clone()).clone();
+                if matches!(l0, HirType::IntN { .. }) && r0 == HirType::Int && as_int_literal(&hir_rhs).is_some() {
+                    hir_rhs = retype_int_literal(hir_rhs, &lhs_ty);
+                    rhs_ty = lhs_ty.clone();
+                } else if matches!(r0, HirType::IntN { .. }) && l0 == HirType::Int && as_int_literal(&hir_lhs).is_some() {
+                    hir_lhs = retype_int_literal(hir_lhs, &rhs_ty);
+                    lhs_ty = rhs_ty.clone();
+                }
+            }
             let l = strip_ownership(lhs_ty.clone()).clone();
             let r = strip_ownership(rhs_ty.clone()).clone();
+            // 定宽整数不做隐式提升/混合（需显式 as）
+            if l != r && (matches!(l, HirType::IntN { .. }) || matches!(r, HirType::IntN { .. })) {
+                return Err(Error::Hir(format!(
+                    "cannot implicitly convert `{}` to `{}` (at {}:{})",
+                    hir_type_display(&rhs_ty), hir_type_display(&lhs_ty),
+                    span.start_line, span.start_col
+                )));
+            }
             if l != r {
                 // 比较表达式在 HIR 中保留操作数类型，但语义上是 bool
                 let l_bool = l == HirType::Bool || hir_lhs.is_comparison();
@@ -42,11 +62,11 @@ impl crate::hir::lower::Ctx {
         let non_null_ty = if lhs_is_null { &rhs_ty } else { &lhs_ty };
         let is_null_ptr_cmp = (lhs_is_null || rhs_is_null)
             && is_pointer_type_for_cmp(non_null_ty)
-            && !matches!(strip_ownership(non_null_ty.clone()), HirType::Int | HirType::Float | HirType::Char | HirType::Bool);
+            && !matches!(strip_ownership(non_null_ty.clone()), HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
         // Try operator overloading first: look for a matching function
         // Primitive types use built-in operators, not overloading
         // Null-vs-pointer comparisons use built-in ptr comparison, not overloading
-        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool);
+        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
         if !is_primitive && !is_null_ptr_cmp {
             if let Some(op_fn_name) = binary_op_to_fn_name(op) {
                 let param_types = [lhs_ty.clone(), rhs_ty.clone()];
@@ -98,7 +118,7 @@ impl crate::hir::lower::Ctx {
         let arg_ty = expr_type(&hir_arg);
         let inner_ty = strip_ownership(arg_ty.clone());
         // Try operator overloading (skip for primitive types)
-        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool);
+        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
         if !is_primitive {
             if let Some(op_fn_name) = unary_op_to_fn_name(op) {
                 let param_types = [arg_ty.clone()];

@@ -156,6 +156,48 @@ impl crate::hir::lower::Ctx {
         false
     }
 
+    /// 重载解析（允许整数字面量适配任意整数形参；歧义返回 None）
+    pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId> {
+        let candidates = self.fn_map.get(name)?;
+        let mut found: Option<FnId> = None;
+        for &fn_id in candidates {
+            let sig = &self.fns[fn_id.0];
+            let visible = sig.params.len().saturating_sub(sig.hidden);
+            if visible != arg_types.len() { continue; }
+            let ok = sig.params.iter().take(visible).zip(arg_types).zip(lit_mask).all(|(((_, pt), at), is_lit)| {
+                self.param_compatible(pt, at) || (*is_lit && is_int_type(pt) && is_int_type(at))
+            });
+            if ok {
+                if found.is_some() { return None; }
+                found = Some(fn_id);
+            }
+        }
+        found
+    }
+
+    /// 方法重载解析（允许整数字面量适配任意整数形参；歧义返回 None）
+    pub(crate) fn resolve_method_literals(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId> {
+        let candidates = self.fn_map.get(method_name)?;
+        let mut found: Option<FnId> = None;
+        for &fn_id in candidates {
+            let sig = &self.fns[fn_id.0];
+            if sig.params.is_empty() { continue; }
+            if !Ctx::receiver_matches_param(receiver_type, &sig.params[0].1) { continue; }
+            let visible = sig.params.len().saturating_sub(sig.hidden);
+            if visible == 0 { continue; }
+            let remaining = &sig.params[1..visible];
+            if remaining.len() != arg_types.len() { continue; }
+            let ok = remaining.iter().zip(arg_types).zip(lit_mask).all(|(((_, pt), at), is_lit)| {
+                pt == at || (*is_lit && is_int_type(pt) && is_int_type(at))
+            });
+            if ok {
+                if found.is_some() { return None; }
+                found = Some(fn_id);
+            }
+        }
+        found
+    }
+
     pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId> {
         let candidates = self.fn_map.get(method_name)?;
         for &fn_id in candidates {

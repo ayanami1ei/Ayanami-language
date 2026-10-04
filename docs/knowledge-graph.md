@@ -15,6 +15,7 @@
 | `docs/annotations.md` | 标注系统（标注式编程）设计：A0–A5 路线 |
 | `docs/generic-monomorphization.md` | 泛型结构体/枚举单态化（最小实现完成） |
 | `docs/lifetimes.md` | 注解式生命周期 `#[follow_with]` 设计（A4） |
+| `docs/int-types.md` | 定宽整数类型（M1.1 核心完成）：集合/字面量适配/语义/实现位置 |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |
 
@@ -139,3 +140,4 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 包：`hir` —序列化→ `lir/serialize` —封装→ `package` —导入→ `compiler/import`
 - 工具链：`check_all` ⊃ `check_version` + `check_file_sizes` + `gen_symbols --check`
 - 标注：`#[...]` —校验→ `hir/attrs` —携带→ MIR/LIR(`LirAttr`/`ExternDecl`) —映射→ LLVM 属性（A1 函数级）—计划→ 效应（A3）/生命周期（A4）
+- 定宽整数：`i8..i128/u8..u128/isize/usize` —解析→ `fixed_width_int` —HIR→→ `HirType::IntN` —字面量适配→ `as_int_literal`/`retype_int_literal` —发射→ `iN` 算术/`icmp`（按 signed）

@@ -32,10 +32,12 @@ impl crate::hir::lower::Ctx {
             Some(types) => self.specialize_generic_call_with(name, &arg_types, Some(types), span).ok(),
             None => None,
         };
-        // Step 3: resolve overloaded function（先按原类型，再按解引用类型）
+        let lit_mask: Vec<bool> = hir_args.iter().map(|a| as_int_literal(a).is_some()).collect();
+        // Step 3: resolve overloaded function（原类型 → 字面量适配 → 解引用类型）
         let fn_id = match explicit_id {
             Some(fid) => fid,
             None => match self.resolve_fn_call(name, &arg_types)
+            .or_else(|| self.resolve_fn_call_literals(name, &arg_types, &lit_mask))
             .or_else(|| self.resolve_fn_call(name, &deref_arg_types))
         {
             Some(fid) => fid,
@@ -150,6 +152,9 @@ impl crate::hir::lower::Ctx {
             } else if matches!(arg_ty, HirType::Ref(..)) {
                 // 值形参 + 引用实参：自动解引用
                 wrap_arg_for_param(arg, &param_tys[i])
+            } else if matches!(param_tys[i], HirType::IntN { .. }) && arg_ty == HirType::Int && as_int_literal(&arg).is_some() {
+                // 整数字面量 → 定宽整数形参（值形参）
+                retype_int_literal(arg, &param_tys[i])
             } else if implicit_cast_ok(&arg_ty, &param_tys[i]) {
                 // 按值基元参数的隐式数值转换（char→int / int→float / char→float）
                 SCast { expr: arg, ty: strip_ownership_ref(&param_tys[i]).clone() }.into()

@@ -34,6 +34,8 @@ pub enum HirType {
     /// Reference: Ref(inner, mutable)
     Ref(Box<HirType>, bool),
     FnPtr(Vec<HirType>, Box<HirType>),
+    /// M1：定宽整数（i8..i128 / u8..u128 / isize / usize）
+    IntN { bits: u8, signed: bool },
 }
 
 impl HirType {
@@ -48,6 +50,7 @@ impl HirType {
                 | HirType::Void
                 | HirType::FnPtr(..)
                 | HirType::Ref(..)
+                | HirType::IntN { .. }
         )
     }
 }

@@ -107,6 +107,7 @@ pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
         HirType::Char => buf.push(2),
         HirType::Void => buf.push(3),
         HirType::Bool => buf.push(4),
+        HirType::IntN { bits, signed } => { buf.push(13); buf.push(*bits); buf.push(if *signed { 1 } else { 0 }); }
         HirType::Named(s) => { buf.push(5); put_str(buf, &s.as_str()); }
         HirType::Unique(inner) => { buf.push(6); put_type(buf, inner); }
         HirType::FatPtr { name, kind } => {

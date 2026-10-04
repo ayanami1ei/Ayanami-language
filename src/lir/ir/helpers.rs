@@ -27,6 +27,7 @@ pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
         HirType::Char => "1",
         HirType::Bool => "1",
         HirType::Void => "0",
+        HirType::IntN { bits, .. } => match bits { 8 => "1", 16 => "2", 32 => "4", 64 => "8", 128 => "16", _ => "8" },
         HirType::Named(_) | HirType::FatPtr { .. } => "16",
         HirType::Unique(inner) => llvm_type_size(inner),
         HirType::Array(_) | HirType::ArraySized(_, _) => "16",
@@ -46,6 +47,7 @@ pub(crate) fn elem_layout_size(
             HirType::Void => (0, 1),
             HirType::Char | HirType::Bool => (1, 1),
             HirType::Int | HirType::Float | HirType::Ref(_, _) | HirType::FnPtr(..) => (8, 8),
+            HirType::IntN { bits, .. } => { let sz = (*bits / 8) as u64; (sz, sz.min(16)) }
             HirType::FatPtr { .. } => (16, 8),
             HirType::Array(_) | HirType::ArraySized(_, _) => (8, 8),
             HirType::Unique(inner) => match &**inner {
