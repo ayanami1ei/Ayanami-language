@@ -58,6 +58,27 @@ impl<'a> Lexer<'a> {
         (s, is_float, start_line, start_col, start_byte)
     }
 
+    /// 解码一个转义序列（已消费 `\\`），返回对应字符
+    fn read_escape(&mut self) -> Option<char> {
+        let c = self.bump()?;
+        Some(match c {
+            'n' => '\n',
+            't' => '\t',
+            'r' => '\r',
+            '0' => '\0',
+            '\\' => '\\',
+            '\'' => '\'',
+            '"' => '"',
+            'x' => {
+                let h1 = self.bump().unwrap_or('0');
+                let h2 = self.bump().unwrap_or('0');
+                let hex = format!("{}{}", h1, h2);
+                u8::from_str_radix(&hex, 16).map(|b| b as char).unwrap_or('?')
+            }
+            other => other,
+        })
+    }
+
     pub(super) fn read_char_literal(&mut self) -> (String, usize, usize, usize) {
         let start_line = self.line;
         let start_col = self.col;
@@ -68,9 +89,9 @@ impl<'a> Lexer<'a> {
         while let Some(c) = self.peek() {
             match c {
                 '\\' => {
-                    s.push(self.bump().unwrap());
-                    if let Some(_n) = self.peek() {
-                        s.push(self.bump().unwrap());
+                    self.bump();
+                    if let Some(ch) = self.read_escape() {
+                        s.push(ch);
                     }
                 }
                 '\'' => {
@@ -94,9 +115,9 @@ impl<'a> Lexer<'a> {
         while let Some(c) = self.peek() {
             match c {
                 '\\' => {
-                    s.push(self.bump().unwrap());
-                    if let Some(_n) = self.peek() {
-                        s.push(self.bump().unwrap());
+                    self.bump();
+                    if let Some(ch) = self.read_escape() {
+                        s.push(ch);
                     }
                 }
                 '"' => {

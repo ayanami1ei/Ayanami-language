@@ -148,6 +148,11 @@ impl Parser {
                 Some(TokenKind::Operator(s)) if s == "#"
             );
             if !is_hash { break; }
+            // `#name(args)` 是函数宏调用（A5c-2），只有 `#[` 才是标注
+            let next_is_bracket = self.tokens.get(self.pos + 1)
+                .map(|t| matches!(t.kind, TokenKind::Delimiter(Delimiter::LBracket)))
+                .unwrap_or(false);
+            if !next_is_bracket { break; }
             let span = self.peek().map(|t| t.span()).unwrap_or_default();
             self.advance(); // '#'
             self.expect_delimiter(Delimiter::LBracket)?;

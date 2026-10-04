@@ -192,7 +192,23 @@ pub(super) fn write_literal(lit: &Literal) -> String {
             };
             format!("'{}'", s)
         }
-        Literal::String(s, _) => format!("\"{}\"", s),
+        Literal::String(s, _) => {
+            let mut out = String::from("\"");
+            for c in s.chars() {
+                match c {
+                    '\n' => out.push_str("\\n"),
+                    '\t' => out.push_str("\\t"),
+                    '\r' => out.push_str("\\r"),
+                    '\0' => out.push_str("\\0"),
+                    '\\' => out.push_str("\\\\"),
+                    '"' => out.push_str("\\\""),
+                    c if c.is_ascii_graphic() || c == ' ' => out.push(c),
+                    c => out.push_str(&format!("\\x{:02x}", c as u32)),
+                }
+            }
+            out.push('"');
+            out
+        }
         Literal::Bool(b, _) => b.to_string(),
     }
 }

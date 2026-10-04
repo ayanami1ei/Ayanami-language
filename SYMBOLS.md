@@ -8,7 +8,7 @@ src/cli/build.rs:3: pub(crate) fn cmd_build(args: &[String])
 src/cli/build.rs:24: pub(crate) fn cmd_run(args: &[String])
 src/cli/check.rs:3: fn do_check(path: &Path) -> ayanami::error::Result<()>
 src/cli/check.rs:14: pub(crate) fn cmd_check(args: &[String])
-src/cli/check.rs:33: fn watch_file(path: &Path)
+src/cli/check.rs:34: fn watch_file(path: &Path)
 src/cli/clean.rs:3: pub(crate) fn cmd_clean()
 src/cli/defs.rs:3: pub(crate) fn cmd_defs(args: &[String])
 src/cli/defs.rs:43: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
@@ -252,8 +252,8 @@ src/formatter/expr.rs:38: pub(super) fn write_expr(expr: &Expr) -> String
 src/formatter/expr.rs:42: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
 src/formatter/expr.rs:168: fn asm_constraint(c: &str) -> &str
 src/formatter/expr.rs:172: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:200: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:218: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:216: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:234: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
@@ -823,8 +823,9 @@ src/lexer/lexer/reading.rs:4: pub(super) fn is_ident_start(c: char) -> bool
 src/lexer/lexer/reading.rs:7: pub(super) fn is_ident_continue(c: char) -> bool
 src/lexer/lexer/reading.rs:11: pub(super) fn read_identifier_or_keyword(&mut self) -> (String, usize, usize, usize)
 src/lexer/lexer/reading.rs:31: pub(super) fn read_number(&mut self) -> (String, bool, usize, usize, usize)
-src/lexer/lexer/reading.rs:61: pub(super) fn read_char_literal(&mut self) -> (String, usize, usize, usize)
-src/lexer/lexer/reading.rs:88: pub(super) fn read_string_literal(&mut self) -> (String, usize, usize, usize)
+src/lexer/lexer/reading.rs:62: fn read_escape(&mut self) -> Option<char>
+src/lexer/lexer/reading.rs:82: pub(super) fn read_char_literal(&mut self) -> (String, usize, usize, usize)
+src/lexer/lexer/reading.rs:109: pub(super) fn read_string_literal(&mut self) -> (String, usize, usize, usize)
 src/lexer/mod.rs:8: pub mod delimiter;
 src/lexer/mod.rs:9: pub mod keyword;
 src/lexer/mod.rs:10: pub mod lexer;
@@ -1769,7 +1770,7 @@ src/parser/parser/core.rs:96: pub(super) fn parse_visibility(&mut self) -> Visib
 src/parser/parser/core.rs:117: pub(super) fn expect_identifier(&mut self) -> Result<String>
 src/parser/parser/core.rs:135: pub fn parse_program(&mut self) -> Result<Program>
 src/parser/parser/core.rs:143: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
-src/parser/parser/core.rs:195: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
+src/parser/parser/core.rs:200: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/decl.rs:80: pub(super) fn parse_return(&mut self) -> Result<Stmt>
@@ -1944,15 +1945,19 @@ std/src/mir.aya:142: pub fn op_is_lt(int op) -> bool { return op == 8 }
 std/src/mir.aya:143: pub fn op_is_gt(int op) -> bool { return op == 9 }
 std/src/mir.aya:148: pub fn is_int_literal(ref MirFunction f, int idx) -> bool
 std/src/mir.aya:154: pub fn folded_int(ref MirFunction f, int idx) -> int
-std/src/std.aya:9: pub interface Error
-std/src/std.aya:10: fn what(ref self) -> String;
-std/src/std.aya:13: pub enum Result[T, E]
-std/src/std.aya:18: pub enum Option[T]
-std/src/std.aya:23: impl[T] Option[T]
-std/src/std.aya:24: pub fn unwrap_or(self, T default) -> T
-std/src/std.aya:31: pub fn is_some(self) -> bool
-std/src/std.aya:36: impl[T, E] Result[T, E]
-std/src/std.aya:37: pub fn try_unwrap(self) -> T
+std/src/panic.aya:17: pub fn panic_at(int line, int col, String file, String msg) -> void
+std/src/panic.aya:24: pub fn panic_bounds_at(int line, int col, String file, int index, int len) -> void
+std/src/panic.aya:31: pub fn panic(String input, String msg, int __line, int __col, String __file) -> String
+std/src/panic.aya:38: pub fn panic_bounds(String input, String index, String len, int __line, int __col, String __file) -> String
+std/src/std.aya:10: pub interface Error
+std/src/std.aya:11: fn what(ref self) -> String;
+std/src/std.aya:14: pub enum Result[T, E]
+std/src/std.aya:19: pub enum Option[T]
+std/src/std.aya:24: impl[T] Option[T]
+std/src/std.aya:25: pub fn unwrap_or(self, T default) -> T
+std/src/std.aya:32: pub fn is_some(self) -> bool
+std/src/std.aya:37: impl[T, E] Result[T, E]
+std/src/std.aya:38: pub fn try_unwrap(self) -> T
 std/src/string.aya:3: pub fn char_code(char c) -> int
 std/src/string.aya:7: pub struct String
 std/src/string.aya:12: interface ToString
@@ -2277,6 +2282,7 @@ example/test_op_overload.aya:14: fn main() -> int
 example/test_overload.aya:1: fn main()->int
 example/test_overload.aya:5: fn add(int a, int b)->int
 example/test_overload.aya:9: fn add(float a, float b)->float
+example/test_panic.aya:3: fn main() -> int
 example/test_pass.aya:6: fn pure_add(int a, int b) -> int
 example/test_pass.aya:11: fn impure_len() -> int
 example/test_pass.aya:16: fn main() -> int

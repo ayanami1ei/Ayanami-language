@@ -1,6 +1,7 @@
 // Ayanami Standard Library
 import "io.aya";
 import "string.aya";
+import "panic.aya";
 import "math.aya";
 import "list.aya";
 import "linkedlist.aya";
