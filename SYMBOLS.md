@@ -244,9 +244,9 @@ src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter/expr.rs:3: pub(super) fn write_type(ty: &Type) -> String
 src/formatter/expr.rs:37: pub(super) fn write_expr(expr: &Expr) -> String
-src/formatter/expr.rs:140: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:160: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:178: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:142: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:162: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:180: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
