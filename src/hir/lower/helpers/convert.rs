@@ -5,6 +5,7 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
     match ty {
         HirType::Int => Type::Int(s),
         HirType::Float => Type::Float(s),
+        HirType::F32 => Type::Named(Symbol::intern("f32"), s),
         HirType::Char => Type::Char(s),
         HirType::Bool => Type::Bool(s),
         HirType::Void => Type::Void(s),

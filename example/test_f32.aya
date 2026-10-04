@@ -1,0 +1,34 @@
+// M1.4：f32 / f64（float）浮点类型
+fn addf(f32 a, f32 b) -> f32 { return a + b }
+fn take32(f32 x) -> f32 { return x }
+fn to64(f32 x) -> float { return x as float }
+fn to32(float x) -> f32 { return x as f32 }
+fn f2i(f32 x) -> int { return x as int }
+fn i2f(int x) -> f32 { return x as f32 }
+fn pi32() -> f32 { return 3.14 }
+
+struct P {
+    f32 x
+    float y
+}
+
+fn main() -> int {
+    if addf(1.5, 2.25) != 3.75 { return 1 }    // 浮点字面量适配 f32
+    if take32(1.0) != 1.0 { return 2 }
+    if to64(1.5) != 1.5 { return 3 }           // f32 → f64
+    if to32(1.5) != 1.5 { return 4 }           // f64 → f32
+    if f2i(3.9) != 3 { return 5 }              // f32 → int（截断）
+    if f2i(-1.5) != -1 { return 6 }
+    if i2f(2) != 2.0 { return 7 }              // int → f32
+    x = to32(2.5)
+    if x * x != 6.25 { return 8 }
+    if x + 0.5 != 3.0 { return 9 }
+    if !(x > 1.0) { return 10 }
+    if (2.5 as f32) as float != 2.5 { return 11 }
+    p = P { x = 1.5, y = 2.5 }
+    if p.x != 1.5 { return 12 }
+    if p.y != 2.5 { return 13 }
+    if addf(1.5, 2.25) as float != 3.75 { return 14 }
+    if pi32() != 3.14 { return 15 }             // 非精确常量（hex 位型）
+    return 0
+}

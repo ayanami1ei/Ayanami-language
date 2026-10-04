@@ -165,7 +165,8 @@ impl crate::hir::lower::Ctx {
             let visible = sig.params.len().saturating_sub(sig.hidden);
             if visible != arg_types.len() { continue; }
             let ok = sig.params.iter().take(visible).zip(arg_types).zip(lit_mask).all(|(((_, pt), at), is_lit)| {
-                self.param_compatible(pt, at) || (*is_lit && is_int_type(pt) && is_int_type(at))
+                self.param_compatible(pt, at)
+                    || (*is_lit && ((is_int_type(pt) && is_int_type(at)) || (is_float_type(pt) && is_float_type(at))))
             });
             if ok {
                 if found.is_some() { return None; }
@@ -188,7 +189,8 @@ impl crate::hir::lower::Ctx {
             let remaining = &sig.params[1..visible];
             if remaining.len() != arg_types.len() { continue; }
             let ok = remaining.iter().zip(arg_types).zip(lit_mask).all(|(((_, pt), at), is_lit)| {
-                pt == at || (*is_lit && is_int_type(pt) && is_int_type(at))
+                pt == at
+                    || (*is_lit && ((is_int_type(pt) && is_int_type(at)) || (is_float_type(pt) && is_float_type(at))))
             });
             if ok {
                 if found.is_some() { return None; }

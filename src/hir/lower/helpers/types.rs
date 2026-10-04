@@ -53,6 +53,8 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
         match s {
             "int" => HirType::Int,
             "float" => HirType::Float,
+            "f32" => HirType::F32,
+            "f64" => HirType::Float,
             "char" => HirType::Char,
             "bool" => HirType::Bool,
             "void" => HirType::Void,
@@ -96,6 +98,8 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
             let name = s.as_str();
             if name == "int" { HirType::Int }
             else if name == "float" { HirType::Float }
+            else if name == "f32" { HirType::F32 }
+            else if name == "f64" { HirType::Float }
             else if name == "char" { HirType::Char }
             else if name == "void" { HirType::Void }
             else if name == "bool" { HirType::Bool }
@@ -151,6 +155,7 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
     match ty {
         HirType::Int => "int".into(),
         HirType::Float => "float".into(),
+        HirType::F32 => "f32".into(),
         HirType::Char => "char".into(),
         HirType::Void => "void".into(),
         HirType::Bool => "bool".into(),

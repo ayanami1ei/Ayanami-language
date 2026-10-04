@@ -23,6 +23,7 @@ test_conv.aya 0
 test_eff_import.aya 0
 test_effects.aya 0
 test_ensures.aya 0
+test_f32.aya 0
 test_ffi_attrs.aya 0
 test_follow_with.aya 0
 test_generic_impl_multi.aya 0

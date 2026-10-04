@@ -104,6 +104,7 @@ pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
     match ty {
         HirType::Int => buf.push(0),
         HirType::Float => buf.push(1),
+        HirType::F32 => buf.push(14),
         HirType::Char => buf.push(2),
         HirType::Void => buf.push(3),
         HirType::Bool => buf.push(4),

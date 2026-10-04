@@ -22,7 +22,7 @@ impl LirNode for SLirConv {
                     _ => &self.ty,
                 };
                 let size = struct_llvm_size(inner_ty, &ctx.prog.struct_defs);
-                let src_ptr = if matches!(&self.src_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. }) {
+                let src_ptr = if matches!(&self.src_ty, HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. }) {
                     let src_llvm = ctx.llvm_type(&self.src_ty);
                     let alloca = format!("%t{}", self.alloca_tmp);
                     lines.push(format!("{} = alloca {}, align 8", alloca, src_llvm));
@@ -55,14 +55,23 @@ impl LirNode for SLirConv {
                     (Some(_), Some(_)) => {
                         lines.push(format!("%t{} = trunc {} {} to {}", self.dest, from, src_val, to));
                     }
-                    (Some((_, ss)), None) if matches!(self.ty, HirType::Float) => {
+                    (Some((_, ss)), None) if matches!(self.ty, HirType::Float | HirType::F32) => {
                         let op = if ss { "sitofp" } else { "uitofp" };
                         lines.push(format!("%t{} = {} {} {} to {}", self.dest, op, from, src_val, to));
                     }
-                    (None, Some((_, ds))) if matches!(self.src_ty, HirType::Float) => {
+                    (None, Some((_, ds))) if matches!(self.src_ty, HirType::Float | HirType::F32) => {
                         // Rust 语义：浮点 → 整数为饱和转换
                         let op = if ds { "fptosi.sat" } else { "fptoui.sat" };
                         lines.push(format!("%t{} = call {} @llvm.{}.{}.{}({} {})", self.dest, to, op, to, from, from, src_val));
+                    }
+                    (None, None) => {
+                        // float ↔ f32
+                        if from == to {
+                            lines.push(format!("%t{} = bitcast {} {} to {}", self.dest, from, src_val, to));
+                        } else {
+                            let op = if to == "float" { "fptrunc" } else { "fpext" };
+                            lines.push(format!("%t{} = {} {} {} to {}", self.dest, op, from, src_val, to));
+                        }
                     }
                     _ => {
                         lines.push(format!("%t{} = bitcast {} {} to {}", self.dest, from, src_val, to));

@@ -18,6 +18,12 @@ pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNode
             return retype_int_literal(arg, param_ty);
         }
     }
+    // 浮点字面量 → f32 形参（值形参）
+    if matches!(param_ty, HirType::F32) {
+        if arg.expr_type() == HirType::Float && as_float_literal(&arg).is_some() {
+            return retype_float_literal(arg, param_ty);
+        }
+    }
     // 值形参位置：`ref T` 自动解引用（引用形参保持原样）
     let arg = if !matches!(param_ty, HirType::Ref(..)) {
         let at = arg.expr_type();

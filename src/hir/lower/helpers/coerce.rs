@@ -38,6 +38,32 @@ pub(crate) fn as_int_literal(e: &HirNodeBox) -> Option<i64> {
     }
 }
 
+/// 浮点字面量节点？（SConst Float）
+pub(crate) fn as_float_literal(e: &HirNodeBox) -> Option<f64> {
+    match e.as_const() {
+        Some(HirLiteral::Float(n)) => Some(*n),
+        _ => e.as_neg_float_literal(),
+    }
+}
+
+/// 数值字面量（整数或浮点）
+pub(crate) fn is_numeric_literal(e: &HirNodeBox) -> bool {
+    as_int_literal(e).is_some() || as_float_literal(e).is_some()
+}
+
+/// 浮点类型（float / f32）
+pub(crate) fn is_float_type(ty: &HirType) -> bool {
+    matches!(strip_ownership_ref(ty), HirType::Float | HirType::F32)
+}
+
+/// 把浮点字面量重定型为目标类型（非字面量原样返回）
+pub(crate) fn retype_float_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox {
+    match as_float_literal(&expr) {
+        Some(n) => SConst { val: HirLiteral::Float(n), ty: strip_ownership_ref(target).clone() }.into(),
+        None => expr,
+    }
+}
+
 /// 整数类型（int 或定宽整数）
 pub(crate) fn is_int_type(ty: &HirType) -> bool {
     matches!(strip_ownership_ref(ty), HirType::Int | HirType::IntN { .. })
@@ -52,7 +78,7 @@ pub(crate) fn retype_int_literal(expr: HirNodeBox, target: &HirType) -> HirNodeB
 }
 
 fn is_primitive(ty: &HirType) -> bool {
-    matches!(ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. })
+    matches!(ty, HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. })
 }
 
 /// 按目标类型对表达式做隐式转换：
@@ -69,6 +95,12 @@ pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Re
     if let HirType::IntN { .. } = &tgt_inner {
         if src_inner == HirType::Int && as_int_literal(&expr).is_some() {
             return Ok(retype_int_literal(expr, &tgt_inner));
+        }
+    }
+    // 浮点字面量适配 f32（如 f(1.5) → f32 形参）
+    if matches!(tgt_inner, HirType::F32) {
+        if src_inner == HirType::Float && as_float_literal(&expr).is_some() {
+            return Ok(retype_float_literal(expr, &tgt_inner));
         }
     }
     if src_inner == tgt_inner {

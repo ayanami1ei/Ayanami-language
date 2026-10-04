@@ -67,6 +67,7 @@ impl LirEmitCtx<'_> {
         match ty {
             HirType::Int => "i64".into(),
             HirType::Float => "double".into(),
+            HirType::F32 => "float".into(),
             HirType::Char => "i8".into(),
             HirType::Bool => "i1".into(),
             HirType::Void => "void".into(),

@@ -19,12 +19,18 @@ impl crate::hir::lower::Ctx {
                 } else if matches!(r0, HirType::IntN { .. }) && l0 == HirType::Int && as_int_literal(&hir_lhs).is_some() {
                     hir_lhs = retype_int_literal(hir_lhs, &rhs_ty);
                     lhs_ty = rhs_ty.clone();
+                } else if matches!(l0, HirType::F32) && r0 == HirType::Float && as_float_literal(&hir_rhs).is_some() {
+                    hir_rhs = retype_float_literal(hir_rhs, &lhs_ty);
+                    rhs_ty = lhs_ty.clone();
+                } else if matches!(r0, HirType::F32) && l0 == HirType::Float && as_float_literal(&hir_lhs).is_some() {
+                    hir_lhs = retype_float_literal(hir_lhs, &rhs_ty);
+                    lhs_ty = rhs_ty.clone();
                 }
             }
             let l = strip_ownership(lhs_ty.clone()).clone();
             let r = strip_ownership(rhs_ty.clone()).clone();
             // 定宽整数不做隐式提升/混合（需显式 as）
-            if l != r && (matches!(l, HirType::IntN { .. }) || matches!(r, HirType::IntN { .. })) {
+            if l != r && (matches!(l, HirType::IntN { .. } | HirType::F32) || matches!(r, HirType::IntN { .. } | HirType::F32)) {
                 return Err(Error::Hir(format!(
                     "cannot implicitly convert `{}` to `{}` (at {}:{})",
                     hir_type_display(&rhs_ty), hir_type_display(&lhs_ty),
@@ -76,11 +82,11 @@ impl crate::hir::lower::Ctx {
         let non_null_ty = if lhs_is_null { &rhs_ty } else { &lhs_ty };
         let is_null_ptr_cmp = (lhs_is_null || rhs_is_null)
             && is_pointer_type_for_cmp(non_null_ty)
-            && !matches!(strip_ownership(non_null_ty.clone()), HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
+            && !matches!(strip_ownership(non_null_ty.clone()), HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
         // Try operator overloading first: look for a matching function
         // Primitive types use built-in operators, not overloading
         // Null-vs-pointer comparisons use built-in ptr comparison, not overloading
-        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
+        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
         if !is_primitive && !is_null_ptr_cmp {
             if let Some(op_fn_name) = binary_op_to_fn_name(op) {
                 let param_types = [lhs_ty.clone(), rhs_ty.clone()];
@@ -157,7 +163,7 @@ impl crate::hir::lower::Ctx {
             )));
         }
         // Try operator overloading (skip for primitive types)
-        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
+        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
         if !is_primitive {
             if let Some(op_fn_name) = unary_op_to_fn_name(op) {
                 let param_types = [arg_ty.clone()];

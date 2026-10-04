@@ -10,6 +10,16 @@ pub(crate) fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {
         (HirLiteral::Int(0), ty) if is_pointer_type(ty) && !matches!(ty, HirType::Named(_)) => "null".into(),
         (HirLiteral::Int(0), HirType::Named(_)) => "zeroinitializer".into(),
         (HirLiteral::Int(n), _) => format!("{}", n),
+        (HirLiteral::Float(n), HirType::F32) => {
+            let f = *n as f32;
+            let s = format!("{}", f);
+            // LLVM 对 float 十进制常量要求精确表示；否则用 16 位十六进制（double 位型，可精确转回）
+            if s.parse::<f64>().map(|v| v == f as f64).unwrap_or(false) {
+                if s.contains('.') { s } else { format!("{}.0", s) }
+            } else {
+                format!("0x{:016X}", (f as f64).to_bits())
+            }
+        }
         (HirLiteral::Float(n), _) => {
             let s = format!("{}", n);
             if !s.contains('.') { format!("{}.0", s) } else { s }
@@ -18,6 +28,26 @@ pub(crate) fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {
         (HirLiteral::Bool(b), _) => if *b { "1".into() } else { "0".into() },
         (HirLiteral::String(_), _) => "null".into(),
     }
+}
+
+/// 浮点二元运算指令（fadd/fsub/fmul/fdiv/frem）
+pub(crate) fn float_binop(op: BinaryOp, ty: &HirType, dest: u64, l: &str, r: &str) -> String {
+    let t = if matches!(ty, HirType::F32) { "float" } else { "double" };
+    let inst = match op {
+        BinaryOp::Add => "fadd", BinaryOp::Sub => "fsub", BinaryOp::Mul => "fmul",
+        BinaryOp::Div => "fdiv", _ => "frem",
+    };
+    format!("%t{} = {} {} {}, {}", dest, inst, t, l, r)
+}
+
+/// 浮点比较指令（fcmp）
+pub(crate) fn float_cmp(op: BinaryOp, ty: &HirType, dest: u64, l: &str, r: &str) -> String {
+    let t = if matches!(ty, HirType::F32) { "float" } else { "double" };
+    let pred = match op {
+        BinaryOp::Eq => "oeq", BinaryOp::Neq => "one", BinaryOp::Lt => "olt",
+        BinaryOp::Gt => "ogt", BinaryOp::Le => "ole", _ => "oge",
+    };
+    format!("%t{} = fcmp {} {} {}, {}", dest, pred, t, l, r)
 }
 
 /// 整数类类型 → (位宽, 是否有符号)；非整数返回 None
@@ -35,6 +65,7 @@ pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
     match ty {
         HirType::Int => "8",
         HirType::Float => "8",
+        HirType::F32 => "4",
         HirType::Char => "1",
         HirType::Bool => "1",
         HirType::Void => "0",
@@ -58,6 +89,7 @@ pub(crate) fn elem_layout_size(
             HirType::Void => (0, 1),
             HirType::Char | HirType::Bool => (1, 1),
             HirType::Int | HirType::Float | HirType::Ref(_, _) | HirType::FnPtr(..) => (8, 8),
+            HirType::F32 => (4, 4),
             HirType::IntN { bits, .. } => { let sz = (*bits / 8) as u64; (sz, sz.min(16)) }
             HirType::FatPtr { .. } => (16, 8),
             HirType::Array(_) | HirType::ArraySized(_, _) => (8, 8),

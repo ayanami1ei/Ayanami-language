@@ -6,7 +6,7 @@ impl crate::hir::lower::Ctx {
         let expr = auto_deref(self.lower_expr(inner)?);
         let src = strip_ownership(expr_type(&expr));
         let target = ast_type_to_hir(ty, &self.interfaces);
-        let is_prim = |t: &HirType| matches!(t, HirType::Int | HirType::IntN { .. } | HirType::Char | HirType::Bool | HirType::Float);
+        let is_prim = |t: &HirType| matches!(t, HirType::Int | HirType::IntN { .. } | HirType::Char | HirType::Bool | HirType::Float | HirType::F32);
         if !is_prim(&src) || !is_prim(&target) {
             return Err(Error::Hir(format!(
                 "non-primitive cast: `{}` as `{}` (at {}:{})",

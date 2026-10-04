@@ -19,6 +19,8 @@ pub struct FnId(pub usize);
 pub enum HirType {
     Int,
     Float,
+    /// M1.4：32 位浮点（`f32`）；`float` / `f64` 为 `Float`
+    F32,
     Char,
     Void,
     Bool,
@@ -45,6 +47,7 @@ impl HirType {
             self,
             HirType::Int
                 | HirType::Float
+                | HirType::F32
                 | HirType::Char
                 | HirType::Bool
                 | HirType::Void

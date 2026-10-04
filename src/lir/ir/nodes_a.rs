@@ -92,11 +92,9 @@ impl LirNode for SLirBinOp {
             (BinaryOp::Mul, HirType::Int) => vec![format!("%t{} = mul i64 {}, {}", self.dest, l, r)],
             (BinaryOp::Div, HirType::Int) => vec![format!("%t{} = sdiv i64 {}, {}", self.dest, l, r)],
             (BinaryOp::Mod, HirType::Int) => vec![format!("%t{} = srem i64 {}, {}", self.dest, l, r)],
-            (BinaryOp::Add, HirType::Float) => vec![format!("%t{} = fadd double {}, {}", self.dest, l, r)],
-            (BinaryOp::Sub, HirType::Float) => vec![format!("%t{} = fsub double {}, {}", self.dest, l, r)],
-            (BinaryOp::Mul, HirType::Float) => vec![format!("%t{} = fmul double {}, {}", self.dest, l, r)],
-            (BinaryOp::Div, HirType::Float) => vec![format!("%t{} = fdiv double {}, {}", self.dest, l, r)],
-            (BinaryOp::Mod, HirType::Float) => vec![format!("%t{} = frem double {}, {}", self.dest, l, r)],
+            (BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod, HirType::Float | HirType::F32) => {
+                vec![float_binop(self.op, &self.ty, self.dest, &l, &r)]
+            }
             (BinaryOp::Add, HirType::Char) => vec![format!("%t{} = add i8 {}, {}", self.dest, l, r)],
             (BinaryOp::Sub, HirType::Char) => vec![format!("%t{} = sub i8 {}, {}", self.dest, l, r)],
             (BinaryOp::Add, HirType::IntN { bits, .. }) => vec![format!("%t{} = add i{} {}, {}", self.dest, bits, l, r)],
@@ -126,42 +124,39 @@ impl LirNode for SLirBinOp {
                 let op = if unsigned { "lshr" } else { "ashr" };
                 vec![format!("%t{} = {} {} {}, {}", self.dest, op, w, l, r)]
             }
-            (BinaryOp::Eq, _) if self.ty != HirType::Float => {
+            (BinaryOp::Eq, _) if !matches!(self.ty, HirType::Float | HirType::F32) => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp eq ptr {}, {}", self.dest, l, r)] }
                 else { vec![format!("%t{} = icmp eq {} {}, {}", self.dest, llvm_int, l, r)] }
             }
-            (BinaryOp::Neq, _) if self.ty != HirType::Float => {
+            (BinaryOp::Neq, _) if !matches!(self.ty, HirType::Float | HirType::F32) => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp ne ptr {}, {}", self.dest, l, r)] }
                 else { vec![format!("%t{} = icmp ne {} {}, {}", self.dest, llvm_int, l, r)] }
             }
-            (BinaryOp::Lt, _) if self.ty != HirType::Float => {
+            (BinaryOp::Lt, _) if !matches!(self.ty, HirType::Float | HirType::F32) => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp ult ptr {}, {}", self.dest, l, r)] }
                 else { let p = if unsigned { "ult" } else { "slt" }; vec![format!("%t{} = icmp {} {} {}, {}", self.dest, p, llvm_int, l, r)] }
             }
-            (BinaryOp::Gt, _) if self.ty != HirType::Float => {
+            (BinaryOp::Gt, _) if !matches!(self.ty, HirType::Float | HirType::F32) => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp ugt ptr {}, {}", self.dest, l, r)] }
                 else { let p = if unsigned { "ugt" } else { "sgt" }; vec![format!("%t{} = icmp {} {} {}, {}", self.dest, p, llvm_int, l, r)] }
             }
-            (BinaryOp::Le, _) if self.ty != HirType::Float => {
+            (BinaryOp::Le, _) if !matches!(self.ty, HirType::Float | HirType::F32) => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp ule ptr {}, {}", self.dest, l, r)] }
                 else { let p = if unsigned { "ule" } else { "sle" }; vec![format!("%t{} = icmp {} {} {}, {}", self.dest, p, llvm_int, l, r)] }
             }
-            (BinaryOp::Ge, _) if self.ty != HirType::Float => {
+            (BinaryOp::Ge, _) if !matches!(self.ty, HirType::Float | HirType::F32) => {
                 let llvm_int = icmp_llvm(&self.ty);
                 if is_ptr { vec![format!("%t{} = icmp uge ptr {}, {}", self.dest, l, r)] }
                 else { let p = if unsigned { "uge" } else { "sge" }; vec![format!("%t{} = icmp {} {} {}, {}", self.dest, p, llvm_int, l, r)] }
             }
-            (BinaryOp::Eq, HirType::Float) => vec![format!("%t{} = fcmp oeq double {}, {}", self.dest, l, r)],
-            (BinaryOp::Neq, HirType::Float) => vec![format!("%t{} = fcmp one double {}, {}", self.dest, l, r)],
-            (BinaryOp::Lt, HirType::Float) => vec![format!("%t{} = fcmp olt double {}, {}", self.dest, l, r)],
-            (BinaryOp::Gt, HirType::Float) => vec![format!("%t{} = fcmp ogt double {}, {}", self.dest, l, r)],
-            (BinaryOp::Le, HirType::Float) => vec![format!("%t{} = fcmp ole double {}, {}", self.dest, l, r)],
-            (BinaryOp::Ge, HirType::Float) => vec![format!("%t{} = fcmp oge double {}, {}", self.dest, l, r)],
+            (BinaryOp::Eq | BinaryOp::Neq | BinaryOp::Lt | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Ge, HirType::Float | HirType::F32) => {
+                vec![float_cmp(self.op, &self.ty, self.dest, &l, &r)]
+            }
             (BinaryOp::And, _) => vec![format!("%t{} = and i1 {}, {}", self.dest, l, r)],
             (BinaryOp::Or, _) => vec![format!("%t{} = or i1 {}, {}", self.dest, l, r)],
             _ => vec![],
@@ -190,7 +185,10 @@ impl LirNode for SLirUnaryOp {
         match (&self.op, &self.ty) {
             (UnaryOp::Neg, HirType::Int) => vec![format!("%t{} = sub i64 0, {}", self.dest, s)],
             (UnaryOp::Neg, HirType::IntN { bits, .. }) => vec![format!("%t{} = sub i{} 0, {}", self.dest, bits, s)],
-            (UnaryOp::Neg, HirType::Float) => vec![format!("%t{} = fsub double -0.0, {}", self.dest, s)],
+            (UnaryOp::Neg, HirType::Float | HirType::F32) => {
+                let ft = ctx.llvm_type(&self.ty);
+                vec![format!("%t{} = fsub {} -0.0, {}", self.dest, ft, s)]
+            }
             (UnaryOp::Not, _) => vec![format!("%t{} = xor i1 1, {}", self.dest, s)],
             (UnaryOp::BitNot, HirType::Int) => vec![format!("%t{} = xor i64 -1, {}", self.dest, s)],
             (UnaryOp::BitNot, HirType::Char) => vec![format!("%t{} = xor i8 -1, {}", self.dest, s)],
