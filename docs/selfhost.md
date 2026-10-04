@@ -138,3 +138,25 @@ selfhost/
 - **Rust→Ayanami 语义差异**：迭代器链、trait 对象、闭包、`match` 守卫改写量大，属机械但量大 → 差分测试。
 - **对端 rust 漂移**：频繁合并；冲突集中在 `docs/`、脚本与测试目录。
 - **本地模型上限**：单文件规格 + 一shot 生成；复杂类型系统模块（借用检查/单态化）由主代理设计并复核。
+
+## 9. 实现状态
+
+| 里程碑 | 状态 | 提交 |
+|---|---|---|
+| M0 | ✅ 完成 | `f7d0b58` |
+| M1 | ✅ 完成 | `42a10da` |
+| M2 | ⏳ 进行中 | Lexer |
+
+M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf）、`base/map.aya`（IntMap[V] 开放寻址）、
+`base/intern.aya`（驻留，内联槽位表）、`base/sys.aya`（argv/env/system）、`base/log.aya`（stderr 诊断）；
+全部 pub 函数带 effect 标注（构建零 warning）；8 个 `tests/base*_test.aya` 在 stage-0 全过。
+
+过程中发现并提交的编译器缺陷（均附最小复现，见 GitHub issues）：
+
+| Issue | 现象 | 自举绕过 |
+|---|---|---|
+| #72 | 泛型 impl 方法体错误被吞，报「类型没有该方法」 | 遇到时检查该 impl 全部方法体 |
+| #73 | lcl 函数调用不消耗 owned 数组实参，`String::new` 悬空 | StringBuf.to_string 内联 forget 模式 |
+| #74 | 多源文件各自 import std 破坏泛型方法解析 | base 模块不 import std，边界用自有结构体 |
+| #89 | 括号表达式：if/return 解析报错；跨模块泛型方法优先级丢失 | 拆临时变量，避免 if/return 括号表达式 |
+| #91 | 嵌套结构体字段的 ref mut 变更丢失 | 槽位表内联成数组字段，不用结构体字段做可变容器 |
