@@ -8,6 +8,8 @@ Syntax highlighting and basic language support for `.aya` files.
 - **Annotation highlighting** for `#[...]`（如 `#[inline]`、`#[io]`、`#[follow_with(x)]`、`#[throws(E)]`）
 - **Annotation completion**：输入 `#[` 后建议内置标注（优化/效应/契约/生命周期/宏）
 - Keyword/type/field/method completion（含跨文件 `import` 解析）
+- **Hover**：函数完整签名（含返回类型/泛型/文档注释/标注）、结构体字段与类型、枚举变体、变量类型；标准库从 `.lcl` 符号表解析
+- **诊断**：编译器 `check` 输出解析到精确行列（支持 `at l:c`、`(at l:c)`、`--> file:l:c` 与跨文件错误定位）
 - Comment toggling (`//` and `/* */`)
 - Bracket matching and auto-closing pairs
 - Format command：`Ayanami: Format Code`（Shift+Alt+F）

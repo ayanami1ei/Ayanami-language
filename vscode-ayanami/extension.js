@@ -1,4 +1,35 @@
 const vscode = require('vscode');
+const { parseCompilerOutput } = require('./diagnostics');
+const symbols = require('./symbols');
+
+const KEYWORD_DOCS = {
+            'fn': '**fn** — function declaration\n\n`fn name(params) -> ReturnType { body }`',
+            'return': '**return** — return from function\n\n`return expr;`',
+            'if': '**if** — conditional\n\n`if cond { ... } elif cond { ... } else { ... }`',
+            'elif': '**elif** — else if\n\n`if c1 { ... } elif c2 { ... } else { ... }`',
+            'else': '**else** — else branch',
+            'for': '**for** — for loop\n\n`for var in (start, end) { ... }`\n`for var in (start, end, step) { ... }`',
+            'while': '**while** — while loop\n\n`while cond { ... }`',
+            'struct': '**struct** — struct definition\n\n`struct Name { type field }`',
+            'interface': '**interface** — interface definition\n\n`interface Name { fn method(shared self) -> Ret; }`',
+            'impl': '**impl** — impl block\n\n`impl Type { fn method(...) { ... } }`',
+            'import': '**import** — import module\n\n`import "path"`',
+            'namespace': '**namespace** — namespace\n\n`namespace name { fn ... }` — accessed via `name::fn()`',
+            'shared': '**shared** — shared ownership (refcounted heap)\n\n`shared T` — multiple references, runtime refcounting',
+            'weak': '**weak** — weak reference (non-owning)\n\n`weak T` — does not affect refcount, must be promoted',
+            'move': '**move** — transfer ownership\n\n`move x` — consumes the value, `x` becomes unavailable',
+            'clone': '**clone** — deep copy\n\n`clone x` — creates an independent copy',
+            'int': '**int** — 64-bit signed integer',
+            'float': '**float** — 64-bit floating point',
+            'char': '**char** — single character (8-bit)',
+            'bool': '**bool** — boolean (true/false)',
+            'void': '**void** — no return value',
+            'self': '**self** — the receiver of a method call\n\nAvailable in method bodies within `impl` blocks.',
+            'true': '**true** — boolean literal',
+            'false': '**false** — boolean literal',
+            'pub': '**pub** — make item visible outside the module',
+            'null': '**null** — nullable pointer value\n\n拥有指针可为 null，用 `== null` 比较。',
+        };
 
 function activate(context) {
     // ─── Output Channel ───────────────────────────────────────────────
@@ -277,73 +308,66 @@ function activate(context) {
     // ─── Hover Provider ──────────────────────────────────────────────
     const hoverProvider = vscode.languages.registerHoverProvider('ayanami', {
         provideHover(document, position) {
-            const range = document.getWordRangeAtPosition(position, /[\w.]+/);
-            if (!range) return null;
-            const word = document.getText(range);
+            try {
+                const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_]*/);
+                if (!range) return null;
+                const word = document.getText(range);
+                const path = require('path');
 
-            const folder = document.uri.scheme === 'file' ? require('path').dirname(document.uri.fsPath) : null;
-            const imported = folder ? resolveImports(document, folder) : { structs: [], namespaces: [], functions: [] };
-            const localStructs = scanStructs(document);
-            const localFns = scanFunctions(document);
-            const structs = [...localStructs, ...imported.structs];
-            const functions = [...localFns, ...imported.functions];
+                if (KEYWORD_DOCS[word]) {
+                    return new vscode.Hover(new vscode.MarkdownString(KEYWORD_DOCS[word]), range);
+                }
 
-            // Check if it's a struct name
-            for (const s of structs) {
-                if (s.name === word) {
-                    const fields = getStructFields(document, word);
-                    let md = `**struct \`${word}\`**  \n`;
-                    if (fields.length > 0) {
-                        md += '---\n\n';
-                        for (const f of fields) {
-                            md += `- \`${f}\`\n`;
-                        }
+                const filePath = document.uri.scheme === 'file' ? document.uri.fsPath : '';
+                const folder = filePath ? path.dirname(filePath) : null;
+                const ayanamiPath = findAyanamiPath(context);
+                const compilerDir = ayanamiPath ? path.dirname(ayanamiPath) : null;
+                const workspaceFolders = (vscode.workspace.workspaceFolders || []).map(w => w.uri.fsPath);
+                const syms = symbols.collectSymbols(document.getText(), filePath, { compilerDir, workspaceFolders });
+
+                const fn = syms.functions.find(f => f.name === word);
+                if (fn) {
+                    let md = `**fn** \`${fn.sig}\``;
+                    if (fn.attrs && fn.attrs.length) md += `\n\n${fn.attrs.map(a => '`#' + a + '`').join(' ')}`;
+                    if (fn.doc) md += `\n\n---\n\n${fn.doc}`;
+                    if (fn.file) md += `\n\n*${symbols.shortPath(fn.file, folder)}:${fn.line}*`;
+                    return new vscode.Hover(new vscode.MarkdownString(md), range);
+                }
+
+                const st = syms.structs.find(s => s.name === word);
+                if (st) {
+                    let md = `**struct** \`${st.name}\``;
+                    if (st.fields && st.fields.length) {
+                        md += '\n\n---\n\n';
+                        for (const f of st.fields) md += `- \`${f.type} ${f.name}\`\n`;
                     }
-                    return new vscode.Hover(new vscode.MarkdownString(md));
+                    if (st.file) md += `\n*${symbols.shortPath(st.file, folder)}:${st.line}*`;
+                    return new vscode.Hover(new vscode.MarkdownString(md), range);
                 }
-            }
 
-            // Check if it's a function name
-            for (const f of functions) {
-                if (f === word) {
-                    return new vscode.Hover(new vscode.MarkdownString(`**fn \`${word}\`**`));
+                const en = syms.enums.find(e => e.name === word);
+                if (en) {
+                    let md = `**enum** \`${en.name}\``;
+                    if (en.variants && en.variants.length) md += `\n\n变体：${en.variants.map(v => '`' + v + '`').join(', ')}`;
+                    return new vscode.Hover(new vscode.MarkdownString(md), range);
                 }
-            }
 
-            // Check for keywords
-            const keywordDocs = {
-                'fn': '**fn** — function declaration\n\n`fn name(params) -> ReturnType { body }`',
-                'return': '**return** — return from function\n\n`return expr;`',
-                'if': '**if** — conditional\n\n`if cond { ... } elif cond { ... } else { ... }`',
-                'elif': '**elif** — else if\n\n`if c1 { ... } elif c2 { ... } else { ... }`',
-                'else': '**else** — else branch',
-                'for': '**for** — for loop\n\n`for var in (start, end) { ... }`\n`for var in (start, end, step) { ... }`',
-                'while': '**while** — while loop\n\n`while cond { ... }`',
-                'struct': '**struct** — struct definition\n\n`struct Name { type field }`',
-                'interface': '**interface** — interface definition\n\n`interface Name { fn method(shared self) -> Ret; }`',
-                'impl': '**impl** — impl block\n\n`impl Type { fn method(...) { ... } }`',
-                'import': '**import** — import module\n\n`import "path"`',
-                'namespace': '**namespace** — namespace\n\n`namespace name { fn ... }` — accessed via `name::fn()`',
-                'shared': '**shared** — shared ownership (refcounted heap)\n\n`shared T` — multiple references, runtime refcounting',
-                'weak': '**weak** — weak reference (non-owning)\n\n`weak T` — does not affect refcount, must be promoted',
-                'move': '**move** — transfer ownership\n\n`move x` — consumes the value, `x` becomes unavailable',
-                'clone': '**clone** — deep copy\n\n`clone x` — creates an independent copy',
-                'int': '**int** — 64-bit signed integer',
-                'float': '**float** — 64-bit floating point',
-                'char': '**char** — single character (8-bit)',
-                'bool': '**bool** — boolean (true/false)',
-                'void': '**void** — no return value',
-                'self': '**self** — the receiver of a method call\n\nAvailable in method bodies within `impl` blocks.',
-                'true': '**true** — boolean literal',
-                'false': '**false** — boolean literal',
-                'pub': '**pub** — make item visible outside the module',
-                'null': '**null** — nullable pointer value\n\n拥有指针可为 null，用 `== null` 比较。',
-            };
-            if (keywordDocs[word]) {
-                return new vscode.Hover(new vscode.MarkdownString(keywordDocs[word]));
-            }
+                for (const s of syms.structs) {
+                    const f = (s.fields || []).find(x => x.name === word);
+                    if (f) {
+                        return new vscode.Hover(new vscode.MarkdownString(`**field** \`${s.name}.${f.name}: ${f.type}\``), range);
+                    }
+                }
 
-            return null;
+                const vt = scanVariableTypes(document).get(word);
+                if (vt) {
+                    return new vscode.Hover(new vscode.MarkdownString(`**变量** \`${word}: ${vt}\``), range);
+                }
+
+                return null;
+            } catch (e) {
+                return null;
+            }
         }
     });
     context.subscriptions.push(hoverProvider);
@@ -478,68 +502,28 @@ function activate(context) {
             }
 
             if (out) {
-                let pending = null; // { message, severity, line, col }
-                const pushDiag = (l, c, message, severity) => {
-                    const start = new vscode.Position(Math.max(0, l), Math.max(0, c));
-                    diagnostics.push(new vscode.Diagnostic(
-                        new vscode.Range(start, new vscode.Position(start.line, start.character + 1)),
-                        message, severity));
-                };
-                for (const raw of out.split('\n')) {
-                    const t = raw.trim();
-                    if (!t || t.startsWith('stage') || t.startsWith('check passed') || t.startsWith('building') || t.startsWith('build ok')) continue;
-                    // 源码片段装饰行（| / N | / ^）
-                    if (/^\|/.test(t) || /^\d+\s*\|/.test(t) || /^\^+\s*$/.test(t)) continue;
-
-                    // 位置行：--> file:line:col
-                    const loc = t.match(/^-->\s*(.+?):(\d+):(\d+)\s*$/);
-                    if (loc) {
-                        if (pending) {
-                            pushDiag(parseInt(loc[2]) - 1, parseInt(loc[3]) - 1, pending.message, pending.severity);
-                            pending = null;
-                        }
-                        continue;
+                const parsed = parseCompilerOutput(out, filePath, projectRoot);
+                const byFile = new Map();
+                for (const d of parsed) {
+                    const f = d.file || filePath;
+                    let line = Math.max(0, (d.line || 1) - 1);
+                    let col = Math.max(0, (d.col || 1) - 1);
+                    if (f === filePath) {
+                        line = Math.min(line, Math.max(0, doc.lineCount - 1));
+                        const lineText = doc.lineAt(line).text;
+                        col = Math.min(col, lineText.length);
                     }
-
-                    // warning:/error: 前缀（可能带 (at line:col)）
-                    const w = t.match(/^(warning|error):\s*(.+)$/);
-                    if (w) {
-                        let message = w[2];
-                        let line = 0, col = 0;
-                        const at = message.match(/^(.*?)\s*\(at (\d+):(\d+)\)\s*$/);
-                        if (at) { message = at[1]; line = parseInt(at[2]) - 1; col = parseInt(at[3]) - 1; }
-                        pending = {
-                            message,
-                            severity: w[1] === 'warning' ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error,
-                            line, col,
-                        };
-                        continue;
-                    }
-
-                    // file:line:col: message
-                    const cl = t.match(/^([^:]+):(\d+):(\d+):\s*(.+)/);
-                    if (cl) {
-                        pushDiag(parseInt(cl[2]) - 1, 0, cl[4], vscode.DiagnosticSeverity.Error);
-                        continue;
-                    }
-
-                    // ... (at line:col)
-                    const at = t.match(/at (\d+):(\d+)\)?$/);
-                    if (at) {
-                        const msg = t.replace(/\s*\(?at \d+:\d+\)?\s*$/, '').replace(/^[^:]+:\s*/, '');
-                        pushDiag(parseInt(at[1]) - 1, 0, msg, vscode.DiagnosticSeverity.Error);
-                        continue;
-                    }
-
-                    // 命令级失败摘要：按错误挂到文件头，不误报为源码错误
-                    if (/^(check|build|run|package|install) failed/.test(t)) {
-                        pending = { message: t, severity: vscode.DiagnosticSeverity.Error, line: 0, col: 0 };
-                        continue;
-                    }
-                    pending = { message: t, severity: vscode.DiagnosticSeverity.Warning, line: 0, col: 0 };
+                    const range = new vscode.Range(line, col, line, col + 1);
+                    const sev = d.severity === 1 ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error;
+                    if (!byFile.has(f)) byFile.set(f, []);
+                    byFile.get(f).push(new vscode.Diagnostic(range, d.message, sev));
                 }
-                if (pending) {
-                    pushDiag(pending.line, pending.col, pending.message, pending.severity);
+                for (const [f, list] of byFile) {
+                    if (f === filePath) {
+                        diagnostics.push(...list);
+                    } else {
+                        collection.set(vscode.Uri.file(f), list);
+                    }
                 }
             }
 
