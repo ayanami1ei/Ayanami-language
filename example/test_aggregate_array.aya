@@ -1,0 +1,31 @@
+// 聚合元素数组：结构体/枚举作为数组与 ArrayList 元素时按 LLVM 布局分配
+import "arraylist";
+import "string";
+
+struct Point {
+    int x
+    int y
+    int z
+}
+
+enum E {
+    A(int),
+    B(char),
+    C(String),
+}
+
+fn main() -> int {
+    pts = [Point { x = 1, y = 2, z = 3 }, Point { x = 4, y = 5, z = 6 }]
+    if pts[0].z != 3 { return 1 }
+    if pts[1].x != 4 { return 2 }
+
+    list = ArrayList[E] { data = null, len = 0, capability = 0 }
+    list.push(E::A(7))
+    list.push(E::C("hi"))
+    if list.len() != 2 { return 3 }
+    if list.index(0)._tag != 0 { return 4 }
+    if list.index(1)._tag != 2 { return 5 }
+    if list.index(1)._data_C._0 != "hi" { return 6 }
+
+    return 0;
+}

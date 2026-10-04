@@ -853,10 +853,12 @@ src/lir/emit/vtable.rs:87: pub(super) fn emit_vtable_wrappers(&mut self)
 src/lir/ir/helpers.rs:3: pub fn sanitize_name(name: &str) -> String
 src/lir/ir/helpers.rs:8: pub(crate) fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String
 src/lir/ir/helpers.rs:23: pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str
-src/lir/ir/helpers.rs:39: pub(crate) fn struct_llvm_size(ty: &HirType, struct_defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> String
-src/lir/ir/helpers.rs:57: pub(super) fn is_pointer_type(ty: &HirType) -> bool
-src/lir/ir/helpers.rs:70: pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
-src/lir/ir/helpers.rs:83: pub(super) fn emit_drop_value(
+src/lir/ir/helpers.rs:40: pub(crate) fn elem_layout_size(
+src/lir/ir/helpers.rs:44: fn layout(ty: &HirType, defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> (u64, u64)
+src/lir/ir/helpers.rs:81: pub(crate) fn struct_llvm_size(ty: &HirType, struct_defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> String
+src/lir/ir/helpers.rs:99: pub(super) fn is_pointer_type(ty: &HirType) -> bool
+src/lir/ir/helpers.rs:112: pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
+src/lir/ir/helpers.rs:125: pub(super) fn emit_drop_value(
 src/lir/ir/mod.rs:12: pub struct IrNode
 src/lir/ir/mod.rs:18: pub enum IrValue
 src/lir/ir/mod.rs:27: impl IrNode
@@ -1026,43 +1028,43 @@ src/lir/ir/nodes_c.rs:56: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(se
 src/lir/ir/nodes_c.rs:57: fn kind(&self) -> &'static str { "ArraySized" }
 src/lir/ir/nodes_c.rs:58: fn as_any(&self) -> &dyn std::any::Any { self }
 src/lir/ir/nodes_c.rs:59: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:70: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:73: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:82: impl LirNode for SLirArrayLit
-src/lir/ir/nodes_c.rs:83: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:84: fn kind(&self) -> &'static str { "ArrayLit" }
-src/lir/ir/nodes_c.rs:85: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:86: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:102: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:105: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:116: impl LirNode for SLirIndexAccess
-src/lir/ir/nodes_c.rs:117: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:118: fn kind(&self) -> &'static str { "IndexAccess" }
-src/lir/ir/nodes_c.rs:119: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:120: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:139: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:142: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:150: impl LirNode for SLirStructLit
-src/lir/ir/nodes_c.rs:151: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:152: fn kind(&self) -> &'static str { "StructLit" }
-src/lir/ir/nodes_c.rs:153: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:154: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:175: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:178: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:189: impl LirNode for SLirVirtualCall
-src/lir/ir/nodes_c.rs:190: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:191: fn kind(&self) -> &'static str { "VirtualCall" }
-src/lir/ir/nodes_c.rs:192: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:193: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:214: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:218: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:230: impl LirNode for SLirFieldStore
-src/lir/ir/nodes_c.rs:231: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:232: fn kind(&self) -> &'static str { "FieldStore" }
-src/lir/ir/nodes_c.rs:233: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:234: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:267: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:270: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:72: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:75: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:84: impl LirNode for SLirArrayLit
+src/lir/ir/nodes_c.rs:85: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:86: fn kind(&self) -> &'static str { "ArrayLit" }
+src/lir/ir/nodes_c.rs:87: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:88: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:104: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:107: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:118: impl LirNode for SLirIndexAccess
+src/lir/ir/nodes_c.rs:119: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:120: fn kind(&self) -> &'static str { "IndexAccess" }
+src/lir/ir/nodes_c.rs:121: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:122: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:141: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:144: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:152: impl LirNode for SLirStructLit
+src/lir/ir/nodes_c.rs:153: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:154: fn kind(&self) -> &'static str { "StructLit" }
+src/lir/ir/nodes_c.rs:155: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:156: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:177: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:180: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:191: impl LirNode for SLirVirtualCall
+src/lir/ir/nodes_c.rs:192: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:193: fn kind(&self) -> &'static str { "VirtualCall" }
+src/lir/ir/nodes_c.rs:194: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:195: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:216: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:220: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:232: impl LirNode for SLirFieldStore
+src/lir/ir/nodes_c.rs:233: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:234: fn kind(&self) -> &'static str { "FieldStore" }
+src/lir/ir/nodes_c.rs:235: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:236: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:269: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:272: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/ir/nodes_d.rs:3: impl LirNode for SLirCustom
 src/lir/ir/nodes_d.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_d.rs:5: fn kind(&self) -> &'static str { "Custom" }
@@ -2096,6 +2098,9 @@ example/pass_lib.aya:5: pub fn auto_pure(ref mut MirFunction f)
 example/test.aya:1: fn main()->int
 example/test.aya:14: fn add(int a, int b)->int
 example/test.aya:17: fn sub(int a, int b)->int
+example/test_aggregate_array.aya:5: struct Point
+example/test_aggregate_array.aya:11: enum E
+example/test_aggregate_array.aya:17: fn main() -> int
 example/test_annotation_scope.aya:5: fn placeholder() -> int { return 0 }
 example/test_annotation_scope.aya:7: fn main() -> int { return answer() - 42 }
 example/test_array.aya:1: fn main() -> int

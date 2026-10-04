@@ -35,6 +35,48 @@ pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
     }
 }
 
+/// 按 LLVM 布局计算类型大小（含对齐填充），用于数组分配。
+/// 与 `llvm_type` 保持一致：`[T]`/`Unique`/`Array` 字段是指针（8），FatPtr 是 {ptr,ptr}（16）。
+pub(crate) fn elem_layout_size(
+    ty: &HirType,
+    struct_defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>,
+) -> u64 {
+    fn layout(ty: &HirType, defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> (u64, u64) {
+        match ty {
+            HirType::Void => (0, 1),
+            HirType::Char | HirType::Bool => (1, 1),
+            HirType::Int | HirType::Float | HirType::Ref(_, _) | HirType::FnPtr(..) => (8, 8),
+            HirType::FatPtr { .. } => (16, 8),
+            HirType::Array(_) | HirType::ArraySized(_, _) => (8, 8),
+            HirType::Unique(inner) => match &**inner {
+                HirType::Named(_) | HirType::FatPtr { .. }
+                | HirType::Array(_) | HirType::ArraySized(_, _) => (8, 8),
+                _ => layout(inner, defs),
+            },
+            HirType::Named(name) => {
+                let fields = defs.get(name).or_else(|| {
+                    let n = name.as_str();
+                    n.find('<').map(|pos| Symbol::intern(&n[..pos])).and_then(|b| defs.get(&b))
+                });
+                match fields {
+                    Some(fs) => {
+                        let mut off = 0u64;
+                        let mut align = 1u64;
+                        for (_, ft) in fs {
+                            let (sz, a) = layout(ft, defs);
+                            off = (off + a - 1) / a * a + sz;
+                            align = align.max(a);
+                        }
+                        ((off + align - 1) / align * align, align)
+                    }
+                    None => (16, 8), // 未知结构保守回退
+                }
+            }
+        }
+    }
+    layout(ty, struct_defs).0
+}
+
 /// Compute the actual size of a Named struct type from its field definitions.
 pub(crate) fn struct_llvm_size(ty: &HirType, struct_defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> String {
     if let HirType::Named(name) = ty {

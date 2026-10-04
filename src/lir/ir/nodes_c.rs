@@ -59,9 +59,11 @@ impl LirNode for SLirArraySized {
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let count_str = ctx.value_ref(&self.elem_count, &HirType::Int);
         let alloc_fn = "__ayanami_unique_alloc";
+        // 元素大小按 LLVM 布局计算（Named/enum 不能按固定值），直接内联立即数
+        let elem_size = elem_layout_size(&self.elem_ty, &ctx.prog.struct_defs);
         vec![
             format!("%t{} = add i64 0, {}", self.count_tmp, count_str),
-            format!("%t{} = mul i64 %t{}, {}", self.size_tmp, self.count_tmp, self.elem_size),
+            format!("%t{} = mul i64 %t{}, {}", self.size_tmp, self.count_tmp, elem_size),
             format!("%t{} = call i8* @{}(i64 %t{})", self.malloc_tmp, alloc_fn, self.size_tmp),
             format!("%t{} = bitcast i8* %t{} to ptr", self.dest, self.malloc_tmp),
             format!("call void @llvm.memset.p0.i64(ptr %t{}, i8 0, i64 %t{}, i1 false)", self.dest, self.size_tmp),
@@ -87,7 +89,7 @@ impl LirNode for SLirArrayLit {
         let mut lines = Vec::new();
         let num_elems = self.elems.len();
         let elem_llvm = ctx.llvm_type(&self.elem_ty);
-        let elem_size_val = llvm_type_size(&self.elem_ty).parse::<u64>().unwrap_or(8);
+        let elem_size_val = elem_layout_size(&self.elem_ty, &ctx.prog.struct_defs);
         let total_size = num_elems as u64 * elem_size_val;
         let alloc_fn = "__ayanami_unique_alloc";
         lines.push(format!("%t{} = call i8* @{}(i64 {})", self.malloc_tmp, alloc_fn, total_size));
