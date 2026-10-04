@@ -1,7 +1,7 @@
 # 模块依赖图（知识图谱 · 生成物）
 
 > 由 `python3 scripts/gen_module_graph.py` 生成，请勿手改。
-> 节点为顶层模块，边为 `use crate::...` 引用（排除 `src/generated/`）。
+> 节点为顶层模块，边为 `use crate::...` 引用。
 
 ```mermaid
 graph LR

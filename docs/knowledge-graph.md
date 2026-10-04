@@ -24,7 +24,7 @@
 ```mermaid
 graph LR
     SRC[.aya 源码] --> LEX[lexer 词法]
-    LEX --> PAR[parser 语法<br/>Asuka 生成 + 手写回退]
+    LEX --> PAR[parser 语法<br/>手写递归下降]
     PAR --> HIR[hir 高级 IR<br/>名称/类型/接口/vtable]
     HIR --> MIR[mir 中级 IR<br/>控制流展平 + 内存操作]
     MIR --> LIR[lir 低级 IR<br/>三地址码/基本块]
@@ -85,7 +85,7 @@ graph LR
 
 | 实体 | 位置 | 状态 |
 |---|---|---|
-| `#[...]` 语法/AST | `ayanami.grammar`、`parser/parser/core.rs`、`parser/ast` | A0 已完成 |
+| `#[...]` 语法/AST | `parser/parser/core.rs`、`parser/ast` | A0 已完成 |
 | 属性注册表/校验 | `hir/attrs` | A0 已完成 |
 | 标注携带（MIR/LIR/包） | `mir/ir.rs`、`lir/ir/nodes_d.rs`（`LirAttr`/`ExternDecl`）、`lir/serialize` | A1 已完成 |
 | LLVM 属性映射 | `lir/emit/functions.rs`（`llvm_attr_suffix`/`llvm_param_attrs`）、`lir/emit/mod.rs` | A1 函数级+形参级已完成 |
@@ -113,7 +113,7 @@ graph LR
 
 | 脚本 | 作用 |
 |---|---|
-| `scripts/check_all.sh` | 版本 + 文件行数 + 符号地图三项检查 |
+| `scripts/check_all.sh` | 版本 + 行数 + 符号地图 + 零告警 + 语言回归 + IR 快照 |
 | `scripts/gen_symbols.sh` | 生成/校验 `SYMBOLS.md` |
 | `scripts/gen_module_graph.py` | 生成本文件同目录的 `module-graph.md` |
 | `scripts/check_version.sh` | Cargo/插件/std/标签版本一致 |
@@ -132,9 +132,9 @@ rg -n "TODO|FIXME" src docs     # 待办
 
 - 管线：`lexer → parser → hir → mir → lir → emit → opt -O2(可选) → llc → gcc`
 - 所有权：`HirType::Unique/Ref` —实现于→ `mir/mem` —检查于→ `mir/borrow` —发射于→ `lir/ir` —运行于→ `runtime.c`
-- 文法：`ayanami.grammar` —生成→ `src/generated/ayanami_parser` —桥接→ `parser/gen_bridge`
+- 语法：手写递归下降 `src/parser/parser/` —AST→ `src/parser/ast`（唯一解析路径）
 - 包：`hir` —序列化→ `lir/serialize` —封装→ `package` —导入→ `compiler/import`
-- 工具链：`check_all` ⊃ `check_version` + `check_file_sizes` + `gen_symbols --check`
+- 工具链：`check_all` ⊃ `check_version` + `check_file_sizes` + `gen_symbols --check` + `check_warnings` + `regression` + `ir_snapshot`
 - 标注：`#[...]` —校验→ `hir/attrs` —携带→ MIR/LIR(`LirAttr`/`ExternDecl`) —映射→ LLVM 属性（A1 函数级）—计划→ 效应（A3）/生命周期（A4）
 - 定宽整数：`i8..i128/u8..u128/isize/usize` —解析→ `fixed_width_int` —HIR→→ `HirType::IntN` —字面量适配→ `as_int_literal`/`retype_int_literal` —发射→ `iN` 算术/`icmp`（按 signed）
 - 位运算：`& | ^ << >> ~` —文法→ operator（prec 6–9 / 前缀）—HIR→ `lower_binary`/`lower_unary` —发射→ `and/or/xor/shl/ashr/lshr` —折叠→ `example/constfold_lib.aya`

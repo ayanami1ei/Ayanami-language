@@ -4,7 +4,7 @@
 用法: python3 scripts/gen_module_graph.py
 
 规则：
-- 扫描 src/**/*.rs（排除 src/generated/）
+- 扫描 src/**/*.rs
 - 模块路径：src/foo/bar.rs -> foo::bar；src/foo/mod.rs -> foo；src/foo/bar/mod.rs -> foo::bar
 - 提取 `use crate::X` 与 `use crate::{A, B}`，聚合到顶层模块（lexer/parser/hir/...）
 - 输出 Mermaid 图 + 边统计表；确定性输出，无时间戳
@@ -48,11 +48,7 @@ def deps_of(path: str) -> set:
 
 
 def main() -> None:
-    files = [
-        f
-        for f in sorted(glob.glob(os.path.join(ROOT, "src", "**", "*.rs"), recursive=True))
-        if "/generated/" not in f
-    ]
+    files = sorted(glob.glob(os.path.join(ROOT, "src", "**", "*.rs"), recursive=True))
     edges: dict = {}
     for f in files:
         src = top_module(module_of(f))
@@ -69,7 +65,7 @@ def main() -> None:
     lines.append("# 模块依赖图（知识图谱 · 生成物）")
     lines.append("")
     lines.append("> 由 `python3 scripts/gen_module_graph.py` 生成，请勿手改。")
-    lines.append("> 节点为顶层模块，边为 `use crate::...` 引用（排除 `src/generated/`）。")
+    lines.append("> 节点为顶层模块，边为 `use crate::...` 引用。")
     lines.append("")
     lines.append("```mermaid")
     lines.append("graph LR")

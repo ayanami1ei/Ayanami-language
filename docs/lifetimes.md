@@ -81,7 +81,7 @@ struct Holder {
 
 ## 6. 影响面与风险
 
-- 涉及：`ayanami.grammar`、`parser`（字段属性）、`parser/ast`、`formatter`、
+- 涉及：`parser`（字段属性）、`parser/ast`、`formatter`、
   `hir/attrs*`（校验）、`mir/borrow/`（来源标记与字段检查）、`lir`（字段引用布局）。
 - 风险：字段存引用的内存布局与 drop（现有「引用不可存字段」是简化假设，需同步改
   `mir/lower` 的字段存储检查与 `lir/emit` 的引用字段读写）；
