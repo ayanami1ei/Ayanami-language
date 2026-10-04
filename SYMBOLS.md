@@ -1936,28 +1936,30 @@ std/src/string.aya:254: pub fn to_lower(self) -> char
 std/src/string.aya:263: impl bool
 std/src/string.aya:264: pub fn eq(self, bool other) -> bool
 std/src/string.aya:267: pub fn ne(self, bool other) -> bool
-std/src/string.aya:274: pub fn new([char] data, int len) -> String
-std/src/string.aya:279: impl String
-std/src/string.aya:280: pub fn to_string(self) -> String
-std/src/string.aya:283: pub fn index(ref self, int i) -> char
-std/src/string.aya:286: pub fn len(ref self) -> int
-std/src/string.aya:291: pub fn add(ref self, ref String other) -> String
-std/src/string.aya:304: pub fn add[T: ToString](ref self, T a) -> String
-std/src/string.aya:308: pub fn eq(ref self, ref String other) -> bool
-std/src/string.aya:319: pub fn ne(ref self, ref String other) -> bool
-std/src/string.aya:324: pub fn copy(ref self) -> String
-std/src/string.aya:332: pub fn is_empty(ref self) -> bool
-std/src/string.aya:336: pub fn index_of(ref self, ref String needle) -> int
-std/src/string.aya:359: pub fn contains(ref self, ref String needle) -> bool
-std/src/string.aya:366: pub fn starts_with(ref self, ref String prefix) -> bool
-std/src/string.aya:378: pub fn ends_with(ref self, ref String suffix) -> bool
-std/src/string.aya:392: pub fn substring(ref self, int start, int end) -> String
-std/src/string.aya:413: pub fn trim(ref self) -> String
-std/src/string.aya:434: pub fn to_upper(ref self) -> String
-std/src/string.aya:443: pub fn to_lower(ref self) -> String
-std/src/string.aya:452: pub fn repeat(ref self, int times) -> String
-std/src/string.aya:463: pub fn parse_int(ref self) -> int
-std/src/string.aya:499: pub fn is_int(ref self) -> bool
+std/src/string.aya:274: pub fn empty() -> String
+std/src/string.aya:278: pub fn new() -> String
+std/src/string.aya:282: pub fn new([char] data, int len) -> String
+std/src/string.aya:287: impl String
+std/src/string.aya:288: pub fn to_string(self) -> String
+std/src/string.aya:291: pub fn index(ref self, int i) -> char
+std/src/string.aya:294: pub fn len(ref self) -> int
+std/src/string.aya:299: pub fn add(ref self, ref String other) -> String
+std/src/string.aya:312: pub fn add[T: ToString](ref self, T a) -> String
+std/src/string.aya:316: pub fn eq(ref self, ref String other) -> bool
+std/src/string.aya:327: pub fn ne(ref self, ref String other) -> bool
+std/src/string.aya:332: pub fn copy(ref self) -> String
+std/src/string.aya:340: pub fn is_empty(ref self) -> bool
+std/src/string.aya:344: pub fn index_of(ref self, ref String needle) -> int
+std/src/string.aya:367: pub fn contains(ref self, ref String needle) -> bool
+std/src/string.aya:374: pub fn starts_with(ref self, ref String prefix) -> bool
+std/src/string.aya:386: pub fn ends_with(ref self, ref String suffix) -> bool
+std/src/string.aya:400: pub fn substring(ref self, int start, int end) -> String
+std/src/string.aya:421: pub fn trim(ref self) -> String
+std/src/string.aya:442: pub fn to_upper(ref self) -> String
+std/src/string.aya:451: pub fn to_lower(ref self) -> String
+std/src/string.aya:460: pub fn repeat(ref self, int times) -> String
+std/src/string.aya:471: pub fn parse_int(ref self) -> int
+std/src/string.aya:507: pub fn is_int(ref self) -> bool
 std/std.aya:9: pub interface Error
 std/std.aya:10: fn what(ref self) -> String;
 std/std.aya:13: pub enum Result[T, E]

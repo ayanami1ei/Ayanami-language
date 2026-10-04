@@ -28,5 +28,12 @@ fn main() -> int {
     if s.index(1) != 'b' { return 7 }
     if s != "abc" { return 8 }
 
+    // 空字符串
+    e1 = String::empty()
+    if e1.len() != 0 { return 9 }
+    if e1 != "" { return 10 }
+    e2 = String::new()
+    if e2.len() != 0 { return 11 }
+
     return 0
 }

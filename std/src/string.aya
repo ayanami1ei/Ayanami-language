@@ -270,6 +270,14 @@ impl bool {
 }
 
 pub namespace String {
+    /// 空字符串
+    pub fn empty() -> String {
+        return String { data = null, len = 0 }
+    }
+    /// 零参 new 等价于 empty
+    pub fn new() -> String {
+        return String { data = null, len = 0 }
+    }
     /// 从拥有所有权的 [char] 缓冲与长度构造
     pub fn new([char] data, int len) -> String {
         return String { data = data, len = len }

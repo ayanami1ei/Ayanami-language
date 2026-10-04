@@ -113,6 +113,7 @@ struct String {
 | `ArrayList::new[T]()` | 空表 |
 | `ArrayList::with_capacity[T](n)` | 预分配容量 |
 | `LinkedList::new[T]()` | 空链表 |
+| `String::empty()` / `String::new()` | 空字符串 |
 | `String::new([char] data, int len)` | 从拥有所有权的字符缓冲构造 |
 
 ```ayanami
