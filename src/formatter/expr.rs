@@ -103,11 +103,13 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         }
         Expr::Asm { template, outputs, inputs, .. } => {
             let mut parts = Vec::new();
+            // 约束还原为源码关键字 `reg`（解析器把 out 存成 "=r"、in 存成 "r"）；
+            // 输出在前，与 LLVM 操作数编号（输出 → 输入）一致
             for (c, e) in outputs {
-                parts.push(format!("out({}) {}", c, write_expr_at(e, level)));
+                parts.push(format!("out({}) {}", asm_constraint(c), write_expr_at(e, level)));
             }
             for (c, e) in inputs {
-                parts.push(format!("in({}) {}", c, write_expr_at(e, level)));
+                parts.push(format!("in({}) {}", asm_constraint(c), write_expr_at(e, level)));
             }
             let extra = if parts.is_empty() { String::new() } else { format!(", {}", parts.join(", ")) };
             format!("asm(\"{}\"{})", template, extra)
@@ -158,10 +160,23 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
     }
 }
 
+/// asm 约束 → 源码关键字（当前仅支持 reg）
+fn asm_constraint(c: &str) -> &str {
+    if c.contains('r') { "reg" } else { c }
+}
+
 pub(super) fn write_literal(lit: &Literal) -> String {
     match lit {
         Literal::Int(n, _) => n.to_string(),
-        Literal::Float(n, _) => n.to_string(),
+        Literal::Float(n, _) => {
+            // 保证浮点形态（Rust 的 3.0.to_string() == "3"，会变成 int 字面量）
+            let s = n.to_string();
+            if s.contains('.') || s.contains('e') || s.contains("inf") || s.contains("NaN") {
+                s
+            } else {
+                format!("{}.0", s)
+            }
+        }
         Literal::Char(c, _) => {
             let s = match c {
                 '\n' => "\\n".into(),

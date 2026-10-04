@@ -57,7 +57,8 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             let _ = write!(out, "{} ", write_expr_at(cond, level));
             write_block_same_line(out, then_block, level);
             for (ec, eb) in elifs {
-                let _ = write!(out, " else if {} ", write_expr_at(ec, level));
+                // 语法是 `elif`，不是 `else if`
+                let _ = write!(out, " elif {} ", write_expr_at(ec, level));
                 write_block_same_line(out, eb, level);
             }
             if let Some(eb) = else_block {
@@ -207,7 +208,12 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             };
             let _ = writeln!(out, "{}impl{} {} {{", i, gp_str, type_str);
             for m in methods {
-                write_stmt(out, m, level + 1);
+                // impl 方法默认公开（解析器标为 Public）；格式化不显式写 pub
+                let mut m2 = m.clone();
+                if let FnDecl { vis, .. } = &mut m2 {
+                    *vis = Visibility::Private;
+                }
+                write_stmt(out, &m2, level + 1);
             }
             let _ = writeln!(out, "{}}}", i);
         }

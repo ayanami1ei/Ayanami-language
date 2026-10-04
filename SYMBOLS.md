@@ -245,9 +245,10 @@ src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter/expr.rs:4: pub(super) fn write_type(ty: &Type) -> String
 src/formatter/expr.rs:38: pub(super) fn write_expr(expr: &Expr) -> String
 src/formatter/expr.rs:42: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
-src/formatter/expr.rs:161: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:181: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:199: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:164: fn asm_constraint(c: &str) -> &str
+src/formatter/expr.rs:168: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:196: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:214: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
