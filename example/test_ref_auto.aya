@@ -1,0 +1,58 @@
+// A7：ref 参数自动解引用
+// 值上下文（运算/比较/传值参/返回）自动 load，`i = v` 对 ref mut 穿透 store。
+import "string";
+
+fn bump(ref mut int i) {
+    i = i + 1;
+}
+
+fn bump_by(ref mut int i, int n) -> int {
+    while i < n {
+        bump(i);
+    }
+    return i;
+}
+
+fn add_one(int v) -> int {
+    return v + 1;
+}
+
+fn via_value(ref mut int i) -> int {
+    return add_one(i);
+}
+
+fn total(ref int i, ref mut int acc) {
+    acc = acc + i;
+}
+
+fn set_hi(ref mut String s) {
+    s = "hi";
+}
+
+fn main() -> int {
+    x = 0;
+    bump(x);
+    if x != 1 { return 1 }
+
+    y = 0;
+    r = bump_by(y, 3);
+    if r != 3 { return 2 }
+    if y != 3 { return 3 }
+
+    a = 10;
+    b = 0;
+    total(a, b);
+    total(a, b);
+    if b != 20 { return 4 }
+    if a != 10 { return 5 }
+
+    c = 5;
+    if via_value(c) != 6 { return 6 }
+    if c != 5 { return 7 }
+
+    s = String::empty();
+    set_hi(s);
+    if s != "hi" { return 8 }
+
+    return 0;
+}

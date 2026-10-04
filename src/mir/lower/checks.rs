@@ -14,6 +14,10 @@ fn collect_stmt_var_ids(stmt: &HirStmt, vars: &mut HashSet<VarId>) {
             index.collect_var_ids(vars);
             value.collect_var_ids(vars);
         }
+        HirStmt::DerefAssign { target, value, .. } => {
+            target.collect_var_ids(vars);
+            value.collect_var_ids(vars);
+        }
         HirStmt::Return { value, .. } => {
             if let Some(v) = value {
                 v.collect_var_ids(vars);

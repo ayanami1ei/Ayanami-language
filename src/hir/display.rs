@@ -126,6 +126,13 @@ fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}  value:", p)?;
             write_expr(value, level + 1, w)?;
         }
+        HirStmt::DerefAssign { target, value, .. } => {
+            writeln!(w, "{}DerefAssign", p)?;
+            writeln!(w, "{}  target:", p)?;
+            write_expr(target, level + 1, w)?;
+            writeln!(w, "{}  value:", p)?;
+            write_expr(value, level + 1, w)?;
+        }
         HirStmt::Return { value, .. } => {
             writeln!(w, "{}Return", p)?;
             if let Some(v) = value {

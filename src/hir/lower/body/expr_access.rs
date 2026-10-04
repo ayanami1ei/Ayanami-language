@@ -117,7 +117,7 @@ impl crate::hir::lower::Ctx {
 
     pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox> {
         let hir_object = self.lower_expr(object)?;
-        let hir_index = self.lower_expr(index)?;
+        let hir_index = auto_deref(self.lower_expr(index)?);
         let object_ty = expr_type(&hir_object);
         let inner_ty = strip_ownership(object_ty.clone());
         // Virtual dispatch through interface

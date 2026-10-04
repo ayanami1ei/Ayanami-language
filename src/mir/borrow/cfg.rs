@@ -131,6 +131,10 @@ fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<VarId>) -> (HashSet<VarId>, H
             writes.insert(v);
         }
     }
+    if let Some((t, v)) = s.deref_assign_parts() {
+        t.collect_var_ids(uses);
+        v.collect_var_ids(uses);
+    }
     if let Some(v) = s.return_value() {
         v.collect_var_ids(uses);
         // 返回即移动：局部变量计入 writes（借用期间返回被借用变量/含引用字段的结构体需报错）

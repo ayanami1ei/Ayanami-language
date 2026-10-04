@@ -4,4 +4,4 @@ pub use super::node::*;
 pub use super::stmt::*;
 pub use super::item::*;
 pub use super::{SBin, SUn, SCall, SConst, SVar, SMove, SClone, SToUnique, SCast,
-    SField, SStruct, SArrLit, SArrSz, SAsm, SRef, SIdx, SVCall, SMFP, SEnumC, SEnumM, SFnPtr, SCallP};
+    SField, SStruct, SArrLit, SArrSz, SAsm, SRef, SDeref, SIdx, SVCall, SMFP, SEnumC, SEnumM, SFnPtr, SCallP};

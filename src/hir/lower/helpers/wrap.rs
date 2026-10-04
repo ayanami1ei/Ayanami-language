@@ -12,6 +12,16 @@ pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox {
 
 /// 包装参数以匹配期望的参数类型（处理所有权转换）
 pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
+    // 值形参位置：`ref T` 自动解引用（引用形参保持原样）
+    let arg = if !matches!(param_ty, HirType::Ref(..)) {
+        let at = arg.expr_type();
+        match &at {
+            HirType::Ref(inner, _) if strip_ownership_ref(inner) == strip_ownership_ref(param_ty) => auto_deref(arg),
+            _ => arg,
+        }
+    } else {
+        arg
+    };
     let arg_ty = arg.expr_type();
     // 隐式数值转换：char→int / int→float / char→float
     let arg = if implicit_cast_ok(&arg_ty, param_ty) {

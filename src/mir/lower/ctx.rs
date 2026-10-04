@@ -62,6 +62,13 @@ impl Ctx {
                     span: *span,
                 }.into()]
             }
+            HirStmt::DerefAssign { target, value, span } => {
+                vec![SMirDerefAssignStmt {
+                    target: target.lower_to_mir(&self.moved),
+                    value: value.lower_to_mir(&self.moved),
+                    span: *span,
+                }.into()]
+            }
             HirStmt::Return { value, span } => self.lower_return(value, *span),
             HirStmt::If { cond, then_block, elifs, else_block, span } => {
                 self.lower_if(cond, then_block, elifs, else_block, *span)
@@ -92,6 +99,7 @@ impl Ctx {
     fn track_stmt_moves(&mut self, stmt: &HirStmt) {
         match stmt {
             HirStmt::Assign { value, .. } => value.record_moves(&mut self.moved),
+            HirStmt::DerefAssign { value, .. } => value.record_moves(&mut self.moved),
             HirStmt::FieldAssign { object, value, .. } => {
                 object.record_moves(&mut self.moved);
                 value.record_moves(&mut self.moved);

@@ -217,6 +217,13 @@ fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>) {
                 walk_expr(&**object, calls);
                 walk_expr(&**value, calls);
             }
+            HirStmt::DerefAssign { target, value, .. } => {
+                if is_observable_target(target) {
+                    calls.push(state_marker());
+                }
+                walk_expr(&**target, calls);
+                walk_expr(&**value, calls);
+            }
             HirStmt::IndexAssign { object, index, value, .. } => {
                 if is_observable_target(object) {
                     calls.push(state_marker());

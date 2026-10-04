@@ -80,6 +80,8 @@ pub trait MirStmtNode: std::fmt::Debug {
     fn assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
     fn field_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
     fn index_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox, &MirNodeBox)> { None }
+    /// 穿透引用写入：`*target = value`
+    fn deref_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
     fn expr_part(&self) -> Option<&MirNodeBox> { None }
 }
 
@@ -136,6 +138,7 @@ s_mir!(SMirStructLiteral { type_name: Symbol, fields: Vec<(Symbol, MirNodeBox)>,
 s_mir!(SMirArrayLiteral { elems: Vec<MirNodeBox>, ty: HirType });
 s_mir!(SMirArraySized { count: MirNodeBox, elem_ty: HirType, ty: HirType });
 s_mir!(SMirRef { expr: MirNodeBox, mutable: bool, ty: HirType });
+s_mir!(SMirDeref { expr: MirNodeBox, ty: HirType });
 s_mir!(SMirIndex { object: MirNodeBox, index: MirNodeBox, ty: HirType });
 s_mir!(SMirAsm { template: String, outputs: Vec<(String, MirNodeBox)>, inputs: Vec<(String, MirNodeBox)>, ty: HirType });
 
@@ -143,6 +146,7 @@ s_mir!(SMirAsm { template: String, outputs: Vec<(String, MirNodeBox)>, inputs: V
 s_mstmt!(SMirAssignStmt { target: MirNodeBox, value: MirNodeBox, span: Span });
 s_mstmt!(SMirFieldAssignStmt { object: MirNodeBox, field: Symbol, field_index: usize, field_ty: HirType, value: MirNodeBox, span: Span });
 s_mstmt!(SMirIndexAssignStmt { object: MirNodeBox, index: MirNodeBox, value: MirNodeBox, span: Span });
+s_mstmt!(SMirDerefAssignStmt { target: MirNodeBox, value: MirNodeBox, span: Span });
 s_mstmt!(SMirReturnStmt { value: Option<MirNodeBox>, span: Span });
 s_mstmt!(SMirIfStmt { cond: MirNodeBox, then_block: Vec<MirStmtBox>, elifs: Vec<(MirNodeBox, Vec<MirStmtBox>)>, else_block: Option<Vec<MirStmtBox>>, span: Span });
 s_mstmt!(SMirWhileStmt { cond: MirNodeBox, body: Vec<MirStmtBox>, span: Span });
@@ -161,7 +165,7 @@ macro_rules! impl_into_mir_node_box {
         })*
     };
 }
-impl_into_mir_node_box!(SMirLocal, SMirLiteral, SMirBinary, SMirUnary, SMirCall, SMirMove, SMirClone, SMirToUnique, SMirCast, SMirVirtualCall, SMirMakeFatPtr, SMirEnumConstruct, SMirFnPtr, SMirCallPtr, SMirEnumMatch, SMirFieldAccess, SMirStructLiteral, SMirArrayLiteral, SMirArraySized, SMirRef, SMirIndex, SMirAsm);
+impl_into_mir_node_box!(SMirLocal, SMirLiteral, SMirBinary, SMirUnary, SMirCall, SMirMove, SMirClone, SMirToUnique, SMirCast, SMirVirtualCall, SMirMakeFatPtr, SMirEnumConstruct, SMirFnPtr, SMirCallPtr, SMirEnumMatch, SMirFieldAccess, SMirStructLiteral, SMirArrayLiteral, SMirArraySized, SMirRef, SMirDeref, SMirIndex, SMirAsm);
 
 macro_rules! impl_into_mir_stmt_box {
     ($($ty:ident),* $(,)?) => {
@@ -170,7 +174,7 @@ macro_rules! impl_into_mir_stmt_box {
         })*
     };
 }
-impl_into_mir_stmt_box!(SMirAssignStmt, SMirFieldAssignStmt, SMirIndexAssignStmt, SMirReturnStmt, SMirIfStmt, SMirWhileStmt, SMirBreakStmt, SMirContinueStmt, SMirExprStmt, SMirBlockStmt, SMirDropStmt, SMirAssumeStmt, SMirContractStmt);
+impl_into_mir_stmt_box!(SMirAssignStmt, SMirFieldAssignStmt, SMirIndexAssignStmt, SMirDerefAssignStmt, SMirReturnStmt, SMirIfStmt, SMirWhileStmt, SMirBreakStmt, SMirContinueStmt, SMirExprStmt, SMirBlockStmt, SMirDropStmt, SMirAssumeStmt, SMirContractStmt);
 
 #[derive(Debug, Clone)]
 pub struct MirLocal {

@@ -13,6 +13,23 @@ pub(crate) fn implicit_cast_ok(from: &HirType, to: &HirType) -> bool {
     )
 }
 
+/// `ref T` 在值上下文自动解引用为 `T`（其他表达式原样返回）
+pub(crate) fn auto_deref(expr: HirNodeBox) -> HirNodeBox {
+    if let HirType::Ref(inner, _) = expr.expr_type() {
+        SDeref { expr, ty: *inner }.into()
+    } else {
+        expr
+    }
+}
+
+/// 重载解析用的解引用类型（`Ref(T)` → `T`）
+pub(crate) fn deref_type(ty: &HirType) -> HirType {
+    match ty {
+        HirType::Ref(inner, _) => (**inner).clone(),
+        _ => ty.clone(),
+    }
+}
+
 fn is_primitive(ty: &HirType) -> bool {
     matches!(ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool)
 }
@@ -22,6 +39,8 @@ fn is_primitive(ty: &HirType) -> bool {
 /// - 两个基元之间无转换规则 → 明确报错（避免生成非法 LLVM IR）
 /// - 其余情况原样返回，交给既有逻辑处理
 pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox> {
+    // ref T → T：值上下文自动解引用（目标本身是引用时保持原样，支持别名）
+    let expr = if matches!(target, HirType::Ref(..)) { expr } else { auto_deref(expr) };
     let src = expr.expr_type();
     let src_inner = strip_ownership_ref(&src).clone();
     let tgt_inner = strip_ownership_ref(target).clone();

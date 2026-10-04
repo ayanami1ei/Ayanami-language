@@ -2,8 +2,8 @@ use super::*;
 
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox> {
-        let mut hir_lhs = self.lower_expr(lhs)?;
-        let mut hir_rhs = self.lower_expr(rhs)?;
+        let mut hir_lhs = auto_deref(self.lower_expr(lhs)?);
+        let mut hir_rhs = auto_deref(self.lower_expr(rhs)?);
         let mut lhs_ty = expr_type(&hir_lhs);
         let mut rhs_ty = expr_type(&hir_rhs);
         // A6：基元混合类型统一提升（char→int、int/char→float），
@@ -86,7 +86,7 @@ impl crate::hir::lower::Ctx {
     }
 
     pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox> {
-        let hir_arg = self.lower_expr(arg)?;
+        let hir_arg = auto_deref(self.lower_expr(arg)?);
         let arg_ty = expr_type(&hir_arg);
         let inner_ty = strip_ownership(arg_ty.clone());
         // Try operator overloading (skip for primitive types)

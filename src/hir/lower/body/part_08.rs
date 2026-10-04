@@ -4,6 +4,9 @@ impl crate::hir::lower::Ctx {
     pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt> {
         match stmt {
             Stmt::Assign { name, value, span, .. } => {
+                if let Some(stmt) = self.try_lower_ref_assign(name, value, span)? {
+                    return Ok(stmt);
+                }
                 let hir_value = self.lower_expr(value)?;
                 // 已存在的变量：按既有类型做隐式数值转换
                 let hir_value = match self.lookup_var(name) {
@@ -88,11 +91,11 @@ impl crate::hir::lower::Ctx {
                 Ok(HirStmt::Return { value: hir_value, span: *span })
             }
             Stmt::If { cond, then_block, elifs, else_block, span } => {
-                let hir_cond = self.lower_expr(cond)?;
+                let hir_cond = auto_deref(self.lower_expr(cond)?);
                 let hir_then = self.lower_block(then_block)?;
                 let hir_elifs = elifs.iter()
                     .map(|(ec, eb)| {
-                        let c = self.lower_expr(ec);
+                        let c = self.lower_expr(ec).map(auto_deref);
                         let b = self.lower_block(eb);
                         c.and_then(|c| b.map(|b| (c, b)))
                     })
@@ -200,7 +203,7 @@ impl crate::hir::lower::Ctx {
         body: &Block,
         invariants: &[(&Expr, usize, usize)],
     ) -> Result<HirStmt> {
-        let hir_cond = self.lower_expr(cond)?;
+        let hir_cond = auto_deref(self.lower_expr(cond)?);
         let mut hir_body = self.lower_block(body)?;
         if !invariants.is_empty() {
             let mut checks = self.loop_check_stmts(invariants)?;
@@ -222,7 +225,7 @@ impl crate::hir::lower::Ctx {
     ) -> Result<HirStmt> {
         self.push_scope();
 
-        let hir_start = self.lower_expr(start)?;
+        let hir_start = auto_deref(self.lower_expr(start)?);
         let ty = expr_type(&hir_start);
         let (var_id, _, _) = self.register_or_lookup(iter_name, ty.clone());
 
@@ -233,7 +236,7 @@ impl crate::hir::lower::Ctx {
             span,
         };
 
-        let hir_end = self.lower_expr(end)?;
+        let hir_end = auto_deref(self.lower_expr(end)?);
         let cond: HirNodeBox = SBin {
             op: BinaryOp::Lt,
             lhs: SVar { var: var_id, ty: ty.clone() }.into(),
@@ -251,7 +254,7 @@ impl crate::hir::lower::Ctx {
         }
 
         let step_expr = match step {
-            Some(s) => self.lower_expr(s)?,
+            Some(s) => auto_deref(self.lower_expr(s)?),
             None => SConst { val: HirLiteral::Int(1), ty: HirType::Int }.into(),
         };
         let step_ty = expr_type(&step_expr);

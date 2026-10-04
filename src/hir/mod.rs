@@ -48,6 +48,7 @@ s_hir!(SArrLit { elems: Vec<HirNodeBox>, ty: HirType });
 s_hir!(SArrSz { count: HirNodeBox, elem_ty: HirType, ty: HirType });
 s_hir!(SAsm { template: String, outputs: Vec<(String, HirNodeBox)>, inputs: Vec<(String, HirNodeBox)>, ty: HirType });
 s_hir!(SRef { expr: HirNodeBox, mutable: bool, ty: HirType });
+s_hir!(SDeref { expr: HirNodeBox, ty: HirType });
 s_hir!(SIdx { object: HirNodeBox, index: HirNodeBox, ty: HirType });
 s_hir!(SVCall { receiver: HirNodeBox, interface: Symbol, method_index: usize, args: Vec<HirNodeBox>, concrete_type: Symbol, ty: HirType });
 s_hir!(SMFP { value: HirNodeBox, concrete_type: Symbol, interface_name: Symbol, ty: HirType });

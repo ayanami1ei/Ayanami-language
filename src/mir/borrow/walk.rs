@@ -37,6 +37,10 @@ pub(super) fn walk_stmt(
         roots.push(&**i);
         roots.push(&**v);
     }
+    if let Some((t, v)) = stmt.deref_assign_parts() {
+        roots.push(&**t);
+        roots.push(&**v);
+    }
     if let Some(v) = stmt.return_value() {
         roots.push(&**v);
     }

@@ -121,6 +121,7 @@ fn stmt_kind(s: &dyn MirStmtNode) -> i64 {
     if s.assign_parts().is_some() { 1 }
     else if s.field_assign_parts().is_some() { 2 }
     else if s.index_assign_parts().is_some() { 3 }
+    else if s.deref_assign_parts().is_some() { 12 }
     else if s.is_return() { 4 }
     else if s.as_if().is_some() { 5 }
     else if s.as_while().is_some() { 6 }
@@ -133,7 +134,7 @@ fn stmt_kind(s: &dyn MirStmtNode) -> i64 {
 }
 
 fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize {
-    let is_store = s.field_assign_parts().is_some() || s.index_assign_parts().is_some();
+    let is_store = s.field_assign_parts().is_some() || s.index_assign_parts().is_some() || s.deref_assign_parts().is_some();
     let idx = v.push(KIND_STMT, false, false, false, false, is_store, 0, 0, 0, 0, stmt_kind(s), 0);
     let mut n = 0;
     s.for_each_child_stmt(&mut |c| { walk_stmt(c, v); n += 1; });

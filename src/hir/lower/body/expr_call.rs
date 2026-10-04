@@ -22,15 +22,23 @@ impl crate::hir::lower::Ctx {
             .map(|a| self.lower_expr(a))
             .collect::<std::result::Result<Vec<_>, _>>()?;
 
-        // Step 2: extract arg types
+        // Step 2: extract arg types（引用实参另存解引用类型，用于回退解析）
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
+        let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();
 
-        // Step 3: resolve overloaded function
-        let fn_id = match self.resolve_fn_call(name, &arg_types) {
+        // Step 3: resolve overloaded function（先按原类型，再按解引用类型）
+        let fn_id = match self.resolve_fn_call(name, &arg_types)
+            .or_else(|| self.resolve_fn_call(name, &deref_arg_types))
+        {
             Some(fid) => fid,
             None => {
                 // Step 3b: try generic specialization
-                match self.specialize_generic_call_with(name, &arg_types, explicit, span) {
+                let spec = self.specialize_generic_call_with(name, &arg_types, explicit, span);
+                let spec = match spec {
+                    Ok(fid) => Ok(fid),
+                    Err(_) => self.specialize_generic_call_with(name, &deref_arg_types, explicit, span),
+                };
+                match spec {
                     Ok(fid) => fid,
                     Err(e) => {
                         // Step 3c: check if name is a variable with FnPtr type (function pointer call)
@@ -117,6 +125,9 @@ impl crate::hir::lower::Ctx {
             }
             if matches!(param_tys[i], HirType::Unique(_) | HirType::Ref(..)) {
                 wrap_arg_for_param(arg, &param_tys[i])
+            } else if matches!(arg_ty, HirType::Ref(..)) {
+                // 值形参 + 引用实参：自动解引用
+                wrap_arg_for_param(arg, &param_tys[i])
             } else if implicit_cast_ok(&arg_ty, &param_tys[i]) {
                 // 按值基元参数的隐式数值转换（char→int / int→float / char→float）
                 SCast { expr: arg, ty: strip_ownership_ref(&param_tys[i]).clone() }.into()
@@ -141,6 +152,7 @@ impl crate::hir::lower::Ctx {
             .collect::<std::result::Result<Vec<_>, _>>()?;
 
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
+        let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();
 
         // Check if receiver type is a fat pointer (interface dispatch)
         // receiver_ty may be wrapped in ownership (e.g. Shared(FatPtr))
@@ -214,11 +226,13 @@ impl crate::hir::lower::Ctx {
             }
         }
         // Static dispatch: find method by receiver type
-        let fn_id = match self.resolve_method(&receiver_ty, method, &arg_types) {
+        let fn_id = match self.resolve_method(&receiver_ty, method, &arg_types)
+            .or_else(|| self.resolve_method(&receiver_ty, method, &deref_arg_types))
+        {
             Some(id) => id,
             None => {
                 let mut all_param_types = vec![receiver_ty.clone()];
-                all_param_types.extend(arg_types.iter().cloned());
+                all_param_types.extend(deref_arg_types.iter().cloned());
                 let fid = self.specialize_generic_call(method, &all_param_types, span)?;
                 // 泛型推导成功后，尝试更新接收者变量的类型
                 if let Some(var_id) = receiver.as_local() {

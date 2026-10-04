@@ -49,6 +49,12 @@ pub enum HirStmt {
         value: HirNodeBox,
         span: Span,
     },
+    /// `ref mut` 目标写入：穿透引用存储（`i = v`，i 为 ref mut 参数/局部）
+    DerefAssign {
+        target: HirNodeBox,
+        value: HirNodeBox,
+        span: Span,
+    },
     Return {
         value: Option<HirNodeBox>,
         span: Span,
@@ -82,6 +88,7 @@ impl HirStmt {
             HirStmt::Assign { span, .. }
             | HirStmt::FieldAssign { span, .. }
             | HirStmt::IndexAssign { span, .. }
+            | HirStmt::DerefAssign { span, .. }
             | HirStmt::Return { span, .. }
             | HirStmt::If { span, .. }
             | HirStmt::While { span, .. }

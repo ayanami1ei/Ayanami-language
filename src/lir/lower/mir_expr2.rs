@@ -194,35 +194,6 @@ impl MirNode for SMirArraySized {
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.count); }
 }
 
-impl MirNode for SMirRef {
-    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
-    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
-        let dest = ctx.next_tmp();
-        if let Some(var_id) = self.expr.as_local() {
-            ctx.emit(SLirRefInst { dest, var_id, mutable: self.mutable, ty: self.ty.clone() }.into());
-        } else {
-            // 临时值（如函数返回值）：溢出到栈槽后取引用
-            let pointee_ty = self.expr.expr_type();
-            let src = self.expr.lower_to_lir(ctx);
-            let alloca_tmp = ctx.next_tmp();
-            ctx.emit(SLirRefTmp { dest, alloca_tmp, src, mutable: self.mutable, ty: pointee_ty }.into());
-        }
-        LirValue::Tmp(dest)
-    }
-    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
-        let m = if self.mutable { "mut " } else { "" };
-        writeln!(w, "{:width$}Ref({}ty: {})", "", m, display_hir_type(&self.ty), width = level * 2)?;
-        self.expr.display(level + 1, w)?;
-        Ok(())
-    }
-    fn expr_type(&self) -> HirType { self.ty.clone() }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-    fn as_ref(&self) -> Option<(VarId, bool)> {
-        self.expr.as_local().map(|var| (var, self.mutable))
-    }
-}
-
 impl MirNode for SMirIndex {
     fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }

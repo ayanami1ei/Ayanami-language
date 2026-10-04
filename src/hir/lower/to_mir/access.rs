@@ -104,6 +104,22 @@ impl HirNode for SRef {
     }
 }
 
+impl HirNode for SDeref {
+    fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
+        SMirDeref { expr: self.expr.lower_to_mir(moved), ty: self.ty.clone() }.into()
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Deref ty={}", "", crate::hir::display::display_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
+        f(&*self.expr);
+    }
+}
+
 impl HirNode for SIdx {
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
