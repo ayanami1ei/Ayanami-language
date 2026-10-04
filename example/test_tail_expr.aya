@@ -1,0 +1,55 @@
+// 裸尾表达式：块末尾无分号表达式作为隐式返回值（Rust 风格）
+enum E { A(int), B }
+
+fn add(int a, int b) -> int {
+    a + b
+}
+
+fn pick(int x) -> int {
+    if x > 0 {
+        return 1
+    }
+    0
+}
+
+fn unbox(E e) -> int {
+    match e {
+        A(v) => v,
+        B => 0,
+    }
+}
+
+fn nested(int x) -> int {
+    add(x, 1) * 2
+}
+
+// 泛型方法裸 match 尾（#68 复现形态）
+pub enum Pair[A, B] { P(A), Q(B) }
+
+impl[A, B] Pair[A, B] {
+    pub fn first(self) -> A {
+        match self {
+            P(v) => v,
+            Q(_) => 0,
+        }
+    }
+}
+
+fn mk_pair() -> Pair[int, int] { return Pair::P(5) }
+
+// void 函数尾表达式：求值后丢弃
+fn unit_tail(int x) {
+    add(x, 1)
+}
+
+fn main() -> int {
+    if add(2, 3) != 5 { return 1 }
+    if pick(1) != 1 { return 2 }
+    if pick(-1) != 0 { return 3 }
+    if unbox(E::A(7)) != 7 { return 4 }
+    if unbox(E::B) != 0 { return 5 }
+    if nested(3) != 8 { return 6 }
+    if mk_pair().first() != 5 { return 7 }
+    unit_tail(1)
+    return 0
+}

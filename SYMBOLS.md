@@ -261,11 +261,11 @@ src/formatter/expr.rs:243: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
-src/formatter/helpers.rs:32: pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize)
-src/formatter/helpers.rs:44: pub(super) fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String
-src/formatter/helpers.rs:52: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)])
-src/formatter/helpers.rs:65: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_attrs: &[Vec<crate::parser::ast::Attr>])
-src/formatter/helpers.rs:93: pub(super) fn write_return_type(out: &mut String, ty: &Type)
+src/formatter/helpers.rs:35: pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize)
+src/formatter/helpers.rs:47: pub(super) fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String
+src/formatter/helpers.rs:55: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)])
+src/formatter/helpers.rs:68: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_attrs: &[Vec<crate::parser::ast::Attr>])
+src/formatter/helpers.rs:96: pub(super) fn write_return_type(out: &mut String, ty: &Type)
 src/formatter/mod.rs:7: const INDENT: &str = "    ";
 src/formatter/mod.rs:9: pub fn format_program(program: &Program) -> String
 src/formatter/mod.rs:21: mod expr;
@@ -384,6 +384,9 @@ src/hir/item.rs:50: pub struct HirFn
 src/hir/item.rs:77: pub enum HirItem
 src/hir/item.rs:93: pub struct ImportedFnSig
 src/hir/item.rs:107: pub struct HirProgram
+src/hir/lower/body/block_lower.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/block_lower.rs:8: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
+src/hir/lower/body/block_lower.rs:14: pub(crate) fn lower_block_impl(&mut self, block: &Block, tail_as_value: bool) -> Result<(HirBlock, Option<HirNodeBox>)>
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
@@ -453,10 +456,11 @@ src/hir/lower/body/mod.rs:27: mod collect_import;
 src/hir/lower/body/mod.rs:28: mod expr_access;
 src/hir/lower/body/mod.rs:29: mod expr_call;
 src/hir/lower/body/mod.rs:30: mod expr_call_extra;
-src/hir/lower/body/mod.rs:31: mod expr_cast;
-src/hir/lower/body/mod.rs:32: mod expr_enum;
-src/hir/lower/body/mod.rs:33: mod expr_misc;
-src/hir/lower/body/mod.rs:34: mod expr_ops1;
+src/hir/lower/body/mod.rs:31: mod block_lower;
+src/hir/lower/body/mod.rs:32: mod expr_cast;
+src/hir/lower/body/mod.rs:33: mod expr_enum;
+src/hir/lower/body/mod.rs:34: mod expr_misc;
+src/hir/lower/body/mod.rs:35: mod expr_ops1;
 src/hir/lower/body/part_01.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_01.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
 src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
@@ -491,7 +495,6 @@ src/hir/lower/body/part_07.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[S
 src/hir/lower/body/part_07.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
 src/hir/lower/body/part_07.rs:115: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
 src/hir/lower/body/part_07.rs:146: pub(crate) fn lower_fn(
-src/hir/lower/body/part_07.rs:265: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/part_08.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_08.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
 src/hir/lower/body/part_08.rs:161: pub(crate) fn lower_while(
@@ -559,7 +562,7 @@ src/hir/lower/helpers/mod.rs:23: mod wrap;
 src/hir/lower/helpers/substitute.rs:4: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
 src/hir/lower/helpers/substitute.rs:30: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
 src/hir/lower/helpers/substitute.rs:144: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
-src/hir/lower/helpers/substitute.rs:152: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
+src/hir/lower/helpers/substitute.rs:153: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
 src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String
 src/hir/lower/helpers/types.rs:28: pub(crate) fn fixed_width_int(name: &str) -> Option<(u8, bool)>
 src/hir/lower/helpers/types.rs:38: pub(crate) fn intn_name(bits: u8, signed: bool) -> String
@@ -1722,9 +1725,9 @@ src/package/types.rs:5: pub struct Package
 src/package/types.rs:19: pub enum PackageSymbol
 src/package/types.rs:57: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
-src/parser/ast/block.rs:5: pub struct Block
-src/parser/ast/block.rs:10: impl Block
-src/parser/ast/block.rs:11: pub fn new(stmts: Vec<Stmt>, span: Span) -> Self
+src/parser/ast/block.rs:6: pub struct Block
+src/parser/ast/block.rs:13: impl Block
+src/parser/ast/block.rs:14: pub fn new(stmts: Vec<Stmt>, span: Span) -> Self
 src/parser/ast/expr.rs:9: pub enum Expr
 src/parser/ast/expr.rs:107: impl Expr
 src/parser/ast/expr.rs:108: pub fn span(&self) -> Span
@@ -2132,6 +2135,17 @@ example/test_struct_impl.aya:1: struct Point
 example/test_struct_impl.aya:6: impl Point
 example/test_struct_impl.aya:7: fn get_x(self) -> int
 example/test_struct_impl.aya:12: fn main() -> int
+example/test_tail_expr.aya:2: enum E { A(int), B }
+example/test_tail_expr.aya:4: fn add(int a, int b) -> int
+example/test_tail_expr.aya:8: fn pick(int x) -> int
+example/test_tail_expr.aya:15: fn unbox(E e) -> int
+example/test_tail_expr.aya:22: fn nested(int x) -> int
+example/test_tail_expr.aya:27: pub enum Pair[A, B] { P(A), Q(B) }
+example/test_tail_expr.aya:29: impl[A, B] Pair[A, B]
+example/test_tail_expr.aya:30: pub fn first(self) -> A
+example/test_tail_expr.aya:38: fn mk_pair() -> Pair[int, int] { return Pair::P(5) }
+example/test_tail_expr.aya:41: fn unit_tail(int x)
+example/test_tail_expr.aya:45: fn main() -> int
 example/test_track_caller.aya:3: fn where_am_i(int __line, int __col, String __file) -> int
 example/test_track_caller.aya:10: fn main() -> int
 example/test_try.aya:4: fn inner(int x) -> Result[int, int]

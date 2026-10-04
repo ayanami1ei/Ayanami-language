@@ -59,6 +59,7 @@ test_std_extra.aya 0
 test_std_io.aya 0
 test_std_text.aya 0
 test_struct.aya 1
+test_tail_expr.aya 0
 test_struct2.aya 13
 test_struct_fn.aya 15
 test_struct_impl.aya 42

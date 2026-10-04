@@ -217,13 +217,22 @@ impl crate::hir::lower::Ctx {
             }
         }
 
-        let mut hir_body = self.lower_block(body)?;
+        let (mut hir_body, tail_value) = self.lower_block_impl(body, true)?;
+        // 裸尾表达式：非 void 函数作为隐式返回值（coerce 到返回类型）；void 则求值丢弃
+        if let Some(tail) = tail_value {
+            if matches!(return_type, HirType::Void) {
+                hir_body.stmts.push(HirStmt::Expr { expr: tail, span });
+            } else {
+                let coerced = coerce_expr(tail, &return_type, &span)?;
+                hir_body.stmts.push(HirStmt::Return { value: Some(coerced), span });
+            }
+        }
 
         // A2e：后置条件注入（result 绑定返回值）
         self.inject_ensures(&mut hir_body, &attrs, &return_type, span)?;
 
         // `main` 缺省返回 0（C 语义）：显式 return 优先，末尾兜底
-        if name.as_str() == "main" && matches!(return_type, HirType::Int) {
+        if name.as_str() == "main" && matches!(return_type, HirType::Int) && body.tail.is_none() {
             hir_body.stmts.push(HirStmt::Return {
                 value: Some(SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into()),
                 span,
@@ -256,27 +265,5 @@ impl crate::hir::lower::Ctx {
             locals,
             body: hir_body,
         })
-    }
-
-    // ----------------------------------------------------------------
-    //  块/语句降级：lower_block → lower_stmt → lower_for
-    // ----------------------------------------------------------------
-
-    pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock> {
-        self.push_scope();
-        let saved_hints = std::mem::take(&mut self.usage_hints);
-        self.usage_hints = self.collect_usage_hints(&block.stmts);
-        let mut stmts = Vec::new();
-        for stmt in &block.stmts {
-            let mark = self.pending_stmts.len();
-            let lowered = self.lower_stmt(stmt)?;
-            // A3d：表达式内联语句（如 `?`）必须先于本语句执行
-            let pending: Vec<HirStmt> = self.pending_stmts.split_off(mark);
-            stmts.extend(pending);
-            stmts.push(lowered);
-        }
-        self.usage_hints = saved_hints;
-        self.pop_scope();
-        Ok(HirBlock::new(stmts))
     }
 }

@@ -157,6 +157,19 @@ fn add(int a, int b) -> int { return a + b; }
 
 参数顺序：**类型 名称**。返回值用 `->`。
 
+函数体末尾**无分号的表达式**作为隐式返回值（Rust 风格尾表达式），末尾的 `match` 语句同样适用：
+
+```
+fn add(int a, int b) -> int {
+    a + b
+}
+
+fn pick(int x) -> int {
+    if x > 0 { return 1 }
+    0
+}
+```
+
 ### 函数指针
 
 ```

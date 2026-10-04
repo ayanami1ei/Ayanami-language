@@ -144,6 +144,7 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
 pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block {
     Block {
         stmts: block.stmts.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
+        tail: block.tail.as_ref().map(|e| Box::new(substitute_type_in_expr(e, subst))),
         span: block.span,
     }
 }
