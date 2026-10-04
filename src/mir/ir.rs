@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use crate::span::Span;
 use std::fmt::Write as FmtWrite;
 
 pub use crate::hir::ir::{HirLiteral, HirType};
@@ -65,6 +66,8 @@ pub trait MirStmtNode: std::fmt::Debug {
     /// A5d-3：可变子表达式/子语句遍历（pass body 改写用）
     fn for_each_child_expr_mut(&mut self, _f: &mut dyn FnMut(&mut MirNodeBox)) {}
     fn for_each_child_stmt_mut(&mut self, _f: &mut dyn FnMut(&mut MirStmtBox)) {}
+    /// A6：语句源码位置（合成语句为默认 Span，line/col 为 0）
+    fn span(&self) -> Span { Span::default() }
     fn is_return(&self) -> bool { false }
     fn return_value(&self) -> Option<&MirNodeBox> { None }
     fn as_drop(&self) -> Option<(VarId, &HirType)> { None }
@@ -109,7 +112,7 @@ macro_rules! s_mstmt {
         #[derive(Debug, Clone)]
         pub struct $name { $(pub $field: $ty),* }
     };
-    ($name:ident { $($field:ident: $ty:ty),* }) => { s_mstmt!($name { $($field: $ty),* , }); };
+    ($name:ident { $($field:ident: $ty:ty),* }) => { s_mstmt!($name { $($field: $ty),* , }, span: Span); };
 }
 
 // 23 SMir* expression structs
@@ -137,19 +140,19 @@ s_mir!(SMirIndex { object: MirNodeBox, index: MirNodeBox, ty: HirType });
 s_mir!(SMirAsm { template: String, outputs: Vec<(String, MirNodeBox)>, inputs: Vec<(String, MirNodeBox)>, ty: HirType });
 
 // 13 SMir*Stmt structs
-s_mstmt!(SMirAssignStmt { target: MirNodeBox, value: MirNodeBox });
-s_mstmt!(SMirFieldAssignStmt { object: MirNodeBox, field: Symbol, field_index: usize, field_ty: HirType, value: MirNodeBox });
-s_mstmt!(SMirIndexAssignStmt { object: MirNodeBox, index: MirNodeBox, value: MirNodeBox });
-s_mstmt!(SMirReturnStmt { value: Option<MirNodeBox> });
-s_mstmt!(SMirIfStmt { cond: MirNodeBox, then_block: Vec<MirStmtBox>, elifs: Vec<(MirNodeBox, Vec<MirStmtBox>)>, else_block: Option<Vec<MirStmtBox>> });
-s_mstmt!(SMirWhileStmt { cond: MirNodeBox, body: Vec<MirStmtBox> });
-s_mstmt!(SMirBreakStmt { });
-s_mstmt!(SMirContinueStmt { });
-s_mstmt!(SMirExprStmt { expr: MirNodeBox });
-s_mstmt!(SMirBlockStmt { stmts: Vec<MirStmtBox> });
-s_mstmt!(SMirDropStmt { var: VarId, ty: HirType });
-s_mstmt!(SMirAssumeStmt { cond: MirNodeBox });
-s_mstmt!(SMirContractStmt { kind: crate::hir::ContractKind, cond: MirNodeBox, line: u64, col: u64 });
+s_mstmt!(SMirAssignStmt { target: MirNodeBox, value: MirNodeBox, span: Span });
+s_mstmt!(SMirFieldAssignStmt { object: MirNodeBox, field: Symbol, field_index: usize, field_ty: HirType, value: MirNodeBox, span: Span });
+s_mstmt!(SMirIndexAssignStmt { object: MirNodeBox, index: MirNodeBox, value: MirNodeBox, span: Span });
+s_mstmt!(SMirReturnStmt { value: Option<MirNodeBox>, span: Span });
+s_mstmt!(SMirIfStmt { cond: MirNodeBox, then_block: Vec<MirStmtBox>, elifs: Vec<(MirNodeBox, Vec<MirStmtBox>)>, else_block: Option<Vec<MirStmtBox>>, span: Span });
+s_mstmt!(SMirWhileStmt { cond: MirNodeBox, body: Vec<MirStmtBox>, span: Span });
+s_mstmt!(SMirBreakStmt { span: Span });
+s_mstmt!(SMirContinueStmt { span: Span });
+s_mstmt!(SMirExprStmt { expr: MirNodeBox, span: Span });
+s_mstmt!(SMirBlockStmt { stmts: Vec<MirStmtBox>, span: Span });
+s_mstmt!(SMirDropStmt { var: VarId, ty: HirType, span: Span });
+s_mstmt!(SMirAssumeStmt { cond: MirNodeBox, span: Span });
+s_mstmt!(SMirContractStmt { kind: crate::hir::ContractKind, cond: MirNodeBox, line: u64, col: u64, span: Span });
 
 macro_rules! impl_into_mir_node_box {
     ($($ty:ident),* $(,)?) => {
@@ -186,6 +189,8 @@ impl MirLocal {
 pub struct MirFn {
     pub fn_id: FnId,
     pub name: Symbol,
+    /// A6：函数声明位置（借用等诊断用）
+    pub span: Span,
     pub is_inline: bool,
     pub extern_c: bool,
     pub params: Vec<(Symbol, HirType)>,

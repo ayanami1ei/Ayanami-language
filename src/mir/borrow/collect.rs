@@ -23,6 +23,10 @@ pub(super) fn collect(
     // cfg 节点按源码逆序构建；收集借用来源时按源码顺序遍历
     for (node_idx, node) in cfg.nodes.iter().enumerate().rev() {
         if let Payload::Stmt(s) = &node.payload {
+            let at = {
+                let sp = s.span();
+                if sp.start_line > 0 { format!(" (at {}:{})", sp.start_line, sp.start_col) } else { String::new() }
+            };
             let Some((target, value)) = s.assign_parts() else { continue };
             let Some(r) = target.as_local() else { continue };
             if !matches!(target.expr_type(), HirType::Ref(..)) {
@@ -64,14 +68,14 @@ pub(super) fn collect(
                         return Err(Error::Borrow(format!(
                             "reference stored in field of `{}` must come directly from a reference parameter or local",
                             var_name(mir_fn, r)
-                        )));
+                        ) + &at));
                     }
                     if let Some(mut p) = primary {
                         if loans.contains_key(&r) {
                             return Err(Error::Borrow(format!(
                                 "struct `{}` cannot hold reference fields from multiple/reassigned sources (borrow checker limitation)",
                                 var_name(mir_fn, r)
-                            )));
+                            ) + &at));
                         }
                         p.extra = extras;
                         loans.insert(r, p);
@@ -86,7 +90,7 @@ pub(super) fn collect(
                     return Err(Error::Borrow(format!(
                         "reference local `{}` cannot be reassigned (borrow checker limitation)",
                         var_name(mir_fn, r)
-                    )));
+                    ) + &at));
                 }
                 loans.insert(r, Loan { var, mutable, origin: r, extra: Vec::new() });
             } else if let Some(src) = value.as_local() {
@@ -95,7 +99,7 @@ pub(super) fn collect(
                     return Err(Error::Borrow(format!(
                         "reference local `{}` cannot be reassigned (borrow checker limitation)",
                         var_name(mir_fn, r)
-                    )));
+                    ) + &at));
                 }
                 if let Some(l) = loans.get(&src) {
                     loans.insert(r, Loan { var: l.var, mutable: l.mutable, origin: l.origin, extra: Vec::new() });
@@ -144,7 +148,7 @@ pub(super) fn collect(
                         return Err(Error::Borrow(format!(
                             "follow_with source argument of call assigned to `{}` is not a reference",
                             var_name(mir_fn, r)
-                        )));
+                        ) + &at));
                     }
                     if let Some(mut p) = primary {
                         p.extra = extras;
@@ -172,13 +176,13 @@ pub(super) fn collect(
                             return Err(Error::Borrow(format!(
                                 "reference local `{}` cannot be reassigned (borrow checker limitation)",
                                 var_name(mir_fn, r)
-                            )));
+                            ) + &at));
                         }
                         if ret_mut && !l.mutable {
                             return Err(Error::Borrow(format!(
                                 "cannot return `ref mut` from an immutable borrow of `{}`",
                                 var_name(mir_fn, l.var)
-                            )));
+                            ) + &at));
                         }
                         loans.insert(r, Loan { var: l.var, mutable: ret_mut, origin: l.origin, extra: Vec::new() });
                     }
@@ -186,14 +190,14 @@ pub(super) fn collect(
                         return Err(Error::Borrow(format!(
                             "call returning a reference has no reference argument (at assignment to `{}`)",
                             var_name(mir_fn, r)
-                        )));
+                        ) + &at));
                     }
                 }
             } else {
                 return Err(Error::Borrow(format!(
                     "reference local `{}` must be initialized from `ref`, another reference, or a call returning a reference",
                     var_name(mir_fn, r)
-                )));
+                ) + &at));
             }
         }
     }

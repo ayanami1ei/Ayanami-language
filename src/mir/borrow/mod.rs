@@ -45,10 +45,16 @@ pub fn check_borrows(mir_fn: &MirFn, table: &FollowTable) -> Result<()> {
         .collect();
     if matches!(mir_fn.return_type, HirType::Ref(..)) && ref_params.len() != 1 {
         if mir_fn.follow_sources.is_empty() {
+            let at = if mir_fn.span.start_line > 0 {
+                format!(" (at {}:{})", mir_fn.span.start_line, mir_fn.span.start_col)
+            } else {
+                String::new()
+            };
             return Err(Error::Borrow(format!(
-                "function `{}` returns a reference but has {} reference parameters; add #[follow_with(param, ...)] to declare the source(s)",
+                "function `{}` returns a reference but has {} reference parameters; add #[follow_with(param, ...)] to declare the source(s){}",
                 mir_fn.name.as_str(),
-                ref_params.len()
+                ref_params.len(),
+                at
             )));
         }
         // A4b：多来源由 #[follow_with] 声明（存在性/歧义在 loans 中校验）

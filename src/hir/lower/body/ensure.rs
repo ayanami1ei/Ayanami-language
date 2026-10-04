@@ -42,7 +42,7 @@ impl crate::hir::lower::Ctx {
                     col: *col,
                 });
             } else {
-                check_stmts.push(HirStmt::Assume(hir_cond));
+                check_stmts.push(HirStmt::Assume { cond: hir_cond, span: Span::default() });
             }
         }
 
@@ -73,7 +73,7 @@ impl crate::hir::lower::Ctx {
                     col: *col,
                 });
             } else {
-                out.push(HirStmt::Assume(hir_cond));
+                out.push(HirStmt::Assume { cond: hir_cond, span: Span::default() });
             }
         }
         Ok(out)
@@ -88,15 +88,16 @@ fn result_node(var: VarId, ty: &HirType) -> HirNodeBox {
 fn rewrite_returns(stmts: &mut Vec<HirStmt>, var: VarId, ty: &HirType, checks: &[HirStmt]) {
     for stmt in stmts.iter_mut() {
         match stmt {
-            HirStmt::Return { value } => {
+            HirStmt::Return { value, .. } => {
                 if let Some(v) = value.take() {
                     let mut seq = vec![HirStmt::Assign {
                         target: result_node(var, ty),
                         value: v,
+                        span: Span::default(),
                     }];
                     seq.extend(checks.iter().cloned());
-                    seq.push(HirStmt::Return { value: Some(result_node(var, ty)) });
-                    *stmt = HirStmt::Block(seq);
+                    seq.push(HirStmt::Return { value: Some(result_node(var, ty)), span: Span::default() });
+                    *stmt = HirStmt::Block { stmts: seq, span: Span::default() };
                 }
             }
             HirStmt::If { then_block, elifs, else_block, .. } => {
@@ -109,7 +110,7 @@ fn rewrite_returns(stmts: &mut Vec<HirStmt>, var: VarId, ty: &HirType, checks: &
                 }
             }
             HirStmt::While { body, .. } => rewrite_returns(&mut body.stmts, var, ty, checks),
-            HirStmt::Block(inner) => rewrite_returns(inner, var, ty, checks),
+            HirStmt::Block { stmts: inner, .. } => rewrite_returns(inner, var, ty, checks),
             _ => {}
         }
     }
@@ -119,7 +120,7 @@ fn rewrite_returns(stmts: &mut Vec<HirStmt>, var: VarId, ty: &HirType, checks: &
 fn always_returns(stmts: &[HirStmt]) -> bool {
     match stmts.last() {
         Some(HirStmt::Return { .. }) => true,
-        Some(HirStmt::Block(inner)) => always_returns(inner),
+        Some(HirStmt::Block { stmts: inner, .. }) => always_returns(inner),
         Some(HirStmt::If { then_block, elifs, else_block: Some(eb), .. }) => {
             always_returns(&then_block.stmts)
                 && elifs.iter().all(|(_, b)| always_returns(&b.stmts))
@@ -156,8 +157,9 @@ fn append_default_return(
     body.stmts.push(HirStmt::Assign {
         target: result_node(var, ty),
         value: SConst { val: lit, ty: ty.clone() }.into(),
+        span,
     });
     body.stmts.extend(checks.iter().cloned());
-    body.stmts.push(HirStmt::Return { value: Some(result_node(var, ty)) });
+    body.stmts.push(HirStmt::Return { value: Some(result_node(var, ty)), span });
     Ok(())
 }

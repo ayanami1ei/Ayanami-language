@@ -202,7 +202,7 @@ impl crate::hir::lower::Ctx {
             let hir_cond = self.lower_expr(cond)?;
             crate::hir::contracts::ensure_bool_condition(
                 &hir_cond, "assume", span.start_line, span.start_col)?;
-            prelude.push(HirStmt::Assume(hir_cond));
+            prelude.push(HirStmt::Assume { cond: hir_cond, span });
         }
         // A2d：函数级 #[requires(cond)]，默认运行检查；AYANAMI_CHECKS=0 时退化为 assume
         let checks = crate::hir::contracts::checks_enabled();
@@ -212,7 +212,7 @@ impl crate::hir::lower::Ctx {
             if checks {
                 prelude.push(HirStmt::Contract { kind: ContractKind::Require, cond: hir_cond, line, col });
             } else {
-                prelude.push(HirStmt::Assume(hir_cond));
+                prelude.push(HirStmt::Assume { cond: hir_cond, span });
             }
         }
 

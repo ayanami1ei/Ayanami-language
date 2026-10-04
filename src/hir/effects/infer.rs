@@ -206,7 +206,7 @@ struct CallInfo {
 fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>) {
     for s in stmts {
         match s {
-            HirStmt::Assign { target, value } => {
+            HirStmt::Assign { target, value, .. } => {
                 walk_expr(&**target, calls);
                 walk_expr(&**value, calls);
             }
@@ -217,7 +217,7 @@ fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>) {
                 walk_expr(&**object, calls);
                 walk_expr(&**value, calls);
             }
-            HirStmt::IndexAssign { object, index, value } => {
+            HirStmt::IndexAssign { object, index, value, .. } => {
                 if is_observable_target(object) {
                     calls.push(state_marker());
                 }
@@ -225,10 +225,10 @@ fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>) {
                 walk_expr(&**index, calls);
                 walk_expr(&**value, calls);
             }
-            HirStmt::Return { value } => {
+            HirStmt::Return { value, .. } => {
                 if let Some(v) = value { walk_expr(&**v, calls); }
             }
-            HirStmt::If { cond, then_block, elifs, else_block } => {
+            HirStmt::If { cond, then_block, elifs, else_block, .. } => {
                 walk_expr(&**cond, calls);
                 walk_stmts(&then_block.stmts, calls);
                 for (c, b) in elifs {
@@ -237,13 +237,13 @@ fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>) {
                 }
                 if let Some(b) = else_block { walk_stmts(&b.stmts, calls); }
             }
-            HirStmt::While { cond, body } => {
+            HirStmt::While { cond, body, .. } => {
                 walk_expr(&**cond, calls);
                 walk_stmts(&body.stmts, calls);
             }
-            HirStmt::Expr(e) | HirStmt::Assume(e) => walk_expr(&**e, calls),
+            HirStmt::Expr { expr: e, .. } | HirStmt::Assume { cond: e, .. } => walk_expr(&**e, calls),
             HirStmt::Contract { cond, .. } => walk_expr(&**cond, calls),
-            HirStmt::Block(inner) => walk_stmts(inner, calls),
+            HirStmt::Block { stmts: inner, .. } => walk_stmts(inner, calls),
             _ => {}
         }
     }

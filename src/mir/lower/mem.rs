@@ -24,6 +24,6 @@ pub(super) fn strategy_for(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symb
 
 pub(super) fn action_to_stmt(_var: VarId, ty: &HirType, action: &MemAction) -> MirStmtBox {
     match action {
-        MemAction::Drop(v) => SMirDropStmt { var: *v, ty: ty.clone() }.into(),
+        MemAction::Drop(v) => SMirDropStmt { var: *v, ty: ty.clone(), span: crate::span::Span::default() }.into(),
     }
 }

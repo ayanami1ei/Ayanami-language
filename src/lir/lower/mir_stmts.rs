@@ -3,7 +3,7 @@ use super::util::*;
 use super::fn_lower::strip_ownership;
 
 
-impl MirStmtNode for SMirAssignStmt {
+impl MirStmtNode for SMirAssignStmt { fn span(&self) -> crate::span::Span { self.span }
     fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.target); f(&mut self.value); }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
@@ -24,7 +24,7 @@ impl MirStmtNode for SMirAssignStmt {
 
 }
 
-impl MirStmtNode for SMirFieldAssignStmt {
+impl MirStmtNode for SMirFieldAssignStmt { fn span(&self) -> crate::span::Span { self.span }
     fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.value); }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
@@ -57,7 +57,7 @@ impl MirStmtNode for SMirFieldAssignStmt {
 
 }
 
-impl MirStmtNode for SMirIndexAssignStmt {
+impl MirStmtNode for SMirIndexAssignStmt { fn span(&self) -> crate::span::Span { self.span }
     fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); f(&mut self.value); }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
@@ -89,7 +89,7 @@ impl MirStmtNode for SMirIndexAssignStmt {
 }
 
 
-impl MirStmtNode for SMirReturnStmt {
+impl MirStmtNode for SMirReturnStmt { fn span(&self) -> crate::span::Span { self.span }
     fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { if let Some(v) = &mut self.value { f(v); } }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
@@ -113,7 +113,7 @@ impl MirStmtNode for SMirReturnStmt {
     fn return_value(&self) -> Option<&MirNodeBox> { self.value.as_ref() }
 }
 
-impl MirStmtNode for SMirIfStmt {
+impl MirStmtNode for SMirIfStmt { fn span(&self) -> crate::span::Span { self.span }
     fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); }
     fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.then_block { f(s); } for (_, b) in &mut self.elifs { for s in b { f(s); } } if let Some(b) = &mut self.else_block { for s in b { f(s); } } }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
@@ -182,7 +182,7 @@ pub(super) fn lower_elifs(ctx: &mut dyn LirLowerCtx, elifs: &[(MirNodeBox, Vec<M
     lower_elifs(ctx, rest, else_block, merge_lbl);
 }
 
-impl MirStmtNode for SMirWhileStmt {
+impl MirStmtNode for SMirWhileStmt { fn span(&self) -> crate::span::Span { self.span }
     fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); }
     fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.body { f(s); } }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
@@ -219,7 +219,7 @@ impl MirStmtNode for SMirWhileStmt {
 
 }
 
-impl MirStmtNode for SMirBreakStmt {
+impl MirStmtNode for SMirBreakStmt { fn span(&self) -> crate::span::Span { self.span }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
         if let Some((_, end_lbl)) = ctx.loop_stack().last() {
@@ -232,7 +232,7 @@ impl MirStmtNode for SMirBreakStmt {
 
 }
 
-impl MirStmtNode for SMirContinueStmt {
+impl MirStmtNode for SMirContinueStmt { fn span(&self) -> crate::span::Span { self.span }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
         if let Some((cond_lbl, _)) = ctx.loop_stack().last() {
@@ -245,7 +245,7 @@ impl MirStmtNode for SMirContinueStmt {
 
 }
 
-impl MirStmtNode for SMirExprStmt {
+impl MirStmtNode for SMirExprStmt { fn span(&self) -> crate::span::Span { self.span }
     fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
@@ -260,7 +260,7 @@ impl MirStmtNode for SMirExprStmt {
 
 }
 
-impl MirStmtNode for SMirBlockStmt {
+impl MirStmtNode for SMirBlockStmt { fn span(&self) -> crate::span::Span { self.span }
     fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.stmts { f(s); } }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
@@ -276,7 +276,7 @@ impl MirStmtNode for SMirBlockStmt {
 
 }
 
-impl MirStmtNode for SMirDropStmt {
+impl MirStmtNode for SMirDropStmt { fn span(&self) -> crate::span::Span { self.span }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
         ctx.emit(SLirDropValue { var: self.var, ty: self.ty.clone() }.into());

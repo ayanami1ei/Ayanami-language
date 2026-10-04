@@ -156,7 +156,7 @@ fn apply_stmt(
                 a.path_str(), i, a.span.start_line, a.span.start_col
             )));
         }
-        *s = SMirBlockStmt { stmts: Vec::new() }.into();
+        *s = SMirBlockStmt { stmts: Vec::new(), span: crate::span::Span::default() }.into();
         *idx = i + sizes[i];
         return Ok(());
     }

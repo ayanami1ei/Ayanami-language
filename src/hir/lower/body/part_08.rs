@@ -16,6 +16,7 @@ impl crate::hir::lower::Ctx {
                 Ok(HirStmt::Assign {
                     target: SVar { var: var_id, ty: ty.clone() }.into(),
                     value: hir_value,
+                    span: *span,
                 })
             }
             Stmt::FieldAssign { object, field, value, span: stmt_span } => {
@@ -42,6 +43,7 @@ impl crate::hir::lower::Ctx {
                     field_index,
                     field_ty,
                     value: hir_value,
+                    span: *stmt_span,
                 })
             }
             Stmt::IndexAssign { object, index, value, span } => {
@@ -59,6 +61,7 @@ impl crate::hir::lower::Ctx {
                     object: hir_object,
                     index: hir_index,
                     value: hir_value,
+                    span: *span,
                 })
             }
             Stmt::Return { value, span } => {
@@ -82,9 +85,9 @@ impl crate::hir::lower::Ctx {
                     }
                     None => None,
                 };
-                Ok(HirStmt::Return { value: hir_value })
+                Ok(HirStmt::Return { value: hir_value, span: *span })
             }
-            Stmt::If { cond, then_block, elifs, else_block, .. } => {
+            Stmt::If { cond, then_block, elifs, else_block, span } => {
                 let hir_cond = self.lower_expr(cond)?;
                 let hir_then = self.lower_block(then_block)?;
                 let hir_elifs = elifs.iter()
@@ -103,6 +106,7 @@ impl crate::hir::lower::Ctx {
                     then_block: hir_then,
                     elifs: hir_elifs,
                     else_block: hir_else,
+                    span: *span,
                 })
             }
             Stmt::For { iterator, start, end, step, body, .. } => {
@@ -129,7 +133,7 @@ impl crate::hir::lower::Ctx {
                 };
                 let (val_var, _, _) = self.register_or_lookup(Symbol::intern("__match_val"), value_ty.clone());
                 let val_local: HirNodeBox = SVar { var: val_var, ty: value_ty.clone() }.into();
-                let store_val = HirStmt::Assign { target: val_local, value: hir_value };
+                let store_val = HirStmt::Assign { target: val_local, value: hir_value, span: *span };
                 let mut conds: Vec<HirNodeBox> = Vec::new();
                 let mut blocks: Vec<HirBlock> = Vec::new();
                 for (i, arm) in arms.iter().enumerate() {
@@ -156,13 +160,13 @@ impl crate::hir::lower::Ctx {
                             field: Symbol::intern(&format!("_{}", j)), field_index: j, ty: HirType::Int,
                         }.into();
                         let (bid, _, _) = self.register_or_lookup(*bind_name, HirType::Int);
-                        arm_stmts.push(HirStmt::Assign { target: SVar { var: bid, ty: HirType::Int }.into(), value: fval });
+                        arm_stmts.push(HirStmt::Assign { target: SVar { var: bid, ty: HirType::Int }.into(), value: fval, span: *span });
                     }
-                    arm_stmts.push(HirStmt::Expr(self.lower_expr(&arm.body)?));
+                    arm_stmts.push(HirStmt::Expr { expr: self.lower_expr(&arm.body)?, span: *span });
                     blocks.push(HirBlock { stmts: arm_stmts });
                 }
                 if conds.is_empty() {
-                    return Ok(HirStmt::Expr(SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into()));
+                    return Ok(HirStmt::Expr { expr: SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into(), span: *span });
                 }
                 let first_cond = conds.remove(0);
                 let first_block = blocks.remove(0);
@@ -172,15 +176,15 @@ impl crate::hir::lower::Ctx {
                     None
                 };
                 let elifs: Vec<(HirNodeBox, HirBlock)> = conds.into_iter().zip(blocks.into_iter()).collect();
-                Ok(HirStmt::Block(vec![store_val, HirStmt::If {
-                    cond: first_cond, then_block: first_block, elifs, else_block,
-                }]))
+                Ok(HirStmt::Block { stmts: vec![store_val, HirStmt::If {
+                    cond: first_cond, then_block: first_block, elifs, else_block, span: *span,
+                }], span: *span })
             }
-            Stmt::Break { .. } => Ok(HirStmt::Break),
-            Stmt::Continue { .. } => Ok(HirStmt::Continue),
-            Stmt::ExprStmt { expr, .. } => {
+            Stmt::Break { span } => Ok(HirStmt::Break { span: *span }),
+            Stmt::Continue { span } => Ok(HirStmt::Continue { span: *span }),
+            Stmt::ExprStmt { expr, span } => {
                 let hir_expr = self.lower_expr(expr)?;
-                Ok(HirStmt::Expr(hir_expr))
+                Ok(HirStmt::Expr { expr: hir_expr, span: *span })
             }
             Stmt::Namespace { .. } | Stmt::FnDecl { .. } | Stmt::StructDef { .. } | Stmt::EnumDef { .. } | Stmt::InterfaceDef { .. } | Stmt::ImplBlock { .. } | Stmt::Import { .. } => {
                 let s = stmt.span();
@@ -203,7 +207,8 @@ impl crate::hir::lower::Ctx {
             checks.append(&mut hir_body.stmts);
             hir_body.stmts = checks;
         }
-        Ok(HirStmt::While { cond: hir_cond, body: hir_body })
+        let span = cond.span();
+        Ok(HirStmt::While { cond: hir_cond, body: hir_body, span })
     }
 
     pub(crate) fn lower_for(
@@ -221,9 +226,11 @@ impl crate::hir::lower::Ctx {
         let ty = expr_type(&hir_start);
         let (var_id, _, _) = self.register_or_lookup(iter_name, ty.clone());
 
+        let span = body.span;
         let init = HirStmt::Assign {
             target: SVar { var: var_id, ty: ty.clone() }.into(),
             value: hir_start,
+            span,
         };
 
         let hir_end = self.lower_expr(end)?;
@@ -256,14 +263,18 @@ impl crate::hir::lower::Ctx {
                 rhs: step_expr,
                 ty: step_ty,
             }.into(),
+            span,
         });
 
         self.pop_scope();
 
-        Ok(HirStmt::Block(vec![
-            init,
-            HirStmt::While { cond, body: HirBlock::new(body_stmts) },
-        ]))
+        Ok(HirStmt::Block {
+            stmts: vec![
+                init,
+                HirStmt::While { cond, body: HirBlock::new(body_stmts), span },
+            ],
+            span,
+        })
     }
 
     // ----------------------------------------------------------------

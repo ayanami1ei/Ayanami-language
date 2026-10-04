@@ -34,16 +34,23 @@ pub fn match_source(
             }
         }
     }
+    let at = if mir_fn.span.start_line > 0 {
+        format!(" (at {}:{})", mir_fn.span.start_line, mir_fn.span.start_col)
+    } else {
+        String::new()
+    };
     match matched.len() {
         0 => Err(Error::Borrow(format!(
-            "#[follow_with({})] does not match any reference parameter of `{}`",
+            "#[follow_with({})] does not match any reference parameter of `{}`{}",
             source.as_str(),
-            mir_fn.name.as_str()
+            mir_fn.name.as_str(),
+            at
         ))),
         1 => Ok(matched[0]),
         _ => Err(Error::Borrow(format!(
-            "#[follow_with({})] is ambiguous: multiple reference parameters have this type; use parameter names",
-            source.as_str()
+            "#[follow_with({})] is ambiguous: multiple reference parameters have this type; use parameter names{}",
+            source.as_str(),
+            at
         ))),
     }
 }

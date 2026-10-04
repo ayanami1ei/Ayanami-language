@@ -103,7 +103,7 @@ pub(crate) fn write_expr(expr: &HirNodeBox, level: usize, w: &mut impl Write) ->
 fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Result {
     let p = pad(level);
     match stmt {
-        HirStmt::Assign { target, value } => {
+        HirStmt::Assign { target, value, .. } => {
             writeln!(w, "{}Assign", p)?;
             writeln!(w, "{}  target:", p)?;
             write_expr(target, level + 1, w)?;
@@ -117,7 +117,7 @@ fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}  value:", p)?;
             write_expr(value, level + 1, w)?;
         }
-        HirStmt::IndexAssign { object, index, value } => {
+        HirStmt::IndexAssign { object, index, value, .. } => {
             writeln!(w, "{}IndexAssign", p)?;
             writeln!(w, "{}  object:", p)?;
             write_expr(object, level + 1, w)?;
@@ -126,7 +126,7 @@ fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}  value:", p)?;
             write_expr(value, level + 1, w)?;
         }
-        HirStmt::Return { value } => {
+        HirStmt::Return { value, .. } => {
             writeln!(w, "{}Return", p)?;
             if let Some(v) = value {
                 write_expr(v, level + 1, w)?;
@@ -151,18 +151,18 @@ fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
                 write_block(b, level + 1, w)?;
             }
         }
-        HirStmt::While { cond, body } => {
+        HirStmt::While { cond, body, .. } => {
             writeln!(w, "{}While", p)?;
             writeln!(w, "{}  cond:", p)?;
             write_expr(cond, level + 1, w)?;
             writeln!(w, "{}  body:", p)?;
             write_block(body, level + 1, w)?;
         }
-        HirStmt::Expr(expr) => {
+        HirStmt::Expr { expr, .. } => {
             writeln!(w, "{}Expr", p)?;
             write_expr(expr, level + 1, w)?;
         }
-        HirStmt::Assume(cond) => {
+        HirStmt::Assume { cond, .. } => {
             writeln!(w, "{}Assume", p)?;
             write_expr(cond, level + 1, w)?;
         }
@@ -170,17 +170,17 @@ fn write_stmt(stmt: &HirStmt, level: usize, w: &mut impl Write) -> std::fmt::Res
             writeln!(w, "{}{}({}:{})", p, kind.label(), line, col)?;
             write_expr(cond, level + 1, w)?;
         }
-        HirStmt::Block(stmts) => {
+        HirStmt::Block { stmts, .. } => {
             writeln!(w, "{}Block {{", p)?;
             for s in stmts {
                 write_stmt(s, level + 1, w)?;
             }
             writeln!(w, "{}}}", p)?;
         }
-        HirStmt::Break => {
+        HirStmt::Break { .. } => {
             writeln!(w, "{}Break", p)?;
         }
-        HirStmt::Continue => {
+        HirStmt::Continue { .. } => {
             writeln!(w, "{}Continue", p)?;
         }
     }

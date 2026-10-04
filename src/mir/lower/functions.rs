@@ -25,6 +25,7 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
         return Ok(MirFn {
             fn_id: f.fn_id,
             name: f.name,
+            span: f.span,
             is_inline: f.is_inline,
             extern_c: f.extern_c,
             params: f.params.clone(),
@@ -67,6 +68,7 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
     Ok(MirFn {
         fn_id: f.fn_id,
         name: f.name,
+        span: f.span,
         is_inline: f.is_inline,
         extern_c: f.extern_c,
         params: f.params.clone(),

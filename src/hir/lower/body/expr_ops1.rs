@@ -162,7 +162,7 @@ impl crate::hir::lower::Ctx {
         let val_var = VarId(self.locals.len());
         self.locals.push(HirLocal::new(Symbol::intern("__try_val"), inner_ty.clone(), false));
         let val_node: HirNodeBox = SVar { var: val_var, ty: inner_ty.clone() }.into();
-        self.pending_stmts.push(HirStmt::Assign { target: val_node.clone(), value: hir_inner });
+        self.pending_stmts.push(HirStmt::Assign { target: val_node.clone(), value: hir_inner, span: Span::default() });
 
         // __try_ok（结果）
         let ok_var = VarId(self.locals.len());
@@ -199,15 +199,17 @@ impl crate::hir::lower::Ctx {
         let then_block = HirBlock::new(vec![HirStmt::Assign {
             target: SVar { var: ok_var, ty: ok_ty.clone() }.into(),
             value: ok_load,
+            span: Span::default(),
         }]);
 
         // else: return __try_val（同类型的 Result）
-        let else_block = HirBlock::new(vec![HirStmt::Return { value: Some(val_node) }]);
+        let else_block = HirBlock::new(vec![HirStmt::Return { value: Some(val_node), span: Span::default() }]);
 
         self.pending_stmts.push(HirStmt::If {
             cond,
             then_block,
             elifs: Vec::new(),
+            span: Span::default(),
             else_block: Some(else_block),
         });
 

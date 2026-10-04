@@ -25,6 +25,18 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
         .map(|s| super::follow::match_source(mir_fn, s, ref_params).map(|v| (*s, v)))
         .collect::<Result<Vec<_>>>()?;
     let mut errors: Vec<String> = Vec::new();
+    // A6：语句位置（用于借用错误定位；合成语句无位置时为空）
+    let span_at = |i: usize| -> String {
+        let sp = match &cfg.nodes[i].payload {
+            Payload::Stmt(s) => s.span(),
+            _ => crate::span::Span::default(),
+        };
+        if sp.start_line > 0 {
+            format!(" (at {}:{})", sp.start_line, sp.start_col)
+        } else {
+            String::new()
+        }
+    };
 
     for (i, node) in cfg.nodes.iter().enumerate() {
         let live = &live_in[i];
@@ -48,7 +60,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                         "cannot borrow `{}` as {} because it is also borrowed",
                         var_name(mir_fn, va),
                         if ma { "mutable" } else { "immutable" }
-                    ));
+                    ) + &span_at(i));
                 }
             }
         }
@@ -66,14 +78,14 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                 errors.push(format!(
                     "struct `{}` contains reference fields and cannot be moved/returned (borrow checker limitation)",
                     var_name(mir_fn, *w)
-                ));
+                ) + &span_at(i));
                 continue;
             }
             if active.iter().any(|(_, v, _)| *v == *w) {
                 errors.push(format!(
                     "cannot assign to or move `{}` because it is borrowed",
                     var_name(mir_fn, *w)
-                ));
+                ) + &span_at(i));
             }
         }
 
@@ -83,7 +95,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                 errors.push(format!(
                     "cannot use `{}` because it is mutably borrowed",
                     var_name(mir_fn, *u)
-                ));
+                ) + &span_at(i));
             }
         }
 
@@ -106,7 +118,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                         if !ok || !mut_ok {
                             errors.push(format!(
                                 "returned reference must follow one of the #[follow_with(...)] sources"
-                            ));
+                            ) + &span_at(i));
                         }
                     } else {
                         let ok = ref_params.iter().any(|(p, pm)| {
@@ -116,7 +128,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                         if !ok {
                             errors.push(format!(
                                 "returned reference must be derived from the elided reference parameter"
-                            ));
+                            ) + &span_at(i));
                         }
                     }
                 }
@@ -135,7 +147,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                                 "cannot borrow `{}` as {} because it is also borrowed",
                                 var_name(mir_fn, var),
                                 if mutable { "mutable" } else { "immutable" }
-                            ));
+                            ) + &span_at(i));
                         }
                     }
                     let _ = value;
