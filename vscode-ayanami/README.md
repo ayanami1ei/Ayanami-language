@@ -44,3 +44,11 @@ Syntax highlighting and basic language support for `.aya` files.
 - 扫描编译器旁的 `std/*.lcl` 符号表与工作区 `*.aya`，定位符号所在包
 - 光标放到错误行 → `Ctrl+.`（或点击灯泡）→ 自动在 import 区插入 `import "arraylist";`
 - 排序：包名与符号同名优先、非 `std` 优先、依赖更少的包优先
+
+## 诊断与补全（编译器驱动）
+
+- **诊断范围**：波浪线覆盖完整标识符；声明级问题（缺 return、注解缺失）覆盖整条 `fn ...` 声明
+- **效应/注解告警**：`check` 成功时也读取 stderr 告警，并锚定到函数声明
+- **成员补全**：`变量.` 使用编译器 `types` 推断的真实类型；方法来自 std `.lcl` 方法表（含泛型 impl 方法，如 `ArrayList.push`）与本地/导入 `impl`
+- **方法悬停**：显示 `.lcl` 方法表中的完整签名
+- 顶层补全过滤 `__` 内部符号并去重

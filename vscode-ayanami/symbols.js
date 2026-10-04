@@ -111,8 +111,9 @@ function scanEnumsFull(text, file) {
     return out;
 }
 
-/// 解析 .lcl 的符号表（fn="name,flags,sig" / struct="Name(field:type,...)"）
+/// 解析 .lcl 的符号表（fn="name,flags,sig" / struct="..." / method="Type,name,sig"）
 function parseLclSymbols(text, file, syms) {
+    if (!syms.methods) syms.methods = [];
     const fnRe = /^fn="([^"]*)"/gm;
     let m;
     while ((m = fnRe.exec(text)) !== null) {
@@ -130,6 +131,22 @@ function parseLclSymbols(text, file, syms) {
             });
         }
     }
+    const meRe = /^method="([^"]*)"/gm;
+    while ((m = meRe.exec(text)) !== null) {
+        const parts = m[1].split(',');
+        if (parts.length < 3) continue;
+        const typeName = parts[0];
+        const name = parts[1];
+        const sigBody = parts.slice(2).join(',');
+        const parsed = parseBalancedSig(name, sigBody);
+        if (parsed) {
+            syms.methods.push({
+                type: typeName, name,
+                sig: `${name}(${parsed.params})${parsed.ret ? ' -> ' + parsed.ret : ''}`,
+                params: parsed.params, ret: parsed.ret, doc: '', attrs: [], line: 0, file,
+            });
+        }
+    }
     const stRe = /^struct="([^"]*)"/gm;
     while ((m = stRe.exec(text)) !== null) {
         const nm = m[1].match(/^(\w+)\(([^)]*)\)/);
@@ -143,6 +160,22 @@ function parseLclSymbols(text, file, syms) {
     }
 }
 
+/// 解析 `name(params)->ret`，参数允许嵌套括号（如 fn(T)）
+function parseBalancedSig(name, body) {
+    const open = body.indexOf('(');
+    if (open < 0) return null;
+    let depth = 0, close = -1;
+    for (let i = open; i < body.length; i++) {
+        if (body[i] === '(') depth++;
+        else if (body[i] === ')') { depth--; if (depth === 0) { close = i; break; } }
+    }
+    if (close < 0) return null;
+    const params = body.slice(open + 1, close).trim();
+    const rest = body.slice(close + 1);
+    const arrow = rest.match(/^\s*->\s*(.+)$/);
+    return { params, ret: arrow ? arrow[1].trim() : '' };
+}
+
 const cache = new Map();
 
 /// 收集当前文件 + import（.aya 源码或 .lcl 符号表）的符号
@@ -151,7 +184,7 @@ function collectSymbols(text, filePath, opts) {
     const hit = cache.get(key);
     if (hit) return hit;
 
-    const syms = { functions: [], structs: [], enums: [] };
+    const syms = { functions: [], structs: [], enums: [], methods: [] };
     const addText = (t, f) => {
         syms.functions.push(...scanFnSigsFull(t, f));
         syms.structs.push(...scanStructsFull(t, f));

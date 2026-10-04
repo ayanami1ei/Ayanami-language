@@ -47,15 +47,16 @@ pub(super) fn diagnostics(hir: &HirProgram, ast: &crate::parser::ast::Program, s
 
         // 缺失建议（只对 pub 接口）
         if f.is_pub && !f.effects.pure {
+            // 缺失建议锚定到函数声明（编辑器波浪线落在声明上）
             for e in &inf.effects {
                 if !f.effects.has_effect(e) {
-                    let (l, c) = site_of(e).unwrap_or((f.span.start_line, f.span.start_col));
-                    issues.push((l, c, format!("function `{}` may have effect `{}`; consider adding #[{}]", full, e, e)));
+                    issues.push((f.span.start_line, f.span.start_col,
+                        format!("function `{}` may have effect `{}`; consider adding #[{}]", full, e, e)));
                 }
             }
             if !inf.throws.is_empty() && f.effects.throws.is_none() {
-                let (l, c) = site_of("throws").unwrap_or((f.span.start_line, f.span.start_col));
-                issues.push((l, c, format!("function `{}` may throw; consider adding #[throws(...)]", full)));
+                issues.push((f.span.start_line, f.span.start_col,
+                    format!("function `{}` may throw; consider adding #[throws(...)]", full)));
             }
         }
     }

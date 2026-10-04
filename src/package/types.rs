@@ -44,6 +44,12 @@ pub enum PackageSymbol {
     Check {
         name: String,
     },
+    /// 方法表（供编辑器补全/悬停；编译器导入忽略 `method=` 行）
+    Method {
+        type_name: String,
+        name: String,
+        signature: String,
+    },
 }
 
 /// Parsed symbol from a .lcl package file.

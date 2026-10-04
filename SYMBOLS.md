@@ -95,9 +95,9 @@ src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
 src/compiler/build/passes/mod.rs:46: pub(super) fn apply_passes(
 src/compiler/build/target.rs:4: pub fn build_source_with_target(
 src/compiler/build/target.rs:105: pub fn run_executable(exe_name: &str) -> Result<i32>
-src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, src_path: &Path) -> Result<()>
-src/compiler/check.rs:36: fn has_return_in_item(item: &HirItem) -> bool
-src/compiler/check.rs:75: fn has_return_in_stmt(s: &HirStmt) -> bool
+src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
+src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
+src/compiler/check.rs:72: fn has_return_in_stmt(s: &HirStmt) -> bool
 src/compiler/debug/expr.rs:5: pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write)
 src/compiler/debug/format.rs:3: pub(super) fn pad(n: usize) -> String
 src/compiler/debug/format.rs:7: pub(super) fn format_type(ty: &Type) -> String
@@ -1641,7 +1641,7 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:84: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:87: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:13: impl ProjectConfig
 src/package/config.rs:14: pub fn load(toml_content: &str) -> Self
@@ -1671,7 +1671,7 @@ src/package/target.rs:11: pub fn as_str(&self) -> &'static str
 src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:19: pub enum PackageSymbol
-src/package/types.rs:51: pub enum ImportedSymbol
+src/package/types.rs:57: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:5: pub struct Block
 src/parser/ast/block.rs:10: impl Block

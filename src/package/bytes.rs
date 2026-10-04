@@ -51,6 +51,9 @@ impl Package {
                     PackageSymbol::Check { name } => {
                         body.push_str(&format!("check=\"{}\"\n", name));
                     }
+                    PackageSymbol::Method { type_name, name, signature } => {
+                        body.push_str(&format!("method=\"{},{},{}\"\n", type_name, name, signature));
+                    }
                 }
             }
             body.push_str("\n");

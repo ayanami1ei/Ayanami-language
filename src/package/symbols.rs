@@ -114,7 +114,27 @@ impl Package {
                 }
             }
             Stmt::EnumDef { .. } => {}
-            Stmt::ImplBlock { type_name: _, methods, generic_params, .. } => {
+            Stmt::ImplBlock { type_name, methods, generic_params, .. } => {
+                // 方法表：类型名 + 方法签名（编辑器补全/悬停用；编译器导入忽略）
+                let type_base = type_name.as_str().to_string();
+                for m in methods {
+                    if !crate::hir::cfg::stmt_enabled(m) { continue; }
+                    if let Stmt::FnDecl { name, params, return_type, vis, .. } = m {
+                        if all || vis.is_public() {
+                            let sig = format!("{}({})->{}",
+                                name,
+                                params.iter().map(|(_, t)| type_to_string(t)).collect::<Vec<_>>().join(","),
+                                type_to_string(return_type))
+                                .replace("Self", &type_base)
+                                .replace("???", "fn(...)");
+                            self.symbols.push(PackageSymbol::Method {
+                                type_name: type_base.clone(),
+                                name: name.as_str().to_string(),
+                                signature: sig,
+                            });
+                        }
+                    }
+                }
                 let has_generic = !generic_params.is_empty()
                     || methods.iter().any(|m| matches!(m, Stmt::FnDecl { generic_params, .. } if !generic_params.is_empty()));
                 if has_generic {

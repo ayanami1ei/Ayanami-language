@@ -38,7 +38,44 @@ function extractPos(msg) {
     if (m) return { line: +m[1], col: +m[2] };
     m = msg.match(/(\S+\.aya):(\d+):(\d+)/);
     if (m) return { file: m[1], line: +m[2], col: +m[3] };
+    // 形如 `error: 12:1: error: ...`（report_error 剥离路径后的形态）
+    m = msg.match(/(?:^|\s)(\d+):(\d+):\s*(?:error|warning|note):/);
+    if (m) return { line: +m[1], col: +m[2] };
     return { line: 0, col: 0 };
+}
+
+/// 计算波浪线范围（0-based，同一行内 [start, end)）。
+/// - 声明级诊断（缺 return / 注解缺失）→ 整条 `fn ...` 声明
+/// - 消息里反引号符号名 → 行内该名字
+/// - 其余 → 位置处的完整标识符；再不行 → 整行（去缩进）
+function computeRange(lineText, col, message) {
+    const line = lineText || '';
+    const start = Math.max(0, Math.min((col || 1) - 1, line.length));
+    const decl = (message || '').match(/function `([^`]+)` (?:has non-void return type|may have effect|may throw|is #\[)/);
+    if (decl) {
+        const brace = line.indexOf('{');
+        const end = brace > 0 ? brace : line.replace(/\s+$/, '').length;
+        const fnIdx = line.search(/\b(?:pub\s+)?fn\b/);
+        const s0 = fnIdx >= 0 ? fnIdx : start;
+        return { start: s0, end: Math.max(end, s0 + 1) };
+    }
+    const bt = (message || '').match(/`([A-Za-z_]\w*)`/);
+    if (bt) {
+        let idx = line.indexOf(bt[1], start);
+        if (idx < 0) idx = line.indexOf(bt[1]);
+        if (idx >= 0) return { start: idx, end: idx + bt[1].length };
+    }
+    const isWord = (c) => /\w/.test(c);
+    if (start < line.length && isWord(line[start])) {
+        let s0 = start, e0 = start;
+        while (s0 > 0 && isWord(line[s0 - 1])) s0--;
+        while (e0 < line.length && isWord(line[e0])) e0++;
+        return { start: s0, end: e0 };
+    }
+    const trimmedStart = line.search(/\S/);
+    const trimmedEnd = line.replace(/\s+$/, '').length;
+    if (trimmedStart >= 0) return { start: trimmedStart, end: trimmedEnd };
+    return { start, end: start + 1 };
 }
 
 const SKIP_LINE = /^(stage\b|check passed|building\b|build ok|running:|package:|installing\b|note:)/;
@@ -117,4 +154,4 @@ function parseCompilerOutput(out, defaultFile, projectRoot) {
     return diags;
 }
 
-module.exports = { parseCompilerOutput, cleanMessage, extractPos };
+module.exports = { parseCompilerOutput, cleanMessage, extractPos, computeRange };

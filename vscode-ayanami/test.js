@@ -147,5 +147,29 @@ eq(qf.importEditInfo('import "string";\n\nfn main() -> int { return 0; }\n', 'ar
 eq(qf.importEditInfo('fn main() -> int { return 0; }\n', 'arraylist'), { line: 0, text: 'import "arraylist";\n' }, 'qf edit at top');
 eq(qf.importEditInfo('import "arraylist";\n', 'arraylist'), null, 'qf edit already imported');
 
+// 10) 诊断位置：`12:1: error:` 前缀形态
+const missingRet = 'error: 12:1: error: function `digit` has non-void return type but no return statement\n';
+d = parseCompilerOutput(missingRet, '/tmp/opencode/x.aya', '/tmp/opencode');
+eq([d.length, d[0].line, d[0].col], [1, 12, 1], 'line:col prefix pos');
+
+// 11) 波浪线范围
+const { computeRange } = require('./diagnostics');
+const declLine = 'fn digit(ref mut int i, ref String code) -> TokenType {';
+const rDecl = computeRange(declLine, 1, 'function `digit` has non-void return type but no return statement');
+eq([rDecl.start, rDecl.end], [0, declLine.indexOf('{')], 'range declaration');
+const rTok = computeRange('    res = String::new();', 11, 'undefined variable `res`');
+eq([rTok.start, rTok.end], [4, 7], 'range token by name');
+const rWord = computeRange('    foo.bar', 5, 'some error');
+eq([rWord.start, rWord.end], [4, 7], 'range identifier at col');
+const rLine = computeRange('    = 1', 5, 'some error');
+eq([rLine.start, rLine.end], [4, 7], 'range whole line fallback');
+
+// 12) lcl 方法表
+const mout = { functions: [], structs: [], enums: [], methods: [] };
+syms.parseLclSymbols('method="ArrayList,push,push(ref mut ArrayList[T],T)->void"\nmethod="ArrayList,iter,iter(ref ArrayList[T],fn(T))->void"\n', 'a.lcl', mout);
+eq(mout.methods.length, 2, 'lcl methods count');
+eq([mout.methods[0].type, mout.methods[0].name, mout.methods[0].sig], ['ArrayList', 'push', 'push(ref mut ArrayList[T],T) -> void'], 'lcl method push');
+eq(mout.methods[1].sig, 'iter(ref ArrayList[T],fn(T)) -> void', 'lcl method nested paren');
+
 console.log(fails === 0 ? 'ALL EXT TESTS PASS' : `${fails} FAILURES`);
 process.exit(fails === 0 ? 0 : 1);

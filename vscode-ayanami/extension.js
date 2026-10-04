@@ -1,5 +1,5 @@
 const vscode = require('vscode');
-const { parseCompilerOutput } = require('./diagnostics');
+const { parseCompilerOutput, computeRange } = require('./diagnostics');
 const symbols = require('./symbols');
 const typesMod = require('./types');
 const quickfix = require('./quickfix');
@@ -124,7 +124,13 @@ function activate(context) {
             const afterArrow = linePrefix.match(/->\s*$/);
 
             const folder = document.uri.scheme === 'file' ? require('path').dirname(document.uri.fsPath) : null;
-            const imported = folder ? resolveImports(document, folder) : { structs: [], namespaces: [], functions: [] };
+            const filePath = document.uri.scheme === 'file' ? document.uri.fsPath : '';
+            const ayanamiPathC = findAyanamiPath(context);
+            const compilerDir = ayanamiPathC ? require('path').dirname(ayanamiPathC) : null;
+            const workspaceFolders = (vscode.workspace.workspaceFolders || []).map((w) => w.uri.fsPath);
+            const imported = filePath
+                ? symbols.collectSymbols(document.getText(), filePath, { compilerDir, workspaceFolders })
+                : { structs: [], namespaces: [], functions: [], enums: [], methods: [] };
 
             const localStructs = scanStructs(document);
             const localEnums = scanEnums(document);
@@ -132,52 +138,60 @@ function activate(context) {
             const localFns = scanFunctions(document);
 
             const structs = [...localStructs, ...imported.structs];
-            const namespaces = [...new Set([...localNss, ...imported.namespaces])];
+            const namespaces = [...new Set([...localNss, ...(imported.namespaces || [])])];
             const functions = [...localFns, ...imported.functions];
             const fnByNs = groupByNamespace(functions);
-            const varTypes = scanVariableTypes(document);
+            const varTypes = compilerVarTypes(document, context);
+            const allEnums = [...localEnums, ...(imported.enums || [])];
 
             if (dotMatch) {
                 const varName = dotMatch[1];
-                const typeName = varTypes.get(varName);
-                if (typeName) {
-                    const fields = getStructFields(document, typeName);
-                    for (const f of fields) {
-                        items.push(makeItem(f, vscode.CompletionItemKind.Field, `${typeName} field`));
-                    }
-                    // Also check imported files for struct fields
-                    if (fields.length === 0 && folder) {
-                        const importedFields = getImportedStructFields(folder, typeName);
-                        for (const f of importedFields) {
-                            items.push(makeItem(f, vscode.CompletionItemKind.Field, `${typeName} field`));
+                const typeName = receiverTypeAt(varTypes, varName, position);
+                const baseType = typeName ? String(typeName).split('<')[0].split('[')[0].trim() : null;
+                if (baseType) {
+                    const seenFields = new Set();
+                    const st = structs.find((x) => x.name === baseType);
+                    if (st && st.fields) {
+                        for (const f of st.fields) {
+                            if (seenFields.has(f.name)) continue;
+                            seenFields.add(f.name);
+                            items.push(makeItem(f.name, vscode.CompletionItemKind.Field, `${baseType}.${f.name}: ${f.type}`));
                         }
                     }
-                    const methods = getImplMethods(document, typeName);
-                    for (const m of methods) {
-                        items.push(makeItem(m, vscode.CompletionItemKind.Method, `${typeName} method`));
-                    }
-                    // Also check imported files for impl methods
-                    if (methods.length === 0 && folder) {
-                        const importedMethods = getImportedImplMethods(folder, typeName);
-                        for (const m of importedMethods) {
-                            items.push(makeItem(m, vscode.CompletionItemKind.Method, `${typeName} method`));
+                    if (seenFields.size === 0) {
+                        for (const f of getStructFields(document, baseType)) {
+                            if (!seenFields.has(f)) { seenFields.add(f); items.push(makeItem(f, vscode.CompletionItemKind.Field, `${baseType} field`)); }
+                        }
+                        if (seenFields.size === 0 && folder) {
+                            for (const f of getImportedStructFields(folder, baseType)) {
+                                if (!seenFields.has(f)) { seenFields.add(f); items.push(makeItem(f, vscode.CompletionItemKind.Field, `${baseType} field`)); }
+                            }
                         }
                     }
-                }
-                if (typeName === 'int' || typeName === 'String') {
-                    items.push(makeItem('to_string', vscode.CompletionItemKind.Method, `${typeName} method`));
-                }
-                if (typeName === 'String') {
-                    items.push(makeItem('len', vscode.CompletionItemKind.Method, 'String method'));
-                    items.push(makeItem('copy', vscode.CompletionItemKind.Method, 'String method'));
-                    items.push(makeItem('add', vscode.CompletionItemKind.Method, 'String method'));
+                    const seenMethods = new Set();
+                    for (const m of (imported.methods || [])) {
+                        if (m.type === baseType && !seenMethods.has(m.name)) {
+                            seenMethods.add(m.name);
+                            const item = makeItem(m.name, vscode.CompletionItemKind.Method, `${baseType}.${m.sig}`);
+                            item.documentation = m.sig;
+                            items.push(item);
+                        }
+                    }
+                    for (const m of getImplMethods(document, baseType)) {
+                        if (!seenMethods.has(m)) { seenMethods.add(m); items.push(makeItem(m, vscode.CompletionItemKind.Method, `${baseType} method`)); }
+                    }
+                    if (folder) {
+                        for (const m of getImportedImplMethods(folder, baseType)) {
+                            if (!seenMethods.has(m)) { seenMethods.add(m); items.push(makeItem(m, vscode.CompletionItemKind.Method, `${baseType} method`)); }
+                        }
+                    }
                 }
                 // Enum field completions: show _tag and _data_Variant fields
-                const enumForType = localEnums.find(e => e.name === typeName);
+                const enumForType = allEnums.find(e => e.name === (baseType || varName));
                 if (enumForType) {
-                    items.push(makeItem('_tag', vscode.CompletionItemKind.Field, `${typeName} enum tag`));
+                    items.push(makeItem('_tag', vscode.CompletionItemKind.Field, `${enumForType.name} enum tag`));
                     for (const v of enumForType.variants) {
-                        items.push(makeItem('_data_' + v, vscode.CompletionItemKind.Field, `${typeName} variant ${v}`));
+                        items.push(makeItem('_data_' + v, vscode.CompletionItemKind.Field, `${enumForType.name} variant ${v}`));
                     }
                 }
                 return items;
@@ -264,8 +278,15 @@ function activate(context) {
                 items.push(makeItem(t, vscode.CompletionItemKind.Constant, 'keyword'));
             }
 
-            for (const s of structs) {
-                items.push(makeItem(s.name, vscode.CompletionItemKind.Struct, 'struct'));
+            const seenStruct = new Set();
+            for (const st of structs) {
+                if (!st || !st.name || seenStruct.has(st.name)) continue;
+                seenStruct.add(st.name);
+                items.push(makeItem(st.name, vscode.CompletionItemKind.Struct, 'struct'));
+            }
+
+            for (const en of allEnums) {
+                if (en && en.name) items.push(makeItem(en.name, vscode.CompletionItemKind.Enum, 'enum'));
             }
 
             for (const ns of namespaces) {
@@ -276,8 +297,14 @@ function activate(context) {
                 items.push(makeItem(v, vscode.CompletionItemKind.Variable, 'variable'));
             }
 
+            const seenFn = new Set();
             for (const f of functions) {
-                items.push(makeItem(f, vscode.CompletionItemKind.Function, 'function'));
+                const name = typeof f === 'string' ? f : (f && f.name);
+                if (!name || name.startsWith('__')) continue;   // 过滤内部辅助符号
+                if (seenFn.has(name)) continue;
+                seenFn.add(name);
+                const detail = (f && typeof f === 'object' && f.sig) ? f.sig : 'function';
+                items.push(makeItem(name, vscode.CompletionItemKind.Function, detail));
             }
 
             const snippets = [
@@ -361,9 +388,15 @@ function activate(context) {
                     }
                 }
 
-                const vt = scanVariableTypes(document).get(word);
-                if (vt) {
-                    return new vscode.Hover(new vscode.MarkdownString(`**变量** \`${word}: ${vt}\``), range);
+                const vt = compilerVarTypes(document, context).get(word);
+                const vtName = typeof vt === 'string' ? vt : (Array.isArray(vt) && vt.length ? vt[vt.length - 1].type : null);
+                if (vtName) {
+                    return new vscode.Hover(new vscode.MarkdownString(`**变量** \`${word}: ${vtName}\``), range);
+                }
+                // 方法 hover：lcl 方法表
+                const method = (syms.methods || []).find((mm) => mm.name === word);
+                if (method) {
+                    return new vscode.Hover(new vscode.MarkdownString(`**method** \`${method.type}.${method.sig}\``), range);
                 }
 
                 return null;
@@ -525,7 +558,7 @@ function activate(context) {
                 return;
             }
 
-            const { execFileSync } = require('child_process');
+            const { spawnSync } = require('child_process');
 
             // Use project root as CWD (walk up from file to find ayanami.toml)
             let projectRoot = path.dirname(filePath);
@@ -539,17 +572,21 @@ function activate(context) {
 
             let out = '';
             try {
-                out = execFileSync(ayanamiPath, ['check', filePath], {
+                // spawnSync：成功时也捕获 stderr（效应/注解告警走 stderr）
+                const r = spawnSync(ayanamiPath, ['check', filePath], {
                     timeout: 15000,
                     encoding: 'utf8',
                     cwd: projectRoot,
-                    stdio: ['pipe', 'pipe', 'pipe'],
                 });
-                statusFn('ok');
-                if (log) log.appendLine('check passed');
+                out = (r.stdout || '') + (r.stderr || '');
+                if (r.status === 0) {
+                    statusFn('ok');
+                    if (log) log.appendLine('check passed');
+                } else if (log) {
+                    log.appendLine(`check failed (status ${r.status})`);
+                }
             } catch (e) {
-                out = (e.stdout || '') + (e.stderr || '');
-                if (log) log.appendLine(`check stderr: ${(e.stderr || '').slice(0, 200)}`);
+                if (log) log.appendLine(`check error: ${String(e).slice(0, 200)}`);
             }
 
             if (out) {
@@ -564,7 +601,11 @@ function activate(context) {
                         const lineText = doc.lineAt(line).text;
                         col = Math.min(col, lineText.length);
                     }
-                    const range = new vscode.Range(line, col, line, col + 1);
+                    let rng = { start: col, end: col + 1 };
+                    if (f === filePath) {
+                        rng = computeRange(doc.lineAt(line).text, col + 1, d.message);
+                    }
+                    const range = new vscode.Range(line, rng.start, line, rng.end);
                     const sev = d.severity === 1 ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error;
                     if (!byFile.has(f)) byFile.set(f, []);
                     byFile.get(f).push(new vscode.Diagnostic(range, d.message, sev));
@@ -861,6 +902,30 @@ async function scanProjectPackages(currentDoc) {
             if (rel.startsWith('./')) rel = rel.slice(2);
             return { ...p, stem: rel };
         });
+}
+
+// ─── 补全辅助：编译器变量类型（按声明行选择最近的） ──────────────────
+function compilerVarTypes(document, ctx) {
+    const entries = getCompilerTypeEntries(document, ctx);
+    if (!entries || !entries.entries.length) return scanVariableTypes(document);
+    const map = new Map(); // name -> [{type, line}]
+    for (const e of entries.entries) {
+        if (!map.has(e.name)) map.set(e.name, []);
+        map.get(e.name).push({ type: e.type, line: e.line });
+    }
+    return map;
+}
+
+function receiverTypeAt(varTypes, name, position) {
+    if (!varTypes || !varTypes.get) return null;
+    const val = varTypes.get(name);
+    if (!val) return null;
+    if (typeof val === 'string') return val;
+    let best = null;
+    for (const e of val) {
+        if (e.line - 1 <= position.line) best = e.type;
+    }
+    return best || (val.length ? val[0].type : null);
 }
 
 // ─── Compiler variable types (cached per document version) ───────────
