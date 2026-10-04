@@ -171,5 +171,37 @@ eq(mout.methods.length, 2, 'lcl methods count');
 eq([mout.methods[0].type, mout.methods[0].name, mout.methods[0].sig], ['ArrayList', 'push', 'push(ref mut ArrayList[T],T) -> void'], 'lcl method push');
 eq(mout.methods[1].sig, 'iter(ref ArrayList[T],fn(T)) -> void', 'lcl method nested paren');
 
+// 13) Hover 渲染（Markdown / 缩进 / 标注说明 / 文档）
+const hov = require('./hover');
+const fnHover = hov.renderFnHover({
+    sig: 'greet(ref String n) -> int',
+    attrs: ['alloc', 'state'],
+    doc: '打招呼\n\n- 支持 markdown',
+    file: '/w/src/main.aya', line: 5,
+}, { folder: '/w/src' });
+eq(fnHover.includes('```ayanami\nfn greet(ref String n) -> int\n```'), true, 'hover fn code block');
+eq(fnHover.includes('`#[alloc]` — 可能分配内存'), true, 'hover fn attr desc');
+eq(fnHover.includes('`#[state]` — 可能修改可观察状态'), true, 'hover fn attr state');
+eq(fnHover.includes('打招呼'), true, 'hover fn doc');
+eq(fnHover.includes('main.aya:5'), true, 'hover fn location');
+const stHover = hov.renderStructHover({
+    name: 'Point', generics: '', fields: [{ type: 'int', name: 'x' }, { type: 'float', name: 'y' }],
+    doc: '坐标', file: 'p.aya', line: 1,
+}, {});
+eq(stHover.includes('    int x'), true, 'hover struct indent x');
+eq(stHover.includes('    float y'), true, 'hover struct indent y');
+eq(stHover.includes('坐标'), true, 'hover struct doc');
+const enHover = hov.renderEnumHover({ name: 'Color', variants: ['Red', 'Blue(int)'] }, {});
+eq(enHover.includes('    Blue(int)'), true, 'hover enum variant indent');
+eq(hov.attrDoc('alloc').includes('可能分配内存'), true, 'attr doc alloc');
+eq(hov.attrDoc('throws').includes('throws'), true, 'attr doc throws');
+eq(hov.attrDoc('nope'), null, 'attr doc unknown');
+eq(hov.renderVarHover('i', 'int'), '**变量** `i: int`', 'hover var');
+eq(hov.renderMethodHover({ sig: 'push(ref mut ArrayList[T],T) -> void', type: 'ArrayList' }, {}).includes('ArrayList'), true, 'hover method type');
+// 文档提取：`//` 与 `///`，跳过标注
+const docSrc = '/// 第一行\n///\n/// 列表\n#[alloc]\nfn f() -> int { return 0 }';
+eq(syms.scanFnSigsFull(docSrc, 'x.aya')[0].doc, '第一行\n\n列表', 'doc extraction slash');
+eq(syms.scanFnSigsFull(docSrc, 'x.aya')[0].attrs, ['alloc'], 'doc extraction attrs');
+
 console.log(fails === 0 ? 'ALL EXT TESTS PASS' : `${fails} FAILURES`);
 process.exit(fails === 0 ? 0 : 1);

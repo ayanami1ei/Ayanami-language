@@ -3,6 +3,7 @@ const { parseCompilerOutput, computeRange } = require('./diagnostics');
 const symbols = require('./symbols');
 const typesMod = require('./types');
 const quickfix = require('./quickfix');
+const hoverMod = require('./hover');
 
 const KEYWORD_DOCS = {
             'fn': '**fn** — function declaration\n\n`fn name(params) -> ReturnType { body }`',
@@ -367,6 +368,11 @@ function activate(context) {
                 if (KEYWORD_DOCS[word]) {
                     return new vscode.Hover(new vscode.MarkdownString(KEYWORD_DOCS[word]), range);
                 }
+                // 标注基本信息（悬停 #[alloc] 的 alloc）
+                const attrMd = hoverMod.attrDoc(word);
+                if (attrMd) {
+                    return new vscode.Hover(new vscode.MarkdownString(attrMd), range);
+                }
 
                 const filePath = document.uri.scheme === 'file' ? document.uri.fsPath : '';
                 const folder = filePath ? path.dirname(filePath) : null;
@@ -375,49 +381,40 @@ function activate(context) {
                 const workspaceFolders = (vscode.workspace.workspaceFolders || []).map(w => w.uri.fsPath);
                 const syms = symbols.collectSymbols(document.getText(), filePath, { compilerDir, workspaceFolders });
 
+                const mdOpts = { folder };
                 const fn = syms.functions.find(f => f.name === word);
                 if (fn) {
-                    let md = `**fn** \`${fn.sig}\``;
-                    if (fn.attrs && fn.attrs.length) md += `\n\n${fn.attrs.map(a => '`#' + a + '`').join(' ')}`;
-                    if (fn.doc) md += `\n\n---\n\n${fn.doc}`;
-                    if (fn.file) md += `\n\n*${symbols.shortPath(fn.file, folder)}:${fn.line}*`;
+                    return new vscode.Hover(new vscode.MarkdownString(hoverMod.renderFnHover(fn, mdOpts)), range);
+                }
+
+                // 方法（lcl 方法表）：可能同名多个（不同类型），全部展示
+                const methods = (syms.methods || []).filter((mm) => mm.name === word);
+                if (methods.length) {
+                    const md = methods.map((mm) => hoverMod.renderMethodHover(mm, mdOpts)).join('\n\n---\n\n');
                     return new vscode.Hover(new vscode.MarkdownString(md), range);
                 }
 
                 const st = syms.structs.find(s => s.name === word);
                 if (st) {
-                    let md = `**struct** \`${st.name}\``;
-                    if (st.fields && st.fields.length) {
-                        md += '\n\n---\n\n';
-                        for (const f of st.fields) md += `- \`${f.type} ${f.name}\`\n`;
-                    }
-                    if (st.file) md += `\n*${symbols.shortPath(st.file, folder)}:${st.line}*`;
-                    return new vscode.Hover(new vscode.MarkdownString(md), range);
+                    return new vscode.Hover(new vscode.MarkdownString(hoverMod.renderStructHover(st, mdOpts)), range);
                 }
 
                 const en = syms.enums.find(e => e.name === word);
                 if (en) {
-                    let md = `**enum** \`${en.name}\``;
-                    if (en.variants && en.variants.length) md += `\n\n变体：${en.variants.map(v => '`' + v + '`').join(', ')}`;
-                    return new vscode.Hover(new vscode.MarkdownString(md), range);
+                    return new vscode.Hover(new vscode.MarkdownString(hoverMod.renderEnumHover(en, mdOpts)), range);
                 }
 
                 for (const s of syms.structs) {
                     const f = (s.fields || []).find(x => x.name === word);
                     if (f) {
-                        return new vscode.Hover(new vscode.MarkdownString(`**field** \`${s.name}.${f.name}: ${f.type}\``), range);
+                        return new vscode.Hover(new vscode.MarkdownString(hoverMod.renderFieldHover(s.name, f)), range);
                     }
                 }
 
                 const vt = compilerVarTypes(document, context).get(word);
                 const vtName = typeof vt === 'string' ? vt : (Array.isArray(vt) && vt.length ? vt[vt.length - 1].type : null);
                 if (vtName) {
-                    return new vscode.Hover(new vscode.MarkdownString(`**变量** \`${word}: ${vtName}\``), range);
-                }
-                // 方法 hover：lcl 方法表
-                const method = (syms.methods || []).find((mm) => mm.name === word);
-                if (method) {
-                    return new vscode.Hover(new vscode.MarkdownString(`**method** \`${method.type}.${method.sig}\``), range);
+                    return new vscode.Hover(new vscode.MarkdownString(hoverMod.renderVarHover(word, vtName)), range);
                 }
 
                 return null;

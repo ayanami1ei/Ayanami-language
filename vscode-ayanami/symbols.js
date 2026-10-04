@@ -31,6 +31,25 @@ function lineOf(text, idx) {
 }
 
 /// 扫描全部函数签名（含 impl 方法、泛型、返回类型、文档注释与标注）
+/// 收集声明前的前置注释（`//` / `///`），可跨过 `#[...]` 标注
+function collectLeadingDoc(text, index) {
+    let doc = '';
+    let cursor = text.lastIndexOf('\n', index);
+    while (cursor > 0) {
+        const prevStart = text.lastIndexOf('\n', cursor - 1) + 1;
+        const line = text.slice(prevStart, cursor).trim();
+        if (line.startsWith('//')) {
+            doc = line.replace(/^\/\/\/?\s?/, '') + (doc ? '\n' + doc : '');
+            cursor = prevStart - 1;
+        } else if (line.startsWith('#[')) {
+            cursor = prevStart - 1;
+        } else {
+            break;
+        }
+    }
+    return doc;
+}
+
 function scanFnSigsFull(text, file) {
     const out = [];
     const seen = new Set();
@@ -47,17 +66,16 @@ function scanFnSigsFull(text, file) {
         const arrow = after.match(/^\s*->\s*([^{\n;]+)/);
         const ret = arrow ? arrow[1].trim() : '';
         // 前置注释 / 标注
-        let doc = '';
+        const doc = collectLeadingDoc(text, m.index);
         const attrs = [];
         let cursor = text.lastIndexOf('\n', m.index);
         while (cursor > 0) {
             const prevStart = text.lastIndexOf('\n', cursor - 1) + 1;
             const line = text.slice(prevStart, cursor).trim();
-            if (line.startsWith('//')) {
-                doc = line.replace(/^\/\/\s?/, '') + (doc ? '\n' + doc : '');
-                cursor = prevStart - 1;
-            } else if (line.startsWith('#[')) {
+            if (line.startsWith('#[')) {
                 attrs.unshift(line.replace(/^#\[|\]$/g, ''));
+                cursor = prevStart - 1;
+            } else if (line.startsWith('//')) {
                 cursor = prevStart - 1;
             } else {
                 break;
@@ -87,7 +105,7 @@ function scanStructsFull(text, file) {
             const fm = t.match(/^(?:(ref\s+mut|ref)\s+)?(.+?)\s+([A-Za-z_]\w*)$/);
             if (fm) fields.push({ type: (fm[1] ? fm[1] + ' ' : '') + fm[2].trim(), name: fm[3] });
         }
-        out.push({ name: m[1], fields, line: lineOf(text, m.index), file });
+        out.push({ name: m[1], generics: m[2] || '', fields, doc: collectLeadingDoc(text, m.index), line: lineOf(text, m.index), file });
     }
     return out;
 }
@@ -102,11 +120,23 @@ function scanEnumsFull(text, file) {
         const close = matchBrace(text, open);
         const body = close > 0 ? text.slice(open + 1, close) : '';
         const variants = [];
-        for (const raw of body.split('\n')) {
-            const vm = raw.trim().match(/^([A-Z]\w*)\s*(\(([^)]*)\))?/);
-            if (vm) variants.push(vm[3] ? `${vm[1]}(${vm[3]})` : vm[1]);
+        // 顶层逗号切分（支持单行/多行定义，括号内逗号不切）
+        const parts = [];
+        let depth = 0, cur = '';
+        for (const ch of body) {
+            if (ch === '(') depth++;
+            else if (ch === ')') depth--;
+            if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; }
+            else cur += ch;
         }
-        out.push({ name: m[1], variants, line: lineOf(text, m.index), file });
+        if (cur.trim()) parts.push(cur);
+        for (const raw of parts) {
+            const t = raw.trim();
+            if (!t || t.startsWith('//')) continue;
+            const vm = t.match(/^([A-Z]\w*)\s*(?:\(([^)]*)\))?/);
+            if (vm) variants.push(vm[2] !== undefined ? `${vm[1]}(${vm[2].trim()})` : vm[1]);
+        }
+        out.push({ name: m[1], generics: m[2] || '', variants, doc: collectLeadingDoc(text, m.index), line: lineOf(text, m.index), file });
     }
     return out;
 }
@@ -232,4 +262,4 @@ function shortPath(file, folder) {
     return path.basename(file);
 }
 
-module.exports = { scanFnSigsFull, scanStructsFull, scanEnumsFull, parseLclSymbols, collectSymbols, shortPath };
+module.exports = { scanFnSigsFull, scanStructsFull, scanEnumsFull, parseLclSymbols, collectSymbols, shortPath, collectLeadingDoc };

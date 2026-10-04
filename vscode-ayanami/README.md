@@ -52,3 +52,13 @@ Syntax highlighting and basic language support for `.aya` files.
 - **成员补全**：`变量.` 使用编译器 `types` 推断的真实类型；方法来自 std `.lcl` 方法表（含泛型 impl 方法，如 `ArrayList.push`）与本地/导入 `impl`
 - **方法悬停**：显示 `.lcl` 方法表中的完整签名
 - 顶层补全过滤 `__` 内部符号并去重
+
+## 悬停（Hover）
+
+类 rust-analyzer / clangd 的 Markdown 展示：
+
+- **签名代码块**：`` ```ayanami `` 包裹完整签名（函数/方法/结构体/枚举/变量）
+- **标注列表**：`#[alloc]` 等附一行说明（悬停标注本身也会显示分组/说明/示例）
+- **文档注释**：声明上方的 `//` / `///` 原样作为 Markdown 渲染（支持列表、代码块、空行分段）
+- **结构体/枚举**：字段与变体以 4 空格缩进列在代码块中
+- **来源位置**：`*file.aya:行号*`
