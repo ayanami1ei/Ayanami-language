@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "Ayanami_language",
+  "project_id": "f87702fe-f469-4d58-924b-62cf0fcde331"
+}
