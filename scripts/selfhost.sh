@@ -43,6 +43,15 @@ cmd_sync() {
     if [[ "$before" != "$after" || ! -x "$ROOT/target/release/ayanami" ]]; then
         cargo build --release
     fi
+    echo "== stage-0 std 预编译（release/debug 旁的 std/）=="
+    if [[ "$before" != "$after" || ! -f "$ROOT/target/release/std/string.lcl" ]]; then
+        for m in string io math list arraylist linkedlist panic mir std; do
+            "$ROOT/target/release/ayanami" package "std/src/$m.aya" >/dev/null
+        done
+        cp std/src/*.lcl std/
+        mkdir -p target/release/std target/debug/std
+        cp std/*.lcl target/release/std/ target/debug/std/
+    fi
     echo "== 重建知识库 =="
     python3 tools/kb/kb.py build
     echo "== sync 完成 =="

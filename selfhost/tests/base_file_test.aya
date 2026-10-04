@@ -1,0 +1,34 @@
+// M1 base/file 验收：读写/存在性/空文件/覆盖写（不用 std，避免重复 import std 的缺陷）
+import "io";
+import "../src/base/file.aya";
+
+fn main() -> int {
+    path = "/tmp/opencode/selfhost_file_test.txt";
+    data = "hello ayanami\nline2";
+
+    miss = read_file("/tmp/opencode/selfhost_missing_xyz.txt");
+    if miss.ok { println("fail: missing file should be !ok"); return 1 }
+
+    if !write_file(path, data) { println("fail: write"); return 2 }
+    if !file_exists(path) { println("fail: exists"); return 3 }
+
+    got = read_file(path);
+    if !got.ok { println("fail: read !ok"); return 4 }
+    s = got.data;
+    if s.len != data.len { println("fail: len"); return 5 }
+    if s != data { println("fail: content"); return 6 }
+
+    if !write_file(path, "abc") { println("fail: rewrite"); return 7 }
+    got2 = read_file(path);
+    if !got2.ok { println("fail: rewrite read"); return 8 }
+    if got2.data != "abc" { println("fail: rewrite content"); return 9 }
+
+    empty = String::empty();
+    if !write_file(path, empty) { println("fail: empty write"); return 10 }
+    got3 = read_file(path);
+    if !got3.ok { println("fail: empty read"); return 11 }
+    if got3.data.len != 0 { println("fail: empty len"); return 12 }
+
+    println("base_file ok");
+    return 0;
+}
