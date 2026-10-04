@@ -3,19 +3,19 @@ import "list"
 
 // 说明：链表曾基于 shared/weak 节点链；新所有权模型暂不支持"借用 unique 字段遍历"，
 // 因此改为数组缓冲实现，保持相同的 List 接口（行为等价：顺序表）。
-pub struct LinkedList[T:ToString] {
+pub struct LinkedList[T] {
     [T] data
     int len
     int capability
 }
 
 pub namespace LinkedList{
-    pub fn new[T:ToString]()->LinkedList[T]{
+    pub fn new[T]()->LinkedList[T]{
         return LinkedList[T]{data=null, len=0, capability=0}
     }
 }
 
-impl[T:ToString] LinkedList[T] {
+impl[T] LinkedList[T] {
     fn expand(ref mut self){
         if self.capability == 0 {
             self.capability = 1
@@ -46,6 +46,10 @@ impl[T:ToString] LinkedList[T] {
         }
     }
 
+}
+
+/// 需要元素实现 ToString
+impl[T:ToString] LinkedList[T] {
     pub fn to_string(ref self) -> String {
         res = "["
         for i in (0, self.len){

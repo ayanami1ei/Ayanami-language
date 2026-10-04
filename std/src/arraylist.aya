@@ -1,7 +1,7 @@
 import "string"
 import "list"
 
-pub struct ArrayList[T:ToString]{
+pub struct ArrayList[T]{
     [T] data
     int len
     int capability
@@ -9,11 +9,11 @@ pub struct ArrayList[T:ToString]{
 
 pub namespace ArrayList {
     /// 空表
-    pub fn new[T:ToString]() -> ArrayList[T] {
+    pub fn new[T]() -> ArrayList[T] {
         return ArrayList[T] { data = null, len = 0, capability = 0 }
     }
     /// 预分配容量（cap <= 0 时等价于 new）
-    pub fn with_capacity[T:ToString](int cap) -> ArrayList[T] {
+    pub fn with_capacity[T](int cap) -> ArrayList[T] {
         if cap <= 0 {
             return ArrayList[T] { data = null, len = 0, capability = 0 }
         }
@@ -21,7 +21,7 @@ pub namespace ArrayList {
     }
 }
 
-impl[T:ToString] ArrayList[T]{
+impl[T] ArrayList[T]{
     fn expand(ref mut self){
         if self.capability == 0 {
             self.capability = 1
@@ -41,15 +41,6 @@ impl[T:ToString] ArrayList[T]{
     }
 
     pub fn index(ref self, int index)->T{ return self.data[index] }
-    pub fn to_string(ref self)->String{
-        res = "["
-        for i in (0, self.len){
-            res = res + self.data[i]
-            if i != self.len-1 { res = res + ", " }
-        }
-        res = res + "]"
-        return res
-    }
     pub fn len(ref self)->int{ return self.len }
 
     pub fn set(ref mut self, int i, T v) {
@@ -75,5 +66,18 @@ impl[T:ToString] ArrayList[T]{
         for i in (0, self.len) {
             f(self.data[i])
         }
+    }
+}
+
+/// 需要元素实现 ToString
+impl[T:ToString] ArrayList[T] {
+    pub fn to_string(ref self)->String{
+        res = "["
+        for i in (0, self.len){
+            res = res + self.data[i]
+            if i != self.len-1 { res = res + ", " }
+        }
+        res = res + "]"
+        return res
     }
 }

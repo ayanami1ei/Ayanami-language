@@ -1,0 +1,30 @@
+// 集合不要求元素实现 ToString：任意类型可放入 ArrayList / LinkedList
+import "arraylist";
+import "linkedlist";
+
+enum E {
+    A(int),
+    B(char),
+}
+
+fn main() -> int {
+    a = ArrayList::new[E]();
+    a.push(E::A(1));
+    a.push(E::B('x'));
+    if a.len() != 2 { return 1 }
+    if a.index(0)._tag != 0 { return 2 }
+    a.set(1, E::A(9));
+    if a.index(1)._data_A._0 != 9 { return 3 }
+    a.iter((E e) { });
+    if a.pop()._data_A._0 != 9 { return 4 }
+    if a.len() != 1 { return 5 }
+    a.clear();
+    if !a.is_empty() { return 6 }
+
+    l = LinkedList::new[E]();
+    l.push(E::A(5));
+    if l.len() != 1 { return 7 }
+    if l.index(0)._data_A._0 != 5 { return 8 }
+
+    return 0;
+}

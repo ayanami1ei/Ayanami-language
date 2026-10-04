@@ -127,9 +127,12 @@ s = String::new(['h', 'i'], 2)
 
 | 模块 | 说明 |
 |------|------|
-| `list` | `List[T]` 接口：`push(ref mut self, T)` / `index(ref self, int) -> T` / `to_string(ref self) -> String` / `len(ref self) -> int` / `iter(ref self, fn(T))` |
-| `arraylist` | `ArrayList[T]` 顺序表：`[T]` 缓冲，自动扩容；另有 `set(i, v)` / `pop()` / `is_empty()` / `clear()` |
+| `list` | `List[T]` 接口（元素无约束）：`push(ref mut self, T)` / `index(ref self, int) -> T` / `len(ref self) -> int` / `iter(ref self, fn(T))` |
+| `arraylist` | `ArrayList[T]` 顺序表：`[T]` 缓冲，自动扩容；`set(i, v)` / `pop()` / `is_empty()` / `clear()` |
 | `linkedlist` | `LinkedList[T]`：新所有权模型下改为数组缓冲实现，接口与 `List` 一致 |
+
+> 集合对元素类型**无约束**，任意类型（含未实现 `ToString` 的枚举/结构体）都可放入；
+> 仅 `to_string` 要求元素实现 `ToString`（在带约束的 impl 块中提供）。
 
 ```ayanami
 import "arraylist";

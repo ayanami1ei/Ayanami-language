@@ -829,15 +829,16 @@ src/lib.rs:37: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
-src/lir/emit/functions.rs:5: pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool, effects: LirEffects) -> String
-src/lir/emit/functions.rs:38: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
-src/lir/emit/functions.rs:50: impl<'a> Emitter<'a>
-src/lir/emit/functions.rs:51: pub(super) fn emit_struct_defs(&mut self)
-src/lir/emit/functions.rs:68: pub(super) fn emit_string_globals(&mut self)
-src/lir/emit/functions.rs:88: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:127: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:144: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:158: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:4: pub(super) fn is_ptr_like(t: &HirType) -> bool
+src/lir/emit/functions.rs:14: pub(super) fn llvm_attr_suffix(
+src/lir/emit/functions.rs:54: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
+src/lir/emit/functions.rs:66: impl<'a> Emitter<'a>
+src/lir/emit/functions.rs:67: pub(super) fn emit_struct_defs(&mut self)
+src/lir/emit/functions.rs:84: pub(super) fn emit_string_globals(&mut self)
+src/lir/emit/functions.rs:104: pub(super) fn emit_fn(&mut self, f: &LirFn)
+src/lir/emit/functions.rs:144: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:161: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:175: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -846,9 +847,9 @@ src/lir/emit/mod.rs:47: fn finish(self) -> String
 src/lir/emit/mod.rs:51: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:59: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:68: fn emit(&mut self)
-src/lir/emit/mod.rs:119: mod functions;
-src/lir/emit/mod.rs:120: mod types;
-src/lir/emit/mod.rs:121: mod vtable;
+src/lir/emit/mod.rs:120: mod functions;
+src/lir/emit/mod.rs:121: mod types;
+src/lir/emit/mod.rs:122: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
@@ -1822,20 +1823,21 @@ std/math.aya:70: pub fn sqrt(float x) -> float { return __ayanami_sqrt(x) }
 std/math.aya:73: pub fn floor(float x) -> float { return __ayanami_floor(x) }
 std/math.aya:76: pub fn ceil(float x) -> float { return __ayanami_ceil(x) }
 std/math.aya:79: pub fn pow(float base, int exp) -> float
-std/src/arraylist.aya:4: pub struct ArrayList[T:ToString]
-std/src/arraylist.aya:12: pub fn new[T:ToString]() -> ArrayList[T]
-std/src/arraylist.aya:16: pub fn with_capacity[T:ToString](int cap) -> ArrayList[T]
-std/src/arraylist.aya:24: impl[T:ToString] ArrayList[T]
+std/src/arraylist.aya:4: pub struct ArrayList[T]
+std/src/arraylist.aya:12: pub fn new[T]() -> ArrayList[T]
+std/src/arraylist.aya:16: pub fn with_capacity[T](int cap) -> ArrayList[T]
+std/src/arraylist.aya:24: impl[T] ArrayList[T]
 std/src/arraylist.aya:25: fn expand(ref mut self)
 std/src/arraylist.aya:37: pub fn push(ref mut self, T val)
 std/src/arraylist.aya:43: pub fn index(ref self, int index)->T{ return self.data[index] }
-std/src/arraylist.aya:44: pub fn to_string(ref self)->String
-std/src/arraylist.aya:53: pub fn len(ref self)->int{ return self.len }
-std/src/arraylist.aya:55: pub fn set(ref mut self, int i, T v)
-std/src/arraylist.aya:60: pub fn pop(ref mut self) -> T
-std/src/arraylist.aya:65: pub fn is_empty(ref self) -> bool
-std/src/arraylist.aya:70: pub fn clear(ref mut self)
-std/src/arraylist.aya:74: pub fn iter(ref self, fn(T) f)
+std/src/arraylist.aya:44: pub fn len(ref self)->int{ return self.len }
+std/src/arraylist.aya:46: pub fn set(ref mut self, int i, T v)
+std/src/arraylist.aya:51: pub fn pop(ref mut self) -> T
+std/src/arraylist.aya:56: pub fn is_empty(ref self) -> bool
+std/src/arraylist.aya:61: pub fn clear(ref mut self)
+std/src/arraylist.aya:65: pub fn iter(ref self, fn(T) f)
+std/src/arraylist.aya:73: impl[T:ToString] ArrayList[T]
+std/src/arraylist.aya:74: pub fn to_string(ref self)->String
 std/src/io.aya:13: pub fn getchar() -> int
 std/src/io.aya:17: pub fn putchar(int c)
 std/src/io.aya:21: pub fn print(ref String n)
@@ -1849,19 +1851,19 @@ std/src/io.aya:71: pub fn println(int n)
 std/src/io.aya:77: pub fn println(float f)
 std/src/io.aya:83: pub fn println(bool b)
 std/src/io.aya:89: pub fn println(char c)
-std/src/linkedlist.aya:6: pub struct LinkedList[T:ToString]
-std/src/linkedlist.aya:13: pub fn new[T:ToString]()->LinkedList[T]
-std/src/linkedlist.aya:18: impl[T:ToString] LinkedList[T]
+std/src/linkedlist.aya:6: pub struct LinkedList[T]
+std/src/linkedlist.aya:13: pub fn new[T]()->LinkedList[T]
+std/src/linkedlist.aya:18: impl[T] LinkedList[T]
 std/src/linkedlist.aya:19: fn expand(ref mut self)
 std/src/linkedlist.aya:31: pub fn push(ref mut self, T val)
 std/src/linkedlist.aya:37: pub fn index(ref self, int index)->T
 std/src/linkedlist.aya:41: pub fn len(ref self)->int{ return self.len }
 std/src/linkedlist.aya:43: pub fn iter(ref self, fn(T) f)
-std/src/linkedlist.aya:49: pub fn to_string(ref self) -> String
-std/src/list.aya:1: pub interface List[T:ToString]
-std/src/list.aya:2: fn push(ref mut self, T val);
-std/src/list.aya:3: fn index(ref self, int index)->T;
-std/src/list.aya:4: fn to_string(ref self)->String;
+std/src/linkedlist.aya:52: impl[T:ToString] LinkedList[T]
+std/src/linkedlist.aya:53: pub fn to_string(ref self) -> String
+std/src/list.aya:2: pub interface List[T]
+std/src/list.aya:3: fn push(ref mut self, T val);
+std/src/list.aya:4: fn index(ref self, int index)->T;
 std/src/list.aya:5: fn len(ref self)->int;
 std/src/list.aya:6: fn iter(ref self, fn(T) f);
 std/src/math.aya:5: pub fn abs(int x) -> int
@@ -2131,6 +2133,8 @@ example/test_cfg.aya:14: fn main() -> int
 example/test_check.aya:6: fn allocs() -> int
 example/test_check.aya:12: fn pure_ok(int a, int b) -> int
 example/test_check.aya:16: fn main() -> int
+example/test_collection_any.aya:5: enum E
+example/test_collection_any.aya:10: fn main() -> int
 example/test_comments.aya:3: fn main() -> int
 example/test_constfold.aya:5: fn folded() -> int
 example/test_constfold.aya:10: fn folded_mul() -> int

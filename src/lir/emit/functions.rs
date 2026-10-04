@@ -1,8 +1,22 @@
 use super::*;
 
+/// 形参是否含指针/引用/拥有堆值（解引用会读内存）。
+pub(super) fn is_ptr_like(t: &HirType) -> bool {
+    matches!(
+        t,
+        HirType::Ref(..) | HirType::Unique(_) | HirType::Array(_)
+            | HirType::ArraySized(_, _) | HirType::FatPtr { .. }
+    )
+}
+
 /// 标注 + 效应摘要 → LLVM 函数属性。默认信任（ADR-3）：误标后果自负。
 /// A3b：显式空集 `#[throws()]` → nounwind；`#[eff()]`/`#[pure]` → memory(none)。
-pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool, effects: LirEffects) -> String {
+pub(super) fn llvm_attr_suffix(
+    attrs: &[LirAttr],
+    is_inline: bool,
+    effects: LirEffects,
+    has_ptr_params: bool,
+) -> String {
     let mut s = String::new();
     if is_inline {
         // 旧 inline 关键字：保持强制内联
@@ -29,7 +43,9 @@ pub(super) fn llvm_attr_suffix(attrs: &[LirAttr], is_inline: bool, effects: LirE
         s.push_str(" nounwind");
     }
     if effects.no_effects && !s.contains("memory(") {
-        s.push_str(" memory(none)");
+        // 自动 no_effects ≠ 不访问内存：解引用引用/拥有指针形参仍会读内存。
+        // 若标 memory(none)，LLVM 可跨调用 CSE 只读方法（如 pop 后 len 仍返回旧值）。
+        s.push_str(if has_ptr_params { " memory(read)" } else { " memory(none)" });
     }
     s
 }
@@ -94,7 +110,8 @@ impl<'a> Emitter<'a> {
             params_str.push(format!("{}{}", self.llvm_type(t), attrs));
         }
         let param_list = params_str.join(", ");
-        let inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline, f.effects);
+        let has_ptr_params = f.params.iter().any(|(_, t)| is_ptr_like(t));
+        let inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline, f.effects, has_ptr_params);
 
         self.current_fn_ret_ty = f.return_type.clone();
 

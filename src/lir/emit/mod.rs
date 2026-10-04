@@ -101,7 +101,8 @@ impl<'a> Emitter<'a> {
                     format!("{}{}", self.llvm_type(t), suffix)
                 })
                 .collect();
-            let suffix = functions::llvm_attr_suffix(&d.attrs, false, d.effects);
+            let has_ptr_params = d.params.iter().any(functions::is_ptr_like);
+            let suffix = functions::llvm_attr_suffix(&d.attrs, false, d.effects, has_ptr_params);
             self.wln_fmt(format_args!("declare {} @{}({}){}", ret, d.name, params.join(", "), suffix));
         }
         if !self.prog.extern_decls.is_empty() {
