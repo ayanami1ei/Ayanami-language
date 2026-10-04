@@ -1,16 +1,11 @@
 use super::*;
 use crate::error::{Error, Result};
 
-/// 允许的隐式数值转换（仅无损拓宽）：
-/// char -> int、char -> float、int -> float。
-/// 比较时忽略 ref/unique 等所有权包装。
+/// M1.3b（tbo）：不再有隐式数值提升 —— char→int / char→float / int→float 均需显式 `as`。
+/// 保留函数以维持调用点结构（如需恢复隐式规则在此处加回）。
 pub(crate) fn implicit_cast_ok(from: &HirType, to: &HirType) -> bool {
-    matches!(
-        (strip_ownership_ref(from), strip_ownership_ref(to)),
-        (HirType::Char, HirType::Int)
-            | (HirType::Char, HirType::Float)
-            | (HirType::Int, HirType::Float)
-    )
+    let _ = (from, to);
+    false
 }
 
 /// `ref T` 在值上下文自动解引用为 `T`（其他表达式原样返回）

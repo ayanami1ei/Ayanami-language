@@ -33,7 +33,7 @@ Rust 风格的基本整数类型：显式位宽与符号、无隐式提升、溢
 
 ## 语义
 
-- **无隐式转换**：定宽整数与 `int`/`float`/其他宽度之间必须显式转换；
+- **无隐式转换**：`int`/定宽整数/`float`/`char`/`bool` 之间均无隐式提升，必须显式 `as`；
   未实现 `as` 前直接报 `cannot implicitly convert ...`。
 - **算术**：`+`/`-`/`*` 为二补数回绕（LLVM `add`/`sub`/`mul`）；
   `/`、`%` 按符号选 `sdiv`/`srem` 或 `udiv`/`urem`；比较按符号选 `slt`/`ult` 等。
@@ -58,7 +58,7 @@ Rust 风格的基本整数类型：显式位宽与符号、无隐式提升、溢
   - 整数间：同宽 `bitcast`，变宽按源符号 `sext`/`zext`，变窄 `trunc`；
   - 整数 → 浮点：`sitofp` / `uitofp`（按符号）；
   - 浮点 → 整数：**饱和转换**（`llvm.fptosi.sat` / `fptoui.sat`，Rust 语义）。
-- 隐式提升（char→int / int→float）暂保留；去掉需 std 迁移（见任务 0i6.3b）。
+- **无隐式提升**（M1.3b）：char→int / char→float / int→float 均需显式 `as`（std 已完成迁移）。
 
 ## f32 / f64（M1.4）
 

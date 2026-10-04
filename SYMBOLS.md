@@ -543,19 +543,19 @@ src/hir/lower/helpers/caller.rs:21: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/caller.rs:23: pub(crate) fn caller_hidden_args(&self, span: &crate::span::Span, count: usize) -> Vec<crate::hir::HirNodeBox>
 src/hir/lower/helpers/caller.rs:42: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/caller.rs:44: pub(crate) fn append_caller_args(
-src/hir/lower/helpers/coerce.rs:7: pub(crate) fn implicit_cast_ok(from: &HirType, to: &HirType) -> bool
-src/hir/lower/helpers/coerce.rs:17: pub(crate) fn auto_deref(expr: HirNodeBox) -> HirNodeBox
-src/hir/lower/helpers/coerce.rs:26: pub(crate) fn deref_type(ty: &HirType) -> HirType
-src/hir/lower/helpers/coerce.rs:34: pub(crate) fn as_int_literal(e: &HirNodeBox) -> Option<i64>
-src/hir/lower/helpers/coerce.rs:42: pub(crate) fn as_float_literal(e: &HirNodeBox) -> Option<f64>
-src/hir/lower/helpers/coerce.rs:50: pub(crate) fn is_numeric_literal(e: &HirNodeBox) -> bool
-src/hir/lower/helpers/coerce.rs:55: pub(crate) fn coerce_index(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/helpers/coerce.rs:71: pub(crate) fn is_float_type(ty: &HirType) -> bool
-src/hir/lower/helpers/coerce.rs:76: pub(crate) fn retype_float_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox
-src/hir/lower/helpers/coerce.rs:84: pub(crate) fn is_int_type(ty: &HirType) -> bool
-src/hir/lower/helpers/coerce.rs:89: pub(crate) fn retype_int_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox
-src/hir/lower/helpers/coerce.rs:96: fn is_primitive(ty: &HirType) -> bool
-src/hir/lower/helpers/coerce.rs:104: pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/helpers/coerce.rs:6: pub(crate) fn implicit_cast_ok(from: &HirType, to: &HirType) -> bool
+src/hir/lower/helpers/coerce.rs:12: pub(crate) fn auto_deref(expr: HirNodeBox) -> HirNodeBox
+src/hir/lower/helpers/coerce.rs:21: pub(crate) fn deref_type(ty: &HirType) -> HirType
+src/hir/lower/helpers/coerce.rs:29: pub(crate) fn as_int_literal(e: &HirNodeBox) -> Option<i64>
+src/hir/lower/helpers/coerce.rs:37: pub(crate) fn as_float_literal(e: &HirNodeBox) -> Option<f64>
+src/hir/lower/helpers/coerce.rs:45: pub(crate) fn is_numeric_literal(e: &HirNodeBox) -> bool
+src/hir/lower/helpers/coerce.rs:50: pub(crate) fn coerce_index(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/helpers/coerce.rs:66: pub(crate) fn is_float_type(ty: &HirType) -> bool
+src/hir/lower/helpers/coerce.rs:71: pub(crate) fn retype_float_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox
+src/hir/lower/helpers/coerce.rs:79: pub(crate) fn is_int_type(ty: &HirType) -> bool
+src/hir/lower/helpers/coerce.rs:84: pub(crate) fn retype_int_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox
+src/hir/lower/helpers/coerce.rs:91: fn is_primitive(ty: &HirType) -> bool
+src/hir/lower/helpers/coerce.rs:99: pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/helpers/convert.rs:3: pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type
 src/hir/lower/helpers/convert.rs:30: pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Vec<(Symbol, HirType)>
 src/hir/lower/helpers/convert.rs:84: fn split_generic_args(s: &str) -> Vec<&str>
@@ -1954,8 +1954,8 @@ example/test_constprop.aya:13: fn main() -> int
 example/test_constructors.aya:6: fn main() -> int
 example/test_conv.aya:2: fn take(int x) -> int { return x }
 example/test_conv.aya:3: fn takef(float x) -> float { return x }
-example/test_conv.aya:4: fn ret_char() -> int { return 'a' }
-example/test_conv.aya:5: fn ret_int() -> float { return 3 }
+example/test_conv.aya:4: fn ret_char() -> int { return 'a' as int }
+example/test_conv.aya:5: fn ret_int() -> float { return 3 as float }
 example/test_conv.aya:7: struct P
 example/test_conv.aya:12: impl P
 example/test_conv.aya:13: fn bump(ref mut self, int v) -> int
@@ -2003,9 +2003,8 @@ example/test_generic_impl_multi.aya:24: impl[T] Wrap[T]
 example/test_generic_impl_multi.aya:25: pub fn get(self) -> T
 example/test_generic_impl_multi.aya:32: fn mk_p() -> Pair[int, int] { return Pair::P(5) }
 example/test_generic_impl_multi.aya:33: fn mk_q() -> Pair[int, int] { return Pair::Q(7) }
-example/test_generic_impl_multi.aya:34: fn mk_f() -> Pair[float, int] { return Pair::P(2.5) }
-example/test_generic_impl_multi.aya:35: fn mk_w() -> Wrap[int] { return Wrap::W(9) }
-example/test_generic_impl_multi.aya:37: fn main() -> int
+example/test_generic_impl_multi.aya:34: fn mk_w() -> Wrap[int] { return Wrap::W(9) }
+example/test_generic_impl_multi.aya:36: fn main() -> int
 example/test_import.aya:3: fn main() -> int
 example/test_int_width.aya:2: fn add32(i32 a, i32 b) -> i32 { return a + b }
 example/test_int_width.aya:3: fn sub32(i32 a, i32 b) -> i32 { return a - b }

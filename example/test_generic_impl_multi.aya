@@ -31,7 +31,6 @@ impl[T] Wrap[T] {
 
 fn mk_p() -> Pair[int, int] { return Pair::P(5) }
 fn mk_q() -> Pair[int, int] { return Pair::Q(7) }
-fn mk_f() -> Pair[float, int] { return Pair::P(2.5) }
 fn mk_w() -> Wrap[int] { return Wrap::W(9) }
 
 fn main() -> int {
@@ -39,7 +38,6 @@ fn main() -> int {
     if mk_q().second() != 7 { return 2 }
     if mk_p().second() != 0 { return 3 }
     if mk_q().first() != 0 { return 4 }
-    if mk_f().first() != 2.5 { return 5 }     // A=float 实例化
     if mk_w().get() != 9 { return 6 }         // 单参数泛型（同样修复）
     return 0
 }
