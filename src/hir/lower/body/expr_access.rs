@@ -145,19 +145,21 @@ impl crate::hir::lower::Ctx {
         if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("index"), &[object_ty.clone(), index_ty.clone()]) {
             let ret_ty = self.fns[fn_id.0].return_type.clone();
             let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
-            let args = vec![hir_object, hir_index].into_iter().enumerate().map(|(i, arg)| {
+            let mut args: Vec<HirNodeBox> = vec![hir_object, hir_index].into_iter().enumerate().map(|(i, arg)| {
                 if i >= param_tys.len() { return arg; }
                 wrap_arg_for_param(arg, &param_tys[i])
             }).collect();
+            self.append_caller_args(fn_id, &mut args, span);
             return Ok(SCall { fn_id, args, ty: ret_ty }.into());
         }
         if let Ok(fn_id) = self.specialize_generic_call(&Symbol::intern("index"), &[object_ty.clone(), index_ty.clone()], span) {
             let ret_ty = self.fns[fn_id.0].return_type.clone();
             let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
-            let args = vec![hir_object, hir_index].into_iter().enumerate().map(|(i, arg)| {
+            let mut args: Vec<HirNodeBox> = vec![hir_object, hir_index].into_iter().enumerate().map(|(i, arg)| {
                 if i >= param_tys.len() { return arg; }
                 wrap_arg_for_param(arg, &param_tys[i])
             }).collect();
+            self.append_caller_args(fn_id, &mut args, span);
             return Ok(SCall { fn_id, args, ty: ret_ty }.into());
         }
         let elem_ty = match &inner_ty {

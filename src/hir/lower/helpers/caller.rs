@@ -38,3 +38,18 @@ impl crate::hir::lower::Ctx {
         out
     }
 }
+
+impl crate::hir::lower::Ctx {
+    /// 若目标函数带保留参数（track_caller），追加调用点实参
+    pub(crate) fn append_caller_args(
+        &self,
+        fn_id: crate::hir::ty::FnId,
+        args: &mut Vec<crate::hir::HirNodeBox>,
+        span: &crate::span::Span,
+    ) {
+        let hidden = self.fns[fn_id.0].hidden;
+        if hidden > 0 {
+            args.extend(self.caller_hidden_args(span, hidden));
+        }
+    }
+}

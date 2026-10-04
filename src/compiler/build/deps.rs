@@ -83,13 +83,13 @@ pub(super) fn resolve_dependencies(
                 let mut seen: HashSet<PathBuf> = HashSet::new();
                 while let Some(path) = queue.pop() {
                     if !seen.insert(path.clone()) { continue; }
-                    let o_name = path.file_stem().unwrap_or(std::ffi::OsStr::new("a"));
-                    let o_path = out_dir.join(o_name).with_extension("o");
-                    // 缓存失效：.o 不存在，或 .lcl 不比 .o 旧
-                    let stale = match (path.metadata().and_then(|m| m.modified()), o_path.metadata().and_then(|m| m.modified())) {
-                        (Ok(lcl_t), Ok(o_t)) => lcl_t >= o_t,
-                        _ => true,
-                    };
+                    let o_stem = path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy().into_owned();
+                    // 内容哈希命名：lcl 内容变化即重新编译（不受 mtime 影响）
+                    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                    std::hash::Hash::hash(&std::fs::read(&path).unwrap_or_default(), &mut hasher);
+                    let o_path = out_dir.join(format!("{}_{:x}.o", o_stem, std::hash::Hasher::finish(&hasher)));
+                    // 缓存失效：.o 不存在
+                    let stale = !o_path.exists();
                     if stale {
                         if let Ok((_, _, lir_binary, _)) =
                             crate::package::load_package(&path.to_string_lossy())

@@ -68,10 +68,11 @@ impl crate::hir::lower::Ctx {
                 };
                 let ret_ty = self.fns[fn_id.0].return_type.clone();
                 let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
-                let args = vec![hir_lhs, hir_rhs].into_iter().enumerate().map(|(i, arg)| {
+                let mut args: Vec<HirNodeBox> = vec![hir_lhs, hir_rhs].into_iter().enumerate().map(|(i, arg)| {
                     if i >= param_tys.len() { return arg; }
                     wrap_arg_for_param(arg, &param_tys[i])
                 }).collect();
+                self.append_caller_args(fn_id, &mut args, span);
                 return Ok(SCall { fn_id, args, ty: ret_ty }.into());
             }
         }
@@ -103,7 +104,9 @@ impl crate::hir::lower::Ctx {
                 let param_types = [arg_ty.clone()];
                 if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
                     let ret_ty = self.fns[fn_id.0].return_type.clone();
-                    return Ok(SCall { fn_id, args: vec![implicit_move(hir_arg)], ty: ret_ty }.into());
+                    let mut args = vec![implicit_move(hir_arg)];
+                    self.append_caller_args(fn_id, &mut args, &arg.span());
+                    return Ok(SCall { fn_id, args, ty: ret_ty }.into());
                 }
             }
         }
