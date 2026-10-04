@@ -3,6 +3,11 @@ use super::*;
 impl Parser {
     // ==================== Expressions ====================
 
+    /// A5c-2：公开的表达式入口（宏展开产物解析）
+    pub fn parse_expr_entry(&mut self) -> Result<Expr> {
+        self.parse_expr()
+    }
+
     pub(super) fn parse_expr(&mut self) -> Result<Expr> {
         self.parse_or()
     }

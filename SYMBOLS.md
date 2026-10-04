@@ -40,7 +40,7 @@ src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:125: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:142: pub(super) fn merge_symbols(
 src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram>
-src/compiler/build/lir.rs:23: pub(super) fn build_target_artifact(
+src/compiler/build/lir.rs:24: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:14: mod compile;
 src/compiler/build/mod.rs:15: mod deps;
 src/compiler/build/mod.rs:16: mod lir;
@@ -129,26 +129,27 @@ src/compiler/macro_expand/check_plugin.rs:17: pub(super) fn invoke_check(lcl_pat
 src/compiler/macro_expand/check_plugin.rs:22: fn read_i64(buf: &[u8], off: usize) -> i64
 src/compiler/macro_expand/check_plugin.rs:28: fn parse_diags(buf: &[u8]) -> Vec<(i64, String)>
 src/compiler/macro_expand/check_plugin.rs:43: fn call_check(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
-src/compiler/macro_expand/mod.rs:17: const MAX_DEPTH: usize = 32;
-src/compiler/macro_expand/mod.rs:19: mod annotations;
-src/compiler/macro_expand/mod.rs:20: mod check_plugin;
-src/compiler/macro_expand/mod.rs:21: mod pass_plugin;
-src/compiler/macro_expand/mod.rs:22: mod plugin;
-src/compiler/macro_expand/mod.rs:25: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
-src/compiler/macro_expand/mod.rs:35: pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables>
-src/compiler/macro_expand/mod.rs:40: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
-src/compiler/macro_expand/mod.rs:45: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
-src/compiler/macro_expand/mod.rs:49: struct MacroCtx
-src/compiler/macro_expand/mod.rs:54: impl MacroCtx
-src/compiler/macro_expand/mod.rs:55: fn collect(program: &Program, src_path: &Path) -> Result<Self>
-src/compiler/macro_expand/mod.rs:62: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:79: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
-src/compiler/macro_expand/mod.rs:172: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)>
-src/compiler/macro_expand/mod.rs:193: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:220: fn parse_source(code: &str) -> Result<Program>
-src/compiler/macro_expand/mod.rs:230: fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/mod.rs:241: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/mod.rs:252: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/mod.rs:18: const MAX_DEPTH: usize = 32;
+src/compiler/macro_expand/mod.rs:20: mod annotations;
+src/compiler/macro_expand/mod.rs:21: mod check_plugin;
+src/compiler/macro_expand/mod.rs:22: mod pass_plugin;
+src/compiler/macro_expand/mod.rs:23: mod plugin;
+src/compiler/macro_expand/mod.rs:24: mod plugin_abi;
+src/compiler/macro_expand/mod.rs:27: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
+src/compiler/macro_expand/mod.rs:37: pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables>
+src/compiler/macro_expand/mod.rs:42: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/mod.rs:47: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
+src/compiler/macro_expand/mod.rs:51: struct MacroCtx
+src/compiler/macro_expand/mod.rs:56: impl MacroCtx
+src/compiler/macro_expand/mod.rs:57: fn collect(program: &Program, src_path: &Path) -> Result<Self>
+src/compiler/macro_expand/mod.rs:64: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:81: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
+src/compiler/macro_expand/mod.rs:174: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)>
+src/compiler/macro_expand/mod.rs:195: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:222: fn parse_source(code: &str) -> Result<Program>
+src/compiler/macro_expand/mod.rs:232: fn is_compiler_attr(a: &Attr) -> bool
+src/compiler/macro_expand/mod.rs:243: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/mod.rs:254: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
 src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 3;
 src/compiler/macro_expand/pass_plugin.rs:21: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
 src/compiler/macro_expand/pass_plugin.rs:47: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
@@ -165,24 +166,28 @@ src/compiler/macro_expand/pass_plugin.rs:184: static AyaBuf mir_encode(MirFuncti
 src/compiler/macro_expand/pass_plugin.rs:221: type RunFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
 src/compiler/macro_expand/pass_plugin.rs:222: type FreeFn = unsafe extern "C" fn(AyaBuf);
 src/compiler/macro_expand/pass_plugin.rs:224: fn call_pass(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<Vec<u8>>
-src/compiler/macro_expand/plugin.rs:11: pub(super) const ABI_VERSION: u32 = 4;
-src/compiler/macro_expand/plugin.rs:13: pub(super) mod dl
-src/compiler/macro_expand/plugin.rs:17: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
-src/compiler/macro_expand/plugin.rs:18: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-src/compiler/macro_expand/plugin.rs:19: pub fn dlclose(handle: *mut c_void) -> c_int;
-src/compiler/macro_expand/plugin.rs:20: pub fn dlerror() -> *mut c_char;
-src/compiler/macro_expand/plugin.rs:23: pub(super) const RTLD_NOW: c_int = 2;
-src/compiler/macro_expand/plugin.rs:27: pub(super) struct AyaBuf
-src/compiler/macro_expand/plugin.rs:34: pub(super) struct AyaBufList
-src/compiler/macro_expand/plugin.rs:43: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String]) -> Result<String>
-src/compiler/macro_expand/plugin.rs:74: pub(super) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
-src/compiler/macro_expand/plugin.rs:90: pub(super) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
-src/compiler/macro_expand/plugin.rs:112: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
-src/compiler/macro_expand/plugin.rs:128: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, dep_lcls: &[String]) -> Result<PathBuf>
-src/compiler/macro_expand/plugin.rs:194: static AyaBuf dup_buf(AyaBuf b) {{\n\
-src/compiler/macro_expand/plugin.rs:232: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
-src/compiler/macro_expand/plugin.rs:233: type FreeFn = unsafe extern "C" fn(AyaBuf);
-src/compiler/macro_expand/plugin.rs:235: fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String]) -> Result<String>
+src/compiler/macro_expand/plugin.rs:17: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String]) -> Result<String>
+src/compiler/macro_expand/plugin.rs:30: pub(crate) fn invoke_macro_expr(
+src/compiler/macro_expand/plugin.rs:48: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
+src/compiler/macro_expand/plugin.rs:129: static AyaBuf dup_buf(AyaBuf b) {{\n\
+src/compiler/macro_expand/plugin.rs:167: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
+src/compiler/macro_expand/plugin.rs:168: type FreeFn = unsafe extern "C" fn(AyaBuf);
+src/compiler/macro_expand/plugin.rs:170: fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String], line: i64, col: i64, file: &str) -> Result<String>
+src/compiler/macro_expand/plugin_abi.rs:11: pub(crate) const ABI_VERSION: u32 = 5;
+src/compiler/macro_expand/plugin_abi.rs:15: pub(crate) enum ParamKind
+src/compiler/macro_expand/plugin_abi.rs:26: pub(crate) mod dl
+src/compiler/macro_expand/plugin_abi.rs:30: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:31: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:32: pub fn dlclose(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin_abi.rs:33: pub fn dlerror() -> *mut c_char;
+src/compiler/macro_expand/plugin_abi.rs:36: pub(crate) const RTLD_NOW: c_int = 2;
+src/compiler/macro_expand/plugin_abi.rs:40: pub(crate) struct AyaBuf
+src/compiler/macro_expand/plugin_abi.rs:47: pub(crate) struct AyaBufList
+src/compiler/macro_expand/plugin_abi.rs:53: pub(crate) fn load_macro_fn(lcl_path: &str, macro_name: &str) -> Result<(crate::lir::ir::LirFn, crate::lir::ir::LirProgram)>
+src/compiler/macro_expand/plugin_abi.rs:65: pub(crate) fn plan_params(f: &crate::lir::ir::LirFn, args_len: usize, allow_reserved: bool) -> Result<Vec<ParamKind>>
+src/compiler/macro_expand/plugin_abi.rs:111: pub(crate) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
+src/compiler/macro_expand/plugin_abi.rs:127: pub(crate) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
+src/compiler/macro_expand/plugin_abi.rs:149: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
 src/compiler/mod.rs:1: pub mod build;
 src/compiler/mod.rs:2: pub mod check;
 src/compiler/mod.rs:3: pub mod debug;
@@ -245,10 +250,10 @@ src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter/expr.rs:4: pub(super) fn write_type(ty: &Type) -> String
 src/formatter/expr.rs:38: pub(super) fn write_expr(expr: &Expr) -> String
 src/formatter/expr.rs:42: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
-src/formatter/expr.rs:164: fn asm_constraint(c: &str) -> &str
-src/formatter/expr.rs:168: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:196: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:214: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:168: fn asm_constraint(c: &str) -> &str
+src/formatter/expr.rs:172: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:200: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:218: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
@@ -409,6 +414,8 @@ src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:95: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:130: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/macro_call.rs:5: impl crate::hir::lower::Ctx
+src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_lower.rs:7: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_lower.rs:9: fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, Symbol)>
 src/hir/lower/body/match_lower.rs:29: fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
@@ -430,17 +437,18 @@ src/hir/lower/body/mod.rs:18: mod ref_assign;
 src/hir/lower/body/mod.rs:19: mod expr_method;
 src/hir/lower/body/mod.rs:20: mod match_lower;
 src/hir/lower/body/mod.rs:21: mod usage_infer;
-src/hir/lower/body/mod.rs:22: mod part_09;
-src/hir/lower/body/mod.rs:23: mod ensure;
-src/hir/lower/body/mod.rs:24: mod part_10;
-src/hir/lower/body/mod.rs:25: mod collect_enum;
-src/hir/lower/body/mod.rs:26: mod collect_import;
-src/hir/lower/body/mod.rs:27: mod expr_access;
-src/hir/lower/body/mod.rs:28: mod expr_call;
-src/hir/lower/body/mod.rs:29: mod expr_call_extra;
-src/hir/lower/body/mod.rs:30: mod expr_enum;
-src/hir/lower/body/mod.rs:31: mod expr_misc;
-src/hir/lower/body/mod.rs:32: mod expr_ops1;
+src/hir/lower/body/mod.rs:22: mod macro_call;
+src/hir/lower/body/mod.rs:23: mod part_09;
+src/hir/lower/body/mod.rs:24: mod ensure;
+src/hir/lower/body/mod.rs:25: mod part_10;
+src/hir/lower/body/mod.rs:26: mod collect_enum;
+src/hir/lower/body/mod.rs:27: mod collect_import;
+src/hir/lower/body/mod.rs:28: mod expr_access;
+src/hir/lower/body/mod.rs:29: mod expr_call;
+src/hir/lower/body/mod.rs:30: mod expr_call_extra;
+src/hir/lower/body/mod.rs:31: mod expr_enum;
+src/hir/lower/body/mod.rs:32: mod expr_misc;
+src/hir/lower/body/mod.rs:33: mod expr_ops1;
 src/hir/lower/body/part_01.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_01.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
 src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
@@ -490,23 +498,23 @@ src/hir/lower/body/usage_infer.rs:26: fn find_elem_usage_stmts(&self, var: &Symb
 src/hir/lower/body/usage_infer.rs:51: fn find_elem_usage(&self, var: &Symbol, stmt: &Stmt) -> Option<Type>
 src/hir/lower/body/usage_infer.rs:69: fn infer_expr_type_ast(&self, e: &Expr) -> Option<Type>
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:66: impl Ctx
-src/hir/lower/ctx.rs:68: pub fn new() -> Self
-src/hir/lower/ctx.rs:108: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:111: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:114: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:119: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:127: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:140: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:157: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:175: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:194: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:216: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx.rs:235: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
-src/hir/lower/ctx.rs:240: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:249: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
-src/hir/lower/ctx.rs:265: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:278: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:70: impl Ctx
+src/hir/lower/ctx.rs:72: pub fn new() -> Self
+src/hir/lower/ctx.rs:114: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:117: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:120: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:125: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:133: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:146: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:163: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:181: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:200: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:222: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
+src/hir/lower/ctx.rs:241: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/ctx.rs:246: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:255: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx.rs:271: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:284: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
@@ -528,8 +536,8 @@ src/hir/lower/helpers/mod.rs:21: mod types;
 src/hir/lower/helpers/mod.rs:22: mod wrap;
 src/hir/lower/helpers/substitute.rs:4: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
 src/hir/lower/helpers/substitute.rs:30: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
-src/hir/lower/helpers/substitute.rs:126: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
-src/hir/lower/helpers/substitute.rs:134: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
+src/hir/lower/helpers/substitute.rs:131: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
+src/hir/lower/helpers/substitute.rs:139: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
 src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String
 src/hir/lower/helpers/types.rs:26: pub(crate) fn sig_str_to_hir(s: &str) -> HirType
 src/hir/lower/helpers/types.rs:49: fn is_iface_type(inner_hir: &HirType, interfaces: &HashMap<Symbol, super::InterfaceReg>) -> bool
@@ -554,7 +562,10 @@ src/hir/lower/mod.rs:31: pub(crate) struct FnSig
 src/hir/lower/mod.rs:48: pub(crate) struct InterfaceReg
 src/hir/lower/mod.rs:55: mod ctx;
 src/hir/lower/mod.rs:56: mod ctx_mono;
-src/hir/lower/mod.rs:72: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:73: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+src/hir/lower/mod.rs:75: pub fn set_source_path(path: &std::path::Path)
+src/hir/lower/mod.rs:79: pub(crate) fn source_path() -> String
+src/hir/lower/mod.rs:83: pub fn lower_program(program: &Program) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
@@ -1686,8 +1697,8 @@ src/parser/ast/block.rs:5: pub struct Block
 src/parser/ast/block.rs:10: impl Block
 src/parser/ast/block.rs:11: pub fn new(stmts: Vec<Stmt>, span: Span) -> Self
 src/parser/ast/expr.rs:9: pub enum Expr
-src/parser/ast/expr.rs:95: impl Expr
-src/parser/ast/expr.rs:96: pub fn span(&self) -> Span
+src/parser/ast/expr.rs:101: impl Expr
+src/parser/ast/expr.rs:102: pub fn span(&self) -> Span
 src/parser/ast/literal.rs:4: pub enum Literal
 src/parser/ast/literal.rs:12: impl Literal
 src/parser/ast/literal.rs:13: pub fn span(&self) -> Span
@@ -1739,7 +1750,8 @@ src/parser/mod.rs:7: pub mod parser;
 src/parser/mod.rs:8: pub mod ast;
 src/parser/mod.rs:9: pub mod gen_bridge;
 src/parser/mod.rs:17: pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program>
-src/parser/mod.rs:34: fn fallback_parse(source: &str) -> Result<crate::parser::ast::program::Program>
+src/parser/mod.rs:35: pub fn parse_expression(source: &str) -> Result<crate::parser::ast::expr::Expr>
+src/parser/mod.rs:44: fn fallback_parse(source: &str) -> Result<crate::parser::ast::program::Program>
 src/parser/parser/atom.rs:3: impl Parser
 src/parser/parser/atom.rs:4: pub(super) fn parse_atom(&mut self) -> Result<Expr>
 src/parser/parser/core.rs:3: impl Parser
@@ -1774,18 +1786,21 @@ src/parser/parser/enum_iface.rs:6: pub(super) fn parse_enum_def(&mut self, vis: 
 src/parser/parser/enum_iface.rs:74: pub(super) fn parse_interface_def(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:118: pub(super) fn parse_interface_method(&mut self) -> Result<InterfaceMethod>
 src/parser/parser/expr.rs:3: impl Parser
-src/parser/parser/expr.rs:6: pub(super) fn parse_expr(&mut self) -> Result<Expr>
-src/parser/parser/expr.rs:10: pub(super) fn parse_or(&mut self) -> Result<Expr>
-src/parser/parser/expr.rs:26: pub(super) fn parse_and(&mut self) -> Result<Expr>
-src/parser/parser/expr.rs:42: pub(super) fn parse_compare(&mut self) -> Result<Expr>
-src/parser/parser/expr.rs:75: pub(super) fn parse_sum(&mut self) -> Result<Expr>
-src/parser/parser/expr.rs:104: pub(super) fn parse_product(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:7: pub fn parse_expr_entry(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:11: pub(super) fn parse_expr(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:15: pub(super) fn parse_or(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:31: pub(super) fn parse_and(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:47: pub(super) fn parse_compare(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:80: pub(super) fn parse_sum(&mut self) -> Result<Expr>
+src/parser/parser/expr.rs:109: pub(super) fn parse_product(&mut self) -> Result<Expr>
 src/parser/parser/impls.rs:3: impl Parser
 src/parser/parser/impls.rs:6: pub(super) fn parse_import(&mut self) -> Result<Stmt>
 src/parser/parser/impls.rs:35: pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/impls.rs:61: fn extract_type_name(ty: &Type) -> Symbol
 src/parser/parser/impls.rs:98: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
 src/parser/parser/impls.rs:243: pub(super) fn parse_block(&mut self) -> Result<Block>
+src/parser/parser/macro_call.rs:3: impl Parser
+src/parser/parser/macro_call.rs:5: pub(super) fn parse_macro_call(&mut self) -> Result<Expr>
 src/parser/parser/mod.rs:8: pub struct Parser
 src/parser/parser/mod.rs:15: mod atom;
 src/parser/parser/mod.rs:16: mod core;
@@ -1793,9 +1808,10 @@ src/parser/parser/mod.rs:17: mod decl;
 src/parser/parser/mod.rs:18: mod enum_iface;
 src/parser/parser/mod.rs:19: mod expr;
 src/parser/parser/mod.rs:20: mod impls;
-src/parser/parser/mod.rs:21: mod stmt;
-src/parser/parser/mod.rs:22: mod types;
-src/parser/parser/mod.rs:23: mod unary;
+src/parser/parser/mod.rs:21: mod macro_call;
+src/parser/parser/mod.rs:22: mod stmt;
+src/parser/parser/mod.rs:23: mod types;
+src/parser/parser/mod.rs:24: mod unary;
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
 src/parser/parser/stmt.rs:93: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
@@ -2126,6 +2142,8 @@ example/macro_lib.aya:15: pub fn emit_const(String input, String name, String va
 example/macro_lib.aya:23: pub fn show(String input, String arg) -> String
 example/macro_lib.aya:31: pub fn twice(String input) -> String { return input + input }
 example/macro_lib.aya:36: pub fn guarded(String input, String cond) -> String
+example/macro_lib.aya:44: pub fn double(String input, String x) -> String { return "(" + x + " + " + x + ")" }
+example/macro_lib.aya:48: pub fn my_line(String input, int __line, int __col) -> String { return "" + __line }
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/pass_lib.aya:5: pub fn auto_pure(ref mut MirFunction f)
 example/test.aya:1: fn main()->int
@@ -2209,6 +2227,7 @@ example/test_macro_args.aya:5: fn kept() -> int { return 7 }
 example/test_macro_args.aya:8: fn placeholder() -> int { return 0 }
 example/test_macro_args.aya:11: fn shown_placeholder() -> int { return 0 }
 example/test_macro_args.aya:13: fn main() -> int
+example/test_macro_fn.aya:3: fn main() -> int
 example/test_macro_import.aya:4: fn main() -> int
 example/test_macro_stmt.aya:4: fn helper() -> int
 example/test_macro_stmt.aya:11: fn main() -> int

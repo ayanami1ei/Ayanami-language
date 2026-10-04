@@ -69,6 +69,17 @@ pub(crate) use ctx::Ctx;
 /// 3. 降级阶段（lower_items）：递归处理所有语句/表达式，生成 HIR 节点
 ///
 /// 同时收集过程中产生的特化泛型函数，以及从其他模块导入的函数签名。
+/// A5c-2：宏展开需要的当前源文件路径（`__file`）。由管线在降级前设置。
+static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+pub fn set_source_path(path: &std::path::Path) {
+    let _ = SOURCE_PATH.set(path.to_string_lossy().into_owned());
+}
+
+pub(crate) fn source_path() -> String {
+    SOURCE_PATH.get().cloned().unwrap_or_default()
+}
+
 pub fn lower_program(program: &Program) -> Result<HirProgram> {
     // A0：先做属性白名单校验（未知属性报错）
     crate::hir::attrs::validate_program(program)?;

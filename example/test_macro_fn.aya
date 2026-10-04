@@ -1,0 +1,17 @@
+import "macro_lib.aya";
+
+fn main() -> int {
+    x = #double(3);
+    if x != 6 {
+        return 1;
+    }
+    y = #double(#double(1));
+    if y != 4 {
+        return 2;
+    }
+    l = #my_line();
+    if l <= 0 {
+        return 3;
+    }
+    return 0;
+}

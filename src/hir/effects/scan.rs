@@ -116,6 +116,9 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
             scan_expr(rhs, obs);
         }
         Expr::Unary { arg, .. } => scan_expr(arg, obs),
+        Expr::MacroCall { args, .. } => {
+            for a in args { scan_expr(a, obs); }
+        }
         Expr::FnCall { name, args, span, .. } => {
             if IO_NAMES.contains(&name.as_str().as_str()) {
                 obs.push(Obs::Io(span.start_line, span.start_col));

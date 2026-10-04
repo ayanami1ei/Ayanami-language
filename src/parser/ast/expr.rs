@@ -90,6 +90,12 @@ pub enum Expr {
         body: Vec<crate::parser::ast::stmt::Stmt>,
         span: Span,
     },
+    /// A5c-2 函数宏调用：`#name(args)`（name 可含 `pkg::` 前缀，解析后以 `.` 连接）
+    MacroCall {
+        name: Symbol,
+        args: Vec<Expr>,
+        span: Span,
+    },
 }
 
 impl Expr {
@@ -112,6 +118,7 @@ impl Expr {
             | Expr::Index { span, .. }
             | Expr::CallExpr { span, .. }
             | Expr::TryOp(_, span) => *span,
+            | Expr::MacroCall { span, .. } => *span,
             | Expr::Match { span, .. } => *span,
             | Expr::EnumConstruct { span, .. } => *span,
             | Expr::Lambda { span, .. } => *span,

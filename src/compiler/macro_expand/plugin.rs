@@ -1,131 +1,51 @@
 //! A5b-2/A5b-3：宏插件构建（llc PIC + C shim + runtime）与 dlopen 调用（ABI v3，结构体封装）。
 
-use std::ffi::{CString, c_char, c_int, c_void};
+use std::ffi::CString;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::error::{Error, Result};
 
-/// 插件 ABI 版本：签名变化时必须递增（参与 .so 缓存键，避免复用旧 shim）。
-pub(super) const ABI_VERSION: u32 = 4;
-
-pub(super) mod dl {
-    use super::*;
-    #[link(name = "dl")]
-    unsafe extern "C" {
-        pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
-        pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-        pub fn dlclose(handle: *mut c_void) -> c_int;
-        pub fn dlerror() -> *mut c_char;
-    }
-}
-pub(super) const RTLD_NOW: c_int = 2;
-
-/// ABI v3：文本缓冲（与 Ayanami String 布局一致，减少裸指针参数）
-#[repr(C)]
-pub(super) struct AyaBuf {
-    pub data: *mut u8,
-    pub len: usize,
-}
-
-/// ABI v3：文本缓冲数组（宏/pass 实参）
-#[repr(C)]
-pub(super) struct AyaBufList {
-    pub items: *const AyaBuf,
-    pub count: usize,
-}
+pub(crate) use super::plugin_abi::{ABI_VERSION, AyaBuf, AyaBufList, ParamKind, RTLD_NOW, compile_pic, dl, resolve_dep_lcls};
+use super::plugin_abi::{load_macro_fn, plan_params};
 
 // ═══════════════════════════════════════════════════════════════════
 //  插件构建与调用
 // ═══════════════════════════════════════════════════════════════════
 
 pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String]) -> Result<String> {
-    let (_syms, _src, lir_binary, _tt) = crate::package::load_package(lcl_path)
-        .map_err(|e| Error::Compile(format!("macro package '{}': {}", lcl_path, e)))?;
-    let lir = crate::lir::serialize::program_from_bytes(&lir_binary)
-        .map_err(|e| Error::Compile(format!("macro LIR decode: {}", e)))?;
-
-    let f = lir.functions.iter().find(|f| f.name.as_str() == macro_name)
-        .ok_or_else(|| Error::Compile(format!("macro `{}` has no compiled body in `{}`", macro_name, lcl_path)))?;
+    let (f, lir) = load_macro_fn(lcl_path, macro_name)?;
+    // attribute 宏：全部 String 形参（input + args），不支持保留参数
+    let mapping = plan_params(&f, args.len(), false)?;
+    let dep_lcls = resolve_dep_lcls(lcl_path)?;
     let symbol = lir.fn_names.get(&f.fn_id)
         .ok_or_else(|| Error::Compile(format!("macro `{}` has no symbol", macro_name)))?
         .clone();
-    let arity = f.params.len();
-    let string_ty = crate::hir::ty::HirType::Named(crate::intern::Symbol::intern("String"));
-    // 约定：fn(String input, String a1..aN) -> String；无实参时也允许 fn() -> String
-    let signature_ok = f.return_type == string_ty
-        && f.params.iter().all(|(_, t)| t == &string_ty)
-        && (arity == args.len() + 1 || (args.is_empty() && arity == 0));
-    if !signature_ok {
-        return Err(Error::Compile(format!(
-            "macro `{}` must have signature fn(String input, String ...args) -> String \
-             ({} arg(s) passed), found {} param(s)",
-            macro_name, args.len(), arity
-        )));
-    }
+    let so_path = build_plugin(&lir, &symbol, &mapping, &dep_lcls)?;
+    call_plugin(&so_path, &symbol, input, args, 0, 0, "")
+}
 
+/// A5c-2：函数宏展开（`#name(args)`），携带调用点信息
+pub(crate) fn invoke_macro_expr(
+    lcl_path: &str,
+    macro_name: &str,
+    args: &[String],
+    line: usize,
+    col: usize,
+    file: &str,
+) -> Result<String> {
+    let (f, lir) = load_macro_fn(lcl_path, macro_name)?;
+    let mapping = plan_params(&f, args.len(), true)?;
     let dep_lcls = resolve_dep_lcls(lcl_path)?;
-    let so_path = build_plugin(&lir, &symbol, arity, &dep_lcls)?;
-    call_plugin(&so_path, &symbol, input, args)
+    let symbol = lir.fn_names.get(&f.fn_id)
+        .ok_or_else(|| Error::Compile(format!("macro `{}` has no symbol", macro_name)))?
+        .clone();
+    let so_path = build_plugin(&lir, &symbol, &mapping, &dep_lcls)?;
+    call_plugin(&so_path, &symbol, "", args, line as i64, col as i64, file)
 }
 
-/// llc PIC 编译单个 .ll → .o
-pub(super) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()> {
-    let (llc, llc_dir) = crate::driver::find_llc()?;
-    let mut cmd = Command::new(&llc);
-    cmd.arg("-filetype=obj").arg("-relocation-model=pic")
-        .arg("-o").arg(obj_path).arg(ll_path);
-    if !llc_dir.as_os_str().is_empty() {
-        cmd.env("LD_LIBRARY_PATH", llc_dir.to_string_lossy().as_ref());
-    }
-    if !cmd.status().map_err(|e| Error::Compile(format!("macro llc: {}", e)))?.success() {
-        return Err(Error::Compile("macro llc failed".into()));
-    }
-    Ok(())
-}
-
-/// A5b-3：递归解析宏库依赖的 .lcl（`.lcl` 的 `[deps]` 段按 stem 记录）。
-/// 每个 stem 依次在引用方目录、std 目录、cwd 查找；返回去重后的依赖路径。
-pub(super) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>> {
-    let mut out = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-    let mut queue = vec![PathBuf::from(lcl_path)];
-    while let Some(p) = queue.pop() {
-        let dir = p.parent().map(|d| d.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
-        let deps = crate::package::load_package_deps(&p.to_string_lossy()).unwrap_or_default();
-        for stem in deps {
-            let Some(dp) = resolve_dep(&stem, &dir) else {
-                return Err(Error::Compile(format!(
-                    "macro dependency `{}` not found for `{}`", stem, p.display()
-                )));
-            };
-            if seen.insert(dp.clone()) {
-                out.push(dp.to_string_lossy().into_owned());
-                queue.push(dp);
-            }
-        }
-    }
-    Ok(out)
-}
-
-fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf> {
-    let local = dir.join(format!("{}.lcl", stem));
-    if local.exists() {
-        return Some(local);
-    }
-    if let Some(std) = crate::compiler::find_std_dir() {
-        let p = std.join(format!("{}.lcl", stem));
-        if p.exists() {
-            return Some(p);
-        }
-    }
-    let cwd = std::env::current_dir().ok()?;
-    let p = cwd.join(format!("{}.lcl", stem));
-    if p.exists() { Some(p) } else { None }
-}
-
-fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, dep_lcls: &[String]) -> Result<PathBuf> {
+fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf> {
     let ir = crate::lir::emit_program(lir);
     // 依赖包 IR（递归收集；与主 IR 一起参与缓存键与链接）
     let mut dep_irs: Vec<String> = Vec::new();
@@ -139,7 +59,7 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, de
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     ABI_VERSION.hash(&mut hasher);
     symbol.hash(&mut hasher);
-    arity.hash(&mut hasher);
+    format!("{:?}", mapping).hash(&mut hasher);
     ir.hash(&mut hasher);
     for d in &dep_irs { d.hash(&mut hasher); }
     let hash = hasher.finish();
@@ -174,18 +94,33 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, de
         link_objs.push(dep_obj);
     }
 
-    // C shim：C ABI ↔ Ayanami String（{char*, long}）；ABI v3 用结构体封装
+    // C shim：C ABI ↔ Ayanami String（{char*, long}）；ABI v5 带调用点（line/col/file）
     let mut locals = String::new();
     let mut call_args = String::new();
-    if arity >= 1 {
-        locals.push_str("    AyaBuf s = dup_buf(input);\n");
-        call_args.push_str("s");
-        for i in 0..(arity - 1) {
-            locals.push_str(&format!("    AyaBuf a{i} = dup_buf(args.items[{i}]);\n"));
-            call_args.push_str(&format!(", a{i}"));
+    let mut param_types: Vec<&str> = Vec::new();
+    for (i, kind) in mapping.iter().enumerate() {
+        if i > 0 { call_args.push_str(", "); }
+        match kind {
+            ParamKind::Input => {
+                locals.push_str("    AyaBuf s = dup_buf(input);\n");
+                call_args.push_str("s");
+                param_types.push("AyaBuf");
+            }
+            ParamKind::Arg(n) => {
+                locals.push_str(&format!("    AyaBuf a{n} = dup_buf(args.items[{n}]);\n"));
+                call_args.push_str(&format!("a{n}"));
+                param_types.push("AyaBuf");
+            }
+            ParamKind::Line => { call_args.push_str("line"); param_types.push("long"); }
+            ParamKind::Col => { call_args.push_str("col"); param_types.push("long"); }
+            ParamKind::File => {
+                locals.push_str("    AyaBuf f = dup_buf(file);\n");
+                call_args.push_str("f");
+                param_types.push("AyaBuf");
+            }
         }
     }
-    let param_types = if arity == 0 { "void".to_string() } else { vec!["AyaBuf"; arity].join(", ") };
+    let param_types = if param_types.is_empty() { "void".to_string() } else { param_types.join(", ") };
     let shim = format!(
         "#include <stdlib.h>\n#include <string.h>\n\
          typedef struct {{ char* data; long len; }} AyaBuf;\n\
@@ -197,8 +132,8 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, de
              if (r.data) {{ memcpy(r.data, b.data, (size_t)b.len); r.data[b.len] = 0; }}\n\
              return r;\n\
          }}\n\
-         AyaBuf __ayanami_macro_expand(AyaBuf input, AyaBufList args) {{\n\
-             (void)args;\n\
+         AyaBuf __ayanami_macro_expand(AyaBuf input, AyaBufList args, long line, long col, AyaBuf file) {{\n\
+             (void)args; (void)line; (void)col; (void)file;\n\
          {locals}\
              return {symbol}({call_args});\n\
          }}\n\
@@ -229,10 +164,10 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, arity: usize, de
     Ok(so_path)
 }
 
-type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
+type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
 type FreeFn = unsafe extern "C" fn(AyaBuf);
 
-fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String]) -> Result<String> {
+fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String], line: i64, col: i64, file: &str) -> Result<String> {
     let c_path = CString::new(so_path.to_string_lossy().as_bytes())
         .map_err(|_| Error::Compile("macro path contains NUL".into()))?;
     let arg_bufs: Vec<AyaBuf> = args.iter()
@@ -240,6 +175,7 @@ fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String]) -> Re
         .collect();
     let arg_list = AyaBufList { items: arg_bufs.as_ptr(), count: arg_bufs.len() };
     let in_buf = AyaBuf { data: input.as_ptr() as *mut u8, len: input.len() };
+    let file_buf = AyaBuf { data: file.as_ptr() as *mut u8, len: file.len() };
     unsafe {
         let handle = dl::dlopen(c_path.as_ptr(), RTLD_NOW);
         if handle.is_null() {
@@ -262,7 +198,7 @@ fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String]) -> Re
             )));
         }
         let expand: ExpandFn = std::mem::transmute(expand_ptr);
-        let out = expand(in_buf, arg_list);
+        let out = expand(in_buf, arg_list, line, col, file_buf);
         if out.data.is_null() {
             dl::dlclose(handle);
             return Err(Error::Compile(format!("macro `{}` returned null", symbol)));

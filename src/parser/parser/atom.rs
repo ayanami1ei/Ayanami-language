@@ -6,6 +6,8 @@ impl Parser {
         let span = tok.span();
         match tok.kind {
             TokenKind::Keyword(Keyword::Match) => self.parse_match_expr(),
+            // A5c-2 函数宏调用：`#name(args)`（`#[...]` 是标注，不在此处理）
+            TokenKind::Operator(ref op) if op == "#" => self.parse_macro_call(),
             TokenKind::IntLiteral(s) => {
                 self.advance();
                 let n = s.parse::<i64>().map_err(|_| self.error("invalid integer literal"))?;

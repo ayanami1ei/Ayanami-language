@@ -42,6 +42,11 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
         },
         Expr::Literal(_) => expr.clone(),
         Expr::Ident(_, _) => expr.clone(),
+        Expr::MacroCall { name, args, span } => Expr::MacroCall {
+            name: *name,
+            args: args.iter().map(|a| substitute_type_in_expr(a, subst)).collect(),
+            span: *span,
+        },
         Expr::FnCall { name, args, generic_args, span } => Expr::FnCall {
             name: *name,
             args: args.iter().map(|a| substitute_type_in_expr(a, subst)).collect(),

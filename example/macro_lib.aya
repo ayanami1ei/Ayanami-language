@@ -36,3 +36,13 @@ pub fn twice(String input) -> String { return input + input }
 pub fn guarded(String input, String cond) -> String {
     return "if " + cond + " {" + input + "}"
 }
+
+// A5c-2：函数宏（表达式级，调用形式 `#double(3)`）
+#[alloc]
+#[state]
+#[macro]
+pub fn double(String input, String x) -> String { return "(" + x + " + " + x + ")" }
+
+// 调用点信息（Rust 风格 line/column/file 的等价物：保留参数 __line/__col/__file）
+#[macro]
+pub fn my_line(String input, int __line, int __col) -> String { return "" + __line }

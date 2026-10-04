@@ -146,6 +146,10 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
                 format!("{}::{}", enum_name, variant_name)
             }
         }
+        Expr::MacroCall { name, args, .. } => {
+            let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
+            format!("#{}({})", name.as_str().replace('.', "::"), args_str.join(", "))
+        }
         Expr::Lambda { params, return_type, body, .. } => {
             let params_str: Vec<String> = params.iter().map(|(n, t)| format!("{} {}", write_type(t), n)).collect();
             let mut out = format!("({}) -> {} {{", params_str.join(", "), write_type(return_type));

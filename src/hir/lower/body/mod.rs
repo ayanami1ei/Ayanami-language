@@ -19,6 +19,7 @@ mod ref_assign;
 mod expr_method;
 mod match_lower;
 mod usage_infer;
+mod macro_call;
 mod part_09;
 mod ensure;
 mod part_10;

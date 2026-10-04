@@ -61,6 +61,10 @@ pub(crate) struct Ctx {
     pub specialized_ids: std::collections::HashSet<crate::hir::ty::FnId>,
     /// 后续用法推断出的泛型实参：变量名 → 实参类型
     pub usage_hints: HashMap<Symbol, Vec<Type>>,
+    /// A5c-2：导入包导出的函数宏（宏名 → lcl 路径，可多个用于歧义报错）
+    pub imported_macro_lcls: HashMap<Symbol, Vec<String>>,
+    /// A5c-2：宏展开递归深度
+    pub macro_depth: usize,
 }
 
 impl Ctx {
@@ -97,6 +101,8 @@ impl Ctx {
             imported_checks: HashMap::new(),
             specialized_ids: std::collections::HashSet::new(),
             usage_hints: HashMap::new(),
+            imported_macro_lcls: HashMap::new(),
+            macro_depth: 0,
         }
     }
 

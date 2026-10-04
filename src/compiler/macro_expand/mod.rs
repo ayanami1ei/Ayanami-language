@@ -13,6 +13,7 @@ use crate::error::{Error, Result};
 use crate::parser::ast::{Attr, Block, Program, Stmt};
 
 pub(crate) use annotations::{AnnKind, AnnotationTables};
+pub(crate) use plugin::invoke_macro_expr;
 
 const MAX_DEPTH: usize = 32;
 
@@ -20,6 +21,7 @@ mod annotations;
 mod check_plugin;
 mod pass_plugin;
 mod plugin;
+mod plugin_abi;
 
 /// 展开入口：在 HIR 降级前调用（此时 import 已重写为 .lcl 绝对路径）。
 pub fn expand(program: &Program, src_path: &Path) -> Result<Program> {
