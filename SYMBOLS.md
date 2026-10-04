@@ -361,7 +361,7 @@ src/hir/item.rs:107: pub struct HirProgram
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/collect_import.rs:4: pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str) -> Result<()>
+src/hir/lower/body/collect_import.rs:4: pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str, stmt_span: crate::span::Span) -> Result<()>
 src/hir/lower/body/ensure.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/ensure.rs:10: pub(crate) fn inject_ensures(
 src/hir/lower/body/ensure.rs:57: impl crate::hir::lower::Ctx
@@ -416,8 +416,8 @@ src/hir/lower/body/part_02.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_02.rs:4: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
 src/hir/lower/body/part_03.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_03.rs:6: pub(crate) fn build_vtables(&mut self) -> Result<()>
-src/hir/lower/body/part_03.rs:72: pub(crate) fn try_match_interface(
-src/hir/lower/body/part_03.rs:131: pub(crate) fn try_match_generic_interface(
+src/hir/lower/body/part_03.rs:73: pub(crate) fn try_match_interface(
+src/hir/lower/body/part_03.rs:133: pub(crate) fn try_match_generic_interface(
 src/hir/lower/body/part_04.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/part_04.rs:4: pub(crate) fn infer_iface_generic(
 src/hir/lower/body/part_04.rs:17: pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
@@ -509,10 +509,10 @@ src/hir/lower/mod.rs:2: pub mod helpers;
 src/hir/lower/mod.rs:3: pub mod to_mir;
 src/hir/lower/mod.rs:15: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
 src/hir/lower/mod.rs:31: pub(crate) struct FnSig
-src/hir/lower/mod.rs:46: pub(crate) struct InterfaceReg
-src/hir/lower/mod.rs:53: mod ctx;
-src/hir/lower/mod.rs:54: mod ctx_mono;
-src/hir/lower/mod.rs:70: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:48: pub(crate) struct InterfaceReg
+src/hir/lower/mod.rs:55: mod ctx;
+src/hir/lower/mod.rs:56: mod ctx_mono;
+src/hir/lower/mod.rs:72: pub fn lower_program(program: &Program) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox

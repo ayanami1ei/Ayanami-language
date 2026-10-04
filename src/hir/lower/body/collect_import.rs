@@ -1,7 +1,7 @@
 use super::*;
 
 impl crate::hir::lower::Ctx {
-    pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str) -> Result<()> {
+    pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str, stmt_span: crate::span::Span) -> Result<()> {
             let pkg_path = if std::path::Path::new(path).exists() {
                 path.clone()
             } else {
@@ -145,7 +145,10 @@ impl crate::hir::lower::Ctx {
                         // sig format: "fnName(param_types...)->ret_type"
                         let sig_body = sig.trim_start_matches(name.as_str());
                         let arrow_pos = sig_body.find(")->")
-                            .ok_or_else(|| Error::Hir(format!("invalid fn sig in package '{}': sig body `{}`", name, sig_body)))?;
+                            .ok_or_else(|| Error::Hir(format!(
+                                "invalid fn sig in package '{}': sig body `{}` (at {}:{})",
+                                name, sig_body, stmt_span.start_line, stmt_span.start_col
+                            )))?;
                         let params_str = &sig_body[..arrow_pos];
                         let ret_str = &sig_body[arrow_pos + 3..];
                         // params_str is "(type1,type2" — strip leading '('
@@ -177,6 +180,7 @@ impl crate::hir::lower::Ctx {
                             return_type: hir_ret,
                             effects: summary.declared,
                             inferred: summary.inferred,
+                            span: crate::span::Span::default(),
                         });
                         self.fn_map.entry(sym_name).or_default().push(fn_id);
                     }

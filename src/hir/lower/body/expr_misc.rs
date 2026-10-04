@@ -38,7 +38,8 @@ impl crate::hir::lower::Ctx {
             params: hir_params.clone(),
             return_type: hir_ret.clone(),
             effects: crate::hir::effects::EffectDecl::default(),
-                        inferred: Default::default(),
+            inferred: Default::default(),
+            span: crate::span::Span::default(),
         });
         self.fn_map.entry(name_sym).or_default().push(fn_id);
 

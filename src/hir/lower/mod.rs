@@ -39,6 +39,8 @@ pub(crate) struct FnSig {
     pub params: Vec<(Symbol, HirType)>,
     /// 返回值类型
     pub return_type: HirType,
+    /// A6：声明位置（接口签名等诊断用）
+    pub span: Span,
 }
 
 /// 接口注册信息 —— 记录接口的泛型参数和方法签名

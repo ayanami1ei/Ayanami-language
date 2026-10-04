@@ -48,6 +48,7 @@ impl crate::hir::lower::Ctx {
                         return_type: hir_return,
                         effects: crate::hir::effects::EffectDecl::default(),
                         inferred: Default::default(),
+                        span: crate::span::Span::default(),
                     });
                 }
             }
@@ -106,9 +107,10 @@ impl crate::hir::lower::Ctx {
                             fsig.params[1..].iter().map(|(n, t)| format!(", {} {}", hir_type_display(t), n.as_str())).collect::<String>(),
                             hir_type_display(&fsig.return_type));
                         return Err(Error::Hir(format!(
-                            "method `{}` in impl `{}` has wrong signature for interface `{}`:\n  expected {}\n  found    {}",
+                            "method `{}` in impl `{}` has wrong signature for interface `{}`:\n  expected {}\n  found    {} (at {}:{})",
                             iface_method.name.as_str(), type_name.as_str(), iface_name.as_str(),
-                            iface_sig, impl_sig)));
+                            iface_sig, impl_sig,
+                            fsig.span.start_line, fsig.span.start_col)));
                     }
                 }
                 None => { all_match = false; break; }

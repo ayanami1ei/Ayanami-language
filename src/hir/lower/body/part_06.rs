@@ -196,6 +196,7 @@ impl crate::hir::lower::Ctx {
             name: *name,
             params: hir_params,
             return_type: hir_return,
+            span: crate::span::Span::default(),
             effects: crate::hir::effects::EffectDecl::default(),
                         inferred: Default::default(),
         });
