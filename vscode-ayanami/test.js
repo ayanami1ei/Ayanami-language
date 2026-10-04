@@ -90,5 +90,16 @@ syms.parseLclSymbols(lcl, 'io.lcl', out);
 eq(out.functions.map(f => f.sig), ['add(int,int) -> int', 'to_string(int) -> String'], 'lcl fns');
 eq(out.structs[0].fields.map(f => `${f.type} ${f.name}`), ['float x', 'int y'], 'lcl struct');
 
+// 7) 终端新格式：error + --> + 源码片段
+const term = [
+    "error: undefined function `undefined_fn`",
+    "  --> /tmp/opencode/diag1.aya:2:9",
+    "  |",
+    "2 |     x = undefined_fn(3)",
+    "  |         ^",
+].join("\n") + "\n";
+d = parseCompilerOutput(term, '/tmp/opencode/diag1.aya', '/tmp/opencode');
+eq([d.length, d[0].line, d[0].col, d[0].message], [1, 2, 9, 'undefined function `undefined_fn`'], 'terminal error format');
+
 console.log(fails === 0 ? 'ALL EXT TESTS PASS' : `${fails} FAILURES`);
 process.exit(fails === 0 ? 0 : 1);

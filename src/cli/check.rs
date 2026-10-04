@@ -23,7 +23,7 @@ pub(crate) fn cmd_check(args: &[String]) {
     }
     match do_check(&path) {
         Ok(_) => ayanami::diagnostics::success(&format!("check passed: {}", path.display())),
-        Err(e) => { ayanami::diagnostics::error(&format!("check failed: {}", e)); std::process::exit(1); }
+        Err(e) => { ayanami::diagnostics::report_error(&path, &format!("check failed: {}", e)); std::process::exit(1); }
     }
     if watch {
         watch_file(&path);
@@ -64,7 +64,7 @@ fn watch_file(path: &Path) {
                         "\ncheck passed: {}",
                         canonical.display()
                     ),
-                    Err(e) => ayanami::diagnostics::error(&format!("check failed: {}", e)),
+                    Err(e) => ayanami::diagnostics::report_error(&canonical, &format!("check failed: {}", e)),
                 }
             }
             Err(e) => eprintln!("watch error: {}", e),

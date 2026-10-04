@@ -17,7 +17,7 @@ pub(crate) fn cmd_build(args: &[String]) {
     };
     match ayanami::compiler::build_source_with_target(&path_str, &code, "build", Some(&target)) {
         Ok(()) => {}
-        Err(e) => { ayanami::diagnostics::error(&format!("build failed: {}", e)); std::process::exit(1); }
+        Err(e) => { ayanami::diagnostics::report_error(&path, &format!("build failed: {}", e)); std::process::exit(1); }
     }
 }
 
@@ -33,7 +33,7 @@ pub(crate) fn cmd_run(args: &[String]) {
         Ok(c) => c, Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
     if let Err(e) = ayanami::compiler::build_source_with_target(&path_str, &code, "build", Some(target)) {
-        ayanami::diagnostics::error(&format!("build failed: {}", e)); std::process::exit(1);
+        ayanami::diagnostics::report_error(&path, &format!("build failed: {}", e)); std::process::exit(1);
     }
     let exe_name = path.file_stem().unwrap_or(std::ffi::OsStr::new("a")).to_string_lossy();
     match ayanami::compiler::run_executable(&exe_name) {

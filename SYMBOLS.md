@@ -207,11 +207,18 @@ src/compiler/symdef.rs:29: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
 src/compiler/symdef.rs:42: pub fn collect_defs_from_stmts(
 src/compiler/symdef.rs:53: fn collect_defs_from_stmt(stmt: &Stmt, file: &str, prefix: &str, defs: &mut Vec<SymDef>)
 src/compiler/symdef.rs:177: pub fn defs_to_json(defs: &[SymDef]) -> String
-src/diagnostics.rs:10: pub fn supports_color() -> bool
-src/diagnostics.rs:14: pub fn error(msg: &str)
-src/diagnostics.rs:22: pub fn warning(msg: &str)
-src/diagnostics.rs:31: pub fn success(msg: &str)
-src/diagnostics.rs:40: pub fn warning_at(file: &Path, line: usize, col: usize, msg: &str)
+src/diagnostics.rs:11: pub fn supports_color() -> bool
+src/diagnostics.rs:15: pub fn error(msg: &str)
+src/diagnostics.rs:23: pub fn warning(msg: &str)
+src/diagnostics.rs:32: pub fn success(msg: &str)
+src/diagnostics.rs:40: enum Sev
+src/diagnostics.rs:45: fn at_location(sev: Sev, file: &Path, line: usize, col: usize, msg: &str)
+src/diagnostics.rs:81: pub fn error_at(file: &Path, line: usize, col: usize, msg: &str)
+src/diagnostics.rs:86: pub fn warning_at(file: &Path, line: usize, col: usize, msg: &str)
+src/diagnostics.rs:91: fn parse_error(raw: &str) -> (Option<String>, usize, usize, String)
+src/diagnostics.rs:143: fn parse_lc(s: &str) -> Option<(usize, usize)>
+src/diagnostics.rs:148: fn clean_error_message(msg: &str) -> String
+src/diagnostics.rs:180: pub fn report_error(default_file: &Path, raw: &str)
 src/driver/mod.rs:11: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
 src/driver/mod.rs:31: fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
 src/driver/mod.rs:51: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>

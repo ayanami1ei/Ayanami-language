@@ -11,7 +11,7 @@ pub(crate) fn cmd_package(args: &[String]) {
     };
     match ayanami::compiler::package_source(&path_str, &code) {
         Ok(()) => {}
-        Err(e) => { ayanami::diagnostics::error(&format!("package failed: {}", e)); std::process::exit(1); }
+        Err(e) => { ayanami::diagnostics::report_error(&path, &format!("package failed: {}", e)); std::process::exit(1); }
     }
 }
 
