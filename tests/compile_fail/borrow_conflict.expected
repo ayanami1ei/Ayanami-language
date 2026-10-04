@@ -1,1 +1,2 @@
 cannot borrow `a` as mutable because it is also borrowed
+cannot borrow `a` as immutable because it is also borrowed

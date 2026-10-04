@@ -37,13 +37,21 @@ for f in tests/compile_fail/*.aya; do
         continue
     fi
     out=$(timeout 60 "$BIN" check "$f" 2>&1)
+    # .expected 每行是一个候选子串；命中任意一个即通过
+    # （借用冲突等诊断可能有多种等价报法，顺序不确定）
+    hit=0
     while IFS= read -r pat; do
         [ -z "$pat" ] && continue
-        if ! grep -qF -- "$pat" <<<"$out"; then
-            echo "FAIL $f: expected substring not found: $pat"
-            fail=$((fail + 1))
+        if grep -qF -- "$pat" <<<"$out"; then
+            hit=1
+            break
         fi
     done < "$base.expected"
+    if [ "$hit" != "1" ]; then
+        echo "FAIL $f: none of the expected substrings found:"
+        sed 's/^/  - /' "$base.expected"
+        fail=$((fail + 1))
+    fi
 done
 
 echo "regression: positive=$pos negative=$neg failures=$fail"
