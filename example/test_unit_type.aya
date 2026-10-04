@@ -1,0 +1,9 @@
+// M1.9：`()` 作为 `void` 的类型别名
+fn nothing() -> () {
+    return
+}
+
+fn main() -> int {
+    nothing()
+    return 0
+}

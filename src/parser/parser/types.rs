@@ -31,6 +31,12 @@ impl Parser {
                 self.expect_delimiter(Delimiter::RBracket)?;
                 Ok(Type::Array(Box::new(inner), span))
             }
+            TokenKind::Delimiter(Delimiter::LParen) => {
+                // M1.9：`()` 作为 `void` 的类型别名（unit 值暂不引入）
+                self.advance();
+                self.expect_delimiter(Delimiter::RParen)?;
+                Ok(Type::Void(span))
+            }
             TokenKind::Keyword(Keyword::Int) => {
                 self.advance();
                 Ok(Type::Int(span))

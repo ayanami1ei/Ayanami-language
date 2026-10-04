@@ -110,8 +110,9 @@ fn main() -> int {
 | 整数   | `int`                             | 64 位（另有 `i8..i128` / `u8..u128` / `isize` / `usize`） |
 | 浮点   | `float` / `f64`                   | 64 位（同一类型）                                |
 | 浮点   | `f32`                             | 32 位                                           |
-| 字符   | `char`                            | 单字节                                          |
-| 布尔   | `bool`                            | `true` / `false`                            |
+| 字符   | `char`                            | 单字节（Rust 为 4 字节 Unicode；见 docs/int-types.md） |
+| 布尔   | `bool`                            | 1 字节，`true` / `false`                       |
+| 单元   | `()` / `void`                     | 类型别名（unit 值暂不引入）                       |
 | 字符串 | `String`                          | 标准库结构体 `{ [char] data, int len }` |
 | 数组   | `[int]`                          | 拥有堆缓冲区，离开作用域自动释放；借用写 `ref [int]` |
 | 结构体 | `Point`                           | 自定义，值语义                                  |

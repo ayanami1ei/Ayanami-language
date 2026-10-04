@@ -1860,7 +1860,7 @@ src/parser/parser/stmt.rs:127: pub(super) fn parse_lambda(&mut self) -> Result<E
 src/parser/parser/types.rs:3: impl Parser
 src/parser/parser/types.rs:6: pub(super) fn parse_type(&mut self) -> Result<Type>
 src/parser/parser/types.rs:24: pub(super) fn parse_base_type(&mut self) -> Result<Type>
-src/parser/parser/types.rs:98: pub(super) fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()>
+src/parser/parser/types.rs:104: pub(super) fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()>
 src/parser/parser/unary.rs:3: impl Parser
 src/parser/parser/unary.rs:4: pub(super) fn parse_unary(&mut self) -> Result<Expr>
 src/parser/parser/unary.rs:71: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
@@ -2170,6 +2170,8 @@ example/test_two_phase.aya:4: fn add(ref mut self, int x) { self.v = self.v + x 
 example/test_two_phase.aya:6: fn main() -> int
 example/test_unique_struct.aya:2: struct Point
 example/test_unique_struct.aya:7: fn main() -> int
+example/test_unit_type.aya:2: fn nothing() -> ()
+example/test_unit_type.aya:6: fn main() -> int
 example/test_usage_infer.aya:5: enum E
 example/test_usage_infer.aya:10: fn make() -> E { return E::A(1); }
 example/test_usage_infer.aya:12: fn main() -> int
