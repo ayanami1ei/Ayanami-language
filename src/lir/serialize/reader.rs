@@ -39,6 +39,11 @@ impl<'a> Reader<'a> {
             }
             10 => Ok(HirType::Array(Box::new(self.ty()?))),
             11 => { let inner = Box::new(self.ty()?); let mutable = self.read(1)?[0] != 0; Ok(HirType::Ref(inner, mutable)) }
+            13 => {
+                let bits = self.read(1)?[0];
+                let signed = self.read(1)?[0] != 0;
+                Ok(HirType::IntN { bits, signed })
+            }
             12 => {
                 let pc = self.u32()? as usize;
                 let mut params = Vec::with_capacity(pc);

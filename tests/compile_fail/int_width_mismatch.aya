@@ -1,0 +1,7 @@
+fn add(i32 a, int b) -> int {
+    return a + b
+}
+
+fn main() -> int {
+    return 0
+}

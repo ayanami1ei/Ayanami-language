@@ -24,6 +24,7 @@ test_ensures.aya 0
 test_ffi_attrs.aya 0
 test_follow_with.aya 0
 test_import.aya 30
+test_int_width.aya 0
 test_invariant.aya 0
 test_macro.aya 0
 test_macro_args.aya 0

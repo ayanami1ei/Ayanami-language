@@ -42,7 +42,7 @@ impl<'a> Emitter<'a> {
                     HirType::Unique(inner) => inner.as_ref(),
                     other => other,
                 };
-                matches!(inner, HirType::Int | HirType::Float | HirType::Char | HirType::Bool)
+                matches!(inner, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. })
             }).unwrap_or(false)
         }).unwrap_or(false)
     }

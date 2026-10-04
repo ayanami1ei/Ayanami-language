@@ -68,6 +68,7 @@ pub(super) fn type_to_mangle(ty: &HirType) -> String {
         HirType::Char => "char".into(),
         HirType::Void => "void".into(),
         HirType::Bool => "bool".into(),
+        HirType::IntN { bits, signed } => crate::hir::lower::helpers::intn_name(*bits, *signed),
         HirType::Named(s) => s.as_str().replace('<', "_lt_").replace('>', "_gt_")
             .replace(',', "_c_").replace(' ', "_").replace('[', "_lb_").replace(']', "_rb_"),
         // `[T]` 在 HIR 中是 Unique(Array(T))，导入签名字符串里是 Array(T)：

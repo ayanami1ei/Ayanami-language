@@ -23,6 +23,22 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
     }
 }
 
+
+/// 定宽整数类型名 → (bits, signed)
+pub(crate) fn fixed_width_int(name: &str) -> Option<(u8, bool)> {
+    Some(match name {
+        "i8" => (8, true), "i16" => (16, true), "i32" => (32, true), "i64" => (64, true), "i128" => (128, true),
+        "u8" => (8, false), "u16" => (16, false), "u32" => (32, false), "u64" => (64, false), "u128" => (128, false),
+        "isize" => (64, true), "usize" => (64, false),
+        _ => return None,
+    })
+}
+
+/// 定宽整数的可读名（i8/u32/...）
+pub(crate) fn intn_name(bits: u8, signed: bool) -> String {
+    format!("{}{}", if signed { "i" } else { "u" }, bits)
+}
+
 pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
     let s = s.trim();
     if let Some(inner) = s.strip_prefix("ref mut ") {
@@ -40,7 +56,10 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
             "char" => HirType::Char,
             "bool" => HirType::Bool,
             "void" => HirType::Void,
-            other => HirType::Named(Symbol::intern(other)),
+            other => match fixed_width_int(other) {
+                Some((bits, signed)) => HirType::IntN { bits, signed },
+                None => HirType::Named(Symbol::intern(other)),
+            },
         }
     }
 }
@@ -80,6 +99,7 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
             else if name == "char" { HirType::Char }
             else if name == "void" { HirType::Void }
             else if name == "bool" { HirType::Bool }
+            else if let Some((bits, signed)) = fixed_width_int(&name) { HirType::IntN { bits, signed } }
             else if interfaces.contains_key(s) {
                 // 裸接口类型：拥有所有权的胖指针（Box<dyn Trait>）
                 HirType::FatPtr { name: *s, kind: Box::new(HirType::Unique(Box::new(HirType::Void))) }
@@ -134,6 +154,7 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
         HirType::Char => "char".into(),
         HirType::Void => "void".into(),
         HirType::Bool => "bool".into(),
+        HirType::IntN { bits, signed } => intn_name(*bits, *signed),
         HirType::Named(s) => s.as_str().to_string(),
         HirType::Unique(inner) => format!("unique {}", hir_type_display(inner)),
         HirType::FnPtr(..) => "fn(...)".into(),

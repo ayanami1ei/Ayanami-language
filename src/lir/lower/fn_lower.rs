@@ -119,6 +119,7 @@ pub(super) fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
         HirType::Float => Some((LirValue::Literal(HirLiteral::Float(0.0), HirType::Float), HirType::Float)),
         HirType::Char => Some((LirValue::Literal(HirLiteral::Char('\0'), HirType::Char), HirType::Char)),
         HirType::Bool => Some((LirValue::Literal(HirLiteral::Bool(false), HirType::Bool), HirType::Bool)),
+        HirType::IntN { .. } => Some((LirValue::Literal(HirLiteral::Int(0), ty.clone()), ty.clone())),
         HirType::Named(_) | HirType::Unique(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
             Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), ty.clone()))
         }
@@ -135,6 +136,7 @@ pub(super) fn strip_ownership(ty: HirType) -> HirType {
 pub(super) fn type_size(ty: &HirType) -> u64 {
     match ty {
         HirType::Int | HirType::Float => 8,
+        HirType::IntN { bits, .. } => (*bits / 8) as u64,
         HirType::Char | HirType::Bool => 1,
         HirType::Void => 0,
         HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) => 16,

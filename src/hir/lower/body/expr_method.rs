@@ -102,8 +102,10 @@ impl crate::hir::lower::Ctx {
                 }
             }
         }
-        // Static dispatch: find method by receiver type
+        // Static dispatch: find method by receiver type（精确 → 字面量适配 → 解引用）
+        let lit_mask: Vec<bool> = hir_args.iter().map(|a| as_int_literal(a).is_some()).collect();
         let fn_id = match self.resolve_method(&receiver_ty, method, &arg_types)
+            .or_else(|| self.resolve_method_literals(&receiver_ty, method, &arg_types, &lit_mask))
             .or_else(|| self.resolve_method(&receiver_ty, method, &deref_arg_types))
         {
             Some(id) => id,
