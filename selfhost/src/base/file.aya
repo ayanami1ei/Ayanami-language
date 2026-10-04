@@ -17,6 +17,8 @@ pub struct ReadResult {
     String data
 }
 
+#[alloc]
+#[state]
 pub fn to_cstr(ref String s) -> [char] {
     buf = [char; s.len + 1];
     for i in (0, s.len) {
@@ -34,6 +36,8 @@ fn open_mode(ref String path, ref String mode) -> int {
 
 /// 读整个文件；不存在/读失败时 ok=false
 /// 不依赖 ftell（/proc 文件 size 为 0），逐字节 + 倍增缓冲
+#[alloc]
+#[state]
 pub fn read_file(ref String path) -> ReadResult {
     f = open_mode(path, "rb");
     if f == 0 {
@@ -51,6 +55,8 @@ pub fn read_file(ref String path) -> ReadResult {
 }
 
 /// 写整个文件；失败返回 false
+#[alloc]
+#[state]
 pub fn write_file(ref String path, ref String data) -> bool {
     f = open_mode(path, "wb");
     if f == 0 { return false; }
@@ -66,6 +72,8 @@ pub fn write_file(ref String path, ref String data) -> bool {
     return true;
 }
 
+#[alloc]
+#[state]
 pub fn file_exists(ref String path) -> bool {
     f = open_mode(path, "rb");
     if f == 0 { return false; }

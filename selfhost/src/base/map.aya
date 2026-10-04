@@ -20,6 +20,8 @@ pub namespace IntMap {
 }
 
 impl[T] IntMap[T] {
+    #[alloc]
+    #[state]
     fn grow(ref mut self) {
         old_cap = self.cap
         new_cap = 16
@@ -53,6 +55,8 @@ impl[T] IntMap[T] {
     pub fn capacity(ref self) -> int {
         return self.cap
     }
+    #[alloc]
+    #[state]
     pub fn put(ref mut self, int key, T value) {
         if self.cap == 0 {
             self.grow()

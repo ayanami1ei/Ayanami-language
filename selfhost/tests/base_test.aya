@@ -1,0 +1,38 @@
+// M1 总验收（docs/selfhost.md）：读写临时文件 + Map 增删查 + 驻留
+import "io";
+import "aya_file";
+import "aya_map";
+import "aya_intern";
+
+fn main() -> int {
+    // 1. 文件读写
+    path = "/tmp/opencode/selfhost_base_test.txt";
+    data = "ayanami selfhost\nline2";
+    if !write_file(path, data) { println("fail: write"); return 1 }
+    if !file_exists(path) { println("fail: exists"); return 2 }
+    r = read_file(path);
+    if !r.ok { println("fail: read"); return 3 }
+    if r.data != data { println("fail: content"); return 4 }
+
+    // 2. Map 增删查
+    m = IntMap::new[int]();
+    m.put(1, 10);
+    m.put(2, 20);
+    if !m.has(2) { println("fail: map has"); return 5 }
+    if m.get(2) != 20 { println("fail: map get"); return 6 }
+    if m.has(3) { println("fail: map miss"); return 7 }
+    m.put(2, 22);
+    if m.get(2) != 22 { println("fail: map overwrite"); return 8 }
+
+    // 3. 驻留
+    it = Interner::new();
+    a = it.intern("foo");
+    b = it.intern("bar");
+    if a == b { println("fail: intern distinct"); return 9 }
+    if it.intern("foo") != a { println("fail: intern dedup"); return 10 }
+    if it.name(a) != "foo" { println("fail: intern name"); return 11 }
+    if it.len() != 2 { println("fail: intern len"); return 12 }
+
+    println("base ok");
+    return 0;
+}

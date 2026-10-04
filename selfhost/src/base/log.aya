@@ -1,0 +1,47 @@
+
+import "string";
+import "aya_sb";
+import "aya_file";
+
+// 诊断输出（stderr，fd=2）
+extern "C" fn write(int fd, [char] buf, int n) -> int;
+
+fn emit(ref String prefix, ref String file, int line, int col, ref String msg) {
+    b = StringBuf::new();
+    b.push_str(prefix);
+    b.push_str(msg);
+    b.push_str("\n  --> ");
+    b.push_str(file);
+    b.push_str(":");
+    b.push_int(line);
+    b.push_str(":");
+    b.push_int(col);
+    b.push_str("\n");
+    s = b.to_string();
+    c = to_cstr(s);
+    write(2, c, s.len);
+}
+
+#[alloc]
+#[state]
+pub fn error_at(ref String file, int line, int col, ref String msg) {
+    emit("error: ", file, line, col, msg);
+}
+
+#[alloc]
+#[state]
+pub fn warn_at(ref String file, int line, int col, ref String msg) {
+    emit("warning: ", file, line, col, msg);
+}
+
+#[alloc]
+#[state]
+pub fn note(ref String msg) {
+    b = StringBuf::new();
+    b.push_str("note: ");
+    b.push_str(msg);
+    b.push_str("\n");
+    s = b.to_string();
+    c = to_cstr(s);
+    write(2, c, s.len);
+}

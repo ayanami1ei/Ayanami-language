@@ -1,0 +1,11 @@
+// M1 base/log 验收：error/warn/note 输出到 stderr（格式见 shell 校验）
+import "io";
+import "aya_log";
+
+fn main() -> int {
+    error_at("demo.aya", 3, 5, "unexpected token");
+    warn_at("demo.aya", 7, 1, "unused variable");
+    note("build finished");
+    println("base_log ok");
+    return 0;
+}

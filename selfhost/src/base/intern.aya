@@ -16,6 +16,7 @@ pub struct Interner {
 }
 
 pub namespace Interner {
+    #[alloc]
     pub fn new() -> Interner {
         it = Interner { names = [String; 65536], used = 0, cap = 65536, keys = [int; 65536], vals = [int; 65536], taken = [bool; 65536], slot_len = 0, slot_cap = 65536 };
         return it;
@@ -24,6 +25,8 @@ pub namespace Interner {
 
 impl Interner {
     /// 驻留字符串，返回稳定 id
+    #[alloc]
+    #[state]
     pub fn intern(ref mut self, ref String s) -> int {
         h = str_hash(s);
         i = h % self.slot_cap;
@@ -50,6 +53,8 @@ impl Interner {
     }
 
     /// 按 id 取回名字（返回拥有副本）
+    #[alloc]
+    #[state]
     pub fn name(ref self, int id) -> String {
         return self.names[id].copy();
     }
