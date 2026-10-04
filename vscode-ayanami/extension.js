@@ -2,6 +2,7 @@ const vscode = require('vscode');
 const { parseCompilerOutput } = require('./diagnostics');
 const symbols = require('./symbols');
 const typesMod = require('./types');
+const quickfix = require('./quickfix');
 
 const KEYWORD_DOCS = {
             'fn': '**fn** — function declaration\n\n`fn name(params) -> ReturnType { body }`',
@@ -460,6 +461,42 @@ function activate(context) {
     });
     context.subscriptions.push(inlayHintsProvider);
 
+    // ─── Quick Fix: 自动补 import ─────────────────────────────────────
+    const codeActionProvider = vscode.languages.registerCodeActionsProvider('ayanami', {
+        async provideCodeActions(document, range, ctx) {
+            const actions = [];
+            try {
+                const ayanamiPath = findAyanamiPath(context);
+                if (!ayanamiPath) return actions;
+                const packages = [
+                    ...scanStdPackages(ayanamiPath),
+                    ...(await scanProjectPackages(document)),
+                ];
+                const seen = new Set();
+                for (const diag of ctx.diagnostics || []) {
+                    const symbol = quickfix.parseUnknownSymbol(diag.message);
+                    if (!symbol) continue;
+                    for (const stem of quickfix.findImportCandidates(symbol, packages)) {
+                        if (seen.has(stem)) continue;
+                        seen.add(stem);
+                        const info = quickfix.importEditInfo(document.getText(), stem);
+                        if (!info) continue;
+                        const action = new vscode.CodeAction(
+                            `引入 import "${stem}"`, vscode.CodeActionKind.QuickFix);
+                        action.diagnostics = [diag];
+                        action.isPreferred = true;
+                        const edit = new vscode.WorkspaceEdit();
+                        edit.insert(document.uri, new vscode.Position(info.line, 0), info.text);
+                        action.edit = edit;
+                        actions.push(action);
+                    }
+                }
+            } catch (_) { /* quick fix 失败不影响编辑 */ }
+            return actions;
+        }
+    }, { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] });
+    context.subscriptions.push(codeActionProvider);
+
     // ─── Diagnostic Provider (compiler check on save) ────────────────
     const diagCollection = vscode.languages.createDiagnosticCollection('ayanami');
     context.subscriptions.push(diagCollection);
@@ -763,6 +800,67 @@ function activate(context) {
         }
     });
     context.subscriptions.push(formatProvider);
+}
+
+// ─── Quick Fix: 包符号扫描（std .lcl + 工作区 .aya） ─────────────────
+const stdPackageCache = new Map(); // ayanamiPath -> packages
+
+function scanStdPackages(ayanamiPath) {
+    const fs = require('fs');
+    const path = require('path');
+    if (stdPackageCache.has(ayanamiPath)) return stdPackageCache.get(ayanamiPath);
+    const packages = [];
+    const dir = path.join(path.dirname(ayanamiPath), 'std');
+    try {
+        for (const f of fs.readdirSync(dir)) {
+            if (!f.endsWith('.lcl')) continue;
+            const syms = { functions: [], structs: [], enums: [] };
+            symbols.parseLclSymbols(fs.readFileSync(path.join(dir, f), 'utf8'), f, syms);
+            packages.push({ stem: f.replace(/\.lcl$/, ''), ...syms });
+        }
+    } catch (_) { /* 无 std 目录 */ }
+    stdPackageCache.set(ayanamiPath, packages);
+    return packages;
+}
+
+const projectPackageCache = new Map(); // workspace key -> Promise<packages>
+
+async function scanProjectPackages(currentDoc) {
+    const fs = require('fs');
+    const path = require('path');
+    const folders = (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath);
+    const key = folders.join('|');
+    if (!projectPackageCache.has(key)) {
+        projectPackageCache.set(key, (async () => {
+            const packages = [];
+            try {
+                const uris = await vscode.workspace.findFiles(
+                    '**/*.aya', '**/{node_modules,target,build,.git}/**', 300);
+                for (const uri of uris) {
+                    try {
+                        const text = fs.readFileSync(uri.fsPath, 'utf8');
+                        packages.push({
+                            stem: '',
+                            file: uri.fsPath,
+                            functions: symbols.scanFnSigsFull(text, uri.fsPath),
+                            structs: symbols.scanStructsFull(text, uri.fsPath),
+                            enums: symbols.scanEnumsFull(text, uri.fsPath),
+                        });
+                    } catch (_) { /* skip */ }
+                }
+            } catch (_) { /* skip */ }
+            return packages;
+        })());
+    }
+    const packages = await projectPackageCache.get(key);
+    const dir = path.dirname(currentDoc.uri.fsPath);
+    return packages
+        .filter((p) => p.file && p.file !== currentDoc.uri.fsPath)
+        .map((p) => {
+            let rel = path.relative(dir, p.file).replace(/\\/g, '/').replace(/\.aya$/, '');
+            if (rel.startsWith('./')) rel = rel.slice(2);
+            return { ...p, stem: rel };
+        });
 }
 
 // ─── Compiler variable types (cached per document version) ───────────

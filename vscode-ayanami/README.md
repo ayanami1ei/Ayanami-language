@@ -36,3 +36,11 @@ Syntax highlighting and basic language support for `.aya` files.
 变量类型提示由编译器提供（`ayanami types <file>` 输出 HIR 推断结果），
 不是编辑器端猜测；编译器不可用或旧版本时回退到启发式扫描。
 支持 `: 类型` 标注（赋值声明处、`self`、`for` 迭代变量）。
+
+## 快捷修复（Quick Fix）
+
+类型/函数找不到且来自某个包时，报错处会提供 **`引入 import "包名"`**：
+
+- 扫描编译器旁的 `std/*.lcl` 符号表与工作区 `*.aya`，定位符号所在包
+- 光标放到错误行 → `Ctrl+.`（或点击灯泡）→ 自动在 import 区插入 `import "arraylist";`
+- 排序：包名与符号同名优先、非 `std` 优先、依赖更少的包优先

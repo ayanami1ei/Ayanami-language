@@ -124,5 +124,28 @@ const dup = typesMod.validateTypeEntries('    res = 1;\n    res = 2;\n', [
 ]);
 eq(dup.length, 1, 'types validate dedupe');
 
+// 9) Quick Fix：未知符号解析 + import 候选 + 插入位置
+const qf = require('./quickfix');
+eq(qf.parseUnknownSymbol('type `ArrayList` has no method `push` for argument types (TokenType) at 26:16（类型 `ArrayList` 未知：若来自包，请确认已 import 对应模块）'), { name: 'ArrayList', kind: 'type' }, 'qf parse method hint');
+eq(qf.parseUnknownSymbol('undefined function `ArrayList.new` at 4:23'), { name: 'ArrayList', kind: 'type' }, 'qf parse ctor');
+eq(qf.parseUnknownSymbol('undefined function `foo` at 1:1'), { name: 'foo', kind: 'fn' }, 'qf parse fn');
+eq(qf.parseUnknownSymbol('type `ArrayList<TokenType>` has no method `x`'), { name: 'ArrayList', kind: 'type' }, 'qf parse generic');
+eq(qf.parseUnknownSymbol('some unrelated error'), null, 'qf parse none');
+const pkgs = [
+    { stem: 'arraylist', functions: [], structs: [{ name: 'ArrayList' }], enums: [] },
+    { stem: 'linkedlist', functions: [], structs: [{ name: 'LinkedList' }], enums: [] },
+    { stem: 'string', functions: [{ name: 'int_to_string' }], structs: [{ name: 'String' }], enums: [] },
+];
+eq(qf.findImportCandidates({ name: 'ArrayList', kind: 'type' }, pkgs), ['arraylist'], 'qf candidates type');
+eq(qf.findImportCandidates({ name: 'ArrayList', kind: 'type' }, [
+    { stem: 'std', functions: [], structs: [{ name: 'ArrayList' }], enums: [] },
+    { stem: 'arraylist', functions: [], structs: [{ name: 'ArrayList' }], enums: [] },
+]), ['arraylist', 'std'], 'qf candidates prefer specific over std');
+eq(qf.findImportCandidates({ name: 'int_to_string', kind: 'fn' }, pkgs), ['string'], 'qf candidates fn');
+eq(qf.findImportCandidates({ name: 'Nope', kind: 'type' }, pkgs), [], 'qf candidates none');
+eq(qf.importEditInfo('import "string";\n\nfn main() -> int { return 0; }\n', 'arraylist'), { line: 1, text: 'import "arraylist";\n' }, 'qf edit after imports');
+eq(qf.importEditInfo('fn main() -> int { return 0; }\n', 'arraylist'), { line: 0, text: 'import "arraylist";\n' }, 'qf edit at top');
+eq(qf.importEditInfo('import "arraylist";\n', 'arraylist'), null, 'qf edit already imported');
+
 console.log(fails === 0 ? 'ALL EXT TESTS PASS' : `${fails} FAILURES`);
 process.exit(fails === 0 ? 0 : 1);
