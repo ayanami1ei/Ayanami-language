@@ -38,15 +38,15 @@ cmd_sync() {
     fi
     after=$(git rev-parse HEAD)
     echo "== submodules（book/asuka 跟随远端）=="
-    git submodule update --remote book asuka
+    git submodule update --remote book asuka std
     echo "== stage-0：rust 有更新则重建 release =="
     if [[ "$before" != "$after" || ! -x "$ROOT/target/release/ayanami" ]]; then
         cargo build --release
     fi
     echo "== stage-0 std 预编译（release/debug 旁的 std/）=="
     if [[ "$before" != "$after" || ! -f "$ROOT/target/release/std/string.lcl" ]]; then
-        for m in string io math list arraylist linkedlist panic mir std; do
-            "$ROOT/target/release/ayanami" package "std/src/$m.aya" >/dev/null
+        for f in std/src/*.aya; do
+            "$ROOT/target/release/ayanami" package "$f" >/dev/null
         done
         cp std/src/*.lcl std/
         mkdir -p target/release/std target/debug/std
