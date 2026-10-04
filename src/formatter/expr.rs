@@ -37,7 +37,8 @@ pub(super) fn write_type(ty: &Type) -> String {
 pub(super) fn write_expr(expr: &Expr) -> String {
     match expr {
         Expr::Literal(lit) => write_literal(lit),
-        Expr::Ident(name, _) => name.as_str().to_string(),
+        // 解析器把 `A::B` 合并为 `A.B`；格式化时恢复 `::`（`.` 只用于字段/方法）
+        Expr::Ident(name, _) => name.as_str().replace('.', "::"),
         Expr::Binary { op, lhs, rhs, .. } => {
             format!("{} {} {}", write_expr(lhs), write_bin_op(op), write_expr(rhs))
         }
@@ -55,7 +56,8 @@ pub(super) fn write_expr(expr: &Expr) -> String {
             } else {
                 format!("[{}]", generic_args.iter().map(write_type).collect::<Vec<_>>().join(", "))
             };
-            format!("{}{}({})", name, generic_str, args_str.join(", "))
+            let name_str = name.as_str().replace('.', "::");
+            format!("{}{}({})", name_str, generic_str, args_str.join(", "))
         }
         Expr::Move(inner, _) => format!("move {}", write_expr(inner)),
         Expr::Clone(inner, _) => format!("clone {}", write_expr(inner)),
