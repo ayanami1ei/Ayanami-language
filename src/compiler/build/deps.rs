@@ -7,6 +7,7 @@ pub(super) fn resolve_dependencies(
     compiling: &mut HashSet<PathBuf>,
     cache: &mut HashMap<PathBuf, CompiledFile>,
     program: &Program,
+    runtime: Option<&Path>,
 ) -> Result<(Vec<PathBuf>, Vec<String>, Vec<PathBuf>, Vec<Stmt>)> {
     let mut dep_obj_paths = Vec::new();
     let mut dep_link_flags = Vec::new();
@@ -45,6 +46,7 @@ pub(super) fn resolve_dependencies(
                     compiling,
                     cache,
                     Some(dep_target_or_static),
+                    runtime,
                 )?;
                 if dep_target_or_static == "dynamic-lib" {
                     let dep_stem = dep_path.file_stem().unwrap_or_default().to_string_lossy();

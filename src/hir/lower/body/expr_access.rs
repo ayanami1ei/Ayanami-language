@@ -132,6 +132,15 @@ impl crate::hir::lower::Ctx {
                 .position(|m| m.name == Symbol::intern("index"))
                 .ok_or_else(|| Error::Hir(format!("interface `{}` has no method `index` (at {}:{})", iface_name, span.start_line, span.start_col)))?;
             let ret_ty = iface_reg.methods[method_idx].return_type.clone();
+            if Self::contains_self_type(&ret_ty)
+                || iface_reg.methods[method_idx].params.iter().any(|(_, t)| Self::contains_self_type(t))
+            {
+                return Err(Error::Hir(format!(
+                    "interface `{}` method `{}` uses Self; dynamic dispatch (`ref {}`) is not supported — use a generic bound like `[T: {}]` (at {}:{})",
+                    iface_name.as_str(), Symbol::intern("index").as_str(), iface_name.as_str(), iface_name.as_str(),
+                    span.start_line, span.start_col
+                )));
+            }
             return Ok(SVCall {
                 receiver: hir_object,
                 interface: iface_name,

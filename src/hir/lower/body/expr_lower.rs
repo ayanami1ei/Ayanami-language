@@ -43,6 +43,7 @@ impl crate::hir::lower::Ctx {
             Expr::CallExpr { target, args, span } => self.lower_call_expr(target, args, span),
             Expr::TryOp(inner, span) => self.lower_try_op(inner, span),
             Expr::Match { value, arms, span } => self.lower_match_expr(value, arms, span),
+            Expr::If { cond, then_block, elifs, else_block, span } => self.lower_if_expr(cond, then_block, elifs, else_block, span),
             Expr::MacroCall { name, args, span } => self.lower_macro_call(name, args, span),
             Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => self.lower_enum_construct(enum_name, variant_name, tuple_args, named_args, span),
             Expr::MethodCall { object, method, args, span } => self.lower_method_call(object, method, args, span),

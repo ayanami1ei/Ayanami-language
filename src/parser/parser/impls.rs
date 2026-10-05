@@ -144,6 +144,15 @@ impl Parser {
         // Parse optional self parameter: ref/ref mut/unique/shared/self
         let mut params: Vec<(Symbol, Type)> = Vec::new();
         let mut param_attrs: Vec<Vec<crate::parser::ast::Attr>> = Vec::new();
+        // `Self` 在签名中代表 impl 目标类型（含泛型实参）：返回类型/其余形参统一替换
+        let base_self_type = if impl_generic_params.is_empty() {
+            Type::Named(*impl_type, Span::default())
+        } else {
+            let gp_names: Vec<Type> = impl_generic_params.iter()
+                .map(|(n, _)| Type::Named(*n, Span::default()))
+                .collect();
+            Type::Generic(*impl_type, gp_names, Span::default())
+        };
         let is_self_start = matches!(self.peek().map(|t| &t.kind),
             Some(TokenKind::Keyword(Keyword::Unique))
                 | Some(TokenKind::Keyword(Keyword::Ref))
@@ -168,18 +177,10 @@ impl Parser {
             if self_name != "self" {
                 return Err(self.error("expected 'self' as first parameter name in method"));
             }
-            let base_self_type = if impl_generic_params.is_empty() {
-                Type::Named(*impl_type, Span::default())
-            } else {
-                let gp_names: Vec<Type> = impl_generic_params.iter()
-                    .map(|(n, _)| Type::Named(*n, Span::default()))
-                    .collect();
-                Type::Generic(*impl_type, gp_names, Span::default())
-            };
             let self_type = match self_keyword.as_str().as_str() {
-                "unique" => Type::Unique(Box::new(base_self_type), Span::default()),
-                "ref" => Type::Ref(Box::new(base_self_type), ref_mut, Span::default()),
-                _ => base_self_type, // 裸 self：消费
+                "unique" => Type::Unique(Box::new(base_self_type.clone()), Span::default()),
+                "ref" => Type::Ref(Box::new(base_self_type.clone()), ref_mut, Span::default()),
+                _ => base_self_type.clone(), // 裸 self：消费
             };
             params.push((Symbol::intern("self"), self_type));
             param_attrs.push(Vec::new());
@@ -188,7 +189,7 @@ impl Parser {
                 self.advance();
                 loop {
                     param_attrs.push(self.parse_attr_list()?);
-                    let ptype = self.parse_type()?;
+                    let ptype = self_type::subst_self_in_type(&self.parse_type()?, &base_self_type);
                     let pname = self.expect_identifier()?;
                     params.push((Symbol::intern(&pname), ptype));
                     if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) {
@@ -204,7 +205,7 @@ impl Parser {
                     break;
                 }
                 param_attrs.push(self.parse_attr_list()?);
-                let ptype = self.parse_type()?;
+                let ptype = self_type::subst_self_in_type(&self.parse_type()?, &base_self_type);
                 let pname = self.expect_identifier()?;
                 params.push((Symbol::intern(&pname), ptype));
                 if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
@@ -217,7 +218,7 @@ impl Parser {
 
         let return_type = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Arrow)) {
             self.advance();
-            self.parse_type()?
+            self_type::subst_self_in_type(&self.parse_type()?, &base_self_type)
         } else {
             Type::Void(Span::default())
         };
@@ -260,6 +261,21 @@ impl Parser {
                             Stmt::ExprStmt { expr, .. } => { tail = Some(Box::new(expr)); break; }
                             Stmt::Match { value, arms, span } => {
                                 tail = Some(Box::new(Expr::Match { value, arms, span }));
+                                break;
+                            }
+                            // bbp：带 else 且至少一个分支含尾值的 if 才作为块尾表达式
+                            //（否则保持语句形态，避免 void 函数里的 if/else 被当值处理）
+                            Stmt::If { cond, then_block, elifs, else_block: Some(eb), span }
+                                if then_block.tail.is_some()
+                                    || elifs.iter().any(|(_, b)| b.tail.is_some())
+                                    || eb.tail.is_some() => {
+                                tail = Some(Box::new(Expr::If {
+                                    cond: Box::new(cond),
+                                    then_block,
+                                    elifs,
+                                    else_block: Some(eb),
+                                    span,
+                                }));
                                 break;
                             }
                             other => stmts.push(other),

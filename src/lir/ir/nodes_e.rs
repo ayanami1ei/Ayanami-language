@@ -133,3 +133,77 @@ impl LirNode for SLirStrGlobal {
         put_u64(buf, self.str_idx);
     }
 }
+
+impl LirNode for SLirFieldStorePtr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "FieldStorePtr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let inner = match &self.struct_ty {
+            HirType::Unique(inner) | HirType::Ref(inner, _) => inner.as_ref(),
+            other => other,
+        };
+        let struct_name = match inner {
+            HirType::Named(n) => n,
+            _ => unreachable!(),
+        };
+        let struct_llvm = ctx.struct_llvm_name(struct_name)
+            .unwrap_or_else(|| panic!("unknown struct type `{}`", struct_name));
+        let obj_str = ctx.value_ref(&self.obj, &self.struct_ty);
+        let field_llvm = ctx.llvm_type(&self.field_ty);
+        let mut out = Vec::new();
+        let src_str = match &self.src {
+            LirValue::Var(v) => {
+                let t = ctx.tmp();
+                out.push(format!("%e{} = load {}, ptr %v{}, align 8", t, field_llvm, v.0));
+                format!("%e{}", t)
+            }
+            _ => ctx.value_ref(&self.src, &self.field_ty),
+        };
+        out.push(format!("%t{} = getelementptr {}, ptr {}, i32 0, i32 {}", self.gep_tmp, struct_llvm, obj_str, self.field_index));
+        out.push(format!("store {} {}, ptr %t{}", field_llvm, src_str, self.gep_tmp));
+        out
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    field_store_ptr field={}", self.field_index)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(31);
+        put_u64(buf, self.gep_tmp);
+        put_value(buf, &self.obj);
+        put_u32(buf, self.field_index as u32);
+        put_type(buf, &self.field_ty);
+        put_value(buf, &self.src);
+        put_type(buf, &self.struct_ty);
+    }
+}
+
+impl LirNode for SLirFieldAddr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "FieldAddr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let inner = match &self.struct_ty {
+            HirType::Unique(inner) | HirType::Ref(inner, _) => inner.as_ref(),
+            other => other,
+        };
+        let struct_name = match inner {
+            HirType::Named(n) => n,
+            _ => unreachable!(),
+        };
+        let struct_llvm = ctx.struct_llvm_name(struct_name)
+            .unwrap_or_else(|| panic!("unknown struct type `{}`", struct_name));
+        let obj_str = ctx.value_ref(&self.obj, &self.struct_ty);
+        vec![format!("%t{} = getelementptr {}, ptr {}, i32 0, i32 {}", self.dest, struct_llvm, obj_str, self.field_index)]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = field_addr field={}", self.dest, self.field_index)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(30);
+        put_u64(buf, self.dest);
+        put_value(buf, &self.obj);
+        put_u32(buf, self.field_index as u32);
+        put_type(buf, &self.struct_ty);
+    }
+}

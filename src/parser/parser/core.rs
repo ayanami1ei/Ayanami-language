@@ -59,7 +59,7 @@ impl Parser {
     /// Tokens that can never be the start of an expression.
     pub(super) fn is_stmt_only_keyword(kind: &TokenKind) -> bool {
         matches!(kind,
-            TokenKind::Keyword(Keyword::Fn | Keyword::Return | Keyword::If | Keyword::For
+            TokenKind::Keyword(Keyword::Fn | Keyword::Return | Keyword::For
                 | Keyword::While | Keyword::Break | Keyword::Continue
                 | Keyword::Interface | Keyword::Struct | Keyword::Impl
                 | Keyword::Import | Keyword::Namespace | Keyword::Pub | Keyword::Inline
@@ -72,6 +72,7 @@ impl Parser {
         Self::is_stmt_only_keyword(kind)
             || matches!(kind,
                 TokenKind::Keyword(Keyword::Match)
+                | TokenKind::Keyword(Keyword::If)
                 | TokenKind::Keyword(Keyword::True | Keyword::False | Keyword::Null | Keyword::Self_)
                 | TokenKind::Identifier(_) | TokenKind::IntLiteral(_) | TokenKind::FloatLiteral(_)
                 | TokenKind::StringLiteral(_) | TokenKind::CharLiteral(_)

@@ -2,6 +2,32 @@
 use super::*;
 use super::util::*;
 
+/// #91：递归计算「可写位置」的地址（局部 / 引用值 / 字段，含嵌套字段）
+pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<LirValue> {
+    // 引用值本身就是指针（局部需从栈槽加载指针）
+    if matches!(expr.expr_type(), HirType::Ref(..)) {
+        let val = expr.lower_to_lir(ctx);
+        return Some(match val {
+            LirValue::Tmp(_) => val,
+            other => {
+                let t = ctx.next_tmp();
+                ctx.emit(SLirLoad { dest: t, src: extract_var(&other), ty: expr.expr_type() }.into());
+                LirValue::Tmp(t)
+            }
+        });
+    }
+    if let Some(v) = expr.as_local() {
+        return Some(LirValue::Var(v));
+    }
+    if let Some((obj, field_index)) = expr.as_field_access() {
+        let obj_ptr = place_ptr(obj, ctx)?;
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirFieldAddr { dest, obj: obj_ptr, field_index, struct_ty: obj.expr_type() }.into());
+        return Some(LirValue::Tmp(dest));
+    }
+    None
+}
+
 impl MirNode for SMirRef {
     fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
@@ -9,6 +35,9 @@ impl MirNode for SMirRef {
         let dest = ctx.next_tmp();
         if let Some(var_id) = self.expr.as_local() {
             ctx.emit(SLirRefInst { dest, var_id, mutable: self.mutable, ty: self.ty.clone() }.into());
+        } else if let Some(ptr) = place_ptr(&self.expr, ctx) {
+            // 字段（含嵌套）：直接取字段地址，避免复制到临时栈槽
+            return ptr;
         } else {
             // 临时值（如函数返回值）：溢出到栈槽后取引用
             let pointee_ty = self.expr.expr_type();

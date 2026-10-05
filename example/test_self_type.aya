@@ -1,0 +1,42 @@
+// T1：接口/impl 签名中的 `Self` = 实现类型（结构匹配 + 特化替换）
+interface Maker {
+    fn make(ref self) -> Self;
+    fn combine(ref self, Self other) -> Self;
+}
+
+struct P { int x }
+
+impl P {
+    fn make(ref self) -> Self { return P { x = self.x + 1 } }
+    fn combine(ref self, Self other) -> Self { return P { x = self.x + other.x } }
+}
+
+impl int {
+    fn make(ref self) -> Self { return self + 1 }
+    fn combine(ref self, Self other) -> Self { return self + other }
+}
+
+struct Box[T] { T v }
+
+impl[T] Box[T] {
+    fn make(ref self) -> Self { return Box[T] { v = self.v } }
+    fn combine(ref self, Self other) -> Self { return Box[T] { v = other.v } }
+}
+
+fn bump[T: Maker](ref T v) -> T { return v.make() }
+fn merge[T: Maker](ref T a, ref T b) -> T { return a.combine(b) }
+
+fn main() -> int {
+    p = P { x = 1 }
+    q = bump(p)
+    if q.x != 2 { return 1 }
+    r = merge(p, q)
+    if r.x != 3 { return 2 }
+    n = 10
+    m = bump(n)
+    if m != 11 { return 3 }
+    b = Box[int] { v = 7 }
+    c = bump(b)
+    if c.v != 7 { return 4 }
+    return 0
+}

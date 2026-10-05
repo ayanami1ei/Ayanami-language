@@ -1,0 +1,7 @@
+[package]
+name = "runtime_custom"
+version = "0.1.0"
+
+# #84 ②：自定义 runtime（.c/.a/.o），相对项目根
+[runtime]
+path = "custom_runtime.c"

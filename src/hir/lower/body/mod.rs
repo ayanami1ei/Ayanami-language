@@ -21,6 +21,7 @@ mod match_lower;
 mod usage_infer;
 mod macro_call;
 mod expr_lower;
+mod if_expr;
 mod ensure;
 mod literal;
 mod collect_enum;

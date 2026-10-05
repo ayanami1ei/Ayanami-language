@@ -7,6 +7,9 @@ use crate::error::{Error, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod runtime;
+pub(crate) use runtime::resolve_runtime;
+
 /// Find `llc` — check next to the ayanami binary first, then PATH.
 pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)> {
     let exe = std::env::current_exe().ok();
@@ -107,12 +110,34 @@ pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Resu
 
 /// Link with extra flags (for dynamic lib linking).
 pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()> {
-    let runtime_c = find_runtime_c()?;
+    objects_to_exe_with_runtime(obj_paths, extra_flags, exe_path, None)
+}
+
+/// Link with an explicit runtime input（#84 ②）。
+///
+/// `runtime = None` 时使用内置 `runtime.c`；`Some(path)` 支持 `.c`（gcc 现场编译）、
+/// `.o` / `.a`（静态库，直接作为输入）——自定义 runtime 取代内置 runtime.c。
+pub fn objects_to_exe_with_runtime(
+    obj_paths: &[PathBuf],
+    extra_flags: &[String],
+    exe_path: impl AsRef<Path>,
+    runtime: Option<&Path>,
+) -> Result<()> {
+    let runtime_path: PathBuf = match runtime {
+        Some(p) => p.to_path_buf(),
+        None => PathBuf::from(find_runtime_c()?),
+    };
+    if !runtime_path.exists() {
+        return Err(Error::Driver(format!(
+            "runtime '{}' not found",
+            runtime_path.display()
+        )));
+    }
     let mut cmd = Command::new("gcc");
     cmd.arg("-no-pie");
     for o in obj_paths { cmd.arg(o); }
     for f in extra_flags { cmd.arg(f); }
-    cmd.arg(&runtime_c).arg("-lm").arg("-o").arg(exe_path.as_ref());
+    cmd.arg(&runtime_path).arg("-lm").arg("-o").arg(exe_path.as_ref());
     let status = cmd.status().map_err(|e| Error::Driver(format!("failed to run gcc: {}", e)))?;
     if !status.success() { return Err(Error::Driver("gcc link failed".into())); }
     Ok(())

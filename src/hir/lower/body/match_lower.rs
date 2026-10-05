@@ -198,8 +198,8 @@ impl crate::hir::lower::Ctx {
     }
 }
 
-/// match 分支公共结果类型（数值提升；其余取首个分支类型）
-fn match_result_type(a: &HirType, b: &HirType) -> HirType {
+/// match/if 分支公共结果类型（数值提升；其余取首个分支类型）
+pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType {
     let sa = strip_ownership(a.clone());
     let sb = strip_ownership(b.clone());
     if sa == sb { return sa; }

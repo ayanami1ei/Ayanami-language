@@ -87,8 +87,8 @@ impl crate::hir::lower::Ctx {
                     let params_match = fsig_visible >= 1
                         && iface_method.params.len() == fsig_visible - 1
                         && iface_method.params.iter().zip(&fsig.params[1..fsig_visible])
-                            .all(|((_, ift), (_, ft))| Self::type_matches(&ift, &ft))
-                        && Self::type_matches(&iface_method.return_type, &fsig.return_type);
+                            .all(|((_, ift), (_, ft))| Self::type_matches_self(ift, ft, type_name))
+                        && Self::type_matches_self(&iface_method.return_type, &fsig.return_type, type_name);
                     if params_match {
                         let fn_id = self.fn_map.get(&fsig.name)
                             .and_then(|ids| ids.iter().find(|id| {
@@ -149,12 +149,19 @@ impl crate::hir::lower::Ctx {
                     let mut local = subst.clone();
                     let mut ok = true;
                     for ((_, ift), (_, impt)) in iface_method.params.iter().zip(&impl_method.params[1..]) {
-                        if !Self::infer_iface_generic(ift, impt, &gp_names, &mut local) { ok = false; break; }
+                        if Self::contains_self_type(ift) {
+                            if !Self::type_matches_self(ift, impt, type_name) { ok = false; break; }
+                        } else if !Self::infer_iface_generic(ift, impt, &gp_names, &mut local) {
+                            ok = false; break;
+                        }
                     }
                     if !ok { continue; }
-                    if !Self::infer_iface_generic(&iface_method.return_type, &impl_method.return_type, &gp_names, &mut local) {
-                        continue;
-                    }
+                    let ret_ok = if Self::contains_self_type(&iface_method.return_type) {
+                        Self::type_matches_self(&iface_method.return_type, &impl_method.return_type, type_name)
+                    } else {
+                        Self::infer_iface_generic(&iface_method.return_type, &impl_method.return_type, &gp_names, &mut local)
+                    };
+                    if !ret_ok { continue; }
                     if local.iter().any(|(k, _)| gp_names.contains(k)) {
                         let fn_id = self.fn_map.get(&impl_method.name)
                             .and_then(|ids| ids.iter().find(|id| {

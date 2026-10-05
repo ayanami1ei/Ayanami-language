@@ -24,6 +24,21 @@ pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
             writeln!(w, "{}  rhs:", pad(level)).unwrap();
             write_expr(rhs, level + 1, w);
         }
+        Expr::If { cond, then_block, elifs, else_block, .. } => {
+            writeln!(w, "{}If", pad(level)).unwrap();
+            write_expr(cond, level + 1, w);
+            for s in &then_block.stmts { write_stmt(s, level + 1, w); }
+            if let Some(t) = &then_block.tail { write_expr(t, level + 1, w); }
+            for (c, b) in elifs {
+                write_expr(c, level + 1, w);
+                for s in &b.stmts { write_stmt(s, level + 1, w); }
+                if let Some(t) = &b.tail { write_expr(t, level + 1, w); }
+            }
+            if let Some(b) = else_block {
+                for s in &b.stmts { write_stmt(s, level + 1, w); }
+                if let Some(t) = &b.tail { write_expr(t, level + 1, w); }
+            }
+        }
         Expr::Cast { expr, ty, .. } => {
             writeln!(w, "{}Cast(as {})", pad(level), format_type(ty)).unwrap();
             write_expr(expr, level + 1, w);

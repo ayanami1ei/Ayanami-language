@@ -10,6 +10,7 @@ pub fn compile_file(
     compiling: &mut HashSet<PathBuf>,
     cache: &mut HashMap<PathBuf, CompiledFile>,
     target_override: Option<&str>,
+    runtime: Option<&Path>,
 ) -> Result<CompiledFile> {
     let canonical = src_path
         .canonicalize()
@@ -50,7 +51,7 @@ pub fn compile_file(
     let program = parse_and_check(&code, src_path)?;
 
     let (dep_obj_paths, dep_link_flags, dep_lcl_paths, new_stmts) =
-        resolve_dependencies(src_path, base_dir, out_dir, compiling, cache, &program)?;
+        resolve_dependencies(src_path, base_dir, out_dir, compiling, cache, &program, runtime)?;
 
     let mut program = program;
     program.stmts = new_stmts;
@@ -75,6 +76,7 @@ pub fn compile_file(
         &own_obj,
         out_dir,
         stem,
+        runtime,
     )?;
 
     emit_lcl_package(

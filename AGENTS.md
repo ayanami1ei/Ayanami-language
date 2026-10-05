@@ -51,7 +51,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 1. **解析器是手写递归下降**（`src/parser/parser/`，AST 在 `src/parser/ast/`）：唯一解析路径，无生成解析器/回退路径（asuka 生成器与 `ayanami.grammar` 已于 2026-10 移除，不要重新引入文法生成）。
 2. `SYMBOLS.md`、`target/`、`build/` 都是产物或生成物，不要整读；`.lcl` 是二进制包，不要读。
 3. `example/*.aya`（26 个）是端到端测试的主要手段；新特性至少配一个 example 用例。
-4. `std/` 交付预编译 `.lcl`，源码在子仓 `std/src/**/*.aya`；根目录 `std/*.aya` 是指向 `src/` 的符号链接。构建/安装 `.lcl` 用子仓 `scripts/build.sh`（开发态安装到 `target/debug/std`）。
+4. `std/` 交付预编译 `.lcl`，源码在子仓 `std/src/**/*.aya`（按领域分目录 core/collections/system/meta/dev）。构建/安装 `.lcl` 用子仓 `scripts/build.sh`（开发态安装到 `target/debug/std`）。
 5. `std/`、`book/` 是 git 子仓：在子仓内修改后要先在子仓提交并推送，主仓再提交新的子仓指针。
 
 ## 定位代码（省 token 的关键）

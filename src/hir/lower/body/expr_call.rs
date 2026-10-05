@@ -161,6 +161,10 @@ impl crate::hir::lower::Ctx {
             } else if implicit_cast_ok(&arg_ty, &param_tys[i]) {
                 // 按值基元参数的隐式数值转换（char→int / int→float / char→float）
                 SCast { expr: arg, ty: strip_ownership_ref(&param_tys[i]).clone() }.into()
+            } else if matches!(arg_ty, HirType::Unique(_)) {
+                // #73：导入 .lcl 的形参可能是未包装形式（如 `[T]` → Array），拥有值实参
+                // 需标记移动，否则调用方仍会在帧退出时释放（String::new(buf, n) 悬空）
+                implicit_move(arg)
             } else {
                 arg
             }

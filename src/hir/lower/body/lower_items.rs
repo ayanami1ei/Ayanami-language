@@ -157,6 +157,8 @@ impl crate::hir::lower::Ctx {
         param_attrs: Vec<Vec<crate::parser::ast::Attr>>,
         is_pub: bool,
     ) -> Result<HirFn> {
+        // #84 ③：`#[export]` 等价 `extern "C"` 定义（原始符号名 + C ABI）
+        let extern_c = extern_c || crate::hir::attrs::has(&attrs, "export");
         // A1：`#[inline]`/`#[inline(always)]` 不再并入关键字标记，
         // 由 LIR 发射层按标注区分 inlinehint / alwaysinline。
         // A3a：解析效应注解（throws/eff；注解权威，推断在后续阶段）

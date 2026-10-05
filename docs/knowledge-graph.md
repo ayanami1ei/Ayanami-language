@@ -16,6 +16,8 @@
 | `docs/generic-monomorphization.md` | 泛型结构体/枚举单态化（最小实现完成） |
 | `docs/lifetimes.md` | 注解式生命周期 `#[follow_with]` 设计（A4） |
 | `docs/int-types.md` | 定宽整数类型（M1.1 核心完成）：集合/字面量适配/语义/实现位置 |
+| `docs/c-interop.md` | C 互操作（`#[export]`）与 runtime 选择（`[runtime] path`/`AYANAMI_RUNTIME`，已实现） |
+| `docs/typeclass.md` | typeclass/`Self`/关联类型设计（T1–T5 阶段，排期中） |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |
 
@@ -30,7 +32,7 @@ graph LR
     MIR --> LIR[lir 低级 IR<br/>三地址码/基本块]
     LIR --> EMIT[emit LLVM IR]
     EMIT --> LLC[llc → .o]
-    LLC --> GCC[gcc 链接 runtime.c]
+    LLC --> GCC[gcc 链接 runtime<br/>内置/自定义（#84）]
     GCC --> EXE[可执行文件 / .lcl 包]
 ```
 
@@ -128,7 +130,16 @@ python3 scripts/gen_module_graph.py   # 刷新模块依赖图
 rg -n "TODO|FIXME" src docs     # 待办
 ```
 
-## 6. 关系索引（压缩版）
+## 6. C 互操作、runtime 与 typeclass（#84）
+
+| 概念 | 实现/设计位置 | 说明 |
+|---|---|---|
+| `#[export]` / `extern "C"` 定义 | `hir/attrs.rs`、`hir/lower/body/lower_items.rs`、`mir/lower/functions.rs`、`lir/lower/names.rs` | 导出 C 符号（原始名）；空体 = 外部声明 |
+| 自定义 runtime | `package/config.rs`、`driver/runtime.rs`、`driver/mod.rs` | `[runtime] path` / `AYANAMI_RUNTIME`；.c/.a/.o 替代内置 runtime.c |
+| 回归夹具 | `tests/c_export/`、`tests/runtime_custom/` | C harness 互操作 + runtime 选择三路径 |
+| typeclass/`Self` | `docs/typeclass.md`、`hir/lower/body/iface_match.rs`、`parser/self_type.rs` | T1 已实现（签名 Self 消解 + 对象安全诊断）；T2–T5 评估关闭；参数化接口约束可用（违例检查已修复） |
+
+## 7. 关系索引（压缩版）
 
 - 管线：`lexer → parser → hir → mir → lir → emit → opt -O2(可选) → llc → gcc`
 - 所有权：`HirType::Unique/Ref` —实现于→ `mir/mem` —检查于→ `mir/borrow` —发射于→ `lir/ir` —运行于→ `runtime.c`
@@ -138,5 +149,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 标注：`#[...]` —校验→ `hir/attrs` —携带→ MIR/LIR(`LirAttr`/`ExternDecl`) —映射→ LLVM 属性（A1 函数级）—计划→ 效应（A3）/生命周期（A4）
 - 泛型/内联：定义以**源码**随 `.lcl` 导出（`source=`）→ 导入方本地重新实例化 → 发射 `linkonce_odr` 弱链接去重（#100 设计）
 - 定宽整数：`i8..i128/u8..u128/isize/usize` —解析→ `fixed_width_int` —HIR→→ `HirType::IntN` —字面量适配→ `as_int_literal`/`retype_int_literal` —发射→ `iN` 算术/`icmp`（按 signed）
+- C 导出：`#[export]`/`extern "C"` 定义 —校验→ `hir/attrs` —HIR→ `extern_c` —MIR/LIR→ 保留函数体 —发射→ 原始符号名（默认可见）
+- runtime：`AYANAMI_RUNTIME`/`[runtime] path` —解析→ `driver/runtime.rs` —链接→ `objects_to_exe_with_runtime`（.c/.a/.o 替代内置 runtime.c）
 - 位运算：`& | ^ << >> ~` —文法→ operator（prec 6–9 / 前缀）—HIR→ `lower_binary`/`lower_unary` —发射→ `and/or/xor/shl/ashr/lshr` —折叠→ `example/constfold_lib.aya`
 - 显式转换：`expr as T` —解析→ `parse_cast` / 运算符表 prec:12 —HIR→ `lower_cast`/`SCast` —发射→ `sext/zext/trunc/sitofp/uitofp/fptosi.sat/fptoui.sat`

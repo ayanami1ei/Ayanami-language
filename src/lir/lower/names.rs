@@ -52,7 +52,8 @@ pub(crate) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol,
         format!("{}__{}", safe_prefix, safe_name)
     };
     if params.is_empty() {
-        base
+        // #106：零参函数加后缀，避免与 libc/系统符号冲突（main 为 C 入口，保持裸名）
+        if base == "main" { base } else { format!("{}_void", base) }
     } else {
         let suffix: String = params.iter()
             .map(|(_, t)| format!("_{}", type_to_mangle(t)))

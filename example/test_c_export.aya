@@ -1,0 +1,16 @@
+// #84 ③：导出 C 符号（#[export] / extern "C" 定义）并从 Ayanami 调用
+#[export]
+fn aya_add(int a, int b) -> int {
+    return a + b
+}
+
+#[export]
+extern "C" fn aya_scale(int v, int factor) -> int {
+    return v * factor
+}
+
+fn main() -> int {
+    if aya_add(2, 3) != 5 { return 1 }
+    if aya_scale(6, 7) != 42 { return 2 }
+    return 0
+}

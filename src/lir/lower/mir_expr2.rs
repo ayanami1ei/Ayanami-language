@@ -121,6 +121,7 @@ impl MirNode for SMirFieldAccess {
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); }
+    fn as_field_access(&self) -> Option<(&MirNodeBox, usize)> { Some((&self.object, self.field_index)) }
 }
 
 impl MirNode for SMirStructLiteral {

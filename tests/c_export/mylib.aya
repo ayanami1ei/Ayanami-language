@@ -1,0 +1,15 @@
+// #84 ③：导出 C 符号（#[export] / extern "C" 定义），供 C/runtime 调用
+#[export]
+fn aya_add(int a, int b) -> int {
+    return a + b
+}
+
+#[export]
+extern "C" fn aya_scale(int v, int factor) -> int {
+    return v * factor
+}
+
+#[export]
+extern "C" fn aya_fill(ref mut int dst, int v) -> void {
+    dst = v
+}

@@ -1,0 +1,32 @@
+// #91：嵌套结构体字段的 ref mut 变更（方法 / 自由函数 / 嵌套赋值）
+struct Inner { int n }
+
+fn inc_free(ref mut Inner x) { x.n = x.n + 1; }
+
+struct Outer {
+    Inner i
+    int k
+}
+
+impl Inner {
+    pub fn inc(ref mut self) { self.n = self.n + 1; }
+}
+
+impl Outer {
+    pub fn go(ref mut self) {
+        self.i.inc();
+        self.k = self.k + 1;
+    }
+}
+
+fn main() -> int {
+    o = Outer { i = Inner { n = 0 }, k = 0 }
+    o.go()
+    if o.i.n != 1 { return 1 }
+    if o.k != 1 { return 2 }
+    inc_free(ref mut o.i)
+    if o.i.n != 2 { return 3 }
+    o.i.n = o.i.n + 10
+    if o.i.n != 12 { return 4 }
+    return 0
+}

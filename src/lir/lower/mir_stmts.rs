@@ -36,6 +36,15 @@ impl MirStmtNode for SMirFieldAssignStmt { fn span(&self) -> crate::span::Span {
             }
             None => None,
         };
+        // #91：值类型对象但非局部（嵌套字段/引用链）→ 取对象地址后 GEP 存储
+        if var_id.is_none() && !matches!(obj_ty, HirType::Unique(_) | HirType::Ref(..)) {
+            if let Some(obj_ptr) = super::mir_ref::place_ptr(&self.object, ctx) {
+                let src_val = self.value.lower_to_lir(ctx);
+                let gep_tmp = ctx.next_tmp();
+                ctx.emit(SLirFieldStorePtr { gep_tmp, obj: obj_ptr, field_index: self.field_index, field_ty: self.field_ty.clone(), src: src_val, struct_ty: obj_ty }.into());
+                return;
+            }
+        }
         let obj_val = self.object.lower_to_lir(ctx);
         let obj_tmp = match obj_val {
             LirValue::Tmp(t) => t,

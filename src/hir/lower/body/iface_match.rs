@@ -39,6 +39,74 @@ impl crate::hir::lower::Ctx {
         }
     }
 
+    /// 是否为 `Self` 哨兵（接口签名中的实现类型）。
+    pub(crate) fn is_self_type(ty: &HirType) -> bool {
+        matches!(ty, HirType::Named(n) if n.as_str() == "Self")
+    }
+
+    /// 类型中是否出现 `Self`（对象安全判定 / 匹配分流）。
+    pub(crate) fn contains_self_type(ty: &HirType) -> bool {
+        match ty {
+            HirType::Named(n) => n.as_str() == "Self",
+            HirType::Unique(i) | HirType::Array(i) | HirType::ArraySized(i, _) => Self::contains_self_type(i),
+            HirType::Ref(i, _) => Self::contains_self_type(i),
+            HirType::FnPtr(ps, r) => ps.iter().any(Self::contains_self_type) || Self::contains_self_type(r),
+            _ => false,
+        }
+    }
+
+    /// 把接口签名中的 `Self` 替换为实现类型（vtable 参数构建等）。
+    pub(crate) fn substitute_self_type(ty: &HirType, impl_self: &HirType) -> HirType {
+        if Self::is_self_type(ty) {
+            return impl_self.clone();
+        }
+        match ty {
+            HirType::Unique(i) => HirType::Unique(Box::new(Self::substitute_self_type(i, impl_self))),
+            HirType::Array(i) => HirType::Array(Box::new(Self::substitute_self_type(i, impl_self))),
+            HirType::ArraySized(i, n) => HirType::ArraySized(Box::new(Self::substitute_self_type(i, impl_self)), *n),
+            HirType::Ref(i, m) => HirType::Ref(Box::new(Self::substitute_self_type(i, impl_self)), *m),
+            HirType::FnPtr(ps, r) => HirType::FnPtr(
+                ps.iter().map(|p| Self::substitute_self_type(p, impl_self)).collect(),
+                Box::new(Self::substitute_self_type(r, impl_self)),
+            ),
+            other => other.clone(),
+        }
+    }
+
+    /// `actual` 是否为实现类型 `impl_self_name`（含泛型实例的基名匹配）。
+    pub(crate) fn is_impl_self_type(actual: &HirType, impl_self_name: &Symbol) -> bool {
+        match actual {
+            HirType::Named(n) => *n == *impl_self_name
+                || crate::hir::lower::strip_generic_name(n) == *impl_self_name,
+            HirType::Int => impl_self_name.as_str() == "int",
+            HirType::Float => impl_self_name.as_str() == "float",
+            HirType::Char => impl_self_name.as_str() == "char",
+            HirType::Bool => impl_self_name.as_str() == "bool",
+            _ => false,
+        }
+    }
+
+    /// 接口期望类型 `expected` 与实现类型 `actual` 是否匹配（`Self` = 实现类型）。
+    pub(crate) fn type_matches_self(expected: &HirType, actual: &HirType, impl_self_name: &Symbol) -> bool {
+        if Self::is_self_type(expected) {
+            return Self::is_impl_self_type(actual, impl_self_name);
+        }
+        match (expected, actual) {
+            (HirType::Ref(a, ma), HirType::Ref(b, mb)) if ma == mb => {
+                Self::type_matches_self(a, b, impl_self_name)
+            }
+            (HirType::Unique(a), HirType::Unique(b)) => Self::type_matches_self(a, b, impl_self_name),
+            (HirType::Array(a), HirType::Array(b)) => Self::type_matches_self(a, b, impl_self_name),
+            (HirType::Unique(a), b) => {
+                Self::type_matches_self(a, b, impl_self_name) || Self::type_matches(expected, actual)
+            }
+            (a, HirType::Unique(b)) => {
+                Self::type_matches_self(a, b, impl_self_name) || Self::type_matches(expected, actual)
+            }
+            _ => Self::type_matches(expected, actual),
+        }
+    }
+
     /// Find a function by exact name + param type match (for Phase 2 lookup)
     pub(crate) fn find_fn_by_sig(&self, name: Symbol, param_types: &[HirType]) -> Option<FnId> {
         for (i, sig) in self.fns.iter().enumerate() {
@@ -119,7 +187,7 @@ impl crate::hir::lower::Ctx {
                     if params.is_empty() { return false; }
                     let self_ty = ast_type_to_hir(&params[0].1, &self.interfaces);
                     let self_inner = match &self_ty {
-                        HirType::Unique(inner) => inner.as_ref(),
+                        HirType::Unique(inner) | HirType::Ref(inner, _) => inner.as_ref(),
                         other => other,
                     };
                     let self_base = match self_inner {
@@ -131,7 +199,7 @@ impl crate::hir::lower::Ctx {
                     if params.len() - 1 != iface_method.params.len() { return false; }
                     params[1..].iter().zip(&iface_method.params).all(|((_, pt), (_, ift))| {
                         let pt_hir = ast_type_to_hir(pt, &self.interfaces);
-                        Self::type_matches(&pt_hir, ift)
+                        Self::type_matches_self(ift, &pt_hir, type_name)
                     })
                 } else { false }
             });
@@ -193,8 +261,9 @@ impl crate::hir::lower::Ctx {
         for iface_method in &iface_reg.methods {
             let self_ty = HirType::Ref(Box::new(HirType::Named(*concrete_type)), false);
             let mut arg_types = vec![self_ty];
+            let impl_self = HirType::Named(*concrete_type);
             for (_, ift) in &iface_method.params {
-                arg_types.push(ift.clone());
+                arg_types.push(Self::substitute_self_type(ift, &impl_self));
             }
             let fid = self.specialize_generic_call(&iface_method.name, &arg_types, &span)?;
             vtable_fns.push(fid);

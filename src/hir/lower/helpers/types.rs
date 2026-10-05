@@ -143,9 +143,9 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
             Box::new(ast_type_to_hir(ret, interfaces)),
         ),
         Type::Self_(_) => {
-            // Self_ should not appear outside impl blocks since the parser
-            // already fills in the concrete type
-            HirType::Void
+            // 接口签名中的 `Self`（实现类型哨兵）；impl 方法签名已由解析器替换为具体类型。
+            // 匹配/替换见 hir/lower/body/iface_match.rs（T1）。
+            HirType::Named(Symbol::intern("Self"))
         }
     }
 }
