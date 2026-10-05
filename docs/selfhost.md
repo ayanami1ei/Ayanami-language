@@ -160,4 +160,4 @@ M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf�
 | #74 | 多源文件各自 import std 破坏泛型方法解析 | ✅ 已修复（2026-10-05） |
 | #89 | 括号表达式：if/return 解析报错；跨模块泛型方法优先级丢失 | ✅ 已修复（2026-10-05） |
 | #91 | 嵌套结构体字段的 ref mut 变更丢失 | 未修；槽位表内联成数组字段绕过 |
-| #105 | std/runtime.c 缺 M1.7 ovf 助手，debug 构建链接失败 | test 改用 `run --release` |
+| #105 | std/runtime.c 缺 M1.7 ovf 助手，debug 构建链接失败 | 上游修复中（issue 已关闭）；暂用 `run --release` |
