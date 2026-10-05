@@ -39,6 +39,36 @@ pub(super) fn write_expr(expr: &Expr) -> String {
     write_expr_at(expr, 0)
 }
 
+/// 二元运算符优先级（数值越大结合越紧；与解析器/文法一致）
+fn binop_prec(op: &BinaryOp) -> u8 {
+    match op {
+        BinaryOp::Or => 3,
+        BinaryOp::And => 4,
+        BinaryOp::Eq | BinaryOp::Neq | BinaryOp::Lt | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Ge => 5,
+        BinaryOp::BitOr => 6,
+        BinaryOp::BitXor => 7,
+        BinaryOp::BitAnd => 8,
+        BinaryOp::Shl | BinaryOp::Shr => 9,
+        BinaryOp::Add | BinaryOp::Sub => 10,
+        BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 11,
+    }
+}
+
+/// 表达式优先级（原子/后缀 14；一元 13；`as` 12；二元见 binop_prec）
+fn expr_prec(e: &Expr) -> u8 {
+    match e {
+        Expr::Binary { op, .. } => binop_prec(op),
+        Expr::Cast { .. } => 12,
+        Expr::Unary { .. } | Expr::Move(..) | Expr::Clone(..) | Expr::ToUnique(..) | Expr::Ref(..) => 13,
+        _ => 14,
+    }
+}
+
+fn maybe_paren(cond: bool, e: &Expr, level: usize) -> String {
+    let s = write_expr_at(e, level);
+    if cond { format!("({})", s) } else { s }
+}
+
 pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
     match expr {
         Expr::Literal(lit) => write_literal(lit),
@@ -46,10 +76,15 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         // 解析器把 `A::B` 合并为 `A.B`；格式化时恢复 `::`（`.` 只用于字段/方法）
         Expr::Ident(name, _) => name.as_str().replace('.', "::"),
         Expr::Binary { op, lhs, rhs, .. } => {
-            format!("{} {} {}", write_expr_at(lhs, level), write_bin_op(op), write_expr_at(rhs, level))
+            // #89：按优先级补括号，保证 .lcl 泛型源码导出后重解析语义不变
+            let p = binop_prec(op);
+            let l = maybe_paren(expr_prec(lhs) < p, lhs, level);
+            let r = maybe_paren(expr_prec(rhs) <= p, rhs, level);
+            format!("{} {} {}", l, write_bin_op(op), r)
         }
         Expr::Cast { expr, ty, .. } => {
-            format!("{} as {}", write_expr_at(expr, level), write_type(ty))
+            let e = maybe_paren(expr_prec(expr) < 12, expr, level);
+            format!("{} as {}", e, write_type(ty))
         }
         Expr::Unary { op, arg, .. } => {
             let op_str = match op {
@@ -57,7 +92,8 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
                 UnaryOp::Not => "!",
                 UnaryOp::BitNot => "~",
             };
-            format!("{}{}", op_str, write_expr_at(arg, level))
+            let arg = maybe_paren(expr_prec(arg) < 13, arg, level);
+            format!("{}{}", op_str, arg)
         }
         Expr::FnCall { name, args, generic_args, .. } => {
             let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
@@ -69,9 +105,9 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
             let name_str = name.as_str().replace('.', "::");
             format!("{}{}({})", name_str, generic_str, args_str.join(", "))
         }
-        Expr::Move(inner, _) => format!("move {}", write_expr_at(inner, level)),
-        Expr::Clone(inner, _) => format!("clone {}", write_expr_at(inner, level)),
-        Expr::ToUnique(inner, _) => format!("unique {}", write_expr_at(inner, level)),
+        Expr::Move(inner, _) => format!("move {}", maybe_paren(expr_prec(inner) < 13, inner, level)),
+        Expr::Clone(inner, _) => format!("clone {}", maybe_paren(expr_prec(inner) < 13, inner, level)),
+        Expr::ToUnique(inner, _) => format!("unique {}", maybe_paren(expr_prec(inner) < 13, inner, level)),
         Expr::MethodCall { object, method, args, .. } => {
             let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
             format!("{}.{}({})", write_expr_at(object, level), method, args_str.join(", "))
@@ -100,10 +136,11 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         }
         Expr::Null(_) => "null".into(),
         Expr::Ref(inner, mutable, _) => {
+            let inner_s = maybe_paren(expr_prec(inner) < 13, inner, level);
             if *mutable {
-                format!("ref mut {}", write_expr_at(inner, level))
+                format!("ref mut {}", inner_s)
             } else {
-                format!("ref {}", write_expr_at(inner, level))
+                format!("ref {}", inner_s)
             }
         }
         Expr::Asm { template, outputs, inputs, .. } => {
