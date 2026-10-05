@@ -79,6 +79,22 @@ if [ -f build/test_zero_arg_fn ]; then
     fi
 fi
 
+# #117：溢出检查合成位置串不计 alloc；合成标记不算未知 extern
+if [ -d tests/effects ]; then
+    "$BIN" check --verify-effects tests/effects/pure_arith.aya >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL tests/effects/pure_arith.aya: exit $got, want 0（#117 纯函数算术误报）"
+        fail=$((fail + 1))
+    fi
+    "$BIN" check --verify-effects tests/effects/pure_real_alloc.aya >/dev/null 2>&1
+    got=$?
+    if [ "$got" = 0 ]; then
+        echo "FAIL tests/effects/pure_real_alloc.aya: want verify failure（#117 真 alloc 应仍报错）"
+        fail=$((fail + 1))
+    fi
+fi
+
 # #84 ③：导出 C 符号 + C harness 互操作
 if [ -d tests/c_export ]; then
     ce_dir="tests/c_export"

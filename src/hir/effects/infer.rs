@@ -142,8 +142,9 @@ fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet> {
                     .or_else(|| imported_known.get(&c.fn_id))
                 {
                     set.union(callee);
-                } else {
-                    // 不可见目标（导入/未声明的 extern）
+                } else if c.fn_id.0 != usize::MAX {
+                    // 不可见目标（导入/未声明的 extern）。
+                    // 合成标记（alloc/state/err，FnId(MAX)）已贡献各自效应，不算未知 extern（#117）。
                     let d = declared.get(&c.fn_id);
                     let pure = d.map_or(false, |d| d.pure);
                     let no_error = d.map_or(false, |d| d.no_error);

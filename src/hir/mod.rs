@@ -38,6 +38,8 @@ s_hir!(SBin { op: BinaryOp, lhs: HirNodeBox, rhs: HirNodeBox, ty: HirType });
 s_hir!(SUn { op: UnaryOp, arg: HirNodeBox, ty: HirType });
 s_hir!(SCall { fn_id: FnId, args: Vec<HirNodeBox>, ty: HirType });
 s_hir!(SConst { val: HirLiteral, ty: HirType });
+// #117：编译器合成的 track_caller 文件名字符串参数（不计用户可见 alloc 效应）
+s_hir!(SFileArg { path: String, ty: HirType });
 s_hir!(SVar { var: VarId, ty: HirType });
 s_hir!(SMove { expr: HirNodeBox, ty: HirType });
 s_hir!(SClone { expr: HirNodeBox, ty: HirType });

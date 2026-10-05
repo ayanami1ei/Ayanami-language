@@ -20,7 +20,7 @@ HIR Program
           Literal(Int(5))
           Literal(Int(7))
           Literal(Int(13))
-          Literal(String("example/test_bounds.aya"))
+          FileArg("example/test_bounds.aya")
 │ │ │ Return
         Literal(Int(0))
 │ │ }
@@ -86,7 +86,7 @@ HIR Program
                   Literal(Int(2))
                   Literal(Int(9))
                   Literal(Int(39))
-                  Literal(String("example/test_bounds.aya"))
+                  FileArg("example/test_bounds.aya")
 │ │ │ │ │ Block {
 │ │ │ │ │ │ Assign
 │ │ │ │ │ │   target:
@@ -143,7 +143,7 @@ HIR Program
               Literal(Int(2))
               Literal(Int(14))
               Literal(Int(47))
-              Literal(String("example/test_bounds.aya"))
+              FileArg("example/test_bounds.aya")
 │ │ │ │ }
 │ │ }
 │ Fn push (self: ref mut Named(ArrayList<int>), val: Int) -> Void [locals: 2]
@@ -160,7 +160,7 @@ HIR Program
             Literal(Int(1))
             Literal(Int(20))
             Literal(Int(21))
-            Literal(String("example/test_bounds.aya"))
+            FileArg("example/test_bounds.aya")
           rhs:
           FieldAccess capability ty=u64
             Local(v0 : ref mut Named(ArrayList<int>))
@@ -190,7 +190,7 @@ HIR Program
           Literal(Int(1))
           Literal(Int(24))
           Literal(Int(29))
-          Literal(String("example/test_bounds.aya"))
+          FileArg("example/test_bounds.aya")
 │ │ }
 │ Fn index (self: ref Named(ArrayList<int>), index: u64, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 5]
 │   local self: ref Named(ArrayList<int>)

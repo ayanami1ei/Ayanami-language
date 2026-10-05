@@ -1,0 +1,14 @@
+// #117：含算术的 #[pure] 函数不得因溢出检查的合成位置串被误判 alloc/未知 extern
+#[pure]
+fn add2(int a, int b) -> int {
+    return a + b
+}
+
+#[pure]
+fn poly(int x) -> int {
+    return (x * x + 1) - x
+}
+
+fn main() -> int {
+    return add2(1, 2) + poly(3) - 13
+}
