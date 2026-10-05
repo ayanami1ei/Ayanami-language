@@ -38,10 +38,10 @@ src/cli/types.rs:124: fn fmt_type(ty: &HirType) -> String
 src/cli/types.rs:145: fn name_at(code: &str, line: usize, col: usize, name: &str) -> bool
 src/cli/types.rs:162: fn esc(s: &str) -> String
 src/compiler/build/compile.rs:6: pub fn compile_file(
-src/compiler/build/compile.rs:130: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
+src/compiler/build/compile.rs:132: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
-src/compiler/build/deps.rs:125: pub(super) fn merge_dep_struct_defs(
-src/compiler/build/deps.rs:142: pub(super) fn merge_symbols(
+src/compiler/build/deps.rs:127: pub(super) fn merge_dep_struct_defs(
+src/compiler/build/deps.rs:144: pub(super) fn merge_symbols(
 src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram>
 src/compiler/build/lir.rs:24: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:14: mod compile;
@@ -97,7 +97,7 @@ src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
 src/compiler/build/passes/mod.rs:46: pub(super) fn apply_passes(
 src/compiler/build/target.rs:4: pub fn build_source_with_target(
-src/compiler/build/target.rs:100: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:111: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:72: fn has_return_in_stmt(s: &HirStmt) -> bool
@@ -237,19 +237,22 @@ src/diagnostics.rs:101: fn parse_error(raw: &str) -> (Option<String>, usize, usi
 src/diagnostics.rs:153: fn parse_lc(s: &str) -> Option<(usize, usize)>
 src/diagnostics.rs:158: fn clean_error_message(msg: &str) -> String
 src/diagnostics.rs:190: pub fn report_error(default_file: &Path, raw: &str)
-src/driver/mod.rs:11: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
-src/driver/mod.rs:31: fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
-src/driver/mod.rs:51: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:104: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:109: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:122: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:128: pub(crate) fn find_runtime_c() -> Result<String>
-src/driver/mod.rs:171: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:186: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:197: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:214: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
-src/driver/mod.rs:234: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:239: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:10: mod runtime;
+src/driver/mod.rs:14: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
+src/driver/mod.rs:34: fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
+src/driver/mod.rs:54: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:107: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:112: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:120: pub fn objects_to_exe_with_runtime(
+src/driver/mod.rs:147: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:153: pub(crate) fn find_runtime_c() -> Result<String>
+src/driver/mod.rs:196: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:211: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:222: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:239: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
+src/driver/mod.rs:259: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:264: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/runtime.rs:12: pub(crate) fn resolve_runtime(src_path: &Path) -> Result<Option<PathBuf>>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter/expr.rs:4: pub(super) fn write_type(ty: &Type) -> String
@@ -280,21 +283,24 @@ src/formatter/mod.rs:31: pub(crate) fn format_attr_arg(arg: &AttrArg) -> String
 src/formatter/mod.rs:38: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:32: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:36: pub struct Imports
-src/hir/attrs.rs:43: impl Imports
-src/hir/attrs.rs:44: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:52: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:75: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:85: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:90: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:98: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:133: fn validate_follow_with(a: &Attr) -> Result<()>
-src/hir/attrs.rs:153: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
-src/hir/attrs.rs:160: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
-src/hir/attrs.rs:172: pub fn validate_program(program: &Program) -> Result<()>
-src/hir/attrs.rs:180: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
-src/hir/attrs.rs:203: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:34: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:38: pub struct Imports
+src/hir/attrs.rs:45: impl Imports
+src/hir/attrs.rs:46: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:54: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:77: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:87: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:92: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:100: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:135: fn validate_follow_with(a: &Attr) -> Result<()>
+src/hir/attrs.rs:155: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/attrs.rs:162: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
+src/hir/attrs.rs:174: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:182: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
+src/hir/attrs.rs:205: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs_export.rs:5: fn find_export(attrs: &[Attr]) -> Option<&Attr>
+src/hir/attrs_export.rs:10: pub(super) fn validate_fn_export(attrs: &[Attr], has_generics: bool) -> Result<()>
+src/hir/attrs_export.rs:23: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_macro.rs:16: fn is_compiler_attr(a: &Attr) -> bool
 src/hir/attrs_macro.rs:28: pub fn validate_macros(
 src/hir/attrs_macro.rs:43: enum AnnKind { Macro, Pass, Check }
@@ -778,18 +784,19 @@ src/hir/lower/to_mir/mod.rs:11: mod access;
 src/hir/lower/to_mir/mod.rs:12: mod basic;
 src/hir/lower/to_mir/mod.rs:13: mod call;
 src/hir/mod.rs:1: pub mod attrs;
-src/hir/mod.rs:2: pub mod attrs_macro;
-src/hir/mod.rs:3: pub mod cfg;
-src/hir/mod.rs:4: pub mod contracts;
-src/hir/mod.rs:5: pub mod effects;
-src/hir/mod.rs:6: pub mod ir;
-src/hir/mod.rs:7: pub mod ty;
-src/hir/mod.rs:8: pub mod node;
-src/hir/mod.rs:9: pub mod stmt;
-src/hir/mod.rs:10: pub mod item;
-src/hir/mod.rs:11: pub mod lower;
-src/hir/mod.rs:12: pub mod display;
-src/hir/mod.rs:29: pub struct $name
+src/hir/mod.rs:2: pub mod attrs_export;
+src/hir/mod.rs:3: pub mod attrs_macro;
+src/hir/mod.rs:4: pub mod cfg;
+src/hir/mod.rs:5: pub mod contracts;
+src/hir/mod.rs:6: pub mod effects;
+src/hir/mod.rs:7: pub mod ir;
+src/hir/mod.rs:8: pub mod ty;
+src/hir/mod.rs:9: pub mod node;
+src/hir/mod.rs:10: pub mod stmt;
+src/hir/mod.rs:11: pub mod item;
+src/hir/mod.rs:12: pub mod lower;
+src/hir/mod.rs:13: pub mod display;
+src/hir/mod.rs:30: pub struct $name
 src/hir/node.rs:9: pub trait HirNode: std::fmt::Debug
 src/hir/node.rs:10: fn clone_node(&self) -> Box<dyn HirNode>;
 src/hir/node.rs:11: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
@@ -1737,10 +1744,10 @@ src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
 src/package/bytes.rs:87: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
-src/package/config.rs:13: impl ProjectConfig
-src/package/config.rs:14: pub fn load(toml_content: &str) -> Self
-src/package/config.rs:60: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
-src/package/config.rs:77: pub fn resolve_target(&self, file_path: &Path) -> &str
+src/package/config.rs:15: impl ProjectConfig
+src/package/config.rs:16: pub fn load(toml_content: &str) -> Self
+src/package/config.rs:67: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
+src/package/config.rs:84: pub fn resolve_target(&self, file_path: &Path) -> &str
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
 src/package/load.rs:101: fn parse_ini_value(s: &str) -> String
 src/package/load.rs:112: pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf>
@@ -1960,6 +1967,8 @@ example/test_bitwise.aya:15: fn main() -> int
 example/test_bool.aya:1: fn main() -> int
 example/test_bool2.aya:1: fn main() -> int
 example/test_bounds.aya:4: fn main() -> int
+example/test_c_export.aya:3: fn aya_add(int a, int b) -> int
+example/test_c_export.aya:12: fn main() -> int
 example/test_cast.aya:2: fn main() -> int
 example/test_cfg.aya:3: fn on_linux() -> int { return 0 }
 example/test_cfg.aya:6: fn on_windows() -> int { return 1 }

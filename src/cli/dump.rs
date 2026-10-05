@@ -17,7 +17,7 @@ pub(crate) fn cmd_dump(args: &[String]) {
     let base = path.parent().unwrap_or(std::path::Path::new("."));
     let mut compiling = std::collections::HashSet::new();
     let mut cache = std::collections::HashMap::new();
-    let cf = match ayanami::compiler::compile_file(&path, base, &tmp, &mut compiling, &mut cache, None) {
+    let cf = match ayanami::compiler::compile_file(&path, base, &tmp, &mut compiling, &mut cache, None, None) {
         Ok(c) => c,
         Err(e) => {
             ayanami::diagnostics::report_error(&path, &format!("dump failed: {}", e));

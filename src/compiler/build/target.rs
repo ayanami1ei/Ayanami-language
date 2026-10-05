@@ -16,8 +16,18 @@ pub fn build_source_with_target(
     let mut compiling = HashSet::new();
     let mut cache = HashMap::new();
 
-    let compiled =
-        compile_file(src_path, base_dir, out_path, &mut compiling, &mut cache, target_override)?;
+    // #84 ②：runtime 选择（AYANAMI_RUNTIME > ayanami.toml [runtime] path > 内置 runtime.c）
+    let runtime = crate::driver::resolve_runtime(src_path)?;
+
+    let compiled = compile_file(
+        src_path,
+        base_dir,
+        out_path,
+        &mut compiling,
+        &mut cache,
+        target_override,
+        runtime.as_deref(),
+    )?;
 
     let name = src_path
         .file_stem()
@@ -35,10 +45,11 @@ pub fn build_source_with_target(
     let _output_path = match target {
         "executable" => {
             let exe_path = out_path.join(&*name);
-            crate::driver::objects_to_exe_with_flags(
+            crate::driver::objects_to_exe_with_runtime(
                 &compiled.obj_paths,
                 &compiled.link_flags,
                 &exe_path,
+                runtime.as_deref(),
             )
             .map_err(|e| Error::Compile(format!("link failed: {}", e)))?;
             exe_path

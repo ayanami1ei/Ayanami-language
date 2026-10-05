@@ -28,6 +28,7 @@ pub(super) fn build_target_artifact(
     own_obj: &Path,
     out_dir: &Path,
     stem: &std::ffi::OsStr,
+    runtime: Option<&Path>,
 ) -> Result<()> {
     if dep_obj_paths.is_empty() && dep_link_flags.is_empty() {
         let target = target_override.unwrap_or("static-lib");
@@ -35,7 +36,12 @@ pub(super) fn build_target_artifact(
         match target {
             "executable" => {
                 let exe_path = out_dir.join(&*stem_str);
-                crate::driver::objects_to_exe(&[own_obj.to_path_buf()], &exe_path)?;
+                crate::driver::objects_to_exe_with_runtime(
+                    &[own_obj.to_path_buf()],
+                    &[],
+                    &exe_path,
+                    runtime,
+                )?;
             }
             "static-lib" => {
                 let lib_path = out_dir.join(format!("lib{}.a", stem_str));

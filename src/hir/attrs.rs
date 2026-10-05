@@ -26,6 +26,8 @@ pub const ALLOWED: &[&str] = &[
     "willreturn",
     "noalias",
     "nonnull",
+    // #84 ③：导出 C 符号（等价 `extern "C"` 定义）
+    "export",
 ];
 
 /// 形参位置允许的属性（A1b）。
@@ -202,10 +204,11 @@ fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()> {
 
 fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
     match stmt {
-        Stmt::FnDecl { attrs, params, param_attrs, .. } => {
+        Stmt::FnDecl { attrs, params, param_attrs, generic_params, .. } => {
             validate(attrs, imports)?;
             crate::hir::contracts::validate_fn_attrs(attrs)?;
             validate_follow_with_attrs(attrs)?;
+            crate::hir::attrs_export::validate_fn_export(attrs, !generic_params.is_empty())?;
             for (i, pa) in param_attrs.iter().enumerate() {
                 if let Some((_, ty)) = params.get(i) {
                     validate_param(pa, ty)?;
@@ -215,6 +218,7 @@ fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
         Stmt::StructDef { attrs, field_attrs, .. } => {
             validate(attrs, imports)?;
             reject_follow_with(attrs, "struct declarations")?;
+            crate::hir::attrs_export::reject_export(attrs, "struct declarations")?;
             for fa in field_attrs {
                 for a in fa {
                     if !(a.is_builtin() && a.name.as_str() == "follow_with") {
@@ -232,6 +236,7 @@ fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
         | Stmt::ImplBlock { attrs, .. } => {
             validate(attrs, imports)?;
             reject_follow_with(attrs, "this declaration")?;
+            crate::hir::attrs_export::reject_export(attrs, "this declaration")?;
         }
         Stmt::Attributed { attrs, stmt, .. } => {
             validate(attrs, imports)?;

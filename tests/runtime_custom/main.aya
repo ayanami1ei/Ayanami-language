@@ -1,0 +1,6 @@
+// #84 ②：自定义 runtime 回归——marker 只由 [runtime] path 指定的 runtime 提供
+extern "C" fn aya_marker() -> int;
+
+fn main() -> int {
+    return aya_marker()
+}

@@ -28,7 +28,7 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<()> {
     let mut compiling = HashSet::new();
     let mut cache = HashMap::new();
     let compiled =
-        compile_file(path, base_dir, &tmp_dir, &mut compiling, &mut cache, Some("static-lib"))?;
+        compile_file(path, base_dir, &tmp_dir, &mut compiling, &mut cache, Some("static-lib"), None)?;
 
     let exe_name = path
         .file_stem()

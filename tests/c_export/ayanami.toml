@@ -1,0 +1,6 @@
+[package]
+name = "c_export"
+version = "0.1.0"
+
+[build]
+target = "static-lib"

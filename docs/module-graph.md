@@ -26,13 +26,13 @@ graph LR
     compiler -->|3| mir
     compiler --> package
     compiler -->|9| parser
-    driver --> error
+    driver -->|2| error
     formatter --> intern
     formatter -->|2| parser
-    hir -->|10| error
+    hir -->|11| error
     hir -->|11| intern
     hir -->|2| mir
-    hir -->|15| parser
+    hir -->|16| parser
     hir -->|5| span
     lexer --> span
     lir --> error
@@ -58,10 +58,10 @@ graph LR
 
 | 来源 | 目标 | 引用数 |
 | --- | --- | ---: |
-| `hir` | `parser` | 15 |
+| `hir` | `parser` | 16 |
 | `compiler` | `error` | 11 |
+| `hir` | `error` | 11 |
 | `hir` | `intern` | 11 |
-| `hir` | `error` | 10 |
 | `compiler` | `parser` | 9 |
 | `mir` | `hir` | 8 |
 | `parser` | `span` | 6 |
@@ -75,13 +75,13 @@ graph LR
 | `lir` | `mir` | 3 |
 | `lir` | `parser` | 3 |
 | `mir` | `intern` | 3 |
+| `driver` | `error` | 2 |
 | `formatter` | `parser` | 2 |
 | `hir` | `mir` | 2 |
 | `parser` | `error` | 2 |
 | `compiler` | `intern` | 1 |
 | `compiler` | `lir` | 1 |
 | `compiler` | `package` | 1 |
-| `driver` | `error` | 1 |
 | `formatter` | `intern` | 1 |
 | `lexer` | `span` | 1 |
 | `lir` | `error` | 1 |

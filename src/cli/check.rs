@@ -6,7 +6,7 @@ fn do_check(path: &Path) -> ayanami::error::Result<()> {
     let mut compiling = std::collections::HashSet::new();
     let mut cache = std::collections::HashMap::new();
     let base = path.parent().unwrap_or(std::path::Path::new("."));
-    let result = ayanami::compiler::compile_file(path, base, &tmp_dir, &mut compiling, &mut cache, None);
+    let result = ayanami::compiler::compile_file(path, base, &tmp_dir, &mut compiling, &mut cache, None, None);
     let _ = std::fs::remove_dir_all(&tmp_dir);
     result.map(|_| ())
 }

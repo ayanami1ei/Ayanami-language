@@ -8,6 +8,8 @@ pub struct ProjectConfig {
     pub default_target: Option<String>,
     pub file_targets: HashMap<String, String>,
     pub dependencies: HashMap<String, String>,
+    /// #84 ②：`[runtime] path`——自定义 runtime（.c/.a/.o），相对项目根
+    pub runtime: Option<String>,
 }
 
 impl ProjectConfig {
@@ -19,6 +21,8 @@ impl ProjectConfig {
         let mut in_build = false;
         let mut in_targets = false;
         let mut in_deps = false;
+        let mut in_runtime = false;
+        let mut runtime: Option<String> = None;
         let mut dependencies = HashMap::new();
 
         for line in toml_content.lines() {
@@ -27,6 +31,7 @@ impl ProjectConfig {
                 in_build = line.starts_with("[build]") || line.starts_with("[build.targets]");
                 in_targets = line.starts_with("[build.targets]");
                 in_deps = line.starts_with("[dependencies]");
+                in_runtime = line.starts_with("[runtime]");
                 continue;
             }
             if line.is_empty() || line.starts_with('#') { continue; }
@@ -37,6 +42,8 @@ impl ProjectConfig {
                     file_targets.insert(k.trim_matches('"').to_string(), v.to_string());
                 } else if in_deps {
                     dependencies.insert(k.trim_matches('"').to_string(), v.to_string());
+                } else if in_runtime {
+                    if k == "path" { runtime = Some(v.to_string()); }
                 } else if in_build {
                     match k {
                         "target" => default_target = Some(v.to_string()),
@@ -51,7 +58,7 @@ impl ProjectConfig {
                 }
             }
         }
-        ProjectConfig { name, version, default_target, file_targets, dependencies }
+        ProjectConfig { name, version, default_target, file_targets, dependencies, runtime }
     }
 
     /// Resolve an import path using the [dependencies] aliases.

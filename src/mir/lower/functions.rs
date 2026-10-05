@@ -21,7 +21,8 @@ pub(super) fn lower_item(item: &HirItem, struct_defs: &HashMap<Symbol, Vec<(Symb
 }
 
 fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Result<MirFn> {
-    if f.extern_c {
+    // extern "C" 空体 = 外部声明；带体 = 定义并导出 C 符号（#84 ③）
+    if f.extern_c && f.body.stmts.is_empty() {
         return Ok(MirFn {
             fn_id: f.fn_id,
             name: f.name,
