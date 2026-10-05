@@ -63,10 +63,18 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
             "char" => HirType::Char,
             "bool" => HirType::Bool,
             "void" => HirType::Void,
-            other => match fixed_width_type(other) {
-                Some(t) => t,
-                None => HirType::Named(Symbol::intern(other)),
-            },
+            other => {
+                // #104：.lcl 签名可能写 `Option[int]`（源语法）；归一化为 `Option<int>`（HIR 泛型命名）
+                let canonical = match other.find('[') {
+                    Some(open) if other.ends_with(']') =>
+                        format!("{}<{}>", &other[..open], &other[open + 1..other.len() - 1]),
+                    _ => other.to_string(),
+                };
+                match fixed_width_type(&canonical) {
+                    Some(t) => t,
+                    None => HirType::Named(Symbol::intern(&canonical)),
+                }
+            }
         }
     }
 }

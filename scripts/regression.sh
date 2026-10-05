@@ -90,5 +90,21 @@ if [ -d tests/lcl_mono ]; then
     fi
 fi
 
+# #104：传递 .lcl 依赖（libb → liba）的符号/泛型 impl 注册
+if [ -d tests/lcl_transitive ]; then
+    tdir=tests/lcl_transitive
+    "$BIN" package "$tdir/liba.aya" >/dev/null 2>&1 || true
+    cp "$tdir/liba.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    "$BIN" package "$tdir/libb.aya" >/dev/null 2>&1 || true
+    cp "$tdir/libb.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    timeout 120 "$BIN" run "$tdir/entry.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL $tdir/entry.aya: exit $got, want 0（#104 传递 .lcl 依赖注册）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$(dirname "$BIN")/std/liba.lcl" "$(dirname "$BIN")/std/libb.lcl"
+fi
+
 echo "regression: positive=$pos negative=$neg runtime=$rt failures=$fail"
 [ "$fail" -eq 0 ]

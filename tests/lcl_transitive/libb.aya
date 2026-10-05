@@ -1,0 +1,6 @@
+// #104 夹具 B：只依赖 liba（自身不实例化 unwrap_or）
+import "liba"
+
+pub fn make(int x) -> Wrap[int] {
+    return Wrap::V(x)
+}

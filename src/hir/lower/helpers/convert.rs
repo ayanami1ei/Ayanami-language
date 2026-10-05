@@ -49,10 +49,11 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
                     }
                 }
             }
-            // Check if arg_name is "Name<...>"
-            if let Some(start) = arg_name.find('<') {
+            // Check if arg_name is "Name<...>"（兼容 `Name[...]` 旧编码）
+            if let Some(start) = arg_name.find('<').or_else(|| arg_name.find('[')) {
                 if &arg_name[..start] == base {
-                    let inner = arg_name[start..].trim_start_matches('<').trim_end_matches('>');
+                    let closer = if arg_name.as_bytes()[start] == b'<' { '>' } else { ']' };
+                    let inner = arg_name[start + 1..].trim_end_matches(closer);
                     let inner_parts = split_generic_args(inner);
                     // Decode each inner part: "int" → Int, "String" → Named("String")
                     for (gp, inner_str) in params.iter().zip(inner_parts.iter()) {

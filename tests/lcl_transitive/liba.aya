@@ -1,0 +1,19 @@
+// #104 夹具 A：定义泛型 impl（供传递依赖测试）
+pub enum Wrap[T] {
+    V(T),
+    E,
+}
+
+impl[T] Wrap[T] {
+    pub fn unwrap_or(self, T d) -> T {
+        if self._tag == 0 {
+            return self._data_V._0
+        }
+        return d
+    }
+}
+
+pub fn use_a() -> int {
+    w = Wrap::V(1)
+    return w.unwrap_or(0)
+}
