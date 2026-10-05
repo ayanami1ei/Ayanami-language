@@ -6,6 +6,7 @@
 #   ./scripts/selfhost.sh run FILE.aya   # 用 stage-0 运行单个文件
 #   ./scripts/selfhost.sh test           # 运行 selfhost/tests/*_test.aya（退出码 0 = 通过）
 #   ./scripts/selfhost.sh kb "QUERY"     # 知识库检索（供本地模型提示词使用）
+#   ./scripts/selfhost.sh tokens [GLOB]   # 词法 golden：与 rust lexdump 对比 token 流
 #   ./scripts/selfhost.sh diff [GLOB]    # stage-0/stage-1 差分（stage-1 存在后生效）
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -74,6 +75,35 @@ cmd_test() {
     [[ $fail -eq 0 ]]
 }
 
+cmd_tokens() {
+    local pattern="${1:-example/*.aya}"
+    local s0; s0=$(stage0)
+    local rust_dump="$ROOT/tools/lexdump/target/release/lexdump"
+    if [[ ! -x "$rust_dump" ]]; then
+        echo "== 构建 lexdump =="
+        cargo build --release --manifest-path "$ROOT/tools/lexdump/Cargo.toml" >/dev/null 2>&1 || { echo "lexdump 构建失败"; exit 5; }
+    fi
+    echo "== 构建 stage-0 lexer_dump =="
+    "$s0" build --release "$ROOT/selfhost/tests/lexer_dump.aya" >/dev/null 2>&1 || { echo "lexer_dump 构建失败"; exit 6; }
+    local fail=0 total=0
+    shopt -s nullglob
+    for f in $pattern; do
+        total=$((total + 1))
+        "$rust_dump" "$f" > /tmp/opencode/tok_rust.txt 2>/dev/null
+        LEX_FILE="$f" "$ROOT/build/lexer_dump" > /tmp/opencode/tok_aya.txt 2>/dev/null
+        if diff -q /tmp/opencode/tok_rust.txt /tmp/opencode/tok_aya.txt >/dev/null; then
+            echo "TOKENS OK $(basename "$f")"
+        else
+            echo "TOKENS DIFF $(basename "$f")"
+            diff /tmp/opencode/tok_rust.txt /tmp/opencode/tok_aya.txt | head -6
+            fail=$((fail + 1))
+        fi
+    done
+    shopt -u nullglob
+    echo "tokens: $((total - fail))/$total 一致"
+    [[ $fail -eq 0 ]]
+}
+
 cmd_diff() {
     local pattern="${1:-example/*.aya}"
     if [[ ! -x "$ROOT/selfhost/build/ayanami" ]]; then
@@ -100,6 +130,7 @@ case "${1:-}" in
     run) shift; bin=$(stage0); exec "$bin" run "$@" ;;
     test) cmd_test ;;
     kb) shift; python3 "$ROOT/tools/kb/kb.py" search "$@" ;;
+    tokens) shift; cmd_tokens "$@" ;;
     diff) shift; cmd_diff "$@" ;;
     *) sed -n '2,12p' "$0"; exit 1 ;;
 esac

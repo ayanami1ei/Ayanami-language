@@ -1,0 +1,26 @@
+// M2 词法单元验收：转义/注释/进制/后缀/双字符运算符（期望输出由 rust lexdump 生成）
+import "io";
+import "aya_sb";
+import "aya_token";
+import "aya_lexer";
+
+fn main() -> int {
+    src = "fn f() -> int { /* c */ return 0x1F + 1_000; }\n'\\n' \"hi\\x41\" :: != <= && <<\n";
+    lx = Lexer::new(src);
+    b = StringBuf::new();
+    while true {
+        t = lx.next_token();
+        b.push_str(token_display(t));
+        if t.kind == Tk::Eof._tag { break; }
+        b.push('\n');
+    }
+    got = b.to_string();
+    expected = "Keyword(fn) @ 1:1\nIdentifier(f) @ 1:4\nDelimiter(() @ 1:5\nDelimiter()) @ 1:6\nDelimiter(->) @ 1:8\nKeyword(int) @ 1:11\nDelimiter({) @ 1:15\nKeyword(return) @ 1:25\nIntLiteral(0x1F) @ 1:32\nOperator(+) @ 1:37\nIntLiteral(1_000) @ 1:39\nDelimiter(;) @ 1:44\nDelimiter(}) @ 1:46\nCharLiteral(\n) @ 2:1\nStringLiteral(\"hiA\") @ 2:6\nOperator(::) @ 2:15\nOperator(!=) @ 2:18\nOperator(<=) @ 2:21\nOperator(&&) @ 2:24\nOperator(<<) @ 2:27\nEOF @ 3:1";
+    if got != expected {
+        println("fail: token stream");
+        println(got);
+        return 1;
+    }
+    println("lexer ok");
+    return 0;
+}

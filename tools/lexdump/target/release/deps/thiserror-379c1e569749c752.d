@@ -1,0 +1,14 @@
+/home/ayanami/Desktop/Ayanami-language/tools/lexdump/target/release/deps/thiserror-379c1e569749c752.d: /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/ayanami/Desktop/Ayanami-language/tools/lexdump/target/release/build/thiserror-ae62066e6df89413/out/private.rs
+
+/home/ayanami/Desktop/Ayanami-language/tools/lexdump/target/release/deps/libthiserror-379c1e569749c752.rlib: /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/ayanami/Desktop/Ayanami-language/tools/lexdump/target/release/build/thiserror-ae62066e6df89413/out/private.rs
+
+/home/ayanami/Desktop/Ayanami-language/tools/lexdump/target/release/deps/libthiserror-379c1e569749c752.rmeta: /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/ayanami/Desktop/Ayanami-language/tools/lexdump/target/release/build/thiserror-ae62066e6df89413/out/private.rs
+
+/home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs:
+/home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs:
+/home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs:
+/home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs:
+/home/ayanami/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs:
+/home/ayanami/Desktop/Ayanami-language/tools/lexdump/target/release/build/thiserror-ae62066e6df89413/out/private.rs:
+
+# env-dep:OUT_DIR=/home/ayanami/Desktop/Ayanami-language/tools/lexdump/target/release/build/thiserror-ae62066e6df89413/out

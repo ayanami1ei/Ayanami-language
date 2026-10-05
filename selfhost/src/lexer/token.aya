@@ -1,0 +1,242 @@
+import "string";
+import "aya_sb";
+
+// Token 种类（kind）
+pub enum Tk {
+    Ident,
+    Keyword,
+    IntLit,
+    FloatLit,
+    CharLit,
+    StrLit,
+    Delim,
+    Op,
+    Eof,
+}
+
+// 关键字（sub），顺序与 rust 版 Keyword 一致；新增关键字追加在末尾
+pub enum Kw {
+    Null,
+    Pub,
+    Const,
+    Crate,
+    Inline,
+    Extern,
+    Asm,
+    As,
+    Out,
+    Reg,
+    Clobbers,
+    Import,
+    Fn,
+    Return,
+    For,
+    Break,
+    Continue,
+    If,
+    Elif,
+    Else,
+    In,
+    While,
+    Int,
+    Float,
+    Char,
+    Bool,
+    Ref,
+    Mut,
+    Unique,
+    Namespace,
+    Struct,
+    Enum,
+    Match,
+    Move,
+    Clone,
+    Interface,
+    Impl,
+    Self_,
+    True,
+    False,
+}
+
+// 分隔符（sub）
+pub enum D {
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    LBracket,
+    RBracket,
+    Comma,
+    Semicolon,
+    Arrow,
+    FatArrow,
+    Dot,
+    Colon,
+}
+
+pub struct Token {
+    int kind
+    int sub
+    String text
+    int line
+    int col
+    int start
+    int end
+}
+
+/// 关键字识别：返回 Kw 的 tag，非关键字返回 -1
+#[alloc]
+pub fn kw_from_str(ref String s) -> int {
+    if s == "null" { return Kw::Null._tag }
+    if s == "pub" { return Kw::Pub._tag }
+    if s == "const" { return Kw::Const._tag }
+    if s == "crate" { return Kw::Crate._tag }
+    if s == "inline" { return Kw::Inline._tag }
+    if s == "extern" { return Kw::Extern._tag }
+    if s == "asm" { return Kw::Asm._tag }
+    if s == "as" { return Kw::As._tag }
+    if s == "out" { return Kw::Out._tag }
+    if s == "reg" { return Kw::Reg._tag }
+    if s == "clobbers" { return Kw::Clobbers._tag }
+    if s == "import" { return Kw::Import._tag }
+    if s == "fn" { return Kw::Fn._tag }
+    if s == "return" { return Kw::Return._tag }
+    if s == "for" { return Kw::For._tag }
+    if s == "break" { return Kw::Break._tag }
+    if s == "continue" { return Kw::Continue._tag }
+    if s == "if" { return Kw::If._tag }
+    if s == "elif" { return Kw::Elif._tag }
+    if s == "else" { return Kw::Else._tag }
+    if s == "in" { return Kw::In._tag }
+    if s == "while" { return Kw::While._tag }
+    if s == "int" { return Kw::Int._tag }
+    if s == "float" { return Kw::Float._tag }
+    if s == "char" { return Kw::Char._tag }
+    if s == "bool" { return Kw::Bool._tag }
+    if s == "ref" { return Kw::Ref._tag }
+    if s == "mut" { return Kw::Mut._tag }
+    if s == "unique" { return Kw::Unique._tag }
+    if s == "namespace" { return Kw::Namespace._tag }
+    if s == "struct" { return Kw::Struct._tag }
+    if s == "enum" { return Kw::Enum._tag }
+    if s == "match" { return Kw::Match._tag }
+    if s == "move" { return Kw::Move._tag }
+    if s == "clone" { return Kw::Clone._tag }
+    if s == "interface" { return Kw::Interface._tag }
+    if s == "impl" { return Kw::Impl._tag }
+    if s == "self" { return Kw::Self_._tag }
+    if s == "true" { return Kw::True._tag }
+    if s == "false" { return Kw::False._tag }
+    return -1
+}
+
+/// 关键字 tag -> 源码文本
+#[alloc]
+pub fn kw_name(int k) -> String {
+    if k == Kw::Null._tag { return "null" }
+    if k == Kw::Pub._tag { return "pub" }
+    if k == Kw::Const._tag { return "const" }
+    if k == Kw::Crate._tag { return "crate" }
+    if k == Kw::Inline._tag { return "inline" }
+    if k == Kw::Extern._tag { return "extern" }
+    if k == Kw::Asm._tag { return "asm" }
+    if k == Kw::As._tag { return "as" }
+    if k == Kw::Out._tag { return "out" }
+    if k == Kw::Reg._tag { return "reg" }
+    if k == Kw::Clobbers._tag { return "clobbers" }
+    if k == Kw::Import._tag { return "import" }
+    if k == Kw::Fn._tag { return "fn" }
+    if k == Kw::Return._tag { return "return" }
+    if k == Kw::For._tag { return "for" }
+    if k == Kw::Break._tag { return "break" }
+    if k == Kw::Continue._tag { return "continue" }
+    if k == Kw::If._tag { return "if" }
+    if k == Kw::Elif._tag { return "elif" }
+    if k == Kw::Else._tag { return "else" }
+    if k == Kw::In._tag { return "in" }
+    if k == Kw::While._tag { return "while" }
+    if k == Kw::Int._tag { return "int" }
+    if k == Kw::Float._tag { return "float" }
+    if k == Kw::Char._tag { return "char" }
+    if k == Kw::Bool._tag { return "bool" }
+    if k == Kw::Ref._tag { return "ref" }
+    if k == Kw::Mut._tag { return "mut" }
+    if k == Kw::Unique._tag { return "unique" }
+    if k == Kw::Namespace._tag { return "namespace" }
+    if k == Kw::Struct._tag { return "struct" }
+    if k == Kw::Enum._tag { return "enum" }
+    if k == Kw::Match._tag { return "match" }
+    if k == Kw::Move._tag { return "move" }
+    if k == Kw::Clone._tag { return "clone" }
+    if k == Kw::Interface._tag { return "interface" }
+    if k == Kw::Impl._tag { return "impl" }
+    if k == Kw::Self_._tag { return "self" }
+    if k == Kw::True._tag { return "true" }
+    if k == Kw::False._tag { return "false" }
+    return "?"
+}
+
+/// 分隔符 tag -> 源码文本
+#[alloc]
+pub fn d_name(int k) -> String {
+    if k == D::LParen._tag { return "(" }
+    if k == D::RParen._tag { return ")" }
+    if k == D::LBrace._tag { return "{" }
+    if k == D::RBrace._tag { return "}" }
+    if k == D::LBracket._tag { return "[" }
+    if k == D::RBracket._tag { return "]" }
+    if k == D::Comma._tag { return "," }
+    if k == D::Semicolon._tag { return ";" }
+    if k == D::Arrow._tag { return "->" }
+    if k == D::FatArrow._tag { return "=>" }
+    if k == D::Dot._tag { return "." }
+    if k == D::Colon._tag { return ":" }
+    return "?"
+}
+
+/// 与 rust 版 Token Display 完全一致：`Kind(text) @ line:col`
+#[alloc]
+#[state]
+pub fn token_display(ref Token t) -> String {
+    b = StringBuf::new();
+    if t.kind == Tk::Ident._tag {
+        b.push_str("Identifier(");
+        b.push_str(t.text);
+        b.push_str(")");
+    } elif t.kind == Tk::Keyword._tag {
+        b.push_str("Keyword(");
+        b.push_str(kw_name(t.sub));
+        b.push_str(")");
+    } elif t.kind == Tk::IntLit._tag {
+        b.push_str("IntLiteral(");
+        b.push_str(t.text);
+        b.push_str(")");
+    } elif t.kind == Tk::FloatLit._tag {
+        b.push_str("FloatLiteral(");
+        b.push_str(t.text);
+        b.push_str(")");
+    } elif t.kind == Tk::CharLit._tag {
+        b.push_str("CharLiteral(");
+        b.push_str(t.text);
+        b.push_str(")");
+    } elif t.kind == Tk::StrLit._tag {
+        b.push_str("StringLiteral(\"");
+        b.push_str(t.text);
+        b.push_str("\")");
+    } elif t.kind == Tk::Delim._tag {
+        b.push_str("Delimiter(");
+        b.push_str(d_name(t.sub));
+        b.push_str(")");
+    } elif t.kind == Tk::Op._tag {
+        b.push_str("Operator(");
+        b.push_str(t.text);
+        b.push_str(")");
+    } else {
+        b.push_str("EOF");
+    }
+    b.push_str(" @ ");
+    b.push_int(t.line);
+    b.push_str(":");
+    b.push_int(t.col);
+    return b.to_string();
+}

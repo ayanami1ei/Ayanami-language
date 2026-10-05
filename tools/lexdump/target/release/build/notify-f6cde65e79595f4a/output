@@ -1,0 +1,3 @@
+cargo::rerun-if-changed=build.rs
+cargo::rerun-if-changed=src/freebsd_version.rs
+cargo::rustc-check-cfg=cfg(notify_freebsd_inotify)

@@ -145,7 +145,7 @@ selfhost/
 |---|---|---|
 | M0 | ✅ 完成 | `f7d0b58` |
 | M1 | ✅ 完成 | `42a10da` |
-| M2 | ⏳ 进行中 | Lexer |
+| M2 | ✅ 完成 | `lexer/token.aya` + `lexer/lexer.aya`；golden 130 文件零差异 |
 
 M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf）、`base/map.aya`（IntMap[V] 开放寻址）、
 `base/intern.aya`（驻留，内联槽位表）、`base/sys.aya`（argv/env/system）、`base/log.aya`（stderr 诊断）；
@@ -161,3 +161,4 @@ M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf�
 | #89 | 括号表达式：if/return 解析报错；跨模块泛型方法优先级丢失 | ✅ 已修复（2026-10-05） |
 | #91 | 嵌套结构体字段的 ref mut 变更丢失 | ✅ 已修复（2026-10-05） |
 | #105 | std/runtime.c 缺 M1.7 ovf 助手，debug 构建链接失败 | ✅ 已修复（runtime 项目化） |
+| #122 | 字符串字面量含非 ASCII 生成非法 LLVM 常量 | 未修；单测用 ASCII 片段 |

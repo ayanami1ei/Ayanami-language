@@ -1,0 +1,1 @@
+{"rustc":12019306335353385202,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[17409219743451072932,"build_script_build",false,16347017564112840021]],"local":[{"RerunIfChanged":{"output":"release/build/notify-f6cde65e79595f4a/output","paths":["build.rs","src/freebsd_version.rs"]}}],"rustflags":[],"config":0,"compile_kind":0}

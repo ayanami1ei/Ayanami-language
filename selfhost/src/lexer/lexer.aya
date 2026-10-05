@@ -1,0 +1,351 @@
+import "string";
+import "aya_sb";
+import "aya_token";
+
+// Ayanami 词法器（按字节扫描；与 rust 版 lexer 对齐，ASCII 为主）
+// 已知差异：col/byte 按字节计数（rust 版按字符/UTF-8 字节）；非 ASCII 文件暂不用于 golden。
+extern "C" fn __ayanami_int_to_char(int c) -> char;
+
+pub struct Lexer {
+    String src
+    int pos
+    int line
+    int col
+    int byte
+    int is_float
+}
+
+pub namespace Lexer {
+    #[alloc]
+    #[state]
+    pub fn new(ref String src) -> Lexer {
+        it = Lexer { src = src.copy(), pos = 0, line = 1, col = 1, byte = 0, is_float = 0 };
+        return it;
+    }
+}
+
+fn is_space(int c) -> bool {
+    if c == 32 { return true; }
+    if c == 9 { return true; }
+    if c == 10 { return true; }
+    if c == 11 { return true; }
+    if c == 12 { return true; }
+    if c == 13 { return true; }
+    return false;
+}
+
+fn is_digit(int c) -> bool {
+    if c >= 48 && c <= 57 { return true; }
+    return false;
+}
+
+fn is_hex(int c) -> bool {
+    if c >= 48 && c <= 57 { return true; }
+    if c >= 97 && c <= 102 { return true; }
+    if c >= 65 && c <= 70 { return true; }
+    return false;
+}
+
+fn is_ident_start(int c) -> bool {
+    if c >= 65 && c <= 90 { return true; }
+    if c >= 97 && c <= 122 { return true; }
+    if c == 95 { return true; }
+    if c >= 128 { return true; }
+    return false;
+}
+
+fn is_ident_cont(int c) -> bool {
+    if is_digit(c) { return true; }
+    return is_ident_start(c);
+}
+
+fn hex_val(int c) -> int {
+    if c >= 48 && c <= 57 { return c - 48; }
+    if c >= 97 && c <= 102 { return c - 87; }
+    if c >= 65 && c <= 70 { return c - 55; }
+    return 0;
+}
+
+impl Lexer {
+    fn peek(ref mut self) -> int {
+        if self.pos < self.src.len as int {
+            return char_code(self.src.index(self.pos as usize));
+        }
+        return -1;
+    }
+
+    fn peek_next(ref mut self) -> int {
+        n = self.pos + 1;
+        if n < self.src.len as int {
+            return char_code(self.src.index(n as usize));
+        }
+        return -1;
+    }
+
+    #[state]
+    fn bump(ref mut self) -> int {
+        c = self.peek();
+        if c < 0 { return -1; }
+        self.pos = self.pos + 1;
+        self.byte = self.byte + 1;
+        if c == 10 {
+            self.line = self.line + 1;
+            self.col = 1;
+        } elif c >= 128 && c < 192 {
+            // UTF-8 续字节：col 按码点计数，不增加
+        } else {
+            self.col = self.col + 1;
+        }
+        return c;
+    }
+
+    #[state]
+    fn skip_trivia(ref mut self) {
+        while true {
+            c = self.peek();
+            if c >= 0 && is_space(c) {
+                self.bump();
+            } elif c == 47 && self.peek_next() == 47 {
+                self.bump();
+                self.bump();
+                while self.peek() >= 0 && self.peek() != 10 {
+                    self.bump();
+                }
+            } elif c == 47 && self.peek_next() == 42 {
+                self.bump();
+                self.bump();
+                while self.peek() >= 0 {
+                    if self.peek() == 42 && self.peek_next() == 47 {
+                        self.bump();
+                        self.bump();
+                        break;
+                    }
+                    self.bump();
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    #[alloc]
+    #[state]
+    fn read_ident(ref mut self) -> String {
+        b = StringBuf::new();
+        while is_ident_cont(self.peek()) {
+            b.push(__ayanami_int_to_char(self.bump()));
+        }
+        return b.to_string();
+    }
+
+    /// 读取数字（含进制前缀/小数/指数/后缀）；is_float 写入 self.is_float
+    #[alloc]
+    #[state]
+    fn read_number(ref mut self) -> String {
+        b = StringBuf::new();
+        radix = 10;
+        c1 = self.peek();
+        c2 = self.peek_next();
+        if c1 == 48 && (c2 == 120 || c2 == 88 || c2 == 98 || c2 == 66 || c2 == 111 || c2 == 79) {
+            b.push(__ayanami_int_to_char(self.bump()));
+            p = self.bump();
+            if p == 120 || p == 88 { radix = 16; }
+            elif p == 98 || p == 66 { radix = 2; }
+            else { radix = 8; }
+            b.push(__ayanami_int_to_char(p));
+        }
+        while true {
+            c = self.peek();
+            ok = false;
+            if radix == 16 {
+                if is_hex(c) { ok = true; }
+            } elif radix == 2 {
+                if c == 48 || c == 49 { ok = true; }
+            } elif radix == 8 {
+                if c >= 48 && c <= 55 { ok = true; }
+            } else {
+                if is_digit(c) { ok = true; }
+            }
+            if !ok && c != 95 { break; }
+            b.push(__ayanami_int_to_char(self.bump()));
+        }
+        if radix == 10 {
+            d1 = self.peek();
+            d2 = self.peek_next();
+            if d1 == 46 && (is_digit(d2) || d2 == 95) {
+                self.is_float = 1;
+                b.push(__ayanami_int_to_char(self.bump()));
+                while true {
+                    c = self.peek();
+                    if is_digit(c) || c == 95 { b.push(__ayanami_int_to_char(self.bump())); } else { break; }
+                }
+            }
+            if self.peek() == 101 || self.peek() == 69 {
+                j = self.pos + 1;
+                if j < self.src.len as int {
+                    jc = char_code(self.src.index(j as usize));
+                    if jc == 43 || jc == 45 { j = j + 1; }
+                }
+                if j < self.src.len as int {
+                    jc = char_code(self.src.index(j as usize));
+                    if is_digit(jc) {
+                        self.is_float = 1;
+                        b.push(__ayanami_int_to_char(self.bump()));
+                        c = self.peek();
+                        if c == 43 || c == 45 { b.push(__ayanami_int_to_char(self.bump())); }
+                        while true {
+                            c = self.peek();
+                            if is_digit(c) || c == 95 { b.push(__ayanami_int_to_char(self.bump())); } else { break; }
+                        }
+                    }
+                }
+            }
+        }
+        while is_ident_cont(self.peek()) {
+            b.push(__ayanami_int_to_char(self.bump()));
+        }
+        return b.to_string();
+    }
+
+    #[state]
+    fn read_escape(ref mut self) -> int {
+        c = self.bump();
+        if c == 110 { return 10; }
+        if c == 116 { return 9; }
+        if c == 114 { return 13; }
+        if c == 48 { return 0; }
+        if c == 92 { return 92; }
+        if c == 39 { return 39; }
+        if c == 34 { return 34; }
+        if c == 120 {
+            h1 = hex_val(self.bump());
+            h2 = hex_val(self.bump());
+            return h1 * 16 + h2;
+        }
+        return c;
+    }
+
+    #[alloc]
+    #[state]
+    fn read_char_literal(ref mut self) -> String {
+        self.bump();
+        b = StringBuf::new();
+        while true {
+            c = self.peek();
+            if c < 0 { break; }
+            if c == 92 {
+                self.bump();
+                b.push(__ayanami_int_to_char(self.read_escape()));
+            } elif c == 39 {
+                self.bump();
+                break;
+            } else {
+                b.push(__ayanami_int_to_char(self.bump()));
+            }
+        }
+        return b.to_string();
+    }
+
+    #[alloc]
+    #[state]
+    fn read_string_literal(ref mut self) -> String {
+        self.bump();
+        b = StringBuf::new();
+        while true {
+            c = self.peek();
+            if c < 0 { break; }
+            if c == 92 {
+                self.bump();
+                b.push(__ayanami_int_to_char(self.read_escape()));
+            } elif c == 34 {
+                self.bump();
+                break;
+            } else {
+                b.push(__ayanami_int_to_char(self.bump()));
+            }
+        }
+        return b.to_string();
+    }
+
+    #[alloc]
+    #[state]
+    pub fn next_token(ref mut self) -> Token {
+        self.skip_trivia();
+        line = self.line;
+        col = self.col;
+        start = self.byte;
+        c = self.peek();
+        if c < 0 {
+            return Token { kind = Tk::Eof._tag, sub = 0, text = "", line = line, col = col, start = start, end = start };
+        }
+        if is_ident_start(c) {
+            s = self.read_ident();
+            kw = kw_from_str(s);
+            if kw >= 0 {
+                return Token { kind = Tk::Keyword._tag, sub = kw, text = s, line = line, col = col, start = start, end = self.byte };
+            }
+            return Token { kind = Tk::Ident._tag, sub = 0, text = s, line = line, col = col, start = start, end = self.byte };
+        }
+        if is_digit(c) {
+            self.is_float = 0;
+            s = self.read_number();
+            if self.is_float == 1 {
+                return Token { kind = Tk::FloatLit._tag, sub = 0, text = s, line = line, col = col, start = start, end = self.byte };
+            }
+            return Token { kind = Tk::IntLit._tag, sub = 0, text = s, line = line, col = col, start = start, end = self.byte };
+        }
+        if c == 39 {
+            s = self.read_char_literal();
+            return Token { kind = Tk::CharLit._tag, sub = 0, text = s, line = line, col = col, start = start, end = self.byte };
+        }
+        if c == 34 {
+            s = self.read_string_literal();
+            return Token { kind = Tk::StrLit._tag, sub = 0, text = s, line = line, col = col, start = start, end = self.byte };
+        }
+        n = self.peek_next();
+        d = -1;
+        if c == 40 { d = D::LParen._tag; }
+        elif c == 41 { d = D::RParen._tag; }
+        elif c == 123 { d = D::LBrace._tag; }
+        elif c == 125 { d = D::RBrace._tag; }
+        elif c == 91 { d = D::LBracket._tag; }
+        elif c == 93 { d = D::RBracket._tag; }
+        elif c == 44 { d = D::Comma._tag; }
+        elif c == 59 { d = D::Semicolon._tag; }
+        elif c == 46 { d = D::Dot._tag; }
+        elif c == 58 && n != 58 { d = D::Colon._tag; }
+        if d >= 0 {
+            self.bump();
+            return Token { kind = Tk::Delim._tag, sub = d, text = "", line = line, col = col, start = start, end = self.byte };
+        }
+        if c == 45 && n == 62 {
+            self.bump();
+            self.bump();
+            return Token { kind = Tk::Delim._tag, sub = D::Arrow._tag, text = "", line = line, col = col, start = start, end = self.byte };
+        }
+        if c == 61 && n == 62 {
+            self.bump();
+            self.bump();
+            return Token { kind = Tk::Delim._tag, sub = D::FatArrow._tag, text = "", line = line, col = col, start = start, end = self.byte };
+        }
+        op = "";
+        if c == 61 && n == 61 { op = "=="; }
+        elif c == 33 && n == 61 { op = "!="; }
+        elif c == 60 && n == 61 { op = "<="; }
+        elif c == 62 && n == 61 { op = ">="; }
+        elif c == 38 && n == 38 { op = "&&"; }
+        elif c == 124 && n == 124 { op = "||"; }
+        elif c == 60 && n == 60 { op = "<<"; }
+        elif c == 62 && n == 62 { op = ">>"; }
+        elif c == 58 && n == 58 { op = "::"; }
+        if op.len > 0 {
+            self.bump();
+            self.bump();
+            return Token { kind = Tk::Op._tag, sub = 0, text = op, line = line, col = col, start = start, end = self.byte };
+        }
+        ch = self.bump();
+        b = StringBuf::new();
+        b.push(__ayanami_int_to_char(ch));
+        return Token { kind = Tk::Op._tag, sub = 0, text = b.to_string(), line = line, col = col, start = start, end = self.byte };
+    }
+}

@@ -1,0 +1,24 @@
+// 词法 golden 工具：LEX_FILE=path（或 argv[1]）—— 输出与 rust lexdump 一致的 token 流
+import "io";
+import "aya_file";
+import "aya_sys";
+import "aya_token";
+import "aya_lexer";
+
+fn main() -> int {
+    path = env("LEX_FILE");
+    if path.len == 0 {
+        a = Args::load();
+        if a.len() >= 2 { path = a.get(1); }
+    }
+    if path.len == 0 { println("usage: LEX_FILE=FILE lexer_dump"); return 1 }
+    r = read_file(path);
+    if !r.ok { println("cannot read"); return 2 }
+    lx = Lexer::new(r.data);
+    while true {
+        t = lx.next_token();
+        println(token_display(t));
+        if t.kind == Tk::Eof._tag { break; }
+    }
+    return 0;
+}
