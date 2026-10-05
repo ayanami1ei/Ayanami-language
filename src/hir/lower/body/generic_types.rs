@@ -80,6 +80,45 @@ impl crate::hir::lower::Ctx {
         }
     }
 
+    /// C2：泛型参数 `T` 参与的运算符按约束检查（映射到 add/sub/.../eq/... 方法）。
+    pub(crate) fn check_param_operator(
+        &self,
+        p: &Symbol,
+        method: Option<&str>,
+        argc: usize,
+        span: &Span,
+        gp: &[(Symbol, Option<Symbol>)],
+        op_display: &str,
+    ) -> Result<()> {
+        let Some(m) = method else {
+            return Err(Error::Hir(format!(
+                "operator `{}` cannot be applied to generic parameter `{}` (not overloadable) (at {}:{})",
+                op_display, p.as_str(), span.start_line, span.start_col
+            )));
+        };
+        let bound = gp.iter().find(|(n, _)| n == p).and_then(|(_, c)| *c);
+        let Some(iface) = bound else {
+            return Err(Error::Hir(format!(
+                "operator `{}` on generic parameter `{}` requires a bound providing `{}` (e.g. `[{}: Iface]`) (at {}:{})",
+                op_display, p.as_str(), m, p.as_str(), span.start_line, span.start_col
+            )));
+        };
+        let reg = self.interfaces.get(&iface).or_else(|| {
+            let base = crate::hir::lower::strip_generic_name(&iface);
+            self.interfaces.get(&base)
+        });
+        let ok = reg.map(|r| {
+            r.methods.iter().any(|mm| mm.name.as_str() == m && mm.params.len() == argc)
+        }).unwrap_or(false);
+        if !ok {
+            return Err(Error::Hir(format!(
+                "operator `{}` on generic parameter `{}`: bound `{}` has no `{}` method (at {}:{})",
+                op_display, p.as_str(), iface.as_str(), m, span.start_line, span.start_col
+            )));
+        }
+        Ok(())
+    }
+
     /// C1：泛型参数 `T` 上的方法调用按约束检查。
     pub(crate) fn check_param_method(
         &self,

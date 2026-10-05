@@ -3,6 +3,10 @@ interface Show {
     fn show(ref self) -> int;
 }
 
+interface Eq {
+    fn eq(ref self, Self other) -> bool;
+}
+
 struct C[T] { T v }
 
 impl[T: Show] C[T] {
@@ -18,10 +22,22 @@ impl[T: Show] C[T] {
 
 impl int {
     fn show(ref self) -> int { return self }
+    fn eq(ref self, int other) -> bool { return self <= other && self >= other }
+}
+
+struct D[T] { T v }
+
+impl[T: Eq] D[T] {
+    // C2：T 参与的运算符按约束检查（eq 在约束内）
+    fn same(ref self) -> bool {
+        return self.v == self.v
+    }
 }
 
 fn main() -> int {
     c = C[int] { v = 7 }
     if c.called() != 7 { return 1 }
+    d = D[int] { v = 3 }
+    if !d.same() { return 2 }
     return 0
 }

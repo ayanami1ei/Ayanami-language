@@ -143,11 +143,22 @@ impl crate::hir::lower::Ctx {
                 }
                 self.check_expr_names(object, cx)
             }
-            Expr::Binary { lhs, rhs, .. } => {
+            Expr::Binary { op, lhs, rhs, span } => {
+                // C2：T 参与的运算符按约束检查（映射到 add/sub/.../eq/...）
+                if let GType::Param(p) = self.infer_gtype(lhs, &cx.gp, &cx.env) {
+                    let op_name = binary_op_to_fn_name(op);
+                    self.check_param_operator(&p, op_name, 1, span, &cx.gp, &format!("{:?}", op))?;
+                }
                 self.check_expr_names(lhs, cx)?;
                 self.check_expr_names(rhs, cx)
             }
-            Expr::Unary { arg, .. } => self.check_expr_names(arg, cx),
+            Expr::Unary { op, arg, span } => {
+                if let GType::Param(p) = self.infer_gtype(arg, &cx.gp, &cx.env) {
+                    let op_name = unary_op_to_fn_name(op);
+                    self.check_param_operator(&p, op_name, 0, span, &cx.gp, &format!("{:?}", op))?;
+                }
+                self.check_expr_names(arg, cx)
+            }
             Expr::If { cond, then_block, elifs, else_block, .. } => {
                 self.check_expr_names(cond, cx)?;
                 self.check_block_names(then_block, cx)?;
@@ -176,7 +187,10 @@ impl crate::hir::lower::Ctx {
                 for (_, e) in inputs { self.check_expr_names(e, cx)?; }
                 Ok(())
             }
-            Expr::Index { object, index, .. } => {
+            Expr::Index { object, index, span } => {
+                if let GType::Param(p) = self.infer_gtype(object, &cx.gp, &cx.env) {
+                    self.check_param_operator(&p, Some("index"), 1, span, &cx.gp, "[]")?;
+                }
                 self.check_expr_names(object, cx)?;
                 self.check_expr_names(index, cx)
             }
