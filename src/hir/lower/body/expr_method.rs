@@ -123,7 +123,12 @@ impl crate::hir::lower::Ctx {
                 all_param_types.extend(deref_arg_types.iter().cloned());
                 let fid = match self.specialize_generic_call(method, &all_param_types, span) {
                     Ok(fid) => fid,
-                    Err(_) => {
+                    Err(e) => {
+                        // #72：存在泛型候选 → 失败发生在特化内部（如方法体编译错误），
+                        // 传播真实错误而不是吞成「没有该方法」
+                        if self.has_generic_method_candidate(method, &receiver_ty, all_param_types.len()) {
+                            return Err(e);
+                        }
                         let mut msg = format!(
                             "type `{}` has no method `{}` for argument types ({}) at {}:{}",
                             hir_type_display(&receiver_ty),

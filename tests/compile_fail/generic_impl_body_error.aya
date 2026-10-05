@@ -1,0 +1,12 @@
+struct C[T] { [T] v }
+
+impl[T] C[T] {
+    fn g(ref mut self) { undefined_fn_xyz() }
+    pub fn f(ref mut self) { self.g() }
+}
+
+fn main() -> int {
+    c = C[int] { v = null }
+    c.f()
+    return 0
+}

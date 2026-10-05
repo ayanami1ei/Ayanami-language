@@ -446,7 +446,8 @@ src/hir/lower/body/expr_ops1.rs:160: pub(crate) fn lower_unary(&mut self, op: &U
 src/hir/lower/body/expr_ops1.rs:205: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/generic_specialize.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
-src/hir/lower/body/generic_specialize.rs:11: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId>
+src/hir/lower/body/generic_specialize.rs:12: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
+src/hir/lower/body/generic_specialize.rs:34: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/if_expr.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/if_expr.rs:6: pub(crate) fn lower_if_expr(
 src/hir/lower/body/iface_match.rs:3: impl crate::hir::lower::Ctx
