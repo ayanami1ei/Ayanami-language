@@ -433,6 +433,7 @@ src/hir/lower/body/expr_cast.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_cast.rs:5: pub(crate) fn lower_cast(&mut self, inner: &Box<Expr>, ty: &Type, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_enum.rs:53: fn monomorphize_enum_construct(
 src/hir/lower/body/expr_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_lower.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
 src/hir/lower/body/expr_method.rs:3: impl crate::hir::lower::Ctx
@@ -1856,12 +1857,12 @@ src/parser/parser/core.rs:37: pub(super) fn expect_delimiter(&mut self, d: Delim
 src/parser/parser/core.rs:48: pub(super) fn expect_operator(&mut self, op: &str) -> Result<()>
 src/parser/parser/core.rs:60: pub(super) fn is_stmt_only_keyword(kind: &TokenKind) -> bool
 src/parser/parser/core.rs:71: pub(super) fn is_stmt_start(kind: &TokenKind) -> bool
-src/parser/parser/core.rs:87: pub(super) fn try_semicolon(&mut self) -> Result<()>
-src/parser/parser/core.rs:98: pub(super) fn parse_visibility(&mut self) -> Visibility
-src/parser/parser/core.rs:119: pub(super) fn expect_identifier(&mut self) -> Result<String>
-src/parser/parser/core.rs:137: pub fn parse_program(&mut self) -> Result<Program>
-src/parser/parser/core.rs:145: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
-src/parser/parser/core.rs:202: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
+src/parser/parser/core.rs:86: pub(super) fn try_semicolon(&mut self) -> Result<()>
+src/parser/parser/core.rs:97: pub(super) fn parse_visibility(&mut self) -> Visibility
+src/parser/parser/core.rs:118: pub(super) fn expect_identifier(&mut self) -> Result<String>
+src/parser/parser/core.rs:136: pub fn parse_program(&mut self) -> Result<Program>
+src/parser/parser/core.rs:144: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
+src/parser/parser/core.rs:201: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/decl.rs:80: pub(super) fn parse_return(&mut self) -> Result<Stmt>
@@ -2074,6 +2075,14 @@ example/test_generic_constraint.aya:7: impl F
 example/test_generic_constraint.aya:8: fn into(self) -> float { return self.v }
 example/test_generic_constraint.aya:11: fn use_into[U: Into[float]](U x) -> float
 example/test_generic_constraint.aya:15: fn main() -> int
+example/test_generic_enum_ctor.aya:4: enum E[T]
+example/test_generic_enum_ctor.aya:9: impl[T] E[T]
+example/test_generic_enum_ctor.aya:10: pub fn tag(self) -> int
+example/test_generic_enum_ctor.aya:18: enum Pair[A, B]
+example/test_generic_enum_ctor.aya:23: impl[A, B] Pair[A, B]
+example/test_generic_enum_ctor.aya:24: pub fn pair_tag(self) -> int
+example/test_generic_enum_ctor.aya:32: fn none_opt() -> Option[int]
+example/test_generic_enum_ctor.aya:36: fn main() -> int
 example/test_generic_enum_match.aya:2: pub enum O[T]
 example/test_generic_enum_match.aya:7: fn mk() -> O[int] { return O::Some(7) }
 example/test_generic_enum_match.aya:9: fn get(O[int] v) -> int

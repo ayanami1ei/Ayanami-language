@@ -61,9 +61,9 @@ impl Parser {
         matches!(kind,
             TokenKind::Keyword(Keyword::Fn | Keyword::Return | Keyword::For
                 | Keyword::While | Keyword::Break | Keyword::Continue
-                | Keyword::Interface | Keyword::Struct | Keyword::Impl
+                | Keyword::Interface | Keyword::Struct | Keyword::Impl | Keyword::Enum
                 | Keyword::Import | Keyword::Namespace | Keyword::Pub | Keyword::Inline
-                | Keyword::Extern | Keyword::Mut | Keyword::Asm)
+                | Keyword::Extern | Keyword::Mut | Keyword::Asm | Keyword::Const)
         )
     }
 
@@ -73,7 +73,6 @@ impl Parser {
             || matches!(kind,
                 TokenKind::Keyword(Keyword::Match)
                 | TokenKind::Keyword(Keyword::If)
-                | TokenKind::Keyword(Keyword::Const)
                 | TokenKind::Keyword(Keyword::True | Keyword::False | Keyword::Null | Keyword::Self_)
                 | TokenKind::Identifier(_) | TokenKind::IntLiteral(_) | TokenKind::FloatLiteral(_)
                 | TokenKind::StringLiteral(_) | TokenKind::CharLiteral(_)
