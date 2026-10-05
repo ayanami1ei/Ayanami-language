@@ -1,0 +1,18 @@
+interface Into[T] {
+    fn into(self) -> T;
+}
+
+impl int {
+    fn into(self) -> float { return self as float }
+}
+
+struct S { int x }
+
+fn conv[U: Into[float]](U v) -> float {
+    return v.into()
+}
+
+fn main() -> int {
+    s = S { x = 1 }
+    return conv(s)
+}

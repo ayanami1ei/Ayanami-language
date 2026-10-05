@@ -168,15 +168,11 @@ impl crate::hir::lower::Ctx {
                     })
                     .unwrap_or(false);
                 if !implements {
-                    // 检查泛型方法是否实现了接口要求的方法
-                    let iface_methods = self.interfaces.get(iface_name)
-                        .map(|reg| reg.methods.iter().map(|m| m.name).collect::<Vec<_>>())
-                        .unwrap_or_default();
-                    let has_matching_method = iface_methods.iter().any(|method_name| {
-                        self.generic_fns.iter().any(|(gf_name, _, _)| gf_name == method_name)
-                        || self.fn_map.contains_key(method_name)
-                    });
-                    if !has_matching_method {
+                    // 兜底：泛型 impl（`impl[T] Foo[T]`）按结构匹配接口。
+                    // 具体 impl 已由 build_vtables 注册进 type_ifaces，这里只补泛型 impl 场景；
+                    // 不得退化为「全局存在同名方法」检查——否则约束违例会被接受并错误特化。
+                    let base_type = crate::hir::lower::strip_generic_name(&concrete_type_name);
+                    if !self.check_generic_fns_for_iface(&base_type, iface_name) {
                         return Err(Error::Hir(format!(
                             "type `{}` does not implement interface `{}` required by generic parameter `{}` at {}:{}",
                             hir_type_display(concrete_ty), iface_name, gp_name,
