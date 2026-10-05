@@ -1,0 +1,27 @@
+// C1：泛型体声明期检查——T 上方法调用按约束校验（含从未实例化的方法）
+interface Show {
+    fn show(ref self) -> int;
+}
+
+struct C[T] { T v }
+
+impl[T: Show] C[T] {
+    // 从未被实例化：声明期也要能检查（正例：show 在约束内）
+    fn never_called(ref self) -> int {
+        return self.v.show()
+    }
+
+    pub fn called(ref self) -> int {
+        return self.v.show()
+    }
+}
+
+impl int {
+    fn show(ref self) -> int { return self }
+}
+
+fn main() -> int {
+    c = C[int] { v = 7 }
+    if c.called() != 7 { return 1 }
+    return 0
+}

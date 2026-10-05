@@ -31,6 +31,7 @@ test_ffi_attrs.aya 0
 test_follow_with.aya 0
 test_for_usize.aya 0
 test_generic_constraint.aya 0
+test_generic_bound_check.aya 0
 test_generic_enum_match.aya 0
 test_generic_struct_lit.aya 0
 test_generic_enum_ctor.aya 0
