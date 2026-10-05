@@ -20,6 +20,8 @@ pub trait MirNode: std::fmt::Debug {
     fn as_deref(&self) -> Option<&MirNodeBox> { None }
     /// M6.2：该引用指向全局变量（SMirRef{expr: SMirGlobal}）
     fn refs_global(&self) -> Option<Symbol> { None }
+    /// 索引表达式（SMirIndex）→ (对象, 下标)，供 place_ptr 取元素地址（#130）
+    fn as_index(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
     /// 递归收集表达式引用的局部变量（默认经 for_each_child 下降）
     fn collect_var_ids(&self, vars: &mut HashSet<VarId>) {
         self.for_each_child(&mut |c| c.collect_var_ids(vars));

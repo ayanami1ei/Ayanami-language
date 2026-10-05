@@ -196,6 +196,7 @@ impl MirNode for SMirArraySized {
 }
 
 impl MirNode for SMirIndex {
+    fn as_index(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.index)) }
     fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {

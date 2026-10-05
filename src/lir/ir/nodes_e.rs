@@ -107,6 +107,34 @@ impl LirNode for SLirIndexStore {
     }
 }
 
+impl LirNode for SLirIndexAddr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "IndexAddr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let mut lines = Vec::new();
+        let elem_llvm = ctx.llvm_type(&self.elem_ty);
+        let idx_str = match &self.index {
+            LirValue::Var(v) => {
+                let t = ctx.tmp();
+                lines.push(format!("%e{} = load i64, ptr %v{}, align 8", t, v.0));
+                format!("%e{}", t)
+            }
+            _ => ctx.value_ref(&self.index, &HirType::Int),
+        };
+        lines.push(format!("%t{} = getelementptr {}, ptr %t{}, i64 {}", self.dest, elem_llvm, self.arr_tmp, idx_str));
+        lines
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = index_addr elem_ty={:?}", self.dest, self.elem_ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(33);
+        put_u64(buf, self.dest); put_u64(buf, self.arr_tmp);
+        put_value(buf, &self.index); put_type(buf, &self.elem_ty);
+    }
+}
+
 impl LirNode for SLirStrGlobal {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "StrGlobal" }

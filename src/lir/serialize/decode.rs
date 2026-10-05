@@ -107,6 +107,11 @@ impl<'a> Reader<'a> {
                 let n = Symbol::intern(&self.str()?);
                 Ok(SLirGlobalAddr { dest: d, name: n }.into())
             }
+            33 => {
+                let d = self.u64()?; let a = self.u64()?;
+                let i = self.value()?; let et = self.ty()?;
+                Ok(SLirIndexAddr { dest: d, arr_tmp: a, index: i, elem_ty: et }.into())
+            }
             16 => {
                 let d = self.u64()?;
                 let gt = self.u64()?;

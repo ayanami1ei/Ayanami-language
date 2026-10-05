@@ -4,6 +4,8 @@ test_annotation_scope.aya 0
 test_array.aya 10
 test_array_param.aya 60
 test_arraylist.aya 0
+test_array_elem_field.aya 0
+test_bool_var.aya 0
 test_asm.aya 10
 test_assume.aya 0
 test_attrs.aya 3
@@ -23,6 +25,7 @@ test_constprop.aya 0
 test_constructors.aya 0
 test_conv.aya 0
 test_early_return_move.aya 0
+test_elif_string.aya 0
 test_eff_import.aya 0
 test_effects.aya 0
 test_ensures.aya 0
@@ -89,6 +92,7 @@ test_unique_struct.aya 10
 test_unit_type.aya 0
 test_usage_infer.aya 0
 test_usize_index.aya 0
+test_utf8_string.aya 0
 test_vis.aya 42
 test_vis2.aya 10
 test_zero_arg_fn.aya 0

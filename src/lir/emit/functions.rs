@@ -193,16 +193,18 @@ impl<'a> Emitter<'a> {
 
 
 fn escape_llvm_string(s: &str) -> String {
+    // #122：按 UTF-8 字节转义（此前按 char 取低 8 位，非 ASCII 会截断且字节数不符）；
+    // LLVM c"..." 中非可打印字节用大写十六进制 \XX
     let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\22"),
-            '\\' => out.push_str("\\5c"),
-            '\n' => out.push_str("\\0a"),
-            '\r' => out.push_str("\\0d"),
-            '\t' => out.push_str("\\09"),
-            c if c.is_ascii_graphic() || c == ' ' => out.push(c),
-            c => out.push_str(&format!("\\{:02x}", c as u8)),
+    for b in s.bytes() {
+        match b {
+            b'"' => out.push_str("\\22"),
+            b'\\' => out.push_str("\\5c"),
+            b'\n' => out.push_str("\\0a"),
+            b'\r' => out.push_str("\\0d"),
+            b'\t' => out.push_str("\\09"),
+            0x20..=0x7e => out.push(b as char),
+            other => out.push_str(&format!("\\{:02X}", other)),
         }
     }
     out

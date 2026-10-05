@@ -1,6 +1,7 @@
 //! ref 相关 MIR 节点的 LIR 降级：取引用 / 解引用 / 穿透引用写入。
 use super::*;
 use super::util::*;
+use super::fn_lower::strip_ownership;
 
 /// #91：递归计算「可写位置」的地址（局部 / 引用值 / 字段，含嵌套字段）
 pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<LirValue> {
@@ -31,6 +32,27 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
             ctx.emit(SLirGlobalAddr { dest, name }.into());
             return Some(LirValue::Tmp(dest));
         }
+    }
+    // #130：数组元素地址（`o.xs[0].a = v` 的对象是索引表达式）
+    if let Some((obj, index)) = expr.as_index() {
+        let obj_val = obj.lower_to_lir(ctx);
+        let arr_tmp = match obj_val {
+            LirValue::Tmp(t) => t,
+            other => {
+                let t = ctx.next_tmp();
+                ctx.emit(SLirLoad { dest: t, src: extract_var(&other), ty: obj.expr_type() }.into());
+                t
+            }
+        };
+        let idx_val = index.lower_to_lir(ctx);
+        let obj_ty = strip_ownership(obj.expr_type());
+        let elem_ty = match obj_ty {
+            HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(),
+            _ => HirType::Int,
+        };
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirIndexAddr { dest, arr_tmp, index: idx_val, elem_ty }.into());
+        return Some(LirValue::Tmp(dest));
     }
     if let Some((obj, field_index)) = expr.as_field_access() {
         let obj_ptr = place_ptr(obj, ctx)?;
