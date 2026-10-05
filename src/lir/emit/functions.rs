@@ -182,15 +182,16 @@ impl<'a> Emitter<'a> {
 
 fn escape_llvm_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\22"),
-            '\\' => out.push_str("\\5c"),
-            '\n' => out.push_str("\\0a"),
-            '\r' => out.push_str("\\0d"),
-            '\t' => out.push_str("\\09"),
-            c if c.is_ascii_graphic() || c == ' ' => out.push(c),
-            c => out.push_str(&format!("\\{:02x}", c as u8)),
+    // 按 UTF-8 字节转义（不能按 char 迭代后 `as u8`，非 ASCII 会被截断成低 8 位）
+    for &b in s.as_bytes() {
+        match b {
+            b'"' => out.push_str("\\22"),
+            b'\\' => out.push_str("\\5c"),
+            b'\n' => out.push_str("\\0a"),
+            b'\r' => out.push_str("\\0d"),
+            b'\t' => out.push_str("\\09"),
+            b if b.is_ascii_graphic() || b == b' ' => out.push(b as char),
+            b => out.push_str(&format!("\\{:02x}", b)),
         }
     }
     out
