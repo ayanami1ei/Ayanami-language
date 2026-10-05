@@ -61,6 +61,13 @@ impl MacroCtx {
 }
 
 
+/// #85：展开块语句并保留裸尾表达式（tail 为表达式，宏调用由 HIR 处理）
+fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block> {
+    let tail = block.tail;
+    let stmts = expand_stmts(&block.stmts, ctx, depth + 1)?;
+    Ok(Block { stmts, tail, span: block.span })
+}
+
 fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     if depth > MAX_DEPTH {
         return Err(Error::Compile(format!(
@@ -123,7 +130,7 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
             attrs, vis, is_inline, extern_c, name, generic_params,
             params, param_attrs, return_type, body, span,
         } => {
-            let body = Block::new(expand_stmts(&body.stmts, ctx, depth + 1)?, body.span);
+            let body = expand_block(body, ctx, depth)?;
             out.push(Stmt::FnDecl {
                 attrs, vis, is_inline, extern_c, name, generic_params,
                 params, param_attrs, return_type, body, span,
@@ -131,25 +138,25 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
             Ok(())
         }
         Stmt::If { cond, then_block, elifs, else_block, span } => {
-            let then_block = Block::new(expand_stmts(&then_block.stmts, ctx, depth + 1)?, then_block.span);
+            let then_block = expand_block(then_block, ctx, depth)?;
             let elifs = elifs.into_iter().map(|(c, b)| {
-                let nb = Block::new(expand_stmts(&b.stmts, ctx, depth + 1)?, b.span);
+                let nb = expand_block(b, ctx, depth)?;
                 Ok((c, nb))
             }).collect::<Result<Vec<_>>>()?;
             let else_block = match else_block {
-                Some(b) => Some(Block::new(expand_stmts(&b.stmts, ctx, depth + 1)?, b.span)),
+                Some(b) => Some(expand_block(b, ctx, depth)?),
                 None => None,
             };
             out.push(Stmt::If { cond, then_block, elifs, else_block, span });
             Ok(())
         }
         Stmt::For { iterator, start, end, step, body, span } => {
-            let body = Block::new(expand_stmts(&body.stmts, ctx, depth + 1)?, body.span);
+            let body = expand_block(body, ctx, depth)?;
             out.push(Stmt::For { iterator, start, end, step, body, span });
             Ok(())
         }
         Stmt::While { cond, body, span } => {
-            let body = Block::new(expand_stmts(&body.stmts, ctx, depth + 1)?, body.span);
+            let body = expand_block(body, ctx, depth)?;
             out.push(Stmt::While { cond, body, span });
             Ok(())
         }

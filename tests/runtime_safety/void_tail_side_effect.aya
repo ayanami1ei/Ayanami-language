@@ -1,0 +1,12 @@
+// #85：void 函数末尾语句（裸尾表达式）副作用不能丢
+import "io";
+
+fn two_calls() {
+    println("A")
+    println("B")
+}
+
+fn main() -> int {
+    two_calls()
+    return 0
+}
