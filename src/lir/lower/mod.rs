@@ -34,6 +34,17 @@ fn collect_effect_summaries(items: &[MirItem], out: &mut HashMap<String, crate::
     }
 }
 
+/// 收集泛型特化函数 id（含 namespace 递归）
+fn collect_specialized_fns(items: &[MirItem], out: &mut std::collections::HashSet<FnId>) {
+    for item in items {
+        match item {
+            MirItem::Fn(f) => { if f.is_specialized { out.insert(f.fn_id); } }
+            MirItem::Namespace { items, .. } => collect_specialized_fns(items, out),
+            _ => {}
+        }
+    }
+}
+
 use ctx::LowerCtx;
 use fn_lower::lower_items;
 use names::{collect_fn_names, mangle};
@@ -108,6 +119,9 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
     // A3c：收集本节函数的效应摘要（打包导出用；不参与序列化）
     let mut effect_summaries: HashMap<String, crate::hir::effects::EffectSummary> = HashMap::new();
     collect_effect_summaries(&mir.items, &mut effect_summaries);
+    // 泛型特化集合（发射 linkonce_odr）
+    let mut specialized_fns: std::collections::HashSet<FnId> = std::collections::HashSet::new();
+    collect_specialized_fns(&mir.items, &mut specialized_fns);
 
     LirProgram {
         strings,
@@ -118,5 +132,6 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
         generic_struct_params: mir.generic_struct_params.clone(),
         extern_decls,
         effect_summaries,
+        specialized_fns,
     }
 }

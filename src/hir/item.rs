@@ -57,6 +57,8 @@ pub struct HirFn {
     pub name: Symbol,
     pub is_inline: bool,
     pub extern_c: bool,
+    /// 泛型单态化产生的特化函数（弱链接 linkonce_odr，可跨 .lcl 重复）
+    pub is_specialized: bool,
     /// A3：是否导出接口（告警只在接口层提示）
     pub is_pub: bool,
     /// A5b：是否为用户宏（LIR 符号加保留前缀，避免与展开产物重名）

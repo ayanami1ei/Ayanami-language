@@ -86,6 +86,8 @@ pub struct LirProgram {
     pub extern_decls: Vec<ExternDecl>,
     /// A3c：函数名 → 效应摘要（仅内存；不参与序列化，供打包导出）
     pub effect_summaries: HashMap<String, crate::hir::effects::EffectSummary>,
+    /// 泛型特化函数（仅内存；发射 linkonce_odr 弱链接）
+    pub specialized_fns: std::collections::HashSet<FnId>,
 }
 
 // ═══════════════════════════════════════════════════════════════════

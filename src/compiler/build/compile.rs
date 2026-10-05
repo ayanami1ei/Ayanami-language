@@ -23,6 +23,7 @@ pub fn compile_file(
         return Ok(CompiledFile {
             program: Program::new(Vec::new()),
             lir_program: crate::lir::ir::LirProgram {
+                specialized_fns: Default::default(),
                 strings: Vec::new(),
                 fn_names: std::collections::HashMap::new(),
                 functions: Vec::new(),
@@ -103,6 +104,7 @@ pub fn compile_file(
         CompiledFile {
             program: Program::new(Vec::new()),
             lir_program: crate::lir::ir::LirProgram {
+                specialized_fns: Default::default(),
                 strings: Vec::new(),
                 fn_names: std::collections::HashMap::new(),
                 functions: Vec::new(),

@@ -60,6 +60,7 @@ impl crate::hir::lower::Ctx {
             name,
             is_inline: false,
             extern_c: true,
+            is_specialized: false,
             is_pub: false,
             is_macro: false,
             follow_sources: Vec::new(),

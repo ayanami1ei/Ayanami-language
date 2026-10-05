@@ -197,6 +197,8 @@ pub struct MirFn {
     pub span: Span,
     pub is_inline: bool,
     pub extern_c: bool,
+    /// 泛型特化（弱链接）
+    pub is_specialized: bool,
     pub params: Vec<(Symbol, HirType)>,
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,

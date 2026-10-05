@@ -260,6 +260,7 @@ impl crate::hir::lower::Ctx {
             name,
             is_inline,
             extern_c,
+            is_specialized: false,
             params: hir_params,
             return_type,
             locals,

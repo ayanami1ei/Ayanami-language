@@ -237,25 +237,14 @@ impl crate::hir::lower::Ctx {
         let saved_scopes = std::mem::take(&mut self.scopes);
 
         // A3a：泛型实例继承定义上的标注（含效应；此前 A1 标注在此丢失）
-        let hir_fn = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, Span::default(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
+        let mut hir_fn = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, Span::default(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
+        hir_fn.is_specialized = true;
 
         self.current_fn = saved_current_fn;
         self.locals = saved_locals;
         self.scopes = saved_scopes;
 
-        // #100：若该特化已由导入的 .lcl 提供（同 mangled 名），只发 declare 链接到 .lcl 实现
-        let sym = crate::lir::lower::names::mangle("", &name.as_str().replace('.', "__"), &hir_fn.params);
-        if self.imported_fn_syms.contains(&sym) {
-            let mut decl = hir_fn;
-            decl.name = Symbol::intern(&sym);
-            decl.extern_c = true;
-            decl.is_inline = false;
-            decl.body = HirBlock::new(Vec::new());
-            decl.locals = Vec::new();
-            self.specialized_fns.push(decl);
-        } else {
-            self.specialized_fns.push(hir_fn);
-        }
+        self.specialized_fns.push(hir_fn);
 
         Ok(fid)
     }
