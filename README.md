@@ -277,8 +277,22 @@ impl Point {
 
 方法接收者：`self` 消费、`ref self` 借用、`ref mut self` 可变借用（原语类型用 `self`，因为 Copy）。
 
-`Self` 类型、关联函数（`T::parse`）、显式 `impl Trait for Type` 与关联类型正在设计中，
-见 `docs/typeclass.md`。
+`Self` 在接口/impl 签名中表示实现类型（结构匹配与特化时消解）：
+
+```ayanami
+interface Maker {
+    fn make(ref self) -> Self;
+}
+
+impl int {
+    fn make(ref self) -> int { return self + 1 }   // 满足 Maker
+}
+
+fn bump[T: Maker](ref T v) -> T { return v.make() }   // 返回 T
+```
+
+含 `Self` 的方法不能用于 `ref Interface` 动态分派（编译期报错，请用泛型约束）；
+关联函数（`T::parse`）、显式 `impl Trait for Type` 与关联类型经评估不做，见 `docs/typeclass.md`。
 
 ### C 互操作（导出与 runtime）
 

@@ -1,0 +1,16 @@
+interface Maker {
+    fn make(ref self) -> Self;
+}
+
+impl int {
+    fn make(ref self) -> int { return self + 1 }
+}
+
+fn use_dyn(ref Maker m) -> int {
+    return m.make()
+}
+
+fn main() -> int {
+    x = 1
+    return use_dyn(x) - 2
+}

@@ -149,7 +149,7 @@ impl FromStr for Point {
 
 | 阶段 | 内容 | 依赖 | 规模 | 状态 |
 |---|---|---|---|---|
-| T1 | `Self` 类型 | — | 小 | **保留**（P3，唯一保留项） |
+| T1 | `Self` 类型 | — | 小 | **已完成**（接口/impl 签名消解 + 对象安全） |
 | T2 | 关联函数 + `T::method` | T1 | 中 | 已关闭：仅 `parse::<T>` 语法糖，std 已有具体 parse 方法 |
 | T3 | 显式 impl | T2 | 中 | 已关闭：结构匹配已完整可用 |
 | T4 | 关联类型 | T3 | 中 | 已关闭：具体错误类型（如 `ParseError`）已够用 |
@@ -176,6 +176,19 @@ impl FromStr for Point {
 
 - 设计：本文件（2026-10，#84 ① 提案）。
 - 2026-10 评估：T2–T5 关闭；仅 T1 保留（bd `qeg.1` / GitHub #111）。
+- ✅ **T1 已实现**（2026-10）：
+  - 解析器 `parse_impl_method` 把 impl 方法签名（返回类型/其余形参）中的 `Self` 替换为
+    impl 目标类型（含泛型实参，`parser/self_type.rs`）；
+  - HIR 哨兵：`ast_type_to_hir(Type::Self_)` → `HirType::Named("Self")`（接口签名保留）；
+  - 结构匹配：`iface_match.rs` 新增 `type_matches_self` / `contains_self_type` /
+    `substitute_self_type` / `is_impl_self_type`，`vtables.rs` 的
+    `try_match_interface` / `try_match_generic_interface` 接入；
+  - 泛型 impl：`check_generic_fns_for_iface` 修正 receiver 剥离（`Ref` 未剥导致
+    `impl[T] Box[T]` 永远不满足约束）；
+  - 对象安全：接口方法签名含 `Self` 时禁止 `ref Interface` 动态分派
+    （`expr_method.rs` / `expr_access.rs`，提示改用 `[T: Iface]`）；
+  - 回归：`example/test_self_type.aya`（正例）、
+    `tests/compile_fail/self_dynamic_dispatch.aya`（负例）。
 - 已修复（2026-10）：泛型接口约束违例被接受并错误特化——`generic_specialize.rs` Step 1.5
   的兜底从「全局同名方法」改为泛型 impl 结构匹配（`check_generic_fns_for_iface`）；
   负例 `tests/compile_fail/generic_bound_violation.aya`，正例 `example/test_generic_constraint.aya`。

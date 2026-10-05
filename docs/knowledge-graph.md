@@ -137,7 +137,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 | `#[export]` / `extern "C"` 定义 | `hir/attrs.rs`、`hir/lower/body/lower_items.rs`、`mir/lower/functions.rs`、`lir/lower/names.rs` | 导出 C 符号（原始名）；空体 = 外部声明 |
 | 自定义 runtime | `package/config.rs`、`driver/runtime.rs`、`driver/mod.rs` | `[runtime] path` / `AYANAMI_RUNTIME`；.c/.a/.o 替代内置 runtime.c |
 | 回归夹具 | `tests/c_export/`、`tests/runtime_custom/` | C harness 互操作 + runtime 选择三路径 |
-| typeclass/`Self` | 设计：`docs/typeclass.md` | 评估后仅保留 T1（`Self` 消解）；关联函数/显式 impl/关联类型已关闭；参数化接口约束可用（违例检查已修复） |
+| typeclass/`Self` | `docs/typeclass.md`、`hir/lower/body/iface_match.rs`、`parser/self_type.rs` | T1 已实现（签名 Self 消解 + 对象安全诊断）；T2–T5 评估关闭；参数化接口约束可用（违例检查已修复） |
 
 ## 7. 关系索引（压缩版）
 

@@ -32,6 +32,7 @@ fn ast_type_text(ty: &Type) -> String {
 }
 
 mod atom;
+mod self_type;
 mod core;
 mod decl;
 mod enum_iface;

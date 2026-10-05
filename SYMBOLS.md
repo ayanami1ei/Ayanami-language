@@ -448,12 +448,17 @@ src/hir/lower/body/iface_match.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/iface_match.rs:4: pub(crate) fn infer_iface_generic(
 src/hir/lower/body/iface_match.rs:17: pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
 src/hir/lower/body/iface_match.rs:30: pub(crate) fn type_matches(a: &HirType, b: &HirType) -> bool
-src/hir/lower/body/iface_match.rs:43: pub(crate) fn find_fn_by_sig(&self, name: Symbol, param_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/iface_match.rs:56: pub(crate) fn extract_concrete_type_name(ty: &HirType) -> Option<Symbol>
-src/hir/lower/body/iface_match.rs:71: pub(crate) fn is_fatptr_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
-src/hir/lower/body/iface_match.rs:109: pub(crate) fn check_generic_fns_for_iface(&self, type_name: &Symbol, iface_name: &Symbol) -> bool
-src/hir/lower/body/iface_match.rs:144: pub(crate) fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<()>
-src/hir/lower/body/iface_match.rs:181: pub(crate) fn register_generic_vtable(
+src/hir/lower/body/iface_match.rs:43: pub(crate) fn is_self_type(ty: &HirType) -> bool
+src/hir/lower/body/iface_match.rs:48: pub(crate) fn contains_self_type(ty: &HirType) -> bool
+src/hir/lower/body/iface_match.rs:59: pub(crate) fn substitute_self_type(ty: &HirType, impl_self: &HirType) -> HirType
+src/hir/lower/body/iface_match.rs:77: pub(crate) fn is_impl_self_type(actual: &HirType, impl_self_name: &Symbol) -> bool
+src/hir/lower/body/iface_match.rs:90: pub(crate) fn type_matches_self(expected: &HirType, actual: &HirType, impl_self_name: &Symbol) -> bool
+src/hir/lower/body/iface_match.rs:111: pub(crate) fn find_fn_by_sig(&self, name: Symbol, param_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/iface_match.rs:124: pub(crate) fn extract_concrete_type_name(ty: &HirType) -> Option<Symbol>
+src/hir/lower/body/iface_match.rs:139: pub(crate) fn is_fatptr_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
+src/hir/lower/body/iface_match.rs:177: pub(crate) fn check_generic_fns_for_iface(&self, type_name: &Symbol, iface_name: &Symbol) -> bool
+src/hir/lower/body/iface_match.rs:212: pub(crate) fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<()>
+src/hir/lower/body/iface_match.rs:249: pub(crate) fn register_generic_vtable(
 src/hir/lower/body/literal.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/literal.rs:5: pub(crate) fn lower_suffixed(&mut self, lit: &Literal, suffix: &Symbol, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/literal.rs:34: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
@@ -1872,7 +1877,7 @@ src/parser/parser/impls.rs:6: pub(super) fn parse_import(&mut self) -> Result<St
 src/parser/parser/impls.rs:35: pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/impls.rs:61: fn extract_type_name(ty: &Type) -> Symbol
 src/parser/parser/impls.rs:98: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
-src/parser/parser/impls.rs:243: pub(super) fn parse_block(&mut self) -> Result<Block>
+src/parser/parser/impls.rs:244: pub(super) fn parse_block(&mut self) -> Result<Block>
 src/parser/parser/literal_text.rs:4: pub(super) fn split_literal_suffix(s: &str) -> (&str, Option<&str>)
 src/parser/parser/literal_text.rs:25: pub(super) fn parse_int_text(s: &str) -> Option<i64>
 src/parser/parser/macro_call.rs:3: impl Parser
@@ -1880,16 +1885,18 @@ src/parser/parser/macro_call.rs:5: pub(super) fn parse_macro_call(&mut self) -> 
 src/parser/parser/mod.rs:8: pub struct Parser
 src/parser/parser/mod.rs:16: fn ast_type_text(ty: &Type) -> String
 src/parser/parser/mod.rs:34: mod atom;
-src/parser/parser/mod.rs:35: mod core;
-src/parser/parser/mod.rs:36: mod decl;
-src/parser/parser/mod.rs:37: mod enum_iface;
-src/parser/parser/mod.rs:38: mod expr;
-src/parser/parser/mod.rs:39: mod impls;
-src/parser/parser/mod.rs:40: mod literal_text;
-src/parser/parser/mod.rs:41: mod macro_call;
-src/parser/parser/mod.rs:42: mod stmt;
-src/parser/parser/mod.rs:43: mod types;
-src/parser/parser/mod.rs:44: mod unary;
+src/parser/parser/mod.rs:35: mod self_type;
+src/parser/parser/mod.rs:36: mod core;
+src/parser/parser/mod.rs:37: mod decl;
+src/parser/parser/mod.rs:38: mod enum_iface;
+src/parser/parser/mod.rs:39: mod expr;
+src/parser/parser/mod.rs:40: mod impls;
+src/parser/parser/mod.rs:41: mod literal_text;
+src/parser/parser/mod.rs:42: mod macro_call;
+src/parser/parser/mod.rs:43: mod stmt;
+src/parser/parser/mod.rs:44: mod types;
+src/parser/parser/mod.rs:45: mod unary;
+src/parser/parser/self_type.rs:4: pub(super) fn subst_self_in_type(ty: &Type, self_ty: &Type) -> Type
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
 src/parser/parser/stmt.rs:93: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
@@ -2191,6 +2198,23 @@ example/test_requires.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_requires.aya:7: fn clamp100(int x) -> int { return x }
 example/test_requires.aya:9: fn main() -> int
 example/test_self.aya:1: fn main() -> int
+example/test_self_type.aya:2: interface Maker
+example/test_self_type.aya:3: fn make(ref self) -> Self;
+example/test_self_type.aya:4: fn combine(ref self, Self other) -> Self;
+example/test_self_type.aya:7: struct P { int x }
+example/test_self_type.aya:9: impl P
+example/test_self_type.aya:10: fn make(ref self) -> Self { return P { x = self.x + 1 } }
+example/test_self_type.aya:11: fn combine(ref self, Self other) -> Self { return P { x = self.x + other.x } }
+example/test_self_type.aya:14: impl int
+example/test_self_type.aya:15: fn make(ref self) -> Self { return self + 1 }
+example/test_self_type.aya:16: fn combine(ref self, Self other) -> Self { return self + other }
+example/test_self_type.aya:19: struct Box[T] { T v }
+example/test_self_type.aya:21: impl[T] Box[T]
+example/test_self_type.aya:22: fn make(ref self) -> Self { return Box[T] { v = self.v } }
+example/test_self_type.aya:23: fn combine(ref self, Self other) -> Self { return Box[T] { v = other.v } }
+example/test_self_type.aya:26: fn bump[T: Maker](ref T v) -> T { return v.make() }
+example/test_self_type.aya:27: fn merge[T: Maker](ref T a, ref T b) -> T { return a.combine(b) }
+example/test_self_type.aya:29: fn main() -> int
 example/test_std.aya:3: fn main() -> int
 example/test_std_extra.aya:4: fn math_checks() -> int
 example/test_std_extra.aya:16: fn list_checks() -> int
