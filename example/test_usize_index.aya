@@ -1,4 +1,13 @@
 // M1.8a：索引接受任意整数（usize / 窄整数统一转 i64 寻址）
+pub struct S {
+    [int] data
+}
+
+fn field_index(ref S s) -> int {
+    i = 0
+    return s.data[i]
+}
+
 fn main() -> int {
     a = [10, 20, 30]
     i = 1usize
@@ -14,5 +23,7 @@ fn main() -> int {
     m = [1, 2, 3]
     m[2u8] = 7
     if m[2] != 7 { return 6 }
+    st = S { data = [5, 6] }
+    if field_index(ref st) != 5 { return 7 }
     return 0
 }

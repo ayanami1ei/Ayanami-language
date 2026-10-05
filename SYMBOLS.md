@@ -2007,6 +2007,10 @@ example/test_generic_constraint.aya:7: impl F
 example/test_generic_constraint.aya:8: fn into(self) -> float { return self.v }
 example/test_generic_constraint.aya:11: fn use_into[U: Into[float]](U x) -> float
 example/test_generic_constraint.aya:15: fn main() -> int
+example/test_generic_enum_match.aya:2: pub enum O[T]
+example/test_generic_enum_match.aya:7: fn mk() -> O[int] { return O::Some(7) }
+example/test_generic_enum_match.aya:9: fn get(O[int] v) -> int
+example/test_generic_enum_match.aya:16: fn main() -> int
 example/test_generic_impl_multi.aya:2: pub enum Pair[A, B]
 example/test_generic_impl_multi.aya:7: impl[A, B] Pair[A, B]
 example/test_generic_impl_multi.aya:8: pub fn first(self) -> A
@@ -2191,6 +2195,8 @@ example/test_unit_type.aya:6: fn main() -> int
 example/test_usage_infer.aya:5: enum E
 example/test_usage_infer.aya:10: fn make() -> E { return E::A(1); }
 example/test_usage_infer.aya:12: fn main() -> int
-example/test_usize_index.aya:2: fn main() -> int
+example/test_usize_index.aya:2: pub struct S
+example/test_usize_index.aya:6: fn field_index(ref S s) -> int
+example/test_usize_index.aya:11: fn main() -> int
 example/test_vis.aya:1: pub fn main() -> int
 example/test_vis2.aya:6: pub fn main() -> int
