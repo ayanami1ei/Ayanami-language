@@ -262,6 +262,21 @@ impl Parser {
                                 tail = Some(Box::new(Expr::Match { value, arms, span }));
                                 break;
                             }
+                            // bbp：带 else 且至少一个分支含尾值的 if 才作为块尾表达式
+                            //（否则保持语句形态，避免 void 函数里的 if/else 被当值处理）
+                            Stmt::If { cond, then_block, elifs, else_block: Some(eb), span }
+                                if then_block.tail.is_some()
+                                    || elifs.iter().any(|(_, b)| b.tail.is_some())
+                                    || eb.tail.is_some() => {
+                                tail = Some(Box::new(Expr::If {
+                                    cond: Box::new(cond),
+                                    then_block,
+                                    elifs,
+                                    else_block: Some(eb),
+                                    span,
+                                }));
+                                break;
+                            }
                             other => stmts.push(other),
                         }
                     } else {

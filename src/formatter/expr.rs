@@ -82,6 +82,19 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
             let r = maybe_paren(expr_prec(rhs) <= p, rhs, level);
             format!("{} {} {}", l, write_bin_op(op), r)
         }
+        Expr::If { cond, then_block, elifs, else_block, .. } => {
+            let mut out = format!("if {} ", write_expr_at(cond, level));
+            super::helpers::write_block_same_line(&mut out, then_block, level);
+            for (c, b) in elifs {
+                out.push_str(&format!(" elif {} ", write_expr_at(c, level)));
+                super::helpers::write_block_same_line(&mut out, b, level);
+            }
+            if let Some(b) = else_block {
+                out.push_str(" else ");
+                super::helpers::write_block_same_line(&mut out, b, level);
+            }
+            out
+        }
         Expr::Cast { expr, ty, .. } => {
             let e = maybe_paren(expr_prec(expr) < 12, expr, level);
             format!("{} as {}", e, write_type(ty))

@@ -18,6 +18,14 @@ pub enum Expr {
         arg: Box<Expr>,
         span: Span,
     },
+    /// bbp：if 表达式（分支块尾作为值）
+    If {
+        cond: Box<Expr>,
+        then_block: crate::parser::ast::block::Block,
+        elifs: Vec<(Expr, crate::parser::ast::block::Block)>,
+        else_block: Option<crate::parser::ast::block::Block>,
+        span: Span,
+    },
     /// M1.3：显式类型转换 `expr as T`
     Cast {
         expr: Box<Expr>,
@@ -114,6 +122,7 @@ impl Expr {
     pub fn span(&self) -> Span {
         match self {
             Expr::Binary { span, .. }
+            | Expr::If { span, .. }
             | Expr::Cast { span, .. }
             | Expr::Suffixed { span, .. }
             | Expr::Unary { span, .. }

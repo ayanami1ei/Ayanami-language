@@ -116,6 +116,20 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
             scan_expr(rhs, obs);
         }
         Expr::Unary { arg, .. } => scan_expr(arg, obs),
+        Expr::If { cond, then_block, elifs, else_block, .. } => {
+            scan_expr(cond, obs);
+            for s in &then_block.stmts { scan_body(s, obs); }
+            if let Some(t) = &then_block.tail { scan_expr(t, obs); }
+            for (c, b) in elifs {
+                scan_expr(c, obs);
+                for s in &b.stmts { scan_body(s, obs); }
+                if let Some(t) = &b.tail { scan_expr(t, obs); }
+            }
+            if let Some(b) = else_block {
+                for s in &b.stmts { scan_body(s, obs); }
+                if let Some(t) = &b.tail { scan_expr(t, obs); }
+            }
+        }
         Expr::Cast { expr, .. } => scan_expr(expr, obs),
         Expr::MacroCall { args, .. } => {
             for a in args { scan_expr(a, obs); }

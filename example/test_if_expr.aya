@@ -1,0 +1,26 @@
+// bbp：if 表达式取值（分支块尾作为值）
+fn pick(int x) -> int {
+    return if x > 0 { 1 } else { 2 }
+}
+
+fn classify(int x) -> int {
+    v = if x < 0 { -1 } elif x == 0 { 0 } else { 1 }
+    return v
+}
+
+fn main() -> int {
+    if pick(1) != 1 { return 1 }
+    if pick(-1) != 2 { return 2 }
+    if classify(-5) != -1 { return 3 }
+    if classify(0) != 0 { return 4 }
+    if classify(9) != 1 { return 5 }
+    x = if 1 < 2 { 10 } else { 20 }
+    if x != 10 { return 6 }
+    y = if false { 1.5 } else { 2 }
+    if y != 2.0 { return 7 }
+    z = if true { 1 } else { 2.5 }
+    if z != 1.0 { return 8 }
+    n = if true { if false { 1 } else { 2 } } else { 3 }
+    if n != 2 { return 9 }
+    return 0
+}

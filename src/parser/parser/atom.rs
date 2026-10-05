@@ -8,6 +8,7 @@ impl Parser {
         let span = tok.span();
         match tok.kind {
             TokenKind::Keyword(Keyword::Match) => self.parse_match_expr(),
+            TokenKind::Keyword(Keyword::If) => self.parse_if_expr(),
             // A5c-2 函数宏调用：`#name(args)`（`#[...]` 是标注，不在此处理）
             TokenKind::Operator(ref op) if op == "#" => self.parse_macro_call(),
             TokenKind::IntLiteral(s) => {

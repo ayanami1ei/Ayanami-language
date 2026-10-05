@@ -69,10 +69,14 @@ pub(crate) fn is_float_type(ty: &HirType) -> bool {
 
 /// 把浮点字面量重定型为目标类型（非字面量原样返回）
 pub(crate) fn retype_float_literal(expr: HirNodeBox, target: &HirType) -> HirNodeBox {
-    match as_float_literal(&expr) {
-        Some(n) => SConst { val: HirLiteral::Float(n), ty: strip_ownership_ref(target).clone() }.into(),
-        None => expr,
+    if let Some(n) = as_float_literal(&expr) {
+        return SConst { val: HirLiteral::Float(n), ty: strip_ownership_ref(target).clone() }.into();
     }
+    // 整数字面量 → 浮点（Rust 风格字面量推断，如 f(2) / if 分支 1.5 与 2）
+    if let Some(n) = as_int_literal(&expr) {
+        return SConst { val: HirLiteral::Float(n as f64), ty: strip_ownership_ref(target).clone() }.into();
+    }
+    expr
 }
 
 /// 整数类型（int 或定宽整数）
@@ -108,9 +112,11 @@ pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Re
             return Ok(retype_int_literal(expr, &tgt_inner));
         }
     }
-    // 浮点字面量适配 f32（如 f(1.5) → f32 形参）
-    if matches!(tgt_inner, HirType::F32) {
-        if src_inner == HirType::Float && as_float_literal(&expr).is_some() {
+    // 浮点字面量适配（f32/f64；整数/浮点字面量 → 浮点期望类型）
+    if matches!(tgt_inner, HirType::Float | HirType::F32) {
+        let lit_ok = (src_inner == HirType::Float && as_float_literal(&expr).is_some())
+            || (src_inner == HirType::Int && as_int_literal(&expr).is_some());
+        if lit_ok {
             return Ok(retype_float_literal(expr, &tgt_inner));
         }
     }

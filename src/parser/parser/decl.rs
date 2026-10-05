@@ -102,6 +102,17 @@ impl Parser {
     }
 
     pub(super) fn parse_if(&mut self) -> Result<Stmt> {
+        let (cond, then_block, elifs, else_block, span) = self.parse_if_parts()?;
+        Ok(Stmt::If { cond, then_block, elifs, else_block, span })
+    }
+
+    /// bbp：if 表达式入口
+    pub(super) fn parse_if_expr(&mut self) -> Result<Expr> {
+        let (cond, then_block, elifs, else_block, span) = self.parse_if_parts()?;
+        Ok(Expr::If { cond: Box::new(cond), then_block, elifs, else_block, span })
+    }
+
+    fn parse_if_parts(&mut self) -> Result<(Expr, Block, Vec<(Expr, Block)>, Option<Block>, Span)> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let cond = self.parse_cond_expr()?;
@@ -124,13 +135,7 @@ impl Parser {
         } else {
             None
         };
-        Ok(Stmt::If {
-            cond,
-            then_block,
-            elifs,
-            else_block,
-            span: start_span,
-        })
+        Ok((cond, then_block, elifs, else_block, start_span))
     }
 
     pub(super) fn parse_for(&mut self) -> Result<Stmt> {

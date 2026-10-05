@@ -47,6 +47,13 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
         },
         Expr::Literal(_) => expr.clone(),
         Expr::Suffixed { .. } => expr.clone(),
+        Expr::If { cond, then_block, elifs, else_block, span } => Expr::If {
+            cond: Box::new(substitute_type_in_expr(cond, subst)),
+            then_block: substitute_type_in_block(then_block, subst),
+            elifs: elifs.iter().map(|(c, b)| (substitute_type_in_expr(c, subst), substitute_type_in_block(b, subst))).collect(),
+            else_block: else_block.as_ref().map(|b| substitute_type_in_block(b, subst)),
+            span: *span,
+        },
         Expr::Ident(_, _) => expr.clone(),
         Expr::MacroCall { name, args, span } => Expr::MacroCall {
             name: *name,
