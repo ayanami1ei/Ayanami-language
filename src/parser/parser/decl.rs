@@ -66,7 +66,7 @@ impl Parser {
 
         Ok(Stmt::FnDecl {
             attrs,
-            vis, is_inline, extern_c,
+            vis, is_inline, is_const: false, extern_c,
             generic_params,
             name: Symbol::intern(&name),
             params,

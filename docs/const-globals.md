@@ -106,14 +106,24 @@ static mut STATE = 0        // 可变全局（写入需 unsafe，见 M5）
   （LLVM `external global`），链接期解析。
 - **`main` 前初始化**：仅常量初始化（无运行时代码），无需 ctor。
 
-## M6.3 编译期求值（设计）
+## M6.3 编译期求值 `const fn`（M6.3a 已实现，2026-10）
 
-- 形式：`#[const] fn make_table() -> [int; 64]` + `const TABLE = make_table()`。
-- 实现：对 `#[const]` 函数在 HIR（或 MIR）上做**解释执行**（常量栈 + 局部环境），
-  限制：无堆分配、无 IO、无 panic 之外的副作用、循环/分支可用；数组用固定大小。
-- 输出：`HirLiteral` 标量或常量数组（新增 `HirLiteral::Array(Vec<HirLiteral>)`），
-  发射为 LLVM 常量（`[N x T]`）或全局只读数据。
-- 分阶段：M6.3a 标量 const fn；M6.3b 固定大小数组/字符串表。
+统一 `const` 关键字，**编译器按上下文区分编译期与运行期**：
+
+- 声明：`const fn name(params) -> T { ... }`（与 `const NAME = ...` 同一关键字）。
+  `const fn` 同时作为**普通运行期函数**编译（运行期调用正常发射），并登记为编译期可求值体。
+- 调用点：出现在 `const` / `static` 初始化式（含嵌套 const fn 调用）→ 编译期解释执行；
+  出现在运行期代码 → 普通函数调用。
+- 求值器（`hir/lower/body/const_fn.rs` + `const_eval.rs`）：标量（int/float/char/bool/IntN）、
+  局部变量/赋值、if/elif/else、while、for 区间、break/continue、return 与块尾表达式、
+  const fn 互调（递归）、`if` 表达式分支块值。
+- 限制：递归深度 64、循环 100 万次（超出报错）；泛型/extern `const fn` 报错；
+  命名空间内 const fn 需限定调用 `ns::f(...)`；不支持堆/数组/字符串/方法调用（见 M6.3b）。
+- 回归：`example/test_const_fn.aya`（fib 递归 + 运行期调用、for/while、尾 if、命名空间）、
+  负例 `const_fn_not_const` / `const_fn_generic` / `const_fn_recursion`。
+
+待做（M6.3b）：固定大小数组/字符串表（`const TABLE = make_table()` 产出 `[N x T]` 常量）、
+`HirLiteral::Array` 与只读全局发射。
 
 ## 阶段与排期
 
@@ -122,7 +132,7 @@ static mut STATE = 0        // 可变全局（写入需 unsafe，见 M5）
 | M6.1 | const 基础（标量 / 数组大小 / 0x） | ✅ 已实现 |
 | M6.1b | `pub const` / 命名空间 const 导出导入 | 待做 |
 | M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a 已实现（标量；见下） |
-| M6.3 | const fn / make_table()（解释执行 + 常量表） | 待做 |
+| M6.3 | const fn / make_table()（解释执行 + 常量表） | ✅ M6.3a 已实现（标量；M6.3b 常量表待做） |
 
 ## 风险
 

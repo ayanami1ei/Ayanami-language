@@ -229,6 +229,7 @@ impl Parser {
             attrs,
             vis: Visibility::Pub,
             is_inline: false,
+            is_const: false,
             extern_c: false,
             generic_params,
             name,

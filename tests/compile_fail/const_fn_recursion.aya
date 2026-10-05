@@ -1,0 +1,3 @@
+const fn inf() -> int { return inf() }
+const Y = inf()
+fn main() -> int { return 0 }

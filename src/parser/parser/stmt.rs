@@ -50,7 +50,18 @@ impl Parser {
         let tok = self.peek().ok_or_else(|| self.error("expected statement"))?.clone();
         // A2f：语句级标注（#[cfg]/#[invariant]）包装非声明语句
         let stmt = match tok.kind {
-            TokenKind::Keyword(Keyword::Const) => return self.parse_const_decl(vis, attrs),
+            TokenKind::Keyword(Keyword::Const) => {
+                // M6.3：`const fn`（编译期可求值，运行期普通调用）vs `const NAME = ...`
+                if self.tokens.get(self.pos + 1).map(|t| &t.kind)
+                    == Some(&TokenKind::Keyword(Keyword::Fn))
+                {
+                    self.advance(); // const
+                    let mut stmt = self.parse_fn_decl(vis, false, false, attrs)?;
+                    if let Stmt::FnDecl { is_const, .. } = &mut stmt { *is_const = true; }
+                    return Ok(stmt);
+                }
+                return self.parse_const_decl(vis, attrs);
+            }
             TokenKind::Keyword(Keyword::Static) => return self.parse_static_decl(vis, attrs),
             TokenKind::Keyword(Keyword::Fn) => return self.parse_fn_decl(vis, is_inline, extern_c, attrs),
             TokenKind::Keyword(Keyword::Struct) => return self.parse_struct_def(vis, attrs),

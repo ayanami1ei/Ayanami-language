@@ -45,6 +45,8 @@ pub(crate) struct Ctx {
     pub consts: HashMap<Symbol, (HirType, HirLiteral)>,
     /// M6.2：全局变量（名 → 定义），可寻址
     pub statics: HashMap<Symbol, crate::hir::HirStatic>,
+    /// M6.3：`const fn` AST（名 → FnDecl），常量上下文编译期求值
+    pub const_fns: HashMap<Symbol, Stmt>,
     /// Lambda 计数器（生成唯一名称）
     pub lambda_counter: u64,
     /// Lambda 表达式降级产生的匿名函数
@@ -101,6 +103,7 @@ impl Ctx {
             ovf_helpers: HashMap::new(),
             consts: HashMap::new(),
             statics: HashMap::new(),
+            const_fns: HashMap::new(),
             lambda_counter: 0,
             lambda_fns: Vec::new(),
             current_fn: FnId(0),

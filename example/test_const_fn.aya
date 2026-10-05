@@ -1,0 +1,32 @@
+// M6.3：const fn —— 统一 const 关键字；常量上下文编译期求值，运行期普通调用
+const fn fib(int n) -> int {
+    if n < 2 { return n }
+    return fib(n - 1) + fib(n - 2)
+}
+const F10 = fib(10)
+
+const fn sum_to(int n) -> int {
+    s = 0
+    for i in (0, n) { s = s + i }
+    return s
+}
+const S100 = sum_to(100)
+
+const fn abs(int x) -> int {
+    if x < 0 { -x } else { x }
+}
+const A = abs(-5)
+
+namespace math {
+    const fn square(int x) -> int { return x * x }
+}
+const SQ = math::square(9)
+
+fn main() -> int {
+    if F10 != 55 { return 1 }
+    if fib(10) != 55 { return 2 }
+    if S100 != 4950 { return 3 }
+    if A != 5 { return 4 }
+    if SQ != 81 { return 5 }
+    return 0
+}
