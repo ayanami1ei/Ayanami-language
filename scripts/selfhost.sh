@@ -43,9 +43,7 @@ cmd_sync() {
     if [[ "$before" != "$after" || ! -x "$ROOT/target/release/ayanami" ]]; then
         cargo build --release
     fi
-    # 编译器要求 runtime.c 与二进制同目录（link 用）
-    cp "$ROOT/src/runtime.c" "$ROOT/target/release/runtime.c"
-    cp "$ROOT/src/runtime.c" "$ROOT/target/debug/runtime.c" 2>/dev/null || true
+    # 注：新驱动在开发态直接找仓库 src/runtime.c（其内部 include std/runtime.c），不要再拷贝到 target/
     echo "== stage-0 std 预编译（std 子仓 build.sh -> target/{release,debug}/std）=="
     if [[ "$before" != "$after" || ! -f "$ROOT/target/release/std/string.lcl" ]]; then
         ( cd std && AYANAMI_BIN="$ROOT/target/release/ayanami" ./scripts/build.sh --install "$ROOT/target/release/std" )
