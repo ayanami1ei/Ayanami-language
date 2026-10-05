@@ -2,7 +2,6 @@ import "string";
 
 // 字符串构建器（编译器内部用；不 import std，避免重复 import std 的泛型缺陷）
 extern "C" fn __ayanami_int_to_char(int c) -> char;
-extern "C" fn strlen([char] s) -> int;
 
 pub struct StringBuf {
     [char] data
@@ -53,7 +52,7 @@ impl StringBuf {
     #[alloc]
     #[state]
     pub fn push_str(ref mut self, ref String s) {
-        self.ensure(s.len);
+        self.ensure(s.len as int);
         for i in (0, s.len) {
             self.data[self.len] = s.index(i);
             self.len = self.len + 1;
@@ -95,10 +94,7 @@ impl StringBuf {
         for i in (0, self.len) {
             res[i] = self.data[i];
         }
-        // lcl 的 String::new 不消耗数组实参（bd Ayanami-language-3hh）：
-        // 调用后把 res 移入 extern 调用，避免本帧退出时释放（必须用局部数组，形参不行）
-        s = String::new(res, self.len);
-        strlen(res);
-        return s;
+        // #73 修复后 lcl 调用会正确消耗数组实参
+        return String::new(res, self.len as usize);
     }
 }

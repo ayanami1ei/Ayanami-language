@@ -24,10 +24,10 @@ pub namespace Args {
         }
         items = [String; n];
         k = 0;
-        start = 0;
+        start = 0 as usize;
         for i in (0, data.len) {
             if data.index(i) == '\0' {
-                items[k] = data.substring(start, i);
+                items[k] = data.substring(start as usize, i);
                 k = k + 1;
                 start = i + 1;
             }
@@ -49,13 +49,13 @@ pub fn env(ref String key) -> String {
     if !r.ok { return String::empty(); }
     data = r.data;
     i = 0;
-    while i < data.len {
+    while i < data.len as int {
         j = i;
-        while j < data.len && data.index(j) != '\0' {
+        while j < data.len as int && data.index(j as usize) != '\0' {
             j = j + 1;
         }
         if entry_matches(data, i, j, key) {
-            return data.substring(i + key.len + 1, j);
+            return data.substring((i + (key.len as int) + 1) as usize, j as usize);
         }
         i = j + 1;
     }
@@ -63,11 +63,11 @@ pub fn env(ref String key) -> String {
 }
 
 fn entry_matches(ref String data, int start, int end, ref String key) -> bool {
-    if start + key.len >= end { return false; }
+    if start + (key.len as int) >= end { return false; }
     for k in (0, key.len) {
-        if data.index(start + k) != key.index(k) { return false; }
+        if data.index((start as usize) + k) != key.index(k) { return false; }
     }
-    return data.index(start + key.len) == '=';
+    return data.index((start as usize) + key.len) == '=';
 }
 
 /// 执行 shell 命令；返回退出码（C system 状态 / 256）

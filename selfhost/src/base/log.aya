@@ -19,7 +19,7 @@ fn emit(ref String prefix, ref String file, int line, int col, ref String msg) {
     b.push_str("\n");
     s = b.to_string();
     c = to_cstr(s);
-    write(2, c, s.len);
+    write(2, c, s.len as int);
 }
 
 #[alloc]
@@ -43,5 +43,5 @@ pub fn note(ref String msg) {
     b.push_str("\n");
     s = b.to_string();
     c = to_cstr(s);
-    write(2, c, s.len);
+    write(2, c, s.len as int);
 }
