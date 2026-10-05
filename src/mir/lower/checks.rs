@@ -58,6 +58,22 @@ fn collect_stmt_var_ids(stmt: &HirStmt, vars: &mut HashSet<VarId>) {
     }
 }
 
+/// #116：块是否在所有路径上 `return`（发散）。
+/// 只把 `return` 视为「不达后续代码」：`break`/`continue` 的移动保守保留
+/// （它们会到达循环出口，避免漏报）。
+pub(super) fn block_always_returns(stmts: &[HirStmt]) -> bool {
+    match stmts.last() {
+        Some(HirStmt::Return { .. }) => true,
+        Some(HirStmt::Block { stmts, .. }) => block_always_returns(stmts),
+        Some(HirStmt::If { then_block, elifs, else_block, .. }) => {
+            block_always_returns(&then_block.stmts)
+                && elifs.iter().all(|(_, b)| block_always_returns(&b.stmts))
+                && else_block.as_ref().map_or(false, |b| block_always_returns(&b.stmts))
+        }
+        _ => false,
+    }
+}
+
 impl Ctx {
     /// use-after-move 检查：语句引用的变量若已被移动则报错。
     /// 复合语句跳过（其子语句在各自 lower_stmt 时检查）。

@@ -1,0 +1,9 @@
+fn g(bool c) -> int {
+    x = [int; 2]
+    if c {
+        y = x
+    }
+    return x[0]
+}
+
+fn main() -> int { return 0 }

@@ -1,0 +1,31 @@
+// #116：分支内 return 后的移动不影响 if 之后（早返回 + 继续处理）
+import "arraylist"
+
+fn build(bool c) -> ArrayList[int] {
+    res = ArrayList::new[int]()
+    if c {
+        res.push(1)
+        return res
+    }
+    res.push(2)
+    return res
+}
+
+fn pick(bool c) -> [int] {
+    x = [int; 2]
+    if c {
+        return x
+    }
+    x[0] = 7
+    return x
+}
+
+fn main() -> int {
+    a = build(false)
+    if a.len() != 1 { return 1 }
+    b = build(true)
+    if b.len() != 1 { return 2 }
+    c = pick(false)
+    if c[0] != 7 { return 3 }
+    return 0
+}

@@ -22,6 +22,7 @@ test_constfold.aya 0
 test_constprop.aya 0
 test_constructors.aya 0
 test_conv.aya 0
+test_early_return_move.aya 0
 test_eff_import.aya 0
 test_effects.aya 0
 test_ensures.aya 0

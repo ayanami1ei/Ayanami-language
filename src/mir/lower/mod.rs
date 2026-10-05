@@ -7,6 +7,7 @@ use crate::mir::mem::*;
 
 
 mod checks;
+mod control;
 mod ctx;
 mod functions;
 mod mem;

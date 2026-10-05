@@ -1709,8 +1709,14 @@ src/mir/ir.rs:195: pub struct MirFn
 src/mir/ir.rs:223: pub enum MirItem
 src/mir/ir.rs:236: pub struct MirProgram
 src/mir/lower/checks.rs:5: fn collect_stmt_var_ids(stmt: &HirStmt, vars: &mut HashSet<VarId>)
-src/mir/lower/checks.rs:61: impl Ctx
-src/mir/lower/checks.rs:64: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
+src/mir/lower/checks.rs:64: pub(super) fn block_always_returns(stmts: &[HirStmt]) -> bool
+src/mir/lower/checks.rs:77: impl Ctx
+src/mir/lower/checks.rs:80: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
+src/mir/lower/control.rs:4: impl Ctx
+src/mir/lower/control.rs:5: pub(super) fn lower_if(
+src/mir/lower/control.rs:58: pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>
+src/mir/lower/control.rs:65: pub(super) fn lower_block(&mut self, stmts: &[HirStmt]) -> Vec<MirStmtBox>
+src/mir/lower/control.rs:94: pub(super) fn mark_alive(&mut self, var: VarId)
 src/mir/lower/ctx.rs:4: impl Ctx
 src/mir/lower/ctx.rs:5: pub(super) fn new(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Self
 src/mir/lower/ctx.rs:30: fn emit_assign_cleanup(&self, var: &VarId) -> Vec<MirStmtBox>
@@ -1719,21 +1725,18 @@ src/mir/lower/ctx.rs:99: fn track_stmt_moves(&mut self, stmt: &HirStmt)
 src/mir/lower/ctx.rs:125: fn lower_assign(&mut self, target: &HirNodeBox, value: &HirNodeBox, span: crate::span::Span) -> Vec<MirStmtBox>
 src/mir/lower/ctx.rs:170: fn lower_return(&mut self, value: &Option<HirNodeBox>, span: crate::span::Span) -> Vec<MirStmtBox>
 src/mir/lower/ctx.rs:207: fn new_temp(&mut self, ty: HirType) -> VarId
-src/mir/lower/ctx.rs:214: fn lower_if(
-src/mir/lower/ctx.rs:239: fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>
-src/mir/lower/ctx.rs:246: fn lower_block(&mut self, stmts: &[HirStmt]) -> Vec<MirStmtBox>
-src/mir/lower/ctx.rs:275: fn mark_alive(&mut self, var: VarId)
 src/mir/lower/functions.rs:5: pub(super) fn lower_item(item: &HirItem, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Result<Vec<MirItem>>
 src/mir/lower/functions.rs:23: fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Result<MirFn>
 src/mir/lower/mem.rs:6: fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
 src/mir/lower/mem.rs:18: pub(super) fn strategy_for(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Box<dyn MemStrategy>
 src/mir/lower/mem.rs:25: pub(super) fn action_to_stmt(_var: VarId, ty: &HirType, action: &MemAction) -> MirStmtBox
 src/mir/lower/mod.rs:9: mod checks;
-src/mir/lower/mod.rs:10: mod ctx;
-src/mir/lower/mod.rs:11: mod functions;
-src/mir/lower/mod.rs:12: mod mem;
-src/mir/lower/mod.rs:16: pub fn lower_program(hir: &HirProgram) -> crate::error::Result<MirProgram>
-src/mir/lower/mod.rs:41: struct Ctx
+src/mir/lower/mod.rs:10: mod control;
+src/mir/lower/mod.rs:11: mod ctx;
+src/mir/lower/mod.rs:12: mod functions;
+src/mir/lower/mod.rs:13: mod mem;
+src/mir/lower/mod.rs:17: pub fn lower_program(hir: &HirProgram) -> crate::error::Result<MirProgram>
+src/mir/lower/mod.rs:42: struct Ctx
 src/mir/mem/drop.rs:6: pub struct DropStrategy;
 src/mir/mem/drop.rs:8: impl MemStrategy for DropStrategy
 src/mir/mem/drop.rs:9: fn on_scope_end(&self, var: VarId, _ty: &HirType) -> Vec<MemAction>
@@ -2024,6 +2027,9 @@ example/test_conv.aya:7: struct P
 example/test_conv.aya:12: impl P
 example/test_conv.aya:13: fn bump(ref mut self, int v) -> int
 example/test_conv.aya:19: fn main() -> int
+example/test_early_return_move.aya:4: fn build(bool c) -> ArrayList[int]
+example/test_early_return_move.aya:14: fn pick(bool c) -> [int]
+example/test_early_return_move.aya:23: fn main() -> int
 example/test_eff_import.aya:4: fn main() -> int
 example/test_effects.aya:6: fn parse(int x) -> int { return x }
 example/test_effects.aya:10: fn pure_fn() -> int { return 0 }
