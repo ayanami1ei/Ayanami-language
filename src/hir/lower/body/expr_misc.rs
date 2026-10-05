@@ -50,16 +50,55 @@ impl crate::hir::lower::Ctx {
         // Save current locals/scope before lowering lambda function
         let saved_locals = std::mem::take(&mut self.locals);
         let saved_scopes = std::mem::replace(&mut self.scopes, Vec::new());
-        let hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, &tmp_block, false, false, block_span, vec![], vec![], false)?;
-        // Restore parent function's locals/scope
+        let saved_fn = self.current_fn;
+        let mut hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, &tmp_block, false, false, block_span, vec![], vec![], false)?;
+        // Restore parent function's locals/scope/current_fn（否则后续 return 按 lambda 返回类型转换）
         self.locals = saved_locals;
         self.scopes = saved_scopes;
+        self.current_fn = saved_fn;
+
+        // #119：未标注返回类型（Void）时从 lambda body 的 return 值推断返回类型
+        let inferred_ret = if matches!(hir_ret, HirType::Void) {
+            find_return_type(&hir_fn.body.stmts).unwrap_or(HirType::Void)
+        } else {
+            hir_ret.clone()
+        };
+        if inferred_ret != hir_ret {
+            hir_fn.return_type = inferred_ret.clone();
+            self.fns[fn_id.0].return_type = inferred_ret.clone();
+        }
         self.lambda_fns.push(hir_fn);
 
         let fnptr_ty = HirType::FnPtr(
             hir_params.iter().map(|(_, t)| t.clone()).collect(),
-            Box::new(hir_ret),
+            Box::new(inferred_ret),
         );
         Ok(SFnPtr { fn_id, ty: fnptr_ty }.into())
     }
+}
+
+/// #119：从 lambda body 的 return 值推断返回类型（递归，取第一个带值 return）。
+fn find_return_type(stmts: &[crate::hir::HirStmt]) -> Option<HirType> {
+    for s in stmts {
+        match s {
+            // 比较运算在 HIR 中保留操作数类型（Bool 由 MIR 决定）→ 按 Bool 推断
+            crate::hir::HirStmt::Return { value: Some(v), .. } => {
+                return Some(if v.is_comparison() { HirType::Bool } else { v.expr_type() });
+            }
+            crate::hir::HirStmt::If { then_block, elifs, else_block, .. } => {
+                if let Some(t) = find_return_type(&then_block.stmts) { return Some(t); }
+                for (_, b) in elifs {
+                    if let Some(t) = find_return_type(&b.stmts) { return Some(t); }
+                }
+                if let Some(b) = else_block {
+                    if let Some(t) = find_return_type(&b.stmts) { return Some(t); }
+                }
+            }
+            crate::hir::HirStmt::While { body, .. } => {
+                if let Some(t) = find_return_type(&body.stmts) { return Some(t); }
+            }
+            _ => {}
+        }
+    }
+    None
 }

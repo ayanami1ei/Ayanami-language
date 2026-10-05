@@ -443,6 +443,7 @@ src/hir/lower/body/expr_method.rs:4: pub(crate) fn lower_method_call(&mut self, 
 src/hir/lower/body/expr_misc.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_misc.rs:24: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Vec<Stmt>) -> Result<HirNodeBox>
+src/hir/lower/body/expr_misc.rs:81: fn find_return_type(stmts: &[crate::hir::HirStmt]) -> Option<HirType>
 src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:160: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
@@ -505,7 +506,7 @@ src/hir/lower/body/match_lower.rs:89: fn build_match_if(
 src/hir/lower/body/match_lower.rs:117: fn enum_variant_count(&self, name: &Symbol) -> usize
 src/hir/lower/body/match_lower.rs:124: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
 src/hir/lower/body/match_lower.rs:151: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/match_lower.rs:202: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
+src/hir/lower/body/match_lower.rs:204: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
 src/hir/lower/body/mod.rs:10: mod collect_fns;
 src/hir/lower/body/mod.rs:11: mod collect_ns;
 src/hir/lower/body/mod.rs:12: mod vtables;
@@ -611,9 +612,9 @@ src/hir/lower/helpers/coerce.rs:95: fn is_primitive(ty: &HirType) -> bool
 src/hir/lower/helpers/coerce.rs:103: pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/helpers/convert.rs:3: pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type
 src/hir/lower/helpers/convert.rs:30: pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Vec<(Symbol, HirType)>
-src/hir/lower/helpers/convert.rs:85: pub(crate) fn generic_inner(s: &str) -> Option<&str>
-src/hir/lower/helpers/convert.rs:102: pub(crate) fn split_generic_args(s: &str) -> Vec<&str>
-src/hir/lower/helpers/convert.rs:118: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
+src/hir/lower/helpers/convert.rs:96: pub(crate) fn generic_inner(s: &str) -> Option<&str>
+src/hir/lower/helpers/convert.rs:113: pub(crate) fn split_generic_args(s: &str) -> Vec<&str>
+src/hir/lower/helpers/convert.rs:129: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
 src/hir/lower/helpers/mod.rs:18: mod caller;
 src/hir/lower/helpers/mod.rs:19: mod coerce;
 src/hir/lower/helpers/mod.rs:20: mod overflow;
@@ -2200,6 +2201,14 @@ example/test_int_width.aya:23: fn plus32(self, i32 other) -> i32 { return self +
 example/test_int_width.aya:26: fn main() -> int
 example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int
+example/test_lambda_generic_method.aya:2: enum Opt[T] { Some(T), None }
+example/test_lambda_generic_method.aya:4: impl[T] Opt[T]
+example/test_lambda_generic_method.aya:5: pub fn map[U](self, fn(T) -> U f) -> Opt[U]
+example/test_lambda_generic_method.aya:12: pub fn filter(self, fn(T) -> bool f) -> Opt[T]
+example/test_lambda_generic_method.aya:19: pub fn and_then[U](self, fn(T) -> Opt[U] f) -> Opt[U]
+example/test_lambda_generic_method.aya:27: fn get(Opt[int] o) -> int
+example/test_lambda_generic_method.aya:34: fn mk() -> Opt[int] { return Opt::Some(3) }
+example/test_lambda_generic_method.aya:36: fn main() -> int
 example/test_lcl_owned_arg.aya:5: fn mk() -> String
 example/test_lcl_owned_arg.aya:12: fn main() -> int
 example/test_literals.aya:2: fn main() -> int

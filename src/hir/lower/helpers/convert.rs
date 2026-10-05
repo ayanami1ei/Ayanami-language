@@ -77,6 +77,17 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
             HirType::Array(a) | HirType::ArraySized(a, _) => infer_generic_from_param(inner, a),
             _ => Vec::new(),
         },
+        // #119：函数指针形参（fn(T) -> U）→ 从 lambda/FnPtr 实参推导参数与返回类型
+        (Type::FnPtr(ps, ret, _), _) => {
+            let mut out = Vec::new();
+            if let HirType::FnPtr(aps, aret) = strip_ownership_ref(arg_ty) {
+                for (pt, at) in ps.iter().zip(aps.iter()) {
+                    out.extend(infer_generic_from_param(pt, at));
+                }
+                out.extend(infer_generic_from_param(ret, aret));
+            }
+            out
+        }
         _ => Vec::new(),
     }
 }

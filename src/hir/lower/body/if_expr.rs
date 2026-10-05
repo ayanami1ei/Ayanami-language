@@ -82,6 +82,8 @@ impl crate::hir::lower::Ctx {
 
         let mut assigned: Vec<HirBlock> = Vec::new();
         for (mut b, v) in blocks.into_iter().zip(vals) {
+            // #119/#120：无载荷变体（Opt::None()）按公共结果类型实例化
+            let v = self.instantiate_enum_value(v, &res_ty)?;
             let v = coerce_expr(v, &res_ty, span)?;
             b.stmts.push(HirStmt::Assign { target: res_node.clone(), value: v, span: *span });
             assigned.push(b);

@@ -41,6 +41,7 @@ test_import.aya 30
 test_int_width.aya 0
 test_invariant.aya 0
 test_lcl_owned_arg.aya 0
+test_lambda_generic_method.aya 0
 test_literals.aya 0
 test_macro.aya 0
 test_macro_args.aya 0

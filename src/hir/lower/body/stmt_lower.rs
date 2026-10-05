@@ -40,9 +40,12 @@ impl crate::hir::lower::Ctx {
                         if generic_args.is_empty() => self.lower_fn_call(fname, args, Some(h), span)?,
                     _ => self.lower_expr(value)?,
                 };
-                // 已存在的变量：按既有类型做隐式数值转换
+                // 已存在的变量：按既有类型做隐式数值转换 + 枚举实例化（#119/#120）
                 let hir_value = match self.lookup_var(name) {
-                    Some((_, var_ty, _)) => coerce_expr(hir_value, &var_ty, span)?,
+                    Some((_, var_ty, _)) => {
+                        let v = self.instantiate_enum_value(hir_value, &var_ty)?;
+                        coerce_expr(v, &var_ty, span)?
+                    }
                     None => hir_value,
                 };
                 let hir_value = implicit_move(hir_value);
@@ -115,6 +118,8 @@ impl crate::hir::lower::Ctx {
                         let expr = self.lower_expr(v)?;
                         // 隐式数值转换：按函数返回类型
                         let fn_ret = self.fns[self.current_fn.0].return_type.clone();
+                        // #119/#120：无载荷变体（Opt::None()）按期望返回类型实例化
+                        let expr = self.instantiate_enum_value(expr, &fn_ret)?;
                         let expr = coerce_expr(expr, &fn_ret, span)?;
                         let expr_ty = expr_type(&expr);
                         // 若函数返回 unique T，但表达式是裸 T，自动包装为 ToUnique

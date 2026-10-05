@@ -183,6 +183,8 @@ impl crate::hir::lower::Ctx {
         let mut blocks = Vec::new();
         for (i, (mut arm_stmts, body)) in lowered.into_iter().enumerate() {
             conds.push(Self::tag_cond(&val_node, i));
+            // #119/#120：无载荷变体（Opt::None()）按公共结果类型实例化
+            let body = self.instantiate_enum_value(body, &res_ty)?;
             let body = coerce_expr(body, &res_ty, span)?;
             arm_stmts.push(HirStmt::Assign {
                 target: res_node.clone(),
