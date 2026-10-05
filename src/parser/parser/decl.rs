@@ -15,7 +15,7 @@ impl Parser {
                 let gp_name = Symbol::intern(&self.expect_identifier()?);
                 let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
                     self.advance();
-                    Some(Symbol::intern(&self.expect_identifier()?))
+                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
                 } else {
                     None
                 };
@@ -246,7 +246,7 @@ impl Parser {
                 let gp_name = Symbol::intern(&self.expect_identifier()?);
                 let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
                     self.advance();
-                    Some(Symbol::intern(&self.expect_identifier()?))
+                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
                 } else {
                     None
                 };

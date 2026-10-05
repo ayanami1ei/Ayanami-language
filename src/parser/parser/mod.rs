@@ -12,6 +12,25 @@ pub struct Parser {
     struct_lit_depth: u32,
 }
 
+/// 约束/泛型实参的类型文本化（`Into[float]` → `Into<float>`，与 HIR 泛型名约定一致）
+fn ast_type_text(ty: &Type) -> String {
+    match ty {
+        Type::Default => "_".into(),
+        Type::Int(_) => "int".into(),
+        Type::Float(_) => "float".into(),
+        Type::Char(_) => "char".into(),
+        Type::Bool(_) => "bool".into(),
+        Type::Void(_) => "void".into(),
+        Type::Named(n, _) => n.as_str().to_string(),
+        Type::Generic(n, args, _) => format!("{}<{}>", n, args.iter().map(ast_type_text).collect::<Vec<_>>().join(",")),
+        Type::Array(inner, _) => format!("[{}]", ast_type_text(inner)),
+        Type::Ref(inner, m, _) => format!("ref {}{}", if *m { "mut " } else { "" }, ast_type_text(inner)),
+        Type::Unique(inner, _) => ast_type_text(inner),
+        Type::Self_(_) => "Self".into(),
+        Type::FnPtr(..) => "fn".into(),
+    }
+}
+
 mod atom;
 mod core;
 mod decl;
