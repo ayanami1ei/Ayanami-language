@@ -7,20 +7,20 @@ HIR Program
         Local(v0 : Named(ArrayList<int>))
 │ │ │   value:
         Move(ty: Named(ArrayList<int>))
-          Call(fn75, ty: Named(ArrayList<int>))
+          Call(fn79, ty: Named(ArrayList<int>))
 │ │ │ Expr
-        Call(fn76, ty: Void)
+        Call(fn80, ty: Void)
           Ref(mut ty: ref mut Named(ArrayList<int>))
             Local(v0 : Named(ArrayList<int>))
           Literal(Int(1))
 │ │ │ Return
-        Call(fn80, ty: Int)
+        Call(fn84, ty: Int)
           Ref(ty: ref Named(ArrayList<int>))
             Local(v0 : Named(ArrayList<int>))
           Literal(Int(5))
           Literal(Int(7))
           Literal(Int(13))
-          Literal(String("example/test_bounds.aya"))
+          FileArg("example/test_bounds.aya")
 │ │ │ Return
         Literal(Int(0))
 │ │ }
@@ -80,13 +80,13 @@ HIR Program
             Move(ty: unique [Int])
               ArraySized { elem_ty: Int, ty: unique [Int] }
                 count:
-                Call(fn79, ty: u64)
+                Call(fn83, ty: u64)
                   FieldAccess capability ty=u64
                     Local(v0 : ref mut Named(ArrayList<int>))
                   Literal(Int(2))
                   Literal(Int(9))
                   Literal(Int(39))
-                  Literal(String("example/test_bounds.aya"))
+                  FileArg("example/test_bounds.aya")
 │ │ │ │ │ Block {
 │ │ │ │ │ │ Assign
 │ │ │ │ │ │   target:
@@ -137,13 +137,13 @@ HIR Program
 │ │ │ │ │   object:
             Local(v0 : ref mut Named(ArrayList<int>))
 │ │ │ │ │   value:
-            Call(fn79, ty: u64)
+            Call(fn83, ty: u64)
               FieldAccess capability ty=u64
                 Local(v0 : ref mut Named(ArrayList<int>))
               Literal(Int(2))
               Literal(Int(14))
               Literal(Int(47))
-              Literal(String("example/test_bounds.aya"))
+              FileArg("example/test_bounds.aya")
 │ │ │ │ }
 │ │ }
 │ Fn push (self: ref mut Named(ArrayList<int>), val: Int) -> Void [locals: 2]
@@ -154,20 +154,20 @@ HIR Program
 │ │ │   cond:
         Binary { op: Ge, ty: u64 }
           lhs:
-          Call(fn77, ty: u64)
+          Call(fn81, ty: u64)
             FieldAccess len ty=u64
               Local(v0 : ref mut Named(ArrayList<int>))
             Literal(Int(1))
             Literal(Int(20))
             Literal(Int(21))
-            Literal(String("example/test_bounds.aya"))
+            FileArg("example/test_bounds.aya")
           rhs:
           FieldAccess capability ty=u64
             Local(v0 : ref mut Named(ArrayList<int>))
 │ │ │   then:
 │ │ │ │ Block {
 │ │ │ │ │ Expr
-            Call(fn78, ty: Void)
+            Call(fn82, ty: Void)
               Local(v0 : ref mut Named(ArrayList<int>))
 │ │ │ │ }
 │ │ │ IndexAssign
@@ -184,13 +184,13 @@ HIR Program
 │ │ │   object:
         Local(v0 : ref mut Named(ArrayList<int>))
 │ │ │   value:
-        Call(fn77, ty: u64)
+        Call(fn81, ty: u64)
           FieldAccess len ty=u64
             Local(v0 : ref mut Named(ArrayList<int>))
           Literal(Int(1))
           Literal(Int(24))
           Literal(Int(29))
-          Literal(String("example/test_bounds.aya"))
+          FileArg("example/test_bounds.aya")
 │ │ }
 │ Fn index (self: ref Named(ArrayList<int>), index: u64, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 5]
 │   local self: ref Named(ArrayList<int>)

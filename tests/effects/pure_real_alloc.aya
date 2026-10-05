@@ -1,0 +1,8 @@
+// #117：真实分配（用户字符串字面量）仍应被判 alloc —— verify-effects 必须报错
+#[pure]
+fn make() -> int {
+    s = "hello"
+    return 0
+}
+
+fn main() -> int { return 0 }

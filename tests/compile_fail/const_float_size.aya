@@ -1,0 +1,6 @@
+const PI: float = 3.14
+
+fn main() -> int {
+    a = [int; PI]
+    return 0
+}

@@ -204,6 +204,9 @@ extern "C" fn strlen([char] s) -> int;
 - **有效效应 = 声明 ∪ 推断**。声明用于：补 FFI 等推断看不见的效应、提前/多声明、给出承诺。
 - `extern` 无声明时保守：不产生优化属性，但不引入 `unknown` 效应类别。
 - `state` 范围：全局/堆/`ref mut` 的可观察修改；需要时再纳入局部变量。
+- **实现细节排除（#117）**：编译器合成的 track_caller 位置串（HIR `SFileArg`）不计用户可见
+  `alloc`；合成标记（alloc/state/err，`FnId(MAX)`）不触发「未知 extern」保守位。
+  真实分配（用户字符串/数组字面量）仍计入 `alloc`。
 
 ### 6.3 承诺、冲突与告警
 

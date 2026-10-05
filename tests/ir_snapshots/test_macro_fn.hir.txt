@@ -8,12 +8,12 @@ HIR Program
 │ │ │   target:
         Local(v0 : Int)
 │ │ │   value:
-        Call(fn74, ty: Int)
+        Call(fn78, ty: Int)
           Literal(Int(3))
           Literal(Int(3))
           Literal(Int(1))
           Literal(Int(4))
-          Literal(String("example/macro_lib.aya"))
+          FileArg("example/macro_lib.aya")
 │ │ │ If
 │ │ │   cond:
         Binary { op: Neq, ty: Int }
@@ -30,22 +30,22 @@ HIR Program
 │ │ │   target:
         Local(v1 : Int)
 │ │ │   value:
-        Call(fn74, ty: Int)
-          Call(fn74, ty: Int)
+        Call(fn78, ty: Int)
+          Call(fn78, ty: Int)
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(4))
-            Literal(String("example/macro_lib.aya"))
-          Call(fn74, ty: Int)
+            FileArg("example/macro_lib.aya")
+          Call(fn78, ty: Int)
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(4))
-            Literal(String("example/macro_lib.aya"))
+            FileArg("example/macro_lib.aya")
           Literal(Int(1))
           Literal(Int(13))
-          Literal(String("example/macro_lib.aya"))
+          FileArg("example/macro_lib.aya")
 │ │ │ If
 │ │ │   cond:
         Binary { op: Neq, ty: Int }

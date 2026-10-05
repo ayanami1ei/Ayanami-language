@@ -82,6 +82,7 @@ impl crate::hir::lower::Ctx {
                     items.push(HirItem::StructDef(HirStructDef { name: *name, fields: enum_fields }));
                 }
                 Stmt::Import { .. } => {} // already handled in collect_fns
+                Stmt::ConstDecl { .. } => {} // M6.1：常量在 collect_ns 求值，无运行时项
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
                     // Flatten impl block: lower each method as a regular Fn
                     for method_stmt in methods {

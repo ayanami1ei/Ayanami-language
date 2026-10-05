@@ -2,7 +2,7 @@ LIR Program
 Strings: 1 entries
   @__str_0 = "example/test_bounds.aya"
 
-fn main (fn_id=74) -> Int [1 blocks]
+fn main (fn_id=78) -> Int [1 blocks]
   local a: Named(Symbol(N))
   local __ret: Int
   local __ret: Int
@@ -10,21 +10,21 @@ entry:
     alloca v0 : Named(Symbol(N))
     alloca v1 : Int
     alloca v2 : Int
-    t0 = call fn75 () : Named(Symbol(N))
+    t0 = call fn79 () : Named(Symbol(N))
     store Tmp(0) -> v0 : Named(Symbol(N))
     t1 = ref_mut v0 : Ref(Named(Symbol(N)), true)
-    _ = call fn76 (Tmp(1):Ref(Named(Symbol(N)), true), Literal(Int(1), Int):Int) : Void
+    _ = call fn80 (Tmp(1):Ref(Named(Symbol(N)), true), Literal(Int(1), Int):Int) : Void
     t2 = ref_v0 : Ref(Named(Symbol(N)), false)
     t3 = str_global @__str_0
     t4 = struct_lit String (2 fields)
-    t8 = call fn80 (Tmp(2):Ref(Named(Symbol(N)), false), Literal(Int(5), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(7), Int):Int, Literal(Int(13), Int):Int, Tmp(4):Named(Symbol(N))) : Int
+    t8 = call fn84 (Tmp(2):Ref(Named(Symbol(N)), false), Literal(Int(5), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(7), Int):Int, Literal(Int(13), Int):Int, Tmp(4):Named(Symbol(N))) : Int
     store Tmp(8) -> v1 : Int
     t9 = load v1 : Int
     ret Tmp(9)
     store Literal(Int(0), Int) -> v2 : Int
     t10 = load v2 : Int
     ret Tmp(10)
-fn ArrayList.new (fn_id=75) -> Named(Symbol(N)) [1 blocks]
+fn ArrayList.new (fn_id=79) -> Named(Symbol(N)) [1 blocks]
   local __ret: Named(Symbol(N))
 entry:
     alloca v0 : Named(Symbol(N))
@@ -32,7 +32,7 @@ entry:
     store Tmp(0) -> v0 : Named(Symbol(N))
     t5 = load v0 : Named(Symbol(N))
     ret Tmp(5)
-fn expand (fn_id=78) -> Void [7 blocks]
+fn expand (fn_id=82) -> Void [7 blocks]
   local self: Ref(Named(Symbol(N)), true)
   local tmp: Unique(Array(Int))
   local i: Int
@@ -57,7 +57,7 @@ else1:
     t19 = field_access field=2 : IntN { bits: 64, signed: false }
     t21 = str_global @__str_0
     t22 = struct_lit String (2 fields)
-    t26 = call fn79 (Tmp(19):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(9), Int):Int, Literal(Int(39), Int):Int, Tmp(22):Named(Symbol(N))) : IntN { bits: 64, signed: false }
+    t26 = call fn83 (Tmp(19):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(9), Int):Int, Literal(Int(39), Int):Int, Tmp(22):Named(Symbol(N))) : IntN { bits: 64, signed: false }
     t14 = array_sized (count=Tmp(26), elem_ty=Int)
     store Tmp(14) -> v1 : Unique(Array(Int))
     store Literal(Int(0), Int) -> v2 : Int
@@ -90,12 +90,12 @@ while.end5:
     t51 = field_access field=2 : IntN { bits: 64, signed: false }
     t53 = str_global @__str_0
     t54 = struct_lit String (2 fields)
-    t58 = call fn79 (Tmp(51):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(14), Int):Int, Literal(Int(47), Int):Int, Tmp(54):Named(Symbol(N))) : IntN { bits: 64, signed: false }
+    t58 = call fn83 (Tmp(51):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(14), Int):Int, Literal(Int(47), Int):Int, Tmp(54):Named(Symbol(N))) : IntN { bits: 64, signed: false }
     t49 = field_store field=2 : IntN { bits: 64, signed: false }
     br %ifcont2
 ifcont2:
     ret void
-fn push (fn_id=76) -> Void [4 blocks]
+fn push (fn_id=80) -> Void [4 blocks]
   local self: Ref(Named(Symbol(N)), true)
   local val: Int
 entry:
@@ -107,14 +107,14 @@ entry:
     t1 = field_access field=1 : IntN { bits: 64, signed: false }
     t3 = str_global @__str_0
     t4 = struct_lit String (2 fields)
-    t8 = call fn77 (Tmp(1):IntN { bits: 64, signed: false }, Literal(Int(1), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(20), Int):Int, Literal(Int(21), Int):Int, Tmp(4):Named(Symbol(N))) : IntN { bits: 64, signed: false }
+    t8 = call fn81 (Tmp(1):IntN { bits: 64, signed: false }, Literal(Int(1), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(20), Int):Int, Literal(Int(21), Int):Int, Tmp(4):Named(Symbol(N))) : IntN { bits: 64, signed: false }
     t9 = load v0 : Ref(Named(Symbol(N)), true)
     t10 = field_access field=2 : IntN { bits: 64, signed: false }
     t12 = Ge Tmp(8) Tmp(10) : IntN { bits: 64, signed: false }
     br_cond Tmp(12) %then0 %else1
 then0:
     t13 = load v0 : Ref(Named(Symbol(N)), true)
-    _ = call fn78 (Tmp(13):Ref(Named(Symbol(N)), true)) : Void
+    _ = call fn82 (Tmp(13):Ref(Named(Symbol(N)), true)) : Void
     br %ifcont2
 else1:
     br %ifcont2
@@ -131,10 +131,10 @@ ifcont2:
     t25 = field_access field=1 : IntN { bits: 64, signed: false }
     t27 = str_global @__str_0
     t28 = struct_lit String (2 fields)
-    t32 = call fn77 (Tmp(25):IntN { bits: 64, signed: false }, Literal(Int(1), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(24), Int):Int, Literal(Int(29), Int):Int, Tmp(28):Named(Symbol(N))) : IntN { bits: 64, signed: false }
+    t32 = call fn81 (Tmp(25):IntN { bits: 64, signed: false }, Literal(Int(1), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(24), Int):Int, Literal(Int(29), Int):Int, Tmp(28):Named(Symbol(N))) : IntN { bits: 64, signed: false }
     t23 = field_store field=1 : IntN { bits: 64, signed: false }
     ret void
-fn index (fn_id=80) -> Int [4 blocks]
+fn index (fn_id=84) -> Int [4 blocks]
   local self: Ref(Named(Symbol(N)), false)
   local index: IntN { bits: 64, signed: false }
   local __line: Int

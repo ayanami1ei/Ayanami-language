@@ -7,6 +7,29 @@ impl crate::hir::lower::Ctx {
         self.specialize_generic_call_with(name, arg_types, None, span)
     }
 
+    /// #72：是否存在同名、参数个数一致且接收者基类型匹配的泛型方法候选。
+    /// 用于区分「真的没有该方法」与「特化内部失败（如方法体编译错误）」。
+    pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool {
+        let recv_base = match strip_ownership_ref(receiver_ty) {
+            HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
+            _ => return false,
+        };
+        self.generic_fns.iter().any(|(gf_name, _, gf_stmt)| {
+            if gf_name != method { return false; }
+            let Stmt::FnDecl { params, .. } = gf_stmt else { return false; };
+            let visible = params.len().saturating_sub(count_hidden_names(params));
+            if visible != argc { return false; }
+            match params.first() {
+                Some((_, t)) => {
+                    let self_hir = ast_type_to_hir(t, &self.interfaces);
+                    matches!(strip_ownership_ref(&self_hir), HirType::Named(n)
+                        if crate::hir::lower::strip_generic_name(n) == recv_base)
+                }
+                None => false,
+            }
+        })
+    }
+
     /// `explicit`：显式泛型实参（优先于形参推导）
     pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId> {
         // Find matching generic function — prefer one where self's base type matches

@@ -204,6 +204,20 @@ s = "hello";              // String
 p = Point { x = 1, y = 2 };
 ```
 
+### 常量（const）
+
+```ayanami
+const MAX_SIZE = 16
+const MAGIC = 0x12345678
+const MASK = (1 << 8) - 1
+const PI: float = 3.14159
+```
+
+- 顶层声明；`pub` 可选、类型标注可选、行尾 `;` 可选。
+- 编译期求值并内联（不占运行时存储）：支持字面量（含 0x/后缀）、一元/二元运算、引用此前 const。
+- 可用于数组大小：`buf = [int; MAX_SIZE]`；局部变量可遮蔽 const。
+- 设计（含待做的 static / const fn）见 `docs/const-globals.md`。
+
 ### 控制流
 
 ```
@@ -311,6 +325,8 @@ extern "C" fn c_helper(int x) -> int;               // 空体 = 导入 C 符号
 
 - **默认所有权**：非 Copy 值在赋值/传参时移动（use-after-move 会报错）；Copy 类型为
   `int` / `float` / `char` / `bool`（及函数指针）。
+- 移动分析对路径敏感：`if c { return x }` 之后再使用 `x` 合法（该分支不达后续代码）；
+  分支落空路径上的移动仍会报 use-after-move（`if c { y = x }` 后使用 `x` 报错）。
 - **拥有堆数组**：`[T]` / `[T; n]` 为拥有堆缓冲，移动语义，离开作用域递归释放（借用写 `ref [T]`）。
 - **`ref T` / `ref mut T`**：借用，不拥有；调用时对同类型左值自动借用。引用可存入局部变量，借用在其最后一次使用后失效（NLL）；可作为返回值（生命周期省略：恰好一个引用参数时，返回引用视为来自该参数）；仍不可存入字段/数组。
 - 引用的**自动解引用**：值上下文（运算、比较、传值形参、返回）中 `ref T` 自动读出 `T`；`ref mut T` 目标赋值（`i = v`）穿透引用写回被借用变量；写入 `ref T`（不可变）报错。

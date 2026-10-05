@@ -30,8 +30,9 @@ impl crate::hir::lower::Ctx {
         }
         if count > 2 {
             let path = crate::hir::lower::source_path();
-            out.push(crate::hir::SConst {
-                val: crate::hir::HirLiteral::String(path),
+            // #117：合成位置串不计用户可见 alloc（效应推断跳过）；运行期仍为 String 字面量
+            out.push(crate::hir::SFileArg {
+                path,
                 ty: HirType::Named(Symbol::intern("String")),
             }.into());
         }

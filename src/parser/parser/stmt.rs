@@ -50,6 +50,7 @@ impl Parser {
         let tok = self.peek().ok_or_else(|| self.error("expected statement"))?.clone();
         // A2f：语句级标注（#[cfg]/#[invariant]）包装非声明语句
         let stmt = match tok.kind {
+            TokenKind::Keyword(Keyword::Const) => return self.parse_const_decl(vis, attrs),
             TokenKind::Keyword(Keyword::Fn) => return self.parse_fn_decl(vis, is_inline, extern_c, attrs),
             TokenKind::Keyword(Keyword::Struct) => return self.parse_struct_def(vis, attrs),
             TokenKind::Keyword(Keyword::Enum) => return self.parse_enum_def(vis, attrs),

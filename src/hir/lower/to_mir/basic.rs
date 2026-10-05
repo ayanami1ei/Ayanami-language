@@ -40,6 +40,21 @@ impl HirNode for SConst {
     }
 }
 
+/// #117：编译器合成的 track_caller 文件名字符串参数。
+/// 运行时与 `SConst(String)` 一致（MIR 字面量），但不计为用户可见的 `alloc` 效应。
+impl HirNode for SFileArg {
+    fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn lower_to_mir(&self, _moved: &HashSet<VarId>) -> MirNodeBox {
+        SMirLiteral { val: HirLiteral::String(self.path.clone()), ty: self.ty.clone() }.into()
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}FileArg(\"{}\")", "", self.path, width = level * 2)
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode)) {
+    }
+}
+
 impl HirNode for SBin {
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
