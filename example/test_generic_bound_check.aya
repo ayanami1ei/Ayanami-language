@@ -18,6 +18,11 @@ impl[T: Show] C[T] {
     pub fn called(ref self) -> int {
         return self.v.show()
     }
+
+    // C3a：T 返回 T（一致性正例）
+    fn get(ref self) -> T {
+        return self.v
+    }
 }
 
 impl int {
@@ -39,5 +44,6 @@ fn main() -> int {
     if c.called() != 7 { return 1 }
     d = D[int] { v = 3 }
     if !d.same() { return 2 }
+    if c.get().show() != 7 { return 3 }
     return 0
 }

@@ -1,0 +1,9 @@
+struct C[T] { T v }
+
+impl[T] C[T] {
+    fn f(ref self) -> int {
+        return self.v
+    }
+}
+
+fn main() -> int { return 0 }

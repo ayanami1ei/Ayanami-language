@@ -7,12 +7,14 @@
 //! `ns.fn(...)` / `Enum::Variant(...)` 等点号形式跳过（命名空间/枚举成员另有解析路径）。
 
 use super::*;
-use super::generic_types::GType;
+use super::generic_types::{GType, ast_is_concrete_primitive, hir_is_concrete_primitive};
 
 /// 检查上下文：当前泛型参数与约束、已知名（泛型参数+局部名）、变量浅层类型。
 struct CheckCtx {
     /// 当前泛型参数与约束（impl + 方法合并）
     gp: Vec<(Symbol, Option<Symbol>)>,
+    /// 当前函数的声明返回类型（C3a：T 流入具体基元返回值）
+    ret_ty: Type,
     /// 泛型参数 + 局部名（`f(x)` 中 `f` 可能是 FnPtr 局部变量）
     known: Vec<Symbol>,
     /// 变量 → 浅层类型
@@ -23,9 +25,10 @@ impl crate::hir::lower::Ctx {
     /// 对全部泛型函数/泛型 impl 方法体做未定义函数名与 T 上方法约束检查。
     pub(crate) fn check_generic_bodies(&self) -> Result<()> {
         for (_, gp, stmt) in &self.generic_fns {
-            if let Stmt::FnDecl { params, body, .. } = stmt {
+            if let Stmt::FnDecl { params, return_type, body, .. } = stmt {
                 let mut cx = CheckCtx {
                     gp: gp.clone(),
+                    ret_ty: return_type.clone(),
                     known: gp.iter().map(|(n, _)| *n).collect(),
                     env: HashMap::new(),
                 };
@@ -68,8 +71,21 @@ impl crate::hir::lower::Ctx {
                 self.check_expr_names(index, cx)?;
                 self.check_expr_names(value, cx)
             }
-            Stmt::Return { value, .. } => {
-                if let Some(v) = value { self.check_expr_names(v, cx)?; }
+            Stmt::Return { value, span } => {
+                if let Some(v) = value {
+                    self.check_expr_names(v, cx)?;
+                    // C3a：泛型参数 T 流入具体基元返回值
+                    if let GType::Param(p) = self.infer_gtype(v, &cx.gp, &cx.env) {
+                        if ast_is_concrete_primitive(&cx.ret_ty) {
+                            return Err(Error::Hir(format!(
+                                "returning generic parameter `{}` where `{}` is expected (at {}:{})",
+                                p.as_str(),
+                                type_to_string_generic(&cx.ret_ty, &self.interfaces),
+                                span.start_line, span.start_col
+                            )));
+                        }
+                    }
+                }
                 Ok(())
             }
             Stmt::If { cond, then_block, elifs, else_block, .. } => {
@@ -121,6 +137,32 @@ impl crate::hir::lower::Ctx {
                         "undefined function `{}` (at {}:{})",
                         name.as_str(), span.start_line, span.start_col
                     )));
+                }
+                // C3a：单候选自由函数实参——T 流入具体基元形参
+                if !cx.env.contains_key(name) {
+                    if let Some(ids) = self.fn_map.get(name) {
+                        let mut cands = ids.iter()
+                            .map(|id| &self.fns[id.0])
+                            .filter(|s| s.params.len().saturating_sub(s.hidden) == args.len());
+                        if let Some(sig) = cands.next() {
+                            if cands.next().is_none() {
+                                for (i, a) in args.iter().enumerate() {
+                                    if let GType::Param(p) = self.infer_gtype(a, &cx.gp, &cx.env) {
+                                        if let Some((_, pt)) = sig.params.get(i) {
+                                            if hir_is_concrete_primitive(pt) {
+                                                let sp = a.span();
+                                                return Err(Error::Hir(format!(
+                                                    "passing generic parameter `{}` where `{}` is expected in call to `{}` (at {}:{})",
+                                                    p.as_str(), hir_type_display(pt), name.as_str(),
+                                                    sp.start_line, sp.start_col
+                                                )));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 for a in args { self.check_expr_names(a, cx)?; }
                 Ok(())

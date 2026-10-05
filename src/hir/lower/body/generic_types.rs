@@ -15,6 +15,23 @@ pub(crate) enum GType {
     Other,
 }
 
+/// C3a：AST 类型是否为具体基元（int/float/char/bool/定宽整数/f32）。
+pub(super) fn ast_is_concrete_primitive(ty: &Type) -> bool {
+    match ty {
+        Type::Int(_) | Type::Float(_) | Type::Char(_) | Type::Bool(_) => true,
+        Type::Named(n, _) => fixed_width_type(&n.as_str()).is_some(),
+        _ => false,
+    }
+}
+
+/// C3a：HIR 类型是否为具体基元。
+pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool {
+    matches!(
+        ty,
+        HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. }
+    )
+}
+
 impl crate::hir::lower::Ctx {
     /// AST 类型 → 浅层 `GType`。
     pub(crate) fn ast_gtype(&self, ty: &Type, gp: &[(Symbol, Option<Symbol>)]) -> GType {

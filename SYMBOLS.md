@@ -446,11 +446,11 @@ src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &Bi
 src/hir/lower/body/expr_ops1.rs:160: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:205: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/generic_check.rs:13: struct CheckCtx
-src/hir/lower/body/generic_check.rs:22: impl crate::hir::lower::Ctx
-src/hir/lower/body/generic_check.rs:24: pub(crate) fn check_generic_bodies(&self) -> Result<()>
-src/hir/lower/body/generic_check.rs:44: fn check_block_names(&self, block: &Block, cx: &mut CheckCtx) -> Result<()>
-src/hir/lower/body/generic_check.rs:54: fn check_stmt_names(&self, stmt: &Stmt, cx: &mut CheckCtx) -> Result<()>
-src/hir/lower/body/generic_check.rs:112: fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()>
+src/hir/lower/body/generic_check.rs:24: impl crate::hir::lower::Ctx
+src/hir/lower/body/generic_check.rs:26: pub(crate) fn check_generic_bodies(&self) -> Result<()>
+src/hir/lower/body/generic_check.rs:47: fn check_block_names(&self, block: &Block, cx: &mut CheckCtx) -> Result<()>
+src/hir/lower/body/generic_check.rs:57: fn check_stmt_names(&self, stmt: &Stmt, cx: &mut CheckCtx) -> Result<()>
+src/hir/lower/body/generic_check.rs:128: fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()>
 src/hir/lower/body/generic_locals.rs:5: pub(super) fn collect_local_names_block(block: &Block, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_locals.rs:14: pub(super) fn collect_local_names_stmt(stmt: &Stmt, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_locals.rs:65: pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>)
@@ -459,11 +459,13 @@ src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_cal
 src/hir/lower/body/generic_specialize.rs:12: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
 src/hir/lower/body/generic_specialize.rs:34: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/generic_types.rs:10: pub(crate) enum GType
-src/hir/lower/body/generic_types.rs:18: impl crate::hir::lower::Ctx
-src/hir/lower/body/generic_types.rs:20: pub(crate) fn ast_gtype(&self, ty: &Type, gp: &[(Symbol, Option<Symbol>)]) -> GType
-src/hir/lower/body/generic_types.rs:40: pub(crate) fn infer_gtype(
-src/hir/lower/body/generic_types.rs:84: pub(crate) fn check_param_operator(
-src/hir/lower/body/generic_types.rs:123: pub(crate) fn check_param_method(
+src/hir/lower/body/generic_types.rs:19: pub(super) fn ast_is_concrete_primitive(ty: &Type) -> bool
+src/hir/lower/body/generic_types.rs:28: pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool
+src/hir/lower/body/generic_types.rs:35: impl crate::hir::lower::Ctx
+src/hir/lower/body/generic_types.rs:37: pub(crate) fn ast_gtype(&self, ty: &Type, gp: &[(Symbol, Option<Symbol>)]) -> GType
+src/hir/lower/body/generic_types.rs:57: pub(crate) fn infer_gtype(
+src/hir/lower/body/generic_types.rs:101: pub(crate) fn check_param_operator(
+src/hir/lower/body/generic_types.rs:140: pub(crate) fn check_param_method(
 src/hir/lower/body/if_expr.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/if_expr.rs:6: pub(crate) fn lower_if_expr(
 src/hir/lower/body/iface_match.rs:3: impl crate::hir::lower::Ctx
@@ -2096,13 +2098,14 @@ example/test_generic_bound_check.aya:10: struct C[T] { T v }
 example/test_generic_bound_check.aya:12: impl[T: Show] C[T]
 example/test_generic_bound_check.aya:14: fn never_called(ref self) -> int
 example/test_generic_bound_check.aya:18: pub fn called(ref self) -> int
-example/test_generic_bound_check.aya:23: impl int
-example/test_generic_bound_check.aya:24: fn show(ref self) -> int { return self }
-example/test_generic_bound_check.aya:25: fn eq(ref self, int other) -> bool { return self <= other && self >= other }
-example/test_generic_bound_check.aya:28: struct D[T] { T v }
-example/test_generic_bound_check.aya:30: impl[T: Eq] D[T]
-example/test_generic_bound_check.aya:32: fn same(ref self) -> bool
-example/test_generic_bound_check.aya:37: fn main() -> int
+example/test_generic_bound_check.aya:23: fn get(ref self) -> T
+example/test_generic_bound_check.aya:28: impl int
+example/test_generic_bound_check.aya:29: fn show(ref self) -> int { return self }
+example/test_generic_bound_check.aya:30: fn eq(ref self, int other) -> bool { return self <= other && self >= other }
+example/test_generic_bound_check.aya:33: struct D[T] { T v }
+example/test_generic_bound_check.aya:35: impl[T: Eq] D[T]
+example/test_generic_bound_check.aya:37: fn same(ref self) -> bool
+example/test_generic_bound_check.aya:42: fn main() -> int
 example/test_generic_constraint.aya:1: pub interface Into[T]
 example/test_generic_constraint.aya:2: fn into(self) -> T;
 example/test_generic_constraint.aya:5: struct F { float v }

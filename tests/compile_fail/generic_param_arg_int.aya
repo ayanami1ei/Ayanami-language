@@ -1,0 +1,11 @@
+fn takes_int(int x) -> int { return x }
+
+struct C[T] { T v }
+
+impl[T] C[T] {
+    fn f(ref self) -> int {
+        return takes_int(self.v)
+    }
+}
+
+fn main() -> int { return 0 }
