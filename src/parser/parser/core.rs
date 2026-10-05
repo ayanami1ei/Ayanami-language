@@ -215,3 +215,23 @@ impl Parser {
         Ok(AttrArg::Expr(Box::new(self.parse_expr()?)))
     }
 }
+
+impl Parser {
+    /// 从 `start`（应为 `[`）起找匹配的 `]` 下标（考虑嵌套），供泛型字面量前瞻。
+    pub(super) fn matching_bracket(&self, start: usize) -> Option<usize> {
+        let mut depth = 0usize;
+        for (i, t) in self.tokens.iter().enumerate().skip(start) {
+            match &t.kind {
+                TokenKind::Delimiter(Delimiter::LBracket) => depth += 1,
+                TokenKind::Delimiter(Delimiter::RBracket) => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        return Some(i);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+}

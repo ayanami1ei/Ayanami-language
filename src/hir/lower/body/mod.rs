@@ -12,6 +12,7 @@ mod collect_ns;
 mod vtables;
 mod iface_match;
 mod overload_resolve;
+mod generic_check;
 mod generic_specialize;
 mod lower_items;
 mod stmt_lower;
