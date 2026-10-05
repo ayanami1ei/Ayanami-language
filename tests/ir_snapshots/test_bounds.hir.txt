@@ -7,14 +7,14 @@ HIR Program
         Local(v0 : Named(ArrayList<int>))
 │ │ │   value:
         Move(ty: Named(ArrayList<int>))
-          Call(fn86, ty: Named(ArrayList<int>))
+          Call(fn92, ty: Named(ArrayList<int>))
 │ │ │ Expr
-        Call(fn87, ty: Void)
+        Call(fn93, ty: Void)
           Ref(mut ty: ref mut Named(ArrayList<int>))
             Local(v0 : Named(ArrayList<int>))
           Literal(Int(1))
 │ │ │ Return
-        Call(fn91, ty: Int)
+        Call(fn97, ty: Int)
           Ref(ty: ref Named(ArrayList<int>))
             Local(v0 : Named(ArrayList<int>))
           Literal(Int(5))
@@ -80,7 +80,7 @@ HIR Program
             Move(ty: unique [Int])
               ArraySized { elem_ty: Int, ty: unique [Int] }
                 count:
-                Call(fn90, ty: u64)
+                Call(fn96, ty: u64)
                   FieldAccess capability ty=u64
                     Local(v0 : ref mut Named(ArrayList<int>))
                   Literal(Int(2))
@@ -137,7 +137,7 @@ HIR Program
 │ │ │ │ │   object:
             Local(v0 : ref mut Named(ArrayList<int>))
 │ │ │ │ │   value:
-            Call(fn90, ty: u64)
+            Call(fn96, ty: u64)
               FieldAccess capability ty=u64
                 Local(v0 : ref mut Named(ArrayList<int>))
               Literal(Int(2))
@@ -154,7 +154,7 @@ HIR Program
 │ │ │   cond:
         Binary { op: Ge, ty: u64 }
           lhs:
-          Call(fn88, ty: u64)
+          Call(fn94, ty: u64)
             FieldAccess len ty=u64
               Local(v0 : ref mut Named(ArrayList<int>))
             Literal(Int(1))
@@ -167,7 +167,7 @@ HIR Program
 │ │ │   then:
 │ │ │ │ Block {
 │ │ │ │ │ Expr
-            Call(fn89, ty: Void)
+            Call(fn95, ty: Void)
               Local(v0 : ref mut Named(ArrayList<int>))
 │ │ │ │ }
 │ │ │ IndexAssign
@@ -184,7 +184,7 @@ HIR Program
 │ │ │   object:
         Local(v0 : ref mut Named(ArrayList<int>))
 │ │ │   value:
-        Call(fn88, ty: u64)
+        Call(fn94, ty: u64)
           FieldAccess len ty=u64
             Local(v0 : ref mut Named(ArrayList<int>))
           Literal(Int(1))

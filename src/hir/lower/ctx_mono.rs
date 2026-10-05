@@ -131,4 +131,18 @@ impl crate::hir::lower::Ctx {
         Ok(st.into())
     }
 
+    /// 更新变量的类型（用于泛型推导后更新变量类型）
+    pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType) {
+        if let Some(local) = self.locals.get_mut(var_id.0) {
+            local.ty = new_ty.clone();
+        }
+        for scope in self.scopes.iter_mut() {
+            for (_, (id, ty, _mutable)) in scope.iter_mut() {
+                if *id == var_id {
+                    *ty = new_ty;
+                    return;
+                }
+            }
+        }
+    }
 }

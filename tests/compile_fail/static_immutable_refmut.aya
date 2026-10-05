@@ -1,0 +1,6 @@
+static MAX = 10
+
+fn main() -> int {
+    r = ref mut MAX
+    return 0
+}

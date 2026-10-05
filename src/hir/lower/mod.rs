@@ -130,5 +130,7 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
     // 追加 lambda 表达式产生的匿名函数
     for f in ctx.lambda_fns.drain(..) { items.push(HirItem::Fn(f)); }
 
-    Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), generic_struct_params: ctx.generic_struct_params.clone(), imported_fns })
+    let mut statics: Vec<crate::hir::HirStatic> = ctx.statics.values().cloned().collect();
+    statics.sort_by(|a, b| a.name.as_str().cmp(&b.name.as_str()));
+    Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), generic_struct_params: ctx.generic_struct_params.clone(), imported_fns, statics })
 }

@@ -12,9 +12,27 @@ impl crate::hir::lower::Ctx {
         let (mut hir_ty, mut lit) = self.eval_const_expr(value)?;
         if let Some(ann) = ty {
             let want = ast_type_to_hir(ann, &self.interfaces);
-            coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
+            super::const_coerce::coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
         }
         self.consts.insert(name, (hir_ty, lit));
+        Ok(())
+    }
+
+    /// M6.2：收集 `static` 定义（常量初始化；类型推断/标注同 const）
+    pub(crate) fn collect_static_decl(
+        &mut self,
+        name: Symbol,
+        is_mut: bool,
+        ty: Option<&Type>,
+        value: &Expr,
+        span: &Span,
+    ) -> Result<()> {
+        let (mut hir_ty, mut lit) = self.eval_const_expr(value)?;
+        if let Some(ann) = ty {
+            let want = ast_type_to_hir(ann, &self.interfaces);
+            super::const_coerce::coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
+        }
+        self.statics.insert(name, crate::hir::HirStatic { name, ty: hir_ty, value: lit, is_mut });
         Ok(())
     }
 
@@ -52,12 +70,12 @@ impl crate::hir::lower::Ctx {
                 let lit = match lit {
                     Literal::Int(i, _) => {
                         let mut out = HirLiteral::Int(*i);
-                        coerce_literal(&mut HirType::Int, &mut out, &target_ty, span)?;
+                        super::const_coerce::coerce_literal(&mut HirType::Int, &mut out, &target_ty, span)?;
                         out
                     }
                     Literal::Float(f, _) => {
                         let mut out = HirLiteral::Float(*f);
-                        coerce_literal(&mut HirType::Float, &mut out, &target_ty, span)?;
+                        super::const_coerce::coerce_literal(&mut HirType::Float, &mut out, &target_ty, span)?;
                         out
                     }
                     Literal::Char(c, _) => HirLiteral::Char(*c),
@@ -231,55 +249,4 @@ impl crate::hir::lower::Ctx {
             }
         }
     }
-}
-
-/// 常量类型适配：按标注类型转换/检查字面量（含 IntN 范围检查）
-fn coerce_literal(lit_ty: &mut HirType, lit: &mut HirLiteral, want: &HirType, span: &Span) -> Result<()> {
-    match (want, &*lit_ty, &*lit) {
-        (HirType::Int, HirType::Int, HirLiteral::Int(_)) => {}
-        (HirType::Float, HirType::Int, HirLiteral::Int(v)) => {
-            *lit = HirLiteral::Float(*v as f64);
-            *lit_ty = HirType::Float;
-        }
-        (HirType::Float, HirType::Float, HirLiteral::Float(_)) => {}
-        (HirType::F32, HirType::Int, HirLiteral::Int(v)) => {
-            *lit = HirLiteral::Float(*v as f64);
-            *lit_ty = HirType::F32;
-        }
-        (HirType::F32, HirType::Float, HirLiteral::Float(_)) => {
-            *lit_ty = HirType::F32;
-        }
-        (HirType::IntN { bits, signed }, HirType::Int, HirLiteral::Int(v)) => {
-            check_intn_range(*v, *bits, *signed, want, span)?;
-            *lit_ty = want.clone();
-        }
-        (HirType::Char, HirType::Char, HirLiteral::Char(_)) => {}
-        (HirType::Bool, HirType::Bool, HirLiteral::Bool(_)) => {}
-        _ => {
-            return Err(Error::Hir(format!(
-                "const type mismatch: expected {}, found {} (at {}:{})",
-                hir_type_display(want), hir_type_display(lit_ty), span.start_line, span.start_col
-            )))
-        }
-    }
-    Ok(())
-}
-
-/// 定宽整数范围检查（字面量以 i64 存储）
-fn check_intn_range(v: i64, bits: u8, signed: bool, want: &HirType, span: &Span) -> Result<()> {
-    let ok = if signed {
-        let min = -(1i128 << (bits - 1));
-        let max = (1i128 << (bits - 1)) - 1;
-        (v as i128) >= min && (v as i128) <= max
-    } else {
-        let max = if bits >= 64 { u64::MAX as u128 } else { (1u128 << bits) - 1 };
-        v >= 0 && (v as u128) <= max
-    };
-    if !ok {
-        return Err(Error::Hir(format!(
-            "literal out of range for `{}` (at {}:{})",
-            hir_type_display(want), span.start_line, span.start_col
-        )));
-    }
-    Ok(())
 }

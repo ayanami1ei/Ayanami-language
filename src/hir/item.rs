@@ -105,6 +105,15 @@ pub struct ImportedFnSig {
     pub inferred: crate::hir::effects::EffectSet,
 }
 
+/// M6.2：全局变量（常量初始化，可寻址）
+#[derive(Debug, Clone)]
+pub struct HirStatic {
+    pub name: Symbol,
+    pub ty: HirType,
+    pub value: HirLiteral,
+    pub is_mut: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirProgram {
     pub items: Vec<HirItem>,
@@ -112,4 +121,6 @@ pub struct HirProgram {
     pub struct_defs: HashMap<Symbol, Vec<HirStructField>>,
     pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
     pub imported_fns: Vec<ImportedFnSig>,
+    /// M6.2：顶层 static 列表（按名排序，发射为 LLVM global）
+    pub statics: Vec<HirStatic>,
 }

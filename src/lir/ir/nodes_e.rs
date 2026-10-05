@@ -178,6 +178,23 @@ impl LirNode for SLirFieldStorePtr {
     }
 }
 
+impl LirNode for SLirGlobalAddr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "GlobalAddr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, _ctx: &mut LirEmitCtx) -> Vec<String> {
+        vec![format!("%t{} = getelementptr i8, ptr @{}, i64 0", self.dest, self.name.as_str())]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = global_addr @{}", self.dest, self.name.as_str())
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(32);
+        put_u64(buf, self.dest);
+        put_str(buf, &self.name.as_str());
+    }
+}
+
 impl LirNode for SLirFieldAddr {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "FieldAddr" }

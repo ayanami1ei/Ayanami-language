@@ -13,7 +13,7 @@ MIR Program
         target:
         Local(v0 : Int)
         value:
-        Call(fn85, ty: Int)
+        Call(fn91, ty: Int)
           Literal(Int(3))
           Literal(Int(3))
           Literal(Int(1))
@@ -40,14 +40,14 @@ MIR Program
         target:
         Local(v1 : Int)
         value:
-        Call(fn85, ty: Int)
-          Call(fn85, ty: Int)
+        Call(fn91, ty: Int)
+          Call(fn91, ty: Int)
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(4))
             Literal(String("example/macro_lib.aya"))
-          Call(fn85, ty: Int)
+          Call(fn91, ty: Int)
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(1))

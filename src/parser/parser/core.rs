@@ -63,7 +63,7 @@ impl Parser {
                 | Keyword::While | Keyword::Break | Keyword::Continue
                 | Keyword::Interface | Keyword::Struct | Keyword::Impl | Keyword::Enum
                 | Keyword::Import | Keyword::Namespace | Keyword::Pub | Keyword::Inline
-                | Keyword::Extern | Keyword::Mut | Keyword::Asm | Keyword::Const)
+                | Keyword::Extern | Keyword::Mut | Keyword::Asm | Keyword::Const | Keyword::Static)
         )
     }
 

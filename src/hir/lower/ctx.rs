@@ -43,6 +43,8 @@ pub(crate) struct Ctx {
     pub ovf_helpers: HashMap<Symbol, FnId>,
     /// M6.1：编译期常量（名 → (类型, 值)），使用点内联为 SConst
     pub consts: HashMap<Symbol, (HirType, HirLiteral)>,
+    /// M6.2：全局变量（名 → 定义），可寻址
+    pub statics: HashMap<Symbol, crate::hir::HirStatic>,
     /// Lambda 计数器（生成唯一名称）
     pub lambda_counter: u64,
     /// Lambda 表达式降级产生的匿名函数
@@ -98,6 +100,7 @@ impl Ctx {
             synth_externs: Vec::new(),
             ovf_helpers: HashMap::new(),
             consts: HashMap::new(),
+            statics: HashMap::new(),
             lambda_counter: 0,
             lambda_fns: Vec::new(),
             current_fn: FnId(0),
@@ -257,21 +260,6 @@ impl Ctx {
         self.locals.push(HirLocal { name, ty: inferred_ty.clone(), mutable: false });
         self.bind_var(name, id, inferred_ty.clone(), false);
         (id, inferred_ty, false)
-    }
-
-    /// 更新变量的类型（用于泛型推导后更新变量类型）
-    pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType) {
-        if let Some(local) = self.locals.get_mut(var_id.0) {
-            local.ty = new_ty.clone();
-        }
-        for scope in self.scopes.iter_mut() {
-            for (_, (id, ty, _mutable)) in scope.iter_mut() {
-                if *id == var_id {
-                    *ty = new_ty;
-                    return;
-                }
-            }
-        }
     }
 
     /// Check if a type is an enum (has _tag field as first field)

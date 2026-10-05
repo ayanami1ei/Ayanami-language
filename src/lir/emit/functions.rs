@@ -84,6 +84,18 @@ impl<'a> Emitter<'a> {
     }
 
 
+    /// M6.2：发射全局变量 `@name = global <ty> <init>`
+    pub(super) fn emit_global_defs(&mut self) {
+        for g in &self.prog.globals {
+            let ty = self.llvm_type(&g.ty);
+            let lit = lit_to_string(&g.value, &g.ty);
+            self.wln_fmt(format_args!("@{} = global {} {}", g.name.as_str(), ty, lit));
+        }
+        if !self.prog.globals.is_empty() {
+            self.wln("");
+        }
+    }
+
     pub(super) fn emit_string_globals(&mut self) {
         for (i, s) in self.prog.strings.iter().enumerate() {
             let escaped = escape_llvm_string(s);

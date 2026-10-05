@@ -29,6 +29,7 @@ mod if_expr;
 mod ensure;
 mod literal;
 mod collect_enum;
+mod const_coerce;
 mod const_eval;
 mod collect_import;
 mod expr_access;

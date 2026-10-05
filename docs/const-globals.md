@@ -76,6 +76,20 @@ pub const VERSION = 3
 - 导入时注册到 `Ctx.consts`（限定名 `pkg.CONST` 或裸名）；
 - 命名空间内 const 同时支持（限定名 `ns.NAME`）。
 
+## M6.2 static / global（M6.2a 已实现，2026-10）
+
+已实现（标量、常量初始化）：
+
+- `static NAME [: T] = <常量表达式>`（不可变）与 `static mut NAME [: T] = ...`（可写）；
+- 读取 = 全局地址 + 载入；`ref NAME` / `ref mut NAME` = 全局地址；`f(NAME)` 传 `ref`/`ref mut` 形参自动借用全局；
+- `static mut` 赋值 → 穿透引用写入（`DerefAssign`）；
+- 不可变 static 赋值/取 `ref mut` 报错；初始化复用 M6.1 常量求值器（含 IntN 范围检查）；
+- 发射：`@name = global <ty> <init>`；引用全局的 ref 局部不参与局部 loan 跟踪（全局始终存活）；
+- 回归：`example/test_static.aya` + 两个负例。
+
+待做（M6.2b）：`pub static` 跨模块导出/导入（`.lcl` 符号 + `external global`）、
+复合初始化（数组/结构体）、`static mut` 的 unsafe 门控（M5）。
+
 ## M6.2 static / global（设计）
 
 ```ayanami
@@ -107,7 +121,7 @@ static mut STATE = 0        // 可变全局（写入需 unsafe，见 M5）
 |---|---|---|
 | M6.1 | const 基础（标量 / 数组大小 / 0x） | ✅ 已实现 |
 | M6.1b | `pub const` / 命名空间 const 导出导入 | 待做 |
-| M6.2 | static / global（可寻址、常量初始化、跨模块） | 待做 |
+| M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a 已实现（标量；见下） |
 | M6.3 | const fn / make_table()（解释执行 + 常量表） | 待做 |
 
 ## 风险

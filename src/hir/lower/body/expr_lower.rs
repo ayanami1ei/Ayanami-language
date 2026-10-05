@@ -26,6 +26,11 @@ impl crate::hir::lower::Ctx {
                 if let Some((ty, val)) = self.consts.get(name) {
                     return Ok(SConst { val: val.clone(), ty: ty.clone() }.into());
                 }
+                // M6.2：全局变量读取（SGlobal 取址 + SDeref 载入）
+                if let Some(st) = self.statics.get(name).cloned() {
+                    let addr: HirNodeBox = SGlobal { name: *name, ty: st.ty.clone(), mutable: st.is_mut }.into();
+                    return Ok(SDeref { expr: addr, ty: st.ty.clone() }.into());
+                }
                 if let Some(candidates) = self.fn_map.get(name) {
                     if let Some(&first) = candidates.first() {
                         let sig = &self.fns[first.0];
@@ -91,7 +96,21 @@ impl crate::hir::lower::Ctx {
             Expr::Null(_) => {
                 Ok(SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into())
             }
-            Expr::Ref(inner, mutable, _) => {
+            Expr::Ref(inner, mutable, span) => {
+                // M6.2：`ref NAME`（static）→ 全局地址本身
+                if let Expr::Ident(name, _) = inner.as_ref() {
+                    if let Some(st) = self.statics.get(name).cloned() {
+                        if *mutable && !st.is_mut {
+                            return Err(Error::Hir(format!(
+                                "cannot take a mutable reference to immutable static `{}` (at {}:{})",
+                                name.as_str(), span.start_line, span.start_col
+                            )));
+                        }
+                        let addr: HirNodeBox = SGlobal { name: *name, ty: st.ty.clone(), mutable: *mutable }.into();
+                        let ty = HirType::Ref(Box::new(st.ty.clone()), *mutable);
+                        return Ok(SRef { expr: addr, mutable: *mutable, ty }.into());
+                    }
+                }
                 let hir_inner = self.lower_expr(inner)?;
                 let inner_ty = hir_inner.expr_type();
                 let ty = HirType::Ref(Box::new(inner_ty), *mutable);

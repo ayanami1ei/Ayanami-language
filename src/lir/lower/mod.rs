@@ -51,6 +51,9 @@ use names::{collect_fn_names, mangle};
 use strings::collect_strings;
 
 pub fn lower_program(mir: &MirProgram) -> LirProgram {
+    let globals: Vec<LirGlobal> = mir.statics.iter()
+        .map(|s| LirGlobal { name: s.name, ty: s.ty.clone(), value: s.value.clone() })
+        .collect();
     let strings = collect_strings(mir);
     let str_map: HashMap<String, u64> = strings
         .iter()
@@ -125,6 +128,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
 
     LirProgram {
         strings,
+        globals,
         fn_names,
         functions,
         vtables,

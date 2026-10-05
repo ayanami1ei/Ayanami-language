@@ -102,6 +102,11 @@ impl<'a> Reader<'a> {
                 let fi = self.u32()? as usize; let st = self.ty()?;
                 Ok(SLirFieldAddr { dest: d, obj: o, field_index: fi, struct_ty: st }.into())
             }
+            32 => {
+                let d = self.u64()?;
+                let n = Symbol::intern(&self.str()?);
+                Ok(SLirGlobalAddr { dest: d, name: n }.into())
+            }
             16 => {
                 let d = self.u64()?;
                 let gt = self.u64()?;

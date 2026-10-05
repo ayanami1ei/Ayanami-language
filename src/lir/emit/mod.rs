@@ -78,6 +78,9 @@ impl<'a> Emitter<'a> {
         // Struct type definitions
         self.emit_struct_defs();
 
+        // M6.2：全局变量定义
+        self.emit_global_defs();
+
         // Vtable globals
         self.emit_vtable_globals();
 

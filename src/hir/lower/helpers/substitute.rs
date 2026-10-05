@@ -175,6 +175,15 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
                 span: *span,
             }
         }
+        Stmt::StaticDecl { attrs, vis, is_mut, name, ty, value, span } => Stmt::StaticDecl {
+            attrs: attrs.clone(),
+            vis: *vis,
+            is_mut: *is_mut,
+            name: *name,
+            ty: ty.as_ref().map(|t| substitute_type_in_type(t, subst)),
+            value: Box::new(substitute_type_in_expr(value, subst)),
+            span: *span,
+        },
         Stmt::ConstDecl { attrs, vis, name, ty, value, span } => Stmt::ConstDecl {
             attrs: attrs.clone(),
             vis: *vis,

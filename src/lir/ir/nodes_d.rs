@@ -75,9 +75,19 @@ pub struct VtableDesc {
     pub fn_ids: Vec<FnId>,
 }
 
+/// M6.2：全局变量定义（常量初始化，发射为 LLVM `global`）
+#[derive(Debug, Clone)]
+pub struct LirGlobal {
+    pub name: Symbol,
+    pub ty: HirType,
+    pub value: HirLiteral,
+}
+
 #[derive(Debug, Clone)]
 pub struct LirProgram {
     pub strings: Vec<String>,
+    /// M6.2：全局变量（按名排序，发射 @name = global）
+    pub globals: Vec<LirGlobal>,
     pub fn_names: HashMap<FnId, String>,
     pub functions: Vec<LirFn>,
     pub vtables: Vec<VtableDesc>,

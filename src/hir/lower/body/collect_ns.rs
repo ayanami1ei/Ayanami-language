@@ -53,6 +53,9 @@ impl crate::hir::lower::Ctx {
                 Stmt::ConstDecl { name, ty, value, span, .. } => {
                     self.collect_const_decl(*name, ty.as_ref(), value, span)?;
                 }
+                Stmt::StaticDecl { name, is_mut, ty, value, span, .. } => {
+                    self.collect_static_decl(*name, *is_mut, ty.as_ref(), value, span)?;
+                }
                 Stmt::InterfaceDef { name, methods, generic_params, .. } => {
                     let hir_methods: Vec<HirInterfaceMethod> = methods.iter().map(|m| {
                         HirInterfaceMethod {

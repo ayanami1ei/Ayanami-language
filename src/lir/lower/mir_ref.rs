@@ -19,6 +19,19 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
     if let Some(v) = expr.as_local() {
         return Some(LirValue::Var(v));
     }
+    // M6.2：全局地址（直接）与「解引用全局」（自动借用 `f(STATIC)`）都取全局指针
+    if let Some(name) = expr.as_global() {
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirGlobalAddr { dest, name }.into());
+        return Some(LirValue::Tmp(dest));
+    }
+    if let Some(inner) = expr.as_deref() {
+        if let Some(name) = inner.as_global() {
+            let dest = ctx.next_tmp();
+            ctx.emit(SLirGlobalAddr { dest, name }.into());
+            return Some(LirValue::Tmp(dest));
+        }
+    }
     if let Some((obj, field_index)) = expr.as_field_access() {
         let obj_ptr = place_ptr(obj, ctx)?;
         let dest = ctx.next_tmp();
@@ -29,6 +42,10 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
 }
 
 impl MirNode for SMirRef {
+    fn refs_global(&self) -> Option<Symbol> {
+        self.expr.as_global()
+            .or_else(|| self.expr.as_deref().and_then(|i| i.as_global()))
+    }
     fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
@@ -60,7 +77,23 @@ impl MirNode for SMirRef {
     }
 }
 
+impl MirNode for SMirGlobal {
+    fn as_global(&self) -> Option<Symbol> { Some(self.name) }
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirGlobalAddr { dest, name: self.name }.into());
+        LirValue::Tmp(dest)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Global({}, mut: {})", "", self.name.as_str(), self.mutable, width = level * 2)
+    }
+    fn expr_type(&self) -> HirType { HirType::Ref(Box::new(self.ty.clone()), self.mutable) }
+    fn for_each_child(&self, _f: &mut dyn FnMut(&dyn MirNode)) {}
+}
+
 impl MirNode for SMirDeref {
+    fn as_deref(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
     fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {

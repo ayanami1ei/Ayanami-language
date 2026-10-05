@@ -9,7 +9,27 @@ impl crate::hir::lower::Ctx {
                     span.start_line, span.start_col
                 )))
             }
+            Stmt::StaticDecl { span, .. } => {
+                Err(Error::Hir(format!(
+                    "static declarations are only allowed at top level (at {}:{})",
+                    span.start_line, span.start_col
+                )))
+            }
             Stmt::Assign { name, value, span, .. } => {
+                // M6.2：全局变量赋值（static mut）→ 穿透引用写入
+                if let Some(st) = self.statics.get(name).cloned() {
+                    if !st.is_mut {
+                        return Err(Error::Hir(format!(
+                            "cannot assign to immutable static `{}` (declare `static mut`) (at {}:{})",
+                            name.as_str(), span.start_line, span.start_col
+                        )));
+                    }
+                    let target: HirNodeBox = SGlobal { name: *name, ty: st.ty.clone(), mutable: true }.into();
+                    let hir_value = self.lower_expr(value)?;
+                    let hir_value = coerce_expr(hir_value, &st.ty, span)?;
+                    let hir_value = implicit_move(hir_value);
+                    return Ok(HirStmt::DerefAssign { target, value: hir_value, span: *span });
+                }
                 if let Some(stmt) = self.try_lower_ref_assign(name, value, span)? {
                     return Ok(stmt);
                 }

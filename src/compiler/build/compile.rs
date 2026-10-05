@@ -26,6 +26,7 @@ pub fn compile_file(
             lir_program: crate::lir::ir::LirProgram {
                 specialized_fns: Default::default(),
                 strings: Vec::new(),
+                globals: Vec::new(),
                 fn_names: std::collections::HashMap::new(),
                 functions: Vec::new(),
                 vtables: Vec::new(),
@@ -108,6 +109,7 @@ pub fn compile_file(
             lir_program: crate::lir::ir::LirProgram {
                 specialized_fns: Default::default(),
                 strings: Vec::new(),
+                globals: Vec::new(),
                 fn_names: std::collections::HashMap::new(),
                 functions: Vec::new(),
                 vtables: Vec::new(),

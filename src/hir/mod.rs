@@ -40,6 +40,8 @@ s_hir!(SCall { fn_id: FnId, args: Vec<HirNodeBox>, ty: HirType });
 s_hir!(SConst { val: HirLiteral, ty: HirType });
 // #117：编译器合成的 track_caller 文件名字符串参数（不计用户可见 alloc 效应）
 s_hir!(SFileArg { path: String, ty: HirType });
+// M6.2：全局变量地址（`ty` 为 pointee；expr_type = Ref(ty, mutable)）
+s_hir!(SGlobal { name: Symbol, ty: HirType, mutable: bool });
 s_hir!(SVar { var: VarId, ty: HirType });
 s_hir!(SMove { expr: HirNodeBox, ty: HirType });
 s_hir!(SClone { expr: HirNodeBox, ty: HirType });
