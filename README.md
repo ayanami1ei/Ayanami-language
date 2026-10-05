@@ -204,6 +204,20 @@ s = "hello";              // String
 p = Point { x = 1, y = 2 };
 ```
 
+### 常量（const）
+
+```ayanami
+const MAX_SIZE = 16
+const MAGIC = 0x12345678
+const MASK = (1 << 8) - 1
+const PI: float = 3.14159
+```
+
+- 顶层声明；`pub` 可选、类型标注可选、行尾 `;` 可选。
+- 编译期求值并内联（不占运行时存储）：支持字面量（含 0x/后缀）、一元/二元运算、引用此前 const。
+- 可用于数组大小：`buf = [int; MAX_SIZE]`；局部变量可遮蔽 const。
+- 设计（含待做的 static / const fn）见 `docs/const-globals.md`。
+
 ### 控制流
 
 ```

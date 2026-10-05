@@ -17,6 +17,7 @@ test_cfg.aya 0
 test_check.aya 0
 test_collection_any.aya 0
 test_comments.aya 42
+test_const.aya 0
 test_constfold.aya 0
 test_constprop.aya 0
 test_constructors.aya 0

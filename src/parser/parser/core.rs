@@ -73,6 +73,7 @@ impl Parser {
             || matches!(kind,
                 TokenKind::Keyword(Keyword::Match)
                 | TokenKind::Keyword(Keyword::If)
+                | TokenKind::Keyword(Keyword::Const)
                 | TokenKind::Keyword(Keyword::True | Keyword::False | Keyword::Null | Keyword::Self_)
                 | TokenKind::Identifier(_) | TokenKind::IntLiteral(_) | TokenKind::FloatLiteral(_)
                 | TokenKind::StringLiteral(_) | TokenKind::CharLiteral(_)

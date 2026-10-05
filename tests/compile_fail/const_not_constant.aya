@@ -1,0 +1,3 @@
+const BAD = x + 1
+
+fn main() -> int { return 0 }

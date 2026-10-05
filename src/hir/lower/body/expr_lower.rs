@@ -22,6 +22,10 @@ impl crate::hir::lower::Ctx {
                 if let Some((var_id, ty, _)) = self.lookup_var(name) {
                     return Ok(SVar { var: var_id, ty }.into());
                 }
+                // M6.1：编译期常量（局部变量优先，const 次之）
+                if let Some((ty, val)) = self.consts.get(name) {
+                    return Ok(SConst { val: val.clone(), ty: ty.clone() }.into());
+                }
                 if let Some(candidates) = self.fn_map.get(name) {
                     if let Some(&first) = candidates.first() {
                         let sig = &self.fns[first.0];
@@ -99,6 +103,13 @@ impl crate::hir::lower::Ctx {
                 // If count is a compile-time constant, use ArraySized type
                 let ty = if let Some(HirLiteral::Int(n)) = hir_count.as_const() {
                     HirType::Unique(Box::new(HirType::ArraySized(Box::new(elem_ty.clone()), *n as usize)))
+                } else if let Some(other) = hir_count.as_const() {
+                    // M6.1：非整数常量不能作数组大小（避免把浮点/字符常量发射成分配大小）
+                    let s = count.span();
+                    return Err(Error::Hir(format!(
+                        "array size must be an integer constant, found {:?} (at {}:{})",
+                        other, s.start_line, s.start_col
+                    )));
                 } else {
                     HirType::Unique(Box::new(HirType::Array(Box::new(elem_ty.clone()))))
                 };

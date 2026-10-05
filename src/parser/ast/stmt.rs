@@ -83,6 +83,15 @@ pub enum Stmt {
         body: Block,
         span: Span,
     },
+    /// M6.1：编译期常量 `const NAME [: T] = expr`
+    ConstDecl {
+        attrs: Vec<Attr>,
+        vis: Visibility,
+        name: Symbol,
+        ty: Option<Type>,
+        value: Box<Expr>,
+        span: Span,
+    },
     Assign {
         name: Symbol,
         is_mut: bool,
@@ -210,6 +219,7 @@ impl Stmt {
             | Stmt::EnumDef { span, .. }
             | Stmt::InterfaceDef { span, .. }
             | Stmt::ImplBlock { span, .. }
+            | Stmt::ConstDecl { span, .. }
             | Stmt::Import { span, .. }
             | Stmt::Attributed { span, .. }
             | Stmt::Break { span, .. }

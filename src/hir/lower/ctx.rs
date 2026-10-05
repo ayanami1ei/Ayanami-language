@@ -41,6 +41,8 @@ pub(crate) struct Ctx {
     pub synth_externs: Vec<HirFn>,
     /// M1.7：溢出助手去重（名称 → FnId）
     pub ovf_helpers: HashMap<Symbol, FnId>,
+    /// M6.1：编译期常量（名 → (类型, 值)），使用点内联为 SConst
+    pub consts: HashMap<Symbol, (HirType, HirLiteral)>,
     /// Lambda 计数器（生成唯一名称）
     pub lambda_counter: u64,
     /// Lambda 表达式降级产生的匿名函数
@@ -95,6 +97,7 @@ impl Ctx {
             specialized_fns: Vec::new(),
             synth_externs: Vec::new(),
             ovf_helpers: HashMap::new(),
+            consts: HashMap::new(),
             lambda_counter: 0,
             lambda_fns: Vec::new(),
             current_fn: FnId(0),

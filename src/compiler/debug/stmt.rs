@@ -162,6 +162,9 @@ pub(super) fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
         Stmt::Import { path, .. } => {
             writeln!(w, "{}Import {{ path: {} }}", p, path).unwrap();
         }
+        Stmt::ConstDecl { name, ty, value, .. } => {
+            writeln!(w, "{}ConstDecl {{ name: {}, ty: {:?}, value: {:?} }}", p, name, ty, value).unwrap();
+        }
         Stmt::Break { .. } => {
             writeln!(w, "{}Break", p).unwrap();
         }

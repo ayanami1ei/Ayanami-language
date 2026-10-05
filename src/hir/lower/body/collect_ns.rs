@@ -50,6 +50,9 @@ impl crate::hir::lower::Ctx {
                     };
                     self.collect_fns_with_ns(items, &nested)?;
                 }
+                Stmt::ConstDecl { name, ty, value, span, .. } => {
+                    self.collect_const_decl(*name, ty.as_ref(), value, span)?;
+                }
                 Stmt::InterfaceDef { name, methods, generic_params, .. } => {
                     let hir_methods: Vec<HirInterfaceMethod> = methods.iter().map(|m| {
                         HirInterfaceMethod {

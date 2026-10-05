@@ -221,6 +221,12 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             write_attrs(out, attrs, level);
             write_stmt(out, stmt, level);
         }
+        ConstDecl { attrs, vis, name, ty, value, .. } => {
+            write_attrs(out, attrs, level);
+            let i = indent(level);
+            let ann = ty.as_ref().map(|t| format!(": {}", write_type(t))).unwrap_or_default();
+            let _ = writeln!(out, "{}{}const {}{} = {};", i, vis_str(vis), name, ann, write_expr(value));
+        }
         Import { path, macros, .. } => {
             let i = indent(level);
             if macros.is_empty() {

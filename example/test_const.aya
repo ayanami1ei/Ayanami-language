@@ -1,0 +1,25 @@
+// M6.1：const 基础——标量、0x 字面量、位运算、引用其他 const、数组大小
+const MAX_SIZE = 16
+const MAGIC = 0x12345678
+const MASK = (1 << 8) - 1
+const BASE = MAGIC >> 16
+const PI: float = 3.14159
+const SMALL: u8 = 200
+const LIMIT = MAX_SIZE * 2
+
+fn main() -> int {
+    buf = [int; MAX_SIZE]
+    buf[0] = 1
+    buf[MAX_SIZE - 1] = 2
+    if buf[0] + buf[15] != 3 { return 1 }
+    if MAGIC != 305419896 { return 2 }
+    if MASK != 255 { return 3 }
+    if BASE != 0x1234 { return 4 }
+    if PI < 3.14 { return 5 }
+    if SMALL != 200 { return 6 }
+    if LIMIT != 32 { return 7 }
+    i = 0
+    while i < MAX_SIZE { i = i + 1 }
+    if i != 16 { return 8 }
+    return 0
+}
