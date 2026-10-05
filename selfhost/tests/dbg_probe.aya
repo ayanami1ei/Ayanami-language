@@ -1,0 +1,9 @@
+import "io";
+import "aya_parser";
+
+fn main() -> int {
+    p = Parser::new("fn main() -> int { return 0 }");
+    prog = p.parse_program();
+    println(prog);
+    return 0;
+}

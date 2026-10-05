@@ -7,6 +7,7 @@
 #   ./scripts/selfhost.sh test           # 运行 selfhost/tests/*_test.aya（退出码 0 = 通过）
 #   ./scripts/selfhost.sh kb "QUERY"     # 知识库检索（供本地模型提示词使用）
 #   ./scripts/selfhost.sh tokens [GLOB]   # 词法 golden：与 rust lexdump 对比 token 流
+#   ./scripts/selfhost.sh ast [GLOB]      # 语法 golden：与 rust `dump ast` 对比 AST 树
 #   ./scripts/selfhost.sh diff [GLOB]    # stage-0/stage-1 差分（stage-1 存在后生效）
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -83,8 +84,9 @@ cmd_tokens() {
         echo "== 构建 lexdump =="
         cargo build --release --manifest-path "$ROOT/tools/lexdump/Cargo.toml" >/dev/null 2>&1 || { echo "lexdump 构建失败"; exit 5; }
     fi
-    echo "== 构建 stage-0 lexer_dump =="
-    "$s0" build --release "$ROOT/selfhost/tests/lexer_dump.aya" >/dev/null 2>&1 || { echo "lexer_dump 构建失败"; exit 6; }
+    echo "== 构建 stage-0 lexer_dump（用 run 触发链接）=="
+    "$s0" run --release "$ROOT/selfhost/tests/lexer_dump.aya" >/dev/null 2>&1 || true
+    [[ -x "$ROOT/build/lexer_dump" ]] || { echo "lexer_dump 构建失败"; exit 6; }
     local fail=0 total=0
     shopt -s nullglob
     for f in $pattern; do
@@ -95,12 +97,37 @@ cmd_tokens() {
             echo "TOKENS OK $(basename "$f")"
         else
             echo "TOKENS DIFF $(basename "$f")"
-            diff /tmp/opencode/tok_rust.txt /tmp/opencode/tok_aya.txt | head -6
+            diff /tmp/opencode/tok_rust.txt /tmp/opencode/tok_aya.txt | head -6 || true
             fail=$((fail + 1))
         fi
     done
     shopt -u nullglob
     echo "tokens: $((total - fail))/$total 一致"
+    [[ $fail -eq 0 ]]
+}
+
+cmd_ast() {
+    local pattern="${1:-selfhost/tests/parse/*.aya}"
+    local s0; s0=$(stage0)
+    echo "== 构建 stage-0 ast_dump（用 run 触发链接）=="
+    "$s0" run --release "$ROOT/selfhost/tests/ast_dump.aya" >/dev/null 2>&1 || true
+    [[ -x "$ROOT/build/ast_dump" ]] || { echo "ast_dump 构建失败"; exit 6; }
+    local fail=0 total=0
+    shopt -s nullglob
+    for f in $pattern; do
+        total=$((total + 1))
+        "$s0" dump ast "$f" > /tmp/opencode/ast_rust.txt 2>/dev/null || true
+        PARSE_FILE="$f" "$ROOT/build/ast_dump" > /tmp/opencode/ast_aya.txt 2>/dev/null || true
+        if diff -q /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt >/dev/null; then
+            echo "AST OK $(basename "$f")"
+        else
+            echo "AST DIFF $(basename "$f")"
+            diff /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt | head -8 || true
+            fail=$((fail + 1))
+        fi
+    done
+    shopt -u nullglob
+    echo "ast: $((total - fail))/$total 一致"
     [[ $fail -eq 0 ]]
 }
 
@@ -131,6 +158,7 @@ case "${1:-}" in
     test) cmd_test ;;
     kb) shift; python3 "$ROOT/tools/kb/kb.py" search "$@" ;;
     tokens) shift; cmd_tokens "$@" ;;
+    ast) shift; cmd_ast "$@" ;;
     diff) shift; cmd_diff "$@" ;;
     *) sed -n '2,12p' "$0"; exit 1 ;;
 esac

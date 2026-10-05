@@ -1,0 +1,17 @@
+fn pick(int x) -> int {
+    if x > 0 {
+        return 1
+    } elif x < 0 {
+        return 2
+    } else {
+        return 0
+    }
+}
+
+fn loop(int n) -> int {
+    i = 0
+    while i < n {
+        i = i + 1
+    }
+    return i
+}

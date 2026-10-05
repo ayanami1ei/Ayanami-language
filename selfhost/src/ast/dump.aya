@@ -1,0 +1,484 @@
+import "string";
+import "aya_sb";
+import "aya_ast";
+
+// AST 文本 dump：与 rust 版 src/compiler/debug 输出逐字节一致
+// 注意：源文件里不能出现非 ASCII 字符串字面量（issue #122 未合并前会 llc 失败），
+// 树线字符 "│ " 用 UTF-8 字节拼出来。
+extern "C" fn __ayanami_int_to_char(int c) -> char;
+
+fn push_pad(ref mut StringBuf b, int level) {
+    i = 0;
+    while i < level {
+        b.push(__ayanami_int_to_char(226));
+        b.push(__ayanami_int_to_char(148));
+        b.push(__ayanami_int_to_char(130));
+        b.push(' ');
+        i = i + 1;
+    }
+}
+
+fn push_type(ref Ast ast, int ty, ref mut StringBuf b) {
+    if ty < 0 {
+        b.push_str("???");
+        return;
+    }
+    t = ast.tags[ty];
+    if t == tt(TT::Int._tag) { b.push_str("Int"); }
+    elif t == tt(TT::Float._tag) { b.push_str("Float"); }
+    elif t == tt(TT::Char._tag) { b.push_str("Char"); }
+    elif t == tt(TT::Bool._tag) { b.push_str("Bool"); }
+    elif t == tt(TT::Void._tag) { b.push_str("Void"); }
+    elif t == tt(TT::Self_._tag) { b.push_str("Self"); }
+    elif t == tt(TT::Default._tag) { b.push_str("???"); }
+    elif t == tt(TT::FnPtr._tag) { b.push_str("???"); }
+    elif t == tt(TT::Named._tag) {
+        b.push_str("Named(");
+        b.push_str(ast.texts[ty]);
+        b.push_str(")");
+    }
+    elif t == tt(TT::Array._tag) {
+        b.push_str("[");
+        push_type(ast, ast.aa[ty], b);
+        b.push_str("]");
+    }
+    elif t == tt(TT::Unique._tag) {
+        b.push_str("unique ");
+        push_type(ast, ast.aa[ty], b);
+    }
+    elif t == tt(TT::Generic._tag) {
+        b.push_str(ast.texts[ty]);
+        b.push_str("[");
+        g = ast.aa[ty];
+        first = 1;
+        while g >= 0 {
+            if first == 0 { b.push_str(","); }
+            push_type(ast, ast.tys[g], b);
+            first = 0;
+            g = ast.nexts[g];
+        }
+        b.push_str("]");
+    }
+    elif t == tt(TT::Ref._tag) {
+        if ast.bb[ty] == 1 { b.push_str("ref mut "); } else { b.push_str("ref "); }
+        push_type(ast, ast.aa[ty], b);
+    }
+    else {
+        b.push_str("???");
+    }
+}
+
+fn bin_op_name(int op) -> String {
+    if op == bo(BinOp::Add._tag) { return "Add"; }
+    if op == bo(BinOp::Sub._tag) { return "Sub"; }
+    if op == bo(BinOp::Mul._tag) { return "Mul"; }
+    if op == bo(BinOp::Div._tag) { return "Div"; }
+    if op == bo(BinOp::Mod._tag) { return "Mod"; }
+    if op == bo(BinOp::Eq._tag) { return "Eq"; }
+    if op == bo(BinOp::Neq._tag) { return "Neq"; }
+    if op == bo(BinOp::Lt._tag) { return "Lt"; }
+    if op == bo(BinOp::Gt._tag) { return "Gt"; }
+    if op == bo(BinOp::Le._tag) { return "Le"; }
+    if op == bo(BinOp::Ge._tag) { return "Ge"; }
+    if op == bo(BinOp::And._tag) { return "And"; }
+    if op == bo(BinOp::Or._tag) { return "Or"; }
+    if op == bo(BinOp::BitAnd._tag) { return "BitAnd"; }
+    if op == bo(BinOp::BitOr._tag) { return "BitOr"; }
+    if op == bo(BinOp::BitXor._tag) { return "BitXor"; }
+    if op == bo(BinOp::Shl._tag) { return "Shl"; }
+    if op == bo(BinOp::Shr._tag) { return "Shr"; }
+    return "?";
+}
+
+fn un_op_name(int op) -> String {
+    if op == uo(UnOp::Neg._tag) { return "Neg"; }
+    if op == uo(UnOp::Not._tag) { return "Not"; }
+    if op == uo(UnOp::BitNot._tag) { return "BitNot"; }
+    return "?";
+}
+
+fn push_literal(ref Ast ast, int id, ref mut StringBuf b) {
+    kind = ast.bb[id];
+    if kind == lk(LK::Int._tag) {
+        b.push_str("Int(");
+        b.push_str(ast.texts[id]);
+        b.push_str(")");
+    } elif kind == lk(LK::Float._tag) {
+        b.push_str("Float(");
+        b.push_str(ast.texts[id]);
+        b.push_str(")");
+    } elif kind == lk(LK::Char._tag) {
+        b.push_str("Char('");
+        b.push_str(ast.texts[id]);
+        b.push_str("')");
+    } elif kind == lk(LK::Str._tag) {
+        b.push_str("String(\"");
+        b.push_str(ast.texts[id]);
+        b.push_str("\")");
+    } else {
+        b.push_str("Bool(");
+        b.push_str(ast.texts[id]);
+        b.push_str(")");
+    }
+}
+
+pub fn dump_ast(ref Ast ast, int program) -> String {
+    b = StringBuf::new();
+    b.push_str("Program\n");
+    s = ast.aa[program];
+    while s >= 0 {
+        dump_stmt(ast, s, 1, b);
+        s = ast.nexts[s];
+    }
+    return b.to_string();
+}
+
+fn dump_block(ref Ast ast, int id, int level, ref mut StringBuf b) {
+    push_pad(b, level);
+    b.push_str("Block {\n");
+    s = ast.aa[id];
+    while s >= 0 {
+        dump_stmt(ast, s, level + 1, b);
+        s = ast.nexts[s];
+    }
+    push_pad(b, level);
+    b.push_str("}\n");
+}
+
+fn dump_stmt(ref Ast ast, int id, int level, ref mut StringBuf b) {
+    tag = ast.tags[id];
+    push_pad(b, level);
+    if tag == st(ST::FnDecl._tag) {
+        b.push_str("FnDecl { name: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(", return: ");
+        push_type(ast, ast.tys[id], b);
+        b.push_str(" }\n");
+        p = ast.aa[id];
+        while p >= 0 {
+            push_pad(b, level);
+            b.push_str("    ");
+            b.push_str(ast.texts[p]);
+            b.push_str(": ");
+            push_type(ast, ast.tys[p], b);
+            b.push_str("\n");
+            p = ast.nexts[p];
+        }
+        push_pad(b, level);
+        b.push_str("  body:\n");
+        dump_block(ast, ast.bb[id], level + 1, b);
+    } elif tag == st(ST::StructDef._tag) {
+        b.push_str("StructDef { name: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        f = ast.aa[id];
+        while f >= 0 {
+            push_pad(b, level);
+            b.push_str("  ");
+            b.push_str(ast.texts[f]);
+            b.push_str(": ");
+            push_type(ast, ast.tys[f], b);
+            b.push_str("\n");
+            f = ast.nexts[f];
+        }
+    } elif tag == st(ST::ImplBlock._tag) {
+        b.push_str("ImplBlock { name: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        m = ast.aa[id];
+        while m >= 0 {
+            dump_stmt(ast, m, level + 1, b);
+            m = ast.nexts[m];
+        }
+    } elif tag == st(ST::Namespace._tag) {
+        b.push_str("Namespace { name: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        m = ast.aa[id];
+        while m >= 0 {
+            dump_stmt(ast, m, level + 1, b);
+            m = ast.nexts[m];
+        }
+    } elif tag == st(ST::Import._tag) {
+        b.push_str("Import { path: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+    } elif tag == st(ST::InterfaceDef._tag) {
+        b.push_str("InterfaceDef { name: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        m = ast.aa[id];
+        while m >= 0 {
+            push_pad(b, level);
+            b.push_str("  fn ");
+            b.push_str(ast.texts[m]);
+            b.push_str("(");
+            p = ast.aa[m];
+            first = 1;
+            while p >= 0 {
+                if first == 0 { b.push_str(", "); }
+                b.push_str(ast.texts[p]);
+                b.push_str(": ");
+                push_type(ast, ast.tys[p], b);
+                first = 0;
+                p = ast.nexts[p];
+            }
+            b.push_str(") -> ");
+            push_type(ast, ast.tys[m], b);
+            b.push_str("\n");
+            m = ast.nexts[m];
+        }
+    } elif tag == st(ST::Assign._tag) {
+        b.push_str("Assign { name: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        push_pad(b, level);
+        b.push_str("  value:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == st(ST::FieldAssign._tag) {
+        b.push_str("FieldAssign { field: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        push_pad(b, level);
+        b.push_str("  object:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        push_pad(b, level);
+        b.push_str("  value:\n");
+        dump_expr(ast, ast.bb[id], level + 1, b);
+    } elif tag == st(ST::IndexAssign._tag) {
+        b.push_str("IndexAssign\n");
+        push_pad(b, level);
+        b.push_str("  object:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        push_pad(b, level);
+        b.push_str("  index:\n");
+        dump_expr(ast, ast.bb[id], level + 1, b);
+        push_pad(b, level);
+        b.push_str("  value:\n");
+        dump_expr(ast, ast.cc[id], level + 1, b);
+    } elif tag == st(ST::Return._tag) {
+        b.push_str("Return\n");
+        if ast.aa[id] >= 0 {
+            dump_expr(ast, ast.aa[id], level + 1, b);
+        }
+    } elif tag == st(ST::If._tag) {
+        b.push_str("If\n");
+        push_pad(b, level);
+        b.push_str("  cond:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        push_pad(b, level);
+        b.push_str("  then:\n");
+        dump_block(ast, ast.bb[id], level + 1, b);
+        e = ast.cc[id];
+        while e >= 0 {
+            push_pad(b, level);
+            b.push_str("  elif:\n");
+            dump_expr(ast, ast.aa[e], level + 1, b);
+            dump_block(ast, ast.bb[e], level + 1, b);
+            e = ast.nexts[e];
+        }
+        if ast.dd[id] >= 0 {
+            push_pad(b, level);
+            b.push_str("  else:\n");
+            dump_block(ast, ast.dd[id], level + 1, b);
+        }
+    } elif tag == st(ST::For._tag) {
+        b.push_str("For { iterator: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        dump_expr(ast, ast.bb[id], level + 1, b);
+        if ast.cc[id] >= 0 {
+            dump_expr(ast, ast.cc[id], level + 1, b);
+        }
+        dump_block(ast, ast.dd[id], level + 1, b);
+    } elif tag == st(ST::While._tag) {
+        b.push_str("While\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        dump_block(ast, ast.bb[id], level + 1, b);
+    } elif tag == st(ST::Match._tag) {
+        b.push_str("Match\n");
+    } elif tag == st(ST::ExprStmt._tag) {
+        b.push_str("ExprStmt\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == st(ST::Break._tag) {
+        b.push_str("Break\n");
+    } elif tag == st(ST::Continue._tag) {
+        b.push_str("Continue\n");
+    } elif tag == st(ST::Attributed._tag) {
+        b.push_str("Attributed (");
+        b.push_int(ast.bb[id]);
+        b.push_str(" attrs)\n");
+        dump_stmt(ast, ast.aa[id], level + 1, b);
+    } elif tag == st(ST::Block._tag) {
+        dump_block(ast, id, level, b);
+    } else {
+        b.push_str("UnknownStmt\n");
+    }
+}
+
+fn dump_expr(ref Ast ast, int id, int level, ref mut StringBuf b) {
+    if id < 0 { return; }
+    tag = ast.tags[id];
+    // 实参链节点：直接 dump 内层表达式（rust 版没有包装节点）
+    if tag == xt(XT::Arg._tag) {
+        dump_expr(ast, ast.aa[id], level, b);
+        return;
+    }
+    push_pad(b, level);
+    if tag == et(ET::Literal._tag) {
+        push_literal(ast, id, b);
+        b.push_str("\n");
+    } elif tag == et(ET::Suffixed._tag) {
+        push_literal(ast, ast.aa[id], b);
+        b.push_str(ast.texts[id]);
+        b.push_str("\n");
+    } elif tag == et(ET::Ident._tag) {
+        b.push_str("Ident(");
+        b.push_str(ast.texts[id]);
+        b.push_str(")\n");
+    } elif tag == et(ET::Binary._tag) {
+        b.push_str("Binary { op: ");
+        b.push_str(bin_op_name(ast.tys[id]));
+        b.push_str(" }\n");
+        push_pad(b, level);
+        b.push_str("  lhs:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        push_pad(b, level);
+        b.push_str("  rhs:\n");
+        dump_expr(ast, ast.bb[id], level + 1, b);
+    } elif tag == et(ET::Unary._tag) {
+        b.push_str("Unary { op: ");
+        b.push_str(un_op_name(ast.tys[id]));
+        b.push_str(" }\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == et(ET::Cast._tag) {
+        b.push_str("Cast(as ");
+        push_type(ast, ast.tys[id], b);
+        b.push_str(")\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == et(ET::FnCall._tag) {
+        b.push_str("FnCall { name: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        push_pad(b, level);
+        b.push_str("  args:\n");
+        a = ast.aa[id];
+        while a >= 0 {
+            dump_expr(ast, a, level + 1, b);
+            a = ast.nexts[a];
+        }
+    } elif tag == et(ET::Move._tag) {
+        b.push_str("Move\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == et(ET::Clone._tag) {
+        b.push_str("Clone\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == et(ET::ToUnique._tag) {
+        b.push_str("ToUnique\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == et(ET::MethodCall._tag) {
+        b.push_str("MethodCall { method: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        push_pad(b, level);
+        b.push_str("  object:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        a = ast.bb[id];
+        while a >= 0 {
+            dump_expr(ast, a, level + 1, b);
+            a = ast.nexts[a];
+        }
+    } elif tag == et(ET::FieldAccess._tag) {
+        b.push_str("FieldAccess { field: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        push_pad(b, level);
+        b.push_str("  object:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == et(ET::StructLiteral._tag) {
+        b.push_str("StructLiteral { type: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        f = ast.aa[id];
+        while f >= 0 {
+            push_pad(b, level);
+            b.push_str("  ");
+            b.push_str(ast.texts[f]);
+            b.push_str(" =\n");
+            dump_expr(ast, ast.aa[f], level + 1, b);
+            f = ast.nexts[f];
+        }
+    } elif tag == et(ET::ArrayLiteral._tag) {
+        b.push_str("ArrayLiteral\n");
+        a = ast.aa[id];
+        while a >= 0 {
+            dump_expr(ast, a, level + 1, b);
+            a = ast.nexts[a];
+        }
+    } elif tag == et(ET::ArraySized._tag) {
+        b.push_str("ArraySized { elem_type: ");
+        push_type(ast, ast.tys[id], b);
+        b.push_str(" }\n");
+        push_pad(b, level);
+        b.push_str("  count:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == et(ET::Null._tag) {
+        b.push_str("Null\n");
+    } elif tag == et(ET::Ref._tag) {
+        if ast.bb[id] == 1 {
+            b.push_str("Ref(mut )\n");
+        } else {
+            b.push_str("Ref()\n");
+        }
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == et(ET::Index._tag) {
+        b.push_str("Index\n");
+        push_pad(b, level);
+        b.push_str("  object:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        push_pad(b, level);
+        b.push_str("  index:\n");
+        dump_expr(ast, ast.bb[id], level + 1, b);
+    } elif tag == et(ET::CallExpr._tag) {
+        b.push_str("CallExpr\n");
+        push_pad(b, level);
+        b.push_str("  target:\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        a = ast.bb[id];
+        while a >= 0 {
+            dump_expr(ast, a, level + 1, b);
+            a = ast.nexts[a];
+        }
+    } elif tag == et(ET::TryOp._tag) {
+        b.push_str("TryOp\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+    } elif tag == et(ET::Match._tag) {
+        b.push_str("Match\n");
+    } elif tag == et(ET::EnumConstruct._tag) {
+        b.push_str("EnumConstruct ");
+        b.push_str(ast.texts[id]);
+        b.push_str("\n");
+        a = ast.aa[id];
+        while a >= 0 {
+            dump_expr(ast, a, level + 1, b);
+            a = ast.nexts[a];
+        }
+        a = ast.bb[id];
+        while a >= 0 {
+            dump_expr(ast, a, level + 1, b);
+            a = ast.nexts[a];
+        }
+    } elif tag == et(ET::MacroCall._tag) {
+        b.push_str("MacroCall(");
+        b.push_str(ast.texts[id]);
+        b.push_str(")\n");
+        a = ast.aa[id];
+        while a >= 0 {
+            dump_expr(ast, a, level + 1, b);
+            a = ast.nexts[a];
+        }
+    } else {
+        b.push_str("UnknownExpr\n");
+    }
+}

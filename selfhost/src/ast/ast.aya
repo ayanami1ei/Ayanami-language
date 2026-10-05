@@ -1,0 +1,204 @@
+import "string";
+
+// 索引式 AST：所有节点存在并行数组里（struct-of-arrays），子节点用 int id（-1 = 无），
+// 列表用 nexts 串成单链。
+// 说明：不用 [Node] + nodes[id].field = v —— 那会触发 #130 panic；
+// 递归 enum 也会栈溢出（无限大小）。并行标量数组是最稳的表示。
+//
+// 字段含义（按 tag 解释）：
+//   texts = 名字/字面量文本/操作符名
+//   tys   = 类型 id 或 运算符/字面量种类编码
+//   aa/bb/cc/dd = 子节点 id
+
+// 语句/声明标签（tags）
+pub enum ST {
+    Program,
+    FnDecl,
+    StructDef,
+    EnumDef,
+    ImplBlock,
+    Namespace,
+    Import,
+    ConstDecl,
+    Attributed,
+    InterfaceDef,
+    Assign,
+    FieldAssign,
+    IndexAssign,
+    Return,
+    If,
+    For,
+    While,
+    Match,
+    ExprStmt,
+    Break,
+    Continue,
+    Block,
+}
+
+// 表达式标签
+pub enum ET {
+    Literal,
+    Suffixed,
+    Ident,
+    Binary,
+    Unary,
+    If,
+    Cast,
+    FnCall,
+    Move,
+    Clone,
+    ToUnique,
+    MethodCall,
+    FieldAccess,
+    StructLiteral,
+    ArrayLiteral,
+    ArraySized,
+    Null,
+    Ref,
+    Index,
+    CallExpr,
+    TryOp,
+    Match,
+    EnumConstruct,
+    Lambda,
+    MacroCall,
+}
+
+// 类型标签
+pub enum TT {
+    Int,
+    Float,
+    Char,
+    Bool,
+    Void,
+    Named,
+    Array,
+    Unique,
+    Generic,
+    Ref,
+    Self_,
+    Default,
+    FnPtr,
+}
+
+// 辅助节点标签（参数/字段/实参/elif/匹配臂/泛型实参）
+pub enum XT {
+    Param,
+    StructField,
+    StructLitField,
+    Arg,
+    Elif,
+    GenericArg,
+    MatchArm,
+}
+
+// 字面量种类（Literal 的 tys 编码）
+pub enum LK {
+    Int,
+    Float,
+    Char,
+    Str,
+    Bool,
+}
+
+// 二元/一元运算符编码
+pub enum BinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Eq,
+    Neq,
+    Lt,
+    Gt,
+    Le,
+    Ge,
+    And,
+    Or,
+    BitAnd,
+    BitOr,
+    BitXor,
+    Shl,
+    Shr,
+}
+
+pub enum UnOp {
+    Neg,
+    Not,
+    BitNot,
+}
+
+// 各 enum 的 _tag 从 0 开始，数值空间互相重叠；入 arena 前统一加族偏移，
+// 保证 tags 数组里的数值全局唯一（不同族的 tag 不会误判）。
+pub fn st(int t) -> int { return 0 + t; }
+pub fn et(int t) -> int { return 100 + t; }
+pub fn xt(int t) -> int { return 200 + t; }
+pub fn tt(int t) -> int { return 300 + t; }
+pub fn lk(int t) -> int { return 400 + t; }
+pub fn bo(int t) -> int { return 500 + t; }
+pub fn uo(int t) -> int { return 600 + t; }
+
+pub struct Ast {
+    [int] tags
+    [String] texts
+    [int] tys
+    [int] aa
+    [int] bb
+    [int] cc
+    [int] dd
+    [int] nexts
+    [int] lines
+    [int] cols
+    int len
+}
+
+pub namespace Ast {
+    pub fn new() -> Ast {
+        a = Ast {
+            tags = [int; 65536],
+            texts = [String; 65536],
+            tys = [int; 65536],
+            aa = [int; 65536],
+            bb = [int; 65536],
+            cc = [int; 65536],
+            dd = [int; 65536],
+            nexts = [int; 65536],
+            lines = [int; 65536],
+            cols = [int; 65536],
+            len = 0
+        };
+        return a;
+    }
+}
+
+impl Ast {
+    /// 追加节点，返回 id；text 会被复制
+    pub fn push(ref mut self, int tag, ref String text, int ty, int a, int b, int c, int d, int line, int col) -> int {
+        id = self.len;
+        self.tags[id] = tag;
+        self.texts[id] = text.copy();
+        self.tys[id] = ty;
+        self.aa[id] = a;
+        self.bb[id] = b;
+        self.cc[id] = c;
+        self.dd[id] = d;
+        self.nexts[id] = -1;
+        self.lines[id] = line;
+        self.cols[id] = col;
+        self.len = self.len + 1;
+        return id;
+    }
+
+    /// 在链表尾追加：返回新的链头（head 为 -1 时即新节点）
+    pub fn push_tail(ref mut self, int head, int node) -> int {
+        if head < 0 { return node; }
+        cur = head;
+        while self.nexts[cur] >= 0 {
+            cur = self.nexts[cur];
+        }
+        self.nexts[cur] = node;
+        return head;
+    }
+}

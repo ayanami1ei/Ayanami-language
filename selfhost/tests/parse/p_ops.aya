@@ -1,0 +1,8 @@
+fn calc(int a, int b) -> int {
+    x = a + b * 2 - 3 / 1
+    y = -x + (a - b) % 4
+    if a == b { return y }
+    if a < b && a != b { return x }
+    if a >= b || a > b { return 1 }
+    return 0
+}

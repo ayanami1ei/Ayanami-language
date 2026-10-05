@@ -1,0 +1,28 @@
+// AST golden 工具：PARSE_FILE=path —— 输出与 rust `ayanami dump ast` 一致的 AST 树
+import "io";
+import "aya_file";
+import "aya_sys";
+import "aya_parser";
+import "aya_dump";
+
+fn main() -> int {
+    path = env("PARSE_FILE");
+    if path.len == 0 {
+        a = Args::load();
+        if a.len() >= 2 { path = a.get(1); }
+    }
+    if path.len == 0 { println("usage: PARSE_FILE=FILE ast_dump"); return 1 }
+    r = read_file(path);
+    if !r.ok { println("cannot read"); return 2 }
+    p = Parser::new(r.data);
+    prog = p.parse_program();
+    if p.failed == 1 {
+        println("parse error:");
+        println(p.err);
+        println(p.err_line);
+        println(p.err_col);
+        return 3;
+    }
+    print(dump_ast(p.ast, prog));
+    return 0;
+}

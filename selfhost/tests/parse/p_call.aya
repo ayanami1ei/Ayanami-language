@@ -1,0 +1,21 @@
+struct Point {
+    int x
+    int y
+}
+
+impl Point {
+    fn sum(ref self) -> int {
+        return self.x + self.y
+    }
+}
+
+fn add(int a, int b) -> int {
+    return a + b
+}
+
+fn main() -> int {
+    p = Point { x = 1, y = 2 }
+    s = p.sum()
+    t = add(p.x, p.y)
+    return s + t
+}

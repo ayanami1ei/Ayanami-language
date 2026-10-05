@@ -1,0 +1,12 @@
+struct P {
+    int x
+}
+
+fn add(int a, int b) -> int {
+    return a + b
+}
+
+fn main() -> int {
+    p = P { x = 1 }
+    return add(p.x, p.x)
+}

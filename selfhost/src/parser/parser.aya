@@ -1,0 +1,702 @@
+import "string";
+import "aya_sb";
+import "aya_token";
+import "aya_lexer";
+import "aya_ast";
+
+// 手写递归下降解析器（M3 子集，逐步扩展；对齐 rust 版 src/parser）
+pub struct Parser {
+    Lexer lex
+    Ast ast
+    Token cur
+    Token la1
+    Token la2
+    int failed
+    String err
+    int err_line
+    int err_col
+    int no_struct
+    String cur_impl
+}
+
+pub namespace Parser {
+    pub fn new(ref String src) -> Parser {
+        lx = Lexer::new(src);
+        t1 = lx.next_token();
+        t2 = lx.next_token();
+        t3 = lx.next_token();
+        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "" };
+        return p;
+    }
+}
+
+fn st_tag(int t) -> int { return t; }
+
+impl Parser {
+    fn advance(ref mut self) {
+        self.cur = self.la1;
+        self.la1 = self.la2;
+        self.la2 = self.lex.next_token();
+    }
+
+    fn la1_is_kw(ref mut self, int kw) -> bool {
+        if self.la1.kind == Tk::Keyword._tag && self.la1.sub == kw { return true; }
+        return false;
+    }
+
+    fn la2_is_kw(ref mut self, int kw) -> bool {
+        if self.la2.kind == Tk::Keyword._tag && self.la2.sub == kw { return true; }
+        return false;
+    }
+
+    fn error(ref mut self, ref String msg) {
+        if self.failed == 0 {
+            self.failed = 1;
+            self.err = msg.copy();
+            self.err_line = self.cur.line;
+            self.err_col = self.cur.col;
+        }
+    }
+
+    fn check_kw(ref mut self, int kw) -> bool {
+        if self.cur.kind == Tk::Keyword._tag && self.cur.sub == kw { return true; }
+        return false;
+    }
+
+    fn check_delim(ref mut self, int d) -> bool {
+        if self.cur.kind == Tk::Delim._tag && self.cur.sub == d { return true; }
+        return false;
+    }
+
+    fn check_op(ref mut self, ref String op) -> bool {
+        if self.cur.kind == Tk::Op._tag && self.cur.text == op { return true; }
+        return false;
+    }
+
+    fn eat_kw(ref mut self, int kw) -> bool {
+        if self.check_kw(kw) {
+            self.advance();
+            return true;
+        }
+        return false;
+    }
+
+    fn eat_delim(ref mut self, int d) -> bool {
+        if self.check_delim(d) {
+            self.advance();
+            return true;
+        }
+        return false;
+    }
+
+    fn eat_op(ref mut self, ref String op) -> bool {
+        if self.check_op(op) {
+            self.advance();
+            return true;
+        }
+        return false;
+    }
+
+    fn expect_kw(ref mut self, int kw, ref String what) {
+        if !self.eat_kw(kw) {
+            self.error(what);
+        }
+    }
+
+    fn expect_delim(ref mut self, int d, ref String what) {
+        if !self.eat_delim(d) {
+            self.error(what);
+        }
+    }
+
+    fn expect_ident(ref mut self, ref String what) -> String {
+        if self.cur.kind == Tk::Ident._tag {
+            s = self.cur.text.copy();
+            self.advance();
+            return s;
+        }
+        self.error(what);
+        return "";
+    }
+
+    fn at_end(ref mut self) -> bool {
+        return self.cur.kind == Tk::Eof._tag;
+    }
+
+    // ---------- 类型 ----------
+
+    fn parse_type(ref mut self) -> int {
+        tag = tt(TT::Default._tag);
+        a = -1;
+        b = 0;
+        text = "";
+        if self.eat_kw(Kw::Ref._tag) {
+            mutable = 0;
+            if self.eat_kw(Kw::Mut._tag) { mutable = 1; }
+            inner = self.parse_type();
+            return self.ast.push(tt(TT::Ref._tag), "", -1, inner, mutable, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.eat_kw(Kw::Unique._tag) {
+            inner = self.parse_type();
+            return self.ast.push(tt(TT::Unique._tag), "", -1, inner, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.check_delim(D::LBracket._tag) {
+            self.advance();
+            inner = self.parse_type();
+            self.expect_delim(D::RBracket._tag, "expected ] in array type");
+            return self.ast.push(tt(TT::Array._tag), "", -1, inner, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.check_kw(Kw::Int._tag) {
+            self.advance();
+            return self.ast.push(tt(TT::Int._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.check_kw(Kw::Float._tag) {
+            self.advance();
+            return self.ast.push(tt(TT::Float._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.check_kw(Kw::Char._tag) {
+            self.advance();
+            return self.ast.push(tt(TT::Char._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.check_kw(Kw::Bool._tag) {
+            self.advance();
+            return self.ast.push(tt(TT::Bool._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.check_kw(Kw::Self_._tag) {
+            self.advance();
+            return self.ast.push(tt(TT::Self_._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.cur.kind == Tk::Ident._tag {
+            name = self.cur.text.copy();
+            self.advance();
+            if self.check_delim(D::LBracket._tag) {
+                self.advance();
+                args = -1;
+                while !self.check_delim(D::RBracket._tag) && !self.at_end() {
+                    gt = self.parse_type();
+                    gn = self.ast.push(xt(XT::GenericArg._tag), "", gt, -1, -1, -1, -1, self.cur.line, self.cur.col);
+                    args = self.ast.push_tail(args, gn);
+                    if !self.eat_delim(D::Comma._tag) { break; }
+                }
+                self.expect_delim(D::RBracket._tag, "expected ] in generic type");
+                return self.ast.push(tt(TT::Generic._tag), name, -1, args, -1, -1, -1, self.cur.line, self.cur.col);
+            }
+            return self.ast.push(tt(TT::Named._tag), name, -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        self.error("expected type");
+        return self.ast.push(tt(TT::Default._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+    }
+
+    // ---------- 顶层 ----------
+
+    pub fn parse_program(ref mut self) -> int {
+        prog = self.ast.push(st(ST::Program._tag), "", -1, -1, -1, -1, -1, 1, 1);
+        head = -1;
+        while !self.at_end() && self.failed == 0 {
+            item = self.parse_item();
+            if item >= 0 {
+                head = self.ast.push_tail(head, item);
+            }
+        }
+        self.ast.aa[prog] = head;
+        return prog;
+    }
+
+    fn parse_item(ref mut self) -> int {
+        // 属性 #[...] 跳过（后续版本解析）
+        if self.check_op("#") {
+            while !self.at_end() && !self.check_delim(D::LBracket._tag) {
+                self.advance();
+            }
+            if self.check_delim(D::LBracket._tag) {
+                depth = 0;
+                while !self.at_end() {
+                    if self.check_delim(D::LBracket._tag) { depth = depth + 1; }
+                    if self.check_delim(D::RBracket._tag) {
+                        depth = depth - 1;
+                        if depth == 0 { self.advance(); break; }
+                    }
+                    self.advance();
+                }
+            }
+            return -1;
+        }
+        pub_seen = self.eat_kw(Kw::Pub._tag);
+        if self.check_kw(Kw::Import._tag) {
+            self.advance();
+            if self.cur.kind != Tk::StrLit._tag {
+                self.error("expected import path string");
+                return -1;
+            }
+            path = self.cur.text.copy();
+            self.advance();
+            return self.ast.push(st(ST::Import._tag), path, -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.check_kw(Kw::Fn._tag) {
+            return self.parse_fn();
+        }
+        if self.check_kw(Kw::Struct._tag) {
+            return self.parse_struct();
+        }
+        if self.check_kw(Kw::Namespace._tag) {
+            return self.parse_namespace();
+        }
+        if self.check_kw(Kw::Impl._tag) {
+            return self.parse_impl();
+        }
+        // 其余顶层项暂跳过（enum/const/interface/...）
+        self.advance();
+        return -1;
+    }
+
+    fn parse_struct(ref mut self) -> int {
+        self.expect_kw(Kw::Struct._tag, "expected struct");
+        name = self.expect_ident("expected struct name");
+        self.expect_delim(D::LBrace._tag, "expected { in struct");
+        head = -1;
+        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+            ty = self.parse_type();
+            fname = self.expect_ident("expected field name");
+            fn_node = self.ast.push(xt(XT::StructField._tag), fname, ty, -1, -1, -1, -1, self.cur.line, self.cur.col);
+            head = self.ast.push_tail(head, fn_node);
+            self.eat_delim(D::Comma._tag);
+        }
+        self.expect_delim(D::RBrace._tag, "expected } after struct fields");
+        return self.ast.push(st(ST::StructDef._tag), name, -1, head, -1, -1, -1, self.cur.line, self.cur.col);
+    }
+
+    fn parse_namespace(ref mut self) -> int {
+        self.expect_kw(Kw::Namespace._tag, "expected namespace");
+        name = self.expect_ident("expected namespace name");
+        self.expect_delim(D::LBrace._tag, "expected { in namespace");
+        head = -1;
+        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+            item = self.parse_item();
+            if item >= 0 { head = self.ast.push_tail(head, item); }
+        }
+        self.expect_delim(D::RBrace._tag, "expected } after namespace");
+        return self.ast.push(st(ST::Namespace._tag), name, -1, head, -1, -1, -1, self.cur.line, self.cur.col);
+    }
+
+    fn parse_impl(ref mut self) -> int {
+        self.expect_kw(Kw::Impl._tag, "expected impl");
+        // impl[T] Type[T] / impl Type
+        if self.check_delim(D::LBracket._tag) {
+            depth = 0;
+            while !self.at_end() {
+                if self.check_delim(D::LBracket._tag) { depth = depth + 1; }
+                if self.check_delim(D::RBracket._tag) {
+                    depth = depth - 1;
+                    if depth == 0 { self.advance(); break; }
+                }
+                self.advance();
+            }
+        }
+        tname = self.expect_ident("expected impl type name");
+        self.cur_impl = tname.copy();
+        if self.check_delim(D::LBracket._tag) {
+            depth = 0;
+            while !self.at_end() {
+                if self.check_delim(D::LBracket._tag) { depth = depth + 1; }
+                if self.check_delim(D::RBracket._tag) {
+                    depth = depth - 1;
+                    if depth == 0 { self.advance(); break; }
+                }
+                self.advance();
+            }
+        }
+        self.expect_delim(D::LBrace._tag, "expected { in impl");
+        head = -1;
+        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+            self.eat_kw(Kw::Pub._tag);
+            if self.check_kw(Kw::Fn._tag) {
+                m = self.parse_fn();
+                head = self.ast.push_tail(head, m);
+            } else {
+                self.advance();
+            }
+        }
+        self.expect_delim(D::RBrace._tag, "expected } after impl");
+        self.cur_impl = "";
+        return self.ast.push(st(ST::ImplBlock._tag), tname, -1, head, -1, -1, -1, self.cur.line, self.cur.col);
+    }
+
+    fn parse_fn(ref mut self) -> int {
+        self.expect_kw(Kw::Fn._tag, "expected fn");
+        name = self.expect_ident("expected fn name");
+        self.expect_delim(D::LParen._tag, "expected ( after fn name");
+        head = -1;
+        while !self.check_delim(D::RParen._tag) && !self.at_end() && self.failed == 0 {
+            recv = -1;
+            if self.check_kw(Kw::Self_._tag) {
+                recv = 0;
+            } elif self.check_kw(Kw::Ref._tag) && self.la1_is_kw(Kw::Self_._tag) {
+                recv = 1;
+            } elif self.check_kw(Kw::Ref._tag) && self.la1_is_kw(Kw::Mut._tag) && self.la2_is_kw(Kw::Self_._tag) {
+                recv = 2;
+            }
+            if recv >= 0 {
+                line = self.cur.line;
+                col = self.cur.col;
+                base = self.ast.push(tt(TT::Named._tag), self.cur_impl, -1, -1, -1, -1, -1, line, col);
+                recv_ty = base;
+                if recv == 1 {
+                    recv_ty = self.ast.push(tt(TT::Ref._tag), "", -1, base, 0, -1, -1, line, col);
+                } elif recv == 2 {
+                    recv_ty = self.ast.push(tt(TT::Ref._tag), "", -1, base, 1, -1, -1, line, col);
+                }
+                self.advance();
+                if recv == 1 { self.advance(); }
+                if recv == 2 { self.advance(); self.advance(); }
+                p = self.ast.push(xt(XT::Param._tag), "self", recv_ty, -1, -1, -1, -1, line, col);
+                head = self.ast.push_tail(head, p);
+            } else {
+                ty = self.parse_type();
+                pname = self.expect_ident("expected parameter name");
+                p = self.ast.push(xt(XT::Param._tag), pname, ty, -1, -1, -1, -1, self.cur.line, self.cur.col);
+                head = self.ast.push_tail(head, p);
+            }
+            if !self.eat_delim(D::Comma._tag) { break; }
+        }
+        self.expect_delim(D::RParen._tag, "expected ) after params");
+        ret = -1;
+        if self.eat_delim(D::Arrow._tag) {
+            ret = self.parse_type();
+        }
+        body = self.parse_block();
+        node = self.ast.push(st(ST::FnDecl._tag), name, ret, head, body, -1, -1, self.cur.line, self.cur.col);
+        return node;
+    }
+
+    fn parse_block(ref mut self) -> int {
+        self.expect_delim(D::LBrace._tag, "expected { to start block");
+        blk = self.ast.push(st(ST::Block._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        head = -1;
+        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+            s = self.parse_stmt();
+            if s >= 0 { head = self.ast.push_tail(head, s); }
+        }
+        self.expect_delim(D::RBrace._tag, "expected } to close block");
+        self.ast.aa[blk] = head;
+        return blk;
+    }
+
+    // ---------- 语句 ----------
+
+    fn parse_stmt(ref mut self) -> int {
+        if self.check_kw(Kw::Return._tag) {
+            line = self.cur.line;
+            col = self.cur.col;
+            self.advance();
+            val = -1;
+            if !self.check_delim(D::RBrace._tag) && !self.at_end() {
+                val = self.parse_expr();
+            }
+            return self.ast.push(st(ST::Return._tag), "", -1, val, -1, -1, -1, line, col);
+        }
+        if self.check_kw(Kw::If._tag) {
+            return self.parse_if_stmt();
+        }
+        if self.check_kw(Kw::While._tag) {
+            line = self.cur.line;
+            col = self.cur.col;
+            self.advance();
+            self.no_struct = 1;
+            cond = self.parse_expr();
+            self.no_struct = 0;
+            body = self.parse_block();
+            return self.ast.push(st(ST::While._tag), "", -1, cond, body, -1, -1, line, col);
+        }
+        if self.check_kw(Kw::Break._tag) {
+            line = self.cur.line;
+            col = self.cur.col;
+            self.advance();
+            return self.ast.push(st(ST::Break._tag), "", -1, -1, -1, -1, -1, line, col);
+        }
+        if self.check_kw(Kw::Continue._tag) {
+            line = self.cur.line;
+            col = self.cur.col;
+            self.advance();
+            return self.ast.push(st(ST::Continue._tag), "", -1, -1, -1, -1, -1, line, col);
+        }
+        line = self.cur.line;
+        col = self.cur.col;
+        e = self.parse_expr();
+        if self.check_op("=") {
+            self.advance();
+            val = self.parse_expr();
+            etag = self.ast.tags[e];
+            if etag == et(ET::Ident._tag) {
+                return self.ast.push(st(ST::Assign._tag), self.ast.texts[e], -1, val, -1, -1, -1, line, col);
+            }
+            if etag == et(ET::FieldAccess._tag) {
+                return self.ast.push(st(ST::FieldAssign._tag), self.ast.texts[e], -1, self.ast.aa[e], val, -1, -1, line, col);
+            }
+            if etag == et(ET::Index._tag) {
+                return self.ast.push(st(ST::IndexAssign._tag), "", -1, self.ast.aa[e], self.ast.bb[e], val, -1, line, col);
+            }
+            self.error("invalid assignment target");
+            return -1;
+        }
+        return self.ast.push(st(ST::ExprStmt._tag), "", -1, e, -1, -1, -1, line, col);
+    }
+
+    fn parse_if_stmt(ref mut self) -> int {
+        line = self.cur.line;
+        col = self.cur.col;
+        self.expect_kw(Kw::If._tag, "expected if");
+        self.no_struct = 1;
+        cond = self.parse_expr();
+        self.no_struct = 0;
+        then_b = self.parse_block();
+        elifs = -1;
+        else_b = -1;
+        while self.check_kw(Kw::Elif._tag) {
+            self.advance();
+            ec = self.parse_expr();
+            eb = self.parse_block();
+            en = self.ast.push(xt(XT::Elif._tag), "", -1, ec, eb, -1, -1, self.cur.line, self.cur.col);
+            elifs = self.ast.push_tail(elifs, en);
+        }
+        if self.eat_kw(Kw::Else._tag) {
+            else_b = self.parse_block();
+        }
+        return self.ast.push(st(ST::If._tag), "", -1, cond, then_b, elifs, else_b, line, col);
+    }
+
+    // ---------- 表达式（优先级爬升） ----------
+
+    fn bin_tag(ref mut self, ref String op) -> int {
+        if op == "||" { return bo(BinOp::Or._tag); }
+        if op == "&&" { return bo(BinOp::And._tag); }
+        if op == "|" { return bo(BinOp::BitOr._tag); }
+        if op == "^" { return bo(BinOp::BitXor._tag); }
+        if op == "&" { return bo(BinOp::BitAnd._tag); }
+        if op == "==" { return bo(BinOp::Eq._tag); }
+        if op == "!=" { return bo(BinOp::Neq._tag); }
+        if op == "<" { return bo(BinOp::Lt._tag); }
+        if op == ">" { return bo(BinOp::Gt._tag); }
+        if op == "<=" { return bo(BinOp::Le._tag); }
+        if op == ">=" { return bo(BinOp::Ge._tag); }
+        if op == "<<" { return bo(BinOp::Shl._tag); }
+        if op == ">>" { return bo(BinOp::Shr._tag); }
+        if op == "+" { return bo(BinOp::Add._tag); }
+        if op == "-" { return bo(BinOp::Sub._tag); }
+        if op == "*" { return bo(BinOp::Mul._tag); }
+        if op == "/" { return bo(BinOp::Div._tag); }
+        if op == "%" { return bo(BinOp::Mod._tag); }
+        return -1;
+    }
+
+    fn op_level(ref mut self, ref String op) -> int {
+        if op == "||" { return 1; }
+        if op == "&&" { return 2; }
+        if op == "|" { return 3; }
+        if op == "^" { return 4; }
+        if op == "&" { return 5; }
+        if op == "==" || op == "!=" { return 6; }
+        if op == "<" || op == ">" || op == "<=" || op == ">=" { return 7; }
+        if op == "<<" || op == ">>" { return 8; }
+        if op == "+" || op == "-" { return 9; }
+        if op == "*" || op == "/" || op == "%" { return 10; }
+        return 0;
+    }
+
+    fn parse_expr(ref mut self) -> int {
+        return self.parse_bin(1);
+    }
+
+    fn parse_bin(ref mut self, int min_level) -> int {
+        lhs = self.parse_unary();
+        while self.cur.kind == Tk::Op._tag && self.failed == 0 {
+            op = self.cur.text.copy();
+            lvl = self.op_level(op);
+            if lvl == 0 || lvl < min_level { break; }
+            line = self.cur.line;
+            col = self.cur.col;
+            self.advance();
+            rhs = self.parse_bin(lvl + 1);
+            tag = self.bin_tag(op);
+            lhs = self.ast.push(et(ET::Binary._tag), "", tag, lhs, rhs, -1, -1, line, col);
+        }
+        return lhs;
+    }
+
+    fn parse_unary(ref mut self) -> int {
+        line = self.cur.line;
+        col = self.cur.col;
+        if self.check_op("-") {
+            self.advance();
+            arg = self.parse_unary();
+            return self.ast.push(et(ET::Unary._tag), "", uo(UnOp::Neg._tag), arg, -1, -1, -1, line, col);
+        }
+        if self.check_op("!") {
+            self.advance();
+            arg = self.parse_unary();
+            return self.ast.push(et(ET::Unary._tag), "", uo(UnOp::Not._tag), arg, -1, -1, -1, line, col);
+        }
+        if self.check_op("~") {
+            self.advance();
+            arg = self.parse_unary();
+            return self.ast.push(et(ET::Unary._tag), "", uo(UnOp::BitNot._tag), arg, -1, -1, -1, line, col);
+        }
+        if self.check_kw(Kw::Ref._tag) {
+            self.advance();
+            mutable = 0;
+            if self.eat_kw(Kw::Mut._tag) { mutable = 1; }
+            arg = self.parse_unary();
+            return self.ast.push(et(ET::Ref._tag), "", -1, arg, mutable, -1, -1, line, col);
+        }
+        return self.parse_postfix();
+    }
+
+    fn parse_postfix(ref mut self) -> int {
+        qmark = "?";
+        e = self.parse_primary();
+        while self.failed == 0 {
+            if self.check_delim(D::LParen._tag) {
+                line = self.cur.line;
+                col = self.cur.col;
+                args = self.parse_args();
+                // FnCall 只对 Ident 目标；其他走 CallExpr
+                if self.ast.tags[e] == et(ET::Ident._tag) {
+                    e = self.ast.push(et(ET::FnCall._tag), self.ast.texts[e], -1, args, -1, -1, -1, line, col);
+                } else {
+                    e = self.ast.push(et(ET::CallExpr._tag), "", -1, e, args, -1, -1, line, col);
+                }
+            } elif self.check_delim(D::Dot._tag) {
+                line = self.cur.line;
+                col = self.cur.col;
+                self.advance();
+                name = self.expect_ident("expected field or method name");
+                if self.check_delim(D::LParen._tag) {
+                    args = self.parse_args();
+                    e = self.ast.push(et(ET::MethodCall._tag), name, -1, e, args, -1, -1, line, col);
+                } else {
+                    e = self.ast.push(et(ET::FieldAccess._tag), name, -1, e, -1, -1, -1, line, col);
+                }
+            } elif self.check_delim(D::LBracket._tag) {
+                line = self.cur.line;
+                col = self.cur.col;
+                self.advance();
+                idx = self.parse_expr();
+                self.expect_delim(D::RBracket._tag, "expected ] after index");
+                e = self.ast.push(et(ET::Index._tag), "", -1, e, idx, -1, -1, line, col);
+            } elif self.check_op(qmark) {
+                line = self.cur.line;
+                col = self.cur.col;
+                self.advance();
+                e = self.ast.push(et(ET::TryOp._tag), "", -1, e, -1, -1, -1, line, col);
+            } elif self.check_kw(Kw::As._tag) {
+                line = self.cur.line;
+                col = self.cur.col;
+                self.advance();
+                ty = self.parse_type();
+                e = self.ast.push(et(ET::Cast._tag), "", ty, e, -1, -1, -1, line, col);
+            } else {
+                break;
+            }
+        }
+        return e;
+    }
+
+    fn parse_args(ref mut self) -> int {
+        self.expect_delim(D::LParen._tag, "expected (");
+        head = -1;
+        while !self.check_delim(D::RParen._tag) && !self.at_end() && self.failed == 0 {
+            a = self.parse_expr();
+            an = self.ast.push(xt(XT::Arg._tag), "", -1, a, -1, -1, -1, self.cur.line, self.cur.col);
+            head = self.ast.push_tail(head, an);
+            if !self.eat_delim(D::Comma._tag) { break; }
+        }
+        self.expect_delim(D::RParen._tag, "expected ) after args");
+        return head;
+    }
+
+    fn parse_primary(ref mut self) -> int {
+        line = self.cur.line;
+        col = self.cur.col;
+        if self.cur.kind == Tk::IntLit._tag {
+            s = self.cur.text.copy();
+            self.advance();
+            return self.ast.push(et(ET::Literal._tag), s, -1, -1, lk(LK::Int._tag), -1, -1, line, col);
+        }
+        if self.cur.kind == Tk::FloatLit._tag {
+            s = self.cur.text.copy();
+            self.advance();
+            return self.ast.push(et(ET::Literal._tag), s, -1, -1, lk(LK::Float._tag), -1, -1, line, col);
+        }
+        if self.cur.kind == Tk::CharLit._tag {
+            s = self.cur.text.copy();
+            self.advance();
+            return self.ast.push(et(ET::Literal._tag), s, -1, -1, lk(LK::Char._tag), -1, -1, line, col);
+        }
+        if self.cur.kind == Tk::StrLit._tag {
+            s = self.cur.text.copy();
+            self.advance();
+            return self.ast.push(et(ET::Literal._tag), s, -1, -1, lk(LK::Str._tag), -1, -1, line, col);
+        }
+        if self.check_kw(Kw::True._tag) {
+            self.advance();
+            return self.ast.push(et(ET::Literal._tag), "true", -1, -1, lk(LK::Bool._tag), -1, -1, line, col);
+        }
+        if self.check_kw(Kw::False._tag) {
+            self.advance();
+            return self.ast.push(et(ET::Literal._tag), "false", -1, -1, lk(LK::Bool._tag), -1, -1, line, col);
+        }
+        if self.check_kw(Kw::Null._tag) {
+            self.advance();
+            return self.ast.push(et(ET::Null._tag), "", -1, -1, -1, -1, -1, line, col);
+        }
+        if self.check_delim(D::LParen._tag) {
+            self.advance();
+            e = self.parse_expr();
+            self.expect_delim(D::RParen._tag, "expected )");
+            return e;
+        }
+        if self.check_delim(D::LBracket._tag) {
+            self.advance();
+            head = -1;
+            while !self.check_delim(D::RBracket._tag) && !self.at_end() && self.failed == 0 {
+                a = self.parse_expr();
+                head = self.ast.push_tail(head, a);
+                if !self.eat_delim(D::Comma._tag) { break; }
+            }
+            self.expect_delim(D::RBracket._tag, "expected ] after array literal");
+            return self.ast.push(et(ET::ArrayLiteral._tag), "", -1, head, -1, -1, -1, line, col);
+        }
+        if self.check_kw(Kw::Self_._tag) {
+            self.advance();
+            return self.ast.push(et(ET::Ident._tag), "self", -1, -1, -1, -1, -1, line, col);
+        }
+        if self.cur.kind == Tk::Ident._tag {
+            name = self.cur.text.copy();
+            self.advance();
+            // 结构体字面量 Name { field = expr, ... }（仅当有字段赋值样式时）
+            if self.check_delim(D::LBrace._tag) && self.no_struct == 0 {
+                return self.parse_struct_literal(name, line, col);
+            }
+            return self.ast.push(et(ET::Ident._tag), name, -1, -1, -1, -1, -1, line, col);
+        }
+        self.error("expected expression");
+        return -1;
+    }
+
+    fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int {
+        self.expect_delim(D::LBrace._tag, "expected { in struct literal");
+        head = -1;
+        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+            fname = self.expect_ident("expected field name");
+            if !self.eat_op("=") {
+                self.error("expected = in struct literal");
+                break;
+            }
+            val = self.parse_expr();
+            fnode = self.ast.push(xt(XT::StructLitField._tag), fname, -1, val, -1, -1, -1, self.cur.line, self.cur.col);
+            head = self.ast.push_tail(head, fnode);
+            if !self.eat_delim(D::Comma._tag) { break; }
+        }
+        self.expect_delim(D::RBrace._tag, "expected } after struct literal");
+        return self.ast.push(et(ET::StructLiteral._tag), name, -1, head, -1, -1, -1, line, col);
+    }
+}
