@@ -1,0 +1,5 @@
+import "modsrc"
+
+fn main() -> int {
+    return f(1) - 1
+}

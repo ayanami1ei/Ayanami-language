@@ -71,5 +71,24 @@ while read -r name code pat; do
     fi
 done < tests/runtime_safety/manifest.txt
 
+# #100：源模块调用 .lcl 泛型方法不得重复单态化（multiple definition）
+if [ -d tests/lcl_mono ]; then
+    mono_dir=tests/lcl_mono
+    "$BIN" package "$mono_dir/mlib.aya" >/dev/null 2>&1 || true
+    if [ -f "$mono_dir/mlib.lcl" ]; then
+        cp "$mono_dir/mlib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+        timeout 120 "$BIN" run "$mono_dir/entry.aya" >/dev/null 2>&1
+        got=$?
+        if [ "$got" != 0 ]; then
+            echo "FAIL $mono_dir/entry.aya: exit $got, want 0（#100 .lcl 泛型特化重复定义）"
+            fail=$((fail + 1))
+        fi
+        rm -f "$(dirname "$BIN")/std/mlib.lcl"
+    else
+        echo "FAIL $mono_dir/mlib.aya: package failed"
+        fail=$((fail + 1))
+    fi
+fi
+
 echo "regression: positive=$pos negative=$neg runtime=$rt failures=$fail"
 [ "$fail" -eq 0 ]

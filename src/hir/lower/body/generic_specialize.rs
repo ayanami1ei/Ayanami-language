@@ -243,7 +243,19 @@ impl crate::hir::lower::Ctx {
         self.locals = saved_locals;
         self.scopes = saved_scopes;
 
-        self.specialized_fns.push(hir_fn);
+        // #100：若该特化已由导入的 .lcl 提供（同 mangled 名），只发 declare 链接到 .lcl 实现
+        let sym = crate::lir::lower::names::mangle("", &name.as_str().replace('.', "__"), &hir_fn.params);
+        if self.imported_fn_syms.contains(&sym) {
+            let mut decl = hir_fn;
+            decl.name = Symbol::intern(&sym);
+            decl.extern_c = true;
+            decl.is_inline = false;
+            decl.body = HirBlock::new(Vec::new());
+            decl.locals = Vec::new();
+            self.specialized_fns.push(decl);
+        } else {
+            self.specialized_fns.push(hir_fn);
+        }
 
         Ok(fid)
     }

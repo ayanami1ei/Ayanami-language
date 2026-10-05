@@ -515,24 +515,24 @@ src/hir/lower/body/vtables.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/vtables.rs:6: pub(crate) fn build_vtables(&mut self) -> Result<()>
 src/hir/lower/body/vtables.rs:75: pub(crate) fn try_match_interface(
 src/hir/lower/body/vtables.rs:137: pub(crate) fn try_match_generic_interface(
-src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:74: impl Ctx
-src/hir/lower/ctx.rs:76: pub fn new() -> Self
-src/hir/lower/ctx.rs:120: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:123: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:126: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:131: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:139: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:152: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:169: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:187: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:206: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:228: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx.rs:247: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
-src/hir/lower/ctx.rs:252: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:261: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
-src/hir/lower/ctx.rs:277: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:290: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:22: pub(crate) struct Ctx
+src/hir/lower/ctx.rs:77: impl Ctx
+src/hir/lower/ctx.rs:79: pub fn new() -> Self
+src/hir/lower/ctx.rs:124: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:127: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:130: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:135: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:143: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:156: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:173: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:191: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:210: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:232: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
+src/hir/lower/ctx.rs:251: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/ctx.rs:256: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:265: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx.rs:281: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:294: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
@@ -1501,7 +1501,7 @@ src/lir/lower/mod.rs:13: mod mir_expr2;
 src/lir/lower/mod.rs:14: mod mir_contract;
 src/lir/lower/mod.rs:15: mod mir_stmts;
 src/lir/lower/mod.rs:16: mod mir_ref;
-src/lir/lower/mod.rs:17: mod names;
+src/lir/lower/mod.rs:17: pub(crate) mod names;
 src/lir/lower/mod.rs:18: mod strings;
 src/lir/lower/mod.rs:19: mod util;
 src/lir/lower/mod.rs:22: fn collect_effect_summaries(items: &[MirItem], out: &mut HashMap<String, crate::hir::effects::EffectSummary>)
@@ -1509,7 +1509,7 @@ src/lir/lower/mod.rs:42: pub fn lower_program(mir: &MirProgram) -> LirProgram
 src/lir/lower/names.rs:3: pub(super) fn collect_fn_names(mir: &MirProgram) -> HashMap<FnId, String>
 src/lir/lower/names.rs:9: pub(super) fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<FnId, String>)
 src/lir/lower/names.rs:34: fn unique_fn_name(base: &str, f: &MirFn, map: &HashMap<FnId, String>) -> String
-src/lir/lower/names.rs:46: pub(super) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String
+src/lir/lower/names.rs:46: pub(crate) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String
 src/lir/lower/names.rs:64: pub(super) fn type_to_mangle(ty: &HirType) -> String
 src/lir/lower/strings.rs:3: pub(super) fn collect_strings(mir: &MirProgram) -> Vec<String>
 src/lir/lower/strings.rs:11: pub(super) fn collect_strings_items(items: &[MirItem], out: &mut Vec<String>)
@@ -1845,17 +1845,18 @@ src/parser/parser/literal_text.rs:25: pub(super) fn parse_int_text(s: &str) -> O
 src/parser/parser/macro_call.rs:3: impl Parser
 src/parser/parser/macro_call.rs:5: pub(super) fn parse_macro_call(&mut self) -> Result<Expr>
 src/parser/parser/mod.rs:8: pub struct Parser
-src/parser/parser/mod.rs:15: mod atom;
-src/parser/parser/mod.rs:16: mod core;
-src/parser/parser/mod.rs:17: mod decl;
-src/parser/parser/mod.rs:18: mod enum_iface;
-src/parser/parser/mod.rs:19: mod expr;
-src/parser/parser/mod.rs:20: mod impls;
-src/parser/parser/mod.rs:21: mod literal_text;
-src/parser/parser/mod.rs:22: mod macro_call;
-src/parser/parser/mod.rs:23: mod stmt;
-src/parser/parser/mod.rs:24: mod types;
-src/parser/parser/mod.rs:25: mod unary;
+src/parser/parser/mod.rs:16: fn ast_type_text(ty: &Type) -> String
+src/parser/parser/mod.rs:34: mod atom;
+src/parser/parser/mod.rs:35: mod core;
+src/parser/parser/mod.rs:36: mod decl;
+src/parser/parser/mod.rs:37: mod enum_iface;
+src/parser/parser/mod.rs:38: mod expr;
+src/parser/parser/mod.rs:39: mod impls;
+src/parser/parser/mod.rs:40: mod literal_text;
+src/parser/parser/mod.rs:41: mod macro_call;
+src/parser/parser/mod.rs:42: mod stmt;
+src/parser/parser/mod.rs:43: mod types;
+src/parser/parser/mod.rs:44: mod unary;
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
 src/parser/parser/stmt.rs:93: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
@@ -1999,6 +2000,13 @@ example/test_follow_with.aya:41: fn joint(ref S x, ref S y) -> ref S
 example/test_follow_with.aya:46: fn main() -> int
 example/test_for_usize.aya:2: fn sum_upto(usize n) -> int
 example/test_for_usize.aya:10: fn main() -> int
+example/test_generic_constraint.aya:1: pub interface Into[T]
+example/test_generic_constraint.aya:2: fn into(self) -> T;
+example/test_generic_constraint.aya:5: struct F { float v }
+example/test_generic_constraint.aya:7: impl F
+example/test_generic_constraint.aya:8: fn into(self) -> float { return self.v }
+example/test_generic_constraint.aya:11: fn use_into[U: Into[float]](U x) -> float
+example/test_generic_constraint.aya:15: fn main() -> int
 example/test_generic_impl_multi.aya:2: pub enum Pair[A, B]
 example/test_generic_impl_multi.aya:7: impl[A, B] Pair[A, B]
 example/test_generic_impl_multi.aya:8: pub fn first(self) -> A
