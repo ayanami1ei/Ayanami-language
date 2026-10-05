@@ -26,6 +26,8 @@ pub trait MirNode: std::fmt::Debug {
     fn for_each_child_mut(&mut self, _f: &mut dyn FnMut(&mut MirNodeBox)) {}
     fn as_string_literal(&self) -> Option<&str> { None }
     fn as_ref(&self) -> Option<(VarId, bool)> { None }
+    /// #91：字段访问节点（SMirFieldAccess）的（对象, 字段下标）
+    fn as_field_access(&self) -> Option<(&MirNodeBox, usize)> { None }
     /// 是否是函数/方法/函数指针调用（借用检查的求值上下文边界）
     fn is_call(&self) -> bool { false }
     /// A4b-2：结构体字面量的字段（仅 SMirStructLiteral）

@@ -91,6 +91,17 @@ impl<'a> Reader<'a> {
                 Ok(SLirVirtualCall { fn_dest, receiver_tmp: rt, data_tmp: dt, vtable_tmp: vt,
                     gep_tmp: gt, fn_ptr_tmp: fpt, method_index: mi, args, ret_ty: rt2 }.into())
             }
+            31 => {
+                let g = self.u64()?; let o = self.value()?;
+                let fi = self.u32()? as usize; let ft = self.ty()?;
+                let s = self.value()?; let st = self.ty()?;
+                Ok(SLirFieldStorePtr { gep_tmp: g, obj: o, field_index: fi, field_ty: ft, src: s, struct_ty: st }.into())
+            }
+            30 => {
+                let d = self.u64()?; let o = self.value()?;
+                let fi = self.u32()? as usize; let st = self.ty()?;
+                Ok(SLirFieldAddr { dest: d, obj: o, field_index: fi, struct_ty: st }.into())
+            }
             16 => {
                 let d = self.u64()?;
                 let gt = self.u64()?;

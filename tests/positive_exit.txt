@@ -44,6 +44,7 @@ test_memory.aya 0
 test_memory_enum.aya 0
 test_memory_loop.aya 0
 test_negative.aya 0
+test_nested_ref_mut.aya 0
 test_nll.aya 12
 test_ns.aya 30
 test_ns_main.aya 30
