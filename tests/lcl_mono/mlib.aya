@@ -1,0 +1,22 @@
+pub enum Box2[T] {
+    V(T),
+    E,
+}
+
+impl[T] Box2[T] {
+    pub fn get_or(self, T d) -> T {
+        if self._tag == 0 {
+            return self._data_V._0
+        }
+        return d
+    }
+    // #89：括号优先级必须随 .lcl 源码导出保留
+    pub fn calc(self, int x) -> int {
+        return (x + 2) * 10
+    }
+}
+
+pub fn probe() -> int {
+    b = Box2::V(1)
+    return b.get_or(0)
+}

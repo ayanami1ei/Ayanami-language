@@ -1,6 +1,6 @@
 # Ayanami 标注系统（标注式编程）设计
 
-> 状态：**A0 已实现**（生成解析器桥接因 Asuka 生成器当前整体不可用而待补）；
+> 状态：**A0 已实现**（解析器为手写递归下降；Asuka 生成器与 `ayanami.grammar` 已于 2026-10 移除）；
 > 本文是该特性的权威设计文档，每个阶段落地后必须回来更新「实现状态」一节。
 
 ## 1. 定位与原则
@@ -407,14 +407,14 @@ struct Holder {
 
 ### A0（已完成，2026-10）
 
-- [x] grammar 支持 `#[...]`（`AttrList/Attr/AttrArgs`），`#` 加入标点
+- [x] 词法/解析器支持 `#[...]`（`AttrList/Attr/AttrArgs`），`#` 加入标点
 - [x] 手写解析器：函数/方法/结构体/枚举/接口/impl 前导属性（属性名可含关键字）
 - [x] AST `Attr { name, args, span }` 全链路；`fmt` 往返保真
 - [x] HIR 校验白名单；未知属性报错带行列号（ADR-2）
 - [x] `#[inline]` 桥接 `is_inline`，IR 输出 `alwaysinline`
 - [x] `defs` JSON 带 `attrs`
 - [ ] `requires/ensures/...` 参数表达式（A2 扩展文法）
-- [ ] Asuka 生成解析器桥接属性（见下方已知问题）
+- [x] ~~Asuka 生成解析器桥接属性~~（Asuka 已移除，解析器为手写递归下降）
 
 ### A1（部分完成，2026-10）
 
@@ -485,9 +485,8 @@ struct Holder {
 
 ### 已知问题
 
-- **Asuka 生成解析器当前对所有真实程序解析失败（`no alt`）**，
-  编译器实际依赖手写回退解析器；因此属性在生成解析器桥接（`gen_bridge`）
-  中暂为透传空列表（代码中有 TODO）。修复生成解析器后需补桥接。
+- ~~Asuka 生成解析器桥接~~：Asuka 生成器与 `ayanami.grammar` 已于 2026-10 整体移除，
+  解析器现为手写递归下降（`src/parser/parser/`）且是唯一路径，标注解析不经过桥接。
 - 属性参数当前仅支持标识符/整数/字符串字面量；表达式参数随 A2 扩展。
 - `.lcl` 包格式在 A1 变更后不向后兼容，需随编译器一起重新生成（std 已重建）。
 - A2 剩余：`requires`/`ensures`/`assume`/`invariant` 与 debug/release 模式切换。

@@ -12,6 +12,17 @@ use crate::hir::*;
 
 /// 从类型名中剥离泛型参数
 /// 例如 "LinkedListNode<T>" → "LinkedListNode"，也处理 "LinkedListNode[T]"
+/// 泛型枚举的变体结构体名：`Base<args>_Variant` → `Base_Variant<args>`
+pub(super) fn variant_struct_name(enum_name: &Symbol, variant: &Symbol) -> Symbol {
+    let s = enum_name.as_str();
+    if let Some(pos) = s.find('<') {
+        let (base, suffix) = (&s[..pos], &s[pos..]);
+        Symbol::intern(&format!("{}_{}{}", base, variant, suffix))
+    } else {
+        Symbol::intern(&format!("{}_{}", enum_name, variant))
+    }
+}
+
 pub(super) fn strip_generic_name(name: &Symbol) -> Symbol {
     let s = name.as_str();
     let pos = s.find('<').or_else(|| s.find('['));
@@ -93,6 +104,9 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
     crate::hir::attrs::validate_macros(&program, &ctx.imported_macros, &ctx.imported_passes, &ctx.imported_checks)?;
     ctx.build_vtables()?;
     let mut items = ctx.lower_items(&program.stmts)?;
+
+    // M1.7：追加合成的外部运行时助手（溢出检查），使其进入 MIR/LIR 并发射 declare
+    for f in ctx.synth_externs.drain(..) { items.push(HirItem::Fn(f)); }
 
     // 收集已定义函数的 ID，找出哪些是外部导入的
     let defined_ids: std::collections::HashSet<_> = items.iter().filter_map(|item| {

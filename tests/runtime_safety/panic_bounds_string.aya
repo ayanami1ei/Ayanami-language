@@ -2,5 +2,5 @@ import "string";
 
 fn main() -> int {
     s = "abc";
-    return s.index(3);
+    return s.index(3) as int;
 }

@@ -1,6 +1,6 @@
 # 定宽整数类型（M1）
 
-> 状态：M1.1 核心已实现（2026-10-04）。字面量后缀（0i6.5）与显式 `as`（0i6.6）待做。
+> 状态：M1.1 核心已实现（2026-10-04）；std 集合/字符串索引与长度已迁移 `usize`（0i6.8，2026-10-05）。
 
 ## 目标
 
@@ -25,17 +25,73 @@ Rust 风格的基本整数类型：显式位宽与符号、无隐式提升、溢
   - 函数实参（`add8(1, 2)`，形参 `i8`；重载解析允许字面量匹配任意整数形参）
   - 赋值 / 返回 / 结构体字段（`coerce_expr` 路径）
   - 二元运算另一侧（`x + 1`、`x == -1`，含一元负号字面量）
-- 超出目标类型范围的适配字面量**暂未做范围检查**（后续字面量任务处理）。
-- 后缀字面量（`1u8`）与显式 `as` 转换见 0i6.5 / 0i6.6。
+- 后缀字面量（M1.5）：`1u8` / `1i32` / `1.5f32` / `3f64` / `100usize`，直接具有目标类型；
+  后缀整数常量做范围检查（`256u8` 报错），负号折进字面量（`-128i8` 合法）。
+- 进制（`0x` / `0b` / `0o`）、下划线（`1_000_000`）、指数（`1e3` / `1.5e-3`）。
+- 无后缀整数默认 `int`、无后缀浮点默认 `float`（默认类型迁移见 0i6.10）；
+  无后缀字面量在期望类型位置自动适配（如上），显式 `as` 见 M1.3。
 
 ## 语义
 
-- **无隐式转换**：定宽整数与 `int`/`float`/其他宽度之间必须显式转换；
+- **无隐式转换**：`int`/定宽整数/`float`/`char`/`bool` 之间均无隐式提升，必须显式 `as`；
   未实现 `as` 前直接报 `cannot implicitly convert ...`。
 - **算术**：`+`/`-`/`*` 为二补数回绕（LLVM `add`/`sub`/`mul`）；
   `/`、`%` 按符号选 `sdiv`/`srem` 或 `udiv`/`urem`；比较按符号选 `slt`/`ult` 等。
 - 除零、`i8::MIN / -1` 溢出等行为见 `docs/runtime-safety.md`（后续任务补齐诊断）。
 - 位运算与移位：0i6.2。
+
+## 位运算（M1.2）
+
+- 运算符：`&` `|` `^` `<<` `>>`（二元）、`~`（一元）；优先级（紧→松）
+  `* / %` > `+ -` > `<< >>` > `&` > `^` > `|` > 比较 > `&&` > `||`。
+- 适用类型：整数（`int` / 定宽整数 / `char`）；`&` `|` `^` 也适用于 `bool`（发射 `i1`）。
+  `float` 用位运算、`~bool`、移位 `bool` 直接报错。
+- 右移：有符号（`int` / `iN`）用算术右移 `ashr`，无符号（`uN`）与 `char` 用逻辑右移 `lshr`。
+- 移位量须与左操作数同类型（无后缀字面量自动适配）；超范围按位宽掩码（`x << (n & (bits-1))`，与 Rust release 一致）。
+- 常量折叠：`example/constfold_lib.aya` 已支持位运算折叠（op 编码 14–18）。
+
+## 显式转换 `as`（M1.3）
+
+- 语法：`expr as T`；优先级高于 `* / %`、低于一元 `- ! ~`（`(a as i32) + b`、`-1 as u8` 均为 `(-1) as u8`）。
+- 允许：整数 ↔ 整数（含 `char` / `bool` 作为源）、整数 ↔ `float`；`x as bool` 与结构体/引用转换报错。
+- 语义：
+  - 整数间：同宽 `bitcast`，变宽按源符号 `sext`/`zext`，变窄 `trunc`；
+  - 整数 → 浮点：`sitofp` / `uitofp`（按符号）；
+  - 浮点 → 整数：**饱和转换**（`llvm.fptosi.sat` / `fptoui.sat`，Rust 语义）。
+- **无隐式提升**（M1.3b）：char→int / char→float / int→float 均需显式 `as`（std 已完成迁移）。
+
+## f32 / f64（M1.4）
+
+- 类型：`float` / `f64` = 64 位浮点（同一类型）；`f32` = 32 位浮点。
+- 字面量：无后缀浮点字面量为 `float`，在期望 `f32` 的位置自动适配
+  （实参 / 返回 / 赋值 / 字段 / 二元另一侧，含 `-1.5`）。
+- 无隐式 `f64 ↔ f32` 转换，需显式 `as`；`int ↔ f32/f64` 也需 `as`（`float → int` 为饱和转换）。
+- 运算 / 比较：`fadd/fsub/fmul/fdiv/frem` 与 `fcmp`；f32 发射 `float`，f64 发射 `double`。
+- 常量：f32 十进制不可精确表示时发射十六进制位型（LLVM 对 `float` 常量要求精确表示）。
+- 字面量后缀（`1.5f32`）与默认浮点类型迁移见 0i6.5 / 0i6.10；std/math 的 f32 覆盖由 std 子仓跟进。
+
+## 基本类型对齐决策（M1.9）
+
+| 类型 | 决策 | 说明 |
+|---|---|---|
+| `bool` | **对齐 Rust** | 1 字节（LLVM `i1`），无隐式 int↔bool；`bool as int` 允许、`int as bool` 拒绝；`&` `\|` `^` `!` 可用 |
+| `char` | **暂保持 1 字节**（字节字符） | Rust 为 4 字节 Unicode scalar；迁移会改变 `String` / `[char]` 表示与全部 std/FFI，拆为独立任务（见下） |
+| `()` | **新增类型别名** | `()` ≡ `void`（`fn f() -> ()` 等价 `-> void`）；unit **值** 暂不引入（泛型/闭包需要时再加） |
+| `!` | **暂缓** | never 类型需要发散分析与 `! → T` 强转规则，拆为独立任务（见下） |
+
+- `char` 现状：无符号字节（`zext` / `uitofp`），字符串是字节缓冲；`char as int` 得到 0..255。
+- 迁移方向（未来任务）：`char` = 32-bit Unicode scalar、`String` = UTF-8，同步 std 与字面量转义。
+
+## 默认类型与别名（M1.10）
+
+- 默认类型：无后缀整数字面量为 `int`（= i64）；无后缀浮点为 `float`（= f64）。
+- 兼容别名（**同一类型**，可自由混用）：
+  - `int` ≡ `i64` ≡ `isize`
+  - `float` ≡ `f64`
+  - `u64` ≡ `usize`
+- 决策：**不把默认整数迁移到 i32**。std/FFI 全以 i64 为基（`String.len`、`ArrayList.len`、C `long long`），
+  迁移收益低、破坏面大；Rust 风格代码可直接写 `i32` / `i64` / `f32` / `f64`，与 `int` / `float` 互操作。
+- 归一后的显示名：`Int` → `int`、`Float` → `float`（诊断/IR 中沿用）。
 
 ## 实现位置
 
@@ -43,7 +99,7 @@ Rust 风格的基本整数类型：显式位宽与符号、无隐式提升、溢
 |---|---|
 | HIR 类型变体 | `src/hir/ty.rs` → `HirType::IntN { bits, signed }` |
 | 类型名解析 | `src/hir/lower/helpers/types.rs` → `fixed_width_int`（AST `Named` 与 `.lcl` 签名共用） |
-| 字面量适配 | `src/hir/lower/helpers/coerce.rs`（`as_int_literal` / `retype_int_literal`）、`expr_ops1.rs`、`wrap.rs`、`part_05.rs`（字面量感知重载解析） |
+| 字面量适配 | `src/hir/lower/helpers/coerce.rs`（`as_int_literal` / `retype_int_literal`）、`expr_ops1.rs`、`wrap.rs`、`overload_resolve.rs`（字面量感知重载解析） |
 | 负数数 | `HirNode::as_neg_int_literal`（`src/hir/lower/to_mir/basic.rs`） |
 | LLVM 发射 | `src/lir/emit/types.rs`、`src/lir/ir/nodes_a.rs`（算术 / 比较 / 一元负号） |
 | 布局与名字 | `src/lir/ir/helpers.rs`、`src/lir/lower/names.rs`、`src/lir/serialize/reader.rs`（类型 tag 13） |

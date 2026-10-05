@@ -43,7 +43,7 @@ impl Parser {
                 let gp_name = Symbol::intern(&self.expect_identifier()?);
                 let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
                     self.advance();
-                    Some(Symbol::intern(&self.expect_identifier()?))
+                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
                 } else {
                     None
                 };
@@ -126,7 +126,7 @@ impl Parser {
                 let gp_name = Symbol::intern(&self.expect_identifier()?);
                 let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
                     self.advance();
-                    Some(Symbol::intern(&self.expect_identifier()?))
+                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
                 } else {
                     None
                 };
@@ -244,13 +244,33 @@ impl Parser {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.expect_delimiter(Delimiter::LBrace)?;
         let mut stmts = Vec::new();
+        let mut tail: Option<Box<Expr>> = None;
         loop {
             match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Delimiter(Delimiter::RBrace)) | None => break,
-                _ => stmts.push(self.parse_stmt()?),
+                _ => {
+                    let stmt = self.parse_stmt()?;
+                    // 裸尾表达式：语句后无分号且紧邻 `}`
+                    let had_semi = self.pos > 0
+                        && self.tokens[self.pos - 1].kind == TokenKind::Delimiter(Delimiter::Semicolon);
+                    let at_end = matches!(self.peek().map(|t| &t.kind),
+                        Some(TokenKind::Delimiter(Delimiter::RBrace)) | None);
+                    if at_end && !had_semi {
+                        match stmt {
+                            Stmt::ExprStmt { expr, .. } => { tail = Some(Box::new(expr)); break; }
+                            Stmt::Match { value, arms, span } => {
+                                tail = Some(Box::new(Expr::Match { value, arms, span }));
+                                break;
+                            }
+                            other => stmts.push(other),
+                        }
+                    } else {
+                        stmts.push(stmt);
+                    }
+                }
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Block::new(stmts, start_span))
+        Ok(Block { stmts, tail, span: start_span })
     }
 }

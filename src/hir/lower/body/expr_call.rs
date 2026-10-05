@@ -32,7 +32,7 @@ impl crate::hir::lower::Ctx {
             Some(types) => self.specialize_generic_call_with(name, &arg_types, Some(types), span).ok(),
             None => None,
         };
-        let lit_mask: Vec<bool> = hir_args.iter().map(|a| as_int_literal(a).is_some()).collect();
+        let lit_mask: Vec<bool> = hir_args.iter().map(is_numeric_literal).collect();
         // Step 3: resolve overloaded function（原类型 → 字面量适配 → 解引用类型）
         let fn_id = match explicit_id {
             Some(fid) => fid,
@@ -155,6 +155,9 @@ impl crate::hir::lower::Ctx {
             } else if matches!(param_tys[i], HirType::IntN { .. }) && arg_ty == HirType::Int && as_int_literal(&arg).is_some() {
                 // 整数字面量 → 定宽整数形参（值形参）
                 retype_int_literal(arg, &param_tys[i])
+            } else if matches!(param_tys[i], HirType::F32) && arg_ty == HirType::Float && as_float_literal(&arg).is_some() {
+                // 浮点字面量 → f32 形参（值形参）
+                retype_float_literal(arg, &param_tys[i])
             } else if implicit_cast_ok(&arg_ty, &param_tys[i]) {
                 // 按值基元参数的隐式数值转换（char→int / int→float / char→float）
                 SCast { expr: arg, ty: strip_ownership_ref(&param_tys[i]).clone() }.into()

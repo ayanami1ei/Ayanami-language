@@ -1,0 +1,19 @@
+pub interface Into[T] {
+    fn into(self) -> T;
+}
+
+struct F { float v }
+
+impl F {
+    fn into(self) -> float { return self.v }
+}
+
+fn use_into[U: Into[float]](U x) -> float {
+    return x.into()
+}
+
+fn main() -> int {
+    f = F { v = 1.5 }
+    if use_into(f) != 1.5 { return 1 }
+    return 0
+}

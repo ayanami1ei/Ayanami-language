@@ -50,7 +50,7 @@ impl crate::hir::lower::Ctx {
         span: &Span,
     ) -> Result<Vec<HirStmt>> {
         let data_field = Symbol::intern(&format!("_data_{}", arm.variant_name));
-        let var_struct = Symbol::intern(&format!("{}_{}", value_ty_name, arm.variant_name));
+        let var_struct = crate::hir::lower::variant_struct_name(&value_ty_name, &arm.variant_name);
         let mut stmts = Vec::new();
         for (j, (bind_name, _)) in arm.bindings.iter().enumerate() {
             let inner_acc: HirNodeBox = SField {
@@ -167,7 +167,14 @@ impl crate::hir::lower::Ctx {
                 "non-exhaustive match expression at {}:{}", span.start_line, span.start_col
             )));
         }
-        let res_ty = expr_type(&lowered[0].1);
+        // 分支结果类型：按数值提升取公共类型（int/char/float 混合，如 `v => v` / `Q(_) => 0`）
+        let res_ty = lowered.iter()
+            .map(|(_, b)| expr_type(b))
+            .fold(None::<HirType>, |acc, t| Some(match acc {
+                Some(a) => match_result_type(&a, &t),
+                None => t,
+            }))
+            .unwrap_or(HirType::Int);
         let res_var = VarId(self.locals.len());
         self.locals.push(HirLocal::new(Symbol::intern("__match_res"), res_ty.clone(), true));
         let res_node: HirNodeBox = SVar { var: res_var, ty: res_ty.clone() }.into();
@@ -176,6 +183,7 @@ impl crate::hir::lower::Ctx {
         let mut blocks = Vec::new();
         for (i, (mut arm_stmts, body)) in lowered.into_iter().enumerate() {
             conds.push(Self::tag_cond(&val_node, i));
+            let body = coerce_expr(body, &res_ty, span)?;
             arm_stmts.push(HirStmt::Assign {
                 target: res_node.clone(),
                 value: body,
@@ -187,5 +195,18 @@ impl crate::hir::lower::Ctx {
             self.pending_stmts.push(if_stmt);
         }
         Ok(res_node)
+    }
+}
+
+/// match 分支公共结果类型（数值提升；其余取首个分支类型）
+fn match_result_type(a: &HirType, b: &HirType) -> HirType {
+    let sa = strip_ownership(a.clone());
+    let sb = strip_ownership(b.clone());
+    if sa == sb { return sa; }
+    match (&sa, &sb) {
+        (HirType::Float, HirType::Int) | (HirType::Int, HirType::Float)
+        | (HirType::Float, HirType::Char) | (HirType::Char, HirType::Float) => HirType::Float,
+        (HirType::Char, HirType::Int) | (HirType::Int, HirType::Char) => HirType::Int,
+        _ => sa,
     }
 }

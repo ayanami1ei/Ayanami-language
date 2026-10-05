@@ -41,7 +41,7 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
     for (i, node) in cfg.nodes.iter().enumerate() {
         let live = &live_in[i];
         // A4c：扁平化（key, var, mutable），含多来源 extra 约束
-        let active: Vec<(VarId, VarId, bool)> = live
+        let mut active: Vec<(VarId, VarId, bool)> = live
             .iter()
             .filter_map(|r| loans.get(r).map(|l| (*r, l)))
             .flat_map(|(k, l)| {
@@ -49,6 +49,8 @@ pub fn check_fn(mir_fn: &MirFn, ref_params: &[(VarId, bool)], table: &super::Fol
                     .chain(l.extra.iter().map(move |(v, m)| (k, *v, *m)))
             })
             .collect();
+        // #64：确定性诊断 —— HashSet 迭代顺序不定，排序后再配对生成消息
+        active.sort_by_key(|(k, v, m)| (k.0, v.0, *m as u8));
 
         // 活跃借用之间的冲突（同一变量、至少一个可变）
         for a in 0..active.len() {

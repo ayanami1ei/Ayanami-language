@@ -13,4 +13,10 @@ pub enum BinaryOp {
     Ge,
     And,
     Or,
+    /// M1.2：位运算与移位
+    BitAnd,
+    BitOr,
+    BitXor,
+    Shl,
+    Shr,
 }

@@ -125,6 +125,7 @@ fn fmt_type(ty: &HirType) -> String {
     match ty {
         HirType::Int => "int".into(),
         HirType::Float => "float".into(),
+        HirType::F32 => "f32".into(),
         HirType::Char => "char".into(),
         HirType::Bool => "bool".into(),
         HirType::Void => "void".into(),

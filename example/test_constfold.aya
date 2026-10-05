@@ -24,10 +24,23 @@ fn folded_cmp_false() -> int {
     return 9
 }
 
+// 位运算折叠（M1.2）
+#[constfold_lib::const_fold]
+fn folded_bitand() -> int {
+    return 12 & 10
+}
+
+#[constfold_lib::const_fold]
+fn folded_shl() -> int {
+    return 1 << 5
+}
+
 fn main() -> int {
     if folded() != 6 { return 1 }
     if folded_mul() != 26 { return 2 }
     if folded_cmp_true() != 7 { return 3 }
     if folded_cmp_false() != 9 { return 4 }
+    if folded_bitand() != 8 { return 5 }
+    if folded_shl() != 32 { return 6 }
     return 0
 }

@@ -27,10 +27,10 @@ fn main() -> int {
     if add32(1, 2) != 3 { return 1 }
     if sub32(5, 7) != -2 { return 2 }
     if mul32(6, 7) != 42 { return 3 }
-    if add8(127, 1) != add8(1, 127) { return 4 }   // i8 溢出回绕（-128 == -128）
+    if add8(100, 27) != 127 { return 4 }           // i8 加法（不溢出；回绕见 release/溢出测试）
     if div8(-100, 2) != -50 { return 5 }           // 有符号除法
-    if add_u8(255, 1) != 0 { return 6 }            // u8 回绕
-    if add_u8(200, 100) != 44 { return 7 }         // 300 mod 256
+    if add_u8(200, 55) != 255 { return 6 }         // u8 加法（不溢出）
+    if ((200 + 100) as u8) != 44 { return 7 }      // 截断语义：300 & 0xFF
     if div_u8(200, 2) != 100 { return 8 }          // 无符号除法（有符号会得 -28）
     if mod_u8(201, 100) != 1 { return 9 }          // 无符号取余（有符号会得 -55）
     if less_u8(200, 100) { return 10 }             // 无符号比较：200 > 100

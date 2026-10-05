@@ -118,9 +118,14 @@ impl<'a> Emitter<'a> {
 
         self.current_fn_ret_ty = f.return_type.clone();
 
+        let linkage = if self.prog.specialized_fns.contains(&f.fn_id) || f.is_inline {
+            "linkonce_odr "
+        } else {
+            ""
+        };
         self.wln_fmt(format_args!(
-            "define {} @{}({}){} {{",
-            ret_ty, fn_name, param_list, inline_attr
+            "define {}{} @{}({}){} {{",
+            linkage, ret_ty, fn_name, param_list, inline_attr
         ));
         self.indent += 1;
 

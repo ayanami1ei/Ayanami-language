@@ -16,7 +16,7 @@ pub(super) fn indent(level: usize) -> String {
 }
 
 pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize) {
-    if block.stmts.is_empty() {
+    if block.stmts.is_empty() && block.tail.is_none() {
         let _ = write!(out, "{{}}");
         return;
     }
@@ -24,6 +24,9 @@ pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usiz
     let _ = writeln!(out, "{{");
     for stmt in &block.stmts {
         write_stmt(out, stmt, level + 1);
+    }
+    if let Some(t) = &block.tail {
+        let _ = writeln!(out, "{}{}", indent(level + 1), super::expr::write_expr_at(t, level + 1));
     }
     let _ = write!(out, "{}}}", i);
 }

@@ -1,0 +1,20 @@
+// #69：泛型枚举特化后的 match 载荷绑定
+pub enum O[T] {
+    Some(T),
+    None,
+}
+
+fn mk() -> O[int] { return O::Some(7) }
+
+fn get(O[int] v) -> int {
+    return match v {
+        Some(x) => x,
+        None => 0,
+    }
+}
+
+fn main() -> int {
+    if get(mk()) != 7 { return 1 }
+    if get(O::None) != 0 { return 2 }
+    return 0
+}

@@ -1,0 +1,23 @@
+// #99：for 区间变量类型跟随边界（usize 边界 → i: usize）
+fn sum_upto(usize n) -> int {
+    s = 0
+    for i in (0, n) {
+        s = s + (i as int)
+    }
+    return s
+}
+
+fn main() -> int {
+    if sum_upto(3usize) != 3 { return 1 }
+    total = 0usize
+    for j in (0usize, 2usize) {
+        total = total + j
+    }
+    if total != 1 { return 2 }          // 0 + 1
+    k = 0
+    for m in (0, 3) {                   // 纯字面量 → int
+        k = k + 1
+    }
+    if k != 3 { return 3 }
+    return 0
+}

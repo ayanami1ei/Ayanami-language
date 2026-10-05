@@ -1,8 +1,8 @@
-// 隐式数值转换：char→int / char→float / int→float（仅无损拓宽）
+// M1.3b：显式数值转换（原隐式拓宽用例改为 as）
 fn take(int x) -> int { return x }
 fn takef(float x) -> float { return x }
-fn ret_char() -> int { return 'a' }
-fn ret_int() -> float { return 3 }
+fn ret_char() -> int { return 'a' as int }
+fn ret_int() -> float { return 3 as float }
 
 struct P {
     int x
@@ -19,12 +19,12 @@ impl P {
 fn main() -> int {
     c = 'A'
     i = 0
-    i = c
-    j = take(c)
-    f = takef(2)
-    g = takef(c)
-    p = P { x = 'B', y = 1 }
-    p.x = c
+    i = c as int
+    j = take(c as int)
+    f = takef(2 as float)
+    g = takef(c as float)
+    p = P { x = 'B' as int, y = 1 as float }
+    p.x = c as int
     if ret_char() != 97 { return 1 }
     if i != 65 { return 2 }
     if j != 65 { return 3 }
@@ -33,6 +33,6 @@ fn main() -> int {
     if g != 65.0 { return 6 }
     if p.x != 65 { return 7 }
     if p.y != 1.0 { return 8 }
-    if p.bump('a') != 162 { return 9 }
+    if p.bump('a' as int) != 162 { return 9 }
     return 0
 }

@@ -49,6 +49,11 @@ pub(super) fn format_op(op: &BinaryOp) -> &str {
         BinaryOp::Ge => "Ge",
         BinaryOp::And => "And",
         BinaryOp::Or => "Or",
+        BinaryOp::BitAnd => "BitAnd",
+        BinaryOp::BitOr => "BitOr",
+        BinaryOp::BitXor => "BitXor",
+        BinaryOp::Shl => "Shl",
+        BinaryOp::Shr => "Shr",
     }
 }
 
@@ -56,6 +61,7 @@ pub(super) fn format_unary(op: &UnaryOp) -> &str {
     match op {
         UnaryOp::Neg => "Neg",
         UnaryOp::Not => "Not",
+        UnaryOp::BitNot => "BitNot",
     }
 }
 

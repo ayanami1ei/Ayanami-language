@@ -1,0 +1,4 @@
+fn main() -> int {
+    x = 256u8
+    return 0
+}

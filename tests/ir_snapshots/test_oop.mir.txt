@@ -24,11 +24,12 @@ MIR Program
         target:
         Local(v2 : Int)
         value:
-        Binary { op: Add, ty: Int }
-          lhs:
+        Call(fn11, ty: Int)
           Local(v0 : Int)
-          rhs:
           Local(v1 : Int)
+          Literal(Int(13))
+          Literal(Int(54))
+          Literal(String("example/test_oop.aya"))
       Return
         Local(v2 : Int)
 │ │ }
@@ -40,11 +41,12 @@ MIR Program
         target:
         Local(v1 : Int)
         value:
-        Binary { op: Mul, ty: Int }
-          lhs:
+        Call(fn12, ty: Int)
           Local(v0 : Int)
-          rhs:
           Literal(Int(3))
+          Literal(Int(14))
+          Literal(Int(42))
+          Literal(String("example/test_oop.aya"))
       Return
         Local(v1 : Int)
 │ │ }
@@ -190,23 +192,27 @@ MIR Program
         target:
         Local(v7 : Int)
         value:
-        Binary { op: Sub, ty: Int }
-          lhs:
-          Binary { op: Sub, ty: Int }
-            lhs:
-            Binary { op: Add, ty: Int }
-              lhs:
-              Binary { op: Add, ty: Int }
-                lhs:
+        Call(fn13, ty: Int)
+          Call(fn13, ty: Int)
+            Call(fn11, ty: Int)
+              Call(fn11, ty: Int)
                 Local(v4 : Int)
-                rhs:
                 Local(v5 : Int)
-              rhs:
+                Literal(Int(50))
+                Literal(Int(19))
+                Literal(String("example/test_oop.aya"))
               Local(v6 : Int)
-            rhs:
+              Literal(Int(50))
+              Literal(Int(29))
+              Literal(String("example/test_oop.aya"))
             Local(v2 : Int)
-          rhs:
+            Literal(Int(50))
+            Literal(Int(33))
+            Literal(String("example/test_oop.aya"))
           Local(v3 : Int)
+          Literal(Int(50))
+          Literal(Int(39))
+          Literal(String("example/test_oop.aya"))
       Return
         Local(v7 : Int)
       Assign
@@ -216,4 +222,13 @@ MIR Program
         Literal(Int(0))
       Return
         Local(v8 : Int)
+│ │ }
+│ Fn __ayanami_ovf_add_i64 (a: Int, b: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 0]
+│ │ Block {
+│ │ }
+│ Fn __ayanami_ovf_mul_i64 (a: Int, b: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 0]
+│ │ Block {
+│ │ }
+│ Fn __ayanami_ovf_sub_i64 (a: Int, b: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 0]
+│ │ Block {
 │ │ }

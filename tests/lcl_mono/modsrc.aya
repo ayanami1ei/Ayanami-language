@@ -1,0 +1,11 @@
+import "mlib"
+
+fn mk(int x) -> Box2[int] { return Box2::V(x) }
+
+pub fn f(int x) -> int {
+    return mk(x).get_or(0)
+}
+
+pub fn f2(int x) -> int {
+    return mk(x).calc(3)
+}

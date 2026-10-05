@@ -50,6 +50,10 @@ impl crate::hir::lower::Ctx {
             if !lir_binary.is_empty() {
                 let dep_lir = crate::lir::serialize::program_from_bytes(&lir_binary);
                 if let Ok(dep_lir) = dep_lir {
+                    // #100：记录 .lcl 已定义的全部函数符号（含泛型特化），避免源模块重复发射
+                    for name in dep_lir.fn_names.values() {
+                        self.imported_fn_syms.insert(name.clone());
+                    }
                     // 先保存 generic_struct_params（需在 struct_defs 被消费前读取）
                     let gsp_from_lir: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>> =
                         dep_lir.generic_struct_params.clone();

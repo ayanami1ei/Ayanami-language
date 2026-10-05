@@ -18,6 +18,12 @@ pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNode
             return retype_int_literal(arg, param_ty);
         }
     }
+    // 浮点字面量 → f32 形参（值形参）
+    if matches!(param_ty, HirType::F32) {
+        if arg.expr_type() == HirType::Float && as_float_literal(&arg).is_some() {
+            return retype_float_literal(arg, param_ty);
+        }
+    }
     // 值形参位置：`ref T` 自动解引用（引用形参保持原样）
     let arg = if !matches!(param_ty, HirType::Ref(..)) {
         let at = arg.expr_type();
@@ -105,6 +111,11 @@ pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str> {
         BinaryOp::Gt => Some("gt"),
         BinaryOp::Le => Some("le"),
         BinaryOp::Ge => Some("ge"),
+        BinaryOp::BitAnd => Some("bitand"),
+        BinaryOp::BitOr => Some("bitor"),
+        BinaryOp::BitXor => Some("bitxor"),
+        BinaryOp::Shl => Some("shl"),
+        BinaryOp::Shr => Some("shr"),
         BinaryOp::And | BinaryOp::Or => None, // logical ops not overloadable
     }
 }
@@ -115,5 +126,6 @@ pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str> {
     match op {
         UnaryOp::Neg => Some("neg"),
         UnaryOp::Not => Some("not"),
+        UnaryOp::BitNot => Some("bitnot"),
     }
 }

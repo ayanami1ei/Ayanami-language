@@ -19,12 +19,18 @@ impl crate::hir::lower::Ctx {
                 } else if matches!(r0, HirType::IntN { .. }) && l0 == HirType::Int && as_int_literal(&hir_lhs).is_some() {
                     hir_lhs = retype_int_literal(hir_lhs, &rhs_ty);
                     lhs_ty = rhs_ty.clone();
+                } else if matches!(l0, HirType::F32) && r0 == HirType::Float && as_float_literal(&hir_rhs).is_some() {
+                    hir_rhs = retype_float_literal(hir_rhs, &lhs_ty);
+                    rhs_ty = lhs_ty.clone();
+                } else if matches!(r0, HirType::F32) && l0 == HirType::Float && as_float_literal(&hir_lhs).is_some() {
+                    hir_lhs = retype_float_literal(hir_lhs, &rhs_ty);
+                    lhs_ty = rhs_ty.clone();
                 }
             }
             let l = strip_ownership(lhs_ty.clone()).clone();
             let r = strip_ownership(rhs_ty.clone()).clone();
             // 定宽整数不做隐式提升/混合（需显式 as）
-            if l != r && (matches!(l, HirType::IntN { .. }) || matches!(r, HirType::IntN { .. })) {
+            if l != r && (matches!(l, HirType::IntN { .. } | HirType::F32) || matches!(r, HirType::IntN { .. } | HirType::F32)) {
                 return Err(Error::Hir(format!(
                     "cannot implicitly convert `{}` to `{}` (at {}:{})",
                     hir_type_display(&rhs_ty), hir_type_display(&lhs_ty),
@@ -54,6 +60,20 @@ impl crate::hir::lower::Ctx {
             }
         }
         let inner_ty = strip_ownership(lhs_ty.clone());
+        // M1.2：位运算仅适用于整数（`&`/`|`/`^` 也适用于 bool），移位不适用于 bool
+        let is_bitwise = matches!(op, BinaryOp::BitAnd | BinaryOp::BitOr | BinaryOp::BitXor | BinaryOp::Shl | BinaryOp::Shr);
+        if is_bitwise && matches!(inner_ty, HirType::Float) {
+            return Err(Error::Hir(format!(
+                "cannot apply bitwise operator to `float` (at {}:{})",
+                span.start_line, span.start_col
+            )));
+        }
+        if matches!(op, BinaryOp::Shl | BinaryOp::Shr) && matches!(inner_ty, HirType::Bool) {
+            return Err(Error::Hir(format!(
+                "cannot shift `bool` (at {}:{})",
+                span.start_line, span.start_col
+            )));
+        }
         // Detect null-vs-pointer comparison (null is lowered to Int(0))
         // Only treat as pointer comparison when the non-null side's inner type is NOT primitive
         // (e.g. Shared(Node) vs null, but NOT Unique(Int) == 0 — int is passed by value)
@@ -62,11 +82,11 @@ impl crate::hir::lower::Ctx {
         let non_null_ty = if lhs_is_null { &rhs_ty } else { &lhs_ty };
         let is_null_ptr_cmp = (lhs_is_null || rhs_is_null)
             && is_pointer_type_for_cmp(non_null_ty)
-            && !matches!(strip_ownership(non_null_ty.clone()), HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
+            && !matches!(strip_ownership(non_null_ty.clone()), HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
         // Try operator overloading first: look for a matching function
         // Primitive types use built-in operators, not overloading
         // Null-vs-pointer comparisons use built-in ptr comparison, not overloading
-        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
+        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
         if !is_primitive && !is_null_ptr_cmp {
             if let Some(op_fn_name) = binary_op_to_fn_name(op) {
                 let param_types = [lhs_ty.clone(), rhs_ty.clone()];
@@ -96,6 +116,30 @@ impl crate::hir::lower::Ctx {
                 return Ok(SCall { fn_id, args, ty: ret_ty }.into());
             }
         }
+        // M1.3：移位量按左操作数位宽掩码（Rust release 语义，所有构建模式一致）
+        let hir_rhs = if matches!(op, BinaryOp::Shl | BinaryOp::Shr) {
+            let bits: u32 = match &inner_ty {
+                HirType::Int => 64,
+                HirType::Char => 8,
+                HirType::IntN { bits, .. } => *bits as u32,
+                _ => 0,
+            };
+            if bits > 0 {
+                SBin {
+                    op: BinaryOp::BitAnd,
+                    lhs: hir_rhs,
+                    rhs: SConst { val: HirLiteral::Int((bits - 1) as i64), ty: rhs_ty.clone() }.into(),
+                    ty: rhs_ty.clone(),
+                }.into()
+            } else { hir_rhs }
+        } else { hir_rhs };
+        // M1.7：debug 构建对整数 + / - * 做溢出检查（release 直接回绕）
+        if !crate::hir::contracts::is_release()
+            && matches!(inner_ty, HirType::Int | HirType::IntN { .. })
+            && let Some(op_name) = ovf_op_name(op)
+        {
+            return Ok(self.lower_ovf_call(op_name, &inner_ty, hir_lhs, hir_rhs, span));
+        }
         // 注意：比较运算的 ty 保持操作数类型；结果类型（Bool）由 MIR→LIR 降级决定。
         // 逻辑与/或的结果是 bool，直接给 Bool 类型。
         let binop_ty = if matches!(op, BinaryOp::And | BinaryOp::Or) {
@@ -117,8 +161,16 @@ impl crate::hir::lower::Ctx {
         let hir_arg = auto_deref(self.lower_expr(arg)?);
         let arg_ty = expr_type(&hir_arg);
         let inner_ty = strip_ownership(arg_ty.clone());
+        // M1.2：`~` 仅适用于整数/char
+        if matches!(op, UnaryOp::BitNot) && matches!(inner_ty, HirType::Float | HirType::Bool) {
+            return Err(Error::Hir(format!(
+                "cannot apply `~` to `{}` (at {}:{})",
+                hir_type_display(&inner_ty),
+                arg.span().start_line, arg.span().start_col
+            )));
+        }
         // Try operator overloading (skip for primitive types)
-        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::Char | HirType::Bool | HirType::IntN { .. });
+        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
         if !is_primitive {
             if let Some(op_fn_name) = unary_op_to_fn_name(op) {
                 let param_types = [arg_ty.clone()];

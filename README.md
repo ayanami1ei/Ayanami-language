@@ -40,7 +40,7 @@ install/
 脚本会先跑 `check_all.sh`（版本/行数/符号地图/零告警 + 语言正负回归 + IR 快照），再构建 release 二进制、
 重建 `std/` 预编译包、组装 `install/`（含 bundled `llc` 与 `libLLVM.so`）并打包。
 
-本仓库使用子仓：`std/`（[Ayanami-std](https://github.com/ayanami1ei/Ayanami-std)）、`asuka/`、`book/`；
+本仓库使用子仓：`std/`（[Ayanami-std](https://github.com/ayanami1ei/Ayanami-std)）、`book/`；
 从源码克隆后先执行 `git submodule update --init --recursive`。
 
 ## 构建要求
@@ -107,10 +107,12 @@ fn main() -> int {
 
 | 类型   | 写法                                | 说明                                            |
 | ------ | ----------------------------------- | ----------------------------------------------- |
-| 整数   | `int`                             | 64 位                                           |
-| 浮点   | `float`                           | 64 位                                           |
-| 字符   | `char`                            | 单字节                                          |
-| 布尔   | `bool`                            | `true` / `false`                            |
+| 整数   | `int`                             | 64 位（`int` ≡ `i64` ≡ `isize`；另有 `i8..i128` / `u8..u128` / `usize`） |
+| 浮点   | `float` / `f64`                   | 64 位（同一类型）                                |
+| 浮点   | `f32`                             | 32 位                                           |
+| 字符   | `char`                            | 单字节（Rust 为 4 字节 Unicode；见 docs/int-types.md） |
+| 布尔   | `bool`                            | 1 字节，`true` / `false`                       |
+| 单元   | `()` / `void`                     | 类型别名（unit 值暂不引入）                       |
 | 字符串 | `String`                          | 标准库结构体 `{ [char] data, int len }` |
 | 数组   | `[int]`                          | 拥有堆缓冲区，离开作用域自动释放；借用写 `ref [int]` |
 | 结构体 | `Point`                           | 自定义，值语义                                  |
@@ -156,6 +158,19 @@ fn add(int a, int b) -> int { return a + b; }
 ```
 
 参数顺序：**类型 名称**。返回值用 `->`。
+
+函数体末尾**无分号的表达式**作为隐式返回值（Rust 风格尾表达式），末尾的 `match` 语句同样适用：
+
+```
+fn add(int a, int b) -> int {
+    a + b
+}
+
+fn pick(int x) -> int {
+    if x > 0 { return 1 }
+    0
+}
+```
 
 ### 函数指针
 
@@ -302,7 +317,8 @@ import "panic";
 | --------------------------------------- | ----------------------------------------- |
 | `+` `-` `*` `/` `%`           | `add` `sub` `mul` `div` `rem`   |
 | `==` `!=` `<` `>` `<=` `>=` | `eq` `ne` `lt` `gt` `le` `ge` |
-| `-` `!`（一元）                     | `neg` `not`                           |
+| `&` `\|` `^` `<<` `>>`           | `bitand` `bitor` `bitxor` `shl` `shr` |
+| `-` `!` `~`（一元）              | `neg` `not` `bitnot`              |
 | `a[i]`                                | `index(self, i)`                        |
 | `expr?`                               | `try_unwrap(expr)`                      |
 

@@ -23,6 +23,7 @@ pub(crate) fn display_type(ty: &HirType) -> String {
     match ty {
         HirType::Int => "Int".into(),
         HirType::Float => "Float".into(),
+        HirType::F32 => "F32".into(),
         HirType::Char => "Char".into(),
         HirType::Void => "Void".into(),
         HirType::Bool => "Bool".into(),

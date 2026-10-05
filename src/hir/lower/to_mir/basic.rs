@@ -88,6 +88,14 @@ impl HirNode for SUn {
         }
         None
     }
+    fn as_neg_float_literal(&self) -> Option<f64> {
+        if matches!(self.op, crate::parser::ast::UnaryOp::Neg) {
+            if let Some(HirLiteral::Float(n)) = self.arg.as_const() {
+                return Some(-*n);
+            }
+        }
+        None
+    }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
         f(&*self.arg);
     }

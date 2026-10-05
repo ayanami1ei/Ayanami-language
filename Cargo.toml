@@ -8,7 +8,6 @@ license = "MIT"
 anyhow = "1.0.100"
 owo-colors = "4.2.3"
 notify = "9.0.0-rc.4"
-asuka = { path = "asuka" }
 thiserror = "2.0.21"
 
 

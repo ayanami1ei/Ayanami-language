@@ -112,6 +112,7 @@
         { "name": "keyword.operator.arithmetic.aya", "match": "[+\\-*/%]" },
         { "name": "keyword.operator.comparison.aya", "match": "==|!=|<=|>=|<|>" },
         { "name": "keyword.operator.logical.aya", "match": "&&|\\|\\||!" },
+        { "name": "keyword.operator.bitwise.aya", "match": "<<|>>|&|\\||\\^|~" },
         { "name": "keyword.operator.assignment.aya", "match": "=" }
       ]
     },

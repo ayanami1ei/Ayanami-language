@@ -24,12 +24,21 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
 }
 
 
-/// 定宽整数类型名 → (bits, signed)
-pub(crate) fn fixed_width_int(name: &str) -> Option<(u8, bool)> {
+/// 定宽类型名 → HirType（M1.10：`i64`/`isize`/`int` 归一为 `Int`；`f64`/`float` 归一为 `Float`）
+pub(crate) fn fixed_width_type(name: &str) -> Option<HirType> {
     Some(match name {
-        "i8" => (8, true), "i16" => (16, true), "i32" => (32, true), "i64" => (64, true), "i128" => (128, true),
-        "u8" => (8, false), "u16" => (16, false), "u32" => (32, false), "u64" => (64, false), "u128" => (128, false),
-        "isize" => (64, true), "usize" => (64, false),
+        "int" | "i64" | "isize" => HirType::Int,
+        "float" | "f64" => HirType::Float,
+        "f32" => HirType::F32,
+        "i8" => HirType::IntN { bits: 8, signed: true },
+        "i16" => HirType::IntN { bits: 16, signed: true },
+        "i32" => HirType::IntN { bits: 32, signed: true },
+        "i128" => HirType::IntN { bits: 128, signed: true },
+        "u8" => HirType::IntN { bits: 8, signed: false },
+        "u16" => HirType::IntN { bits: 16, signed: false },
+        "u32" => HirType::IntN { bits: 32, signed: false },
+        "u64" | "usize" => HirType::IntN { bits: 64, signed: false },
+        "u128" => HirType::IntN { bits: 128, signed: false },
         _ => return None,
     })
 }
@@ -51,15 +60,21 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
         HirType::Array(Box::new(sig_str_to_hir(inner)))
     } else {
         match s {
-            "int" => HirType::Int,
-            "float" => HirType::Float,
             "char" => HirType::Char,
             "bool" => HirType::Bool,
             "void" => HirType::Void,
-            other => match fixed_width_int(other) {
-                Some((bits, signed)) => HirType::IntN { bits, signed },
-                None => HirType::Named(Symbol::intern(other)),
-            },
+            other => {
+                // #104：.lcl 签名可能写 `Option[int]`（源语法）；归一化为 `Option<int>`（HIR 泛型命名）
+                let canonical = match other.find('[') {
+                    Some(open) if other.ends_with(']') =>
+                        format!("{}<{}>", &other[..open], &other[open + 1..other.len() - 1]),
+                    _ => other.to_string(),
+                };
+                match fixed_width_type(&canonical) {
+                    Some(t) => t,
+                    None => HirType::Named(Symbol::intern(&canonical)),
+                }
+            }
         }
     }
 }
@@ -94,12 +109,10 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         }
         Type::Named(s, _) => {
             let name = s.as_str();
-            if name == "int" { HirType::Int }
-            else if name == "float" { HirType::Float }
-            else if name == "char" { HirType::Char }
+            if name == "char" { HirType::Char }
             else if name == "void" { HirType::Void }
             else if name == "bool" { HirType::Bool }
-            else if let Some((bits, signed)) = fixed_width_int(&name) { HirType::IntN { bits, signed } }
+            else if let Some(t) = fixed_width_type(&name) { t }
             else if interfaces.contains_key(s) {
                 // 裸接口类型：拥有所有权的胖指针（Box<dyn Trait>）
                 HirType::FatPtr { name: *s, kind: Box::new(HirType::Unique(Box::new(HirType::Void))) }
@@ -151,6 +164,7 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
     match ty {
         HirType::Int => "int".into(),
         HirType::Float => "float".into(),
+        HirType::F32 => "f32".into(),
         HirType::Char => "char".into(),
         HirType::Void => "void".into(),
         HirType::Bool => "bool".into(),

@@ -126,8 +126,23 @@ pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> 
 /// Locate the runtime C file.
 /// Searches: exe dir → Cargo.toml parent → cwd parent.
 pub(crate) fn find_runtime_c() -> Result<String> {
-    // First, try next to the executable (for release builds in build/)
     let exe = std::env::current_exe().ok();
+    // 开发态（cargo 的 target/ 下）：优先仓库 src/runtime.c，避免 target/debug 里的陈旧副本
+    if let Some(exe_path) = &exe {
+        let in_target = exe_path.components().any(|c| c.as_os_str() == "target");
+        if in_target {
+            if let Some(exe_dir) = exe_path.parent() {
+                let mut dir = Some(exe_dir);
+                while let Some(d) = dir {
+                    if d.join("Cargo.toml").exists() && d.join("src").join("runtime.c").exists() {
+                        return Ok(d.join("src").join("runtime.c").to_string_lossy().into_owned());
+                    }
+                    dir = d.parent();
+                }
+            }
+        }
+    }
+    // 安装态：同目录 runtime.c
     if let Some(exe_path) = exe {
         if let Some(exe_dir) = exe_path.parent() {
             let rt = exe_dir.join("runtime.c");

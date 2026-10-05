@@ -5,7 +5,7 @@ import "string"
 #[check_lib::warn_side_effects]
 fn allocs() -> int {
     s = "hello"
-    return s.len()
+    return s.len() as int
 }
 
 #[check_lib::warn_side_effects]

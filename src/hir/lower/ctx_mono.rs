@@ -62,7 +62,8 @@ impl crate::hir::lower::Ctx {
             if let HirType::Named(vn) = fty {
                 let vn = *vn;
                 if !self.struct_defs.contains_key(&vn) {
-                    if let Some(vfields) = self.struct_defs.get(&vn).cloned() {
+                    let base_vn = strip_generic_name(&vn);
+                    if let Some(vfields) = self.struct_defs.get(&base_vn).cloned() {
                         let substituted: Vec<HirStructField> = vfields.iter()
                             .map(|f| HirStructField { name: f.name, ty: substitute_hir_type(&f.ty, &subst) })
                             .collect();

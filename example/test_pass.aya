@@ -10,7 +10,7 @@ fn pure_add(int a, int b) -> int {
 #[pass_lib::auto_pure]
 fn impure_len() -> int {
     s = "hello"
-    return s.len()
+    return s.len() as int
 }
 
 fn main() -> int {

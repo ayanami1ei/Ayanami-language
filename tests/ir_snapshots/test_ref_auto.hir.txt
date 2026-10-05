@@ -6,12 +6,13 @@ HIR Program
 │ │ │   target:
         Local(v0 : ref mut Int)
 │ │ │   value:
-        Binary { op: Add, ty: Int }
-          lhs:
+        Call(fn80, ty: Int)
           Deref ty=Int
             Local(v0 : ref mut Int)
-          rhs:
           Literal(Int(1))
+          Literal(Int(6))
+          Literal(Int(11))
+          Literal(String("example/test_ref_auto.aya"))
 │ │ }
 │ Fn bump_by (i: ref mut Int, n: Int) -> Int [locals: 2]
 │   local i: ref mut Int
@@ -39,11 +40,12 @@ HIR Program
 │   local v: Int
 │ │ Block {
 │ │ │ Return
-        Binary { op: Add, ty: Int }
-          lhs:
+        Call(fn80, ty: Int)
           Local(v0 : Int)
-          rhs:
           Literal(Int(1))
+          Literal(Int(17))
+          Literal(Int(14))
+          Literal(String("example/test_ref_auto.aya"))
 │ │ }
 │ Fn via_value (i: ref mut Int) -> Int [locals: 1]
 │   local i: ref mut Int
@@ -61,13 +63,14 @@ HIR Program
 │ │ │   target:
         Local(v1 : ref mut Int)
 │ │ │   value:
-        Binary { op: Add, ty: Int }
-          lhs:
+        Call(fn80, ty: Int)
           Deref ty=Int
             Local(v1 : ref mut Int)
-          rhs:
           Deref ty=Int
             Local(v0 : ref Int)
+          Literal(Int(25))
+          Literal(Int(15))
+          Literal(String("example/test_ref_auto.aya"))
 │ │ }
 │ Fn set_hi (s: ref mut Named(String)) -> Void [locals: 1]
 │   local s: ref mut Named(String)
@@ -249,4 +252,7 @@ HIR Program
         Literal(Int(0))
 │ │ │ Return
         Literal(Int(0))
+│ │ }
+│ Fn __ayanami_ovf_add_i64 (a: Int, b: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 0]
+│ │ Block {
 │ │ }

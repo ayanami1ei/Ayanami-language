@@ -43,7 +43,7 @@ fn unique_fn_name(base: &str, f: &MirFn, map: &HashMap<FnId, String>) -> String 
     format!("{}_{}", with_ret, f.fn_id.0)
 }
 
-pub(super) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String {
+pub(crate) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String {
     let safe_name = name.replace('.', "__");
     let safe_prefix = prefix.replace('.', "__");
     let base = if safe_prefix.is_empty() {
@@ -65,6 +65,7 @@ pub(super) fn type_to_mangle(ty: &HirType) -> String {
     match ty {
         HirType::Int => "int".into(),
         HirType::Float => "float".into(),
+        HirType::F32 => "f32".into(),
         HirType::Char => "char".into(),
         HirType::Void => "void".into(),
         HirType::Bool => "bool".into(),

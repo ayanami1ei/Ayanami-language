@@ -142,9 +142,24 @@ impl crate::hir::lower::Ctx {
             }.into());
         }
         let index_ty = hir_index.expr_type();
-        if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern("index"), &[object_ty.clone(), index_ty.clone()]) {
+        let index_fn = Symbol::intern("index");
+        let index_lit = is_numeric_literal(&hir_index);
+        // 解析顺序：精确 → 字面量适配 → 常见整数索引形参（int/usize）→ 泛型特化
+        let mut fn_id = self.resolve_fn_call(&index_fn, &[object_ty.clone(), index_ty.clone()])
+            .or_else(|| self.resolve_fn_call_literals(&index_fn, &[object_ty.clone(), index_ty.clone()], &[false, index_lit]));
+        if fn_id.is_none() {
+            for t in [HirType::Int, HirType::IntN { bits: 64, signed: false }] {
+                if let Some(id) = self.resolve_fn_call(&index_fn, &[object_ty.clone(), t]) {
+                    fn_id = Some(id);
+                    break;
+                }
+            }
+        }
+        let fn_id = fn_id.or_else(|| self.specialize_generic_call(&index_fn, &[object_ty.clone(), index_ty.clone()], span).ok());
+        if let Some(fn_id) = fn_id {
             let ret_ty = self.fns[fn_id.0].return_type.clone();
             let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
+            let hir_index = if param_tys.len() > 1 { coerce_index(hir_index, &param_tys[1], span)? } else { hir_index };
             let mut args: Vec<HirNodeBox> = vec![hir_object, hir_index].into_iter().enumerate().map(|(i, arg)| {
                 if i >= param_tys.len() { return arg; }
                 wrap_arg_for_param(arg, &param_tys[i])
@@ -152,20 +167,12 @@ impl crate::hir::lower::Ctx {
             self.append_caller_args(fn_id, &mut args, span);
             return Ok(SCall { fn_id, args, ty: ret_ty }.into());
         }
-        if let Ok(fn_id) = self.specialize_generic_call(&Symbol::intern("index"), &[object_ty.clone(), index_ty.clone()], span) {
-            let ret_ty = self.fns[fn_id.0].return_type.clone();
-            let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter().map(|(_, t)| t.clone()).collect();
-            let mut args: Vec<HirNodeBox> = vec![hir_object, hir_index].into_iter().enumerate().map(|(i, arg)| {
-                if i >= param_tys.len() { return arg; }
-                wrap_arg_for_param(arg, &param_tys[i])
-            }).collect();
-            self.append_caller_args(fn_id, &mut args, span);
-            return Ok(SCall { fn_id, args, ty: ret_ty }.into());
-        }
+        // 内置数组索引：统一转 i64 寻址
         let elem_ty = match &inner_ty {
             HirType::Array(inner) | HirType::ArraySized(inner, _) => *inner.clone(),
             _ => return Err(Error::Hir(format!("index on non-array type at {}:{}", span.start_line, span.start_col))),
         };
+        let hir_index = coerce_index(hir_index, &HirType::Int, span)?;
         Ok(SIdx {
             object: hir_object,
             index: hir_index,

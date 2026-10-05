@@ -116,6 +116,7 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
             scan_expr(rhs, obs);
         }
         Expr::Unary { arg, .. } => scan_expr(arg, obs),
+        Expr::Cast { expr, .. } => scan_expr(expr, obs),
         Expr::MacroCall { args, .. } => {
             for a in args { scan_expr(a, obs); }
         }
@@ -181,6 +182,6 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
                 obs.push(Obs::Alloc(span.start_line, span.start_col));
             }
         }
-        Expr::Ident(..) | Expr::Null(_) => {}
+        Expr::Ident(..) | Expr::Null(_) | Expr::Suffixed { .. } => {}
     }
 }

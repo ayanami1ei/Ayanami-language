@@ -28,6 +28,8 @@ pub trait HirNode: std::fmt::Debug {
     fn as_const(&self) -> Option<&HirLiteral> { None }
     /// 一元负号整数字面量（`-128`）的数值
     fn as_neg_int_literal(&self) -> Option<i64> { None }
+    /// 一元负号浮点字面量（`-1.5`）的数值
+    fn as_neg_float_literal(&self) -> Option<f64> { None }
     fn as_move(&self) -> Option<&HirNodeBox> { None }
     /// A2c：是否为比较运算。HIR 中比较保持操作数类型，Bool 结果由 MIR→LIR 决定。
     fn is_comparison(&self) -> bool { false }

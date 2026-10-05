@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::HashSet;
 
 // ============================================================
 //  Ctx —— HIR 降级上下文
@@ -37,6 +38,12 @@ pub(crate) struct Ctx {
     pub generic_fns: Vec<(Symbol, Vec<(Symbol, Option<Symbol>)>, Stmt)>,
     /// 降级过程中特化（单态化）产生的泛型函数
     pub specialized_fns: Vec<HirFn>,
+    /// M1.7：合成的外部运行时助手（溢出检查等）
+    pub synth_externs: Vec<HirFn>,
+    /// M1.7：溢出助手去重（名称 → FnId）
+    pub ovf_helpers: HashMap<Symbol, FnId>,
+    /// #100：已导入 .lcl 的函数符号名（mangled），避免重复单态化重复定义
+    pub imported_fn_syms: HashSet<String>,
     /// Lambda 计数器（生成唯一名称）
     pub lambda_counter: u64,
     /// Lambda 表达式降级产生的匿名函数
@@ -89,6 +96,9 @@ impl Ctx {
             generic_struct_params: HashMap::new(),
             generic_fns: Vec::new(),
             specialized_fns: Vec::new(),
+            synth_externs: Vec::new(),
+            ovf_helpers: HashMap::new(),
+            imported_fn_syms: HashSet::new(),
             lambda_counter: 0,
             lambda_fns: Vec::new(),
             current_fn: FnId(0),

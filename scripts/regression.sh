@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 
 BIN="target/debug/ayanami"
 if [ "${1:-}" = "--binary" ] && [ -n "${2:-}" ]; then BIN="$2"; fi
-if [ ! -x "$BIN" ]; then cargo build -q; fi
+if [ ! -x "$BIN" ] || [ "$BIN" = "target/debug/ayanami" ]; then cargo build -q; fi
 
 fail=0
 pos=0
@@ -70,6 +70,41 @@ while read -r name code pat; do
         fail=$((fail + 1))
     fi
 done < tests/runtime_safety/manifest.txt
+
+# #100：源模块调用 .lcl 泛型方法不得重复单态化（multiple definition）
+if [ -d tests/lcl_mono ]; then
+    mono_dir=tests/lcl_mono
+    "$BIN" package "$mono_dir/mlib.aya" >/dev/null 2>&1 || true
+    if [ -f "$mono_dir/mlib.lcl" ]; then
+        cp "$mono_dir/mlib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+        timeout 120 "$BIN" run "$mono_dir/entry.aya" >/dev/null 2>&1
+        got=$?
+        if [ "$got" != 0 ]; then
+            echo "FAIL $mono_dir/entry.aya: exit $got, want 0（#100 .lcl 泛型特化重复定义）"
+            fail=$((fail + 1))
+        fi
+        rm -f "$(dirname "$BIN")/std/mlib.lcl"
+    else
+        echo "FAIL $mono_dir/mlib.aya: package failed"
+        fail=$((fail + 1))
+    fi
+fi
+
+# #104：传递 .lcl 依赖（libb → liba）的符号/泛型 impl 注册
+if [ -d tests/lcl_transitive ]; then
+    tdir=tests/lcl_transitive
+    "$BIN" package "$tdir/liba.aya" >/dev/null 2>&1 || true
+    cp "$tdir/liba.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    "$BIN" package "$tdir/libb.aya" >/dev/null 2>&1 || true
+    cp "$tdir/libb.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    timeout 120 "$BIN" run "$tdir/entry.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL $tdir/entry.aya: exit $got, want 0（#104 传递 .lcl 依赖注册）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$(dirname "$BIN")/std/liba.lcl" "$(dirname "$BIN")/std/libb.lcl"
+fi
 
 echo "regression: positive=$pos negative=$neg runtime=$rt failures=$fail"
 [ "$fail" -eq 0 ]

@@ -27,6 +27,7 @@ impl<'a> Reader<'a> {
         match tag {
             0 => Ok(HirType::Int),
             1 => Ok(HirType::Float),
+            14 => Ok(HirType::F32),
             2 => Ok(HirType::Char),
             3 => Ok(HirType::Void),
             4 => Ok(HirType::Bool),
