@@ -57,12 +57,16 @@ impl crate::hir::lower::Ctx {
             .collect());
         self.generic_struct_params.insert(name, Vec::new());
 
-        // 实例化变体结构体（字段即枚举参数 → 同一 subst）
+        // 变体结构体（`Base_Variant<args>`）字段沿用同一 subst（枚举参数）；
+        // 嵌套泛型类型（如字段类型 `Box<int>`）走自身实例化（自建 subst，#123）
+        let variant_prefix = format!("{}_", base.as_str());
         for (_, fty) in &new_fields {
             if let HirType::Named(vn) = fty {
                 let vn = *vn;
-                if !self.struct_defs.contains_key(&vn) {
-                    let base_vn = strip_generic_name(&vn);
+                let base_vn = strip_generic_name(&vn);
+                if !self.struct_defs.contains_key(&vn)
+                    && base_vn.as_str().starts_with(variant_prefix.as_str())
+                {
                     if let Some(vfields) = self.struct_defs.get(&base_vn).cloned() {
                         let substituted: Vec<HirStructField> = vfields.iter()
                             .map(|f| HirStructField { name: f.name, ty: substitute_hir_type(&f.ty, &subst) })

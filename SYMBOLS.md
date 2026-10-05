@@ -482,7 +482,7 @@ src/hir/lower/body/iface_match.rs:124: pub(crate) fn extract_concrete_type_name(
 src/hir/lower/body/iface_match.rs:139: pub(crate) fn is_fatptr_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
 src/hir/lower/body/iface_match.rs:177: pub(crate) fn check_generic_fns_for_iface(&self, type_name: &Symbol, iface_name: &Symbol) -> bool
 src/hir/lower/body/iface_match.rs:212: pub(crate) fn ensure_specialized_interface(&mut self, specialized_name: &Symbol) -> Result<()>
-src/hir/lower/body/iface_match.rs:249: pub(crate) fn register_generic_vtable(
+src/hir/lower/body/iface_match.rs:248: pub(crate) fn register_generic_vtable(
 src/hir/lower/body/literal.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/literal.rs:5: pub(crate) fn lower_suffixed(&mut self, lit: &Literal, suffix: &Symbol, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/literal.rs:34: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
@@ -491,7 +491,7 @@ src/hir/lower/body/lower_items.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/lower_items.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>>
 src/hir/lower/body/lower_items.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
 src/hir/lower/body/lower_items.rs:116: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
-src/hir/lower/body/lower_items.rs:147: pub(crate) fn lower_fn(
+src/hir/lower/body/lower_items.rs:144: pub(crate) fn lower_fn(
 src/hir/lower/body/macro_call.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_lower.rs:7: impl crate::hir::lower::Ctx
@@ -575,17 +575,17 @@ src/hir/lower/ctx.rs:172: pub fn find_field_type(&self, struct_ty: &HirType, fie
 src/hir/lower/ctx.rs:190: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
 src/hir/lower/ctx.rs:209: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
 src/hir/lower/ctx.rs:231: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx.rs:250: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
-src/hir/lower/ctx.rs:255: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:264: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
-src/hir/lower/ctx.rs:280: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:293: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:249: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/ctx.rs:254: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:263: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx.rs:279: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:292: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
 src/hir/lower/ctx_mono.rs:35: pub fn instantiate_named(&mut self, name: Symbol) -> Result<()>
-src/hir/lower/ctx_mono.rs:81: pub fn adapt_enum_args(
-src/hir/lower/ctx_mono.rs:99: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
+src/hir/lower/ctx_mono.rs:85: pub fn adapt_enum_args(
+src/hir/lower/ctx_mono.rs:103: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
 src/hir/lower/helpers/caller.rs:7: pub(crate) fn is_hidden_param(name: &Symbol) -> bool
 src/hir/lower/helpers/caller.rs:12: pub(crate) fn count_hidden_params(params: &[(Symbol, HirType)]) -> usize
 src/hir/lower/helpers/caller.rs:17: pub(crate) fn count_hidden_names<T>(params: &[(Symbol, T)]) -> usize
@@ -608,8 +608,9 @@ src/hir/lower/helpers/coerce.rs:95: fn is_primitive(ty: &HirType) -> bool
 src/hir/lower/helpers/coerce.rs:103: pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/helpers/convert.rs:3: pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type
 src/hir/lower/helpers/convert.rs:30: pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Vec<(Symbol, HirType)>
-src/hir/lower/helpers/convert.rs:85: fn split_generic_args(s: &str) -> Vec<&str>
-src/hir/lower/helpers/convert.rs:101: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
+src/hir/lower/helpers/convert.rs:85: pub(crate) fn generic_inner(s: &str) -> Option<&str>
+src/hir/lower/helpers/convert.rs:102: pub(crate) fn split_generic_args(s: &str) -> Vec<&str>
+src/hir/lower/helpers/convert.rs:118: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
 src/hir/lower/helpers/mod.rs:18: mod caller;
 src/hir/lower/helpers/mod.rs:19: mod coerce;
 src/hir/lower/helpers/mod.rs:20: mod overflow;
@@ -2194,6 +2195,16 @@ example/test_memory_loop.aya:5: fn loop_allocs() -> int
 example/test_memory_loop.aya:14: fn main() -> int
 example/test_negative.aya:2: fn take(int x) -> int { return x }
 example/test_negative.aya:4: fn main() -> int
+example/test_nested_generic_type.aya:2: struct Box[T] { T v }
+example/test_nested_generic_type.aya:3: struct Wrap[T] { T inner }
+example/test_nested_generic_type.aya:5: struct A[T] { T v }
+example/test_nested_generic_type.aya:6: struct B[T] { T v }
+example/test_nested_generic_type.aya:7: struct C[T] { T v }
+example/test_nested_generic_type.aya:9: struct Pair[X, Y]
+example/test_nested_generic_type.aya:14: fn mk() -> Wrap[Box[int]]
+example/test_nested_generic_type.aya:18: fn deep() -> A[B[C[int]]]
+example/test_nested_generic_type.aya:22: fn pair() -> Pair[A[int], B[int]]
+example/test_nested_generic_type.aya:26: fn main() -> int
 example/test_nested_ref_mut.aya:2: struct Inner { int n }
 example/test_nested_ref_mut.aya:4: fn inc_free(ref mut Inner x) { x.n = x.n + 1; }
 example/test_nested_ref_mut.aya:6: struct Outer

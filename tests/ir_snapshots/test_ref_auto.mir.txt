@@ -6,7 +6,7 @@ MIR Program
         target:
         Local(v0 : ref mut Int)
         value:
-        Call(fn84, ty: Int)
+        Call(fn91, ty: Int)
           Deref ty=Int
             Local(v0 : ref mut Int)
           Literal(Int(1))
@@ -30,7 +30,7 @@ MIR Program
         body:
         Block {
           Expr
-            Call(fn77, ty: Void)
+            Call(fn84, ty: Void)
               Local(v0 : ref mut Int)
         }
       Assign
@@ -50,7 +50,7 @@ MIR Program
         target:
         Local(v1 : Int)
         value:
-        Call(fn84, ty: Int)
+        Call(fn91, ty: Int)
           Local(v0 : Int)
           Literal(Int(1))
           Literal(Int(17))
@@ -67,7 +67,7 @@ MIR Program
         target:
         Local(v1 : Int)
         value:
-        Call(fn79, ty: Int)
+        Call(fn86, ty: Int)
           Deref ty=Int
             Local(v0 : ref mut Int)
       Return
@@ -81,7 +81,7 @@ MIR Program
         target:
         Local(v1 : ref mut Int)
         value:
-        Call(fn84, ty: Int)
+        Call(fn91, ty: Int)
           Deref ty=Int
             Local(v1 : ref mut Int)
           Deref ty=Int
@@ -125,7 +125,7 @@ MIR Program
         value:
         Literal(Int(0))
       Expr
-        Call(fn77, ty: Void)
+        Call(fn84, ty: Void)
           Ref(mut ty: ref mut Int)
             Local(v0 : Int)
       If
@@ -154,7 +154,7 @@ MIR Program
         target:
         Local(v2 : Int)
         value:
-        Call(fn78, ty: Int)
+        Call(fn85, ty: Int)
           Ref(mut ty: ref mut Int)
             Local(v1 : Int)
           Literal(Int(3))
@@ -203,13 +203,13 @@ MIR Program
         value:
         Literal(Int(0))
       Expr
-        Call(fn81, ty: Void)
+        Call(fn88, ty: Void)
           Ref(ty: ref Int)
             Local(v3 : Int)
           Ref(mut ty: ref mut Int)
             Local(v4 : Int)
       Expr
-        Call(fn81, ty: Void)
+        Call(fn88, ty: Void)
           Ref(ty: ref Int)
             Local(v3 : Int)
           Ref(mut ty: ref mut Int)
@@ -257,7 +257,7 @@ MIR Program
         cond:
         Binary { op: Neq, ty: Int }
           lhs:
-          Call(fn80, ty: Int)
+          Call(fn87, ty: Int)
             Ref(mut ty: ref mut Int)
               Local(v5 : Int)
           rhs:
@@ -294,14 +294,14 @@ MIR Program
         Local(v6 : Named(String))
         value:
         Move(ty: Named(String))
-          Call(fn51, ty: Named(String))
+          Call(fn56, ty: Named(String))
       Expr
-        Call(fn82, ty: Void)
+        Call(fn89, ty: Void)
           Ref(mut ty: ref mut Named(String))
             Local(v6 : Named(String))
       If
         cond:
-        Call(fn59, ty: Bool)
+        Call(fn64, ty: Bool)
           Ref(ty: ref Named(String))
             Local(v6 : Named(String))
           Ref(ty: ref Named(String))

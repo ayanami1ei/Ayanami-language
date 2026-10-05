@@ -1,0 +1,34 @@
+// #123：嵌套泛型类型应用（Wrap[Box[int]]）——实例化/代码生成
+struct Box[T] { T v }
+struct Wrap[T] { T inner }
+
+struct A[T] { T v }
+struct B[T] { T v }
+struct C[T] { T v }
+
+struct Pair[X, Y] {
+    X a
+    Y b
+}
+
+fn mk() -> Wrap[Box[int]] {
+    return Wrap[Box[int]] { inner = Box[int] { v = 1 } }
+}
+
+fn deep() -> A[B[C[int]]] {
+    return A[B[C[int]]] { v = B[C[int]] { v = C[int] { v = 42 } } }
+}
+
+fn pair() -> Pair[A[int], B[int]] {
+    return Pair[A[int], B[int]] { a = A[int] { v = 1 }, b = B[int] { v = 2 } }
+}
+
+fn main() -> int {
+    w = mk()
+    if w.inner.v != 1 { return 1 }
+    x = deep()
+    if x.v.v.v != 42 { return 2 }
+    p = pair()
+    if p.a.v + p.b.v != 3 { return 3 }
+    return 0
+}

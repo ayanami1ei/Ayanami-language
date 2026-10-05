@@ -232,14 +232,13 @@ impl Ctx {
         let mut subst = HashMap::new();
         let s = type_name.as_str();
         let b = base.as_str();
-        if let Some(start) = s.find('<') {
+        if let Some(start) = s.find(['<', '[']) {
             if &s[..start] == b {
-                let inner = s[start..].trim_start_matches('<').trim_end_matches('>');
-                let inner_parts: Vec<&str> = inner.split(',').collect();
-                let gp = self.collected_generic_params(base);
-                for ((gp_name, _), val_str) in gp.iter().zip(inner_parts.iter()) {
-                    let hir_ty = sig_str_to_hir(val_str.trim());
-                    subst.insert(*gp_name, hir_ty);
+                if let Some(inner) = generic_inner(&s) {
+                    let gp = self.collected_generic_params(base);
+                    for ((gp_name, _), val_str) in gp.iter().zip(split_generic_args(inner).iter()) {
+                        subst.insert(*gp_name, sig_str_to_hir(val_str.trim()));
+                    }
                 }
             }
         }

@@ -9,9 +9,9 @@ MIR Program
         Local(v0 : Named(ArrayList<int>))
         value:
         Move(ty: Named(ArrayList<int>))
-          Call(fn79, ty: Named(ArrayList<int>))
+          Call(fn86, ty: Named(ArrayList<int>))
       Expr
-        Call(fn80, ty: Void)
+        Call(fn87, ty: Void)
           Ref(mut ty: ref mut Named(ArrayList<int>))
             Local(v0 : Named(ArrayList<int>))
           Literal(Int(1))
@@ -19,7 +19,7 @@ MIR Program
         target:
         Local(v1 : Int)
         value:
-        Call(fn84, ty: Int)
+        Call(fn91, ty: Int)
           Ref(ty: ref Named(ArrayList<int>))
             Local(v0 : Named(ArrayList<int>))
           Literal(Int(5))
@@ -98,7 +98,7 @@ MIR Program
             Move(ty: unique [Int])
               ArraySized { elem_ty: Int, ty: unique [Int] }
                 count:
-                Call(fn83, ty: u64)
+                Call(fn90, ty: u64)
                   FieldAccess capability ty=u64
                     Local(v0 : ref mut Named(ArrayList<int>))
                   Literal(Int(2))
@@ -153,7 +153,7 @@ MIR Program
             object:
             Local(v0 : ref mut Named(ArrayList<int>))
             value:
-            Call(fn83, ty: u64)
+            Call(fn90, ty: u64)
               FieldAccess capability ty=u64
                 Local(v0 : ref mut Named(ArrayList<int>))
               Literal(Int(2))
@@ -170,7 +170,7 @@ MIR Program
         cond:
         Binary { op: Ge, ty: u64 }
           lhs:
-          Call(fn81, ty: u64)
+          Call(fn88, ty: u64)
             FieldAccess len ty=u64
               Local(v0 : ref mut Named(ArrayList<int>))
             Literal(Int(1))
@@ -183,7 +183,7 @@ MIR Program
         then:
         Block {
           Expr
-            Call(fn82, ty: Void)
+            Call(fn89, ty: Void)
               Local(v0 : ref mut Named(ArrayList<int>))
         }
       IndexAssign
@@ -200,7 +200,7 @@ MIR Program
         object:
         Local(v0 : ref mut Named(ArrayList<int>))
         value:
-        Call(fn81, ty: u64)
+        Call(fn88, ty: u64)
           FieldAccess len ty=u64
             Local(v0 : ref mut Named(ArrayList<int>))
           Literal(Int(1))

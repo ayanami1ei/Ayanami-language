@@ -122,14 +122,11 @@ impl crate::hir::lower::Ctx {
                     out.push(*n);
                 }
                 // 编码名中的泛型参数：LinkedListNode[T] → T
-                let open = s.find('<').or_else(|| s.find('['));
-                if let Some(start) = open {
-                    let inner = s[start..].trim_start_matches('<').trim_start_matches('[')
-                        .trim_end_matches('>').trim_end_matches(']');
-                    for part in inner.split(',') {
-                        let trimmed = part.trim();
-                        if trimmed.len() == 1 && trimmed.chars().all(|c| c.is_uppercase()) {
-                            out.push(Symbol::intern(trimmed));
+                if s.contains(['<', '[']) {
+                    if let Some(inner) = generic_inner(&s) {
+                        for part in split_generic_args(inner) {
+                            let pty = sig_str_to_hir(part.trim());
+                            Self::collect_gp_from_type(&pty, out);
                         }
                     }
                 }

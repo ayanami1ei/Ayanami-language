@@ -86,3 +86,24 @@
   `hir/node.rs`（`SStruct` 重建辅助）。
 - 风险：期望类型缺失时的实例化选择（保守报错）；同一基名不同实例化的 LLVM 类型隔离
   （以完整名为键即可）；泛型方法自引用（`Result[T,E]` 泛型 impl）需先实例化再看方法体。
+
+## 6. 嵌套泛型类型应用（#123，已修复）
+
+`Wrap[Box[int]]` 这类**外层类型实参本身是泛型实例**的场景，此前名字解析出错：
+
+- 根因 1：`Base<a,b>` 的内层串用 `trim_end_matches('>')` 提取，会把嵌套名的所有 `>`
+  一起剥掉（`Wrap<Box<int>>` → `Box<int`）；参数按裸 `split(',')` 切分，不认嵌套逗号。
+- 根因 2：`instantiate_named` 对字段里的嵌套泛型类型沿用了**外层** subst
+  （`Wrap<Box<int>>` 的 subst 是 `T→Box<int>`，却拿去替换 `Box` 的字段 `T`），
+  生成自引用结构体 `Box<int> = { Box<int> }` → LLVM recursive / 编译器栈溢出。
+
+修复：
+
+- 新增共享解析 `generic_inner`（匹配首个开括号的配对闭括号，尊重 `<`/`[` 嵌套）+
+  `split_generic_args`（顶层逗号切分），统一用于 `build_generic_subst` /
+  `substitute_hir_type` / `collect_gp_from_type` / `ensure_specialized_interface`；
+- `substitute_hir_type` 对嵌套实参递归替换（`Wrap<Box<T>>` + `T→int` → `Wrap<Box<int>>`）；
+- `instantiate_named` 仅对**变体结构体**（`Base_Variant`）沿用外层 subst，
+  其余嵌套泛型类型走自身实例化（自建 subst）。
+
+回归：`example/test_nested_generic_type.aya`（`Wrap[Box[int]]`、三层嵌套、多参数嵌套）。

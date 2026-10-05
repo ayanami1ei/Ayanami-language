@@ -219,12 +219,11 @@ impl crate::hir::lower::Ctx {
             None => return Ok(()),
         };
         // Extract generic param values from the name
-        let gp_start = s.find('<').unwrap();
-        let gp_end = s.rfind('>').unwrap_or(s.len() - 1);
-        let inner_str = &s[gp_start + 1..gp_end];
-        let gp_values: Vec<HirType> = inner_str.split(',')
-            .map(|p| sig_str_to_hir(p.trim()))
-            .collect();
+        let gp_values: Vec<HirType> = generic_inner(&s)
+            .map(|inner| split_generic_args(inner).iter()
+                .map(|p| sig_str_to_hir(p.trim()))
+                .collect())
+            .unwrap_or_default();
         let gp_names: Vec<Symbol> = generics_reg.generic_params.iter().map(|(n, _)| *n).collect();
         let mut subst: HashMap<Symbol, HirType> = HashMap::new();
         for ((name, _), val) in generics_reg.generic_params.iter().zip(gp_values.iter()) {
