@@ -155,8 +155,9 @@ M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf�
 
 | Issue | 现象 | 自举绕过 |
 |---|---|---|
-| #72 | 泛型 impl 方法体错误被吞，报「类型没有该方法」 | 遇到时检查该 impl 全部方法体 |
-| #73 | lcl 函数调用不消耗 owned 数组实参，`String::new` 悬空 | StringBuf.to_string 内联 forget 模式 |
-| #74 | 多源文件各自 import std 破坏泛型方法解析 | base 模块不 import std，边界用自有结构体 |
-| #89 | 括号表达式：if/return 解析报错；跨模块泛型方法优先级丢失 | 拆临时变量，避免 if/return 括号表达式 |
-| #91 | 嵌套结构体字段的 ref mut 变更丢失 | 槽位表内联成数组字段，不用结构体字段做可变容器 |
+| #72 | 泛型 impl 方法体错误被吞，报「类型没有该方法」 | 未修；遇到时检查该 impl 全部方法体 |
+| #73 | lcl 函数调用不消耗 owned 数组实参，`String::new` 悬空 | 未修；StringBuf.to_string 内联 forget 模式 |
+| #74 | 多源文件各自 import std 破坏泛型方法解析 | ✅ 已修复（2026-10-05） |
+| #89 | 括号表达式：if/return 解析报错；跨模块泛型方法优先级丢失 | ✅ 已修复（2026-10-05） |
+| #91 | 嵌套结构体字段的 ref mut 变更丢失 | 未修；槽位表内联成数组字段绕过 |
+| #105 | std/runtime.c 缺 M1.7 ovf 助手，debug 构建链接失败 | test 改用 `run --release` |

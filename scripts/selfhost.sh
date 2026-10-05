@@ -38,19 +38,19 @@ cmd_sync() {
     fi
     after=$(git rev-parse HEAD)
     echo "== submodules（book/asuka 跟随远端）=="
-    git submodule update --init --remote book asuka std
+    git submodule update --init --remote book std
     echo "== stage-0：rust 有更新则重建 release =="
     if [[ "$before" != "$after" || ! -x "$ROOT/target/release/ayanami" ]]; then
         cargo build --release
     fi
-    echo "== stage-0 std 预编译（release/debug 旁的 std/）=="
+    # 编译器要求 runtime.c 与二进制同目录（link 用）
+    cp "$ROOT/src/runtime.c" "$ROOT/target/release/runtime.c"
+    cp "$ROOT/src/runtime.c" "$ROOT/target/debug/runtime.c" 2>/dev/null || true
+    echo "== stage-0 std 预编译（std 子仓 build.sh -> target/{release,debug}/std）=="
     if [[ "$before" != "$after" || ! -f "$ROOT/target/release/std/string.lcl" ]]; then
-        for f in std/src/*.aya; do
-            "$ROOT/target/release/ayanami" package "$f" >/dev/null
-        done
-        cp std/src/*.lcl std/
-        mkdir -p target/release/std target/debug/std
-        cp std/*.lcl target/release/std/ target/debug/std/
+        ( cd std && AYANAMI_BIN="$ROOT/target/release/ayanami" ./scripts/build.sh --install "$ROOT/target/release/std" )
+        mkdir -p "$ROOT/target/debug/std"
+        cp "$ROOT/target/release/std/"*.lcl "$ROOT/target/debug/std/"
     fi
     echo "== 重建知识库 =="
     python3 tools/kb/kb.py build
@@ -63,7 +63,7 @@ cmd_test() {
     shopt -s nullglob
     for f in "$ROOT"/selfhost/tests/*_test.aya; do
         total=$((total + 1))
-        if "$bin" run "$f" >/tmp/opencode/selfhost_test.out 2>&1; then
+        if "$bin" run --release "$f" >/tmp/opencode/selfhost_test.out 2>&1; then
             echo "PASS $(basename "$f")"
         else
             echo "FAIL $(basename "$f")"; tail -5 /tmp/opencode/selfhost_test.out || true; fail=$((fail + 1))
