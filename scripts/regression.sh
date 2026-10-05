@@ -71,6 +71,14 @@ while read -r name code pat; do
     fi
 done < tests/runtime_safety/manifest.txt
 
+# #106：零参函数不得发射裸符号（避免与 libc 冲突）
+if [ -f build/test_zero_arg_fn ]; then
+    if nm build/test_zero_arg_fn 2>/dev/null | grep -qE ' T time$'; then
+        echo "FAIL #106: zero-arg fn emitted bare symbol 'time'"
+        fail=$((fail + 1))
+    fi
+fi
+
 # #100：源模块调用 .lcl 泛型方法不得重复单态化（multiple definition）
 if [ -d tests/lcl_mono ]; then
     mono_dir=tests/lcl_mono

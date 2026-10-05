@@ -1533,7 +1533,7 @@ src/lir/lower/names.rs:3: pub(super) fn collect_fn_names(mir: &MirProgram) -> Ha
 src/lir/lower/names.rs:9: pub(super) fn collect_fn_names_items(items: &[MirItem], _prefix: &str, map: &mut HashMap<FnId, String>)
 src/lir/lower/names.rs:34: fn unique_fn_name(base: &str, f: &MirFn, map: &HashMap<FnId, String>) -> String
 src/lir/lower/names.rs:46: pub(crate) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol, HirType)]) -> String
-src/lir/lower/names.rs:64: pub(super) fn type_to_mangle(ty: &HirType) -> String
+src/lir/lower/names.rs:65: pub(super) fn type_to_mangle(ty: &HirType) -> String
 src/lir/lower/strings.rs:3: pub(super) fn collect_strings(mir: &MirProgram) -> Vec<String>
 src/lir/lower/strings.rs:11: pub(super) fn collect_strings_items(items: &[MirItem], out: &mut Vec<String>)
 src/lir/lower/strings.rs:21: pub(super) fn collect_strings_stmts(stmts: &[MirStmtBox], out: &mut Vec<String>)
@@ -2049,8 +2049,9 @@ example/test_generic_impl_multi.aya:33: fn mk_q() -> Pair[int, int] { return Pai
 example/test_generic_impl_multi.aya:34: fn mk_w() -> Wrap[int] { return Wrap::W(9) }
 example/test_generic_impl_multi.aya:36: fn main() -> int
 example/test_if_expr.aya:2: fn pick(int x) -> int
-example/test_if_expr.aya:6: fn classify(int x) -> int
-example/test_if_expr.aya:11: fn main() -> int
+example/test_if_expr.aya:7: fn pick2(bool c) -> int
+example/test_if_expr.aya:15: fn classify(int x) -> int
+example/test_if_expr.aya:20: fn main() -> int
 example/test_import.aya:3: fn main() -> int
 example/test_int_width.aya:2: fn add32(i32 a, i32 b) -> i32 { return a + b }
 example/test_int_width.aya:3: fn sub32(i32 a, i32 b) -> i32 { return a - b }
@@ -2076,6 +2077,8 @@ example/test_int_width.aya:23: fn plus32(self, i32 other) -> i32 { return self +
 example/test_int_width.aya:26: fn main() -> int
 example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int
+example/test_lcl_owned_arg.aya:5: fn mk() -> String
+example/test_lcl_owned_arg.aya:12: fn main() -> int
 example/test_literals.aya:2: fn main() -> int
 example/test_macro.aya:5: fn placeholder() -> int { return 0 }
 example/test_macro.aya:7: fn main() -> int { return answer() - 42 }
@@ -2237,3 +2240,5 @@ example/test_usize_index.aya:6: fn field_index(ref S s) -> int
 example/test_usize_index.aya:11: fn main() -> int
 example/test_vis.aya:1: pub fn main() -> int
 example/test_vis2.aya:6: pub fn main() -> int
+example/test_zero_arg_fn.aya:2: fn time() -> int { return 7 }
+example/test_zero_arg_fn.aya:4: fn main() -> int

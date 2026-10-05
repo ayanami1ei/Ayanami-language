@@ -34,6 +34,7 @@ test_if_expr.aya 0
 test_import.aya 30
 test_int_width.aya 0
 test_invariant.aya 0
+test_lcl_owned_arg.aya 0
 test_literals.aya 0
 test_macro.aya 0
 test_macro_args.aya 0
@@ -80,3 +81,4 @@ test_usage_infer.aya 0
 test_usize_index.aya 0
 test_vis.aya 42
 test_vis2.aya 10
+test_zero_arg_fn.aya 0
