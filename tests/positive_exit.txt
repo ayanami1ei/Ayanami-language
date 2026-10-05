@@ -26,6 +26,7 @@ test_ensures.aya 0
 test_f32.aya 0
 test_ffi_attrs.aya 0
 test_follow_with.aya 0
+test_for_usize.aya 0
 test_generic_impl_multi.aya 0
 test_import.aya 30
 test_int_width.aya 0

@@ -504,6 +504,8 @@ src/hir/lower/body/stmt_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/stmt_lower.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
 src/hir/lower/body/stmt_lower.rs:161: pub(crate) fn lower_while(
 src/hir/lower/body/stmt_lower.rs:178: pub(crate) fn lower_for(
+src/hir/lower/body/stmt_lower.rs:256: fn for_bound_type(start: &HirNodeBox, end: &HirNodeBox, step: &HirNodeBox, span: &Span) -> Result<HirType>
+src/hir/lower/body/stmt_lower.rs:285: fn coerce_for_bound(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/usage_infer.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/usage_infer.rs:10: pub(crate) fn collect_usage_hints(&self, stmts: &[Stmt]) -> HashMap<Symbol, Vec<Type>>
 src/hir/lower/body/usage_infer.rs:26: fn find_elem_usage_stmts(&self, var: &Symbol, stmts: &[Stmt]) -> Option<Type>
@@ -1995,6 +1997,8 @@ example/test_follow_with.aya:31: fn caller(ref S x, ref S y) -> ref S
 example/test_follow_with.aya:38: fn pick_ab(ref S a, ref S b) -> ref S { return b }
 example/test_follow_with.aya:41: fn joint(ref S x, ref S y) -> ref S
 example/test_follow_with.aya:46: fn main() -> int
+example/test_for_usize.aya:2: fn sum_upto(usize n) -> int
+example/test_for_usize.aya:10: fn main() -> int
 example/test_generic_impl_multi.aya:2: pub enum Pair[A, B]
 example/test_generic_impl_multi.aya:7: impl[A, B] Pair[A, B]
 example/test_generic_impl_multi.aya:8: pub fn first(self) -> A
