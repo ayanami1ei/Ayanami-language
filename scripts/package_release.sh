@@ -26,10 +26,8 @@ echo "== 2/5 构建 release 二进制 =="
 cargo build --release
 
 echo "== 3/5 重建 std 预编译包 =="
-for m in string io math list arraylist linkedlist panic mir std; do
-    ./target/release/ayanami package "std/src/$m.aya" >/dev/null
-done
-cp std/src/*.lcl std/
+AYANAMI_BIN="$PWD/target/release/ayanami" ./std/scripts/build.sh
+find std/src -name '*.lcl' -exec cp {} std/ \;
 
 echo "== 4/5 组装 install/ =="
 if [ ! -x install/llc ]; then
