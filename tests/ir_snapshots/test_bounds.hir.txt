@@ -115,9 +115,7 @@ HIR Program
                     FieldAccess data ty=[Int]
                       Local(v0 : ref mut Named(ArrayList<int>))
                     index:
-                    Cast(ty: Int)
-                      Cast(ty: u64)
-                        Local(v2 : Int)
+                    Local(v2 : Int)
 │ │ │ │ │ │ │ │ Assign
 │ │ │ │ │ │ │ │   target:
                   Local(v2 : Int)
