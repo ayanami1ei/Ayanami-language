@@ -105,7 +105,11 @@ impl<'a> Emitter<'a> {
                 })
                 .collect();
             let has_ptr_params = d.params.iter().any(functions::is_ptr_like);
-            let suffix = functions::llvm_attr_suffix(&d.attrs, false, d.effects, has_ptr_params);
+            let mut suffix = functions::llvm_attr_suffix(&d.attrs, false, d.effects, has_ptr_params);
+            // M-opt.1：release 对 runtime/FFI 声明也标 nounwind（C 侧无栈展开）
+            if crate::hir::contracts::is_release() && !suffix.contains("nounwind") {
+                suffix.push_str(" nounwind");
+            }
             self.wln_fmt(format_args!("declare {} @{}({}){}", ret, d.name, params.join(", "), suffix));
         }
         if !self.prog.extern_decls.is_empty() {

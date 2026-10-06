@@ -63,27 +63,34 @@ pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()> {
     let (llc_path, llc_dir) = find_llc()?;
     let llc_is_local = !llc_dir.as_os_str().is_empty();
 
-    // 中端优化（A1）：先跑 opt -O2，标注属性才能跨调用/跨 FFI 生效。
+    // M-opt.1：模式档位——release 跑 opt -O3（标注/所有权属性才能跨调用生效）；
+    // debug 跳过中端优化（编译快、便于调试；非法 IR 由 llc 校验兜底）。
     // bundled llc 场景只用同目录 opt（避免版本不匹配）；缺失/失败回退未优化 IR。
+    let release = crate::hir::contracts::is_release();
     let mut llc_input = ll_path.clone();
-    if let Some((opt_path, opt_dir)) = find_opt(llc_is_local) {
-        let mut opt_ll = obj.to_path_buf();
-        opt_ll.set_extension("opt.ll");
-        let mut cmd = Command::new(&opt_path);
-        cmd.arg("-O2").arg("-S").arg(&ll_path).arg("-o").arg(&opt_ll);
-        if !opt_dir.as_os_str().is_empty() {
-            cmd.env("LD_LIBRARY_PATH", opt_dir.to_string_lossy().as_ref());
-        }
-        if let Ok(status) = cmd.status() {
-            if status.success() {
-                llc_input = opt_ll;
+    if release {
+        if let Some((opt_path, opt_dir)) = find_opt(llc_is_local) {
+            let mut opt_ll = obj.to_path_buf();
+            opt_ll.set_extension("opt.ll");
+            let mut cmd = Command::new(&opt_path);
+            cmd.arg("-O3").arg("-S").arg(&ll_path).arg("-o").arg(&opt_ll);
+            if !opt_dir.as_os_str().is_empty() {
+                cmd.env("LD_LIBRARY_PATH", opt_dir.to_string_lossy().as_ref());
+            }
+            if let Ok(status) = cmd.status() {
+                if status.success() {
+                    llc_input = opt_ll;
+                }
             }
         }
     }
 
     let mut cmd = Command::new(&llc_path);
-    cmd.arg("-filetype=obj")
-        .arg("-o").arg(obj)
+    cmd.arg("-filetype=obj");
+    if release {
+        cmd.arg("-O3");
+    }
+    cmd.arg("-o").arg(obj)
         .arg(&llc_input);
 
     // If llc is bundled, set LD_LIBRARY_PATH so it can find its .so

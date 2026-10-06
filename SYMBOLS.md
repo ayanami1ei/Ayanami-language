@@ -241,17 +241,17 @@ src/driver/mod.rs:10: mod runtime;
 src/driver/mod.rs:14: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
 src/driver/mod.rs:34: fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
 src/driver/mod.rs:54: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:107: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:112: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:120: pub fn objects_to_exe_with_runtime(
-src/driver/mod.rs:147: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:153: pub(crate) fn find_runtime_c() -> Result<String>
-src/driver/mod.rs:196: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:211: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:222: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:239: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
-src/driver/mod.rs:259: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:264: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:114: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:119: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:127: pub fn objects_to_exe_with_runtime(
+src/driver/mod.rs:154: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:160: pub(crate) fn find_runtime_c() -> Result<String>
+src/driver/mod.rs:203: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:218: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:229: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:246: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
+src/driver/mod.rs:266: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:271: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
 src/driver/runtime.rs:12: pub(crate) fn resolve_runtime(src_path: &Path) -> Result<Option<PathBuf>>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
@@ -993,9 +993,9 @@ src/lir/emit/functions.rs:67: pub(super) fn emit_struct_defs(&mut self)
 src/lir/emit/functions.rs:88: pub(super) fn emit_global_defs(&mut self)
 src/lir/emit/functions.rs:99: pub(super) fn emit_string_globals(&mut self)
 src/lir/emit/functions.rs:119: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:164: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:181: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:195: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:175: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:192: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:206: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -1004,9 +1004,9 @@ src/lir/emit/mod.rs:47: fn finish(self) -> String
 src/lir/emit/mod.rs:51: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:59: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:68: fn emit(&mut self)
-src/lir/emit/mod.rs:123: mod functions;
-src/lir/emit/mod.rs:124: mod types;
-src/lir/emit/mod.rs:125: mod vtable;
+src/lir/emit/mod.rs:127: mod functions;
+src/lir/emit/mod.rs:128: mod types;
+src/lir/emit/mod.rs:129: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
@@ -2352,6 +2352,9 @@ example/test_ref_self.aya:7: fn get(ref self) -> int
 example/test_ref_self.aya:11: fn inc(ref mut self)
 example/test_ref_self.aya:14: fn into(self) -> int
 example/test_ref_self.aya:19: fn main() -> int
+example/test_release_opt.aya:2: fn sum_squares(int n) -> int
+example/test_release_opt.aya:12: fn bump(ref mut int x) -> int
+example/test_release_opt.aya:17: fn main() -> int
 example/test_requires.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_requires.aya:7: fn clamp100(int x) -> int { return x }
 example/test_requires.aya:9: fn main() -> int

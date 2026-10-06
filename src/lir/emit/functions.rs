@@ -121,12 +121,23 @@ impl<'a> Emitter<'a> {
         let ret_ty = self.llvm_type(&f.return_type);
         let mut params_str: Vec<String> = Vec::new();
         for (i, (_, t)) in f.params.iter().enumerate() {
-            let attrs = f.param_attrs.get(i).map(|v| llvm_param_attrs(v)).unwrap_or_default();
+            let mut attrs = f.param_attrs.get(i).map(|v| llvm_param_attrs(v)).unwrap_or_default();
+            // M-opt.1：release 按所有权模型推断 noalias（ref mut 独占 / 拥有值唯一）
+            if crate::hir::contracts::is_release()
+                && matches!(t, HirType::Ref(_, true) | HirType::Unique(_))
+                && !attrs.contains("noalias")
+            {
+                attrs.push_str(" noalias");
+            }
             params_str.push(format!("{}{}", self.llvm_type(t), attrs));
         }
         let param_list = params_str.join(", ");
         let has_ptr_params = f.params.iter().any(|(_, t)| is_ptr_like(t));
-        let inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline, f.effects, has_ptr_params);
+        let mut inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline, f.effects, has_ptr_params);
+        // M-opt.1：release 全函数 nounwind（语言无栈展开；panic 为 noreturn 退出）
+        if crate::hir::contracts::is_release() && !inline_attr.contains("nounwind") {
+            inline_attr.push_str(" nounwind");
+        }
 
         self.current_fn_ret_ty = f.return_type.clone();
 

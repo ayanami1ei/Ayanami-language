@@ -160,6 +160,34 @@ if [ -d tests/lcl_weak ]; then
     rm -rf "$root/build" "$wdir/a.lcl" "$wdir/b.lcl"
 fi
 
+# M-opt.1：debug/release 模式差异（溢出检查 / 推断 noalias、nounwind）
+if [ -f example/test_release_opt.aya ]; then
+    "$BIN" build example/test_release_opt.aya >/dev/null 2>&1
+    if ! grep -q '__ayanami_ovf_' build/test_release_opt.ll; then
+        echo "FAIL M-opt.1: debug 构建缺少溢出检查"
+        fail=$((fail + 1))
+    fi
+    "$BIN" build --release example/test_release_opt.aya >/dev/null 2>&1
+    if grep -q '__ayanami_ovf_' build/test_release_opt.ll; then
+        echo "FAIL M-opt.1: release 构建仍含溢出检查"
+        fail=$((fail + 1))
+    fi
+    if ! grep -q 'noalias' build/test_release_opt.ll; then
+        echo "FAIL M-opt.1: release 构建缺少推断 noalias"
+        fail=$((fail + 1))
+    fi
+    if ! grep -q 'nounwind' build/test_release_opt.ll; then
+        echo "FAIL M-opt.1: release 构建缺少 nounwind"
+        fail=$((fail + 1))
+    fi
+    timeout 60 "$BIN" run --release example/test_release_opt.aya >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL M-opt.1: release run exit $got, want 0"
+        fail=$((fail + 1))
+    fi
+fi
+
 # #100：源模块调用 .lcl 泛型方法不得重复单态化（multiple definition）
 if [ -d tests/lcl_mono ]; then
     mono_dir=tests/lcl_mono
