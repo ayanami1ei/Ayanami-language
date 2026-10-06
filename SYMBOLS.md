@@ -1018,14 +1018,16 @@ src/lir/emit/consts.rs:58: fn collect_array_fields(
 src/lir/emit/consts.rs:90: fn const_value_at(
 src/lir/emit/functions.rs:4: pub(super) fn is_ptr_like(t: &HirType) -> bool
 src/lir/emit/functions.rs:14: pub(super) fn llvm_attr_suffix(
-src/lir/emit/functions.rs:54: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
-src/lir/emit/functions.rs:66: impl<'a> Emitter<'a>
-src/lir/emit/functions.rs:67: pub(super) fn emit_struct_defs(&mut self)
-src/lir/emit/functions.rs:87: pub(super) fn emit_string_globals(&mut self)
-src/lir/emit/functions.rs:107: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:193: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:210: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:224: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:54: pub(super) fn infer_param_attrs(t: &HirType) -> &'static str
+src/lir/emit/functions.rs:64: pub(super) fn infer_ret_attr(t: &HirType) -> &'static str
+src/lir/emit/functions.rs:73: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
+src/lir/emit/functions.rs:85: impl<'a> Emitter<'a>
+src/lir/emit/functions.rs:86: pub(super) fn emit_struct_defs(&mut self)
+src/lir/emit/functions.rs:106: pub(super) fn emit_string_globals(&mut self)
+src/lir/emit/functions.rs:126: pub(super) fn emit_fn(&mut self, f: &LirFn)
+src/lir/emit/functions.rs:199: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:216: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:230: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -1034,10 +1036,10 @@ src/lir/emit/mod.rs:47: fn finish(self) -> String
 src/lir/emit/mod.rs:51: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:59: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:68: fn emit(&mut self)
-src/lir/emit/mod.rs:127: mod consts;
-src/lir/emit/mod.rs:128: mod functions;
-src/lir/emit/mod.rs:129: mod types;
-src/lir/emit/mod.rs:130: mod vtable;
+src/lir/emit/mod.rs:139: mod consts;
+src/lir/emit/mod.rs:140: mod functions;
+src/lir/emit/mod.rs:141: mod types;
+src/lir/emit/mod.rs:142: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>

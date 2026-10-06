@@ -50,6 +50,25 @@ pub(super) fn llvm_attr_suffix(
     s
 }
 
+/// M-opt.6/7：release 按所有权/借用模型推断参数属性
+pub(super) fn infer_param_attrs(t: &HirType) -> &'static str {
+    match t {
+        HirType::Ref(_, true) => "noalias nonnull",
+        HirType::Ref(_, false) => "nonnull readonly",
+        HirType::Unique(_) | HirType::Array(_) | HirType::ArraySized(_, _) => "noalias",
+        _ => "",
+    }
+}
+
+/// M-opt.6/7：release 返回值属性（拥有指针 noalias、引用 nonnull）
+pub(super) fn infer_ret_attr(t: &HirType) -> &'static str {
+    match t {
+        HirType::Unique(_) | HirType::Array(_) | HirType::ArraySized(_, _) => "noalias ",
+        HirType::Ref(..) => "nonnull ",
+        _ => "",
+    }
+}
+
 /// 形参标注 → LLVM 参数属性（A1b：仅 noalias/nonnull）。
 pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String {
     let mut s = String::new();
@@ -112,17 +131,8 @@ impl<'a> Emitter<'a> {
             let mut attrs = f.param_attrs.get(i).map(|v| llvm_param_attrs(v)).unwrap_or_default();
             // M-opt.1/6：release 按所有权模型推断参数属性
             if crate::hir::contracts::is_release() {
-                let push = |attrs: &mut String, a: &str| {
+                for a in infer_param_attrs(t).split_whitespace() {
                     if !attrs.contains(a) { attrs.push(' '); attrs.push_str(a); }
-                };
-                match t {
-                    // 独占借用：独占 + 非空
-                    HirType::Ref(_, true) => { push(&mut attrs, "noalias"); push(&mut attrs, "nonnull"); }
-                    // 共享借用：非空 + 只读（借用检查禁止经共享引用写入）
-                    HirType::Ref(_, false) => { push(&mut attrs, "nonnull"); push(&mut attrs, "readonly"); }
-                    // 拥有指针/数组：唯一（空数组可能为 null，不加 nonnull）
-                    HirType::Unique(_) | HirType::Array(_) | HirType::ArraySized(_, _) => push(&mut attrs, "noalias"),
-                    _ => {}
                 }
             }
             params_str.push(format!("{}{}", self.llvm_type(t), attrs));
@@ -141,11 +151,7 @@ impl<'a> Emitter<'a> {
 
         // M-opt.6：release 返回值属性 —— 拥有指针 noalias、引用 nonnull
         let ret_attr = if crate::hir::contracts::is_release() {
-            match &f.return_type {
-                HirType::Unique(_) | HirType::Array(_) | HirType::ArraySized(_, _) => "noalias ",
-                HirType::Ref(..) => "nonnull ",
-                _ => "",
-            }
+            infer_ret_attr(&f.return_type)
         } else {
             ""
         };

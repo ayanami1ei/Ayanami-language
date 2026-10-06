@@ -39,6 +39,7 @@
 | M-opt.1 | 模式分离（debug 无 opt / release `-O3`）+ release 推断 `noalias`（`ref mut`/owned）与 `nounwind` | ✅ 已实现 |
 | M-opt.2 | 内部化：非导出函数/vtable wrapper/`static` 全局 `internal`（LIR4 携带 `is_pub`） | ✅ 已实现 |
 | M-opt.6 | 所有权属性细化：`ref` 参数 `nonnull`/`readonly`（共享）、拥有返回值 `noalias` | ✅ 已实现 |
+| M-opt.7 | 导入函数（.lcl extern 声明）同样推断参数/返回值属性 | ✅ 已实现 |
 | M-opt.3 | 边界检查消除 | 已评估关闭：编译器不发射数组边界检查（内建 `[T]` 不检查；`String`/`ArrayList` 检查在 std 源码） |
 | M-opt.4 | 效应驱动的跨函数优化（`#[pure]` 常量折叠、DCE） | ✅ 已具备（A3 推断效应 → `memory(none/read)`/`nounwind` 自动属性） |
 | M-opt.5 | 基准套件（5 内核 × Ayanami/Rust/Java/Zig/C，校验和跨语言一致） | ✅ 已实现（`bench/`，见 `bench/README.md`） |
@@ -60,6 +61,7 @@
 | `ref T` 返回值 | 返回值 `nonnull` |
 | 无栈展开 | 全函数 `nounwind` |
 | 非导出定义 | `internal`（M-opt.2） |
+| 导入函数声明（.lcl） | 同参数/返回值推断（M-opt.7） |
 
 风险（激进模式已知取舍）：`ref` 指向 `static mut` 且同指别名时可违反属性；M5 unsafe/裸指针落地后收紧。
 

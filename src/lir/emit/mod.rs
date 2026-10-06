@@ -100,7 +100,13 @@ impl<'a> Emitter<'a> {
             let ret = self.llvm_type(&d.return_type);
             let params: Vec<String> = d.params.iter().enumerate()
                 .map(|(i, t)| {
-                    let suffix = d.param_attrs.get(i).map(|v| functions::llvm_param_attrs(v)).unwrap_or_default();
+                    let mut suffix = d.param_attrs.get(i).map(|v| functions::llvm_param_attrs(v)).unwrap_or_default();
+                    // M-opt.7：release 导入函数（.lcl）声明同样按所有权模型推断参数属性
+                    if crate::hir::contracts::is_release() {
+                        for a in functions::infer_param_attrs(t).split_whitespace() {
+                            if !suffix.contains(a) { suffix.push(' '); suffix.push_str(a); }
+                        }
+                    }
                     format!("{}{}", self.llvm_type(t), suffix)
                 })
                 .collect();
@@ -110,7 +116,13 @@ impl<'a> Emitter<'a> {
             if crate::hir::contracts::is_release() && !suffix.contains("nounwind") {
                 suffix.push_str(" nounwind");
             }
-            self.wln_fmt(format_args!("declare {} @{}({}){}", ret, d.name, params.join(", "), suffix));
+            // M-opt.7：release 返回值属性
+            let ret_attr = if crate::hir::contracts::is_release() {
+                functions::infer_ret_attr(&d.return_type)
+            } else {
+                ""
+            };
+            self.wln_fmt(format_args!("declare {}{} @{}({}){}", ret_attr, ret, d.name, params.join(", "), suffix));
         }
         if !self.prog.extern_decls.is_empty() {
             self.wln("");
