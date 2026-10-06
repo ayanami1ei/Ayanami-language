@@ -38,12 +38,12 @@ src/cli/types.rs:124: fn fmt_type(ty: &HirType) -> String
 src/cli/types.rs:145: fn name_at(code: &str, line: usize, col: usize, name: &str) -> bool
 src/cli/types.rs:162: fn esc(s: &str) -> String
 src/compiler/build/compile.rs:6: pub fn compile_file(
-src/compiler/build/compile.rs:138: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
+src/compiler/build/compile.rs:144: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:127: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:144: pub(super) fn merge_symbols(
-src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<(crate::lir::ir::LirProgram, Vec<(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)>)>
-src/compiler/build/lir.rs:25: pub(super) fn build_target_artifact(
+src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<(
+src/compiler/build/lir.rs:34: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:14: mod compile;
 src/compiler/build/mod.rs:15: mod deps;
 src/compiler/build/mod.rs:16: mod lir;
@@ -53,9 +53,9 @@ src/compiler/build/mod.rs:19: mod target;
 src/compiler/build/mod.rs:26: pub fn build_source(src_path: &str, code: &str) -> Result<()>
 src/compiler/build/mod.rs:31: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
-src/compiler/build/package.rs:24: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:76: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
-src/compiler/build/package.rs:86: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:26: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
+src/compiler/build/package.rs:79: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
+src/compiler/build/package.rs:89: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/passes/apply.rs:18: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
 src/compiler/build/passes/apply.rs:35: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
 src/compiler/build/passes/apply.rs:42: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
@@ -97,7 +97,7 @@ src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
 src/compiler/build/passes/mod.rs:46: pub(super) fn apply_passes(
 src/compiler/build/target.rs:4: pub fn build_source_with_target(
-src/compiler/build/target.rs:112: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:113: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:72: fn has_return_in_stmt(s: &HirStmt) -> bool
@@ -199,25 +199,25 @@ src/compiler/mod.rs:4: pub mod import;
 src/compiler/mod.rs:5: pub mod macro_expand;
 src/compiler/mod.rs:6: pub mod symdef;
 src/compiler/mod.rs:24: pub struct CompiledFile
-src/compiler/mod.rs:38: pub struct CompileResult
-src/compiler/mod.rs:66: pub struct CompilerPipeline
-src/compiler/mod.rs:83: impl CompilerPipeline
-src/compiler/mod.rs:85: pub fn new(code: &str) -> Self
-src/compiler/mod.rs:98: pub fn lex(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:111: pub fn parse(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:118: pub fn lower_hir(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:129: pub fn check_returns(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:140: pub fn lower_mir(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:149: pub fn check_borrows(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:165: pub fn lower_lir(&mut self) -> &mut Self
-src/compiler/mod.rs:174: pub fn emit(&mut self) -> &mut Self
-src/compiler/mod.rs:182: pub fn compile(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:193: pub fn result(&self) -> CompileResult
-src/compiler/mod.rs:202: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
-src/compiler/mod.rs:207: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
-src/compiler/mod.rs:212: pub fn ast_program(&self) -> Option<&Program>
-src/compiler/mod.rs:218: pub fn compile_source(code: &str) -> Result<CompileResult>
-src/compiler/mod.rs:226: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
+src/compiler/mod.rs:40: pub struct CompileResult
+src/compiler/mod.rs:68: pub struct CompilerPipeline
+src/compiler/mod.rs:85: impl CompilerPipeline
+src/compiler/mod.rs:87: pub fn new(code: &str) -> Self
+src/compiler/mod.rs:100: pub fn lex(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:113: pub fn parse(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:120: pub fn lower_hir(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:131: pub fn check_returns(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:142: pub fn lower_mir(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:151: pub fn check_borrows(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:167: pub fn lower_lir(&mut self) -> &mut Self
+src/compiler/mod.rs:176: pub fn emit(&mut self) -> &mut Self
+src/compiler/mod.rs:184: pub fn compile(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:195: pub fn result(&self) -> CompileResult
+src/compiler/mod.rs:204: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
+src/compiler/mod.rs:209: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
+src/compiler/mod.rs:214: pub fn ast_program(&self) -> Option<&Program>
+src/compiler/mod.rs:220: pub fn compile_source(code: &str) -> Result<CompileResult>
+src/compiler/mod.rs:228: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
 src/compiler/symdef.rs:5: pub struct SymDef
 src/compiler/symdef.rs:18: fn stmt_effect_tokens(stmt: &Stmt) -> Vec<String>
 src/compiler/symdef.rs:29: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
@@ -396,7 +396,7 @@ src/hir/item.rs:50: pub struct HirFn
 src/hir/item.rs:79: pub enum HirItem
 src/hir/item.rs:95: pub struct ImportedFnSig
 src/hir/item.rs:110: pub struct HirStatic
-src/hir/item.rs:118: pub struct HirProgram
+src/hir/item.rs:122: pub struct HirProgram
 src/hir/lower/body/block_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/block_lower.rs:8: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/block_lower.rs:14: pub(crate) fn lower_block_impl(&mut self, block: &Block, tail_as_value: bool) -> Result<(HirBlock, Option<HirNodeBox>)>
@@ -414,7 +414,7 @@ src/hir/lower/body/const_coerce.rs:36: pub(super) fn check_intn_range(v: i64, bi
 src/hir/lower/body/const_eval.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/const_eval.rs:5: pub(crate) fn collect_const_decl(
 src/hir/lower/body/const_eval.rs:22: pub(crate) fn collect_static_decl(
-src/hir/lower/body/const_eval.rs:40: pub(crate) fn eval_const_expr(
+src/hir/lower/body/const_eval.rs:43: pub(crate) fn eval_const_expr(
 src/hir/lower/body/const_fn.rs:4: const MAX_CONST_DEPTH: usize = 64;
 src/hir/lower/body/const_fn.rs:5: const MAX_CONST_ITERS: u64 = 1_000_000;
 src/hir/lower/body/const_fn.rs:7: pub(crate) enum Flow { Normal, Break, Continue, Return(HirType, HirLiteral) }
@@ -992,11 +992,11 @@ src/lir/emit/functions.rs:54: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) 
 src/lir/emit/functions.rs:66: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:67: pub(super) fn emit_struct_defs(&mut self)
 src/lir/emit/functions.rs:88: pub(super) fn emit_global_defs(&mut self)
-src/lir/emit/functions.rs:101: pub(super) fn emit_string_globals(&mut self)
-src/lir/emit/functions.rs:121: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:185: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:202: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:216: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:105: pub(super) fn emit_string_globals(&mut self)
+src/lir/emit/functions.rs:125: pub(super) fn emit_fn(&mut self, f: &LirFn)
+src/lir/emit/functions.rs:189: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:206: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:220: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -1242,21 +1242,21 @@ src/lir/ir/nodes_d.rs:47: pub struct LirEffects
 src/lir/ir/nodes_d.rs:53: pub struct LirFn
 src/lir/ir/nodes_d.rs:75: pub struct VtableDesc
 src/lir/ir/nodes_d.rs:82: pub struct LirGlobal
-src/lir/ir/nodes_d.rs:89: pub struct LirProgram
-src/lir/ir/nodes_d.rs:109: pub(crate) fn put_u32(buf: &mut Vec<u8>, v: u32) { buf.extend_from_slice(&v.to_le_bytes()); }
-src/lir/ir/nodes_d.rs:110: pub(crate) fn put_u64(buf: &mut Vec<u8>, v: u64) { buf.extend_from_slice(&v.to_le_bytes()); }
-src/lir/ir/nodes_d.rs:111: pub(crate) fn put_str(buf: &mut Vec<u8>, s: &str)
-src/lir/ir/nodes_d.rs:117: pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType)
-src/lir/ir/nodes_d.rs:144: pub(crate) fn put_value(buf: &mut Vec<u8>, v: &LirValue)
-src/lir/ir/nodes_d.rs:157: pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral)
-src/lir/ir/nodes_d.rs:172: pub trait LirLowerCtx
-src/lir/ir/nodes_d.rs:173: fn next_tmp(&mut self) -> u64;
-src/lir/ir/nodes_d.rs:174: fn emit(&mut self, inst: LirNodeBox);
-src/lir/ir/nodes_d.rs:175: fn str_map(&self) -> &HashMap<String, u64>;
-src/lir/ir/nodes_d.rs:176: fn loop_stack(&self) -> &Vec<(String, String)>;
-src/lir/ir/nodes_d.rs:177: fn loop_stack_mut(&mut self) -> &mut Vec<(String, String)>;
-src/lir/ir/nodes_d.rs:178: fn next_block_label(&mut self, prefix: &str) -> String;
-src/lir/ir/nodes_d.rs:179: fn set_current_block(&mut self, label: String);
+src/lir/ir/nodes_d.rs:91: pub struct LirProgram
+src/lir/ir/nodes_d.rs:113: pub(crate) fn put_u32(buf: &mut Vec<u8>, v: u32) { buf.extend_from_slice(&v.to_le_bytes()); }
+src/lir/ir/nodes_d.rs:114: pub(crate) fn put_u64(buf: &mut Vec<u8>, v: u64) { buf.extend_from_slice(&v.to_le_bytes()); }
+src/lir/ir/nodes_d.rs:115: pub(crate) fn put_str(buf: &mut Vec<u8>, s: &str)
+src/lir/ir/nodes_d.rs:121: pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType)
+src/lir/ir/nodes_d.rs:148: pub(crate) fn put_value(buf: &mut Vec<u8>, v: &LirValue)
+src/lir/ir/nodes_d.rs:161: pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral)
+src/lir/ir/nodes_d.rs:176: pub trait LirLowerCtx
+src/lir/ir/nodes_d.rs:177: fn next_tmp(&mut self) -> u64;
+src/lir/ir/nodes_d.rs:178: fn emit(&mut self, inst: LirNodeBox);
+src/lir/ir/nodes_d.rs:179: fn str_map(&self) -> &HashMap<String, u64>;
+src/lir/ir/nodes_d.rs:180: fn loop_stack(&self) -> &Vec<(String, String)>;
+src/lir/ir/nodes_d.rs:181: fn loop_stack_mut(&mut self) -> &mut Vec<(String, String)>;
+src/lir/ir/nodes_d.rs:182: fn next_block_label(&mut self, prefix: &str) -> String;
+src/lir/ir/nodes_d.rs:183: fn set_current_block(&mut self, label: String);
 src/lir/ir/nodes_e.rs:3: impl LirNode for SLirDropValue
 src/lir/ir/nodes_e.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_e.rs:5: fn kind(&self) -> &'static str { "DropValue" }
@@ -1664,10 +1664,10 @@ src/lir/serialize/decode.rs:25: pub(super) fn inst(&mut self) -> Result<LirNodeB
 src/lir/serialize/decode.rs:229: pub(super) fn read_fn(&mut self) -> Result<LirFn>
 src/lir/serialize/mod.rs:11: pub fn program_to_bytes(p: &LirProgram) -> Vec<u8>
 src/lir/serialize/mod.rs:100: pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram>
-src/lir/serialize/mod.rs:227: struct Reader<'a>
-src/lir/serialize/mod.rs:234: mod decode;
-src/lir/serialize/mod.rs:235: mod reader;
-src/lir/serialize/mod.rs:236: mod write;
+src/lir/serialize/mod.rs:228: struct Reader<'a>
+src/lir/serialize/mod.rs:235: mod decode;
+src/lir/serialize/mod.rs:236: mod reader;
+src/lir/serialize/mod.rs:237: mod write;
 src/lir/serialize/reader.rs:3: impl<'a> Reader<'a>
 src/lir/serialize/reader.rs:4: pub(super) fn read(&mut self, n: usize) -> Result<&'a [u8]>
 src/lir/serialize/reader.rs:12: pub(super) fn u32(&mut self) -> Result<u32>
@@ -1849,7 +1849,7 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:90: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:93: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:15: impl ProjectConfig
 src/package/config.rs:16: pub fn load(toml_content: &str) -> Self
@@ -1862,10 +1862,10 @@ src/package/const_codec.rs:56: pub fn lit_from_str(ty: &HirType, s: &str) -> Opt
 src/package/const_codec.rs:67: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:72: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:112: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:123: pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf>
-src/package/load.rs:151: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:181: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:123: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:134: pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf>
+src/package/load.rs:162: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:192: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
 src/package/mod.rs:7: pub(crate) mod const_codec;
@@ -1877,17 +1877,18 @@ src/package/symbols.rs:4: impl Package
 src/package/symbols.rs:5: pub fn new(name: String, version: String) -> Self
 src/package/symbols.rs:21: pub fn set_effect_summaries(
 src/package/symbols.rs:29: pub fn set_consts(&mut self, consts: &[(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)])
-src/package/symbols.rs:41: pub fn collect_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:46: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:50: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
-src/package/symbols.rs:57: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
+src/package/symbols.rs:42: pub fn set_statics(&mut self, statics: &[crate::hir::HirStatic], all: bool)
+src/package/symbols.rs:55: pub fn collect_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:60: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:64: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
+src/package/symbols.rs:71: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
 src/package/target.rs:4: pub enum TargetType
 src/package/target.rs:10: impl TargetType
 src/package/target.rs:11: pub fn as_str(&self) -> &'static str
 src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:19: pub enum PackageSymbol
-src/package/types.rs:63: pub enum ImportedSymbol
+src/package/types.rs:69: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block
@@ -2409,7 +2410,7 @@ example/test_self_type.aya:27: fn merge[T: Maker](ref T a, ref T b) -> T { retur
 example/test_self_type.aya:29: fn main() -> int
 example/test_static.aya:6: fn bump() -> int
 example/test_static.aya:11: fn inc(ref mut int x) -> int
-example/test_static.aya:16: fn main() -> int
+example/test_static.aya:20: fn main() -> int
 example/test_std.aya:3: fn main() -> int
 example/test_std_extra.aya:4: fn math_checks() -> int
 example/test_std_extra.aya:16: fn list_checks() -> int

@@ -211,6 +211,21 @@ impl crate::hir::lower::Ctx {
                             self.consts.entry(Symbol::intern(name)).or_insert((hir_ty, lit));
                         }
                     }
+                    crate::package::ImportedSymbol::Static { name, ty, is_mut } => {
+                        // M6.2b：导入全局（裸名 + 限定名别名 `pkg.NAME`，都指向导出符号；
+                        // 只发射 `external global` 声明，不定义）
+                        if let Some(hir_ty) = crate::package::const_codec::type_from_str(ty) {
+                            let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
+                            let bare = Symbol::intern(name);
+                            let qualified = Symbol::intern(&format!("{}.{}", stem.as_str(), name));
+                            let mk = |sym: Symbol| crate::hir::HirStatic {
+                                name: sym, ty: hir_ty.clone(), value: crate::hir::ir::HirLiteral::Int(0),
+                                is_mut: *is_mut, is_pub: true, is_external: true,
+                            };
+                            self.statics.entry(bare).or_insert_with(|| mk(bare));
+                            self.statics.entry(qualified).or_insert_with(|| mk(bare));
+                        }
+                    }
                     crate::package::ImportedSymbol::Struct { name } => {
                         // Parse "Name(field1:type1,field2:type2)" format
                         let (struct_name, fields_str) = if let Some(paren) = name.find('(') {

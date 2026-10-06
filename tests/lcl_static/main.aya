@@ -1,0 +1,14 @@
+// M6.2b 夹具：导入 .lcl 的全局（裸名/限定名/命名空间；跨模块读写）
+import "lib"
+
+fn main() -> int {
+    if COUNTER != 5 { return 1 }
+    if bump() != 1 { return 2 }
+    if TOTAL != 1 { return 3 }
+    TOTAL = 10
+    if TOTAL != 10 { return 4 }
+    if lib::COUNTER != 5 { return 5 }
+    cfg::LEVEL = 3
+    if cfg::LEVEL != 3 { return 6 }
+    return 0
+}

@@ -5,6 +5,7 @@ pub(super) fn emit_lcl_package(
     program: &Program,
     lir_program: &crate::lir::ir::LirProgram,
     consts: &[(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)],
+    statics: &[crate::hir::HirStatic],
     lcl_path: &Path,
     dep_lcl_paths: &[PathBuf],
     stem: &std::ffi::OsStr,
@@ -13,6 +14,7 @@ pub(super) fn emit_lcl_package(
     pkg.set_effect_summaries(lir_program.effect_summaries.clone());
     pkg.collect_all_symbols(&program.stmts);
     pkg.set_consts(consts);
+    pkg.set_statics(statics, true);
     merge_symbols(&mut pkg, dep_lcl_paths);
     pkg.deps = dep_stems(dep_lcl_paths);
     pkg.lir_data = crate::lir::serialize::program_to_bytes(lir_program);
@@ -60,6 +62,7 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<()> {
     pkg.set_effect_summaries(compiled.lir_program.effect_summaries.clone());
     pkg.collect_all_symbols(&compiled.program.stmts);
     pkg.set_consts(&compiled.consts);
+    pkg.set_statics(&compiled.statics, true);
     merge_symbols(&mut pkg, &compiled.dep_lcl_paths);
     pkg.deps = dep_stems(&compiled.dep_lcl_paths);
     pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);

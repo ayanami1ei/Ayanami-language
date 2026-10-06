@@ -83,6 +83,8 @@ pub struct LirGlobal {
     pub name: Symbol,
     pub ty: HirType,
     pub value: HirLiteral,
+    /// M6.2b：pub 导出（release 内部化跳过）
+    pub is_pub: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -90,6 +92,8 @@ pub struct LirProgram {
     pub strings: Vec<String>,
     /// M6.2：全局变量（按名排序，发射 @name = global）
     pub globals: Vec<LirGlobal>,
+    /// M6.2b：导入的全局（发射 `@name = external global <ty>` 声明）
+    pub extern_globals: Vec<(Symbol, HirType)>,
     pub fn_names: HashMap<FnId, String>,
     pub functions: Vec<LirFn>,
     pub vtables: Vec<VtableDesc>,

@@ -214,6 +214,7 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
         specialized_fns,
         strings,
         globals: Vec::new(),
+        extern_globals: Vec::new(),
         fn_names, functions, vtables, struct_defs, generic_struct_params, extern_decls,
         effect_summaries: std::collections::HashMap::new(),
     })

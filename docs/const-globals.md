@@ -1,6 +1,6 @@
 # const / static / 编译期求值设计（M6）
 
-> 状态：**M6.1 / M6.1b / M6.2a / M6.3a 已实现**；M6.2b（`pub static`/复合初始化）、
+> 状态：**M6.1 / M6.1b / M6.2a / M6.2b（pub static）/ M6.3a 已实现**；M6.2c（复合初始化）、
 > M6.3b（常量表）待做。见文末排期与各节实现状态。
 
 ## 目标与用途
@@ -90,8 +90,14 @@ pub const VERSION = 3
 - 发射：`@name = global <ty> <init>`；引用全局的 ref 局部不参与局部 loan 跟踪（全局始终存活）；
 - 回归：`example/test_static.aya` + 两个负例。
 
-待做（M6.2b）：`pub static` 跨模块导出/导入（`.lcl` 符号 + `external global`）、
-复合初始化（数组/结构体）、`static mut` 的 unsafe 门控（M5）。
+M6.2b（已实现，2026-10）：`pub static` 跨模块导出/导入：
+
+- `.lcl` `static="name,ty,mut"`（标量类型；值不需要——定义在被导入包的 .o 中）；
+- 导入注册裸名 + 限定名 `pkg.NAME`（别名指向同一发射符号）；命名空间 `ns.NAME`；
+- 导入方发射 `@name = external global <ty>` 声明，不定义；release 内部化跳过 pub static；
+- 回归：`tests/lcl_static/`（不可变/可变/命名空间跨模块读写）、`example/test_static.aya`。
+
+待做（M6.2c）：复合初始化（数组/结构体全局）、`static mut` 的 unsafe 门控（M5）。
 
 - **所有权**：static 值不可含堆所有权（`String` / `[T]` 动态数组）——避免无 drop 的全局；
   需要表时用固定大小 `[T; n]` 或 M6.3 生成的常量。
@@ -123,7 +129,7 @@ pub const VERSION = 3
 |---|---|---|
 | M6.1 | const 基础（标量 / 数组大小 / 0x） | ✅ 已实现 |
 | M6.1b | `pub const` / 命名空间 const 导出导入 | ✅ 已实现 |
-| M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a 已实现（标量；见下） |
+| M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a/b 已实现（标量；M6.2c 复合初始化待做） |
 | M6.3 | `#[compile_time] fn` / make_table()（解释执行 + 常量表） | ✅ M6.3a 已实现（标量；M6.3b 常量表待做） |
 
 ## 风险

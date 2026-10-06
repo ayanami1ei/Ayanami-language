@@ -112,6 +112,10 @@ pub struct HirStatic {
     pub ty: HirType,
     pub value: HirLiteral,
     pub is_mut: bool,
+    /// M6.2b：pub 导出（release 内部化跳过；.lcl 导出）
+    pub is_pub: bool,
+    /// M6.2b：来自 .lcl 导入（只发射 `external global` 声明，不定义）
+    pub is_external: bool,
 }
 
 #[derive(Debug, Clone)]

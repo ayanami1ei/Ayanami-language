@@ -13,8 +13,15 @@ fn inc(ref mut int x) -> int {
     return x
 }
 
+namespace cfg {
+    static mut LEVEL = 1
+}
+
 fn main() -> int {
     if MAX != 10 { return 1 }
+    cfg::LEVEL = 3
+    if cfg::LEVEL != 3 { return 8 }
+    if ref mut cfg::LEVEL != 3 { return 9 }
     if bump() != 1 { return 2 }
     if bump() != 2 { return 3 }
     if COUNTER != 2 { return 4 }

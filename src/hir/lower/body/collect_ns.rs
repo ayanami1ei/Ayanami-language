@@ -68,8 +68,16 @@ impl crate::hir::lower::Ctx {
                         }
                     }
                 }
-                Stmt::StaticDecl { name, is_mut, ty, value, span, .. } => {
-                    self.collect_static_decl(*name, *is_mut, ty.as_ref(), value, span)?;
+                Stmt::StaticDecl { vis, name, is_mut, ty, value, span, .. } => {
+                    self.collect_static_decl(*name, *is_mut, vis.is_public(), ty.as_ref(), value, span)?;
+                    // M6.2b：命名空间 static：限定名 `ns.NAME` 为发射符号；裸名是同符号别名
+                    if !ns_prefix.is_empty() {
+                        let qualified = Symbol::intern(&format!("{}.{}", ns_prefix, name));
+                        if let Some(st) = self.statics.get(name).cloned() {
+                            self.statics.insert(*name, crate::hir::HirStatic { name: qualified, ..st.clone() });
+                            self.statics.insert(qualified, crate::hir::HirStatic { name: qualified, ..st });
+                        }
+                    }
                 }
                 Stmt::InterfaceDef { name, methods, generic_params, .. } => {
                     let hir_methods: Vec<HirInterfaceMethod> = methods.iter().map(|m| {

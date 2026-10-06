@@ -251,5 +251,19 @@ if [ -d tests/lcl_const ]; then
     rm -f "$(dirname "$BIN")/std/lib.lcl"
 fi
 
+# M6.2b：pub static 跨 .lcl 导出/导入（含 static mut 与命名空间）
+if [ -d tests/lcl_static ]; then
+    tdir=tests/lcl_static
+    "$BIN" package "$tdir/lib.aya" >/dev/null 2>&1 || true
+    cp "$tdir/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    timeout 120 "$BIN" run "$tdir/main.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL $tdir/main.aya: exit $got, want 0（M6.2b pub static 导入）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$(dirname "$BIN")/std/lib.lcl"
+fi
+
 echo "regression: positive=$pos negative=$neg runtime=$rt failures=$fail"
 [ "$fail" -eq 0 ]

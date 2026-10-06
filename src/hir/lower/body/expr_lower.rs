@@ -28,7 +28,7 @@ impl crate::hir::lower::Ctx {
                 }
                 // M6.2：全局变量读取（SGlobal 取址 + SDeref 载入）
                 if let Some(st) = self.statics.get(name).cloned() {
-                    let addr: HirNodeBox = SGlobal { name: *name, ty: st.ty.clone(), mutable: st.is_mut }.into();
+                    let addr: HirNodeBox = SGlobal { name: st.name, ty: st.ty.clone(), mutable: st.is_mut }.into();
                     return Ok(SDeref { expr: addr, ty: st.ty.clone() }.into());
                 }
                 if let Some(candidates) = self.fn_map.get(name) {
@@ -106,7 +106,7 @@ impl crate::hir::lower::Ctx {
                                 name.as_str(), span.start_line, span.start_col
                             )));
                         }
-                        let addr: HirNodeBox = SGlobal { name: *name, ty: st.ty.clone(), mutable: *mutable }.into();
+                        let addr: HirNodeBox = SGlobal { name: st.name, ty: st.ty.clone(), mutable: *mutable }.into();
                         let ty = HirType::Ref(Box::new(st.ty.clone()), *mutable);
                         return Ok(SRef { expr: addr, mutable: *mutable, ty }.into());
                     }

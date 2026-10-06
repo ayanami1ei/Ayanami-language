@@ -89,11 +89,15 @@ impl<'a> Emitter<'a> {
         for g in &self.prog.globals {
             let ty = self.llvm_type(&g.ty);
             let lit = lit_to_string(&g.value, &g.ty);
-            // M-opt.2：release 下全局标 internal（当前 static 均为模块私有；pub static 见 M6.2b）
-            let linkage = if crate::hir::contracts::is_release() { "internal " } else { "" };
+            // M-opt.2：release 下私有全局标 internal；pub static 保持外部（M6.2b）
+            let linkage = if crate::hir::contracts::is_release() && !g.is_pub { "internal " } else { "" };
             self.wln_fmt(format_args!("@{} = {}global {} {}", g.name.as_str(), linkage, ty, lit));
         }
-        if !self.prog.globals.is_empty() {
+        for (name, ty) in &self.prog.extern_globals {
+            let ty = self.llvm_type(ty);
+            self.wln_fmt(format_args!("@{} = external global {}", name.as_str(), ty));
+        }
+        if !self.prog.globals.is_empty() || !self.prog.extern_globals.is_empty() {
             self.wln("");
         }
     }

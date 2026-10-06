@@ -132,6 +132,8 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
 
     let mut statics: Vec<crate::hir::HirStatic> = ctx.statics.values().cloned().collect();
     statics.sort_by(|a, b| a.name.as_str().cmp(&b.name.as_str()));
+    // 别名（裸名/限定名指向同一发射符号）只保留一份
+    statics.dedup_by(|a, b| a.name == b.name);
     let mut consts = ctx.const_exports.clone();
     consts.sort_by(|a, b| a.0.as_str().cmp(&b.0.as_str()));
     Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), generic_struct_params: ctx.generic_struct_params.clone(), imported_fns, statics, consts })

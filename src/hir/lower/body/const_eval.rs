@@ -23,6 +23,7 @@ impl crate::hir::lower::Ctx {
         &mut self,
         name: Symbol,
         is_mut: bool,
+        is_pub: bool,
         ty: Option<&Type>,
         value: &Expr,
         span: &Span,
@@ -32,7 +33,9 @@ impl crate::hir::lower::Ctx {
             let want = ast_type_to_hir(ann, &self.interfaces);
             super::const_coerce::coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
         }
-        self.statics.insert(name, crate::hir::HirStatic { name, ty: hir_ty, value: lit, is_mut });
+        self.statics.insert(name, crate::hir::HirStatic {
+            name, ty: hir_ty, value: lit, is_mut, is_pub, is_external: false,
+        });
         Ok(())
     }
 

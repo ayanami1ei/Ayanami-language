@@ -56,6 +56,12 @@ pub enum PackageSymbol {
         ty: String,
         value: String,
     },
+    /// M6.2b：导出的全局变量（`static="name,ty,mut"`）
+    Static {
+        name: String,
+        ty: String,
+        is_mut: bool,
+    },
 }
 
 /// Parsed symbol from a .lcl package file.
@@ -92,5 +98,11 @@ pub enum ImportedSymbol {
         name: String,
         ty: String,
         value: String,
+    },
+    /// M6.2b：包导出的全局变量
+    Static {
+        name: String,
+        ty: String,
+        is_mut: bool,
     },
 }

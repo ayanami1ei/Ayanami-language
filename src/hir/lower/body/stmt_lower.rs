@@ -24,7 +24,7 @@ impl crate::hir::lower::Ctx {
                             name.as_str(), span.start_line, span.start_col
                         )));
                     }
-                    let target: HirNodeBox = SGlobal { name: *name, ty: st.ty.clone(), mutable: true }.into();
+                    let target: HirNodeBox = SGlobal { name: st.name, ty: st.ty.clone(), mutable: true }.into();
                     let hir_value = self.lower_expr(value)?;
                     let hir_value = coerce_expr(hir_value, &st.ty, span)?;
                     let hir_value = implicit_move(hir_value);

@@ -57,6 +57,9 @@ impl Package {
                     PackageSymbol::Const { name, ty, value } => {
                         body.push_str(&format!("const=\"{},{},{}\"\n", name, ty, value));
                     }
+                    PackageSymbol::Static { name, ty, is_mut } => {
+                        body.push_str(&format!("static=\"{},{},{}\"\n", name, ty, is_mut));
+                    }
                 }
             }
             body.push_str("\n");

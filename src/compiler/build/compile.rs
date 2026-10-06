@@ -27,6 +27,7 @@ pub fn compile_file(
                 specialized_fns: Default::default(),
                 strings: Vec::new(),
                 globals: Vec::new(),
+                extern_globals: Vec::new(),
                 fn_names: std::collections::HashMap::new(),
                 functions: Vec::new(),
                 vtables: Vec::new(),
@@ -42,6 +43,7 @@ pub fn compile_file(
             lcl_path: cached.lcl_path.clone(),
             dep_lcl_paths: cached.dep_lcl_paths.clone(),
             consts: Vec::new(),
+            statics: Vec::new(),
         });
     }
 
@@ -58,7 +60,7 @@ pub fn compile_file(
     let mut program = program;
     program.stmts = new_stmts;
 
-    let (mut lir_program, hir_consts) = lower_to_lir(&program, src_path)?;
+    let (mut lir_program, hir_consts, hir_statics) = lower_to_lir(&program, src_path)?;
 
     merge_dep_struct_defs(&mut lir_program, &dep_lcl_paths);
 
@@ -85,6 +87,7 @@ pub fn compile_file(
         &program,
         &lir_program,
         &hir_consts,
+        &hir_statics,
         &lcl_path,
         &dep_lcl_paths,
         stem,
@@ -103,6 +106,7 @@ pub fn compile_file(
         lcl_path,
         dep_lcl_paths,
         consts: hir_consts,
+        statics: hir_statics,
     };
 
     cache.insert(
@@ -113,6 +117,7 @@ pub fn compile_file(
                 specialized_fns: Default::default(),
                 strings: Vec::new(),
                 globals: Vec::new(),
+                extern_globals: Vec::new(),
                 fn_names: std::collections::HashMap::new(),
                 functions: Vec::new(),
                 vtables: Vec::new(),
@@ -128,6 +133,7 @@ pub fn compile_file(
             lcl_path: result.lcl_path.clone(),
             dep_lcl_paths: result.dep_lcl_paths.clone(),
             consts: Vec::new(),
+            statics: Vec::new(),
         },
     );
 

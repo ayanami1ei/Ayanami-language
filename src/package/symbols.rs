@@ -38,6 +38,20 @@ impl Package {
         }
     }
 
+    /// M6.2b：登记可导出全局变量（`all=false` 时仅 pub；标量类型）
+    pub fn set_statics(&mut self, statics: &[crate::hir::HirStatic], all: bool) {
+        for s in statics {
+            if !all && !s.is_pub { continue; }
+            if let Some(ty_str) = crate::package::const_codec::type_str(&s.ty) {
+                self.symbols.push(PackageSymbol::Static {
+                    name: s.name.as_str(),
+                    ty: ty_str,
+                    is_mut: s.is_mut,
+                });
+            }
+        }
+    }
+
     pub fn collect_symbols(&mut self, stmts: &[Stmt]) {
         self.collect_symbols_with_prefix(stmts, false, "")
     }

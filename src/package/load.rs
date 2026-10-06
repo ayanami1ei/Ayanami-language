@@ -89,6 +89,17 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
                         });
                     }
                 }
+            } else if let Some(rest) = line.strip_prefix("static=") {
+                let val = parse_ini_value(rest);
+                if let Some((name, rest)) = val.split_once(',') {
+                    if let Some((ty, is_mut)) = rest.split_once(',') {
+                        symbols.push(ImportedSymbol::Static {
+                            name: name.to_string(),
+                            ty: ty.to_string(),
+                            is_mut: is_mut == "true",
+                        });
+                    }
+                }
             }
         } else if in_generics {
             if let Some(rest) = line.strip_prefix("source=") {
