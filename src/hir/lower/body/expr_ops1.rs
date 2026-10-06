@@ -2,6 +2,8 @@ use super::*;
 
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox> {
+        // #146：`&&`/`||` 短路 —— 右侧惰性求值（分支内降级）
+        if matches!(op, BinaryOp::And | BinaryOp::Or) { return self.lower_short_circuit(*op, lhs, rhs, span); }
         let mut hir_lhs = auto_deref(self.lower_expr(lhs)?);
         let mut hir_rhs = auto_deref(self.lower_expr(rhs)?);
         let mut lhs_ty = expr_type(&hir_lhs);
@@ -98,9 +100,7 @@ impl crate::hir::lower::Ctx {
                             Err(_) => {
                                 return Err(Error::Hir(format!(
                                     "no matching overload of `{}` for argument types ({}, {}) at {}:{}",
-                                    op_fn_name,
-                                    hir_type_display(&lhs_ty), hir_type_display(&rhs_ty),
-                                    span.start_line, span.start_col
+                                    op_fn_name, hir_type_display(&lhs_ty), hir_type_display(&rhs_ty), span.start_line, span.start_col
                                 )));
                             }
                         }

@@ -1,0 +1,7 @@
+fn main() -> int {
+    x = 5
+    return match x {
+        1 => 1,
+        2 => 2,
+    }
+}

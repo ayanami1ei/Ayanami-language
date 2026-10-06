@@ -68,4 +68,8 @@ pub enum HirLiteral {
     Char(char),
     String(String),
     Bool(bool),
+    /// M6.2c：数组常量（元素为标量字面量；仅 static 初始化用）
+    Array(Vec<HirLiteral>),
+    /// M6.2c：结构体常量（按声明顺序的字段值）
+    Struct(Vec<HirLiteral>),
 }

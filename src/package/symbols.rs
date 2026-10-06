@@ -72,7 +72,13 @@ impl Package {
         match stmt {
             Stmt::FnDecl { vis, name, params, return_type, generic_params, attrs, .. } => {
                 if !generic_params.is_empty() {
-                    return; // Generic functions stored in generic_sources via ImplBlock or parent
+                    // #145：顶层泛型自由函数序列化进 generic_sources（导入侧注册 + 调用点单态化）
+                    if all || vis.is_public() {
+                        let prog = crate::parser::ast::Program { stmts: vec![stmt.clone()] };
+                        let src = crate::formatter::format_program(&prog);
+                        self.generic_sources.push(src);
+                    }
+                    return;
                 }
                 // A5b：宏单独入宏表，不作为普通函数导出
                 if attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "macro") {

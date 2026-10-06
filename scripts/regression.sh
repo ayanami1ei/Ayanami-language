@@ -251,6 +251,34 @@ if [ -d tests/lcl_const ]; then
     rm -f "$(dirname "$BIN")/std/lib.lcl"
 fi
 
+# #144：跨 .lcl 嵌套泛型枚举（Option[ArrayList[String]]）签名/ABI
+if [ -d tests/lcl_nested ]; then
+    tdir=tests/lcl_nested
+    "$BIN" package "$tdir/lib.aya" >/dev/null 2>&1 || true
+    cp "$tdir/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    timeout 120 "$BIN" run "$tdir/main.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL $tdir/main.aya: exit $got, want 0（#144 嵌套泛型 .lcl 签名）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$(dirname "$BIN")/std/lib.lcl"
+fi
+
+# #145：顶层泛型自由函数跨 .lcl（无约束 + 带约束）
+if [ -d tests/lcl_generic_fn ]; then
+    tdir=tests/lcl_generic_fn
+    "$BIN" package "$tdir/lib.aya" >/dev/null 2>&1 || true
+    cp "$tdir/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    timeout 120 "$BIN" run "$tdir/main.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL $tdir/main.aya: exit $got, want 0（#145 顶层泛型自由函数导入）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$(dirname "$BIN")/std/lib.lcl"
+fi
+
 # M6.2b：pub static 跨 .lcl 导出/导入（含 static mut 与命名空间）
 if [ -d tests/lcl_static ]; then
     tdir=tests/lcl_static

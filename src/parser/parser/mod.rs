@@ -25,6 +25,7 @@ fn ast_type_text(ty: &Type) -> String {
         Type::Named(n, _) => n.as_str().to_string(),
         Type::Generic(n, args, _) => format!("{}<{}>", n, args.iter().map(ast_type_text).collect::<Vec<_>>().join(",")),
         Type::Array(inner, _) => format!("[{}]", ast_type_text(inner)),
+        Type::ArraySized(inner, n, _) => format!("[{}; {}]", ast_type_text(inner), n),
         Type::Ref(inner, m, _) => format!("ref {}{}", if *m { "mut " } else { "" }, ast_type_text(inner)),
         Type::Unique(inner, _) => ast_type_text(inner),
         Type::Self_(_) => "Self".into(),
@@ -32,6 +33,7 @@ fn ast_type_text(ty: &Type) -> String {
     }
 }
 
+mod array_expr;
 mod atom;
 mod const_decl;
 mod self_type;
@@ -42,6 +44,7 @@ mod expr;
 mod impls;
 mod literal_text;
 mod macro_call;
+mod pattern;
 mod stmt;
 mod types;
 mod unary;

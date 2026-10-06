@@ -1,0 +1,23 @@
+// #146：&&/|| 短路（右侧副作用不执行；越界保护有效）
+import "io"
+import "string"
+
+static mut CALLS = 0
+
+fn side() -> bool {
+    CALLS = CALLS + 1
+    return true
+}
+
+fn main() -> int {
+    s = "x"
+    n = 1
+    // 若右侧被求值 → s.index(1) 越界 panic
+    if n >= 2 && s.index(1) == 'x' { return 1 }
+    if false && side() { return 2 }
+    ok = true || side()
+    if !ok { return 3 }
+    if CALLS != 0 { return 4 }
+    println(42)
+    return 0
+}

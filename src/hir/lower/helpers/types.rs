@@ -15,6 +15,7 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
             format!("{}<{}>", name, a.join(","))
         }
         Type::Array(inner, _) => format!("[{}]", type_to_string_generic(inner, interfaces)),
+        Type::ArraySized(inner, n, _) => format!("[{}; {}]", type_to_string_generic(inner, interfaces), n),
         Type::Ref(inner, mutable, _) => format!("ref{}{}",
             if *mutable { " mut" } else { "" },
             type_to_string_generic(inner, interfaces)),
@@ -58,19 +59,23 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
     } else if let Some(inner) = s.strip_prefix("unique ") {
         HirType::Unique(Box::new(sig_str_to_hir(inner)))
     } else if let Some(inner) = s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        // M6.2c：定长数组 `[T; N]`
+        if let Some((elem, n)) = inner.split_once(';') {
+            if let Ok(n) = n.trim().parse::<usize>() {
+                return HirType::ArraySized(Box::new(sig_str_to_hir(elem)), n);
+            }
+        }
         HirType::Array(Box::new(sig_str_to_hir(inner)))
     } else {
         match s {
             "char" => HirType::Char,
             "bool" => HirType::Bool,
             "void" => HirType::Void,
+            "!" => HirType::Never,
             other => {
-                // #104：.lcl 签名可能写 `Option[int]`（源语法）；归一化为 `Option<int>`（HIR 泛型命名）
-                let canonical = match other.find('[') {
-                    Some(open) if other.ends_with(']') =>
-                        format!("{}<{}>", &other[..open], &other[open + 1..other.len() - 1]),
-                    _ => other.to_string(),
-                };
+                // #104/#144：.lcl 签名可能写 `Option[int]`（源语法）；归一化为 `Option<int>`（HIR 泛型命名）。
+                // 嵌套泛型 `Option[ArrayList[String]]` 需要递归转换（此前只换外层 → 基名回退 → ABI 不一致）。
+                let canonical = normalize_generic_brackets(other);
                 match fixed_width_type(&canonical) {
                     Some(t) => t,
                     None => HirType::Named(Symbol::intern(&canonical)),
@@ -78,6 +83,32 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
             }
         }
     }
+}
+
+/// #144：签名类型文本 `Name[...]` → `Name<...>`（递归，尊重嵌套；`[T]`/`[T;N]` 数组保持方括号）
+pub(crate) fn normalize_generic_brackets(s: &str) -> String {
+    let s = s.trim();
+    // 数组：以 `[` 开头 → 保持方括号（元素递归归一）
+    if let Some(rest) = s.strip_prefix('[') {
+        if let Some(inner) = rest.strip_suffix(']') {
+            if let Some((elem, n)) = inner.split_once(';') {
+                return format!("[{};{}]", normalize_generic_brackets(elem), n.trim());
+            }
+            return format!("[{}]", normalize_generic_brackets(inner));
+        }
+        return s.to_string();
+    }
+    // 泛型：`Name[args]` / `Name<args>` → `Name<normalized args>`
+    if let Some(open) = s.find(['[', '<']) {
+        let base = &s[..open];
+        if let Some(inner) = generic_inner(s) {
+            let parts: Vec<String> = split_generic_args(inner).iter()
+                .map(|p| normalize_generic_brackets(p))
+                .collect();
+            return format!("{}<{}>", base, parts.join(","));
+        }
+    }
+    s.to_string()
 }
 
     /// 将 AST 类型节点转换为 HIR 类型（含接口信息）
@@ -102,6 +133,8 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         Type::Never(_) => HirType::Never,
         // `[T]` 即拥有堆数组（unique 已移除；借用写 `ref [T]`）
         Type::Array(inner, _) => HirType::Unique(Box::new(HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))))),
+        Type::ArraySized(inner, n, _) => HirType::Unique(Box::new(HirType::ArraySized(
+            Box::new(ast_type_to_hir(inner, interfaces)), *n))),
         Type::Generic(name, args, _) => {
             // Encode generic instantiation as a unique named type
             let args_str: Vec<String> = args.iter()

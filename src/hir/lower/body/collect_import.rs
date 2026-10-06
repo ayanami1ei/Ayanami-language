@@ -169,10 +169,11 @@ impl crate::hir::lower::Ctx {
                         let ret_str = &sig_body[arrow_pos + 3..];
                         // params_str is "(type1,type2" — strip leading '('
                         let params_str = params_str.strip_prefix('(').unwrap_or(params_str);
+                        // #144：形参按顶层逗号切分（嵌套泛型实参内逗号不切）
                         let param_tys: Vec<&str> = if params_str.is_empty() {
                             Vec::new()
                         } else {
-                            params_str.split(',').collect()
+                            crate::hir::lower::helpers::split_generic_args(params_str)
                         };
                         let hir_params: Vec<(Symbol, HirType)> = param_tys.iter()
                             .map(|s| (Symbol::intern(""), sig_str_to_hir(s)))

@@ -52,7 +52,8 @@ pub(super) fn collect_local_names_stmt(stmt: &Stmt, out: &mut Vec<Symbol>) {
         Stmt::Match { value, arms, .. } => {
             collect_local_names_expr(value, out);
             for a in arms {
-                for (n, _) in &a.bindings { out.push(*n); }
+                out.extend(a.pattern.bindings());
+                if let Some(g) = &a.guard { collect_local_names_expr(g, out); }
                 collect_local_names_expr(&a.body, out);
             }
         }
@@ -107,7 +108,8 @@ pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>) {
         Expr::Match { value, arms, .. } => {
             collect_local_names_expr(value, out);
             for a in arms {
-                for (n, _) in &a.bindings { out.push(*n); }
+                out.extend(a.pattern.bindings());
+                if let Some(g) = &a.guard { collect_local_names_expr(g, out); }
                 collect_local_names_expr(&a.body, out);
             }
         }

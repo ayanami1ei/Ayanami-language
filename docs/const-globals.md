@@ -97,7 +97,28 @@ M6.2b（已实现，2026-10）：`pub static` 跨模块导出/导入：
 - 导入方发射 `@name = external global <ty>` 声明，不定义；release 内部化跳过 pub static；
 - 回归：`tests/lcl_static/`（不可变/可变/命名空间跨模块读写）、`example/test_static.aya`。
 
-待做（M6.2c）：复合初始化（数组/结构体全局）、`static mut` 的 unsafe 门控（M5）。
+M6.2c（数组部分已实现，2026-10）：复合初始化——数组全局：
+
+- `static TABLE: [int; N] = [a, b, ...]`、重复字面量 `[v; N]`、`static mut` 数组读写；
+- 类型位新增 `[T; N]`（N 为字面量整数）；常量求值产出 `HirLiteral::Array`；
+- 发射：数据数组常量 `@__ayanami_gdata_<name> = private global [N x T] [...]`
+  + 指针变量 `@<name> = global ptr @__ayanami_gdata_<name>`（语言层 `[T; N]` 为指针语义，
+  索引/引用/跨模块导入复用既有路径）；release 内部化仅对非 pub；
+- `.lcl` `static=` 类型编码支持数组 `[T;N]`（跨模块导出/导入）；
+- 回归：`example/test_static_array.aya`、`tests/lcl_static/`（pub static 数组跨模块）。
+
+结构体全局（已实现，2026-10）：
+
+- `static P: Point = Point { x = 1, y = 2 }`（标量字段 + 嵌套结构体字段；字段按声明顺序规范化）；
+- 发射为**内联**结构体常量 `@P = global %struct.Point { i64 1, i64 2 }`（结构体值语义，
+  取址即全局地址；字段读/写/`ref`/`ref mut` 复用既有路径）；
+- `.lcl` `static=` 类型编码支持命名类型（结构体布局随 struct_defs 导入）；
+- 回归：`example/test_static_struct.aya`、`tests/lcl_static/`（Coord 跨模块读写）。
+
+结构体常量中的数组字段（已实现，2026-10）：字段类型为指针语义，发射层预发射数据数组
+`@__ayanami_gdata_<static>_<field路径>` 并在结构体常量中引用（`ptr @...`）；支持嵌套结构体路径。
+
+待做（M6.2c 剩余）：`static mut` 的 unsafe 门控（M5）、数组/结构体常量用于 `const`（M6.3b）。
 
 - **所有权**：static 值不可含堆所有权（`String` / `[T]` 动态数组）——避免无 drop 的全局；
   需要表时用固定大小 `[T; n]` 或 M6.3 生成的常量。
@@ -129,7 +150,7 @@ M6.2b（已实现，2026-10）：`pub static` 跨模块导出/导入：
 |---|---|---|
 | M6.1 | const 基础（标量 / 数组大小 / 0x） | ✅ 已实现 |
 | M6.1b | `pub const` / 命名空间 const 导出导入 | ✅ 已实现 |
-| M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a/b 已实现（标量；M6.2c 复合初始化待做） |
+| M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a/b 已实现；M6.2c 数组/结构体全局（含数组字段）已实现（unsafe 门控待做） |
 | M6.3 | `#[compile_time] fn` / make_table()（解释执行 + 常量表） | ✅ M6.3a 已实现（标量；M6.3b 常量表待做） |
 
 ## 风险

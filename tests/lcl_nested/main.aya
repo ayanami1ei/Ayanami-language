@@ -1,0 +1,14 @@
+// #144 夹具：跨模块调用返回 Option[ArrayList[String]] 的函数（取载荷 + unwrap_or）
+import "lib"
+import "arraylist"
+import "option"
+
+fn main() -> int {
+    x = f()
+    if x._tag != 0 { return 1 }
+    if x._data_Some._0.len() != 1 { return 2 }
+    empty = ArrayList::new[String]()
+    y = x.unwrap_or(empty)
+    if y.len() != 1 { return 3 }
+    return 0
+}

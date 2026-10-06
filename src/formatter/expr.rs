@@ -20,6 +20,7 @@ pub(super) fn write_type(ty: &Type) -> String {
         Type::Never(_) => "!".into(),
         Type::Named(s, _) => s.as_str().to_string(),
         Type::Array(inner, _) => format!("[{}]", write_type(inner)),
+        Type::ArraySized(inner, n, _) => format!("[{}; {}]", write_type(inner), n),
         Type::Unique(inner, _) => format!("unique {}", write_type(inner)),
         Type::Generic(name, args, _) => {
             let args_str: Vec<String> = args.iter().map(|a| write_type(a)).collect();
@@ -137,6 +138,7 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
                 .collect();
             format!("{}{} {{ {} }}", type_name, generic_str, fields_str.join(", "))
         }
+        Expr::ArrayRepeat { value, count, .. } => format!("[{}; {}]", write_expr_at(value, level + 1), write_expr_at(count, level + 1)),
         Expr::ArrayLiteral(elems, _) => {
             let elems_str: Vec<String> = elems.iter().map(|e| write_expr_at(e, level)).collect();
             format!("[{}]", elems_str.join(", "))
@@ -179,12 +181,10 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         Expr::Match { value, arms, .. } => {
             let mut out = format!("match {} {{", write_expr_at(value, level));
             for arm in arms {
-                let binds = if arm.bindings.is_empty() {
-                    String::new()
-                } else {
-                    format!("({})", arm.bindings.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>().join(", "))
-                };
-                out.push_str(&format!("\n{}{}{} => {},", indent(level + 1), arm.variant_name, binds, write_expr_at(&arm.body, level + 1)));
+                let guard = arm.guard.as_ref()
+                    .map(|g| format!(" if {}", write_expr_at(g, level + 1)))
+                    .unwrap_or_default();
+                out.push_str(&format!("\n{}{}{} => {},", indent(level + 1), arm.pattern.display(), guard, write_expr_at(&arm.body, level + 1)));
             }
             out.push_str(&format!("\n{}}}", indent(level)));
             out

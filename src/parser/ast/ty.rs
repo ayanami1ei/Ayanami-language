@@ -15,6 +15,8 @@ pub enum Type {
     Named(Symbol, Span),
     Generic(Symbol, Vec<Type>, Span),  // Foo[int]
     Array(Box<Type>, Span),
+    /// M6.2c：`[T; N]`（N 为字面量整数）
+    ArraySized(Box<Type>, usize, Span),
     Ref(Box<Type>, bool, Span),  // ref T or ref mut T
     Unique(Box<Type>, Span),
     Self_(Span),
@@ -32,6 +34,7 @@ impl Type {
             | Type::Never(s)
             | Type::Generic(_, _, s)
             | Type::Array(_, s)
+            | Type::ArraySized(_, _, s)
             | Type::Ref(_, _, s)
             | Type::Unique(_, s)
             | Type::FnPtr(_, _, s) => *s,

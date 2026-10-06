@@ -73,6 +73,12 @@ pub enum Expr {
         count: Box<Expr>,
         span: Span,
     },
+    /// M6.2c：重复字面量 `[value; count]`（常量上下文 → 数组常量）
+    ArrayRepeat {
+        value: Box<Expr>,
+        count: Box<Expr>,
+        span: Span,
+    },
     Null(Span),  // null literal
     Ref(Box<Expr>, bool, Span),  // ref expr or ref mut expr
     Asm {
@@ -134,6 +140,7 @@ impl Expr {
             | Expr::FieldAccess { span, .. }
             | Expr::StructLiteral { span, .. }
             | Expr::ArrayLiteral(_, span)
+            | Expr::ArrayRepeat { span, .. }
             | Expr::ArraySized { span, .. }
             | Expr::Ref(_, _, span)
             | Expr::Null(span)

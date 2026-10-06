@@ -96,6 +96,11 @@ pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
                 write_expr(val, level + 1, w);
             }
         }
+        Expr::ArrayRepeat { value, count, .. } => {
+            writeln!(w, "{}ArrayRepeat", pad(level)).unwrap();
+            write_expr(value, level + 1, w);
+            write_expr(count, level + 1, w);
+        }
         Expr::ArrayLiteral(elems, _) => {
             writeln!(w, "{}ArrayLiteral", pad(level)).unwrap();
             for e in elems {

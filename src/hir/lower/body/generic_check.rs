@@ -112,9 +112,10 @@ impl crate::hir::lower::Ctx {
             Stmt::Match { value, arms, .. } => {
                 self.check_expr_names(value, cx)?;
                 for a in arms {
-                    for (n, _) in &a.bindings {
-                        cx.env.insert(*n, GType::Other);
+                    for n in a.pattern.bindings() {
+                        cx.env.insert(n, GType::Other);
                     }
+                    if let Some(g) = &a.guard { self.check_expr_names(g, cx)?; }
                     self.check_expr_names(&a.body, cx)?;
                 }
                 Ok(())
@@ -127,6 +128,11 @@ impl crate::hir::lower::Ctx {
 
     fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()> {
         match expr {
+            Expr::ArrayRepeat { value, count, .. } => {
+                self.check_expr_names(value, cx)?;
+                self.check_expr_names(count, cx)?;
+                return Ok(());
+            }
             Expr::FnCall { name, args, span, .. } => {
                 let known = name.as_str().contains('.')
                     || cx.known.contains(name)
@@ -244,9 +250,10 @@ impl crate::hir::lower::Ctx {
             Expr::Match { value, arms, .. } => {
                 self.check_expr_names(value, cx)?;
                 for a in arms {
-                    for (n, _) in &a.bindings {
-                        cx.env.insert(*n, GType::Other);
+                    for n in a.pattern.bindings() {
+                        cx.env.insert(n, GType::Other);
                     }
+                    if let Some(g) = &a.guard { self.check_expr_names(g, cx)?; }
                     self.check_expr_names(&a.body, cx)?;
                 }
                 Ok(())

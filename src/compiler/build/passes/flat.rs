@@ -75,11 +75,13 @@ fn lit_kind(v: &HirLiteral) -> i64 {
         HirLiteral::Bool(_) => 3,
         HirLiteral::Char(_) => 4,
         HirLiteral::String(_) => 0,
+        HirLiteral::Array(_) | HirLiteral::Struct(_) => 0,
     }
 }
 
 fn lit_i64(v: &HirLiteral) -> i64 {
     match v {
+        HirLiteral::Array(_) | HirLiteral::Struct(_) => 0,
         HirLiteral::Int(n) => *n,
         HirLiteral::Bool(b) => *b as i64,
         HirLiteral::Char(c) => *c as i64,

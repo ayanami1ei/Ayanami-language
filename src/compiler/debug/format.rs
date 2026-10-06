@@ -15,6 +15,7 @@ pub(super) fn format_type(ty: &Type) -> String {
         Type::Never(_) => "Never".into(),
         Type::Named(s, _) => format!("Named({})", s),
         Type::Array(inner, _) => format!("[{}]", format_type(inner)),
+        Type::ArraySized(inner, n, _) => format!("[{}; {}]", format_type(inner), n),
         Type::Unique(inner, _) => format!("unique {}", format_type(inner)),
         Type::Generic(name, args, _) => format!(
             "{}[{}]",

@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 limit="${1:-300}"
 bad=$(find src -name '*.rs' -exec wc -l {} + \
-    | awk -v lim="$limit" '$2 != "total" && $1 > lim { printf "%6d  %s\n", $1, $2 }' \
+    | awk -v lim="$limit" '$2 ~ /\.rs$/ && $1 > lim { printf "%6d  %s\n", $1, $2 }' \
     | sort -rn)
 
 if [[ -n "$bad" ]]; then

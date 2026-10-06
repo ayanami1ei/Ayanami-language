@@ -10,6 +10,9 @@ impl crate::hir::lower::Ctx {
         span: &Span,
     ) -> Result<()> {
         let (mut hir_ty, mut lit) = self.eval_const_expr(value, &HashMap::new(), 0)?;
+        if matches!(lit, HirLiteral::Array(_)) {
+            return Err(Error::Hir(format!("array constants are not supported yet; use `static` (at {}:{})", span.start_line, span.start_col)));
+        }
         if let Some(ann) = ty {
             let want = ast_type_to_hir(ann, &self.interfaces);
             super::const_coerce::coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
@@ -33,9 +36,7 @@ impl crate::hir::lower::Ctx {
             let want = ast_type_to_hir(ann, &self.interfaces);
             super::const_coerce::coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
         }
-        self.statics.insert(name, crate::hir::HirStatic {
-            name, ty: hir_ty, value: lit, is_mut, is_pub, is_external: false,
-        });
+        self.statics.insert(name, crate::hir::HirStatic { name, ty: hir_ty, value: lit, is_mut, is_pub, is_external: false });
         Ok(())
     }
 
@@ -47,6 +48,8 @@ impl crate::hir::lower::Ctx {
         depth: usize,
     ) -> Result<(HirType, HirLiteral)> {
         match expr {
+            Expr::ArrayLiteral(..) | Expr::ArrayRepeat { .. } => self.eval_const_array(expr, env, depth),
+            Expr::StructLiteral { type_name, generic_args, fields, span } => self.eval_const_struct(type_name, generic_args, fields, span, env, depth),
             Expr::Literal(lit) => match lit {
                 Literal::Int(i, _) => Ok((HirType::Int, HirLiteral::Int(*i))),
                 Literal::Float(f, _) => Ok((HirType::Float, HirLiteral::Float(*f))),

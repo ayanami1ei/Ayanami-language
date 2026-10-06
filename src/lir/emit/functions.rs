@@ -84,24 +84,6 @@ impl<'a> Emitter<'a> {
     }
 
 
-    /// M6.2：发射全局变量 `@name = global <ty> <init>`
-    pub(super) fn emit_global_defs(&mut self) {
-        for g in &self.prog.globals {
-            let ty = self.llvm_type(&g.ty);
-            let lit = lit_to_string(&g.value, &g.ty);
-            // M-opt.2：release 下私有全局标 internal；pub static 保持外部（M6.2b）
-            let linkage = if crate::hir::contracts::is_release() && !g.is_pub { "internal " } else { "" };
-            self.wln_fmt(format_args!("@{} = {}global {} {}", g.name.as_str(), linkage, ty, lit));
-        }
-        for (name, ty) in &self.prog.extern_globals {
-            let ty = self.llvm_type(ty);
-            self.wln_fmt(format_args!("@{} = external global {}", name.as_str(), ty));
-        }
-        if !self.prog.globals.is_empty() || !self.prog.extern_globals.is_empty() {
-            self.wln("");
-        }
-    }
-
     pub(super) fn emit_string_globals(&mut self) {
         for (i, s) in self.prog.strings.iter().enumerate() {
             let escaped = escape_llvm_string(s);

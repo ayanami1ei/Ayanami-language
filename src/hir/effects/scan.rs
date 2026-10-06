@@ -159,6 +159,11 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
             obs.push(Obs::Alloc(span.start_line, span.start_col));
             for x in elems { scan_expr(x, obs); }
         }
+        Expr::ArrayRepeat { value, count, span } => {
+            obs.push(Obs::Alloc(span.start_line, span.start_col));
+            scan_expr(value, obs);
+            scan_expr(count, obs);
+        }
         Expr::ArraySized { count, span, .. } => {
             obs.push(Obs::Alloc(span.start_line, span.start_col));
             scan_expr(count, obs);

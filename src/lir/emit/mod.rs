@@ -124,6 +124,7 @@ impl<'a> Emitter<'a> {
 
 }
 
+mod consts;
 mod functions;
 mod types;
 mod vtable;

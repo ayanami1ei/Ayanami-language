@@ -1,6 +1,7 @@
 # 文件 期望退出码 [期望输出子串]
 panic_bounds_string.aya 101 index out of bounds
 never_panic.aya 101 boom
+short_circuit.aya 0 42
 panic_bounds_arraylist.aya 101 index out of bounds
 panic_pop_empty.aya 101 pop from empty ArrayList
 panic_user.aya 101 boom

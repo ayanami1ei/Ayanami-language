@@ -1,0 +1,24 @@
+// M6.2c：数组全局（字面量 / 重复字面量 / static mut / 引用遍历）
+static TABLE: [int; 4] = [10, 20, 30, 40]
+static ZEROS: [int; 4] = [0; 4]
+static mut COUNTS: [int; 3] = [1, 2, 3]
+
+fn total(ref [int; 4] t) -> int {
+    s = 0
+    for i in (0, 4) {
+        s = s + t[i]
+    }
+    return s
+}
+
+fn main() -> int {
+    if TABLE[0] != 10 { return 1 }
+    if TABLE[3] != 40 { return 2 }
+    if ZEROS[2] != 0 { return 3 }
+    if COUNTS[1] != 2 { return 4 }
+    COUNTS[1] = 7
+    if COUNTS[1] != 7 { return 5 }
+    if total(ref TABLE) != 100 { return 6 }
+    if total(ref ZEROS) != 0 { return 7 }
+    return 0
+}

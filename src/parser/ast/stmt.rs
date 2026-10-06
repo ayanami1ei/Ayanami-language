@@ -62,8 +62,10 @@ pub struct EnumVariant {
 
 #[derive(Debug, Clone)]
 pub struct MatchArm {
-    pub variant_name: Symbol,
-    pub bindings: Vec<(Symbol, Option<Symbol>)>,  // (name, optional type annotation)
+    /// Phase 1.3：模式（字面量 / `_` / 绑定 / 枚举变体 / 或模式）
+    pub pattern: crate::parser::ast::pattern::Pattern,
+    /// `if guard` 条件（可引用模式绑定）
+    pub guard: Option<Expr>,
     pub body: Expr,
 }
 

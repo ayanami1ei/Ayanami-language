@@ -1,0 +1,9 @@
+// #144 夹具：.lcl 跨模块返回嵌套泛型枚举 Option[ArrayList[String]]
+import "arraylist"
+import "option"
+
+pub fn f() -> Option[ArrayList[String]] {
+    a = ArrayList::new[String]()
+    a.push("x")
+    return Option::Some(a)
+}

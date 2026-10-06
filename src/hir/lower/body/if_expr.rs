@@ -49,7 +49,7 @@ impl crate::hir::lower::Ctx {
                     else { never.push(false); value_tys.push(ty); }
                 }
                 None => {
-                    let d = super::match_lower::block_diverges(&blocks[i]);
+                    let d = super::match_pattern::block_diverges(&blocks[i]);
                     never.push(d);
                     if !d { has_void = true; }
                 }
@@ -88,7 +88,7 @@ impl crate::hir::lower::Ctx {
         // 值：公共类型（数值提升；`!` 分支不参与、不赋值）
         let res_ty = value_tys.iter()
             .fold(None::<HirType>, |acc, t| Some(match acc {
-                Some(a) => super::match_lower::match_result_type(&a, t),
+                Some(a) => super::match_pattern::match_result_type(&a, t),
                 None => t.clone(),
             }))
             .unwrap_or(HirType::Int);
