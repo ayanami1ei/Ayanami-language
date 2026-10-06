@@ -25,6 +25,7 @@ mod match_lower;
 mod match_pattern;
 mod usage_infer;
 mod macro_call;
+mod expr_logic;
 mod expr_lower;
 mod if_expr;
 mod ensure;

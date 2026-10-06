@@ -452,6 +452,8 @@ src/hir/lower/body/expr_cast.rs:5: pub(crate) fn lower_cast(&mut self, inner: &B
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_enum.rs:53: fn monomorphize_enum_construct(
+src/hir/lower/body/expr_logic.rs:3: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_logic.rs:5: pub(super) fn lower_short_circuit(&mut self, op: BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_lower.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
 src/hir/lower/body/expr_method.rs:3: impl crate::hir::lower::Ctx
@@ -553,25 +555,26 @@ src/hir/lower/body/mod.rs:24: mod match_lower;
 src/hir/lower/body/mod.rs:25: mod match_pattern;
 src/hir/lower/body/mod.rs:26: mod usage_infer;
 src/hir/lower/body/mod.rs:27: mod macro_call;
-src/hir/lower/body/mod.rs:28: mod expr_lower;
-src/hir/lower/body/mod.rs:29: mod if_expr;
-src/hir/lower/body/mod.rs:30: mod ensure;
-src/hir/lower/body/mod.rs:31: mod literal;
-src/hir/lower/body/mod.rs:32: mod collect_enum;
-src/hir/lower/body/mod.rs:33: mod const_coerce;
-src/hir/lower/body/mod.rs:34: mod const_array;
-src/hir/lower/body/mod.rs:35: mod const_struct;
-src/hir/lower/body/mod.rs:36: mod const_eval;
-src/hir/lower/body/mod.rs:37: mod const_fn;
-src/hir/lower/body/mod.rs:38: mod collect_import;
-src/hir/lower/body/mod.rs:39: mod expr_access;
-src/hir/lower/body/mod.rs:40: mod expr_call;
-src/hir/lower/body/mod.rs:41: mod expr_call_extra;
-src/hir/lower/body/mod.rs:42: mod block_lower;
-src/hir/lower/body/mod.rs:43: mod expr_cast;
-src/hir/lower/body/mod.rs:44: mod expr_enum;
-src/hir/lower/body/mod.rs:45: mod expr_misc;
-src/hir/lower/body/mod.rs:46: mod expr_ops1;
+src/hir/lower/body/mod.rs:28: mod expr_logic;
+src/hir/lower/body/mod.rs:29: mod expr_lower;
+src/hir/lower/body/mod.rs:30: mod if_expr;
+src/hir/lower/body/mod.rs:31: mod ensure;
+src/hir/lower/body/mod.rs:32: mod literal;
+src/hir/lower/body/mod.rs:33: mod collect_enum;
+src/hir/lower/body/mod.rs:34: mod const_coerce;
+src/hir/lower/body/mod.rs:35: mod const_array;
+src/hir/lower/body/mod.rs:36: mod const_struct;
+src/hir/lower/body/mod.rs:37: mod const_eval;
+src/hir/lower/body/mod.rs:38: mod const_fn;
+src/hir/lower/body/mod.rs:39: mod collect_import;
+src/hir/lower/body/mod.rs:40: mod expr_access;
+src/hir/lower/body/mod.rs:41: mod expr_call;
+src/hir/lower/body/mod.rs:42: mod expr_call_extra;
+src/hir/lower/body/mod.rs:43: mod block_lower;
+src/hir/lower/body/mod.rs:44: mod expr_cast;
+src/hir/lower/body/mod.rs:45: mod expr_enum;
+src/hir/lower/body/mod.rs:46: mod expr_misc;
+src/hir/lower/body/mod.rs:47: mod expr_ops1;
 src/hir/lower/body/overload_resolve.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool

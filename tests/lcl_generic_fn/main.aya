@@ -1,0 +1,11 @@
+// #145 夹具：跨 .lcl 调用顶层泛型自由函数
+import "lib"
+import "arraylist"
+
+fn main() -> int {
+    a = ArrayList::new[int]()
+    a.push(7)
+    if first(ref a) != 7 { return 1 }
+    if max_of(3, 9) != 9 { return 2 }
+    return 0
+}

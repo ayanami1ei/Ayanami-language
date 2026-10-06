@@ -1,0 +1,12 @@
+// #145 夹具：顶层泛型自由函数导出（无约束 + 带约束）
+import "arraylist"
+import "ord"
+
+pub fn first[T](ref ArrayList[T] a) -> T {
+    return a.data[0]
+}
+
+pub fn max_of[T: Ord](T a, T b) -> T {
+    if a.cmp(b) > 0 { return a }
+    return b
+}
