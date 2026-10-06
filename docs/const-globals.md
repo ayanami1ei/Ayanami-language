@@ -1,7 +1,7 @@
 # const / static / 编译期求值设计（M6）
 
-> 状态：M6.1（const 基础）已实现；M6.1b（`pub const` 导出）/ M6.2（static）/ M6.3（const fn）
-> 设计见文末排期。
+> 状态：**M6.1 / M6.2a / M6.3a 已实现**；M6.1b（`pub const` 导出）、M6.2b（`pub static`/复合初始化）、
+> M6.3b（常量表）待做。见文末排期与各节实现状态。
 
 ## 目标与用途
 
@@ -16,8 +16,8 @@
 | 字面量 | `0x`/`0b`/`0o`/下划线/类型后缀/指数已支持（M1.5） |
 | 数组字面量计数 | `[T; n]` 中 n 为编译期常量时生成 `HirType::ArraySized`（`expr_lower.rs` 的 `as_const` 判定） |
 | `const` | ✅ 已支持（M6.1，文件作用域，编译期替换） |
-| `static` / 全局 | 无 |
-| 编译期函数求值 | 无（MIR/LIR 有局部折叠，但不暴露给用户） |
+| `static` / 全局 | ✅ M6.2a（标量、常量初始化、可寻址、`static mut`） |
+| 编译期函数求值 | ✅ M6.3a（`const fn` 标量：编译期解释 + 运行期普通调用） |
 
 ## M6.1 const（已实现）
 
@@ -90,21 +90,10 @@ pub const VERSION = 3
 待做（M6.2b）：`pub static` 跨模块导出/导入（`.lcl` 符号 + `external global`）、
 复合初始化（数组/结构体）、`static mut` 的 unsafe 门控（M5）。
 
-## M6.2 static / global（设计）
-
-```ayanami
-static COUNTER = 0
-static TABLE: [int; 16] = [0; 16]
-static mut STATE = 0        // 可变全局（写入需 unsafe，见 M5）
-```
-
-- **可寻址**：LLVM 全局变量（`@name = global`），支持取址/`ref`。
-- **初始化**：M6.2a 只允许常量初始化式（M6.1 求值器）；M6.3 后允许 `const fn`。
 - **所有权**：static 值不可含堆所有权（`String` / `[T]` 动态数组）——避免无 drop 的全局；
   需要表时用固定大小 `[T; n]` 或 M6.3 生成的常量。
-- **跨模块**：`pub static` 经 `.lcl` 导出符号（`static="name,ty"`），导入方按外部全局声明
-  （LLVM `external global`），链接期解析。
 - **`main` 前初始化**：仅常量初始化（无运行时代码），无需 ctor。
+- 示例：`static COUNTER = 0`、`static TABLE: [int; 16] = [0; 16]`、`static mut STATE = 0`。
 
 ## M6.3 编译期求值 `const fn`（M6.3a 已实现，2026-10）
 
