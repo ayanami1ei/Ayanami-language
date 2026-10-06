@@ -9,14 +9,14 @@ pub(crate) enum Flow { Normal, Break, Continue, Return(HirType, HirLiteral) }
 impl crate::hir::lower::Ctx {
     pub(crate) fn eval_const_fn(&self, name: Symbol, args: Vec<(HirType, HirLiteral)>, depth: usize) -> Result<(HirType, HirLiteral)> {
         if depth > MAX_CONST_DEPTH {
-            return Err(Error::Hir(format!("const fn recursion limit exceeded at `{}`", name.as_str())));
+            return Err(Error::Hir(format!("#[compile_time] recursion limit exceeded at `{}`", name.as_str())));
         }
-        let decl = self.const_fns.get(&name).ok_or_else(|| Error::Hir(format!("`{}` is not a const fn", name.as_str())))?;
+        let decl = self.const_fns.get(&name).ok_or_else(|| Error::Hir(format!("`{}` is not a #[compile_time] function", name.as_str())))?;
         let Stmt::FnDecl { params, return_type, body, span, .. } = decl else {
-            return Err(Error::Hir(format!("`{}` is not a const fn", name.as_str())));
+            return Err(Error::Hir(format!("`{}` is not a #[compile_time] function", name.as_str())));
         };
         if args.len() != params.len() {
-            return Err(Error::Hir(format!("const fn `{}` expects {} argument(s), found {}", name.as_str(), params.len(), args.len())));
+            return Err(Error::Hir(format!("#[compile_time] function `{}` expects {} argument(s), found {}", name.as_str(), params.len(), args.len())));
         }
         let mut env = HashMap::new();
         for ((pname, pty), (mut aty, mut alit)) in params.iter().zip(args.into_iter()) {
@@ -41,10 +41,10 @@ impl crate::hir::lower::Ctx {
                     super::const_coerce::coerce_literal(&mut t2, &mut v2, &want, span)?;
                     Ok((want, v2))
                 } else {
-                    Err(Error::Hir(format!("const fn `{}` has no return value (at {}:{})", name.as_str(), span.start_line, span.start_col)))
+                    Err(Error::Hir(format!("#[compile_time] function `{}` has no return value (at {}:{})", name.as_str(), span.start_line, span.start_col)))
                 }
             }
-            Flow::Break | Flow::Continue => Err(Error::Hir(format!("break/continue outside loop in const fn `{}`", name.as_str()))),
+            Flow::Break | Flow::Continue => Err(Error::Hir(format!("break/continue outside loop in #[compile_time] function `{}`", name.as_str()))),
         }
     }
 

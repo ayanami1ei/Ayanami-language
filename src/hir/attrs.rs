@@ -28,6 +28,8 @@ pub const ALLOWED: &[&str] = &[
     "nonnull",
     // #84 ③：导出 C 符号（等价 `extern "C"` 定义）
     "export",
+    // M6.3：编译期求值函数（常量上下文解释执行）
+    "compile_time",
 ];
 
 /// 形参位置允许的属性（A1b）。
@@ -209,6 +211,7 @@ fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
             crate::hir::contracts::validate_fn_attrs(attrs)?;
             validate_follow_with_attrs(attrs)?;
             crate::hir::attrs_export::validate_fn_export(attrs, !generic_params.is_empty())?;
+            crate::hir::attrs_export::validate_compile_time(attrs, !generic_params.is_empty())?;
             for (i, pa) in param_attrs.iter().enumerate() {
                 if let Some((_, ty)) = params.get(i) {
                     validate_param(pa, ty)?;
@@ -219,6 +222,7 @@ fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
             validate(attrs, imports)?;
             reject_follow_with(attrs, "struct declarations")?;
             crate::hir::attrs_export::reject_export(attrs, "struct declarations")?;
+            crate::hir::attrs_export::reject_compile_time(attrs, "struct declarations")?;
             for fa in field_attrs {
                 for a in fa {
                     if !(a.is_builtin() && a.name.as_str() == "follow_with") {
@@ -237,6 +241,7 @@ fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
             validate(attrs, imports)?;
             reject_follow_with(attrs, "this declaration")?;
             crate::hir::attrs_export::reject_export(attrs, "this declaration")?;
+            crate::hir::attrs_export::reject_compile_time(attrs, "this declaration")?;
         }
         Stmt::Attributed { attrs, stmt, .. } => {
             validate(attrs, imports)?;
@@ -276,6 +281,9 @@ fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
         }
         Stmt::ImplBlock { methods, .. } => {
             for s in methods {
+                if let Stmt::FnDecl { attrs, .. } = s {
+                    crate::hir::attrs_export::reject_compile_time(attrs, "impl methods")?;
+                }
                 validate_stmt(s, imports)?;
             }
         }

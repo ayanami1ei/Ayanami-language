@@ -1,2 +1,3 @@
-const fn id[T](T x) -> T { return x }
+#[compile_time]
+fn id[T](T x) -> T { return x }
 fn main() -> int { return 0 }

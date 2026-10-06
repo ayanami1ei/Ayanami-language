@@ -127,12 +127,12 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
             Ok(())
         }
         Stmt::FnDecl {
-            attrs, vis, is_inline, is_const, extern_c, name, generic_params,
+            attrs, vis, is_inline, extern_c, name, generic_params,
             params, param_attrs, return_type, body, span,
         } => {
             let body = expand_block(body, ctx, depth)?;
             out.push(Stmt::FnDecl {
-                attrs, vis, is_inline, is_const, extern_c, name, generic_params,
+                attrs, vis, is_inline, extern_c, name, generic_params,
                 params, param_attrs, return_type, body, span,
             });
             Ok(())

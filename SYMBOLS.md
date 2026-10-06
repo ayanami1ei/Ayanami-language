@@ -283,24 +283,26 @@ src/formatter/mod.rs:31: pub(crate) fn format_attr_arg(arg: &AttrArg) -> String
 src/formatter/mod.rs:38: pub fn format_file(code: &str) -> crate::error::Result<String>
 src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:34: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:38: pub struct Imports
-src/hir/attrs.rs:45: impl Imports
-src/hir/attrs.rs:46: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:54: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:77: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:87: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:92: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:100: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:135: fn validate_follow_with(a: &Attr) -> Result<()>
-src/hir/attrs.rs:155: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
-src/hir/attrs.rs:162: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
-src/hir/attrs.rs:174: pub fn validate_program(program: &Program) -> Result<()>
-src/hir/attrs.rs:182: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
-src/hir/attrs.rs:205: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:36: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:40: pub struct Imports
+src/hir/attrs.rs:47: impl Imports
+src/hir/attrs.rs:48: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:56: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:79: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:89: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:94: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:102: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:137: fn validate_follow_with(a: &Attr) -> Result<()>
+src/hir/attrs.rs:157: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/attrs.rs:164: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
+src/hir/attrs.rs:176: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:184: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
+src/hir/attrs.rs:207: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
 src/hir/attrs_export.rs:5: fn find_export(attrs: &[Attr]) -> Option<&Attr>
 src/hir/attrs_export.rs:10: pub(super) fn validate_fn_export(attrs: &[Attr], has_generics: bool) -> Result<()>
-src/hir/attrs_export.rs:23: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
+src/hir/attrs_export.rs:23: pub(super) fn validate_compile_time(attrs: &[Attr], has_generics: bool) -> Result<()>
+src/hir/attrs_export.rs:36: pub(super) fn reject_compile_time(attrs: &[Attr], place: &str) -> Result<()>
+src/hir/attrs_export.rs:47: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_macro.rs:16: fn is_compiler_attr(a: &Attr) -> bool
 src/hir/attrs_macro.rs:28: pub fn validate_macros(
 src/hir/attrs_macro.rs:43: enum AnnKind { Macro, Pass, Check }
@@ -1900,8 +1902,8 @@ src/parser/ast/stmt.rs:51: pub enum EnumFields
 src/parser/ast/stmt.rs:58: pub struct EnumVariant
 src/parser/ast/stmt.rs:64: pub struct MatchArm
 src/parser/ast/stmt.rs:71: pub enum Stmt
-src/parser/ast/stmt.rs:216: impl Stmt
-src/parser/ast/stmt.rs:217: pub fn span(&self) -> Span
+src/parser/ast/stmt.rs:214: impl Stmt
+src/parser/ast/stmt.rs:215: pub fn span(&self) -> Span
 src/parser/ast/ty.rs:5: pub enum Type
 src/parser/ast/ty.rs:22: impl Type
 src/parser/ast/ty.rs:23: pub fn span(&self) -> Span
@@ -1972,7 +1974,7 @@ src/parser/parser/impls.rs:6: pub(super) fn parse_import(&mut self) -> Result<St
 src/parser/parser/impls.rs:35: pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/impls.rs:61: fn extract_type_name(ty: &Type) -> Symbol
 src/parser/parser/impls.rs:98: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
-src/parser/parser/impls.rs:245: pub(super) fn parse_block(&mut self) -> Result<Block>
+src/parser/parser/impls.rs:244: pub(super) fn parse_block(&mut self) -> Result<Block>
 src/parser/parser/literal_text.rs:4: pub(super) fn split_literal_suffix(s: &str) -> (&str, Option<&str>)
 src/parser/parser/literal_text.rs:25: pub(super) fn parse_int_text(s: &str) -> Option<i64>
 src/parser/parser/macro_call.rs:3: impl Parser
@@ -1995,9 +1997,9 @@ src/parser/parser/mod.rs:46: mod unary;
 src/parser/parser/self_type.rs:4: pub(super) fn subst_self_in_type(ty: &Type, self_ty: &Type) -> Type
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:106: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:132: pub(super) fn is_type_start(&self, pos: usize) -> bool
-src/parser/parser/stmt.rs:140: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
+src/parser/parser/stmt.rs:95: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
+src/parser/parser/stmt.rs:121: pub(super) fn is_type_start(&self, pos: usize) -> bool
+src/parser/parser/stmt.rs:129: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
 src/parser/parser/types.rs:3: impl Parser
 src/parser/parser/types.rs:6: pub(super) fn parse_type(&mut self) -> Result<Type>
 src/parser/parser/types.rs:24: pub(super) fn parse_base_type(&mut self) -> Result<Type>
@@ -2089,7 +2091,11 @@ example/test_collection_any.aya:5: enum E
 example/test_collection_any.aya:10: fn main() -> int
 example/test_comments.aya:3: fn main() -> int
 example/test_const.aya:10: fn main() -> int
-example/test_const_fn.aya:25: fn main() -> int
+example/test_const_fn.aya:3: fn fib(int n) -> int
+example/test_const_fn.aya:10: fn sum_to(int n) -> int
+example/test_const_fn.aya:18: fn abs(int x) -> int
+example/test_const_fn.aya:25: fn square(int x) -> int { return x * x }
+example/test_const_fn.aya:29: fn main() -> int
 example/test_constfold.aya:5: fn folded() -> int
 example/test_constfold.aya:10: fn folded_mul() -> int
 example/test_constfold.aya:16: fn folded_cmp_true() -> int

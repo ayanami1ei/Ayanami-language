@@ -11,14 +11,15 @@ impl crate::hir::lower::Ctx {
         self.collect_fns_with_ns(stmts, "")
     }
 
-    /// M6.3：收集 `const fn`（含命名空间）；泛型/extern 的 const fn 报错。
+    /// M6.3：收集 `#[compile_time] fn`（含命名空间）；泛型/extern 报错。
     fn collect_const_fns(&mut self, stmts: &[Stmt], prefix: &str) -> Result<()> {
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, is_const: true, generic_params, extern_c, span, .. } => {
+                Stmt::FnDecl { name, attrs, generic_params, extern_c, span, .. }
+                    if crate::hir::attrs::has(attrs, "compile_time") => {
                     if !generic_params.is_empty() || *extern_c {
                         return Err(Error::Hir(format!(
-                            "const fn cannot be generic or extern (at {}:{})",
+                            "#[compile_time] function cannot be generic or extern (at {}:{})",
                             span.start_line, span.start_col
                         )));
                     }

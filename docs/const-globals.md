@@ -95,19 +95,19 @@ pub const VERSION = 3
 - **`main` 前初始化**：仅常量初始化（无运行时代码），无需 ctor。
 - 示例：`static COUNTER = 0`、`static TABLE: [int; 16] = [0; 16]`、`static mut STATE = 0`。
 
-## M6.3 编译期求值 `const fn`（M6.3a 已实现，2026-10）
+## M6.3 编译期求值 `#[compile_time] fn`（M6.3a 已实现，2026-10）
 
 统一 `const` 关键字，**编译器按上下文区分编译期与运行期**：
 
-- 声明：`const fn name(params) -> T { ... }`（与 `const NAME = ...` 同一关键字）。
-  `const fn` 同时作为**普通运行期函数**编译（运行期调用正常发射），并登记为编译期可求值体。
-- 调用点：出现在 `const` / `static` 初始化式（含嵌套 const fn 调用）→ 编译期解释执行；
+- 声明：`#[compile_time] fn name(params) -> T { ... }`（与 `const NAME = ...` 分开：值用 `const`，函数用标注）。
+  被标注函数同时作为**普通运行期函数**编译（运行期调用正常发射），并登记为编译期可求值体。
+- 调用点：出现在 `const` / `static` 初始化式（含嵌套调用）→ 编译期解释执行；
   出现在运行期代码 → 普通函数调用。
 - 求值器（`hir/lower/body/const_fn.rs` + `const_eval.rs`）：标量（int/float/char/bool/IntN）、
   局部变量/赋值、if/elif/else、while、for 区间、break/continue、return 与块尾表达式、
   const fn 互调（递归）、`if` 表达式分支块值。
-- 限制：递归深度 64、循环 100 万次（超出报错）；泛型/extern `const fn` 报错；
-  命名空间内 const fn 需限定调用 `ns::f(...)`；不支持堆/数组/字符串/方法调用（见 M6.3b）。
+- 限制：递归深度 64、循环 100 万次（超出报错）；泛型/extern 标注报错；标注仅允许函数；
+  命名空间内需限定调用 `ns::f(...)`；不支持堆/数组/字符串/方法调用（见 M6.3b）。
 - 回归：`example/test_const_fn.aya`（fib 递归 + 运行期调用、for/while、尾 if、命名空间）、
   负例 `const_fn_not_const` / `const_fn_generic` / `const_fn_recursion`。
 
@@ -121,7 +121,7 @@ pub const VERSION = 3
 | M6.1 | const 基础（标量 / 数组大小 / 0x） | ✅ 已实现 |
 | M6.1b | `pub const` / 命名空间 const 导出导入 | 待做 |
 | M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a 已实现（标量；见下） |
-| M6.3 | const fn / make_table()（解释执行 + 常量表） | ✅ M6.3a 已实现（标量；M6.3b 常量表待做） |
+| M6.3 | `#[compile_time] fn` / make_table()（解释执行 + 常量表） | ✅ M6.3a 已实现（标量；M6.3b 常量表待做） |
 
 ## 风险
 

@@ -1,1 +1,1 @@
-is not a const fn
+is not a #[compile_time] function

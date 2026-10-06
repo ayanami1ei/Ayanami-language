@@ -257,7 +257,7 @@ impl crate::hir::lower::Ctx {
                     return self.eval_const_fn(*name, vals, depth + 1);
                 }
                 Err(Error::Hir(format!(
-                    "const initializer must be a compile-time constant: `{}` is not a const fn (at {}:{})",
+                    "const initializer must be a compile-time constant: `{}` is not a #[compile_time] function (at {}:{})",
                     name.as_str(), span.start_line, span.start_col
                 )))
             }

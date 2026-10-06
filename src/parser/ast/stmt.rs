@@ -73,8 +73,6 @@ pub enum Stmt {
         attrs: Vec<Attr>,
         vis: Visibility,
         is_inline: bool,
-        /// M6.3：`const fn`——可在编译期求值（常量上下文），运行期普通调用
-        is_const: bool,
         extern_c: bool,
         name: Symbol,
         generic_params: Vec<(Symbol, Option<Symbol>)>,  // (name, constraint_interface)
