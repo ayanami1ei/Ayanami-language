@@ -88,7 +88,8 @@
 
 ## 性能记录
 
-每次优化落地后跑基准并记录到 **`bench/RESULTS.md`**（含趋势总览表）；
+每次优化落地后跑基准并记录到 **`bench/RESULTS.md`**（含趋势总览表）；各测试项说明见
+**`bench/KERNELS.md`**；
 自动追加：`./scripts/bench_record.sh "说明"`。
 
 ## 基准（M-opt.5，2026-10-06，i7-13650HX）
