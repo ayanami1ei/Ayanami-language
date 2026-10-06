@@ -123,4 +123,6 @@ pub struct HirProgram {
     pub imported_fns: Vec<ImportedFnSig>,
     /// M6.2：顶层 static 列表（按名排序，发射为 LLVM global）
     pub statics: Vec<HirStatic>,
+    /// M6.1b：可导出编译期常量（按名排序；顶层裸名 / 命名空间限定名）
+    pub consts: Vec<(Symbol, HirType, HirLiteral)>,
 }

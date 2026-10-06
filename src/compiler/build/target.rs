@@ -88,6 +88,7 @@ pub fn build_source_with_target(
     let mut pkg = crate::package::Package::new(name.to_string(), env!("CARGO_PKG_VERSION").into());
     pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);
     pkg.collect_symbols(&compiled.program.stmts);
+    pkg.set_consts(&compiled.consts);
     merge_symbols(&mut pkg, &compiled.dep_lcl_paths);
 
     let has_main = compiled.program.stmts.iter().any(|s| {

@@ -25,6 +25,19 @@ impl Package {
         self.effect_summaries = map;
     }
 
+    /// M6.1b：登记可导出常量（编码为 `PackageSymbol::Const`）
+    pub fn set_consts(&mut self, consts: &[(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)]) {
+        for (name, ty, lit) in consts {
+            if let Some((ty_str, value)) = crate::package::const_codec::encode(ty, lit) {
+                self.symbols.push(PackageSymbol::Const {
+                    name: name.as_str(),
+                    ty: ty_str,
+                    value,
+                });
+            }
+        }
+    }
+
     pub fn collect_symbols(&mut self, stmts: &[Stmt]) {
         self.collect_symbols_with_prefix(stmts, false, "")
     }

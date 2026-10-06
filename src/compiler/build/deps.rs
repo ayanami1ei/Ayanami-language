@@ -176,6 +176,9 @@ pub(super) fn merge_symbols(
                     crate::package::ImportedSymbol::Check { name } => {
                         PackageSymbol::Check { name }
                     }
+                    crate::package::ImportedSymbol::Const { name, ty, value } => {
+                        PackageSymbol::Const { name, ty, value }
+                    }
                 };
                 if !pkg.symbols.contains(&pkg_sym) {
                     pkg.symbols.push(pkg_sym);

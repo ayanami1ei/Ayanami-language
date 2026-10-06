@@ -202,6 +202,15 @@ impl crate::hir::lower::Ctx {
                         });
                         self.fn_map.entry(sym_name).or_default().push(fn_id);
                     }
+                    crate::package::ImportedSymbol::Const { name, ty, value } => {
+                        // M6.1b：导入常量注册（限定名 `pkg.NAME` + 裸名；本地同名优先）
+                        if let Some((hir_ty, lit)) = crate::package::const_codec::decode(ty, value) {
+                            let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
+                            let qualified = Symbol::intern(&format!("{}.{}", stem.as_str(), name));
+                            self.consts.entry(qualified).or_insert((hir_ty.clone(), lit.clone()));
+                            self.consts.entry(Symbol::intern(name)).or_insert((hir_ty, lit));
+                        }
+                    }
                     crate::package::ImportedSymbol::Struct { name } => {
                         // Parse "Name(field1:type1,field2:type2)" format
                         let (struct_name, fields_str) = if let Some(paren) = name.find('(') {

@@ -50,6 +50,12 @@ pub enum PackageSymbol {
         name: String,
         signature: String,
     },
+    /// M6.1b：导出的编译期常量（`const="name,ty,value"`）
+    Const {
+        name: String,
+        ty: String,
+        value: String,
+    },
 }
 
 /// Parsed symbol from a .lcl package file.
@@ -80,5 +86,11 @@ pub enum ImportedSymbol {
     /// A5d：包导出的 MIR 只读检查注解
     Check {
         name: String,
+    },
+    /// M6.1b：包导出的编译期常量
+    Const {
+        name: String,
+        ty: String,
+        value: String,
     },
 }

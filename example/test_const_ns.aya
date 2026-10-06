@@ -1,0 +1,17 @@
+// M6.1b：命名空间 const（限定名 `ns.NAME`；顶层裸名）
+namespace math {
+    pub const PI2 = 6
+    const SECRET = 42
+
+    namespace extra {
+        pub const BASE = 100
+    }
+}
+
+fn main() -> int {
+    if math::PI2 != 6 { return 1 }
+    if math::SECRET != 42 { return 2 }
+    if math::extra::BASE != 100 { return 3 }
+    if math::PI2 * 2 != 12 { return 4 }
+    return 0
+}

@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram> {
+pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<(crate::lir::ir::LirProgram, Vec<(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)>)> {
     // A5b-2：先做用户宏展开（import 已重写为 .lcl 绝对路径）
     let program = crate::compiler::macro_expand::expand(program, src_path)?;
     crate::hir::lower::set_source_path(src_path);
@@ -18,7 +18,8 @@ pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::
                 .map_err(|e| Error::Compile(format!("{}: {}", src_path.display(), e)))?;
         }
     }
-    Ok(crate::lir::lower_program(&mir_program))
+    let consts = hir_program.consts.clone();
+    Ok((crate::lir::lower_program(&mir_program), consts))
 }
 
 pub(super) fn build_target_artifact(

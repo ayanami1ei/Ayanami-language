@@ -1,0 +1,15 @@
+// M6.1b 夹具：导入 .lcl 中的 pub const（裸名 + 限定名 + 命名空间限定）
+import "lib"
+
+fn main() -> int {
+    if VERSION != 7 { return 1 }
+    if MAGIC != 0x1234 { return 2 }
+    if RATIO != 1.5 { return 3 }
+    if FIRST != 'A' { return 4 }
+    if !FLAG { return 5 }
+    if DERIVED != 15 { return 6 }
+    if version() != 7 { return 7 }
+    if lib::MAGIC != 0x1234 { return 8 }
+    if cfg::MODE != 2 { return 9 }
+    return 0
+}

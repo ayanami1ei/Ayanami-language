@@ -1,6 +1,6 @@
 # const / static / 编译期求值设计（M6）
 
-> 状态：**M6.1 / M6.2a / M6.3a 已实现**；M6.1b（`pub const` 导出）、M6.2b（`pub static`/复合初始化）、
+> 状态：**M6.1 / M6.1b / M6.2a / M6.3a 已实现**；M6.2b（`pub static`/复合初始化）、
 > M6.3b（常量表）待做。见文末排期与各节实现状态。
 
 ## 目标与用途
@@ -32,7 +32,7 @@ pub const VERSION = 3
 ```
 
 - 顶层（文件作用域）；`pub` 可选（`.lcl` 导出见 M6.1b）；类型标注可选；行尾 `;` 可选。
-- 命名空间内 `const` 暂不支持（与 M6.1b 一起做）。
+- 命名空间内 `const` 支持（M6.1b）：限定名 `ns.NAME`（可嵌套），命名空间内可裸名使用。
 
 ### 常量表达式（M6.1 范围）
 
@@ -70,11 +70,14 @@ pub const VERSION = 3
 | 替换 | `src/hir/lower/body/expr_lower.rs`（Ident → `SConst`） |
 | 格式化 | `src/formatter/stmt.rs` |
 
-## M6.1b `pub const` 导出（设计）
+## M6.1b `pub const` 导出（已实现，2026-10）
 
-- `PackageSymbol::Const { name, ty, value }` → `.lcl` `const="name,ty,value"` 文本行；
-- 导入时注册到 `Ctx.consts`（限定名 `pkg.CONST` 或裸名）；
-- 命名空间内 const 同时支持（限定名 `ns.NAME`）。
+- `PackageSymbol::Const { name, ty, value }` → `.lcl` `const="name,ty,value"` 文本行
+  （值编码见 `src/package/const_codec.rs`：Int 十进制 / Float 最短往返 / Char 码点 / Bool）；
+- 导入时注册到 `Ctx.consts`（裸名 + 限定名 `pkg.CONST`；本地同名优先）；
+- 命名空间 const：限定名 `ns.NAME`（可嵌套 `ns.sub.NAME`），顶层导出裸名；
+- 传递依赖经 `merge_symbols` 再导出；
+- 回归：`example/test_const_ns.aya`、`tests/lcl_const/`（打包 lib → 导入裸名/限定名/命名空间）。
 
 ## M6.2 static / global（M6.2a 已实现，2026-10）
 
@@ -119,7 +122,7 @@ pub const VERSION = 3
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | M6.1 | const 基础（标量 / 数组大小 / 0x） | ✅ 已实现 |
-| M6.1b | `pub const` / 命名空间 const 导出导入 | 待做 |
+| M6.1b | `pub const` / 命名空间 const 导出导入 | ✅ 已实现 |
 | M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a 已实现（标量；见下） |
 | M6.3 | `#[compile_time] fn` / make_table()（解释执行 + 常量表） | ✅ M6.3a 已实现（标量；M6.3b 常量表待做） |
 

@@ -38,12 +38,12 @@ src/cli/types.rs:124: fn fmt_type(ty: &HirType) -> String
 src/cli/types.rs:145: fn name_at(code: &str, line: usize, col: usize, name: &str) -> bool
 src/cli/types.rs:162: fn esc(s: &str) -> String
 src/compiler/build/compile.rs:6: pub fn compile_file(
-src/compiler/build/compile.rs:134: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
+src/compiler/build/compile.rs:138: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:127: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:144: pub(super) fn merge_symbols(
-src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<crate::lir::ir::LirProgram>
-src/compiler/build/lir.rs:24: pub(super) fn build_target_artifact(
+src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<(crate::lir::ir::LirProgram, Vec<(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)>)>
+src/compiler/build/lir.rs:25: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:14: mod compile;
 src/compiler/build/mod.rs:15: mod deps;
 src/compiler/build/mod.rs:16: mod lir;
@@ -53,9 +53,9 @@ src/compiler/build/mod.rs:19: mod target;
 src/compiler/build/mod.rs:26: pub fn build_source(src_path: &str, code: &str) -> Result<()>
 src/compiler/build/mod.rs:31: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
-src/compiler/build/package.rs:22: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:73: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
-src/compiler/build/package.rs:83: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:24: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
+src/compiler/build/package.rs:76: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
+src/compiler/build/package.rs:86: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/passes/apply.rs:18: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
 src/compiler/build/passes/apply.rs:35: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
 src/compiler/build/passes/apply.rs:42: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
@@ -97,7 +97,7 @@ src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
 src/compiler/build/passes/mod.rs:46: pub(super) fn apply_passes(
 src/compiler/build/target.rs:4: pub fn build_source_with_target(
-src/compiler/build/target.rs:111: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:112: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:72: fn has_return_in_stmt(s: &HirStmt) -> bool
@@ -199,25 +199,25 @@ src/compiler/mod.rs:4: pub mod import;
 src/compiler/mod.rs:5: pub mod macro_expand;
 src/compiler/mod.rs:6: pub mod symdef;
 src/compiler/mod.rs:24: pub struct CompiledFile
-src/compiler/mod.rs:36: pub struct CompileResult
-src/compiler/mod.rs:64: pub struct CompilerPipeline
-src/compiler/mod.rs:81: impl CompilerPipeline
-src/compiler/mod.rs:83: pub fn new(code: &str) -> Self
-src/compiler/mod.rs:96: pub fn lex(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:109: pub fn parse(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:116: pub fn lower_hir(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:127: pub fn check_returns(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:138: pub fn lower_mir(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:147: pub fn check_borrows(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:163: pub fn lower_lir(&mut self) -> &mut Self
-src/compiler/mod.rs:172: pub fn emit(&mut self) -> &mut Self
-src/compiler/mod.rs:180: pub fn compile(&mut self) -> Result<&mut Self>
-src/compiler/mod.rs:191: pub fn result(&self) -> CompileResult
-src/compiler/mod.rs:200: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
-src/compiler/mod.rs:205: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
-src/compiler/mod.rs:210: pub fn ast_program(&self) -> Option<&Program>
-src/compiler/mod.rs:216: pub fn compile_source(code: &str) -> Result<CompileResult>
-src/compiler/mod.rs:224: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
+src/compiler/mod.rs:38: pub struct CompileResult
+src/compiler/mod.rs:66: pub struct CompilerPipeline
+src/compiler/mod.rs:83: impl CompilerPipeline
+src/compiler/mod.rs:85: pub fn new(code: &str) -> Self
+src/compiler/mod.rs:98: pub fn lex(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:111: pub fn parse(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:118: pub fn lower_hir(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:129: pub fn check_returns(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:140: pub fn lower_mir(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:149: pub fn check_borrows(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:165: pub fn lower_lir(&mut self) -> &mut Self
+src/compiler/mod.rs:174: pub fn emit(&mut self) -> &mut Self
+src/compiler/mod.rs:182: pub fn compile(&mut self) -> Result<&mut Self>
+src/compiler/mod.rs:193: pub fn result(&self) -> CompileResult
+src/compiler/mod.rs:202: pub fn hir_program(&self) -> Option<&crate::hir::ir::HirProgram>
+src/compiler/mod.rs:207: pub fn mir_program(&self) -> Option<&crate::mir::ir::MirProgram>
+src/compiler/mod.rs:212: pub fn ast_program(&self) -> Option<&Program>
+src/compiler/mod.rs:218: pub fn compile_source(code: &str) -> Result<CompileResult>
+src/compiler/mod.rs:226: pub fn check_source(code: &str, _out_dir: &str) -> Result<()>
 src/compiler/symdef.rs:5: pub struct SymDef
 src/compiler/symdef.rs:18: fn stmt_effect_tokens(stmt: &Stmt) -> Vec<String>
 src/compiler/symdef.rs:29: fn stmt_attr_names(stmt: &Stmt) -> Vec<String>
@@ -579,22 +579,22 @@ src/hir/lower/body/vtables.rs:6: pub(crate) fn build_vtables(&mut self) -> Resul
 src/hir/lower/body/vtables.rs:75: pub(crate) fn try_match_interface(
 src/hir/lower/body/vtables.rs:137: pub(crate) fn try_match_generic_interface(
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:80: impl Ctx
-src/hir/lower/ctx.rs:82: pub fn new() -> Self
-src/hir/lower/ctx.rs:129: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:132: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:135: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:140: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:148: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:161: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
-src/hir/lower/ctx.rs:178: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:196: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:215: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx.rs:237: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx.rs:255: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
-src/hir/lower/ctx.rs:260: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:270: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:283: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:82: impl Ctx
+src/hir/lower/ctx.rs:84: pub fn new() -> Self
+src/hir/lower/ctx.rs:132: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:135: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:138: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:143: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:151: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:164: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
+src/hir/lower/ctx.rs:181: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:199: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:218: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx.rs:240: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
+src/hir/lower/ctx.rs:258: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/ctx.rs:263: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:273: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:286: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
@@ -1849,37 +1849,45 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:87: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:90: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:15: impl ProjectConfig
 src/package/config.rs:16: pub fn load(toml_content: &str) -> Self
 src/package/config.rs:67: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
 src/package/config.rs:84: pub fn resolve_target(&self, file_path: &Path) -> &str
+src/package/const_codec.rs:8: pub fn type_str(ty: &HirType) -> Option<String>
+src/package/const_codec.rs:23: pub fn type_from_str(s: &str) -> Option<HirType>
+src/package/const_codec.rs:45: pub fn lit_str(lit: &HirLiteral) -> Option<String>
+src/package/const_codec.rs:56: pub fn lit_from_str(ty: &HirType, s: &str) -> Option<HirLiteral>
+src/package/const_codec.rs:67: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
+src/package/const_codec.rs:72: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:101: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:112: pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf>
-src/package/load.rs:140: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:170: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:112: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:123: pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf>
+src/package/load.rs:151: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:181: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
-src/package/mod.rs:7: mod load;
-src/package/mod.rs:8: mod symbols;
-src/package/mod.rs:9: mod target;
-src/package/mod.rs:10: mod types;
+src/package/mod.rs:7: pub(crate) mod const_codec;
+src/package/mod.rs:8: mod load;
+src/package/mod.rs:9: mod symbols;
+src/package/mod.rs:10: mod target;
+src/package/mod.rs:11: mod types;
 src/package/symbols.rs:4: impl Package
 src/package/symbols.rs:5: pub fn new(name: String, version: String) -> Self
 src/package/symbols.rs:21: pub fn set_effect_summaries(
-src/package/symbols.rs:28: pub fn collect_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:33: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:37: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
-src/package/symbols.rs:44: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
+src/package/symbols.rs:29: pub fn set_consts(&mut self, consts: &[(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)])
+src/package/symbols.rs:41: pub fn collect_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:46: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:50: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
+src/package/symbols.rs:57: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
 src/package/target.rs:4: pub enum TargetType
 src/package/target.rs:10: impl TargetType
 src/package/target.rs:11: pub fn as_str(&self) -> &'static str
 src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:19: pub enum PackageSymbol
-src/package/types.rs:57: pub enum ImportedSymbol
+src/package/types.rs:63: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block
@@ -2106,6 +2114,7 @@ example/test_const_fn.aya:10: fn sum_to(int n) -> int
 example/test_const_fn.aya:18: fn abs(int x) -> int
 example/test_const_fn.aya:25: fn square(int x) -> int { return x * x }
 example/test_const_fn.aya:29: fn main() -> int
+example/test_const_ns.aya:11: fn main() -> int
 example/test_constfold.aya:5: fn folded() -> int
 example/test_constfold.aya:10: fn folded_mul() -> int
 example/test_constfold.aya:16: fn folded_cmp_true() -> int

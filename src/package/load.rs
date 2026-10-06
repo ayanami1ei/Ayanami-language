@@ -78,6 +78,17 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             } else if let Some(rest) = line.strip_prefix("check=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Check { name: val });
+            } else if let Some(rest) = line.strip_prefix("const=") {
+                let val = parse_ini_value(rest);
+                if let Some((name, rest)) = val.split_once(',') {
+                    if let Some((ty, value)) = rest.split_once(',') {
+                        symbols.push(ImportedSymbol::Const {
+                            name: name.to_string(),
+                            ty: ty.to_string(),
+                            value: value.to_string(),
+                        });
+                    }
+                }
             }
         } else if in_generics {
             if let Some(rest) = line.strip_prefix("source=") {

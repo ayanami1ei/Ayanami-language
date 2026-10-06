@@ -237,5 +237,19 @@ if [ -d tests/lcl_transitive ]; then
     rm -f "$(dirname "$BIN")/std/liba.lcl" "$(dirname "$BIN")/std/libb.lcl"
 fi
 
+# M6.1b：pub const 跨 .lcl 导出/导入 + 命名空间 const
+if [ -d tests/lcl_const ]; then
+    tdir=tests/lcl_const
+    "$BIN" package "$tdir/lib.aya" >/dev/null 2>&1 || true
+    cp "$tdir/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    timeout 120 "$BIN" run "$tdir/main.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL $tdir/main.aya: exit $got, want 0（M6.1b pub const 导入）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$(dirname "$BIN")/std/lib.lcl"
+fi
+
 echo "regression: positive=$pos negative=$neg runtime=$rt failures=$fail"
 [ "$fail" -eq 0 ]

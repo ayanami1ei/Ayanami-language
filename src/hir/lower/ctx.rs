@@ -43,6 +43,8 @@ pub(crate) struct Ctx {
     pub ovf_helpers: HashMap<Symbol, FnId>,
     /// M6.1：编译期常量（名 → (类型, 值)），使用点内联为 SConst
     pub consts: HashMap<Symbol, (HirType, HirLiteral)>,
+    /// M6.1b：可导出常量（规范化名 → (类型, 值)）；顶层裸名、命名空间限定名
+    pub const_exports: Vec<(Symbol, HirType, HirLiteral)>,
     /// M6.2：全局变量（名 → 定义），可寻址
     pub statics: HashMap<Symbol, crate::hir::HirStatic>,
     /// M6.3：`const fn` AST（名 → FnDecl），常量上下文编译期求值
@@ -102,6 +104,7 @@ impl Ctx {
             synth_externs: Vec::new(),
             ovf_helpers: HashMap::new(),
             consts: HashMap::new(),
+            const_exports: Vec::new(),
             statics: HashMap::new(),
             const_fns: HashMap::new(),
             lambda_counter: 0,
