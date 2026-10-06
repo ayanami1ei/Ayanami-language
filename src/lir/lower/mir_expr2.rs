@@ -210,7 +210,7 @@ impl MirNode for SMirIndex {
         let arr_tmp = super::mir_ref::array_base_through_ref(ctx, arr_tmp, &self.object.expr_type());
         let dest = ctx.next_tmp(); let gep_tmp = ctx.next_tmp(); let load_tmp = ctx.next_tmp();
         let obj_ty = strip_ownership(self.object.expr_type());
-        let elem_ty = match strip_ownership(obj_ty.clone()) { HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(), _ => self.ty.clone() };
+        let elem_ty = super::mir_ref::array_elem_ty(&obj_ty).unwrap_or_else(|| self.ty.clone());
         ctx.emit(SLirIndexAccess { dest, gep_tmp, load_tmp, arr: LirValue::Tmp(arr_tmp), index: idx_val, elem_ty, ty: self.ty.clone() }.into());
         LirValue::Tmp(dest)
     }

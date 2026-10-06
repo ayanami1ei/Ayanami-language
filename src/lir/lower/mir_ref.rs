@@ -47,10 +47,7 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
         let idx_val = index.lower_to_lir(ctx);
         let arr_tmp = array_base_through_ref(ctx, arr_tmp, &obj.expr_type());
         let obj_ty = strip_ownership(obj.expr_type());
-        let elem_ty = match obj_ty {
-            HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(),
-            _ => HirType::Int,
-        };
+        let elem_ty = array_elem_ty(&obj_ty).unwrap_or(HirType::Int);
         let dest = ctx.next_tmp();
         ctx.emit(SLirIndexAddr { dest, arr_tmp, index: idx_val, elem_ty }.into());
         return Some(LirValue::Tmp(dest));
@@ -62,6 +59,18 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
         return Some(LirValue::Tmp(dest));
     }
     None
+}
+
+/// 从（可能带 `ref` / 拥有包装的）数组类型取元素类型。
+pub(super) fn array_elem_ty(ty: &HirType) -> Option<HirType> {
+    let base = match ty {
+        HirType::Ref(inner, _) => strip_ownership((**inner).clone()),
+        other => strip_ownership(other.clone()),
+    };
+    match base {
+        HirType::Array(inner) | HirType::ArraySized(inner, _) => Some((*inner).clone()),
+        _ => None,
+    }
 }
 
 /// `ref [T]` / `ref mut [T]` 索引：ref 值是调用方数组变量槽的地址（ptr 的地址），

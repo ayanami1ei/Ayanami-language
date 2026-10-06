@@ -37,13 +37,19 @@
 | M-opt.2 | 内部化：非导出函数/vtable wrapper/`static` 全局 `internal`（LIR4 携带 `is_pub`） | ✅ 已实现 |
 | M-opt.3 | 边界检查消除 | 已评估关闭：编译器不发射数组边界检查（内建 `[T]` 不检查；`String`/`ArrayList` 检查在 std 源码） |
 | M-opt.4 | 效应驱动的跨函数优化（`#[pure]` 常量折叠、DCE） | ✅ 已具备（A3 推断效应 → `memory(none/read)`/`nounwind` 自动属性） |
-| M-opt.5 | 基准套件（与 C 对比，纳入回归的可选性能项） | 待做 |
+| M-opt.5 | 基准套件（5 内核 × Ayanami/Rust/Java/Zig/C，校验和跨语言一致） | ✅ 已实现（`bench/`，见 `bench/README.md`） |
 
 ## 验收（M-opt.1）
 
 - release 构建的 `.ll`：无 `__ayanami_ovf_*` 调用；含 `noalias`（`ref mut`/owned 形参）与 `nounwind`；
 - debug 构建的 `.ll`：有 `__ayanami_ovf_*`；无推断 `noalias`；
 - `example/test_release_opt.aya` 两种模式退出码一致；std 测试（debug）与抽样 release 运行通过。
+
+## 基准（M-opt.5，2026-10-06，i7-13650HX）
+
+`./scripts/bench_compare.sh`：5 内核（nbody/matmul/sieve/qsort/mandelbrot），5 语言校验和全部一致。
+Ayanami release 与 Rust/Zig/C 同档：nbody 89ms（C 72）、matmul 194ms（C 171）、sieve 172ms（C 174）、
+qsort 120ms（C 126）、mandelbrot 68ms（C 214，LLVM 自动向量化优于 gcc）。完整表格见 `bench/README.md`。
 
 ## 实现位置
 
