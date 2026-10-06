@@ -86,6 +86,11 @@
 
 风险（激进模式已知取舍）：`ref` 指向 `static mut` 且同指别名时可违反属性；M5 unsafe/裸指针落地后收紧。
 
+## 性能记录
+
+每次优化落地后跑基准并记录到 **`bench/RESULTS.md`**（含趋势总览表）；
+自动追加：`./scripts/bench_record.sh "说明"`。
+
 ## 基准（M-opt.5，2026-10-06，i7-13650HX）
 
 `./scripts/bench_compare.sh`：5 内核（nbody/matmul/sieve/qsort/mandelbrot），5 语言校验和全部一致。
