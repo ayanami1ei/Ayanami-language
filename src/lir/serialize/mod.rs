@@ -10,8 +10,8 @@ use super::ir::*;
 /// Serialize LirProgram to compact binary.
 pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
     let mut buf = Vec::new();
-    // Header
-    buf.extend_from_slice(b"LIR2");
+    // Header（LIR3：#129 起带 specialized_fns 段）
+    buf.extend_from_slice(b"LIR3");
 
     // Strings
     put_u32(&mut buf, p.strings.len() as u32);
@@ -87,14 +87,22 @@ pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
         buf.push(if d.effects.no_effects { 1 } else { 0 });
     }
 
+    // #129：泛型特化集合（.lcl 重新发射时保持 linkonce_odr 弱链接）；排序保证可复现
+    let mut spec_ids: Vec<u32> = p.specialized_fns.iter().map(|id| id.0 as u32).collect();
+    spec_ids.sort_unstable();
+    put_u32(&mut buf, spec_ids.len() as u32);
+    for id in spec_ids { put_u32(&mut buf, id); }
+
     buf
 }
 
 /// Deserialize LirProgram from binary.
 pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
-    if data.len() < 4 || &data[0..4] != b"LIR2" {
+    // LIR3：带 specialized_fns 段；LIR2：旧格式（无该段，特化退化为强符号）
+    if data.len() < 4 || (&data[0..4] != b"LIR3" && &data[0..4] != b"LIR2") {
         return Err(Error::Serialize("invalid LIR data".into()));
     }
+    let has_spec = &data[0..4] == b"LIR3";
     let mut pos = 4;
     let mut r = Reader { data, pos: &mut pos };
 
@@ -192,8 +200,17 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
         });
     }
 
+    // #129：特化集合（保持弱链接）；旧 LIR2 无此段
+    let mut specialized_fns = std::collections::HashSet::new();
+    if has_spec {
+        let spec_count = r.u32()?;
+        for _ in 0..spec_count {
+            specialized_fns.insert(FnId(r.u32()? as usize));
+        }
+    }
+
     Ok(LirProgram {
-        specialized_fns: Default::default(),
+        specialized_fns,
         strings,
         globals: Vec::new(),
         fn_names, functions, vtables, struct_defs, generic_struct_params, extern_decls,

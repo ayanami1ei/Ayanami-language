@@ -1,0 +1,6 @@
+// #129 夹具 B：与 A 相同实例化，分别打包后同时导入
+import "arraylist"
+
+pub fn fb() -> ArrayList[String] {
+    return ArrayList::new[String]()
+}

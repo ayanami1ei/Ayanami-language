@@ -1653,11 +1653,11 @@ src/lir/serialize/decode.rs:15: pub(super) fn value(&mut self) -> Result<LirValu
 src/lir/serialize/decode.rs:25: pub(super) fn inst(&mut self) -> Result<LirNodeBox>
 src/lir/serialize/decode.rs:225: pub(super) fn read_fn(&mut self) -> Result<LirFn>
 src/lir/serialize/mod.rs:11: pub fn program_to_bytes(p: &LirProgram) -> Vec<u8>
-src/lir/serialize/mod.rs:94: pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram>
-src/lir/serialize/mod.rs:209: struct Reader<'a>
-src/lir/serialize/mod.rs:214: mod decode;
-src/lir/serialize/mod.rs:215: mod reader;
-src/lir/serialize/mod.rs:216: mod write;
+src/lir/serialize/mod.rs:100: pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram>
+src/lir/serialize/mod.rs:226: struct Reader<'a>
+src/lir/serialize/mod.rs:231: mod decode;
+src/lir/serialize/mod.rs:232: mod reader;
+src/lir/serialize/mod.rs:233: mod write;
 src/lir/serialize/reader.rs:3: impl<'a> Reader<'a>
 src/lir/serialize/reader.rs:4: pub(super) fn read(&mut self, n: usize) -> Result<&'a [u8]>
 src/lir/serialize/reader.rs:12: pub(super) fn u32(&mut self) -> Result<u32>

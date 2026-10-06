@@ -138,6 +138,28 @@ if [ -d tests/runtime_custom ]; then
     rm -rf "$rc_dir/build" "$rc_dir/custom_runtime.o" "$rc_dir/libcustom.a"
 fi
 
+# #129：分别打包的 .lcl 各自实例化同一泛型函数不得重复定义（弱链接去重）
+if [ -d tests/lcl_weak ]; then
+    wdir=tests/lcl_weak
+    root="$PWD"
+    "$BIN" package "$wdir/a.aya" >/dev/null 2>&1 || true
+    "$BIN" package "$wdir/b.aya" >/dev/null 2>&1 || true
+    if [ -f "$wdir/a.lcl" ] && [ -f "$wdir/b.lcl" ]; then
+        cp "$wdir/a.lcl" "$wdir/b.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+        timeout 120 "$BIN" run "$wdir/entry/main.aya" >/dev/null 2>&1
+        got=$?
+        if [ "$got" != 0 ]; then
+            echo "FAIL $wdir/entry/main.aya: exit $got, want 0（#129 .lcl 泛型实例化弱链接）"
+            fail=$((fail + 1))
+        fi
+        rm -f "$(dirname "$BIN")/std/a.lcl" "$(dirname "$BIN")/std/b.lcl"
+    else
+        echo "FAIL $wdir: package failed（#129 夹具）"
+        fail=$((fail + 1))
+    fi
+    rm -rf "$root/build" "$wdir/a.lcl" "$wdir/b.lcl"
+fi
+
 # #100：源模块调用 .lcl 泛型方法不得重复单态化（multiple definition）
 if [ -d tests/lcl_mono ]; then
     mono_dir=tests/lcl_mono
