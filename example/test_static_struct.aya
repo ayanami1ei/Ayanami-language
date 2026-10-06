@@ -9,10 +9,16 @@ struct Line {
     Point b
 }
 
+struct Buf {
+    [int; 3] data
+    float scale
+}
+
 static ORIGIN: Point = Point { x = 0, y = 0 }
 static LINE: Line = Line { a = Point { x = 1, y = 2 }, b = Point { x = 3, y = 4 } }
 static mut CURSOR: Point = Point { x = 1, y = 2 }
 static mut SEG: Line = Line { a = Point { x = 0, y = 0 }, b = Point { x = 1, y = 1 } }
+static BUF: Buf = Buf { data = [7, 8, 9], scale = 1.5 }
 
 fn shift(ref mut Point p, int dx) {
     p.x = p.x + dx
@@ -31,5 +37,7 @@ fn main() -> int {
     if CURSOR.x != 11 { return 5 }
     SEG.b.y = 9
     if SEG.b.y != 9 { return 6 }
+    if BUF.data[1] != 8 { return 7 }
+    if BUF.scale != 1.5 { return 8 }
     return 0
 }

@@ -14,6 +14,13 @@ pub struct Coord {
 pub static ORIGIN: Coord = Coord { a = 0, b = 0 }
 pub static mut CURSOR: Coord = Coord { a = 1, b = 2 }
 
+pub struct Pack {
+    Coord pos
+    [int; 2] tags
+}
+
+pub static PACK: Pack = Pack { pos = Coord { a = 5, b = 6 }, tags = [1, 2] }
+
 pub static PRIMES: [int; 5] = [2, 3, 5, 7, 11]
 pub static mut HITS: [int; 3] = [0; 3]
 

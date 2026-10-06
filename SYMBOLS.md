@@ -995,18 +995,22 @@ src/lib.rs:34: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
+src/lir/emit/consts.rs:5: fn strip_unique(ty: &HirType) -> &HirType
+src/lir/emit/consts.rs:12: fn path_key(path: &[usize]) -> String
+src/lir/emit/consts.rs:16: impl<'a> Emitter<'a>
+src/lir/emit/consts.rs:21: pub(super) fn emit_global_defs(&mut self)
+src/lir/emit/consts.rs:58: fn collect_array_fields(
+src/lir/emit/consts.rs:90: fn const_value_at(
 src/lir/emit/functions.rs:4: pub(super) fn is_ptr_like(t: &HirType) -> bool
 src/lir/emit/functions.rs:14: pub(super) fn llvm_attr_suffix(
 src/lir/emit/functions.rs:54: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
 src/lir/emit/functions.rs:66: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:67: pub(super) fn emit_struct_defs(&mut self)
-src/lir/emit/functions.rs:88: pub(super) fn const_value(&self, lit: &crate::hir::ir::HirLiteral, ty: &HirType) -> String
-src/lir/emit/functions.rs:118: pub(super) fn emit_global_defs(&mut self)
-src/lir/emit/functions.rs:155: pub(super) fn emit_string_globals(&mut self)
-src/lir/emit/functions.rs:175: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:243: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:260: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:274: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:87: pub(super) fn emit_string_globals(&mut self)
+src/lir/emit/functions.rs:107: pub(super) fn emit_fn(&mut self, f: &LirFn)
+src/lir/emit/functions.rs:175: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:192: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:206: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -1015,9 +1019,10 @@ src/lir/emit/mod.rs:47: fn finish(self) -> String
 src/lir/emit/mod.rs:51: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:59: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:68: fn emit(&mut self)
-src/lir/emit/mod.rs:127: mod functions;
-src/lir/emit/mod.rs:128: mod types;
-src/lir/emit/mod.rs:129: mod vtable;
+src/lir/emit/mod.rs:127: mod consts;
+src/lir/emit/mod.rs:128: mod functions;
+src/lir/emit/mod.rs:129: mod types;
+src/lir/emit/mod.rs:130: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
@@ -2437,9 +2442,10 @@ example/test_static_array.aya:6: fn total(ref [int; 4] t) -> int
 example/test_static_array.aya:14: fn main() -> int
 example/test_static_struct.aya:2: struct Point
 example/test_static_struct.aya:7: struct Line
-example/test_static_struct.aya:17: fn shift(ref mut Point p, int dx)
-example/test_static_struct.aya:21: fn sum(ref Line l) -> int
-example/test_static_struct.aya:25: fn main() -> int
+example/test_static_struct.aya:12: struct Buf
+example/test_static_struct.aya:23: fn shift(ref mut Point p, int dx)
+example/test_static_struct.aya:27: fn sum(ref Line l) -> int
+example/test_static_struct.aya:31: fn main() -> int
 example/test_std.aya:3: fn main() -> int
 example/test_std_extra.aya:4: fn math_checks() -> int
 example/test_std_extra.aya:16: fn list_checks() -> int

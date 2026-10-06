@@ -19,5 +19,7 @@ fn main() -> int {
     CURSOR.b = 9
     if CURSOR.b != 9 { return 12 }
     if lib::ORIGIN.b != 0 { return 13 }
+    if PACK.pos.a != 5 { return 14 }
+    if PACK.tags[1] != 2 { return 15 }
     return 0
 }

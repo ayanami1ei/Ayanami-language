@@ -31,17 +31,6 @@ impl crate::hir::lower::Ctx {
         let mut vals = Vec::with_capacity(def.len());
         for f in &def {
             let (fname, fty) = (f.name, &f.ty);
-            // 数组字段在结构体布局中是指针（堆语义）；静态常量暂不支持
-            let base = match fty {
-                HirType::Unique(i) => i.as_ref(),
-                other => other,
-            };
-            if matches!(base, HirType::Array(_) | HirType::ArraySized(_, _)) {
-                return Err(Error::Hir(format!(
-                    "array fields in struct constants are not supported yet (field `{}`); use a separate `static` array (at {}:{})",
-                    fname.as_str(), span.start_line, span.start_col
-                )));
-            }
             let fexpr = fields.iter().find(|(n, _)| *n == fname).ok_or_else(|| Error::Hir(format!(
                 "missing field `{}` in struct constant `{}` (at {}:{})",
                 fname.as_str(), type_name.as_str(), span.start_line, span.start_col
