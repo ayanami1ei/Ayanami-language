@@ -149,7 +149,9 @@ impl Parser {
 
     /// 跳过连续的 #[...] 属性
     fn skip_attrs(ref mut self) {
-        while self.check_op("#") && self.la1_is_delim(D::LBracket._tag) {
+        while true {
+            if !self.check_op("#") { break; }
+            if !self.la1_is_delim(D::LBracket._tag) { break; }
             self.advance();
             self.skip_brackets();
         }
@@ -299,7 +301,9 @@ impl Parser {
             if self.check_delim(D::LBracket._tag) {
                 self.advance();
                 args = -1;
-                while !self.check_delim(D::RBracket._tag) && !self.at_end() {
+                while true {
+                    if self.check_delim(D::RBracket._tag) { break; }
+                    if self.at_end() { break; }
                     gt = self.parse_type();
                     gn = self.ast.push(xt(XT::GenericArg._tag), "", gt, -1, -1, -1, -1, self.cur.line, self.cur.col);
                     args = self.ast.push_tail(args, gn);
@@ -319,7 +323,9 @@ impl Parser {
     pub fn parse_program(ref mut self) -> int {
         prog = self.ast.push(st(ST::Program._tag), "", -1, -1, -1, -1, -1, 1, 1);
         head = -1;
-        while !self.at_end() && self.failed == 0 {
+        while true {
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
             item = self.parse_item();
             if item >= 0 {
                 head = self.ast.push_tail(head, item);
@@ -389,7 +395,10 @@ impl Parser {
         if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
         self.expect_delim(D::LBrace._tag, "expected { in struct");
         head = -1;
-        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+        while true {
+            if self.check_delim(D::RBrace._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
             ty = self.parse_type();
             fname = self.expect_ident("expected field name");
             fn_node = self.ast.push(xt(XT::StructField._tag), fname, ty, -1, -1, -1, -1, self.cur.line, self.cur.col);
@@ -405,7 +414,10 @@ impl Parser {
         name = self.expect_ident("expected namespace name");
         self.expect_delim(D::LBrace._tag, "expected { in namespace");
         head = -1;
-        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+        while true {
+            if self.check_delim(D::RBrace._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
             item = self.parse_item();
             if item >= 0 { head = self.ast.push_tail(head, item); }
         }
@@ -427,7 +439,10 @@ impl Parser {
         if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
         self.expect_delim(D::LBrace._tag, "expected { in impl");
         head = -1;
-        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+        while true {
+            if self.check_delim(D::RBrace._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
             self.skip_attrs();
             self.eat_kw(Kw::Pub._tag);
             if self.check_kw(Kw::Fn._tag) {
@@ -452,7 +467,10 @@ impl Parser {
         if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
         self.expect_delim(D::LParen._tag, "expected ( after fn name");
         head = -1;
-        while !self.check_delim(D::RParen._tag) && !self.at_end() && self.failed == 0 {
+        while true {
+            if self.check_delim(D::RParen._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
             recv = -1;
             if self.check_kw(Kw::Self_._tag) {
                 recv = 0;
@@ -503,7 +521,9 @@ impl Parser {
         if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
         self.expect_delim(D::LBrace._tag, "expected { in enum");
         depth = 1;
-        while !self.at_end() && depth > 0 {
+        while true {
+            if self.at_end() { break; }
+            if depth <= 0 { break; }
             if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
             if self.check_delim(D::RBrace._tag) { depth = depth - 1; }
             self.advance();
@@ -517,7 +537,10 @@ impl Parser {
         if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
         self.expect_delim(D::LBrace._tag, "expected { in interface");
         head = -1;
-        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+        while true {
+            if self.check_delim(D::RBrace._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
             self.eat_kw(Kw::Pub._tag);
             if self.check_kw(Kw::Fn._tag) {
                 m = self.parse_fn_body(0);
@@ -548,7 +571,10 @@ impl Parser {
         self.expect_delim(D::LBrace._tag, "expected { to start block");
         blk = self.ast.push(st(ST::Block._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
         head = -1;
-        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+        while true {
+            if self.check_delim(D::RBrace._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
             s = self.parse_stmt();
             self.eat_delim(D::Semicolon._tag);
             if s >= 0 { head = self.ast.push_tail(head, s); }
@@ -650,7 +676,9 @@ impl Parser {
             self.no_struct = 0;
             self.expect_delim(D::LBrace._tag, "expected { in match");
             depth = 1;
-            while !self.at_end() && depth > 0 {
+            while true {
+                if self.at_end() { break; }
+                if depth <= 0 { break; }
                 if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
                 if self.check_delim(D::RBrace._tag) { depth = depth - 1; }
                 self.advance();
@@ -837,7 +865,10 @@ impl Parser {
                     continue;
                 } elif self.check_delim(D::LBrace._tag) {
                     self.advance();
-                    while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+                    while true {
+                        if self.check_delim(D::RBrace._tag) { break; }
+                        if self.at_end() { break; }
+                        if self.failed == 1 { break; }
                         self.expect_ident("expected field name");
                         if !self.eat_op("=") {
                             self.error("expected = in enum ctor");
@@ -890,7 +921,10 @@ impl Parser {
     fn parse_args(ref mut self) -> int {
         self.expect_delim(D::LParen._tag, "expected (");
         head = -1;
-        while !self.check_delim(D::RParen._tag) && !self.at_end() && self.failed == 0 {
+        while true {
+            if self.check_delim(D::RParen._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
             a = self.parse_expr();
             an = self.ast.push(xt(XT::Arg._tag), "", -1, a, -1, -1, -1, self.cur.line, self.cur.col);
             head = self.ast.push_tail(head, an);
@@ -978,7 +1012,9 @@ impl Parser {
             self.no_struct = 0;
             self.expect_delim(D::LBrace._tag, "expected { in match expr");
             depth = 1;
-            while !self.at_end() && depth > 0 {
+            while true {
+                if self.at_end() { break; }
+                if depth <= 0 { break; }
                 if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
                 if self.check_delim(D::RBrace._tag) { depth = depth - 1; }
                 self.advance();
@@ -994,7 +1030,9 @@ impl Parser {
             }
             self.expect_delim(D::LParen._tag, "expected ( after asm");
             depth = 1;
-            while !self.at_end() && depth > 0 {
+            while true {
+                if self.at_end() { break; }
+                if depth <= 0 { break; }
                 if self.check_delim(D::LParen._tag) { depth = depth + 1; }
                 if self.check_delim(D::RParen._tag) { depth = depth - 1; }
                 self.advance();
@@ -1034,7 +1072,10 @@ impl Parser {
                 return self.ast.push(et(ET::ArraySized._tag), "", ety, cnt, -1, -1, -1, line, col);
             }
             head = -1;
-            while !self.check_delim(D::RBracket._tag) && !self.at_end() && self.failed == 0 {
+            while true {
+                if self.check_delim(D::RBracket._tag) { break; }
+                if self.at_end() { break; }
+                if self.failed == 1 { break; }
                 a = self.parse_expr();
                 head = self.ast.push_tail(head, a);
                 if !self.eat_delim(D::Comma._tag) { break; }
@@ -1070,7 +1111,10 @@ impl Parser {
     fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int {
         self.expect_delim(D::LBrace._tag, "expected { in struct literal");
         head = -1;
-        while !self.check_delim(D::RBrace._tag) && !self.at_end() && self.failed == 0 {
+        while true {
+            if self.check_delim(D::RBrace._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
             fname = self.expect_ident("expected field name");
             if !self.eat_op("=") {
                 self.error("expected = in struct literal");

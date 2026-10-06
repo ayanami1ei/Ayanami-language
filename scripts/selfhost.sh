@@ -13,6 +13,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 
+# 资源隔离：单次调用限时 60s、虚拟内存 2GB（防止死循环/内存暴涨拖垮系统）
+run_limited() {
+    ( ulimit -v 2097152 2>/dev/null; timeout 60 "$@" )
+}
+
 stage0() {
     if [[ -n "${SELFHOST_STAGE0:-}" && -x "$SELFHOST_STAGE0" ]]; then
         echo "$SELFHOST_STAGE0"; return
@@ -63,7 +68,7 @@ cmd_test() {
     shopt -s nullglob
     for f in "$ROOT"/selfhost/tests/*_test.aya; do
         total=$((total + 1))
-        if "$bin" run --release "$f" >/tmp/opencode/selfhost_test.out 2>&1; then
+        if run_limited "$bin" run --release "$f" >/tmp/opencode/selfhost_test.out 2>&1; then
             echo "PASS $(basename "$f")"
         else
             echo "FAIL $(basename "$f")"; tail -5 /tmp/opencode/selfhost_test.out || true; fail=$((fail + 1))
@@ -85,14 +90,14 @@ cmd_tokens() {
         cargo build --release --manifest-path "$ROOT/tools/lexdump/Cargo.toml" >/dev/null 2>&1 || { echo "lexdump 构建失败"; exit 5; }
     fi
     echo "== 构建 stage-0 lexer_dump（用 run 触发链接）=="
-    "$s0" run --release "$ROOT/selfhost/tests/lexer_dump.aya" >/dev/null 2>&1 || true
+    run_limited "$s0" run --release "$ROOT/selfhost/tests/lexer_dump.aya" >/dev/null 2>&1 || true
     [[ -x "$ROOT/build/lexer_dump" ]] || { echo "lexer_dump 构建失败"; exit 6; }
     local fail=0 total=0
     shopt -s nullglob
     for f in $pattern; do
         total=$((total + 1))
-        "$rust_dump" "$f" > /tmp/opencode/tok_rust.txt 2>/dev/null
-        LEX_FILE="$f" "$ROOT/build/lexer_dump" > /tmp/opencode/tok_aya.txt 2>/dev/null
+        run_limited "$rust_dump" "$f" > /tmp/opencode/tok_rust.txt 2>/dev/null || true
+        run_limited env LEX_FILE="$f" "$ROOT/build/lexer_dump" > /tmp/opencode/tok_aya.txt 2>/dev/null || true
         if diff -q /tmp/opencode/tok_rust.txt /tmp/opencode/tok_aya.txt >/dev/null; then
             echo "TOKENS OK $(basename "$f")"
         else
@@ -110,14 +115,14 @@ cmd_ast() {
     local pattern="${1:-selfhost/tests/parse/*.aya}"
     local s0; s0=$(stage0)
     echo "== 构建 stage-0 ast_dump（用 run 触发链接）=="
-    "$s0" run --release "$ROOT/selfhost/tests/ast_dump.aya" >/dev/null 2>&1 || true
+    run_limited "$s0" run --release "$ROOT/selfhost/tests/ast_dump.aya" >/dev/null 2>&1 || true
     [[ -x "$ROOT/build/ast_dump" ]] || { echo "ast_dump 构建失败"; exit 6; }
     local fail=0 total=0
     shopt -s nullglob
     for f in $pattern; do
         total=$((total + 1))
-        "$s0" dump ast "$f" > /tmp/opencode/ast_rust.txt 2>/dev/null || true
-        PARSE_FILE="$f" "$ROOT/build/ast_dump" > /tmp/opencode/ast_aya.txt 2>/dev/null || true
+        run_limited "$s0" dump ast "$f" > /tmp/opencode/ast_rust.txt 2>/dev/null || true
+        run_limited env PARSE_FILE="$f" "$ROOT/build/ast_dump" > /tmp/opencode/ast_aya.txt 2>/dev/null || true
         # Import 路径依赖解析环境（相对路径/lcl 临时目录），golden 时归一化为占位符
         sed -i 's|Import { path: .* }|Import { path: <p> }|' /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt
         # ConstDecl/StaticDecl 的 rust Debug 含 Span/Symbol 内部信息，归一化为占位符
