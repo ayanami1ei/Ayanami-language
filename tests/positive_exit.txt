@@ -83,6 +83,7 @@ test_self.aya 42
 test_self_type.aya 0
 test_std.aya 0
 test_static.aya 0
+test_static_array.aya 0
 test_std_extra.aya 0
 test_std_io.aya 0
 test_std_text.aya 0

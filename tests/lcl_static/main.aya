@@ -10,5 +10,10 @@ fn main() -> int {
     if lib::COUNTER != 5 { return 5 }
     cfg::LEVEL = 3
     if cfg::LEVEL != 3 { return 6 }
+    if PRIMES[4] != 11 { return 7 }
+    if prime(0) != 2 { return 8 }
+    HITS[1] = 5
+    if HITS[1] != 5 { return 9 }
+    if lib::PRIMES[2] != 5 { return 10 }
     return 0
 }

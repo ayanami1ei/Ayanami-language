@@ -28,6 +28,20 @@ impl Parser {
             TokenKind::Delimiter(Delimiter::LBracket) => {
                 self.advance();
                 let inner = self.parse_type()?;
+                // M6.2c：`[T; N]`（N 为字面量整数）
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Semicolon)) {
+                    self.advance();
+                    let n = match self.peek().map(|t| t.kind.clone()) {
+                        Some(TokenKind::IntLiteral(v)) => {
+                            self.advance();
+                            v.parse::<usize>()
+                                .map_err(|_| self.error("array size must be an integer literal"))?
+                        }
+                        _ => return Err(self.error("array size must be an integer literal")),
+                    };
+                    self.expect_delimiter(Delimiter::RBracket)?;
+                    return Ok(Type::ArraySized(Box::new(inner), n, span));
+                }
                 self.expect_delimiter(Delimiter::RBracket)?;
                 Ok(Type::Array(Box::new(inner), span))
             }

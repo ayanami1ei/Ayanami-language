@@ -14,6 +14,7 @@ pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) 
         }
         Type::Unique(inner, _) => Type::Unique(Box::new(substitute_type_in_type(inner, subst)), s),
         Type::Array(inner, _) => Type::Array(Box::new(substitute_type_in_type(inner, subst)), s),
+        Type::ArraySized(inner, n, _) => Type::ArraySized(Box::new(substitute_type_in_type(inner, subst)), *n, s),
         Type::Ref(inner, mutable, _) => Type::Ref(Box::new(substitute_type_in_type(inner, subst)), *mutable, s),
         Type::Int(_) => Type::Int(s),
         Type::Float(_) => Type::Float(s),
@@ -79,10 +80,10 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
             fields: fields.iter().map(|(n, e)| (*n, substitute_type_in_expr(e, subst))).collect(),
             span: *span,
         },
-        Expr::ArrayLiteral(elems, span) => Expr::ArrayLiteral(
-            elems.iter().map(|e| substitute_type_in_expr(e, subst)).collect(),
-            *span,
-        ),
+        Expr::ArrayLiteral(elems, span) => Expr::ArrayLiteral(elems.iter().map(|e| substitute_type_in_expr(e, subst)).collect(), *span),
+        Expr::ArrayRepeat { value, count, span } => Expr::ArrayRepeat {
+            value: Box::new(substitute_type_in_expr(value, subst)), count: Box::new(substitute_type_in_expr(count, subst)), span: *span,
+        },
         Expr::ArraySized { elem_type, count, span } => Expr::ArraySized {
             elem_type: substitute_type_in_type(elem_type, subst),
             count: Box::new(substitute_type_in_expr(count, subst)),

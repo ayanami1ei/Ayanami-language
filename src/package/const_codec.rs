@@ -15,12 +15,27 @@ pub fn type_str(ty: &HirType) -> Option<String> {
         HirType::IntN { bits, signed } => {
             format!("{}{}", if *signed { "i" } else { "u" }, bits)
         }
+        // M6.2c：数组类型（标量元素）编码 `[T;N]` / `[T]`
+        HirType::Unique(inner) => type_str(inner)?,
+        HirType::ArraySized(elem, n) => format!("[{};{}]", type_str(elem)?, n),
+        HirType::Array(elem) => format!("[{}]", type_str(elem)?),
         _ => return None,
     })
 }
 
 /// 类型串 → HirType（仅标量）
 pub fn type_from_str(s: &str) -> Option<HirType> {
+    // M6.2c：数组类型
+    if let Some(rest) = s.strip_prefix('[') {
+        let inner = rest.strip_suffix(']')?;
+        if let Some((e, n)) = inner.split_once(';') {
+            let elem = type_from_str(e)?;
+            let n: usize = n.parse().ok()?;
+            return Some(HirType::Unique(Box::new(HirType::ArraySized(Box::new(elem), n))));
+        }
+        let elem = type_from_str(inner)?;
+        return Some(HirType::Unique(Box::new(HirType::Array(Box::new(elem)))));
+    }
     Some(match s {
         "int" => HirType::Int,
         "float" => HirType::Float,
@@ -48,7 +63,7 @@ pub fn lit_str(lit: &HirLiteral) -> Option<String> {
         HirLiteral::Float(f) => f.to_string(),
         HirLiteral::Char(c) => (*c as u32).to_string(),
         HirLiteral::Bool(b) => b.to_string(),
-        HirLiteral::String(_) => return None,
+        HirLiteral::String(_) | HirLiteral::Array(_) => return None,
     })
 }
 

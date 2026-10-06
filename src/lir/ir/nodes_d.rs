@@ -166,6 +166,11 @@ pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral) {
         HirLiteral::Char(c) => { buf.push(2); put_u32(buf, *c as u32); }
         HirLiteral::String(s) => { buf.push(3); put_str(buf, s); }
         HirLiteral::Bool(b) => { buf.push(4); buf.push(if *b { 1 } else { 0 }); }
+        HirLiteral::Array(v) => {
+            buf.push(5);
+            put_u32(buf, v.len() as u32);
+            for e in v { put_literal(buf, e); }
+        }
     }
 }
 

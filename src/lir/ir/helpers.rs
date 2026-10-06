@@ -7,6 +7,11 @@ pub fn sanitize_name(name: &str) -> String {
 
 pub(crate) fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {
     match (lit, expected_ty) {
+        (HirLiteral::Array(v), _) => {
+            // M6.2c：数组常量在 emit_global_defs 特判发射（数据数组 + 指针变量）
+            let parts: Vec<String> = v.iter().map(|e| lit_to_string(e, expected_ty)).collect();
+            format!("[{}]", parts.join(", "))
+        }
         (HirLiteral::Int(0), ty) if is_pointer_type(ty) && !matches!(ty, HirType::Named(_)) => "null".into(),
         (HirLiteral::Int(0), HirType::Named(_)) => "zeroinitializer".into(),
         (HirLiteral::Int(n), _) => format!("{}", n),

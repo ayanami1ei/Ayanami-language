@@ -15,6 +15,7 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
             format!("{}<{}>", name, a.join(","))
         }
         Type::Array(inner, _) => format!("[{}]", type_to_string_generic(inner, interfaces)),
+        Type::ArraySized(inner, n, _) => format!("[{}; {}]", type_to_string_generic(inner, interfaces), n),
         Type::Ref(inner, mutable, _) => format!("ref{}{}",
             if *mutable { " mut" } else { "" },
             type_to_string_generic(inner, interfaces)),
@@ -102,6 +103,8 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         Type::Never(_) => HirType::Never,
         // `[T]` 即拥有堆数组（unique 已移除；借用写 `ref [T]`）
         Type::Array(inner, _) => HirType::Unique(Box::new(HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))))),
+        Type::ArraySized(inner, n, _) => HirType::Unique(Box::new(HirType::ArraySized(
+            Box::new(ast_type_to_hir(inner, interfaces)), *n))),
         Type::Generic(name, args, _) => {
             // Encode generic instantiation as a unique named type
             let args_str: Vec<String> = args.iter()

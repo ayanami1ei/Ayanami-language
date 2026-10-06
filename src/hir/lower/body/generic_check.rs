@@ -127,6 +127,11 @@ impl crate::hir::lower::Ctx {
 
     fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()> {
         match expr {
+            Expr::ArrayRepeat { value, count, .. } => {
+                self.check_expr_names(value, cx)?;
+                self.check_expr_names(count, cx)?;
+                return Ok(());
+            }
             Expr::FnCall { name, args, span, .. } => {
                 let known = name.as_str().contains('.')
                     || cx.known.contains(name)

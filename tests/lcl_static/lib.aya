@@ -6,7 +6,14 @@ namespace cfg {
     pub static mut LEVEL = 1
 }
 
+pub static PRIMES: [int; 5] = [2, 3, 5, 7, 11]
+pub static mut HITS: [int; 3] = [0; 3]
+
 pub fn bump() -> int {
     TOTAL = TOTAL + 1
     return TOTAL
+}
+
+pub fn prime(int i) -> int {
+    return PRIMES[i]
 }

@@ -92,6 +92,24 @@ impl crate::hir::lower::Ctx {
             Expr::FieldAccess { object, field, span: expr_span } => self.lower_field_access(object, field, expr_span),
             Expr::StructLiteral { type_name, generic_args, fields, .. } => self.lower_struct_literal(type_name, generic_args, fields),
             Expr::ArrayLiteral(elems, span) => self.lower_array_literal(elems, span),
+            // M6.2c：`[v; n]` 运行期按字面量计数展开（常量上下文由 const_eval 处理）
+            Expr::ArrayRepeat { value, count, span } => {
+                let n = match count.as_ref() {
+                    Expr::Literal(crate::parser::ast::Literal::Int(v, _)) => *v as usize,
+                    _ => return Err(Error::Hir(format!(
+                        "repeat literal count must be an integer literal at {}:{}",
+                        span.start_line, span.start_col
+                    ))),
+                };
+                if n > 1024 {
+                    return Err(Error::Hir(format!(
+                        "repeat literal too large ({}); use a fill loop instead (at {}:{})",
+                        n, span.start_line, span.start_col
+                    )));
+                }
+                let elems: Vec<Expr> = (0..n).map(|_| (**value).clone()).collect();
+                self.lower_array_literal(&elems, span)
+            }
             Expr::Index { object, index, span } => self.lower_index(object, index, span),
             Expr::Null(_) => {
                 Ok(SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into())

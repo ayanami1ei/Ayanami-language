@@ -87,10 +87,35 @@ impl<'a> Emitter<'a> {
     /// M6.2：发射全局变量 `@name = global <ty> <init>`
     pub(super) fn emit_global_defs(&mut self) {
         for g in &self.prog.globals {
+            let linkage = if crate::hir::contracts::is_release() && !g.is_pub { "internal " } else { "" };
+            // M6.2c：数组全局 → 数据数组常量 + 指针变量（语言层 `[T; N]` 为指针语义）
+            if let crate::hir::ir::HirLiteral::Array(vals) = &g.value {
+                let elem_ty = match &g.ty {
+                    HirType::Unique(inner) => match inner.as_ref() {
+                        HirType::ArraySized(e, _) => e.as_ref().clone(),
+                        HirType::Array(e) => e.as_ref().clone(),
+                        other => other.clone(),
+                    },
+                    HirType::ArraySized(e, _) | HirType::Array(e) => e.as_ref().clone(),
+                    other => other.clone(),
+                };
+                let elem_llvm = self.llvm_type(&elem_ty);
+                let elems: Vec<String> = vals.iter()
+                    .map(|v| format!("{} {}", elem_llvm, lit_to_string(v, &elem_ty)))
+                    .collect();
+                self.wln_fmt(format_args!(
+                    "@__ayanami_gdata_{} = private global [{} x {}] [{}]",
+                    g.name.as_str(), vals.len(), elem_llvm, elems.join(", ")
+                ));
+                self.wln_fmt(format_args!(
+                    "@{} = {}global ptr @__ayanami_gdata_{}",
+                    g.name.as_str(), linkage, g.name.as_str()
+                ));
+                continue;
+            }
             let ty = self.llvm_type(&g.ty);
             let lit = lit_to_string(&g.value, &g.ty);
             // M-opt.2：release 下私有全局标 internal；pub static 保持外部（M6.2b）
-            let linkage = if crate::hir::contracts::is_release() && !g.is_pub { "internal " } else { "" };
             self.wln_fmt(format_args!("@{} = {}global {} {}", g.name.as_str(), linkage, ty, lit));
         }
         for (name, ty) in &self.prog.extern_globals {
