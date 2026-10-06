@@ -126,6 +126,10 @@ impl Package {
                         .unwrap_or_default();
                     let summary = crate::hir::effects::EffectSummary { declared, inferred };
                     let mut flags = summary.tokens();
+                    // M1.9：`#[noreturn]` 随包导出（导入侧调用类型为 `!`）
+                    if crate::hir::attrs::has(attrs, "noreturn") {
+                        flags.push("noreturn".to_string());
+                    }
                     // 函数级 track_caller：末尾保留参数 __line/__col/__file
                     let hidden = params.iter().rev()
                         .take_while(|(n, _)| matches!(n.as_str().as_str(), "__line" | "__col" | "__file"))

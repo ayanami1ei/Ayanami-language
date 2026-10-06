@@ -8,6 +8,8 @@ impl MirStmtNode for SMirAssignStmt { fn span(&self) -> crate::span::Span { self
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
         let src = self.value.lower_to_lir(ctx);
+        // M1.9：`x = <!>` 只求值（副作用），不写 store（其后不可达）
+        if matches!(strip_ownership(self.value.expr_type()), HirType::Never) { return; }
         if let Some(id) = self.target.as_local() {
             ctx.emit(SLirStore { dest: id, src, ty: self.target.expr_type() }.into());
         }
@@ -79,8 +81,7 @@ impl MirStmtNode for SMirIndexAssignStmt { fn span(&self) -> crate::span::Span {
         let idx_val = self.index.lower_to_lir(ctx);
         let src_val = self.value.lower_to_lir(ctx);
         let gep_tmp = ctx.next_tmp();
-        let obj_ty = strip_ownership(self.object.expr_type());
-        let elem_ty = super::mir_ref::array_elem_ty(&obj_ty).unwrap_or(HirType::Int);
+        let elem_ty = super::mir_ref::array_elem_ty(&strip_ownership(self.object.expr_type())).unwrap_or(HirType::Int);
         ctx.emit(SLirIndexStore { dest: obj_tmp, gep_tmp, src: src_val, index: idx_val, elem_ty, array_ty: self.object.expr_type() }.into());
     }
     fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {

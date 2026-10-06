@@ -1,0 +1,4 @@
+fn bad() -> ! {
+}
+
+fn main() -> int { return 0 }

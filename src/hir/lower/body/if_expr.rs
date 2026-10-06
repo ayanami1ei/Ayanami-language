@@ -36,18 +36,34 @@ impl crate::hir::lower::Ctx {
         blocks.push(b);
         values.push(t);
 
-        let is_void = |v: &Option<HirNodeBox>| matches!(v.as_ref().map(|v| strip_ownership(expr_type(v))), None | Some(HirType::Void));
-        let all_void = values.iter().all(is_void);
-        let any_void = values.iter().any(is_void);
-        if any_void && !all_void {
+        // M1.9：分支分类 —— Void / 值(ty) / 发散(`!`)
+        let mut never: Vec<bool> = Vec::new();
+        let mut value_tys: Vec<HirType> = Vec::new();
+        let mut has_void = false;
+        for (i, v) in values.iter().enumerate() {
+            match v {
+                Some(e) => {
+                    let ty = strip_ownership(expr_type(e));
+                    if ty == HirType::Never { never.push(true); }
+                    else if ty == HirType::Void { never.push(false); has_void = true; }
+                    else { never.push(false); value_tys.push(ty); }
+                }
+                None => {
+                    let d = super::match_lower::block_diverges(&blocks[i]);
+                    never.push(d);
+                    if !d { has_void = true; }
+                }
+            }
+        }
+        if has_void && !value_tys.is_empty() {
             return Err(Error::Hir(format!(
                 "if branches have inconsistent types (void vs value) (at {}:{})",
                 span.start_line, span.start_col
             )));
         }
 
-        // void：分支尾按语句求值丢弃，返回 void 占位
-        if all_void {
+        // 无值分支（全 void / 含发散）：按语句求值；全发散 → 结果类型 `!`
+        if value_tys.is_empty() {
             let mut assigned: Vec<HirBlock> = Vec::new();
             for (mut b, v) in blocks.into_iter().zip(values) {
                 if let Some(v) = v {
@@ -65,15 +81,15 @@ impl crate::hir::lower::Ctx {
                 else_block: Some(else_hir),
                 span: *span,
             });
-            return Ok(SConst { val: HirLiteral::Int(0), ty: HirType::Void }.into());
+            let ty = if never.iter().all(|d| *d) { HirType::Never } else { HirType::Void };
+            return Ok(SConst { val: HirLiteral::Int(0), ty }.into());
         }
 
-        // 值：公共类型（数值提升）
-        let vals: Vec<HirNodeBox> = values.into_iter().map(|v| v.unwrap()).collect();
-        let res_ty = vals.iter().map(expr_type)
+        // 值：公共类型（数值提升；`!` 分支不参与、不赋值）
+        let res_ty = value_tys.iter()
             .fold(None::<HirType>, |acc, t| Some(match acc {
-                Some(a) => super::match_lower::match_result_type(&a, &t),
-                None => t,
+                Some(a) => super::match_lower::match_result_type(&a, t),
+                None => t.clone(),
             }))
             .unwrap_or(HirType::Int);
         // #135：分支构造回退到枚举基名时，用当前函数返回类型细化
@@ -83,11 +99,18 @@ impl crate::hir::lower::Ctx {
         let res_node: HirNodeBox = SVar { var: res_var, ty: res_ty.clone() }.into();
 
         let mut assigned: Vec<HirBlock> = Vec::new();
-        for (mut b, v) in blocks.into_iter().zip(vals) {
-            // #119/#120：无载荷变体（Opt::None()）按公共结果类型实例化
-            let v = self.instantiate_enum_value(v, &res_ty)?;
-            let v = coerce_expr(v, &res_ty, span)?;
-            b.stmts.push(HirStmt::Assign { target: res_node.clone(), value: v, span: *span });
+        for (i, (mut b, v)) in blocks.into_iter().zip(values).enumerate() {
+            if let Some(v) = v {
+                if never[i] {
+                    // 发散分支：只求值（副作用），不写结果
+                    b.stmts.push(HirStmt::Expr { expr: v, span: *span });
+                } else {
+                    // #119/#120：无载荷变体（Opt::None()）按公共结果类型实例化
+                    let v = self.instantiate_enum_value(v, &res_ty)?;
+                    let v = coerce_expr(v, &res_ty, span)?;
+                    b.stmts.push(HirStmt::Assign { target: res_node.clone(), value: v, span: *span });
+                }
+            }
             assigned.push(b);
         }
         let else_hir = assigned.pop().unwrap();

@@ -1,0 +1,8 @@
+// M1.9：std `panic_at`（#[noreturn]）调用类型为 `!`，Never 分支执行时 panic
+import "panic"
+
+fn main() -> int {
+    x = if 1 > 0 { 1 } else { panic_at(1, 1, "never_panic", "boom") }
+    y = if x > 0 { panic_at(2, 2, "never_panic", "boom") } else { 0 }
+    return y
+}

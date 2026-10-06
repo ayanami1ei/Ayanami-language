@@ -20,6 +20,7 @@
 | `docs/typeclass.md` | typeclass/`Self`/关联类型设计（T1 已实现，其余评估关闭） |
 | `docs/const-globals.md` | const / static / 编译期求值设计（M6.1 已实现） |
 | `docs/optimization.md` | debug/release 双模式与语义优化（M-opt.1 已实现） |
+| `docs/never-type.md` | never 类型 `!`（M1.9：发散表达式、`! → T`、`-> !` 发射） |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |
 

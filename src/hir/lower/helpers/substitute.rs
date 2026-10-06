@@ -4,6 +4,7 @@ use super::*;
 pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type {
     let s = Span::default();
     match ty {
+        Type::Never(sp) => Type::Never(*sp),
         Type::Named(name, _) => {
             if let Some(concrete) = subst.get(name) {
                 concrete.clone()

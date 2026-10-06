@@ -104,6 +104,17 @@ pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Re
     // ref T → T：值上下文自动解引用（目标本身是引用时保持原样，支持别名）
     let expr = if matches!(target, HirType::Ref(..)) { expr } else { auto_deref(expr) };
     let src = expr.expr_type();
+    // M1.9：`!` 是任意类型的子类型（发散表达式；无运行期转换）
+    if matches!(strip_ownership_ref(&src), HirType::Never) {
+        return Ok(expr);
+    }
+    // 目标为 `!` 但源不是发散表达式 → 明确报错
+    if matches!(strip_ownership_ref(target), HirType::Never) {
+        return Err(Error::Hir(format!(
+            "cannot implicitly convert `{}` to `!` (at {}:{})",
+            hir_type_display(&src), span.start_line, span.start_col
+        )));
+    }
     let src_inner = strip_ownership_ref(&src).clone();
     let tgt_inner = strip_ownership_ref(target).clone();
     // 整数字面量适配定宽整数（如 f(1) → i32 形参；Rust 风格字面量推断）

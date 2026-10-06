@@ -31,6 +31,7 @@ impl<'a> Reader<'a> {
             2 => Ok(HirType::Char),
             3 => Ok(HirType::Void),
             4 => Ok(HirType::Bool),
+            15 => Ok(HirType::Never),
             5 => { let s = Symbol::intern(&self.str()?); Ok(HirType::Named(s)) }
             6 => Ok(HirType::Unique(Box::new(self.ty()?))),
             9 => {

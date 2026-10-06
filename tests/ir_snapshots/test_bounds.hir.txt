@@ -210,7 +210,7 @@ HIR Program
 │ │ │   then:
 │ │ │ │ Block {
 │ │ │ │ │ Expr
-            Call(fn3, ty: Void)
+            Call(fn3, ty: Never)
               Local(v2 : Int)
               Local(v3 : Int)
               Local(v4 : Named(String))

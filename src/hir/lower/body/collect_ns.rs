@@ -4,7 +4,7 @@ impl crate::hir::lower::Ctx {
     pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()> {
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, params, return_type, generic_params, extern_c, span, .. } => {
+                Stmt::FnDecl { name, params, return_type, generic_params, extern_c, span, attrs, .. } => {
                     let full_name = if ns_prefix.is_empty() {
                         *name
                     } else {
@@ -31,6 +31,8 @@ impl crate::hir::lower::Ctx {
                     }
                     let fn_id = FnId(self.fns.len());
                     let hidden = count_hidden_params(&hir_params);
+                    let is_noreturn = crate::hir::attrs::has(attrs, "noreturn")
+                        || matches!(hir_return, HirType::Never);
                     self.fns.push(FnSig {
                         name: full_name,
                         params: hir_params,
@@ -39,6 +41,7 @@ impl crate::hir::lower::Ctx {
                         inferred: Default::default(),
                         span: *span,
                         hidden,
+                        is_noreturn,
                     });
                     self.fn_map.entry(full_name).or_default().push(fn_id);
                 }
@@ -105,7 +108,7 @@ impl crate::hir::lower::Ctx {
             Stmt::Import { path, span, .. } => self.collect_import(path, ns_prefix, *span)?,
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
                     for method in methods {
-                        if let Stmt::FnDecl { name, params, return_type, generic_params: method_gp, span: method_span, .. } = method {
+                        if let Stmt::FnDecl { name, params, return_type, generic_params: method_gp, span: method_span, attrs: method_attrs, .. } = method {
                             // 合并 impl 级和方法级泛型参数：impl[T] LinkedList[T] { fn push[T: Ord](...) }
                             let combined_gp: Vec<(Symbol, Option<Symbol>)> = {
                                 let mut all = impl_gp.clone();
@@ -122,6 +125,8 @@ impl crate::hir::lower::Ctx {
                                 .collect();
                             let fn_id = FnId(self.fns.len());
                             let hidden = count_hidden_params(&hir_params);
+                            let is_noreturn = crate::hir::attrs::has(method_attrs, "noreturn")
+                                || matches!(hir_return, HirType::Never);
                             self.fns.push(FnSig {
                                 name: *name,
                                 params: hir_params,
@@ -130,6 +135,7 @@ impl crate::hir::lower::Ctx {
                                 effects: crate::hir::effects::EffectDecl::default(),
                         inferred: Default::default(),
                         hidden,
+                                is_noreturn,
                             });
                             self.fn_map.entry(*name).or_default().push(fn_id);
                         } else {

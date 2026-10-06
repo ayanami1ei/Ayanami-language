@@ -144,6 +144,10 @@ impl<'a> Emitter<'a> {
         if crate::hir::contracts::is_release() && !inline_attr.contains("nounwind") {
             inline_attr.push_str(" nounwind");
         }
+        // M1.9：`-> !` 自动 noreturn
+        if matches!(f.return_type, HirType::Never) && !inline_attr.contains("noreturn") {
+            inline_attr.push_str(" noreturn");
+        }
 
         self.current_fn_ret_ty = f.return_type.clone();
 

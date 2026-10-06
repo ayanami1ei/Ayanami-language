@@ -1,0 +1,52 @@
+// M1.9：never 类型 `!`（发散表达式与 ! → T 强转）
+enum Opt[T] {
+    Some(T),
+    None,
+}
+
+// `-> !` 函数：体发散（未调用；仅类型层面验证）
+fn die() -> ! {
+    return die()
+}
+
+// `#[noreturn]` 标注（void 返回）的调用也是 `!`
+#[noreturn]
+fn die2() -> void {
+    while true {
+    }
+}
+
+fn pick(bool c) -> int {
+    return if c { 1 } else { die() }
+}
+
+fn ret_never(bool c) -> int {
+    if c { return 1 }
+    return die()
+}
+
+fn match_never(Opt[int] o) -> int {
+    return match o {
+        Some(v) => v,
+        None => die2(),
+    }
+}
+
+fn all_div(bool c) -> int {
+    if c { return 1 } else { die2() }
+}
+
+fn assign_never(bool c) -> int {
+    x = if c { 5 } else { die2() }
+    return x
+}
+
+fn main() -> int {
+    if pick(true) != 1 { return 1 }
+    if ret_never(true) != 1 { return 2 }
+    o = Opt::Some(3)
+    if match_never(o) != 3 { return 3 }
+    if all_div(true) != 1 { return 4 }
+    if assign_never(true) != 5 { return 5 }
+    return 0
+}

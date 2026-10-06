@@ -238,6 +238,7 @@ impl crate::hir::lower::Ctx {
 
         let fid = FnId(self.fns.len());
         let hidden = count_hidden_params(&hir_params);
+        let is_noreturn = matches!(hir_return, HirType::Never);
         self.fns.push(FnSig {
             name: *name,
             params: hir_params,
@@ -246,6 +247,7 @@ impl crate::hir::lower::Ctx {
             effects: crate::hir::effects::EffectDecl::default(),
                         inferred: Default::default(),
             hidden,
+            is_noreturn,
         });
         self.fn_map.entry(*name).or_default().push(fid);
         self.specialized_ids.insert(fid);

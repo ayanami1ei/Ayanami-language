@@ -54,6 +54,8 @@ pub(crate) struct FnSig {
     pub span: Span,
     /// 末尾保留参数个数（函数级 track_caller：__line/__col/__file）
     pub hidden: usize,
+    /// M1.9：调用不返回（`-> !` 或 `#[noreturn]`）——调用表达式类型为 `!`
+    pub is_noreturn: bool,
 }
 
 /// 接口注册信息 —— 记录接口的泛型参数和方法签名

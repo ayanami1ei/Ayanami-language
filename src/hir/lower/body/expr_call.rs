@@ -176,7 +176,8 @@ impl crate::hir::lower::Ctx {
         if hidden > 0 {
             hir_args.extend(self.caller_hidden_args(span, hidden));
         }
-        let ty = self.fns[fn_id.0].return_type.clone();
+        // M1.9：`-> !` / `#[noreturn]` 调用表达式类型为 `!`
+        let ty = if self.fns[fn_id.0].is_noreturn { HirType::Never } else { self.fns[fn_id.0].return_type.clone() };
         Ok(SCall { fn_id, args: hir_args, ty }.into())
     }
 

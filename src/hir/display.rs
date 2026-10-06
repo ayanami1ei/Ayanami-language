@@ -26,6 +26,7 @@ pub(crate) fn display_type(ty: &HirType) -> String {
         HirType::F32 => "F32".into(),
         HirType::Char => "Char".into(),
         HirType::Void => "Void".into(),
+        HirType::Never => "Never".into(),
         HirType::Bool => "Bool".into(),
         HirType::IntN { bits, signed } => crate::hir::lower::helpers::intn_name(*bits, *signed),
         HirType::Named(s) => format!("Named({})", s),

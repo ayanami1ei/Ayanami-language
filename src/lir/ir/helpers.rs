@@ -68,7 +68,7 @@ pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
         HirType::F32 => "4",
         HirType::Char => "1",
         HirType::Bool => "1",
-        HirType::Void => "0",
+        HirType::Void | HirType::Never => "0",
         HirType::IntN { bits, .. } => match bits { 8 => "1", 16 => "2", 32 => "4", 64 => "8", 128 => "16", _ => "8" },
         HirType::Named(_) | HirType::FatPtr { .. } => "16",
         HirType::Unique(inner) => llvm_type_size(inner),
@@ -86,7 +86,7 @@ pub(crate) fn elem_layout_size(
 ) -> u64 {
     fn layout(ty: &HirType, defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> (u64, u64) {
         match ty {
-            HirType::Void => (0, 1),
+            HirType::Void | HirType::Never => (0, 1),
             HirType::Char | HirType::Bool => (1, 1),
             HirType::Int | HirType::Float | HirType::Ref(_, _) | HirType::FnPtr(..) => (8, 8),
             HirType::F32 => (4, 4),

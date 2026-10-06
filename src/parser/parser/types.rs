@@ -37,6 +37,10 @@ impl Parser {
                 self.expect_delimiter(Delimiter::RParen)?;
                 Ok(Type::Void(span))
             }
+            TokenKind::Operator(s) if s == "!" => {
+                self.advance();
+                Ok(Type::Never(span))
+            }
             TokenKind::Keyword(Keyword::Int) => {
                 self.advance();
                 Ok(Type::Int(span))

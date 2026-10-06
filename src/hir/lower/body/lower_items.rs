@@ -228,6 +228,22 @@ impl crate::hir::lower::Ctx {
                 hir_body.stmts.push(HirStmt::Return { value: Some(coerced), span });
             }
         }
+        // M1.9：`-> !` 函数体必须发散（尾表达式为 `!` 或末尾 return/发散语句）
+        if matches!(return_type, HirType::Never) {
+            let diverges = hir_body.stmts.last().map(|s| match s {
+                HirStmt::Return { .. } => true,
+                HirStmt::Expr { expr, .. } => {
+                    matches!(strip_ownership(expr_type(expr)), HirType::Never)
+                }
+                _ => false,
+            }).unwrap_or(false);
+            if !diverges {
+                return Err(Error::Hir(format!(
+                    "function `{}` returns `!` but its body does not diverge (at {}:{})",
+                    name.as_str(), span.start_line, span.start_col
+                )));
+            }
+        }
 
         // A2e：后置条件注入（result 绑定返回值）
         self.inject_ensures(&mut hir_body, &attrs, &return_type, span)?;

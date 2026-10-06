@@ -172,18 +172,27 @@ impl Ctx {
 
         // 先把返回值求值到临时变量，再做作用域清理，
         // 避免 `return up.x` 这类表达式在 drop 之后才读取变量（use-after-free）。
-        let ret_var = value.as_ref().map(|v| {
-            // 临时变量使用函数返回类型（比较运算等表达式类型可能与返回类型不同）
-            let ty = self.return_type.clone();
-            let tmp = self.new_temp(ty);
-            let mir_value = v.lower_to_mir(&self.moved);
-            stmts.push(SMirAssignStmt {
-                target: SMirLocal { var: tmp, ty: self.var_types[&tmp].clone(), moved: false }.into(),
-                value: mir_value,
-                span,
-            }.into());
-            tmp
-        });
+        // M1.9：发散返回（`return <!>` / `-> !` 函数）直接求值，不建临时变量（void 无 alloca）
+        let mut direct_value: Option<MirNodeBox> = None;
+        let mut ret_var: Option<VarId> = None;
+        if let Some(v) = value {
+            let is_never = matches!(v.expr_type(), HirType::Never)
+                || matches!(self.return_type, HirType::Never);
+            if is_never {
+                direct_value = Some(v.lower_to_mir(&self.moved));
+            } else {
+                // 临时变量使用函数返回类型（比较运算等表达式类型可能与返回类型不同）
+                let ty = self.return_type.clone();
+                let tmp = self.new_temp(ty);
+                let mir_value = v.lower_to_mir(&self.moved);
+                stmts.push(SMirAssignStmt {
+                    target: SMirLocal { var: tmp, ty: self.var_types[&tmp].clone(), moved: false }.into(),
+                    value: mir_value,
+                    span,
+                }.into());
+                ret_var = Some(tmp);
+            }
+        }
 
         let alive_snapshot: Vec<VarId> = self.alive.iter().copied().collect();
         for var in &alive_snapshot {
@@ -196,8 +205,11 @@ impl Ctx {
         }
         self.alive.clear();
 
-        let mir_value = ret_var
-            .map(|var| SMirLocal { var, ty: self.var_types[&var].clone(), moved: false }.into());
+        let mir_value = if let Some(dv) = direct_value {
+            Some(dv)
+        } else {
+            ret_var.map(|var| SMirLocal { var, ty: self.var_types[&var].clone(), moved: false }.into())
+        };
         stmts.push(SMirReturnStmt { value: mir_value, span }.into());
 
         stmts

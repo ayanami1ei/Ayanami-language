@@ -197,6 +197,7 @@ pub(super) fn type_to_string(ty: &Type) -> String {
         Type::Char(_) => "char".into(),
         Type::Bool(_) => "bool".into(),
         Type::Void(_) => "void".into(),
+        Type::Never(_) => "!".into(),
         Type::Named(s, _) => s.as_str().to_string(),
         Type::Array(inner, _) => format!("[{}]", type_to_string(inner)),
         Type::Unique(inner, _) => format!("unique {}", type_to_string(inner)),

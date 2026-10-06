@@ -9,6 +9,7 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
         HirType::Char => Type::Char(s),
         HirType::Bool => Type::Bool(s),
         HirType::Void => Type::Void(s),
+        HirType::Never => Type::Never(s),
         HirType::IntN { bits, signed } => Type::Named(Symbol::intern(&crate::hir::lower::helpers::intn_name(*bits, *signed)), s),
         HirType::Named(n) => Type::Named(*n, s),
         HirType::Unique(inner) => Type::Unique(Box::new(hir_type_to_ast_type(inner)), s),

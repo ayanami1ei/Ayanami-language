@@ -167,12 +167,41 @@ impl crate::hir::lower::Ctx {
                 "non-exhaustive match expression at {}:{}", span.start_line, span.start_col
             )));
         }
+        // M1.9：分支分类 —— 值(ty) / 发散(`!`)
+        let mut never: Vec<bool> = Vec::new();
+        let mut value_tys: Vec<HirType> = Vec::new();
+        let mut has_void = false;
+        for (_, b) in &lowered {
+            let ty = strip_ownership(expr_type(b));
+            if ty == HirType::Never { never.push(true); }
+            else if ty == HirType::Void { never.push(false); has_void = true; }
+            else { never.push(false); value_tys.push(ty); }
+        }
+        if has_void && !value_tys.is_empty() {
+            return Err(Error::Hir(format!(
+                "match branches have inconsistent types (void vs value) (at {}:{})",
+                span.start_line, span.start_col
+            )));
+        }
+        // 全发散：分支只求值（副作用），结果类型 `!`
+        if value_tys.is_empty() {
+            let mut conds = Vec::new();
+            let mut blocks = Vec::new();
+            for (i, (mut arm_stmts, body)) in lowered.into_iter().enumerate() {
+                conds.push(Self::tag_cond(&val_node, i));
+                arm_stmts.push(HirStmt::Expr { expr: body, span: *span });
+                blocks.push(HirBlock { stmts: arm_stmts });
+            }
+            if let Some(if_stmt) = self.build_match_if(value_ty_name, conds, blocks, span) {
+                self.pending_stmts.push(if_stmt);
+            }
+            return Ok(SConst { val: HirLiteral::Int(0), ty: HirType::Never }.into());
+        }
         // 分支结果类型：按数值提升取公共类型（int/char/float 混合，如 `v => v` / `Q(_) => 0`）
-        let res_ty = lowered.iter()
-            .map(|(_, b)| expr_type(b))
+        let res_ty = value_tys.iter()
             .fold(None::<HirType>, |acc, t| Some(match acc {
-                Some(a) => match_result_type(&a, &t),
-                None => t,
+                Some(a) => match_result_type(&a, t),
+                None => t.clone(),
             }))
             .unwrap_or(HirType::Int);
         // #135：分支构造回退到枚举基名时，用当前函数返回类型细化
@@ -185,14 +214,18 @@ impl crate::hir::lower::Ctx {
         let mut blocks = Vec::new();
         for (i, (mut arm_stmts, body)) in lowered.into_iter().enumerate() {
             conds.push(Self::tag_cond(&val_node, i));
-            // #119/#120：无载荷变体（Opt::None()）按公共结果类型实例化
-            let body = self.instantiate_enum_value(body, &res_ty)?;
-            let body = coerce_expr(body, &res_ty, span)?;
-            arm_stmts.push(HirStmt::Assign {
-                target: res_node.clone(),
-                value: body,
-                span: *span,
-            });
+            if never[i] {
+                arm_stmts.push(HirStmt::Expr { expr: body, span: *span });
+            } else {
+                // #119/#120：无载荷变体（Opt::None()）按公共结果类型实例化
+                let body = self.instantiate_enum_value(body, &res_ty)?;
+                let body = coerce_expr(body, &res_ty, span)?;
+                arm_stmts.push(HirStmt::Assign {
+                    target: res_node.clone(),
+                    value: body,
+                    span: *span,
+                });
+            }
             blocks.push(HirBlock { stmts: arm_stmts });
         }
         if let Some(if_stmt) = self.build_match_if(value_ty_name, conds, blocks, span) {
@@ -202,10 +235,22 @@ impl crate::hir::lower::Ctx {
     }
 }
 
+/// M1.9：块是否发散（末尾为 `return` 或 `!` 类型表达式语句）
+pub(super) fn block_diverges(b: &HirBlock) -> bool {
+    match b.stmts.last() {
+        Some(HirStmt::Return { .. }) => true,
+        Some(HirStmt::Expr { expr, .. }) => matches!(strip_ownership(expr_type(expr)), HirType::Never),
+        _ => false,
+    }
+}
+
 /// match/if 分支公共结果类型（数值提升；其余取首个分支类型）
 pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType {
     let sa = strip_ownership(a.clone());
     let sb = strip_ownership(b.clone());
+    // M1.9：`!` 是单位元（发散分支不影响公共类型）
+    if sa == HirType::Never { return sb; }
+    if sb == HirType::Never { return sa; }
     if sa == sb { return sa; }
     match (&sa, &sb) {
         (HirType::Float, HirType::Int) | (HirType::Int, HirType::Float)

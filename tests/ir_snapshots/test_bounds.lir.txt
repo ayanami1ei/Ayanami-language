@@ -165,16 +165,16 @@ then0:
     t8 = load v1 : IntN { bits: 64, signed: false }
     t9 = load v0 : Ref(Named(Symbol(N)), false)
     t10 = field_access field=1 : IntN { bits: 64, signed: false }
-    _ = call fn3 (Tmp(5):Int, Tmp(6):Int, Tmp(7):Named(Symbol(N)), Tmp(8):IntN { bits: 64, signed: false }, Tmp(10):IntN { bits: 64, signed: false }) : Void
+    t12 = call fn3 (Tmp(5):Int, Tmp(6):Int, Tmp(7):Named(Symbol(N)), Tmp(8):IntN { bits: 64, signed: false }, Tmp(10):IntN { bits: 64, signed: false }) : Never
     br %ifcont2
 else1:
     br %ifcont2
 ifcont2:
-    t12 = load v0 : Ref(Named(Symbol(N)), false)
-    t13 = field_access field=0 : Array(Int)
-    t15 = load v1 : IntN { bits: 64, signed: false }
-    t16 = conv Cast -> Tmp(15) : Int
-    t17 = index_access elem_ty=Int
-    store Tmp(17) -> v5 : Int
-    t20 = load v5 : Int
-    ret Tmp(20)
+    t13 = load v0 : Ref(Named(Symbol(N)), false)
+    t14 = field_access field=0 : Array(Int)
+    t16 = load v1 : IntN { bits: 64, signed: false }
+    t17 = conv Cast -> Tmp(16) : Int
+    t18 = index_access elem_ty=Int
+    store Tmp(18) -> v5 : Int
+    t21 = load v5 : Int
+    ret Tmp(21)
