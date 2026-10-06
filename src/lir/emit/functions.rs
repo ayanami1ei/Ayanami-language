@@ -89,7 +89,9 @@ impl<'a> Emitter<'a> {
         for g in &self.prog.globals {
             let ty = self.llvm_type(&g.ty);
             let lit = lit_to_string(&g.value, &g.ty);
-            self.wln_fmt(format_args!("@{} = global {} {}", g.name.as_str(), ty, lit));
+            // M-opt.2：release 下全局标 internal（当前 static 均为模块私有；pub static 见 M6.2b）
+            let linkage = if crate::hir::contracts::is_release() { "internal " } else { "" };
+            self.wln_fmt(format_args!("@{} = {}global {} {}", g.name.as_str(), linkage, ty, lit));
         }
         if !self.prog.globals.is_empty() {
             self.wln("");
@@ -141,8 +143,16 @@ impl<'a> Emitter<'a> {
 
         self.current_fn_ret_ty = f.return_type.clone();
 
+        // M-opt.2：release 下非导出定义标 internal（opt 可内联/DCE、免 PLT）；
+        // main / extern "C" / pub / 弱特化保持外部链接。
         let linkage = if self.prog.specialized_fns.contains(&f.fn_id) || f.is_inline {
             "linkonce_odr "
+        } else if crate::hir::contracts::is_release()
+            && !f.is_pub
+            && !f.extern_c
+            && fn_name != "main"
+        {
+            "internal "
         } else {
             ""
         };

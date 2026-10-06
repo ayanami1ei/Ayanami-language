@@ -34,9 +34,9 @@
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | M-opt.1 | 模式分离（debug 无 opt / release `-O3`）+ release 推断 `noalias`（`ref mut`/owned）与 `nounwind` | ✅ 已实现 |
-| M-opt.2 | 内部化：非导出函数/`static` 全局 `internal`（LIR 需携带 pub 信息） | 待做 |
-| M-opt.3 | 边界检查消除（常量长度 / 归纳变量范围） | 待做 |
-| M-opt.4 | 效应驱动的跨函数优化（`#[pure]` 常量折叠、DCE） | 待做 |
+| M-opt.2 | 内部化：非导出函数/vtable wrapper/`static` 全局 `internal`（LIR4 携带 `is_pub`） | ✅ 已实现 |
+| M-opt.3 | 边界检查消除 | 已评估关闭：编译器不发射数组边界检查（内建 `[T]` 不检查；`String`/`ArrayList` 检查在 std 源码） |
+| M-opt.4 | 效应驱动的跨函数优化（`#[pure]` 常量折叠、DCE） | ✅ 已具备（A3 推断效应 → `memory(none/read)`/`nounwind` 自动属性） |
 | M-opt.5 | 基准套件（与 C 对比，纳入回归的可选性能项） | 待做 |
 
 ## 验收（M-opt.1）
@@ -53,6 +53,7 @@
 | 溢出回绕 | `src/hir/lower/body/expr_ops1.rs`（`!is_release()` 才插检查） |
 | 中端/后端档位 | `src/driver/mod.rs::ir_to_object`（release: `opt -O3` + `llc -O3`；debug: 跳过 opt） |
 | 推断属性 | `src/lir/emit/functions.rs`（形参 `noalias`、函数 `nounwind`） |
+| 内部化 | `src/lir/emit/functions.rs`（linkage）、`src/lir/emit/vtable.rs`（wrapper）、`src/lir/serialize/*`（LIR4 `is_pub`） |
 | 回归 | `scripts/regression.sh`（#M-opt.1 段：两种模式 IR 检查 + release 运行） |
 
 ## 风险与边界

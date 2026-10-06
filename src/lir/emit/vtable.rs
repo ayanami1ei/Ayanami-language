@@ -105,7 +105,8 @@ impl<'a> Emitter<'a> {
                     a.join(", ")
                 };
                 self.wln_fmt(format_args!(
-                    "define {} @{}({}) {{",
+                    "define {}{} @{}({}) {{",
+                    if crate::hir::contracts::is_release() { "internal " } else { "" },
                     ret_ty, wrapper_name, all_params
                 ));
                 self.indent += 1;

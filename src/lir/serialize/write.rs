@@ -48,4 +48,6 @@ pub(super) fn put_fn(buf: &mut Vec<u8>, f: &LirFn) {
         put_u32(buf, b.insts.len() as u32);
         for inst in &b.insts { put_inst(buf, inst); }
     }
+    // M-opt.2：LIR4 起带 is_pub 字节
+    buf.push(if f.is_pub { 1 } else { 0 });
 }

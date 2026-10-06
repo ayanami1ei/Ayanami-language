@@ -211,6 +211,8 @@ pub struct MirFn {
     pub extern_c: bool,
     /// 泛型特化（弱链接）
     pub is_specialized: bool,
+    /// M-opt.2：pub 导出（release 内部化非导出函数）
+    pub is_pub: bool,
     pub params: Vec<(Symbol, HirType)>,
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,

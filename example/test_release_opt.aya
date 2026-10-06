@@ -14,8 +14,13 @@ fn bump(ref mut int x) -> int {
     return x
 }
 
+pub fn public_double(int x) -> int {
+    return x * 2
+}
+
 fn main() -> int {
     if sum_squares(100) != 328350 { return 1 }
+    if public_double(21) != 42 { return 4 }
     a = 1
     if bump(a) != 2 { return 2 }
     if a != 2 { return 3 }

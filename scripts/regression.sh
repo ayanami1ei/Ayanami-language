@@ -180,6 +180,20 @@ if [ -f example/test_release_opt.aya ]; then
         echo "FAIL M-opt.1: release 构建缺少 nounwind"
         fail=$((fail + 1))
     fi
+    # M-opt.2：release 非导出函数 internal；pub 函数保持外部
+    if ! grep -q 'define internal' build/test_release_opt.ll; then
+        echo "FAIL M-opt.2: release 构建缺少 internal 非导出函数"
+        fail=$((fail + 1))
+    fi
+    if grep 'define.*@public_double_int' build/test_release_opt.ll | grep -q 'internal'; then
+        echo "FAIL M-opt.2: release 下 pub 函数被错误内部化"
+        fail=$((fail + 1))
+    fi
+    "$BIN" build example/test_release_opt.aya >/dev/null 2>&1
+    if grep -q 'define internal' build/test_release_opt.ll; then
+        echo "FAIL M-opt.2: debug 构建不应有 internal"
+        fail=$((fail + 1))
+    fi
     timeout 60 "$BIN" run --release example/test_release_opt.aya >/dev/null 2>&1
     got=$?
     if [ "$got" != 0 ]; then

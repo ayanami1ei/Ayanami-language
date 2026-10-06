@@ -10,8 +10,8 @@ use super::ir::*;
 /// Serialize LirProgram to compact binary.
 pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
     let mut buf = Vec::new();
-    // Header（LIR3：#129 起带 specialized_fns 段）
-    buf.extend_from_slice(b"LIR3");
+    // Header（LIR4：M-opt.2 起函数带 is_pub；LIR3：#129 带 specialized_fns 段）
+    buf.extend_from_slice(b"LIR4");
 
     // Strings
     put_u32(&mut buf, p.strings.len() as u32);
@@ -98,13 +98,14 @@ pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
 
 /// Deserialize LirProgram from binary.
 pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
-    // LIR3：带 specialized_fns 段；LIR2：旧格式（无该段，特化退化为强符号）
-    if data.len() < 4 || (&data[0..4] != b"LIR3" && &data[0..4] != b"LIR2") {
+    // LIR4：带 is_pub 字节（M-opt.2）；LIR3：带 specialized_fns 段；LIR2：旧格式
+    if data.len() < 4 || (&data[0..4] != b"LIR4" && &data[0..4] != b"LIR3" && &data[0..4] != b"LIR2") {
         return Err(Error::Serialize("invalid LIR data".into()));
     }
-    let has_spec = &data[0..4] == b"LIR3";
+    let has_spec = &data[0..4] != b"LIR2";
+    let has_pub = &data[0..4] == b"LIR4";
     let mut pos = 4;
-    let mut r = Reader { data, pos: &mut pos };
+    let mut r = Reader { data, pos: &mut pos, has_pub };
 
     let str_count = r.u32()?;
     let mut strings = Vec::new();
@@ -226,6 +227,8 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
 struct Reader<'a> {
     data: &'a [u8],
     pos: &'a mut usize,
+    /// M-opt.2：LIR4 起每个函数带 is_pub 字节
+    has_pub: bool,
 }
 
 mod decode;

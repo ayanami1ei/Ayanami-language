@@ -55,6 +55,8 @@ pub struct LirFn {
     pub name: Symbol,
     pub is_inline: bool,
     pub extern_c: bool,
+    /// M-opt.2：pub 导出（release 内部化非导出函数）
+    pub is_pub: bool,
     pub params: Vec<(Symbol, HirType)>,
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,
