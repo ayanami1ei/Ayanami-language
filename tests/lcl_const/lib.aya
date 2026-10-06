@@ -1,0 +1,15 @@
+// M6.1b 夹具：导出编译期常量（标量 + 派生 + 命名空间）
+pub const VERSION = 7
+pub const MAGIC = 0x1234
+pub const RATIO = 1.5
+pub const FIRST = 'A'
+pub const FLAG = true
+pub const DERIVED = VERSION * 2 + 1
+
+namespace cfg {
+    pub const MODE = 2
+}
+
+pub fn version() -> int {
+    return VERSION
+}

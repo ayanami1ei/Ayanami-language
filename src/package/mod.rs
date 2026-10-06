@@ -4,6 +4,7 @@ use crate::error::{Error, Result};
 use crate::parser::ast::{Stmt, Type};
 
 mod bytes;
+pub(crate) mod const_codec;
 mod load;
 mod symbols;
 mod target;

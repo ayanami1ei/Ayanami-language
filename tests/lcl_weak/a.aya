@@ -1,0 +1,6 @@
+// #129 夹具 A：.lcl 各自实例化 ArrayList::new[String]
+import "arraylist"
+
+pub fn fa() -> ArrayList[String] {
+    return ArrayList::new[String]()
+}

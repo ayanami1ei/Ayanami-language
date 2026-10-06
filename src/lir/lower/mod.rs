@@ -51,6 +51,16 @@ use names::{collect_fn_names, mangle};
 use strings::collect_strings;
 
 pub fn lower_program(mir: &MirProgram) -> LirProgram {
+    let globals: Vec<LirGlobal> = mir.statics.iter()
+        .filter(|s| !s.is_external)
+        .map(|s| LirGlobal { name: s.name, ty: s.ty.clone(), value: s.value.clone(), is_pub: s.is_pub })
+        .collect();
+    let mut extern_globals: Vec<(Symbol, HirType)> = mir.statics.iter()
+        .filter(|s| s.is_external)
+        .map(|s| (s.name, s.ty.clone()))
+        .collect();
+    extern_globals.sort_by(|a, b| a.0.as_str().cmp(&b.0.as_str()));
+    extern_globals.dedup_by(|a, b| a.0 == b.0);
     let strings = collect_strings(mir);
     let str_map: HashMap<String, u64> = strings
         .iter()
@@ -125,6 +135,8 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
 
     LirProgram {
         strings,
+        globals,
+        extern_globals,
         fn_names,
         functions,
         vtables,

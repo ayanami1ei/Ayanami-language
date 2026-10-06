@@ -83,6 +83,16 @@ pub enum Stmt {
         body: Block,
         span: Span,
     },
+    /// M6.2：全局变量 `static [mut] NAME [: T] = expr`（常量初始化，可寻址）
+    StaticDecl {
+        attrs: Vec<Attr>,
+        vis: Visibility,
+        is_mut: bool,
+        name: Symbol,
+        ty: Option<Type>,
+        value: Box<Expr>,
+        span: Span,
+    },
     /// M6.1：编译期常量 `const NAME [: T] = expr`
     ConstDecl {
         attrs: Vec<Attr>,
@@ -220,6 +230,7 @@ impl Stmt {
             | Stmt::InterfaceDef { span, .. }
             | Stmt::ImplBlock { span, .. }
             | Stmt::ConstDecl { span, .. }
+            | Stmt::StaticDecl { span, .. }
             | Stmt::Import { span, .. }
             | Stmt::Attributed { span, .. }
             | Stmt::Break { span, .. }

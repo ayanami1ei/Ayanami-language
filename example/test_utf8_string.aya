@@ -1,0 +1,8 @@
+// #122：非 ASCII 字符串字面量按 UTF-8 字节转义
+fn main() -> int {
+    s = "你好"
+    if s.len != 6 { return 1 }
+    t = "café"
+    if t.len != 5 { return 2 }
+    return 0
+}

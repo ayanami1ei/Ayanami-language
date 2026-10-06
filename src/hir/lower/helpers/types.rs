@@ -8,6 +8,7 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
         Type::Char(_) => "char".into(),
         Type::Bool(_) => "bool".into(),
         Type::Void(_) => "void".into(),
+        Type::Never(_) => "!".into(),
         Type::Named(s, _) => s.as_str().to_string(),
         Type::Generic(name, args, _) => {
             let a: Vec<String> = args.iter().map(|a| type_to_string_generic(a, interfaces)).collect();
@@ -98,6 +99,7 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         Type::Char(_) => HirType::Char,
         Type::Bool(_) => HirType::Bool,
         Type::Void(_) => HirType::Void,
+        Type::Never(_) => HirType::Never,
         // `[T]` 即拥有堆数组（unique 已移除；借用写 `ref [T]`）
         Type::Array(inner, _) => HirType::Unique(Box::new(HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))))),
         Type::Generic(name, args, _) => {
@@ -167,6 +169,7 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
         HirType::F32 => "f32".into(),
         HirType::Char => "char".into(),
         HirType::Void => "void".into(),
+        HirType::Never => "!".into(),
         HirType::Bool => "bool".into(),
         HirType::IntN { bits, signed } => intn_name(*bits, *signed),
         HirType::Named(s) => s.as_str().to_string(),

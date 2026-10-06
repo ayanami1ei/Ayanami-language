@@ -12,6 +12,7 @@ pub(super) fn format_type(ty: &Type) -> String {
         Type::Char(_) => "Char".into(),
         Type::Bool(_) => "Bool".into(),
         Type::Void(_) => "Void".into(),
+        Type::Never(_) => "Never".into(),
         Type::Named(s, _) => format!("Named({})", s),
         Type::Array(inner, _) => format!("[{}]", format_type(inner)),
         Type::Unique(inner, _) => format!("unique {}", format_type(inner)),

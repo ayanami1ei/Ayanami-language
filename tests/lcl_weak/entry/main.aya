@@ -1,0 +1,13 @@
+// #129：entry 位于独立目录，import "a"/"b" 解析到 std 目录下的 .lcl
+import "a"
+import "b"
+
+fn main() -> int {
+    x = fa()
+    y = fb()
+    x.push("x")
+    y.push("y")
+    if x.len() != 1 { return 1 }
+    if y.len() != 1 { return 2 }
+    return 0
+}

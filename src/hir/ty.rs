@@ -23,6 +23,8 @@ pub enum HirType {
     F32,
     Char,
     Void,
+    /// M1.9：never 类型 `!`（发散表达式；可强转到任意类型）
+    Never,
     Bool,
     Unique(Box<HirType>),
     Named(Symbol),
@@ -51,6 +53,7 @@ impl HirType {
                 | HirType::Char
                 | HirType::Bool
                 | HirType::Void
+                | HirType::Never
                 | HirType::FnPtr(..)
                 | HirType::Ref(..)
                 | HirType::IntN { .. }

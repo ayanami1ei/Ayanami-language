@@ -191,6 +191,8 @@ impl crate::hir::lower::Ctx {
                         let fn_id = FnId(self.fns.len());
                         let summary = crate::hir::effects::EffectSummary::from_tokens(flags);
                         let hidden = if flags.iter().any(|f| f == "caller") { 3 } else { 0 };
+                        let is_noreturn = flags.iter().any(|f| f == "noreturn")
+                            || matches!(hir_ret, HirType::Never);
                         self.fns.push(FnSig {
                             name: sym_name,
                             params: hir_params,
@@ -199,8 +201,33 @@ impl crate::hir::lower::Ctx {
                             inferred: summary.inferred,
                             span: crate::span::Span::default(),
                             hidden,
+                            is_noreturn,
                         });
                         self.fn_map.entry(sym_name).or_default().push(fn_id);
+                    }
+                    crate::package::ImportedSymbol::Const { name, ty, value } => {
+                        // M6.1b：导入常量注册（限定名 `pkg.NAME` + 裸名；本地同名优先）
+                        if let Some((hir_ty, lit)) = crate::package::const_codec::decode(ty, value) {
+                            let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
+                            let qualified = Symbol::intern(&format!("{}.{}", stem.as_str(), name));
+                            self.consts.entry(qualified).or_insert((hir_ty.clone(), lit.clone()));
+                            self.consts.entry(Symbol::intern(name)).or_insert((hir_ty, lit));
+                        }
+                    }
+                    crate::package::ImportedSymbol::Static { name, ty, is_mut } => {
+                        // M6.2b：导入全局（裸名 + 限定名别名 `pkg.NAME`，都指向导出符号；
+                        // 只发射 `external global` 声明，不定义）
+                        if let Some(hir_ty) = crate::package::const_codec::type_from_str(ty) {
+                            let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
+                            let bare = Symbol::intern(name);
+                            let qualified = Symbol::intern(&format!("{}.{}", stem.as_str(), name));
+                            let mk = |sym: Symbol| crate::hir::HirStatic {
+                                name: sym, ty: hir_ty.clone(), value: crate::hir::ir::HirLiteral::Int(0),
+                                is_mut: *is_mut, is_pub: true, is_external: true,
+                            };
+                            self.statics.entry(bare).or_insert_with(|| mk(bare));
+                            self.statics.entry(qualified).or_insert_with(|| mk(bare));
+                        }
                     }
                     crate::package::ImportedSymbol::Struct { name } => {
                         // Parse "Name(field1:type1,field2:type2)" format

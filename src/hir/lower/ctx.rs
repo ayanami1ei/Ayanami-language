@@ -43,6 +43,12 @@ pub(crate) struct Ctx {
     pub ovf_helpers: HashMap<Symbol, FnId>,
     /// M6.1：编译期常量（名 → (类型, 值)），使用点内联为 SConst
     pub consts: HashMap<Symbol, (HirType, HirLiteral)>,
+    /// M6.1b：可导出常量（规范化名 → (类型, 值)）；顶层裸名、命名空间限定名
+    pub const_exports: Vec<(Symbol, HirType, HirLiteral)>,
+    /// M6.2：全局变量（名 → 定义），可寻址
+    pub statics: HashMap<Symbol, crate::hir::HirStatic>,
+    /// M6.3：`const fn` AST（名 → FnDecl），常量上下文编译期求值
+    pub const_fns: HashMap<Symbol, Stmt>,
     /// Lambda 计数器（生成唯一名称）
     pub lambda_counter: u64,
     /// Lambda 表达式降级产生的匿名函数
@@ -98,6 +104,9 @@ impl Ctx {
             synth_externs: Vec::new(),
             ovf_helpers: HashMap::new(),
             consts: HashMap::new(),
+            const_exports: Vec::new(),
+            statics: HashMap::new(),
+            const_fns: HashMap::new(),
             lambda_counter: 0,
             lambda_fns: Vec::new(),
             current_fn: FnId(0),
@@ -232,14 +241,13 @@ impl Ctx {
         let mut subst = HashMap::new();
         let s = type_name.as_str();
         let b = base.as_str();
-        if let Some(start) = s.find('<') {
+        if let Some(start) = s.find(['<', '[']) {
             if &s[..start] == b {
-                let inner = s[start..].trim_start_matches('<').trim_end_matches('>');
-                let inner_parts: Vec<&str> = inner.split(',').collect();
-                let gp = self.collected_generic_params(base);
-                for ((gp_name, _), val_str) in gp.iter().zip(inner_parts.iter()) {
-                    let hir_ty = sig_str_to_hir(val_str.trim());
-                    subst.insert(*gp_name, hir_ty);
+                if let Some(inner) = generic_inner(&s) {
+                    let gp = self.collected_generic_params(base);
+                    for ((gp_name, _), val_str) in gp.iter().zip(split_generic_args(inner).iter()) {
+                        subst.insert(*gp_name, sig_str_to_hir(val_str.trim()));
+                    }
                 }
             }
         }
@@ -258,21 +266,6 @@ impl Ctx {
         self.locals.push(HirLocal { name, ty: inferred_ty.clone(), mutable: false });
         self.bind_var(name, id, inferred_ty.clone(), false);
         (id, inferred_ty, false)
-    }
-
-    /// 更新变量的类型（用于泛型推导后更新变量类型）
-    pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType) {
-        if let Some(local) = self.locals.get_mut(var_id.0) {
-            local.ty = new_ty.clone();
-        }
-        for scope in self.scopes.iter_mut() {
-            for (_, (id, ty, _mutable)) in scope.iter_mut() {
-                if *id == var_id {
-                    *ty = new_ty;
-                    return;
-                }
-            }
-        }
     }
 
     /// Check if a type is an enum (has _tag field as first field)

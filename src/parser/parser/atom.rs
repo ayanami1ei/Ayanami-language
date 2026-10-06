@@ -49,16 +49,16 @@ impl Parser {
                 // Handle :: as path separator only if followed by another :: (namespace chain)
                 // or if it's NOT followed by ( or { (which would be enum construct)
                 self.handle_path_sep(&mut name_str, &mut name_sym)?;
-                // Check for generic struct literal: Name[T] { field = val }
-                // Only trigger if we can find ]{ ident = pattern
+                // Check for generic struct literal: Name[T, U] { field = val }
+                // 扫描匹配的 `]`（支持多参数/嵌套），再看 `{ ident =` 形态
                 let is_generic_struct = self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket))
-                    && self.pos + 4 < self.tokens.len()
-                    && self.tokens[self.pos + 1].kind != TokenKind::Delimiter(Delimiter::RBracket)
-                    && self.tokens[self.pos + 2].kind == TokenKind::Delimiter(Delimiter::RBracket)
-                    && self.tokens[self.pos + 3].kind == TokenKind::Delimiter(Delimiter::LBrace)
-                    && matches!(&self.tokens[self.pos + 4].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
-                    && self.pos + 5 < self.tokens.len()
-                    && self.tokens[self.pos + 5].kind == TokenKind::Operator("=".to_string());
+                    && self.matching_bracket(self.pos).map_or(false, |close| {
+                        close > self.pos + 1
+                            && close + 3 < self.tokens.len()
+                            && self.tokens[close + 1].kind == TokenKind::Delimiter(Delimiter::LBrace)
+                            && matches!(&self.tokens[close + 2].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
+                            && self.tokens[close + 3].kind == TokenKind::Operator("=".to_string())
+                    });
                 if is_generic_struct && self.struct_lit_depth == 0 {
                     self.advance(); // consume [
                     let mut generic_args = Vec::new();

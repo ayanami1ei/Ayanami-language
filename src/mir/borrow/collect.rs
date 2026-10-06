@@ -193,6 +193,8 @@ pub(super) fn collect(
                         ) + &at));
                     }
                 }
+            } else if value.refs_global().is_some() {
+                // M6.2：引用全局（static）——全局始终存活，不参与局部 loan 跟踪
             } else {
                 return Err(Error::Borrow(format!(
                     "reference local `{}` must be initialized from `ref`, another reference, or a call returning a reference",

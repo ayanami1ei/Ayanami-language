@@ -54,6 +54,8 @@ pub(crate) struct FnSig {
     pub span: Span,
     /// 末尾保留参数个数（函数级 track_caller：__line/__col/__file）
     pub hidden: usize,
+    /// M1.9：调用不返回（`-> !` 或 `#[noreturn]`）——调用表达式类型为 `!`
+    pub is_noreturn: bool,
 }
 
 /// 接口注册信息 —— 记录接口的泛型参数和方法签名
@@ -102,6 +104,8 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
     ctx.collect_fns(&program.stmts)?;
     // A5b：导入加载完成后校验宏引用
     crate::hir::attrs::validate_macros(&program, &ctx.imported_macros, &ctx.imported_passes, &ctx.imported_checks)?;
+    // #121：泛型体 eager 名称检查（未实例化的方法体不再完全静默）
+    ctx.check_generic_bodies()?;
     ctx.build_vtables()?;
     let mut items = ctx.lower_items(&program.stmts)?;
 
@@ -128,5 +132,11 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
     // 追加 lambda 表达式产生的匿名函数
     for f in ctx.lambda_fns.drain(..) { items.push(HirItem::Fn(f)); }
 
-    Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), generic_struct_params: ctx.generic_struct_params.clone(), imported_fns })
+    let mut statics: Vec<crate::hir::HirStatic> = ctx.statics.values().cloned().collect();
+    statics.sort_by(|a, b| a.name.as_str().cmp(&b.name.as_str()));
+    // 别名（裸名/限定名指向同一发射符号）只保留一份
+    statics.dedup_by(|a, b| a.name == b.name);
+    let mut consts = ctx.const_exports.clone();
+    consts.sort_by(|a, b| a.0.as_str().cmp(&b.0.as_str()));
+    Ok(HirProgram { items, vtables: ctx.vtables.clone(), struct_defs: ctx.struct_defs.clone(), generic_struct_params: ctx.generic_struct_params.clone(), imported_fns, statics, consts })
 }

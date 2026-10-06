@@ -84,6 +84,24 @@ impl<'a> Emitter<'a> {
     }
 
 
+    /// M6.2：发射全局变量 `@name = global <ty> <init>`
+    pub(super) fn emit_global_defs(&mut self) {
+        for g in &self.prog.globals {
+            let ty = self.llvm_type(&g.ty);
+            let lit = lit_to_string(&g.value, &g.ty);
+            // M-opt.2：release 下私有全局标 internal；pub static 保持外部（M6.2b）
+            let linkage = if crate::hir::contracts::is_release() && !g.is_pub { "internal " } else { "" };
+            self.wln_fmt(format_args!("@{} = {}global {} {}", g.name.as_str(), linkage, ty, lit));
+        }
+        for (name, ty) in &self.prog.extern_globals {
+            let ty = self.llvm_type(ty);
+            self.wln_fmt(format_args!("@{} = external global {}", name.as_str(), ty));
+        }
+        if !self.prog.globals.is_empty() || !self.prog.extern_globals.is_empty() {
+            self.wln("");
+        }
+    }
+
     pub(super) fn emit_string_globals(&mut self) {
         for (i, s) in self.prog.strings.iter().enumerate() {
             let escaped = escape_llvm_string(s);
@@ -109,17 +127,40 @@ impl<'a> Emitter<'a> {
         let ret_ty = self.llvm_type(&f.return_type);
         let mut params_str: Vec<String> = Vec::new();
         for (i, (_, t)) in f.params.iter().enumerate() {
-            let attrs = f.param_attrs.get(i).map(|v| llvm_param_attrs(v)).unwrap_or_default();
+            let mut attrs = f.param_attrs.get(i).map(|v| llvm_param_attrs(v)).unwrap_or_default();
+            // M-opt.1：release 按所有权模型推断 noalias（ref mut 独占 / 拥有值唯一）
+            if crate::hir::contracts::is_release()
+                && matches!(t, HirType::Ref(_, true) | HirType::Unique(_))
+                && !attrs.contains("noalias")
+            {
+                attrs.push_str(" noalias");
+            }
             params_str.push(format!("{}{}", self.llvm_type(t), attrs));
         }
         let param_list = params_str.join(", ");
         let has_ptr_params = f.params.iter().any(|(_, t)| is_ptr_like(t));
-        let inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline, f.effects, has_ptr_params);
+        let mut inline_attr = llvm_attr_suffix(&f.attrs, f.is_inline, f.effects, has_ptr_params);
+        // M-opt.1：release 全函数 nounwind（语言无栈展开；panic 为 noreturn 退出）
+        if crate::hir::contracts::is_release() && !inline_attr.contains("nounwind") {
+            inline_attr.push_str(" nounwind");
+        }
+        // M1.9：`-> !` 自动 noreturn
+        if matches!(f.return_type, HirType::Never) && !inline_attr.contains("noreturn") {
+            inline_attr.push_str(" noreturn");
+        }
 
         self.current_fn_ret_ty = f.return_type.clone();
 
+        // M-opt.2：release 下非导出定义标 internal（opt 可内联/DCE、免 PLT）；
+        // main / extern "C" / pub / 弱特化保持外部链接。
         let linkage = if self.prog.specialized_fns.contains(&f.fn_id) || f.is_inline {
             "linkonce_odr "
+        } else if crate::hir::contracts::is_release()
+            && !f.is_pub
+            && !f.extern_c
+            && fn_name != "main"
+        {
+            "internal "
         } else {
             ""
         };
@@ -181,16 +222,18 @@ impl<'a> Emitter<'a> {
 
 
 fn escape_llvm_string(s: &str) -> String {
+    // #122：按 UTF-8 字节转义（此前按 char 取低 8 位，非 ASCII 会截断且字节数不符）；
+    // LLVM c"..." 中非可打印字节用大写十六进制 \XX
     let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\22"),
-            '\\' => out.push_str("\\5c"),
-            '\n' => out.push_str("\\0a"),
-            '\r' => out.push_str("\\0d"),
-            '\t' => out.push_str("\\09"),
-            c if c.is_ascii_graphic() || c == ' ' => out.push(c),
-            c => out.push_str(&format!("\\{:02x}", c as u8)),
+    for b in s.bytes() {
+        match b {
+            b'"' => out.push_str("\\22"),
+            b'\\' => out.push_str("\\5c"),
+            b'\n' => out.push_str("\\0a"),
+            b'\r' => out.push_str("\\0d"),
+            b'\t' => out.push_str("\\09"),
+            0x20..=0x7e => out.push(b as char),
+            other => out.push_str(&format!("\\{:02X}", other)),
         }
     }
     out

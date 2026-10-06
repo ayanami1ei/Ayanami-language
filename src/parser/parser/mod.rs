@@ -21,6 +21,7 @@ fn ast_type_text(ty: &Type) -> String {
         Type::Char(_) => "char".into(),
         Type::Bool(_) => "bool".into(),
         Type::Void(_) => "void".into(),
+        Type::Never(_) => "!".into(),
         Type::Named(n, _) => n.as_str().to_string(),
         Type::Generic(n, args, _) => format!("{}<{}>", n, args.iter().map(ast_type_text).collect::<Vec<_>>().join(",")),
         Type::Array(inner, _) => format!("[{}]", ast_type_text(inner)),

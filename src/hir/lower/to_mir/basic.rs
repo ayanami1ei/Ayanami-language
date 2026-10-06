@@ -40,6 +40,22 @@ impl HirNode for SConst {
     }
 }
 
+/// M6.2：全局变量地址。`expr_type` 为 `Ref(ty, mutable)`，供 place_ptr/解引用复用。
+impl HirNode for SGlobal {
+    fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn lower_to_mir(&self, _moved: &HashSet<VarId>) -> MirNodeBox {
+        SMirGlobal { name: self.name, ty: self.ty.clone(), mutable: self.mutable }.into()
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Global({}, mut: {})", "", self.name.as_str(), self.mutable, width = level * 2)
+    }
+    fn expr_type(&self) -> HirType {
+        HirType::Ref(Box::new(self.ty.clone()), self.mutable)
+    }
+    fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode)) {
+    }
+}
+
 /// #117：编译器合成的 track_caller 文件名字符串参数。
 /// 运行时与 `SConst(String)` 一致（MIR 字面量），但不计为用户可见的 `alloc` 效应。
 impl HirNode for SFileArg {

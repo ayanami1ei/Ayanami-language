@@ -1,0 +1,35 @@
+// M6.2：static / static mut（全局可寻址存储 + 常量初始化）
+static MAX = 10
+static mut COUNTER = 0
+static PI: float = 3.5
+
+fn bump() -> int {
+    COUNTER = COUNTER + 1
+    return COUNTER
+}
+
+fn inc(ref mut int x) -> int {
+    x = x + 1
+    return x
+}
+
+namespace cfg {
+    static mut LEVEL = 1
+}
+
+fn main() -> int {
+    if MAX != 10 { return 1 }
+    cfg::LEVEL = 3
+    if cfg::LEVEL != 3 { return 8 }
+    if ref mut cfg::LEVEL != 3 { return 9 }
+    if bump() != 1 { return 2 }
+    if bump() != 2 { return 3 }
+    if COUNTER != 2 { return 4 }
+    if PI != 3.5 { return 5 }
+    inc(COUNTER)
+    if COUNTER != 3 { return 6 }
+    r = ref mut COUNTER
+    r = 7
+    if COUNTER != 7 { return 7 }
+    return 0
+}

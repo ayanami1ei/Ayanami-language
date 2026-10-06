@@ -14,6 +14,14 @@ pub trait MirNode: std::fmt::Debug {
     fn display(&self, level: usize, w: &mut dyn FmtWrite) -> std::fmt::Result;
     fn expr_type(&self) -> HirType;
     fn as_local(&self) -> Option<VarId> { None }
+    /// M6.2：全局变量地址（SMirGlobal）
+    fn as_global(&self) -> Option<Symbol> { None }
+    /// 解引用内部表达式（SMirDeref），供 place_ptr 穿透到全局
+    fn as_deref(&self) -> Option<&MirNodeBox> { None }
+    /// M6.2：该引用指向全局变量（SMirRef{expr: SMirGlobal}）
+    fn refs_global(&self) -> Option<Symbol> { None }
+    /// 索引表达式（SMirIndex）→ (对象, 下标)，供 place_ptr 取元素地址（#130）
+    fn as_index(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { None }
     /// 递归收集表达式引用的局部变量（默认经 for_each_child 下降）
     fn collect_var_ids(&self, vars: &mut HashSet<VarId>) {
         self.for_each_child(&mut |c| c.collect_var_ids(vars));
@@ -141,6 +149,8 @@ s_mir!(SMirArrayLiteral { elems: Vec<MirNodeBox>, ty: HirType });
 s_mir!(SMirArraySized { count: MirNodeBox, elem_ty: HirType, ty: HirType });
 s_mir!(SMirRef { expr: MirNodeBox, mutable: bool, ty: HirType });
 s_mir!(SMirDeref { expr: MirNodeBox, ty: HirType });
+// M6.2：全局变量地址（ty 为 pointee；expr_type = Ref(ty, mutable)）
+s_mir!(SMirGlobal { name: Symbol, ty: HirType, mutable: bool });
 s_mir!(SMirIndex { object: MirNodeBox, index: MirNodeBox, ty: HirType });
 s_mir!(SMirAsm { template: String, outputs: Vec<(String, MirNodeBox)>, inputs: Vec<(String, MirNodeBox)>, ty: HirType });
 
@@ -167,7 +177,7 @@ macro_rules! impl_into_mir_node_box {
         })*
     };
 }
-impl_into_mir_node_box!(SMirLocal, SMirLiteral, SMirBinary, SMirUnary, SMirCall, SMirMove, SMirClone, SMirToUnique, SMirCast, SMirVirtualCall, SMirMakeFatPtr, SMirEnumConstruct, SMirFnPtr, SMirCallPtr, SMirEnumMatch, SMirFieldAccess, SMirStructLiteral, SMirArrayLiteral, SMirArraySized, SMirRef, SMirDeref, SMirIndex, SMirAsm);
+impl_into_mir_node_box!(SMirLocal, SMirLiteral, SMirBinary, SMirUnary, SMirCall, SMirMove, SMirClone, SMirToUnique, SMirCast, SMirVirtualCall, SMirMakeFatPtr, SMirEnumConstruct, SMirFnPtr, SMirCallPtr, SMirEnumMatch, SMirFieldAccess, SMirStructLiteral, SMirArrayLiteral, SMirArraySized, SMirRef, SMirDeref, SMirGlobal, SMirIndex, SMirAsm);
 
 macro_rules! impl_into_mir_stmt_box {
     ($($ty:ident),* $(,)?) => {
@@ -201,6 +211,8 @@ pub struct MirFn {
     pub extern_c: bool,
     /// 泛型特化（弱链接）
     pub is_specialized: bool,
+    /// M-opt.2：pub 导出（release 内部化非导出函数）
+    pub is_pub: bool,
     pub params: Vec<(Symbol, HirType)>,
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,
@@ -239,4 +251,6 @@ pub struct MirProgram {
     pub struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
     pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
     pub imported_fns: Vec<crate::hir::ir::ImportedFnSig>,
+    /// M6.2：顶层 static（透传到 LIR globals）
+    pub statics: Vec<crate::hir::HirStatic>,
 }

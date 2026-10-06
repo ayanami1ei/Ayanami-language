@@ -69,6 +69,7 @@ pub(super) fn type_to_mangle(ty: &HirType) -> String {
         HirType::F32 => "f32".into(),
         HirType::Char => "char".into(),
         HirType::Void => "void".into(),
+        HirType::Never => "never".into(),
         HirType::Bool => "bool".into(),
         HirType::IntN { bits, signed } => crate::hir::lower::helpers::intn_name(*bits, *signed),
         HirType::Named(s) => s.as_str().replace('<', "_lt_").replace('>', "_gt_")

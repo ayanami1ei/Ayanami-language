@@ -51,6 +51,7 @@ impl crate::hir::lower::Ctx {
             return_type: ty.clone(),
             span: Span::default(),
             hidden: 3,
+            is_noreturn: false,
         });
         self.synth_externs.push(crate::hir::HirFn {
             span: Span::default(),

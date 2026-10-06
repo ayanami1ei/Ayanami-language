@@ -51,6 +51,7 @@ impl<'a> Lexer<'a> {
                     "match" => TokenKind::Keyword(Keyword::Match),
                     "namespace" => TokenKind::Keyword(Keyword::Namespace),
                     "const" => TokenKind::Keyword(Keyword::Const),
+                    "static" => TokenKind::Keyword(Keyword::Static),
                     "move" => TokenKind::Keyword(Keyword::Move),
                     "clone" => TokenKind::Keyword(Keyword::Clone),
                     "interface" => TokenKind::Keyword(Keyword::Interface),

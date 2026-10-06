@@ -1,0 +1,1 @@
+#[compile_time] functions cannot be generic

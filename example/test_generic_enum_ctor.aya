@@ -1,0 +1,47 @@
+// #120：泛型枚举构造单态化——从载荷推断类型实参（E::A(1) → E<int>）
+import "option"
+
+enum E[T] {
+    A(T),
+    B,
+}
+
+impl[T] E[T] {
+    pub fn tag(self) -> int {
+        match self {
+            A(_) => 1,
+            B => 0,
+        }
+    }
+}
+
+enum Pair[A, B] {
+    P(A, B),
+    Nil,
+}
+
+impl[A, B] Pair[A, B] {
+    pub fn pair_tag(self) -> int {
+        match self {
+            P(_, _) => 1,
+            Nil => 0,
+        }
+    }
+}
+
+fn none_opt() -> Option[int] {
+    return Option::None()
+}
+
+fn main() -> int {
+    e = E::A(7)
+    if e.tag() != 1 { return 1 }
+    p = Pair::P(1, 2)
+    if p.pair_tag() != 1 { return 2 }
+    o = Option::Some(5)
+    if !o.is_some() { return 3 }
+    o2 = Option::Some(9)
+    if o2.unwrap_or(0) != 9 { return 4 }
+    if none_opt().is_some() { return 5 }
+    return 0
+}

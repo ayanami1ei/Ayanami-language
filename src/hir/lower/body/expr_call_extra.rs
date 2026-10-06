@@ -29,7 +29,8 @@ impl crate::hir::lower::Ctx {
                 wrap_arg_for_param(arg, &param_tys[i])
             }).collect();
             let all_args = self.adapt_enum_args(all_args, &param_tys)?;
-            return Ok(SCall { fn_id, args: all_args, ty: ret_ty }.into());
+            let ty = if self.fns[fn_id.0].is_noreturn { HirType::Never } else { ret_ty };
+            return Ok(SCall { fn_id, args: all_args, ty }.into());
         }
         Err(Error::Hir(format!("type `{}` cannot be called as a function at {}:{}",
             hir_type_display(&target_ty), span.start_line, span.start_col)))

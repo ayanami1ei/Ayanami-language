@@ -96,7 +96,8 @@ impl crate::hir::lower::Ctx {
                                     wrap_arg_for_param(arg, &param_tys[j])
                                 }).collect();
                                 let all_args = self.adapt_enum_args(all_args, &param_tys)?;
-                                arms.push((i as i64, SCall { fn_id, args: all_args, ty: ret_ty }.into()));
+                                let vty = if self.fns[fn_id.0].is_noreturn { HirType::Never } else { ret_ty };
+                                arms.push((i as i64, SCall { fn_id, args: all_args, ty: vty }.into()));
                             }
                         }
                         if arms.len() == var_fields.len() && !arms.is_empty() {
@@ -191,7 +192,7 @@ impl crate::hir::lower::Ctx {
             all_args.extend(self.caller_hidden_args(span, hidden));
         }
 
-        let ty = self.fns[fn_id.0].return_type.clone();
+        let ty = if self.fns[fn_id.0].is_noreturn { HirType::Never } else { self.fns[fn_id.0].return_type.clone() };
         Ok(SCall { fn_id, args: all_args, ty }.into())
     }
 }

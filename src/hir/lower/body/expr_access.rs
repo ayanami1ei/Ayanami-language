@@ -120,6 +120,22 @@ impl crate::hir::lower::Ctx {
         let hir_index = auto_deref(self.lower_expr(index)?);
         let object_ty = expr_type(&hir_object);
         let inner_ty = strip_ownership(object_ty.clone());
+        // 内置数组（含 `ref [T]` / `ref mut [T]` 自动解引用）：优先于方法解析，
+        // 否则导入 std 后可能误配 `String.index` 等同名方法（读索引此前直接报
+        // "index on non-array type"）。
+        let deref_ty = strip_ownership(match &inner_ty {
+            HirType::Ref(inner, _) => inner.as_ref().clone(),
+            other => other.clone(),
+        });
+        if let HirType::Array(elem) | HirType::ArraySized(elem, _) = &deref_ty {
+            let elem_ty = (**elem).clone();
+            let hir_index = coerce_index(hir_index, &HirType::Int, span)?;
+            return Ok(SIdx {
+                object: hir_object,
+                index: hir_index,
+                ty: elem_ty,
+            }.into());
+        }
         // Virtual dispatch through interface
         if let HirType::FatPtr { name: iface, .. } = &inner_ty {
             let iface_name = *iface;

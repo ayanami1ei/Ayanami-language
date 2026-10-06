@@ -10,6 +10,8 @@ pub enum Type {
     Char(Span),
     Bool(Span),
     Void(Span),
+    /// M1.9：never 类型 `!`（发散表达式）
+    Never(Span),
     Named(Symbol, Span),
     Generic(Symbol, Vec<Type>, Span),  // Foo[int]
     Array(Box<Type>, Span),
@@ -27,6 +29,7 @@ impl Type {
             | Type::Char(s)
             | Type::Bool(s)
             | Type::Void(s)
+            | Type::Never(s)
             | Type::Generic(_, _, s)
             | Type::Array(_, s)
             | Type::Ref(_, _, s)

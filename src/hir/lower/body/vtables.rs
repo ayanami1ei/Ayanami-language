@@ -51,6 +51,7 @@ impl crate::hir::lower::Ctx {
                         inferred: Default::default(),
                         span: crate::span::Span::default(),
                         hidden,
+                        is_noreturn: false,
                     });
                 }
             }

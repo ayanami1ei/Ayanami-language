@@ -221,6 +221,13 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             write_attrs(out, attrs, level);
             write_stmt(out, stmt, level);
         }
+        StaticDecl { attrs, vis, is_mut, name, ty, value, .. } => {
+            write_attrs(out, attrs, level);
+            let i = indent(level);
+            let m = if *is_mut { "mut " } else { "" };
+            let ann = ty.as_ref().map(|t| format!(": {}", write_type(t))).unwrap_or_default();
+            let _ = writeln!(out, "{}{}static {}{}{} = {};", i, vis_str(vis), m, name, ann, write_expr(value));
+        }
         ConstDecl { attrs, vis, name, ty, value, .. } => {
             write_attrs(out, attrs, level);
             let i = indent(level);

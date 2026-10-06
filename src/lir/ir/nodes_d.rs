@@ -55,6 +55,8 @@ pub struct LirFn {
     pub name: Symbol,
     pub is_inline: bool,
     pub extern_c: bool,
+    /// M-opt.2：pub 导出（release 内部化非导出函数）
+    pub is_pub: bool,
     pub params: Vec<(Symbol, HirType)>,
     pub return_type: HirType,
     pub locals: Vec<MirLocal>,
@@ -75,9 +77,23 @@ pub struct VtableDesc {
     pub fn_ids: Vec<FnId>,
 }
 
+/// M6.2：全局变量定义（常量初始化，发射为 LLVM `global`）
+#[derive(Debug, Clone)]
+pub struct LirGlobal {
+    pub name: Symbol,
+    pub ty: HirType,
+    pub value: HirLiteral,
+    /// M6.2b：pub 导出（release 内部化跳过）
+    pub is_pub: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct LirProgram {
     pub strings: Vec<String>,
+    /// M6.2：全局变量（按名排序，发射 @name = global）
+    pub globals: Vec<LirGlobal>,
+    /// M6.2b：导入的全局（发射 `@name = external global <ty>` 声明）
+    pub extern_globals: Vec<(Symbol, HirType)>,
     pub fn_names: HashMap<FnId, String>,
     pub functions: Vec<LirFn>,
     pub vtables: Vec<VtableDesc>,
@@ -109,6 +125,7 @@ pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
         HirType::F32 => buf.push(14),
         HirType::Char => buf.push(2),
         HirType::Void => buf.push(3),
+        HirType::Never => buf.push(15),
         HirType::Bool => buf.push(4),
         HirType::IntN { bits, signed } => { buf.push(13); buf.push(*bits); buf.push(if *signed { 1 } else { 0 }); }
         HirType::Named(s) => { buf.push(5); put_str(buf, &s.as_str()); }

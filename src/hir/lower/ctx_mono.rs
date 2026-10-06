@@ -57,12 +57,16 @@ impl crate::hir::lower::Ctx {
             .collect());
         self.generic_struct_params.insert(name, Vec::new());
 
-        // 实例化变体结构体（字段即枚举参数 → 同一 subst）
+        // 变体结构体（`Base_Variant<args>`）字段沿用同一 subst（枚举参数）；
+        // 嵌套泛型类型（如字段类型 `Box<int>`）走自身实例化（自建 subst，#123）
+        let variant_prefix = format!("{}_", base.as_str());
         for (_, fty) in &new_fields {
             if let HirType::Named(vn) = fty {
                 let vn = *vn;
-                if !self.struct_defs.contains_key(&vn) {
-                    let base_vn = strip_generic_name(&vn);
+                let base_vn = strip_generic_name(&vn);
+                if !self.struct_defs.contains_key(&vn)
+                    && base_vn.as_str().starts_with(variant_prefix.as_str())
+                {
                     if let Some(vfields) = self.struct_defs.get(&base_vn).cloned() {
                         let substituted: Vec<HirStructField> = vfields.iter()
                             .map(|f| HirStructField { name: f.name, ty: substitute_hir_type(&f.ty, &subst) })
@@ -127,4 +131,34 @@ impl crate::hir::lower::Ctx {
         Ok(st.into())
     }
 
+    /// #135：结果类型为泛型枚举基名（部分实参无法从载荷推断而回退）时，
+    /// 用当前函数返回类型的同基名实例化细化（`Pair` → `Pair<int,String>`）。
+    pub fn refine_enum_result_type(&self, ty: HirType) -> HirType {
+        let HirType::Named(n) = &ty else { return ty };
+        if n.as_str().contains('<') || !self.generic_struct_params.contains_key(n) {
+            return ty;
+        }
+        let fn_ret = self.fns[self.current_fn.0].return_type.clone();
+        if let HirType::Named(rn) = &fn_ret {
+            if strip_generic_name(rn) == *n {
+                return fn_ret.clone();
+            }
+        }
+        ty
+    }
+
+    /// 更新变量的类型（用于泛型推导后更新变量类型）
+    pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType) {
+        if let Some(local) = self.locals.get_mut(var_id.0) {
+            local.ty = new_ty.clone();
+        }
+        for scope in self.scopes.iter_mut() {
+            for (_, (id, ty, _mutable)) in scope.iter_mut() {
+                if *id == var_id {
+                    *ty = new_ty;
+                    return;
+                }
+            }
+        }
+    }
 }

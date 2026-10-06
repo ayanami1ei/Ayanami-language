@@ -138,6 +138,70 @@ if [ -d tests/runtime_custom ]; then
     rm -rf "$rc_dir/build" "$rc_dir/custom_runtime.o" "$rc_dir/libcustom.a"
 fi
 
+# #129：分别打包的 .lcl 各自实例化同一泛型函数不得重复定义（弱链接去重）
+if [ -d tests/lcl_weak ]; then
+    wdir=tests/lcl_weak
+    root="$PWD"
+    "$BIN" package "$wdir/a.aya" >/dev/null 2>&1 || true
+    "$BIN" package "$wdir/b.aya" >/dev/null 2>&1 || true
+    if [ -f "$wdir/a.lcl" ] && [ -f "$wdir/b.lcl" ]; then
+        cp "$wdir/a.lcl" "$wdir/b.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+        timeout 120 "$BIN" run "$wdir/entry/main.aya" >/dev/null 2>&1
+        got=$?
+        if [ "$got" != 0 ]; then
+            echo "FAIL $wdir/entry/main.aya: exit $got, want 0（#129 .lcl 泛型实例化弱链接）"
+            fail=$((fail + 1))
+        fi
+        rm -f "$(dirname "$BIN")/std/a.lcl" "$(dirname "$BIN")/std/b.lcl"
+    else
+        echo "FAIL $wdir: package failed（#129 夹具）"
+        fail=$((fail + 1))
+    fi
+    rm -rf "$root/build" "$wdir/a.lcl" "$wdir/b.lcl"
+fi
+
+# M-opt.1：debug/release 模式差异（溢出检查 / 推断 noalias、nounwind）
+if [ -f example/test_release_opt.aya ]; then
+    "$BIN" build example/test_release_opt.aya >/dev/null 2>&1
+    if ! grep -q '__ayanami_ovf_' build/test_release_opt.ll; then
+        echo "FAIL M-opt.1: debug 构建缺少溢出检查"
+        fail=$((fail + 1))
+    fi
+    "$BIN" build --release example/test_release_opt.aya >/dev/null 2>&1
+    if grep -q '__ayanami_ovf_' build/test_release_opt.ll; then
+        echo "FAIL M-opt.1: release 构建仍含溢出检查"
+        fail=$((fail + 1))
+    fi
+    if ! grep -q 'noalias' build/test_release_opt.ll; then
+        echo "FAIL M-opt.1: release 构建缺少推断 noalias"
+        fail=$((fail + 1))
+    fi
+    if ! grep -q 'nounwind' build/test_release_opt.ll; then
+        echo "FAIL M-opt.1: release 构建缺少 nounwind"
+        fail=$((fail + 1))
+    fi
+    # M-opt.2：release 非导出函数 internal；pub 函数保持外部
+    if ! grep -q 'define internal' build/test_release_opt.ll; then
+        echo "FAIL M-opt.2: release 构建缺少 internal 非导出函数"
+        fail=$((fail + 1))
+    fi
+    if grep 'define.*@public_double_int' build/test_release_opt.ll | grep -q 'internal'; then
+        echo "FAIL M-opt.2: release 下 pub 函数被错误内部化"
+        fail=$((fail + 1))
+    fi
+    "$BIN" build example/test_release_opt.aya >/dev/null 2>&1
+    if grep -q 'define internal' build/test_release_opt.ll; then
+        echo "FAIL M-opt.2: debug 构建不应有 internal"
+        fail=$((fail + 1))
+    fi
+    timeout 60 "$BIN" run --release example/test_release_opt.aya >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL M-opt.1: release run exit $got, want 0"
+        fail=$((fail + 1))
+    fi
+fi
+
 # #100：源模块调用 .lcl 泛型方法不得重复单态化（multiple definition）
 if [ -d tests/lcl_mono ]; then
     mono_dir=tests/lcl_mono
@@ -171,6 +235,34 @@ if [ -d tests/lcl_transitive ]; then
         fail=$((fail + 1))
     fi
     rm -f "$(dirname "$BIN")/std/liba.lcl" "$(dirname "$BIN")/std/libb.lcl"
+fi
+
+# M6.1b：pub const 跨 .lcl 导出/导入 + 命名空间 const
+if [ -d tests/lcl_const ]; then
+    tdir=tests/lcl_const
+    "$BIN" package "$tdir/lib.aya" >/dev/null 2>&1 || true
+    cp "$tdir/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    timeout 120 "$BIN" run "$tdir/main.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL $tdir/main.aya: exit $got, want 0（M6.1b pub const 导入）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$(dirname "$BIN")/std/lib.lcl"
+fi
+
+# M6.2b：pub static 跨 .lcl 导出/导入（含 static mut 与命名空间）
+if [ -d tests/lcl_static ]; then
+    tdir=tests/lcl_static
+    "$BIN" package "$tdir/lib.aya" >/dev/null 2>&1 || true
+    cp "$tdir/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    timeout 120 "$BIN" run "$tdir/main.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL $tdir/main.aya: exit $got, want 0（M6.2b pub static 导入）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$(dirname "$BIN")/std/lib.lcl"
 fi
 
 echo "regression: positive=$pos negative=$neg runtime=$rt failures=$fail"

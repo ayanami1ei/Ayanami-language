@@ -1,0 +1,3 @@
+fn runtime_fn(int x) -> int { return x }
+const Z = runtime_fn(1)
+fn main() -> int { return 0 }

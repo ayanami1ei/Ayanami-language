@@ -1,0 +1,51 @@
+// 回归：`ref [T]` / `ref mut [T]` 索引读写（经 ref 取数组指针）+ 递归再借用
+fn sum(ref [int] a, int n) -> int {
+    s = 0
+    for i in (0, n) {
+        s = s + a[i]
+    }
+    return s
+}
+
+fn fill(ref mut [int] a, int n, int base) {
+    for i in (0, n) {
+        a[i] = base + i
+    }
+}
+
+fn qsort(ref mut [int] a, int lo, int hi) {
+    if lo >= hi { return }
+    p = a[(lo + hi) / 2]
+    i = lo
+    j = hi
+    while i <= j {
+        while a[i] < p { i = i + 1 }
+        while a[j] > p { j = j - 1 }
+        if i <= j {
+            t = a[i]
+            a[i] = a[j]
+            a[j] = t
+            i = i + 1
+            j = j - 1
+        }
+    }
+    if lo < j { qsort(ref mut a, lo, j) }
+    if i < hi { qsort(ref mut a, i, hi) }
+}
+
+fn main() -> int {
+    a = [int; 8]
+    fill(ref mut a, 8, 5)
+    if a[0] != 5 { return 1 }
+    if sum(ref a, 8) != 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 { return 2 }
+    b = [int; 8]
+    fill(ref mut b, 8, 0)
+    b[0] = 9
+    b[1] = 3
+    qsort(ref mut b, 0, 7)
+    for i in (1, 8) {
+        if b[i - 1] > b[i] { return 3 }
+    }
+    if b[7] != 9 { return 4 }
+    return 0
+}

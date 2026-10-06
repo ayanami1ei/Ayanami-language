@@ -1,0 +1,12 @@
+// M6.2b 夹具：导出全局（不可变 + 可变 + 命名空间）
+pub static COUNTER = 5
+pub static mut TOTAL = 0
+
+namespace cfg {
+    pub static mut LEVEL = 1
+}
+
+pub fn bump() -> int {
+    TOTAL = TOTAL + 1
+    return TOTAL
+}

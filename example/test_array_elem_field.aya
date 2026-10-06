@@ -1,0 +1,15 @@
+// #130：数组元素的字段赋值（o.xs[0].a = v）
+struct Inner { int a }
+struct Outer {
+    [Inner] xs
+    int n
+}
+
+fn main() -> int {
+    o = Outer { xs = [Inner; 2], n = 0 }
+    o.xs[0].a = 5
+    o.xs[1].a = 7
+    if o.xs[0].a != 5 { return 1 }
+    if o.xs[1].a != 7 { return 2 }
+    return 0
+}

@@ -1,0 +1,314 @@
+// Ayanami 基准参考实现（bench/bench.aya）
+// 协议：每个内核先 1 次预热（不计时），再连续 3 次计时取平均，输出 `name checksum ms`。
+// 每次计时运行都包含该次的数据初始化（qsort 填充 / sieve 清位 / matmul 清零 / mandelbrot run 偏移）。
+// 所有语言移植必须保持：常量、运算顺序、运行次数、输出格式完全一致，校验和可跨语言比对。
+import "io"
+import "math"
+import "time"
+
+// ── nbody（5 体引力，经典 Benchmarks Game 常量）──
+const NBODY_STEPS = 2000000
+const DAYS = 365.24
+
+fn nbody_run() {
+    n = 5
+    m = [float; 5]
+    x = [float; 5]
+    y = [float; 5]
+    z = [float; 5]
+    vx = [float; 5]
+    vy = [float; 5]
+    vz = [float; 5]
+    m[0] = 39.478
+    x[0] = 0.0
+    y[0] = 0.0
+    z[0] = 0.0
+    vx[0] = 0.0
+    vy[0] = 0.0
+    vz[0] = 0.0
+    m[1] = 0.03769367487038949
+    x[1] = 4.84143144246472090e+00
+    y[1] = -1.16032004402742839e+00
+    z[1] = -1.03622044471123109e-01
+    vx[1] = 1.66007664274403694e-03 * DAYS
+    vy[1] = 7.69901118419740425e-03 * DAYS
+    vz[1] = -6.90460016972063023e-05 * DAYS
+    m[2] = 0.011286326131968767
+    x[2] = 8.34336671824457987e+00
+    y[2] = 4.12479856412430479e+00
+    z[2] = -4.03523417114321381e-01
+    vx[2] = -2.76742510726862411e-03 * DAYS
+    vy[2] = 4.99852801234917238e-03 * DAYS
+    vz[2] = 2.30417297573763929e-05 * DAYS
+    m[3] = 0.0017237240570597112
+    x[3] = 1.28943695621391310e+01
+    y[3] = -1.51111514016986312e+01
+    z[3] = -2.23307578892655734e-01
+    vx[3] = 2.96460137564761618e-03 * DAYS
+    vy[3] = 2.37847173959480950e-03 * DAYS
+    vz[3] = -2.96589568540237556e-05 * DAYS
+    m[4] = 0.0020336868699246304
+    x[4] = 1.53796971148509165e+01
+    y[4] = -2.59193146099879641e+01
+    z[4] = 1.79258772950371181e-01
+    vx[4] = 2.68067772490389322e-03 * DAYS
+    vy[4] = 1.62824170038242295e-03 * DAYS
+    vz[4] = -9.51592254519715870e-05 * DAYS
+
+    dt = 0.01
+    // 预热 1 次 + 计时 3 次
+    for warm in (0, 1) {
+        nbody_steps(n, ref m, ref mut x, ref mut y, ref mut z, ref mut vx, ref mut vy, ref mut vz, dt)
+    }
+    t0 = now_millis()
+    for r in (0, 3) {
+        nbody_steps(n, ref m, ref mut x, ref mut y, ref mut z, ref mut vx, ref mut vy, ref mut vz, dt)
+    }
+    t1 = now_millis()
+    best = (t1 - t0) / 3
+
+    energy = 0.0
+    for i in (0, n) {
+        energy = energy + 0.5 * m[i] * (vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i])
+        for j in (i + 1, n) {
+            dx = x[i] - x[j]
+            dy = y[i] - y[j]
+            dz = z[i] - z[j]
+            energy = energy - m[i] * m[j] / sqrt(dx * dx + dy * dy + dz * dz)
+        }
+    }
+    print("nbody ")
+    print((energy * 1000.0) as int)
+    print(" ")
+    print(best)
+    println()
+}
+
+fn nbody_steps(int n, ref [float] m, ref mut [float] x, ref mut [float] y, ref mut [float] z, ref mut [float] vx, ref mut [float] vy, ref mut [float] vz, float dt) {
+    for s in (0, NBODY_STEPS) {
+        for i in (0, n) {
+            for j in (i + 1, n) {
+                dx = x[i] - x[j]
+                dy = y[i] - y[j]
+                dz = z[i] - z[j]
+                d2 = dx * dx + dy * dy + dz * dz
+                mag = dt / (d2 * sqrt(d2))
+                vx[i] = vx[i] - dx * m[j] * mag
+                vy[i] = vy[i] - dy * m[j] * mag
+                vz[i] = vz[i] - dz * m[j] * mag
+                vx[j] = vx[j] + dx * m[i] * mag
+                vy[j] = vy[j] + dy * m[i] * mag
+                vz[j] = vz[j] + dz * m[i] * mag
+            }
+        }
+        for i in (0, n) {
+            x[i] = x[i] + dt * vx[i]
+            y[i] = y[i] + dt * vy[i]
+            z[i] = z[i] + dt * vz[i]
+        }
+    }
+}
+
+// ── matmul（1024×1024 f64，ikj 顺序）──
+const MATMUL_N = 1024
+const MATMUL_LEN = 1048576
+
+fn matmul_run() {
+    a = [float; MATMUL_LEN]
+    b = [float; MATMUL_LEN]
+    c = [float; MATMUL_LEN]
+    for i in (0, MATMUL_LEN) {
+        a[i] = ((i % 1000) as float) / 1000.0 + 0.5
+        b[i] = ((i % 997) as float) / 997.0 + 0.25
+        c[i] = 0.0
+    }
+    // 预热 1 次
+    matmul_kernel(ref a, ref b, ref mut c)
+    t0 = now_millis()
+    for r in (0, 3) {
+        for i in (0, MATMUL_LEN) {
+            c[i] = 0.0
+        }
+        matmul_kernel(ref a, ref b, ref mut c)
+    }
+    t1 = now_millis()
+    best = (t1 - t0) / 3
+    sum = 0.0
+    for i in (0, MATMUL_LEN) {
+        sum = sum + c[i]
+    }
+    print("matmul ")
+    print((sum * 1000.0) as int)
+    print(" ")
+    print(best)
+    println()
+}
+
+fn matmul_kernel(ref [float] a, ref [float] b, ref mut [float] c) {
+    for i in (0, MATMUL_N) {
+        ib = i * MATMUL_N
+        for k in (0, MATMUL_N) {
+            av = a[ib + k]
+            kb = k * MATMUL_N
+            for j in (0, MATMUL_N) {
+                c[ib + j] = c[ib + j] + av * b[kb + j]
+            }
+        }
+    }
+}
+
+// ── sieve（埃拉托斯特尼筛，u8 标记）──
+const SIEVE_N = 50000000
+
+fn sieve_run() {
+    comp = [u8; SIEVE_N]
+    for i in (0, SIEVE_N) {
+        comp[i] = 0
+    }
+    // 预热 1 次
+    sieve_kernel(ref mut comp)
+    t0 = now_millis()
+    for r in (0, 3) {
+        for i in (0, SIEVE_N) {
+            comp[i] = 0
+        }
+        sieve_kernel(ref mut comp)
+    }
+    t1 = now_millis()
+    best = (t1 - t0) / 3
+    count = 0
+    for k in (2, SIEVE_N) {
+        if comp[k] == 0 { count = count + 1 }
+    }
+    print("sieve ")
+    print(count)
+    print(" ")
+    print(best)
+    println()
+}
+
+fn sieve_kernel(ref mut [u8] comp) {
+    i = 2
+    while i * i < SIEVE_N {
+        if comp[i] == 0 {
+            j = i * i
+            while j < SIEVE_N {
+                comp[j] = 1
+                j = j + i
+            }
+        }
+        i = i + 1
+    }
+}
+
+// ── quicksort（2M int，LCG 数据）──
+const QSORT_N = 2000000
+
+fn qsort(ref mut [int] a, int lo, int hi) {
+    if lo >= hi { return }
+    p = a[(lo + hi) / 2]
+    i = lo
+    j = hi
+    while i <= j {
+        while a[i] < p { i = i + 1 }
+        while a[j] > p { j = j - 1 }
+        if i <= j {
+            t = a[i]
+            a[i] = a[j]
+            a[j] = t
+            i = i + 1
+            j = j - 1
+        }
+    }
+    if lo < j { qsort(ref mut a, lo, j) }
+    if i < hi { qsort(ref mut a, i, hi) }
+}
+
+fn qsort_fill(ref mut [int] a) {
+    seed = 12345
+    for k in (0, QSORT_N) {
+        seed = (seed * 1103515245 + 12345) % 2147483648
+        a[k] = seed % 1000000
+    }
+}
+
+fn qsort_run() {
+    a = [int; QSORT_N]
+    // 预热 1 次
+    qsort_fill(ref mut a)
+    qsort(ref mut a, 0, QSORT_N - 1)
+    t0 = now_millis()
+    for r in (0, 3) {
+        qsort_fill(ref mut a)
+        qsort(ref mut a, 0, QSORT_N - 1)
+    }
+    t1 = now_millis()
+    best = (t1 - t0) / 3
+    sum = 0
+    for k in (0, QSORT_N) {
+        sum = sum + a[k] * (k % 97)
+    }
+    print("qsort ")
+    print(sum)
+    print(" ")
+    print(best)
+    println()
+}
+
+// ── mandelbrot（1024×1024，max 300 iter）──
+const MB_W = 1024
+const MB_H = 1024
+const MB_MAXIT = 300
+
+// 全局累加器/种子：让计时区内的纯计算无法被优化器提前（外部时钟调用可能读写全局）
+static mut MB_TOTAL = 0
+static mut MB_SEED = 0
+
+fn mandelbrot_run() {
+    // 预热 1 次（seed=0）
+    MB_SEED = 0
+    mandelbrot_kernel()
+    t0 = now_millis()
+    for r in (0, 3) {
+        MB_SEED = r
+        mandelbrot_kernel()
+    }
+    t1 = now_millis()
+    best = (t1 - t0) / 3
+    print("mandelbrot ")
+    print(MB_TOTAL)
+    print(" ")
+    print(best)
+    println()
+}
+
+fn mandelbrot_kernel() {
+    MB_TOTAL = 0
+    for py in (0, MB_H) {
+        y0 = (py as float) * 2.0 / (MB_H as float) - 1.0
+        for px in (0, MB_W) {
+            x0 = (px as float) * 2.5 / (MB_W as float) - 2.0 - (MB_SEED as float) * 0.001
+            x = 0.0
+            y = 0.0
+            it = 0
+            while it < MB_MAXIT {
+                x2 = x * x
+                y2 = y * y
+                if x2 + y2 > 4.0 { break }
+                y = 2.0 * x * y + y0
+                x = x2 - y2 + x0
+                it = it + 1
+            }
+            MB_TOTAL = MB_TOTAL + it
+        }
+    }
+}
+
+fn main() -> int {
+    nbody_run()
+    matmul_run()
+    sieve_run()
+    qsort_run()
+    mandelbrot_run()
+    return 0
+}

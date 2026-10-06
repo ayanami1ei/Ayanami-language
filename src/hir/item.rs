@@ -105,6 +105,19 @@ pub struct ImportedFnSig {
     pub inferred: crate::hir::effects::EffectSet,
 }
 
+/// M6.2：全局变量（常量初始化，可寻址）
+#[derive(Debug, Clone)]
+pub struct HirStatic {
+    pub name: Symbol,
+    pub ty: HirType,
+    pub value: HirLiteral,
+    pub is_mut: bool,
+    /// M6.2b：pub 导出（release 内部化跳过；.lcl 导出）
+    pub is_pub: bool,
+    /// M6.2b：来自 .lcl 导入（只发射 `external global` 声明，不定义）
+    pub is_external: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirProgram {
     pub items: Vec<HirItem>,
@@ -112,4 +125,8 @@ pub struct HirProgram {
     pub struct_defs: HashMap<Symbol, Vec<HirStructField>>,
     pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
     pub imported_fns: Vec<ImportedFnSig>,
+    /// M6.2：顶层 static 列表（按名排序，发射为 LLVM global）
+    pub statics: Vec<HirStatic>,
+    /// M6.1b：可导出编译期常量（按名排序；顶层裸名 / 命名空间限定名）
+    pub consts: Vec<(Symbol, HirType, HirLiteral)>,
 }

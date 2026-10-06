@@ -1,0 +1,6 @@
+static MAX = 10
+
+fn main() -> int {
+    MAX = 5
+    return 0
+}

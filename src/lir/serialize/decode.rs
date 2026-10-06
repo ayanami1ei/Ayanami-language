@@ -102,6 +102,20 @@ impl<'a> Reader<'a> {
                 let fi = self.u32()? as usize; let st = self.ty()?;
                 Ok(SLirFieldAddr { dest: d, obj: o, field_index: fi, struct_ty: st }.into())
             }
+            32 => {
+                let d = self.u64()?;
+                let n = Symbol::intern(&self.str()?);
+                Ok(SLirGlobalAddr { dest: d, name: n }.into())
+            }
+            33 => {
+                let d = self.u64()?; let a = self.u64()?;
+                let i = self.value()?; let et = self.ty()?;
+                Ok(SLirIndexAddr { dest: d, arr_tmp: a, index: i, elem_ty: et }.into())
+            }
+            34 => {
+                let d = self.u64()?; let s = self.value()?; let t = self.ty()?;
+                Ok(SLirLoadPtr { dest: d, src: s, ty: t }.into())
+            }
             16 => {
                 let d = self.u64()?;
                 let gt = self.u64()?;
@@ -263,6 +277,8 @@ impl<'a> Reader<'a> {
             for _ in 0..ic { insts.push(self.inst()?); }
             blocks.push(LirBlock { label, insts });
         }
-        Ok(LirFn { fn_id: fid, is_inline, extern_c, name, params, return_type: ret, locals, attrs, param_attrs, effects: LirEffects { no_throws, no_effects }, blocks, custom: Vec::new() })
+        // M-opt.2：LIR4 起带 is_pub；旧格式默认 true（保守：不内部化）
+        let is_pub = if self.has_pub { self.read(1)?[0] != 0 } else { true };
+        Ok(LirFn { fn_id: fid, is_inline, extern_c, is_pub, name, params, return_type: ret, locals, attrs, param_attrs, effects: LirEffects { no_throws, no_effects }, blocks, custom: Vec::new() })
     }
 }

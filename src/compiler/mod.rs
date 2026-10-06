@@ -30,6 +30,10 @@ pub struct CompiledFile {
     pub own_obj: std::path::PathBuf,
     pub lcl_path: std::path::PathBuf,
     pub dep_lcl_paths: Vec<std::path::PathBuf>,
+    /// M6.1b：可导出编译期常量（.lcl `const=` 行）
+    pub consts: Vec<(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)>,
+    /// M6.2b：可导出全局变量（.lcl `static=` 行）
+    pub statics: Vec<crate::hir::HirStatic>,
 }
 
 /// 简化编译结果（不含导入解析和链接信息）

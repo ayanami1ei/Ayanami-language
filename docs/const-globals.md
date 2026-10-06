@@ -1,7 +1,7 @@
 # const / static / 编译期求值设计（M6）
 
-> 状态：M6.1（const 基础）已实现；M6.1b（`pub const` 导出）/ M6.2（static）/ M6.3（const fn）
-> 设计见文末排期。
+> 状态：**M6.1 / M6.1b / M6.2a / M6.2b（pub static）/ M6.3a 已实现**；M6.2c（复合初始化）、
+> M6.3b（常量表）待做。见文末排期与各节实现状态。
 
 ## 目标与用途
 
@@ -16,8 +16,8 @@
 | 字面量 | `0x`/`0b`/`0o`/下划线/类型后缀/指数已支持（M1.5） |
 | 数组字面量计数 | `[T; n]` 中 n 为编译期常量时生成 `HirType::ArraySized`（`expr_lower.rs` 的 `as_const` 判定） |
 | `const` | ✅ 已支持（M6.1，文件作用域，编译期替换） |
-| `static` / 全局 | 无 |
-| 编译期函数求值 | 无（MIR/LIR 有局部折叠，但不暴露给用户） |
+| `static` / 全局 | ✅ M6.2a（标量、常量初始化、可寻址、`static mut`） |
+| 编译期函数求值 | ✅ M6.3a（`const fn` 标量：编译期解释 + 运行期普通调用） |
 
 ## M6.1 const（已实现）
 
@@ -32,7 +32,7 @@ pub const VERSION = 3
 ```
 
 - 顶层（文件作用域）；`pub` 可选（`.lcl` 导出见 M6.1b）；类型标注可选；行尾 `;` 可选。
-- 命名空间内 `const` 暂不支持（与 M6.1b 一起做）。
+- 命名空间内 `const` 支持（M6.1b）：限定名 `ns.NAME`（可嵌套），命名空间内可裸名使用。
 
 ### 常量表达式（M6.1 范围）
 
@@ -70,45 +70,67 @@ pub const VERSION = 3
 | 替换 | `src/hir/lower/body/expr_lower.rs`（Ident → `SConst`） |
 | 格式化 | `src/formatter/stmt.rs` |
 
-## M6.1b `pub const` 导出（设计）
+## M6.1b `pub const` 导出（已实现，2026-10）
 
-- `PackageSymbol::Const { name, ty, value }` → `.lcl` `const="name,ty,value"` 文本行；
-- 导入时注册到 `Ctx.consts`（限定名 `pkg.CONST` 或裸名）；
-- 命名空间内 const 同时支持（限定名 `ns.NAME`）。
+- `PackageSymbol::Const { name, ty, value }` → `.lcl` `const="name,ty,value"` 文本行
+  （值编码见 `src/package/const_codec.rs`：Int 十进制 / Float 最短往返 / Char 码点 / Bool）；
+- 导入时注册到 `Ctx.consts`（裸名 + 限定名 `pkg.CONST`；本地同名优先）；
+- 命名空间 const：限定名 `ns.NAME`（可嵌套 `ns.sub.NAME`），顶层导出裸名；
+- 传递依赖经 `merge_symbols` 再导出；
+- 回归：`example/test_const_ns.aya`、`tests/lcl_const/`（打包 lib → 导入裸名/限定名/命名空间）。
 
-## M6.2 static / global（设计）
+## M6.2 static / global（M6.2a 已实现，2026-10）
 
-```ayanami
-static COUNTER = 0
-static TABLE: [int; 16] = [0; 16]
-static mut STATE = 0        // 可变全局（写入需 unsafe，见 M5）
-```
+已实现（标量、常量初始化）：
 
-- **可寻址**：LLVM 全局变量（`@name = global`），支持取址/`ref`。
-- **初始化**：M6.2a 只允许常量初始化式（M6.1 求值器）；M6.3 后允许 `const fn`。
+- `static NAME [: T] = <常量表达式>`（不可变）与 `static mut NAME [: T] = ...`（可写）；
+- 读取 = 全局地址 + 载入；`ref NAME` / `ref mut NAME` = 全局地址；`f(NAME)` 传 `ref`/`ref mut` 形参自动借用全局；
+- `static mut` 赋值 → 穿透引用写入（`DerefAssign`）；
+- 不可变 static 赋值/取 `ref mut` 报错；初始化复用 M6.1 常量求值器（含 IntN 范围检查）；
+- 发射：`@name = global <ty> <init>`；引用全局的 ref 局部不参与局部 loan 跟踪（全局始终存活）；
+- 回归：`example/test_static.aya` + 两个负例。
+
+M6.2b（已实现，2026-10）：`pub static` 跨模块导出/导入：
+
+- `.lcl` `static="name,ty,mut"`（标量类型；值不需要——定义在被导入包的 .o 中）；
+- 导入注册裸名 + 限定名 `pkg.NAME`（别名指向同一发射符号）；命名空间 `ns.NAME`；
+- 导入方发射 `@name = external global <ty>` 声明，不定义；release 内部化跳过 pub static；
+- 回归：`tests/lcl_static/`（不可变/可变/命名空间跨模块读写）、`example/test_static.aya`。
+
+待做（M6.2c）：复合初始化（数组/结构体全局）、`static mut` 的 unsafe 门控（M5）。
+
 - **所有权**：static 值不可含堆所有权（`String` / `[T]` 动态数组）——避免无 drop 的全局；
   需要表时用固定大小 `[T; n]` 或 M6.3 生成的常量。
-- **跨模块**：`pub static` 经 `.lcl` 导出符号（`static="name,ty"`），导入方按外部全局声明
-  （LLVM `external global`），链接期解析。
 - **`main` 前初始化**：仅常量初始化（无运行时代码），无需 ctor。
+- 示例：`static COUNTER = 0`、`static TABLE: [int; 16] = [0; 16]`、`static mut STATE = 0`。
 
-## M6.3 编译期求值（设计）
+## M6.3 编译期求值 `#[compile_time] fn`（M6.3a 已实现，2026-10）
 
-- 形式：`#[const] fn make_table() -> [int; 64]` + `const TABLE = make_table()`。
-- 实现：对 `#[const]` 函数在 HIR（或 MIR）上做**解释执行**（常量栈 + 局部环境），
-  限制：无堆分配、无 IO、无 panic 之外的副作用、循环/分支可用；数组用固定大小。
-- 输出：`HirLiteral` 标量或常量数组（新增 `HirLiteral::Array(Vec<HirLiteral>)`），
-  发射为 LLVM 常量（`[N x T]`）或全局只读数据。
-- 分阶段：M6.3a 标量 const fn；M6.3b 固定大小数组/字符串表。
+统一 `const` 关键字，**编译器按上下文区分编译期与运行期**：
+
+- 声明：`#[compile_time] fn name(params) -> T { ... }`（与 `const NAME = ...` 分开：值用 `const`，函数用标注）。
+  被标注函数同时作为**普通运行期函数**编译（运行期调用正常发射），并登记为编译期可求值体。
+- 调用点：出现在 `const` / `static` 初始化式（含嵌套调用）→ 编译期解释执行；
+  出现在运行期代码 → 普通函数调用。
+- 求值器（`hir/lower/body/const_fn.rs` + `const_eval.rs`）：标量（int/float/char/bool/IntN）、
+  局部变量/赋值、if/elif/else、while、for 区间、break/continue、return 与块尾表达式、
+  const fn 互调（递归）、`if` 表达式分支块值。
+- 限制：递归深度 64、循环 100 万次（超出报错）；泛型/extern 标注报错；标注仅允许函数；
+  命名空间内需限定调用 `ns::f(...)`；不支持堆/数组/字符串/方法调用（见 M6.3b）。
+- 回归：`example/test_const_fn.aya`（fib 递归 + 运行期调用、for/while、尾 if、命名空间）、
+  负例 `const_fn_not_const` / `const_fn_generic` / `const_fn_recursion`。
+
+待做（M6.3b）：固定大小数组/字符串表（`const TABLE = make_table()` 产出 `[N x T]` 常量）、
+`HirLiteral::Array` 与只读全局发射。
 
 ## 阶段与排期
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | M6.1 | const 基础（标量 / 数组大小 / 0x） | ✅ 已实现 |
-| M6.1b | `pub const` / 命名空间 const 导出导入 | 待做 |
-| M6.2 | static / global（可寻址、常量初始化、跨模块） | 待做 |
-| M6.3 | const fn / make_table()（解释执行 + 常量表） | 待做 |
+| M6.1b | `pub const` / 命名空间 const 导出导入 | ✅ 已实现 |
+| M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a/b 已实现（标量；M6.2c 复合初始化待做） |
+| M6.3 | `#[compile_time] fn` / make_table()（解释执行 + 常量表） | ✅ M6.3a 已实现（标量；M6.3b 常量表待做） |
 
 ## 风险
 

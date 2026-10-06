@@ -196,6 +196,7 @@ impl MirNode for SMirArraySized {
 }
 
 impl MirNode for SMirIndex {
+    fn as_index(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.index)) }
     fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
@@ -205,9 +206,11 @@ impl MirNode for SMirIndex {
             LirValue::Tmp(t) => t,
             _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&arr_val), ty: self.object.expr_type() }.into()); t }
         };
+        // `ref [T]`/`ref mut [T]`：先通过 ref 取出数组指针
+        let arr_tmp = super::mir_ref::array_base_through_ref(ctx, arr_tmp, &self.object.expr_type());
         let dest = ctx.next_tmp(); let gep_tmp = ctx.next_tmp(); let load_tmp = ctx.next_tmp();
         let obj_ty = strip_ownership(self.object.expr_type());
-        let elem_ty = match strip_ownership(obj_ty.clone()) { HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(), _ => self.ty.clone() };
+        let elem_ty = super::mir_ref::array_elem_ty(&obj_ty).unwrap_or_else(|| self.ty.clone());
         ctx.emit(SLirIndexAccess { dest, gep_tmp, load_tmp, arr: LirValue::Tmp(arr_tmp), index: idx_val, elem_ty, ty: self.ty.clone() }.into());
         LirValue::Tmp(dest)
     }

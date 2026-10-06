@@ -8,6 +8,8 @@ impl MirStmtNode for SMirAssignStmt { fn span(&self) -> crate::span::Span { self
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
         let src = self.value.lower_to_lir(ctx);
+        // M1.9：`x = <!>` 只求值（副作用），不写 store（其后不可达）
+        if matches!(strip_ownership(self.value.expr_type()), HirType::Never) { return; }
         if let Some(id) = self.target.as_local() {
             ctx.emit(SLirStore { dest: id, src, ty: self.target.expr_type() }.into());
         }
@@ -75,12 +77,11 @@ impl MirStmtNode for SMirIndexAssignStmt { fn span(&self) -> crate::span::Span {
             LirValue::Tmp(t) => t,
             _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&obj_val), ty: self.object.expr_type() }.into()); t }
         };
+        let obj_tmp = super::mir_ref::array_base_through_ref(ctx, obj_tmp, &self.object.expr_type());
         let idx_val = self.index.lower_to_lir(ctx);
         let src_val = self.value.lower_to_lir(ctx);
         let gep_tmp = ctx.next_tmp();
-        let obj_ty = strip_ownership(self.object.expr_type());
-        // 数组现在直接是 Unique(Array/ArraySized)：先剥拥有包装再取元素类型
-        let elem_ty = match strip_ownership(obj_ty.clone()) { HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(), _ => HirType::Int };
+        let elem_ty = super::mir_ref::array_elem_ty(&strip_ownership(self.object.expr_type())).unwrap_or(HirType::Int);
         ctx.emit(SLirIndexStore { dest: obj_tmp, gep_tmp, src: src_val, index: idx_val, elem_ty, array_ty: self.object.expr_type() }.into());
     }
     fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
@@ -123,7 +124,7 @@ impl MirStmtNode for SMirReturnStmt { fn span(&self) -> crate::span::Span { self
 }
 
 impl MirStmtNode for SMirIfStmt { fn span(&self) -> crate::span::Span { self.span }
-    fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); }
+    fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); for (c, _) in &mut self.elifs { f(c); } }
     fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.then_block { f(s); } for (_, b) in &mut self.elifs { for s in b { f(s); } } if let Some(b) = &mut self.else_block { for s in b { f(s); } } }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
@@ -161,7 +162,7 @@ impl MirStmtNode for SMirIfStmt { fn span(&self) -> crate::span::Span { self.spa
         }
         Ok(())
     }
-    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); for (c, _) in &self.elifs { f(&**c); } }
     fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) {
         for s in &self.then_block { f(&**s); }
         for (_, b) in &self.elifs { for s in b { f(&**s); } }

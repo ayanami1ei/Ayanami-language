@@ -9,6 +9,7 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
         HirType::Char => Type::Char(s),
         HirType::Bool => Type::Bool(s),
         HirType::Void => Type::Void(s),
+        HirType::Never => Type::Never(s),
         HirType::IntN { bits, signed } => Type::Named(Symbol::intern(&crate::hir::lower::helpers::intn_name(*bits, *signed)), s),
         HirType::Named(n) => Type::Named(*n, s),
         HirType::Unique(inner) => Type::Unique(Box::new(hir_type_to_ast_type(inner)), s),
@@ -52,8 +53,8 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
             // Check if arg_name is "Name<...>"（兼容 `Name[...]` 旧编码）
             if let Some(start) = arg_name.find('<').or_else(|| arg_name.find('[')) {
                 if &arg_name[..start] == base {
-                    let closer = if arg_name.as_bytes()[start] == b'<' { '>' } else { ']' };
-                    let inner = arg_name[start + 1..].trim_end_matches(closer);
+                    // #134：必须用配对括号提取（trim_end_matches 会吃掉嵌套泛型的多个 `>`）
+                    let Some(inner) = generic_inner(&arg_name) else { return out; };
                     let inner_parts = split_generic_args(inner);
                     // Decode each inner part: "int" → Int, "String" → Named("String")
                     for (gp, inner_str) in params.iter().zip(inner_parts.iter()) {
@@ -77,12 +78,40 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
             HirType::Array(a) | HirType::ArraySized(a, _) => infer_generic_from_param(inner, a),
             _ => Vec::new(),
         },
+        // #119：函数指针形参（fn(T) -> U）→ 从 lambda/FnPtr 实参推导参数与返回类型
+        (Type::FnPtr(ps, ret, _), _) => {
+            let mut out = Vec::new();
+            if let HirType::FnPtr(aps, aret) = strip_ownership_ref(arg_ty) {
+                for (pt, at) in ps.iter().zip(aps.iter()) {
+                    out.extend(infer_generic_from_param(pt, at));
+                }
+                out.extend(infer_generic_from_param(ret, aret));
+            }
+            out
+        }
         _ => Vec::new(),
     }
 }
 
+/// 提取 `Base<...>` / `Base[...]` 的外层参数串（匹配首个开括号的配对闭括号，尊重嵌套）。
+pub(crate) fn generic_inner(s: &str) -> Option<&str> {
+    let open = s.find(['<', '['])?;
+    let mut depth = 0i32;
+    for (i, c) in s.char_indices().skip(open) {
+        match c {
+            '<' | '[' => depth += 1,
+            '>' | ']' => {
+                depth -= 1;
+                if depth == 0 { return Some(&s[open + 1..i]); }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 /// 按顶层逗号切分泛型实参（忽略嵌套 `<>` / `[]` 内的逗号）
-fn split_generic_args(s: &str) -> Vec<&str> {
+pub(crate) fn split_generic_args(s: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let mut depth = 0i32;
     let mut start = 0usize;
@@ -110,22 +139,18 @@ pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>
             let open = name_str.find('<').or_else(|| name_str.find('['));
             if let Some(start) = open {
                 let base = &name_str[..start];
-                let inner = name_str[start..].trim_start_matches('<').trim_start_matches('[').trim_end_matches('>').trim_end_matches(']');
-                let parts: Vec<&str> = inner.split(',').collect();
-                let mut changed = false;
-                let new_parts: Vec<String> = parts.iter().map(|p| {
-                    let trimmed = p.trim();
-                    let sym = Symbol::intern(trimmed);
-                    if let Some(replacement) = subst.get(&sym) {
-                        changed = true;
-                        hir_type_display(replacement)
-                    } else {
-                        trimmed.to_string()
+                if let Some(inner) = generic_inner(&name_str) {
+                    let mut changed = false;
+                    let new_parts: Vec<String> = split_generic_args(inner).iter().map(|p| {
+                        let orig = sig_str_to_hir(p.trim());
+                        let sub = substitute_hir_type(&orig, subst);
+                        if sub != orig { changed = true; }
+                        hir_type_display(&sub)
+                    }).collect();
+                    if changed {
+                        let new_name = format!("{}<{}>", base, new_parts.join(","));
+                        return HirType::Named(Symbol::intern(&new_name));
                     }
-                }).collect();
-                if changed {
-                    let new_name = format!("{}<{}>", base, new_parts.join(","));
-                    return HirType::Named(Symbol::intern(&new_name));
                 }
             }
             ty.clone()

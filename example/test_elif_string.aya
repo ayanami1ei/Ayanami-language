@@ -1,0 +1,17 @@
+// #131：if/elif 链中所有分支（含 elif 条件）的字符串字面量都要进字符串池
+import "string";
+
+fn f(ref String s) -> int {
+    if s == "a" { return 1 }
+    elif s == "?" { return 7 }
+    elif s == "b" { return 2 }
+    return 0
+}
+
+fn main() -> int {
+    if f("a") != 1 { return 1 }
+    if f("?") != 7 { return 2 }
+    if f("b") != 2 { return 3 }
+    if f("x") != 0 { return 4 }
+    return 0
+}

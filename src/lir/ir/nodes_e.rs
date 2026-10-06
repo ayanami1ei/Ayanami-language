@@ -69,6 +69,26 @@ impl LirNode for SLirRefTmp {
     }
 }
 
+impl LirNode for SLirLoadPtr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "LoadPtr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let llvm_ty = ctx.llvm_type(&self.ty);
+        let src = ctx.value_ref(&self.src, &self.ty);
+        vec![format!("%t{} = load {}, ptr {}, align 8", self.dest, llvm_ty, src)]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = load_ptr {:?} : {:?}", self.dest, self.src, self.ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(34);
+        put_u64(buf, self.dest);
+        put_value(buf, &self.src);
+        put_type(buf, &self.ty);
+    }
+}
+
 impl LirNode for SLirIndexStore {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "IndexStore" }
@@ -104,6 +124,34 @@ impl LirNode for SLirIndexStore {
         put_u64(buf, self.dest); put_u64(buf, self.gep_tmp);
         put_value(buf, &self.src); put_value(buf, &self.index);
         put_type(buf, &self.elem_ty); put_type(buf, &self.array_ty);
+    }
+}
+
+impl LirNode for SLirIndexAddr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "IndexAddr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let mut lines = Vec::new();
+        let elem_llvm = ctx.llvm_type(&self.elem_ty);
+        let idx_str = match &self.index {
+            LirValue::Var(v) => {
+                let t = ctx.tmp();
+                lines.push(format!("%e{} = load i64, ptr %v{}, align 8", t, v.0));
+                format!("%e{}", t)
+            }
+            _ => ctx.value_ref(&self.index, &HirType::Int),
+        };
+        lines.push(format!("%t{} = getelementptr {}, ptr %t{}, i64 {}", self.dest, elem_llvm, self.arr_tmp, idx_str));
+        lines
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = index_addr elem_ty={:?}", self.dest, self.elem_ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(33);
+        put_u64(buf, self.dest); put_u64(buf, self.arr_tmp);
+        put_value(buf, &self.index); put_type(buf, &self.elem_ty);
     }
 }
 
@@ -175,6 +223,23 @@ impl LirNode for SLirFieldStorePtr {
         put_type(buf, &self.field_ty);
         put_value(buf, &self.src);
         put_type(buf, &self.struct_ty);
+    }
+}
+
+impl LirNode for SLirGlobalAddr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "GlobalAddr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, _ctx: &mut LirEmitCtx) -> Vec<String> {
+        vec![format!("%t{} = getelementptr i8, ptr @{}, i64 0", self.dest, self.name.as_str())]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = global_addr @{}", self.dest, self.name.as_str())
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(32);
+        put_u64(buf, self.dest);
+        put_str(buf, &self.name.as_str());
     }
 }
 

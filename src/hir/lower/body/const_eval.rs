@@ -9,17 +9,43 @@ impl crate::hir::lower::Ctx {
         value: &Expr,
         span: &Span,
     ) -> Result<()> {
-        let (mut hir_ty, mut lit) = self.eval_const_expr(value)?;
+        let (mut hir_ty, mut lit) = self.eval_const_expr(value, &HashMap::new(), 0)?;
         if let Some(ann) = ty {
             let want = ast_type_to_hir(ann, &self.interfaces);
-            coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
+            super::const_coerce::coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
         }
         self.consts.insert(name, (hir_ty, lit));
         Ok(())
     }
 
-    /// 常量表达式求值（M6.1：字面量/常量引用/一元/二元；不含函数调用与 cast）
-    fn eval_const_expr(&self, expr: &Expr) -> Result<(HirType, HirLiteral)> {
+    /// M6.2：收集 `static` 定义（常量初始化；类型推断/标注同 const）
+    pub(crate) fn collect_static_decl(
+        &mut self,
+        name: Symbol,
+        is_mut: bool,
+        is_pub: bool,
+        ty: Option<&Type>,
+        value: &Expr,
+        span: &Span,
+    ) -> Result<()> {
+        let (mut hir_ty, mut lit) = self.eval_const_expr(value, &HashMap::new(), 0)?;
+        if let Some(ann) = ty {
+            let want = ast_type_to_hir(ann, &self.interfaces);
+            super::const_coerce::coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
+        }
+        self.statics.insert(name, crate::hir::HirStatic {
+            name, ty: hir_ty, value: lit, is_mut, is_pub, is_external: false,
+        });
+        Ok(())
+    }
+
+    /// 常量表达式求值（M6.1 字面量/引用/一元/二元；M6.3 追加 const fn 调用与 if 表达式）
+    pub(crate) fn eval_const_expr(
+        &self,
+        expr: &Expr,
+        env: &HashMap<Symbol, (HirType, HirLiteral)>,
+        depth: usize,
+    ) -> Result<(HirType, HirLiteral)> {
         match expr {
             Expr::Literal(lit) => match lit {
                 Literal::Int(i, _) => Ok((HirType::Int, HirLiteral::Int(*i))),
@@ -52,12 +78,12 @@ impl crate::hir::lower::Ctx {
                 let lit = match lit {
                     Literal::Int(i, _) => {
                         let mut out = HirLiteral::Int(*i);
-                        coerce_literal(&mut HirType::Int, &mut out, &target_ty, span)?;
+                        super::const_coerce::coerce_literal(&mut HirType::Int, &mut out, &target_ty, span)?;
                         out
                     }
                     Literal::Float(f, _) => {
                         let mut out = HirLiteral::Float(*f);
-                        coerce_literal(&mut HirType::Float, &mut out, &target_ty, span)?;
+                        super::const_coerce::coerce_literal(&mut HirType::Float, &mut out, &target_ty, span)?;
                         out
                     }
                     Literal::Char(c, _) => HirLiteral::Char(*c),
@@ -71,14 +97,16 @@ impl crate::hir::lower::Ctx {
                 };
                 Ok((target_ty, lit))
             }
-            Expr::Ident(name, span) => self.consts.get(name).cloned().ok_or_else(|| {
-                Error::Hir(format!(
-                    "const initializer must be a compile-time constant: `{}` is not a const (at {}:{})",
-                    name, span.start_line, span.start_col
-                ))
-            }),
+            Expr::Ident(name, span) => env.get(name).cloned()
+                .or_else(|| self.consts.get(name).cloned())
+                .ok_or_else(|| {
+                    Error::Hir(format!(
+                        "const initializer must be a compile-time constant: `{}` is not a const (at {}:{})",
+                        name, span.start_line, span.start_col
+                    ))
+                }),
             Expr::Unary { op, arg, span } => {
-                let (arg_ty, arg_lit) = self.eval_const_expr(arg)?;
+                let (arg_ty, arg_lit) = self.eval_const_expr(arg, env, depth)?;
                 match (op, arg_ty, arg_lit) {
                     (UnaryOp::Neg, HirType::Int, HirLiteral::Int(v)) => {
                         let negated = v.checked_neg().ok_or_else(|| {
@@ -105,8 +133,8 @@ impl crate::hir::lower::Ctx {
                 }
             }
             Expr::Binary { op, lhs, rhs, span } => {
-                let (lt, ll) = self.eval_const_expr(lhs)?;
-                let (rt, rl) = self.eval_const_expr(rhs)?;
+                let (lt, ll) = self.eval_const_expr(lhs, env, depth)?;
+                let (rt, rl) = self.eval_const_expr(rhs, env, depth)?;
                 if lt != rt {
                     return Err(Error::Hir(format!(
                         "const operator type mismatch: {} vs {} (at {}:{})",
@@ -222,6 +250,41 @@ impl crate::hir::lower::Ctx {
                     ))),
                 }
             }
+            Expr::FnCall { name, args, span, .. } => {
+                // M6.3：`const fn` 调用 → 编译期解释执行
+                if self.const_fns.contains_key(name) {
+                    let mut vals = Vec::with_capacity(args.len());
+                    for a in args {
+                        vals.push(self.eval_const_expr(a, env, depth)?);
+                    }
+                    return self.eval_const_fn(*name, vals, depth + 1);
+                }
+                Err(Error::Hir(format!(
+                    "const initializer must be a compile-time constant: `{}` is not a #[compile_time] function (at {}:{})",
+                    name.as_str(), span.start_line, span.start_col
+                )))
+            }
+            Expr::If { cond, then_block, elifs, else_block, span } => {
+                // M6.3：if 表达式（分支块值）
+                let (ct, cv) = self.eval_const_expr(cond, env, depth)?;
+                let cval = matches!((ct, cv), (HirType::Bool, HirLiteral::Bool(true)));
+                if cval {
+                    return self.eval_const_block_value(then_block, env, depth);
+                }
+                for (c, b) in elifs {
+                    let (ct, cv) = self.eval_const_expr(c, env, depth)?;
+                    if matches!((ct, cv), (HirType::Bool, HirLiteral::Bool(true))) {
+                        return self.eval_const_block_value(b, env, depth);
+                    }
+                }
+                match else_block {
+                    Some(b) => self.eval_const_block_value(b, env, depth),
+                    None => Err(Error::Hir(format!(
+                        "const if expression requires an else branch (at {}:{})",
+                        span.start_line, span.start_col
+                    ))),
+                }
+            }
             _ => {
                 let s = expr.span();
                 Err(Error::Hir(format!(
@@ -231,55 +294,4 @@ impl crate::hir::lower::Ctx {
             }
         }
     }
-}
-
-/// 常量类型适配：按标注类型转换/检查字面量（含 IntN 范围检查）
-fn coerce_literal(lit_ty: &mut HirType, lit: &mut HirLiteral, want: &HirType, span: &Span) -> Result<()> {
-    match (want, &*lit_ty, &*lit) {
-        (HirType::Int, HirType::Int, HirLiteral::Int(_)) => {}
-        (HirType::Float, HirType::Int, HirLiteral::Int(v)) => {
-            *lit = HirLiteral::Float(*v as f64);
-            *lit_ty = HirType::Float;
-        }
-        (HirType::Float, HirType::Float, HirLiteral::Float(_)) => {}
-        (HirType::F32, HirType::Int, HirLiteral::Int(v)) => {
-            *lit = HirLiteral::Float(*v as f64);
-            *lit_ty = HirType::F32;
-        }
-        (HirType::F32, HirType::Float, HirLiteral::Float(_)) => {
-            *lit_ty = HirType::F32;
-        }
-        (HirType::IntN { bits, signed }, HirType::Int, HirLiteral::Int(v)) => {
-            check_intn_range(*v, *bits, *signed, want, span)?;
-            *lit_ty = want.clone();
-        }
-        (HirType::Char, HirType::Char, HirLiteral::Char(_)) => {}
-        (HirType::Bool, HirType::Bool, HirLiteral::Bool(_)) => {}
-        _ => {
-            return Err(Error::Hir(format!(
-                "const type mismatch: expected {}, found {} (at {}:{})",
-                hir_type_display(want), hir_type_display(lit_ty), span.start_line, span.start_col
-            )))
-        }
-    }
-    Ok(())
-}
-
-/// 定宽整数范围检查（字面量以 i64 存储）
-fn check_intn_range(v: i64, bits: u8, signed: bool, want: &HirType, span: &Span) -> Result<()> {
-    let ok = if signed {
-        let min = -(1i128 << (bits - 1));
-        let max = (1i128 << (bits - 1)) - 1;
-        (v as i128) >= min && (v as i128) <= max
-    } else {
-        let max = if bits >= 64 { u64::MAX as u128 } else { (1u128 << bits) - 1 };
-        v >= 0 && (v as u128) <= max
-    };
-    if !ok {
-        return Err(Error::Hir(format!(
-            "literal out of range for `{}` (at {}:{})",
-            hir_type_display(want), span.start_line, span.start_col
-        )));
-    }
-    Ok(())
 }

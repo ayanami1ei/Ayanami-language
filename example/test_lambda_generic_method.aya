@@ -1,0 +1,47 @@
+// #119：泛型方法 + 未标注 lambda 推断（返回类型从 body 推断；fn(T)->U 参与泛型推导）
+enum Opt[T] { Some(T), None }
+
+impl[T] Opt[T] {
+    pub fn map[U](self, fn(T) -> U f) -> Opt[U] {
+        match self {
+            Some(v) => Opt::Some(f(v)),
+            None => Opt::None(),
+        }
+    }
+
+    pub fn filter(self, fn(T) -> bool f) -> Opt[T] {
+        match self {
+            Some(v) => if f(v) { Opt::Some(v) } else { Opt::None() },
+            None => Opt::None(),
+        }
+    }
+
+    pub fn and_then[U](self, fn(T) -> Opt[U] f) -> Opt[U] {
+        match self {
+            Some(v) => f(v),
+            None => Opt::None(),
+        }
+    }
+}
+
+fn get(Opt[int] o) -> int {
+    match o {
+        Some(v) => v,
+        None => 0,
+    }
+}
+
+fn mk() -> Opt[int] { return Opt::Some(3) }
+
+fn main() -> int {
+    if get(mk().map((int x) { return x + 1 })) != 4 { return 1 }
+    b = mk().map((int x) { return x + 1 }).map((int x) { return x * 10 })
+    if get(b) != 40 { return 2 }
+    c = mk().filter((int x) { return x > 2 })
+    if get(c) != 3 { return 3 }
+    d = mk().filter((int x) { return x > 5 })
+    if get(d) != 0 { return 4 }
+    e = mk().and_then((int x) { return Opt::Some(x * 2) })
+    if get(e) != 6 { return 5 }
+    return 0
+}

@@ -165,6 +165,9 @@ pub(super) fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
         Stmt::ConstDecl { name, ty, value, .. } => {
             writeln!(w, "{}ConstDecl {{ name: {}, ty: {:?}, value: {:?} }}", p, name, ty, value).unwrap();
         }
+        Stmt::StaticDecl { name, is_mut, ty, value, .. } => {
+            writeln!(w, "{}StaticDecl {{ name: {}, mut: {}, ty: {:?}, value: {:?} }}", p, name, is_mut, ty, value).unwrap();
+        }
         Stmt::Break { .. } => {
             writeln!(w, "{}Break", p).unwrap();
         }

@@ -9,7 +9,27 @@ impl crate::hir::lower::Ctx {
                     span.start_line, span.start_col
                 )))
             }
+            Stmt::StaticDecl { span, .. } => {
+                Err(Error::Hir(format!(
+                    "static declarations are only allowed at top level (at {}:{})",
+                    span.start_line, span.start_col
+                )))
+            }
             Stmt::Assign { name, value, span, .. } => {
+                // M6.2：全局变量赋值（static mut）→ 穿透引用写入
+                if let Some(st) = self.statics.get(name).cloned() {
+                    if !st.is_mut {
+                        return Err(Error::Hir(format!(
+                            "cannot assign to immutable static `{}` (declare `static mut`) (at {}:{})",
+                            name.as_str(), span.start_line, span.start_col
+                        )));
+                    }
+                    let target: HirNodeBox = SGlobal { name: st.name, ty: st.ty.clone(), mutable: true }.into();
+                    let hir_value = self.lower_expr(value)?;
+                    let hir_value = coerce_expr(hir_value, &st.ty, span)?;
+                    let hir_value = implicit_move(hir_value);
+                    return Ok(HirStmt::DerefAssign { target, value: hir_value, span: *span });
+                }
                 if let Some(stmt) = self.try_lower_ref_assign(name, value, span)? {
                     return Ok(stmt);
                 }
@@ -20,13 +40,17 @@ impl crate::hir::lower::Ctx {
                         if generic_args.is_empty() => self.lower_fn_call(fname, args, Some(h), span)?,
                     _ => self.lower_expr(value)?,
                 };
-                // 已存在的变量：按既有类型做隐式数值转换
+                // 已存在的变量：按既有类型做隐式数值转换 + 枚举实例化（#119/#120）
                 let hir_value = match self.lookup_var(name) {
-                    Some((_, var_ty, _)) => coerce_expr(hir_value, &var_ty, span)?,
+                    Some((_, var_ty, _)) => {
+                        let v = self.instantiate_enum_value(hir_value, &var_ty)?;
+                        coerce_expr(v, &var_ty, span)?
+                    }
                     None => hir_value,
                 };
                 let hir_value = implicit_move(hir_value);
-                let value_ty = expr_type(&hir_value);
+                // #132：比较运算在 HIR 中保留操作数类型（Bool 由 MIR 决定）→ 变量类型按 Bool
+                let value_ty = if hir_value.is_comparison() { HirType::Bool } else { expr_type(&hir_value) };
                 let (var_id, ty, _) = self.register_or_lookup(*name, value_ty);
                 Ok(HirStmt::Assign {
                     target: SVar { var: var_id, ty: ty.clone() }.into(),
@@ -95,6 +119,8 @@ impl crate::hir::lower::Ctx {
                         let expr = self.lower_expr(v)?;
                         // 隐式数值转换：按函数返回类型
                         let fn_ret = self.fns[self.current_fn.0].return_type.clone();
+                        // #119/#120：无载荷变体（Opt::None()）按期望返回类型实例化
+                        let expr = self.instantiate_enum_value(expr, &fn_ret)?;
                         let expr = coerce_expr(expr, &fn_ret, span)?;
                         let expr_ty = expr_type(&expr);
                         // 若函数返回 unique T，但表达式是裸 T，自动包装为 ToUnique

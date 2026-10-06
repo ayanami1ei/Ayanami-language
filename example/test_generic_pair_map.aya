@@ -1,0 +1,33 @@
+// #135：双参数泛型枚举 + 泛型方法返回部分替换同型（Pair[C, B]）
+// 分支构造只推断出部分实参时，用函数返回类型细化（Pair → Pair<int,String>）
+enum Pair[A, B] {
+    P(A),
+    Q(B),
+}
+
+impl[A, B] Pair[A, B] {
+    pub fn map_a[C](self, fn(A) -> C f) -> Pair[C, B] {
+        match self {
+            P(v) => Pair::P(f(v)),
+            Q(v) => Pair::Q(v),
+        }
+    }
+}
+
+fn mk() -> Pair[int, String] {
+    return Pair::P(1)
+}
+
+fn get_p(Pair[int, String] q) -> int {
+    return match q {
+        P(v) => v,
+        Q(v) => 0 - 1,
+    }
+}
+
+fn main() -> int {
+    p = mk()
+    q = p.map_a((int x) { return x + 1 })
+    if get_p(q) != 2 { return 1 }
+    return 0
+}

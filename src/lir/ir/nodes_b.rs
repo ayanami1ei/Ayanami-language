@@ -180,11 +180,15 @@ impl LirNode for SLirRet {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         match &self.val {
+            // M1.9：`return <!>`（发散表达式）→ 后续不可达
+            Some((_, HirType::Never)) => vec!["unreachable".into()],
             Some((v, ty)) => {
                 let s = ctx.value_ref(v, ty);
                 let llvm_ty = ctx.llvm_type(&ctx.current_fn_ret_ty);
                 vec![format!("ret {} {}", llvm_ty, s)]
             }
+            // `-> !` 函数末尾：无 ret，仅 unreachable
+            None if matches!(ctx.current_fn_ret_ty, HirType::Never) => vec!["unreachable".into()],
             None => vec!["ret void".into()],
         }
     }

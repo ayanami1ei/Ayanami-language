@@ -1,0 +1,10 @@
+// #121：从未被实例化的泛型方法体也要做未定义函数名检查
+struct C[T] { T v }
+
+impl[T] C[T] {
+    fn never_called(ref self) -> int { return undefined_never_called() }
+}
+
+fn main() -> int {
+    return 0
+}

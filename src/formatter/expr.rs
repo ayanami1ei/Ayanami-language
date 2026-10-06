@@ -17,6 +17,7 @@ pub(super) fn write_type(ty: &Type) -> String {
         Type::Char(_) => "char".into(),
         Type::Bool(_) => "bool".into(),
         Type::Void(_) => "void".into(),
+        Type::Never(_) => "!".into(),
         Type::Named(s, _) => s.as_str().to_string(),
         Type::Array(inner, _) => format!("[{}]", write_type(inner)),
         Type::Unique(inner, _) => format!("unique {}", write_type(inner)),
@@ -25,11 +26,7 @@ pub(super) fn write_type(ty: &Type) -> String {
             format!("{}[{}]", name, args_str.join(", "))
         }
         Type::Ref(inner, mutable, _) => {
-            if *mutable {
-                format!("ref mut {}", write_type(inner))
-            } else {
-                format!("ref {}", write_type(inner))
-            }
+            format!("ref {}{}", if *mutable { "mut " } else { "" }, write_type(inner))
         }
         Type::Self_(_) => "Self".into(),
     }

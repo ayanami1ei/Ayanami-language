@@ -29,6 +29,7 @@ pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
             name: f.name,
             is_inline: f.is_inline,
             extern_c: f.extern_c,
+            is_pub: f.is_pub,
             params: f.params.clone(),
             return_type: f.return_type.clone(),
             locals: f.locals.clone(),
@@ -71,6 +72,7 @@ pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
         name: f.name,
         is_inline: f.is_inline,
         extern_c: f.extern_c,
+        is_pub: f.is_pub,
         params: f.params.clone(),
         return_type: f.return_type.clone(),
         locals: f.locals.clone(),
@@ -114,7 +116,7 @@ pub(super) fn lower_expr(ctx: &mut dyn LirLowerCtx, expr: &MirNodeBox) -> LirVal
 
 pub(super) fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
     match ty {
-        HirType::Void => None,
+        HirType::Void | HirType::Never => None,
         HirType::Int => Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), HirType::Int)),
         HirType::Float => Some((LirValue::Literal(HirLiteral::Float(0.0), HirType::Float), HirType::Float)),
         HirType::F32 => Some((LirValue::Literal(HirLiteral::Float(0.0), ty.clone()), ty.clone())),
@@ -140,7 +142,7 @@ pub(super) fn type_size(ty: &HirType) -> u64 {
         HirType::F32 => 4,
         HirType::IntN { bits, .. } => (*bits / 8) as u64,
         HirType::Char | HirType::Bool => 1,
-        HirType::Void => 0,
+        HirType::Void | HirType::Never => 0,
         HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) => 16,
         HirType::Unique(inner) => type_size(inner),
         HirType::Ref(_, _) | HirType::FnPtr(..) => 8,

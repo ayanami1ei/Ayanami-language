@@ -78,6 +78,28 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             } else if let Some(rest) = line.strip_prefix("check=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Check { name: val });
+            } else if let Some(rest) = line.strip_prefix("const=") {
+                let val = parse_ini_value(rest);
+                if let Some((name, rest)) = val.split_once(',') {
+                    if let Some((ty, value)) = rest.split_once(',') {
+                        symbols.push(ImportedSymbol::Const {
+                            name: name.to_string(),
+                            ty: ty.to_string(),
+                            value: value.to_string(),
+                        });
+                    }
+                }
+            } else if let Some(rest) = line.strip_prefix("static=") {
+                let val = parse_ini_value(rest);
+                if let Some((name, rest)) = val.split_once(',') {
+                    if let Some((ty, is_mut)) = rest.split_once(',') {
+                        symbols.push(ImportedSymbol::Static {
+                            name: name.to_string(),
+                            ty: ty.to_string(),
+                            is_mut: is_mut == "true",
+                        });
+                    }
+                }
             }
         } else if in_generics {
             if let Some(rest) = line.strip_prefix("source=") {
@@ -175,6 +197,7 @@ pub(super) fn type_to_string(ty: &Type) -> String {
         Type::Char(_) => "char".into(),
         Type::Bool(_) => "bool".into(),
         Type::Void(_) => "void".into(),
+        Type::Never(_) => "!".into(),
         Type::Named(s, _) => s.as_str().to_string(),
         Type::Array(inner, _) => format!("[{}]", type_to_string(inner)),
         Type::Unique(inner, _) => format!("unique {}", type_to_string(inner)),

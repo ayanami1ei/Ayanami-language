@@ -25,6 +25,33 @@ impl Package {
         self.effect_summaries = map;
     }
 
+    /// M6.1b：登记可导出常量（编码为 `PackageSymbol::Const`）
+    pub fn set_consts(&mut self, consts: &[(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)]) {
+        for (name, ty, lit) in consts {
+            if let Some((ty_str, value)) = crate::package::const_codec::encode(ty, lit) {
+                self.symbols.push(PackageSymbol::Const {
+                    name: name.as_str(),
+                    ty: ty_str,
+                    value,
+                });
+            }
+        }
+    }
+
+    /// M6.2b：登记可导出全局变量（`all=false` 时仅 pub；标量类型）
+    pub fn set_statics(&mut self, statics: &[crate::hir::HirStatic], all: bool) {
+        for s in statics {
+            if !all && !s.is_pub { continue; }
+            if let Some(ty_str) = crate::package::const_codec::type_str(&s.ty) {
+                self.symbols.push(PackageSymbol::Static {
+                    name: s.name.as_str(),
+                    ty: ty_str,
+                    is_mut: s.is_mut,
+                });
+            }
+        }
+    }
+
     pub fn collect_symbols(&mut self, stmts: &[Stmt]) {
         self.collect_symbols_with_prefix(stmts, false, "")
     }
@@ -99,6 +126,10 @@ impl Package {
                         .unwrap_or_default();
                     let summary = crate::hir::effects::EffectSummary { declared, inferred };
                     let mut flags = summary.tokens();
+                    // M1.9：`#[noreturn]` 随包导出（导入侧调用类型为 `!`）
+                    if crate::hir::attrs::has(attrs, "noreturn") {
+                        flags.push("noreturn".to_string());
+                    }
                     // 函数级 track_caller：末尾保留参数 __line/__col/__file
                     let hidden = params.iter().rev()
                         .take_while(|(n, _)| matches!(n.as_str().as_str(), "__line" | "__col" | "__file"))

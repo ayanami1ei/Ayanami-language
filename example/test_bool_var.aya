@@ -1,0 +1,12 @@
+// #132：比较结果赋给局部变量（HIR 比较保留操作数类型 → 变量类型按 Bool）
+fn main() -> int {
+    a = 1
+    b = 2
+    z = a == b
+    if z { return 1 }
+    w = a < b
+    if !w { return 2 }
+    ok = a != b
+    if !ok { return 3 }
+    return 0
+}

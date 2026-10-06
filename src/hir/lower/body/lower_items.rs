@@ -83,6 +83,7 @@ impl crate::hir::lower::Ctx {
                 }
                 Stmt::Import { .. } => {} // already handled in collect_fns
                 Stmt::ConstDecl { .. } => {} // M6.1：常量在 collect_ns 求值，无运行时项
+                Stmt::StaticDecl { .. } => {} // M6.2：static 经 HirProgram.statics → LIR globals
                 Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
                     // Flatten impl block: lower each method as a regular Fn
                     for method_stmt in methods {
@@ -122,14 +123,11 @@ impl crate::hir::lower::Ctx {
                     out.push(*n);
                 }
                 // 编码名中的泛型参数：LinkedListNode[T] → T
-                let open = s.find('<').or_else(|| s.find('['));
-                if let Some(start) = open {
-                    let inner = s[start..].trim_start_matches('<').trim_start_matches('[')
-                        .trim_end_matches('>').trim_end_matches(']');
-                    for part in inner.split(',') {
-                        let trimmed = part.trim();
-                        if trimmed.len() == 1 && trimmed.chars().all(|c| c.is_uppercase()) {
-                            out.push(Symbol::intern(trimmed));
+                if s.contains(['<', '[']) {
+                    if let Some(inner) = generic_inner(&s) {
+                        for part in split_generic_args(inner) {
+                            let pty = sig_str_to_hir(part.trim());
+                            Self::collect_gp_from_type(&pty, out);
                         }
                     }
                 }
@@ -228,6 +226,22 @@ impl crate::hir::lower::Ctx {
             } else {
                 let coerced = coerce_expr(tail, &return_type, &span)?;
                 hir_body.stmts.push(HirStmt::Return { value: Some(coerced), span });
+            }
+        }
+        // M1.9：`-> !` 函数体必须发散（尾表达式为 `!` 或末尾 return/发散语句）
+        if matches!(return_type, HirType::Never) {
+            let diverges = hir_body.stmts.last().map(|s| match s {
+                HirStmt::Return { .. } => true,
+                HirStmt::Expr { expr, .. } => {
+                    matches!(strip_ownership(expr_type(expr)), HirType::Never)
+                }
+                _ => false,
+            }).unwrap_or(false);
+            if !diverges {
+                return Err(Error::Hir(format!(
+                    "function `{}` returns `!` but its body does not diverge (at {}:{})",
+                    name.as_str(), span.start_line, span.start_col
+                )));
             }
         }
 

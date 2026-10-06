@@ -220,7 +220,8 @@ impl LirNode for SLirCall {
             let val_str = ctx.value_ref(val, aty);
             arg_strs.push(format!("{} {}", llvm_ty, val_str));
         }
-        let is_void = matches!(&self.ret_ty, HirType::Void);
+        // M1.9：`!` 调用与 void 一样不能命名返回值
+        let is_void = matches!(&self.ret_ty, HirType::Void | HirType::Never);
         let dest_str = match (&self.dest, is_void) {
             (Some(d), false) => format!("%t{} = ", d),
             _ => String::new(),
@@ -251,7 +252,8 @@ impl LirNode for SLirCallPtr {
         let fn_src = ctx.value_ref(&self.fn_ptr, &HirType::Int);
         let ret_llvm = ctx.llvm_type(&self.ret_ty);
         let call_args: Vec<String> = self.args.iter().map(|(v, t)| format!("{} {}", ctx.llvm_type(t), ctx.value_ref(v, t))).collect();
-        let is_void = matches!(&self.ret_ty, HirType::Void);
+        // M1.9：`!` 调用与 void 一样不能命名返回值
+        let is_void = matches!(&self.ret_ty, HirType::Void | HirType::Never);
         if is_void {
             vec![format!("call void {} ({})", fn_src, call_args.join(", "))]
         } else {

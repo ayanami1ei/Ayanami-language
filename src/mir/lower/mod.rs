@@ -27,6 +27,7 @@ pub fn lower_program(hir: &HirProgram) -> crate::error::Result<MirProgram> {
         vtables: hir.vtables.clone(),
         struct_defs: struct_defs.clone(),
         generic_struct_params: hir.generic_struct_params.clone(),
+        statics: hir.statics.clone(),
         imported_fns: hir.imported_fns.iter().map(|f| crate::hir::ir::ImportedFnSig {
             fn_id: f.fn_id,
             name: f.name,
