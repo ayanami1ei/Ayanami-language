@@ -175,6 +175,8 @@ impl crate::hir::lower::Ctx {
                 None => t,
             }))
             .unwrap_or(HirType::Int);
+        // #135：分支构造回退到枚举基名时，用当前函数返回类型细化
+        let res_ty = self.refine_enum_result_type(res_ty);
         let res_var = VarId(self.locals.len());
         self.locals.push(HirLocal::new(Symbol::intern("__match_res"), res_ty.clone(), true));
         let res_node: HirNodeBox = SVar { var: res_var, ty: res_ty.clone() }.into();

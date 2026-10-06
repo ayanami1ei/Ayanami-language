@@ -52,8 +52,8 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
             // Check if arg_name is "Name<...>"（兼容 `Name[...]` 旧编码）
             if let Some(start) = arg_name.find('<').or_else(|| arg_name.find('[')) {
                 if &arg_name[..start] == base {
-                    let closer = if arg_name.as_bytes()[start] == b'<' { '>' } else { ']' };
-                    let inner = arg_name[start + 1..].trim_end_matches(closer);
+                    // #134：必须用配对括号提取（trim_end_matches 会吃掉嵌套泛型的多个 `>`）
+                    let Some(inner) = generic_inner(&arg_name) else { return out; };
                     let inner_parts = split_generic_args(inner);
                     // Decode each inner part: "int" → Int, "String" → Named("String")
                     for (gp, inner_str) in params.iter().zip(inner_parts.iter()) {

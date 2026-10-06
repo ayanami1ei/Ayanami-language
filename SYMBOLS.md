@@ -517,7 +517,7 @@ src/hir/lower/body/match_lower.rs:89: fn build_match_if(
 src/hir/lower/body/match_lower.rs:117: fn enum_variant_count(&self, name: &Symbol) -> usize
 src/hir/lower/body/match_lower.rs:124: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
 src/hir/lower/body/match_lower.rs:151: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/match_lower.rs:204: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
+src/hir/lower/body/match_lower.rs:206: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
 src/hir/lower/body/mod.rs:10: mod collect_fns;
 src/hir/lower/body/mod.rs:11: mod collect_ns;
 src/hir/lower/body/mod.rs:12: mod vtables;
@@ -601,7 +601,8 @@ src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -
 src/hir/lower/ctx_mono.rs:35: pub fn instantiate_named(&mut self, name: Symbol) -> Result<()>
 src/hir/lower/ctx_mono.rs:85: pub fn adapt_enum_args(
 src/hir/lower/ctx_mono.rs:103: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
-src/hir/lower/ctx_mono.rs:135: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx_mono.rs:136: pub fn refine_enum_result_type(&self, ty: HirType) -> HirType
+src/hir/lower/ctx_mono.rs:151: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
 src/hir/lower/helpers/caller.rs:7: pub(crate) fn is_hidden_param(name: &Symbol) -> bool
 src/hir/lower/helpers/caller.rs:12: pub(crate) fn count_hidden_params(params: &[(Symbol, HirType)]) -> usize
 src/hir/lower/helpers/caller.rs:17: pub(crate) fn count_hidden_names<T>(params: &[(Symbol, T)]) -> usize
@@ -2210,6 +2211,13 @@ example/test_generic_impl_multi.aya:32: fn mk_p() -> Pair[int, int] { return Pai
 example/test_generic_impl_multi.aya:33: fn mk_q() -> Pair[int, int] { return Pair::Q(7) }
 example/test_generic_impl_multi.aya:34: fn mk_w() -> Wrap[int] { return Wrap::W(9) }
 example/test_generic_impl_multi.aya:36: fn main() -> int
+example/test_generic_nested_arg.aya:6: fn main() -> int
+example/test_generic_pair_map.aya:3: enum Pair[A, B]
+example/test_generic_pair_map.aya:8: impl[A, B] Pair[A, B]
+example/test_generic_pair_map.aya:9: pub fn map_a[C](self, fn(A) -> C f) -> Pair[C, B]
+example/test_generic_pair_map.aya:17: fn mk() -> Pair[int, String]
+example/test_generic_pair_map.aya:21: fn get_p(Pair[int, String] q) -> int
+example/test_generic_pair_map.aya:28: fn main() -> int
 example/test_generic_struct_lit.aya:2: struct Pair[A, B]
 example/test_generic_struct_lit.aya:7: struct Box[T]
 example/test_generic_struct_lit.aya:11: fn main() -> int

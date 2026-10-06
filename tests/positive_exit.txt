@@ -39,6 +39,8 @@ test_generic_bound_check.aya 0
 test_generic_enum_match.aya 0
 test_generic_struct_lit.aya 0
 test_generic_enum_ctor.aya 0
+test_generic_pair_map.aya 0
+test_generic_nested_arg.aya 0
 test_generic_impl_multi.aya 0
 test_if_expr.aya 0
 test_import.aya 30
