@@ -32,6 +32,7 @@ impl HirNode for SConst {
             HirLiteral::String(s) => format!("String(\"{}\")", s),
             HirLiteral::Bool(b) => format!("Bool({})", b),
             HirLiteral::Array(v) => format!("Array(len={})", v.len()),
+            HirLiteral::Struct(v) => format!("Struct(fields={})", v.len()),
         };
         writeln!(w, "{:width$}Literal({})", "", s, width = level * 2)
     }

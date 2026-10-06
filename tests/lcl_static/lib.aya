@@ -6,6 +6,14 @@ namespace cfg {
     pub static mut LEVEL = 1
 }
 
+pub struct Coord {
+    int a
+    int b
+}
+
+pub static ORIGIN: Coord = Coord { a = 0, b = 0 }
+pub static mut CURSOR: Coord = Coord { a = 1, b = 2 }
+
 pub static PRIMES: [int; 5] = [2, 3, 5, 7, 11]
 pub static mut HITS: [int; 3] = [0; 3]
 

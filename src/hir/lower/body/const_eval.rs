@@ -48,8 +48,8 @@ impl crate::hir::lower::Ctx {
         depth: usize,
     ) -> Result<(HirType, HirLiteral)> {
         match expr {
-            // M6.2c：数组常量（标量元素；实现在 const_array.rs）
             Expr::ArrayLiteral(..) | Expr::ArrayRepeat { .. } => self.eval_const_array(expr, env, depth),
+            Expr::StructLiteral { type_name, generic_args, fields, span } => self.eval_const_struct(type_name, generic_args, fields, span, env, depth),
             Expr::Literal(lit) => match lit {
                 Literal::Int(i, _) => Ok((HirType::Int, HirLiteral::Int(*i))),
                 Literal::Float(f, _) => Ok((HirType::Float, HirLiteral::Float(*f))),

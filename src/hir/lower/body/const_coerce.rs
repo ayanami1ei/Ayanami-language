@@ -27,23 +27,27 @@ pub(super) fn coerce_literal(lit_ty: &mut HirType, lit: &mut HirLiteral, want: &
             }
         }
         for v in vals.iter_mut() {
-            let mut vt = match v {
-                HirLiteral::Int(_) => HirType::Int,
-                HirLiteral::Float(_) => HirType::Float,
-                HirLiteral::Char(_) => HirType::Char,
-                HirLiteral::Bool(_) => HirType::Bool,
-                HirLiteral::String(_) | HirLiteral::Array(_) => {
-                    return Err(Error::Hir(format!(
-                        "nested array constants are not supported yet (at {}:{})",
-                        span.start_line, span.start_col
-                    )))
-                }
-            };
+            let mut vt = lit_scalar_type(v).ok_or_else(|| Error::Hir(format!(
+                "unsupported array element constant (at {}:{})",
+                span.start_line, span.start_col
+            )))?;
             coerce_literal(&mut vt, v, want_elem, span)?;
         }
         *lit_ty = HirType::Unique(Box::new(HirType::ArraySized(
             Box::new(want_elem.clone()), vals.len())));
         return Ok(());
+    }
+    // M6.2c：结构体常量——标注类型须同名（字段类型在求值期已规范化）
+    if let HirLiteral::Struct(_) = lit {
+        let strip = |t: &HirType| match t { HirType::Unique(i) => i.as_ref().clone(), other => other.clone() };
+        let (w, l) = (strip(want), strip(lit_ty));
+        if w == l {
+            return Ok(());
+        }
+        return Err(Error::Hir(format!(
+            "const type mismatch: expected {}, found {} (at {}:{})",
+            hir_type_display(want), hir_type_display(lit_ty), span.start_line, span.start_col
+        )));
     }
     match (want, &*lit_ty, &*lit) {
         (HirType::Int, HirType::Int, HirLiteral::Int(_)) => {}
@@ -92,4 +96,15 @@ pub(super) fn check_intn_range(v: i64, bits: u8, signed: bool, want: &HirType, s
         )));
     }
     Ok(())
+}
+
+/// 常量字面量的标量类型（Int/Float/Char/Bool；复合类型返回 None）
+fn lit_scalar_type(l: &HirLiteral) -> Option<HirType> {
+    Some(match l {
+        HirLiteral::Int(_) => HirType::Int,
+        HirLiteral::Float(_) => HirType::Float,
+        HirLiteral::Char(_) => HirType::Char,
+        HirLiteral::Bool(_) => HirType::Bool,
+        HirLiteral::String(_) | HirLiteral::Array(_) | HirLiteral::Struct(_) => return None,
+    })
 }

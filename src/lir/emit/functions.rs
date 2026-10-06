@@ -84,28 +84,53 @@ impl<'a> Emitter<'a> {
     }
 
 
+    /// M6.2c：递归生成带类型的 LLVM 常量（标量 / 数组 / 结构体）
+    pub(super) fn const_value(&self, lit: &crate::hir::ir::HirLiteral, ty: &HirType) -> String {
+        use crate::hir::ir::HirLiteral;
+        let base = match ty {
+            HirType::Unique(inner) => inner.as_ref(),
+            other => other,
+        };
+        match (lit, base) {
+            (HirLiteral::Array(vals), HirType::ArraySized(elem, _) | HirType::Array(elem)) => {
+                let et = self.llvm_type(elem);
+                let elems: Vec<String> = vals.iter()
+                    .map(|v| format!("{} {}", et, self.const_value(v, elem)))
+                    .collect();
+                format!("[{} x {}] [{}]", vals.len(), et, elems.join(", "))
+            }
+            (HirLiteral::Struct(vals), HirType::Named(n)) => {
+                if let Some(def) = self.prog.struct_defs.get(n).cloned() {
+                    let parts: Vec<String> = vals.iter().zip(def.iter())
+                        .map(|(v, f)| format!("{} {}", self.llvm_type(&f.1), self.const_value(v, &f.1)))
+                        .collect();
+                    // LLVM 结构体常量语法：`{ <typed fields> }`（不带 %name 前缀）
+                    format!("{{ {} }}", parts.join(", "))
+                } else {
+                    "zeroinitializer".into()
+                }
+            }
+            _ => lit_to_string(lit, ty),
+        }
+    }
+
     /// M6.2：发射全局变量 `@name = global <ty> <init>`
     pub(super) fn emit_global_defs(&mut self) {
         for g in &self.prog.globals {
             let linkage = if crate::hir::contracts::is_release() && !g.is_pub { "internal " } else { "" };
+            // M6.2c：结构体全局 → 内联结构体常量（语言层结构体为值语义，取址即全局地址）
+            if let crate::hir::ir::HirLiteral::Struct(_) = &g.value {
+                let ty = self.llvm_type(&g.ty);
+                let lit = self.const_value(&g.value, &g.ty);
+                self.wln_fmt(format_args!("@{} = {}global {} {}", g.name.as_str(), linkage, ty, lit));
+                continue;
+            }
             // M6.2c：数组全局 → 数据数组常量 + 指针变量（语言层 `[T; N]` 为指针语义）
-            if let crate::hir::ir::HirLiteral::Array(vals) = &g.value {
-                let elem_ty = match &g.ty {
-                    HirType::Unique(inner) => match inner.as_ref() {
-                        HirType::ArraySized(e, _) => e.as_ref().clone(),
-                        HirType::Array(e) => e.as_ref().clone(),
-                        other => other.clone(),
-                    },
-                    HirType::ArraySized(e, _) | HirType::Array(e) => e.as_ref().clone(),
-                    other => other.clone(),
-                };
-                let elem_llvm = self.llvm_type(&elem_ty);
-                let elems: Vec<String> = vals.iter()
-                    .map(|v| format!("{} {}", elem_llvm, lit_to_string(v, &elem_ty)))
-                    .collect();
+            if let crate::hir::ir::HirLiteral::Array(_) = &g.value {
+                let data = self.const_value(&g.value, &g.ty);
                 self.wln_fmt(format_args!(
-                    "@__ayanami_gdata_{} = private global [{} x {}] [{}]",
-                    g.name.as_str(), vals.len(), elem_llvm, elems.join(", ")
+                    "@__ayanami_gdata_{} = private global {}",
+                    g.name.as_str(), data
                 ));
                 self.wln_fmt(format_args!(
                     "@{} = {}global ptr @__ayanami_gdata_{}",

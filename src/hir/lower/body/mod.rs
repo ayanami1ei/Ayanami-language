@@ -31,6 +31,7 @@ mod literal;
 mod collect_enum;
 mod const_coerce;
 mod const_array;
+mod const_struct;
 mod const_eval;
 mod const_fn;
 mod collect_import;

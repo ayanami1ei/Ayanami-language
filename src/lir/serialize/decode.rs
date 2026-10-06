@@ -15,6 +15,12 @@ impl<'a> Reader<'a> {
                 for _ in 0..n { v.push(self.literal()?); }
                 Ok(HirLiteral::Array(v))
             }
+            6 => {
+                let n = self.u32()? as usize;
+                let mut v = Vec::with_capacity(n);
+                for _ in 0..n { v.push(self.literal()?); }
+                Ok(HirLiteral::Struct(v))
+            }
             _ => Err(Error::Serialize(format!("unknown literal tag: {}", tag))),
         }
     }

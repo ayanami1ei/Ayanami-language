@@ -12,6 +12,10 @@ pub(crate) fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {
             let parts: Vec<String> = v.iter().map(|e| lit_to_string(e, expected_ty)).collect();
             format!("[{}]", parts.join(", "))
         }
+        (HirLiteral::Struct(v), _) => {
+            let parts: Vec<String> = v.iter().map(|e| lit_to_string(e, expected_ty)).collect();
+            format!("{{ {} }}", parts.join(", "))
+        }
         (HirLiteral::Int(0), ty) if is_pointer_type(ty) && !matches!(ty, HirType::Named(_)) => "null".into(),
         (HirLiteral::Int(0), HirType::Named(_)) => "zeroinitializer".into(),
         (HirLiteral::Int(n), _) => format!("{}", n),

@@ -1,0 +1,35 @@
+// M6.2c：结构体全局（标量字段 / 嵌套结构体 / static mut / ref 遍历）
+struct Point {
+    int x
+    int y
+}
+
+struct Line {
+    Point a
+    Point b
+}
+
+static ORIGIN: Point = Point { x = 0, y = 0 }
+static LINE: Line = Line { a = Point { x = 1, y = 2 }, b = Point { x = 3, y = 4 } }
+static mut CURSOR: Point = Point { x = 1, y = 2 }
+static mut SEG: Line = Line { a = Point { x = 0, y = 0 }, b = Point { x = 1, y = 1 } }
+
+fn shift(ref mut Point p, int dx) {
+    p.x = p.x + dx
+}
+
+fn sum(ref Line l) -> int {
+    return l.a.x + l.a.y + l.b.x + l.b.y
+}
+
+fn main() -> int {
+    if ORIGIN.x != 0 { return 1 }
+    if LINE.a.x != 1 { return 2 }
+    if LINE.b.y != 4 { return 3 }
+    if sum(ref LINE) != 10 { return 4 }
+    shift(ref mut CURSOR, 10)
+    if CURSOR.x != 11 { return 5 }
+    SEG.b.y = 9
+    if SEG.b.y != 9 { return 6 }
+    return 0
+}

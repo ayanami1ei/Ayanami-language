@@ -15,5 +15,9 @@ fn main() -> int {
     HITS[1] = 5
     if HITS[1] != 5 { return 9 }
     if lib::PRIMES[2] != 5 { return 10 }
+    if ORIGIN.a != 0 { return 11 }
+    CURSOR.b = 9
+    if CURSOR.b != 9 { return 12 }
+    if lib::ORIGIN.b != 0 { return 13 }
     return 0
 }
