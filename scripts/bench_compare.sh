@@ -54,12 +54,13 @@ declare -A CMD=(
     [c]="$OUT/bench_c"
 )
 langs=(ayanami rust java zig c)
-for lang in "${langs[@]}"; do
-    : > "$tmp/$lang.txt"
-    for _ in $(seq 1 "$RUNS"); do
+for lang in "${langs[@]}"; do : > "$tmp/$lang.txt"; done
+# 交错轮转：每轮各语言轮流跑一次，消除时段负载偏差（配合取最小值）
+for r in $(seq 1 "$RUNS"); do
+    for lang in "${langs[@]}"; do
         run_limited ${CMD[$lang]} >> "$tmp/$lang.txt"
     done
-    echo "已跑 $lang x$RUNS"
+    echo "第 $r/$RUNS 轮完成"
 done
 
 python3 - "$tmp" <<'PY'
