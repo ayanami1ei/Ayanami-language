@@ -84,15 +84,16 @@ impl<'a> Emitter<'a> {
         // Vtable globals
         self.emit_vtable_globals();
 
-        // Runtime declarations
-        self.wln("declare i8* @__ayanami_unique_alloc(i64)");
-        self.wln("declare void @__ayanami_unique_free(i8*)");
+        // Runtime declarations（M-opt.8：分配器 malloc 语义 noalias/allocsize；
+        // 契约失败路径 cold；C 侧无栈展开 nounwind）
+        self.wln("declare noalias i8* @__ayanami_unique_alloc(i64) allocsize(0) nounwind");
+        self.wln("declare void @__ayanami_unique_free(i8*) nounwind");
         self.wln("declare void @llvm.memcpy.p0.p0.i64(i8*, i8*, i64, i1)");
         self.wln("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)");
         self.wln("declare void @llvm.assume(i1)");
-        self.wln("declare void @__ayanami_require_fail(i64, i64) noreturn");
-        self.wln("declare void @__ayanami_ensure_fail(i64, i64) noreturn");
-        self.wln("declare void @__ayanami_invariant_fail(i64, i64) noreturn");
+        self.wln("declare void @__ayanami_require_fail(i64, i64) noreturn cold nounwind");
+        self.wln("declare void @__ayanami_ensure_fail(i64, i64) noreturn cold nounwind");
+        self.wln("declare void @__ayanami_invariant_fail(i64, i64) noreturn cold nounwind");
         self.wln("");
 
         // Extern declarations（真实签名 + LLVM 属性）

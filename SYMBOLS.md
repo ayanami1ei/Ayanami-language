@@ -1036,10 +1036,10 @@ src/lir/emit/mod.rs:47: fn finish(self) -> String
 src/lir/emit/mod.rs:51: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:59: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:68: fn emit(&mut self)
-src/lir/emit/mod.rs:139: mod consts;
-src/lir/emit/mod.rs:140: mod functions;
-src/lir/emit/mod.rs:141: mod types;
-src/lir/emit/mod.rs:142: mod vtable;
+src/lir/emit/mod.rs:140: mod consts;
+src/lir/emit/mod.rs:141: mod functions;
+src/lir/emit/mod.rs:142: mod types;
+src/lir/emit/mod.rs:143: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
