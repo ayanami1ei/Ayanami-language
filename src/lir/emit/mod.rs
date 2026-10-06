@@ -52,7 +52,15 @@ impl<'a> Emitter<'a> {
         for _ in 0..self.indent {
             self.out.push_str("  ");
         }
-        self.out.push_str(s);
+        // M-opt.10：release 直接用 libc malloc/free（LLVM 识别分配/释放对 →
+        // 跨模块内联后不逃逸的分配可提升为 alloca；debug 保留 runtime 包装以计泄漏）
+        if crate::hir::contracts::is_release() {
+            let s = s.replace("@__ayanami_unique_alloc", "@malloc")
+                     .replace("@__ayanami_unique_free", "@free");
+            self.out.push_str(&s);
+        } else {
+            self.out.push_str(s);
+        }
         self.out.push('\n');
     }
 
@@ -86,8 +94,14 @@ impl<'a> Emitter<'a> {
 
         // Runtime declarations（M-opt.8：分配器 malloc 语义 noalias/allocsize；
         // 契约失败路径 cold；C 侧无栈展开 nounwind）
-        self.wln("declare noalias i8* @__ayanami_unique_alloc(i64) allocsize(0) nounwind");
-        self.wln("declare void @__ayanami_unique_free(i8*) nounwind");
+        // M-opt.10：release 直接声明 libc malloc/free（堆提升）
+        if crate::hir::contracts::is_release() {
+            self.wln("declare ptr @malloc(i64) nounwind");
+            self.wln("declare void @free(ptr) nounwind");
+        } else {
+            self.wln("declare noalias i8* @__ayanami_unique_alloc(i64) allocsize(0) nounwind");
+            self.wln("declare void @__ayanami_unique_free(i8*) nounwind");
+        }
         self.wln("declare void @llvm.memcpy.p0.p0.i64(i8*, i8*, i64, i1)");
         self.wln("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)");
         self.wln("declare void @llvm.assume(i1)");

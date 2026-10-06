@@ -42,11 +42,26 @@ pub fn build_source_with_target(
         }
     });
 
+    // M-opt.9：LTO —— llvm-link 合并全部模块 IR，opt -O3 一次，跨对象内联
+    let mut obj_paths = compiled.obj_paths.clone();
+    if crate::driver::is_lto() {
+        let modules: Vec<std::path::PathBuf> = obj_paths.iter()
+            .map(|o| o.with_extension("ll"))
+            .filter(|p| p.exists())
+            .collect();
+        if modules.len() > 1 {
+            let lto_obj = out_path.join(format!("{}.lto.o", name));
+            crate::driver::link_modules_lto(&modules, &lto_obj)
+                .map_err(|e| Error::Compile(format!("LTO failed: {}", e)))?;
+            obj_paths = vec![lto_obj];
+        }
+    }
+
     let _output_path = match target {
         "executable" => {
             let exe_path = out_path.join(&*name);
             crate::driver::objects_to_exe_with_runtime(
-                &compiled.obj_paths,
+                &obj_paths,
                 &compiled.link_flags,
                 &exe_path,
                 runtime.as_deref(),
@@ -56,12 +71,12 @@ pub fn build_source_with_target(
         }
         "static-lib" => {
             let lib_path = out_path.join(format!("lib{}.a", name));
-            if compiled.obj_paths.len() == 1 {
-                crate::driver::object_to_static_lib(&compiled.obj_paths[0], &lib_path)?;
+            if obj_paths.len() == 1 {
+                crate::driver::object_to_static_lib(&obj_paths[0], &lib_path)?;
             } else {
                 let mut cmd = std::process::Command::new("ar");
                 cmd.arg("rcs").arg(&lib_path);
-                for o in &compiled.obj_paths {
+                for o in &obj_paths {
                     cmd.arg(o);
                 }
                 let status = cmd.status().map_err(|e| Error::Compile(format!("failed to run ar: {}", e)))?;
@@ -73,10 +88,10 @@ pub fn build_source_with_target(
         }
         "dynamic-lib" => {
             let so_path = out_path.join(format!("lib{}.so", name));
-            if compiled.obj_paths.len() == 1 {
-                crate::driver::object_to_shared_lib(&compiled.obj_paths[0], &so_path)?;
+            if obj_paths.len() == 1 {
+                crate::driver::object_to_shared_lib(&obj_paths[0], &so_path)?;
             } else {
-                crate::driver::objects_to_shared_lib(&compiled.obj_paths, &so_path)?;
+                crate::driver::objects_to_shared_lib(&obj_paths, &so_path)?;
             }
             so_path
         }

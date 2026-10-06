@@ -113,6 +113,10 @@ impl EffectSummary {
         for e in &self.inferred.effects {
             push(format!("i:{}", e));
         }
+        // 无体目标（extern/未承诺 pure）导致的保守标记必须随包导出，
+        // 否则导入方会把「未知」误判为「无副作用」（LTO 下会误优化）。
+        if self.inferred.may_unknown_effects { push("i:unknown".into()); }
+        if self.inferred.may_unknown_errors { push("i:unknown_errors".into()); }
         if !self.inferred.throws.is_empty() {
             push("i:throws".into());
         }
@@ -131,6 +135,10 @@ impl EffectSummary {
             } else if let Some(rest) = t.strip_prefix("i:") {
                 if rest == "throws" {
                     inferred.throws.insert("?".into());
+                } else if rest == "unknown" {
+                    inferred.may_unknown_effects = true;
+                } else if rest == "unknown_errors" {
+                    inferred.may_unknown_errors = true;
                 } else {
                     inferred.effects.insert(rest.to_string());
                 }

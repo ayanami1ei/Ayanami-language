@@ -32,7 +32,9 @@ pub(super) fn llvm_attr_suffix(
         match a.name.as_str() {
             "cold" => s.push_str(" cold"),
             "noreturn" => s.push_str(" noreturn"),
-            "pure" => s.push_str(" memory(none)"),
+            // `#[pure]`：无写/无 io/无 state；但带指针形参时仍可能**读**内存
+            // （如 String.index_of 读缓冲区）→ memory(read)，否则 memory(none)
+            "pure" => s.push_str(if has_ptr_params { " memory(read)" } else { " memory(none)" }),
             "readonly" => s.push_str(" memory(read)"),
             "nounwind" => s.push_str(" nounwind"),
             "willreturn" => s.push_str(" willreturn"),

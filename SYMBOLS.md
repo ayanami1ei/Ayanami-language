@@ -25,8 +25,8 @@ src/cli/mod.rs:13: pub(crate) mod new;
 src/cli/mod.rs:14: pub(crate) mod types;
 src/cli/mod.rs:15: pub(crate) mod package_install;
 src/cli/mod.rs:28: pub(crate) struct CliFlags
-src/cli/mod.rs:34: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
-src/cli/mod.rs:48: pub(crate) fn apply_mode(flags: &CliFlags)
+src/cli/mod.rs:36: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
+src/cli/mod.rs:51: pub(crate) fn apply_mode(flags: &CliFlags)
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
@@ -97,7 +97,7 @@ src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
 src/compiler/build/passes/mod.rs:46: pub(super) fn apply_passes(
 src/compiler/build/target.rs:4: pub fn build_source_with_target(
-src/compiler/build/target.rs:113: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:128: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:72: fn has_return_in_stmt(s: &HirStmt) -> bool
@@ -237,21 +237,27 @@ src/diagnostics.rs:101: fn parse_error(raw: &str) -> (Option<String>, usize, usi
 src/diagnostics.rs:153: fn parse_lc(s: &str) -> Option<(usize, usize)>
 src/diagnostics.rs:158: fn clean_error_message(msg: &str) -> String
 src/diagnostics.rs:190: pub fn report_error(default_file: &Path, raw: &str)
-src/driver/mod.rs:10: mod runtime;
-src/driver/mod.rs:14: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
-src/driver/mod.rs:34: fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
-src/driver/mod.rs:54: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:114: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:119: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:127: pub fn objects_to_exe_with_runtime(
-src/driver/mod.rs:154: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:160: pub(crate) fn find_runtime_c() -> Result<String>
-src/driver/mod.rs:203: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:218: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:229: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:246: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
-src/driver/mod.rs:266: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:271: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/lto.rs:6: static LTO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+src/driver/lto.rs:7: pub fn set_lto(v: bool) { LTO.store(v, std::sync::atomic::Ordering::Relaxed); }
+src/driver/lto.rs:8: pub fn is_lto() -> bool { LTO.load(std::sync::atomic::Ordering::Relaxed) }
+src/driver/lto.rs:11: fn find_tool(name: &str, local_only: bool) -> Option<(PathBuf, PathBuf)>
+src/driver/lto.rs:29: pub fn link_modules_lto(modules: &[PathBuf], out_obj: &Path) -> Result<()>
+src/driver/mod.rs:10: mod lto;
+src/driver/mod.rs:11: mod runtime;
+src/driver/mod.rs:16: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
+src/driver/mod.rs:36: pub(super) fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
+src/driver/mod.rs:56: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:116: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:121: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:129: pub fn objects_to_exe_with_runtime(
+src/driver/mod.rs:156: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:162: pub(crate) fn find_runtime_c() -> Result<String>
+src/driver/mod.rs:205: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:220: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:231: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:248: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
+src/driver/mod.rs:268: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:273: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
 src/driver/runtime.rs:12: pub(crate) fn resolve_runtime(src_path: &Path) -> Result<Option<PathBuf>>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
@@ -347,14 +353,14 @@ src/hir/effects/infer.rs:44: pub fn verify_effects() -> bool
 src/hir/effects/infer.rs:49: pub fn analyze(hir: &mut HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
 src/hir/effects/infer.rs:62: pub fn summarize(hir: &HirProgram) -> HashMap<String, crate::hir::effects::EffectSummary>
 src/hir/effects/infer.rs:77: fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet>
-src/hir/effects/infer.rs:171: fn declared_to_set(d: &EffectDecl) -> EffectSet
-src/hir/effects/infer.rs:179: pub(super) fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
-src/hir/effects/infer.rs:189: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
-src/hir/effects/infer.rs:200: struct CallInfo
-src/hir/effects/infer.rs:207: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
-src/hir/effects/infer.rs:260: fn state_marker() -> CallInfo
-src/hir/effects/infer.rs:264: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
-src/hir/effects/infer.rs:268: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:181: fn declared_to_set(d: &EffectDecl) -> EffectSet
+src/hir/effects/infer.rs:189: pub(super) fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
+src/hir/effects/infer.rs:199: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
+src/hir/effects/infer.rs:210: struct CallInfo
+src/hir/effects/infer.rs:217: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:270: fn state_marker() -> CallInfo
+src/hir/effects/infer.rs:274: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
+src/hir/effects/infer.rs:278: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
 src/hir/effects/mod.rs:15: pub const BUILTIN_EFFECTS: &[&str] = &["io", "state", "alloc"];
 src/hir/effects/mod.rs:18: pub(crate) const IO_NAMES: &[&str] = &[
 src/hir/effects/mod.rs:24: pub mod diag;
@@ -372,11 +378,11 @@ src/hir/effects/mod.rs:80: pub fn no_throws(&self) -> bool
 src/hir/effects/mod.rs:87: pub struct EffectSummary
 src/hir/effects/mod.rs:92: impl EffectSummary
 src/hir/effects/mod.rs:94: pub fn tokens(&self) -> Vec<String>
-src/hir/effects/mod.rs:123: pub fn from_tokens(tokens: &[String]) -> Self
-src/hir/effects/mod.rs:154: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
-src/hir/effects/mod.rs:175: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
-src/hir/effects/mod.rs:196: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
-src/hir/effects/mod.rs:213: fn bad_throws(a: &Attr) -> Error
+src/hir/effects/mod.rs:127: pub fn from_tokens(tokens: &[String]) -> Self
+src/hir/effects/mod.rs:162: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
+src/hir/effects/mod.rs:183: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
+src/hir/effects/mod.rs:204: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
+src/hir/effects/mod.rs:221: fn bad_throws(a: &Attr) -> Error
 src/hir/effects/scan.rs:8: pub(super) enum Obs
 src/hir/effects/scan.rs:15: impl Obs
 src/hir/effects/scan.rs:17: pub(super) fn site_of(&self, kind: &str) -> Option<(usize, usize)>
@@ -1018,28 +1024,28 @@ src/lir/emit/consts.rs:58: fn collect_array_fields(
 src/lir/emit/consts.rs:90: fn const_value_at(
 src/lir/emit/functions.rs:4: pub(super) fn is_ptr_like(t: &HirType) -> bool
 src/lir/emit/functions.rs:14: pub(super) fn llvm_attr_suffix(
-src/lir/emit/functions.rs:54: pub(super) fn infer_param_attrs(t: &HirType) -> &'static str
-src/lir/emit/functions.rs:64: pub(super) fn infer_ret_attr(t: &HirType) -> &'static str
-src/lir/emit/functions.rs:73: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
-src/lir/emit/functions.rs:85: impl<'a> Emitter<'a>
-src/lir/emit/functions.rs:86: pub(super) fn emit_struct_defs(&mut self)
-src/lir/emit/functions.rs:106: pub(super) fn emit_string_globals(&mut self)
-src/lir/emit/functions.rs:126: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:217: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:234: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:248: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:56: pub(super) fn infer_param_attrs(t: &HirType) -> &'static str
+src/lir/emit/functions.rs:66: pub(super) fn infer_ret_attr(t: &HirType) -> &'static str
+src/lir/emit/functions.rs:75: pub(super) fn llvm_param_attrs(attrs: &[LirAttr]) -> String
+src/lir/emit/functions.rs:87: impl<'a> Emitter<'a>
+src/lir/emit/functions.rs:88: pub(super) fn emit_struct_defs(&mut self)
+src/lir/emit/functions.rs:108: pub(super) fn emit_string_globals(&mut self)
+src/lir/emit/functions.rs:128: pub(super) fn emit_fn(&mut self, f: &LirFn)
+src/lir/emit/functions.rs:219: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:236: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:250: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
 src/lir/emit/mod.rs:37: fn new(prog: &'a LirProgram) -> Self
 src/lir/emit/mod.rs:47: fn finish(self) -> String
 src/lir/emit/mod.rs:51: fn wln(&mut self, s: &str)
-src/lir/emit/mod.rs:59: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
-src/lir/emit/mod.rs:68: fn emit(&mut self)
-src/lir/emit/mod.rs:140: mod consts;
-src/lir/emit/mod.rs:141: mod functions;
-src/lir/emit/mod.rs:142: mod types;
-src/lir/emit/mod.rs:143: mod vtable;
+src/lir/emit/mod.rs:67: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
+src/lir/emit/mod.rs:76: fn emit(&mut self)
+src/lir/emit/mod.rs:154: mod consts;
+src/lir/emit/mod.rs:155: mod functions;
+src/lir/emit/mod.rs:156: mod types;
+src/lir/emit/mod.rs:157: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
