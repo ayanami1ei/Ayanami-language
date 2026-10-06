@@ -1,6 +1,18 @@
 use super::*;
 
 impl LirNode for SLirConv {
+    fn alloca_lines(&self, ctx: &LirEmitCtx) -> Vec<String> {
+        if !matches!(self.kind, ConvKind::ToUnique) || matches!(&self.src_ty, HirType::Array(_) | HirType::ArraySized(_, _)) { return Vec::new(); }
+        let scalar = matches!(&self.src_ty,
+            HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
+        let named = matches!(&self.src_ty, HirType::Named(s) if ctx.prog.struct_defs.contains_key(s));
+        if scalar || named {
+            let src_llvm = ctx.llvm_type(&self.src_ty);
+            vec![format!("%t{} = alloca {}, align 8", self.alloca_tmp, src_llvm)]
+        } else {
+            Vec::new()
+        }
+    }
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "Conv" }
     fn as_any(&self) -> &dyn std::any::Any { self }
@@ -25,13 +37,11 @@ impl LirNode for SLirConv {
                 let src_ptr = if matches!(&self.src_ty, HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. }) {
                     let src_llvm = ctx.llvm_type(&self.src_ty);
                     let alloca = format!("%t{}", self.alloca_tmp);
-                    lines.push(format!("{} = alloca {}, align 8", alloca, src_llvm));
                     lines.push(format!("store {} {}, ptr {}", src_llvm, src_val, alloca));
                     alloca
                 } else if matches!(&self.src_ty, HirType::Named(s) if ctx.prog.struct_defs.contains_key(s)) {
                     let src_llvm = ctx.llvm_type(&self.src_ty);
                     let alloca = format!("%t{}", self.alloca_tmp);
-                    lines.push(format!("{} = alloca {}, align 8", alloca, src_llvm));
                     lines.push(format!("store {} {}, ptr {}", src_llvm, src_val, alloca));
                     alloca
                 } else {

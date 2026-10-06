@@ -176,6 +176,24 @@ impl<'a> Emitter<'a> {
         ));
         self.indent += 1;
 
+        // #148 后续：所有静态 alloca 统一发射到函数入口块
+        // （循环内 alloca 会随迭代增长栈；LLVM 要求静态 alloca 位于入口块）
+        let actx = LirEmitCtx {
+            prog: self.prog,
+            load_tmp: self.load_tmp,
+            current_fn_ret_ty: self.current_fn_ret_ty.clone(),
+        };
+        let mut alloca_lines: Vec<String> = Vec::new();
+        for block in &f.blocks {
+            for inst in &block.insts {
+                alloca_lines.extend(inst.alloca_lines(&actx));
+            }
+        }
+        self.load_tmp = actx.load_tmp;
+        for line in alloca_lines {
+            self.wln(&line);
+        }
+
         // Emit all allocas and other instructions per block
         for (idx, block) in f.blocks.iter().enumerate() {
             if idx > 0 {

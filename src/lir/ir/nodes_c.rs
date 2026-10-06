@@ -153,10 +153,13 @@ impl LirNode for SLirStructLit {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "StructLit" }
     fn as_any(&self) -> &dyn std::any::Any { self }
+    fn alloca_lines(&self, _ctx: &LirEmitCtx) -> Vec<String> {
+        let struct_llvm = format!("%struct.{}", sanitize_name(&self.struct_name.as_str()));
+        vec![format!("%t{} = alloca {}, align 8", self.alloca_tmp, struct_llvm)]
+    }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let mut lines = Vec::new();
         let struct_llvm = format!("%struct.{}", sanitize_name(&self.struct_name.as_str()));
-        lines.push(format!("%t{} = alloca {}, align 8", self.alloca_tmp, struct_llvm));
         for (i, ((val, fty), gep_tmp)) in self.fields.iter().zip(self.field_geps.iter()).enumerate() {
             let field_llvm = ctx.llvm_type(fty);
             // Var 源是栈槽地址，需要 load 出值再存

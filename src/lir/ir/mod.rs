@@ -140,6 +140,9 @@ pub trait LirNode: std::fmt::Debug {
     fn kind(&self) -> &'static str;
     fn as_any(&self) -> &dyn std::any::Any;
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>;
+    /// 该指令发射的 alloca 行；emitter 统一放到函数入口块
+    /// （循环内 alloca 会随迭代增长栈；LLVM 要求静态 alloca 在入口块）。
+    fn alloca_lines(&self, _ctx: &LirEmitCtx) -> Vec<String> { Vec::new() }
     fn display(&self, f: &mut dyn Write) -> std::fmt::Result;
     fn serialize(&self, buf: &mut Vec<u8>);
 }
