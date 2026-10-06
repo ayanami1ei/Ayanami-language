@@ -430,13 +430,13 @@ src/hir/lower/body/const_struct.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/const_struct.rs:5: pub(crate) fn eval_const_struct(
 src/hir/lower/body/ensure.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/ensure.rs:10: pub(crate) fn inject_ensures(
-src/hir/lower/body/ensure.rs:57: impl crate::hir::lower::Ctx
-src/hir/lower/body/ensure.rs:59: pub(crate) fn loop_check_stmts(
-src/hir/lower/body/ensure.rs:83: fn result_node(var: VarId, ty: &HirType) -> HirNodeBox
-src/hir/lower/body/ensure.rs:88: fn rewrite_returns(stmts: &mut Vec<HirStmt>, var: VarId, ty: &HirType, checks: &[HirStmt])
-src/hir/lower/body/ensure.rs:120: fn always_returns(stmts: &[HirStmt]) -> bool
-src/hir/lower/body/ensure.rs:133: fn default_literal(ty: &HirType) -> Option<HirLiteral>
-src/hir/lower/body/ensure.rs:144: fn append_default_return(
+src/hir/lower/body/ensure.rs:60: impl crate::hir::lower::Ctx
+src/hir/lower/body/ensure.rs:62: pub(crate) fn loop_check_stmts(
+src/hir/lower/body/ensure.rs:89: fn result_node(var: VarId, ty: &HirType) -> HirNodeBox
+src/hir/lower/body/ensure.rs:94: fn rewrite_returns(stmts: &mut Vec<HirStmt>, var: VarId, ty: &HirType, checks: &[HirStmt])
+src/hir/lower/body/ensure.rs:126: fn always_returns(stmts: &[HirStmt]) -> bool
+src/hir/lower/body/ensure.rs:139: fn default_literal(ty: &HirType) -> Option<HirLiteral>
+src/hir/lower/body/ensure.rs:150: fn append_default_return(
 src/hir/lower/body/expr_access.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_access.rs:4: pub(crate) fn lower_field_access(&mut self, object: &Box<Expr>, field: &Symbol, expr_span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_access.rs:17: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>) -> Result<HirNodeBox>
@@ -587,9 +587,9 @@ src/hir/lower/body/ref_assign.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/ref_assign.rs:6: pub(crate) fn try_lower_ref_assign(
 src/hir/lower/body/stmt_loops.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/stmt_loops.rs:5: pub(crate) fn lower_while(
-src/hir/lower/body/stmt_loops.rs:22: pub(crate) fn lower_for(
-src/hir/lower/body/stmt_loops.rs:101: fn for_bound_type(start: &HirNodeBox, end: &HirNodeBox, step: &HirNodeBox, span: &Span) -> Result<HirType>
-src/hir/lower/body/stmt_loops.rs:130: fn coerce_for_bound(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/stmt_loops.rs:47: pub(crate) fn lower_for(
+src/hir/lower/body/stmt_loops.rs:126: fn for_bound_type(start: &HirNodeBox, end: &HirNodeBox, step: &HirNodeBox, span: &Span) -> Result<HirType>
+src/hir/lower/body/stmt_loops.rs:155: fn coerce_for_bound(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/stmt_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/stmt_lower.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
 src/hir/lower/body/usage_infer.rs:8: impl crate::hir::lower::Ctx
