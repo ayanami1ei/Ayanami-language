@@ -22,6 +22,7 @@ mod stmt_loops;
 mod ref_assign;
 mod expr_method;
 mod match_lower;
+mod match_pattern;
 mod usage_infer;
 mod macro_call;
 mod expr_lower;

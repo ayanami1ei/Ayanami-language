@@ -96,9 +96,9 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             let i = indent(level);
             let _ = writeln!(out, "{}match {} {{", i, write_expr_at(value, level));
             for arm in arms {
-                let _ = write!(out, "{}{}", indent(level + 1), arm.variant_name);
-                if !arm.bindings.is_empty() {
-                    let _ = write!(out, "({})", arm.bindings.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>().join(", "));
+                let _ = write!(out, "{}{}", indent(level + 1), arm.pattern.display());
+                if let Some(g) = &arm.guard {
+                    let _ = write!(out, " if {}", write_expr_at(g, level + 1));
                 }
                 let _ = writeln!(out, " => {},", write_expr_at(&arm.body, level + 1));
             }

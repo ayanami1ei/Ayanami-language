@@ -181,12 +181,10 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         Expr::Match { value, arms, .. } => {
             let mut out = format!("match {} {{", write_expr_at(value, level));
             for arm in arms {
-                let binds = if arm.bindings.is_empty() {
-                    String::new()
-                } else {
-                    format!("({})", arm.bindings.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>().join(", "))
-                };
-                out.push_str(&format!("\n{}{}{} => {},", indent(level + 1), arm.variant_name, binds, write_expr_at(&arm.body, level + 1)));
+                let guard = arm.guard.as_ref()
+                    .map(|g| format!(" if {}", write_expr_at(g, level + 1)))
+                    .unwrap_or_default();
+                out.push_str(&format!("\n{}{}{} => {},", indent(level + 1), arm.pattern.display(), guard, write_expr_at(&arm.body, level + 1)));
             }
             out.push_str(&format!("\n{}}}", indent(level)));
             out

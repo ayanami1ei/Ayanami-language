@@ -112,9 +112,10 @@ impl crate::hir::lower::Ctx {
             Stmt::Match { value, arms, .. } => {
                 self.check_expr_names(value, cx)?;
                 for a in arms {
-                    for (n, _) in &a.bindings {
-                        cx.env.insert(*n, GType::Other);
+                    for n in a.pattern.bindings() {
+                        cx.env.insert(n, GType::Other);
                     }
+                    if let Some(g) = &a.guard { self.check_expr_names(g, cx)?; }
                     self.check_expr_names(&a.body, cx)?;
                 }
                 Ok(())
@@ -249,9 +250,10 @@ impl crate::hir::lower::Ctx {
             Expr::Match { value, arms, .. } => {
                 self.check_expr_names(value, cx)?;
                 for a in arms {
-                    for (n, _) in &a.bindings {
-                        cx.env.insert(*n, GType::Other);
+                    for n in a.pattern.bindings() {
+                        cx.env.insert(n, GType::Other);
                     }
+                    if let Some(g) = &a.guard { self.check_expr_names(g, cx)?; }
                     self.check_expr_names(&a.body, cx)?;
                 }
                 Ok(())

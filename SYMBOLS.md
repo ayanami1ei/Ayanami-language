@@ -261,10 +261,10 @@ src/formatter/expr.rs:41: fn binop_prec(op: &BinaryOp) -> u8
 src/formatter/expr.rs:56: fn expr_prec(e: &Expr) -> u8
 src/formatter/expr.rs:65: fn maybe_paren(cond: bool, e: &Expr, level: usize) -> String
 src/formatter/expr.rs:70: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
-src/formatter/expr.rs:222: fn asm_constraint(c: &str) -> &str
-src/formatter/expr.rs:226: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:270: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:293: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:220: fn asm_constraint(c: &str) -> &str
+src/formatter/expr.rs:224: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:268: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:291: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
@@ -469,10 +469,10 @@ src/hir/lower/body/generic_check.rs:24: impl crate::hir::lower::Ctx
 src/hir/lower/body/generic_check.rs:26: pub(crate) fn check_generic_bodies(&self) -> Result<()>
 src/hir/lower/body/generic_check.rs:47: fn check_block_names(&self, block: &Block, cx: &mut CheckCtx) -> Result<()>
 src/hir/lower/body/generic_check.rs:57: fn check_stmt_names(&self, stmt: &Stmt, cx: &mut CheckCtx) -> Result<()>
-src/hir/lower/body/generic_check.rs:128: fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()>
+src/hir/lower/body/generic_check.rs:129: fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()>
 src/hir/lower/body/generic_locals.rs:5: pub(super) fn collect_local_names_block(block: &Block, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_locals.rs:14: pub(super) fn collect_local_names_stmt(stmt: &Stmt, out: &mut Vec<Symbol>)
-src/hir/lower/body/generic_locals.rs:65: pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>)
+src/hir/lower/body/generic_locals.rs:66: pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_specialize.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/generic_specialize.rs:12: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
@@ -513,17 +513,28 @@ src/hir/lower/body/lower_items.rs:117: pub(crate) fn collect_gp_from_type(ty: &H
 src/hir/lower/body/lower_items.rs:145: pub(crate) fn lower_fn(
 src/hir/lower/body/macro_call.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/match_lower.rs:7: impl crate::hir::lower::Ctx
-src/hir/lower/body/match_lower.rs:9: fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, Symbol)>
-src/hir/lower/body/match_lower.rs:29: fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
-src/hir/lower/body/match_lower.rs:44: fn match_arm_bindings(
-src/hir/lower/body/match_lower.rs:81: fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)>
-src/hir/lower/body/match_lower.rs:89: fn build_match_if(
-src/hir/lower/body/match_lower.rs:117: fn enum_variant_count(&self, name: &Symbol) -> usize
-src/hir/lower/body/match_lower.rs:124: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
-src/hir/lower/body/match_lower.rs:151: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/match_lower.rs:239: pub(super) fn block_diverges(b: &HirBlock) -> bool
-src/hir/lower/body/match_lower.rs:248: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
+src/hir/lower/body/match_lower.rs:7: struct LoweredArm
+src/hir/lower/body/match_lower.rs:14: impl crate::hir::lower::Ctx
+src/hir/lower/body/match_lower.rs:16: fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, HirType)>
+src/hir/lower/body/match_lower.rs:41: fn normalize_pattern(&self, p: &Pattern, val_ty: &HirType) -> Pattern
+src/hir/lower/body/match_lower.rs:56: fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)>
+src/hir/lower/body/match_lower.rs:64: fn lower_match_arms(
+src/hir/lower/body/match_lower.rs:90: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
+src/hir/lower/body/match_lower.rs:116: fn enum_variant_count(&self, name: &Symbol) -> usize
+src/hir/lower/body/match_lower.rs:123: fn build_match_stmts(
+src/hir/lower/body/match_lower.rs:187: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
+src/hir/lower/body/match_lower.rs:204: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/match_lower.rs:264: fn collect_variants(p: &Pattern, out: &mut std::collections::HashSet<Symbol>)
+src/hir/lower/body/match_lower.rs:272: fn collect_bools(p: &Pattern, t: &mut bool, f: &mut bool)
+src/hir/lower/body/match_pattern.rs:5: impl crate::hir::lower::Ctx
+src/hir/lower/body/match_pattern.rs:7: pub(super) fn variant_tag(&self, enum_name: &Symbol, variant: &Symbol) -> Option<i64>
+src/hir/lower/body/match_pattern.rs:15: pub(super) fn pattern_cond(
+src/hir/lower/body/match_pattern.rs:86: pub(super) fn pattern_bindings(
+src/hir/lower/body/match_pattern.rs:166: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:181: fn span_of(l: &crate::parser::ast::Literal) -> Span
+src/hir/lower/body/match_pattern.rs:190: fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral
+src/hir/lower/body/match_pattern.rs:202: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
+src/hir/lower/body/match_pattern.rs:218: pub(super) fn block_diverges(b: &HirBlock) -> bool
 src/hir/lower/body/mod.rs:10: mod collect_fns;
 src/hir/lower/body/mod.rs:11: mod collect_ns;
 src/hir/lower/body/mod.rs:12: mod vtables;
@@ -539,27 +550,28 @@ src/hir/lower/body/mod.rs:21: mod stmt_loops;
 src/hir/lower/body/mod.rs:22: mod ref_assign;
 src/hir/lower/body/mod.rs:23: mod expr_method;
 src/hir/lower/body/mod.rs:24: mod match_lower;
-src/hir/lower/body/mod.rs:25: mod usage_infer;
-src/hir/lower/body/mod.rs:26: mod macro_call;
-src/hir/lower/body/mod.rs:27: mod expr_lower;
-src/hir/lower/body/mod.rs:28: mod if_expr;
-src/hir/lower/body/mod.rs:29: mod ensure;
-src/hir/lower/body/mod.rs:30: mod literal;
-src/hir/lower/body/mod.rs:31: mod collect_enum;
-src/hir/lower/body/mod.rs:32: mod const_coerce;
-src/hir/lower/body/mod.rs:33: mod const_array;
-src/hir/lower/body/mod.rs:34: mod const_struct;
-src/hir/lower/body/mod.rs:35: mod const_eval;
-src/hir/lower/body/mod.rs:36: mod const_fn;
-src/hir/lower/body/mod.rs:37: mod collect_import;
-src/hir/lower/body/mod.rs:38: mod expr_access;
-src/hir/lower/body/mod.rs:39: mod expr_call;
-src/hir/lower/body/mod.rs:40: mod expr_call_extra;
-src/hir/lower/body/mod.rs:41: mod block_lower;
-src/hir/lower/body/mod.rs:42: mod expr_cast;
-src/hir/lower/body/mod.rs:43: mod expr_enum;
-src/hir/lower/body/mod.rs:44: mod expr_misc;
-src/hir/lower/body/mod.rs:45: mod expr_ops1;
+src/hir/lower/body/mod.rs:25: mod match_pattern;
+src/hir/lower/body/mod.rs:26: mod usage_infer;
+src/hir/lower/body/mod.rs:27: mod macro_call;
+src/hir/lower/body/mod.rs:28: mod expr_lower;
+src/hir/lower/body/mod.rs:29: mod if_expr;
+src/hir/lower/body/mod.rs:30: mod ensure;
+src/hir/lower/body/mod.rs:31: mod literal;
+src/hir/lower/body/mod.rs:32: mod collect_enum;
+src/hir/lower/body/mod.rs:33: mod const_coerce;
+src/hir/lower/body/mod.rs:34: mod const_array;
+src/hir/lower/body/mod.rs:35: mod const_struct;
+src/hir/lower/body/mod.rs:36: mod const_eval;
+src/hir/lower/body/mod.rs:37: mod const_fn;
+src/hir/lower/body/mod.rs:38: mod collect_import;
+src/hir/lower/body/mod.rs:39: mod expr_access;
+src/hir/lower/body/mod.rs:40: mod expr_call;
+src/hir/lower/body/mod.rs:41: mod expr_call_extra;
+src/hir/lower/body/mod.rs:42: mod block_lower;
+src/hir/lower/body/mod.rs:43: mod expr_cast;
+src/hir/lower/body/mod.rs:44: mod expr_enum;
+src/hir/lower/body/mod.rs:45: mod expr_misc;
+src/hir/lower/body/mod.rs:46: mod expr_ops1;
 src/hir/lower/body/overload_resolve.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
@@ -1918,11 +1930,18 @@ src/parser/ast/mod.rs:1: pub mod binary_op;
 src/parser/ast/mod.rs:2: pub mod block;
 src/parser/ast/mod.rs:3: pub mod expr;
 src/parser/ast/mod.rs:4: pub mod literal;
-src/parser/ast/mod.rs:5: pub mod program;
-src/parser/ast/mod.rs:6: pub mod stmt;
-src/parser/ast/mod.rs:7: pub mod ty;
-src/parser/ast/mod.rs:8: pub mod unary_op;
-src/parser/ast/mod.rs:9: pub mod vis;
+src/parser/ast/mod.rs:5: pub mod pattern;
+src/parser/ast/mod.rs:6: pub mod program;
+src/parser/ast/mod.rs:7: pub mod stmt;
+src/parser/ast/mod.rs:8: pub mod ty;
+src/parser/ast/mod.rs:9: pub mod unary_op;
+src/parser/ast/mod.rs:10: pub mod vis;
+src/parser/ast/pattern.rs:6: pub enum Pattern
+src/parser/ast/pattern.rs:19: impl Pattern
+src/parser/ast/pattern.rs:21: pub fn is_irrefutable(&self) -> bool
+src/parser/ast/pattern.rs:30: pub fn bindings(&self) -> Vec<Symbol>
+src/parser/ast/pattern.rs:40: pub fn display(&self) -> String
+src/parser/ast/pattern.rs:64: pub fn enum_variant(&self) -> Option<&Symbol>
 src/parser/ast/program.rs:4: pub struct Program
 src/parser/ast/program.rs:8: impl Program
 src/parser/ast/program.rs:9: pub fn new(stmts: Vec<Stmt>) -> Self
@@ -1935,9 +1954,9 @@ src/parser/ast/stmt.rs:42: pub struct InterfaceMethod
 src/parser/ast/stmt.rs:51: pub enum EnumFields
 src/parser/ast/stmt.rs:58: pub struct EnumVariant
 src/parser/ast/stmt.rs:64: pub struct MatchArm
-src/parser/ast/stmt.rs:71: pub enum Stmt
-src/parser/ast/stmt.rs:214: impl Stmt
-src/parser/ast/stmt.rs:215: pub fn span(&self) -> Span
+src/parser/ast/stmt.rs:73: pub enum Stmt
+src/parser/ast/stmt.rs:216: impl Stmt
+src/parser/ast/stmt.rs:217: pub fn span(&self) -> Span
 src/parser/ast/ty.rs:5: pub enum Type
 src/parser/ast/ty.rs:26: impl Type
 src/parser/ast/ty.rs:27: pub fn span(&self) -> Span
@@ -1986,8 +2005,8 @@ src/parser/parser/decl.rs:141: pub(super) fn parse_for(&mut self) -> Result<Stmt
 src/parser/parser/decl.rs:168: pub(super) fn parse_while(&mut self) -> Result<Stmt>
 src/parser/parser/decl.rs:178: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
 src/parser/parser/decl.rs:186: pub(super) fn parse_match_expr(&mut self) -> Result<Expr>
-src/parser/parser/decl.rs:220: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
-src/parser/parser/decl.rs:243: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
+src/parser/parser/decl.rs:216: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser/decl.rs:239: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:3: impl Parser
 src/parser/parser/enum_iface.rs:6: pub(super) fn parse_enum_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:74: pub(super) fn parse_interface_def(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
@@ -2028,9 +2047,13 @@ src/parser/parser/mod.rs:43: mod expr;
 src/parser/parser/mod.rs:44: mod impls;
 src/parser/parser/mod.rs:45: mod literal_text;
 src/parser/parser/mod.rs:46: mod macro_call;
-src/parser/parser/mod.rs:47: mod stmt;
-src/parser/parser/mod.rs:48: mod types;
-src/parser/parser/mod.rs:49: mod unary;
+src/parser/parser/mod.rs:47: mod pattern;
+src/parser/parser/mod.rs:48: mod stmt;
+src/parser/parser/mod.rs:49: mod types;
+src/parser/parser/mod.rs:50: mod unary;
+src/parser/parser/pattern.rs:6: impl Parser
+src/parser/parser/pattern.rs:8: pub(super) fn parse_pattern(&mut self) -> Result<Pattern>
+src/parser/parser/pattern.rs:17: fn parse_pattern_atom(&mut self) -> Result<Pattern>
 src/parser/parser/self_type.rs:4: pub(super) fn subst_self_in_type(ty: &Type, self_ty: &Type) -> Type
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
@@ -2303,6 +2326,14 @@ example/test_match_expr.aya:5: enum TokenType
 example/test_match_expr.aya:11: impl TokenType
 example/test_match_expr.aya:12: fn to_string(ref self) -> String
 example/test_match_expr.aya:21: fn main() -> int
+example/test_match_literals.aya:2: enum Color
+example/test_match_literals.aya:8: enum Opt[T]
+example/test_match_literals.aya:13: fn name(int x) -> int
+example/test_match_literals.aya:22: fn kind(Color c) -> int
+example/test_match_literals.aya:29: fn flag(bool b) -> int
+example/test_match_literals.aya:36: fn letter(char c) -> int
+example/test_match_literals.aya:43: fn opt_kind(Opt[int] o) -> int
+example/test_match_literals.aya:51: fn main() -> int
 example/test_memory.aya:5: fn make() -> int
 example/test_memory.aya:11: fn main() -> int
 example/test_memory_enum.aya:4: enum Maybe

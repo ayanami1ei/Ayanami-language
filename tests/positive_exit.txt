@@ -38,6 +38,7 @@ test_for_usize.aya 0
 test_generic_constraint.aya 0
 test_generic_bound_check.aya 0
 test_generic_enum_match.aya 0
+test_match_literals.aya 0
 test_generic_struct_lit.aya 0
 test_generic_enum_ctor.aya 0
 test_generic_pair_map.aya 0

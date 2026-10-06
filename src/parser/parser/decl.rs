@@ -194,21 +194,17 @@ impl Parser {
         let mut arms = Vec::new();
         loop {
             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) { break; }
-            let variant_name = Symbol::intern(&self.expect_identifier()?);
-            let mut bindings = Vec::new();
-            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
+            let pattern = self.parse_pattern()?;
+            // Phase 1.3：`pattern if guard => body`
+            let guard = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::If)) {
                 self.advance();
-                loop {
-                    let binding_name = self.expect_identifier()?;
-                    bindings.push((Symbol::intern(&binding_name), None));
-                    if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
-                    self.expect_delimiter(Delimiter::Comma)?;
-                }
-                self.expect_delimiter(Delimiter::RParen)?;
-            }
+                Some(self.parse_expr()?)
+            } else {
+                None
+            };
             self.expect_delimiter(Delimiter::FatArrow)?;
             let body = self.parse_expr()?;
-            arms.push(crate::parser::ast::stmt::MatchArm { variant_name, bindings, body });
+            arms.push(crate::parser::ast::stmt::MatchArm { pattern, guard, body });
             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
                 self.advance();
             }

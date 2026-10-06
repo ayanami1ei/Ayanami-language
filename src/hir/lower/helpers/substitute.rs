@@ -126,8 +126,8 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
         Expr::Match { value, arms, span } => Expr::Match {
             value: Box::new(substitute_type_in_expr(value, subst)),
             arms: arms.iter().map(|a| crate::parser::ast::stmt::MatchArm {
-                variant_name: a.variant_name,
-                bindings: a.bindings.clone(),
+                pattern: a.pattern.clone(),
+                guard: a.guard.as_ref().map(|g| substitute_type_in_expr(g, subst)),
                 body: substitute_type_in_expr(&a.body, subst),
             }).collect(),
             span: *span,
@@ -239,8 +239,8 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
         Stmt::Match { value, arms, span } => Stmt::Match {
             value: Box::new(substitute_type_in_expr(value, subst)),
             arms: arms.iter().map(|a| MatchArm {
-                variant_name: a.variant_name,
-                bindings: a.bindings.clone(),
+                pattern: a.pattern.clone(),
+                guard: a.guard.as_ref().map(|g| substitute_type_in_expr(g, subst)),
                 body: substitute_type_in_expr(&a.body, subst),
             }).collect(),
             span: *span,
