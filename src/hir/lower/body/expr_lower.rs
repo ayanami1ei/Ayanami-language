@@ -113,6 +113,17 @@ impl crate::hir::lower::Ctx {
                 }
                 let hir_inner = self.lower_expr(inner)?;
                 let inner_ty = hir_inner.expr_type();
+                // 已是引用：`ref`/`ref mut` 为再借用，直接传递（避免双重间接；
+                // 递归 `f(ref mut a)` 传 `ref mut [T]` 参数即此路径）
+                if let HirType::Ref(_, inner_mut) = &inner_ty {
+                    if *mutable && !*inner_mut {
+                        return Err(Error::Hir(format!(
+                            "cannot take a mutable reference through an immutable reference (at {}:{})",
+                            span.start_line, span.start_col
+                        )));
+                    }
+                    return Ok(hir_inner);
+                }
                 let ty = HirType::Ref(Box::new(inner_ty), *mutable);
                 Ok(SRef { expr: hir_inner, mutable: *mutable, ty }.into())
             }

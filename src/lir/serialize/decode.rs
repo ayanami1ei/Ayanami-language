@@ -112,6 +112,10 @@ impl<'a> Reader<'a> {
                 let i = self.value()?; let et = self.ty()?;
                 Ok(SLirIndexAddr { dest: d, arr_tmp: a, index: i, elem_ty: et }.into())
             }
+            34 => {
+                let d = self.u64()?; let s = self.value()?; let t = self.ty()?;
+                Ok(SLirLoadPtr { dest: d, src: s, ty: t }.into())
+            }
             16 => {
                 let d = self.u64()?;
                 let gt = self.u64()?;

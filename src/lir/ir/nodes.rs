@@ -7,6 +7,7 @@ use super::*;
 s_lir!(SLirAlloca { var: VarId, ty: HirType });
 s_lir!(SLirStore { dest: VarId, src: LirValue, ty: HirType });
 s_lir!(SLirLoad { dest: u64, src: VarId, ty: HirType });
+s_lir!(SLirLoadPtr { dest: u64, src: LirValue, ty: HirType });
 s_lir!(SLirBinOp { dest: u64, op: BinaryOp, lhs: LirValue, rhs: LirValue, ty: HirType, result_ty: HirType });
 s_lir!(SLirUnaryOp { dest: u64, op: UnaryOp, src: LirValue, ty: HirType });
 s_lir!(SLirCall { dest: Option<u64>, fn_id: FnId, args: Vec<(LirValue, HirType)>, ret_ty: HirType });
@@ -45,7 +46,7 @@ s_lir!(SLirCustom { node: IrNode });
 // ═══════════════════════════════════════════════════════════════════
 
 impl_into_lir_node_box!(
-    SLirAlloca, SLirStore, SLirLoad, SLirBinOp, SLirUnaryOp,
+    SLirAlloca, SLirStore, SLirLoad, SLirLoadPtr, SLirBinOp, SLirUnaryOp,
     SLirCall, SLirCallPtr, SLirFnAddr, SLirStrGlobal, SLirConv,
     SLirDropValue,
     SLirBr, SLirBrCond, SLirAssume, SLirContractCheck, SLirRet,

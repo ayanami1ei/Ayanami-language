@@ -45,6 +45,7 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
             }
         };
         let idx_val = index.lower_to_lir(ctx);
+        let arr_tmp = array_base_through_ref(ctx, arr_tmp, &obj.expr_type());
         let obj_ty = strip_ownership(obj.expr_type());
         let elem_ty = match obj_ty {
             HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(),
@@ -61,6 +62,19 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
         return Some(LirValue::Tmp(dest));
     }
     None
+}
+
+/// `ref [T]` / `ref mut [T]` 索引：ref 值是调用方数组变量槽的地址（ptr 的地址），
+/// 索引前需先取出数组指针；普通拥有数组/数组值原样返回。
+pub(super) fn array_base_through_ref(ctx: &mut dyn LirLowerCtx, base_tmp: u64, ty: &HirType) -> u64 {
+    if let HirType::Ref(inner, _) = ty {
+        if matches!(strip_ownership((**inner).clone()), HirType::Array(_) | HirType::ArraySized(_, _)) {
+            let t = ctx.next_tmp();
+            ctx.emit(SLirLoadPtr { dest: t, src: LirValue::Tmp(base_tmp), ty: (**inner).clone() }.into());
+            return t;
+        }
+    }
+    base_tmp
 }
 
 impl MirNode for SMirRef {

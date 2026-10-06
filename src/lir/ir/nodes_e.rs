@@ -69,6 +69,26 @@ impl LirNode for SLirRefTmp {
     }
 }
 
+impl LirNode for SLirLoadPtr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "LoadPtr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let llvm_ty = ctx.llvm_type(&self.ty);
+        let src = ctx.value_ref(&self.src, &self.ty);
+        vec![format!("%t{} = load {}, ptr {}, align 8", self.dest, llvm_ty, src)]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = load_ptr {:?} : {:?}", self.dest, self.src, self.ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(34);
+        put_u64(buf, self.dest);
+        put_value(buf, &self.src);
+        put_type(buf, &self.ty);
+    }
+}
+
 impl LirNode for SLirIndexStore {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "IndexStore" }

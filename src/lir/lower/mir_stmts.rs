@@ -75,11 +75,11 @@ impl MirStmtNode for SMirIndexAssignStmt { fn span(&self) -> crate::span::Span {
             LirValue::Tmp(t) => t,
             _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&obj_val), ty: self.object.expr_type() }.into()); t }
         };
+        let obj_tmp = super::mir_ref::array_base_through_ref(ctx, obj_tmp, &self.object.expr_type());
         let idx_val = self.index.lower_to_lir(ctx);
         let src_val = self.value.lower_to_lir(ctx);
         let gep_tmp = ctx.next_tmp();
         let obj_ty = strip_ownership(self.object.expr_type());
-        // 数组现在直接是 Unique(Array/ArraySized)：先剥拥有包装再取元素类型
         let elem_ty = match strip_ownership(obj_ty.clone()) { HirType::Array(inner) | HirType::ArraySized(inner, _) => (*inner).clone(), _ => HirType::Int };
         ctx.emit(SLirIndexStore { dest: obj_tmp, gep_tmp, src: src_val, index: idx_val, elem_ty, array_ty: self.object.expr_type() }.into());
     }

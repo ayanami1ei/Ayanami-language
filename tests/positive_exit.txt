@@ -69,6 +69,7 @@ test_panic.aya 101
 test_pass.aya 0
 test_poly.aya 42
 test_ref_auto.aya 0
+test_ref_array.aya 0
 test_release_opt.aya 0
 test_ref_param.aya 42
 test_ref_return.aya 9
