@@ -51,7 +51,8 @@ pub fn env(ref String key) -> String {
     i = 0;
     while i < data.len as int {
         j = i;
-        while j < data.len as int && data.index(j as usize) != '\0' {
+        while j < data.len as int {
+            if data.index(j as usize) == '\0' { break; }
             j = j + 1;
         }
         if entry_matches(data, i, j, key) {

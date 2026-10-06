@@ -2,8 +2,8 @@ import "io";
 import "aya_parser";
 
 fn main() -> int {
-    p = Parser::new("fn main() -> int { return 0 }");
+    p = Parser::new("fn f() -> int { return 0 }");
     prog = p.parse_program();
-    println(prog);
+    println(p.failed);
     return 0;
 }

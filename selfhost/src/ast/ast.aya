@@ -80,6 +80,7 @@ pub enum TT {
     Self_,
     Default,
     FnPtr,
+    Never,
 }
 
 // 辅助节点标签（参数/字段/实参/elif/匹配臂/泛型实参）

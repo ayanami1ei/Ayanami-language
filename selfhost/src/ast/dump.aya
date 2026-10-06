@@ -7,6 +7,102 @@ import "aya_ast";
 // 树线字符 "│ " 用 UTF-8 字节拼出来。
 extern "C" fn __ayanami_int_to_char(int c) -> char;
 
+fn is_digit_d(int c) -> bool {
+    if c >= 48 && c <= 57 { return true; }
+    return false;
+}
+
+fn digit_val(int c) -> int {
+    if c >= 48 && c <= 57 { return c - 48; }
+    if c >= 97 && c <= 102 { return c - 87; }
+    if c >= 65 && c <= 70 { return c - 55; }
+    return 0;
+}
+
+/// 解析整数字面量（进制前缀 + 下划线）为值
+fn parse_int_text(ref String s) -> int {
+    n = s.len as int;
+    i = 0;
+    radix = 10;
+    neg = 0;
+    if i < n {
+        if char_code(s.index(0)) == 45 { neg = 1; i = 1; }
+    }
+    if n >= 2 {
+        if char_code(s.index(0)) == 48 {
+            c1 = char_code(s.index(1));
+            if c1 == 120 || c1 == 88 { radix = 16; i = 2; }
+            elif c1 == 98 || c1 == 66 { radix = 2; i = 2; }
+            elif c1 == 111 || c1 == 79 { radix = 8; i = 2; }
+        }
+    }
+    v = 0;
+    while i < n {
+        c = char_code(s.index(i as usize));
+        if c == 95 { i = i + 1; } else {
+            v = v * radix + digit_val(c);
+            i = i + 1;
+        }
+    }
+    if neg == 1 { v = 0 - v; }
+    return v;
+}
+
+/// 解析浮点字面量为值（简单实现：整数.小数e指数）
+fn parse_float_text(ref String s) -> float {
+    n = s.len as int;
+    i = 0;
+    ipart = 0;
+    fneg = 0;
+    if i < n {
+        if char_code(s.index(0)) == 45 { fneg = 1; i = 1; }
+    }
+    while i < n {
+        c = char_code(s.index(i as usize));
+        if is_digit_d(c) { ipart = ipart * 10 + (c - 48); i = i + 1; }
+        elif c == 95 { i = i + 1; }
+        else { break; }
+    }
+    frac = 0.0;
+    scale = 1.0;
+    if i < n {
+        if char_code(s.index(i as usize)) == 46 {
+            i = i + 1;
+            while i < n {
+                c = char_code(s.index(i as usize));
+                if is_digit_d(c) { frac = frac * 10.0 + (c - 48) as float; scale = scale * 10.0; i = i + 1; }
+                elif c == 95 { i = i + 1; }
+                else { break; }
+            }
+        }
+    }
+    exp = 0;
+    negexp = 0;
+    if i < n {
+        c = char_code(s.index(i as usize));
+        if c == 101 || c == 69 {
+            i = i + 1;
+            if i < n {
+                if char_code(s.index(i as usize)) == 45 { negexp = 1; i = i + 1; }
+                elif char_code(s.index(i as usize)) == 43 { i = i + 1; }
+            }
+            while i < n {
+                c2 = char_code(s.index(i as usize));
+                if is_digit_d(c2) { exp = exp * 10 + (c2 - 48); i = i + 1; } else { break; }
+            }
+        }
+    }
+    v = ipart as float;
+    v = v + frac / scale;
+    if fneg == 1 { v = 0.0 - v; }
+    k = 0;
+    while k < exp {
+        if negexp == 1 { v = v / 10.0; } else { v = v * 10.0; }
+        k = k + 1;
+    }
+    return v;
+}
+
 fn push_pad(ref mut StringBuf b, int level) {
     i = 0;
     while i < level {
@@ -32,6 +128,7 @@ fn push_type(ref Ast ast, int ty, ref mut StringBuf b) {
     elif t == tt(TT::Self_._tag) { b.push_str("Self"); }
     elif t == tt(TT::Default._tag) { b.push_str("???"); }
     elif t == tt(TT::FnPtr._tag) { b.push_str("???"); }
+    elif t == tt(TT::Never._tag) { b.push_str("Never"); }
     elif t == tt(TT::Named._tag) {
         b.push_str("Named(");
         b.push_str(ast.texts[ty]);
@@ -101,11 +198,11 @@ fn push_literal(ref Ast ast, int id, ref mut StringBuf b) {
     kind = ast.bb[id];
     if kind == lk(LK::Int._tag) {
         b.push_str("Int(");
-        b.push_str(ast.texts[id]);
+        b.push_int(parse_int_text(ast.texts[id]));
         b.push_str(")");
     } elif kind == lk(LK::Float._tag) {
         b.push_str("Float(");
-        b.push_str(ast.texts[id]);
+        b.push_str(parse_float_text(ast.texts[id]).to_string());
         b.push_str(")");
     } elif kind == lk(LK::Char._tag) {
         b.push_str("Char('");
@@ -131,6 +228,18 @@ pub fn dump_ast(ref Ast ast, int program) -> String {
         s = ast.nexts[s];
     }
     return b.to_string();
+}
+
+fn dump_block_flat(ref Ast ast, int id, int level, ref mut StringBuf b) {
+    s = ast.aa[id];
+    while s >= 0 {
+        dump_stmt(ast, s, level, b);
+        s = ast.nexts[s];
+    }
+    t = ast.bb[id];
+    if t >= 0 {
+        dump_expr(ast, t, level, b);
+    }
 }
 
 fn dump_block(ref Ast ast, int id, int level, ref mut StringBuf b) {
@@ -321,7 +430,7 @@ fn dump_expr(ref Ast ast, int id, int level, ref mut StringBuf b) {
     if id < 0 { return; }
     tag = ast.tags[id];
     // 实参链节点：直接 dump 内层表达式（rust 版没有包装节点）
-    if tag == xt(XT::Arg._tag) {
+    if tag == xt(XT::Arg._tag) || tag == xt(XT::StructLitField._tag) {
         dump_expr(ast, ast.aa[id], level, b);
         return;
     }
@@ -347,6 +456,19 @@ fn dump_expr(ref Ast ast, int id, int level, ref mut StringBuf b) {
         push_pad(b, level);
         b.push_str("  rhs:\n");
         dump_expr(ast, ast.bb[id], level + 1, b);
+    } elif tag == et(ET::If._tag) {
+        b.push_str("If\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        dump_block_flat(ast, ast.bb[id], level + 1, b);
+        e = ast.cc[id];
+        while e >= 0 {
+            dump_expr(ast, ast.aa[e], level + 1, b);
+            dump_block_flat(ast, ast.bb[e], level + 1, b);
+            e = ast.nexts[e];
+        }
+        if ast.dd[id] >= 0 {
+            dump_block_flat(ast, ast.dd[id], level + 1, b);
+        }
     } elif tag == et(ET::Unary._tag) {
         b.push_str("Unary { op: ");
         b.push_str(un_op_name(ast.tys[id]));

@@ -118,6 +118,10 @@ cmd_ast() {
         total=$((total + 1))
         "$s0" dump ast "$f" > /tmp/opencode/ast_rust.txt 2>/dev/null || true
         PARSE_FILE="$f" "$ROOT/build/ast_dump" > /tmp/opencode/ast_aya.txt 2>/dev/null || true
+        # Import 路径依赖解析环境（相对路径/lcl 临时目录），golden 时归一化为占位符
+        sed -i 's|Import { path: .* }|Import { path: <p> }|' /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt
+        # ConstDecl/StaticDecl 的 rust Debug 含 Span/Symbol 内部信息，归一化为占位符
+        sed -i -E 's|(ConstDecl \{ name: [A-Za-z0-9_]+).*|\1 }|; s|(StaticDecl \{ name: [A-Za-z0-9_]+).*|\1 }|' /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt
         if diff -q /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt >/dev/null; then
             echo "AST OK $(basename "$f")"
         else
