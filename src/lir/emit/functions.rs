@@ -110,12 +110,20 @@ impl<'a> Emitter<'a> {
         let mut params_str: Vec<String> = Vec::new();
         for (i, (_, t)) in f.params.iter().enumerate() {
             let mut attrs = f.param_attrs.get(i).map(|v| llvm_param_attrs(v)).unwrap_or_default();
-            // M-opt.1：release 按所有权模型推断 noalias（ref mut 独占 / 拥有值唯一）
-            if crate::hir::contracts::is_release()
-                && matches!(t, HirType::Ref(_, true) | HirType::Unique(_))
-                && !attrs.contains("noalias")
-            {
-                attrs.push_str(" noalias");
+            // M-opt.1/6：release 按所有权模型推断参数属性
+            if crate::hir::contracts::is_release() {
+                let push = |attrs: &mut String, a: &str| {
+                    if !attrs.contains(a) { attrs.push(' '); attrs.push_str(a); }
+                };
+                match t {
+                    // 独占借用：独占 + 非空
+                    HirType::Ref(_, true) => { push(&mut attrs, "noalias"); push(&mut attrs, "nonnull"); }
+                    // 共享借用：非空 + 只读（借用检查禁止经共享引用写入）
+                    HirType::Ref(_, false) => { push(&mut attrs, "nonnull"); push(&mut attrs, "readonly"); }
+                    // 拥有指针/数组：唯一（空数组可能为 null，不加 nonnull）
+                    HirType::Unique(_) | HirType::Array(_) | HirType::ArraySized(_, _) => push(&mut attrs, "noalias"),
+                    _ => {}
+                }
             }
             params_str.push(format!("{}{}", self.llvm_type(t), attrs));
         }
@@ -131,6 +139,16 @@ impl<'a> Emitter<'a> {
             inline_attr.push_str(" noreturn");
         }
 
+        // M-opt.6：release 返回值属性 —— 拥有指针 noalias、引用 nonnull
+        let ret_attr = if crate::hir::contracts::is_release() {
+            match &f.return_type {
+                HirType::Unique(_) | HirType::Array(_) | HirType::ArraySized(_, _) => "noalias ",
+                HirType::Ref(..) => "nonnull ",
+                _ => "",
+            }
+        } else {
+            ""
+        };
         self.current_fn_ret_ty = f.return_type.clone();
 
         // M-opt.2：release 下非导出定义标 internal（opt 可内联/DCE、免 PLT）；
@@ -147,8 +165,8 @@ impl<'a> Emitter<'a> {
             ""
         };
         self.wln_fmt(format_args!(
-            "define {}{} @{}({}){} {{",
-            linkage, ret_ty, fn_name, param_list, inline_attr
+            "define {}{}{} @{}({}){} {{",
+            linkage, ret_attr, ret_ty, fn_name, param_list, inline_attr
         ));
         self.indent += 1;
 

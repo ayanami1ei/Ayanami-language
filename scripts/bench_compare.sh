@@ -15,15 +15,33 @@ cd "$(dirname "$0")/.."
 RUNS="${BENCH_RUNS:-3}"
 OUT="build/bench-cmp"
 AYANAMI_BIN="${AYANAMI_BIN:-target/debug/ayanami}"
+# 资源隔离：优先 systemd-run scope（MemoryMax 限制物理内存，防泄漏吃满整机）；
+# 回退 ulimit -v（虚拟内存；JVM 预留大地址空间，故 Java 单独用 -Xmx）。
+LIMIT_MEM="${BENCH_MEM:-3G}"
+LIMIT_TIME="${BENCH_TIMEOUT:-300}"
+have_scope=0
+if command -v systemd-run >/dev/null 2>&1 \
+   && systemd-run --user --scope -p MemoryMax=64M -p MemorySwapMax=0 --quiet true >/dev/null 2>&1; then
+    have_scope=1
+fi
+run_limited() {
+    if [ "$have_scope" = 1 ]; then
+        timeout "$LIMIT_TIME" systemd-run --user --scope \
+            -p MemoryMax="$LIMIT_MEM" -p MemorySwapMax=0 --quiet -- "$@"
+    else
+        timeout "$LIMIT_TIME" "$@"
+    fi
+}
 mkdir -p "$OUT"
 
-echo "== 构建 =="
-"$AYANAMI_BIN" build --release bench/bench.aya >/dev/null 2>&1
+echo "== 构建（资源上限 $LIMIT_MEM / ${LIMIT_TIME}s）=="
+# `build` 默认产出静态库；用 `run` 链接可执行文件（跑一次不影响计时协议）
+run_limited "$AYANAMI_BIN" run --release bench/bench.aya >/dev/null 2>&1 || true
 cp build/bench "$OUT/bench_ayanami"
-rustc --edition 2021 -C opt-level=3 bench/bench.rs -o "$OUT/bench_rust"
-javac -d "$OUT" bench/Bench.java
-zig build-exe bench/bench.zig -O ReleaseFast -mcpu=x86_64 -lc -femit-bin="$OUT/bench_zig" >/dev/null
-gcc -O3 -ffp-contract=off bench/bench.c -o "$OUT/bench_c" -lm
+run_limited rustc --edition 2021 -C opt-level=3 bench/bench.rs -o "$OUT/bench_rust"
+run_limited javac -d "$OUT" bench/Bench.java
+run_limited zig build-exe bench/bench.zig -O ReleaseFast -mcpu=x86_64 -lc -femit-bin="$OUT/bench_zig" >/dev/null
+run_limited gcc -O3 -ffp-contract=off bench/bench.c -o "$OUT/bench_c" -lm
 echo "构建完成 -> $OUT"
 
 tmp=$(mktemp -d)
@@ -31,7 +49,7 @@ trap 'rm -rf "$tmp"' EXIT
 declare -A CMD=(
     [ayanami]="$OUT/bench_ayanami"
     [rust]="$OUT/bench_rust"
-    [java]="java -cp $OUT Bench"
+    [java]="java -Xmx1g -cp $OUT Bench"
     [zig]="$OUT/bench_zig"
     [c]="$OUT/bench_c"
 )
@@ -39,7 +57,7 @@ langs=(ayanami rust java zig c)
 for lang in "${langs[@]}"; do
     : > "$tmp/$lang.txt"
     for _ in $(seq 1 "$RUNS"); do
-        ${CMD[$lang]} >> "$tmp/$lang.txt"
+        run_limited ${CMD[$lang]} >> "$tmp/$lang.txt"
     done
     echo "已跑 $lang x$RUNS"
 done

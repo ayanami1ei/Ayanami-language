@@ -1023,9 +1023,9 @@ src/lir/emit/functions.rs:66: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:67: pub(super) fn emit_struct_defs(&mut self)
 src/lir/emit/functions.rs:87: pub(super) fn emit_string_globals(&mut self)
 src/lir/emit/functions.rs:107: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:175: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:192: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:206: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:193: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:210: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:224: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -2446,8 +2446,10 @@ example/test_ref_self.aya:14: fn into(self) -> int
 example/test_ref_self.aya:19: fn main() -> int
 example/test_release_opt.aya:2: fn sum_squares(int n) -> int
 example/test_release_opt.aya:12: fn bump(ref mut int x) -> int
-example/test_release_opt.aya:17: pub fn public_double(int x) -> int
-example/test_release_opt.aya:21: fn main() -> int
+example/test_release_opt.aya:18: fn sum_ref(ref [int] a, int n) -> int
+example/test_release_opt.aya:27: fn make(int n) -> [int]
+example/test_release_opt.aya:34: pub fn public_double(int x) -> int
+example/test_release_opt.aya:38: fn main() -> int
 example/test_requires.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_requires.aya:7: fn clamp100(int x) -> int { return x }
 example/test_requires.aya:9: fn main() -> int
