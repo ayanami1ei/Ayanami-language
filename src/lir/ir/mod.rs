@@ -192,6 +192,8 @@ macro_rules! impl_into_lir_node_box {
 }
 
 mod helpers;
+mod helpers_clone;
+mod helpers_drop;
 mod nodes;
 mod nodes_a;
 mod nodes_b;
@@ -201,5 +203,6 @@ mod nodes_e;
 mod nodes_f;
 
 pub use helpers::*;
+pub(crate) use helpers_drop::emit_drop_value;
 pub use nodes::*;
 pub use nodes_d::*;

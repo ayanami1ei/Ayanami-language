@@ -1,0 +1,24 @@
+// 回归：拥有元素数组递归 drop——静态计数数组字面量 + 动态 [T]（ArrayList.len 依赖）
+import "io"
+import "arraylist"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn run_arrlit() -> int {
+    xs = ["a", "b", "c", "d", "e"]
+    return xs[0].len() as int
+}
+
+fn run_list() -> int {
+    a = ArrayList::new[String]()
+    a.push("x")
+    a.push("y")
+    return a.len() as int
+}
+
+fn main() -> int {
+    n = run_arrlit() + run_list()
+    if n != 3 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

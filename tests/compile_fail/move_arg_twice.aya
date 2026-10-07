@@ -1,0 +1,11 @@
+// 拥有类型实参重复传递：第二次使用应报 use of moved value
+import "string"
+
+fn take(String s) -> String { return s }
+
+fn main() -> int {
+    x = "hi"
+    a = take(x)
+    b = take(x)
+    return 0
+}

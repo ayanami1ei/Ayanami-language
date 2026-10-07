@@ -32,6 +32,8 @@ run_limited() {
         timeout "$LIMIT_TIME" "$@"
     fi
 }
+# 先清理 build/：否则 `run --release` 会复用陈旧（debug/LTO）产物导致计时失真
+rm -rf build
 mkdir -p "$OUT"
 
 echo "== 构建（资源上限 $LIMIT_MEM / ${LIMIT_TIME}s）=="

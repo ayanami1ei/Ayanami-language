@@ -8,26 +8,7 @@ impl Parser {
         let name = self.expect_identifier()?;
 
         // Generic parameters: [T: Interface, U]
-        let mut generic_params = Vec::new();
-        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
-            self.advance();
-            loop {
-                let gp_name = Symbol::intern(&self.expect_identifier()?);
-                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
-                    self.advance();
-                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
-                } else {
-                    None
-                };
-                generic_params.push((gp_name, gp_constraint));
-                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
-                    break;
-                }
-                self.expect_delimiter(Delimiter::Comma)?;
-            }
-            self.expect_delimiter(Delimiter::RBracket)?;
-        }
-
+        let generic_params = self.parse_generic_params()?;
         // M2：extern "C"（含 #[export]）签名允许裸 `fn(...)` 类型；其余位置报错
         let raw_ok = extern_c || attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "export");
         let saved_raw = self.allow_raw_fn;
@@ -221,24 +202,7 @@ impl Parser {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // struct
         let name = Symbol::intern(&self.expect_identifier()?);
-        let mut generic_params = Vec::new();
-        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
-            self.advance();
-            loop {
-                let gp_name = Symbol::intern(&self.expect_identifier()?);
-                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
-                    self.advance();
-                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
-                } else {
-                    None
-                };
-                generic_params.push((gp_name, gp_constraint));
-                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) { break; }
-                self.expect_delimiter(Delimiter::Comma)?;
-            }
-            self.expect_delimiter(Delimiter::RBracket)?;
-        }
-        self.expect_delimiter(Delimiter::LBrace)?;
+        let generic_params = self.parse_generic_params()?;        self.expect_delimiter(Delimiter::LBrace)?;
         let mut fields = Vec::new();
         let mut field_attrs: Vec<Vec<crate::parser::ast::Attr>> = Vec::new();
         loop {

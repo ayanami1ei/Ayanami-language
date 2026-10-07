@@ -10,6 +10,7 @@ use super::{FnSig, InterfaceReg, Ctx};
 mod collect_fns;
 mod collect_ns;
 mod vtables;
+mod iface_args;
 mod iface_match;
 mod overload_resolve;
 mod generic_check;

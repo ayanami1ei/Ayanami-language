@@ -52,10 +52,10 @@ pub fn program_to_bytes(p: &LirProgram) -> Vec<u8> {
     for (name, params) in &p.generic_struct_params {
         put_str(&mut buf, &name.as_str());
         put_u32(&mut buf, params.len() as u32);
-        for (gp_name, constraint) in params {
+        for (gp_name, constraints) in params {
             put_str(&mut buf, &gp_name.as_str());
-            put_u32(&mut buf, constraint.map(|_| 1u32).unwrap_or(0));
-            if let Some(c) = constraint {
+            put_u32(&mut buf, constraints.len() as u32);
+            for c in constraints {
                 put_str(&mut buf, &c.as_str());
             }
         }
@@ -155,9 +155,12 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
         let mut params = Vec::new();
         for _ in 0..p_count {
             let gp_name = Symbol::intern(&r.str()?);
-            let has_constraint = r.u32()?;
-            let constraint = if has_constraint != 0 { Some(Symbol::intern(&r.str()?)) } else { None };
-            params.push((gp_name, constraint));
+            let c_count = r.u32()?;
+            let mut constraints = Vec::new();
+            for _ in 0..c_count {
+                constraints.push(Symbol::intern(&r.str()?));
+            }
+            params.push((gp_name, constraints));
         }
         generic_struct_params.insert(name, params);
     }

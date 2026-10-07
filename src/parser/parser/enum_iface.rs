@@ -8,22 +8,7 @@ impl Parser {
         self.advance(); // enum
         let name = Symbol::intern(&self.expect_identifier()?);
 
-        let mut generic_params = Vec::new();
-        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
-            self.advance();
-            loop {
-                let gp_name = Symbol::intern(&self.expect_identifier()?);
-                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
-                    self.advance();
-                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
-                } else { None };
-                generic_params.push((gp_name, gp_constraint));
-                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) { break; }
-                self.expect_delimiter(Delimiter::Comma)?;
-            }
-            self.expect_delimiter(Delimiter::RBracket)?;
-        }
-
+        let generic_params = self.parse_generic_params()?;
         self.expect_delimiter(Delimiter::LBrace)?;
 
         let mut variants = Vec::new();
@@ -77,26 +62,7 @@ impl Parser {
         let name = self.expect_identifier()?;
 
         // Generic parameters: [T, U: Constraint]
-        let mut generic_params = Vec::new();
-        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
-            self.advance();
-            loop {
-                let gp_name = Symbol::intern(&self.expect_identifier()?);
-                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
-                    self.advance();
-                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
-                } else {
-                    None
-                };
-                generic_params.push((gp_name, gp_constraint));
-                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
-                    break;
-                }
-                self.expect_delimiter(Delimiter::Comma)?;
-            }
-            self.expect_delimiter(Delimiter::RBracket)?;
-        }
-
+        let generic_params = self.parse_generic_params()?;
         self.expect_delimiter(Delimiter::LBrace)?;
         let mut methods = Vec::new();
         loop {

@@ -1,0 +1,31 @@
+// 多约束语法 `[T: A + B]`（#149 后续）：函数/结构体/impl 均支持，约束合并检查
+import "string"
+import "eq"
+
+struct Box[T: ToString + Eq] {
+    T v
+}
+
+impl[T: ToString + Eq] Box[T] {
+    pub fn describe(ref self) -> String {
+        return self.v.to_string()
+    }
+    pub fn is_same(ref self, ref Box[T] other) -> bool {
+        return self.v.same(other.v)
+    }
+}
+
+fn show[T: ToString + Eq](T a) -> String {
+    return a.to_string()
+}
+
+fn main() -> int {
+    if show(42) != "42" { return 1 }
+    a = Box[int] { v = 7 }
+    b = Box[int] { v = 7 }
+    if a.describe() != "7" { return 2 }
+    if !a.is_same(b) { return 3 }
+    c = Box[int] { v = 8 }
+    if a.is_same(c) { return 4 }
+    return 0
+}

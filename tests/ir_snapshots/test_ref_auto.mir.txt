@@ -100,7 +100,7 @@ MIR Program
         Move(ty: Named(String))
           Literal(String("hi"))
 │ │ }
-│ Fn main () -> Int [locals: 17]
+│ Fn main () -> Int [locals: 18]
 │   local x: Int
 │   local y: Int
 │   local r: Int
@@ -115,6 +115,7 @@ MIR Program
 │   local __ret: Int
 │   local __ret: Int
 │   local __ret: Int
+│   local __ret: Named(String)
 │   local __ret: Int
 │   local __ret: Int
 │   local __ret: Int
@@ -299,37 +300,45 @@ MIR Program
         Call(fn97, ty: Void)
           Ref(mut ty: ref mut Named(String))
             Local(v6 : Named(String))
+      Assign
+        target:
+        Local(v14 : Named(String))
+        value:
+        Literal(String("hi"))
       If
         cond:
         Call(fn70, ty: Bool)
           Ref(ty: ref Named(String))
             Local(v6 : Named(String))
           Ref(ty: ref Named(String))
-            Literal(String("hi"))
+            Local(v14 : Named(String))
         then:
         Block {
           Assign
             target:
-            Local(v14 : Int)
+            Local(v15 : Int)
             value:
             Literal(Int(8))
+          Drop(v6 : Named(String))
           Return
-            Local(v14 : Int)
+            Local(v15 : Int)
         }
-      Assign
-        target:
-        Local(v15 : Int)
-        value:
-        Literal(Int(0))
-      Return
-        Local(v15 : Int)
+      Drop(v14 : Named(String))
       Assign
         target:
         Local(v16 : Int)
         value:
         Literal(Int(0))
+      Drop(v6 : Named(String))
       Return
         Local(v16 : Int)
+      Assign
+        target:
+        Local(v17 : Int)
+        value:
+        Literal(Int(0))
+      Return
+        Local(v17 : Int)
 │ │ }
 │ Fn __ayanami_ovf_add_i64 (a: Int, b: Int, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 0]
 │ │ Block {

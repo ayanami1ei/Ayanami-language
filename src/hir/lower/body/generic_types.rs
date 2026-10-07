@@ -34,7 +34,7 @@ pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool {
 
 impl crate::hir::lower::Ctx {
     /// AST 类型 → 浅层 `GType`。
-    pub(crate) fn ast_gtype(&self, ty: &Type, gp: &[(Symbol, Option<Symbol>)]) -> GType {
+    pub(crate) fn ast_gtype(&self, ty: &Type, gp: &[(Symbol, Vec<Symbol>)]) -> GType {
         match ty {
             Type::Named(n, _) => {
                 if gp.iter().any(|(g, _)| g == n) {
@@ -57,7 +57,7 @@ impl crate::hir::lower::Ctx {
     pub(crate) fn infer_gtype(
         &self,
         expr: &Expr,
-        gp: &[(Symbol, Option<Symbol>)],
+        gp: &[(Symbol, Vec<Symbol>)],
         env: &HashMap<Symbol, GType>,
     ) -> GType {
         match expr {
@@ -104,7 +104,7 @@ impl crate::hir::lower::Ctx {
         method: Option<&str>,
         argc: usize,
         span: &Span,
-        gp: &[(Symbol, Option<Symbol>)],
+        gp: &[(Symbol, Vec<Symbol>)],
         op_display: &str,
     ) -> Result<()> {
         let Some(m) = method else {
@@ -113,24 +113,30 @@ impl crate::hir::lower::Ctx {
                 op_display, p.as_str(), span.start_line, span.start_col
             )));
         };
-        let bound = gp.iter().find(|(n, _)| n == p).and_then(|(_, c)| *c);
-        let Some(iface) = bound else {
+        let bounds: Vec<Symbol> = gp.iter().find(|(n, _)| n == p).map(|(_, c)| c.clone()).unwrap_or_default();
+        if bounds.is_empty() {
             return Err(Error::Hir(format!(
                 "operator `{}` on generic parameter `{}` requires a bound providing `{}` (e.g. `[{}: Iface]`) (at {}:{})",
                 op_display, p.as_str(), m, p.as_str(), span.start_line, span.start_col
             )));
-        };
-        let reg = self.interfaces.get(&iface).or_else(|| {
-            let base = crate::hir::lower::strip_generic_name(&iface);
-            self.interfaces.get(&base)
+        }
+        let ok = bounds.iter().any(|iface| {
+            self.interfaces.get(iface).or_else(|| {
+                self.interfaces.get(&crate::hir::lower::strip_generic_name(iface))
+            }).map(|r| {
+                r.methods.iter().any(|mm| mm.name.as_str() == m && mm.params.len() == argc)
+            }).unwrap_or(false)
         });
-        let ok = reg.map(|r| {
-            r.methods.iter().any(|mm| mm.name.as_str() == m && mm.params.len() == argc)
-        }).unwrap_or(false);
         if !ok {
+            let names: Vec<String> = bounds.iter().map(|b| b.as_str()).collect();
+            let bound_desc = if names.len() == 1 {
+                format!("bound `{}` has", names[0])
+            } else {
+                format!("bounds `{}` have", names.join(" + "))
+            };
             return Err(Error::Hir(format!(
-                "operator `{}` on generic parameter `{}`: bound `{}` has no `{}` method (at {}:{})",
-                op_display, p.as_str(), iface.as_str(), m, span.start_line, span.start_col
+                "operator `{}` on generic parameter `{}`: {} no `{}` method (at {}:{})",
+                op_display, p.as_str(), bound_desc, m, span.start_line, span.start_col
             )));
         }
         Ok(())
@@ -143,30 +149,34 @@ impl crate::hir::lower::Ctx {
         method: &Symbol,
         argc: usize,
         span: &Span,
-        gp: &[(Symbol, Option<Symbol>)],
+        gp: &[(Symbol, Vec<Symbol>)],
     ) -> Result<()> {
-        let bound = gp.iter().find(|(n, _)| n == p).and_then(|(_, c)| *c);
-        match bound {
-            Some(iface) => {
-                let reg = self.interfaces.get(&iface).or_else(|| {
-                    let base = crate::hir::lower::strip_generic_name(&iface);
-                    self.interfaces.get(&base)
-                });
-                let ok = reg.map(|r| {
-                    r.methods.iter().any(|m| m.name == *method && m.params.len() == argc)
-                }).unwrap_or(false);
-                if !ok {
-                    return Err(Error::Hir(format!(
-                        "generic parameter `{}` (bound `{}`) has no method `{}` for {} argument(s) (at {}:{})",
-                        p.as_str(), iface.as_str(), method.as_str(), argc, span.start_line, span.start_col
-                    )));
-                }
-                Ok(())
-            }
-            None => Err(Error::Hir(format!(
+        let bounds: Vec<Symbol> = gp.iter().find(|(n, _)| n == p).map(|(_, c)| c.clone()).unwrap_or_default();
+        if bounds.is_empty() {
+            return Err(Error::Hir(format!(
                 "method `{}` on generic parameter `{}` requires a bound (e.g. `[{}: Iface]`) (at {}:{})",
                 method.as_str(), p.as_str(), p.as_str(), span.start_line, span.start_col
-            ))),
+            )));
         }
+        let ok = bounds.iter().any(|iface| {
+            self.interfaces.get(iface).or_else(|| {
+                self.interfaces.get(&crate::hir::lower::strip_generic_name(iface))
+            }).map(|r| {
+                r.methods.iter().any(|m| m.name == *method && m.params.len() == argc)
+            }).unwrap_or(false)
+        });
+        if !ok {
+            let names: Vec<String> = bounds.iter().map(|b| b.as_str()).collect();
+            let bound_desc = if names.len() == 1 {
+                format!("bound `{}`", names[0])
+            } else {
+                format!("bounds `{}`", names.join(" + "))
+            };
+            return Err(Error::Hir(format!(
+                "generic parameter `{}` ({}) has no method `{}` for {} argument(s) (at {}:{})",
+                p.as_str(), bound_desc, method.as_str(), argc, span.start_line, span.start_col
+            )));
+        }
+        Ok(())
     }
 }

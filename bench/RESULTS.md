@@ -17,6 +17,11 @@
 | 2026-10-06 | `752501d` | 栈 alloca 修复 + std 基准建立 | — | — | — | — | — | 35 | 25 | 12 | 3 |
 | 2026-10-06 | `c1628f4` | M-opt.9/10（LTO + malloc/free 堆提升） | 94 | 198 | 194 | 121 | 67 | **5** | 25 | **7** | 3 |
 | 2026-10-06 | `c1628f4` | 同上 + LTO | — | — | — | — | — | 5 | 25 | 7 | 3 |
+| 2026-10-07 | `a5a4e32` | 所有权健全性（赋值/字段覆盖 drop、实参移动、移出清零；跨语言测量时负载偏高） | 122 | 213 | 227 | 133 | 73 | 11 | 2 | 13 | 4 |
+| 2026-10-07 | `8c3172f` | 借用临时量提升 + match/if 非 Copy 结果修复（bench 清理陈旧 build/） | 106 | 223 | 264 | 131 | 75 | 8 | 2 | 10 | 4 |
+| 2026-10-07 | `6cf0ce4` | 接口箱递归 drop + noreturn 分支发散 + 拥有接口实参移动 | 96 | 204 | 214 | 128 | 71 | 5 | 1 | 10 | 3 |
+| 2026-10-07 | `602703a` | 数组元素递归 drop（静态 + 动态长度依赖）（跨语言测量时负载偏高） | 116 | 252 | 276 | 147 | 83 | 6 | 2 | 11 | 4 |
+| 2026-10-07 | `4977525` | 元素读取 clone（非破坏）+ 元素覆盖 drop + 计数释放 + 条件临时量 | 86 | 179 | 193 | 120 | 67 | 5 | 1 | 7 | 3 |
 
 ## 2026-10-06 `04b391c` — M-opt.5 基线
 
@@ -79,3 +84,253 @@
 
 相对 Ayanami：Rust 0.82~1.01、Zig 0.79~1.39、C 0.74~3.09、Java 0.86~3.70。
 （M-opt.9/10 对纯数组内核中性——这些内核几乎不经过 std 分配路径；收益见上方 std 表。）
+
+## 2026-10-07 `a5a4e32` — 所有权健全性：赋值/字段覆盖旧值 drop、拥有实参移动跟踪、局部移出清零
+
+### std 密集（release）
+
+```
+kernel              checksum      ms
+list_push          999000000      11
+str_build             620283       2
+map_ops         374999250000      13
+iface               39999995       4
+```
+
+### std 密集（+LTO）
+
+```
+kernel              checksum      ms
+list_push          999000000      11
+str_build             620283       2
+map_ops         374999250000      13
+iface               39999995       4
+```
+
+### 跨语言（release，无 LTO）
+
+```
+== 构建（资源上限 3G / 300s）==
+构建完成 -> build/bench-cmp
+第 1/3 轮完成
+第 2/3 轮完成
+第 3/3 轮完成
+
+kernel          ayanami       rust       java        zig          c
+nbody               122         91         95         80         75
+matmul              213        232        394        306        170
+sieve               227        214        213        223        214
+qsort               133        129        150        119        131
+mandelbrot           73         71        267         71        216
+
+相对 Ayanami 的倍数:
+kernel          ayanami       rust       java        zig          c
+nbody              1.00       0.75       0.78       0.66       0.61
+matmul             1.00       1.09       1.85       1.44       0.80
+sieve              1.00       0.94       0.94       0.98       0.94
+qsort              1.00       0.97       1.13       0.89       0.98
+mandelbrot         1.00       0.97       3.66       0.97       2.96
+
+checksum 全部一致（5 内核 x 5 语言）
+```
+
+
+## 2026-10-07 `8c3172f` — 借用临时量提升（ref 实参字面量/调用临时量语句后 drop）+ match/if 表达式非 Copy 结果修复；bench 脚本清理陈旧 build/
+
+### std 密集（release）
+
+```
+kernel              checksum      ms
+list_push          999000000       8
+str_build             620283       2
+map_ops         374999250000      10
+iface               39999995       4
+```
+
+### std 密集（+LTO）
+
+```
+kernel              checksum      ms
+list_push          999000000       7
+str_build             620283       1
+map_ops         374999250000      10
+iface               39999995       4
+```
+
+### 跨语言（release，无 LTO）
+
+```
+== 构建（资源上限 3G / 300s）==
+构建完成 -> build/bench-cmp
+第 1/3 轮完成
+第 2/3 轮完成
+第 3/3 轮完成
+
+kernel          ayanami       rust       java        zig          c
+nbody               106         85         91        101         76
+matmul              223        225        382        341        177
+sieve               264        264        270        203        255
+qsort               131        131        172        119        132
+mandelbrot           75         72        319         71        225
+
+相对 Ayanami 的倍数:
+kernel          ayanami       rust       java        zig          c
+nbody              1.00       0.80       0.86       0.95       0.72
+matmul             1.00       1.01       1.71       1.53       0.79
+sieve              1.00       1.00       1.02       0.77       0.97
+qsort              1.00       1.00       1.31       0.91       1.01
+mandelbrot         1.00       0.96       4.25       0.95       3.00
+
+checksum 全部一致（5 内核 x 5 语言）
+```
+
+
+## 2026-10-07 `6cf0ce4` — 接口箱递归 drop（vtable[0] glue）+ #[noreturn] 分支发散（panic 隐藏文件参数正常释放）+ 拥有接口实参装箱移动
+
+### std 密集（release）
+
+```
+kernel              checksum      ms
+list_push          999000000       5
+str_build             620283       1
+map_ops         374999250000      10
+iface               39999995       3
+```
+
+### std 密集（+LTO）
+
+```
+kernel              checksum      ms
+list_push          999000000       5
+str_build             620283       1
+map_ops         374999250000       9
+iface               39999995       3
+```
+
+### 跨语言（release，无 LTO）
+
+```
+== 构建（资源上限 3G / 300s）==
+构建完成 -> build/bench-cmp
+第 1/3 轮完成
+第 2/3 轮完成
+第 3/3 轮完成
+
+kernel          ayanami       rust       java        zig          c
+nbody                96         82         89         78         75
+matmul              204        197        381        295        172
+sieve               214        207        233        209        214
+qsort               128        130        146        117        131
+mandelbrot           71         70        259         71        221
+
+相对 Ayanami 的倍数:
+kernel          ayanami       rust       java        zig          c
+nbody              1.00       0.85       0.93       0.81       0.78
+matmul             1.00       0.97       1.87       1.45       0.84
+sieve              1.00       0.97       1.09       0.98       1.00
+qsort              1.00       1.02       1.14       0.91       1.02
+mandelbrot         1.00       0.99       3.65       1.00       3.11
+
+checksum 全部一致（5 内核 x 5 语言）
+```
+
+
+## 2026-10-07 `602703a` — 拥有元素数组递归 drop（静态计数 + 动态 [T] 依赖长度字段）+ 发射期临时量编号隔离
+
+### std 密集（release）
+
+```
+kernel              checksum      ms
+list_push          999000000       6
+str_build             620283       2
+map_ops         374999250000      11
+iface               39999995       4
+```
+
+### std 密集（+LTO）
+
+```
+kernel              checksum      ms
+list_push          999000000      11
+str_build             620283       2
+map_ops         374999250000      11
+iface               39999995       4
+```
+
+### 跨语言（release，无 LTO）
+
+```
+== 构建（资源上限 3G / 300s）==
+构建完成 -> build/bench-cmp
+第 1/3 轮完成
+第 2/3 轮完成
+第 3/3 轮完成
+
+kernel          ayanami       rust       java        zig          c
+nbody               116        100        111         93         89
+matmul              252        266        465        363        211
+sieve               276        284        281        275        276
+qsort               147        150        174        137        155
+mandelbrot           83         83        306         81        254
+
+相对 Ayanami 的倍数:
+kernel          ayanami       rust       java        zig          c
+nbody              1.00       0.86       0.96       0.80       0.77
+matmul             1.00       1.06       1.85       1.44       0.84
+sieve              1.00       1.03       1.02       1.00       1.00
+qsort              1.00       1.02       1.18       0.93       1.05
+mandelbrot         1.00       1.00       3.69       0.98       3.06
+
+checksum 全部一致（5 内核 x 5 语言）
+```
+
+
+## 2026-10-07 `4977525` — 元素读取 clone 语义（非破坏）+ 元素覆盖 drop + 动态数组计数释放 + while/elif 条件临时量
+
+### std 密集（release）
+
+```
+kernel              checksum      ms
+list_push          999000000       5
+str_build             620283       1
+map_ops         374999250000       7
+iface               39999995       3
+```
+
+### std 密集（+LTO）
+
+```
+kernel              checksum      ms
+list_push          999000000       5
+str_build             620283       1
+map_ops         374999250000       7
+iface               39999995       3
+```
+
+### 跨语言（release，无 LTO）
+
+```
+== 构建（资源上限 3G / 300s）==
+构建完成 -> build/bench-cmp
+第 1/3 轮完成
+第 2/3 轮完成
+第 3/3 轮完成
+
+kernel          ayanami       rust       java        zig          c
+nbody                86         76         80         74         70
+matmul              179        168        358        271        149
+sieve               193        194        196        194        191
+qsort               120        121        139        112        123
+mandelbrot           67         66        243         67        203
+
+相对 Ayanami 的倍数:
+kernel          ayanami       rust       java        zig          c
+nbody              1.00       0.88       0.93       0.86       0.81
+matmul             1.00       0.94       2.00       1.51       0.83
+sieve              1.00       1.01       1.02       1.01       0.99
+qsort              1.00       1.01       1.16       0.93       1.02
+mandelbrot         1.00       0.99       3.63       1.00       3.03
+
+checksum 全部一致（5 内核 x 5 语言）
+```
+

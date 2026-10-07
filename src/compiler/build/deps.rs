@@ -89,6 +89,8 @@ pub(super) fn resolve_dependencies(
                     // 内容哈希命名：lcl 内容变化即重新编译（不受 mtime 影响）
                     let mut hasher = std::collections::hash_map::DefaultHasher::new();
                     std::hash::Hash::hash(&std::fs::read(&path).unwrap_or_default(), &mut hasher);
+                    // 编译模式（debug/release/LTO/opt）参与缓存键，防止产物互相复用
+                    std::hash::Hash::hash(&crate::driver::build_mode_key(), &mut hasher);
                     let o_path = out_dir.join(format!("{}_{:x}.o", o_stem, std::hash::Hasher::finish(&hasher)));
                     // 缓存失效：.o 不存在
                     let stale = !o_path.exists();

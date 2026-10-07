@@ -20,11 +20,16 @@ pub struct HirLocal {
     pub name: Symbol,
     pub ty: HirType,
     pub mutable: bool,
+    /// match/if 表达式结果变量：条件赋值，由最终临时量移出接管（不参与覆盖/块末 drop）
+    pub is_result: bool,
 }
 
 impl HirLocal {
     pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self {
-        Self { name, ty, mutable }
+        Self { name, ty, mutable, is_result: false }
+    }
+    pub fn result(name: Symbol, ty: HirType, mutable: bool) -> Self {
+        Self { name, ty, mutable, is_result: true }
     }
 }
 
@@ -85,7 +90,7 @@ pub enum HirItem {
     },
     InterfaceDef {
         name: Symbol,
-        generic_params: Vec<(Symbol, Option<Symbol>)>,
+        generic_params: Vec<(Symbol, Vec<Symbol>)>,
         methods: Vec<HirInterfaceMethod>,
     },
 }
@@ -103,6 +108,8 @@ pub struct ImportedFnSig {
     pub effects: crate::hir::effects::EffectDecl,
     /// A3c：包导出的推断事实
     pub inferred: crate::hir::effects::EffectSet,
+    /// #166：extern "C" 声明（跨模块调用保留 C 符号名 + 实参借用）
+    pub extern_c: bool,
 }
 
 /// M6.2：全局变量（常量初始化，可寻址）
@@ -123,7 +130,7 @@ pub struct HirProgram {
     pub items: Vec<HirItem>,
     pub vtables: Vec<VtableEntry>,
     pub struct_defs: HashMap<Symbol, Vec<HirStructField>>,
-    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
+    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
     pub imported_fns: Vec<ImportedFnSig>,
     /// M6.2：顶层 static 列表（按名排序，发射为 LLVM global）
     pub statics: Vec<HirStatic>,

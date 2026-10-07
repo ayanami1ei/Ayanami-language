@@ -1,0 +1,33 @@
+// 回归：拥有元素数组的读取/覆盖——元素读取按 clone（非破坏）、remove/remove_at 位移不泄漏
+import "io"
+import "arraylist"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn run_arr() -> int {
+    a = ["x", "y", "z"]
+    s = a[0]
+    a[1] = a[2]
+    return s.len() as int
+}
+
+fn run_list() -> int {
+    a = ArrayList::new[String]()
+    a.push("a")
+    a.push("b")
+    a.push("c")
+    a.remove_at(0)
+    b = ArrayList::new[String]()
+    b.push("x")
+    b.push("y")
+    ok = b.remove("x")
+    s = a.index(0)
+    return a.len() as int + b.len() as int + s.len() as int
+}
+
+fn main() -> int {
+    n = run_arr() + run_list()
+    if n != 1 + 2 + 1 + 1 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

@@ -122,6 +122,31 @@ impl crate::hir::lower::Ctx {
                 }
             }
         }
+        // #160：从参数化约束推断剩余泛型参数（I: Iterator[T]，I 已推断 → T 由实现方法反推）
+        if generic_mappings.len() < gf_params.len() {
+            for (gp_name, constraints) in gf_params {
+                for iface_sym in constraints {
+                let Some(concrete) = generic_mappings.get(gp_name).cloned() else { continue };
+                let iface_base = crate::hir::lower::strip_generic_name(iface_sym);
+                let iface_gp: Vec<Symbol> = match self.interfaces.get(&iface_base) {
+                    Some(reg) => reg.generic_params.iter().map(|(n, _)| *n).collect(),
+                    None => continue,
+                };
+                let sym_text = iface_sym.as_str();
+                let Some(inner) = generic_inner(&sym_text) else { continue };
+                let arg_texts = split_generic_args(inner);
+                if arg_texts.len() != iface_gp.len() { continue; }
+                let Some(iface_args) = self.infer_iface_args_for_concrete(iface_sym, &concrete) else { continue };
+                for (i, text) in arg_texts.iter().enumerate() {
+                    let Some(ty) = iface_args.get(&iface_gp[i]) else { continue };
+                    let gp = Symbol::intern(text.trim());
+                    if generic_names.contains(&gp) && !generic_mappings.contains_key(&gp) {
+                        generic_mappings.insert(gp, ty.clone());
+                    }
+                }
+                }
+            }
+        }
         // Ensure all generic params were resolved
         for (gp_name, _) in gf_params {
             if !generic_mappings.contains_key(gp_name) {
@@ -132,77 +157,10 @@ impl crate::hir::lower::Ctx {
             }
         }
 
-        // Step 1.5: Check interface constraints
-        for (gp_name, constraint) in gf_params {
-            if let Some(iface_name) = constraint {
-                let concrete_ty = generic_mappings.get(gp_name)
-                    .ok_or_else(|| Error::Hir(format!("internal error: generic param `{}` not resolved at {}:{}", gp_name, span.start_line, span.start_col)))?;
-                // 递归剥离所有权包装（Unique/Shared/Weak），
-                // 处理多层包装如 Unique(Shared(LinkedList)) → LinkedList
-                let mut concrete_inner = concrete_ty;
-                while matches!(concrete_inner, HirType::Unique(_)) {
-                    concrete_inner = strip_ownership_ref(concrete_inner);
-                }
-                let concrete_type_name = match concrete_inner {
-                    HirType::Named(n) => {
-                        let base = crate::hir::lower::strip_generic_name(n);
-                        if self.type_ifaces.contains_key(n) { *n }
-                        else { base }
-                    }
-                    HirType::FatPtr { name, .. } => {
-                        // FatPtr 是接口类型（如 shared List）。
-                        // 检查该接口是否包含了约束接口的所有方法。
-                        let iface_methods = self.interfaces.get(iface_name)
-                            .map(|reg| reg.methods.iter().map(|m| m.name).collect::<Vec<_>>())
-                            .unwrap_or_default();
-                        let all_ok = iface_methods.iter().all(|method_name| {
-                            self.interfaces.get(name)
-                                .map(|reg| reg.methods.iter().any(|m| m.name == *method_name))
-                                .unwrap_or(false)
-                        });
-                        if !all_ok {
-                            return Err(Error::Hir(format!(
-                                "type `{}` does not satisfy interface `{}` for generic parameter `{}` at {}:{}",
-                                hir_type_display(concrete_ty), iface_name, gp_name,
-                                span.start_line, span.start_col
-                            )));
-                        }
-                        // 直接标记为已实现，跳过后续 type_ifaces 检查
-                        continue;
-                    }
-                    HirType::Int => Symbol::intern("int"),
-                    HirType::Float => Symbol::intern("float"),
-                    HirType::Char => Symbol::intern("char"),
-                    HirType::Bool => Symbol::intern("bool"),
-                    HirType::Array(_) => Symbol::intern("[int]"), // simplified
-                    _ => return Err(Error::Hir(format!(
-                        "type `{}` does not satisfy interface `{}` for generic parameter `{}` at {}:{}",
-                        hir_type_display(concrete_ty), iface_name, gp_name,
-                        span.start_line, span.start_col
-                    ))),
-                };
-                let implements = self.type_ifaces.get(&concrete_type_name)
-                    .map(|ifaces| {
-                        ifaces.contains(iface_name)
-                            || ifaces.iter().any(|name| {
-                                let s = name.as_str();
-                                s.starts_with(&*iface_name.as_str()) && s.contains('<')
-                            })
-                    })
-                    .unwrap_or(false);
-                if !implements {
-                    // 兜底：泛型 impl（`impl[T] Foo[T]`）按结构匹配接口。
-                    // 具体 impl 已由 build_vtables 注册进 type_ifaces，这里只补泛型 impl 场景；
-                    // 不得退化为「全局存在同名方法」检查——否则约束违例会被接受并错误特化。
-                    let base_type = crate::hir::lower::strip_generic_name(&concrete_type_name);
-                    if !self.check_generic_fns_for_iface(&base_type, iface_name) {
-                        return Err(Error::Hir(format!(
-                            "type `{}` does not implement interface `{}` required by generic parameter `{}` at {}:{}",
-                            hir_type_display(concrete_ty), iface_name, gp_name,
-                            span.start_line, span.start_col
-                        )));
-                    }
-                }
+        // Step 1.5: Check interface constraints（#160：参数化约束先替换泛型实参再比对）
+        for (gp_name, constraints) in gf_params {
+            for iface_name in constraints {
+                self.check_generic_constraint(gp_name, iface_name, &generic_mappings, span)?;
             }
         }
 
@@ -248,6 +206,7 @@ impl crate::hir::lower::Ctx {
                         inferred: Default::default(),
             hidden,
             is_noreturn,
+            extern_c: false,
         });
         self.fn_map.entry(*name).or_default().push(fid);
         self.specialized_ids.insert(fid);

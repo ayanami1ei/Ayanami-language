@@ -87,6 +87,8 @@ pub(super) fn array_base_through_ref(ctx: &mut dyn LirLowerCtx, base_tmp: u64, t
 }
 
 impl MirNode for SMirRef {
+    fn ref_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
+    fn ref_expr_mut(&mut self) -> Option<&mut MirNodeBox> { Some(&mut self.expr) }
     fn refs_global(&self) -> Option<Symbol> {
         self.expr.as_global()
             .or_else(|| self.expr.as_deref().and_then(|i| i.as_global()))
@@ -203,6 +205,14 @@ impl MirStmtNode for SMirDerefAssignStmt { fn span(&self) -> crate::span::Span {
 
 /// 递归求字段/局部变量地址（字段移出清零用）；不可寻址返回 None。
 pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode) -> Option<LirValue> {
+    // 解引用位置：内层为指针（ref/unique）时，指针值即地址
+    // （match ref 接收者时字段移出清零原值，避免浅拷贝副本悬挂）
+    if let Some(inner) = node.as_deref() {
+        if matches!(inner.expr_type(), HirType::Ref(..) | HirType::Unique(_)) {
+            return Some(inner.lower_to_lir(ctx));
+        }
+        return lower_field_addr_of(ctx, &**inner);
+    }
     if let Some((obj, idx)) = node.as_field_access() {
         let base = lower_field_addr_of(ctx, &**obj)?;
         let dest = ctx.next_tmp();
@@ -238,6 +248,33 @@ impl MirNode for SMirMove {
                     dest, gep_tmp: gep, obj: base, field_index: idx,
                     field_ty: self.expr.expr_type(), struct_ty: obj.expr_type(),
                 }.into());
+                return LirValue::Tmp(dest);
+            }
+        }
+        // 数组元素读取：非破坏性深拷贝（clone）——源元素保留，集合 drop 释放原值。
+        // SMove(Index) 仅由 implicit_move 对非 Copy 元素生成。
+        if let Some((obj, idx)) = self.expr.as_index() {
+            let elem_ty = self.expr.expr_type();
+            if !elem_ty.is_copy() {
+                let arr_val = obj.lower_to_lir(ctx);
+                let idx_val = idx.lower_to_lir(ctx);
+                let arr_tmp = match arr_val {
+                    LirValue::Tmp(t) => t,
+                    _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&arr_val), ty: obj.expr_type() }.into()); t }
+                };
+                let arr_tmp = array_base_through_ref(ctx, arr_tmp, &obj.expr_type());
+                let addr = ctx.next_tmp();
+                ctx.emit(SLirIndexAddr { dest: addr, arr_tmp, index: idx_val, elem_ty: elem_ty.clone() }.into());
+                let dest = ctx.next_tmp(); let alloca = ctx.next_tmp();
+                ctx.emit(SLirClone { dest, alloca_tmp: alloca, src: LirValue::Tmp(addr), ty: elem_ty }.into());
+                return LirValue::Tmp(dest);
+            }
+        }
+        // 局部变量移出：load + 源清零（循环回边重复移动时避免双重释放）
+        if let Some(id) = self.expr.as_local() {
+            if !self.expr.expr_type().is_copy() {
+                let dest = ctx.next_tmp();
+                ctx.emit(SLirLocalTake { dest, var: id, ty: self.expr.expr_type() }.into());
                 return LirValue::Tmp(dest);
             }
         }

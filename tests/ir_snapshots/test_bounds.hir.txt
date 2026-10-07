@@ -36,7 +36,8 @@ HIR Program
         Move(ty: Named(ArrayList<int>))
           StructLiteral ArrayList<int> fields=3 ty=Named(ArrayList<int>)
             data:
-            Literal(Int(0))
+            Move(ty: unique [Int])
+              Literal(Int(0))
             len:
             Literal(Int(0))
             capability:
@@ -112,7 +113,7 @@ HIR Program
 │ │ │ │ │ │ │ │   value:
                   Index ty=Int
                     object:
-                    FieldAccess data ty=[Int]
+                    FieldAccess data ty=unique [Int]
                       Local(v0 : ref mut Named(ArrayList<int>))
                     index:
                     Local(v2 : Int)
@@ -172,7 +173,7 @@ HIR Program
 │ │ │ │ }
 │ │ │ IndexAssign
 │ │ │   object:
-        FieldAccess data ty=[Int]
+        FieldAccess data ty=unique [Int]
           Local(v0 : ref mut Named(ArrayList<int>))
 │ │ │   index:
         Cast(ty: Int)
@@ -213,7 +214,8 @@ HIR Program
             Call(fn3, ty: Never)
               Local(v2 : Int)
               Local(v3 : Int)
-              Local(v4 : Named(String))
+              Move(ty: Named(String))
+                Local(v4 : Named(String))
               Local(v1 : u64)
               FieldAccess len ty=u64
                 Local(v0 : ref Named(ArrayList<int>))
@@ -221,7 +223,7 @@ HIR Program
 │ │ │ Return
         Index ty=Int
           object:
-          FieldAccess data ty=[Int]
+          FieldAccess data ty=unique [Int]
             Local(v0 : ref Named(ArrayList<int>))
           index:
           Cast(ty: Int)

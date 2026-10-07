@@ -1,5 +1,4 @@
 use super::*;
-
 impl<'a> Reader<'a> {
     pub(super) fn literal(&mut self) -> Result<HirLiteral> {
         let tag = self.read(1)?[0];
@@ -118,9 +117,12 @@ impl<'a> Reader<'a> {
                 let fi = self.u32()? as usize; let ft = self.ty()?; let st = self.ty()?;
                 Ok(SLirFieldTake { dest: d, gep_tmp: g, obj: o, field_index: fi, field_ty: ft, struct_ty: st }.into())
             }
+            36 => { let d = self.u64()?; let v = self.u32()? as usize; let t = self.ty()?; Ok(SLirLocalTake { dest: d, var: VarId(v), ty: t }.into()) }
+            37 => { let p = self.value()?; let t = self.ty()?; Ok(SLirDropPtr { ptr: p, ty: t }.into()) }
+            39 => { let d = self.u64()?; let a = self.u64()?; let s = self.value()?; let t = self.ty()?; Ok(SLirClone { dest: d, alloca_tmp: a, src: s, ty: t }.into()) }
+            40 => { let v = self.u32()? as usize; let t = self.ty()?; let c = self.u32()? as usize; Ok(SLirDropArray { var: VarId(v), elem_ty: t, count_var: VarId(c) }.into()) }
             32 => {
-                let d = self.u64()?;
-                let n = Symbol::intern(&self.str()?);
+                let d = self.u64()?; let n = Symbol::intern(&self.str()?);
                 Ok(SLirGlobalAddr { dest: d, name: n }.into())
             }
             33 => {
@@ -168,10 +170,8 @@ impl<'a> Reader<'a> {
                 Ok(SLirIndexAccess { dest: d, gep_tmp: gt, load_tmp: lt, arr: a, index: i, elem_ty: et, ty: t }.into())
             }
             20 => {
-                let d = self.u64()?; let mt = self.u64()?;
-                let ct = self.u64()?; let st = self.u64()?;
-                let ec = self.value()?; let es = self.u64()?;
-                let et = self.ty()?; let t = self.ty()?;
+                let d = self.u64()?; let mt = self.u64()?; let ct = self.u64()?; let st = self.u64()?;
+                let ec = self.value()?; let es = self.u64()?; let et = self.ty()?; let t = self.ty()?;
                 Ok(SLirArraySized { dest: d, malloc_tmp: mt, count_tmp: ct, size_tmp: st, elem_count: ec, elem_size: es, elem_ty: et, ty: t }.into())
             }
             21 => {
@@ -183,9 +183,7 @@ impl<'a> Reader<'a> {
                 Ok(SLirFieldStore { dest: d, var_id, gep_tmp: gt, iv_tmp: iv, src: s, field_index: fi, field_ty: ft, struct_ty: st }.into())
             }
             22 => {
-                let d = self.u64()?; let gt = self.u64()?;
-                let s = self.value()?; let idx = self.value()?;
-                let et = self.ty()?; let at = self.ty()?;
+                let d = self.u64()?; let gt = self.u64()?; let s = self.value()?; let idx = self.value()?; let et = self.ty()?; let at = self.ty()?;
                 Ok(SLirIndexStore { dest: d, gep_tmp: gt, src: s, index: idx, elem_ty: et, array_ty: at }.into())
             }
             23 => { let d = self.u64()?; let vr = VarId(self.u32()? as usize); let m = self.read(1)?[0] != 0; let t = self.ty()?; Ok(SLirRefInst { dest: d, var_id: vr, mutable: m, ty: t }.into()) }

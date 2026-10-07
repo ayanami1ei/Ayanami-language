@@ -1,5 +1,6 @@
 use crate::intern::Symbol;
 use crate::parser::ast::binary_op::BinaryOp;
+use crate::parser::ast::block::Block;
 use crate::parser::ast::literal::Literal;
 use crate::parser::ast::ty::Type;
 use crate::parser::ast::unary_op::UnaryOp;
@@ -120,9 +121,16 @@ pub enum Expr {
     /// A5c-2 函数宏调用：`#name(args)`（name 可含 `pkg::` 前缀，解析后以 `.` 连接）
     MacroCall {
         name: Symbol,
-        args: Vec<Expr>,
+        args: Vec<MacroArg>,
         span: Span,
     },
+}
+
+/// #88：宏实参 —— 表达式或语句块（`#expect_panic({ ... })`）。
+#[derive(Debug, Clone)]
+pub enum MacroArg {
+    Expr(Expr),
+    Block(Block),
 }
 
 impl Expr {

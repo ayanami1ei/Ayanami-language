@@ -9,3 +9,14 @@ panic_pop_empty.aya 101 pop from empty ArrayList
 panic_user.aya 101 boom
 overflow_add.aya 101 attempt to add with overflow
 void_tail_side_effect.aya 0 B
+drop_field_overwrite.aya 0
+drop_assign_self.aya 0
+drop_ref_literal.aya 0
+match_if_result.aya 0
+noreturn_bounds_loop.aya 0
+iface_owned_drop.aya 0
+array_elem_drop.aya 0
+index_move_drop.aya 0
+cond_temp_drop.aya 0
+should_panic_block.aya 0
+field_read_twice.aya 0

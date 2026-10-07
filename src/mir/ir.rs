@@ -32,6 +32,9 @@ pub trait MirNode: std::fmt::Debug {
     fn for_each_child(&self, _f: &mut dyn FnMut(&dyn MirNode)) {}
     /// A5d-3：可变子节点遍历（pass body 改写用）
     fn for_each_child_mut(&mut self, _f: &mut dyn FnMut(&mut MirNodeBox)) {}
+    /// 借用节点（SMirRef）的内层表达式（借用临时量提升用）
+    fn ref_expr(&self) -> Option<&MirNodeBox> { None }
+    fn ref_expr_mut(&mut self) -> Option<&mut MirNodeBox> { None }
     fn as_string_literal(&self) -> Option<&str> { None }
     fn as_ref(&self) -> Option<(VarId, bool)> { None }
     /// #91：字段访问节点（SMirFieldAccess）的（对象, 字段下标）
@@ -95,7 +98,8 @@ pub trait MirStmtNode: std::fmt::Debug {
     fn expr_part(&self) -> Option<&MirNodeBox> { None }
 }
 
-pub type IfParts<'a> = (&'a MirNodeBox, &'a [MirStmtBox], &'a [(MirNodeBox, Vec<MirStmtBox>)], &'a Option<Vec<MirStmtBox>>);
+/// (cond, then, elifs[(cond, pre_cond, post_cond, block)], else)
+pub type IfParts<'a> = (&'a MirNodeBox, &'a [MirStmtBox], &'a [(MirNodeBox, Vec<MirStmtBox>, Vec<MirStmtBox>, Vec<MirStmtBox>)], &'a Option<Vec<MirStmtBox>>);
 pub type WhileParts<'a> = (&'a MirNodeBox, &'a [MirStmtBox]);
 
 #[derive(Debug)]
@@ -162,13 +166,15 @@ s_mstmt!(SMirFieldAssignStmt { object: MirNodeBox, field: Symbol, field_index: u
 s_mstmt!(SMirIndexAssignStmt { object: MirNodeBox, index: MirNodeBox, value: MirNodeBox, span: Span });
 s_mstmt!(SMirDerefAssignStmt { target: MirNodeBox, value: MirNodeBox, span: Span });
 s_mstmt!(SMirReturnStmt { value: Option<MirNodeBox>, span: Span });
-s_mstmt!(SMirIfStmt { cond: MirNodeBox, then_block: Vec<MirStmtBox>, elifs: Vec<(MirNodeBox, Vec<MirStmtBox>)>, else_block: Option<Vec<MirStmtBox>>, span: Span });
-s_mstmt!(SMirWhileStmt { cond: MirNodeBox, body: Vec<MirStmtBox>, span: Span });
+s_mstmt!(SMirIfStmt { cond: MirNodeBox, then_block: Vec<MirStmtBox>, elifs: Vec<(MirNodeBox, Vec<MirStmtBox>, Vec<MirStmtBox>, Vec<MirStmtBox>)>, else_block: Option<Vec<MirStmtBox>>, span: Span });
+s_mstmt!(SMirWhileStmt { cond: MirNodeBox, pre_cond: Vec<MirStmtBox>, post_cond: Vec<MirStmtBox>, body: Vec<MirStmtBox>, span: Span });
 s_mstmt!(SMirBreakStmt { span: Span });
 s_mstmt!(SMirContinueStmt { span: Span });
 s_mstmt!(SMirExprStmt { expr: MirNodeBox, span: Span });
 s_mstmt!(SMirBlockStmt { stmts: Vec<MirStmtBox>, span: Span });
 s_mstmt!(SMirDropStmt { var: VarId, ty: HirType, span: Span });
+// 动态数组按外部计数释放（字段覆盖旧值等无结构体上下文的场景）
+s_mstmt!(SMirDropCounted { var: VarId, elem_ty: HirType, count_var: VarId, span: Span });
 s_mstmt!(SMirAssumeStmt { cond: MirNodeBox, span: Span });
 s_mstmt!(SMirContractStmt { kind: crate::hir::ContractKind, cond: MirNodeBox, line: u64, col: u64, span: Span });
 
@@ -188,7 +194,7 @@ macro_rules! impl_into_mir_stmt_box {
         })*
     };
 }
-impl_into_mir_stmt_box!(SMirAssignStmt, SMirFieldAssignStmt, SMirIndexAssignStmt, SMirDerefAssignStmt, SMirReturnStmt, SMirIfStmt, SMirWhileStmt, SMirBreakStmt, SMirContinueStmt, SMirExprStmt, SMirBlockStmt, SMirDropStmt, SMirAssumeStmt, SMirContractStmt);
+impl_into_mir_stmt_box!(SMirAssignStmt, SMirFieldAssignStmt, SMirIndexAssignStmt, SMirDerefAssignStmt, SMirReturnStmt, SMirIfStmt, SMirWhileStmt, SMirBreakStmt, SMirContinueStmt, SMirExprStmt, SMirBlockStmt, SMirDropStmt, SMirDropCounted, SMirAssumeStmt, SMirContractStmt);
 
 #[derive(Debug, Clone)]
 pub struct MirLocal {
@@ -251,7 +257,7 @@ pub struct MirProgram {
     pub items: Vec<MirItem>,
     pub vtables: Vec<crate::hir::ir::VtableEntry>,
     pub struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
-    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
+    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
     pub imported_fns: Vec<crate::hir::ir::ImportedFnSig>,
     /// M6.2：顶层 static（透传到 LIR globals）
     pub statics: Vec<crate::hir::HirStatic>,

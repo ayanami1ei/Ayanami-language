@@ -52,6 +52,7 @@ impl crate::hir::lower::Ctx {
             span: Span::default(),
             hidden: 3,
             is_noreturn: false,
+            extern_c: false,
         });
         self.synth_externs.push(crate::hir::HirFn {
             span: Span::default(),

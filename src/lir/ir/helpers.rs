@@ -132,7 +132,7 @@ pub(super) fn is_pointer_type(ty: &HirType) -> bool {
 /// - 普通 `[T]` / `[T; n]` 视为值语义，不在作用域结束时释放（避免双释放）；
 ///   只有 `unique [T]` 会释放缓冲区。
 /// - 枚举（首字段为 `_tag`）暂不递归释放 payload（P1 已知缺口）。
-pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
+pub(crate) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
         HirType::Unique(_) => true,
         HirType::Closure(_, _, true, _) => true,
@@ -142,80 +142,5 @@ pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol
             fields.iter().any(|(_, ft)| needs_drop(ft, struct_defs))
         }
         _ => false,
-    }
-}
-
-/// 发射对 `slot`（指向 `ty` 值的内存指针）的递归释放代码。
-pub(super) fn emit_drop_value(
-    ctx: &mut LirEmitCtx,
-    slot: &str,
-    ty: &HirType,
-    lines: &mut Vec<String>,
-) {
-    match ty {
-        HirType::Unique(inner) => {
-            if ctx.llvm_type(ty) != "ptr" {
-                return; // unique 基本类型当前不是指针表示，暂不释放
-            }
-            let tmp = ctx.tmp();
-            lines.push(format!("%c{} = load ptr, ptr {}, align 8", tmp, slot));
-            let ptr = format!("%c{}", tmp);
-            match inner.as_ref() {
-                // 数组缓冲区由 ptr 直接指向，释放 pointee 即释放缓冲区本身
-                HirType::Array(_) | HirType::ArraySized(_, _) => {}
-                _ => emit_drop_value(ctx, &ptr, inner, lines),
-            }
-            lines.push(format!("call void @__ayanami_unique_free(i8* {})", ptr));
-        }
-        HirType::FatPtr { kind, .. } => {
-            match kind.as_ref() {
-                // 借用胖指针不拥有数据，无需释放
-                HirType::Ref(..) => {}
-                HirType::Unique(_) => {
-                    let tmp = ctx.tmp();
-                    lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 0", tmp, slot));
-                    lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", tmp, tmp));
-                    lines.push(format!("call void @__ayanami_unique_free(i8* %c{})", tmp));
-                }
-                _ => {}
-            }
-        }
-        HirType::Closure(..) => {
-            // { env, vtable }：env 为空（零初始化）跳过；否则调用 vtable[0] drop glue
-            let t = ctx.tmp();
-            lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 0", t, slot));
-            lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", t, t));
-            let isnull = ctx.tmp();
-            lines.push(format!("%c{} = icmp eq ptr %c{}, null", isnull, t));
-            lines.push(format!("br i1 %c{}, label %L{}skip, label %L{}call", isnull, t, t));
-            lines.push(format!("L{}call:", t));
-            let v = ctx.tmp();
-            lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 1", v, slot));
-            lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", v, v));
-            let f = ctx.tmp();
-            lines.push(format!("%c{} = load ptr, ptr %c{}, align 8", f, v));
-            lines.push(format!("call void %c{}(ptr %c{})", f, t));
-            lines.push(format!("br label %L{}end", t));
-            lines.push(format!("L{}skip:", t));
-            lines.push(format!("br label %L{}end", t));
-            lines.push(format!("L{}end:", t));
-        }
-        HirType::Named(name) => {
-            let Some(fields) = ctx.prog.struct_defs.get(name).cloned() else { return; };
-            // 枚举也按字段递归释放：非活跃变体在构造时零初始化，null 释放是安全的
-            let struct_llvm = ctx.llvm_type(ty);
-            for (idx, (_, ft)) in fields.iter().enumerate() {
-                if !needs_drop(ft, &ctx.prog.struct_defs) {
-                    continue;
-                }
-                let gep = ctx.tmp();
-                lines.push(format!(
-                    "%g{} = getelementptr inbounds {}, ptr {}, i32 0, i32 {}",
-                    gep, struct_llvm, slot, idx
-                ));
-                emit_drop_value(ctx, &format!("%g{}", gep), ft, lines);
-            }
-        }
-        _ => {}
     }
 }

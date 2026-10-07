@@ -3,7 +3,7 @@ use super::*;
 /// 类型离开作用域时是否需要释放（与 LIR 的递归 drop 规则一致）。
 ///
 /// 枚举（首字段 `_tag`）的 payload 释放尚未实现，暂不自动 drop。
-fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
+pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
         HirType::Unique(_) => true,
         HirType::Closure(_, _, true, _) => true,

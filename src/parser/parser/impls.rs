@@ -36,26 +36,7 @@ impl Parser {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance(); // impl
         // Parse optional generic params: [T, U: Interface]
-        let mut generic_params = Vec::new();
-        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
-            self.advance();
-            loop {
-                let gp_name = Symbol::intern(&self.expect_identifier()?);
-                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
-                    self.advance();
-                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
-                } else {
-                    None
-                };
-                generic_params.push((gp_name, gp_constraint));
-                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
-                    break;
-                }
-                self.expect_delimiter(Delimiter::Comma)?;
-            }
-            self.expect_delimiter(Delimiter::RBracket)?;
-        }
-        // 解析类型名（支持 LinkedList[T] 泛型写法）
+        let generic_params = self.parse_generic_params()?;        // 解析类型名（支持 LinkedList[T] 泛型写法）
         let impl_type = self.parse_type()?;
         // 从解析出的类型中提取类型名
         fn extract_type_name(ty: &Type) -> Symbol {
@@ -95,7 +76,7 @@ impl Parser {
     /// Parse a method inside an impl block.
     /// Converts `fn draw(shared self, ...)` into a regular FnDecl with
     /// the self parameter typed as `shared TypeName` (or `unique TypeName`).
-    pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt> {
+    pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Vec<Symbol>)]) -> Result<Stmt> {
         let attrs = self.parse_attr_list()?;
         // Optional pub keyword
         if self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Pub)) {
@@ -119,26 +100,7 @@ impl Parser {
         let name = Symbol::intern(&self.expect_identifier()?);
 
         // Generic parameters: [T: Interface, U]
-        let mut generic_params = Vec::new();
-        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
-            self.advance();
-            loop {
-                let gp_name = Symbol::intern(&self.expect_identifier()?);
-                let gp_constraint = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Colon)) {
-                    self.advance();
-                    Some(Symbol::intern(&ast_type_text(&self.parse_type()?)))
-                } else {
-                    None
-                };
-                generic_params.push((gp_name, gp_constraint));
-                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
-                    break;
-                }
-                self.expect_delimiter(Delimiter::Comma)?;
-            }
-            self.expect_delimiter(Delimiter::RBracket)?;
-        }
-
+        let generic_params = self.parse_generic_params()?;
         self.expect_delimiter(Delimiter::LParen)?;
 
         // Parse optional self parameter: ref/ref mut/unique/shared/self

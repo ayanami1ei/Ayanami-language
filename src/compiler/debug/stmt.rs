@@ -13,6 +13,9 @@ fn write_block(block: &Block, level: usize, w: &mut impl Write) {
 pub(super) fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
     let p = pad(level);
     match stmt {
+        Stmt::Block(b) => {
+            writeln!(w, "{}Block ({} stmts)", p, b.stmts.len()).unwrap();
+        }
         Stmt::FnDecl {
             name,
             params,

@@ -51,7 +51,7 @@ impl crate::hir::lower::Ctx {
                 let dep_lir = crate::lir::serialize::program_from_bytes(&lir_binary);
                 if let Ok(dep_lir) = dep_lir {
                     // 先保存 generic_struct_params（需在 struct_defs 被消费前读取）
-                    let gsp_from_lir: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>> =
+                    let gsp_from_lir: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>> =
                         dep_lir.generic_struct_params.clone();
                     for (name, fields) in dep_lir.struct_defs {
                         let hir_fields: Vec<HirStructField> = fields.iter()
@@ -72,7 +72,7 @@ impl crate::hir::lower::Ctx {
                                 gp_names.sort();
                                 gp_names.dedup();
                                 self.generic_struct_params.insert(name,
-                                    gp_names.into_iter().map(|n| (n, None)).collect());
+                                    gp_names.into_iter().map(|n| (n, Vec::new())).collect());
                             }
                         }
                     }
@@ -107,7 +107,7 @@ impl crate::hir::lower::Ctx {
                                 super::collect_ns::check_unique_generic_params(impl_gp, span)?;
                                 for m in methods {
                                     if let Stmt::FnDecl { name, generic_params, span: m_span, .. } = m {
-                                        let combined: Vec<(Symbol, Option<Symbol>)> = {
+                                        let combined: Vec<(Symbol, Vec<Symbol>)> = {
                                             let mut all = impl_gp.clone();
                                             all.extend(generic_params.iter().cloned());
                                             all
@@ -220,6 +220,7 @@ impl crate::hir::lower::Ctx {
                         let hidden = if flags.iter().any(|f| f == "caller") { 3 } else { 0 };
                         let is_noreturn = flags.iter().any(|f| f == "noreturn")
                             || matches!(hir_ret, HirType::Never);
+                        let extern_c = flags.iter().any(|f| f == "extern");
                         self.fns.push(FnSig {
                             name: sym_name,
                             params: hir_params,
@@ -229,7 +230,9 @@ impl crate::hir::lower::Ctx {
                             span: crate::span::Span::default(),
                             hidden,
                             is_noreturn,
+                            extern_c,
                         });
+                        if extern_c { self.extern_fn_ids.insert(fn_id); }
                         self.fn_map.entry(sym_name).or_default().push(fn_id);
                     }
                     crate::package::ImportedSymbol::Const { name, ty, value } => {
@@ -273,11 +276,16 @@ impl crate::hir::lower::Ctx {
                                 let field_name = Symbol::intern(parts.next()?);
                                 let field_type_str = parts.next()?;
                                 // Parse field type string back to HirType
-                                let field_ty = sig_str_to_hir(field_type_str);
+                                let mut field_ty = sig_str_to_hir(field_type_str);
+                                // 签名串里 `[T]` 写作 Array（不含 unique）→ 补回拥有数组所有权
+                                if matches!(field_ty, HirType::Array(_) | HirType::ArraySized(_, _)) {
+                                    field_ty = HirType::Unique(Box::new(field_ty));
+                                }
                                 Some(HirStructField { name: field_name, ty: field_ty })
                             }).collect()
                         };
-                        self.struct_defs.insert(Symbol::intern(&struct_name), fields);
+                        // LIR binary 已提供精确类型时不要覆盖（符号串为有损表示）
+                        self.struct_defs.entry(Symbol::intern(&struct_name)).or_insert(fields);
                     }
                     crate::package::ImportedSymbol::Namespace { .. } => {
                         // Handled by lowering; just register the path

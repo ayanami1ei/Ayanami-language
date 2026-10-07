@@ -25,6 +25,7 @@ mod overflow;
 mod convert;
 mod fn_type;
 mod substitute;
+mod substitute_stmt;
 mod types;
 mod wrap;
 
@@ -36,5 +37,6 @@ pub(crate) use coerce::*;
 pub(crate) use convert::*;
 pub(crate) use fn_type::*;
 pub(crate) use substitute::*;
+pub(crate) use substitute_stmt::*;
 pub(crate) use types::*;
 pub(crate) use wrap::*;

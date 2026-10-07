@@ -75,9 +75,11 @@ impl crate::hir::lower::Ctx {
                     )));
                 }
                 let (bid, _, _) = self.register_or_lookup(*n, base.clone());
+                // 拥有类型载荷/字段绑定按移动处理：源字段清零（SLirFieldTake），
+                // 源枚举/结构体 drop 不再重复释放
                 Ok((None, vec![HirStmt::Assign {
                     target: SVar { var: bid, ty: base }.into(),
-                    value: expr.clone(),
+                    value: implicit_move(expr.clone()),
                     span: *span,
                 }]))
             }

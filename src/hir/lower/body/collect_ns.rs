@@ -1,7 +1,7 @@
 use super::*;
 
 /// #149：泛型参数名不得重复（多约束语法暂不支持；定义期报错，避免调用期推断失败/误编译）
-pub(super) fn check_unique_generic_params(gp: &[(Symbol, Option<Symbol>)], span: &Span) -> Result<()> {
+pub(super) fn check_unique_generic_params(gp: &[(Symbol, Vec<Symbol>)], span: &Span) -> Result<()> {
     let mut seen = std::collections::HashSet::new();
     for (n, _) in gp {
         if !seen.insert(*n) {
@@ -66,6 +66,7 @@ impl crate::hir::lower::Ctx {
                         span: *span,
                         hidden,
                         is_noreturn,
+                        extern_c: *extern_c,
                     });
                     self.fn_map.entry(full_name).or_default().push(fn_id);
                     // extern "C" 声明（无体）：实参借用，不移动
@@ -144,7 +145,7 @@ impl crate::hir::lower::Ctx {
                     for method in methods {
                         if let Stmt::FnDecl { name, params, return_type, generic_params: method_gp, span: method_span, attrs: method_attrs, .. } = method {
                             // 合并 impl 级和方法级泛型参数：impl[T] LinkedList[T] { fn push[T: Ord](...) }
-                            let combined_gp: Vec<(Symbol, Option<Symbol>)> = {
+                            let combined_gp: Vec<(Symbol, Vec<Symbol>)> = {
                                 let mut all = impl_gp.clone();
                                 all.extend(method_gp.iter().cloned());
                                 all
@@ -171,6 +172,7 @@ impl crate::hir::lower::Ctx {
                         inferred: Default::default(),
                         hidden,
                                 is_noreturn,
+                                extern_c: false,
                             });
                             self.fn_map.entry(*name).or_default().push(fn_id);
                         } else {

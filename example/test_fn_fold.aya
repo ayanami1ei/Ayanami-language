@@ -1,10 +1,12 @@
 // #156：Fn 值调用 + 循环内重赋值非 Copy 累加器（fold）
+// item 在循环内被消费，需在每次调用后重新赋值（默认移动语义）。
 import "string"
 
 fn fold_str(String acc, String item, Fn(String, String) -> String f) -> String {
     i = 0
     while i < 2 {
         acc = f(acc, item)
+        item = "b"
         i = i + 1
     }
     return acc

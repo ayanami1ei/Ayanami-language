@@ -39,7 +39,9 @@ impl<'a> Emitter<'a> {
             out: String::new(),
             prog,
             indent: 0,
-            load_tmp: 0,
+            // 发射期临时量与 LIR 降级期 dest 编号分属不同命名空间（dest 每函数从 0 起），
+            // 从高位起编避免 %tN 冲突
+            load_tmp: 1_000_000,
             current_fn_ret_ty: HirType::Void,
         }
     }

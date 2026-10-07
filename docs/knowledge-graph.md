@@ -77,6 +77,19 @@ graph TD
 | ref 自动解引用 | `hir/mod.rs::SDeref`、`hir/stmt.rs::DerefAssign` | 值上下文自动 load；`ref mut` 赋值穿透 store（LIR 复用 index-0 指针解引用） |
 | 两阶段借用 | `mir/borrow/loans.rs` | 接收者位置可变借用先 reserved（`s.add(s.v)`） |
 | 接口胖指针 | `hir/ty.rs::FatPtr`、`lir/ir/nodes_b.rs::MakeFatPtr` | `ref Shape` 借用 / `Shape` 拥有 |
+| 赋值/字段覆盖旧值 drop | `mir/lower/assign.rs` | RHS 先求值到临时量，旧值 drop 后置；仅确有 drop 时建临时量 |
+| 借用临时量提升 | `mir/lower/temps.rs` | `f(ref "x")` 等拥有临时量提升为局部变量，语句后 drop |
+| match/if 表达式结果 | `hir/item.rs::HirLocal::result`、`match_lower.rs`/`if_expr.rs` | 条件赋值结果变量不参与覆盖/块末 drop，链后移出到最终临时量 |
+| 实参移动门控 | `helpers/wrap.rs::type_needs_drop`、`expr_call.rs` | 拥有堆数据的命名类型按值传参移动；extern 借用、POD 复制 |
+| 泛型多约束 | `parser/parser/generic_params.rs`、`hir/lower/body/generic_types.rs` | `[T: A + B]`（每参数 `Vec<Symbol>` 约束）；方法/操作符按任一 bound 检查，调用点合并检查全部 |
+| 局部移出清零 | `lir/ir/nodes_f.rs::SLirLocalTake` | 局部变量移动后清零，循环回边重复移动不双重释放 |
+| 导入所有权补全 | `hir/lower/body/collect_import.rs` | 符号串路径 `[T]` → `unique [T]`；LIR 精确类型优先 |
+| 接口箱递归 drop | `lir/lower/mod.rs`（合成 vtable[0]）+ `lir/ir/helpers_drop.rs` | 拥有胖指针释放前调用具体类型 drop glue（弱链接、跨模块去重） |
+| 数组元素递归 drop | `lir/ir/helpers_drop.rs` | 静态计数数组逐元素释放；动态 `[T]` 按容量兄弟字段（`capability`/`cap`，回退 `len`）覆盖全槽（pop/remove 越界原值也释放） |
+| 元素读取 clone | `lir/ir/helpers_clone.rs` | 非 Copy 元素读取深拷贝（非破坏性）：集合保留原值、调用方拥有副本，配合元素 drop 无泄漏/双重释放 |
+| 动态数组计数释放 | `mir/lower/assign_field.rs`、`lir/ir/helpers_drop.rs::SLirDropArray` | 字段覆盖旧动态数组时从兄弟字段取计数逐元素释放（expand 旧数据） |
+| 条件临时量 | `mir/lower/control.rs`、`lir/lower/mir_stmts_loops.rs` | while/elif 条件的借用临时量在循环头/分支链内每轮求值后 drop（pre_cond/post_cond） |
+| noreturn 分支发散 | `mir/lower/checks.rs::block_diverges` | panic 等 `!` 调用分支的移动不合并——隐藏文件参数正常路径正常释放 |
 | 内存运行时 | `src/runtime.c` | `unique_alloc/free` + 存活计数（无 RC/GC） |
 
 ## 3. 标注系统路线（设计见 `docs/annotations.md`）

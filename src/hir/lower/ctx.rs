@@ -32,9 +32,9 @@ pub(crate) struct Ctx {
     /// 结构体定义：结构体名 → 字段列表
     pub struct_defs: HashMap<Symbol, Vec<HirStructField>>,
     /// 泛型结构体参数：结构体名 → [(参数名, 约束接口)]
-    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
+    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
     /// 泛型函数 AST：(函数名, 泛型参数列表, FnDecl 语句)
-    pub generic_fns: Vec<(Symbol, Vec<(Symbol, Option<Symbol>)>, Stmt)>,
+    pub generic_fns: Vec<(Symbol, Vec<(Symbol, Vec<Symbol>)>, Stmt)>,
     /// 降级过程中特化（单态化）产生的泛型函数
     pub specialized_fns: Vec<HirFn>,
     /// M1.7：合成的外部运行时助手（溢出检查等）
@@ -264,7 +264,7 @@ impl Ctx {
     }
 
     /// 获取结构体的泛型参数列表（如有）
-    pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)> {
+    pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Vec<Symbol>)> {
         self.generic_struct_params.get(type_name).cloned().unwrap_or_default()
     }
 
@@ -272,7 +272,7 @@ impl Ctx {
     pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool) {
         if let Some(existing) = self.lookup_var(&name) { return existing; }
         let id = VarId(self.locals.len());
-        self.locals.push(HirLocal { name, ty: inferred_ty.clone(), mutable: false });
+        self.locals.push(HirLocal { name, ty: inferred_ty.clone(), mutable: false, is_result: false });
         self.bind_var(name, id, inferred_ty.clone(), false);
         (id, inferred_ty, false)
     }

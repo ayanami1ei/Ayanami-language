@@ -47,6 +47,7 @@ impl crate::hir::lower::Ctx {
             span: crate::span::Span::default(),
             hidden: 0,
             is_noreturn: matches!(hir_ret, HirType::Never),
+            extern_c: false,
         });
         self.fn_map.entry(name_sym).or_default().push(fn_id);
 

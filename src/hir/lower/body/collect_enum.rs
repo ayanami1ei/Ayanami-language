@@ -7,7 +7,7 @@ impl crate::hir::lower::Ctx {
         &mut self,
         name: &Symbol,
         variants: &Vec<EnumVariant>,
-        generic_params: &Vec<(Symbol, Option<Symbol>)>,
+        generic_params: &Vec<(Symbol, Vec<Symbol>)>,
         _ns_prefix: &str,
     ) -> Result<()> {
             for variant in variants {

@@ -30,7 +30,7 @@ impl crate::hir::lower::Ctx {
                     // 若 generic_struct_params 未从 .lcl 合并，则从字段类型推断 GP 名称
                     if generic_params.is_empty() && !generic_args.is_empty() {
                         generic_params = generic_args.iter().enumerate()
-                            .map(|(i, _)| (Symbol::intern(&format!("_G{}", i)), None))
+                            .map(|(i, _)| (Symbol::intern(&format!("_G{}", i)), Vec::new()))
                             .collect();
                         // 尝试从字段类型中提取实际 GP 名称（单字母大写名）
                         if let Some(fields) = self.struct_defs.get(type_name) {
@@ -38,7 +38,7 @@ impl crate::hir::lower::Ctx {
                                 if let HirType::Named(n) = strip_ownership_ref(&field.ty) {
                                     let s = n.as_str();
                                     if s.len() == 1 && s.chars().all(|c| c.is_uppercase()) {
-                                        generic_params = vec![(*n, None)];
+                                        generic_params = vec![(*n, Vec::new())];
                                         break;
                                     }
                                 }
@@ -103,9 +103,13 @@ impl crate::hir::lower::Ctx {
                     }
                 }
             }
-            // 字段类型隐式数值转换
+            // 字段类型转换：接口字段装箱（#161）+ 隐式数值转换
             if let Some(field_ty) = field_tys.get(name) {
-                hir_val = coerce_expr(hir_val, field_ty, &expr.span())?;
+                let sp = expr.span();
+                hir_val = match self.coerce_iface_value(hir_val.clone(), field_ty, &sp)? {
+                    Some(converted) => converted,
+                    None => coerce_expr(hir_val, field_ty, &sp)?,
+                };
             }
             hir_fields.push((*name, implicit_move(hir_val)));
         }

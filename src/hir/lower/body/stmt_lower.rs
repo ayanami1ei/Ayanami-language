@@ -195,6 +195,11 @@ impl crate::hir::lower::Ctx {
                 }
             }
             Stmt::Match { value, arms, span } => self.lower_match_stmt(value, arms, span),
+            // #88：块语句 → HirStmt::Block（作用域内语句顺序降级）
+            Stmt::Block(block) => {
+                let hb = self.lower_block(block)?;
+                Ok(HirStmt::Block { stmts: hb.stmts, span: block.span })
+            }
             Stmt::Break { span } => Ok(HirStmt::Break { span: *span }),
             Stmt::Continue { span } => Ok(HirStmt::Continue { span: *span }),
             Stmt::ExprStmt { expr, span } => {

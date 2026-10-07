@@ -68,7 +68,7 @@ impl<'a> Builder<'a> {
                 None => next,
             };
             let mut else_target = else_entry;
-            for (c, b) in elifs.iter().rev() {
+            for (c, _pre, _post, b) in elifs.iter().rev() {
                 let body = self.seq(b, next, loops);
                 else_target = self.push(Payload::Cond(c), vec![body, else_target]);
             }

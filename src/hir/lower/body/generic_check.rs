@@ -12,7 +12,7 @@ use super::generic_types::{GType, ast_is_concrete_primitive, hir_is_concrete_pri
 /// 检查上下文：当前泛型参数与约束、已知名（泛型参数+局部名）、变量浅层类型。
 struct CheckCtx {
     /// 当前泛型参数与约束（impl + 方法合并）
-    gp: Vec<(Symbol, Option<Symbol>)>,
+    gp: Vec<(Symbol, Vec<Symbol>)>,
     /// 当前函数的声明返回类型（C3a：T 流入具体基元返回值）
     ret_ty: Type,
     /// 泛型参数 + 局部名（`f(x)` 中 `f` 可能是 FnPtr 局部变量）
@@ -287,7 +287,12 @@ impl crate::hir::lower::Ctx {
                 Ok(())
             }
             Expr::MacroCall { args, .. } => {
-                for a in args { self.check_expr_names(a, cx)?; }
+                for a in args {
+                    match a {
+                        crate::parser::ast::expr::MacroArg::Expr(e) => self.check_expr_names(e, cx)?,
+                        crate::parser::ast::expr::MacroArg::Block(_) => {}
+                    }
+                }
                 Ok(())
             }
         }

@@ -281,7 +281,9 @@ fn walk_expr(
         }
         Expr::MacroCall { args, .. } => {
             for a in args {
-                walk_expr(ctx, a, declared, caps)?;
+                if let crate::parser::ast::expr::MacroArg::Expr(e) = a {
+                    walk_expr(ctx, e, declared, caps)?;
+                }
             }
         }
         Expr::Literal(_) | Expr::Suffixed { .. } | Expr::Null(_) => {}

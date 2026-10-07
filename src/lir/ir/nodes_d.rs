@@ -101,7 +101,7 @@ pub struct LirProgram {
     pub functions: Vec<LirFn>,
     pub vtables: Vec<VtableDesc>,
     pub struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
-    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
+    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
     pub extern_decls: Vec<ExternDecl>,
     /// A3c：函数名 → 效应摘要（仅内存；不参与序列化，供打包导出）
     pub effect_summaries: HashMap<String, crate::hir::effects::EffectSummary>,
