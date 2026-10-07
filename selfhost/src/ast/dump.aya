@@ -143,6 +143,13 @@ fn push_type(ref Ast ast, int ty, ref mut StringBuf b) {
         b.push_str("unique ");
         push_type(ast, ast.aa[ty], b);
     }
+    elif t == tt(TT::ArraySized._tag) {
+        b.push_str("[");
+        push_type(ast, ast.aa[ty], b);
+        b.push_str("; ");
+        b.push_int(ast.bb[ty]);
+        b.push_str("]");
+    }
     elif t == tt(TT::Generic._tag) {
         b.push_str(ast.texts[ty]);
         b.push_str("[");
@@ -256,6 +263,10 @@ fn dump_block(ref Ast ast, int id, int level, ref mut StringBuf b) {
 
 fn dump_stmt(ref Ast ast, int id, int level, ref mut StringBuf b) {
     tag = ast.tags[id];
+    if tag == st(ST::EnumDef._tag) {
+        // rust 版对 EnumDef 完全不输出（连缩进都不输出）
+        return;
+    }
     push_pad(b, level);
     if tag == st(ST::FnDecl._tag) {
         b.push_str("FnDecl { name: ");
@@ -308,6 +319,14 @@ fn dump_stmt(ref Ast ast, int id, int level, ref mut StringBuf b) {
             dump_stmt(ast, m, level + 1, b);
             m = ast.nexts[m];
         }
+    } elif tag == st(ST::ConstDecl._tag) {
+        b.push_str("ConstDecl { name: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+    } elif tag == st(ST::StaticDecl._tag) {
+        b.push_str("StaticDecl { name: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
     } elif tag == st(ST::Import._tag) {
         b.push_str("Import { path: ");
         b.push_str(ast.texts[id]);
@@ -325,6 +344,10 @@ fn dump_stmt(ref Ast ast, int id, int level, ref mut StringBuf b) {
             p = ast.aa[m];
             first = 1;
             while p >= 0 {
+                if ast.texts[p] == "self" {
+                    p = ast.nexts[p];
+                    continue;
+                }
                 if first == 0 { b.push_str(", "); }
                 b.push_str(ast.texts[p]);
                 b.push_str(": ");
@@ -531,6 +554,10 @@ fn dump_expr(ref Ast ast, int id, int level, ref mut StringBuf b) {
             dump_expr(ast, ast.aa[f], level + 1, b);
             f = ast.nexts[f];
         }
+    } elif tag == et(ET::ArrayRepeat._tag) {
+        b.push_str("ArrayRepeat\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        dump_expr(ast, ast.bb[id], level + 1, b);
     } elif tag == et(ET::ArrayLiteral._tag) {
         b.push_str("ArrayLiteral\n");
         a = ast.aa[id];
@@ -591,6 +618,21 @@ fn dump_expr(ref Ast ast, int id, int level, ref mut StringBuf b) {
             dump_expr(ast, a, level + 1, b);
             a = ast.nexts[a];
         }
+    } elif tag == et(ET::Lambda._tag) {
+        // rust 版签名部分是 Rust Debug（golden 归一化）；body 语句正常打印
+        b.push_str("Lambda(...)\n");
+        body = ast.bb[id];
+        if body >= 0 {
+            s2 = ast.aa[body];
+            while s2 >= 0 {
+                dump_stmt(ast, s2, level + 1, b);
+                s2 = ast.nexts[s2];
+            }
+        }
+    } elif tag == et(ET::Asm._tag) {
+        b.push_str("Asm(\"");
+        b.push_str(ast.texts[id]);
+        b.push_str("\")\n");
     } elif tag == et(ET::MacroCall._tag) {
         b.push_str("MacroCall(");
         b.push_str(ast.texts[id]);

@@ -127,6 +127,8 @@ cmd_ast() {
         sed -i 's|Import { path: .* }|Import { path: <p> }|' /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt
         # ConstDecl/StaticDecl 的 rust Debug 含 Span/Symbol 内部信息，归一化为占位符
         sed -i -E 's|(ConstDecl \{ name: [A-Za-z0-9_]+).*|\1 }|; s|(StaticDecl \{ name: [A-Za-z0-9_]+).*|\1 }|' /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt
+        # Lambda 的 rust Debug 含 Span 内部信息，归一化
+        sed -i -E 's|(Lambda\().*|\1...)|' /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt
         if diff -q /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt >/dev/null; then
             echo "AST OK $(basename "$f")"
         else

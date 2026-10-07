@@ -34,6 +34,7 @@ pub enum ST {
     Break,
     Continue,
     Block,
+    StaticDecl,
 }
 
 // 表达式标签
@@ -63,6 +64,8 @@ pub enum ET {
     EnumConstruct,
     Lambda,
     MacroCall,
+    Asm,
+    ArrayRepeat,
 }
 
 // 类型标签
@@ -81,6 +84,7 @@ pub enum TT {
     Default,
     FnPtr,
     Never,
+    ArraySized,
 }
 
 // 辅助节点标签（参数/字段/实参/elif/匹配臂/泛型实参）

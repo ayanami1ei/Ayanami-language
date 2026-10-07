@@ -1,0 +1,15 @@
+import "io";
+import "aya_parser";
+
+fn main() -> int {
+    p = Parser::new("interface M { fn f() -> Self; }");
+    prog = p.parse_program();
+    println(p.failed);
+    i = 0;
+    while i < p.ast.len {
+        println(p.ast.tags[i]);
+        println(p.ast.texts[i]);
+        i = i + 1;
+    }
+    return 0;
+}
