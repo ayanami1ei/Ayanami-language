@@ -58,6 +58,8 @@ pub(crate) struct FnSig {
     pub is_noreturn: bool,
     /// #166：extern "C" 声明（含包导入）——调用保留 C 符号名、实参借用
     pub extern_c: bool,
+    /// M5：unsafe fn（调用点需 unsafe 上下文）
+    pub is_unsafe: bool,
 }
 
 /// 接口注册信息 —— 记录接口的泛型参数和方法签名
@@ -71,6 +73,7 @@ pub(crate) struct InterfaceReg {
 
 mod ctx;
 mod ctx_mono;
+mod ctx_fields;
 pub(crate) use ctx::Ctx;
 
 // ============================================================

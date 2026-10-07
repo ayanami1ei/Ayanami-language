@@ -53,6 +53,7 @@ impl crate::hir::lower::Ctx {
                         hidden,
                         is_noreturn: false,
                         extern_c: false,
+                        is_unsafe: false,
                     });
                 }
             }

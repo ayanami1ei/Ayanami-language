@@ -5,12 +5,16 @@ use crate::parser::ast::stmt::MatchArm;
 pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt {
     match stmt {
         Stmt::Block(block) => Stmt::Block(substitute_type_in_block(block, subst)),
-        Stmt::FnDecl { attrs, vis, is_inline, extern_c, name, generic_params: _, params, param_attrs, return_type, body, span } => {
+        Stmt::Unsafe { block, span } => Stmt::Unsafe {
+            block: substitute_type_in_block(block, subst), span: *span,
+        },
+        Stmt::FnDecl { attrs, vis, is_inline, extern_c, is_unsafe, name, generic_params: _, params, param_attrs, return_type, body, span } => {
             Stmt::FnDecl {
                 attrs: attrs.clone(),
                 vis: *vis,
                 is_inline: *is_inline,
                 extern_c: *extern_c,
+                is_unsafe: *is_unsafe,
                 name: *name,
                 generic_params: Vec::new(), // cleared: all generics are now concrete
                 params: params.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),

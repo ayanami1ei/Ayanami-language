@@ -159,6 +159,14 @@ impl crate::hir::lower::Ctx {
             }
         } };
 
+        // M5：调用 unsafe fn 需 unsafe 上下文
+        if self.fns[fn_id.0].is_unsafe && self.unsafe_depth == 0 && !self.cur_fn_unsafe {
+            return Err(Error::Hir(format!(
+                "call to `unsafe fn {}` requires an `unsafe` block (at {}:{})",
+                name.as_str(), span.start_line, span.start_col
+            )));
+        }
+
         // Step 4: wrap args into fat pointers where needed, apply implicit moves
         // extern "C" 声明：实参按借用传递（C 侧不消费所有权）
         let extern_call = self.extern_fn_ids.contains(&fn_id);

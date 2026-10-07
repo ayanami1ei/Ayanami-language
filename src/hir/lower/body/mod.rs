@@ -40,6 +40,7 @@ mod const_struct;
 mod const_eval;
 mod const_fn;
 mod collect_import;
+mod collect_import_path;
 mod expr_access;
 mod expr_call;
 mod expr_call_extra;

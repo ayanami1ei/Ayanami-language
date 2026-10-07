@@ -24,7 +24,8 @@ impl crate::hir::lower::Ctx {
                         .collect();
                     let fn_id = self.find_fn_by_sig(full_name, &ptypes)
                         .ok_or_else(|| Error::Hir(format!("internal error: function `{}` not found at {}:{}", full_name, span.start_line, span.start_col)))?;
-                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline, *extern_c, *span, attrs.clone(), param_attrs.clone(), vis.is_public())?;
+                    let is_unsafe = matches!(stmt, Stmt::FnDecl { is_unsafe, .. } if *is_unsafe);
+                    let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, *is_inline, *extern_c, is_unsafe, *span, attrs.clone(), param_attrs.clone(), vis.is_public())?;
                     items.push(HirItem::Fn(hir_fn));
                 }
                 Stmt::Namespace { name, items: ns_items, .. } => {
@@ -99,7 +100,7 @@ impl crate::hir::lower::Ctx {
                                     let s = method_stmt.span();
                                     Error::Hir(format!("internal error: method `{}` not found at {}:{}", name, s.start_line, s.start_col))
                                 })?;
-                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, method_stmt.span(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
+                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, false, method_stmt.span(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
                             items.push(HirItem::Fn(hir_fn));
                         }
                     }
@@ -151,6 +152,7 @@ impl crate::hir::lower::Ctx {
         body: &Block,
         is_inline: bool,
         extern_c: bool,
+        is_unsafe: bool,
         span: Span,
         attrs: Vec<crate::parser::ast::Attr>,
         param_attrs: Vec<Vec<crate::parser::ast::Attr>>,
@@ -223,7 +225,11 @@ impl crate::hir::lower::Ctx {
             }
         }
 
+        // M5：`unsafe fn` 函数体整体处于 unsafe 上下文
+        let saved_unsafe_fn = self.cur_fn_unsafe;
+        self.cur_fn_unsafe = is_unsafe;
         let (mut hir_body, tail_value) = self.lower_block_impl(body, true)?;
+        self.cur_fn_unsafe = saved_unsafe_fn;
         // 裸尾表达式：非 void 函数作为隐式返回值（coerce 到返回类型）；void 则求值丢弃
         if let Some(tail) = tail_value {
             if matches!(return_type, HirType::Void) {

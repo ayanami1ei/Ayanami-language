@@ -4,17 +4,18 @@ use super::expr::*;
 
 pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
     match stmt {
-        FnDecl { attrs, vis, is_inline, extern_c, name, generic_params, params, param_attrs, return_type, body, .. } => {
+        FnDecl { attrs, vis, is_inline, extern_c, is_unsafe, name, generic_params, params, param_attrs, return_type, body, .. } => {
             write_attrs(out, attrs, level);
             let i = indent(level);
+            let unsafe_kw = if *is_unsafe { "unsafe " } else { "" };
             if *extern_c {
-                let _ = write!(out, "{}extern \"C\" fn {}", i, name);
+                let _ = write!(out, "{}{}extern \"C\" fn {}", i, unsafe_kw, name);
             } else {
                 if *is_inline {
-                    let _ = write!(out, "{}inline fn {}", i, name);
+                    let _ = write!(out, "{}{}inline fn {}", i, unsafe_kw, name);
                 } else {
                     let vis_str = vis_str(vis);
-                    let _ = write!(out, "{}{}fn {}", i, vis_str, name);
+                    let _ = write!(out, "{}{}{}fn {}", i, unsafe_kw, vis_str, name);
                 }
             }
             write_generic_params(out, generic_params);
@@ -29,6 +30,11 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
         }
         Block(block) => {
+            write_block_same_line(out, block, level);
+            let _ = writeln!(out);
+        }
+        Unsafe { block, .. } => {
+            let _ = write!(out, "{}unsafe ", indent(level));
             write_block_same_line(out, block, level);
             let _ = writeln!(out);
         }

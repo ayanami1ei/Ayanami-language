@@ -1,6 +1,9 @@
+// M5：inline asm 需要 unsafe 上下文
 fn main() -> int {
     a = 10
     result = 0
-    asm("mov $1, $0", in(reg) a, out(reg) result)
+    unsafe {
+        asm("mov $1, $0", in(reg) a, out(reg) result)
+    }
     return result
 }

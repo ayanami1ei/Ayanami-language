@@ -170,7 +170,7 @@ impl crate::hir::lower::Ctx {
                 };
                 Ok(SArrSz { count: hir_count, elem_ty, ty }.into())
             }
-            Expr::Asm { template, outputs, inputs, .. } => self.lower_asm(template, outputs, inputs),
+            Expr::Asm { template, outputs, inputs, span } => self.lower_asm(template, outputs, inputs, span),
             Expr::Lambda { params, return_type, body, .. } => self.lower_lambda(params, return_type, body),
         }
     }

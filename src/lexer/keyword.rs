@@ -43,6 +43,7 @@ pub enum Keyword {
     Self_,
     True,
     False,
+    Unsafe,
 }
 
 impl fmt::Display for Keyword {
@@ -89,6 +90,7 @@ impl fmt::Display for Keyword {
             Keyword::Self_ => "self",
             Keyword::True => "true",
             Keyword::False => "false",
+            Keyword::Unsafe => "unsafe",
         };
         write!(f, "{}", s)
     }

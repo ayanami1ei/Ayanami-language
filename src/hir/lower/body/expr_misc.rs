@@ -1,7 +1,14 @@
 use super::*;
 
 impl crate::hir::lower::Ctx {
-    pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>) -> Result<HirNodeBox> {
+    pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>, span: &Span) -> Result<HirNodeBox> {
+        // M5：asm 需要 unsafe 上下文
+        if self.unsafe_depth == 0 && !self.cur_fn_unsafe {
+            return Err(Error::Hir(format!(
+                "`asm` requires an `unsafe` block or `unsafe fn` (at {}:{})",
+                span.start_line, span.start_col
+            )));
+        }
         let lowered_outputs: Vec<(String, HirNodeBox)> = outputs.iter().map(|(c, e)| {
             (c.clone(), self.lower_expr(e).unwrap())
         }).collect();
@@ -48,6 +55,7 @@ impl crate::hir::lower::Ctx {
             hidden: 0,
             is_noreturn: matches!(hir_ret, HirType::Never),
             extern_c: false,
+            is_unsafe: false,
         });
         self.fn_map.entry(name_sym).or_default().push(fn_id);
 
@@ -56,7 +64,7 @@ impl crate::hir::lower::Ctx {
         let saved_scopes = std::mem::replace(&mut self.scopes, Vec::new());
         let saved_fn = self.current_fn;
         let saved_env = self.lambda_env.take();
-        let mut hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, body, false, false, body.span, vec![], vec![], false)?;
+        let mut hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, body, false, false, false, body.span, vec![], vec![], false)?;
         // Restore parent function's locals/scope/current_fn（否则后续 return 按 lambda 返回类型转换）
         self.locals = saved_locals;
         self.scopes = saved_scopes;

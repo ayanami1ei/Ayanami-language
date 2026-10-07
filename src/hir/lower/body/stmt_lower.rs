@@ -200,6 +200,14 @@ impl crate::hir::lower::Ctx {
                 let hb = self.lower_block(block)?;
                 Ok(HirStmt::Block { stmts: hb.stmts, span: block.span })
             }
+            // M5：unsafe 块 —— 块内 unsafe 上下文 +1（检查在 asm/调用点）
+            Stmt::Unsafe { block, .. } => {
+                self.unsafe_depth += 1;
+                let hb = self.lower_block(block);
+                self.unsafe_depth -= 1;
+                let hb = hb?;
+                Ok(HirStmt::Block { stmts: hb.stmts, span: block.span })
+            }
             Stmt::Break { span } => Ok(HirStmt::Break { span: *span }),
             Stmt::Continue { span } => Ok(HirStmt::Continue { span: *span }),
             Stmt::ExprStmt { expr, span } => {

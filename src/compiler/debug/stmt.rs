@@ -16,6 +16,9 @@ pub(super) fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
         Stmt::Block(b) => {
             writeln!(w, "{}Block ({} stmts)", p, b.stmts.len()).unwrap();
         }
+        Stmt::Unsafe { block, .. } => {
+            writeln!(w, "{}Unsafe ({} stmts)", p, block.stmts.len()).unwrap();
+        }
         Stmt::FnDecl {
             name,
             params,

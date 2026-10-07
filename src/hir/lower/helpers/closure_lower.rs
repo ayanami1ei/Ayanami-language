@@ -128,6 +128,7 @@ impl crate::hir::lower::Ctx {
             hidden: 1,
             is_noreturn: matches!(hir_ret, HirType::Never),
             extern_c: false,
+            is_unsafe: false,
         });
         self.fn_map.entry(name_sym).or_default().push(code_fn_id);
 
@@ -145,6 +146,7 @@ impl crate::hir::lower::Ctx {
             hidden: 0,
             is_noreturn: false,
             extern_c: false,
+            is_unsafe: false,
         });
         self.fn_map.entry(drop_sym).or_default().push(drop_fn_id);
         self.lower_closure_drop_fn(drop_fn_id, drop_sym, &drop_params)?;
@@ -160,7 +162,7 @@ impl crate::hir::lower::Ctx {
         let saved_scopes = std::mem::replace(&mut self.scopes, Vec::new());
         let saved_fn = self.current_fn;
         let saved_env = self.lambda_env.replace(lambda_env);
-        let mut code_hir = self.lower_fn(code_fn_id, name_sym, &code_params, return_type, body, false, false, body.span, vec![], vec![], false)?;
+        let mut code_hir = self.lower_fn(code_fn_id, name_sym, &code_params, return_type, body, false, false, false, body.span, vec![], vec![], false)?;
         self.locals = saved_locals;
         self.scopes = saved_scopes;
         self.current_fn = saved_fn;
@@ -207,7 +209,7 @@ impl crate::hir::lower::Ctx {
         let saved_scopes = std::mem::replace(&mut self.scopes, Vec::new());
         let saved_fn = self.current_fn;
         let saved_env = self.lambda_env.take();
-        let hir_fn = self.lower_fn(fn_id, name, params, &Type::Void(Span::default()), &empty, false, false, Span::default(), vec![], vec![], false)?;
+        let hir_fn = self.lower_fn(fn_id, name, params, &Type::Void(Span::default()), &empty, false, false, false, Span::default(), vec![], vec![], false)?;
         self.locals = saved_locals;
         self.scopes = saved_scopes;
         self.current_fn = saved_fn;

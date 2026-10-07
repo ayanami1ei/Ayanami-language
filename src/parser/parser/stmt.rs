@@ -53,6 +53,21 @@ impl Parser {
             TokenKind::Keyword(Keyword::Const) => return self.parse_const_decl(vis, attrs),
             TokenKind::Keyword(Keyword::Static) => return self.parse_static_decl(vis, attrs),
             TokenKind::Keyword(Keyword::Fn) => return self.parse_fn_decl(vis, is_inline, extern_c, attrs),
+            TokenKind::Keyword(Keyword::Unsafe) => {
+                // M5：`unsafe { ... }` 块 / `unsafe fn`
+                self.advance();
+                match self.peek().map(|t| &t.kind) {
+                    Some(TokenKind::Keyword(Keyword::Fn)) => {
+                        return self.parse_fn_decl_unsafe(vis, is_inline, extern_c, true, attrs);
+                    }
+                    Some(TokenKind::Delimiter(Delimiter::LBrace)) => {
+                        let block = self.parse_block()?;
+                        let span = block.span;
+                        Stmt::Unsafe { block, span }
+                    }
+                    _ => return Err(self.error("expected `{` or `fn` after `unsafe`")),
+                }
+            }
             TokenKind::Keyword(Keyword::Struct) => return self.parse_struct_def(vis, attrs),
             TokenKind::Keyword(Keyword::Enum) => return self.parse_enum_def(vis, attrs),
             TokenKind::Keyword(Keyword::Interface) => return self.parse_interface_def(attrs),

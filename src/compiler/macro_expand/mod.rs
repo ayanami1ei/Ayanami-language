@@ -133,14 +133,20 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
             Ok(())
         }
         Stmt::FnDecl {
-            attrs, vis, is_inline, extern_c, name, generic_params,
+            attrs, vis, is_inline, extern_c, is_unsafe, name, generic_params,
             params, param_attrs, return_type, body, span,
         } => {
             let body = expand_block(body, ctx, depth)?;
             out.push(Stmt::FnDecl {
-                attrs, vis, is_inline, extern_c, name, generic_params,
+                attrs, vis, is_inline, extern_c, is_unsafe, name, generic_params,
                 params, param_attrs, return_type, body, span,
             });
+            Ok(())
+        }
+        // M5：unsafe 块内继续展开语句级宏
+        Stmt::Unsafe { block, span } => {
+            let block = expand_block(block, ctx, depth)?;
+            out.push(Stmt::Unsafe { block, span });
             Ok(())
         }
         Stmt::If { cond, then_block, elifs, else_block, span } => {

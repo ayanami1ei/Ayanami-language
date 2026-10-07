@@ -80,11 +80,18 @@ pub struct MatchArm {
 pub enum Stmt {
     /// #88：块语句（语句级标注 `#[attr] { ... }` 的载体；也支持裸 `{ ... }`）
     Block(Block),
+    /// M5：unsafe 块（块内允许机器级操作：asm / unsafe fn 调用等）
+    Unsafe {
+        block: Block,
+        span: Span,
+    },
     FnDecl {
         attrs: Vec<Attr>,
         vis: Visibility,
         is_inline: bool,
         extern_c: bool,
+        /// M5：`unsafe fn`（函数体整体处于 unsafe 上下文，调用点需 unsafe）
+        is_unsafe: bool,
         name: Symbol,
         generic_params: Vec<(Symbol, Vec<Symbol>)>,  // (name, constraint_interface)
         params: Vec<(Symbol, Type)>,
@@ -233,6 +240,7 @@ impl Stmt {
     pub fn span(&self) -> Span {
         match self {
             Stmt::Block(block) => block.span,
+            Stmt::Unsafe { span, .. } => *span,
             Stmt::FnDecl { span, .. }
             |             Stmt::Assign { span, .. }
             | Stmt::FieldAssign { span, .. }
