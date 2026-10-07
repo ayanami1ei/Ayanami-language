@@ -37,3 +37,26 @@ impl LirNode for SLirFieldTake {
         put_type(buf, &self.struct_ty);
     }
 }
+
+/// 局部变量移出：load 值 + 源变量清零（循环回边重复移动时避免双重释放）。
+impl LirNode for SLirLocalTake {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "LocalTake" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let llvm_ty = ctx.llvm_type(&self.ty);
+        vec![
+            format!("%t{} = load {}, ptr %v{}", self.dest, llvm_ty, self.var.0),
+            format!("store {} zeroinitializer, ptr %v{}", llvm_ty, self.var.0),
+        ]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = local_take v{} : {:?}", self.dest, self.var.0, self.ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(36);
+        put_u64(buf, self.dest);
+        put_u32(buf, self.var.0 as u32);
+        put_type(buf, &self.ty);
+    }
+}

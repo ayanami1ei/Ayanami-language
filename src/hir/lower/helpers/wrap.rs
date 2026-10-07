@@ -96,6 +96,24 @@ fn wrap_arg_conversions(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
     converted
 }
 
+/// 类型是否拥有堆数据（传参/赋值需移动；与 MIR `needs_drop` 规则一致）。
+/// POD 结构体（全 Copy 字段）可安全复制，不产生移动/失效。
+pub(crate) fn type_needs_drop(
+    ty: &HirType,
+    struct_defs: &std::collections::HashMap<Symbol, Vec<crate::hir::item::HirStructField>>,
+) -> bool {
+    match ty {
+        HirType::Unique(_) => true,
+        HirType::Closure(_, _, true, _) => true,
+        HirType::FatPtr { kind, .. } => !matches!(kind.as_ref(), HirType::Ref(..)),
+        HirType::Named(name) => struct_defs
+            .get(name)
+            .map(|fs| fs.iter().any(|f| type_needs_drop(&f.ty, struct_defs)))
+            .unwrap_or(false),
+        _ => false,
+    }
+}
+
 /// 包装参数以匹配期望的参数类型（按值消费：插入移动）
 pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
     let converted = wrap_arg_conversions(arg, param_ty);

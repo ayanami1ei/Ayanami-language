@@ -240,6 +240,7 @@ ifcont20:
     br_cond Tmp(39) %then21 %else22
 then21:
     store Literal(Int(8), Int) -> v14 : Int
+    drop v6 : Named(Symbol(N))
     t40 = load v14 : Int
     ret Tmp(40)
     br %ifcont23

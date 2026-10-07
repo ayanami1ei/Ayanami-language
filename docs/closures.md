@@ -90,6 +90,10 @@ fn main() -> int {
 - `extern "C"` 回调实参目前只支持直接函数名；静态闭包变量/裸指针变量留待 unsafe。
 - `extern "C"` 声明（无体）的实参按**借用**传递（不移动/清零）——C 侧不消费所有权。
 - 捕获 std 导入类型的拥有字段（如 `String`）依赖导入 struct_defs 的所有权信息；
-  当前导入路径有已知缺口（bd「导入结构体字段丢失所有权」），此时捕获值沿用该行为不释放。
-- 调用实参的通用移动跟踪仍有历史缺口（如 `String` 实参重复传递不报错），闭包路径已由
-  `wrap_arg_for_param` 显式移动 + `checks.rs` 顺序检查覆盖。
+  导入路径已补回 `[T]` → `unique [T]` 所有权（`collect_import.rs`）。
+- 调用实参的通用移动跟踪：拥有堆数据的命名类型（`String`/含堆结构体/枚举）按值传参
+  标记移动（`expr_call.rs` + `type_needs_drop`）；`extern "C"` 按借用、POD 结构体按复制。
+  `checks.rs` 顺序检查覆盖直线重复传参；循环回边的重复移动由运行时源变量清零兜底
+  （`SLirLocalTake`，避免双重释放）。
+- 表达式临时量（如字符串字面量实参）不 drop，循环中每次使用泄漏一次分配
+  （bd `Ayanami-language-d4z`）。

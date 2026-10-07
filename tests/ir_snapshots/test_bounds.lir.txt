@@ -19,6 +19,7 @@ entry:
     t4 = struct_lit String (2 fields)
     t8 = call fn103 (Tmp(2):Ref(Named(Symbol(N)), false), Literal(Int(5), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(7), Int):Int, Literal(Int(13), Int):Int, Tmp(4):Named(Symbol(N))) : Int
     store Tmp(8) -> v1 : Int
+    drop v0 : Named(Symbol(N))
     t9 = load v1 : Int
     ret Tmp(9)
     store Literal(Int(0), Int) -> v2 : Int
@@ -36,10 +37,18 @@ fn expand (fn_id=101) -> Void [7 blocks]
   local self: Ref(Named(Symbol(N)), true)
   local tmp: Unique(Array(Int))
   local i: Int
+  local __ret: Unique(Array(Int))
+  local __ret: Unique(Array(Int))
+  local __ret: Unique(Array(Int))
+  local __ret: Unique(Array(Int))
 entry:
     alloca v0 : Ref(Named(Symbol(N)), true)
     alloca v1 : Unique(Array(Int))
     alloca v2 : Int
+    alloca v3 : Unique(Array(Int))
+    alloca v4 : Unique(Array(Int))
+    alloca v5 : Unique(Array(Int))
+    alloca v6 : Unique(Array(Int))
     store Param(0) -> v0 : Ref(Named(Symbol(N)), true)
     t0 = load v0 : Ref(Named(Symbol(N)), true)
     t1 = field_access field=2 : IntN { bits: 64, signed: false }
@@ -48,50 +57,62 @@ entry:
 then0:
     t4 = load v0 : Ref(Named(Symbol(N)), true)
     t4 = field_store field=2 : IntN { bits: 64, signed: false }
-    t7 = load v0 : Ref(Named(Symbol(N)), true)
-    t8 = array_sized (count=Literal(Int(1), Int), elem_ty=Int)
-    t7 = field_store field=0 : Array(Int)
+    t7 = array_sized (count=Literal(Int(1), Int), elem_ty=Int)
+    store Tmp(7) -> v3 : Unique(Array(Int))
+    t11 = load v0 : Ref(Named(Symbol(N)), true)
+    t12 = field_take field=0 : Unique(Array(Int))
+    store Tmp(12) -> v4 : Unique(Array(Int))
+    drop v4 : Unique(Array(Int))
+    t14 = load v0 : Ref(Named(Symbol(N)), true)
+    t15 = load v3 : Unique(Array(Int))
+    t14 = field_store field=0 : Unique(Array(Int))
     br %ifcont2
 else1:
-    t18 = load v0 : Ref(Named(Symbol(N)), true)
-    t19 = field_access field=2 : IntN { bits: 64, signed: false }
-    t21 = str_global @__str_0
-    t22 = struct_lit String (2 fields)
-    t26 = call fn102 (Tmp(19):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(9), Int):Int, Literal(Int(39), Int):Int, Tmp(22):Named(Symbol(N))) : IntN { bits: 64, signed: false }
-    t14 = array_sized (count=Tmp(26), elem_ty=Int)
-    store Tmp(14) -> v1 : Unique(Array(Int))
+    t22 = load v0 : Ref(Named(Symbol(N)), true)
+    t23 = field_access field=2 : IntN { bits: 64, signed: false }
+    t25 = str_global @__str_0
+    t26 = struct_lit String (2 fields)
+    t30 = call fn102 (Tmp(23):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(9), Int):Int, Literal(Int(39), Int):Int, Tmp(26):Named(Symbol(N))) : IntN { bits: 64, signed: false }
+    t18 = array_sized (count=Tmp(30), elem_ty=Int)
+    store Tmp(18) -> v1 : Unique(Array(Int))
     store Literal(Int(0), Int) -> v2 : Int
     br %while.cond3
 while.cond3:
-    t27 = load v2 : Int
-    t28 = load v0 : Ref(Named(Symbol(N)), true)
-    t29 = field_access field=1 : IntN { bits: 64, signed: false }
-    t31 = conv Cast -> Tmp(29) : Int
-    t32 = Lt Tmp(27) Tmp(31) : Int
-    br_cond Tmp(32) %while.body4 %while.end5
+    t31 = load v2 : Int
+    t32 = load v0 : Ref(Named(Symbol(N)), true)
+    t33 = field_access field=1 : IntN { bits: 64, signed: false }
+    t35 = conv Cast -> Tmp(33) : Int
+    t36 = Lt Tmp(31) Tmp(35) : Int
+    br_cond Tmp(36) %while.body4 %while.end5
 while.body4:
-    t33 = load v1 : Unique(Array(Int))
-    t34 = load v2 : Int
-    t35 = load v0 : Ref(Named(Symbol(N)), true)
-    t36 = field_access field=0 : Array(Int)
+    t37 = load v1 : Unique(Array(Int))
     t38 = load v2 : Int
-    t39 = index_access elem_ty=Int
-    t33 = index_store elem_ty=Int
-    t43 = load v2 : Int
-    t44 = Add Tmp(43) Literal(Int(1), Int) : Int
-    store Tmp(44) -> v2 : Int
+    t39 = load v0 : Ref(Named(Symbol(N)), true)
+    t40 = field_access field=0 : Unique(Array(Int))
+    t42 = load v2 : Int
+    t43 = index_access elem_ty=Int
+    t37 = index_store elem_ty=Int
+    t47 = load v2 : Int
+    t48 = Add Tmp(47) Literal(Int(1), Int) : Int
+    store Tmp(48) -> v2 : Int
     br %while.cond3
 while.end5:
-    t45 = load v0 : Ref(Named(Symbol(N)), true)
-    t46 = load v1 : Unique(Array(Int))
-    t45 = field_store field=0 : Array(Int)
-    t49 = load v0 : Ref(Named(Symbol(N)), true)
+    t49 = local_take v1 : Unique(Array(Int))
+    store Tmp(49) -> v5 : Unique(Array(Int))
     t50 = load v0 : Ref(Named(Symbol(N)), true)
-    t51 = field_access field=2 : IntN { bits: 64, signed: false }
-    t53 = str_global @__str_0
-    t54 = struct_lit String (2 fields)
-    t58 = call fn102 (Tmp(51):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(14), Int):Int, Literal(Int(47), Int):Int, Tmp(54):Named(Symbol(N))) : IntN { bits: 64, signed: false }
-    t49 = field_store field=2 : IntN { bits: 64, signed: false }
+    t51 = field_take field=0 : Unique(Array(Int))
+    store Tmp(51) -> v6 : Unique(Array(Int))
+    drop v6 : Unique(Array(Int))
+    t53 = load v0 : Ref(Named(Symbol(N)), true)
+    t54 = load v5 : Unique(Array(Int))
+    t53 = field_store field=0 : Unique(Array(Int))
+    t57 = load v0 : Ref(Named(Symbol(N)), true)
+    t58 = load v0 : Ref(Named(Symbol(N)), true)
+    t59 = field_access field=2 : IntN { bits: 64, signed: false }
+    t61 = str_global @__str_0
+    t62 = struct_lit String (2 fields)
+    t66 = call fn102 (Tmp(59):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(14), Int):Int, Literal(Int(47), Int):Int, Tmp(62):Named(Symbol(N))) : IntN { bits: 64, signed: false }
+    t57 = field_store field=2 : IntN { bits: 64, signed: false }
     br %ifcont2
 ifcont2:
     ret void
@@ -120,7 +141,7 @@ else1:
     br %ifcont2
 ifcont2:
     t14 = load v0 : Ref(Named(Symbol(N)), true)
-    t15 = field_access field=0 : Array(Int)
+    t15 = field_access field=0 : Unique(Array(Int))
     t17 = load v0 : Ref(Named(Symbol(N)), true)
     t18 = field_access field=1 : IntN { bits: 64, signed: false }
     t20 = conv Cast -> Tmp(18) : Int
@@ -161,7 +182,7 @@ entry:
 then0:
     t5 = load v2 : Int
     t6 = load v3 : Int
-    t7 = load v4 : Named(Symbol(N))
+    t7 = local_take v4 : Named(Symbol(N))
     t8 = load v1 : IntN { bits: 64, signed: false }
     t9 = load v0 : Ref(Named(Symbol(N)), false)
     t10 = field_access field=1 : IntN { bits: 64, signed: false }
@@ -171,7 +192,7 @@ else1:
     br %ifcont2
 ifcont2:
     t13 = load v0 : Ref(Named(Symbol(N)), false)
-    t14 = field_access field=0 : Array(Int)
+    t14 = field_access field=0 : Unique(Array(Int))
     t16 = load v1 : IntN { bits: 64, signed: false }
     t17 = conv Cast -> Tmp(16) : Int
     t18 = index_access elem_ty=Int

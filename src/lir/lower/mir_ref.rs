@@ -241,6 +241,14 @@ impl MirNode for SMirMove {
                 return LirValue::Tmp(dest);
             }
         }
+        // 局部变量移出：load + 源清零（循环回边重复移动时避免双重释放）
+        if let Some(id) = self.expr.as_local() {
+            if !self.expr.expr_type().is_copy() {
+                let dest = ctx.next_tmp();
+                ctx.emit(SLirLocalTake { dest, var: id, ty: self.expr.expr_type() }.into());
+                return LirValue::Tmp(dest);
+            }
+        }
         self.expr.lower_to_lir(ctx)
     }
     fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {

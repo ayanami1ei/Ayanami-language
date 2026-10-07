@@ -273,11 +273,16 @@ impl crate::hir::lower::Ctx {
                                 let field_name = Symbol::intern(parts.next()?);
                                 let field_type_str = parts.next()?;
                                 // Parse field type string back to HirType
-                                let field_ty = sig_str_to_hir(field_type_str);
+                                let mut field_ty = sig_str_to_hir(field_type_str);
+                                // 签名串里 `[T]` 写作 Array（不含 unique）→ 补回拥有数组所有权
+                                if matches!(field_ty, HirType::Array(_) | HirType::ArraySized(_, _)) {
+                                    field_ty = HirType::Unique(Box::new(field_ty));
+                                }
                                 Some(HirStructField { name: field_name, ty: field_ty })
                             }).collect()
                         };
-                        self.struct_defs.insert(Symbol::intern(&struct_name), fields);
+                        // LIR binary 已提供精确类型时不要覆盖（符号串为有损表示）
+                        self.struct_defs.entry(Symbol::intern(&struct_name)).or_insert(fields);
                     }
                     crate::package::ImportedSymbol::Namespace { .. } => {
                         // Handled by lowering; just register the path

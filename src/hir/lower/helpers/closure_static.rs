@@ -61,8 +61,9 @@ impl crate::hir::lower::Ctx {
         self.fn_map.entry(name).or_default().push(fn_id);
 
         // body：return env(__p0, __p1, ...)
+        // 转发实参按移动处理：所有权交给被调函数，trampoline 作用域结束不再 drop
         let args: Vec<HirNodeBox> = (1..params.len())
-            .map(|i| SVar { var: VarId(i), ty: params[i].1.clone() }.into())
+            .map(|i| implicit_move(SVar { var: VarId(i), ty: params[i].1.clone() }.into()))
             .collect();
         let call: HirNodeBox = SCallP {
             fn_ptr: SVar { var: VarId(0), ty: params[0].1.clone() }.into(),

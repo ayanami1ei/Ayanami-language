@@ -238,7 +238,15 @@ impl crate::hir::lower::Ctx {
             } else if matches!(param_tys[i], HirType::Closure(..)) {
                 // M2：闭包实参（拥有值）→ 移动
                 wrap_arg_for_param(arg, &param_tys[i])
+            } else if extern_call {
+                // extern "C" 声明：C 侧不消费所有权，命名类型实参同样按借用传递
+                arg
+            } else if type_needs_drop(&arg_ty, &self.struct_defs) {
+                // 拥有堆数据的命名类型（String/含堆结构体/枚举）按值传参 → 移动
+                // （未标记移动会导致重复传参双释放，且调用方帧退出时误释放）
+                implicit_move(arg)
             } else {
+                // POD 结构体：复制语义，不失效
                 arg
             }
         }).collect();

@@ -1,5 +1,4 @@
 use super::*;
-
 impl<'a> Reader<'a> {
     pub(super) fn literal(&mut self) -> Result<HirLiteral> {
         let tag = self.read(1)?[0];
@@ -118,6 +117,7 @@ impl<'a> Reader<'a> {
                 let fi = self.u32()? as usize; let ft = self.ty()?; let st = self.ty()?;
                 Ok(SLirFieldTake { dest: d, gep_tmp: g, obj: o, field_index: fi, field_ty: ft, struct_ty: st }.into())
             }
+            36 => { let d = self.u64()?; let v = self.u32()? as usize; let t = self.ty()?; Ok(SLirLocalTake { dest: d, var: VarId(v), ty: t }.into()) }
             32 => {
                 let d = self.u64()?;
                 let n = Symbol::intern(&self.str()?);
