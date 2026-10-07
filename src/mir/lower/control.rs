@@ -21,7 +21,7 @@ impl Ctx {
 
         self.moved = base.clone();
         let mir_then = self.lower_block(&then_block.stmts);
-        if !super::checks::block_always_returns(&then_block.stmts) {
+        if !self.block_diverges(&then_block.stmts) {
             fall_moved.extend(self.moved.iter().copied());
         }
 
@@ -36,7 +36,7 @@ impl Ctx {
                 fall_moved.extend(self.moved.iter().copied());
                 let cm = c.lower_to_mir(&self.moved);
                 let bm = self.lower_block(&b.stmts);
-                if !super::checks::block_always_returns(&b.stmts) {
+                if !self.block_diverges(&b.stmts) {
                     fall_moved.extend(self.moved.iter().copied());
                 }
                 (cm, bm)
@@ -47,7 +47,7 @@ impl Ctx {
             .map(|b| {
                 self.moved = cond_entry.clone();
                 let bm = self.lower_block(&b.stmts);
-                if !super::checks::block_always_returns(&b.stmts) {
+                if !self.block_diverges(&b.stmts) {
                     fall_moved.extend(self.moved.iter().copied());
                 }
                 bm

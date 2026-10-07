@@ -132,7 +132,7 @@ pub(super) fn is_pointer_type(ty: &HirType) -> bool {
 /// - 普通 `[T]` / `[T; n]` 视为值语义，不在作用域结束时释放（避免双释放）；
 ///   只有 `unique [T]` 会释放缓冲区。
 /// - 枚举（首字段为 `_tag`）暂不递归释放 payload（P1 已知缺口）。
-pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
+pub(crate) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
         HirType::Unique(_) => true,
         HirType::Closure(_, _, true, _) => true,
@@ -175,6 +175,25 @@ pub(super) fn emit_drop_value(
                     let tmp = ctx.tmp();
                     lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 0", tmp, slot));
                     lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", tmp, tmp));
+                    // 数据非空时调用 vtable[0] drop glue（箱内具体值的拥有字段递归释放）
+                    let n = ctx.tmp();
+                    lines.push(format!("%c{} = icmp eq ptr %c{}, null", n, tmp));
+                    lines.push(format!("br i1 %c{}, label %L{}skip, label %L{}vt", n, n, n));
+                    lines.push(format!("L{}vt:", n));
+                    let v = ctx.tmp();
+                    lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 1", v, slot));
+                    lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", v, v));
+                    let f = ctx.tmp();
+                    lines.push(format!("%c{} = load ptr, ptr %c{}, align 8", f, v));
+                    let nf = ctx.tmp();
+                    lines.push(format!("%c{} = icmp eq ptr %c{}, null", nf, f));
+                    lines.push(format!("br i1 %c{}, label %L{}skip, label %L{}call", nf, n, n));
+                    lines.push(format!("L{}call:", n));
+                    lines.push(format!("call void %c{}(ptr %c{})", f, tmp));
+                    lines.push(format!("br label %L{}end", n));
+                    lines.push(format!("L{}skip:", n));
+                    lines.push(format!("br label %L{}end", n));
+                    lines.push(format!("L{}end:", n));
                     lines.push(format!("call void @__ayanami_unique_free(i8* %c{})", tmp));
                 }
                 _ => {}

@@ -1,0 +1,26 @@
+// 回归：拥有接口值（装箱）释放前调用 vtable[0] drop glue——箱内具体值的拥有字段递归释放
+import "io"
+import "iter"
+import "arraylist"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn sum(Iterator[int] it) -> int {
+    s = 0
+    for x in it { s = s + x }
+    return s
+}
+
+fn run() -> int {
+    a = ArrayList::new[int]()
+    a.push(1)
+    a.push(2)
+    return sum(a.into_iter())
+}
+
+fn main() -> int {
+    n = run()
+    if n != 3 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

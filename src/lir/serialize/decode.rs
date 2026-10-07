@@ -118,9 +118,9 @@ impl<'a> Reader<'a> {
                 Ok(SLirFieldTake { dest: d, gep_tmp: g, obj: o, field_index: fi, field_ty: ft, struct_ty: st }.into())
             }
             36 => { let d = self.u64()?; let v = self.u32()? as usize; let t = self.ty()?; Ok(SLirLocalTake { dest: d, var: VarId(v), ty: t }.into()) }
+            37 => { let p = self.value()?; let t = self.ty()?; Ok(SLirDropPtr { ptr: p, ty: t }.into()) }
             32 => {
-                let d = self.u64()?;
-                let n = Symbol::intern(&self.str()?);
+                let d = self.u64()?; let n = Symbol::intern(&self.str()?);
                 Ok(SLirGlobalAddr { dest: d, name: n }.into())
             }
             33 => {

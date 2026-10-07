@@ -60,3 +60,24 @@ impl LirNode for SLirLocalTake {
         put_type(buf, &self.ty);
     }
 }
+
+/// 对指针指向的具体值做递归 drop（接口箱 vtable[0] drop glue 函数体）。
+impl LirNode for SLirDropPtr {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "DropPtr" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let slot = ctx.value_ref(&self.ptr, &HirType::Ref(Box::new(self.ty.clone()), true));
+        let mut lines = Vec::new();
+        emit_drop_value(ctx, &slot, &self.ty, &mut lines);
+        lines
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    drop_ptr : {:?}", self.ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(37);
+        put_value(buf, &self.ptr);
+        put_type(buf, &self.ty);
+    }
+}

@@ -70,8 +70,11 @@ impl crate::hir::lower::Ctx {
         let value = if kind_ref && !matches!(arg_ty, HirType::Ref(..)) {
             let mutable = matches!(param_ty, HirType::FatPtr { kind, .. } if matches!(kind.as_ref(), HirType::Ref(_, true)));
             SRef { expr: arg, mutable, ty: HirType::Ref(Box::new(arg_ty.clone()), mutable) }.into()
-        } else {
+        } else if kind_ref {
             arg
+        } else {
+            // 拥有胖指针：装箱转移所有权（源值按移动处理，否则源 drop 与箱内值双重释放）
+            implicit_move(arg)
         };
         SMFP { value, concrete_type: ct, interface_name: iface, ty: param_ty.clone() }.into()
     }

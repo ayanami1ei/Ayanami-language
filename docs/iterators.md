@@ -41,6 +41,8 @@ while true {
 ```
 
 - 迭代器值移入临时局部（拥有语义），随作用域结束释放；
+- 拥有接口值（`Iterator[T]` 形参/字段装箱）释放时经 vtable[0] 调用具体类型 drop glue，
+  箱内拥有字段递归释放（`lir/lower/mod.rs` 合成、弱链接去重）；
 - `break`/`continue` 在 `body` 内语义与普通循环一致（`continue` 进入下一轮 `next`）；
 - `next` 缺失时由方法解析报错（提示实现 `next`）。
 

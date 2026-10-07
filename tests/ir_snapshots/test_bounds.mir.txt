@@ -279,6 +279,7 @@ MIR Program
           index:
           Cast(ty: Int)
             Local(v1 : u64)
+      Drop(v4 : Named(String))
       Return
         Local(v5 : Int)
 │ │ }

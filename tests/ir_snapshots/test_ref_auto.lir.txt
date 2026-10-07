@@ -257,3 +257,7 @@ ifcont23:
     store Literal(Int(0), Int) -> v17 : Int
     t41 = load v17 : Int
     ret Tmp(41)
+fn __iface_drop_String (fn_id=100) -> Void [1 blocks]
+entry:
+    drop_ptr : Named(Symbol(N))
+    ret void

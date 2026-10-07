@@ -1136,7 +1136,7 @@ src/lir/ir/helpers.rs:67: pub(crate) fn int_info(ty: &HirType) -> Option<(u32, b
 src/lir/ir/helpers.rs:79: pub(crate) fn elem_layout_size(
 src/lir/ir/helpers.rs:83: fn layout(ty: &HirType, defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> (u64, u64)
 src/lir/ir/helpers.rs:122: pub(super) fn is_pointer_type(ty: &HirType) -> bool
-src/lir/ir/helpers.rs:135: pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
+src/lir/ir/helpers.rs:135: pub(crate) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
 src/lir/ir/helpers.rs:149: pub(super) fn emit_drop_value(
 src/lir/ir/mod.rs:12: pub struct IrNode
 src/lir/ir/mod.rs:18: pub enum IrValue
@@ -1456,6 +1456,13 @@ src/lir/ir/nodes_f.rs:45: fn as_any(&self) -> &dyn std::any::Any { self }
 src/lir/ir/nodes_f.rs:46: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
 src/lir/ir/nodes_f.rs:53: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
 src/lir/ir/nodes_f.rs:56: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_f.rs:65: impl LirNode for SLirDropPtr
+src/lir/ir/nodes_f.rs:66: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_f.rs:67: fn kind(&self) -> &'static str { "DropPtr" }
+src/lir/ir/nodes_f.rs:68: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_f.rs:69: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_f.rs:75: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_f.rs:78: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/lower/ctx.rs:3: pub(super) struct LowerCtx<'a>
 src/lir/lower/ctx.rs:13: impl<'a> LowerCtx<'a>
 src/lir/lower/ctx.rs:14: pub(super) fn new(str_map: &'a HashMap<String, u64>) -> Self
@@ -1941,10 +1948,10 @@ src/mir/lower/assign.rs:18: pub(super) fn lower_assign(&mut self, target: &HirNo
 src/mir/lower/assign.rs:107: pub(super) fn lower_field_assign(
 src/mir/lower/assign.rs:176: pub(super) fn lower_index_assign(
 src/mir/lower/assign.rs:196: pub(super) fn lower_deref_assign(
-src/mir/lower/checks.rs:8: pub(super) fn block_always_returns(stmts: &[HirStmt]) -> bool
-src/mir/lower/checks.rs:21: impl Ctx
-src/mir/lower/checks.rs:25: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
-src/mir/lower/checks.rs:53: fn walk_stmt_moves(&mut self, expr: &dyn HirNode, sp: Span)
+src/mir/lower/checks.rs:5: impl Ctx
+src/mir/lower/checks.rs:9: pub(super) fn block_diverges(&self, stmts: &[HirStmt]) -> bool
+src/mir/lower/checks.rs:27: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
+src/mir/lower/checks.rs:55: fn walk_stmt_moves(&mut self, expr: &dyn HirNode, sp: Span)
 src/mir/lower/control.rs:4: impl Ctx
 src/mir/lower/control.rs:5: pub(super) fn lower_if(
 src/mir/lower/control.rs:63: pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>

@@ -197,5 +197,10 @@ ifcont2:
     t17 = conv Cast -> Tmp(16) : Int
     t18 = index_access elem_ty=Int
     store Tmp(18) -> v5 : Int
+    drop v4 : Named(Symbol(N))
     t21 = load v5 : Int
     ret Tmp(21)
+fn __iface_drop_String (fn_id=104) -> Void [1 blocks]
+entry:
+    drop_ptr : Named(Symbol(N))
+    ret void
