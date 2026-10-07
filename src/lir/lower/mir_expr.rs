@@ -275,8 +275,8 @@ impl MirNode for SMirMakeFatPtr {
             _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&val), ty: self.value.expr_type() }.into()); LirValue::Tmp(t) }
         };
         let vtable_name = format!("vtable_{}_{}",
-            self.concrete_type.as_str().replace('<', "_lt_").replace('>', "_gt_").replace('[', "_lb_").replace(']', "_rb_"),
-            self.interface_name.as_str().replace('<', "_lt_").replace('>', "_gt_"));
+            crate::lir::ir::sanitize_name(&self.concrete_type.as_str()),
+            crate::lir::ir::sanitize_name(&self.interface_name.as_str()));
         let dest = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
         let bc_tmp = ctx.next_tmp(); let vtable_gep_tmp = ctx.next_tmp(); let iv_tmp = ctx.next_tmp();
         ctx.emit(SLirMakeFatPtr { dest, malloc_tmp, bc_tmp, vtable_gep_tmp, iv_tmp, value_src, value_ty: self.value.expr_type(), vtable_name, ty: self.ty.clone() }.into());

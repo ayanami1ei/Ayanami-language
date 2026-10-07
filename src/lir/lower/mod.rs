@@ -121,8 +121,8 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
 
     let vtables: Vec<VtableDesc> = mir.vtables.iter().map(|ve| {
         let name = format!("vtable_{}_{}",
-            ve.concrete_type.as_str().replace('<', "_lt_").replace('>', "_gt_").replace('[', "_lb_").replace(']', "_rb_"),
-            ve.interface.as_str().replace('<', "_lt_").replace('>', "_gt_"));
+            crate::lir::ir::sanitize_name(&ve.concrete_type.as_str()),
+            crate::lir::ir::sanitize_name(&ve.interface.as_str()));
         VtableDesc { name, fn_ids: ve.method_fn_ids.clone() }
     }).collect();
 

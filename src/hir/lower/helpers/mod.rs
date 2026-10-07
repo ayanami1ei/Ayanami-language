@@ -17,6 +17,7 @@ use super::InterfaceReg;
 
 mod caller;
 mod closure;
+mod closure_checks;
 mod closure_lower;
 mod closure_static;
 mod coerce;

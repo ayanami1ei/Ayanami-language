@@ -33,6 +33,8 @@ pub trait HirNode: std::fmt::Debug {
     fn as_move(&self) -> Option<&HirNodeBox> { None }
     /// M2：`unique` 装箱节点（仅 SToUnique；按移动处理）
     fn as_to_unique(&self) -> Option<&HirNodeBox> { None }
+    /// M2：字段访问视图（仅 SField；用于捕获移出检查）
+    fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)> { None }
     /// A2c：是否为比较运算。HIR 中比较保持操作数类型，Bool 结果由 MIR→LIR 决定。
     fn is_comparison(&self) -> bool { false }
     /// A3a：静态调用目标（仅 SCall；函数指针/虚调用返回 None）。

@@ -173,6 +173,13 @@ impl crate::hir::lower::Ctx {
             code_hir.return_type = inferred_ret.clone();
             self.fns[code_fn_id.0].return_type = inferred_ret.clone();
         }
+        // M2 健全性：拥有捕获不可移出闭包（FnOnce 未建模；否则 env 与目标双重释放）
+        if let Some(cap) = super::closure_checks::find_capture_move_out(&code_hir.body.stmts, VarId(0)) {
+            return Err(Error::Hir(format!(
+                "cannot move captured variable `{}` out of a closure (FnOnce is not supported yet; use `.clone()`) (at {}:{})",
+                cap.as_str(), body.span.start_line, body.span.start_col
+            )));
+        }
         self.lambda_fns.push(code_hir);
 
         // 5. vtable：[drop_glue, call]（slot 0 = drop 预留槽，调用槽 = 1 + method_index）

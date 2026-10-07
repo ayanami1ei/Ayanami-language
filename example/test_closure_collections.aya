@@ -1,0 +1,12 @@
+// M2 / #151：集合存放闭包（泛型实参含 Fn 的类型名 mangle）
+import "arraylist"
+
+fn main() -> int {
+    a = ArrayList::new[Fn(int) -> int]()
+    a.push((int x) -> int { return x + 1 })
+    a.push((int x) -> int { return x + 2 })
+    f = a.index(0)
+    g = a.index(1)
+    // 2 + 3 = 5
+    return f(1) + g(1) - 5
+}

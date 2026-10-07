@@ -1,8 +1,12 @@
 use super::*;
 
 pub fn sanitize_name(name: &str) -> String {
-    name.replace('<', "_lt_").replace('>', "_gt_")
-        .replace(',', "_c_").replace('[', "_lb_").replace(']', "_rb_").replace(' ', "_")
+    let s = name.replace("->", "_to_")
+        .replace('<', "_lt_").replace('>', "_gt_")
+        .replace(',', "_c_").replace('[', "_lb_").replace(']', "_rb_")
+        .replace(' ', "_");
+    // LLVM 标识符兜底：括号等其余字符统一转 `_`（`Fn(int)->int` 等闭包泛型实参）
+    s.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '.' { c } else { '_' }).collect()
 }
 
 pub(crate) fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {
