@@ -174,7 +174,8 @@ impl MirNode for SMirToUnique {
         let inner_ty = match &self.ty { HirType::Unique(i) => i.as_ref(), _ => &self.ty };
         if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
             let src = match inner_val {
-                LirValue::Tmp(_) => inner_val,
+                // 字面量/参数已是值，直接进 conv（无需 load）
+                LirValue::Tmp(_) | LirValue::Literal(..) | LirValue::Param(_) => inner_val,
                 _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&inner_val), ty: self.expr.expr_type() }.into()); LirValue::Tmp(t) }
             };
             let dest = ctx.next_tmp(); let alloca_tmp = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();

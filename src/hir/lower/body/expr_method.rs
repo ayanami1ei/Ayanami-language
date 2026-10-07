@@ -31,6 +31,35 @@ impl crate::hir::lower::Ctx {
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();
 
+        // M4：`Ptr[T]` 接收者 —— `get`/`get_mut` 返回 pointee 借用；其余方法自动解引用。
+        // 拥有 `Ptr[T]` 与 `ref Ptr[T]`（字段借用）均支持。
+        let (receiver, receiver_ty) = match &receiver_ty {
+            HirType::Unique(inner) => {
+                let inner_ty = (**inner).clone();
+                if (method.as_str() == "get" || method.as_str() == "get_mut") && hir_args.is_empty() {
+                    let mutable = method.as_str() == "get_mut";
+                    let d: HirNodeBox = SDeref { expr: receiver, ty: inner_ty.clone() }.into();
+                    return Ok(SRef { expr: d, mutable, ty: HirType::Ref(Box::new(inner_ty), mutable) }.into());
+                }
+                (SDeref { expr: receiver, ty: inner_ty.clone() }.into(), inner_ty)
+            }
+            HirType::Ref(inner, _) if matches!(inner.as_ref(), HirType::Unique(_)) => {
+                let HirType::Unique(u) = inner.as_ref() else { unreachable!() };
+                let inner_ty = (**u).clone();
+                if (method.as_str() == "get" || method.as_str() == "get_mut") && hir_args.is_empty() {
+                    let mutable = method.as_str() == "get_mut";
+                    // *(*r)：先解引用到 Ptr 值，再解引用到 pointee
+                    let p: HirNodeBox = SDeref {
+                        expr: receiver, ty: HirType::Unique(Box::new(inner_ty.clone())),
+                    }.into();
+                    let d: HirNodeBox = SDeref { expr: p, ty: inner_ty.clone() }.into();
+                    return Ok(SRef { expr: d, mutable, ty: HirType::Ref(Box::new(inner_ty), mutable) }.into());
+                }
+                (receiver, receiver_ty)
+            }
+            _ => (receiver, receiver_ty),
+        };
+
         // Check if receiver type is a fat pointer (interface dispatch)
         // receiver_ty may be wrapped in ownership (e.g. Shared(FatPtr))
         let receiver_inner = strip_ownership_ref(&receiver_ty);

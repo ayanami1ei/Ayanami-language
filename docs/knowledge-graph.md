@@ -81,6 +81,8 @@ graph TD
 | 借用临时量提升 | `mir/lower/temps.rs` | `f(ref "x")` 等拥有临时量提升为局部变量，语句后 drop |
 | match/if 表达式结果 | `hir/item.rs::HirLocal::result`、`match_lower.rs`/`if_expr.rs` | 条件赋值结果变量不参与覆盖/块末 drop，链后移出到最终临时量 |
 | 实参移动门控 | `helpers/wrap.rs::type_needs_drop`、`expr_call.rs` | 拥有堆数据的命名类型按值传参移动；extern 借用、POD 复制 |
+| M4 拥有指针 | `helpers/types.rs`（`Ptr[T]`→`Unique`）、`expr_call.rs`（`Ptr::new`）、`expr_method.rs`（`get`/`get_mut`/自动解引用） | `Ptr[T]` 堆拥有指针：字段/数组存储、递归 drop、`ref Ptr[T]` 借用；设计见 docs/refs-storage.md |
+| 类型化 drop 函数 | `lir/lower/mod.rs`（按需合成 `__drop_<n>`）、`lir/ir/helpers_drop.rs` | Named 释放统一走弱链接函数，递归/互递归类型终止 |
 | 泛型多约束 | `parser/parser/generic_params.rs`、`hir/lower/body/generic_types.rs` | `[T: A + B]`（每参数 `Vec<Symbol>` 约束）；方法/操作符按任一 bound 检查，调用点合并检查全部 |
 | 局部移出清零 | `lir/ir/nodes_f.rs::SLirLocalTake` | 局部变量移动后清零，循环回边重复移动不双重释放 |
 | 导入所有权补全 | `hir/lower/body/collect_import.rs` | 符号串路径 `[T]` → `unique [T]`；LIR 精确类型优先 |

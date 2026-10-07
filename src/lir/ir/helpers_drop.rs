@@ -107,6 +107,11 @@ pub(crate) fn emit_drop_value(
             let tmp = ctx.tmp();
             lines.push(format!("%c{} = load ptr, ptr {}, align 8", tmp, slot));
             let ptr = format!("%c{}", tmp);
+            // 空指针（零值/已移出）跳过 pointee 递归释放；free(null) 安全
+            let n = ctx.tmp();
+            lines.push(format!("%c{} = icmp eq ptr %c{}, null", n, tmp));
+            lines.push(format!("br i1 %c{}, label %L{}skip, label %L{}drop", n, n, n));
+            lines.push(format!("L{}drop:", n));
             match inner.as_ref() {
                 // 静态计数数组：拥有元素逐个递归释放，再释放缓冲区
                 HirType::ArraySized(elem, n)
@@ -116,8 +121,19 @@ pub(crate) fn emit_drop_value(
                 }
                 // 动态 [T] 无长度元数据：仅释放缓冲区（元素 drop 待长度方案）
                 HirType::Array(_) | HirType::ArraySized(_, _) => {}
+                // Named pointee：调用按类型合成的 drop 函数（递归类型终止）；
+                // 无需释放（POD/未注册）则只释放箱体。
+                HirType::Named(n) => {
+                    if needs_drop(inner, &ctx.prog.struct_defs) {
+                        lines.push(format!("call void @{}(ptr {})", drop_fn_name(n), ptr));
+                    }
+                }
                 _ => emit_drop_value(ctx, &ptr, inner, lines),
             }
+            lines.push(format!("br label %L{}end", n));
+            lines.push(format!("L{}skip:", n));
+            lines.push(format!("br label %L{}end", n));
+            lines.push(format!("L{}end:", n));
             lines.push(format!("call void @__ayanami_unique_free(i8* {})", ptr));
         }
         HirType::FatPtr { kind, .. } => {
@@ -172,10 +188,33 @@ pub(crate) fn emit_drop_value(
             lines.push(format!("br label %L{}end", t));
             lines.push(format!("L{}end:", t));
         }
+        // Named 类型：调用按类型合成的 drop 函数（函数体见 emit_drop_fields），
+        // 递归/互递归类型不再静态无限展开；无需释放（POD/未注册）则无操作。
         HirType::Named(name) => {
-            let Some(fields) = ctx.prog.struct_defs.get(name).cloned() else { return; };
-            // 枚举也按字段递归释放：非活跃变体在构造时零初始化，null 释放是安全的
-            let struct_llvm = ctx.llvm_type(ty);
+            if !needs_drop(ty, &ctx.prog.struct_defs) { return; }
+            lines.push(format!("call void @{}(ptr {})", drop_fn_name(name), slot));
+        }
+        _ => {}
+    }
+}
+
+/// `Named` 类型的 drop 函数名（与 lower_program 合成一致）。
+pub(crate) fn drop_fn_name(name: &Symbol) -> String {
+    format!("__drop_{}", sanitize_name(&name.as_str()))
+}
+
+/// `Named` 类型 drop 函数体：逐字段递归释放（字段中的 Named 再走各自 drop 函数）。
+pub(crate) fn emit_drop_fields(
+    ctx: &mut LirEmitCtx,
+    slot: &str,
+    ty: &HirType,
+    lines: &mut Vec<String>,
+) {
+    {
+        let name = match ty { HirType::Named(n) => n, _ => return };
+        let Some(fields) = ctx.prog.struct_defs.get(name).cloned() else { return; };
+        // 枚举也按字段递归释放：非活跃变体在构造时零初始化，null 释放是安全的
+        let struct_llvm = ctx.llvm_type(ty);
             for (idx, (_, ft)) in fields.iter().enumerate() {
                 if !needs_drop(ft, &ctx.prog.struct_defs) {
                     continue;
@@ -209,8 +248,6 @@ pub(crate) fn emit_drop_value(
                 }
                 emit_drop_value(ctx, &format!("%g{}", gep), ft, lines);
             }
-        }
-        _ => {}
     }
 }
 

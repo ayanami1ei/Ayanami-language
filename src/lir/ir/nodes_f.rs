@@ -82,7 +82,12 @@ impl LirNode for SLirDropPtr {
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let slot = ctx.value_ref(&self.ptr, &HirType::Ref(Box::new(self.ty.clone()), true));
         let mut lines = Vec::new();
-        emit_drop_value(ctx, &slot, &self.ty, &mut lines);
+        // Named：函数体展开字段（不调用自身）；其余类型按通用规则
+        if matches!(&self.ty, HirType::Named(_)) {
+            super::helpers_drop::emit_drop_fields(ctx, &slot, &self.ty, &mut lines);
+        } else {
+            emit_drop_value(ctx, &slot, &self.ty, &mut lines);
+        }
         lines
     }
     fn display(&self, f: &mut dyn Write) -> std::fmt::Result {

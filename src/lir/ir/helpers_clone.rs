@@ -11,20 +11,22 @@ pub(crate) fn is_cloneable(
     defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>,
 ) -> bool {
     match ty {
-        HirType::Closure(..) | HirType::FatPtr { .. } => false,
-        HirType::Unique(inner) => {
-            !matches!(inner.as_ref(), HirType::Array(_)) && field_cloneable(inner, defs)
-        }
+        // `Ptr[T]`（Unique 非数组）与闭包/拥有胖指针：唯一所有权 → 字段读取按移动
+        HirType::Unique(_) | HirType::Closure(..) | HirType::FatPtr { .. } => false,
         _ => field_cloneable(ty, defs),
     }
 }
 
-/// 结构体字段上下文（动态数组有兄弟计数，可深拷贝）。
+/// 结构体字段上下文（动态数组有兄弟计数，可深拷贝；Ptr 仍为移动）。
 fn field_cloneable(ty: &HirType, defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
         HirType::Closure(..) | HirType::FatPtr { .. } => false,
-        HirType::Unique(inner) | HirType::Array(inner) | HirType::ArraySized(inner, _) =>
-            field_cloneable(inner, defs),
+        // 拥有数组（有兄弟计数）→ 元素可 clone；Ptr<T> → 移动
+        HirType::Unique(inner) => match inner.as_ref() {
+            HirType::Array(e) | HirType::ArraySized(e, _) => field_cloneable(e, defs),
+            _ => false,
+        },
+        HirType::Array(inner) | HirType::ArraySized(inner, _) => field_cloneable(inner, defs),
         HirType::Named(n) => defs
             .get(n)
             .map(|fs| fs.iter().all(|(_, ft)| field_cloneable(ft, defs)))

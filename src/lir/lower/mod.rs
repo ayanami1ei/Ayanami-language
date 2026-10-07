@@ -13,6 +13,7 @@ mod mir_bool;
 mod mir_expr;
 mod mir_expr2;
 mod mir_contract;
+mod drop_fns;
 mod mir_stmts;
 mod mir_stmts_loops;
 mod mir_ref;
@@ -199,8 +200,12 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
     // 泛型特化集合（发射 linkonce_odr）
     let mut specialized_fns: std::collections::HashSet<FnId> = std::collections::HashSet::new();
     collect_specialized_fns(&mir.items, &mut specialized_fns);
+    // 按需合成 Named 类型 drop 函数（弱链接去重）
+    let named_drop_ids = drop_fns::synthesize_named_drop_fns(
+        &mut functions, &mut fn_names, &mir.struct_defs, &mut next_fn_id);
     // 接口箱 drop 函数弱链接（包与使用方都会合成，跨模块去重）
     specialized_fns.extend(iface_drop_ids.iter().copied());
+    specialized_fns.extend(named_drop_ids.iter().copied());
 
     LirProgram {
         strings,

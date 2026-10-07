@@ -22,6 +22,28 @@ impl crate::hir::lower::Ctx {
             .map(|a| self.lower_expr(a))
             .collect::<std::result::Result<Vec<_>, _>>()?;
 
+        // M4：`Ptr::new(v)` 内置构造 —— 堆分配拥有指针（稳定地址）
+        if name.as_str() == "Ptr.new" {
+            if hir_args.len() != 1 {
+                return Err(Error::Hir(format!(
+                    "Ptr::new expects exactly 1 argument (at {}:{})", span.start_line, span.start_col
+                )));
+            }
+            let arg = hir_args.pop().unwrap();
+            let inner = strip_ownership(expr_type(&arg));
+            // 阶段 1：仅指针表示内层类型可装箱（标量 unique 当前非指针表示）
+            if !matches!(inner,
+                HirType::Named(_) | HirType::FatPtr { .. } | HirType::Unique(_)
+                | HirType::Array(_) | HirType::ArraySized(_, _) | HirType::Closure(..))
+            {
+                return Err(Error::Hir(format!(
+                    "Ptr[T] currently supports struct/enum/interface/array elements only (got {}) (at {}:{})",
+                    hir_type_display(&inner), span.start_line, span.start_col
+                )));
+            }
+            return Ok(SToUnique { expr: arg, ty: HirType::Unique(Box::new(inner)) }.into());
+        }
+
         // Step 2: extract arg types（引用实参另存解引用类型，用于回退解析）
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();

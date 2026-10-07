@@ -32,18 +32,23 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
             ctx.emit(SLirGlobalAddr { dest, name }.into());
             return Some(LirValue::Tmp(dest));
         }
+        // M4：解引用位置 —— 内层为指针（ref/unique/Ptr）时，指针值即地址
+        if matches!(inner.expr_type(), HirType::Ref(..) | HirType::Unique(_)) {
+            let val = inner.lower_to_lir(ctx);
+            return Some(match val {
+                LirValue::Tmp(_) => val,
+                other => {
+                    let t = ctx.next_tmp();
+                    ctx.emit(SLirLoad { dest: t, src: extract_var(&other), ty: inner.expr_type() }.into());
+                    LirValue::Tmp(t)
+                }
+            });
+        }
     }
     // #130：数组元素地址（`o.xs[0].a = v` 的对象是索引表达式）
     if let Some((obj, index)) = expr.as_index() {
         let obj_val = obj.lower_to_lir(ctx);
-        let arr_tmp = match obj_val {
-            LirValue::Tmp(t) => t,
-            other => {
-                let t = ctx.next_tmp();
-                ctx.emit(SLirLoad { dest: t, src: extract_var(&other), ty: obj.expr_type() }.into());
-                t
-            }
-        };
+        let arr_tmp = as_ptr_tmp(ctx, obj_val, &obj.expr_type());
         let idx_val = index.lower_to_lir(ctx);
         let arr_tmp = array_base_through_ref(ctx, arr_tmp, &obj.expr_type());
         let obj_ty = strip_ownership(obj.expr_type());
@@ -145,10 +150,7 @@ impl MirNode for SMirDeref {
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let ptr_val = self.expr.lower_to_lir(ctx);
-        let ptr_tmp = match ptr_val {
-            LirValue::Tmp(t) => t,
-            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&ptr_val), ty: self.expr.expr_type() }.into()); t }
-        };
+        let ptr_tmp = as_ptr_tmp(ctx, ptr_val, &self.expr.expr_type());
         let dest = ctx.next_tmp(); let gep_tmp = ctx.next_tmp(); let load_tmp = ctx.next_tmp();
         // 对任意指针按 index 0 解引用（getelementptr T, ptr p, i64 0 + load）
         ctx.emit(SLirIndexAccess {
@@ -174,10 +176,7 @@ impl MirStmtNode for SMirDerefAssignStmt { fn span(&self) -> crate::span::Span {
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
         let ptr_val = self.target.lower_to_lir(ctx);
-        let ptr_tmp = match ptr_val {
-            LirValue::Tmp(t) => t,
-            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&ptr_val), ty: self.target.expr_type() }.into()); t }
-        };
+        let ptr_tmp = as_ptr_tmp(ctx, ptr_val, &self.target.expr_type());
         let src_val = self.value.lower_to_lir(ctx);
         let gep_tmp = ctx.next_tmp();
         let elem_ty = match self.target.expr_type() {
@@ -258,10 +257,7 @@ impl MirNode for SMirMove {
             if !elem_ty.is_copy() {
                 let arr_val = obj.lower_to_lir(ctx);
                 let idx_val = idx.lower_to_lir(ctx);
-                let arr_tmp = match arr_val {
-                    LirValue::Tmp(t) => t,
-                    _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&arr_val), ty: obj.expr_type() }.into()); t }
-                };
+                let arr_tmp = as_ptr_tmp(ctx, arr_val, &obj.expr_type());
                 let arr_tmp = array_base_through_ref(ctx, arr_tmp, &obj.expr_type());
                 let addr = ctx.next_tmp();
                 ctx.emit(SLirIndexAddr { dest: addr, arr_tmp, index: idx_val, elem_ty: elem_ty.clone() }.into());
@@ -287,4 +283,16 @@ impl MirNode for SMirMove {
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+}
+
+/// 取指针临时量：已是 Tmp 直接用；否则 load 到新临时量。
+fn as_ptr_tmp(ctx: &mut dyn LirLowerCtx, val: LirValue, ty: &HirType) -> u64 {
+    match val {
+        LirValue::Tmp(t) => t,
+        _ => {
+            let t = ctx.next_tmp();
+            ctx.emit(SLirLoad { dest: t, src: extract_var(&val), ty: ty.clone() }.into());
+            t
+        }
+    }
 }

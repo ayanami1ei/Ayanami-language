@@ -262,3 +262,7 @@ fn __iface_drop_String (fn_id=100) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))
     ret void
+fn __drop_String (fn_id=101) -> Void [1 blocks]
+entry:
+    drop_ptr : Named(Symbol(N))
+    ret void

@@ -20,3 +20,4 @@ index_move_drop.aya 0
 cond_temp_drop.aya 0
 should_panic_block.aya 0
 field_read_twice.aya 0
+ptr_tree_drop.aya 0

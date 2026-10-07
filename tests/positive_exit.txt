@@ -124,3 +124,4 @@ test_iface_field.aya 0
 test_multi_constraint.aya 0
 test_macro_block.aya 0
 test_closure_field_call.aya 0
+test_ptr_tree.aya 0
