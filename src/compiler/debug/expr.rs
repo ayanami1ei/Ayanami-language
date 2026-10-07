@@ -159,7 +159,11 @@ pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
         Expr::Lambda { params, return_type, body, .. } => {
             let params_str: Vec<String> = params.iter().map(|(n, t)| format!("{} {:?}", n, t)).collect();
             writeln!(w, "{}Lambda({}) -> {:?}", pad(level), params_str.join(", "), return_type).unwrap();
-            for s in body { write_stmt(s, level + 1, w); }
+            for s in &body.stmts { write_stmt(s, level + 1, w); }
+            if let Some(t) = &body.tail {
+                writeln!(w, "{}tail:", pad(level + 1)).unwrap();
+                write_expr(t, level + 2, w);
+            }
         }
     }
 }

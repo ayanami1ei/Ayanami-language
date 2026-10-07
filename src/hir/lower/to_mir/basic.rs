@@ -210,6 +210,7 @@ impl HirNode for SToUnique {
         Ok(())
     }
     fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn as_to_unique(&self) -> Option<&HirNodeBox> { Some(&self.expr) }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) {
         f(&*self.expr);
     }

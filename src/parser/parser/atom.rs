@@ -237,8 +237,16 @@ impl Parser {
             }
             TokenKind::Delimiter(Delimiter::LParen) => {
                 // Check if this is a lambda: (type name, ...) -> ret_type { ... }
-                let is_lambda = self.pos + 1 < self.tokens.len()
-                    && self.is_type_start(self.pos + 1);
+                // M2：零参数 `() -> ...` / `() { ... }` 也按 lambda 处理
+                let next_is_rparen = self.tokens.get(self.pos + 1)
+                    .map(|t| matches!(t.kind, TokenKind::Delimiter(Delimiter::RParen)))
+                    .unwrap_or(false);
+                let after_rparen_is_lambda = self.tokens.get(self.pos + 2)
+                    .map(|t| matches!(&t.kind, TokenKind::Delimiter(Delimiter::Arrow) | TokenKind::Delimiter(Delimiter::LBrace)))
+                    .unwrap_or(false);
+                let is_lambda = (self.pos + 1 < self.tokens.len()
+                    && self.is_type_start(self.pos + 1))
+                    || (next_is_rparen && after_rparen_is_lambda);
                 if is_lambda {
                     // 可能是 lambda；失败则回退为普通括号表达式（如 `(a + 1)`）
                     let saved = self.pos;

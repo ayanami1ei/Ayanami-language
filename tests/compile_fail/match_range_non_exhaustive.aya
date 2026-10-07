@@ -1,0 +1,10 @@
+fn f(u8 x) -> int {
+    return match x {
+        0..=100 => 1,
+        200..=255 => 2,
+    }
+}
+
+fn main() -> int {
+    return f(1u8)
+}

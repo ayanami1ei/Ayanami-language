@@ -72,14 +72,20 @@ pub(super) fn type_to_mangle(ty: &HirType) -> String {
         HirType::Never => "never".into(),
         HirType::Bool => "bool".into(),
         HirType::IntN { bits, signed } => crate::hir::lower::helpers::intn_name(*bits, *signed),
-        HirType::Named(s) => s.as_str().replace('<', "_lt_").replace('>', "_gt_")
-            .replace(',', "_c_").replace(' ', "_").replace('[', "_lb_").replace(']', "_rb_"),
+        HirType::Named(s) => crate::lir::ir::sanitize_name(&s.as_str()),
         // `[T]` 在 HIR 中是 Unique(Array(T))，导入签名字符串里是 Array(T)：
         // 二者按同一名字 mangle，保证定义与调用链接一致
         HirType::Unique(inner) if matches!(&**inner, HirType::Array(_) | HirType::ArraySized(_, _)) => type_to_mangle(inner),
         HirType::Unique(inner) => format!("unique_{}", type_to_mangle(inner)),
         HirType::FnPtr(..) => "fnptr".into(),
-        HirType::FatPtr { name, .. } => format!("fatptr_{}", name.as_str().replace('<', "_lt_").replace('>', "_gt_")),
+        HirType::Closure(ps, ret, owns_env) => {
+            let mut s = String::from(if *owns_env { "closure_o" } else { "closure_s" });
+            for p in ps { s.push('_'); s.push_str(&type_to_mangle(p)); }
+            s.push_str("__r_");
+            s.push_str(&type_to_mangle(ret));
+            s
+        }
+        HirType::FatPtr { name, .. } => format!("fatptr_{}", crate::lir::ir::sanitize_name(&name.as_str())),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => format!("arr_{}", type_to_mangle(inner)),
         HirType::Ref(inner, _) => format!("ref_{}", type_to_mangle(inner)),
     }

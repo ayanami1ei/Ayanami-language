@@ -2,6 +2,9 @@ use super::*;
 
 impl HirNode for SField {
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)> {
+        Some((&self.object, self.field, self.field_index))
+    }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirFieldAccess {
             object: self.object.lower_to_mir(moved),

@@ -1,0 +1,12 @@
+fn run() -> int {
+    a = [1, 2, 3]
+    f = () -> int {
+        x = a
+        return x[0]
+    }
+    return f()
+}
+
+fn main() -> int {
+    return run()
+}

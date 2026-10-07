@@ -16,6 +16,19 @@ impl crate::hir::lower::Ctx {
                 )))
             }
             Stmt::Assign { name, value, span, .. } => {
+                // M2：闭包捕获变量赋值 → env 字段写（FnMut）
+                if let Some((env_var, env_ty, idx, cap_ty)) = self.lambda_env.as_ref().and_then(|env| {
+                    env.lookup(name).map(|(i, t)| (env.var, env.ty.clone(), i, t))
+                }) {
+                    let hir_value = self.lower_expr(value)?;
+                    let hir_value = coerce_expr(hir_value, &cap_ty, span)?;
+                    let hir_value = implicit_move(hir_value);
+                    let object: HirNodeBox = SVar { var: env_var, ty: env_ty }.into();
+                    return Ok(HirStmt::FieldAssign {
+                        object, field: *name, field_index: idx, field_ty: cap_ty,
+                        value: hir_value, span: *span,
+                    });
+                }
                 // M6.2：全局变量赋值（static mut）→ 穿透引用写入
                 if let Some(st) = self.statics.get(name).cloned() {
                     if !st.is_mut {

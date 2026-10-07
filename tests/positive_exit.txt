@@ -39,6 +39,7 @@ test_generic_constraint.aya 0
 test_generic_bound_check.aya 0
 test_generic_enum_match.aya 0
 test_match_literals.aya 0
+test_match_destructure.aya 0
 test_generic_struct_lit.aya 0
 test_generic_enum_ctor.aya 0
 test_generic_pair_map.aya 0
@@ -106,3 +107,7 @@ test_utf8_string.aya 0
 test_vis.aya 42
 test_vis2.aya 10
 test_zero_arg_fn.aya 0
+test_closure_capture.aya 0
+test_closure_hof.aya 0
+test_match_arms.aya 0
+test_closure_collections.aya 0

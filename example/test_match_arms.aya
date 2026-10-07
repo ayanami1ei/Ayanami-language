@@ -1,0 +1,40 @@
+// atb.3：块臂体 / 裸 return / or 绑定按分支执行 / 区间+字面量穷尽
+enum Shape { Circle(int), Square(int), Dot }
+
+fn area(Shape s) -> int {
+    return match s {
+        Circle(r) | Square(r) => r * r,
+        Dot => 0,
+    }
+}
+
+fn classify(u8 x) -> int {
+    return match x {
+        0 => 100,
+        1..=127 => 1,
+        128..=255 => 2,
+    }
+}
+
+fn pick(int x) -> int {
+    return match x {
+        0 => 10,
+        1 => { return 20 },
+        _ => { return 30 },
+    }
+}
+
+fn pick_stmt(int x) -> int {
+    match x {
+        0 => return 10,
+        _ => return 20,
+    }
+}
+
+fn main() -> int {
+    a = area(Shape::Circle(3)) + area(Shape::Square(2)) + area(Shape::Dot)
+    b = classify(0u8) + classify(5u8) + classify(200u8)
+    c = pick(0) + pick(1) + pick(2) + pick_stmt(0) + pick_stmt(5)
+    // 13 + 103 + 90 = 206
+    return a + b + c - 206
+}

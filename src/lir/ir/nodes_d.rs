@@ -143,6 +143,13 @@ pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
             put_type(buf, ret);
         }
         HirType::Ref(inner, mutable) => { buf.push(11); put_type(buf, inner); buf.push(if *mutable { 1 } else { 0 }); }
+        HirType::Closure(params, ret, owns_env) => {
+            buf.push(16);
+            buf.push(if *owns_env { 1 } else { 0 });
+            put_u32(buf, params.len() as u32);
+            for p in params.iter() { put_type(buf, p); }
+            put_type(buf, ret);
+        }
     }
 }
 

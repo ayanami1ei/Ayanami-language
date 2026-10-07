@@ -1,0 +1,14 @@
+struct S { int v }
+
+fn run() -> int {
+    s = S { v = 1 }
+    f = () -> int {
+        x = move s
+        return x.v
+    }
+    return f()
+}
+
+fn main() -> int {
+    return run()
+}

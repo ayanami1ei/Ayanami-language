@@ -54,7 +54,10 @@ pub(super) fn collect_local_names_stmt(stmt: &Stmt, out: &mut Vec<Symbol>) {
             for a in arms {
                 out.extend(a.pattern.bindings());
                 if let Some(g) = &a.guard { collect_local_names_expr(g, out); }
-                collect_local_names_expr(&a.body, out);
+                match &a.body {
+                    crate::parser::ast::stmt::MatchBody::Expr(e) => collect_local_names_expr(e, out),
+                    crate::parser::ast::stmt::MatchBody::Block(b) => collect_local_names_block(b, out),
+                }
             }
         }
         Stmt::ExprStmt { expr, .. } => collect_local_names_expr(expr, out),
@@ -110,7 +113,10 @@ pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>) {
             for a in arms {
                 out.extend(a.pattern.bindings());
                 if let Some(g) = &a.guard { collect_local_names_expr(g, out); }
-                collect_local_names_expr(&a.body, out);
+                match &a.body {
+                    crate::parser::ast::stmt::MatchBody::Expr(e) => collect_local_names_expr(e, out),
+                    crate::parser::ast::stmt::MatchBody::Block(b) => collect_local_names_block(b, out),
+                }
             }
         }
         Expr::EnumConstruct { tuple_args, named_args, .. } => {
@@ -119,7 +125,8 @@ pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>) {
         }
         Expr::Lambda { params, body, .. } => {
             for (n, _) in params { out.push(*n); }
-            for s in body { collect_local_names_stmt(s, out); }
+            for s in &body.stmts { collect_local_names_stmt(s, out); }
+            if let Some(t) = &body.tail { collect_local_names_expr(t, out); }
         }
         _ => {}
     }

@@ -12,6 +12,10 @@ pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox {
 
 /// 包装参数以匹配期望的参数类型（处理所有权转换）
 pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
+    // M2：闭包实参按拥有值移动（非 Copy，调用方不再释放）
+    if matches!(param_ty, HirType::Closure(..)) && matches!(arg.expr_type(), HirType::Closure(..)) {
+        return implicit_move(arg);
+    }
     // 整数字面量 → 定宽整数形参（值形参）
     if let HirType::IntN { .. } = param_ty {
         if arg.expr_type() == HirType::Int && as_int_literal(&arg).is_some() {

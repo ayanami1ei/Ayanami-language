@@ -1,0 +1,11 @@
+enum E { A(int), B(int) }
+
+fn get(E e) -> int {
+    return match e {
+        A(x) | B(y) => x,
+    }
+}
+
+fn main() -> int {
+    return get(E::A(1))
+}

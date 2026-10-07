@@ -192,6 +192,10 @@ pub fn load_package_deps(path: &str) -> Result<Vec<String>> {
 pub(super) fn type_to_string(ty: &Type) -> String {
     match ty {
         Type::Default | Type::FnPtr(..) => "???".into(),
+        // M2：闭包签名（与 sig_str_to_hir 的 `Fn(...)->R` 格式对应）
+        Type::Closure(ps, ret, _) => format!("Fn({})->{}",
+            ps.iter().map(|p| type_to_string(p)).collect::<Vec<_>>().join(","),
+            type_to_string(ret)),
         Type::Int(_) => "int".into(),
         Type::Float(_) => "float".into(),
         Type::Char(_) => "char".into(),

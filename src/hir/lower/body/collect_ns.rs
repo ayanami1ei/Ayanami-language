@@ -1,5 +1,19 @@
 use super::*;
 
+/// #149：泛型参数名不得重复（多约束语法暂不支持；定义期报错，避免调用期推断失败/误编译）
+pub(super) fn check_unique_generic_params(gp: &[(Symbol, Option<Symbol>)], span: &Span) -> Result<()> {
+    let mut seen = std::collections::HashSet::new();
+    for (n, _) in gp {
+        if !seen.insert(*n) {
+            return Err(Error::Hir(format!(
+                "generic parameter `{}` is declared more than once (multi-bound syntax is not supported yet; use a single constraint) (at {}:{})",
+                n.as_str(), span.start_line, span.start_col
+            )));
+        }
+    }
+    Ok(())
+}
+
 impl crate::hir::lower::Ctx {
     pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()> {
         for stmt in stmts {
@@ -11,14 +25,24 @@ impl crate::hir::lower::Ctx {
                         Symbol::intern(&format!("{}.{}", ns_prefix, name))
                     };
                     if !generic_params.is_empty() {
+                        check_unique_generic_params(generic_params, span)?;
                         // Store generic function AST for later monomorphization;
                         // do NOT register it as a normal callable function.
                         self.generic_fns.push((full_name, generic_params.clone(), stmt.clone()));
                         continue;
                     }
-                    let hir_return = ast_type_to_hir(return_type, &self.interfaces);
+                    let is_extern = *extern_c || crate::hir::attrs::has(attrs, "export");
+                    let hir_return = if is_extern {
+                        ast_type_to_hir_extern(return_type, &self.interfaces)
+                    } else {
+                        ast_type_to_hir(return_type, &self.interfaces)
+                    };
                     let hir_params: Vec<(Symbol, crate::hir::ty::HirType)> = params.iter()
-                        .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+                        .map(|(n, t)| (*n, if is_extern {
+                            ast_type_to_hir_extern(t, &self.interfaces)
+                        } else {
+                            ast_type_to_hir(t, &self.interfaces)
+                        }))
                         .collect();
                     // extern 声明若与已导入的同签名函数重复，直接复用（避免重载歧义；
                     // 导入侧形参名为空，比较时只看类型）
@@ -82,7 +106,8 @@ impl crate::hir::lower::Ctx {
                         }
                     }
                 }
-                Stmt::InterfaceDef { name, methods, generic_params, .. } => {
+                Stmt::InterfaceDef { name, methods, generic_params, span, .. } => {
+                    check_unique_generic_params(generic_params, span)?;
                     let hir_methods: Vec<HirInterfaceMethod> = methods.iter().map(|m| {
                         HirInterfaceMethod {
                             name: m.name,
@@ -95,7 +120,8 @@ impl crate::hir::lower::Ctx {
                     }).collect();
                     self.interfaces.insert(*name, InterfaceReg { generic_params: generic_params.clone(), methods: hir_methods });
                 }
-                Stmt::StructDef { name, fields, generic_params, .. } => {
+                Stmt::StructDef { name, fields, generic_params, span, .. } => {
+                    check_unique_generic_params(generic_params, span)?;
                     let hir_fields: Vec<HirStructField> = fields.iter()
                         .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
                         .collect();
@@ -104,9 +130,13 @@ impl crate::hir::lower::Ctx {
                         self.generic_struct_params.insert(*name, generic_params.clone());
                     }
                 }
-                Stmt::EnumDef { name, variants, generic_params, .. } => self.collect_enum_def(name, variants, generic_params, ns_prefix)?,
+                Stmt::EnumDef { name, variants, generic_params, span, .. } => {
+                    check_unique_generic_params(generic_params, span)?;
+                    self.collect_enum_def(name, variants, generic_params, ns_prefix)?
+                }
             Stmt::Import { path, span, .. } => self.collect_import(path, ns_prefix, *span)?,
-                Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
+                Stmt::ImplBlock { methods, generic_params: impl_gp, span, .. } => {
+                    check_unique_generic_params(impl_gp, span)?;
                     for method in methods {
                         if let Stmt::FnDecl { name, params, return_type, generic_params: method_gp, span: method_span, attrs: method_attrs, .. } = method {
                             // 合并 impl 级和方法级泛型参数：impl[T] LinkedList[T] { fn push[T: Ord](...) }
@@ -115,6 +145,7 @@ impl crate::hir::lower::Ctx {
                                 all.extend(method_gp.iter().cloned());
                                 all
                             };
+                            check_unique_generic_params(&combined_gp, method_span)?;
                             if !combined_gp.is_empty() {
                                 self.generic_fns.push((*name, combined_gp, method.clone()));
                                 continue;

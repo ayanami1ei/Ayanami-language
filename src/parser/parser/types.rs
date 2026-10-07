@@ -76,6 +76,9 @@ impl Parser {
                 Ok(Type::Self_(span))
             }
             TokenKind::Keyword(Keyword::Fn) => {
+                if !self.allow_raw_fn {
+                    return Err(self.error("raw function pointer type `fn(...)` is reserved for `extern C` declarations; use `Fn(...)`"));
+                }
                 self.advance();
                 self.expect_delimiter(Delimiter::LParen)?;
                 let mut params = Vec::new();
@@ -94,6 +97,29 @@ impl Parser {
                     Type::Void(span)
                 };
                 Ok(Type::FnPtr(params, Box::new(ret), span))
+            }
+            TokenKind::Identifier(s) if s == "Fn"
+                && matches!(self.tokens.get(self.pos + 1).map(|t| &t.kind),
+                    Some(TokenKind::Delimiter(Delimiter::LParen))) => {
+                // M2：闭包类型 `Fn(T1, T2) -> U`
+                self.advance(); // Fn
+                self.expect_delimiter(Delimiter::LParen)?;
+                let mut params = Vec::new();
+                if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+                    loop {
+                        params.push(self.parse_type()?);
+                        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
+                        self.expect_delimiter(Delimiter::Comma)?;
+                    }
+                }
+                self.expect_delimiter(Delimiter::RParen)?;
+                let ret = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Arrow)) {
+                    self.advance();
+                    self.parse_type()?
+                } else {
+                    Type::Void(span)
+                };
+                Ok(Type::Closure(params, Box::new(ret), span))
             }
             TokenKind::Identifier(s) => {
                 let name = Symbol::intern(&s);

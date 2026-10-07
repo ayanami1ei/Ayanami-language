@@ -1,0 +1,7 @@
+fn h(fn(int) -> int f) -> int {
+    return 0
+}
+
+fn main() -> int {
+    return 0
+}

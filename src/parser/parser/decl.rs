@@ -28,6 +28,11 @@ impl Parser {
             self.expect_delimiter(Delimiter::RBracket)?;
         }
 
+        // M2：extern "C"（含 #[export]）签名允许裸 `fn(...)` 类型；其余位置报错
+        let raw_ok = extern_c || attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "export");
+        let saved_raw = self.allow_raw_fn;
+        self.allow_raw_fn = raw_ok;
+
         self.expect_delimiter(Delimiter::LParen)?;
         let mut params = Vec::new();
         let mut param_attrs: Vec<Vec<crate::parser::ast::Attr>> = Vec::new();
@@ -55,6 +60,9 @@ impl Parser {
         } else {
             Type::Void(Span::default())
         };
+
+        // M2：签名解析结束，恢复裸 fn 限制（函数体内不允许 `fn(...)` 类型）
+        self.allow_raw_fn = saved_raw;
 
         // Extern "C" declarations end with ; instead of a body
         let body = if extern_c && self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Semicolon)) {
@@ -203,7 +211,7 @@ impl Parser {
                 None
             };
             self.expect_delimiter(Delimiter::FatArrow)?;
-            let body = self.parse_expr()?;
+            let body = self.parse_match_arm_body()?;
             arms.push(crate::parser::ast::stmt::MatchArm { pattern, guard, body });
             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
                 self.advance();

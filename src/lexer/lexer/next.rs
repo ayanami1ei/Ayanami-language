@@ -91,6 +91,27 @@ impl<'a> Lexer<'a> {
                 )
             }
             Some(c) => {
+                // atb.2：`..` / `..=`（区间模式）
+                if c == '.' && self.peek_next() == Some('.') {
+                    let l = self.line;
+                    let ccol = self.col;
+                    let sbyte = self.byte_offset;
+                    self.bump();
+                    self.bump();
+                    let op = if self.peek() == Some('=') {
+                        self.bump();
+                        "..="
+                    } else {
+                        ".."
+                    };
+                    return Token::new(
+                        TokenKind::Operator(op.to_string()),
+                        l,
+                        ccol,
+                        sbyte,
+                        self.byte_offset,
+                    );
+                }
                 // 单字符分隔符
                 let single_delim = match c {
                     '(' => Some(Delimiter::LParen),

@@ -4,7 +4,7 @@ use super::literal_text::parse_int_text;
 use crate::parser::ast::pattern::Pattern;
 
 impl Parser {
-    /// Phase 1.3（atb.1）：模式 —— `_` / 字面量 / 绑定 / 枚举变体 / 或模式 `p1 | p2`
+    /// Phase 1.3：模式 —— `_` / 字面量 / 区间 / 绑定 / 枚举变体 / 结构体解构 / 或模式
     pub(super) fn parse_pattern(&mut self) -> Result<Pattern> {
         let mut pats = vec![self.parse_pattern_atom()?];
         while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Operator(op)) if op == "|") {
@@ -14,40 +14,59 @@ impl Parser {
         Ok(if pats.len() == 1 { pats.pop().unwrap() } else { Pattern::Or(pats) })
     }
 
+    /// 字面量（含 `-int`）→ Literal
+    fn parse_pattern_literal(&mut self) -> Result<crate::parser::ast::literal::Literal> {
+        match self.peek().map(|t| t.kind.clone()) {
+            Some(TokenKind::Operator(ref op)) if op == "-" => {
+                self.advance();
+                match self.peek().map(|t| t.kind.clone()) {
+                    Some(TokenKind::IntLiteral(s)) => {
+                        let span = self.peek().unwrap().span();
+                        self.advance();
+                        let n = parse_int_text(&s.replace('_', ""))
+                            .ok_or_else(|| self.error("invalid integer literal"))?;
+                        Ok(crate::parser::ast::literal::Literal::Int(-n, span))
+                    }
+                    _ => Err(self.error("expected integer literal after `-` in pattern")),
+                }
+            }
+            _ => match self.parse_atom()? {
+                Expr::Literal(lit) => Ok(lit),
+                Expr::Suffixed { lit, .. } => Ok(lit),
+                _ => Err(self.error("invalid literal pattern")),
+            },
+        }
+    }
+
     fn parse_pattern_atom(&mut self) -> Result<Pattern> {
         let tok = self.peek().ok_or_else(|| self.error("expected pattern"))?.clone();
+        // 字面量 / 区间：`0`、`-1`、`'a'`、`1..10`、`1..=10`
+        let is_literal = matches!(tok.kind,
+            TokenKind::IntLiteral(_) | TokenKind::FloatLiteral(_)
+            | TokenKind::CharLiteral(_) | TokenKind::StringLiteral(_)
+            | TokenKind::Keyword(Keyword::True) | TokenKind::Keyword(Keyword::False))
+            || matches!(&tok.kind, TokenKind::Operator(op) if op == "-");
+        if is_literal {
+            let lo = self.parse_pattern_literal()?;
+            let range_op = match self.peek().map(|t| &t.kind) {
+                Some(TokenKind::Operator(op)) if op == ".." => Some(false),
+                Some(TokenKind::Operator(op)) if op == "..=" => Some(true),
+                _ => None,
+            };
+            if let Some(inclusive) = range_op {
+                self.advance();
+                let hi = self.parse_pattern_literal()?;
+                return Ok(Pattern::Range { lo, hi, inclusive });
+            }
+            return Ok(Pattern::Literal(lo));
+        }
         match tok.kind {
             // `_` 通配
             TokenKind::Identifier(ref s) if s == "_" => {
                 self.advance();
                 Ok(Pattern::Wildcard)
             }
-            // 负整数字面量
-            TokenKind::Operator(ref op) if op == "-" => {
-                self.advance();
-                match self.peek().map(|t| t.kind.clone()) {
-                    Some(TokenKind::IntLiteral(s)) => {
-                        let span = self.peek().unwrap().span();
-                        self.advance();
-                        let digits = s.replace('_', "");
-                        let n = parse_int_text(&digits)
-                            .ok_or_else(|| self.error("invalid integer literal"))?;
-                        Ok(Pattern::Literal(crate::parser::ast::literal::Literal::Int(-n, span)))
-                    }
-                    _ => Err(self.error("expected integer literal after `-` in pattern")),
-                }
-            }
-            // 字面量模式：复用原子表达式解析（含 bool 关键字 true/false）
-            TokenKind::IntLiteral(_) | TokenKind::FloatLiteral(_)
-            | TokenKind::CharLiteral(_) | TokenKind::StringLiteral(_)
-            | TokenKind::Keyword(Keyword::True) | TokenKind::Keyword(Keyword::False) => {
-                match self.parse_atom()? {
-                    Expr::Literal(lit) => Ok(Pattern::Literal(lit)),
-                    Expr::Suffixed { lit, .. } => Ok(Pattern::Literal(lit)),
-                    _ => Err(self.error("invalid literal pattern")),
-                }
-            }
-            // 标识符：绑定或枚举变体（`E::V(...)` / `V(...)`）
+            // 标识符：绑定 / 枚举变体（可嵌套）/ 结构体解构
             TokenKind::Identifier(ref s) => {
                 let mut name_str = s.clone();
                 let mut name = Symbol::intern(&name_str);
@@ -55,21 +74,81 @@ impl Parser {
                 self.handle_path_sep(&mut name_str, &mut name)?;
                 if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
                     self.advance();
-                    let mut bindings = Vec::new();
+                    let mut args = Vec::new();
                     if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
                         loop {
-                            bindings.push(Symbol::intern(&self.expect_identifier()?));
+                            args.push(self.parse_pattern()?);
                             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
                             self.expect_delimiter(Delimiter::Comma)?;
                         }
                     }
                     self.expect_delimiter(Delimiter::RParen)?;
-                    Ok(Pattern::Enum { name, bindings })
+                    Ok(Pattern::Enum { name, args })
+                } else if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
+                    // 结构体解构：`Point { x, y }` / `Point { x = pat }` / `Point { x: pat }`
+                    self.advance();
+                    let mut fields = Vec::new();
+                    if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
+                        loop {
+                            let fname = Symbol::intern(&self.expect_identifier()?);
+                            let sub = match self.peek().map(|t| &t.kind) {
+                                Some(TokenKind::Operator(op)) if op == "=" => {
+                                    self.advance();
+                                    self.parse_pattern()?
+                                }
+                                Some(TokenKind::Delimiter(Delimiter::Colon)) => {
+                                    self.advance();
+                                    self.parse_pattern()?
+                                }
+                                _ => Pattern::Binding(fname),
+                            };
+                            fields.push((fname, sub));
+                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) { break; }
+                            self.expect_delimiter(Delimiter::Comma)?;
+                        }
+                    }
+                    self.expect_delimiter(Delimiter::RBrace)?;
+                    Ok(Pattern::Struct { name, fields })
                 } else {
                     Ok(Pattern::Binding(name))
                 }
             }
             _ => Err(self.error("expected pattern")),
         }
+    }
+}
+
+impl Parser {
+    /// atb.3：match 臂体 —— 块 `{ ... }`、裸 `return/break/continue`（包成单语句块）或表达式。
+    pub(super) fn parse_match_arm_body(&mut self) -> Result<crate::parser::ast::stmt::MatchBody> {
+        use crate::parser::ast::stmt::MatchBody;
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
+            return Ok(MatchBody::Block(self.parse_block()?));
+        }
+        let is_bare = matches!(self.peek().map(|t| &t.kind),
+            Some(TokenKind::Keyword(Keyword::Return | Keyword::Break | Keyword::Continue)));
+        if !is_bare {
+            return Ok(MatchBody::Expr(self.parse_expr()?));
+        }
+        // 裸 return/break/continue：臂分隔符可为 `,`，不走语句分号规则
+        let sp = self.peek().map(|t| t.span()).unwrap_or_default();
+        let kind = self.peek().map(|t| t.kind.clone());
+        self.advance();
+        let stmt = match kind {
+            Some(TokenKind::Keyword(Keyword::Return)) => {
+                let value = match self.peek().map(|t| &t.kind) {
+                    Some(TokenKind::Delimiter(Delimiter::Semicolon)) => { self.advance(); None }
+                    Some(TokenKind::Delimiter(Delimiter::RBrace | Delimiter::RParen
+                        | Delimiter::RBracket | Delimiter::Comma)) | None => None,
+                    Some(k) if Self::is_stmt_only_keyword(k) => None,
+                    _ => Some(self.parse_expr()?),
+                };
+                Stmt::Return { value, span: sp }
+            }
+            Some(TokenKind::Keyword(Keyword::Break)) => Stmt::Break { span: sp },
+            Some(TokenKind::Keyword(Keyword::Continue)) => Stmt::Continue { span: sp },
+            _ => unreachable!(),
+        };
+        Ok(MatchBody::Block(crate::parser::ast::block::Block::new(vec![stmt], sp)))
     }
 }

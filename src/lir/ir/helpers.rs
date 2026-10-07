@@ -1,8 +1,12 @@
 use super::*;
 
 pub fn sanitize_name(name: &str) -> String {
-    name.replace('<', "_lt_").replace('>', "_gt_")
-        .replace(',', "_c_").replace('[', "_lb_").replace(']', "_rb_").replace(' ', "_")
+    let s = name.replace("->", "_to_")
+        .replace('<', "_lt_").replace('>', "_gt_")
+        .replace(',', "_c_").replace('[', "_lb_").replace(']', "_rb_")
+        .replace(' ', "_");
+    // LLVM 标识符兜底：括号等其余字符统一转 `_`（`Fn(int)->int` 等闭包泛型实参）
+    s.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '.' { c } else { '_' }).collect()
 }
 
 pub(crate) fn lit_to_string(lit: &HirLiteral, expected_ty: &HirType) -> String {
@@ -83,6 +87,7 @@ pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
         HirType::Unique(inner) => llvm_type_size(inner),
         HirType::Array(_) | HirType::ArraySized(_, _) => "16",
         HirType::FnPtr(..) => "8",
+        HirType::Closure(..) => "16",
         HirType::Ref(_, _) => "16",
     }
 }
@@ -100,7 +105,7 @@ pub(crate) fn elem_layout_size(
             HirType::Int | HirType::Float | HirType::Ref(_, _) | HirType::FnPtr(..) => (8, 8),
             HirType::F32 => (4, 4),
             HirType::IntN { bits, .. } => { let sz = (*bits / 8) as u64; (sz, sz.min(16)) }
-            HirType::FatPtr { .. } => (16, 8),
+            HirType::FatPtr { .. } | HirType::Closure(..) => (16, 8),
             HirType::Array(_) | HirType::ArraySized(_, _) => (8, 8),
             HirType::Unique(inner) => match &**inner {
                 HirType::Named(_) | HirType::FatPtr { .. }
@@ -166,6 +171,7 @@ pub(super) fn is_pointer_type(ty: &HirType) -> bool {
 pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
         HirType::Unique(_) => true,
+        HirType::Closure(_, _, true) => true,
         HirType::FatPtr { kind, .. } => !matches!(kind.as_ref(), HirType::Ref(..)),
         HirType::Named(name) => {
             let Some(fields) = struct_defs.get(name) else { return false; };
@@ -209,6 +215,26 @@ pub(super) fn emit_drop_value(
                 }
                 _ => {}
             }
+        }
+        HirType::Closure(..) => {
+            // { env, vtable }：env 为空（零初始化）跳过；否则调用 vtable[0] drop glue
+            let t = ctx.tmp();
+            lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 0", t, slot));
+            lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", t, t));
+            let isnull = ctx.tmp();
+            lines.push(format!("%c{} = icmp eq ptr %c{}, null", isnull, t));
+            lines.push(format!("br i1 %c{}, label %L{}skip, label %L{}call", isnull, t, t));
+            lines.push(format!("L{}call:", t));
+            let v = ctx.tmp();
+            lines.push(format!("%g{} = getelementptr inbounds {{ ptr, ptr }}, ptr {}, i32 0, i32 1", v, slot));
+            lines.push(format!("%c{} = load ptr, ptr %g{}, align 8", v, v));
+            let f = ctx.tmp();
+            lines.push(format!("%c{} = load ptr, ptr %c{}, align 8", f, v));
+            lines.push(format!("call void %c{}(ptr %c{})", f, t));
+            lines.push(format!("br label %L{}end", t));
+            lines.push(format!("L{}skip:", t));
+            lines.push(format!("br label %L{}end", t));
+            lines.push(format!("L{}end:", t));
         }
         HirType::Named(name) => {
             let Some(fields) = ctx.prog.struct_defs.get(name).cloned() else { return; };

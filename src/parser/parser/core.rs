@@ -2,7 +2,12 @@ use super::*;
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, pos: 0, struct_lit_depth: 0 }
+        Self { tokens, pos: 0, struct_lit_depth: 0, allow_raw_fn: false }
+    }
+
+    /// M2：导入旧包源码时允许 `fn(...)` 类型（统一降级为 `Fn`）
+    pub(crate) fn allow_legacy_fn_types(&mut self) {
+        self.allow_raw_fn = true;
     }
 
     pub(super) fn peek(&self) -> Option<&Token> {

@@ -7,6 +7,7 @@ pub(super) fn pad(n: usize) -> String {
 pub(super) fn format_type(ty: &Type) -> String {
     match ty {
         Type::Default | Type::FnPtr(..) => "???".into(),
+        Type::Closure(..) => "Fn(...)".into(),
         Type::Int(_) => "Int".into(),
         Type::Float(_) => "Float".into(),
         Type::Char(_) => "Char".into(),

@@ -227,7 +227,7 @@ impl LirNode for SLirMakeFatPtr {
             HirType::FatPtr { kind, .. } => kind.as_ref(),
             _ => &HirType::Void,
         };
-        let is_ptr_type = matches!(&self.value_ty, HirType::Unique(_) | HirType::Ref(..));
+        let is_ptr_type = matches!(&self.value_ty, HirType::Unique(_) | HirType::Ref(..) | HirType::FnPtr(..));
         let data_ptr = if is_ptr_type || matches!(kind, HirType::Ref(..)) {
             // 已是指针或借用胖指针：直接使用（ref 的 LIR 值就是指向值的地址）
             ctx.value_ref(&self.value_src, &self.value_ty)

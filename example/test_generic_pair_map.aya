@@ -6,7 +6,7 @@ enum Pair[A, B] {
 }
 
 impl[A, B] Pair[A, B] {
-    pub fn map_a[C](self, fn(A) -> C f) -> Pair[C, B] {
+    pub fn map_a[C](self, Fn(A) -> C f) -> Pair[C, B] {
         match self {
             P(v) => Pair::P(f(v)),
             Q(v) => Pair::Q(v),

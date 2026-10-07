@@ -55,7 +55,11 @@ impl crate::hir::lower::Ctx {
                         dep_lir.generic_struct_params.clone();
                     for (name, fields) in dep_lir.struct_defs {
                         let hir_fields: Vec<HirStructField> = fields.iter()
-                            .map(|(fn_name, ty)| HirStructField { name: *fn_name, ty: ty.clone() })
+                            .map(|(fn_name, ty)| HirStructField {
+                                name: *fn_name,
+                                // M2：旧包 struct 字段里的裸 `fn` 类型统一为 `Fn`
+                                ty: crate::hir::lower::helpers::unify_legacy_fn_type(ty),
+                            })
                             .collect();
                         self.struct_defs.insert(name, hir_fields);
                         // 字段扫描：从字段类型中推断泛型参数名
@@ -87,23 +91,28 @@ impl crate::hir::lower::Ctx {
                     .collect();
                 if filtered.is_empty() { continue; }
                 let mut parser = crate::parser::Parser::new(filtered);
+                // M2：旧包源码可能仍写 `fn(...)` 类型；导入侧统一降级为 `Fn`
+                parser.allow_legacy_fn_types();
                 let parsed = match parser.parse_program() {
                     Ok(p) => p,
                     Err(_) => { continue; }
                 };
                     for stmt in &parsed.stmts {
                         match stmt {
-                            Stmt::FnDecl { name, generic_params, .. } if !generic_params.is_empty() => {
+                            Stmt::FnDecl { name, generic_params, span, .. } if !generic_params.is_empty() => {
+                                super::collect_ns::check_unique_generic_params(generic_params, span)?;
                                 self.generic_fns.push((*name, generic_params.clone(), stmt.clone()));
                             }
-                            Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
+                            Stmt::ImplBlock { methods, generic_params: impl_gp, span, .. } => {
+                                super::collect_ns::check_unique_generic_params(impl_gp, span)?;
                                 for m in methods {
-                                    if let Stmt::FnDecl { name, generic_params, .. } = m {
+                                    if let Stmt::FnDecl { name, generic_params, span: m_span, .. } = m {
                                         let combined: Vec<(Symbol, Option<Symbol>)> = {
                                             let mut all = impl_gp.clone();
                                             all.extend(generic_params.iter().cloned());
                                             all
                                         };
+                                        super::collect_ns::check_unique_generic_params(&combined, m_span)?;
                                         if !combined.is_empty() {
                                             self.generic_fns.push((*name, combined, m.clone()));
                                         }
@@ -113,7 +122,8 @@ impl crate::hir::lower::Ctx {
                             Stmt::Namespace { name, items, .. } => {
                                 let prefix = name.as_str();
                                 for it in items {
-                                    if let Stmt::FnDecl { name: fn_name, generic_params, .. } = it {
+                                    if let Stmt::FnDecl { name: fn_name, generic_params, span, .. } = it {
+                                        super::collect_ns::check_unique_generic_params(generic_params, span)?;
                                         if !generic_params.is_empty() {
                                             let full = Symbol::intern(&format!("{}.{}", prefix, fn_name));
                                             self.generic_fns.push((full, generic_params.clone(), it.clone()));
@@ -121,7 +131,8 @@ impl crate::hir::lower::Ctx {
                                     }
                                 }
                             }
-                            Stmt::InterfaceDef { name, methods, generic_params, .. } => {
+                            Stmt::InterfaceDef { name, methods, generic_params, span, .. } => {
+                                super::collect_ns::check_unique_generic_params(generic_params, span)?;
                                 let hir_methods = methods.iter().map(|m| {
                                     crate::hir::ir::HirInterfaceMethod {
                                         name: m.name,
@@ -160,16 +171,31 @@ impl crate::hir::lower::Ctx {
                     crate::package::ImportedSymbol::Fn { name, sig, flags } => {
                         // sig format: "fnName(param_types...)->ret_type"
                         let sig_body = sig.trim_start_matches(name.as_str());
-                        let arrow_pos = sig_body.find(")->")
-                            .ok_or_else(|| Error::Hir(format!(
-                                "invalid fn sig in package '{}': sig body `{}` (at {}:{})",
-                                name, sig_body, stmt_span.start_line, stmt_span.start_col
-                            )))?;
-                        let params_str = &sig_body[..arrow_pos];
-                        let ret_str = &sig_body[arrow_pos + 3..];
-                        // params_str is "(type1,type2" — strip leading '('
-                        let params_str = params_str.strip_prefix('(').unwrap_or(params_str);
-                        // #144：形参按顶层逗号切分（嵌套泛型实参内逗号不切）
+                        // M2：按配对的 ')' 找参数表结束（形参可能含 `Fn(...)` 内层括号）
+                        let body = sig_body.strip_prefix('(').unwrap_or(sig_body);
+                        let mut depth = 1i32;
+                        let mut close = None;
+                        for (i, c) in body.char_indices() {
+                            match c {
+                                '(' => depth += 1,
+                                ')' => {
+                                    depth -= 1;
+                                    if depth == 0 { close = Some(i); break; }
+                                }
+                                _ => {}
+                            }
+                        }
+                        let close = close.ok_or_else(|| Error::Hir(format!(
+                            "invalid fn sig in package '{}': sig body `{}` (at {}:{})",
+                            name, sig_body, stmt_span.start_line, stmt_span.start_col
+                        )))?;
+                        let params_str = &body[..close];
+                        let after = body[close + 1..].trim_start();
+                        let ret_str = after.strip_prefix("->").ok_or_else(|| Error::Hir(format!(
+                            "invalid fn sig in package '{}': sig body `{}` (at {}:{})",
+                            name, sig_body, stmt_span.start_line, stmt_span.start_col
+                        )))?;
+                        // params_str is "type1,type2"（已去外层括号）
                         let param_tys: Vec<&str> = if params_str.is_empty() {
                             Vec::new()
                         } else {

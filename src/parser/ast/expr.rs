@@ -113,7 +113,8 @@ pub enum Expr {
     Lambda {
         params: Vec<(Symbol, Type)>,
         return_type: Type,
-        body: Vec<crate::parser::ast::stmt::Stmt>,
+        /// M2：body 携带裸尾表达式（隐式返回值）
+        body: crate::parser::ast::block::Block,
         span: Span,
     },
     /// A5c-2 函数宏调用：`#name(args)`（name 可含 `pkg::` 前缀，解析后以 `.` 连接）

@@ -1,0 +1,9 @@
+fn run(ref int r) -> int {
+    f = () -> int { return r }
+    return f()
+}
+
+fn main() -> int {
+    x = 1
+    return run(ref x)
+}

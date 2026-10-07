@@ -51,16 +51,52 @@ impl crate::hir::lower::Ctx {
                 match spec {
                     Ok(fid) => fid,
                     Err(e) => {
-                        // Step 3c: check if name is a variable with FnPtr type (function pointer call)
-                        if let Some((var_id, ty, _)) = self.lookup_var(name) {
-                            if let HirType::FnPtr(param_tys, ret_ty) = &ty {
-                                let fn_ptr: HirNodeBox = SVar { var: var_id, ty: ty.clone() }.into();
-                                let param_tys = param_tys.clone();
-                                let args: Vec<HirNodeBox> = hir_args.into_iter().enumerate().map(|(i, a)| {
-                                    if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
-                                }).collect();
-                                let args = self.adapt_enum_args(args, &param_tys)?;
-                                return Ok(SCallP { fn_ptr, args, ty: *ret_ty.clone() }.into());
+                        // Step 3c: 变量调用（裸函数指针 / 闭包 / 捕获的闭包变量）
+                        let callable: Option<(HirNodeBox, HirType)> = if let Some(env) = &self.lambda_env {
+                            env.lookup(name).map(|(idx, cty)| {
+                                let base: HirNodeBox = SVar { var: env.var, ty: env.ty.clone() }.into();
+                                let node: HirNodeBox = SField { object: base, field: *name, field_index: idx, ty: cty.clone() }.into();
+                                (node, cty)
+                            })
+                        } else {
+                            None
+                        }.or_else(|| {
+                            self.lookup_var(name).map(|(var_id, ty, _)| (SVar { var: var_id, ty: ty.clone() }.into(), ty))
+                        });
+                        if let Some((mut callee, mut cty)) = callable {
+                            // M2：`ref Fn` / `ref fn` 形参 → 解引用后调用
+                            if let HirType::Ref(inner, _) = &cty {
+                                if matches!(&**inner, HirType::FnPtr(..) | HirType::Closure(..)) {
+                                    cty = (**inner).clone();
+                                    callee = SDeref { expr: callee, ty: cty.clone() }.into();
+                                }
+                            }
+                            match &cty {
+                                HirType::FnPtr(param_tys, ret_ty) => {
+                                    let param_tys = param_tys.clone();
+                                    let args: Vec<HirNodeBox> = hir_args.into_iter().enumerate().map(|(i, a)| {
+                                        if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
+                                    }).collect();
+                                    let args = self.adapt_enum_args(args, &param_tys)?;
+                                    return Ok(SCallP { fn_ptr: callee, args, ty: *ret_ty.clone() }.into());
+                                }
+                                HirType::Closure(param_tys, ret_ty, _) => {
+                                    let param_tys = param_tys.clone();
+                                    let args: Vec<HirNodeBox> = hir_args.into_iter().enumerate().map(|(i, a)| {
+                                        if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
+                                    }).collect();
+                                    let args = self.adapt_enum_args(args, &param_tys)?;
+                                    let iface = closure_iface_name(&param_tys, ret_ty);
+                                    return Ok(SVCall {
+                                        receiver: callee,
+                                        interface: iface,
+                                        method_index: 0,
+                                        args,
+                                        concrete_type: Symbol::intern("__closure"),
+                                        ty: (**ret_ty).clone(),
+                                    }.into());
+                                }
+                                _ => {}
                             }
                         }
                         // 传播真实原因；前缀类型未知时补 import 提示
@@ -89,6 +125,14 @@ impl crate::hir::lower::Ctx {
         let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
             .map(|(_, t)| t.clone())
             .collect();
+        // M2：extern C 的裸函数指针形参 → 直接函数名降级为 FnPtr（安全代码不产生裸指针值）。
+        // 统一后 FnPtr 形参只可能来自 extern 声明/定义（安全源码的 fn 类型会报错）。
+        for (i, ast) in args.iter().enumerate() {
+            if i >= param_tys.len() { break; }
+            if matches!(param_tys[i], HirType::FnPtr(..)) {
+                hir_args[i] = self.lower_extern_fn_arg(ast, span)?;
+            }
+        }
         for (i, arg) in hir_args.iter().enumerate() {
             if i >= param_tys.len() { break; }
             if let HirType::FatPtr { name: iface_name, .. } = &param_tys[i] {
@@ -165,6 +209,9 @@ impl crate::hir::lower::Ctx {
                 // #73：导入 .lcl 的形参可能是未包装形式（如 `[T]` → Array），拥有值实参
                 // 需标记移动，否则调用方仍会在帧退出时释放（String::new(buf, n) 悬空）
                 implicit_move(arg)
+            } else if matches!(param_tys[i], HirType::Closure(..)) {
+                // M2：闭包实参（拥有值）→ 移动
+                wrap_arg_for_param(arg, &param_tys[i])
             } else {
                 arg
             }

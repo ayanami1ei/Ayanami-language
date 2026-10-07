@@ -1,17 +1,11 @@
 use super::*;
-use super::helpers::indent;
+use super::helpers::{indent, write_fn_type, write_match_body};
 
 pub(super) fn write_type(ty: &Type) -> String {
     match ty {
         Type::Default => "???".into(),
-        Type::FnPtr(params, ret, _) => {
-            let p: Vec<String> = params.iter().map(|p| write_type(p)).collect();
-            if matches!(ret.as_ref(), Type::Void(_)) {
-                format!("fn({})", p.join(","))
-            } else {
-                format!("fn({})->{}", p.join(","), write_type(ret))
-            }
-        },
+        Type::FnPtr(params, ret, _) => write_fn_type("fn", params, ret),
+        Type::Closure(params, ret, _) => write_fn_type("Fn", params, ret),
         Type::Int(_) => "int".into(),
         Type::Float(_) => "float".into(),
         Type::Char(_) => "char".into(),
@@ -22,13 +16,8 @@ pub(super) fn write_type(ty: &Type) -> String {
         Type::Array(inner, _) => format!("[{}]", write_type(inner)),
         Type::ArraySized(inner, n, _) => format!("[{}; {}]", write_type(inner), n),
         Type::Unique(inner, _) => format!("unique {}", write_type(inner)),
-        Type::Generic(name, args, _) => {
-            let args_str: Vec<String> = args.iter().map(|a| write_type(a)).collect();
-            format!("{}[{}]", name, args_str.join(", "))
-        }
-        Type::Ref(inner, mutable, _) => {
-            format!("ref {}{}", if *mutable { "mut " } else { "" }, write_type(inner))
-        }
+        Type::Generic(name, args, _) => format!("{}[{}]", name, args.iter().map(|a| write_type(a)).collect::<Vec<_>>().join(", ")),
+        Type::Ref(inner, mutable, _) => format!("ref {}{}", if *mutable { "mut " } else { "" }, write_type(inner)),
         Type::Self_(_) => "Self".into(),
     }
 }
@@ -36,6 +25,7 @@ pub(super) fn write_type(ty: &Type) -> String {
 pub(super) fn write_expr(expr: &Expr) -> String {
     write_expr_at(expr, 0)
 }
+
 
 /// 二元运算符优先级（数值越大结合越紧；与解析器/文法一致）
 fn binop_prec(op: &BinaryOp) -> u8 {
@@ -184,7 +174,7 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
                 let guard = arm.guard.as_ref()
                     .map(|g| format!(" if {}", write_expr_at(g, level + 1)))
                     .unwrap_or_default();
-                out.push_str(&format!("\n{}{}{} => {},", indent(level + 1), arm.pattern.display(), guard, write_expr_at(&arm.body, level + 1)));
+                out.push_str(&format!("\n{}{}{} => {},", indent(level + 1), arm.pattern.display(), guard, write_match_body(&arm.body, level + 1)));
             }
             out.push_str(&format!("\n{}}}", indent(level)));
             out
@@ -205,9 +195,13 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         Expr::Lambda { params, return_type, body, .. } => {
             let params_str: Vec<String> = params.iter().map(|(n, t)| format!("{} {}", write_type(t), n)).collect();
             let mut out = format!("({}) -> {} {{", params_str.join(", "), write_type(return_type));
-            for st in body {
+            for st in &body.stmts {
                 out.push('\n');
                 write_stmt(&mut out, st, level + 1);
+            }
+            if let Some(t) = &body.tail {
+                out.push('\n');
+                out.push_str(&format!("{}{}", indent(level + 1), write_expr_at(t, level + 1)));
             }
             while out.ends_with('\n') { out.pop(); }
             out.push_str(&format!("\n{}}}", indent(level)));

@@ -43,7 +43,7 @@ impl crate::hir::lower::Ctx {
             Pattern::Binding(n) => {
                 if let HirType::Named(en) = &strip_ownership(val_ty.clone()) {
                     if self.variant_tag(en, n).is_some() {
-                        return Pattern::Enum { name: *n, bindings: Vec::new() };
+                        return Pattern::Enum { name: *n, args: Vec::new() };
                     }
                 }
                 p.clone()
@@ -55,9 +55,32 @@ impl crate::hir::lower::Ctx {
 
     fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)> {
         let saved = std::mem::take(&mut self.pending_stmts);
-        let body = self.lower_expr(&arm.body);
+        let result = match &arm.body {
+            crate::parser::ast::stmt::MatchBody::Expr(e) => {
+                self.lower_expr(e).map(|b| (Vec::new(), b))
+            }
+            crate::parser::ast::stmt::MatchBody::Block(b) => {
+                // atb.3：块臂体 —— 尾表达式为值；无尾时按发散/void 归类
+                let (hir_block, tail) = self.lower_block_impl(b, true)?;
+                let value: HirNodeBox = match tail {
+                    Some(t) => t,
+                    None => {
+                        let ty = if super::match_util::block_diverges(&hir_block) {
+                            HirType::Never
+                        } else {
+                            HirType::Void
+                        };
+                        SConst { val: HirLiteral::Int(0), ty }.into()
+                    }
+                };
+                Ok((hir_block.stmts, value))
+            }
+        };
         let arm_pending = std::mem::replace(&mut self.pending_stmts, saved);
-        Ok((arm_pending, body?))
+        let (block_stmts, body) = result?;
+        let mut stmts = block_stmts;
+        stmts.extend(arm_pending);
+        Ok((stmts, body))
     }
 
     /// 逐臂降级（绑定/guard/body 在臂作用域内解析）
@@ -72,7 +95,7 @@ impl crate::hir::lower::Ctx {
         for arm in arms {
             let pat = self.normalize_pattern(&arm.pattern, val_ty);
             self.push_scope();
-            let mut bindings = self.pattern_bindings(&pat, val, val_ty, span)?;
+            let (cond, mut bindings) = self.pattern_match(&pat, val, val_ty, span)?;
             let guard = match &arm.guard {
                 Some(g) => Some(auto_deref(self.lower_expr(g)?)),
                 None => None,
@@ -80,34 +103,28 @@ impl crate::hir::lower::Ctx {
             let (mut pending, body) = self.lower_arm_body(arm)?;
             self.pop_scope();
             bindings.append(&mut pending);
-            let cond = self.pattern_cond(&pat, val, val_ty, span)?;
             out.push(LoweredArm { cond, bindings, guard, body });
         }
         Ok(out)
     }
 
-    /// 穷尽性：不可反驳臂（无 guard）或枚举全变体 / bool 双值覆盖
+    /// 穷尽性：不可反驳臂（无 guard）或枚举全变体 / bool 双值 / 标量区间覆盖
     fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool {
         let pats: Vec<Pattern> = arms.iter().map(|a| self.normalize_pattern(&a.pattern, val_ty)).collect();
         if arms.iter().zip(&pats).any(|(a, p)| a.guard.is_none() && p.is_irrefutable()) {
             return true;
         }
-        match &strip_ownership(val_ty.clone()) {
-            HirType::Named(en) => {
-                let total = self.enum_variant_count(en);
-                let mut covered = std::collections::HashSet::new();
-                for (a, p) in arms.iter().zip(&pats) {
-                    if a.guard.is_none() { collect_variants(p, &mut covered); }
-                }
-                total > 0 && covered.len() == total
-            }
-            HirType::Bool => {
-                let mut t = false;
-                let mut f = false;
-                for (a, p) in arms.iter().zip(&pats) {
-                    if a.guard.is_none() { collect_bools(p, &mut t, &mut f); }
-                }
-                t && f
+        let unguarded: Vec<&Pattern> = arms.iter().zip(&pats)
+            .filter(|(a, _)| a.guard.is_none())
+            .map(|(_, p)| p)
+            .collect();
+        let base = strip_ownership(val_ty.clone());
+        match &base {
+            HirType::Named(en) => super::match_coverage::enum_exhaustive(
+                self.enum_variant_count(en), &unguarded),
+            HirType::Bool => super::match_coverage::bool_exhaustive(&unguarded),
+            HirType::Int | HirType::IntN { .. } | HirType::Char => {
+                super::match_coverage::scalar_exhaustive(&base, &unguarded)
             }
             _ => false,
         }
@@ -238,7 +255,7 @@ impl crate::hir::lower::Ctx {
         }
         let res_ty = value_tys.iter()
             .fold(None::<HirType>, |acc, t| Some(match acc {
-                Some(a) => super::match_pattern::match_result_type(&a, t),
+                Some(a) => super::match_util::match_result_type(&a, t),
                 None => t.clone(),
             }))
             .unwrap_or(HirType::Int);
@@ -261,18 +278,3 @@ impl crate::hir::lower::Ctx {
     }
 }
 
-fn collect_variants(p: &Pattern, out: &mut std::collections::HashSet<Symbol>) {
-    match p {
-        Pattern::Enum { name, .. } => { out.insert(*name); }
-        Pattern::Or(ps) => for x in ps { collect_variants(x, out); },
-        _ => {}
-    }
-}
-
-fn collect_bools(p: &Pattern, t: &mut bool, f: &mut bool) {
-    match p {
-        Pattern::Literal(crate::parser::ast::Literal::Bool(b, _)) => { if *b { *t = true; } else { *f = true; } }
-        Pattern::Or(ps) => for x in ps { collect_bools(x, t, f); },
-        _ => {}
-    }
-}

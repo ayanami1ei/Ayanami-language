@@ -1,22 +1,22 @@
-// #119：泛型方法 + 未标注 lambda 推断（返回类型从 body 推断；fn(T)->U 参与泛型推导）
+// #119：泛型方法 + 未标注 lambda 推断（返回类型从 body 推断；Fn(T)->U 参与泛型推导）
 enum Opt[T] { Some(T), None }
 
 impl[T] Opt[T] {
-    pub fn map[U](self, fn(T) -> U f) -> Opt[U] {
+    pub fn map[U](self, Fn(T) -> U f) -> Opt[U] {
         match self {
             Some(v) => Opt::Some(f(v)),
             None => Opt::None(),
         }
     }
 
-    pub fn filter(self, fn(T) -> bool f) -> Opt[T] {
+    pub fn filter(self, Fn(T) -> bool f) -> Opt[T] {
         match self {
             Some(v) => if f(v) { Opt::Some(v) } else { Opt::None() },
             None => Opt::None(),
         }
     }
 
-    pub fn and_then[U](self, fn(T) -> Opt[U] f) -> Opt[U] {
+    pub fn and_then[U](self, Fn(T) -> Opt[U] f) -> Opt[U] {
         match self {
             Some(v) => f(v),
             None => Opt::None(),
