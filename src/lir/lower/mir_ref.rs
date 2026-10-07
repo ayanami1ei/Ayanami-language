@@ -201,3 +201,53 @@ impl MirStmtNode for SMirDerefAssignStmt { fn span(&self) -> crate::span::Span {
     fn deref_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.target, &self.value)) }
 }
 
+/// 递归求字段/局部变量地址（字段移出清零用）；不可寻址返回 None。
+pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode) -> Option<LirValue> {
+    if let Some((obj, idx)) = node.as_field_access() {
+        let base = lower_field_addr_of(ctx, &**obj)?;
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirFieldAddr { dest, obj: base, field_index: idx, struct_ty: obj.expr_type() }.into());
+        return Some(LirValue::Tmp(dest));
+    }
+    let ty = node.expr_type();
+    if let Some(var) = node.as_local() {
+        if matches!(ty, HirType::Ref(..) | HirType::Unique(_)) {
+            // 指针型局部：load 出的指针值即地址
+            return Some(node.lower_to_lir(ctx));
+        }
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirRefInst { dest, var_id: var, mutable: true, ty }.into());
+        return Some(LirValue::Tmp(dest));
+    }
+    if matches!(ty, HirType::Ref(..) | HirType::Unique(_)) {
+        return Some(node.lower_to_lir(ctx));
+    }
+    None
+}
+
+impl MirNode for SMirMove {
+    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
+    fn move_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
+    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
+        // 字段移出：取地址 → load → 源字段清零（源结构 drop 不再重复释放）
+        if let Some((obj, idx)) = self.expr.as_field_access() {
+            if let Some(base) = lower_field_addr_of(ctx, &**obj) {
+                let dest = ctx.next_tmp(); let gep = ctx.next_tmp();
+                ctx.emit(SLirFieldTake {
+                    dest, gep_tmp: gep, obj: base, field_index: idx,
+                    field_ty: self.expr.expr_type(), struct_ty: obj.expr_type(),
+                }.into());
+                return LirValue::Tmp(dest);
+            }
+        }
+        self.expr.lower_to_lir(ctx)
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}Move(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+}

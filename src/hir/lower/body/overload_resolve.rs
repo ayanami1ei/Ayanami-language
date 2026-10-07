@@ -48,11 +48,11 @@ impl crate::hir::lower::Ctx {
         self.is_fatptr_compatible(param_ty, arg_ty)
         // M2：静态闭包 → 拥有闭包（同布局，仅所有权标记不同；Copy 值可自由传入）
         || matches!((param_ty, arg_ty),
-            (HirType::Closure(pps, pret, true), HirType::Closure(aps, aret, false))
-                if pps == aps && pret == aret)
+            (HirType::Closure(pps, pret, true, p_once), HirType::Closure(aps, aret, _, a_once))
+                if pps == aps && pret == aret && (*p_once || !*a_once))
         // M2：静态闭包 → extern C 裸函数指针形参（实参侧替换为裸 FnPtr）
         || matches!((param_ty, arg_ty),
-            (HirType::FnPtr(pps, pret), HirType::Closure(aps, aret, false))
+            (HirType::FnPtr(pps, pret), HirType::Closure(aps, aret, false, _))
                 if pps == aps && pret == aret)
     }
 

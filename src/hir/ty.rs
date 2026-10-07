@@ -38,10 +38,11 @@ pub enum HirType {
     /// Reference: Ref(inner, mutable)
     Ref(Box<HirType>, bool),
     FnPtr(Vec<HirType>, Box<HirType>),
-    /// M2：闭包类型 `Fn(T) -> U`（胖值 `{ env, vtable }`）。
+    /// M2：闭包类型 `Fn(T) -> U` / `FnOnce(T) -> U`（胖值 `{ env, vtable }`）。
     /// `owns_env = false`：静态闭包（命名函数/非捕获 lambda），env 为 null，**Copy**、零分配；
     /// `owns_env = true`：捕获闭包，拥有环境（非 Copy，作用域结束释放）。
-    Closure(Vec<HirType>, Box<HirType>, bool),
+    /// `once = true`：FnOnce（调用消费闭包，环境由被调用方释放；仅捕获闭包可为 FnOnce）。
+    Closure(Vec<HirType>, Box<HirType>, bool, bool),
     /// M1：定宽整数（i8..i128 / u8..u128 / isize / usize）
     IntN { bits: u8, signed: bool },
 }
@@ -59,7 +60,7 @@ impl HirType {
                 | HirType::Void
                 | HirType::Never
                 | HirType::FnPtr(..)
-                | HirType::Closure(_, _, false)
+                | HirType::Closure(_, _, false, _)
                 | HirType::Ref(..)
                 | HirType::IntN { .. }
         )

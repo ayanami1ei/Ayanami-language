@@ -1,0 +1,13 @@
+// #152：零参命名函数 → Fn() -> T（此前报 undefined variable）
+fn seven() -> int {
+    return 7
+}
+
+fn call0(Fn() -> int f) -> int {
+    return f()
+}
+
+fn main() -> int {
+    f = seven
+    return call0(f) + call0(seven) - 14
+}

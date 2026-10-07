@@ -8,7 +8,7 @@ HIR Program
 │ │ │   target:
         Local(v0 : Int)
 │ │ │   value:
-        Call(fn91, ty: Int)
+        Call(fn93, ty: Int)
           Literal(Int(3))
           Literal(Int(3))
           Literal(Int(1))
@@ -30,14 +30,14 @@ HIR Program
 │ │ │   target:
         Local(v1 : Int)
 │ │ │   value:
-        Call(fn91, ty: Int)
-          Call(fn91, ty: Int)
+        Call(fn93, ty: Int)
+          Call(fn93, ty: Int)
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(4))
             FileArg("example/macro_lib.aya")
-          Call(fn91, ty: Int)
+          Call(fn93, ty: Int)
             Literal(Int(1))
             Literal(Int(1))
             Literal(Int(1))

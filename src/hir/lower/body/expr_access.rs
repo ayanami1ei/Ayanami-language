@@ -14,7 +14,7 @@ impl crate::hir::lower::Ctx {
         }.into())
     }
 
-    pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>) -> Result<HirNodeBox> {
+    pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox> {
         // Handle generic struct instantiation
         let concrete_name = if !generic_args.is_empty() {
             let args_str: Vec<String> = generic_args.iter()
@@ -68,11 +68,32 @@ impl crate::hir::lower::Ctx {
         };
         let struct_ty = HirType::Named(concrete_name);
         let mut hir_fields = Vec::new();
-        // Pre-compute field types from struct def for null type coercion
-        let field_tys: HashMap<Symbol, HirType> = self.struct_defs.get(&concrete_name)
+        // #153：字面量字段必须存在于结构体定义（否则 codegen GEP 越界）
+        let struct_fields = self.struct_defs.get(&concrete_name).cloned();
+        let field_tys: HashMap<Symbol, HirType> = struct_fields.as_ref()
             .map(|fields| fields.iter().map(|f| (f.name, f.ty.clone())).collect())
             .unwrap_or_default();
+        let mut seen: std::collections::HashSet<Symbol> = std::collections::HashSet::new();
         for (name, expr) in fields {
+            let sp = expr.span();
+            let Some(defs) = &struct_fields else {
+                return Err(Error::Hir(format!(
+                    "unknown struct `{}` in struct literal (at {}:{})",
+                    concrete_name.as_str(), sp.start_line, sp.start_col
+                )));
+            };
+            if !defs.iter().any(|f| f.name == *name) {
+                return Err(Error::Hir(format!(
+                    "struct `{}` has no field `{}` (at {}:{})",
+                    concrete_name.as_str(), name.as_str(), sp.start_line, sp.start_col
+                )));
+            }
+            if !seen.insert(*name) {
+                return Err(Error::Hir(format!(
+                    "duplicate field `{}` in struct literal (at {}:{})",
+                    name.as_str(), sp.start_line, sp.start_col
+                )));
+            }
             let mut hir_val = self.lower_expr(expr)?;
             // Coerce null literal to the correct pointer type
             if let Some(HirLiteral::Int(0)) = hir_val.as_const() {
@@ -87,6 +108,19 @@ impl crate::hir::lower::Ctx {
                 hir_val = coerce_expr(hir_val, field_ty, &expr.span())?;
             }
             hir_fields.push((*name, implicit_move(hir_val)));
+        }
+        // #153 后续：缺少字段同样静默（未初始化）；要求字面量覆盖全部字段
+        if let Some(defs) = &struct_fields {
+            let missing: Vec<String> = defs.iter()
+                .filter(|f| !seen.contains(&f.name))
+                .map(|f| format!("`{}`", f.name.as_str()))
+                .collect();
+            if !missing.is_empty() {
+                return Err(Error::Hir(format!(
+                    "missing field(s) {} in struct literal `{}` (at {}:{})",
+                    missing.join(", "), concrete_name.as_str(), span.start_line, span.start_col
+                )));
+            }
         }
         Ok(SStruct {
             type_name: concrete_name,

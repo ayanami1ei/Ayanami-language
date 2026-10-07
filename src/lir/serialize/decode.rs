@@ -110,9 +110,13 @@ impl<'a> Reader<'a> {
                 Ok(SLirFieldStorePtr { gep_tmp: g, obj: o, field_index: fi, field_ty: ft, src: s, struct_ty: st }.into())
             }
             30 => {
-                let d = self.u64()?; let o = self.value()?;
-                let fi = self.u32()? as usize; let st = self.ty()?;
+                let (d, o, fi, st) = (self.u64()?, self.value()?, self.u32()? as usize, self.ty()?);
                 Ok(SLirFieldAddr { dest: d, obj: o, field_index: fi, struct_ty: st }.into())
+            }
+            35 => {
+                let d = self.u64()?; let g = self.u64()?; let o = self.value()?;
+                let fi = self.u32()? as usize; let ft = self.ty()?; let st = self.ty()?;
+                Ok(SLirFieldTake { dest: d, gep_tmp: g, obj: o, field_index: fi, field_ty: ft, struct_ty: st }.into())
             }
             32 => {
                 let d = self.u64()?;

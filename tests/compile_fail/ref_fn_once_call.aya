@@ -1,0 +1,9 @@
+fn apply(ref FnOnce() -> int f) -> int {
+    return f()
+}
+
+fn main() -> int {
+    a = [1]
+    g = () -> int { return a[0] }
+    return apply(g)
+}

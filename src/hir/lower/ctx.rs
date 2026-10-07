@@ -79,8 +79,9 @@ pub(crate) struct Ctx {
     pub macro_depth: usize,
     /// M2：当前正在降级的 lambda 的捕获环境（捕获名 → env 字段）
     pub lambda_env: Option<crate::hir::lower::helpers::LambdaEnv>,
-    /// M2：静态闭包 trampoline 缓存（闭包签名 → (concrete_type, interface)）
+    /// M2：静态闭包 trampoline 缓存 + extern "C" 声明（无体）函数 id（实参借用）
     pub closure_tramps: HashMap<Symbol, (Symbol, Symbol)>,
+    pub extern_fn_ids: std::collections::HashSet<FnId>,
 }
 
 impl Ctx {
@@ -127,6 +128,7 @@ impl Ctx {
             macro_depth: 0,
             lambda_env: None,
             closure_tramps: HashMap::new(),
+            extern_fn_ids: std::collections::HashSet::new(),
         }
     }
 

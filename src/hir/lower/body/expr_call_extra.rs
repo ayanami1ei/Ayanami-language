@@ -19,15 +19,26 @@ impl crate::hir::lower::Ctx {
             let args = self.adapt_enum_args(args, &param_tys)?;
             return Ok(SCallP { fn_ptr: hir_target, args, ty: *ret_ty.clone() }.into());
         }
-        if let HirType::Closure(param_tys, ret_ty, _) = &target_ty {
+        if let HirType::Closure(param_tys, ret_ty, _, once) = &target_ty {
             let param_tys = param_tys.clone();
             let args: Vec<HirNodeBox> = hir_args.into_iter().enumerate().map(|(i, a)| {
                 if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
             }).collect();
             let args = self.adapt_enum_args(args, &param_tys)?;
             let iface = closure_iface_name(&param_tys, ret_ty);
+            // FnOnce：调用消费闭包（临时变量持有；作用域结束 drop 释放 env）
+            let receiver = if *once {
+                let tmp = VarId(self.locals.len());
+                self.locals.push(HirLocal::new(
+                    Symbol::intern(&format!("__fn_once_{}", tmp.0)), target_ty.clone(), true));
+                let tmp_node: HirNodeBox = SVar { var: tmp, ty: target_ty.clone() }.into();
+                self.pending_stmts.push(HirStmt::Assign {
+                    target: tmp_node.clone(), value: implicit_move(hir_target), span: *span,
+                });
+                tmp_node
+            } else { hir_target };
             return Ok(SVCall {
-                receiver: hir_target,
+                receiver,
                 interface: iface,
                 method_index: 0,
                 args,

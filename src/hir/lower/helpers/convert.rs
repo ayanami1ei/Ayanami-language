@@ -14,9 +14,9 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
         HirType::Named(n) => Type::Named(*n, s),
         HirType::Unique(inner) => Type::Unique(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::FnPtr(..) => Type::Int(s),
-        HirType::Closure(ps, ret, _) => Type::Closure(
+        HirType::Closure(ps, ret, _, once) => Type::Closure(
             ps.iter().map(hir_type_to_ast_type).collect(),
-            Box::new(hir_type_to_ast_type(ret)), s),
+            Box::new(hir_type_to_ast_type(ret)), s, *once),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => Type::Array(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::FatPtr { name, kind } => {
             let inner = Type::Named(*name, s);
@@ -85,7 +85,7 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
         (Type::FnPtr(ps, ret, _), _) => {
             let mut out = Vec::new();
             let arg = strip_ownership_ref(arg_ty);
-            if let HirType::FnPtr(aps, aret) | HirType::Closure(aps, aret, _) = arg {
+            if let HirType::FnPtr(aps, aret) | HirType::Closure(aps, aret, _, _) = arg {
                 for (pt, at) in ps.iter().zip(aps.iter()) {
                     out.extend(infer_generic_from_param(pt, at));
                 }
@@ -94,10 +94,10 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
             out
         }
         // M2：闭包形参（Fn(T) -> U）→ 从 lambda/Closure/FnPtr 实参推导
-        (Type::Closure(ps, ret, _), _) => {
+        (Type::Closure(ps, ret, _, _), _) => {
             let mut out = Vec::new();
             let arg = strip_ownership_ref(arg_ty);
-            if let HirType::FnPtr(aps, aret) | HirType::Closure(aps, aret, _) = arg {
+            if let HirType::FnPtr(aps, aret) | HirType::Closure(aps, aret, _, _) = arg {
                 for (pt, at) in ps.iter().zip(aps.iter()) {
                     out.extend(infer_generic_from_param(pt, at));
                 }

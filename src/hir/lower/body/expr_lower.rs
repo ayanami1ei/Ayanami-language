@@ -42,12 +42,9 @@ impl crate::hir::lower::Ctx {
                     if let Some(&first) = candidates.first() {
                         let (params, ret) = {
                             let sig = &self.fns[first.0];
-                            if sig.params.is_empty() {
-                                return Err(Error::Hir(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col)));
-                            }
                             (sig.params.iter().map(|(_, t)| t.clone()).collect::<Vec<_>>(), sig.return_type.clone())
                         };
-                        // M2 统一：函数名作值 → 静态闭包（Copy、零分配）
+                        // M2 统一：函数名作值 → 静态闭包（Copy、零分配；含零参函数）
                         let fnptr_ty = HirType::FnPtr(params.clone(), Box::new(ret.clone()));
                         let raw: HirNodeBox = SFnPtr { fn_id: first, ty: fnptr_ty }.into();
                         return Ok(self.make_static_closure(raw, &params, &ret));
@@ -100,7 +97,7 @@ impl crate::hir::lower::Ctx {
                 Ok(SToUnique { expr: hir_inner, ty }.into())
             }
             Expr::FieldAccess { object, field, span: expr_span } => self.lower_field_access(object, field, expr_span),
-            Expr::StructLiteral { type_name, generic_args, fields, .. } => self.lower_struct_literal(type_name, generic_args, fields),
+            Expr::StructLiteral { type_name, generic_args, fields, span } => self.lower_struct_literal(type_name, generic_args, fields, span),
             Expr::ArrayLiteral(elems, span) => self.lower_array_literal(elems, span),
             // M6.2c：`[v; n]` 运行期按字面量计数展开（常量上下文由 const_eval 处理）
             Expr::ArrayRepeat { value, count, span } => {

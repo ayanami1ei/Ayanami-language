@@ -173,13 +173,9 @@ impl crate::hir::lower::Ctx {
             code_hir.return_type = inferred_ret.clone();
             self.fns[code_fn_id.0].return_type = inferred_ret.clone();
         }
-        // M2 健全性：拥有捕获不可移出闭包（FnOnce 未建模；否则 env 与目标双重释放）
-        if let Some(cap) = super::closure_checks::find_capture_move_out(&code_hir.body.stmts, VarId(0)) {
-            return Err(Error::Hir(format!(
-                "cannot move captured variable `{}` out of a closure (FnOnce is not supported yet; use `.clone()`) (at {}:{})",
-                cap.as_str(), body.span.start_line, body.span.start_col
-            )));
-        }
+        // M2/FnOnce：体内移出捕获 → FnOnce（调用消费闭包；env 由被调用方释放）
+        // 体内移出捕获 → FnOnce（调用方以临时变量持有并在作用域结束释放环境）
+        let once = super::closure_checks::find_capture_move_out(&code_hir.body.stmts, VarId(0)).is_some();
         self.lambda_fns.push(code_hir);
 
         // 5. vtable：[drop_glue, call]（slot 0 = drop 预留槽，调用槽 = 1 + method_index）
@@ -198,7 +194,7 @@ impl crate::hir::lower::Ctx {
             fields.push((*cn, implicit_move(src)));
         }
         let env_val: HirNodeBox = SStruct { type_name: env_sym, fields, ty: env_hir }.into();
-        let closure_ty = HirType::Closure(lambda_param_tys, Box::new(inferred_ret), true);
+        let closure_ty = HirType::Closure(lambda_param_tys, Box::new(inferred_ret), true, once);
         Ok(SMFP { value: env_val, concrete_type: env_sym, interface_name: iface_sym, ty: closure_ty }.into())
     }
 

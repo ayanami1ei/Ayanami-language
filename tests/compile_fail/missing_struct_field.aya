@@ -1,0 +1,9 @@
+struct P {
+    int x
+    int y
+}
+
+fn main() -> int {
+    p = P { x = 1 }
+    return 0
+}

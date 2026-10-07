@@ -55,11 +55,12 @@ impl<'a> Reader<'a> {
             }
             16 => {
                 let owns_env = self.read(1)?[0] != 0;
+                let once = self.read(1)?[0] != 0;
                 let pc = self.u32()? as usize;
                 let mut params = Vec::with_capacity(pc);
                 for _ in 0..pc { params.push(self.ty()?); }
                 let ret = Box::new(self.ty()?);
-                Ok(HirType::Closure(params, ret, owns_env))
+                Ok(HirType::Closure(params, ret, owns_env, once))
             }
             _ => Err(Error::Serialize(format!("unknown type tag: {}", tag))),
         }

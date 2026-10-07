@@ -6,7 +6,7 @@ use super::*;
 fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
         HirType::Unique(_) => true,
-        HirType::Closure(_, _, true) => true,
+        HirType::Closure(_, _, true, _) => true,
         HirType::FatPtr { kind, .. } => !matches!(kind.as_ref(), HirType::Ref(..)),
         HirType::Named(name) => {
             let Some(fields) = struct_defs.get(name) else { return false; };

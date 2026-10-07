@@ -111,3 +111,6 @@ test_closure_capture.aya 0
 test_closure_hof.aya 0
 test_match_arms.aya 0
 test_closure_collections.aya 0
+test_fn_once.aya 0
+test_field_move.aya 0
+test_fn_value.aya 0

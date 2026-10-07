@@ -1,0 +1,35 @@
+// M2/FnOnce：体内移出捕获 → FnOnce（调用消费闭包；环境由被调用方释放）
+// 只读捕获仍是 Fn（可多次调用）；未调用的 FnOnce 在作用域结束释放环境。
+extern "C" fn __ayanami_live_allocs() -> int;
+
+struct Holder {
+    FnOnce() -> int f
+}
+
+fn make(int base) -> FnOnce() -> int {
+    a = [base, base + 1]
+    return () -> int { return a[0] + a[1] }
+}
+
+fn apply(FnOnce() -> int f) -> int {
+    return f()
+}
+
+fn run() -> int {
+    f = make(10)
+    x = f()                    // 21
+    g = make(100)
+    y = apply(g)               // 201
+    h = Holder { f = make(1) }
+    z = (h.f)()                // 3
+    unused = make(5)           // 未调用 → 作用域结束释放环境
+    n = 1
+    twice = () -> int { return n }
+    t = twice() + twice()      // 2（只读捕获 = Fn）
+    return x + y + z + t       // 227
+}
+
+fn main() -> int {
+    r = run()
+    return r + __ayanami_live_allocs() * 100 - 227
+}

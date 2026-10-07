@@ -24,7 +24,7 @@ pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) 
         Type::Generic(name, args, _) => Type::Generic(*name, args.iter().map(|a| substitute_type_in_type(a, subst)).collect(), s),
         Type::Default => ty.clone(),
         Type::FnPtr(params, ret, _) => Type::FnPtr(params.iter().map(|p| substitute_type_in_type(p, subst)).collect(), Box::new(substitute_type_in_type(ret, subst)), Span::default()),
-        Type::Closure(params, ret, _) => Type::Closure(params.iter().map(|p| substitute_type_in_type(p, subst)).collect(), Box::new(substitute_type_in_type(ret, subst)), Span::default()),
+        Type::Closure(params, ret, _, once) => Type::Closure(params.iter().map(|p| substitute_type_in_type(p, subst)).collect(), Box::new(substitute_type_in_type(ret, subst)), Span::default(), *once),
         Type::Self_(_) => ty.clone(),
     }
 }

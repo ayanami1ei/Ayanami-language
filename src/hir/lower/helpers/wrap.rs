@@ -10,8 +10,8 @@ pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox {
     }
 }
 
-/// 包装参数以匹配期望的参数类型（处理所有权转换）
-pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
+/// 参数转换（不含最终移动）
+fn wrap_arg_conversions(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
     // M2：闭包实参按拥有值移动（非 Copy，调用方不再释放）
     if matches!(param_ty, HirType::Closure(..)) && matches!(arg.expr_type(), HirType::Closure(..)) {
         return implicit_move(arg);
@@ -86,10 +86,25 @@ pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNode
         }
         _ => arg,
     };
-    // 按值参数（含 unique）消费实参：插入移动；ref/shared/weak 是借用/共享语义
+    converted
+}
+
+/// 包装参数以匹配期望的参数类型（按值消费：插入移动）
+pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
+    let converted = wrap_arg_conversions(arg, param_ty);
     match param_ty {
         HirType::Ref(..) => converted,
         _ => implicit_move(converted),
+    }
+}
+
+/// extern C 实参：借用语义（C 侧不消费所有权，不插入移动）
+pub(crate) fn wrap_arg_borrowed(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
+    if matches!(param_ty, HirType::Unique(_) | HirType::Ref(..)) {
+        // 指针/拥有堆值：extern 侧借用，原样传递（不装箱、不移动）
+        arg
+    } else {
+        wrap_arg_conversions(arg, param_ty)
     }
 }
 

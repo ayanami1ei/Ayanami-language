@@ -98,11 +98,12 @@ impl Parser {
                 };
                 Ok(Type::FnPtr(params, Box::new(ret), span))
             }
-            TokenKind::Identifier(s) if s == "Fn"
+            TokenKind::Identifier(s) if (s == "Fn" || s == "FnOnce")
                 && matches!(self.tokens.get(self.pos + 1).map(|t| &t.kind),
                     Some(TokenKind::Delimiter(Delimiter::LParen))) => {
-                // M2：闭包类型 `Fn(T1, T2) -> U`
-                self.advance(); // Fn
+                // M2：闭包类型 `Fn(T1, T2) -> U` / `FnOnce(...) -> U`
+                let once = s == "FnOnce";
+                self.advance(); // Fn / FnOnce
                 self.expect_delimiter(Delimiter::LParen)?;
                 let mut params = Vec::new();
                 if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
@@ -119,7 +120,7 @@ impl Parser {
                 } else {
                     Type::Void(span)
                 };
-                Ok(Type::Closure(params, Box::new(ret), span))
+                Ok(Type::Closure(params, Box::new(ret), span, once))
             }
             TokenKind::Identifier(s) => {
                 let name = Symbol::intern(&s);

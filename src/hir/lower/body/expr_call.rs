@@ -67,6 +67,12 @@ impl crate::hir::lower::Ctx {
                             // M2：`ref Fn` / `ref fn` 形参 → 解引用后调用
                             if let HirType::Ref(inner, _) = &cty {
                                 if matches!(&**inner, HirType::FnPtr(..) | HirType::Closure(..)) {
+                                    if matches!(&**inner, HirType::Closure(_, _, _, true)) {
+                                        return Err(Error::Hir(format!(
+                                            "cannot call a borrowed FnOnce closure; take it by value (at {}:{})",
+                                            span.start_line, span.start_col
+                                        )));
+                                    }
                                     cty = (**inner).clone();
                                     callee = SDeref { expr: callee, ty: cty.clone() }.into();
                                 }
@@ -80,15 +86,26 @@ impl crate::hir::lower::Ctx {
                                     let args = self.adapt_enum_args(args, &param_tys)?;
                                     return Ok(SCallP { fn_ptr: callee, args, ty: *ret_ty.clone() }.into());
                                 }
-                                HirType::Closure(param_tys, ret_ty, _) => {
+                                HirType::Closure(param_tys, ret_ty, _, once) => {
                                     let param_tys = param_tys.clone();
                                     let args: Vec<HirNodeBox> = hir_args.into_iter().enumerate().map(|(i, a)| {
                                         if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
                                     }).collect();
                                     let args = self.adapt_enum_args(args, &param_tys)?;
                                     let iface = closure_iface_name(&param_tys, ret_ty);
+                                    // FnOnce：调用消费闭包（临时变量持有；函数/作用域结束 drop 释放 env）
+                                    let receiver = if *once {
+                                        let tmp = VarId(self.locals.len());
+                                        self.locals.push(HirLocal::new(
+                                            Symbol::intern(&format!("__fn_once_{}", tmp.0)), cty.clone(), true));
+                                        let tmp_node: HirNodeBox = SVar { var: tmp, ty: cty.clone() }.into();
+                                        self.pending_stmts.push(HirStmt::Assign {
+                                            target: tmp_node.clone(), value: implicit_move(callee), span: *span,
+                                        });
+                                        tmp_node
+                                    } else { callee };
                                     return Ok(SVCall {
-                                        receiver: callee,
+                                        receiver,
                                         interface: iface,
                                         method_index: 0,
                                         args,
@@ -121,6 +138,8 @@ impl crate::hir::lower::Ctx {
         } };
 
         // Step 4: wrap args into fat pointers where needed, apply implicit moves
+        // extern "C" 声明：实参按借用传递（C 侧不消费所有权）
+        let extern_call = self.extern_fn_ids.contains(&fn_id);
         // Pre-register vtables for generic impl → interface (before the closure that can't use ?)
         let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
             .map(|(_, t)| t.clone())
@@ -192,7 +211,7 @@ impl crate::hir::lower::Ctx {
                 }
             }
             if matches!(param_tys[i], HirType::Unique(_) | HirType::Ref(..)) {
-                wrap_arg_for_param(arg, &param_tys[i])
+                if extern_call { wrap_arg_borrowed(arg, &param_tys[i]) } else { wrap_arg_for_param(arg, &param_tys[i]) }
             } else if matches!(arg_ty, HirType::Ref(..)) {
                 // 值形参 + 引用实参：自动解引用
                 wrap_arg_for_param(arg, &param_tys[i])
@@ -208,7 +227,7 @@ impl crate::hir::lower::Ctx {
             } else if matches!(arg_ty, HirType::Unique(_)) {
                 // #73：导入 .lcl 的形参可能是未包装形式（如 `[T]` → Array），拥有值实参
                 // 需标记移动，否则调用方仍会在帧退出时释放（String::new(buf, n) 悬空）
-                implicit_move(arg)
+                if extern_call { arg } else { implicit_move(arg) }
             } else if matches!(param_tys[i], HirType::Closure(..)) {
                 // M2：闭包实参（拥有值）→ 移动
                 wrap_arg_for_param(arg, &param_tys[i])
