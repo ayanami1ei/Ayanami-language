@@ -1,0 +1,35 @@
+// 回归：match / if 表达式非 Copy 结果（条件赋值 + 结果移出，无双重释放/泄漏）
+import "io"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+enum E { A, B, C }
+
+fn pick(E e) -> String {
+    return match e {
+        A => "a",
+        B => "b",
+        C => "c",
+    }
+}
+
+fn pick_if(int x) -> String {
+    return if x > 0 { "pos" } else { "neg" }
+}
+
+fn run() -> int {
+    n = 0
+    n = n + pick(E::A).len() as int
+    n = n + pick(E::B).len() as int
+    n = n + pick(E::C).len() as int
+    n = n + pick_if(1).len() as int
+    n = n + pick_if(0).len() as int
+    return n
+}
+
+fn main() -> int {
+    n = run()
+    if n != 9 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

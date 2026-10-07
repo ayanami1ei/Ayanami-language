@@ -1,5 +1,5 @@
 use super::*;
-use super::mem::{action_to_stmt, needs_drop, strategy_for};
+use super::mem::{action_to_stmt, strategy_for};
 
 impl Ctx {
     pub(super) fn new(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Self {
@@ -15,28 +15,26 @@ impl Ctx {
         for i in 0..f.params.len() {
             alive.insert(VarId(i));
         }
+        // 结果变量预 alive：臂/分支块末不视为块内变量；覆盖赋值不 drop（可能未初始化）
+        let mut result_vars = HashSet::new();
+        for (i, local) in f.locals.iter().enumerate() {
+            if local.is_result {
+                let vid = VarId(i);
+                alive.insert(vid);
+                result_vars.insert(vid);
+            }
+        }
 
         Self {
             mir_locals,
             var_types,
             alive,
             moved: HashSet::new(),
+            result_vars,
             struct_defs: struct_defs.clone(),
             errors: Vec::new(),
             return_type: f.return_type.clone(),
         }
-    }
-
-    fn emit_assign_cleanup(&self, var: &VarId) -> Vec<MirStmtBox> {
-        let mut stmts = Vec::new();
-        if self.alive.contains(var) && !self.moved.contains(var) {
-            let ty = &self.var_types[var];
-            let strategy = strategy_for(ty, &self.struct_defs);
-            for action in strategy.on_assign_overwrite(*var, ty) {
-                stmts.push(action_to_stmt(*var, ty, &action));
-            }
-        }
-        stmts
     }
 
     pub(super) fn lower_stmt(&mut self, stmt: &HirStmt) -> Vec<MirStmtBox> {
@@ -44,70 +42,12 @@ impl Ctx {
         self.track_stmt_moves(stmt);
         match stmt {
             HirStmt::Assign { target, value, span } => self.lower_assign(target, value, *span),
-            HirStmt::FieldAssign { object, field, field_index, field_ty, value, span } => {
-                let mut stmts = Vec::new();
-                // 旧字段需要释放时，RHS 先求值到临时变量（drop 必须晚于 RHS 求值）
-                let drop_old = object.as_local()
-                    .map(|v| needs_drop(field_ty, &self.struct_defs) && !self.moved.contains(&v))
-                    .unwrap_or(false);
-                let tmp = if !drop_old || matches!(value.expr_type(), HirType::Never) {
-                    None
-                } else {
-                    Some(self.new_temp(field_ty.clone()))
-                };
-                if let Some(tmp_var) = tmp {
-                    let mir_value = value.lower_to_mir(&self.moved);
-                    stmts.push(SMirAssignStmt {
-                        target: SMirLocal { var: tmp_var, ty: self.var_types[&tmp_var].clone(), moved: false }.into(),
-                        value: mir_value,
-                        span: *span,
-                    }.into());
-                }
-                // 旧字段拥有堆数据时移出并释放（覆盖不泄漏）；仅局部对象（避免重复求值）
-                if drop_old {
-                    let old = self.new_temp(field_ty.clone());
-                    let field_expr: MirNodeBox = SMirFieldAccess {
-                        object: object.lower_to_mir(&self.moved),
-                        field: *field,
-                        field_index: *field_index,
-                        ty: field_ty.clone(),
-                    }.into();
-                    stmts.push(SMirAssignStmt {
-                        target: SMirLocal { var: old, ty: field_ty.clone(), moved: false }.into(),
-                        value: SMirMove { expr: field_expr, ty: field_ty.clone() }.into(),
-                        span: *span,
-                    }.into());
-                    stmts.push(SMirDropStmt { var: old, ty: field_ty.clone(), span: *span }.into());
-                }
-                let mir_value: MirNodeBox = match tmp {
-                    Some(tmp_var) => SMirLocal { var: tmp_var, ty: self.var_types[&tmp_var].clone(), moved: false }.into(),
-                    None => value.lower_to_mir(&self.moved),
-                };
-                stmts.push(SMirFieldAssignStmt {
-                    object: object.lower_to_mir(&self.moved),
-                    field: *field,
-                    field_index: *field_index,
-                    field_ty: field_ty.clone(),
-                    value: mir_value,
-                    span: *span,
-                }.into());
-                stmts
-            }
-            HirStmt::IndexAssign { object, index, value, span } => {
-                vec![SMirIndexAssignStmt {
-                    object: object.lower_to_mir(&self.moved),
-                    index: index.lower_to_mir(&self.moved),
-                    value: value.lower_to_mir(&self.moved),
-                    span: *span,
-                }.into()]
-            }
-            HirStmt::DerefAssign { target, value, span } => {
-                vec![SMirDerefAssignStmt {
-                    target: target.lower_to_mir(&self.moved),
-                    value: value.lower_to_mir(&self.moved),
-                    span: *span,
-                }.into()]
-            }
+            HirStmt::FieldAssign { object, field, field_index, field_ty, value, span } =>
+                self.lower_field_assign(object, *field, *field_index, field_ty, value, *span),
+            HirStmt::IndexAssign { object, index, value, span } =>
+                self.lower_index_assign(object, index, value, *span),
+            HirStmt::DerefAssign { target, value, span } =>
+                self.lower_deref_assign(target, value, *span),
             HirStmt::Return { value, span } => self.lower_return(value, *span),
             HirStmt::If { cond, then_block, elifs, else_block, span } => {
                 self.lower_if(cond, then_block, elifs, else_block, *span)
@@ -117,7 +57,12 @@ impl Ctx {
             HirStmt::Continue { span } => vec![SMirContinueStmt { span: *span }.into()],
             HirStmt::Expr { expr, span } => {
                 expr.record_moves(&mut self.moved);
-                vec![SMirExprStmt { expr: expr.lower_to_mir(&self.moved), span: *span }.into()]
+                let mut mir = expr.lower_to_mir(&self.moved);
+                let (pre, post) = self.hoist_ref_temps(&mut mir, *span);
+                let mut stmts = pre;
+                stmts.push(SMirExprStmt { expr: mir, span: *span }.into());
+                stmts.extend(post);
+                stmts
             }
             HirStmt::Block { stmts, .. } => self.lower_block(stmts),
             HirStmt::Assume { cond, span } => {
@@ -160,80 +105,6 @@ impl Ctx {
         }
     }
 
-    fn lower_assign(&mut self, target: &HirNodeBox, value: &HirNodeBox, span: crate::span::Span) -> Vec<MirStmtBox> {
-        let mut stmts = Vec::new();
-
-        value.record_moves(&mut self.moved);
-
-        if let Some(tgt_var) = target.as_local() {
-            // 旧值需要 drop 时，RHS 必须先求值到临时变量：否则 `s = s + x`
-            // 会在 RHS 读取 s 之前释放其缓冲（use-after-free）。
-            // 临时变量用目标类型：保留隐式数值转换（bool→int 等）语义。
-            let cleanup = self.emit_assign_cleanup(&tgt_var);
-            let tmp = if cleanup.is_empty() || matches!(value.expr_type(), HirType::Never) {
-                None
-            } else {
-                Some(self.new_temp(self.var_types[&tgt_var].clone()))
-            };
-            if let Some(tmp_var) = tmp {
-                let mir_value = value.lower_to_mir(&self.moved);
-                stmts.push(SMirAssignStmt {
-                    target: SMirLocal { var: tmp_var, ty: self.var_types[&tmp_var].clone(), moved: false }.into(),
-                    value: mir_value,
-                    span,
-                }.into());
-            }
-
-            stmts.extend(cleanup);
-            // 赋值后目标重新有效（循环回边重赋值场景）
-            self.moved.remove(&tgt_var);
-
-            match value.as_move() {
-                Some(inner) => {
-                    if let Some(src_var) = inner.as_local() {
-                        let ty = self.var_types[&src_var].clone();
-                        let strategy = strategy_for(&ty, &self.struct_defs);
-                        for action in strategy.on_move_out(src_var, &ty) {
-                            stmts.push(action_to_stmt(src_var, &ty, &action));
-                        }
-                        self.moved.insert(src_var);
-                    }
-                }
-                None => {
-                    if let Some(inner) = value.as_clone() {
-                        if let Some(src_var) = inner.as_local() {
-                            let ty = self.var_types[&src_var].clone();
-                            let strategy = strategy_for(&ty, &self.struct_defs);
-                            for action in strategy.on_clone(src_var, &ty) {
-                                stmts.push(action_to_stmt(src_var, &ty, &action));
-                            }
-                        }
-                    }
-                }
-            }
-
-            self.mark_alive(tgt_var);
-
-            let mir_value: MirNodeBox = match tmp {
-                Some(tmp_var) => SMirLocal { var: tmp_var, ty: self.var_types[&tmp_var].clone(), moved: false }.into(),
-                None => value.lower_to_mir(&self.moved),
-            };
-            stmts.push(SMirAssignStmt {
-                target: target.lower_to_mir(&self.moved),
-                value: mir_value,
-                span,
-            }.into());
-        } else {
-            stmts.push(SMirAssignStmt {
-                target: target.lower_to_mir(&self.moved),
-                value: value.lower_to_mir(&self.moved),
-                span,
-            }.into());
-        }
-
-        stmts
-    }
-
     fn lower_return(&mut self, value: &Option<HirNodeBox>, span: crate::span::Span) -> Vec<MirStmtBox> {
         let mut stmts = Vec::new();
 
@@ -251,12 +122,15 @@ impl Ctx {
                 // 临时变量使用函数返回类型（比较运算等表达式类型可能与返回类型不同）
                 let ty = self.return_type.clone();
                 let tmp = self.new_temp(ty);
-                let mir_value = v.lower_to_mir(&self.moved);
+                let mut mir_value = v.lower_to_mir(&self.moved);
+                let (pre, post) = self.hoist_ref_temps(&mut mir_value, span);
+                stmts.extend(pre);
                 stmts.push(SMirAssignStmt {
                     target: SMirLocal { var: tmp, ty: self.var_types[&tmp].clone(), moved: false }.into(),
                     value: mir_value,
                     span,
                 }.into());
+                stmts.extend(post);
                 ret_var = Some(tmp);
             }
         }
@@ -283,7 +157,7 @@ impl Ctx {
     }
 
     /// 申请一个仅供编译器内部使用的临时局部变量（返回/赋值语句求值用）。
-    fn new_temp(&mut self, ty: HirType) -> VarId {
+    pub(super) fn new_temp(&mut self, ty: HirType) -> VarId {
         let id = VarId(self.mir_locals.len());
         self.mir_locals.push(MirLocal::new(Symbol::intern("__ret"), ty.clone(), false));
         self.var_types.insert(id, ty);

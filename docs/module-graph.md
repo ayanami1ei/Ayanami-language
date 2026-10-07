@@ -29,14 +29,14 @@ graph LR
     driver -->|2| error
     formatter --> intern
     formatter -->|2| parser
-    hir -->|11| error
+    hir -->|14| error
     hir -->|11| intern
     hir -->|2| mir
-    hir -->|16| parser
+    hir -->|20| parser
     hir -->|5| span
     lexer --> span
     lir --> error
-    lir -->|4| hir
+    lir -->|5| hir
     lir -->|3| intern
     lir -->|3| mir
     lir -->|3| parser
@@ -45,11 +45,13 @@ graph LR
     mir -->|3| intern
     mir --> lir
     mir --> parser
-    mir --> span
+    mir -->|2| span
     package --> error
+    package --> hir
+    package --> intern
     package --> parser
     parser -->|2| error
-    parser -->|4| intern
+    parser -->|5| intern
     parser --> lexer
     parser -->|6| span
 ```
@@ -58,18 +60,18 @@ graph LR
 
 | 来源 | 目标 | 引用数 |
 | --- | --- | ---: |
-| `hir` | `parser` | 16 |
+| `hir` | `parser` | 20 |
+| `hir` | `error` | 14 |
 | `compiler` | `error` | 11 |
-| `hir` | `error` | 11 |
 | `hir` | `intern` | 11 |
 | `compiler` | `parser` | 9 |
 | `mir` | `hir` | 8 |
 | `parser` | `span` | 6 |
 | `hir` | `span` | 5 |
+| `lir` | `hir` | 5 |
+| `parser` | `intern` | 5 |
 | `compiler` | `hir` | 4 |
-| `lir` | `hir` | 4 |
 | `mir` | `error` | 4 |
-| `parser` | `intern` | 4 |
 | `compiler` | `mir` | 3 |
 | `lir` | `intern` | 3 |
 | `lir` | `mir` | 3 |
@@ -78,6 +80,7 @@ graph LR
 | `driver` | `error` | 2 |
 | `formatter` | `parser` | 2 |
 | `hir` | `mir` | 2 |
+| `mir` | `span` | 2 |
 | `parser` | `error` | 2 |
 | `compiler` | `intern` | 1 |
 | `compiler` | `lir` | 1 |
@@ -87,9 +90,10 @@ graph LR
 | `lir` | `error` | 1 |
 | `mir` | `lir` | 1 |
 | `mir` | `parser` | 1 |
-| `mir` | `span` | 1 |
 | `package` | `error` | 1 |
+| `package` | `hir` | 1 |
+| `package` | `intern` | 1 |
 | `package` | `parser` | 1 |
 | `parser` | `lexer` | 1 |
 
-共 15 个顶层模块、33 条依赖边。
+共 15 个顶层模块、35 条依赖边。

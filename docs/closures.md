@@ -95,5 +95,8 @@ fn main() -> int {
   标记移动（`expr_call.rs` + `type_needs_drop`）；`extern "C"` 按借用、POD 结构体按复制。
   `checks.rs` 顺序检查覆盖直线重复传参；循环回边的重复移动由运行时源变量清零兜底
   （`SLirLocalTake`，避免双重释放）。
-- 表达式临时量（如字符串字面量实参）不 drop，循环中每次使用泄漏一次分配
-  （bd `Ayanami-language-d4z`）。
+- 借用临时量（`f(ref "x")` / 方法接收者字面量 / 调用结果按引用传参）提升到临时局部变量，
+  语句结束后 drop（赋值/表达式/返回/字段·下标·解引用赋值/`if` 首条件）。
+  残余：`while`/`elif` 条件内的借用临时量仍每次求值泄漏一次分配（bd `Ayanami-language-*`）。
+- match / if 表达式非 Copy 结果：结果变量仅在分支内条件赋值（`is_result`，不参与覆盖/块末
+  drop），链后显式移出到最终临时量，避免条件初始化被 drop 或重复释放。

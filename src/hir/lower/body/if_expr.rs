@@ -95,7 +95,7 @@ impl crate::hir::lower::Ctx {
         // #135：分支构造回退到枚举基名时，用当前函数返回类型细化
         let res_ty = self.refine_enum_result_type(res_ty);
         let res_var = VarId(self.locals.len());
-        self.locals.push(HirLocal::new(Symbol::intern("__if_res"), res_ty.clone(), true));
+        self.locals.push(HirLocal::result(Symbol::intern("__if_res"), res_ty.clone(), true));
         let res_node: HirNodeBox = SVar { var: res_var, ty: res_ty.clone() }.into();
 
         let mut assigned: Vec<HirBlock> = Vec::new();
@@ -123,6 +123,15 @@ impl crate::hir::lower::Ctx {
             else_block: Some(else_hir),
             span: *span,
         });
-        Ok(res_node)
+        // 结果变量仅在分支内条件赋值：移出到最终临时量（同 match）
+        let final_var = VarId(self.locals.len());
+        self.locals.push(HirLocal::new(Symbol::intern("__if_final"), res_ty.clone(), false));
+        let final_node: HirNodeBox = SVar { var: final_var, ty: res_ty.clone() }.into();
+        self.pending_stmts.push(HirStmt::Assign {
+            target: final_node.clone(),
+            value: implicit_move(res_node),
+            span: *span,
+        });
+        Ok(final_node)
     }
 }

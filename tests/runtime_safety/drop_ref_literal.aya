@@ -1,0 +1,25 @@
+// 回归：借用临时量（ref 实参字符串字面量 / 调用内字面量）语句后释放，无泄漏
+import "io"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn f_ref(ref String s) -> int { return s.len() as int }
+fn make() -> String { return "a".add("b") }
+
+fn run() -> int {
+    i = 0
+    n = 0
+    while i < 100 {
+        n = n + f_ref("yy")
+        i = i + 1
+    }
+    s = make()
+    return n + s.len() as int
+}
+
+fn main() -> int {
+    n = run()
+    if n != 202 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

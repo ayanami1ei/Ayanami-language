@@ -1,13 +1,12 @@
-// 回归：自赋值 `s = s + t` 旧值在 RHS 求值后释放（无 use-after-free / 泄漏）
+// 回归：自赋值 `s = s + "ab"` 旧值在 RHS 求值后释放 + 字面量临时量语句后释放（无泄漏）
 import "io"
 extern "C" fn __ayanami_live_allocs() -> int;
 
 fn run() -> int {
-    t = "ab"
     s = ""
     i = 0
     while i < 3 {
-        s = s + t
+        s = s + "ab"
         i = i + 1
     }
     return s.len() as int

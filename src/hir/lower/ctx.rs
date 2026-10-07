@@ -272,7 +272,7 @@ impl Ctx {
     pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool) {
         if let Some(existing) = self.lookup_var(&name) { return existing; }
         let id = VarId(self.locals.len());
-        self.locals.push(HirLocal { name, ty: inferred_ty.clone(), mutable: false });
+        self.locals.push(HirLocal { name, ty: inferred_ty.clone(), mutable: false, is_result: false });
         self.bind_var(name, id, inferred_ty.clone(), false);
         (id, inferred_ty, false)
     }

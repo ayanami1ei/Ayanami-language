@@ -20,11 +20,16 @@ pub struct HirLocal {
     pub name: Symbol,
     pub ty: HirType,
     pub mutable: bool,
+    /// match/if 表达式结果变量：条件赋值，由最终临时量移出接管（不参与覆盖/块末 drop）
+    pub is_result: bool,
 }
 
 impl HirLocal {
     pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self {
-        Self { name, ty, mutable }
+        Self { name, ty, mutable, is_result: false }
+    }
+    pub fn result(name: Symbol, ty: HirType, mutable: bool) -> Self {
+        Self { name, ty, mutable, is_result: true }
     }
 }
 

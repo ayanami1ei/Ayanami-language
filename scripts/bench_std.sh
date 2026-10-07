@@ -29,6 +29,8 @@ run_limited() {
 }
 
 # `build` 对裸文件默认静态库；用 `run` 链接可执行文件（跑一次不影响计时协议）
+# 先清理 build/：否则 `run --release` 会复用陈旧（debug/LTO）产物导致计时失真
+rm -rf build
 run_limited "$AYANAMI_BIN" run --release bench/bench_std.aya >/dev/null 2>&1 || true
 cp build/bench_std build/bench-std
 

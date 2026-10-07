@@ -6,11 +6,13 @@ use crate::mir::ir::*;
 use crate::mir::mem::*;
 
 
+mod assign;
 mod checks;
 mod control;
 mod ctx;
 mod functions;
 mod mem;
+mod temps;
 
 use functions::lower_item;
 
@@ -45,6 +47,8 @@ struct Ctx {
     var_types: HashMap<VarId, HirType>,
     alive: HashSet<VarId>,
     moved: HashSet<VarId>,
+    /// match/if 表达式结果变量：条件赋值，覆盖/块末不 drop
+    result_vars: HashSet<VarId>,
     struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
     errors: Vec<crate::error::Error>,
     return_type: HirType,

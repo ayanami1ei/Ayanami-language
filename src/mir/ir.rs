@@ -32,6 +32,9 @@ pub trait MirNode: std::fmt::Debug {
     fn for_each_child(&self, _f: &mut dyn FnMut(&dyn MirNode)) {}
     /// A5d-3：可变子节点遍历（pass body 改写用）
     fn for_each_child_mut(&mut self, _f: &mut dyn FnMut(&mut MirNodeBox)) {}
+    /// 借用节点（SMirRef）的内层表达式（借用临时量提升用）
+    fn ref_expr(&self) -> Option<&MirNodeBox> { None }
+    fn ref_expr_mut(&mut self) -> Option<&mut MirNodeBox> { None }
     fn as_string_literal(&self) -> Option<&str> { None }
     fn as_ref(&self) -> Option<(VarId, bool)> { None }
     /// #91：字段访问节点（SMirFieldAccess）的（对象, 字段下标）

@@ -11,3 +11,5 @@ overflow_add.aya 101 attempt to add with overflow
 void_tail_side_effect.aya 0 B
 drop_field_overwrite.aya 0
 drop_assign_self.aya 0
+drop_ref_literal.aya 0
+match_if_result.aya 0

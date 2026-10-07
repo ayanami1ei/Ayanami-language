@@ -87,6 +87,8 @@ pub(super) fn array_base_through_ref(ctx: &mut dyn LirLowerCtx, base_tmp: u64, t
 }
 
 impl MirNode for SMirRef {
+    fn ref_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
+    fn ref_expr_mut(&mut self) -> Option<&mut MirNodeBox> { Some(&mut self.expr) }
     fn refs_global(&self) -> Option<Symbol> {
         self.expr.as_global()
             .or_else(|| self.expr.as_deref().and_then(|i| i.as_global()))
@@ -203,6 +205,14 @@ impl MirStmtNode for SMirDerefAssignStmt { fn span(&self) -> crate::span::Span {
 
 /// 递归求字段/局部变量地址（字段移出清零用）；不可寻址返回 None。
 pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode) -> Option<LirValue> {
+    // 解引用位置：内层为指针（ref/unique）时，指针值即地址
+    // （match ref 接收者时字段移出清零原值，避免浅拷贝副本悬挂）
+    if let Some(inner) = node.as_deref() {
+        if matches!(inner.expr_type(), HirType::Ref(..) | HirType::Unique(_)) {
+            return Some(inner.lower_to_lir(ctx));
+        }
+        return lower_field_addr_of(ctx, &**inner);
+    }
     if let Some((obj, idx)) = node.as_field_access() {
         let base = lower_field_addr_of(ctx, &**obj)?;
         let dest = ctx.next_tmp();

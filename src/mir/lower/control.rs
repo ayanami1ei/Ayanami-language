@@ -11,7 +11,9 @@ impl Ctx {
         span: crate::span::Span,
     ) -> Vec<MirStmtBox> {
         cond.record_moves(&mut self.moved);
-        let mir_cond = cond.lower_to_mir(&self.moved);
+        let mut mir_cond = cond.lower_to_mir(&self.moved);
+        // 首条件必然求值：借用临时量提升到 if 前赋值、if 后 drop
+        let (pre, post) = self.hoist_ref_temps(&mut mir_cond, span);
         let base = self.moved.clone();
         // #116：分支必然 return 时其移动不合并到 if 之后（该路径不达后续代码）；
         // 其余分支按「可能移动」合并（任一可达路径移动即报）。
@@ -52,7 +54,10 @@ impl Ctx {
             });
 
         self.moved = fall_moved;
-        vec![SMirIfStmt { cond: mir_cond, then_block: mir_then, elifs: mir_elifs, else_block: mir_else, span }.into()]
+        let mut stmts = pre;
+        stmts.push(SMirIfStmt { cond: mir_cond, then_block: mir_then, elifs: mir_elifs, else_block: mir_else, span }.into());
+        stmts.extend(post);
+        stmts
     }
 
     pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox> {
@@ -78,7 +83,7 @@ impl Ctx {
             scoped.sort_by_key(|v| v.0);
             for var in scoped {
                 self.alive.remove(&var);
-                if self.moved.contains(&var) {
+                if self.moved.contains(&var) || self.result_vars.contains(&var) {
                     continue;
                 }
                 let ty = self.var_types[&var].clone();

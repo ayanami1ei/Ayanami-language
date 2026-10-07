@@ -14,7 +14,9 @@ struct LoweredArm {
 impl crate::hir::lower::Ctx {
     /// 求值 match 目标 → 临时局部；返回 (值节点, 值类型)
     fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, HirType)> {
-        let hir_value = auto_deref(self.lower_expr(value)?);
+        let lowered = self.lower_expr(value)?;
+        let is_ref = matches!(expr_type(&lowered), HirType::Ref(..));
+        let hir_value = auto_deref(lowered);
         let value_ty = expr_type(&hir_value);
         let base = strip_ownership(value_ty.clone());
         if !matches!(base,
@@ -25,6 +27,11 @@ impl crate::hir::lower::Ctx {
                 "match on unsupported type `{}` at {}:{}",
                 hir_type_display(&value_ty), span.start_line, span.start_col
             )));
+        }
+        // ref scrutinee：直接以解引用位置匹配——载荷移出时字段清零原值，
+        // 避免浅拷贝副本移出后原值悬挂（双重释放）
+        if is_ref {
+            return Ok((hir_value, value_ty));
         }
         let val_var = VarId(self.locals.len());
         self.locals.push(HirLocal::new(Symbol::intern("__match_val"), value_ty.clone(), false));
@@ -270,11 +277,20 @@ impl crate::hir::lower::Ctx {
             a.body = coerce_expr(body, &res_ty, span)?;
         }
         let res_var = VarId(self.locals.len());
-        self.locals.push(HirLocal::new(Symbol::intern("__match_res"), res_ty.clone(), true));
+        self.locals.push(HirLocal::result(Symbol::intern("__match_res"), res_ty.clone(), true));
         let res_node: HirNodeBox = SVar { var: res_var, ty: res_ty.clone() }.into();
         let stmts = self.build_match_stmts(&lowered, Some((&res_node, &res_ty)), span);
         self.pending_stmts.extend(stmts);
-        Ok(res_node)
+        // 结果变量仅在臂内条件赋值：移出到最终临时量，避免条件初始化被 drop/重复释放
+        let final_var = VarId(self.locals.len());
+        self.locals.push(HirLocal::new(Symbol::intern("__match_final"), res_ty.clone(), false));
+        let final_node: HirNodeBox = SVar { var: final_var, ty: res_ty.clone() }.into();
+        self.pending_stmts.push(HirStmt::Assign {
+            target: final_node.clone(),
+            value: implicit_move(res_node),
+            span: *span,
+        });
+        Ok(final_node)
     }
 }
 
