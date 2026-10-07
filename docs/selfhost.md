@@ -171,8 +171,8 @@ M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf�
 | #147 | while 条件含 `&&` + 方法调用时条件不更新（死循环） | ✅ 已修复（2026-10-07）；现有 `while true + break` 保留 |
 | #150 | 未知枚举变体静默通过（E::C 当 _tag=0） | ✅ 已修复（2026-10-08） |
 | #153 | 结构体字面量未知字段不报错（codegen GEP 越界） | ✅ 已修复（2026-10-09）；check golden 覆盖 |
-| #154 | extern `ref` 参数写不回调用方（临时副本）→ read_file 死循环/内存暴涨 | ✅ 已修复（2026-10-10，debug 验证）；release 受 #157 影响仍用 fgetc/fputc |
+| #154 | extern `ref` 参数写不回调用方（临时副本）→ read_file 死循环/内存暴涨 | ✅ 已修复（2026-10-10） |
 | #155 | bool 传 println(int) 生成 i1/i64 非法 IR | ✅ 已修复（2026-10-10） |
 | #156 | 循环重赋值 moved（Fn 值累加器误报） | ✅ 已修复（上游） |
-| #157 | release 优化：extern 调用后 load 被常量折叠（忽略指针写入） | 未修；fgetc/fputc 规避 |
+| #157 | release 优化：extern 调用后 load 被常量折叠（忽略指针写入） | ✅ 已修复（2026-10-11，release 验证 t==r） |
 | #122 | 字符串字面量含非 ASCII 生成非法 LLVM 常量 | 未修；单测用 ASCII 片段 |
