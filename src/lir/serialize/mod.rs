@@ -198,6 +198,7 @@ pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram> {
         extern_decls.push(ExternDecl {
             name, params, return_type, attrs, param_attrs,
             effects: LirEffects { no_throws, no_effects },
+            extern_c: false, // 序列化来自包导入（Ayanami 函数）；源码 extern C 声明不进 .lcl
         });
     }
 

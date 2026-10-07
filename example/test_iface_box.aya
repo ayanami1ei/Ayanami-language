@@ -1,0 +1,37 @@
+// #158：接口装箱含拥有堆字段（ArrayList）的迭代器（sizeof 惯用法修复）
+import "arraylist"
+import "option"
+
+interface It[T] {
+    fn next(ref mut self) -> Option[T];
+}
+
+struct ArrIt {
+    ArrayList[int] data
+    usize i
+}
+
+impl ArrIt {
+    #[state]
+    pub fn next(ref mut self) -> Option[int] {
+        if self.i >= self.data.len {
+            return Option::None()
+        }
+        v = self.data.index(self.i)
+        self.i = self.i + 1
+        return Option::Some(v)
+    }
+}
+
+fn sum(It[int] it) -> int {
+    s = 0
+    for x in it { s = s + x }
+    return s
+}
+
+fn main() -> int {
+    a = ArrayList::new[int]()
+    a.push(1)
+    a.push(2)
+    return sum(ArrIt { data = a, i = 0 }) - 3
+}

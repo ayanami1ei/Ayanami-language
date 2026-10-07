@@ -74,24 +74,6 @@ pub(crate) fn int_info(ty: &HirType) -> Option<(u32, bool)> {
     }
 }
 
-pub(crate) fn llvm_type_size(ty: &HirType) -> &'static str {
-    match ty {
-        HirType::Int => "8",
-        HirType::Float => "8",
-        HirType::F32 => "4",
-        HirType::Char => "1",
-        HirType::Bool => "1",
-        HirType::Void | HirType::Never => "0",
-        HirType::IntN { bits, .. } => match bits { 8 => "1", 16 => "2", 32 => "4", 64 => "8", 128 => "16", _ => "8" },
-        HirType::Named(_) | HirType::FatPtr { .. } => "16",
-        HirType::Unique(inner) => llvm_type_size(inner),
-        HirType::Array(_) | HirType::ArraySized(_, _) => "16",
-        HirType::FnPtr(..) => "8",
-        HirType::Closure(..) => "16",
-        HirType::Ref(_, _) => "16",
-    }
-}
-
 /// 按 LLVM 布局计算类型大小（含对齐填充），用于数组分配。
 /// 与 `llvm_type` 保持一致：`[T]`/`Unique`/`Array` 字段是指针（8），FatPtr 是 {ptr,ptr}（16）。
 pub(crate) fn elem_layout_size(
@@ -134,24 +116,6 @@ pub(crate) fn elem_layout_size(
         }
     }
     layout(ty, struct_defs).0
-}
-
-/// Compute the actual size of a Named struct type from its field definitions.
-pub(crate) fn struct_llvm_size(ty: &HirType, struct_defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> String {
-    if let HirType::Named(name) = ty {
-        if let Some(fields) = struct_defs.get(name) {
-            let total: u64 = fields.iter().map(|(_, ft)| {
-                let s = llvm_type_size(ft);
-                let n: u64 = s.parse().unwrap_or(8);
-                if matches!(ft, HirType::Unique(_)) { 8u64 } else { n }
-            }).sum();
-            return total.to_string();
-        }
-    }
-    if let HirType::Unique(inner) = ty {
-        return struct_llvm_size(inner, struct_defs);
-    }
-    llvm_type_size(ty).to_string()
 }
 
 

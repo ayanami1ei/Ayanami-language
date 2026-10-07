@@ -1,0 +1,11 @@
+import "lib"
+import "arraylist"
+
+fn main() -> int {
+    a = ArrayList::new[int]()
+    a.push(1)
+    m = PMap[int, int, ArrayListIter[int]] { inner = a.into_iter(), f = (int x) -> int { return x + 1 } }
+    s = 0
+    for x in m { s = s + x }
+    return s - 2
+}

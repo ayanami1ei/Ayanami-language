@@ -116,8 +116,9 @@ impl<'a> Emitter<'a> {
             let params: Vec<String> = d.params.iter().enumerate()
                 .map(|(i, t)| {
                     let mut suffix = d.param_attrs.get(i).map(|v| functions::llvm_param_attrs(v)).unwrap_or_default();
-                    // M-opt.7：release 导入函数（.lcl）声明同样按所有权模型推断参数属性
-                    if crate::hir::contracts::is_release() {
+                    // M-opt.7：release 导入函数（.lcl）声明按所有权模型推断；
+                    // #157：源码 extern "C" 声明除外（C 可能写 ref 形参内存）
+                    if crate::hir::contracts::is_release() && !d.extern_c {
                         for a in functions::infer_param_attrs(t).split_whitespace() {
                             if !suffix.contains(a) { suffix.push(' '); suffix.push_str(a); }
                         }
@@ -131,8 +132,8 @@ impl<'a> Emitter<'a> {
             if crate::hir::contracts::is_release() && !suffix.contains("nounwind") {
                 suffix.push_str(" nounwind");
             }
-            // M-opt.7：release 返回值属性
-            let ret_attr = if crate::hir::contracts::is_release() {
+            // M-opt.7：release 返回值属性（extern C 声明除外）
+            let ret_attr = if crate::hir::contracts::is_release() && !d.extern_c {
                 functions::infer_ret_attr(&d.return_type)
             } else {
                 ""

@@ -160,6 +160,37 @@ if [ -d tests/lcl_weak ]; then
     rm -rf "$root/build" "$wdir/a.lcl" "$wdir/b.lcl"
 fi
 
+# #157：extern C 声明实参借用（ref 形参不标 readonly），release 运行读回值正确
+if [ -f example/test_extern_out_param.aya ]; then
+    "$BIN" run --release example/test_extern_out_param.aya >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL #157: release extern out-param 读回错误（exit $got）"
+        fail=$((fail + 1))
+    fi
+fi
+
+# #159：参数化接口约束（I: Iterator[T]）的泛型 impl 打包后方法可用
+if [ -d tests/lcl_param_constraint ]; then
+    pd=tests/lcl_param_constraint
+    root="$PWD"
+    "$BIN" package "$pd/lib.aya" >/dev/null 2>&1 || true
+    if [ -f "$pd/lib.lcl" ]; then
+        cp "$pd/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+        timeout 120 "$BIN" run "$pd/main.aya" >/dev/null 2>&1
+        got=$?
+        if [ "$got" != 0 ]; then
+            echo "FAIL $pd/main.aya: exit $got, want 0（#159 参数化约束 .lcl）"
+            fail=$((fail + 1))
+        fi
+        rm -f "$(dirname "$BIN")/std/lib.lcl"
+    else
+        echo "FAIL $pd: package failed（#159 夹具）"
+        fail=$((fail + 1))
+    fi
+    rm -rf "$root/build" "$pd/lib.lcl"
+fi
+
 # M-opt.1：debug/release 模式差异（溢出检查 / 推断 noalias、nounwind）
 if [ -f example/test_release_opt.aya ]; then
     "$BIN" build example/test_release_opt.aya >/dev/null 2>&1
