@@ -18,6 +18,19 @@ impl LirNode for SLirFieldTake {
             .unwrap_or_else(|| panic!("unknown struct type `{}`", struct_name));
         let obj_str = ctx.value_ref(&self.obj, &self.struct_ty);
         let field_llvm = ctx.llvm_type(&self.field_ty);
+        // 可深拷贝类型：字段读取为非破坏性 clone（源字段保留，各自 drop 一次）；
+        // 闭包/拥有胖指针/裸动态数组无 clone glue → 保持移出 + 源字段清零。
+        if super::helpers_clone::is_cloneable(&self.field_ty, &ctx.prog.struct_defs) {
+            let alloca = ctx.tmp();
+            let mut lines = vec![
+                format!("%t{} = getelementptr {}, ptr {}, i32 0, i32 {}", self.gep_tmp, struct_llvm, obj_str, self.field_index),
+                format!("%t{} = alloca {}, align 8", alloca, field_llvm),
+            ];
+            super::helpers_clone::emit_clone_value(
+                ctx, &format!("%t{}", alloca), &format!("%t{}", self.gep_tmp), &self.field_ty, None, &mut lines);
+            lines.push(format!("%t{} = load {}, ptr %t{}", self.dest, field_llvm, alloca));
+            return lines;
+        }
         vec![
             format!("%t{} = getelementptr {}, ptr {}, i32 0, i32 {}", self.gep_tmp, struct_llvm, obj_str, self.field_index),
             format!("%t{} = load {}, ptr %t{}", self.dest, field_llvm, self.gep_tmp),

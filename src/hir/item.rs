@@ -108,6 +108,8 @@ pub struct ImportedFnSig {
     pub effects: crate::hir::effects::EffectDecl,
     /// A3c：包导出的推断事实
     pub inferred: crate::hir::effects::EffectSet,
+    /// #166：extern "C" 声明（跨模块调用保留 C 符号名 + 实参借用）
+    pub extern_c: bool,
 }
 
 /// M6.2：全局变量（常量初始化，可寻址）

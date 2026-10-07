@@ -180,6 +180,16 @@ pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>
         HirType::Unique(inner) => HirType::Unique(Box::new(substitute_hir_type(inner, subst))),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => HirType::Array(Box::new(substitute_hir_type(inner, subst))),
         HirType::Ref(inner, mutable) => HirType::Ref(Box::new(substitute_hir_type(inner, subst)), *mutable),
+        // #164：闭包/裸函数指针签名内的泛型实参同样替换（字段闭包返回 U → String）
+        HirType::Closure(params, ret, owns, once) => HirType::Closure(
+            params.iter().map(|p| substitute_hir_type(p, subst)).collect(),
+            Box::new(substitute_hir_type(ret, subst)),
+            *owns, *once,
+        ),
+        HirType::FnPtr(params, ret) => HirType::FnPtr(
+            params.iter().map(|p| substitute_hir_type(p, subst)).collect(),
+            Box::new(substitute_hir_type(ret, subst)),
+        ),
         HirType::FatPtr { name, kind } => {
             // #161：接口名里的泛型实参同样要替换（Iterator<T> + T=int → Iterator<int>）
             let new_name = match substitute_hir_type(&HirType::Named(*name), subst) {

@@ -206,6 +206,7 @@ impl crate::hir::lower::Ctx {
                         inferred: Default::default(),
             hidden,
             is_noreturn,
+            extern_c: false,
         });
         self.fn_map.entry(*name).or_default().push(fid);
         self.specialized_ids.insert(fid);

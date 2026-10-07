@@ -220,6 +220,7 @@ impl crate::hir::lower::Ctx {
                         let hidden = if flags.iter().any(|f| f == "caller") { 3 } else { 0 };
                         let is_noreturn = flags.iter().any(|f| f == "noreturn")
                             || matches!(hir_ret, HirType::Never);
+                        let extern_c = flags.iter().any(|f| f == "extern");
                         self.fns.push(FnSig {
                             name: sym_name,
                             params: hir_params,
@@ -229,7 +230,9 @@ impl crate::hir::lower::Ctx {
                             span: crate::span::Span::default(),
                             hidden,
                             is_noreturn,
+                            extern_c,
                         });
+                        if extern_c { self.extern_fn_ids.insert(fn_id); }
                         self.fn_map.entry(sym_name).or_default().push(fn_id);
                     }
                     crate::package::ImportedSymbol::Const { name, ty, value } => {

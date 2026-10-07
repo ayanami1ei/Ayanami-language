@@ -127,6 +127,7 @@ impl crate::hir::lower::Ctx {
             span: Span::default(),
             hidden: 1,
             is_noreturn: matches!(hir_ret, HirType::Never),
+            extern_c: false,
         });
         self.fn_map.entry(name_sym).or_default().push(code_fn_id);
 
@@ -143,6 +144,7 @@ impl crate::hir::lower::Ctx {
             span: Span::default(),
             hidden: 0,
             is_noreturn: false,
+            extern_c: false,
         });
         self.fn_map.entry(drop_sym).or_default().push(drop_fn_id);
         self.lower_closure_drop_fn(drop_fn_id, drop_sym, &drop_params)?;

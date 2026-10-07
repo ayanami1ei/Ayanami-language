@@ -171,7 +171,7 @@ if [ -f example/test_extern_out_param.aya ]; then
 fi
 
 # #159/#149：参数化接口约束（I: Iterator[T]）与多约束（T: A + B）打包后方法可用
-for pd in tests/lcl_param_constraint tests/lcl_multi_constraint; do
+for pd in tests/lcl_param_constraint tests/lcl_multi_constraint tests/lcl_extern_arr; do
     [ -d "$pd" ] || continue
     root="$PWD"
     "$BIN" package "$pd/lib.aya" >/dev/null 2>&1 || true

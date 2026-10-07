@@ -66,6 +66,7 @@ impl crate::hir::lower::Ctx {
                         span: *span,
                         hidden,
                         is_noreturn,
+                        extern_c: *extern_c,
                     });
                     self.fn_map.entry(full_name).or_default().push(fn_id);
                     // extern "C" 声明（无体）：实参借用，不移动
@@ -171,6 +172,7 @@ impl crate::hir::lower::Ctx {
                         inferred: Default::default(),
                         hidden,
                                 is_noreturn,
+                                extern_c: false,
                             });
                             self.fn_map.entry(*name).or_default().push(fn_id);
                         } else {

@@ -39,6 +39,7 @@ pub fn lower_program(hir: &HirProgram) -> crate::error::Result<MirProgram> {
             attrs: f.attrs.clone(),
             effects: f.effects.clone(),
             inferred: f.inferred.clone(),
+            extern_c: f.extern_c,
         }).collect(),
     })
 }

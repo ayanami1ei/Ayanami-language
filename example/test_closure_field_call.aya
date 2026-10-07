@@ -1,0 +1,26 @@
+// #164：结构体字段闭包调用返回拥有值（String），直接返回与 Option 包装均正常
+import "string"
+import "option"
+
+struct Holder[T, U] {
+    Fn(T) -> U f
+}
+
+impl[T, U] Holder[T, U] {
+    pub fn call(ref self, T x) -> U {
+        return (self.f)(x)
+    }
+    pub fn call_opt(ref self, T x) -> Option[U] {
+        return Option::Some((self.f)(x))
+    }
+}
+
+fn main() -> int {
+    h = Holder[String, String] { f = (String w) -> String { return w.to_upper() } }
+    y = h.call("quick")
+    if y != "QUICK" { return 1 }
+    o = h.call_opt("quick")
+    if o._tag != 0 { return 2 }
+    if o._data_Some._0 != "QUICK" { return 3 }
+    return 0
+}

@@ -70,7 +70,7 @@ impl Package {
 
     fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str) {
         match stmt {
-            Stmt::FnDecl { vis, name, params, return_type, generic_params, attrs, .. } => {
+            Stmt::FnDecl { vis, name, params, return_type, generic_params, attrs, extern_c, .. } => {
                 if !generic_params.is_empty() {
                     // #145：顶层泛型自由函数序列化进 generic_sources（导入侧注册 + 调用点单态化）
                     if all || vis.is_public() {
@@ -135,6 +135,10 @@ impl Package {
                     // M1.9：`#[noreturn]` 随包导出（导入侧调用类型为 `!`）
                     if crate::hir::attrs::has(attrs, "noreturn") {
                         flags.push("noreturn".to_string());
+                    }
+                    // #166：extern "C" 声明随包导出（导入侧保留 C 符号名 + 实参借用）
+                    if *extern_c {
+                        flags.push("extern".to_string());
                     }
                     // 函数级 track_caller：末尾保留参数 __line/__col/__file
                     let hidden = params.iter().rev()

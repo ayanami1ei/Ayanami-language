@@ -4,6 +4,35 @@
 //! （源集合销毁时释放原值）——读取多次、迭代、pop/remove 位移均安全无泄漏。
 use super::*;
 
+/// 字段读取是否可安全深拷贝：闭包/拥有胖指针（无 clone glue）与裸动态 `[T]`
+/// （无计数）不可；其余（基元/Named/静态数组/unique 非数组）可。
+pub(crate) fn is_cloneable(
+    ty: &HirType,
+    defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>,
+) -> bool {
+    match ty {
+        HirType::Closure(..) | HirType::FatPtr { .. } => false,
+        HirType::Unique(inner) => {
+            !matches!(inner.as_ref(), HirType::Array(_)) && field_cloneable(inner, defs)
+        }
+        _ => field_cloneable(ty, defs),
+    }
+}
+
+/// 结构体字段上下文（动态数组有兄弟计数，可深拷贝）。
+fn field_cloneable(ty: &HirType, defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
+    match ty {
+        HirType::Closure(..) | HirType::FatPtr { .. } => false,
+        HirType::Unique(inner) | HirType::Array(inner) | HirType::ArraySized(inner, _) =>
+            field_cloneable(inner, defs),
+        HirType::Named(n) => defs
+            .get(n)
+            .map(|fs| fs.iter().all(|(_, ft)| field_cloneable(ft, defs)))
+            .unwrap_or(false),
+        _ => true,
+    }
+}
+
 /// 类型是否需要深拷贝（拥有堆数据）。
 fn deep(ty: &HirType, defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     needs_drop(ty, defs)

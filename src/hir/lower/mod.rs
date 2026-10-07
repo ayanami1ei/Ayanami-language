@@ -56,6 +56,8 @@ pub(crate) struct FnSig {
     pub hidden: usize,
     /// M1.9：调用不返回（`-> !` 或 `#[noreturn]`）——调用表达式类型为 `!`
     pub is_noreturn: bool,
+    /// #166：extern "C" 声明（含包导入）——调用保留 C 符号名、实参借用
+    pub extern_c: bool,
 }
 
 /// 接口注册信息 —— 记录接口的泛型参数和方法签名
@@ -124,6 +126,7 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
             attrs: Vec::new(),
             effects: sig.effects.clone(),
             inferred: sig.inferred.clone(),
+            extern_c: sig.extern_c,
         })
         .collect();
 

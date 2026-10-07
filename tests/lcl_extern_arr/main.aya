@@ -1,0 +1,9 @@
+import "lib"
+
+fn main() -> int {
+    c1 = ['h', 'i', '\0']
+    if strlen(c1) != 2 { return 1 }
+    c2 = ['o', 'k', '\0']
+    if run(c2) != 2 { return 2 }
+    return 0
+}

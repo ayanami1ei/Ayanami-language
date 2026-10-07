@@ -1,0 +1,29 @@
+// #165：拥有字段/枚举载荷读取多次（clone 非破坏性），无泄漏
+import "io"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+struct S {
+    String v
+}
+
+fn run() -> int {
+    s = S { v = "quick" }
+    f = (String w) -> bool { return w.len > 4 }
+    if f(s.v) {
+        x = s.v
+        if x != "quick" { return 1 }
+    }
+    o = Option::Some("quick")
+    if f(o._data_Some._0) {
+        y = o._data_Some._0
+        if y != "quick" { return 2 }
+    }
+    return 0
+}
+
+fn main() -> int {
+    if run() != 0 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

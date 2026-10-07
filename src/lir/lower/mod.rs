@@ -73,7 +73,12 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
 
     for imp in &mir.imported_fns {
         if !fn_names.contains_key(&imp.fn_id) {
-            let name = mangle("", &imp.name.as_str(), &imp.params);
+            // #166：extern "C" 声明跨模块调用保留裸 C 符号名（不按参数类型 mangle）
+            let name = if imp.extern_c {
+                imp.name.as_str().to_string()
+            } else {
+                mangle("", &imp.name.as_str(), &imp.params)
+            };
             fn_names.insert(imp.fn_id, name);
         }
     }
@@ -119,7 +124,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
             attrs: util::attrs_to_lir(&imp.attrs),
             param_attrs: Vec::new(), // 包导入暂不携带形参标注
             effects: util::lir_effects(&imp.effects, &Default::default(), false), // 导入：仅信任承诺
-            extern_c: false,
+            extern_c: imp.extern_c,
         });
     }
 

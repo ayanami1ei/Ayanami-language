@@ -57,6 +57,7 @@ impl crate::hir::lower::Ctx {
             span: Span::default(),
             hidden: 0,
             is_noreturn: matches!(ret, HirType::Never),
+            extern_c: false,
         });
         self.fn_map.entry(name).or_default().push(fn_id);
 
@@ -129,6 +130,7 @@ impl crate::hir::lower::Ctx {
             span: Span::default(),
             hidden: 0,
             is_noreturn: false,
+            extern_c: false,
         });
         self.fn_map.entry(name).or_default().push(fn_id);
         self.lambda_fns.push(HirFn {

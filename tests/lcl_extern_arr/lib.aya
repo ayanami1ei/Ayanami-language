@@ -1,0 +1,6 @@
+// #166：extern "C" 声明跨模块调用保留 C 符号名（数组实参不 mangle）
+extern "C" fn strlen([char] s) -> int;
+
+pub fn run([char] s) -> int {
+    return strlen(s)
+}
