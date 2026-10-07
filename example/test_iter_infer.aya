@@ -1,0 +1,74 @@
+// #160：从参数化约束（I: It[T]）推断元素类型 T（适配器构造）
+import "option"
+
+interface It[T] {
+    fn next(ref mut self) -> Option[T];
+}
+
+struct RangeIt {
+    int cur
+    int end
+}
+
+impl RangeIt {
+    #[state]
+    fn next(ref mut self) -> Option[int] {
+        if self.cur >= self.end { return Option::None() }
+        v = self.cur
+        self.cur = self.cur + 1
+        return Option::Some(v)
+    }
+}
+
+struct TakeIt[T, I: It[T]] {
+    I inner
+    usize left
+}
+
+namespace TakeIt {
+    pub fn new[T, I: It[T]](I inner, usize n) -> TakeIt[T, I] {
+        return TakeIt[T, I] { inner = inner, left = n }
+    }
+}
+
+impl[T, I: It[T]] TakeIt[T, I] {
+    #[state]
+    fn next(ref mut self) -> Option[T] {
+        if self.left == 0 { return Option::None() }
+        self.left = self.left - 1
+        return self.inner.next()
+    }
+}
+
+struct ZipIt[T, U, I: It[T], J: It[U]] {
+    I a
+    J b
+}
+
+namespace ZipIt {
+    pub fn new[T, U, I: It[T], J: It[U]](I a, J b) -> ZipIt[T, U, I, J] {
+        return ZipIt[T, U, I, J] { a = a, b = b }
+    }
+}
+
+impl[T, U, I: It[T], J: It[U]] ZipIt[T, U, I, J] {
+    #[state]
+    fn next(ref mut self) -> Option[T] {
+        oa = self.a.next()
+        ob = self.b.next()
+        if oa._tag != 0 || ob._tag != 0 { return Option::None() }
+        return Option::Some(oa._data_Some._0 + ob._data_Some._0)
+    }
+}
+
+fn main() -> int {
+    // 只给 I 实参 → T 从约束推断
+    t = TakeIt::new(RangeIt { cur = 0, end = 5 }, 2usize)
+    s1 = 0
+    for x in t { s1 = s1 + x }        // 0 + 1 = 1
+    // 双约束（T/U 都从约束推断）
+    z = ZipIt::new(RangeIt { cur = 0, end = 2 }, RangeIt { cur = 10, end = 12 })
+    s2 = 0
+    for x in z { s2 = s2 + x }        // (0+10) + (1+11) = 22
+    return s1 + s2 - 23
+}

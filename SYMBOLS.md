@@ -497,6 +497,9 @@ src/hir/lower/body/generic_types.rs:101: pub(crate) fn check_param_operator(
 src/hir/lower/body/generic_types.rs:140: pub(crate) fn check_param_method(
 src/hir/lower/body/if_expr.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/if_expr.rs:6: pub(crate) fn lower_if_expr(
+src/hir/lower/body/iface_args.rs:8: impl crate::hir::lower::Ctx
+src/hir/lower/body/iface_args.rs:10: pub(crate) fn infer_iface_args_for_concrete(
+src/hir/lower/body/iface_args.rs:74: pub(crate) fn check_generic_constraint(
 src/hir/lower/body/iface_match.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/iface_match.rs:4: pub(crate) fn infer_iface_generic(expected: &HirType, actual: &HirType,
 src/hir/lower/body/iface_match.rs:33: pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
@@ -558,43 +561,44 @@ src/hir/lower/body/match_util.rs:53: pub(super) fn block_diverges(b: &HirBlock) 
 src/hir/lower/body/mod.rs:10: mod collect_fns;
 src/hir/lower/body/mod.rs:11: mod collect_ns;
 src/hir/lower/body/mod.rs:12: mod vtables;
-src/hir/lower/body/mod.rs:13: mod iface_match;
-src/hir/lower/body/mod.rs:14: mod overload_resolve;
-src/hir/lower/body/mod.rs:15: mod generic_check;
-src/hir/lower/body/mod.rs:16: mod generic_locals;
-src/hir/lower/body/mod.rs:17: mod generic_specialize;
-src/hir/lower/body/mod.rs:18: mod generic_types;
-src/hir/lower/body/mod.rs:19: mod lower_items;
-src/hir/lower/body/mod.rs:20: mod stmt_lower;
-src/hir/lower/body/mod.rs:21: mod stmt_loops;
-src/hir/lower/body/mod.rs:22: mod ref_assign;
-src/hir/lower/body/mod.rs:23: mod expr_method;
-src/hir/lower/body/mod.rs:24: mod match_coverage;
-src/hir/lower/body/mod.rs:25: mod match_lower;
-src/hir/lower/body/mod.rs:26: mod match_pattern;
-src/hir/lower/body/mod.rs:27: mod match_util;
-src/hir/lower/body/mod.rs:28: mod usage_infer;
-src/hir/lower/body/mod.rs:29: mod macro_call;
-src/hir/lower/body/mod.rs:30: mod expr_logic;
-src/hir/lower/body/mod.rs:31: mod expr_lower;
-src/hir/lower/body/mod.rs:32: mod if_expr;
-src/hir/lower/body/mod.rs:33: mod ensure;
-src/hir/lower/body/mod.rs:34: mod literal;
-src/hir/lower/body/mod.rs:35: mod collect_enum;
-src/hir/lower/body/mod.rs:36: mod const_coerce;
-src/hir/lower/body/mod.rs:37: mod const_array;
-src/hir/lower/body/mod.rs:38: mod const_struct;
-src/hir/lower/body/mod.rs:39: mod const_eval;
-src/hir/lower/body/mod.rs:40: mod const_fn;
-src/hir/lower/body/mod.rs:41: mod collect_import;
-src/hir/lower/body/mod.rs:42: mod expr_access;
-src/hir/lower/body/mod.rs:43: mod expr_call;
-src/hir/lower/body/mod.rs:44: mod expr_call_extra;
-src/hir/lower/body/mod.rs:45: mod block_lower;
-src/hir/lower/body/mod.rs:46: mod expr_cast;
-src/hir/lower/body/mod.rs:47: mod expr_enum;
-src/hir/lower/body/mod.rs:48: mod expr_misc;
-src/hir/lower/body/mod.rs:49: mod expr_ops1;
+src/hir/lower/body/mod.rs:13: mod iface_args;
+src/hir/lower/body/mod.rs:14: mod iface_match;
+src/hir/lower/body/mod.rs:15: mod overload_resolve;
+src/hir/lower/body/mod.rs:16: mod generic_check;
+src/hir/lower/body/mod.rs:17: mod generic_locals;
+src/hir/lower/body/mod.rs:18: mod generic_specialize;
+src/hir/lower/body/mod.rs:19: mod generic_types;
+src/hir/lower/body/mod.rs:20: mod lower_items;
+src/hir/lower/body/mod.rs:21: mod stmt_lower;
+src/hir/lower/body/mod.rs:22: mod stmt_loops;
+src/hir/lower/body/mod.rs:23: mod ref_assign;
+src/hir/lower/body/mod.rs:24: mod expr_method;
+src/hir/lower/body/mod.rs:25: mod match_coverage;
+src/hir/lower/body/mod.rs:26: mod match_lower;
+src/hir/lower/body/mod.rs:27: mod match_pattern;
+src/hir/lower/body/mod.rs:28: mod match_util;
+src/hir/lower/body/mod.rs:29: mod usage_infer;
+src/hir/lower/body/mod.rs:30: mod macro_call;
+src/hir/lower/body/mod.rs:31: mod expr_logic;
+src/hir/lower/body/mod.rs:32: mod expr_lower;
+src/hir/lower/body/mod.rs:33: mod if_expr;
+src/hir/lower/body/mod.rs:34: mod ensure;
+src/hir/lower/body/mod.rs:35: mod literal;
+src/hir/lower/body/mod.rs:36: mod collect_enum;
+src/hir/lower/body/mod.rs:37: mod const_coerce;
+src/hir/lower/body/mod.rs:38: mod const_array;
+src/hir/lower/body/mod.rs:39: mod const_struct;
+src/hir/lower/body/mod.rs:40: mod const_eval;
+src/hir/lower/body/mod.rs:41: mod const_fn;
+src/hir/lower/body/mod.rs:42: mod collect_import;
+src/hir/lower/body/mod.rs:43: mod expr_access;
+src/hir/lower/body/mod.rs:44: mod expr_call;
+src/hir/lower/body/mod.rs:45: mod expr_call_extra;
+src/hir/lower/body/mod.rs:46: mod block_lower;
+src/hir/lower/body/mod.rs:47: mod expr_cast;
+src/hir/lower/body/mod.rs:48: mod expr_enum;
+src/hir/lower/body/mod.rs:49: mod expr_misc;
+src/hir/lower/body/mod.rs:50: mod expr_ops1;
 src/hir/lower/body/overload_resolve.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
@@ -2447,6 +2451,20 @@ example/test_int_width.aya:23: fn plus32(self, i32 other) -> i32 { return self +
 example/test_int_width.aya:26: fn main() -> int
 example/test_invariant.aya:3: fn win_only() -> int { return 1 }
 example/test_invariant.aya:5: fn main() -> int
+example/test_iter_infer.aya:4: interface It[T]
+example/test_iter_infer.aya:5: fn next(ref mut self) -> Option[T];
+example/test_iter_infer.aya:8: struct RangeIt
+example/test_iter_infer.aya:13: impl RangeIt
+example/test_iter_infer.aya:15: fn next(ref mut self) -> Option[int]
+example/test_iter_infer.aya:23: struct TakeIt[T, I: It[T]]
+example/test_iter_infer.aya:29: pub fn new[T, I: It[T]](I inner, usize n) -> TakeIt[T, I]
+example/test_iter_infer.aya:34: impl[T, I: It[T]] TakeIt[T, I]
+example/test_iter_infer.aya:36: fn next(ref mut self) -> Option[T]
+example/test_iter_infer.aya:43: struct ZipIt[T, U, I: It[T], J: It[U]]
+example/test_iter_infer.aya:49: pub fn new[T, U, I: It[T], J: It[U]](I a, J b) -> ZipIt[T, U, I, J]
+example/test_iter_infer.aya:54: impl[T, U, I: It[T], J: It[U]] ZipIt[T, U, I, J]
+example/test_iter_infer.aya:56: fn next(ref mut self) -> Option[T]
+example/test_iter_infer.aya:64: fn main() -> int
 example/test_lambda_generic_method.aya:2: enum Opt[T] { Some(T), None }
 example/test_lambda_generic_method.aya:4: impl[T] Opt[T]
 example/test_lambda_generic_method.aya:5: pub fn map[U](self, Fn(T) -> U f) -> Opt[U]
