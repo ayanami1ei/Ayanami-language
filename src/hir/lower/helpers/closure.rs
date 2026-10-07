@@ -208,17 +208,8 @@ fn walk_expr(
             }
         }
         Expr::Cast { expr, .. } => walk_expr(ctx, expr, declared, caps)?,
-        Expr::Move(inner, span) => {
-            // 显式 `move x`：捕获值不可移出闭包（FnOnce 语义留待 C3）
-            if let Expr::Ident(n, _) = &**inner {
-                if !declared.contains(n) && enclosing_var_type(ctx, n).is_some() {
-                    return Err(Error::Hir(format!(
-                        "cannot move captured variable `{}` out of a closure (FnOnce is not supported yet; \
-                         use `.clone()`) (at {}:{})",
-                        n.as_str(), span.start_line, span.start_col
-                    )));
-                }
-            }
+        Expr::Move(inner, _) => {
+            // FnOnce：移出捕获由 HIR 检测并标记为 FnOnce（closure_lower.rs）
             walk_expr(ctx, inner, declared, caps)?;
         }
         Expr::Clone(inner, _) | Expr::ToUnique(inner, _) | Expr::TryOp(inner, _) => {

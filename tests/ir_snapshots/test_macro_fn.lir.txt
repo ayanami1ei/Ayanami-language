@@ -2,7 +2,7 @@ LIR Program
 Strings: 1 entries
   @__str_0 = "example/macro_lib.aya"
 
-fn main (fn_id=90) -> Int [10 blocks]
+fn main (fn_id=92) -> Int [10 blocks]
   local x: Int
   local y: Int
   local l: Int
@@ -22,7 +22,7 @@ entry:
     alloca v7 : Int
     t0 = str_global @__str_0
     t1 = struct_lit String (2 fields)
-    t5 = call fn91 (Literal(Int(3), Int):Int, Literal(Int(3), Int):Int, Literal(Int(1), Int):Int, Literal(Int(4), Int):Int, Tmp(1):Named(Symbol(N))) : Int
+    t5 = call fn93 (Literal(Int(3), Int):Int, Literal(Int(3), Int):Int, Literal(Int(1), Int):Int, Literal(Int(4), Int):Int, Tmp(1):Named(Symbol(N))) : Int
     store Tmp(5) -> v0 : Int
     t6 = load v0 : Int
     t7 = Neq Tmp(6) Literal(Int(6), Int) : Int
@@ -37,13 +37,13 @@ else1:
 ifcont2:
     t9 = str_global @__str_0
     t10 = struct_lit String (2 fields)
-    t14 = call fn91 (Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(4), Int):Int, Tmp(10):Named(Symbol(N))) : Int
+    t14 = call fn93 (Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(4), Int):Int, Tmp(10):Named(Symbol(N))) : Int
     t15 = str_global @__str_0
     t16 = struct_lit String (2 fields)
-    t20 = call fn91 (Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(4), Int):Int, Tmp(16):Named(Symbol(N))) : Int
+    t20 = call fn93 (Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(1), Int):Int, Literal(Int(4), Int):Int, Tmp(16):Named(Symbol(N))) : Int
     t21 = str_global @__str_0
     t22 = struct_lit String (2 fields)
-    t26 = call fn91 (Tmp(14):Int, Tmp(20):Int, Literal(Int(1), Int):Int, Literal(Int(13), Int):Int, Tmp(22):Named(Symbol(N))) : Int
+    t26 = call fn93 (Tmp(14):Int, Tmp(20):Int, Literal(Int(1), Int):Int, Literal(Int(13), Int):Int, Tmp(22):Named(Symbol(N))) : Int
     store Tmp(26) -> v1 : Int
     t27 = load v1 : Int
     t28 = Neq Tmp(27) Literal(Int(4), Int) : Int

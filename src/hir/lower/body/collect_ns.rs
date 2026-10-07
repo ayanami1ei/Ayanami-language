@@ -18,7 +18,7 @@ impl crate::hir::lower::Ctx {
     pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()> {
         for stmt in stmts {
             match stmt {
-                Stmt::FnDecl { name, params, return_type, generic_params, extern_c, span, attrs, .. } => {
+                Stmt::FnDecl { name, params, return_type, generic_params, extern_c, span, attrs, body, .. } => {
                     let full_name = if ns_prefix.is_empty() {
                         *name
                     } else {
@@ -68,6 +68,10 @@ impl crate::hir::lower::Ctx {
                         is_noreturn,
                     });
                     self.fn_map.entry(full_name).or_default().push(fn_id);
+                    // extern "C" 声明（无体）：实参借用，不移动
+                    if *extern_c && body.stmts.is_empty() {
+                        self.extern_fn_ids.insert(fn_id);
+                    }
                 }
                 Stmt::Namespace { name, items, .. } => {
                     let nested = if ns_prefix.is_empty() {

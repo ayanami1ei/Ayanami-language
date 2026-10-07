@@ -25,7 +25,7 @@ impl crate::hir::lower::Ctx {
             value: raw_fn,
             concrete_type: concrete,
             interface_name: iface,
-            ty: HirType::Closure(ps.to_vec(), Box::new(ret.clone()), false),
+            ty: HirType::Closure(ps.to_vec(), Box::new(ret.clone()), false, false),
         }.into()
     }
 
@@ -36,7 +36,7 @@ impl crate::hir::lower::Ctx {
             return v.clone();
         }
         let noop = self.ensure_noop_drop();
-        let sig_ty = HirType::Closure(ps.to_vec(), Box::new(ret.clone()), false);
+        let sig_ty = HirType::Closure(ps.to_vec(), Box::new(ret.clone()), false, false);
         let concrete = Symbol::intern(&format!("__fnptr_tramp_{}", mangle_for_symbol(&sig_ty)));
         let name = concrete;
         let fn_id = FnId(self.fns.len());

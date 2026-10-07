@@ -37,6 +37,7 @@ pub(crate) fn unify_legacy_fn_type(ty: &HirType) -> HirType {
             ps.iter().map(unify_legacy_fn_type).collect(),
             Box::new(unify_legacy_fn_type(ret)),
             true,
+            false,
         ),
         HirType::Unique(inner) => HirType::Unique(Box::new(unify_legacy_fn_type(inner))),
         HirType::Array(inner) => HirType::Array(Box::new(unify_legacy_fn_type(inner))),
@@ -46,10 +47,11 @@ pub(crate) fn unify_legacy_fn_type(ty: &HirType) -> HirType {
             name: *name,
             kind: Box::new(unify_legacy_fn_type(kind)),
         },
-        HirType::Closure(ps, ret, owns) => HirType::Closure(
+        HirType::Closure(ps, ret, owns, once) => HirType::Closure(
             ps.iter().map(unify_legacy_fn_type).collect(),
             Box::new(unify_legacy_fn_type(ret)),
             *owns,
+            *once,
         ),
         other => other.clone(),
     }

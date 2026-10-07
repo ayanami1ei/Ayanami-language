@@ -1,0 +1,15 @@
+// 字段移出：源字段清零，源结构 drop 不再重复释放（通用健全性）
+extern "C" fn __ayanami_live_allocs() -> int;
+
+struct S { [int] data }
+
+fn run() -> int {
+    x = S { data = [1, 2, 3] }
+    y = x.data
+    return y[0]
+}
+
+fn main() -> int {
+    r = run()
+    return r + __ayanami_live_allocs() * 100 - 1
+}

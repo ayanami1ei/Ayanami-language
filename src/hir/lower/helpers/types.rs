@@ -21,7 +21,8 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
             type_to_string_generic(inner, interfaces)),
         Type::Unique(inner, _) => format!("unique {}", type_to_string_generic(inner, interfaces)),
         Type::FnPtr(..) => "fn(...)".to_string(),
-        Type::Closure(ps, ret, _) => format!("Fn({})->{}",
+        Type::Closure(ps, ret, _, once) => format!("{}({})->{}",
+            if *once { "FnOnce" } else { "Fn" },
             ps.iter().map(|p| type_to_string_generic(p, interfaces)).collect::<Vec<_>>().join(","),
             type_to_string_generic(ret, interfaces)),
         Type::Self_(_) => "Self".into(),
@@ -56,7 +57,7 @@ pub(crate) fn intn_name(bits: u8, signed: bool) -> String {
 pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
     let s = s.trim();
     // M2：闭包签名 `Fn(T1,T2)->R`（.lcl 导出格式；见 type_to_string_generic）
-    if let Some(rest) = s.strip_prefix("Fn(") {
+    if let Some((rest, once)) = s.strip_prefix("FnOnce(").map(|r| (r, true)).or_else(|| s.strip_prefix("Fn(").map(|r| (r, false))) {
         let mut depth = 1i32;
         let mut close = None;
         for (i, c) in rest.char_indices() {
@@ -78,7 +79,7 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
                 } else {
                     split_generic_args(params_str).iter().map(|p| sig_str_to_hir(p.trim())).collect()
                 };
-                return HirType::Closure(params, Box::new(sig_str_to_hir(ret_str.trim())), true);
+                return HirType::Closure(params, Box::new(sig_str_to_hir(ret_str.trim())), true, once);
             }
         }
     }
@@ -161,10 +162,11 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         Type::Bool(_) => HirType::Bool,
         Type::Void(_) => HirType::Void,
         Type::Never(_) => HirType::Never,
-        Type::Closure(ps, ret, _) => HirType::Closure(
+        Type::Closure(ps, ret, _, once) => HirType::Closure(
             ps.iter().map(|p| ast_type_to_hir(p, interfaces)).collect(),
             Box::new(ast_type_to_hir(ret, interfaces)),
             true,
+            *once,
         ),
         // `[T]` 即拥有堆数组（unique 已移除；借用写 `ref [T]`）
         Type::Array(inner, _) => HirType::Unique(Box::new(HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))))),
@@ -212,6 +214,7 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
             params.iter().map(|p| ast_type_to_hir(p, interfaces)).collect(),
             Box::new(ast_type_to_hir(ret, interfaces)),
             true,
+            false,
         ),
         Type::Self_(_) => {
             // 接口签名中的 `Self`（实现类型哨兵）；impl 方法签名已由解析器替换为具体类型。
@@ -244,7 +247,8 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
         HirType::Named(s) => s.as_str().to_string(),
         HirType::Unique(inner) => format!("unique {}", hir_type_display(inner)),
         HirType::FnPtr(..) => "fn(...)".into(),
-        HirType::Closure(ps, ret, _) => format!("Fn({}) -> {}",
+        HirType::Closure(ps, ret, _, once) => format!("{}({}) -> {}",
+            if *once { "FnOnce" } else { "Fn" },
             ps.iter().map(hir_type_display).collect::<Vec<_>>().join(", "),
             hir_type_display(ret)),
         HirType::FatPtr { name, kind } => format!("{} {}", hir_type_display(kind), name.as_str()),

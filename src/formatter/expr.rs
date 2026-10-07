@@ -5,7 +5,7 @@ pub(super) fn write_type(ty: &Type) -> String {
     match ty {
         Type::Default => "???".into(),
         Type::FnPtr(params, ret, _) => write_fn_type("fn", params, ret),
-        Type::Closure(params, ret, _) => write_fn_type("Fn", params, ret),
+        Type::Closure(params, ret, _, once) => write_fn_type(if *once { "FnOnce" } else { "Fn" }, params, ret),
         Type::Int(_) => "int".into(),
         Type::Float(_) => "float".into(),
         Type::Char(_) => "char".into(),
