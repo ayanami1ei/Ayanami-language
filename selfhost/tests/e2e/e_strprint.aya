@@ -1,0 +1,7 @@
+import "io";
+
+fn main() -> int {
+    print("x=")
+    println(42)
+    return 0
+}

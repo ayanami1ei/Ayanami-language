@@ -1,0 +1,6 @@
+import "io";
+
+fn main() -> int {
+    println("hello, ayanami")
+    return 0
+}
