@@ -220,6 +220,15 @@ impl Parser {
         }
     }
 
+    fn error_at(ref mut self, ref String msg, int line, int col) {
+        if self.failed == 0 {
+            self.failed = 1;
+            self.err = msg.copy();
+            self.err_line = line;
+            self.err_col = col;
+        }
+    }
+
     fn error(ref mut self, ref String msg) {
         if self.failed == 0 {
             self.failed = 1;
@@ -1387,6 +1396,8 @@ impl Parser {
     }
 
     fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int {
+        bline = self.cur.line;
+        bcol = self.cur.col;
         self.expect_delim(D::LBrace._tag, "expected { in struct literal");
         head = -1;
         while true {
@@ -1395,7 +1406,7 @@ impl Parser {
             if self.failed == 1 { break; }
             fname = self.expect_ident("expected field name");
             if !self.eat_op("=") {
-                self.error("expected = in struct literal");
+                self.error_at("expected expression", bline, bcol);
                 break;
             }
             val = self.parse_expr();

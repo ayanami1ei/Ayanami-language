@@ -8,6 +8,7 @@
 #   ./scripts/selfhost.sh kb "QUERY"     # 知识库检索（供本地模型提示词使用）
 #   ./scripts/selfhost.sh tokens [GLOB]   # 词法 golden：与 rust lexdump 对比 token 流
 #   ./scripts/selfhost.sh ast [GLOB]      # 语法 golden：与 rust `dump ast` 对比 AST 树
+#   ./scripts/selfhost.sh errs            # 错误定位 golden：与 rust check 的首个错误 line:col 对比
 #   ./scripts/selfhost.sh diff [GLOB]    # stage-0/stage-1 差分（stage-1 存在后生效）
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -142,6 +143,34 @@ cmd_ast() {
     [[ $fail -eq 0 ]]
 }
 
+cmd_errs() {
+    local s0; s0=$(stage0)
+    echo "== 构建 stage-0 ast_dump =="
+    run_limited "$s0" run --release "$ROOT/selfhost/tests/ast_dump.aya" >/dev/null 2>&1 || true
+    [[ -x "$ROOT/build/ast_dump" ]] || { echo "ast_dump 构建失败"; exit 6; }
+    local fail=0 total=0
+    shopt -s nullglob
+    for f in "$ROOT"/selfhost/tests/parse_bad/*.aya; do
+        total=$((total + 1))
+        rp=$(run_limited "$s0" check --release "$f" 2>&1 | grep -oE ':[0-9]+:[0-9]+' | head -1 || true)
+        out=$(run_limited env PARSE_FILE="$f" "$ROOT/build/ast_dump" 2>&1 || true)
+        ln=$(printf '%s\n' "$out" | sed -n '3p')
+        co=$(printf '%s\n' "$out" | sed -n '4p')
+        op=":$ln:$co"
+        if [[ -z "$rp" ]]; then
+            echo "ERR OK $(basename "$f") rust=<none>（EOF 错误无位置）"
+        elif [[ "$rp" == "$op" ]]; then
+            echo "ERR OK $(basename "$f") rust=$rp"
+        else
+            echo "ERR DIFF $(basename "$f") rust=${rp:-<none>} ours=$op"
+            fail=$((fail + 1))
+        fi
+    done
+    shopt -u nullglob
+    echo "errs: $((total - fail))/$total 一致"
+    [[ $fail -eq 0 ]]
+}
+
 cmd_diff() {
     local pattern="${1:-example/*.aya}"
     if [[ ! -x "$ROOT/selfhost/build/ayanami" ]]; then
@@ -170,6 +199,7 @@ case "${1:-}" in
     kb) shift; python3 "$ROOT/tools/kb/kb.py" search "$@" ;;
     tokens) shift; cmd_tokens "$@" ;;
     ast) shift; cmd_ast "$@" ;;
+    errs) shift; cmd_errs "$@" ;;
     diff) shift; cmd_diff "$@" ;;
     *) sed -n '2,12p' "$0"; exit 1 ;;
 esac

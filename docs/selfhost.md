@@ -146,7 +146,7 @@ selfhost/
 | M0 | ✅ 完成 | `f7d0b58` |
 | M1 | ✅ 完成 | `42a10da` |
 | M2 | ✅ 完成 | `lexer/token.aya` + `lexer/lexer.aya`；golden 130 文件零差异 |
-| M3 | 🔄 覆盖完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位对齐待补 |
+| M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 
 M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf）、`base/map.aya`（IntMap[V] 开放寻址）、
 `base/intern.aya`（驻留，内联槽位表）、`base/sys.aya`（argv/env/system）、`base/log.aya`（stderr 诊断）；
