@@ -36,6 +36,21 @@ pub fn warn_at(ref String file, int line, int col, ref String msg) {
 
 #[alloc]
 #[state]
+/// rust 风格内联位置诊断：`error: msg (位置 line:col)`（无 --> 行）
+pub fn inline_error(ref String msg, int line, int col) {
+    b = StringBuf::new();
+    b.push_str("error: ");
+    b.push_str(msg);
+    b.push_str(" (位置 ");
+    b.push_int(line);
+    b.push_str(":");
+    b.push_int(col);
+    b.push_str(")\n");
+    s = b.to_string();
+    c = to_cstr(s);
+    write(2, c, s.len as int);
+}
+
 pub fn note(ref String msg) {
     b = StringBuf::new();
     b.push_str("note: ");

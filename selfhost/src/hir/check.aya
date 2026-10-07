@@ -434,7 +434,19 @@ impl Checker {
             nm = ast.texts[id];
             st = self.find_struct(nm);
             if st < 0 {
-                self.err_name("undefined struct `", nm, ast.lines[id], ast.cols[id]);
+                // rust：unknown struct `Q` in struct literal（位置=首个字段值；无字段时用字面量位置）
+                eline = ast.lines[id];
+                ecol = ast.cols[id];
+                f0 = ast.aa[id];
+                if f0 >= 0 {
+                    eline = ast.lines[ast.aa[f0]];
+                    ecol = ast.cols[ast.aa[f0]];
+                }
+                b = StringBuf::new();
+                b.push_str("unknown struct `");
+                b.push_str(nm);
+                b.push_str("` in struct literal");
+                self.err(b.to_string(), eline, ecol);
                 return "";
             }
             f = ast.aa[id];
@@ -442,7 +454,19 @@ impl Checker {
                 vt = self.check_expr(ast, ast.aa[f]);
                 fi = self.find_field(st, ast.texts[f]);
                 if fi < 0 {
-                    self.err_name("no field `", ast.texts[f], ast.lines[f], ast.cols[f]);
+                    // rust：struct `P` has no field `y`（位置=字段值）
+                    vpos = ast.aa[f];
+                    b = StringBuf::new();
+                    b.push_str("struct `");
+                    b.push_str(nm);
+                    b.push_str("` has no field `");
+                    b.push_str(ast.texts[f]);
+                    b.push_str("`");
+                    if vpos >= 0 {
+                        self.err(b.to_string(), ast.lines[vpos], ast.cols[vpos]);
+                    } else {
+                        self.err(b.to_string(), ast.lines[f], ast.cols[f]);
+                    }
                 } else {
                     ft = self.fld_types[fi];
                     if !convertible(vt, ft) {
@@ -459,7 +483,15 @@ impl Checker {
             if st >= 0 {
                 fi = self.find_field(st, ast.texts[id]);
                 if fi < 0 {
-                    self.err_name("no field `", ast.texts[id], ast.lines[id], ast.cols[id]);
+                    // rust：内联中文格式 `结构体 `P` 没有字段 `z``（位置=点号）
+                    b = StringBuf::new();
+                    b.push_str("结构体 `");
+                    b.push_str(ot);
+                    b.push_str("` 没有字段 `");
+                    b.push_str(ast.texts[id]);
+                    b.push_str("`");
+                    inline_error(b.to_string(), ast.lines[id], ast.cols[id]);
+                    self.errors = self.errors + 1;
                     return "";
                 }
                 return self.fld_types[fi].copy();

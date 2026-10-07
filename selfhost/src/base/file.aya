@@ -2,13 +2,12 @@ import "string";
 import "aya_sb";
 
 // 文件读写（FFI；FILE* 用 int 承载，x86-64 指针/整数同寄存器）
-// 单字节读写走 fread/fwrite + ref int 槽：
-//   - 返回 size_t（i64）ABI 干净；C 的 int（fgetc）上 32 位是脏的，EOF 会变小正数
-//   - ref int 形参不搬移 [char]，避免所有权移动
+// 单字节读写用 fgetc/fputc + i32 返回：C 的 int 上 32 位脏，定宽 i32 声明后 ABI 正确；
+// 不用 fread(ref int) 出参（issue #154：extern ref 实参写不回调用方）
 extern "C" fn fopen([char] path, [char] mode) -> int;
 extern "C" fn fclose(int f) -> int;
-extern "C" fn fread(ref int slot, int size, int n, int f) -> int;
-extern "C" fn fwrite(ref int slot, int size, int n, int f) -> int;
+extern "C" fn fgetc(int f) -> i32;
+extern "C" fn fputc(int c, int f) -> i32;
 extern "C" fn __ayanami_int_to_char(int c) -> char;
 
 /// 读取结果：ok=false 时 data 为空串
@@ -45,10 +44,9 @@ pub fn read_file(ref String path) -> ReadResult {
     }
     acc = StringBuf::new();
     while true {
-        slot = 0;
-        got = fread(slot, 1, 1, f);
-        if got != 1 { break; }
-        acc.push(__ayanami_int_to_char(slot));
+        c = fgetc(f);
+        if c < 0 { break; }
+        acc.push(__ayanami_int_to_char(c as int));
     }
     fclose(f);
     return ReadResult { ok = true, data = acc.to_string() };
@@ -61,9 +59,8 @@ pub fn write_file(ref String path, ref String data) -> bool {
     f = open_mode(path, "wb");
     if f == 0 { return false; }
     for i in (0, data.len) {
-        slot = char_code(data.index(i));
-        wrote = fwrite(slot, 1, 1, f);
-        if wrote != 1 {
+        k = fputc(char_code(data.index(i)), f);
+        if k < 0 {
             fclose(f);
             return false;
         }

@@ -355,7 +355,11 @@ impl Parser {
             return self.ast.push(tt(TT::FnPtr._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
         }
         if self.cur.kind == Tk::Ident._tag {
-            if self.cur.text == "Fn" {
+            is_callable_kind = 0;
+            if self.cur.text == "Fn" { is_callable_kind = 1; }
+            if self.cur.text == "FnOnce" { is_callable_kind = 1; }
+            if self.cur.text == "FnMut" { is_callable_kind = 1; }
+            if is_callable_kind == 1 {
                 if self.la1_is_delim(D::LParen._tag) {
                     // Fn(T) -> U 闭包类型（dump 打印 Fn(...)）
                     self.advance();
@@ -413,7 +417,7 @@ impl Parser {
         if is_self_upper == 1 {
             self.advance();
             nm = "Self";
-            if self.cur_impl.len > 0 { nm = self.cur_impl; }
+            if self.cur_impl.len > 0 { nm = self.cur_impl.copy(); }
             base = self.ast.push(tt(TT::Named._tag), nm, -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
             if self.cur_impl.len > 0 {
                 if self.impl_args >= 0 {

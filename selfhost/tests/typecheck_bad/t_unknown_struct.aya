@@ -1,0 +1,4 @@
+fn main() -> int {
+    p = Q { x = 1 }
+    return 0
+}

@@ -170,5 +170,7 @@ M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf�
 | #146 | `&&`/`||` 不短路（右侧总被求值） | ✅ 已修复（2026-10-06） |
 | #147 | while 条件含 `&&` + 方法调用时条件不更新（死循环） | ✅ 已修复（2026-10-07）；现有 `while true + break` 保留 |
 | #150 | 未知枚举变体静默通过（E::C 当 _tag=0） | ✅ 已修复（2026-10-08） |
-| #153 | 结构体字面量未知字段不报错（codegen GEP 越界） | 未修；自举 checker 已能诊断 |
+| #153 | 结构体字面量未知字段不报错（codegen GEP 越界） | ✅ 已修复（2026-10-09）；check golden 覆盖 |
+| #154 | extern `ref` 参数写不回调用方（临时副本）→ read_file 死循环/内存暴涨 | 未修；file.aya 改 fgetc/fputc（i32） |
+| #155 | bool 传 println(int) 生成 i1/i64 非法 IR | 未修；避免 `println(bool 表达式)` |
 | #122 | 字符串字面量含非 ASCII 生成非法 LLVM 常量 | 未修；单测用 ASCII 片段 |
