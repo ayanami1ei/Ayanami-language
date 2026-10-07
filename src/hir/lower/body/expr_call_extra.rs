@@ -19,7 +19,7 @@ impl crate::hir::lower::Ctx {
             let args = self.adapt_enum_args(args, &param_tys)?;
             return Ok(SCallP { fn_ptr: hir_target, args, ty: *ret_ty.clone() }.into());
         }
-        if let HirType::Closure(param_tys, ret_ty) = &target_ty {
+        if let HirType::Closure(param_tys, ret_ty, _) = &target_ty {
             let param_tys = param_tys.clone();
             let args: Vec<HirNodeBox> = hir_args.into_iter().enumerate().map(|(i, a)| {
                 if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }

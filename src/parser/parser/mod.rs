@@ -10,6 +10,8 @@ pub struct Parser {
     pos: usize,
     /// >0 时禁止把 `ident {` 当作结构体字面量（if/while 条件上下文）
     struct_lit_depth: u32,
+    /// M2：允许裸 `fn(...)` 类型（extern C 签名 / 导入旧包源码）
+    allow_raw_fn: bool,
 }
 
 /// 约束/泛型实参的类型文本化（`Into[float]` → `Into<float>`，与 HIR 泛型名约定一致）

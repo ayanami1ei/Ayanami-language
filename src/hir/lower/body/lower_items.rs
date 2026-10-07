@@ -20,7 +20,7 @@ impl crate::hir::lower::Ctx {
                         Symbol::intern(&format!("{}.{}", ns_prefix, name))
                     };
                     let ptypes: Vec<HirType> = params.iter()
-                        .map(|(_, t)| ast_type_to_hir(t, &self.interfaces))
+                        .map(|(_, t)| ast_type_to_hir_param(t, *extern_c, attrs, &self.interfaces))
                         .collect();
                     let fn_id = self.find_fn_by_sig(full_name, &ptypes)
                         .ok_or_else(|| Error::Hir(format!("internal error: function `{}` not found at {}:{}", full_name, span.start_line, span.start_col)))?;
@@ -190,7 +190,7 @@ impl crate::hir::lower::Ctx {
 
         let mut hir_params = Vec::new();
         for (param_name, param_type) in ast_params {
-            let hir_ty = ast_type_to_hir(param_type, &self.interfaces);
+            let hir_ty = ast_type_to_hir_param(param_type, extern_c, &[], &self.interfaces);
             self.instantiate_type(&hir_ty)?;
             let var_id = VarId(self.locals.len());
             self.locals.push(HirLocal::new(*param_name, hir_ty.clone(), false));

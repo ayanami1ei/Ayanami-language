@@ -40,14 +40,17 @@ impl crate::hir::lower::Ctx {
                 }
                 if let Some(candidates) = self.fn_map.get(name) {
                     if let Some(&first) = candidates.first() {
-                        let sig = &self.fns[first.0];
-                        if sig.params.is_empty() {
-                            return Err(Error::Hir(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col)));
-                        }
-                        let params: Vec<HirType> = sig.params.iter().map(|(_, t)| t.clone()).collect();
-                        let ret = sig.return_type.clone();
-                        let fnptr_ty = HirType::FnPtr(params, Box::new(ret));
-                        return Ok(SFnPtr { fn_id: first, ty: fnptr_ty }.into());
+                        let (params, ret) = {
+                            let sig = &self.fns[first.0];
+                            if sig.params.is_empty() {
+                                return Err(Error::Hir(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col)));
+                            }
+                            (sig.params.iter().map(|(_, t)| t.clone()).collect::<Vec<_>>(), sig.return_type.clone())
+                        };
+                        // M2 统一：函数名作值 → 静态闭包（Copy、零分配）
+                        let fnptr_ty = HirType::FnPtr(params.clone(), Box::new(ret.clone()));
+                        let raw: HirNodeBox = SFnPtr { fn_id: first, ty: fnptr_ty }.into();
+                        return Ok(self.make_static_closure(raw, &params, &ret));
                     }
                 }
                 Err(Error::Hir(format!("undefined variable `{}` at {}:{}", name, span.start_line, span.start_col)))

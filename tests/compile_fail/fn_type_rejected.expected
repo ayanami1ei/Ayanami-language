@@ -1,0 +1,1 @@
+raw function pointer type `fn(...)` is reserved for `extern C`

@@ -139,7 +139,7 @@ fn fmt_type(ty: &HirType) -> String {
         HirType::FatPtr { name, .. } => format!("ref {}", name.as_str()),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => format!("[{}]", fmt_type(inner)),
         HirType::FnPtr(..) => "fn(...)".into(),
-        HirType::Closure(ps, ret) => format!("Fn({}) -> {}",
+        HirType::Closure(ps, ret, _) => format!("Fn({}) -> {}",
             ps.iter().map(fmt_type).collect::<Vec<_>>().join(", "),
             fmt_type(ret)),
     }

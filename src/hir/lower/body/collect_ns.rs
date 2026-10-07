@@ -31,9 +31,18 @@ impl crate::hir::lower::Ctx {
                         self.generic_fns.push((full_name, generic_params.clone(), stmt.clone()));
                         continue;
                     }
-                    let hir_return = ast_type_to_hir(return_type, &self.interfaces);
+                    let is_extern = *extern_c || crate::hir::attrs::has(attrs, "export");
+                    let hir_return = if is_extern {
+                        ast_type_to_hir_extern(return_type, &self.interfaces)
+                    } else {
+                        ast_type_to_hir(return_type, &self.interfaces)
+                    };
                     let hir_params: Vec<(Symbol, crate::hir::ty::HirType)> = params.iter()
-                        .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+                        .map(|(n, t)| (*n, if is_extern {
+                            ast_type_to_hir_extern(t, &self.interfaces)
+                        } else {
+                            ast_type_to_hir(t, &self.interfaces)
+                        }))
                         .collect();
                     // extern 声明若与已导入的同签名函数重复，直接复用（避免重载歧义；
                     // 导入侧形参名为空，比较时只看类型）

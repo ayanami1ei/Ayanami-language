@@ -79,8 +79,8 @@ pub(super) fn type_to_mangle(ty: &HirType) -> String {
         HirType::Unique(inner) if matches!(&**inner, HirType::Array(_) | HirType::ArraySized(_, _)) => type_to_mangle(inner),
         HirType::Unique(inner) => format!("unique_{}", type_to_mangle(inner)),
         HirType::FnPtr(..) => "fnptr".into(),
-        HirType::Closure(ps, ret) => {
-            let mut s = String::from("closure");
+        HirType::Closure(ps, ret, owns_env) => {
+            let mut s = String::from(if *owns_env { "closure_o" } else { "closure_s" });
             for p in ps { s.push('_'); s.push_str(&type_to_mangle(p)); }
             s.push_str("__r_");
             s.push_str(&type_to_mangle(ret));

@@ -78,7 +78,7 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
                 } else {
                     split_generic_args(params_str).iter().map(|p| sig_str_to_hir(p.trim())).collect()
                 };
-                return HirType::Closure(params, Box::new(sig_str_to_hir(ret_str.trim())));
+                return HirType::Closure(params, Box::new(sig_str_to_hir(ret_str.trim())), true);
             }
         }
     }
@@ -164,6 +164,7 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         Type::Closure(ps, ret, _) => HirType::Closure(
             ps.iter().map(|p| ast_type_to_hir(p, interfaces)).collect(),
             Box::new(ast_type_to_hir(ret, interfaces)),
+            true,
         ),
         // `[T]` 即拥有堆数组（unique 已移除；借用写 `ref [T]`）
         Type::Array(inner, _) => HirType::Unique(Box::new(HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))))),
@@ -207,9 +208,10 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
                 HirType::Ref(Box::new(inner_hir), *mutable)
             }
         }
-        Type::FnPtr(params, ret, _) => HirType::FnPtr(
+        Type::FnPtr(params, ret, _) => HirType::Closure(
             params.iter().map(|p| ast_type_to_hir(p, interfaces)).collect(),
             Box::new(ast_type_to_hir(ret, interfaces)),
+            true,
         ),
         Type::Self_(_) => {
             // 接口签名中的 `Self`（实现类型哨兵）；impl 方法签名已由解析器替换为具体类型。
@@ -242,7 +244,7 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
         HirType::Named(s) => s.as_str().to_string(),
         HirType::Unique(inner) => format!("unique {}", hir_type_display(inner)),
         HirType::FnPtr(..) => "fn(...)".into(),
-        HirType::Closure(ps, ret) => format!("Fn({}) -> {}",
+        HirType::Closure(ps, ret, _) => format!("Fn({}) -> {}",
             ps.iter().map(hir_type_display).collect::<Vec<_>>().join(", "),
             hir_type_display(ret)),
         HirType::FatPtr { name, kind } => format!("{} {}", hir_type_display(kind), name.as_str()),

@@ -143,7 +143,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 | 自定义 runtime | `package/config.rs`、`driver/runtime.rs`、`driver/mod.rs` | `[runtime] path` / `AYANAMI_RUNTIME`；.c/.a/.o 替代内置 runtime.c |
 | 回归夹具 | `tests/c_export/`、`tests/runtime_custom/` | C harness 互操作 + runtime 选择三路径 |
 | typeclass/`Self` | `docs/typeclass.md`、`hir/lower/body/iface_match.rs`、`parser/self_type.rs` | T1 已实现（签名 Self 消解 + 对象安全诊断）；T2–T5 评估关闭；参数化接口约束可用（违例检查已修复） |
-| 闭包/捕获（M2） | `docs/closures.md`、`parser/ast/ty.rs`（`Type::Closure`）、`hir/ty.rs`（`HirType::Closure`）、`hir/lower/helpers/closure.rs`（捕获分析）、`hir/lower/helpers/closure_lower.rs`（env/vtable/drop glue）、`hir/lower/body/expr_misc.rs`（`lower_lambda`） | C1 已实现：`Fn(T)->U` 类型 + 按值/可变捕获；闭包 = 接口胖指针 `{env, vtable=[drop,call]}`；非捕获 lambda 仍为 `fn` 裸指针 |
+| 闭包/捕获（M2） | `docs/closures.md`、`parser/parser/{types,decl}.rs`（`Fn` 解析 / 安全代码禁裸 `fn`）、`hir/ty.rs`（`HirType::Closure(ps,ret,owns)`）、`hir/lower/helpers/closure{,_lower,_static}.rs`（捕获分析 / 拥有 env / 静态 trampoline）、`hir/lower/body/expr_misc.rs`（`lower_lambda`） | 统一：安全代码只用 `Fn(T)->U`；命名函数/非捕获 lambda=静态闭包（Copy、零分配），捕获=拥有闭包；裸 `fn` 仅 extern C |
 
 ## 7. 关系索引（压缩版）
 
@@ -164,4 +164,4 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 效应：`#[pure]/#[no_error]/#[throws]` —推断→ `hir/effects/infer.rs`（调用图不动点）—发射→ `nounwind`/`memory(none|read)`；合成位置串（`SFileArg`）与标记不计入（#117）
 - 位运算：`& | ^ << >> ~` —文法→ operator（prec 6–9 / 前缀）—HIR→ `lower_binary`/`lower_unary` —发射→ `and/or/xor/shl/ashr/lshr` —折叠→ `example/constfold_lib.aya`
 - 显式转换：`expr as T` —解析→ `parse_cast` / 运算符表 prec:12 —HIR→ `lower_cast`/`SCast` —发射→ `sext/zext/trunc/sitofp/uitofp/fptosi.sat/fptoui.sat`
-- 闭包：`Fn(T)->U` / lambda —解析→ `parse_type`（`Fn(` 特判）/ `parse_lambda`（Block 尾表达式）—捕获分析→ `helpers/closure.rs`（AST 自由变量 + 声明追踪）—降级→ `helpers/closure_lower.rs`（`__ClosureEnv_N` + `__lambda_N(env,…)` + `__closure_drop_N`）—调用→ `SVCall`（vtable slot 1）—释放→ `emit_drop_value(Closure)` 经 vtable slot 0；非捕获 → `fn` 裸指针（`SFnPtr`/`SCallP`）
+- 闭包：`Fn(T)->U` / lambda —解析→ `parse_type`（`Fn(` 特判；安全代码禁裸 `fn`）/ `parse_lambda`（Block 尾表达式）—捕获分析→ `helpers/closure.rs` —降级→ 拥有：`closure_lower.rs`（`__ClosureEnv_N` + `__lambda_N(env,…)` + `__closure_drop_N`）；静态：`closure_static.rs`（每签名 trampoline + noop drop）—调用→ `SVCall`（vtable slot 1）—释放→ `emit_drop_value(Closure)` 经 vtable slot 0

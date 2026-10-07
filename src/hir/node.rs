@@ -31,6 +31,8 @@ pub trait HirNode: std::fmt::Debug {
     /// 一元负号浮点字面量（`-1.5`）的数值
     fn as_neg_float_literal(&self) -> Option<f64> { None }
     fn as_move(&self) -> Option<&HirNodeBox> { None }
+    /// M2：`unique` 装箱节点（仅 SToUnique；按移动处理）
+    fn as_to_unique(&self) -> Option<&HirNodeBox> { None }
     /// A2c：是否为比较运算。HIR 中比较保持操作数类型，Bool 结果由 MIR→LIR 决定。
     fn is_comparison(&self) -> bool { false }
     /// A3a：静态调用目标（仅 SCall；函数指针/虚调用返回 None）。

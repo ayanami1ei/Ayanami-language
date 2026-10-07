@@ -46,6 +46,14 @@ impl crate::hir::lower::Ctx {
         }
         // FatPtr compatibility
         self.is_fatptr_compatible(param_ty, arg_ty)
+        // M2：静态闭包 → 拥有闭包（同布局，仅所有权标记不同；Copy 值可自由传入）
+        || matches!((param_ty, arg_ty),
+            (HirType::Closure(pps, pret, true), HirType::Closure(aps, aret, false))
+                if pps == aps && pret == aret)
+        // M2：静态闭包 → extern C 裸函数指针形参（实参侧替换为裸 FnPtr）
+        || matches!((param_ty, arg_ty),
+            (HirType::FnPtr(pps, pret), HirType::Closure(aps, aret, false))
+                if pps == aps && pret == aret)
     }
 
     /// Resolve a function call by name and argument types (overload-aware)

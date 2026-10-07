@@ -38,14 +38,16 @@ pub enum HirType {
     /// Reference: Ref(inner, mutable)
     Ref(Box<HirType>, bool),
     FnPtr(Vec<HirType>, Box<HirType>),
-    /// M2：闭包类型 `Fn(T) -> U`（拥有 env 的胖值，非 Copy；LLVM `{ ptr, ptr }`）
-    Closure(Vec<HirType>, Box<HirType>),
+    /// M2：闭包类型 `Fn(T) -> U`（胖值 `{ env, vtable }`）。
+    /// `owns_env = false`：静态闭包（命名函数/非捕获 lambda），env 为 null，**Copy**、零分配；
+    /// `owns_env = true`：捕获闭包，拥有环境（非 Copy，作用域结束释放）。
+    Closure(Vec<HirType>, Box<HirType>, bool),
     /// M1：定宽整数（i8..i128 / u8..u128 / isize / usize）
     IntN { bits: u8, signed: bool },
 }
 
 impl HirType {
-    /// Copy 类型：赋值/传参时不移动（仅基元、函数指针与借用）。
+    /// Copy 类型：赋值/传参时不移动（仅基元、函数指针、静态闭包与借用）。
     pub fn is_copy(&self) -> bool {
         matches!(
             self,
@@ -57,6 +59,7 @@ impl HirType {
                 | HirType::Void
                 | HirType::Never
                 | HirType::FnPtr(..)
+                | HirType::Closure(_, _, false)
                 | HirType::Ref(..)
                 | HirType::IntN { .. }
         )

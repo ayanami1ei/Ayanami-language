@@ -1,9 +1,7 @@
-fn apply(fn(int) -> int f, int x) -> int {
-    return f(x)
-}
+extern "C" fn c_apply(fn(int) -> int f, int x) -> int;
 
 fn main() -> int {
     y = 1
     g = (int x) -> int { return x + y }
-    return apply(g, 1)
+    return c_apply(g, 1)
 }

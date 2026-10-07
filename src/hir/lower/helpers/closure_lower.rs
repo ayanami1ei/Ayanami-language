@@ -42,7 +42,7 @@ pub(crate) fn closure_iface_name(params: &[HirType], ret: &HirType) -> Symbol {
 }
 
 /// 类型名 → LLVM 安全符号片段（保留字母数字下划线，其余转 `_`，附短哈希防冲突）。
-fn mangle_for_symbol(ty: &HirType) -> String {
+pub(crate) fn mangle_for_symbol(ty: &HirType) -> String {
     let text = crate::hir::display::display_type(ty);
     let mut out = String::with_capacity(text.len() + 8);
     for c in text.chars() {
@@ -191,7 +191,7 @@ impl crate::hir::lower::Ctx {
             fields.push((*cn, implicit_move(src)));
         }
         let env_val: HirNodeBox = SStruct { type_name: env_sym, fields, ty: env_hir }.into();
-        let closure_ty = HirType::Closure(lambda_param_tys, Box::new(inferred_ret));
+        let closure_ty = HirType::Closure(lambda_param_tys, Box::new(inferred_ret), true);
         Ok(SMFP { value: env_val, concrete_type: env_sym, interface_name: iface_sym, ty: closure_ty }.into())
     }
 

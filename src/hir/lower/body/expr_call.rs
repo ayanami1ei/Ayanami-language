@@ -63,7 +63,14 @@ impl crate::hir::lower::Ctx {
                         }.or_else(|| {
                             self.lookup_var(name).map(|(var_id, ty, _)| (SVar { var: var_id, ty: ty.clone() }.into(), ty))
                         });
-                        if let Some((callee, cty)) = callable {
+                        if let Some((mut callee, mut cty)) = callable {
+                            // M2：`ref Fn` / `ref fn` 形参 → 解引用后调用
+                            if let HirType::Ref(inner, _) = &cty {
+                                if matches!(&**inner, HirType::FnPtr(..) | HirType::Closure(..)) {
+                                    cty = (**inner).clone();
+                                    callee = SDeref { expr: callee, ty: cty.clone() }.into();
+                                }
+                            }
                             match &cty {
                                 HirType::FnPtr(param_tys, ret_ty) => {
                                     let param_tys = param_tys.clone();
@@ -73,7 +80,7 @@ impl crate::hir::lower::Ctx {
                                     let args = self.adapt_enum_args(args, &param_tys)?;
                                     return Ok(SCallP { fn_ptr: callee, args, ty: *ret_ty.clone() }.into());
                                 }
-                                HirType::Closure(param_tys, ret_ty) => {
+                                HirType::Closure(param_tys, ret_ty, _) => {
                                     let param_tys = param_tys.clone();
                                     let args: Vec<HirNodeBox> = hir_args.into_iter().enumerate().map(|(i, a)| {
                                         if i < param_tys.len() { wrap_arg_for_param(a, &param_tys[i]) } else { a }
@@ -118,6 +125,14 @@ impl crate::hir::lower::Ctx {
         let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
             .map(|(_, t)| t.clone())
             .collect();
+        // M2：extern C 的裸函数指针形参 → 直接函数名降级为 FnPtr（安全代码不产生裸指针值）。
+        // 统一后 FnPtr 形参只可能来自 extern 声明/定义（安全源码的 fn 类型会报错）。
+        for (i, ast) in args.iter().enumerate() {
+            if i >= param_tys.len() { break; }
+            if matches!(param_tys[i], HirType::FnPtr(..)) {
+                hir_args[i] = self.lower_extern_fn_arg(ast, span)?;
+            }
+        }
         for (i, arg) in hir_args.iter().enumerate() {
             if i >= param_tys.len() { break; }
             if let HirType::FatPtr { name: iface_name, .. } = &param_tys[i] {

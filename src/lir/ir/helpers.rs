@@ -167,7 +167,7 @@ pub(super) fn is_pointer_type(ty: &HirType) -> bool {
 pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
         HirType::Unique(_) => true,
-        HirType::Closure(..) => true,
+        HirType::Closure(_, _, true) => true,
         HirType::FatPtr { kind, .. } => !matches!(kind.as_ref(), HirType::Ref(..)),
         HirType::Named(name) => {
             let Some(fields) = struct_defs.get(name) else { return false; };

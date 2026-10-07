@@ -55,7 +55,11 @@ impl crate::hir::lower::Ctx {
                         dep_lir.generic_struct_params.clone();
                     for (name, fields) in dep_lir.struct_defs {
                         let hir_fields: Vec<HirStructField> = fields.iter()
-                            .map(|(fn_name, ty)| HirStructField { name: *fn_name, ty: ty.clone() })
+                            .map(|(fn_name, ty)| HirStructField {
+                                name: *fn_name,
+                                // M2：旧包 struct 字段里的裸 `fn` 类型统一为 `Fn`
+                                ty: crate::hir::lower::helpers::unify_legacy_fn_type(ty),
+                            })
                             .collect();
                         self.struct_defs.insert(name, hir_fields);
                         // 字段扫描：从字段类型中推断泛型参数名
@@ -87,6 +91,8 @@ impl crate::hir::lower::Ctx {
                     .collect();
                 if filtered.is_empty() { continue; }
                 let mut parser = crate::parser::Parser::new(filtered);
+                // M2：旧包源码可能仍写 `fn(...)` 类型；导入侧统一降级为 `Fn`
+                parser.allow_legacy_fn_types();
                 let parsed = match parser.parse_program() {
                     Ok(p) => p,
                     Err(_) => { continue; }

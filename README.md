@@ -176,22 +176,29 @@ fn pick(int x) -> int {
 }
 ```
 
-### 函数指针
+### 闭包 / 可调用值
 
 ```
-fn apply(int x, int y, fn(int,int)->int f) -> int {
+fn apply(int x, int y, Fn(int,int) -> int f) -> int {
     return f(x, y)
 }
 
 fn add(int a, int b) -> int { return a + b; }
 
 fn main() -> int {
-    f = add           // 函数名自动转为函数指针
-    return apply(3, 4, f)
+    f = add                  // 函数名自动转为 Fn 值（静态闭包，Copy）
+    g = (int z) -> int { return z + f(1, 2) }   // 捕获 f（按值）
+    return apply(3, 4, f) + g(10)
 }
 ```
 
-函数指针类型 `fn(T) -> U`，函数名可直接赋值给函数指针变量。
+- 可调用类型统一为 `Fn(T) -> U`：命名函数与非捕获 lambda 是**静态闭包**（Copy、零分配）；
+  捕获 lambda 是**拥有闭包**（移动语义，环境在作用域结束递归释放）。
+- 捕获按值（Copy 复制 / 拥有类型移动），lambda 内可修改捕获副本（FnMut 语义）。
+- 形参写 `ref Fn(T) -> U` 可借用闭包（调用点自动借用，可重复传入同一闭包）。
+- 裸函数指针类型 `fn(T) -> U` 仅允许出现在 `extern "C"`（含 `#[export]`）签名中，
+  供 C 回调使用；安全代码中使用会报错（留待未来的 unsafe）。
+- `#[track_caller]` 见标注文档；lambda 尾表达式 `(int x) -> int { x + 1 }` 作为隐式返回值。
 
 ### 变量
 
@@ -324,7 +331,7 @@ extern "C" fn c_helper(int x) -> int;               // 空体 = 导入 C 符号
 ### 所有权与借用
 
 - **默认所有权**：非 Copy 值在赋值/传参时移动（use-after-move 会报错）；Copy 类型为
-  `int` / `float` / `char` / `bool`（及函数指针）。
+  `int` / `float` / `char` / `bool`（及非捕获的 `Fn` 值：命名函数 / 非捕获 lambda）。
 - 移动分析对路径敏感：`if c { return x }` 之后再使用 `x` 合法（该分支不达后续代码）；
   分支落空路径上的移动仍会报 use-after-move（`if c { y = x }` 后使用 `x` 报错）。
 - **拥有堆数组**：`[T]` / `[T; n]` 为拥有堆缓冲，移动语义，离开作用域递归释放（借用写 `ref [T]`）。

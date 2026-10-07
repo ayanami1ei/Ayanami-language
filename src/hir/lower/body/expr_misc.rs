@@ -74,10 +74,10 @@ impl crate::hir::lower::Ctx {
         }
         self.lambda_fns.push(hir_fn);
 
-        let fnptr_ty = HirType::FnPtr(
-            hir_params.iter().map(|(_, t)| t.clone()).collect(),
-            Box::new(inferred_ret),
-        );
-        Ok(SFnPtr { fn_id, ty: fnptr_ty }.into())
+        let param_tys: Vec<HirType> = hir_params.iter().map(|(_, t)| t.clone()).collect();
+        let fnptr_ty = HirType::FnPtr(param_tys.clone(), Box::new(inferred_ret.clone()));
+        // M2 统一：非捕获 lambda 也是 Fn 值（静态闭包：Copy、零分配、env 存裸代码指针）
+        let raw: HirNodeBox = SFnPtr { fn_id, ty: fnptr_ty }.into();
+        Ok(self.make_static_closure(raw, &param_tys, &inferred_ret))
     }
 }

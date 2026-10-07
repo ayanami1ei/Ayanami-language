@@ -76,6 +76,9 @@ impl Parser {
                 Ok(Type::Self_(span))
             }
             TokenKind::Keyword(Keyword::Fn) => {
+                if !self.allow_raw_fn {
+                    return Err(self.error("raw function pointer type `fn(...)` is reserved for `extern C` declarations; use `Fn(...)`"));
+                }
                 self.advance();
                 self.expect_delimiter(Delimiter::LParen)?;
                 let mut params = Vec::new();
