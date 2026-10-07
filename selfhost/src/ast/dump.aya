@@ -129,6 +129,7 @@ fn push_type(ref Ast ast, int ty, ref mut StringBuf b) {
     elif t == tt(TT::Default._tag) { b.push_str("???"); }
     elif t == tt(TT::FnPtr._tag) { b.push_str("???"); }
     elif t == tt(TT::Never._tag) { b.push_str("Never"); }
+    elif t == tt(TT::Closure._tag) { b.push_str("Fn(...)"); }
     elif t == tt(TT::Named._tag) {
         b.push_str("Named(");
         b.push_str(ast.texts[ty]);

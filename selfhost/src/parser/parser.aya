@@ -345,6 +345,27 @@ impl Parser {
             }
             return self.ast.push(tt(TT::FnPtr._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
         }
+        if self.cur.kind == Tk::Ident._tag {
+            if self.cur.text == "Fn" {
+                if self.la1_is_delim(D::LParen._tag) {
+                    // Fn(T) -> U 闭包类型（dump 打印 Fn(...)）
+                    self.advance();
+                    depth = 0;
+                    while !self.at_end() {
+                        if self.check_delim(D::LParen._tag) { depth = depth + 1; }
+                        if self.check_delim(D::RParen._tag) {
+                            depth = depth - 1;
+                            if depth == 0 { self.advance(); break; }
+                        }
+                        self.advance();
+                    }
+                    if self.eat_delim(D::Arrow._tag) {
+                        self.parse_type();
+                    }
+                    return self.ast.push(tt(TT::Closure._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+                }
+            }
+        }
         if self.check_op("!") {
             self.advance();
             return self.ast.push(tt(TT::Never._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
@@ -1356,6 +1377,10 @@ impl Parser {
             if !self.eat_delim(D::Comma._tag) { break; }
         }
         if !self.eat_delim(D::RParen._tag) { return -1; }
+        if self.eat_delim(D::Arrow._tag) {
+            self.parse_type();
+            if self.failed == 1 { return -1; }
+        }
         if !self.check_delim(D::LBrace._tag) { return -1; }
         body = self.parse_block();
         return self.ast.push(et(ET::Lambda._tag), "", -1, params, body, -1, -1, line, col);
