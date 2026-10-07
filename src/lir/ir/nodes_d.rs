@@ -197,6 +197,8 @@ pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral) {
 /// Trait interface for LIR lowering context — allows SMir* nodes to lower themselves.
 pub trait LirLowerCtx {
     fn next_tmp(&mut self) -> u64;
+    /// 结构体定义（clone/take 决策等 lowering 期需要）
+    fn struct_defs(&self) -> &HashMap<Symbol, Vec<(Symbol, HirType)>>;
     fn emit(&mut self, inst: LirNodeBox);
     fn str_map(&self) -> &HashMap<String, u64>;
     fn loop_stack(&self) -> &Vec<(String, String)>;

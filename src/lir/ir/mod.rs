@@ -203,6 +203,7 @@ mod nodes_e;
 mod nodes_f;
 
 pub use helpers::*;
+pub(crate) use helpers_clone::is_cloneable;
 pub(crate) use helpers_drop::emit_drop_value;
 pub use nodes::*;
 pub use nodes_d::*;

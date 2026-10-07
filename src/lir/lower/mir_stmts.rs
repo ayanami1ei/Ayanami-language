@@ -40,7 +40,7 @@ impl MirStmtNode for SMirFieldAssignStmt { fn span(&self) -> crate::span::Span {
         };
         // #91：值类型对象但非局部（嵌套字段/引用链）→ 取对象地址后 GEP 存储
         if var_id.is_none() && !matches!(obj_ty, HirType::Unique(_) | HirType::Ref(..)) {
-            if let Some(obj_ptr) = super::mir_ref::place_ptr(&self.object, ctx) {
+            if let Some(obj_ptr) = super::place::place_ptr(&self.object, ctx) {
                 let src_val = self.value.lower_to_lir(ctx);
                 let gep_tmp = ctx.next_tmp();
                 ctx.emit(SLirFieldStorePtr { gep_tmp, obj: obj_ptr, field_index: self.field_index, field_ty: self.field_ty.clone(), src: src_val, struct_ty: obj_ty }.into());
@@ -77,11 +77,11 @@ impl MirStmtNode for SMirIndexAssignStmt { fn span(&self) -> crate::span::Span {
             LirValue::Tmp(t) => t,
             _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&obj_val), ty: self.object.expr_type() }.into()); t }
         };
-        let obj_tmp = super::mir_ref::array_base_through_ref(ctx, obj_tmp, &self.object.expr_type());
+        let obj_tmp = super::place::array_base_through_ref(ctx, obj_tmp, &self.object.expr_type());
         let idx_val = self.index.lower_to_lir(ctx);
         let src_val = self.value.lower_to_lir(ctx);
         let gep_tmp = ctx.next_tmp();
-        let elem_ty = super::mir_ref::array_elem_ty(&strip_ownership(self.object.expr_type())).unwrap_or(HirType::Int);
+        let elem_ty = super::place::array_elem_ty(&strip_ownership(self.object.expr_type())).unwrap_or(HirType::Int);
         ctx.emit(SLirIndexStore { dest: obj_tmp, gep_tmp, src: src_val, index: idx_val, elem_ty, array_ty: self.object.expr_type() }.into());
     }
     fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {

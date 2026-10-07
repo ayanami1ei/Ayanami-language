@@ -37,6 +37,7 @@ s_lir!(SLirFieldTake { dest: u64, gep_tmp: u64, obj: LirValue, field_index: usiz
 s_lir!(SLirLocalTake { dest: u64, var: VarId, ty: HirType });
 s_lir!(SLirDropPtr { ptr: LirValue, ty: HirType });
 s_lir!(SLirClone { dest: u64, alloca_tmp: u64, src: LirValue, ty: HirType });
+s_lir!(SLirIndexTake { dest: u64, gep_tmp: u64, obj: LirValue, index: LirValue, elem_ty: HirType });
 s_lir!(SLirDropArray { var: VarId, elem_ty: HirType, count_var: VarId });
 // M6.2：全局变量地址（dest = getelementptr 取 @name 指针）
 s_lir!(SLirGlobalAddr { dest: u64, name: Symbol });
@@ -60,7 +61,7 @@ impl_into_lir_node_box!(
     SLirArraySized, SLirArrayLit, SLirIndexAccess, SLirStructLit,
     SLirVirtualCall, SLirFieldStore, SLirIndexStore, SLirFieldAddr, SLirFieldStorePtr,
     SLirGlobalAddr, SLirIndexAddr, SLirFieldTake, SLirLocalTake, SLirDropPtr,
-    SLirClone, SLirDropArray,
+    SLirClone, SLirDropArray, SLirIndexTake,
 );
 
 // ═══════════════════════════════════════════════════════════════════

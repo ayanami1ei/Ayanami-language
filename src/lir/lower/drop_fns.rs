@@ -38,7 +38,10 @@ pub(super) fn synthesize_named_drop_fns(
             }
         }
     }
-    for name in &needed {
+    // 确定性顺序（HashSet 迭代随机 → 快照不稳定）
+    let mut names: Vec<Symbol> = needed.into_iter().collect();
+    names.sort_by(|a, b| a.as_str().cmp(&b.as_str()));
+    for name in &names {
         let ty = HirType::Named(*name);
         let fid = FnId(*next_fn_id);
         *next_fn_id += 1;

@@ -10,18 +10,18 @@ fn lir_param_attrs(f: &MirFn) -> Vec<Vec<LirAttr>> {
     f.param_attrs.iter().map(|v| util::attrs_to_lir(v)).collect()
 }
 
-pub(super) fn lower_items(item: &MirItem, str_map: &HashMap<String, u64>) -> Vec<LirFn> {
+pub(super) fn lower_items(item: &MirItem, str_map: &HashMap<String, u64>, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Vec<LirFn> {
     match item {
-        MirItem::Fn(f) => vec![lower_fn(f, str_map)],
+        MirItem::Fn(f) => vec![lower_fn(f, str_map, struct_defs)],
         MirItem::StructDef { .. } => vec![],
         MirItem::Namespace { items, .. } => {
-            items.iter().flat_map(|child| lower_items(child, str_map)).collect()
+            items.iter().flat_map(|child| lower_items(child, str_map, struct_defs)).collect()
         }
     }
 }
 
-pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>) -> LirFn {
-    let mut ctx = LowerCtx::new(str_map);
+pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> LirFn {
+    let mut ctx = LowerCtx::new(str_map, struct_defs);
 
     if f.extern_c && f.body.is_empty() {
         return LirFn {

@@ -17,6 +17,7 @@ mod drop_fns;
 mod mir_stmts;
 mod mir_stmts_loops;
 mod mir_ref;
+mod place;
 pub(crate) mod names;
 mod strings;
 mod util;
@@ -87,7 +88,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
     let all_fns: Vec<LirFn> = mir
         .items
         .iter()
-        .flat_map(|item| lower_items(item, &str_map))
+        .flat_map(|item| lower_items(item, &str_map, &mir.struct_defs))
         .collect();
 
     let functions: Vec<LirFn> = all_fns

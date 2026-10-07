@@ -119,6 +119,7 @@ impl<'a> Reader<'a> {
             }
             36 => { let d = self.u64()?; let v = self.u32()? as usize; let t = self.ty()?; Ok(SLirLocalTake { dest: d, var: VarId(v), ty: t }.into()) }
             37 => { let p = self.value()?; let t = self.ty()?; Ok(SLirDropPtr { ptr: p, ty: t }.into()) }
+            38 => { let d = self.u64()?; let g = self.u64()?; let o = self.value()?; let i = self.value()?; let t = self.ty()?; Ok(SLirIndexTake { dest: d, gep_tmp: g, obj: o, index: i, elem_ty: t }.into()) }
             39 => { let d = self.u64()?; let a = self.u64()?; let s = self.value()?; let t = self.ty()?; Ok(SLirClone { dest: d, alloca_tmp: a, src: s, ty: t }.into()) }
             40 => { let v = self.u32()? as usize; let t = self.ty()?; let c = self.u32()? as usize; Ok(SLirDropArray { var: VarId(v), elem_ty: t, count_var: VarId(c) }.into()) }
             32 => {
