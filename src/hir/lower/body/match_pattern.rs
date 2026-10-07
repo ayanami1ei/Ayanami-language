@@ -58,6 +58,16 @@ impl crate::hir::lower::Ctx {
         match pat {
             Pattern::Wildcard => Ok((None, Vec::new())),
             Pattern::Binding(n) => {
+                // #150 后续：枚举 scrutinee 下大写裸标识符多半是变体拼错，给出明确诊断
+                if let HirType::Named(en) = &base {
+                    let looks_variant = n.as_str().chars().next().map_or(false, |c| c.is_uppercase());
+                    if looks_variant && self.variant_tag(en, n).is_none() {
+                        return Err(Error::Hir(format!(
+                            "unknown variant `{}` of enum `{}`; use `_` for the catch-all arm (at {}:{})",
+                            n.as_str(), en.as_str(), span.start_line, span.start_col
+                        )));
+                    }
+                }
                 if !nested && !base.is_copy() {
                     return Err(Error::Hir(format!(
                         "binding the whole `{}` value is not supported yet; use `_` or destructure (at {}:{})",
@@ -72,12 +82,12 @@ impl crate::hir::lower::Ctx {
                 }]))
             }
             Pattern::Literal(lit) => {
-                check_scalar_pattern(&base, lit, false, span)?;
+                super::match_util::check_scalar_pattern(&base, lit, false, span)?;
                 Ok((Some(self.cmp_const(expr, lit, &base, crate::parser::ast::BinaryOp::Eq)), Vec::new()))
             }
             Pattern::Range { lo, hi, inclusive } => {
-                check_scalar_pattern(&base, lo, true, span)?;
-                check_scalar_pattern(&base, hi, true, span)?;
+                super::match_util::check_scalar_pattern(&base, lo, true, span)?;
+                super::match_util::check_scalar_pattern(&base, hi, true, span)?;
                 let c1 = self.cmp_const(expr, lo, &base, crate::parser::ast::BinaryOp::Ge);
                 let c2 = self.cmp_const(expr, hi, &base,
                     if *inclusive { crate::parser::ast::BinaryOp::Le } else { crate::parser::ast::BinaryOp::Lt });
@@ -97,6 +107,15 @@ impl crate::hir::lower::Ctx {
                 let mut cond = Self::tag_cond(expr, tag as usize);
                 let mut binds = Vec::new();
                 let var_struct = crate::hir::lower::variant_struct_name(en, name);
+                // #150 后续：变体载荷个数必须与子模式个数一致（`A =>` 不能忽略载荷）
+                let payload_count = self.struct_defs.get(&var_struct).map(|f| f.len()).unwrap_or(0);
+                if args.len() != payload_count {
+                    return Err(Error::Hir(format!(
+                        "variant `{}::{}` expects {} sub-pattern(s), found {} (at {}:{})",
+                        en.as_str(), name.as_str(), payload_count, args.len(),
+                        span.start_line, span.start_col
+                    )));
+                }
                 let data_field = Symbol::intern(&format!("_data_{}", name));
                 for (j, sub) in args.iter().enumerate() {
                     if matches!(sub, Pattern::Wildcard) { continue; }
@@ -227,7 +246,7 @@ impl crate::hir::lower::Ctx {
         SBin {
             op,
             lhs: expr.clone(),
-            rhs: SConst { val: hir_literal(lit), ty: ty.clone() }.into(),
+            rhs: SConst { val: super::match_util::hir_literal(lit), ty: ty.clone() }.into(),
             ty: ty.clone(),
         }.into()
     }
@@ -239,61 +258,4 @@ fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox {
 
 fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox {
     SBin { op: crate::parser::ast::BinaryOp::Or, lhs: a, rhs: b, ty: HirType::Bool }.into()
-}
-
-/// 字面量/区间模式对 scrutinee 类型的合法性检查（区间仅整数/char）
-fn check_scalar_pattern(base: &HirType, lit: &crate::parser::ast::Literal, range: bool, span: &Span) -> Result<()> {
-    use crate::parser::ast::Literal;
-    let ok = match base {
-        HirType::Int | HirType::IntN { .. } => matches!(lit, Literal::Int(..)),
-        HirType::Char => matches!(lit, Literal::Char(..)),
-        HirType::Bool => matches!(lit, Literal::Bool(..)),
-        HirType::Float | HirType::F32 => !range && matches!(lit, Literal::Float(..) | Literal::Int(..)),
-        _ => false,
-    };
-    if !ok {
-        return Err(Error::Hir(format!(
-            "{} pattern cannot match `{}` (at {}:{})",
-            if range { "range" } else { "literal" },
-            hir_type_display(base), span.start_line, span.start_col
-        )));
-    }
-    Ok(())
-}
-
-/// AST 字面量 → HIR 字面量
-fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral {
-    use crate::parser::ast::Literal;
-    match l {
-        Literal::Int(i, _) => HirLiteral::Int(*i),
-        Literal::Float(f, _) => HirLiteral::Float(*f),
-        Literal::Char(c, _) => HirLiteral::Char(*c),
-        Literal::Bool(b, _) => HirLiteral::Bool(*b),
-        Literal::String(s, _) => HirLiteral::String(s.clone()),
-    }
-}
-
-/// match/if 分支公共结果类型（数值提升；其余取首个分支类型）
-pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType {
-    let sa = strip_ownership(a.clone());
-    let sb = strip_ownership(b.clone());
-    // M1.9：`!` 是单位元（发散分支不影响公共类型）
-    if sa == HirType::Never { return sb; }
-    if sb == HirType::Never { return sa; }
-    if sa == sb { return sa; }
-    match (&sa, &sb) {
-        (HirType::Float, HirType::Int) | (HirType::Int, HirType::Float)
-        | (HirType::Float, HirType::Char) | (HirType::Char, HirType::Float) => HirType::Float,
-        (HirType::Char, HirType::Int) | (HirType::Int, HirType::Char) => HirType::Int,
-        _ => sa,
-    }
-}
-
-/// M1.9：块是否发散（末尾为 `return` 或 `!` 类型表达式语句）
-pub(super) fn block_diverges(b: &HirBlock) -> bool {
-    match b.stmts.last() {
-        Some(HirStmt::Return { .. }) => true,
-        Some(HirStmt::Expr { expr, .. }) => matches!(strip_ownership(expr_type(expr)), HirType::Never),
-        _ => false,
-    }
 }

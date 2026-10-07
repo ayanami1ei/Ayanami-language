@@ -65,7 +65,7 @@ impl crate::hir::lower::Ctx {
                 let value: HirNodeBox = match tail {
                     Some(t) => t,
                     None => {
-                        let ty = if super::match_pattern::block_diverges(&hir_block) {
+                        let ty = if super::match_util::block_diverges(&hir_block) {
                             HirType::Never
                         } else {
                             HirType::Void
@@ -255,7 +255,7 @@ impl crate::hir::lower::Ctx {
         }
         let res_ty = value_tys.iter()
             .fold(None::<HirType>, |acc, t| Some(match acc {
-                Some(a) => super::match_pattern::match_result_type(&a, t),
+                Some(a) => super::match_util::match_result_type(&a, t),
                 None => t.clone(),
             }))
             .unwrap_or(HirType::Int);

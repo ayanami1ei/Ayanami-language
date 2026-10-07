@@ -548,13 +548,13 @@ src/hir/lower/body/match_pattern.rs:8: pub(super) fn variant_tag(&self, enum_nam
 src/hir/lower/body/match_pattern.rs:15: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
 src/hir/lower/body/match_pattern.rs:30: pub(super) fn pattern_match(
 src/hir/lower/body/match_pattern.rs:41: fn pattern_match_in(
-src/hir/lower/body/match_pattern.rs:220: fn cmp_const(
-src/hir/lower/body/match_pattern.rs:236: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:240: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:245: fn check_scalar_pattern(base: &HirType, lit: &crate::parser::ast::Literal, range: bool, span: &Span) -> Result<()>
-src/hir/lower/body/match_pattern.rs:265: fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral
-src/hir/lower/body/match_pattern.rs:277: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
-src/hir/lower/body/match_pattern.rs:293: pub(super) fn block_diverges(b: &HirBlock) -> bool
+src/hir/lower/body/match_pattern.rs:239: fn cmp_const(
+src/hir/lower/body/match_pattern.rs:255: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:259: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_util.rs:5: pub(super) fn check_scalar_pattern(base: &HirType, lit: &crate::parser::ast::Literal, range: bool, span: &Span) -> Result<()>
+src/hir/lower/body/match_util.rs:25: pub(super) fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral
+src/hir/lower/body/match_util.rs:37: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
+src/hir/lower/body/match_util.rs:53: pub(super) fn block_diverges(b: &HirBlock) -> bool
 src/hir/lower/body/mod.rs:10: mod collect_fns;
 src/hir/lower/body/mod.rs:11: mod collect_ns;
 src/hir/lower/body/mod.rs:12: mod vtables;
@@ -572,28 +572,29 @@ src/hir/lower/body/mod.rs:23: mod expr_method;
 src/hir/lower/body/mod.rs:24: mod match_coverage;
 src/hir/lower/body/mod.rs:25: mod match_lower;
 src/hir/lower/body/mod.rs:26: mod match_pattern;
-src/hir/lower/body/mod.rs:27: mod usage_infer;
-src/hir/lower/body/mod.rs:28: mod macro_call;
-src/hir/lower/body/mod.rs:29: mod expr_logic;
-src/hir/lower/body/mod.rs:30: mod expr_lower;
-src/hir/lower/body/mod.rs:31: mod if_expr;
-src/hir/lower/body/mod.rs:32: mod ensure;
-src/hir/lower/body/mod.rs:33: mod literal;
-src/hir/lower/body/mod.rs:34: mod collect_enum;
-src/hir/lower/body/mod.rs:35: mod const_coerce;
-src/hir/lower/body/mod.rs:36: mod const_array;
-src/hir/lower/body/mod.rs:37: mod const_struct;
-src/hir/lower/body/mod.rs:38: mod const_eval;
-src/hir/lower/body/mod.rs:39: mod const_fn;
-src/hir/lower/body/mod.rs:40: mod collect_import;
-src/hir/lower/body/mod.rs:41: mod expr_access;
-src/hir/lower/body/mod.rs:42: mod expr_call;
-src/hir/lower/body/mod.rs:43: mod expr_call_extra;
-src/hir/lower/body/mod.rs:44: mod block_lower;
-src/hir/lower/body/mod.rs:45: mod expr_cast;
-src/hir/lower/body/mod.rs:46: mod expr_enum;
-src/hir/lower/body/mod.rs:47: mod expr_misc;
-src/hir/lower/body/mod.rs:48: mod expr_ops1;
+src/hir/lower/body/mod.rs:27: mod match_util;
+src/hir/lower/body/mod.rs:28: mod usage_infer;
+src/hir/lower/body/mod.rs:29: mod macro_call;
+src/hir/lower/body/mod.rs:30: mod expr_logic;
+src/hir/lower/body/mod.rs:31: mod expr_lower;
+src/hir/lower/body/mod.rs:32: mod if_expr;
+src/hir/lower/body/mod.rs:33: mod ensure;
+src/hir/lower/body/mod.rs:34: mod literal;
+src/hir/lower/body/mod.rs:35: mod collect_enum;
+src/hir/lower/body/mod.rs:36: mod const_coerce;
+src/hir/lower/body/mod.rs:37: mod const_array;
+src/hir/lower/body/mod.rs:38: mod const_struct;
+src/hir/lower/body/mod.rs:39: mod const_eval;
+src/hir/lower/body/mod.rs:40: mod const_fn;
+src/hir/lower/body/mod.rs:41: mod collect_import;
+src/hir/lower/body/mod.rs:42: mod expr_access;
+src/hir/lower/body/mod.rs:43: mod expr_call;
+src/hir/lower/body/mod.rs:44: mod expr_call_extra;
+src/hir/lower/body/mod.rs:45: mod block_lower;
+src/hir/lower/body/mod.rs:46: mod expr_cast;
+src/hir/lower/body/mod.rs:47: mod expr_enum;
+src/hir/lower/body/mod.rs:48: mod expr_misc;
+src/hir/lower/body/mod.rs:49: mod expr_ops1;
 src/hir/lower/body/overload_resolve.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
