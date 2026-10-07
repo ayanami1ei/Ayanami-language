@@ -1,0 +1,8 @@
+import "lib"
+
+fn main() -> int {
+    if describe(42) != "42" { return 1 }
+    if !both_same("x", "x") { return 2 }
+    if both_same("x", "y") { return 3 }
+    return 0
+}

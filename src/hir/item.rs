@@ -90,7 +90,7 @@ pub enum HirItem {
     },
     InterfaceDef {
         name: Symbol,
-        generic_params: Vec<(Symbol, Option<Symbol>)>,
+        generic_params: Vec<(Symbol, Vec<Symbol>)>,
         methods: Vec<HirInterfaceMethod>,
     },
 }
@@ -128,7 +128,7 @@ pub struct HirProgram {
     pub items: Vec<HirItem>,
     pub vtables: Vec<VtableEntry>,
     pub struct_defs: HashMap<Symbol, Vec<HirStructField>>,
-    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
+    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
     pub imported_fns: Vec<ImportedFnSig>,
     /// M6.2：顶层 static 列表（按名排序，发射为 LLVM global）
     pub statics: Vec<HirStatic>,

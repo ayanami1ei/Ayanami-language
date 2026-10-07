@@ -84,7 +84,7 @@ pub enum Stmt {
         is_inline: bool,
         extern_c: bool,
         name: Symbol,
-        generic_params: Vec<(Symbol, Option<Symbol>)>,  // (name, constraint_interface)
+        generic_params: Vec<(Symbol, Vec<Symbol>)>,  // (name, constraint_interface)
         params: Vec<(Symbol, Type)>,
         /// 形参标注（与 params 等长并行；A1b：noalias/nonnull）
         param_attrs: Vec<Vec<Attr>>,
@@ -185,7 +185,7 @@ pub enum Stmt {
         attrs: Vec<Attr>,
         vis: Visibility,
         name: Symbol,
-        generic_params: Vec<(Symbol, Option<Symbol>)>,
+        generic_params: Vec<(Symbol, Vec<Symbol>)>,
         fields: Vec<(Symbol, Type)>,
         /// A4a：字段级属性（与 fields 等长并行，如 `#[follow_with(...)]`）
         field_attrs: Vec<Vec<Attr>>,
@@ -195,21 +195,21 @@ pub enum Stmt {
         attrs: Vec<Attr>,
         vis: Visibility,
         name: Symbol,
-        generic_params: Vec<(Symbol, Option<Symbol>)>,
+        generic_params: Vec<(Symbol, Vec<Symbol>)>,
         variants: Vec<EnumVariant>,
         span: Span,
     },
     InterfaceDef {
         attrs: Vec<Attr>,
         name: Symbol,
-        generic_params: Vec<(Symbol, Option<Symbol>)>,
+        generic_params: Vec<(Symbol, Vec<Symbol>)>,
         methods: Vec<InterfaceMethod>,
         span: Span,
     },
     ImplBlock {
         attrs: Vec<Attr>,
         type_name: Symbol,
-        generic_params: Vec<(Symbol, Option<Symbol>)>,
+        generic_params: Vec<(Symbol, Vec<Symbol>)>,
         methods: Vec<Stmt>,
         span: Span,
     },

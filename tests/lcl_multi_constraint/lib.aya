@@ -1,0 +1,11 @@
+// 多约束 `[T: ToString + Eq]` 泛型函数打包导出（formatter 源码导出 → 导入重解析）
+import "string"
+import "eq"
+
+pub fn describe[T: ToString + Eq](T a) -> String {
+    return a.to_string()
+}
+
+pub fn both_same[T: ToString + Eq](T a, T b) -> bool {
+    return a.same(b)
+}

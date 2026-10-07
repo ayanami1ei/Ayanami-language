@@ -257,7 +257,7 @@ pub struct MirProgram {
     pub items: Vec<MirItem>,
     pub vtables: Vec<crate::hir::ir::VtableEntry>,
     pub struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,
-    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>>,
+    pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
     pub imported_fns: Vec<crate::hir::ir::ImportedFnSig>,
     /// M6.2：顶层 static（透传到 LIR globals）
     pub statics: Vec<crate::hir::HirStatic>,

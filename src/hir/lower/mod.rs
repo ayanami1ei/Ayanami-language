@@ -62,7 +62,7 @@ pub(crate) struct FnSig {
 #[derive(Clone)]
 pub(crate) struct InterfaceReg {
     /// 泛型参数列表：(参数名, 约束接口名)
-    pub generic_params: Vec<(Symbol, Option<Symbol>)>,
+    pub generic_params: Vec<(Symbol, Vec<Symbol>)>,
     /// 接口中定义的方法列表
     pub methods: Vec<HirInterfaceMethod>,
 }

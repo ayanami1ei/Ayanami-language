@@ -1,0 +1,13 @@
+// 多约束缺少任一 bound → 报错
+import "string"
+import "eq"
+
+struct P { int x }
+
+fn show[T: ToString + Eq](T a) -> String {
+    return a.to_string()
+}
+
+fn main() -> int {
+    return show(P { x = 1 }).len() as int
+}

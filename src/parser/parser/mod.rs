@@ -44,6 +44,7 @@ mod core;
 mod decl;
 mod enum_iface;
 mod expr;
+mod generic_params;
 mod impls;
 mod literal_text;
 mod macro_call;

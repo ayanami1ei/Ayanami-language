@@ -51,7 +51,7 @@ impl crate::hir::lower::Ctx {
                 let dep_lir = crate::lir::serialize::program_from_bytes(&lir_binary);
                 if let Ok(dep_lir) = dep_lir {
                     // 先保存 generic_struct_params（需在 struct_defs 被消费前读取）
-                    let gsp_from_lir: HashMap<Symbol, Vec<(Symbol, Option<Symbol>)>> =
+                    let gsp_from_lir: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>> =
                         dep_lir.generic_struct_params.clone();
                     for (name, fields) in dep_lir.struct_defs {
                         let hir_fields: Vec<HirStructField> = fields.iter()
@@ -72,7 +72,7 @@ impl crate::hir::lower::Ctx {
                                 gp_names.sort();
                                 gp_names.dedup();
                                 self.generic_struct_params.insert(name,
-                                    gp_names.into_iter().map(|n| (n, None)).collect());
+                                    gp_names.into_iter().map(|n| (n, Vec::new())).collect());
                             }
                         }
                     }
@@ -107,7 +107,7 @@ impl crate::hir::lower::Ctx {
                                 super::collect_ns::check_unique_generic_params(impl_gp, span)?;
                                 for m in methods {
                                     if let Stmt::FnDecl { name, generic_params, span: m_span, .. } = m {
-                                        let combined: Vec<(Symbol, Option<Symbol>)> = {
+                                        let combined: Vec<(Symbol, Vec<Symbol>)> = {
                                             let mut all = impl_gp.clone();
                                             all.extend(generic_params.iter().cloned());
                                             all

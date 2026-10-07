@@ -124,8 +124,8 @@ impl crate::hir::lower::Ctx {
         }
         // #160：从参数化约束推断剩余泛型参数（I: Iterator[T]，I 已推断 → T 由实现方法反推）
         if generic_mappings.len() < gf_params.len() {
-            for (gp_name, constraint) in gf_params {
-                let Some(iface_sym) = constraint else { continue };
+            for (gp_name, constraints) in gf_params {
+                for iface_sym in constraints {
                 let Some(concrete) = generic_mappings.get(gp_name).cloned() else { continue };
                 let iface_base = crate::hir::lower::strip_generic_name(iface_sym);
                 let iface_gp: Vec<Symbol> = match self.interfaces.get(&iface_base) {
@@ -144,6 +144,7 @@ impl crate::hir::lower::Ctx {
                         generic_mappings.insert(gp, ty.clone());
                     }
                 }
+                }
             }
         }
         // Ensure all generic params were resolved
@@ -157,8 +158,8 @@ impl crate::hir::lower::Ctx {
         }
 
         // Step 1.5: Check interface constraints（#160：参数化约束先替换泛型实参再比对）
-        for (gp_name, constraint) in gf_params {
-            if let Some(iface_name) = constraint {
+        for (gp_name, constraints) in gf_params {
+            for iface_name in constraints {
                 self.check_generic_constraint(gp_name, iface_name, &generic_mappings, span)?;
             }
         }

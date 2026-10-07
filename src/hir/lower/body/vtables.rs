@@ -57,7 +57,7 @@ impl crate::hir::lower::Ctx {
             }
         }
 
-        let iface_list: Vec<(Symbol, Vec<(Symbol, Option<Symbol>)>, Vec<HirInterfaceMethod>)> = self.interfaces.iter()
+        let iface_list: Vec<(Symbol, Vec<(Symbol, Vec<Symbol>)>, Vec<HirInterfaceMethod>)> = self.interfaces.iter()
             .map(|(name, reg)| (*name, reg.generic_params.clone(), reg.methods.clone()))
             .collect();
         for (iface_name, iface_gp, iface_methods) in &iface_list {

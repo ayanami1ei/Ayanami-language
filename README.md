@@ -357,7 +357,13 @@ fn identity[T](T a) -> T { return a; }
 fn max[T: Ord](T a, T b) -> T { if a > b { return a; } return b; }
 ```
 
-泛型通过单态化实现。约束使用接口名。
+泛型通过单态化实现。约束使用接口名，支持**多约束** `[T: A + B]`（函数/结构体/枚举/impl 均可；
+泛型体内可调用任一 bound 的方法，调用点须同时满足全部 bound）：
+
+```ayanami
+fn show[T: ToString + Eq](T a) -> String { return a.to_string(); }
+fn both_same[T: ToString + Eq](T a, T b) -> bool { return a.same(b); }
+```
 
 函数宏用 `#name(args)` 调用（表达式级，编译期展开，可捕获调用点）：
 

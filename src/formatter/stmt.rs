@@ -196,11 +196,14 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
                 String::new()
             } else {
                 let params: Vec<String> = generic_params.iter()
-                    .map(|(n, c)| if let Some(constraint) = c {
-                        // #159：导出源码需可被解析器重解析（约束内部为 `A<B>`，统一写 `A[B]`）
-                        format!("{}: {}", n, constraint.as_str().replace('<', "[").replace('>', "]"))
-                    } else {
+                    .map(|(n, c)| if c.is_empty() {
                         n.to_string()
+                    } else {
+                        // #159：导出源码需可被解析器重解析（约束内部为 `A<B>`，统一写 `A[B]`）
+                        let text: Vec<String> = c.iter()
+                            .map(|x| x.as_str().replace('<', "[").replace('>', "]"))
+                            .collect();
+                        format!("{}: {}", n, text.join(" + "))
                     })
                     .collect();
                 format!("[{}]", params.join(", "))

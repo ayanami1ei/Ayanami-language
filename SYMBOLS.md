@@ -277,11 +277,11 @@ src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
 src/formatter/helpers.rs:35: pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize)
 src/formatter/helpers.rs:47: pub(super) fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String
-src/formatter/helpers.rs:55: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)])
-src/formatter/helpers.rs:71: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_attrs: &[Vec<crate::parser::ast::Attr>])
-src/formatter/helpers.rs:99: pub(super) fn write_return_type(out: &mut String, ty: &Type)
-src/formatter/helpers.rs:109: pub(super) fn write_fn_type(kw: &str, params: &[Type], ret: &Type) -> String
-src/formatter/helpers.rs:119: pub(super) fn write_match_body(body: &crate::parser::ast::stmt::MatchBody, level: usize) -> String
+src/formatter/helpers.rs:55: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Vec<Symbol>)])
+src/formatter/helpers.rs:73: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_attrs: &[Vec<crate::parser::ast::Attr>])
+src/formatter/helpers.rs:101: pub(super) fn write_return_type(out: &mut String, ty: &Type)
+src/formatter/helpers.rs:111: pub(super) fn write_fn_type(kw: &str, params: &[Type], ret: &Type) -> String
+src/formatter/helpers.rs:121: pub(super) fn write_match_body(body: &crate::parser::ast::stmt::MatchBody, level: usize) -> String
 src/formatter/mod.rs:7: const INDENT: &str = "    ";
 src/formatter/mod.rs:9: pub fn format_program(program: &Program) -> String
 src/formatter/mod.rs:21: mod expr;
@@ -417,7 +417,7 @@ src/hir/lower/body/collect_fns.rs:8: pub(crate) fn collect_fns(&mut self, stmts:
 src/hir/lower/body/collect_fns.rs:15: fn collect_const_fns(&mut self, stmts: &[Stmt], prefix: &str) -> Result<()>
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_import.rs:4: pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str, stmt_span: crate::span::Span) -> Result<()>
-src/hir/lower/body/collect_ns.rs:4: pub(super) fn check_unique_generic_params(gp: &[(Symbol, Option<Symbol>)], span: &Span) -> Result<()>
+src/hir/lower/body/collect_ns.rs:4: pub(super) fn check_unique_generic_params(gp: &[(Symbol, Vec<Symbol>)], span: &Span) -> Result<()>
 src/hir/lower/body/collect_ns.rs:17: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_ns.rs:18: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
 src/hir/lower/body/const_array.rs:3: impl crate::hir::lower::Ctx
@@ -493,10 +493,10 @@ src/hir/lower/body/generic_types.rs:10: pub(crate) enum GType
 src/hir/lower/body/generic_types.rs:19: pub(super) fn ast_is_concrete_primitive(ty: &Type) -> bool
 src/hir/lower/body/generic_types.rs:28: pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool
 src/hir/lower/body/generic_types.rs:35: impl crate::hir::lower::Ctx
-src/hir/lower/body/generic_types.rs:37: pub(crate) fn ast_gtype(&self, ty: &Type, gp: &[(Symbol, Option<Symbol>)]) -> GType
+src/hir/lower/body/generic_types.rs:37: pub(crate) fn ast_gtype(&self, ty: &Type, gp: &[(Symbol, Vec<Symbol>)]) -> GType
 src/hir/lower/body/generic_types.rs:57: pub(crate) fn infer_gtype(
 src/hir/lower/body/generic_types.rs:101: pub(crate) fn check_param_operator(
-src/hir/lower/body/generic_types.rs:140: pub(crate) fn check_param_method(
+src/hir/lower/body/generic_types.rs:146: pub(crate) fn check_param_method(
 src/hir/lower/body/if_expr.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/if_expr.rs:6: pub(crate) fn lower_if_expr(
 src/hir/lower/body/iface_args.rs:8: impl crate::hir::lower::Ctx
@@ -642,7 +642,7 @@ src/hir/lower/ctx.rs:190: pub fn find_field_type(&self, struct_ty: &HirType, fie
 src/hir/lower/ctx.rs:208: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
 src/hir/lower/ctx.rs:227: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
 src/hir/lower/ctx.rs:249: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx.rs:267: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Option<Symbol>)>
+src/hir/lower/ctx.rs:267: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Vec<Symbol>)>
 src/hir/lower/ctx.rs:272: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
 src/hir/lower/ctx.rs:282: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
 src/hir/lower/ctx.rs:295: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
@@ -1840,10 +1840,10 @@ src/lir/serialize/decode.rs:36: pub(super) fn inst(&mut self) -> Result<LirNodeB
 src/lir/serialize/decode.rs:243: pub(super) fn read_fn(&mut self) -> Result<LirFn>
 src/lir/serialize/mod.rs:11: pub fn program_to_bytes(p: &LirProgram) -> Vec<u8>
 src/lir/serialize/mod.rs:100: pub fn program_from_bytes(data: &[u8]) -> Result<LirProgram>
-src/lir/serialize/mod.rs:229: struct Reader<'a>
-src/lir/serialize/mod.rs:236: mod decode;
-src/lir/serialize/mod.rs:237: mod reader;
-src/lir/serialize/mod.rs:238: mod write;
+src/lir/serialize/mod.rs:232: struct Reader<'a>
+src/lir/serialize/mod.rs:239: mod decode;
+src/lir/serialize/mod.rs:240: mod reader;
+src/lir/serialize/mod.rs:241: mod write;
 src/lir/serialize/reader.rs:3: impl<'a> Reader<'a>
 src/lir/serialize/reader.rs:4: pub(super) fn read(&mut self, n: usize) -> Result<&'a [u8]>
 src/lir/serialize/reader.rs:12: pub(super) fn u32(&mut self) -> Result<u32>
@@ -2164,20 +2164,20 @@ src/parser/parser/core.rs:224: impl Parser
 src/parser/parser/core.rs:226: pub(super) fn matching_bracket(&self, start: usize) -> Option<usize>
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
-src/parser/parser/decl.rs:88: pub(super) fn parse_return(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:105: pub(super) fn parse_cond_expr(&mut self) -> Result<Expr>
-src/parser/parser/decl.rs:112: pub(super) fn parse_if(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:118: pub(super) fn parse_if_expr(&mut self) -> Result<Expr>
-src/parser/parser/decl.rs:123: fn parse_if_parts(&mut self) -> Result<(Expr, Block, Vec<(Expr, Block)>, Option<Block>, Span)>
-src/parser/parser/decl.rs:149: pub(super) fn parse_while(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:159: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:167: pub(super) fn parse_match_expr(&mut self) -> Result<Expr>
-src/parser/parser/decl.rs:197: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
-src/parser/parser/decl.rs:220: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
+src/parser/parser/decl.rs:69: pub(super) fn parse_return(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:86: pub(super) fn parse_cond_expr(&mut self) -> Result<Expr>
+src/parser/parser/decl.rs:93: pub(super) fn parse_if(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:99: pub(super) fn parse_if_expr(&mut self) -> Result<Expr>
+src/parser/parser/decl.rs:104: fn parse_if_parts(&mut self) -> Result<(Expr, Block, Vec<(Expr, Block)>, Option<Block>, Span)>
+src/parser/parser/decl.rs:130: pub(super) fn parse_while(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:140: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:148: pub(super) fn parse_match_expr(&mut self) -> Result<Expr>
+src/parser/parser/decl.rs:178: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser/decl.rs:201: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:3: impl Parser
 src/parser/parser/enum_iface.rs:6: pub(super) fn parse_enum_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
-src/parser/parser/enum_iface.rs:74: pub(super) fn parse_interface_def(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
-src/parser/parser/enum_iface.rs:118: pub(super) fn parse_interface_method(&mut self) -> Result<InterfaceMethod>
+src/parser/parser/enum_iface.rs:59: pub(super) fn parse_interface_def(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
+src/parser/parser/enum_iface.rs:84: pub(super) fn parse_interface_method(&mut self) -> Result<InterfaceMethod>
 src/parser/parser/expr.rs:3: impl Parser
 src/parser/parser/expr.rs:7: pub fn parse_expr_entry(&mut self) -> Result<Expr>
 src/parser/parser/expr.rs:11: pub(super) fn parse_expr(&mut self) -> Result<Expr>
@@ -2193,12 +2193,14 @@ src/parser/parser/expr.rs:186: pub(super) fn parse_cast(&mut self) -> Result<Exp
 src/parser/parser/expr.rs:197: pub(super) fn parse_product(&mut self) -> Result<Expr>
 src/parser/parser/for_stmt.rs:3: impl Parser
 src/parser/parser/for_stmt.rs:4: pub(super) fn parse_for(&mut self) -> Result<Stmt>
+src/parser/parser/generic_params.rs:4: impl Parser
+src/parser/parser/generic_params.rs:6: pub(super) fn parse_generic_params(&mut self) -> Result<Vec<(Symbol, Vec<Symbol>)>>
 src/parser/parser/impls.rs:3: impl Parser
 src/parser/parser/impls.rs:6: pub(super) fn parse_import(&mut self) -> Result<Stmt>
 src/parser/parser/impls.rs:35: pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
-src/parser/parser/impls.rs:61: fn extract_type_name(ty: &Type) -> Symbol
-src/parser/parser/impls.rs:98: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Option<Symbol>)]) -> Result<Stmt>
-src/parser/parser/impls.rs:244: pub(super) fn parse_block(&mut self) -> Result<Block>
+src/parser/parser/impls.rs:42: fn extract_type_name(ty: &Type) -> Symbol
+src/parser/parser/impls.rs:79: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Vec<Symbol>)]) -> Result<Stmt>
+src/parser/parser/impls.rs:206: pub(super) fn parse_block(&mut self) -> Result<Block>
 src/parser/parser/literal_text.rs:4: pub(super) fn split_literal_suffix(s: &str) -> (&str, Option<&str>)
 src/parser/parser/literal_text.rs:25: pub(super) fn parse_int_text(s: &str) -> Option<i64>
 src/parser/parser/macro_call.rs:3: impl Parser
@@ -2213,14 +2215,15 @@ src/parser/parser/mod.rs:43: mod core;
 src/parser/parser/mod.rs:44: mod decl;
 src/parser/parser/mod.rs:45: mod enum_iface;
 src/parser/parser/mod.rs:46: mod expr;
-src/parser/parser/mod.rs:47: mod impls;
-src/parser/parser/mod.rs:48: mod literal_text;
-src/parser/parser/mod.rs:49: mod macro_call;
-src/parser/parser/mod.rs:50: mod for_stmt;
-src/parser/parser/mod.rs:51: mod pattern;
-src/parser/parser/mod.rs:52: mod stmt;
-src/parser/parser/mod.rs:53: mod types;
-src/parser/parser/mod.rs:54: mod unary;
+src/parser/parser/mod.rs:47: mod generic_params;
+src/parser/parser/mod.rs:48: mod impls;
+src/parser/parser/mod.rs:49: mod literal_text;
+src/parser/parser/mod.rs:50: mod macro_call;
+src/parser/parser/mod.rs:51: mod for_stmt;
+src/parser/parser/mod.rs:52: mod pattern;
+src/parser/parser/mod.rs:53: mod stmt;
+src/parser/parser/mod.rs:54: mod types;
+src/parser/parser/mod.rs:55: mod unary;
 src/parser/parser/pattern.rs:6: impl Parser
 src/parser/parser/pattern.rs:8: pub(super) fn parse_pattern(&mut self) -> Result<Pattern>
 src/parser/parser/pattern.rs:18: fn parse_pattern_literal(&mut self) -> Result<crate::parser::ast::literal::Literal>
@@ -2588,6 +2591,12 @@ example/test_memory_enum.aya:9: fn make() -> int
 example/test_memory_enum.aya:15: fn main() -> int
 example/test_memory_loop.aya:5: fn loop_allocs() -> int
 example/test_memory_loop.aya:14: fn main() -> int
+example/test_multi_constraint.aya:5: struct Box[T: ToString + Eq]
+example/test_multi_constraint.aya:9: impl[T: ToString + Eq] Box[T]
+example/test_multi_constraint.aya:10: pub fn describe(ref self) -> String
+example/test_multi_constraint.aya:13: pub fn is_same(ref self, ref Box[T] other) -> bool
+example/test_multi_constraint.aya:18: fn show[T: ToString + Eq](T a) -> String
+example/test_multi_constraint.aya:22: fn main() -> int
 example/test_negative.aya:2: fn take(int x) -> int { return x }
 example/test_negative.aya:4: fn main() -> int
 example/test_nested_generic_type.aya:2: struct Box[T] { T v }

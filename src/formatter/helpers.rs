@@ -52,17 +52,19 @@ pub(super) fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String {
     }
 }
 
-pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)]) {
+pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Vec<Symbol>)]) {
     if params.is_empty() { return; }
     let _ = write!(out, "[");
     for (i, (name, constraint)) in params.iter().enumerate() {
         if i > 0 { let _ = write!(out, ", "); }
         let _ = write!(out, "{}", name);
-        if let Some(c) = constraint {
+        if !constraint.is_empty() {
             // #159：约束符号内部为 `Iterator<T>`（ast_type_text）；.lcl 源码导出必须可被
-            // 解析器重解析，统一写方括号 `Iterator[T]`
-            let text = c.as_str().replace('<', "[").replace('>', "]");
-            let _ = write!(out, ": {}", text);
+            // 解析器重解析，统一写方括号 `Iterator[T]`；多约束 `A + B`
+            let text: Vec<String> = constraint.iter()
+                .map(|c| c.as_str().replace('<', "[").replace('>', "]"))
+                .collect();
+            let _ = write!(out, ": {}", text.join(" + "));
         }
     }
     let _ = write!(out, "]");
