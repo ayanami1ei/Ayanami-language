@@ -59,7 +59,10 @@ pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<S
         if i > 0 { let _ = write!(out, ", "); }
         let _ = write!(out, "{}", name);
         if let Some(c) = constraint {
-            let _ = write!(out, ": {}", c);
+            // #159：约束符号内部为 `Iterator<T>`（ast_type_text）；.lcl 源码导出必须可被
+            // 解析器重解析，统一写方括号 `Iterator[T]`
+            let text = c.as_str().replace('<', "[").replace('>', "]");
+            let _ = write!(out, ": {}", text);
         }
     }
     let _ = write!(out, "]");

@@ -128,11 +128,14 @@ impl<'a> Emitter<'a> {
     pub(super) fn emit_fn(&mut self, f: &LirFn) {
         let fn_name = self.prog.fn_names[&f.fn_id].clone();
         let ret_ty = self.llvm_type(&f.return_type);
+        // #157：extern "C" 声明（无体）不按 Ayanami 所有权模型推断属性——
+        // C 可能写 ref 形参指向的内存，误标 readonly 会让 opt 折叠后续 load
+        let is_extern_decl = f.extern_c && f.blocks.is_empty();
         let mut params_str: Vec<String> = Vec::new();
         for (i, (_, t)) in f.params.iter().enumerate() {
             let mut attrs = f.param_attrs.get(i).map(|v| llvm_param_attrs(v)).unwrap_or_default();
-            // M-opt.1/6：release 按所有权模型推断参数属性
-            if crate::hir::contracts::is_release() {
+            // M-opt.1/6：release 按所有权模型推断参数属性（extern 声明除外）
+            if crate::hir::contracts::is_release() && !is_extern_decl {
                 for a in infer_param_attrs(t).split_whitespace() {
                     if !attrs.contains(a) { attrs.push(' '); attrs.push_str(a); }
                 }
@@ -151,8 +154,8 @@ impl<'a> Emitter<'a> {
             inline_attr.push_str(" noreturn");
         }
 
-        // M-opt.6：release 返回值属性 —— 拥有指针 noalias、引用 nonnull
-        let ret_attr = if crate::hir::contracts::is_release() {
+        // M-opt.6：release 返回值属性 —— 拥有指针 noalias、引用 nonnull（extern 声明除外）
+        let ret_attr = if crate::hir::contracts::is_release() && !is_extern_decl {
             infer_ret_attr(&f.return_type)
         } else {
             ""

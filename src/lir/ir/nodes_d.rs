@@ -40,6 +40,9 @@ pub struct ExternDecl {
     pub param_attrs: Vec<Vec<LirAttr>>,
     /// A3b：效应摘要（自动 LLVM 属性）
     pub effects: LirEffects,
+    /// #157：源码 `extern "C"` 声明（C 可能写 ref 形参 → 不做所有权属性推断）；
+    /// 包导入的 Ayanami 函数为 false（反序列化默认 false）
+    pub extern_c: bool,
 }
 
 /// A3b：效应布尔摘要（显式空集标记）。

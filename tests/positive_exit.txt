@@ -118,3 +118,4 @@ test_for_in.aya 0
 test_bool_to_int.aya 0
 test_extern_out_param.aya 0
 test_fn_fold.aya 0
+test_iface_box.aya 0

@@ -163,7 +163,12 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         }
         Expr::CallExpr { target, args, .. } => {
             let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
-            format!("{}({})", write_expr_at(target, level), args_str.join(", "))
+            // #159：字段/低优先级目标必须加括号，否则 `(self.f)(x)` 会被重解析为方法调用
+            let t = write_expr_at(target, level);
+            let t = if matches!(target.as_ref(), Expr::FieldAccess { .. }) || expr_prec(target) < 14 {
+                format!("({})", t)
+            } else { t };
+            format!("{}({})", t, args_str.join(", "))
         }
         Expr::TryOp(inner, _) => {
             format!("{}?", write_expr_at(inner, level))

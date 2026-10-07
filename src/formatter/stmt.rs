@@ -197,7 +197,8 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             } else {
                 let params: Vec<String> = generic_params.iter()
                     .map(|(n, c)| if let Some(constraint) = c {
-                        format!("{}: {}", n, constraint)
+                        // #159：导出源码需可被解析器重解析（约束内部为 `A<B>`，统一写 `A[B]`）
+                        format!("{}: {}", n, constraint.as_str().replace('<', "[").replace('>', "]"))
                     } else {
                         n.to_string()
                     })

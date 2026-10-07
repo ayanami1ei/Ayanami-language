@@ -1,0 +1,19 @@
+// #159 夹具：参数化接口约束（I: Iterator[T]）的泛型 impl 打包后仍可用
+import "iter"
+import "arraylist"
+
+pub struct PMap[T, U, I: Iterator[T]] {
+    I inner
+    Fn(T) -> U f
+}
+
+impl[T, U, I: Iterator[T]] PMap[T, U, I] {
+    #[state]
+    pub fn next(ref mut self) -> Option[U] {
+        o = self.inner.next()
+        if o._tag != 0 {
+            return Option::None()
+        }
+        return Option::Some((self.f)(o._data_Some._0))
+    }
+}
