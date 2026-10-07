@@ -197,6 +197,28 @@ impl Parser {
         return false;
     }
 
+    /// 解析泛型参数表 [T: Bound, U, ...]，返回 GenericParam 链；无 [ 时返回 -1
+    fn parse_generics(ref mut self) -> int {
+        head = -1;
+        if !self.check_delim(D::LBracket._tag) { return -1; }
+        self.advance();
+        while true {
+            if self.check_delim(D::RBracket._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
+            gname = self.expect_ident("expected generic parameter name");
+            bound = -1;
+            if self.eat_delim(D::Colon._tag) {
+                bound = self.parse_type();
+            }
+            gn = self.ast.push(xt(XT::GenericParam._tag), gname, bound, -1, -1, -1, -1, self.cur.line, self.cur.col);
+            head = self.ast.push_tail(head, gn);
+            if !self.eat_delim(D::Comma._tag) { break; }
+        }
+        self.expect_delim(D::RBracket._tag, "expected ] in generics");
+        return head;
+    }
+
     /// 跳过配对的 [ ... ]（cur 必须是 [）
     fn skip_brackets(ref mut self) {
         depth = 0;
@@ -543,9 +565,11 @@ impl Parser {
     }
 
     fn parse_struct(ref mut self) -> int {
+        kline = self.cur.line;
+        kcol = self.cur.col;
         self.expect_kw(Kw::Struct._tag, "expected struct");
         name = self.expect_ident("expected struct name");
-        if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
+        generics = self.parse_generics();
         self.expect_delim(D::LBrace._tag, "expected { in struct");
         head = -1;
         while true {
@@ -559,7 +583,7 @@ impl Parser {
             self.eat_delim(D::Comma._tag);
         }
         self.expect_delim(D::RBrace._tag, "expected } after struct fields");
-        return self.ast.push(st(ST::StructDef._tag), name, -1, head, -1, -1, -1, self.cur.line, self.cur.col);
+        return self.ast.push(st(ST::StructDef._tag), name, -1, head, generics, -1, -1, kline, kcol);
     }
 
     fn parse_namespace(ref mut self) -> int {
@@ -581,8 +605,10 @@ impl Parser {
     fn parse_impl(ref mut self) -> int {
         self.expect_kw(Kw::Impl._tag, "expected impl");
         // impl[T] Type[T] / impl Type
+        kline = self.cur.line;
+        kcol = self.cur.col;
         self.impl_args = -1;
-        if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
+        generics = self.parse_generics();
         tname = "";
         if self.check_kw(Kw::Int._tag) { tname = "int"; self.advance(); }
         elif self.check_kw(Kw::Float._tag) { tname = "float"; self.advance(); }
@@ -620,7 +646,7 @@ impl Parser {
         }
         self.expect_delim(D::RBrace._tag, "expected } after impl");
         self.cur_impl = "";
-        return self.ast.push(st(ST::ImplBlock._tag), tname, -1, head, -1, -1, -1, self.cur.line, self.cur.col);
+        return self.ast.push(st(ST::ImplBlock._tag), tname, -1, head, generics, -1, -1, kline, kcol);
     }
 
     fn parse_fn(ref mut self) -> int {
@@ -628,9 +654,11 @@ impl Parser {
     }
 
     fn parse_fn_body(ref mut self, int with_body) -> int {
+        kline = self.cur.line;
+        kcol = self.cur.col;
         self.expect_kw(Kw::Fn._tag, "expected fn");
         name = self.expect_ident("expected fn name");
-        if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
+        generics = self.parse_generics();
         self.expect_delim(D::LParen._tag, "expected ( after fn name");
         head = -1;
         while true {
@@ -682,7 +710,7 @@ impl Parser {
         if with_body == 1 {
             body = self.parse_block();
         }
-        node = self.ast.push(st(ST::FnDecl._tag), name, ret, head, body, -1, -1, self.cur.line, self.cur.col);
+        node = self.ast.push(st(ST::FnDecl._tag), name, ret, head, body, generics, -1, kline, kcol);
         return node;
     }
 

@@ -35,6 +35,17 @@ pub struct Checker {
     [String] fld_names
     [String] fld_types
     int fld_count
+    // 接口表（名 -> 方法名）
+    [String] if_names
+    [int] if_mstart
+    [int] if_mcount
+    [String] if_methods
+    int if_mtotal
+    int if_count
+    // 当前泛型参数（名 -> 约束接口名）
+    [String] gp_names
+    [String] gp_bounds
+    int gp_count
     // 枚举表
     [String] en_names
     [int] en_vstart
@@ -76,6 +87,15 @@ pub namespace Checker {
             fld_names = [String; 8192],
             fld_types = [String; 8192],
             fld_count = 0,
+            if_names = [String; 512],
+            if_mstart = [int; 512],
+            if_mcount = [int; 512],
+            if_methods = [String; 4096],
+            if_mtotal = 0,
+            if_count = 0,
+            gp_names = [String; 64],
+            gp_bounds = [String; 64],
+            gp_count = 0,
             en_names = [String; 512],
             en_vstart = [int; 512],
             en_vcount = [int; 512],
@@ -99,6 +119,56 @@ fn str_starts_with(ref String s, ref String prefix) -> bool {
         i = i + 1;
     }
     return true;
+}
+
+/// 去掉 ref 前缀与泛型实参：ref mut C[T] -> C
+fn base_type(ref String t) -> String {
+    u = t.copy();
+    if str_starts_with(u, "ref mut ") {
+        u = u.substring(8 as usize, u.len);
+    } elif str_starts_with(u, "ref ") {
+        u = u.substring(4 as usize, u.len);
+    }
+    i = 0;
+    while i < u.len as int {
+        if u.index(i as usize) == '[' {
+            return u.substring(0 as usize, i as usize);
+        }
+        i = i + 1;
+    }
+    return u.copy();
+}
+
+/// 运算符 -> 方法名
+fn op_method_name(int op) -> String {
+    if op == bo(BinOp::Eq._tag) { return "eq"; }
+    if op == bo(BinOp::Neq._tag) { return "ne"; }
+    if op == bo(BinOp::Add._tag) { return "add"; }
+    if op == bo(BinOp::Sub._tag) { return "sub"; }
+    if op == bo(BinOp::Mul._tag) { return "mul"; }
+    if op == bo(BinOp::Div._tag) { return "div"; }
+    if op == bo(BinOp::Mod._tag) { return "rem"; }
+    if op == bo(BinOp::Lt._tag) { return "lt"; }
+    if op == bo(BinOp::Gt._tag) { return "gt"; }
+    if op == bo(BinOp::Le._tag) { return "le"; }
+    if op == bo(BinOp::Ge._tag) { return "ge"; }
+    return "";
+}
+
+/// 运算符显示名（诊断用）
+fn op_disp_name(int op) -> String {
+    if op == bo(BinOp::Eq._tag) { return "Eq"; }
+    if op == bo(BinOp::Neq._tag) { return "Neq"; }
+    if op == bo(BinOp::Add._tag) { return "Add"; }
+    if op == bo(BinOp::Sub._tag) { return "Sub"; }
+    if op == bo(BinOp::Mul._tag) { return "Mul"; }
+    if op == bo(BinOp::Div._tag) { return "Div"; }
+    if op == bo(BinOp::Mod._tag) { return "Mod"; }
+    if op == bo(BinOp::Lt._tag) { return "Lt"; }
+    if op == bo(BinOp::Gt._tag) { return "Gt"; }
+    if op == bo(BinOp::Le._tag) { return "Le"; }
+    if op == bo(BinOp::Ge._tag) { return "Ge"; }
+    return "";
 }
 
 fn contains_dot(ref String s) -> bool {
@@ -233,12 +303,85 @@ impl Checker {
     }
 
     fn find_struct(ref mut self, ref String name) -> int {
+        base = base_type(name);
         i = 0;
         while i < self.st_count {
-            if self.st_names[i] == name { return i; }
+            if self.st_names[i] == base { return i; }
             i = i + 1;
         }
         return -1;
+    }
+
+    fn find_interface(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.if_count {
+            if self.if_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn has_if_method(ref mut self, int ifi, ref String name) -> bool {
+        start = self.if_mstart[ifi];
+        n = self.if_mcount[ifi];
+        i = 0;
+        while i < n {
+            if self.if_methods[start + i] == name { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    fn gp_bound(ref mut self, ref String name) -> String {
+        i = 0;
+        while i < self.gp_count {
+            if self.gp_names[i] == name { return self.gp_bounds[i].copy(); }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    fn is_gp(ref mut self, ref String name) -> bool {
+        i = 0;
+        while i < self.gp_count {
+            if self.gp_names[i] == name { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    /// 载入泛型参数链到当前上下文
+    fn load_generics(ref mut self, ref Ast ast, int chain) {
+        self.gp_count = 0;
+        g = chain;
+        while g >= 0 {
+            if self.gp_count < 64 {
+                self.gp_names[self.gp_count] = ast.texts[g].copy();
+                self.gp_bounds[self.gp_count] = type_name(ast, ast.tys[g]);
+                self.gp_count = self.gp_count + 1;
+            }
+            g = ast.nexts[g];
+        }
+    }
+
+    /// 重复泛型参数检查
+    fn check_dup_generics(ref mut self, ref Ast ast, int chain, int line, int col) {
+        g = chain;
+        while g >= 0 {
+            h = ast.nexts[g];
+            while h >= 0 {
+                if ast.texts[g] == ast.texts[h] {
+                    b = StringBuf::new();
+                    b.push_str("generic parameter `");
+                    b.push_str(ast.texts[g]);
+                    b.push_str("` is declared more than once (multi-bound syntax is not supported yet; use a single constraint)");
+                    self.err(b.to_string(), line, col);
+                    return;
+                }
+                h = ast.nexts[h];
+            }
+            g = ast.nexts[g];
+        }
     }
 
     fn find_field(ref mut self, int st, ref String name) -> int {
@@ -330,11 +473,16 @@ impl Checker {
             tag = ast.tags[s];
             if tag == st(ST::FnDecl._tag) {
                 self.add_fn(ast, s, recv);
+                self.check_dup_generics(ast, ast.cc[s], ast.lines[s], ast.cols[s]);
             } elif tag == st(ST::StructDef._tag) {
                 self.add_struct(ast, s);
+                self.check_dup_generics(ast, ast.bb[s], ast.lines[s], ast.cols[s]);
             } elif tag == st(ST::EnumDef._tag) {
                 self.add_enum(ast, s);
+            } elif tag == st(ST::InterfaceDef._tag) {
+                self.add_interface(ast, s);
             } elif tag == st(ST::ImplBlock._tag) {
+                self.check_dup_generics(ast, ast.bb[s], ast.lines[s], ast.cols[s]);
                 self.collect_recv(ast, s, ast.texts[s]);
             } elif tag == st(ST::Namespace._tag) {
                 self.collect_recv(ast, s, recv);
@@ -403,6 +551,25 @@ impl Checker {
         self.st_count = st + 1;
     }
 
+    fn add_interface(ref mut self, ref Ast ast, int id) {
+        if self.if_count >= 512 { return; }
+        ii = self.if_count;
+        self.if_names[ii] = ast.texts[id].copy();
+        self.if_mstart[ii] = self.if_mtotal;
+        n = 0;
+        m = ast.aa[id];
+        while m >= 0 {
+            if self.if_mtotal < 4096 {
+                self.if_methods[self.if_mtotal] = ast.texts[m].copy();
+                self.if_mtotal = self.if_mtotal + 1;
+                n = n + 1;
+            }
+            m = ast.nexts[m];
+        }
+        self.if_mcount[ii] = n;
+        self.if_count = ii + 1;
+    }
+
     fn add_enum(ref mut self, ref Ast ast, int id) {
         if self.en_count >= 512 { return; }
         en = self.en_count;
@@ -432,6 +599,9 @@ impl Checker {
 
     fn check_fn(ref mut self, ref Ast ast, int id) {
         self.lv_count = 0;
+        if ast.cc[id] >= 0 {
+            self.load_generics(ast, ast.cc[id]);
+        }
         self.cur_fn = ast.texts[id].copy();
         self.cur_ret = type_name(ast, ast.tys[id]);
         p = ast.aa[id];
@@ -744,6 +914,39 @@ impl Checker {
             lt = self.check_expr(ast, ast.aa[id]);
             rt = self.check_expr(ast, ast.bb[id]);
             op = ast.tys[id];
+            if self.is_gp(lt) || self.is_gp(rt) {
+                gpn = lt.copy();
+                if !self.is_gp(gpn) { gpn = rt.copy(); }
+                bound = self.gp_bound(gpn);
+                if bound.len > 0 {
+                    mname = op_method_name(op);
+                    if mname.len > 0 {
+                        ifi = self.find_interface(bound);
+                        okm = 0;
+                        if ifi >= 0 {
+                            if self.has_if_method(ifi, mname) { okm = 1; }
+                        }
+                        if okm == 0 {
+                            b = StringBuf::new();
+                            b.push_str("operator `");
+                            b.push_str(op_disp_name(op));
+                            b.push_str("` on generic parameter `");
+                            b.push_str(gpn);
+                            b.push_str("`: bound `");
+                            b.push_str(bound);
+                            b.push_str("` has no `");
+                            b.push_str(mname);
+                            b.push_str("` method");
+                            self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                            return "";
+                        }
+                    }
+                }
+                if op == bo(BinOp::Eq._tag) || op == bo(BinOp::Neq._tag) || op == bo(BinOp::Lt._tag) || op == bo(BinOp::Gt._tag) || op == bo(BinOp::Le._tag) || op == bo(BinOp::Ge._tag) {
+                    return "bool";
+                }
+                return "";
+            }
             if op == bo(BinOp::And._tag) || op == bo(BinOp::Or._tag) {
                 return "bool";
             }
@@ -855,17 +1058,46 @@ impl Checker {
         if tag == et(ET::MethodCall._tag) {
             ot = self.check_expr(ast, ast.aa[id]);
             given = self.arg_types_str(ast, ast.bb[id]);
-            if self.find_struct(ot) >= 0 {
-                mi = self.find_method(ot, ast.texts[id]);
+            base = base_type(ot);
+            if self.find_struct(base) >= 0 {
+                mi = self.find_method(base, ast.texts[id]);
                 if mi < 0 {
                     b = StringBuf::new();
                     b.push_str("type `");
-                    b.push_str(ot);
+                    b.push_str(base);
                     b.push_str("` has no method `");
                     b.push_str(ast.texts[id]);
                     b.push_str("` for argument types ");
                     b.push_str(given);
                     self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                }
+            } elif self.is_gp(ot) {
+                bound = self.gp_bound(ot);
+                if bound.len > 0 {
+                    ifi = self.find_interface(bound);
+                    okm = 0;
+                    if ifi >= 0 {
+                        if self.has_if_method(ifi, ast.texts[id]) { okm = 1; }
+                    }
+                    if okm == 0 {
+                        nargs = 0;
+                        a = ast.bb[id];
+                        while a >= 0 {
+                            nargs = nargs + 1;
+                            a = ast.nexts[a];
+                        }
+                        b = StringBuf::new();
+                        b.push_str("generic parameter `");
+                        b.push_str(ot);
+                        b.push_str("` (bound `");
+                        b.push_str(bound);
+                        b.push_str("`) has no method `");
+                        b.push_str(ast.texts[id]);
+                        b.push_str("` for ");
+                        b.push_int(nargs);
+                        b.push_str(" argument(s)");
+                        self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                    }
                 }
             }
             return "";
@@ -947,6 +1179,9 @@ pub fn check_program(ref Ast ast, int prog, ref String file) -> int {
         if ast.tags[s] == st(ST::FnDecl._tag) {
             c.check_fn(ast, s);
         } elif ast.tags[s] == st(ST::ImplBlock._tag) || ast.tags[s] == st(ST::Namespace._tag) {
+            if ast.bb[s] >= 0 {
+                c.load_generics(ast, ast.bb[s]);
+            }
             m = ast.aa[s];
             while m >= 0 {
                 if ast.tags[m] == st(ST::FnDecl._tag) {

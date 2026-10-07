@@ -1,0 +1,13 @@
+interface Show {
+    fn show(ref self) -> int;
+}
+
+struct C[T] { T v }
+
+impl[T: Show] C[T] {
+    fn f(ref self) -> bool {
+        return self.v == self.v
+    }
+}
+
+fn main() -> int { return 0 }
