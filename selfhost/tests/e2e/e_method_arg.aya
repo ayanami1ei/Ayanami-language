@@ -1,0 +1,14 @@
+struct P {
+    int x
+}
+
+impl P {
+    fn add(ref self, int v) -> int {
+        return self.x + v
+    }
+}
+
+fn main() -> int {
+    p = P { x = 40 }
+    return p.add(2)
+}

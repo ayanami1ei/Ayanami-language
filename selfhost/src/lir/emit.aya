@@ -18,11 +18,30 @@ pub struct Emitter {
     int lv_count
     [String] strs
     int str_count
+    // 结构体表（字段扁平）
+    [String] st_names
+    [int] st_fstart
+    [int] st_fcount
+    [String] st_fields
+    int st_ftotal
+    int st_count
+    // 方法表：(类型, 方法名) -> FnDecl id
+    [String] m_ty
+    [String] m_name
+    [int] m_id
+    int m_count
 }
 
 pub namespace Emitter {
     pub fn new() -> Emitter {
-        e = Emitter { buf = StringBuf::new(), tmp = 0, locals = [String; 512], local_kinds = [int; 512], lv_count = 0, strs = [String; 256], str_count = 0 };
+        e = Emitter {
+            buf = StringBuf::new(), tmp = 0,
+            locals = [String; 512], local_kinds = [int; 512], lv_count = 0,
+            strs = [String; 256], str_count = 0,
+            st_names = [String; 128], st_fstart = [int; 128], st_fcount = [int; 128],
+            st_fields = [String; 1024], st_ftotal = 0, st_count = 0,
+            m_ty = [String; 256], m_name = [String; 256], m_id = [int; 256], m_count = 0
+        };
         return e;
     }
 }
@@ -68,10 +87,108 @@ impl Emitter {
             self.buf.push_str(".ptr = alloca ptr\n  %v_");
             self.buf.push_str(name);
             self.buf.push_str(".len = alloca i64\n");
+        } elif kind >= 2 {
+            self.buf.push_str("  %v_");
+            self.buf.push_str(name);
+            self.buf.push_str(" = alloca ptr\n");
         } else {
             self.buf.push_str("  %v_");
             self.buf.push_str(name);
             self.buf.push_str(" = alloca i64\n");
+        }
+    }
+
+    /// struct 局部变量的类型名（kind 2 的局部）
+    fn struct_of_local(ref mut self, ref String name) -> String {
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name {
+                if self.local_kinds[i] >= 100 {
+                    // kind 编码：100 + 结构体下标
+                    si = self.local_kinds[i] - 100;
+                    if si < self.st_count { return self.st_names[si].copy(); }
+                }
+            }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    fn find_struct_idx(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.st_count {
+            if self.st_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn find_field_idx(ref mut self, ref String stname, ref String fname) -> int {
+        si = self.find_struct_idx(stname);
+        if si < 0 { return -1; }
+        start = self.st_fstart[si];
+        n = self.st_fcount[si];
+        i = 0;
+        while i < n {
+            if self.st_fields[start + i] == fname { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn find_method_id(ref mut self, ref String ty, ref String name) -> int {
+        i = 0;
+        while i < self.m_count {
+            if self.m_ty[i] == ty {
+                if self.m_name[i] == name { return self.m_id[i]; }
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn add_struct(ref mut self, ref Ast ast, int id) {
+        if self.st_count >= 128 { return; }
+        si = self.st_count;
+        self.st_names[si] = ast.texts[id].copy();
+        self.st_fstart[si] = self.st_ftotal;
+        n = 0;
+        f = ast.aa[id];
+        while f >= 0 {
+            if self.st_ftotal < 1024 {
+                self.st_fields[self.st_ftotal] = ast.texts[f].copy();
+                self.st_ftotal = self.st_ftotal + 1;
+                n = n + 1;
+            }
+            f = ast.nexts[f];
+        }
+        self.st_fcount[si] = n;
+        self.st_count = si + 1;
+    }
+
+    fn add_method(ref mut self, ref Ast ast, ref String ty, int fid) {
+        if self.m_count >= 256 { return; }
+        self.m_ty[self.m_count] = ty.copy();
+        self.m_name[self.m_count] = ast.texts[fid].copy();
+        self.m_id[self.m_count] = fid;
+        self.m_count = self.m_count + 1;
+    }
+
+    fn collect_decls(ref mut self, ref Ast ast, int prog) {
+        s = ast.aa[prog];
+        while s >= 0 {
+            if ast.tags[s] == st(ST::StructDef._tag) {
+                self.add_struct(ast, s);
+            } elif ast.tags[s] == st(ST::ImplBlock._tag) {
+                m = ast.aa[s];
+                while m >= 0 {
+                    if ast.tags[m] == st(ST::FnDecl._tag) {
+                        self.add_method(ast, ast.texts[s], m);
+                    }
+                    m = ast.nexts[m];
+                }
+            }
+            s = ast.nexts[s];
         }
     }
 
@@ -187,6 +304,17 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     if tag == et(ET::Ident._tag) {
         nm = ast.texts[id];
         kd = e.local_kind(nm);
+        if kd >= 2 {
+            e.declare_local(nm, 2);
+            t = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("
+");
+            return Val { kind = 2, a = t, b = e.struct_of_local(nm) };
+        }
         if kd == 1 {
             p = e.fresh();
             e.buf.push_str("  ");
@@ -352,6 +480,94 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         e.buf.push_str(b.to_string());
         return mk_int(t4);
     }
+    if tag == et(ET::StructLiteral._tag) {
+        nm = ast.texts[id];
+        t = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t);
+        e.buf.push_str(" = alloca %struct.");
+        e.buf.push_str(nm);
+        e.buf.push_str("\n");
+        f = ast.aa[id];
+        while f >= 0 {
+            idx = e.find_field_idx(nm, ast.texts[f]);
+            if idx >= 0 {
+                v = emit_expr(ast, ast.aa[f], e);
+                g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g);
+                e.buf.push_str(" = getelementptr %struct.");
+                e.buf.push_str(nm);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(t);
+                e.buf.push_str(", i32 0, i32 ");
+                e.buf.push_int(idx);
+                e.buf.push_str("\n  store i64 ");
+                e.buf.push_str(v.a);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(g);
+                e.buf.push_str("\n");
+            }
+            f = ast.nexts[f];
+        }
+        return Val { kind = 2, a = t, b = nm.copy() };
+    }
+    if tag == et(ET::FieldAccess._tag) {
+        obj = emit_expr(ast, ast.aa[id], e);
+        if obj.kind == 2 {
+            idx = e.find_field_idx(obj.b, ast.texts[id]);
+            if idx >= 0 {
+                g2 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g2);
+                e.buf.push_str(" = getelementptr %struct.");
+                e.buf.push_str(obj.b);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", i32 0, i32 ");
+                e.buf.push_int(idx);
+                e.buf.push_str("\n");
+                v2 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(v2);
+                e.buf.push_str(" = load i64, ptr ");
+                e.buf.push_str(g2);
+                e.buf.push_str("\n");
+                return mk_int(v2);
+            }
+        }
+        return mk_int("0");
+    }
+    if tag == et(ET::MethodCall._tag) {
+        obj = emit_expr(ast, ast.aa[id], e);
+        mid = -1;
+        if obj.kind == 2 {
+            mid = e.find_method_id(obj.b, ast.texts[id]);
+        }
+        if mid >= 0 {
+            b3 = StringBuf::new();
+            b3.push_str("  ");
+            t5 = e.fresh();
+            b3.push_str(t5);
+            b3.push_str(" = call i64 @");
+            b3.push_str(obj.b);
+            b3.push_str(".");
+            b3.push_str(ast.texts[id]);
+            b3.push_str("(ptr ");
+            b3.push_str(obj.a);
+            a3 = ast.bb[id];
+            while a3 >= 0 {
+                at3 = emit_expr(ast, ast.aa[a3], e);
+                b3.push_str(", i64 ");
+                b3.push_str(at3.a);
+                a3 = ast.nexts[a3];
+            }
+            b3.push_str(")\n");
+            e.buf.push_str(b3.to_string());
+            return mk_int(t5);
+        }
+        return mk_int("0");
+    }
     if tag == et(ET::Cast._tag) {
         return emit_expr(ast, ast.aa[id], e);
     }
@@ -371,6 +587,16 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
     if tag == st(ST::Assign._tag) {
         v = emit_expr(ast, ast.aa[id], e);
         nm = ast.texts[id];
+        if v.kind == 2 {
+            si2 = e.find_struct_idx(v.b);
+            e.declare_local(nm, 100 + si2);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
         if v.kind == 1 {
             e.declare_local(nm, 1);
             e.buf.push_str("  store ptr ");
@@ -401,6 +627,28 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         }
     } elif tag == st(ST::ExprStmt._tag) {
         emit_expr(ast, ast.aa[id], e);
+    } elif tag == st(ST::FieldAssign._tag) {
+        obj = emit_expr(ast, ast.aa[id], e);
+        if obj.kind == 2 {
+            idx = e.find_field_idx(obj.b, ast.texts[id]);
+            if idx >= 0 {
+                v = emit_expr(ast, ast.bb[id], e);
+                g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g);
+                e.buf.push_str(" = getelementptr %struct.");
+                e.buf.push_str(obj.b);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", i32 0, i32 ");
+                e.buf.push_int(idx);
+                e.buf.push_str("\n  store i64 ");
+                e.buf.push_str(v.a);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(g);
+                e.buf.push_str("\n");
+            }
+        }
     } elif tag == st(ST::If._tag) {
         c = emit_expr(ast, ast.aa[id], e);
         then_l = label(e, "if.then.");
@@ -529,10 +777,18 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
 }
 
 fn emit_fn(ref Ast ast, int id, ref mut Emitter e) {
+    emit_fn_named(ast, id, "", e);
+}
+
+fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
     e.tmp = 0;
     e.lv_count = 0;
     name = ast.texts[id];
     e.buf.push_str("define i64 @");
+    if prefix.len > 0 {
+        e.buf.push_str(prefix);
+        e.buf.push_str(".");
+    }
     e.buf.push_str(name);
     e.buf.push_str("(");
     first = 1;
@@ -540,8 +796,12 @@ fn emit_fn(ref Ast ast, int id, ref mut Emitter e) {
     idx = 0;
     while p >= 0 {
         if first == 0 { e.buf.push_str(", "); }
-        e.buf.push_str("i64 %a");
-        e.buf.push_int(idx);
+        if ast.texts[p] == "self" {
+            e.buf.push_str("ptr %self");
+        } else {
+            e.buf.push_str("i64 %a");
+            e.buf.push_int(idx);
+        }
         first = 0;
         idx = idx + 1;
         p = ast.nexts[p];
@@ -550,17 +810,29 @@ fn emit_fn(ref Ast ast, int id, ref mut Emitter e) {
     p2 = ast.aa[id];
     idx2 = 0;
     while p2 >= 0 {
-        e.buf.push_str("  %v_");
-        e.buf.push_str(ast.texts[p2]);
-        e.buf.push_str(" = alloca i64\n  store i64 %a");
-        e.buf.push_int(idx2);
-        e.buf.push_str(", ptr %v_");
-        e.buf.push_str(ast.texts[p2]);
-        e.buf.push_str("\n");
-        if e.lv_count < 512 {
-            e.locals[e.lv_count] = ast.texts[p2].copy();
-            e.local_kinds[e.lv_count] = 0;
-            e.lv_count = e.lv_count + 1;
+        if ast.texts[p2] == "self" {
+            e.buf.push_str("  %v_self = alloca ptr\n  store ptr %self, ptr %v_self\n");
+            kind_self = 2;
+            si_self = e.find_struct_idx(prefix);
+            if si_self >= 0 { kind_self = 100 + si_self; }
+            if e.lv_count < 512 {
+                e.locals[e.lv_count] = "self";
+                e.local_kinds[e.lv_count] = kind_self;
+                e.lv_count = e.lv_count + 1;
+            }
+        } else {
+            e.buf.push_str("  %v_");
+            e.buf.push_str(ast.texts[p2]);
+            e.buf.push_str(" = alloca i64\n  store i64 %a");
+            e.buf.push_int(idx2);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(ast.texts[p2]);
+            e.buf.push_str("\n");
+            if e.lv_count < 512 {
+                e.locals[e.lv_count] = ast.texts[p2].copy();
+                e.local_kinds[e.lv_count] = 0;
+                e.lv_count = e.lv_count + 1;
+            }
         }
         idx2 = idx2 + 1;
         p2 = ast.nexts[p2];
@@ -571,10 +843,36 @@ fn emit_fn(ref Ast ast, int id, ref mut Emitter e) {
 
 pub fn emit_program(ref Ast ast, int prog) -> String {
     e = Emitter::new();
+    e.collect_decls(ast, prog);
+    // 结构体类型定义
+    si = 0;
+    while si < e.st_count {
+        e.buf.push_str("%struct.");
+        e.buf.push_str(e.st_names[si]);
+        e.buf.push_str(" = type { ");
+        n = e.st_fcount[si];
+        i = 0;
+        while i < n {
+            if i > 0 { e.buf.push_str(", "); }
+            e.buf.push_str("i64");
+            i = i + 1;
+        }
+        e.buf.push_str(" }\n");
+        si = si + 1;
+    }
+    // 函数与方法
     s = ast.aa[prog];
     while s >= 0 {
         if ast.tags[s] == st(ST::FnDecl._tag) {
             emit_fn(ast, s, e);
+        } elif ast.tags[s] == st(ST::ImplBlock._tag) {
+            m = ast.aa[s];
+            while m >= 0 {
+                if ast.tags[m] == st(ST::FnDecl._tag) {
+                    emit_fn_named(ast, m, ast.texts[s], e);
+                }
+                m = ast.nexts[m];
+            }
         }
         s = ast.nexts[s];
     }

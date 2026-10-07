@@ -1,0 +1,9 @@
+struct P {
+    int x
+}
+
+fn main() -> int {
+    p = P { x = 1 }
+    p.x = 5
+    return p.x
+}

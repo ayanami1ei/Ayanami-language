@@ -1,0 +1,14 @@
+struct P {
+    int x
+}
+
+impl P {
+    fn twice(ref self) -> int {
+        return self.x * 2
+    }
+}
+
+fn main() -> int {
+    p = P { x = 21 }
+    return p.twice()
+}

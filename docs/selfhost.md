@@ -176,4 +176,5 @@ M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf�
 | #156 | 循环重赋值 moved（Fn 值累加器误报） | ✅ 已修复（上游） |
 | #157 | release 优化：extern 调用后 load 被常量折叠（忽略指针写入） | ✅ 已修复（2026-10-11） |
 | #166 | 跨模块调用 extern（数组实参）符号被 mangle（system_arr_char） | ✅ 已修复（2026-10-12） |
+| #168 | `return <void 调用>` 生成 alloca void（llc 报错） | 未修；去掉 return 规避 |
 | #122 | 字符串字面量含非 ASCII 生成非法 LLVM 常量 | 未修；单测用 ASCII 片段 |
