@@ -193,7 +193,8 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
             for (_, x) in named_args { scan_expr(x, obs); }
         }
         Expr::Lambda { body, .. } => {
-            for s in body { scan_body(s, obs); }
+            for s in &body.stmts { scan_body(s, obs); }
+            if let Some(t) = &body.tail { scan_expr(t, obs); }
         }
         Expr::Literal(lit) => {
             if matches!(lit, crate::parser::ast::Literal::String(..)) {

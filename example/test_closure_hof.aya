@@ -1,0 +1,33 @@
+// M2 闭包：Fn 形参 + 泛型推断 + 返回闭包 + 结构体字段
+enum Opt[T] { Some(T), None }
+
+impl[T] Opt[T] {
+    pub fn map[U](self, Fn(T) -> U f) -> Opt[U] {
+        return match self {
+            Some(x) => Opt::Some(f(x)),
+            None => Opt::None,
+        }
+    }
+}
+
+struct Holder {
+    Fn(int) -> int cb
+    int tag
+}
+
+fn make_adder(int base) -> Fn(int) -> int {
+    return (int x) -> int { return base + x }
+}
+
+fn main() -> int {
+    y = 10
+    o = Opt::Some(1)
+    r = o.map((int x) -> int { return x + y })
+    v = match r {
+        Some(n) => n,
+        None => 0,
+    }
+    h = Holder { cb = make_adder(100), tag = 5 }
+    // 11 + 101 + 5 = 117
+    return v + (h.cb)(1) + h.tag - 117
+}

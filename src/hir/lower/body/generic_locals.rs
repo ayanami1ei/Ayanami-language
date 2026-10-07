@@ -119,7 +119,8 @@ pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>) {
         }
         Expr::Lambda { params, body, .. } => {
             for (n, _) in params { out.push(*n); }
-            for s in body { collect_local_names_stmt(s, out); }
+            for s in &body.stmts { collect_local_names_stmt(s, out); }
+            if let Some(t) = &body.tail { collect_local_names_expr(t, out); }
         }
         _ => {}
     }

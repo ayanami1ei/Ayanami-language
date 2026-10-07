@@ -38,6 +38,8 @@ pub enum HirType {
     /// Reference: Ref(inner, mutable)
     Ref(Box<HirType>, bool),
     FnPtr(Vec<HirType>, Box<HirType>),
+    /// M2：闭包类型 `Fn(T) -> U`（拥有 env 的胖值，非 Copy；LLVM `{ ptr, ptr }`）
+    Closure(Vec<HirType>, Box<HirType>),
     /// M1：定宽整数（i8..i128 / u8..u128 / isize / usize）
     IntN { bits: u8, signed: bool },
 }

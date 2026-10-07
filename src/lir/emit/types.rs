@@ -34,6 +34,7 @@ impl<'a> Emitter<'a> {
             HirType::FatPtr { .. } => "{ ptr, ptr }".into(),
             HirType::Array(_) | HirType::ArraySized(_, _) => "ptr".into(),
             HirType::FnPtr(..) => "ptr".into(),
+            HirType::Closure(..) => "{ ptr, ptr }".into(),
             HirType::Ref(_, _) => "ptr".into(),
         }
     }

@@ -1,0 +1,9 @@
+fn apply(fn(int) -> int f, int x) -> int {
+    return f(x)
+}
+
+fn main() -> int {
+    y = 1
+    g = (int x) -> int { return x + y }
+    return apply(g, 1)
+}

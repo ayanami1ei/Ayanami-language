@@ -53,6 +53,13 @@ impl<'a> Reader<'a> {
                 let ret = Box::new(self.ty()?);
                 Ok(HirType::FnPtr(params, ret))
             }
+            16 => {
+                let pc = self.u32()? as usize;
+                let mut params = Vec::with_capacity(pc);
+                for _ in 0..pc { params.push(self.ty()?); }
+                let ret = Box::new(self.ty()?);
+                Ok(HirType::Closure(params, ret))
+            }
             _ => Err(Error::Serialize(format!("unknown type tag: {}", tag))),
         }
     }

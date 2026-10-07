@@ -4,14 +4,8 @@ use super::helpers::indent;
 pub(super) fn write_type(ty: &Type) -> String {
     match ty {
         Type::Default => "???".into(),
-        Type::FnPtr(params, ret, _) => {
-            let p: Vec<String> = params.iter().map(|p| write_type(p)).collect();
-            if matches!(ret.as_ref(), Type::Void(_)) {
-                format!("fn({})", p.join(","))
-            } else {
-                format!("fn({})->{}", p.join(","), write_type(ret))
-            }
-        },
+        Type::FnPtr(params, ret, _) => write_fn_type("fn", params, ret),
+        Type::Closure(params, ret, _) => write_fn_type("Fn", params, ret),
         Type::Int(_) => "int".into(),
         Type::Float(_) => "float".into(),
         Type::Char(_) => "char".into(),
@@ -22,14 +16,19 @@ pub(super) fn write_type(ty: &Type) -> String {
         Type::Array(inner, _) => format!("[{}]", write_type(inner)),
         Type::ArraySized(inner, n, _) => format!("[{}; {}]", write_type(inner), n),
         Type::Unique(inner, _) => format!("unique {}", write_type(inner)),
-        Type::Generic(name, args, _) => {
-            let args_str: Vec<String> = args.iter().map(|a| write_type(a)).collect();
-            format!("{}[{}]", name, args_str.join(", "))
-        }
-        Type::Ref(inner, mutable, _) => {
-            format!("ref {}{}", if *mutable { "mut " } else { "" }, write_type(inner))
-        }
+        Type::Generic(name, args, _) => format!("{}[{}]", name, args.iter().map(|a| write_type(a)).collect::<Vec<_>>().join(", ")),
+        Type::Ref(inner, mutable, _) => format!("ref {}{}", if *mutable { "mut " } else { "" }, write_type(inner)),
         Type::Self_(_) => "Self".into(),
+    }
+}
+
+/// 函数指针 / 闭包类型文本：`fn(T)->U` / `Fn(T)->U`（void 返回省略箭头）
+fn write_fn_type(kw: &str, params: &[Type], ret: &Type) -> String {
+    let p: Vec<String> = params.iter().map(|p| write_type(p)).collect();
+    if matches!(ret, Type::Void(_)) {
+        format!("{}({})", kw, p.join(","))
+    } else {
+        format!("{}({})->{}", kw, p.join(","), write_type(ret))
     }
 }
 
@@ -205,9 +204,13 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         Expr::Lambda { params, return_type, body, .. } => {
             let params_str: Vec<String> = params.iter().map(|(n, t)| format!("{} {}", write_type(t), n)).collect();
             let mut out = format!("({}) -> {} {{", params_str.join(", "), write_type(return_type));
-            for st in body {
+            for st in &body.stmts {
                 out.push('\n');
                 write_stmt(&mut out, st, level + 1);
+            }
+            if let Some(t) = &body.tail {
+                out.push('\n');
+                out.push_str(&format!("{}{}", indent(level + 1), write_expr_at(t, level + 1)));
             }
             while out.ends_with('\n') { out.pop(); }
             out.push_str(&format!("\n{}}}", indent(level)));

@@ -32,6 +32,7 @@ pub(crate) fn display_type(ty: &HirType) -> String {
         HirType::Named(s) => format!("Named({})", s),
         HirType::Unique(inner) => format!("unique {}", display_type(inner)),
         HirType::FnPtr(..) => "fn(...)".to_string(),
+        HirType::Closure(..) => "Fn(...)".to_string(),
         HirType::FatPtr { name, kind } => format!("fatptr({}, {})", name, display_type(kind)),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => format!("[{}]", display_type(inner)),
         HirType::Ref(inner, mutable) => {

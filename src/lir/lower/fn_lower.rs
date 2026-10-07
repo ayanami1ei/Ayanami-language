@@ -123,7 +123,7 @@ pub(super) fn default_ret_value(ty: &HirType) -> Option<(LirValue, HirType)> {
         HirType::Char => Some((LirValue::Literal(HirLiteral::Char('\0'), HirType::Char), HirType::Char)),
         HirType::Bool => Some((LirValue::Literal(HirLiteral::Bool(false), HirType::Bool), HirType::Bool)),
         HirType::IntN { .. } => Some((LirValue::Literal(HirLiteral::Int(0), ty.clone()), ty.clone())),
-        HirType::Named(_) | HirType::Unique(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
+        HirType::Named(_) | HirType::Unique(_) | HirType::FatPtr { .. } | HirType::Closure(..) | HirType::Array(_) | HirType::ArraySized(_, _) | HirType::Ref(_, _) | HirType::FnPtr(..) => {
             Some((LirValue::Literal(HirLiteral::Int(0), HirType::Int), ty.clone()))
         }
     }
@@ -143,7 +143,7 @@ pub(super) fn type_size(ty: &HirType) -> u64 {
         HirType::IntN { bits, .. } => (*bits / 8) as u64,
         HirType::Char | HirType::Bool => 1,
         HirType::Void | HirType::Never => 0,
-        HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_) | HirType::ArraySized(_, _) => 16,
+        HirType::Named(_) | HirType::FatPtr { .. } | HirType::Closure(..) | HirType::Array(_) | HirType::ArraySized(_, _) => 16,
         HirType::Unique(inner) => type_size(inner),
         HirType::Ref(_, _) | HirType::FnPtr(..) => 8,
     }

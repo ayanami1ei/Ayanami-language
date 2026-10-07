@@ -21,6 +21,8 @@ pub enum Type {
     Unique(Box<Type>, Span),
     Self_(Span),
     FnPtr(Vec<Type>, Box<Type>, Span),
+    /// M2：闭包类型 `Fn(T1, T2) -> U`（拥有环境；与 `fn` 裸指针不同）
+    Closure(Vec<Type>, Box<Type>, Span),
 }
 
 impl Type {
@@ -37,7 +39,8 @@ impl Type {
             | Type::ArraySized(_, _, s)
             | Type::Ref(_, _, s)
             | Type::Unique(_, s)
-            | Type::FnPtr(_, _, s) => *s,
+            | Type::FnPtr(_, _, s)
+            | Type::Closure(_, _, s) => *s,
             Type::Named(_, s) => *s,
             Type::Self_(s) => *s,
             Type::Default => todo!(),

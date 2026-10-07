@@ -77,6 +77,8 @@ pub(crate) struct Ctx {
     pub imported_macro_lcls: HashMap<Symbol, Vec<String>>,
     /// A5c-2：宏展开递归深度
     pub macro_depth: usize,
+    /// M2：当前正在降级的 lambda 的捕获环境（捕获名 → env 字段）
+    pub lambda_env: Option<crate::hir::lower::helpers::LambdaEnv>,
 }
 
 impl Ctx {
@@ -121,6 +123,7 @@ impl Ctx {
             usage_hints: HashMap::new(),
             imported_macro_lcls: HashMap::new(),
             macro_depth: 0,
+            lambda_env: None,
         }
     }
 

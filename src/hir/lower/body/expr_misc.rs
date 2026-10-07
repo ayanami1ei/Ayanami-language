@@ -21,12 +21,17 @@ impl crate::hir::lower::Ctx {
         }.into())
     }
 
-    pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Vec<Stmt>) -> Result<HirNodeBox> {
-        // Synthesize a unique function name for the lambda
-        let lambda_name = format!("__lambda_{}", self.lambda_counter);
+    pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Block) -> Result<HirNodeBox> {
+        // M2：先做捕获分析，决定走裸函数指针（无捕获）还是闭包（有捕获）
+        let n = self.lambda_counter;
         self.lambda_counter += 1;
-        let name_sym = Symbol::intern(&lambda_name);
+        let name_sym = Symbol::intern(&format!("__lambda_{}", n));
+        let caps = collect_captures(self, params, body)?;
+        if !caps.is_empty() {
+            return self.lower_closure_lambda(params, return_type, body, &caps, name_sym, n);
+        }
 
+        // Synthesize a unique function name for the lambda
         let hir_params: Vec<(Symbol, HirType)> = params.iter()
             .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
             .collect();
@@ -45,18 +50,17 @@ impl crate::hir::lower::Ctx {
         });
         self.fn_map.entry(name_sym).or_default().push(fn_id);
 
-        // Build a temporary Block from the body stmts
-        let block_span = body.first().map(|s| s.span()).unwrap_or_default();
-        let tmp_block = crate::parser::ast::block::Block::new(body.clone(), block_span);
         // Save current locals/scope before lowering lambda function
         let saved_locals = std::mem::take(&mut self.locals);
         let saved_scopes = std::mem::replace(&mut self.scopes, Vec::new());
         let saved_fn = self.current_fn;
-        let mut hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, &tmp_block, false, false, block_span, vec![], vec![], false)?;
+        let saved_env = self.lambda_env.take();
+        let mut hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, body, false, false, body.span, vec![], vec![], false)?;
         // Restore parent function's locals/scope/current_fn（否则后续 return 按 lambda 返回类型转换）
         self.locals = saved_locals;
         self.scopes = saved_scopes;
         self.current_fn = saved_fn;
+        self.lambda_env = saved_env;
 
         // #119：未标注返回类型（Void）时从 lambda body 的 return 值推断返回类型
         let inferred_ret = if matches!(hir_ret, HirType::Void) {
@@ -76,30 +80,4 @@ impl crate::hir::lower::Ctx {
         );
         Ok(SFnPtr { fn_id, ty: fnptr_ty }.into())
     }
-}
-
-/// #119：从 lambda body 的 return 值推断返回类型（递归，取第一个带值 return）。
-fn find_return_type(stmts: &[crate::hir::HirStmt]) -> Option<HirType> {
-    for s in stmts {
-        match s {
-            // 比较运算在 HIR 中保留操作数类型（Bool 由 MIR 决定）→ 按 Bool 推断
-            crate::hir::HirStmt::Return { value: Some(v), .. } => {
-                return Some(if v.is_comparison() { HirType::Bool } else { v.expr_type() });
-            }
-            crate::hir::HirStmt::If { then_block, elifs, else_block, .. } => {
-                if let Some(t) = find_return_type(&then_block.stmts) { return Some(t); }
-                for (_, b) in elifs {
-                    if let Some(t) = find_return_type(&b.stmts) { return Some(t); }
-                }
-                if let Some(b) = else_block {
-                    if let Some(t) = find_return_type(&b.stmts) { return Some(t); }
-                }
-            }
-            crate::hir::HirStmt::While { body, .. } => {
-                if let Some(t) = find_return_type(&body.stmts) { return Some(t); }
-            }
-            _ => {}
-        }
-    }
-    None
 }

@@ -16,6 +16,8 @@ use super::InterfaceReg;
     /// 自动插入 Move 包装：如果表达式是 unique 类型且尚未包装，则包装为 Move
 
 mod caller;
+mod closure;
+mod closure_lower;
 mod coerce;
 mod overflow;
 mod convert;
@@ -24,6 +26,8 @@ mod types;
 mod wrap;
 
 pub(crate) use caller::*;
+pub(crate) use closure::*;
+pub(crate) use closure_lower::*;
 pub(crate) use overflow::*;
 pub(crate) use coerce::*;
 pub(crate) use convert::*;

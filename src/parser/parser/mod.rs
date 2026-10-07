@@ -30,6 +30,7 @@ fn ast_type_text(ty: &Type) -> String {
         Type::Unique(inner, _) => ast_type_text(inner),
         Type::Self_(_) => "Self".into(),
         Type::FnPtr(..) => "fn".into(),
+        Type::Closure(..) => "Fn".into(),
     }
 }
 

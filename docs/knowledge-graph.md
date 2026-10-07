@@ -22,6 +22,7 @@
 | `docs/optimization.md` | debug/release 双模式与语义优化（M-opt.1 已实现） |
 | `docs/never-type.md` | never 类型 `!`（M1.9：发散表达式、`! → T`、`-> !` 发射） |
 | `docs/pattern-matching.md` | 模式匹配增强（Phase 1.3：atb.1 字面量/`_`/`|`/guard 已实现） |
+| `docs/closures.md` | 闭包与捕获（M2：`Fn(T)->U` 类型、按值/可变捕获、接口机制复用） |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |
 
@@ -142,6 +143,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 | 自定义 runtime | `package/config.rs`、`driver/runtime.rs`、`driver/mod.rs` | `[runtime] path` / `AYANAMI_RUNTIME`；.c/.a/.o 替代内置 runtime.c |
 | 回归夹具 | `tests/c_export/`、`tests/runtime_custom/` | C harness 互操作 + runtime 选择三路径 |
 | typeclass/`Self` | `docs/typeclass.md`、`hir/lower/body/iface_match.rs`、`parser/self_type.rs` | T1 已实现（签名 Self 消解 + 对象安全诊断）；T2–T5 评估关闭；参数化接口约束可用（违例检查已修复） |
+| 闭包/捕获（M2） | `docs/closures.md`、`parser/ast/ty.rs`（`Type::Closure`）、`hir/ty.rs`（`HirType::Closure`）、`hir/lower/helpers/closure.rs`（捕获分析）、`hir/lower/helpers/closure_lower.rs`（env/vtable/drop glue）、`hir/lower/body/expr_misc.rs`（`lower_lambda`） | C1 已实现：`Fn(T)->U` 类型 + 按值/可变捕获；闭包 = 接口胖指针 `{env, vtable=[drop,call]}`；非捕获 lambda 仍为 `fn` 裸指针 |
 
 ## 7. 关系索引（压缩版）
 
@@ -162,3 +164,4 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 效应：`#[pure]/#[no_error]/#[throws]` —推断→ `hir/effects/infer.rs`（调用图不动点）—发射→ `nounwind`/`memory(none|read)`；合成位置串（`SFileArg`）与标记不计入（#117）
 - 位运算：`& | ^ << >> ~` —文法→ operator（prec 6–9 / 前缀）—HIR→ `lower_binary`/`lower_unary` —发射→ `and/or/xor/shl/ashr/lshr` —折叠→ `example/constfold_lib.aya`
 - 显式转换：`expr as T` —解析→ `parse_cast` / 运算符表 prec:12 —HIR→ `lower_cast`/`SCast` —发射→ `sext/zext/trunc/sitofp/uitofp/fptosi.sat/fptoui.sat`
+- 闭包：`Fn(T)->U` / lambda —解析→ `parse_type`（`Fn(` 特判）/ `parse_lambda`（Block 尾表达式）—捕获分析→ `helpers/closure.rs`（AST 自由变量 + 声明追踪）—降级→ `helpers/closure_lower.rs`（`__ClosureEnv_N` + `__lambda_N(env,…)` + `__closure_drop_N`）—调用→ `SVCall`（vtable slot 1）—释放→ `emit_drop_value(Closure)` 经 vtable slot 0；非捕获 → `fn` 裸指针（`SFnPtr`/`SCallP`）

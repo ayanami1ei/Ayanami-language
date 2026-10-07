@@ -24,6 +24,7 @@ pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) 
         Type::Generic(name, args, _) => Type::Generic(*name, args.iter().map(|a| substitute_type_in_type(a, subst)).collect(), s),
         Type::Default => ty.clone(),
         Type::FnPtr(params, ret, _) => Type::FnPtr(params.iter().map(|p| substitute_type_in_type(p, subst)).collect(), Box::new(substitute_type_in_type(ret, subst)), Span::default()),
+        Type::Closure(params, ret, _) => Type::Closure(params.iter().map(|p| substitute_type_in_type(p, subst)).collect(), Box::new(substitute_type_in_type(ret, subst)), Span::default()),
         Type::Self_(_) => ty.clone(),
     }
 }
@@ -144,7 +145,7 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
         Expr::Lambda { params, return_type, body, span } => Expr::Lambda {
             params: params.iter().map(|(n, t)| (*n, substitute_type_in_type(t, subst))).collect(),
             return_type: substitute_type_in_type(return_type, subst),
-            body: body.iter().map(|s| substitute_type_in_stmt(s, subst)).collect(),
+            body: substitute_type_in_block(body, subst),
             span: *span,
         },
     }

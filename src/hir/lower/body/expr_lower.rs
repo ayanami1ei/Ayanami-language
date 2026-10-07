@@ -19,6 +19,13 @@ impl crate::hir::lower::Ctx {
                         );
                     }
                 }
+                // M2：闭包捕获变量 → env 字段访问
+                if let Some(env) = &self.lambda_env {
+                    if let Some((idx, cty)) = env.lookup(name) {
+                        let base: HirNodeBox = SVar { var: env.var, ty: env.ty.clone() }.into();
+                        return Ok(SField { object: base, field: *name, field_index: idx, ty: cty }.into());
+                    }
+                }
                 if let Some((var_id, ty, _)) = self.lookup_var(name) {
                     return Ok(SVar { var: var_id, ty }.into());
                 }

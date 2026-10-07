@@ -79,6 +79,13 @@ pub(super) fn type_to_mangle(ty: &HirType) -> String {
         HirType::Unique(inner) if matches!(&**inner, HirType::Array(_) | HirType::ArraySized(_, _)) => type_to_mangle(inner),
         HirType::Unique(inner) => format!("unique_{}", type_to_mangle(inner)),
         HirType::FnPtr(..) => "fnptr".into(),
+        HirType::Closure(ps, ret) => {
+            let mut s = String::from("closure");
+            for p in ps { s.push('_'); s.push_str(&type_to_mangle(p)); }
+            s.push_str("__r_");
+            s.push_str(&type_to_mangle(ret));
+            s
+        }
         HirType::FatPtr { name, .. } => format!("fatptr_{}", name.as_str().replace('<', "_lt_").replace('>', "_gt_")),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => format!("arr_{}", type_to_mangle(inner)),
         HirType::Ref(inner, _) => format!("ref_{}", type_to_mangle(inner)),

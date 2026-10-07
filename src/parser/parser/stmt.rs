@@ -155,17 +155,13 @@ impl Parser {
             Type::Void(Span::default())
         };
 
-        let mut body = self.parse_block()?;
-        // 裸尾表达式在 lambda 中暂按语句求值（lambda 值语义后续支持）
-        if let Some(t) = body.tail.take() {
-            let tspan = t.span();
-            body.stmts.push(Stmt::ExprStmt { expr: *t, span: tspan });
-        }
+        let body = self.parse_block()?;
+        // M2：尾表达式保留在 Block 中，由 lower_fn 作为隐式返回值处理
         let span = start_span.merge(body.span);
         Ok(Expr::Lambda {
             params,
             return_type,
-            body: body.stmts,
+            body,
             span,
         })
     }

@@ -14,6 +14,9 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
         HirType::Named(n) => Type::Named(*n, s),
         HirType::Unique(inner) => Type::Unique(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::FnPtr(..) => Type::Int(s),
+        HirType::Closure(ps, ret) => Type::Closure(
+            ps.iter().map(hir_type_to_ast_type).collect(),
+            Box::new(hir_type_to_ast_type(ret)), s),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => Type::Array(Box::new(hir_type_to_ast_type(inner)), s),
         HirType::FatPtr { name, kind } => {
             let inner = Type::Named(*name, s);
@@ -81,7 +84,20 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
         // #119：函数指针形参（fn(T) -> U）→ 从 lambda/FnPtr 实参推导参数与返回类型
         (Type::FnPtr(ps, ret, _), _) => {
             let mut out = Vec::new();
-            if let HirType::FnPtr(aps, aret) = strip_ownership_ref(arg_ty) {
+            let arg = strip_ownership_ref(arg_ty);
+            if let HirType::FnPtr(aps, aret) | HirType::Closure(aps, aret) = arg {
+                for (pt, at) in ps.iter().zip(aps.iter()) {
+                    out.extend(infer_generic_from_param(pt, at));
+                }
+                out.extend(infer_generic_from_param(ret, aret));
+            }
+            out
+        }
+        // M2：闭包形参（Fn(T) -> U）→ 从 lambda/Closure/FnPtr 实参推导
+        (Type::Closure(ps, ret, _), _) => {
+            let mut out = Vec::new();
+            let arg = strip_ownership_ref(arg_ty);
+            if let HirType::FnPtr(aps, aret) | HirType::Closure(aps, aret) = arg {
                 for (pt, at) in ps.iter().zip(aps.iter()) {
                     out.extend(infer_generic_from_param(pt, at));
                 }
@@ -101,6 +117,8 @@ pub(crate) fn generic_inner(s: &str) -> Option<&str> {
         match c {
             '<' | '[' => depth += 1,
             '>' | ']' => {
+                // `->` 的 `>` 不是括号闭合
+                if c == '>' && i > 0 && s.as_bytes()[i - 1] == b'-' { continue; }
                 depth -= 1;
                 if depth == 0 { return Some(&s[open + 1..i]); }
             }
@@ -110,15 +128,19 @@ pub(crate) fn generic_inner(s: &str) -> Option<&str> {
     None
 }
 
-/// 按顶层逗号切分泛型实参（忽略嵌套 `<>` / `[]` 内的逗号）
+/// 按顶层逗号切分泛型实参（忽略嵌套 `<>` / `[]` / `()` 内的逗号）
 pub(crate) fn split_generic_args(s: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let mut depth = 0i32;
     let mut start = 0usize;
     for (i, c) in s.char_indices() {
         match c {
-            '<' | '[' => depth += 1,
-            '>' | ']' => depth -= 1,
+            '<' | '[' | '(' => depth += 1,
+            '>' | ']' | ')' => {
+                // `->` 的 `>` 不是括号闭合（闭包签名 Fn(T)->U 会出现在实参里）
+                if c == '>' && i > 0 && s.as_bytes()[i - 1] == b'-' { continue; }
+                depth -= 1;
+            }
             ',' if depth == 0 => { out.push(&s[start..i]); start = i + 1; }
             _ => {}
         }
@@ -165,3 +187,4 @@ pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>
         _ => ty.clone(),
     }
 }
+

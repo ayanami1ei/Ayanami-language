@@ -270,7 +270,8 @@ impl crate::hir::lower::Ctx {
                     let ty = self.ast_gtype(t, &cx.gp);
                     cx.env.insert(*n, ty);
                 }
-                for s in body { self.check_stmt_names(s, cx)?; }
+                for s in &body.stmts { self.check_stmt_names(s, cx)?; }
+                if let Some(t) = &body.tail { self.check_expr_names(t, cx)?; }
                 cx.env = saved;
                 Ok(())
             }

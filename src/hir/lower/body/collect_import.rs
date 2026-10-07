@@ -165,16 +165,31 @@ impl crate::hir::lower::Ctx {
                     crate::package::ImportedSymbol::Fn { name, sig, flags } => {
                         // sig format: "fnName(param_types...)->ret_type"
                         let sig_body = sig.trim_start_matches(name.as_str());
-                        let arrow_pos = sig_body.find(")->")
-                            .ok_or_else(|| Error::Hir(format!(
-                                "invalid fn sig in package '{}': sig body `{}` (at {}:{})",
-                                name, sig_body, stmt_span.start_line, stmt_span.start_col
-                            )))?;
-                        let params_str = &sig_body[..arrow_pos];
-                        let ret_str = &sig_body[arrow_pos + 3..];
-                        // params_str is "(type1,type2" — strip leading '('
-                        let params_str = params_str.strip_prefix('(').unwrap_or(params_str);
-                        // #144：形参按顶层逗号切分（嵌套泛型实参内逗号不切）
+                        // M2：按配对的 ')' 找参数表结束（形参可能含 `Fn(...)` 内层括号）
+                        let body = sig_body.strip_prefix('(').unwrap_or(sig_body);
+                        let mut depth = 1i32;
+                        let mut close = None;
+                        for (i, c) in body.char_indices() {
+                            match c {
+                                '(' => depth += 1,
+                                ')' => {
+                                    depth -= 1;
+                                    if depth == 0 { close = Some(i); break; }
+                                }
+                                _ => {}
+                            }
+                        }
+                        let close = close.ok_or_else(|| Error::Hir(format!(
+                            "invalid fn sig in package '{}': sig body `{}` (at {}:{})",
+                            name, sig_body, stmt_span.start_line, stmt_span.start_col
+                        )))?;
+                        let params_str = &body[..close];
+                        let after = body[close + 1..].trim_start();
+                        let ret_str = after.strip_prefix("->").ok_or_else(|| Error::Hir(format!(
+                            "invalid fn sig in package '{}': sig body `{}` (at {}:{})",
+                            name, sig_body, stmt_span.start_line, stmt_span.start_col
+                        )))?;
+                        // params_str is "type1,type2"（已去外层括号）
                         let param_tys: Vec<&str> = if params_str.is_empty() {
                             Vec::new()
                         } else {
