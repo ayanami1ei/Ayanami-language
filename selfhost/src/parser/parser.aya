@@ -1085,7 +1085,7 @@ impl Parser {
                 args = self.parse_args();
                 // FnCall 只对 Ident 目标；其他走 CallExpr
                 if self.ast.tags[e] == et(ET::Ident._tag) {
-                    e = self.ast.push(et(ET::FnCall._tag), self.ast.texts[e], -1, args, -1, -1, -1, line, col);
+                    e = self.ast.push(et(ET::FnCall._tag), self.ast.texts[e], -1, args, -1, -1, -1, self.ast.lines[e], self.ast.cols[e]);
                 } else {
                     e = self.ast.push(et(ET::CallExpr._tag), "", -1, e, args, -1, -1, line, col);
                 }

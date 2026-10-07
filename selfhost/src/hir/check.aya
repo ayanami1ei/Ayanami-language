@@ -1,0 +1,570 @@
+import "string";
+import "aya_sb";
+import "aya_ast";
+import "aya_log";
+
+// M4a：HIR 子集类型检查（名称解析 + 表达式/语句类型检查）
+// 诊断格式与 rust 版 `ayanami check` 对齐：error: msg + file:line:col
+// 类型用显示名字符串表示（"int"/"float"/"bool"/"char"/"void"/"String"/结构体名…），
+// "" 表示未知（跳过检查）。
+
+pub struct Checker {
+    int errors
+    String file
+    // 函数表
+    [String] fn_names
+    [String] fn_rets
+    [int] fn_nparams
+    int fn_count
+    // 结构体表（字段扁平存储 + 每结构体区间）
+    [String] st_names
+    [int] st_fstart
+    [int] st_fcount
+    int st_count
+    [String] fld_names
+    [String] fld_types
+    int fld_count
+    // 当前函数局部变量
+    [String] lv_names
+    [String] lv_types
+    int lv_count
+    // 当前函数返回类型
+    String cur_ret
+}
+
+pub namespace Checker {
+    pub fn new(ref String file) -> Checker {
+        c = Checker {
+            errors = 0,
+            file = file.copy(),
+            fn_names = [String; 4096],
+            fn_rets = [String; 4096],
+            fn_nparams = [int; 4096],
+            fn_count = 0,
+            st_names = [String; 1024],
+            st_fstart = [int; 1024],
+            st_fcount = [int; 1024],
+            st_count = 0,
+            fld_names = [String; 8192],
+            fld_types = [String; 8192],
+            fld_count = 0,
+            lv_names = [String; 4096],
+            lv_types = [String; 4096],
+            lv_count = 0,
+            cur_ret = ""
+        };
+        return c;
+    }
+}
+
+/// AST 类型节点 -> 显示名
+pub fn type_name(ref Ast ast, int ty) -> String {
+    if ty < 0 { return ""; }
+    t = ast.tags[ty];
+    if t == tt(TT::Int._tag) { return "int"; }
+    if t == tt(TT::Float._tag) { return "float"; }
+    if t == tt(TT::Char._tag) { return "char"; }
+    if t == tt(TT::Bool._tag) { return "bool"; }
+    if t == tt(TT::Void._tag) { return "void"; }
+    if t == tt(TT::Never._tag) { return "!"; }
+    if t == tt(TT::Self_._tag) { return "Self"; }
+    if t == tt(TT::Named._tag) { return ast.texts[ty].copy(); }
+    if t == tt(TT::Closure._tag) { return "Fn(...)"; }
+    if t == tt(TT::FnPtr._tag) { return "Fn(...)"; }
+    if t == tt(TT::Array._tag) {
+        b = StringBuf::new();
+        b.push_str("[");
+        b.push_str(type_name(ast, ast.aa[ty]));
+        b.push_str("]");
+        return b.to_string();
+    }
+    if t == tt(TT::ArraySized._tag) {
+        b = StringBuf::new();
+        b.push_str("[");
+        b.push_str(type_name(ast, ast.aa[ty]));
+        b.push_str("; ");
+        b.push_int(ast.bb[ty]);
+        b.push_str("]");
+        return b.to_string();
+    }
+    if t == tt(TT::Ref._tag) {
+        b = StringBuf::new();
+        if ast.bb[ty] == 1 { b.push_str("ref mut "); } else { b.push_str("ref "); }
+        b.push_str(type_name(ast, ast.aa[ty]));
+        return b.to_string();
+    }
+    if t == tt(TT::Generic._tag) {
+        b = StringBuf::new();
+        b.push_str(ast.texts[ty]);
+        b.push_str("[");
+        g = ast.aa[ty];
+        first = 1;
+        while g >= 0 {
+            if first == 0 { b.push_str(","); }
+            b.push_str(type_name(ast, ast.tys[g]));
+            first = 0;
+            g = ast.nexts[g];
+        }
+        b.push_str("]");
+        return b.to_string();
+    }
+    return "";
+}
+
+impl Checker {
+    /// 预置常见 std/builtin 函数（返回类型未知 → 跳过类型检查）
+    fn seed_std(ref mut self) {
+        self.add_builtin("println");
+        self.add_builtin("print");
+        self.add_builtin("putchar");
+        self.add_builtin("getchar");
+        self.add_builtin("warn");
+        self.add_builtin("note");
+        self.add_builtin("panic");
+        self.add_builtin("error_at");
+    }
+
+    fn add_builtin(ref mut self, ref String name) {
+        if self.fn_count >= 4096 { return; }
+        self.fn_names[self.fn_count] = name.copy();
+        self.fn_rets[self.fn_count] = "";
+        self.fn_nparams[self.fn_count] = -1;
+        self.fn_count = self.fn_count + 1;
+    }
+
+    fn err(ref mut self, ref String msg, int line, int col) {
+        self.errors = self.errors + 1;
+        error_at(self.file, line, col, msg);
+    }
+
+    fn err_name(ref mut self, ref String prefix, ref String name, int line, int col) {
+        b = StringBuf::new();
+        b.push_str(prefix);
+        b.push_str(name);
+        b.push_str("`");
+        self.err(b.to_string(), line, col);
+    }
+
+    fn find_fn(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.fn_count {
+            if self.fn_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn find_struct(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.st_count {
+            if self.st_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn find_field(ref mut self, int st, ref String name) -> int {
+        start = self.st_fstart[st];
+        n = self.st_fcount[st];
+        i = 0;
+        while i < n {
+            if self.fld_names[start + i] == name { return start + i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn local_type(ref mut self, ref String name) -> String {
+        i = 0;
+        while i < self.lv_count {
+            if self.lv_names[i] == name { return self.lv_types[i].copy(); }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    fn has_local(ref mut self, ref String name) -> bool {
+        i = 0;
+        while i < self.lv_count {
+            if self.lv_names[i] == name { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    fn set_local(ref mut self, ref String name, ref String ty) {
+        if self.lv_count >= 4096 { return; }
+        self.lv_names[self.lv_count] = name.copy();
+        self.lv_types[self.lv_count] = ty.copy();
+        self.lv_count = self.lv_count + 1;
+    }
+
+    fn update_local(ref mut self, ref String name, ref String ty) {
+        i = 0;
+        while i < self.lv_count {
+            if self.lv_names[i] == name {
+                self.lv_types[i] = ty.copy();
+                return;
+            }
+            i = i + 1;
+        }
+    }
+
+    // ---------- 收集声明 ----------
+
+    fn collect(ref mut self, ref Ast ast, int prog) {
+        s = ast.aa[prog];
+        while s >= 0 {
+            tag = ast.tags[s];
+            if tag == st(ST::FnDecl._tag) {
+                self.add_fn(ast, s);
+            } elif tag == st(ST::StructDef._tag) {
+                self.add_struct(ast, s);
+            } elif tag == st(ST::ImplBlock._tag) || tag == st(ST::Namespace._tag) {
+                self.collect(ast, s);
+            }
+            s = ast.nexts[s];
+        }
+    }
+
+    fn add_fn(ref mut self, ref Ast ast, int id) {
+        if self.fn_count >= 4096 { return; }
+        self.fn_names[self.fn_count] = ast.texts[id].copy();
+        self.fn_rets[self.fn_count] = type_name(ast, ast.tys[id]);
+        n = 0;
+        p = ast.aa[id];
+        while p >= 0 {
+            n = n + 1;
+            p = ast.nexts[p];
+        }
+        self.fn_nparams[self.fn_count] = n;
+        self.fn_count = self.fn_count + 1;
+    }
+
+    fn add_struct(ref mut self, ref Ast ast, int id) {
+        if self.st_count >= 1024 { return; }
+        st = self.st_count;
+        self.st_names[st] = ast.texts[id].copy();
+        self.st_fstart[st] = self.fld_count;
+        n = 0;
+        f = ast.aa[id];
+        while f >= 0 {
+            if self.fld_count < 8192 {
+                self.fld_names[self.fld_count] = ast.texts[f].copy();
+                self.fld_types[self.fld_count] = type_name(ast, ast.tys[f]);
+                self.fld_count = self.fld_count + 1;
+                n = n + 1;
+            }
+            f = ast.nexts[f];
+        }
+        self.st_fcount[st] = n;
+        self.st_count = st + 1;
+    }
+
+    // ---------- 检查函数体 ----------
+
+    fn check_fn(ref mut self, ref Ast ast, int id) {
+        self.lv_count = 0;
+        self.cur_ret = type_name(ast, ast.tys[id]);
+        p = ast.aa[id];
+        while p >= 0 {
+            self.set_local(ast.texts[p], type_name(ast, ast.tys[p]));
+            p = ast.nexts[p];
+        }
+        self.check_block(ast, ast.bb[id]);
+    }
+
+    fn check_block(ref mut self, ref Ast ast, int blk) {
+        s = ast.aa[blk];
+        while s >= 0 {
+            self.check_stmt(ast, s);
+            s = ast.nexts[s];
+        }
+        t = ast.bb[blk];
+        if t >= 0 {
+            self.check_expr(ast, t);
+        }
+    }
+
+    fn check_stmt(ref mut self, ref Ast ast, int id) {
+        tag = ast.tags[id];
+        if tag == st(ST::FnDecl._tag) {
+            self.check_fn(ast, id);
+        } elif tag == st(ST::Assign._tag) {
+            ty = self.check_expr(ast, ast.aa[id]);
+            if self.has_local(ast.texts[id]) {
+                old = self.local_type(ast.texts[id]);
+                if !convertible(ty, old) {
+                    self.convert_err(ty, old, ast.lines[id], ast.cols[id]);
+                }
+            } else {
+                self.set_local(ast.texts[id], ty);
+            }
+        } elif tag == st(ST::Return._tag) {
+            if ast.aa[id] >= 0 {
+                ty = self.check_expr(ast, ast.aa[id]);
+                if !convertible(ty, self.cur_ret) {
+                    self.convert_err(ty, self.cur_ret, ast.lines[id], ast.cols[id]);
+                }
+            }
+        } elif tag == st(ST::ExprStmt._tag) {
+            self.check_expr(ast, ast.aa[id]);
+        } elif tag == st(ST::If._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            self.check_block(ast, ast.bb[id]);
+            e = ast.cc[id];
+            while e >= 0 {
+                self.check_expr(ast, ast.aa[e]);
+                self.check_block(ast, ast.bb[e]);
+                e = ast.nexts[e];
+            }
+            if ast.dd[id] >= 0 {
+                self.check_block(ast, ast.dd[id]);
+            }
+        } elif tag == st(ST::While._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            self.check_block(ast, ast.bb[id]);
+        } elif tag == st(ST::For._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            self.check_expr(ast, ast.bb[id]);
+            self.set_local(ast.texts[id], "int");
+            self.check_block(ast, ast.dd[id]);
+        } elif tag == st(ST::FieldAssign._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            self.check_expr(ast, ast.bb[id]);
+        } elif tag == st(ST::IndexAssign._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            self.check_expr(ast, ast.bb[id]);
+            self.check_expr(ast, ast.cc[id]);
+        } elif tag == st(ST::Match._tag) {
+            self.check_expr(ast, ast.aa[id]);
+        } elif tag == st(ST::Block._tag) {
+            self.check_block(ast, id);
+        }
+    }
+
+    fn convert_err(ref mut self, ref String from, ref String to, int line, int col) {
+        b = StringBuf::new();
+        b.push_str("cannot implicitly convert `");
+        b.push_str(from);
+        b.push_str("` to `");
+        b.push_str(to);
+        b.push_str("`");
+        self.err(b.to_string(), line, col);
+    }
+
+    fn check_expr(ref mut self, ref Ast ast, int id) -> String {
+        if id < 0 { return ""; }
+        tag = ast.tags[id];
+        if tag == et(ET::Literal._tag) {
+            k = ast.bb[id];
+            if k == lk(LK::Int._tag) { return "int"; }
+            if k == lk(LK::Float._tag) { return "float"; }
+            if k == lk(LK::Char._tag) { return "char"; }
+            if k == lk(LK::Str._tag) { return "String"; }
+            return "bool";
+        }
+        if tag == et(ET::Ident._tag) {
+            nm = ast.texts[id];
+            if contains_dot(nm) { return ""; }
+            if self.has_local(nm) { return self.local_type(nm); }
+            if self.find_fn(nm) >= 0 { return ""; }
+            self.err_name("undefined variable `", nm, ast.lines[id], ast.cols[id]);
+            return "";
+        }
+        if tag == et(ET::FnCall._tag) {
+            nm = ast.texts[id];
+            if contains_dot(nm) {
+                a0 = ast.aa[id];
+                while a0 >= 0 {
+                    self.check_expr(ast, a0);
+                    a0 = ast.nexts[a0];
+                }
+                return "";
+            }
+            fi = self.find_fn(nm);
+            if fi < 0 {
+                self.err_name("undefined function `", nm, ast.lines[id], ast.cols[id]);
+            } else {
+                n = 0;
+                a = ast.aa[id];
+                while a >= 0 {
+                    self.check_expr(ast, a);
+                    n = n + 1;
+                    a = ast.nexts[a];
+                }
+                if n != self.fn_nparams[fi] {
+                    // 参数个数错误暂不比对（消息未对齐）
+                }
+                return self.fn_rets[fi].copy();
+            }
+            return "";
+        }
+        if tag == et(ET::Binary._tag) {
+            lt = self.check_expr(ast, ast.aa[id]);
+            rt = self.check_expr(ast, ast.bb[id]);
+            op = ast.tys[id];
+            if op == bo(BinOp::And._tag) || op == bo(BinOp::Or._tag) {
+                return "bool";
+            }
+            if op == bo(BinOp::Eq._tag) || op == bo(BinOp::Neq._tag) || op == bo(BinOp::Lt._tag) || op == bo(BinOp::Gt._tag) || op == bo(BinOp::Le._tag) || op == bo(BinOp::Ge._tag) {
+                return "bool";
+            }
+            if lt == "float" && rt == "int" {
+                self.convert_err("int", "float", ast.lines[id], ast.cols[id]);
+                return "";
+            }
+            if lt == "int" && rt == "float" {
+                self.convert_err("int", "float", ast.lines[id], ast.cols[id]);
+                return "";
+            }
+            if lt == "String" && rt == "String" {
+                return "String";
+            }
+            if lt == "" { return rt; }
+            return lt;
+        }
+        if tag == et(ET::Unary._tag) {
+            t2 = self.check_expr(ast, ast.aa[id]);
+            op = ast.tys[id];
+            if op == uo(UnOp::Not._tag) { return "bool"; }
+            return t2;
+        }
+        if tag == et(ET::StructLiteral._tag) {
+            nm = ast.texts[id];
+            st = self.find_struct(nm);
+            if st < 0 {
+                self.err_name("undefined struct `", nm, ast.lines[id], ast.cols[id]);
+                return "";
+            }
+            f = ast.aa[id];
+            while f >= 0 {
+                vt = self.check_expr(ast, ast.aa[f]);
+                fi = self.find_field(st, ast.texts[f]);
+                if fi < 0 {
+                    self.err_name("no field `", ast.texts[f], ast.lines[f], ast.cols[f]);
+                } else {
+                    ft = self.fld_types[fi];
+                    if !convertible(vt, ft) {
+                        self.convert_err(vt, ft, ast.lines[f], ast.cols[f]);
+                    }
+                }
+                f = ast.nexts[f];
+            }
+            return nm;
+        }
+        if tag == et(ET::FieldAccess._tag) {
+            ot = self.check_expr(ast, ast.aa[id]);
+            st = self.find_struct(ot);
+            if st >= 0 {
+                fi = self.find_field(st, ast.texts[id]);
+                if fi < 0 {
+                    self.err_name("no field `", ast.texts[id], ast.lines[id], ast.cols[id]);
+                    return "";
+                }
+                return self.fld_types[fi].copy();
+            }
+            return "";
+        }
+        if tag == et(ET::MethodCall._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            a = ast.bb[id];
+            while a >= 0 {
+                self.check_expr(ast, a);
+                a = ast.nexts[a];
+            }
+            return "";
+        }
+        if tag == et(ET::If._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            self.check_block(ast, ast.bb[id]);
+            e = ast.cc[id];
+            while e >= 0 {
+                self.check_expr(ast, ast.aa[e]);
+                self.check_block(ast, ast.bb[e]);
+                e = ast.nexts[e];
+            }
+            if ast.dd[id] >= 0 {
+                self.check_block(ast, ast.dd[id]);
+            }
+            return "";
+        }
+        if tag == et(ET::Cast._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            return type_name(ast, ast.tys[id]);
+        }
+        if tag == et(ET::Index._tag) {
+            ot = self.check_expr(ast, ast.aa[id]);
+            self.check_expr(ast, ast.bb[id]);
+            if ot.len > 2 {
+                if ot.index(0) == '[' { return ot.substring(1 as usize, (ot.len - 1) as usize); }
+            }
+            return "";
+        }
+        if tag == et(ET::Ref._tag) {
+            return self.check_expr(ast, ast.aa[id]);
+        }
+        if tag == et(ET::CallExpr._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            a = ast.bb[id];
+            while a >= 0 {
+                self.check_expr(ast, a);
+                a = ast.nexts[a];
+            }
+            return "";
+        }
+        if tag == et(ET::ArrayLiteral._tag) {
+            a = ast.aa[id];
+            if a >= 0 {
+                et2 = self.check_expr(ast, a);
+                b2 = StringBuf::new();
+                b2.push_str("[");
+                b2.push_str(et2);
+                b2.push_str("]");
+                return b2.to_string();
+            }
+            return "";
+        }
+        return "";
+    }
+}
+
+fn contains_dot(ref String s) -> bool {
+    i = 0;
+    while i < s.len as int {
+        if s.index(i as usize) == '.' { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// 是否可隐式转换（与 rust 版一致：int/float、bool/int 之间不可隐式转换）
+fn convertible(ref String from, ref String to) -> bool {
+    if from.len == 0 { return true; }
+    if to.len == 0 { return true; }
+    if from == to { return true; }
+    if from == "!" { return true; }
+    return false;
+}
+
+/// 入口：收集 + 检查，返回错误数（诊断已输出）
+pub fn check_program(ref Ast ast, int prog, ref String file) -> int {
+    c = Checker::new(file);
+    c.collect(ast, prog);
+    s = ast.aa[prog];
+    while s >= 0 {
+        if ast.tags[s] == st(ST::FnDecl._tag) {
+            c.check_fn(ast, s);
+        } elif ast.tags[s] == st(ST::ImplBlock._tag) || ast.tags[s] == st(ST::Namespace._tag) {
+            m = ast.aa[s];
+            while m >= 0 {
+                if ast.tags[m] == st(ST::FnDecl._tag) {
+                    c.check_fn(ast, m);
+                }
+                m = ast.nexts[m];
+            }
+        }
+        s = ast.nexts[s];
+    }
+    return c.errors;
+}

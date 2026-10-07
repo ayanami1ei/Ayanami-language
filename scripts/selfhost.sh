@@ -9,6 +9,7 @@
 #   ./scripts/selfhost.sh tokens [GLOB]   # 词法 golden：与 rust lexdump 对比 token 流
 #   ./scripts/selfhost.sh ast [GLOB]      # 语法 golden：与 rust `dump ast` 对比 AST 树
 #   ./scripts/selfhost.sh errs            # 错误定位 golden：与 rust check 的首个错误 line:col 对比
+#   ./scripts/selfhost.sh check           # 类型检查 golden：与 rust check 的诊断（消息+位置）对比
 #   ./scripts/selfhost.sh diff [GLOB]    # stage-0/stage-1 差分（stage-1 存在后生效）
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -171,6 +172,36 @@ cmd_errs() {
     [[ $fail -eq 0 ]]
 }
 
+# 诊断签名：error 行 + 随后的 --> 位置，合并为 "error: msg @ line:col"
+sig() {
+    awk '/^error: /{msg=$0} /^  --> /{n=split($0,a,":"); print msg" @"a[n-1]":"a[n]}'
+}
+
+cmd_check() {
+    local s0; s0=$(stage0)
+    echo "== 构建 stage-0 check_dump =="
+    run_limited "$s0" run --release "$ROOT/selfhost/tests/check_dump.aya" >/dev/null 2>&1 || true
+    [[ -x "$ROOT/build/check_dump" ]] || { echo "check_dump 构建失败"; exit 6; }
+    local fail=0 total=0
+    shopt -s nullglob
+    for f in "$ROOT"/selfhost/tests/typecheck_bad/*.aya "$ROOT"/selfhost/tests/typecheck_ok/*.aya; do
+        total=$((total + 1))
+        rust_sig=$(run_limited "$s0" check --release "$f" 2>&1 | sig || true)
+        ours_sig=$(run_limited env CHECK_FILE="$f" "$ROOT/build/check_dump" 2>&1 | sig || true)
+        if [[ "$rust_sig" == "$ours_sig" ]]; then
+            echo "CHECK OK $(basename "$f")"
+        else
+            echo "CHECK DIFF $(basename "$f")"
+            printf '  rust: %s\n' "$rust_sig"
+            printf '  ours: %s\n' "$ours_sig"
+            fail=$((fail + 1))
+        fi
+    done
+    shopt -u nullglob
+    echo "check: $((total - fail))/$total 一致"
+    [[ $fail -eq 0 ]]
+}
+
 cmd_diff() {
     local pattern="${1:-example/*.aya}"
     if [[ ! -x "$ROOT/selfhost/build/ayanami" ]]; then
@@ -200,6 +231,7 @@ case "${1:-}" in
     tokens) shift; cmd_tokens "$@" ;;
     ast) shift; cmd_ast "$@" ;;
     errs) shift; cmd_errs "$@" ;;
+    check) shift; cmd_check "$@" ;;
     diff) shift; cmd_diff "$@" ;;
     *) sed -n '2,12p' "$0"; exit 1 ;;
 esac

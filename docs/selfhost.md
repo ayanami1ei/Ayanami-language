@@ -147,6 +147,7 @@ selfhost/
 | M1 | ✅ 完成 | `42a10da` |
 | M2 | ✅ 完成 | `lexer/token.aya` + `lexer/lexer.aya`；golden 130 文件零差异 |
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
+| M4 | 🔄 进行中 | M4a 类型检查子集：诊断 golden 8/8（未定义变量/函数、隐式转换、重赋值）；名称解析/接口/单态化待扩展 |
 
 M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf）、`base/map.aya`（IntMap[V] 开放寻址）、
 `base/intern.aya`（驻留，内联槽位表）、`base/sys.aya`（argv/env/system）、`base/log.aya`（stderr 诊断）；
@@ -169,4 +170,5 @@ M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf�
 | #146 | `&&`/`||` 不短路（右侧总被求值） | ✅ 已修复（2026-10-06） |
 | #147 | while 条件含 `&&` + 方法调用时条件不更新（死循环） | ✅ 已修复（2026-10-07）；现有 `while true + break` 保留 |
 | #150 | 未知枚举变体静默通过（E::C 当 _tag=0） | ✅ 已修复（2026-10-08） |
+| #153 | 结构体字面量未知字段不报错（codegen GEP 越界） | 未修；自举 checker 已能诊断 |
 | #122 | 字符串字面量含非 ASCII 生成非法 LLVM 常量 | 未修；单测用 ASCII 片段 |

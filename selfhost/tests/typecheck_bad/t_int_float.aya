@@ -1,0 +1,4 @@
+fn f(int a) -> int {
+    b = a + 1.5
+    return b
+}

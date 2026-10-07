@@ -1,0 +1,28 @@
+// 类型检查 golden 工具：CHECK_FILE=path → 解析 + 检查（诊断格式与 rust check 一致）
+import "io";
+import "aya_file";
+import "aya_sys";
+import "aya_parser";
+import "aya_check";
+
+fn main() -> int {
+    path = env("CHECK_FILE");
+    if path.len == 0 { println("usage: CHECK_FILE=FILE check_dump"); return 1 }
+    r = read_file(path);
+    if !r.ok { println("cannot read"); return 2 }
+    p = Parser::new(r.data);
+    prog = p.parse_program();
+    if p.failed == 1 {
+        println("parse error:");
+        println(p.err);
+        return 3;
+    }
+    n = check_program(p.ast, prog, path);
+    if n == 0 {
+        b = StringBuf::new();
+        b.push_str("check passed: ");
+        b.push_str(path);
+        println(b.to_string());
+    }
+    return 0;
+}

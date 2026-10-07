@@ -1,0 +1,17 @@
+struct Point {
+    int x
+    int y
+}
+
+fn add(int a, int b) -> int {
+    return a + b
+}
+
+fn main() -> int {
+    p = Point { x = 1, y = 2 }
+    s = add(p.x, p.y)
+    if s > 0 {
+        return s
+    }
+    return 0
+}
