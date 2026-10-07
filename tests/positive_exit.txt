@@ -122,3 +122,4 @@ test_iface_box.aya 0
 test_iter_infer.aya 0
 test_iface_field.aya 0
 test_multi_constraint.aya 0
+test_macro_block.aya 0

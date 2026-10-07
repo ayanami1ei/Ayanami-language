@@ -287,7 +287,12 @@ impl crate::hir::lower::Ctx {
                 Ok(())
             }
             Expr::MacroCall { args, .. } => {
-                for a in args { self.check_expr_names(a, cx)?; }
+                for a in args {
+                    match a {
+                        crate::parser::ast::expr::MacroArg::Expr(e) => self.check_expr_names(e, cx)?,
+                        crate::parser::ast::expr::MacroArg::Block(_) => {}
+                    }
+                }
                 Ok(())
             }
         }

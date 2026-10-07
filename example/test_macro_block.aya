@@ -1,0 +1,8 @@
+// #88：函数宏块实参 `#macro({ ... })`（块源码文本传入宏）
+import "macro_lib.aya"
+
+fn main() -> int {
+    x = #block_len({ y = 12345 })
+    if x <= 5 { return 1 }
+    return 0
+}

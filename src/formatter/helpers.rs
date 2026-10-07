@@ -15,7 +15,7 @@ pub(super) fn indent(level: usize) -> String {
     INDENT.repeat(level)
 }
 
-pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize) {
+pub(super) fn write_block_same_line(out: &mut String, block: &crate::parser::ast::block::Block, level: usize) {
     if block.stmts.is_empty() && block.tail.is_none() {
         let _ = write!(out, "{{}}");
         return;
@@ -125,6 +125,18 @@ pub(super) fn write_match_body(body: &crate::parser::ast::stmt::MatchBody, level
             let mut s = String::new();
             write_block_same_line(&mut s, b, level);
             s
+        }
+    }
+}
+
+/// #88：宏实参格式化（表达式 / 块）。
+pub(super) fn format_macro_arg(a: &crate::parser::ast::expr::MacroArg, level: usize) -> String {
+    match a {
+        crate::parser::ast::expr::MacroArg::Expr(e) => super::expr::write_expr_at(e, level),
+        crate::parser::ast::expr::MacroArg::Block(b) => {
+            let mut out = String::new();
+            write_block_same_line(&mut out, b, level);
+            out.trim_start().to_string()
         }
     }
 }

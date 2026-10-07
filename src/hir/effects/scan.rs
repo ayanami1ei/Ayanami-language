@@ -144,7 +144,12 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
         }
         Expr::Cast { expr, .. } => scan_expr(expr, obs),
         Expr::MacroCall { args, .. } => {
-            for a in args { scan_expr(a, obs); }
+            for a in args {
+                match a {
+                    crate::parser::ast::expr::MacroArg::Expr(e) => scan_expr(e, obs),
+                    crate::parser::ast::expr::MacroArg::Block(_) => {}
+                }
+            }
         }
         Expr::FnCall { name, args, span, .. } => {
             if IO_NAMES.contains(&name.as_str().as_str()) {

@@ -28,6 +28,10 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
                 let _ = writeln!(out);
             }
         }
+        Block(block) => {
+            write_block_same_line(out, block, level);
+            let _ = writeln!(out);
+        }
         Assign { name, is_mut, value, .. } => {
             let i = indent(level);
             if *is_mut {

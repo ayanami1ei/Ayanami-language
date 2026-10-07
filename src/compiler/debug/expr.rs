@@ -12,7 +12,14 @@ pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write) {
         }
         Expr::MacroCall { name, args, .. } => {
             writeln!(w, "{}MacroCall({})", pad(level), name).unwrap();
-            for a in args { write_expr(a, level + 1, w); }
+            for a in args {
+                match a {
+                    crate::parser::ast::expr::MacroArg::Expr(e) => write_expr(e, level + 1, w),
+                    crate::parser::ast::expr::MacroArg::Block(b) => {
+                        writeln!(w, "{}Block ({} stmts)", pad(level + 1), b.stmts.len()).unwrap();
+                    }
+                }
+            }
         }
         Expr::Ident(name, _) => {
             writeln!(w, "{}Ident({})", pad(level), name).unwrap();

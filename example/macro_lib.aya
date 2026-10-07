@@ -46,3 +46,11 @@ pub fn double(String input, String x) -> String { return "(" + x + " + " + x + "
 // 调用点信息（Rust 风格 line/column/file 的等价物：保留参数 __line/__col/__file）
 #[macro]
 pub fn my_line(String input, int __line, int __col) -> String { return "" + __line }
+
+// #88：函数宏块实参 —— 第二参数为块源码文本（`#block_len({ ... })`）
+#[alloc]
+#[state]
+#[macro]
+pub fn block_len(String input, String block) -> String {
+    return (block.len() as int).to_string()
+}

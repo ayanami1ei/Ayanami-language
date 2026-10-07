@@ -252,6 +252,7 @@ else22:
 ifcont23:
     drop v14 : Named(Symbol(N))
     store Literal(Int(0), Int) -> v16 : Int
+    drop v6 : Named(Symbol(N))
     t40 = load v16 : Int
     ret Tmp(40)
     store Literal(Int(0), Int) -> v17 : Int

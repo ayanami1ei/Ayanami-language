@@ -88,8 +88,16 @@ pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>) {
             if let Some(b) = else_block { collect_local_names_block(b, out); }
         }
         Expr::Cast { expr, .. } => collect_local_names_expr(expr, out),
+        Expr::MacroCall { args, .. } => {
+            for a in args {
+                match a {
+                    crate::parser::ast::expr::MacroArg::Expr(e) => collect_local_names_expr(e, out),
+                    crate::parser::ast::expr::MacroArg::Block(b) => collect_local_names_block(b, out),
+                }
+            }
+        }
         Expr::FnCall { args, .. } | Expr::MethodCall { args, .. }
-        | Expr::CallExpr { args, .. } | Expr::MacroCall { args, .. } => {
+        | Expr::CallExpr { args, .. } => {
             if let Expr::MethodCall { object, .. } | Expr::CallExpr { target: object, .. } = expr {
                 collect_local_names_expr(object, out);
             }

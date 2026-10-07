@@ -55,6 +55,11 @@ fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>> {
                 generic_params: generic_params.clone(), methods: kept, span: *span,
             }
         }
+        Stmt::Block(block) => Stmt::Block(crate::parser::ast::block::Block {
+            stmts: filter_stmts(&block.stmts)?,
+            tail: block.tail.clone(),
+            span: block.span,
+        }),
         Stmt::Attributed { attrs, stmt: inner, span } => match filter_one(inner)? {
             Some(inner) => Stmt::Attributed { attrs: attrs.clone(), stmt: Box::new(inner), span: *span },
             None => return Ok(None),

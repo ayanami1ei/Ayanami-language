@@ -80,6 +80,8 @@ impl Parser {
                 Stmt::Continue { span: tok.span() }
             }
             TokenKind::Keyword(Keyword::Match) => self.parse_match_stmt()?,
+            // #88：裸块语句（语句级标注 `#[attr] { ... }` 的载体）
+            TokenKind::Delimiter(Delimiter::LBrace) => Stmt::Block(self.parse_block()?),
             _ => self.parse_any_assign_or_expr()?,
         };
         if attrs.is_empty() {

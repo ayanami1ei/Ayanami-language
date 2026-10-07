@@ -3,7 +3,7 @@
 use super::*;
 
 impl crate::hir::lower::Ctx {
-    pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox> {
+    pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &[crate::parser::ast::expr::MacroArg], span: &Span) -> Result<HirNodeBox> {
         // 宏所在包（裸名可能被多个包导出 → 要求全限定）
         let lcls = self.imported_macro_lcls.get(name).cloned().unwrap_or_default();
         if lcls.is_empty() {
@@ -22,8 +22,16 @@ impl crate::hir::lower::Ctx {
         let full = name.as_str();
         let macro_name = full.rsplit('.').next().unwrap_or(&full).to_string();
 
-        // 实参以源码文本传给宏（保留原始形态）
-        let arg_src: Vec<String> = args.iter().map(crate::formatter::format_expr).collect();
+        // 实参以源码文本传给宏（保留原始形态；块实参格式化为块文本）
+        let arg_src: Vec<String> = args.iter().map(|a| match a {
+            crate::parser::ast::expr::MacroArg::Expr(e) => crate::formatter::format_expr(e),
+            crate::parser::ast::expr::MacroArg::Block(b) => {
+                crate::formatter::format_program(&crate::parser::ast::Program::new(vec![
+                    crate::parser::ast::stmt::Stmt::Block(b.clone()),
+                ]))
+                .trim().to_string()
+            }
+        }).collect();
 
         if self.macro_depth >= 32 {
             return Err(Error::Hir(format!(

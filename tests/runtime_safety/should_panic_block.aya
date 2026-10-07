@@ -1,0 +1,18 @@
+// #88：语句块级标注 `#[should_panic] { ... }`（std identity 宏；运行时捕获语义待 Ayanami-std）
+import "io"
+import "test"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn main() -> int {
+    #[should_panic]
+    {
+        x = 1
+    }
+    {
+        y = 2
+        #assert_eq(y, 2)
+    }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

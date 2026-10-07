@@ -18,7 +18,12 @@ impl Parser {
         let mut args = Vec::new();
         if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
             loop {
-                args.push(self.parse_expr()?);
+                // #88：块实参 `#macro({ ... })`
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
+                    args.push(crate::parser::ast::expr::MacroArg::Block(self.parse_block()?));
+                } else {
+                    args.push(crate::parser::ast::expr::MacroArg::Expr(self.parse_expr()?));
+                }
                 if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
                 self.expect_delimiter(Delimiter::Comma)?;
             }

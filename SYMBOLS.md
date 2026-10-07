@@ -148,12 +148,12 @@ src/compiler/macro_expand/mod.rs:57: fn collect(program: &Program, src_path: &Pa
 src/compiler/macro_expand/mod.rs:65: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
 src/compiler/macro_expand/mod.rs:71: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/mod.rs:88: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
-src/compiler/macro_expand/mod.rs:186: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)>
-src/compiler/macro_expand/mod.rs:207: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:234: fn parse_source(code: &str) -> Result<Program>
-src/compiler/macro_expand/mod.rs:244: fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/mod.rs:255: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/mod.rs:266: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/mod.rs:192: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)>
+src/compiler/macro_expand/mod.rs:213: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:240: fn parse_source(code: &str) -> Result<Program>
+src/compiler/macro_expand/mod.rs:250: fn is_compiler_attr(a: &Attr) -> bool
+src/compiler/macro_expand/mod.rs:261: fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/mod.rs:272: fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
 src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 3;
 src/compiler/macro_expand/pass_plugin.rs:21: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
 src/compiler/macro_expand/pass_plugin.rs:47: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
@@ -274,7 +274,7 @@ src/formatter/expr.rs:267: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
 src/formatter/expr.rs:290: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
-src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
+src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &crate::parser::ast::block::Block, level: usize)
 src/formatter/helpers.rs:35: pub(super) fn write_attrs(out: &mut String, attrs: &[Attr], level: usize)
 src/formatter/helpers.rs:47: pub(super) fn write_attr_arg(arg: &crate::parser::ast::AttrArg) -> String
 src/formatter/helpers.rs:55: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Vec<Symbol>)])
@@ -282,6 +282,7 @@ src/formatter/helpers.rs:73: pub(super) fn write_params(out: &mut String, params
 src/formatter/helpers.rs:101: pub(super) fn write_return_type(out: &mut String, ty: &Type)
 src/formatter/helpers.rs:111: pub(super) fn write_fn_type(kw: &str, params: &[Type], ret: &Type) -> String
 src/formatter/helpers.rs:121: pub(super) fn write_match_body(body: &crate::parser::ast::stmt::MatchBody, level: usize) -> String
+src/formatter/helpers.rs:133: pub(super) fn format_macro_arg(a: &crate::parser::ast::expr::MacroArg, level: usize) -> String
 src/formatter/mod.rs:7: const INDENT: &str = "    ";
 src/formatter/mod.rs:9: pub fn format_program(program: &Program) -> String
 src/formatter/mod.rs:21: mod expr;
@@ -321,12 +322,12 @@ src/hir/attrs_macro.rs:177: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
-src/hir/cfg.rs:68: pub fn stmt_enabled(stmt: &Stmt) -> bool
-src/hir/cfg.rs:72: fn attrs_of(stmt: &Stmt) -> Option<&[Attr]>
-src/hir/cfg.rs:84: fn cfg_enabled(attrs: Option<&[Attr]>) -> Result<bool>
-src/hir/cfg.rs:98: fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool>
-src/hir/cfg.rs:121: fn eval_bare(e: &Expr, span: crate::span::Span) -> Result<bool>
-src/hir/cfg.rs:138: fn unsupported(span: crate::span::Span) -> Error
+src/hir/cfg.rs:73: pub fn stmt_enabled(stmt: &Stmt) -> bool
+src/hir/cfg.rs:77: fn attrs_of(stmt: &Stmt) -> Option<&[Attr]>
+src/hir/cfg.rs:89: fn cfg_enabled(attrs: Option<&[Attr]>) -> Result<bool>
+src/hir/cfg.rs:103: fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool>
+src/hir/cfg.rs:126: fn eval_bare(e: &Expr, span: crate::span::Span) -> Result<bool>
+src/hir/cfg.rs:143: fn unsupported(span: crate::span::Span) -> Error
 src/hir/contracts.rs:7: pub fn validate_fn_attrs(attrs: &[Attr]) -> Result<()>
 src/hir/contracts.rs:21: pub fn ensure_bool_condition(cond: &crate::hir::HirNodeBox, kind: &str, line: usize, col: usize) -> Result<()>
 src/hir/contracts.rs:31: static RELEASE_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -528,7 +529,7 @@ src/hir/lower/body/lower_items.rs:8: pub(crate) fn lower_items_with_ns(&mut self
 src/hir/lower/body/lower_items.rs:117: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
 src/hir/lower/body/lower_items.rs:145: pub(crate) fn lower_fn(
 src/hir/lower/body/macro_call.rs:5: impl crate::hir::lower::Ctx
-src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &[crate::parser::ast::expr::MacroArg], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_coverage.rs:8: pub(super) fn enum_exhaustive(total: usize, pats: &[&Pattern]) -> bool
 src/hir/lower/body/match_coverage.rs:15: pub(super) fn bool_exhaustive(pats: &[&Pattern]) -> bool
 src/hir/lower/body/match_coverage.rs:23: fn scalar_domain(ty: &HirType) -> Option<(i128, i128)>
@@ -721,17 +722,18 @@ src/hir/lower/helpers/mod.rs:24: mod overflow;
 src/hir/lower/helpers/mod.rs:25: mod convert;
 src/hir/lower/helpers/mod.rs:26: mod fn_type;
 src/hir/lower/helpers/mod.rs:27: mod substitute;
-src/hir/lower/helpers/mod.rs:28: mod types;
-src/hir/lower/helpers/mod.rs:29: mod wrap;
+src/hir/lower/helpers/mod.rs:28: mod substitute_stmt;
+src/hir/lower/helpers/mod.rs:29: mod types;
+src/hir/lower/helpers/mod.rs:30: mod wrap;
 src/hir/lower/helpers/overflow.rs:10: pub(crate) fn ovf_op_name(op: &BinaryOp) -> Option<&'static str>
 src/hir/lower/helpers/overflow.rs:19: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/overflow.rs:21: pub(crate) fn lower_ovf_call(&mut self, op_name: &str, ty: &HirType, lhs: HirNodeBox, rhs: HirNodeBox, span: &Span) -> HirNodeBox
 src/hir/lower/helpers/overflow.rs:29: pub(crate) fn ensure_ovf_helper(&mut self, op: &str, ty: &HirType) -> FnId
-src/hir/lower/helpers/substitute.rs:4: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
-src/hir/lower/helpers/substitute.rs:33: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
-src/hir/lower/helpers/substitute.rs:151: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
-src/hir/lower/helpers/substitute.rs:160: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
-src/hir/lower/helpers/substitute.rs:288: fn substitute_match_arm(a: &MatchArm, subst: &HashMap<Symbol, Type>) -> MatchArm
+src/hir/lower/helpers/substitute.rs:3: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
+src/hir/lower/helpers/substitute.rs:32: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
+src/hir/lower/helpers/substitute.rs:155: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
+src/hir/lower/helpers/substitute_stmt.rs:5: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
+src/hir/lower/helpers/substitute_stmt.rs:134: pub(crate) fn substitute_match_arm(a: &MatchArm, subst: &HashMap<Symbol, Type>) -> MatchArm
 src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String
 src/hir/lower/helpers/types.rs:34: pub(crate) fn fixed_width_type(name: &str) -> Option<HirType>
 src/hir/lower/helpers/types.rs:53: pub(crate) fn intn_name(bits: u8, signed: bool) -> String
@@ -1987,9 +1989,9 @@ src/mir/lower/checks.rs:27: pub(super) fn check_use_after_move(&mut self, stmt: 
 src/mir/lower/checks.rs:55: fn walk_stmt_moves(&mut self, expr: &dyn HirNode, sp: Span)
 src/mir/lower/control.rs:4: impl Ctx
 src/mir/lower/control.rs:5: pub(super) fn lower_if(
-src/mir/lower/control.rs:65: pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>
-src/mir/lower/control.rs:74: pub(super) fn lower_block(&mut self, stmts: &[HirStmt]) -> Vec<MirStmtBox>
-src/mir/lower/control.rs:103: pub(super) fn mark_alive(&mut self, var: VarId)
+src/mir/lower/control.rs:76: pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>
+src/mir/lower/control.rs:88: pub(super) fn lower_block(&mut self, stmts: &[HirStmt]) -> Vec<MirStmtBox>
+src/mir/lower/control.rs:117: pub(super) fn mark_alive(&mut self, var: VarId)
 src/mir/lower/ctx.rs:4: impl Ctx
 src/mir/lower/ctx.rs:5: pub(super) fn new(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Self
 src/mir/lower/ctx.rs:40: pub(super) fn lower_stmt(&mut self, stmt: &HirStmt) -> Vec<MirStmtBox>
@@ -2085,9 +2087,10 @@ src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block
 src/parser/ast/block.rs:14: pub fn new(stmts: Vec<Stmt>, span: Span) -> Self
-src/parser/ast/expr.rs:9: pub enum Expr
-src/parser/ast/expr.rs:128: impl Expr
-src/parser/ast/expr.rs:129: pub fn span(&self) -> Span
+src/parser/ast/expr.rs:10: pub enum Expr
+src/parser/ast/expr.rs:131: pub enum MacroArg
+src/parser/ast/expr.rs:136: impl Expr
+src/parser/ast/expr.rs:137: pub fn span(&self) -> Span
 src/parser/ast/literal.rs:4: pub enum Literal
 src/parser/ast/literal.rs:12: impl Literal
 src/parser/ast/literal.rs:13: pub fn span(&self) -> Span
@@ -2122,8 +2125,8 @@ src/parser/ast/stmt.rs:58: pub struct EnumVariant
 src/parser/ast/stmt.rs:65: pub enum MatchBody
 src/parser/ast/stmt.rs:71: pub struct MatchArm
 src/parser/ast/stmt.rs:80: pub enum Stmt
-src/parser/ast/stmt.rs:230: impl Stmt
-src/parser/ast/stmt.rs:231: pub fn span(&self) -> Span
+src/parser/ast/stmt.rs:232: impl Stmt
+src/parser/ast/stmt.rs:233: pub fn span(&self) -> Span
 src/parser/ast/ty.rs:5: pub enum Type
 src/parser/ast/ty.rs:28: impl Type
 src/parser/ast/ty.rs:29: pub fn span(&self) -> Span
@@ -2233,9 +2236,9 @@ src/parser/parser/pattern.rs:123: pub(super) fn parse_match_arm_body(&mut self) 
 src/parser/parser/self_type.rs:4: pub(super) fn subst_self_in_type(ty: &Type, self_ty: &Type) -> Type
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:95: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
-src/parser/parser/stmt.rs:121: pub(super) fn is_type_start(&self, pos: usize) -> bool
-src/parser/parser/stmt.rs:129: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
+src/parser/parser/stmt.rs:97: pub(super) fn parse_any_assign_or_expr(&mut self) -> Result<Stmt>
+src/parser/parser/stmt.rs:123: pub(super) fn is_type_start(&self, pos: usize) -> bool
+src/parser/parser/stmt.rs:131: pub(super) fn parse_lambda(&mut self) -> Result<Expr>
 src/parser/parser/types.rs:3: impl Parser
 src/parser/parser/types.rs:6: pub(super) fn parse_type(&mut self) -> Result<Type>
 src/parser/parser/types.rs:24: pub(super) fn parse_base_type(&mut self) -> Result<Type>
@@ -2274,6 +2277,7 @@ example/macro_lib.aya:31: pub fn twice(String input) -> String { return input + 
 example/macro_lib.aya:36: pub fn guarded(String input, String cond) -> String
 example/macro_lib.aya:44: pub fn double(String input, String x) -> String { return "(" + x + " + " + x + ")" }
 example/macro_lib.aya:48: pub fn my_line(String input, int __line, int __col) -> String { return "" + __line }
+example/macro_lib.aya:54: pub fn block_len(String input, String block) -> String
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/pass_lib.aya:5: pub fn auto_pure(ref mut MirFunction f)
 example/test.aya:1: fn main()->int
@@ -2554,6 +2558,7 @@ example/test_macro_args.aya:5: fn kept() -> int { return 7 }
 example/test_macro_args.aya:8: fn placeholder() -> int { return 0 }
 example/test_macro_args.aya:11: fn shown_placeholder() -> int { return 0 }
 example/test_macro_args.aya:13: fn main() -> int
+example/test_macro_block.aya:4: fn main() -> int
 example/test_macro_fn.aya:3: fn main() -> int
 example/test_macro_import.aya:4: fn main() -> int
 example/test_macro_stmt.aya:4: fn helper() -> int

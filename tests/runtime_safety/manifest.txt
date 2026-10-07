@@ -18,3 +18,4 @@ iface_owned_drop.aya 0
 array_elem_drop.aya 0
 index_move_drop.aya 0
 cond_temp_drop.aya 0
+should_panic_block.aya 0

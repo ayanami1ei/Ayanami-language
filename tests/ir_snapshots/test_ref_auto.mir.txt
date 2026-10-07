@@ -329,6 +329,7 @@ MIR Program
         Local(v16 : Int)
         value:
         Literal(Int(0))
+      Drop(v6 : Named(String))
       Return
         Local(v16 : Int)
       Assign

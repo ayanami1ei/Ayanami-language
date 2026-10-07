@@ -194,7 +194,7 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
             }
         }
         Expr::MacroCall { name, args, .. } => {
-            let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
+            let args_str: Vec<String> = args.iter().map(|a| super::helpers::format_macro_arg(a, level)).collect();
             format!("#{}({})", name.as_str().replace('.', "::"), args_str.join(", "))
         }
         Expr::Lambda { params, return_type, body, .. } => {

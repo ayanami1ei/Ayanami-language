@@ -78,6 +78,8 @@ pub struct MatchArm {
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
+    /// #88：块语句（语句级标注 `#[attr] { ... }` 的载体；也支持裸 `{ ... }`）
+    Block(Block),
     FnDecl {
         attrs: Vec<Attr>,
         vis: Visibility,
@@ -230,6 +232,7 @@ pub enum Stmt {
 impl Stmt {
     pub fn span(&self) -> Span {
         match self {
+            Stmt::Block(block) => block.span,
             Stmt::FnDecl { span, .. }
             |             Stmt::Assign { span, .. }
             | Stmt::FieldAssign { span, .. }
