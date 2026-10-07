@@ -180,10 +180,17 @@ pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>
         HirType::Unique(inner) => HirType::Unique(Box::new(substitute_hir_type(inner, subst))),
         HirType::Array(inner) | HirType::ArraySized(inner, _) => HirType::Array(Box::new(substitute_hir_type(inner, subst))),
         HirType::Ref(inner, mutable) => HirType::Ref(Box::new(substitute_hir_type(inner, subst)), *mutable),
-        HirType::FatPtr { name, kind } => HirType::FatPtr {
-            name: *name,
-            kind: Box::new(substitute_hir_type(kind, subst)),
-        },
+        HirType::FatPtr { name, kind } => {
+            // #161：接口名里的泛型实参同样要替换（Iterator<T> + T=int → Iterator<int>）
+            let new_name = match substitute_hir_type(&HirType::Named(*name), subst) {
+                HirType::Named(n) => n,
+                _ => *name,
+            };
+            HirType::FatPtr {
+                name: new_name,
+                kind: Box::new(substitute_hir_type(kind, subst)),
+            }
+        }
         _ => ty.clone(),
     }
 }

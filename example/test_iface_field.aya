@@ -1,0 +1,30 @@
+// #161：接口值作为结构体字段（泛型 Option 返回值单态化 + 字段装箱）
+import "iter"
+import "arraylist"
+
+struct ITake[T] {
+    Iterator[T] inner
+    usize left
+}
+
+impl[T] ITake[T] {
+    #[state]
+    pub fn next(ref mut self) -> Option[T] {
+        if self.left == 0 {
+            return Option::None()
+        }
+        self.left = self.left - 1
+        return self.inner.next()
+    }
+}
+
+fn main() -> int {
+    a = ArrayList::new[int]()
+    a.push(1)
+    a.push(2)
+    a.push(3)
+    t = ITake[int] { inner = a.into_iter(), left = 2usize }
+    s = 0
+    for x in t { s = s + x }
+    return s - 3
+}

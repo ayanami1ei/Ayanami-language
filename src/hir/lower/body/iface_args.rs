@@ -162,4 +162,30 @@ impl crate::hir::lower::Ctx {
                 }
         Ok(())
     }
+
+    /// #161：具体类型值 → 接口胖指针字段/形参（含按需注册泛型 impl vtable）；
+    /// 不适用（已是接口值/非具体类型/未实现接口）返回 None。
+    pub(crate) fn coerce_iface_value(
+        &mut self, arg: HirNodeBox, param_ty: &HirType, _span: &Span,
+    ) -> Result<Option<HirNodeBox>> {
+        let HirType::FatPtr { name: iface_name, .. } = param_ty else { return Ok(None); };
+        let iface_name = *iface_name;
+        // 泛型接口特化名（Iterator<int>）需先注册，register_generic_vtable 才能取到方法表
+        self.ensure_specialized_interface(&iface_name)?;
+        let arg_ty = expr_type(&arg);
+        if matches!(&arg_ty, HirType::FatPtr { .. }) { return Ok(None); }
+        let Some(ct) = Self::extract_concrete_type_name(&arg_ty) else { return Ok(None); };
+        let base_ct = crate::hir::lower::strip_generic_name(&ct);
+        let has = |s: &Self, n: &Symbol| s.type_ifaces.get(n).map(|v| v.contains(&iface_name)).unwrap_or(false);
+        if !has(self, &ct) && !has(self, &base_ct)
+            && self.check_generic_fns_for_iface(&base_ct, &iface_name)
+        {
+            self.register_generic_vtable(&ct, &base_ct, &iface_name)?;
+        }
+        if has(self, &ct) || has(self, &base_ct) {
+            Ok(Some(self.make_fatptr_arg(arg, param_ty, ct, iface_name)))
+        } else {
+            Ok(None)
+        }
+    }
 }

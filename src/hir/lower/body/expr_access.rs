@@ -103,9 +103,13 @@ impl crate::hir::lower::Ctx {
                     }
                 }
             }
-            // 字段类型隐式数值转换
+            // 字段类型转换：接口字段装箱（#161）+ 隐式数值转换
             if let Some(field_ty) = field_tys.get(name) {
-                hir_val = coerce_expr(hir_val, field_ty, &expr.span())?;
+                let sp = expr.span();
+                hir_val = match self.coerce_iface_value(hir_val.clone(), field_ty, &sp)? {
+                    Some(converted) => converted,
+                    None => coerce_expr(hir_val, field_ty, &sp)?,
+                };
             }
             hir_fields.push((*name, implicit_move(hir_val)));
         }
