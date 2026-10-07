@@ -761,8 +761,10 @@ impl Parser {
     }
 
     fn parse_block(ref mut self) -> int {
+        bline = self.cur.line;
+        bcol = self.cur.col;
         self.expect_delim(D::LBrace._tag, "expected { to start block");
-        blk = self.ast.push(st(ST::Block._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        blk = self.ast.push(st(ST::Block._tag), "", -1, -1, -1, -1, -1, bline, bcol);
         head = -1;
         last_semi = 0;
         while true {

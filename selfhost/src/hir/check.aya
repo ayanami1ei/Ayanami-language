@@ -164,6 +164,31 @@ pub fn type_name(ref Ast ast, int ty) -> String {
     return "";
 }
 
+/// 后缀 -> 显示类型（usize/isize 在诊断里显示为 u64/i64）
+fn suffix_type(ref String suf) -> String {
+    if suf == "usize" { return "u64"; }
+    if suf == "isize" { return "i64"; }
+    if suf == "f64" { return "float"; }
+    return suf.copy();
+}
+
+/// 数值 rank（int < f32 < float）；非数值返回 -1
+fn num_rank(ref String t) -> int {
+    if t == "int" { return 0; }
+    if t == "f32" { return 1; }
+    if t == "float" { return 2; }
+    return -1;
+}
+
+fn is_int_type(ref String t) -> bool {
+    if t == "int" { return true; }
+    if t.len == 0 { return false; }
+    c = t.index(0);
+    if c == 'u' { return true; }
+    if c == 'i' { return true; }
+    return false;
+}
+
 /// 是否可隐式转换（int/float、bool/int 之间不可隐式转换）
 fn convertible(ref String from, ref String to) -> bool {
     if from.len == 0 { return true; }
@@ -493,12 +518,45 @@ impl Checker {
             self.check_expr(ast, ast.aa[id]);
             self.check_block(ast, ast.bb[id]);
         } elif tag == st(ST::For._tag) {
-            self.check_expr(ast, ast.aa[id]);
-            self.check_expr(ast, ast.bb[id]);
+            st1 = self.check_expr(ast, ast.aa[id]);
+            st2 = self.check_expr(ast, ast.bb[id]);
+            if st1.len > 0 && st2.len > 0 {
+                if st1 != st2 {
+                    if is_int_type(st1) && is_int_type(st2) {
+                        b = StringBuf::new();
+                        b.push_str("for bounds have different integer types: `");
+                        b.push_str(st1);
+                        b.push_str("` and `");
+                        b.push_str(st2);
+                        b.push_str("` (add an explicit cast)");
+                        // 位置对齐 rust：body 块（`{`）位置
+                        blk = ast.dd[id];
+                        self.err(b.to_string(), ast.lines[blk], ast.cols[blk]);
+                    }
+                }
+            }
             self.set_local(ast.texts[id], "int");
             self.check_block(ast, ast.dd[id]);
         } elif tag == st(ST::ForIn._tag) {
-            self.check_expr(ast, ast.aa[id]);
+            it_ty = self.check_expr(ast, ast.aa[id]);
+            ok_next = 1;
+            disp = it_ty.copy();
+            if it_ty.len > 0 {
+                if it_ty.index(0) == '[' {
+                    // 数组没有 next
+                    disp = "unique " + it_ty;
+                    ok_next = 0;
+                } elif self.find_struct(it_ty) >= 0 {
+                    if self.find_method(it_ty, "next") < 0 { ok_next = 0; }
+                }
+            }
+            if ok_next == 0 {
+                b = StringBuf::new();
+                b.push_str("type `");
+                b.push_str(disp);
+                b.push_str("` has no method `next` for argument types ()");
+                self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+            }
             self.set_local(ast.texts[id], "");
             self.check_block(ast, ast.bb[id]);
         } elif tag == st(ST::FieldAssign._tag) {
@@ -591,6 +649,10 @@ impl Checker {
     fn check_expr(ref mut self, ref Ast ast, int id) -> String {
         if id < 0 { return ""; }
         tag = ast.tags[id];
+        if tag == et(ET::Suffixed._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            return suffix_type(ast.texts[id]);
+        }
         if tag == et(ET::Literal._tag) {
             k = ast.bb[id];
             if k == lk(LK::Int._tag) { return "int"; }
@@ -688,13 +750,30 @@ impl Checker {
             if op == bo(BinOp::Eq._tag) || op == bo(BinOp::Neq._tag) || op == bo(BinOp::Lt._tag) || op == bo(BinOp::Gt._tag) || op == bo(BinOp::Le._tag) || op == bo(BinOp::Ge._tag) {
                 return "bool";
             }
-            if lt == "float" && rt == "int" {
-                self.convert_err("int", "float", ast.lines[id], ast.cols[id]);
-                return "";
+            if op == bo(BinOp::BitAnd._tag) || op == bo(BinOp::BitOr._tag) || op == bo(BinOp::BitXor._tag) || op == bo(BinOp::Shl._tag) || op == bo(BinOp::Shr._tag) {
+                bad = "";
+                if lt == "float" || lt == "f32" { bad = lt.copy(); }
+                if rt == "float" || rt == "f32" { bad = rt.copy(); }
+                if bad.len > 0 {
+                    b = StringBuf::new();
+                    b.push_str("cannot apply bitwise operator to `");
+                    b.push_str(bad);
+                    b.push_str("`");
+                    self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                    return "";
+                }
             }
-            if lt == "int" && rt == "float" {
-                self.convert_err("int", "float", ast.lines[id], ast.cols[id]);
-                return "";
+            lr = num_rank(lt);
+            rr = num_rank(rt);
+            if lr >= 0 && rr >= 0 {
+                if lr != rr {
+                    if lr < rr {
+                        self.convert_err(lt, rt, ast.lines[id], ast.cols[id]);
+                    } else {
+                        self.convert_err(rt, lt, ast.lines[id], ast.cols[id]);
+                    }
+                    return "";
+                }
             }
             if lt == "String" && rt == "String" {
                 return "String";
@@ -806,8 +885,21 @@ impl Checker {
             return "";
         }
         if tag == et(ET::Cast._tag) {
-            self.check_expr(ast, ast.aa[id]);
-            return type_name(ast, ast.tys[id]);
+            st2 = self.check_expr(ast, ast.aa[id]);
+            tt2 = type_name(ast, ast.tys[id]);
+            if tt2 == "bool" {
+                if st2.len > 0 {
+                    if st2 != "bool" {
+                        b = StringBuf::new();
+                        b.push_str("cannot cast `");
+                        b.push_str(st2);
+                        b.push_str("` to `bool`");
+                        self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                        return "";
+                    }
+                }
+            }
+            return tt2;
         }
         if tag == et(ET::Index._tag) {
             ot = self.check_expr(ast, ast.aa[id]);
