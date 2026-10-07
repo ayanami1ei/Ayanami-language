@@ -1,8 +1,18 @@
 // #148：while 条件中的 &&/|| 短路（条件前置语句必须每轮执行）+ 契约条件短路
+// #147：&& 两侧调用同一方法（每次迭代必须重新求值）
 #[requires(n >= 0 && n < 100)]
 #[ensures(result >= 0 && result <= 200)]
 fn f(int n) -> int {
     return n * 2
+}
+
+struct L {
+    int n
+}
+
+impl L {
+    fn peek(ref self) -> int { return self.n }
+    fn bump(ref mut self) { self.n = self.n + 1 }
 }
 
 fn main() -> int {
@@ -26,5 +36,9 @@ fn main() -> int {
     }
     if s != 3 { return 3 }
     if f(3) != 6 { return 4 }
+    // #147：同一方法在 && 两侧，循环条件必须每轮更新
+    l = L { n = 0 }
+    while l.peek() >= 0 && l.peek() != 3 { l.bump() }
+    if l.n != 3 { return 5 }
     return 0
 }
