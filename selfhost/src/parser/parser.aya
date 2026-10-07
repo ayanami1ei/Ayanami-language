@@ -969,16 +969,8 @@ impl Parser {
             self.no_struct = 1;
             val = self.parse_expr();
             self.no_struct = 0;
-            self.expect_delim(D::LBrace._tag, "expected { in match");
-            depth = 1;
-            while true {
-                if self.at_end() { break; }
-                if depth <= 0 { break; }
-                if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
-                if self.check_delim(D::RBrace._tag) { depth = depth - 1; }
-                self.advance();
-            }
-            return self.ast.push(st(ST::Match._tag), "", -1, val, -1, -1, -1, line, col);
+            arms = self.parse_match_arms();
+            return self.ast.push(st(ST::Match._tag), "", -1, val, arms, -1, -1, line, col);
         }
         line = self.cur.line;
         col = self.cur.col;
@@ -1329,16 +1321,8 @@ impl Parser {
             self.no_struct = 1;
             val = self.parse_expr();
             self.no_struct = 0;
-            self.expect_delim(D::LBrace._tag, "expected { in match expr");
-            depth = 1;
-            while true {
-                if self.at_end() { break; }
-                if depth <= 0 { break; }
-                if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
-                if self.check_delim(D::RBrace._tag) { depth = depth - 1; }
-                self.advance();
-            }
-            return self.ast.push(et(ET::Match._tag), "", -1, val, -1, -1, -1, line, col);
+            arms = self.parse_match_arms();
+            return self.ast.push(et(ET::Match._tag), "", -1, val, arms, -1, -1, line, col);
         }
         if self.check_kw(Kw::Asm._tag) {
             self.advance();
@@ -1463,6 +1447,113 @@ impl Parser {
         if !self.check_delim(D::LBrace._tag) { return -1; }
         body = self.parse_block();
         return self.ast.push(et(ET::Lambda._tag), "", -1, params, body, -1, -1, line, col);
+    }
+
+    /// 解析 match 臂（模式链存 XT::MatchArm，ty=模式种类：0=_, 1=变体, 2=bool, 3=其他）
+    fn parse_match_arms(ref mut self) -> int {
+        self.expect_delim(D::LBrace._tag, "expected { in match");
+        head = -1;
+        while true {
+            if self.check_delim(D::RBrace._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
+            first_arm = -1;
+            while true {
+                pk = 3;
+                ptext = "?";
+                if self.cur.kind == Tk::Ident._tag {
+                    nm = self.cur.text.copy();
+                    if nm == "_" {
+                        pk = 0;
+                        ptext = "_";
+                        self.advance();
+                    } else {
+                        self.advance();
+                        full = nm.copy();
+                        if self.check_op("::") {
+                            self.advance();
+                            part = self.expect_ident("expected variant name");
+                            full = full + ".";
+                            full = full + part;
+                        }
+                        pk = 1;
+                        ptext = full;
+                        if self.check_delim(D::LParen._tag) {
+                            depth = 0;
+                            while !self.at_end() {
+                                if self.check_delim(D::LParen._tag) { depth = depth + 1; }
+                                if self.check_delim(D::RParen._tag) {
+                                    depth = depth - 1;
+                                    if depth == 0 {
+                                        self.advance();
+                                        break;
+                                    }
+                                }
+                                self.advance();
+                            }
+                        } elif self.check_delim(D::LBrace._tag) {
+                            // 结构体解构模式 Point { x, y } / Point { x = a }
+                            pk = 4;
+                            depth = 0;
+                            while !self.at_end() {
+                                if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
+                                if self.check_delim(D::RBrace._tag) {
+                                    depth = depth - 1;
+                                    if depth == 0 {
+                                        self.advance();
+                                        break;
+                                    }
+                                }
+                                self.advance();
+                            }
+                        }
+                    }
+                } elif self.check_kw(Kw::True._tag) || self.check_kw(Kw::False._tag) {
+                    pk = 2;
+                    ptext = self.cur.text.copy();
+                    self.advance();
+                } else {
+                    if self.cur.kind == Tk::IntLit._tag || self.cur.kind == Tk::FloatLit._tag || self.cur.kind == Tk::CharLit._tag || self.cur.kind == Tk::StrLit._tag {
+                        self.advance();
+                    } else {
+                        self.parse_expr();
+                    }
+                    pk = 3;
+                    ptext = "?";
+                    // 区间模式 0..=100：跳过点号/等号部分
+                    if self.check_delim(D::Dot._tag) {
+                        while true {
+                            if self.at_end() { break; }
+                            if self.check_delim(D::FatArrow._tag) { break; }
+                            if self.check_op("|") { break; }
+                            self.advance();
+                        }
+                    }
+                }
+                an = self.ast.push(xt(XT::MatchArm._tag), ptext, pk, -1, -1, -1, -1, self.cur.line, self.cur.col);
+                if first_arm < 0 { first_arm = an; }
+                head = self.ast.push_tail(head, an);
+                if !self.eat_op("|") { break; }
+            }
+            if self.check_kw(Kw::If._tag) {
+                self.advance();
+                self.parse_expr();
+            }
+            if !self.eat_delim(D::FatArrow._tag) {
+                self.error("expected => in match arm");
+                break;
+            }
+            if self.check_delim(D::LBrace._tag) {
+                body = self.parse_block();
+                if first_arm >= 0 { self.ast.aa[first_arm] = body; }
+            } else {
+                body = self.parse_stmt_inner();
+                if first_arm >= 0 { self.ast.aa[first_arm] = body; }
+            }
+            self.eat_delim(D::Comma._tag);
+        }
+        self.expect_delim(D::RBrace._tag, "expected } after match");
+        return head;
     }
 
     fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int {

@@ -259,6 +259,32 @@ fn is_int_type(ref String t) -> bool {
     return false;
 }
 
+/// 取模式里的变体名（E.V -> V）
+fn pat_variant_name(ref String v) -> String {
+    i = 0;
+    while i < v.len as int {
+        if v.index(i as usize) == '.' {
+            return v.substring((i + 1) as usize, v.len);
+        }
+        i = i + 1;
+    }
+    return v.copy();
+}
+
+/// 是否原始类型（match 穷尽要求 _）
+fn is_prim_type(ref String t) -> bool {
+    if t == "int" { return true; }
+    if t == "float" { return true; }
+    if t == "f32" { return true; }
+    if t == "char" { return true; }
+    if t == "String" { return true; }
+    if t.len == 0 { return false; }
+    c = t.index(0);
+    if c == 'u' { return true; }
+    if c == 'i' { return true; }
+    return false;
+}
+
 /// 是否可隐式转换（int/float、bool/int 之间不可隐式转换）
 fn convertible(ref String from, ref String to) -> bool {
     if from.len == 0 { return true; }
@@ -612,6 +638,102 @@ impl Checker {
         self.check_block(ast, ast.bb[id]);
     }
 
+    /// match 穷尽 + 未知变体检查；返回 scrutinee 类型
+    fn check_match(ref mut self, ref Ast ast, int id) -> String {
+        ty = self.check_expr(ast, ast.aa[id]);
+        arms = ast.bb[id];
+        wild = 0;
+        has_true = 0;
+        has_false = 0;
+        struct_destr = 0;
+        base = base_type(ty);
+        en = self.find_enum(base);
+        st = self.find_struct(base);
+        a = arms;
+        while a >= 0 {
+            pk = ast.tys[a];
+            if pk == 0 {
+                wild = 1;
+            } elif pk == 1 {
+                vname = pat_variant_name(ast.texts[a]);
+                if en >= 0 {
+                    if !self.has_variant(en, vname) {
+                        c0 = char_code(vname.index(0));
+                        if c0 >= 65 && c0 <= 90 {
+                            b = StringBuf::new();
+                            b.push_str("unknown variant `");
+                            b.push_str(vname);
+                            b.push_str("` of enum `");
+                            b.push_str(base);
+                            b.push_str("`; use `_` for the catch-all arm");
+                            self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                        } else {
+                            wild = 1;
+                        }
+                    }
+                }
+            } elif pk == 2 {
+                if ast.texts[a] == "true" { has_true = 1; } else { has_false = 1; }
+            } elif pk == 4 {
+                struct_destr = 1;
+            }
+            a = ast.nexts[a];
+        }
+        rt = "";
+        a2 = arms;
+        while a2 >= 0 {
+            if ast.aa[a2] >= 0 {
+                rt = self.check_expr(ast, ast.aa[a2]);
+                break;
+            }
+            a2 = ast.nexts[a2];
+        }
+        if wild == 0 {
+            need = 0;
+            if en >= 0 {
+                start = self.en_vstart[en];
+                n = self.en_vcount[en];
+                i = 0;
+                while i < n {
+                    vname = self.en_variants[start + i].copy();
+                    if !self.arms_cover_variant(ast, arms, vname) {
+                        need = 1;
+                        break;
+                    }
+                    i = i + 1;
+                }
+            } elif ty == "bool" {
+                if !(has_true == 1 && has_false == 1) { need = 1; }
+            } elif st >= 0 {
+                if struct_destr == 0 { need = 1; }
+            } elif is_prim_type(base) {
+                need = 1;
+            }
+            if need == 1 {
+                b = StringBuf::new();
+                b.push_str("non-exhaustive match at ");
+                b.push_int(ast.lines[id]);
+                b.push_str(":");
+                b.push_int(ast.cols[id]);
+                b.push_str(" (add `_ =>` or cover all variants)");
+                raw_error(b.to_string());
+                self.errors = self.errors + 1;
+            }
+        }
+        return rt;
+    }
+
+    fn arms_cover_variant(ref mut self, ref Ast ast, int arms, ref String vname) -> bool {
+        a = arms;
+        while a >= 0 {
+            if ast.tys[a] == 1 {
+                if pat_variant_name(ast.texts[a]) == vname { return true; }
+            }
+            a = ast.nexts[a];
+        }
+        return false;
+    }
+
     fn check_block(ref mut self, ref Ast ast, int blk) {
         s = ast.aa[blk];
         while s >= 0 {
@@ -751,7 +873,7 @@ impl Checker {
             self.check_expr(ast, ast.bb[id]);
             self.check_expr(ast, ast.cc[id]);
         } elif tag == st(ST::Match._tag) {
-            self.check_expr(ast, ast.aa[id]);
+            self.check_match(ast, id);
         } elif tag == st(ST::Block._tag) {
             self.check_block(ast, id);
         }
@@ -1101,6 +1223,9 @@ impl Checker {
                 }
             }
             return "";
+        }
+        if tag == et(ET::Match._tag) {
+            return self.check_match(ast, id);
         }
         if tag == et(ET::If._tag) {
             self.check_expr(ast, ast.aa[id]);

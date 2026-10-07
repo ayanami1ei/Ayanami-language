@@ -1,0 +1,12 @@
+enum E { A, B }
+
+fn f(E e) -> int {
+    return match e {
+        A => 1,
+        C => 2,
+    }
+}
+
+fn main() -> int {
+    return f(E::A)
+}
