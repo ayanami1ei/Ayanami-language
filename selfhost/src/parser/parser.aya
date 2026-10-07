@@ -884,17 +884,31 @@ impl Parser {
             self.advance();
             it = self.expect_ident("expected iterator name");
             self.expect_kw(Kw::In._tag, "expected in");
-            self.expect_delim(D::LParen._tag, "expected ( after in");
-            start = self.parse_expr();
-            self.expect_delim(D::Comma._tag, "expected , in for range");
-            end = self.parse_expr();
-            step = -1;
-            if self.eat_delim(D::Comma._tag) {
-                step = self.parse_expr();
+            // 先尝试 range 形式 for i in (start, end[, step])
+            if self.check_delim(D::LParen._tag) {
+                self.mark();
+                self.advance();
+                start = self.parse_expr();
+                if self.eat_delim(D::Comma._tag) {
+                    end = self.parse_expr();
+                    step = -1;
+                    if self.eat_delim(D::Comma._tag) {
+                        step = self.parse_expr();
+                    }
+                    if self.eat_delim(D::RParen._tag) {
+                        body = self.parse_block();
+                        return self.ast.push(st(ST::For._tag), it, -1, start, end, step, body, line, col);
+                    }
+                }
+                self.restore();
             }
-            self.expect_delim(D::RParen._tag, "expected ) in for range");
+            // 迭代器形式 for x in expr
+            self.no_struct = 1;
+            if self.check_delim(D::LParen._tag) { self.no_struct = 0; }
+            iterable = self.parse_expr();
+            self.no_struct = 0;
             body = self.parse_block();
-            return self.ast.push(st(ST::For._tag), it, -1, start, end, step, body, line, col);
+            return self.ast.push(st(ST::ForIn._tag), it, -1, iterable, body, -1, -1, line, col);
         }
         if self.check_kw(Kw::Match._tag) {
             line = self.cur.line;

@@ -35,6 +35,7 @@ pub enum ST {
     Continue,
     Block,
     StaticDecl,
+    ForIn,
 }
 
 // 表达式标签

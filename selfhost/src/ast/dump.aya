@@ -425,6 +425,12 @@ fn dump_stmt(ref Ast ast, int id, int level, ref mut StringBuf b) {
             dump_expr(ast, ast.cc[id], level + 1, b);
         }
         dump_block(ast, ast.dd[id], level + 1, b);
+    } elif tag == st(ST::ForIn._tag) {
+        b.push_str("ForIn { iterator: ");
+        b.push_str(ast.texts[id]);
+        b.push_str(" }\n");
+        dump_expr(ast, ast.aa[id], level + 1, b);
+        dump_block(ast, ast.bb[id], level + 1, b);
     } elif tag == st(ST::While._tag) {
         b.push_str("While\n");
         dump_expr(ast, ast.aa[id], level + 1, b);
