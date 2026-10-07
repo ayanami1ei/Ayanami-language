@@ -101,3 +101,25 @@ pub(super) fn write_return_type(out: &mut String, ty: &Type) {
         }
     }
 }
+
+/// 函数指针 / 闭包类型文本：`fn(T)->U` / `Fn(T)->U`（void 返回省略箭头）
+pub(super) fn write_fn_type(kw: &str, params: &[Type], ret: &Type) -> String {
+    let p: Vec<String> = params.iter().map(|p| super::expr::write_type(p)).collect();
+    if matches!(ret, Type::Void(_)) {
+        format!("{}({})", kw, p.join(","))
+    } else {
+        format!("{}({})->{}", kw, p.join(","), super::expr::write_type(ret))
+    }
+}
+
+/// atb.3：match 臂体（表达式或块）
+pub(super) fn write_match_body(body: &crate::parser::ast::stmt::MatchBody, level: usize) -> String {
+    match body {
+        crate::parser::ast::stmt::MatchBody::Expr(e) => super::expr::write_expr_at(e, level),
+        crate::parser::ast::stmt::MatchBody::Block(b) => {
+            let mut s = String::new();
+            write_block_same_line(&mut s, b, level);
+            s
+        }
+    }
+}

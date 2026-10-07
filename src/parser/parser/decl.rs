@@ -211,7 +211,7 @@ impl Parser {
                 None
             };
             self.expect_delimiter(Delimiter::FatArrow)?;
-            let body = self.parse_expr()?;
+            let body = self.parse_match_arm_body()?;
             arms.push(crate::parser::ast::stmt::MatchArm { pattern, guard, body });
             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
                 self.advance();

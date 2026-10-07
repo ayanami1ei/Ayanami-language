@@ -60,13 +60,20 @@ pub struct EnumVariant {
     pub fields: EnumFields,
 }
 
+/// atb.3：match 臂体 —— 表达式或块（块可含多语句 / return / break / continue）
+#[derive(Debug, Clone)]
+pub enum MatchBody {
+    Expr(Expr),
+    Block(Block),
+}
+
 #[derive(Debug, Clone)]
 pub struct MatchArm {
     /// Phase 1.3：模式（字面量 / `_` / 绑定 / 枚举变体 / 或模式）
     pub pattern: crate::parser::ast::pattern::Pattern,
     /// `if guard` 条件（可引用模式绑定）
     pub guard: Option<Expr>,
-    pub body: Expr,
+    pub body: MatchBody,
 }
 
 #[derive(Debug, Clone)]

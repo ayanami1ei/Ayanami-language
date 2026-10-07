@@ -100,7 +100,15 @@ fn scan_body(stmt: &crate::parser::ast::Stmt, obs: &mut Vec<Obs>) {
         }
         Stmt::Match { value, arms, .. } => {
             scan_expr(value, obs);
-            for a in arms { scan_expr(&a.body, obs); }
+            for a in arms {
+                match &a.body {
+                    crate::parser::ast::stmt::MatchBody::Expr(e) => scan_expr(e, obs),
+                    crate::parser::ast::stmt::MatchBody::Block(b) => {
+                        for s in &b.stmts { scan_body(s, obs); }
+                        if let Some(t) = &b.tail { scan_expr(t, obs); }
+                    }
+                }
+            }
         }
         Stmt::ExprStmt { expr, .. } => scan_expr(expr, obs),
         Stmt::Attributed { stmt, .. } => scan_body(stmt, obs),
@@ -186,7 +194,15 @@ fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>) {
         }
         Expr::Match { value, arms, .. } => {
             scan_expr(value, obs);
-            for a in arms { scan_expr(&a.body, obs); }
+            for a in arms {
+                match &a.body {
+                    crate::parser::ast::stmt::MatchBody::Expr(e) => scan_expr(e, obs),
+                    crate::parser::ast::stmt::MatchBody::Block(b) => {
+                        for s in &b.stmts { scan_body(s, obs); }
+                        if let Some(t) = &b.tail { scan_expr(t, obs); }
+                    }
+                }
+            }
         }
         Expr::EnumConstruct { tuple_args, named_args, .. } => {
             for x in tuple_args { scan_expr(x, obs); }

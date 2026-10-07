@@ -126,11 +126,7 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
         ),
         Expr::Match { value, arms, span } => Expr::Match {
             value: Box::new(substitute_type_in_expr(value, subst)),
-            arms: arms.iter().map(|a| crate::parser::ast::stmt::MatchArm {
-                pattern: a.pattern.clone(),
-                guard: a.guard.as_ref().map(|g| substitute_type_in_expr(g, subst)),
-                body: substitute_type_in_expr(&a.body, subst),
-            }).collect(),
+            arms: arms.iter().map(|a| substitute_match_arm(a, subst)).collect(),
             span: *span,
         },
         Expr::EnumConstruct { enum_name, variant_name, tuple_args, named_args, span } => {
@@ -195,12 +191,7 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             value: Box::new(substitute_type_in_expr(value, subst)),
             span: *span,
         },
-        Stmt::Assign { name, is_mut, value, span } => Stmt::Assign {
-            name: *name,
-            is_mut: *is_mut,
-            value: substitute_type_in_expr(value, subst),
-            span: *span,
-        },
+        Stmt::Assign { name, is_mut, value, span } => Stmt::Assign { name: *name, is_mut: *is_mut, value: substitute_type_in_expr(value, subst), span: *span },
         Stmt::FieldAssign { object, field, value, span } => Stmt::FieldAssign {
             object: Box::new(substitute_type_in_expr(object, subst)),
             field: *field,
@@ -213,10 +204,7 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             value: substitute_type_in_expr(value, subst),
             span: *span,
         },
-        Stmt::Return { value, span } => Stmt::Return {
-            value: value.as_ref().map(|v| substitute_type_in_expr(v, subst)),
-            span: *span,
-        },
+        Stmt::Return { value, span } => Stmt::Return { value: value.as_ref().map(|v| substitute_type_in_expr(v, subst)), span: *span },
         Stmt::If { cond, then_block, elifs, else_block, span } => Stmt::If {
             cond: substitute_type_in_expr(cond, subst),
             then_block: substitute_type_in_block(then_block, subst),
@@ -239,11 +227,7 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
         },
         Stmt::Match { value, arms, span } => Stmt::Match {
             value: Box::new(substitute_type_in_expr(value, subst)),
-            arms: arms.iter().map(|a| MatchArm {
-                pattern: a.pattern.clone(),
-                guard: a.guard.as_ref().map(|g| substitute_type_in_expr(g, subst)),
-                body: substitute_type_in_expr(&a.body, subst),
-            }).collect(),
+            arms: arms.iter().map(|a| substitute_match_arm(a, subst)).collect(),
             span: *span,
         },
         Stmt::ExprStmt { expr, span } => Stmt::ExprStmt {
@@ -296,5 +280,19 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
         },
         Stmt::Break { span } => Stmt::Break { span: *span },
         Stmt::Continue { span } => Stmt::Continue { span: *span },
+    }
+}
+
+/// atb.3：match 臂（含块臂体）的类型替换
+fn substitute_match_arm(a: &MatchArm, subst: &HashMap<Symbol, Type>) -> MatchArm {
+    MatchArm {
+        pattern: a.pattern.clone(),
+        guard: a.guard.as_ref().map(|g| substitute_type_in_expr(g, subst)),
+        body: match &a.body {
+            crate::parser::ast::stmt::MatchBody::Expr(e) =>
+                crate::parser::ast::stmt::MatchBody::Expr(substitute_type_in_expr(e, subst)),
+            crate::parser::ast::stmt::MatchBody::Block(b) =>
+                crate::parser::ast::stmt::MatchBody::Block(substitute_type_in_block(b, subst)),
+        },
     }
 }

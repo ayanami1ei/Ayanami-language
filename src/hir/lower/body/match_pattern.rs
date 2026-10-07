@@ -160,32 +160,57 @@ impl crate::hir::lower::Ctx {
                 Ok((cond, binds))
             }
             Pattern::Or(ps) => {
-                // 各分支绑定名须一致
-                let first: Vec<Symbol> = ps.first().map(|p| p.bindings()).unwrap_or_default();
-                for p in ps.iter().skip(1) {
-                    if p.bindings() != first {
-                        return Err(Error::Hir(format!(
-                            "or-pattern branches must bind the same names (at {}:{})",
-                            span.start_line, span.start_col
-                        )));
-                    }
-                }
-                let mut conds = Vec::new();
-                let mut binds = Vec::new();
+                // atb.3：逐分支保留条件与绑定；绑定按实际匹配的分支执行
+                let mut alts: Vec<(HirNodeBox, Vec<HirStmt>)> = Vec::new();
                 for p in ps {
                     let (c, b) = self.pattern_match_in(p, expr, ty, span, nested)?;
                     match c {
-                        Some(c) => conds.push(c),
-                        // 含不可反驳分支 → 整体不可反驳
+                        Some(c) => alts.push((c, b)),
+                        // 含不可反驳分支 → 整体不可反驳（其后的分支不可达）
                         None => return Ok((None, b)),
                     }
-                    if binds.is_empty() { binds = b; }
                 }
-                let mut it = conds.into_iter();
-                let mut acc = it.next().ok_or_else(|| Error::Hir(format!(
-                    "empty or-pattern (at {}:{})", span.start_line, span.start_col
-                )))?;
+                if alts.is_empty() {
+                    return Err(Error::Hir(format!(
+                        "empty or-pattern (at {}:{})", span.start_line, span.start_col
+                    )));
+                }
+                // 绑定一致性：各分支绑定的名字集合与类型必须一致（顺序无关）
+                let bind_map = |binds: &Vec<HirStmt>| -> Vec<(Symbol, HirType)> {
+                    binds.iter().filter_map(|s| match s {
+                        HirStmt::Assign { target, .. } => target
+                            .as_local()
+                            .map(|v| (self.locals[v.0].name, target.expr_type())),
+                        _ => None,
+                    }).collect()
+                };
+                let first_map = bind_map(&alts[0].1);
+                for (i, (_, b)) in alts.iter().enumerate().skip(1) {
+                    let m = bind_map(b);
+                    super::match_coverage::check_or_bindings(&first_map, &m, i + 1, span)?;
+                }
+                let mut it = alts.iter().map(|(c, _)| c.clone());
+                let mut acc = it.next().unwrap();
                 for c in it { acc = or_cond(acc, c); }
+                if alts.iter().all(|(_, b)| b.is_empty()) {
+                    return Ok((Some(acc), Vec::new()));
+                }
+                // 绑定：if c0 {b0} elif c1 {b1} ... else {b_last}
+                let n = alts.len();
+                let binds = if n == 1 {
+                    alts[0].1.clone()
+                } else {
+                    let elifs: Vec<(HirNodeBox, HirBlock)> = alts[1..n - 1].iter()
+                        .map(|(c, b)| (c.clone(), HirBlock::new(b.clone())))
+                        .collect();
+                    vec![HirStmt::If {
+                        cond: alts[0].0.clone(),
+                        then_block: HirBlock::new(alts[0].1.clone()),
+                        elifs,
+                        else_block: Some(HirBlock::new(alts[n - 1].1.clone())),
+                        span: *span,
+                    }]
+                };
                 Ok((Some(acc), binds))
             }
         }

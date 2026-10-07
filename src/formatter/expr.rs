@@ -1,5 +1,5 @@
 use super::*;
-use super::helpers::indent;
+use super::helpers::{indent, write_fn_type, write_match_body};
 
 pub(super) fn write_type(ty: &Type) -> String {
     match ty {
@@ -22,19 +22,10 @@ pub(super) fn write_type(ty: &Type) -> String {
     }
 }
 
-/// 函数指针 / 闭包类型文本：`fn(T)->U` / `Fn(T)->U`（void 返回省略箭头）
-fn write_fn_type(kw: &str, params: &[Type], ret: &Type) -> String {
-    let p: Vec<String> = params.iter().map(|p| write_type(p)).collect();
-    if matches!(ret, Type::Void(_)) {
-        format!("{}({})", kw, p.join(","))
-    } else {
-        format!("{}({})->{}", kw, p.join(","), write_type(ret))
-    }
-}
-
 pub(super) fn write_expr(expr: &Expr) -> String {
     write_expr_at(expr, 0)
 }
+
 
 /// 二元运算符优先级（数值越大结合越紧；与解析器/文法一致）
 fn binop_prec(op: &BinaryOp) -> u8 {
@@ -183,7 +174,7 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
                 let guard = arm.guard.as_ref()
                     .map(|g| format!(" if {}", write_expr_at(g, level + 1)))
                     .unwrap_or_default();
-                out.push_str(&format!("\n{}{}{} => {},", indent(level + 1), arm.pattern.display(), guard, write_expr_at(&arm.body, level + 1)));
+                out.push_str(&format!("\n{}{}{} => {},", indent(level + 1), arm.pattern.display(), guard, write_match_body(&arm.body, level + 1)));
             }
             out.push_str(&format!("\n{}}}", indent(level)));
             out

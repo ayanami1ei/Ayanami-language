@@ -262,16 +262,15 @@ src/driver/runtime.rs:12: pub(crate) fn resolve_runtime(src_path: &Path) -> Resu
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
 src/formatter/expr.rs:4: pub(super) fn write_type(ty: &Type) -> String
-src/formatter/expr.rs:26: fn write_fn_type(kw: &str, params: &[Type], ret: &Type) -> String
-src/formatter/expr.rs:35: pub(super) fn write_expr(expr: &Expr) -> String
-src/formatter/expr.rs:40: fn binop_prec(op: &BinaryOp) -> u8
-src/formatter/expr.rs:55: fn expr_prec(e: &Expr) -> u8
-src/formatter/expr.rs:64: fn maybe_paren(cond: bool, e: &Expr, level: usize) -> String
-src/formatter/expr.rs:69: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
-src/formatter/expr.rs:223: fn asm_constraint(c: &str) -> &str
-src/formatter/expr.rs:227: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:271: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:294: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:25: pub(super) fn write_expr(expr: &Expr) -> String
+src/formatter/expr.rs:31: fn binop_prec(op: &BinaryOp) -> u8
+src/formatter/expr.rs:46: fn expr_prec(e: &Expr) -> u8
+src/formatter/expr.rs:55: fn maybe_paren(cond: bool, e: &Expr, level: usize) -> String
+src/formatter/expr.rs:60: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
+src/formatter/expr.rs:214: fn asm_constraint(c: &str) -> &str
+src/formatter/expr.rs:218: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:262: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:285: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &Block, level: usize)
@@ -280,6 +279,8 @@ src/formatter/helpers.rs:47: pub(super) fn write_attr_arg(arg: &crate::parser::a
 src/formatter/helpers.rs:55: pub(super) fn write_generic_params(out: &mut String, params: &[(Symbol, Option<Symbol>)])
 src/formatter/helpers.rs:68: pub(super) fn write_params(out: &mut String, params: &[(Symbol, Type)], param_attrs: &[Vec<crate::parser::ast::Attr>])
 src/formatter/helpers.rs:96: pub(super) fn write_return_type(out: &mut String, ty: &Type)
+src/formatter/helpers.rs:106: pub(super) fn write_fn_type(kw: &str, params: &[Type], ret: &Type) -> String
+src/formatter/helpers.rs:116: pub(super) fn write_match_body(body: &crate::parser::ast::stmt::MatchBody, level: usize) -> String
 src/formatter/mod.rs:7: const INDENT: &str = "    ";
 src/formatter/mod.rs:9: pub fn format_program(program: &Program) -> String
 src/formatter/mod.rs:21: mod expr;
@@ -391,7 +392,7 @@ src/hir/effects/scan.rs:28: pub(super) fn collect_ast_observations(program: &cra
 src/hir/effects/scan.rs:36: fn qualify(prefix: &str, name: &str) -> String
 src/hir/effects/scan.rs:40: fn scan_decl(stmt: &crate::parser::ast::Stmt, prefix: &str, map: &mut HashMap<String, Vec<Obs>>)
 src/hir/effects/scan.rs:62: fn scan_body(stmt: &crate::parser::ast::Stmt, obs: &mut Vec<Obs>)
-src/hir/effects/scan.rs:111: fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>)
+src/hir/effects/scan.rs:119: fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>)
 src/hir/item.rs:7: pub struct HirStructField
 src/hir/item.rs:13: pub struct HirStructDef
 src/hir/item.rs:19: pub struct HirLocal
@@ -478,10 +479,10 @@ src/hir/lower/body/generic_check.rs:24: impl crate::hir::lower::Ctx
 src/hir/lower/body/generic_check.rs:26: pub(crate) fn check_generic_bodies(&self) -> Result<()>
 src/hir/lower/body/generic_check.rs:47: fn check_block_names(&self, block: &Block, cx: &mut CheckCtx) -> Result<()>
 src/hir/lower/body/generic_check.rs:57: fn check_stmt_names(&self, stmt: &Stmt, cx: &mut CheckCtx) -> Result<()>
-src/hir/lower/body/generic_check.rs:129: fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()>
+src/hir/lower/body/generic_check.rs:132: fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()>
 src/hir/lower/body/generic_locals.rs:5: pub(super) fn collect_local_names_block(block: &Block, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_locals.rs:14: pub(super) fn collect_local_names_stmt(stmt: &Stmt, out: &mut Vec<Symbol>)
-src/hir/lower/body/generic_locals.rs:66: pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>)
+src/hir/lower/body/generic_locals.rs:69: pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_specialize.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/generic_specialize.rs:12: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
@@ -522,31 +523,38 @@ src/hir/lower/body/lower_items.rs:117: pub(crate) fn collect_gp_from_type(ty: &H
 src/hir/lower/body/lower_items.rs:145: pub(crate) fn lower_fn(
 src/hir/lower/body/macro_call.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/match_coverage.rs:8: pub(super) fn enum_exhaustive(total: usize, pats: &[&Pattern]) -> bool
+src/hir/lower/body/match_coverage.rs:15: pub(super) fn bool_exhaustive(pats: &[&Pattern]) -> bool
+src/hir/lower/body/match_coverage.rs:23: fn scalar_domain(ty: &HirType) -> Option<(i128, i128)>
+src/hir/lower/body/match_coverage.rs:41: pub(super) fn scalar_exhaustive(base: &HirType, pats: &[&Pattern]) -> bool
+src/hir/lower/body/match_coverage.rs:48: fn collect_intervals(p: &Pattern, out: &mut Vec<(i128, i128)>)
+src/hir/lower/body/match_coverage.rs:66: fn covers_domain(intervals: &mut Vec<(i128, i128)>, min: i128, max: i128) -> bool
+src/hir/lower/body/match_coverage.rs:83: fn collect_variants(p: &Pattern, out: &mut std::collections::HashSet<Symbol>)
+src/hir/lower/body/match_coverage.rs:91: fn collect_bools(p: &Pattern, t: &mut bool, f: &mut bool)
+src/hir/lower/body/match_coverage.rs:100: pub(super) fn check_or_bindings(
 src/hir/lower/body/match_lower.rs:7: struct LoweredArm
 src/hir/lower/body/match_lower.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_lower.rs:16: fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, HirType)>
 src/hir/lower/body/match_lower.rs:41: fn normalize_pattern(&self, p: &Pattern, val_ty: &HirType) -> Pattern
 src/hir/lower/body/match_lower.rs:56: fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)>
-src/hir/lower/body/match_lower.rs:64: fn lower_match_arms(
-src/hir/lower/body/match_lower.rs:89: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
-src/hir/lower/body/match_lower.rs:115: fn enum_variant_count(&self, name: &Symbol) -> usize
-src/hir/lower/body/match_lower.rs:122: fn build_match_stmts(
-src/hir/lower/body/match_lower.rs:186: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
-src/hir/lower/body/match_lower.rs:203: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/match_lower.rs:263: fn collect_variants(p: &Pattern, out: &mut std::collections::HashSet<Symbol>)
-src/hir/lower/body/match_lower.rs:271: fn collect_bools(p: &Pattern, t: &mut bool, f: &mut bool)
+src/hir/lower/body/match_lower.rs:87: fn lower_match_arms(
+src/hir/lower/body/match_lower.rs:112: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
+src/hir/lower/body/match_lower.rs:133: fn enum_variant_count(&self, name: &Symbol) -> usize
+src/hir/lower/body/match_lower.rs:140: fn build_match_stmts(
+src/hir/lower/body/match_lower.rs:204: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
+src/hir/lower/body/match_lower.rs:221: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_pattern.rs:6: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_pattern.rs:8: pub(super) fn variant_tag(&self, enum_name: &Symbol, variant: &Symbol) -> Option<i64>
 src/hir/lower/body/match_pattern.rs:15: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
 src/hir/lower/body/match_pattern.rs:30: pub(super) fn pattern_match(
 src/hir/lower/body/match_pattern.rs:41: fn pattern_match_in(
-src/hir/lower/body/match_pattern.rs:195: fn cmp_const(
-src/hir/lower/body/match_pattern.rs:211: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:215: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:220: fn check_scalar_pattern(base: &HirType, lit: &crate::parser::ast::Literal, range: bool, span: &Span) -> Result<()>
-src/hir/lower/body/match_pattern.rs:240: fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral
-src/hir/lower/body/match_pattern.rs:252: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
-src/hir/lower/body/match_pattern.rs:268: pub(super) fn block_diverges(b: &HirBlock) -> bool
+src/hir/lower/body/match_pattern.rs:220: fn cmp_const(
+src/hir/lower/body/match_pattern.rs:236: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:240: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:245: fn check_scalar_pattern(base: &HirType, lit: &crate::parser::ast::Literal, range: bool, span: &Span) -> Result<()>
+src/hir/lower/body/match_pattern.rs:265: fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral
+src/hir/lower/body/match_pattern.rs:277: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
+src/hir/lower/body/match_pattern.rs:293: pub(super) fn block_diverges(b: &HirBlock) -> bool
 src/hir/lower/body/mod.rs:10: mod collect_fns;
 src/hir/lower/body/mod.rs:11: mod collect_ns;
 src/hir/lower/body/mod.rs:12: mod vtables;
@@ -561,30 +569,31 @@ src/hir/lower/body/mod.rs:20: mod stmt_lower;
 src/hir/lower/body/mod.rs:21: mod stmt_loops;
 src/hir/lower/body/mod.rs:22: mod ref_assign;
 src/hir/lower/body/mod.rs:23: mod expr_method;
-src/hir/lower/body/mod.rs:24: mod match_lower;
-src/hir/lower/body/mod.rs:25: mod match_pattern;
-src/hir/lower/body/mod.rs:26: mod usage_infer;
-src/hir/lower/body/mod.rs:27: mod macro_call;
-src/hir/lower/body/mod.rs:28: mod expr_logic;
-src/hir/lower/body/mod.rs:29: mod expr_lower;
-src/hir/lower/body/mod.rs:30: mod if_expr;
-src/hir/lower/body/mod.rs:31: mod ensure;
-src/hir/lower/body/mod.rs:32: mod literal;
-src/hir/lower/body/mod.rs:33: mod collect_enum;
-src/hir/lower/body/mod.rs:34: mod const_coerce;
-src/hir/lower/body/mod.rs:35: mod const_array;
-src/hir/lower/body/mod.rs:36: mod const_struct;
-src/hir/lower/body/mod.rs:37: mod const_eval;
-src/hir/lower/body/mod.rs:38: mod const_fn;
-src/hir/lower/body/mod.rs:39: mod collect_import;
-src/hir/lower/body/mod.rs:40: mod expr_access;
-src/hir/lower/body/mod.rs:41: mod expr_call;
-src/hir/lower/body/mod.rs:42: mod expr_call_extra;
-src/hir/lower/body/mod.rs:43: mod block_lower;
-src/hir/lower/body/mod.rs:44: mod expr_cast;
-src/hir/lower/body/mod.rs:45: mod expr_enum;
-src/hir/lower/body/mod.rs:46: mod expr_misc;
-src/hir/lower/body/mod.rs:47: mod expr_ops1;
+src/hir/lower/body/mod.rs:24: mod match_coverage;
+src/hir/lower/body/mod.rs:25: mod match_lower;
+src/hir/lower/body/mod.rs:26: mod match_pattern;
+src/hir/lower/body/mod.rs:27: mod usage_infer;
+src/hir/lower/body/mod.rs:28: mod macro_call;
+src/hir/lower/body/mod.rs:29: mod expr_logic;
+src/hir/lower/body/mod.rs:30: mod expr_lower;
+src/hir/lower/body/mod.rs:31: mod if_expr;
+src/hir/lower/body/mod.rs:32: mod ensure;
+src/hir/lower/body/mod.rs:33: mod literal;
+src/hir/lower/body/mod.rs:34: mod collect_enum;
+src/hir/lower/body/mod.rs:35: mod const_coerce;
+src/hir/lower/body/mod.rs:36: mod const_array;
+src/hir/lower/body/mod.rs:37: mod const_struct;
+src/hir/lower/body/mod.rs:38: mod const_eval;
+src/hir/lower/body/mod.rs:39: mod const_fn;
+src/hir/lower/body/mod.rs:40: mod collect_import;
+src/hir/lower/body/mod.rs:41: mod expr_access;
+src/hir/lower/body/mod.rs:42: mod expr_call;
+src/hir/lower/body/mod.rs:43: mod expr_call_extra;
+src/hir/lower/body/mod.rs:44: mod block_lower;
+src/hir/lower/body/mod.rs:45: mod expr_cast;
+src/hir/lower/body/mod.rs:46: mod expr_enum;
+src/hir/lower/body/mod.rs:47: mod expr_misc;
+src/hir/lower/body/mod.rs:48: mod expr_ops1;
 src/hir/lower/body/overload_resolve.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
@@ -651,7 +660,7 @@ src/hir/lower/helpers/closure.rs:72: fn ensure_capturable(name: &Symbol, ty: &Hi
 src/hir/lower/helpers/closure.rs:83: fn walk_block(
 src/hir/lower/helpers/closure.rs:100: fn walk_stmt(
 src/hir/lower/helpers/closure.rs:155: fn walk_match(
-src/hir/lower/helpers/closure.rs:176: fn walk_expr(
+src/hir/lower/helpers/closure.rs:179: fn walk_expr(
 src/hir/lower/helpers/closure_lower.rs:17: pub struct LambdaEnv
 src/hir/lower/helpers/closure_lower.rs:26: impl LambdaEnv
 src/hir/lower/helpers/closure_lower.rs:27: pub fn lookup(&self, name: &Symbol) -> Option<(usize, HirType)>
@@ -707,8 +716,9 @@ src/hir/lower/helpers/overflow.rs:21: pub(crate) fn lower_ovf_call(&mut self, op
 src/hir/lower/helpers/overflow.rs:29: pub(crate) fn ensure_ovf_helper(&mut self, op: &str, ty: &HirType) -> FnId
 src/hir/lower/helpers/substitute.rs:4: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
 src/hir/lower/helpers/substitute.rs:33: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
-src/hir/lower/helpers/substitute.rs:155: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
-src/hir/lower/helpers/substitute.rs:164: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
+src/hir/lower/helpers/substitute.rs:151: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
+src/hir/lower/helpers/substitute.rs:160: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
+src/hir/lower/helpers/substitute.rs:287: fn substitute_match_arm(a: &MatchArm, subst: &HashMap<Symbol, Type>) -> MatchArm
 src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String
 src/hir/lower/helpers/types.rs:33: pub(crate) fn fixed_width_type(name: &str) -> Option<HirType>
 src/hir/lower/helpers/types.rs:52: pub(crate) fn intn_name(bits: u8, signed: bool) -> String
@@ -2009,10 +2019,11 @@ src/parser/ast/stmt.rs:36: pub enum AttrArg
 src/parser/ast/stmt.rs:42: pub struct InterfaceMethod
 src/parser/ast/stmt.rs:51: pub enum EnumFields
 src/parser/ast/stmt.rs:58: pub struct EnumVariant
-src/parser/ast/stmt.rs:64: pub struct MatchArm
-src/parser/ast/stmt.rs:73: pub enum Stmt
-src/parser/ast/stmt.rs:216: impl Stmt
-src/parser/ast/stmt.rs:217: pub fn span(&self) -> Span
+src/parser/ast/stmt.rs:65: pub enum MatchBody
+src/parser/ast/stmt.rs:71: pub struct MatchArm
+src/parser/ast/stmt.rs:80: pub enum Stmt
+src/parser/ast/stmt.rs:223: impl Stmt
+src/parser/ast/stmt.rs:224: pub fn span(&self) -> Span
 src/parser/ast/ty.rs:5: pub enum Type
 src/parser/ast/ty.rs:28: impl Type
 src/parser/ast/ty.rs:29: pub fn span(&self) -> Span
@@ -2112,6 +2123,8 @@ src/parser/parser/pattern.rs:6: impl Parser
 src/parser/parser/pattern.rs:8: pub(super) fn parse_pattern(&mut self) -> Result<Pattern>
 src/parser/parser/pattern.rs:18: fn parse_pattern_literal(&mut self) -> Result<crate::parser::ast::literal::Literal>
 src/parser/parser/pattern.rs:41: fn parse_pattern_atom(&mut self) -> Result<Pattern>
+src/parser/parser/pattern.rs:121: impl Parser
+src/parser/parser/pattern.rs:123: pub(super) fn parse_match_arm_body(&mut self) -> Result<crate::parser::ast::stmt::MatchBody>
 src/parser/parser/self_type.rs:4: pub(super) fn subst_self_in_type(ty: &Type, self_ty: &Type) -> Type
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
@@ -2388,6 +2401,12 @@ example/test_macro_fn.aya:3: fn main() -> int
 example/test_macro_import.aya:4: fn main() -> int
 example/test_macro_stmt.aya:4: fn helper() -> int
 example/test_macro_stmt.aya:11: fn main() -> int
+example/test_match_arms.aya:2: enum Shape { Circle(int), Square(int), Dot }
+example/test_match_arms.aya:4: fn area(Shape s) -> int
+example/test_match_arms.aya:11: fn classify(u8 x) -> int
+example/test_match_arms.aya:19: fn pick(int x) -> int
+example/test_match_arms.aya:27: fn pick_stmt(int x) -> int
+example/test_match_arms.aya:34: fn main() -> int
 example/test_match_destructure.aya:2: enum Opt[T]
 example/test_match_destructure.aya:7: struct Point
 example/test_match_destructure.aya:12: fn nested(Opt[Opt[int]] o) -> int

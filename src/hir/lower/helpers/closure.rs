@@ -168,7 +168,10 @@ fn walk_match(
         if let Some(g) = &arm.guard {
             walk_expr(ctx, g, &mut local, caps)?;
         }
-        walk_expr(ctx, &arm.body, &mut local, caps)?;
+        match &arm.body {
+            crate::parser::ast::stmt::MatchBody::Expr(e) => walk_expr(ctx, e, &mut local, caps)?,
+            crate::parser::ast::stmt::MatchBody::Block(b) => walk_block(ctx, b, &mut local, caps)?,
+        }
     }
     Ok(())
 }

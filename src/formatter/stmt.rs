@@ -100,7 +100,7 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
                 if let Some(g) = &arm.guard {
                     let _ = write!(out, " if {}", write_expr_at(g, level + 1));
                 }
-                let _ = writeln!(out, " => {},", write_expr_at(&arm.body, level + 1));
+                let _ = writeln!(out, " => {},", super::helpers::write_match_body(&arm.body, level + 1));
             }
             let _ = writeln!(out, "{}}}", i);
         }

@@ -116,7 +116,10 @@ impl crate::hir::lower::Ctx {
                         cx.env.insert(n, GType::Other);
                     }
                     if let Some(g) = &a.guard { self.check_expr_names(g, cx)?; }
-                    self.check_expr_names(&a.body, cx)?;
+                    match &a.body {
+                        crate::parser::ast::stmt::MatchBody::Expr(e) => self.check_expr_names(e, cx)?,
+                        crate::parser::ast::stmt::MatchBody::Block(b) => self.check_block_names(b, cx)?,
+                    }
                 }
                 Ok(())
             }
@@ -254,7 +257,10 @@ impl crate::hir::lower::Ctx {
                         cx.env.insert(n, GType::Other);
                     }
                     if let Some(g) = &a.guard { self.check_expr_names(g, cx)?; }
-                    self.check_expr_names(&a.body, cx)?;
+                    match &a.body {
+                        crate::parser::ast::stmt::MatchBody::Expr(e) => self.check_expr_names(e, cx)?,
+                        crate::parser::ast::stmt::MatchBody::Block(b) => self.check_block_names(b, cx)?,
+                    }
                 }
                 Ok(())
             }

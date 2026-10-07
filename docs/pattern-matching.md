@@ -1,7 +1,7 @@
 # 模式匹配增强（Phase 1.3）
 
-> 状态：**atb.1（字面量 / `_` / `|` / guard）与 atb.2（嵌套 / struct 解构 / range）已实现**（2026-10）；
-> tuple 无对应类型（语言无元组，暂不做）；atb.3（match 表达式与语句统一 + 穷尽检查增强）待做。
+> 状态：**atb.1 / atb.2 / atb.3 已实现**（2026-10）。
+> tuple 无对应类型（语言无元组，暂不做）。
 
 ## 语法（atb.1）
 
@@ -39,7 +39,7 @@ arm       := pattern ('if' expr)? '=>' expr (',' | ';')?
 |---|---|
 | 模式 AST | `src/parser/ast/pattern.rs`（`Pattern` + `MatchArm.pattern/guard`） |
 | 解析 | `src/parser/parser/pattern.rs`、`decl.rs`（臂循环） |
-| 降级 | `src/hir/lower/body/match_lower.rs`（编排/穷尽）、`match_pattern.rs`（条件/绑定/变体 tag） |
+| 降级 | `src/hir/lower/body/match_lower.rs`（编排/臂体）、`match_pattern.rs`（条件/绑定/变体 tag）、`match_coverage.rs`（穷尽覆盖 + or 绑定诊断） |
 | 回归 | `example/test_match_literals.aya`、负例 `match_non_exhaustive` |
 
 ## atb.2 补充（2026-10）
@@ -54,8 +54,19 @@ arm       := pattern ('if' expr)? '=>' expr (',' | ';')?
   （`Opt_Some<Opt><Opt<int>>`）；
 - 回归：`example/test_match_destructure.aya`。
 
+## atb.3（2026-10）
+
+- **臂体统一**：`=> { ... }` 块臂体（尾表达式为值，`return`/`break`/`continue` 可用）与裸
+  `=> return expr` / `=> break` / `=> continue`；语句与表达式 match 共用同一降级路径
+  （`lower_match_arms`），块内发散分支按 `!` 参与结果类型统一。
+- **or 绑定修复 + 诊断**：绑定按实际匹配的分支执行（`if c0 {b0} elif c1 {b1} …`），
+  修复此前只保留第一分支绑定导致读到错误字段的问题；各分支绑定名集合与类型必须一致
+  （顺序无关），否则定义期报错。
+- **穷尽检查增强**：整数/定宽整数/char 的区间与字面量枚举合并覆盖整个值域
+  （`u8: 0..=255`、`i8: -128..=127`、重叠区间、`|` 内区间等）；bool/枚举逻辑保持。
+- 回归：`example/test_match_arms.aya`；负例 `match_or_binding`、`match_range_non_exhaustive`。
+
 ## 待做
 
-- atb.3：match 语句/表达式统一、穷尽检查增强（区间/字面量枚举）、`|` 绑定一致性诊断；
 - tuple：语言无元组类型，暂不做；
 - 结构体解构的字段级部分移动在 drop 侧的完备性（当前与枚举载荷同策略）。

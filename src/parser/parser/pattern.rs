@@ -117,3 +117,38 @@ impl Parser {
         }
     }
 }
+
+impl Parser {
+    /// atb.3：match 臂体 —— 块 `{ ... }`、裸 `return/break/continue`（包成单语句块）或表达式。
+    pub(super) fn parse_match_arm_body(&mut self) -> Result<crate::parser::ast::stmt::MatchBody> {
+        use crate::parser::ast::stmt::MatchBody;
+        if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
+            return Ok(MatchBody::Block(self.parse_block()?));
+        }
+        let is_bare = matches!(self.peek().map(|t| &t.kind),
+            Some(TokenKind::Keyword(Keyword::Return | Keyword::Break | Keyword::Continue)));
+        if !is_bare {
+            return Ok(MatchBody::Expr(self.parse_expr()?));
+        }
+        // 裸 return/break/continue：臂分隔符可为 `,`，不走语句分号规则
+        let sp = self.peek().map(|t| t.span()).unwrap_or_default();
+        let kind = self.peek().map(|t| t.kind.clone());
+        self.advance();
+        let stmt = match kind {
+            Some(TokenKind::Keyword(Keyword::Return)) => {
+                let value = match self.peek().map(|t| &t.kind) {
+                    Some(TokenKind::Delimiter(Delimiter::Semicolon)) => { self.advance(); None }
+                    Some(TokenKind::Delimiter(Delimiter::RBrace | Delimiter::RParen
+                        | Delimiter::RBracket | Delimiter::Comma)) | None => None,
+                    Some(k) if Self::is_stmt_only_keyword(k) => None,
+                    _ => Some(self.parse_expr()?),
+                };
+                Stmt::Return { value, span: sp }
+            }
+            Some(TokenKind::Keyword(Keyword::Break)) => Stmt::Break { span: sp },
+            Some(TokenKind::Keyword(Keyword::Continue)) => Stmt::Continue { span: sp },
+            _ => unreachable!(),
+        };
+        Ok(MatchBody::Block(crate::parser::ast::block::Block::new(vec![stmt], sp)))
+    }
+}
