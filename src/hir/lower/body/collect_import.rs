@@ -93,17 +93,20 @@ impl crate::hir::lower::Ctx {
                 };
                     for stmt in &parsed.stmts {
                         match stmt {
-                            Stmt::FnDecl { name, generic_params, .. } if !generic_params.is_empty() => {
+                            Stmt::FnDecl { name, generic_params, span, .. } if !generic_params.is_empty() => {
+                                super::collect_ns::check_unique_generic_params(generic_params, span)?;
                                 self.generic_fns.push((*name, generic_params.clone(), stmt.clone()));
                             }
-                            Stmt::ImplBlock { methods, generic_params: impl_gp, .. } => {
+                            Stmt::ImplBlock { methods, generic_params: impl_gp, span, .. } => {
+                                super::collect_ns::check_unique_generic_params(impl_gp, span)?;
                                 for m in methods {
-                                    if let Stmt::FnDecl { name, generic_params, .. } = m {
+                                    if let Stmt::FnDecl { name, generic_params, span: m_span, .. } = m {
                                         let combined: Vec<(Symbol, Option<Symbol>)> = {
                                             let mut all = impl_gp.clone();
                                             all.extend(generic_params.iter().cloned());
                                             all
                                         };
+                                        super::collect_ns::check_unique_generic_params(&combined, m_span)?;
                                         if !combined.is_empty() {
                                             self.generic_fns.push((*name, combined, m.clone()));
                                         }
@@ -113,7 +116,8 @@ impl crate::hir::lower::Ctx {
                             Stmt::Namespace { name, items, .. } => {
                                 let prefix = name.as_str();
                                 for it in items {
-                                    if let Stmt::FnDecl { name: fn_name, generic_params, .. } = it {
+                                    if let Stmt::FnDecl { name: fn_name, generic_params, span, .. } = it {
+                                        super::collect_ns::check_unique_generic_params(generic_params, span)?;
                                         if !generic_params.is_empty() {
                                             let full = Symbol::intern(&format!("{}.{}", prefix, fn_name));
                                             self.generic_fns.push((full, generic_params.clone(), it.clone()));
@@ -121,7 +125,8 @@ impl crate::hir::lower::Ctx {
                                     }
                                 }
                             }
-                            Stmt::InterfaceDef { name, methods, generic_params, .. } => {
+                            Stmt::InterfaceDef { name, methods, generic_params, span, .. } => {
+                                super::collect_ns::check_unique_generic_params(generic_params, span)?;
                                 let hir_methods = methods.iter().map(|m| {
                                     crate::hir::ir::HirInterfaceMethod {
                                         name: m.name,

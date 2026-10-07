@@ -1,0 +1,6 @@
+enum E { A, B }
+
+fn main() -> int {
+    x = E::C._tag
+    return 0
+}

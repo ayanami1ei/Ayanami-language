@@ -1,0 +1,7 @@
+struct W[K: Foo, K: Bar] {
+    [K] ks
+}
+
+fn main() -> int {
+    return 0
+}

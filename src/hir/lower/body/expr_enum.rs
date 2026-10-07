@@ -5,13 +5,28 @@ impl crate::hir::lower::Ctx {
         if !named_args.is_empty() {
             return Err(Error::Hir(format!("named fields in enum construct not yet supported at {}:{}", span.start_line, span.start_col)));
         }
-        let tag = self.struct_defs.get(enum_name).map_or(0i64, |fields| {
+        // #150：未知变体必须报错（此前静默回退 tag 0）
+        let tag = self.struct_defs.get(enum_name).and_then(|fields| {
             let target = format!("_data_{}", variant_name);
-            for (i, f) in fields.iter().enumerate() {
-                if f.name.as_str() == target { return (i - 1) as i64; }
-            }
-            0i64
+            fields.iter().position(|f| f.name.as_str() == target).map(|i| (i - 1) as i64)
         });
+        let Some(tag) = tag else {
+            return Err(Error::Hir(format!(
+                "enum `{}` has no variant `{}` (at {}:{})",
+                enum_name.as_str(), variant_name.as_str(), span.start_line, span.start_col
+            )));
+        };
+        // 载荷个数检查（变体结构体字段数）
+        let base_variant = Symbol::intern(&format!("{}_{}", enum_name.as_str(), variant_name.as_str()));
+        if let Some(vf) = self.struct_defs.get(&base_variant) {
+            if vf.len() != tuple_args.len() {
+                return Err(Error::Hir(format!(
+                    "variant `{}::{}` expects {} field(s), found {} (at {}:{})",
+                    enum_name.as_str(), variant_name.as_str(), vf.len(), tuple_args.len(),
+                    span.start_line, span.start_col
+                )));
+            }
+        }
         let hir_args: Vec<HirNodeBox> = tuple_args
             .iter()
             .map(|e| self.lower_expr(e).map(implicit_move))

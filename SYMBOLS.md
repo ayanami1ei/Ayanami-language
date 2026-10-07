@@ -413,8 +413,9 @@ src/hir/lower/body/collect_fns.rs:8: pub(crate) fn collect_fns(&mut self, stmts:
 src/hir/lower/body/collect_fns.rs:15: fn collect_const_fns(&mut self, stmts: &[Stmt], prefix: &str) -> Result<()>
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_import.rs:4: pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str, stmt_span: crate::span::Span) -> Result<()>
-src/hir/lower/body/collect_ns.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/collect_ns.rs:4: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
+src/hir/lower/body/collect_ns.rs:4: pub(super) fn check_unique_generic_params(gp: &[(Symbol, Option<Symbol>)], span: &Span) -> Result<()>
+src/hir/lower/body/collect_ns.rs:17: impl crate::hir::lower::Ctx
+src/hir/lower/body/collect_ns.rs:18: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
 src/hir/lower/body/const_array.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/const_array.rs:5: pub(crate) fn eval_const_array(
 src/hir/lower/body/const_coerce.rs:4: pub(super) fn coerce_literal(lit_ty: &mut HirType, lit: &mut HirLiteral, want: &HirType, span: &Span) -> Result<()>
@@ -457,7 +458,7 @@ src/hir/lower/body/expr_cast.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_cast.rs:5: pub(crate) fn lower_cast(&mut self, inner: &Box<Expr>, ty: &Type, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_enum.rs:53: fn monomorphize_enum_construct(
+src/hir/lower/body/expr_enum.rs:68: fn monomorphize_enum_construct(
 src/hir/lower/body/expr_logic.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_logic.rs:5: pub(super) fn lower_short_circuit(&mut self, op: BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_lower.rs:3: impl crate::hir::lower::Ctx
