@@ -3,7 +3,7 @@ import "aya_sb";
 import "aya_ast";
 import "aya_log";
 
-// M4a：HIR 子集类型检查（名称解析 + 表达式/语句类型检查）
+// M4b：HIR 子集类型检查（名称解析 + 表达式/语句类型检查）
 // 诊断格式与 rust 版 `ayanami check` 对齐：error: msg + file:line:col
 // 类型用显示名字符串表示（"int"/"float"/"bool"/"char"/"void"/"String"/结构体名…），
 // "" 表示未知（跳过检查）。
@@ -15,8 +15,19 @@ pub struct Checker {
     [String] fn_names
     [String] fn_rets
     [int] fn_nparams
+    [int] fn_pstart
+    [String] fn_ptypes
+    int fn_ptotal
     int fn_count
-    // 结构体表（字段扁平存储 + 每结构体区间）
+    // 方法表（impl 内，按接收者类型）
+    [String] m_recv
+    [String] m_names
+    [int] m_nparams
+    [int] m_pstart
+    [String] m_ptypes
+    int m_ptotal
+    int m_count
+    // 结构体表
     [String] st_names
     [int] st_fstart
     [int] st_fcount
@@ -24,11 +35,18 @@ pub struct Checker {
     [String] fld_names
     [String] fld_types
     int fld_count
+    // 枚举表
+    [String] en_names
+    [int] en_vstart
+    [int] en_vcount
+    [String] en_variants
+    int en_count
     // 当前函数局部变量
     [String] lv_names
     [String] lv_types
     int lv_count
-    // 当前函数返回类型
+    // 当前函数
+    String cur_fn
     String cur_ret
 }
 
@@ -40,7 +58,17 @@ pub namespace Checker {
             fn_names = [String; 4096],
             fn_rets = [String; 4096],
             fn_nparams = [int; 4096],
+            fn_pstart = [int; 4096],
+            fn_ptypes = [String; 16384],
+            fn_ptotal = 0,
             fn_count = 0,
+            m_recv = [String; 2048],
+            m_names = [String; 2048],
+            m_nparams = [int; 2048],
+            m_pstart = [int; 2048],
+            m_ptypes = [String; 8192],
+            m_ptotal = 0,
+            m_count = 0,
             st_names = [String; 1024],
             st_fstart = [int; 1024],
             st_fcount = [int; 1024],
@@ -48,13 +76,38 @@ pub namespace Checker {
             fld_names = [String; 8192],
             fld_types = [String; 8192],
             fld_count = 0,
+            en_names = [String; 512],
+            en_vstart = [int; 512],
+            en_vcount = [int; 512],
+            en_variants = [String; 4096],
+            en_count = 0,
             lv_names = [String; 4096],
             lv_types = [String; 4096],
             lv_count = 0,
+            cur_fn = "",
             cur_ret = ""
         };
         return c;
     }
+}
+
+fn str_starts_with(ref String s, ref String prefix) -> bool {
+    if prefix.len > s.len { return false; }
+    i = 0;
+    while i < prefix.len as int {
+        if s.index(i as usize) != prefix.index(i as usize) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+fn contains_dot(ref String s) -> bool {
+    i = 0;
+    while i < s.len as int {
+        if s.index(i as usize) == '.' { return true; }
+        i = i + 1;
+    }
+    return false;
 }
 
 /// AST 类型节点 -> 显示名
@@ -111,27 +164,16 @@ pub fn type_name(ref Ast ast, int ty) -> String {
     return "";
 }
 
+/// 是否可隐式转换（int/float、bool/int 之间不可隐式转换）
+fn convertible(ref String from, ref String to) -> bool {
+    if from.len == 0 { return true; }
+    if to.len == 0 { return true; }
+    if from == to { return true; }
+    if from == "!" { return true; }
+    return false;
+}
+
 impl Checker {
-    /// 预置常见 std/builtin 函数（返回类型未知 → 跳过类型检查）
-    fn seed_std(ref mut self) {
-        self.add_builtin("println");
-        self.add_builtin("print");
-        self.add_builtin("putchar");
-        self.add_builtin("getchar");
-        self.add_builtin("warn");
-        self.add_builtin("note");
-        self.add_builtin("panic");
-        self.add_builtin("error_at");
-    }
-
-    fn add_builtin(ref mut self, ref String name) {
-        if self.fn_count >= 4096 { return; }
-        self.fn_names[self.fn_count] = name.copy();
-        self.fn_rets[self.fn_count] = "";
-        self.fn_nparams[self.fn_count] = -1;
-        self.fn_count = self.fn_count + 1;
-    }
-
     fn err(ref mut self, ref String msg, int line, int col) {
         self.errors = self.errors + 1;
         error_at(self.file, line, col, msg);
@@ -149,6 +191,17 @@ impl Checker {
         i = 0;
         while i < self.fn_count {
             if self.fn_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn find_method(ref mut self, ref String recv, ref String name) -> int {
+        i = 0;
+        while i < self.m_count {
+            if self.m_recv[i] == recv {
+                if self.m_names[i] == name { return i; }
+            }
             i = i + 1;
         }
         return -1;
@@ -172,6 +225,26 @@ impl Checker {
             i = i + 1;
         }
         return -1;
+    }
+
+    fn find_enum(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.en_count {
+            if self.en_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn has_variant(ref mut self, int en, ref String name) -> bool {
+        start = self.en_vstart[en];
+        n = self.en_vcount[en];
+        i = 0;
+        while i < n {
+            if self.en_variants[start + i] == name { return true; }
+            i = i + 1;
+        }
+        return false;
     }
 
     fn local_type(ref mut self, ref String name) -> String {
@@ -199,46 +272,90 @@ impl Checker {
         self.lv_count = self.lv_count + 1;
     }
 
-    fn update_local(ref mut self, ref String name, ref String ty) {
-        i = 0;
-        while i < self.lv_count {
-            if self.lv_names[i] == name {
-                self.lv_types[i] = ty.copy();
-                return;
-            }
-            i = i + 1;
-        }
+    /// 预置常见 std/builtin 函数（返回类型未知 → 跳过类型检查）
+    fn seed_std(ref mut self) {
+        self.add_builtin("println");
+        self.add_builtin("print");
+        self.add_builtin("putchar");
+        self.add_builtin("getchar");
+        self.add_builtin("warn");
+        self.add_builtin("note");
+        self.add_builtin("panic");
+        self.add_builtin("error_at");
+    }
+
+    fn add_builtin(ref mut self, ref String name) {
+        if self.fn_count >= 4096 { return; }
+        self.fn_names[self.fn_count] = name.copy();
+        self.fn_rets[self.fn_count] = "";
+        self.fn_nparams[self.fn_count] = -1;
+        self.fn_pstart[self.fn_count] = self.fn_ptotal;
+        self.fn_count = self.fn_count + 1;
     }
 
     // ---------- 收集声明 ----------
 
     fn collect(ref mut self, ref Ast ast, int prog) {
+        self.collect_recv(ast, prog, "");
+    }
+
+    fn collect_recv(ref mut self, ref Ast ast, int prog, ref String recv) {
         s = ast.aa[prog];
         while s >= 0 {
             tag = ast.tags[s];
             if tag == st(ST::FnDecl._tag) {
-                self.add_fn(ast, s);
+                self.add_fn(ast, s, recv);
             } elif tag == st(ST::StructDef._tag) {
                 self.add_struct(ast, s);
-            } elif tag == st(ST::ImplBlock._tag) || tag == st(ST::Namespace._tag) {
-                self.collect(ast, s);
+            } elif tag == st(ST::EnumDef._tag) {
+                self.add_enum(ast, s);
+            } elif tag == st(ST::ImplBlock._tag) {
+                self.collect_recv(ast, s, ast.texts[s]);
+            } elif tag == st(ST::Namespace._tag) {
+                self.collect_recv(ast, s, recv);
             }
             s = ast.nexts[s];
         }
     }
 
-    fn add_fn(ref mut self, ref Ast ast, int id) {
-        if self.fn_count >= 4096 { return; }
-        self.fn_names[self.fn_count] = ast.texts[id].copy();
-        self.fn_rets[self.fn_count] = type_name(ast, ast.tys[id]);
-        n = 0;
-        p = ast.aa[id];
-        while p >= 0 {
-            n = n + 1;
-            p = ast.nexts[p];
+    fn add_fn(ref mut self, ref Ast ast, int id, ref String recv) {
+        if recv.len == 0 {
+            if self.fn_count >= 4096 { return; }
+            fi = self.fn_count;
+            self.fn_names[fi] = ast.texts[id].copy();
+            self.fn_rets[fi] = type_name(ast, ast.tys[id]);
+            self.fn_pstart[fi] = self.fn_ptotal;
+            n = 0;
+            p = ast.aa[id];
+            while p >= 0 {
+                if self.fn_ptotal < 16384 {
+                    self.fn_ptypes[self.fn_ptotal] = type_name(ast, ast.tys[p]);
+                    self.fn_ptotal = self.fn_ptotal + 1;
+                }
+                n = n + 1;
+                p = ast.nexts[p];
+            }
+            self.fn_nparams[fi] = n;
+            self.fn_count = fi + 1;
+        } else {
+            if self.m_count >= 2048 { return; }
+            mi = self.m_count;
+            self.m_recv[mi] = recv.copy();
+            self.m_names[mi] = ast.texts[id].copy();
+            self.m_pstart[mi] = self.m_ptotal;
+            n = 0;
+            p = ast.aa[id];
+            while p >= 0 {
+                if self.m_ptotal < 8192 {
+                    self.m_ptypes[self.m_ptotal] = type_name(ast, ast.tys[p]);
+                    self.m_ptotal = self.m_ptotal + 1;
+                }
+                n = n + 1;
+                p = ast.nexts[p];
+            }
+            self.m_nparams[mi] = n;
+            self.m_count = mi + 1;
         }
-        self.fn_nparams[self.fn_count] = n;
-        self.fn_count = self.fn_count + 1;
     }
 
     fn add_struct(ref mut self, ref Ast ast, int id) {
@@ -261,10 +378,36 @@ impl Checker {
         self.st_count = st + 1;
     }
 
+    fn add_enum(ref mut self, ref Ast ast, int id) {
+        if self.en_count >= 512 { return; }
+        en = self.en_count;
+        self.en_names[en] = ast.texts[id].copy();
+        // 变体扁平存储：前面所有枚举的变体数之和作为起点
+        vstart = 0;
+        i = 0;
+        while i < en {
+            vstart = vstart + self.en_vcount[i];
+            i = i + 1;
+        }
+        self.en_vstart[en] = vstart;
+        n = 0;
+        v = ast.aa[id];
+        while v >= 0 {
+            if vstart + n < 4096 {
+                self.en_variants[vstart + n] = ast.texts[v].copy();
+                n = n + 1;
+            }
+            v = ast.nexts[v];
+        }
+        self.en_vcount[en] = n;
+        self.en_count = en + 1;
+    }
+
     // ---------- 检查函数体 ----------
 
     fn check_fn(ref mut self, ref Ast ast, int id) {
         self.lv_count = 0;
+        self.cur_fn = ast.texts[id].copy();
         self.cur_ret = type_name(ast, ast.tys[id]);
         p = ast.aa[id];
         while p >= 0 {
@@ -292,19 +435,44 @@ impl Checker {
             self.check_fn(ast, id);
         } elif tag == st(ST::Assign._tag) {
             ty = self.check_expr(ast, ast.aa[id]);
-            if self.has_local(ast.texts[id]) {
-                old = self.local_type(ast.texts[id]);
+            nm = ast.texts[id];
+            if self.has_local(nm) {
+                old = self.local_type(nm);
+                if str_starts_with(old, "ref ") {
+                    if !str_starts_with(old, "ref mut ") {
+                        b = StringBuf::new();
+                        b.push_str("cannot assign through an immutable reference `");
+                        b.push_str(nm);
+                        b.push_str("`");
+                        self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                        return;
+                    }
+                }
                 if !convertible(ty, old) {
                     self.convert_err(ty, old, ast.lines[id], ast.cols[id]);
                 }
             } else {
-                self.set_local(ast.texts[id], ty);
+                self.set_local(nm, ty);
             }
         } elif tag == st(ST::Return._tag) {
             if ast.aa[id] >= 0 {
                 ty = self.check_expr(ast, ast.aa[id]);
                 if !convertible(ty, self.cur_ret) {
                     self.convert_err(ty, self.cur_ret, ast.lines[id], ast.cols[id]);
+                }
+            } else {
+                if self.cur_ret.len > 0 {
+                    if self.cur_ret != "void" {
+                        if self.cur_ret != "!" {
+                            b = StringBuf::new();
+                            b.push_str("function `");
+                            b.push_str(self.cur_fn);
+                            b.push_str("` returns `");
+                            b.push_str(self.cur_ret);
+                            b.push_str("` but `return;` has no value");
+                            self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                        }
+                    }
                 }
             }
         } elif tag == st(ST::ExprStmt._tag) {
@@ -329,9 +497,27 @@ impl Checker {
             self.check_expr(ast, ast.bb[id]);
             self.set_local(ast.texts[id], "int");
             self.check_block(ast, ast.dd[id]);
-        } elif tag == st(ST::FieldAssign._tag) {
+        } elif tag == st(ST::ForIn._tag) {
             self.check_expr(ast, ast.aa[id]);
-            self.check_expr(ast, ast.bb[id]);
+            self.set_local(ast.texts[id], "");
+            self.check_block(ast, ast.bb[id]);
+        } elif tag == st(ST::FieldAssign._tag) {
+            ot = self.check_expr(ast, ast.aa[id]);
+            vt = self.check_expr(ast, ast.bb[id]);
+            st = self.find_struct(ot);
+            if st >= 0 {
+                fi = self.find_field(st, ast.texts[id]);
+                if fi < 0 {
+                    b = StringBuf::new();
+                    b.push_str("结构体 `");
+                    b.push_str(ot);
+                    b.push_str("` 没有字段 `");
+                    b.push_str(ast.texts[id]);
+                    b.push_str("`");
+                    inline_error(b.to_string(), ast.lines[id], ast.cols[id]);
+                    self.errors = self.errors + 1;
+                }
+            }
         } elif tag == st(ST::IndexAssign._tag) {
             self.check_expr(ast, ast.aa[id]);
             self.check_expr(ast, ast.bb[id]);
@@ -353,6 +539,55 @@ impl Checker {
         self.err(b.to_string(), line, col);
     }
 
+    /// 拼接实参类型列表 "(int, bool)"
+    fn arg_types_str(ref mut self, ref Ast ast, int args) -> String {
+        b = StringBuf::new();
+        b.push_str("(");
+        a = args;
+        first = 1;
+        while a >= 0 {
+            if first == 0 { b.push_str(", "); }
+            if ast.tags[a] == xt(XT::Arg._tag) {
+                b.push_str(self.check_expr(ast, ast.aa[a]));
+            } else {
+                b.push_str(self.check_expr(ast, a));
+            }
+            first = 0;
+            a = ast.nexts[a];
+        }
+        b.push_str(")");
+        return b.to_string();
+    }
+
+    /// 路径名（A.B）：检查枚举变体是否存在；返回是否已按路径处理
+    fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool {
+        dot = -1;
+        i = 0;
+        while i < full.len as int {
+            if full.index(i as usize) == '.' {
+                dot = i;
+                break;
+            }
+            i = i + 1;
+        }
+        if dot < 0 { return false; }
+        base = full.substring(0 as usize, dot as usize);
+        variant = full.substring((dot + 1) as usize, full.len);
+        en = self.find_enum(base);
+        if en >= 0 {
+            if !self.has_variant(en, variant) {
+                b = StringBuf::new();
+                b.push_str("enum `");
+                b.push_str(base);
+                b.push_str("` has no variant `");
+                b.push_str(variant);
+                b.push_str("`");
+                self.err(b.to_string(), line, col);
+            }
+        }
+        return true;
+    }
+
     fn check_expr(ref mut self, ref Ast ast, int id) -> String {
         if id < 0 { return ""; }
         tag = ast.tags[id];
@@ -366,7 +601,10 @@ impl Checker {
         }
         if tag == et(ET::Ident._tag) {
             nm = ast.texts[id];
-            if contains_dot(nm) { return ""; }
+            if contains_dot(nm) {
+                self.check_path(ast, nm, ast.lines[id], ast.cols[id]);
+                return "";
+            }
             if self.has_local(nm) { return self.local_type(nm); }
             if self.find_fn(nm) >= 0 { return ""; }
             self.err_name("undefined variable `", nm, ast.lines[id], ast.cols[id]);
@@ -375,9 +613,14 @@ impl Checker {
         if tag == et(ET::FnCall._tag) {
             nm = ast.texts[id];
             if contains_dot(nm) {
+                self.check_path(ast, nm, ast.lines[id], ast.cols[id]);
                 a0 = ast.aa[id];
                 while a0 >= 0 {
-                    self.check_expr(ast, a0);
+                    if ast.tags[a0] == xt(XT::Arg._tag) {
+                        self.check_expr(ast, ast.aa[a0]);
+                    } else {
+                        self.check_expr(ast, a0);
+                    }
                     a0 = ast.nexts[a0];
                 }
                 return "";
@@ -385,20 +628,55 @@ impl Checker {
             fi = self.find_fn(nm);
             if fi < 0 {
                 self.err_name("undefined function `", nm, ast.lines[id], ast.cols[id]);
-            } else {
-                n = 0;
-                a = ast.aa[id];
-                while a >= 0 {
-                    self.check_expr(ast, a);
-                    n = n + 1;
-                    a = ast.nexts[a];
-                }
-                if n != self.fn_nparams[fi] {
-                    // 参数个数错误暂不比对（消息未对齐）
-                }
-                return self.fn_rets[fi].copy();
+                return "";
             }
-            return "";
+            if self.fn_nparams[fi] < 0 {
+                // builtin：只检查实参本身
+                a0 = ast.aa[id];
+                while a0 >= 0 {
+                    self.check_expr(ast, a0);
+                    a0 = ast.nexts[a0];
+                }
+                return "";
+            }
+            // 非 builtin：单次遍历收集实参类型并匹配
+            b = StringBuf::new();
+            b.push_str("(");
+            n = 0;
+            ok = 1;
+            first = 1;
+            pstart = self.fn_pstart[fi];
+            a = ast.aa[id];
+            while a >= 0 {
+                at = "";
+                if ast.tags[a] == xt(XT::Arg._tag) {
+                    at = self.check_expr(ast, ast.aa[a]);
+                } else {
+                    at = self.check_expr(ast, a);
+                }
+                if first == 0 { b.push_str(", "); }
+                b.push_str(at);
+                first = 0;
+                if n < self.fn_nparams[fi] {
+                    if !convertible(at, self.fn_ptypes[pstart + n]) { ok = 0; }
+                } else {
+                    ok = 0;
+                }
+                n = n + 1;
+                a = ast.nexts[a];
+            }
+            b.push_str(")");
+            if n != self.fn_nparams[fi] { ok = 0; }
+            if ok == 0 {
+                b2 = StringBuf::new();
+                b2.push_str("no matching overload of `");
+                b2.push_str(nm);
+                b2.push_str("` for argument types ");
+                b2.push_str(b.to_string());
+                b2.push_str("; candidate(s) exist");
+                self.err(b2.to_string(), ast.lines[id], ast.cols[id]);
+            }
+            return self.fn_rets[fi].copy();
         }
         if tag == et(ET::Binary._tag) {
             lt = self.check_expr(ast, ast.aa[id]);
@@ -434,7 +712,6 @@ impl Checker {
             nm = ast.texts[id];
             st = self.find_struct(nm);
             if st < 0 {
-                // rust：unknown struct `Q` in struct literal（位置=首个字段值；无字段时用字面量位置）
                 eline = ast.lines[id];
                 ecol = ast.cols[id];
                 f0 = ast.aa[id];
@@ -454,7 +731,6 @@ impl Checker {
                 vt = self.check_expr(ast, ast.aa[f]);
                 fi = self.find_field(st, ast.texts[f]);
                 if fi < 0 {
-                    // rust：struct `P` has no field `y`（位置=字段值）
                     vpos = ast.aa[f];
                     b = StringBuf::new();
                     b.push_str("struct `");
@@ -483,7 +759,6 @@ impl Checker {
             if st >= 0 {
                 fi = self.find_field(st, ast.texts[id]);
                 if fi < 0 {
-                    // rust：内联中文格式 `结构体 `P` 没有字段 `z``（位置=点号）
                     b = StringBuf::new();
                     b.push_str("结构体 `");
                     b.push_str(ot);
@@ -499,11 +774,20 @@ impl Checker {
             return "";
         }
         if tag == et(ET::MethodCall._tag) {
-            self.check_expr(ast, ast.aa[id]);
-            a = ast.bb[id];
-            while a >= 0 {
-                self.check_expr(ast, a);
-                a = ast.nexts[a];
+            ot = self.check_expr(ast, ast.aa[id]);
+            given = self.arg_types_str(ast, ast.bb[id]);
+            if self.find_struct(ot) >= 0 {
+                mi = self.find_method(ot, ast.texts[id]);
+                if mi < 0 {
+                    b = StringBuf::new();
+                    b.push_str("type `");
+                    b.push_str(ot);
+                    b.push_str("` has no method `");
+                    b.push_str(ast.texts[id]);
+                    b.push_str("` for argument types ");
+                    b.push_str(given);
+                    self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                }
             }
             return "";
         }
@@ -561,27 +845,10 @@ impl Checker {
     }
 }
 
-fn contains_dot(ref String s) -> bool {
-    i = 0;
-    while i < s.len as int {
-        if s.index(i as usize) == '.' { return true; }
-        i = i + 1;
-    }
-    return false;
-}
-
-/// 是否可隐式转换（与 rust 版一致：int/float、bool/int 之间不可隐式转换）
-fn convertible(ref String from, ref String to) -> bool {
-    if from.len == 0 { return true; }
-    if to.len == 0 { return true; }
-    if from == to { return true; }
-    if from == "!" { return true; }
-    return false;
-}
-
 /// 入口：收集 + 检查，返回错误数（诊断已输出）
 pub fn check_program(ref Ast ast, int prog, ref String file) -> int {
     c = Checker::new(file);
+    c.seed_std();
     c.collect(ast, prog);
     s = ast.aa[prog];
     while s >= 0 {

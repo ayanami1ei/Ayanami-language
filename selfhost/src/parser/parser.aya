@@ -691,15 +691,37 @@ impl Parser {
         name = self.expect_ident("expected enum name");
         if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
         self.expect_delim(D::LBrace._tag, "expected { in enum");
-        depth = 1;
+        variants = -1;
         while true {
+            if self.check_delim(D::RBrace._tag) { break; }
             if self.at_end() { break; }
-            if depth <= 0 { break; }
-            if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
-            if self.check_delim(D::RBrace._tag) { depth = depth - 1; }
-            self.advance();
+            if self.failed == 1 { break; }
+            if self.cur.kind == Tk::Ident._tag {
+                vname = self.cur.text.copy();
+                vline = self.cur.line;
+                vcol = self.cur.col;
+                self.advance();
+                vn = self.ast.push(xt(XT::EnumVariant._tag), vname, -1, -1, -1, -1, -1, vline, vcol);
+                variants = self.ast.push_tail(variants, vn);
+                if self.check_delim(D::LParen._tag) || self.check_delim(D::LBrace._tag) {
+                    depth = 0;
+                    while true {
+                        if self.at_end() { break; }
+                        if depth <= 0 { break; }
+                        if self.check_delim(D::LParen._tag) { depth = depth + 1; }
+                        if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
+                        if self.check_delim(D::RParen._tag) { depth = depth - 1; }
+                        if self.check_delim(D::RBrace._tag) { depth = depth - 1; }
+                        self.advance();
+                    }
+                }
+                self.eat_delim(D::Comma._tag);
+            } else {
+                self.advance();
+            }
         }
-        return self.ast.push(st(ST::EnumDef._tag), name, -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+        self.expect_delim(D::RBrace._tag, "expected } after enum");
+        return self.ast.push(st(ST::EnumDef._tag), name, -1, variants, -1, -1, -1, self.cur.line, self.cur.col);
     }
 
     fn parse_interface(ref mut self) -> int {
@@ -939,7 +961,7 @@ impl Parser {
                 return self.ast.push(st(ST::Assign._tag), self.ast.texts[e], -1, val, -1, -1, -1, line, col);
             }
             if etag == et(ET::FieldAccess._tag) {
-                return self.ast.push(st(ST::FieldAssign._tag), self.ast.texts[e], -1, self.ast.aa[e], val, -1, -1, line, col);
+                return self.ast.push(st(ST::FieldAssign._tag), self.ast.texts[e], -1, self.ast.aa[e], val, -1, -1, self.ast.lines[e], self.ast.cols[e]);
             }
             if etag == et(ET::Index._tag) {
                 return self.ast.push(st(ST::IndexAssign._tag), "", -1, self.ast.aa[e], self.ast.bb[e], val, -1, line, col);
@@ -1108,8 +1130,8 @@ impl Parser {
                     e = self.ast.push(et(ET::CallExpr._tag), "", -1, e, args, -1, -1, line, col);
                 }
             } elif self.check_op("::") {
-                line = self.cur.line;
-                col = self.cur.col;
+                line = self.ast.lines[e];
+                col = self.ast.cols[e];
                 self.advance();
                 variant = self.expect_ident("expected path segment");
                 full = self.ast.texts[e].copy();

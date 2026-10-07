@@ -1,0 +1,5 @@
+enum E { A, B }
+fn main() -> int {
+    x = E::C
+    return 0
+}

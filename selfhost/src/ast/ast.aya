@@ -98,6 +98,7 @@ pub enum XT {
     Elif,
     GenericArg,
     MatchArm,
+    EnumVariant,
 }
 
 // 字面量种类（Literal 的 tys 编码）
