@@ -8,7 +8,11 @@ impl crate::hir::lower::Ctx {
         body: &Block,
         invariants: &[(&Expr, usize, usize)],
     ) -> Result<HirStmt> {
+        // #148：条件降级可能产生前置语句（`&&`/`||` 短路、if 表达式条件）；
+        // 这些语句必须每轮在条件判断前执行，否则条件只求值一次（死循环/段错误）。
+        let mark = self.pending_stmts.len();
         let hir_cond = auto_deref(self.lower_expr(cond)?);
+        let cond_pre: Vec<HirStmt> = self.pending_stmts.split_off(mark);
         let mut hir_body = self.lower_block(body)?;
         if !invariants.is_empty() {
             let mut checks = self.loop_check_stmts(invariants)?;
@@ -16,7 +20,28 @@ impl crate::hir::lower::Ctx {
             hir_body.stmts = checks;
         }
         let span = cond.span();
-        Ok(HirStmt::While { cond: hir_cond, body: hir_body, span })
+        if cond_pre.is_empty() {
+            return Ok(HirStmt::While { cond: hir_cond, body: hir_body, span });
+        }
+        // 条件需前置语句：`while true { <cond_pre>; if !cond { break }; <invariants+body> }`
+        let mut stmts = cond_pre;
+        stmts.push(HirStmt::If {
+            cond: SUn {
+                op: crate::parser::ast::UnaryOp::Not,
+                arg: hir_cond,
+                ty: HirType::Bool,
+            }.into(),
+            then_block: HirBlock::new(vec![HirStmt::Break { span }]),
+            elifs: Vec::new(),
+            else_block: None,
+            span,
+        });
+        stmts.extend(hir_body.stmts);
+        Ok(HirStmt::While {
+            cond: SConst { val: HirLiteral::Bool(true), ty: HirType::Bool }.into(),
+            body: HirBlock::new(stmts),
+            span,
+        })
     }
 
     pub(crate) fn lower_for(

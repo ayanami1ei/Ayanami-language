@@ -4,7 +4,8 @@ impl LirNode for SLirAlloca {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "Alloca" }
     fn as_any(&self) -> &dyn std::any::Any { self }
-    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+    fn emit(&self, _ctx: &mut LirEmitCtx) -> Vec<String> { Vec::new() }
+    fn alloca_lines(&self, ctx: &LirEmitCtx) -> Vec<String> {
         let llvm_ty = ctx.llvm_type(&self.ty);
         vec![format!("%v{} = alloca {}, align 8", self.var.0, llvm_ty)]
     }

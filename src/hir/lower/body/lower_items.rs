@@ -201,7 +201,10 @@ impl crate::hir::lower::Ctx {
         // A2c：函数级 #[assume(cond)] 前置于函数体（发射为 llvm.assume）
         let mut prelude: Vec<HirStmt> = Vec::new();
         for cond in crate::hir::contracts::assume_conditions(&attrs) {
+            // #148：条件降级的前置语句（短路/if 表达式）进函数前奏
+            let mark = self.pending_stmts.len();
             let hir_cond = self.lower_expr(cond)?;
+            prelude.extend(self.pending_stmts.split_off(mark));
             crate::hir::contracts::ensure_bool_condition(
                 &hir_cond, "assume", span.start_line, span.start_col)?;
             prelude.push(HirStmt::Assume { cond: hir_cond, span });
@@ -209,7 +212,9 @@ impl crate::hir::lower::Ctx {
         // A2d：函数级 #[requires(cond)]，默认运行检查；AYANAMI_CHECKS=0 时退化为 assume
         let checks = crate::hir::contracts::checks_enabled();
         for (cond, line, col) in crate::hir::contracts::requires_conditions(&attrs) {
+            let mark = self.pending_stmts.len();
             let hir_cond = self.lower_expr(cond)?;
+            prelude.extend(self.pending_stmts.split_off(mark));
             crate::hir::contracts::ensure_bool_condition(&hir_cond, "requires", line, col)?;
             if checks {
                 prelude.push(HirStmt::Contract { kind: ContractKind::Require, cond: hir_cond, line, col });

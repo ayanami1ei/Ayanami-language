@@ -7,8 +7,10 @@ use crate::error::{Error, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod lto;
 mod runtime;
 pub(crate) use runtime::resolve_runtime;
+pub use lto::{is_lto, link_modules_lto, set_lto};
 
 /// Find `llc` — check next to the ayanami binary first, then PATH.
 pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)> {
@@ -31,7 +33,7 @@ pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)> {
 /// （例如 opt 22 产出的属性 bundled llc 21 不认识），此时只用同目录 `opt`。
 /// Optimization is optional: when `opt` is missing (or `AYANAMI_OPT=0`),
 /// `ir_to_object` falls back to compiling the unoptimized IR with llc.
-fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)> {
+pub(super) fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)> {
     if std::env::var("AYANAMI_OPT").map(|v| v == "0").unwrap_or(false) {
         return None;
     }

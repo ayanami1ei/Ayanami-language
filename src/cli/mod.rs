@@ -28,16 +28,19 @@ pub(crate) use package_install::{cmd_install, cmd_package};
 pub(crate) struct CliFlags {
     pub release: bool,
     pub verify_effects: bool,
+    /// M-opt.9：跨对象内联（llvm-link 合并 + opt -O3）
+    pub lto: bool,
 }
 
 /// A2/A3：提取标志（`--release` / `--verify-effects`），其余参数保持顺序。
 pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags) {
     let mut rest = Vec::new();
-    let mut flags = CliFlags { release: false, verify_effects: false };
+    let mut flags = CliFlags { release: false, verify_effects: false, lto: false };
     for a in args {
         match a.as_str() {
             "--release" => flags.release = true,
             "--verify-effects" => flags.verify_effects = true,
+            "--lto" => flags.lto = true,
             _ => rest.push(a.clone()),
         }
     }
@@ -48,4 +51,7 @@ pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags) {
 pub(crate) fn apply_mode(flags: &CliFlags) {
     ayanami::hir::contracts::set_release(flags.release);
     ayanami::hir::effects::set_verify_effects(flags.verify_effects);
+    // M-opt.9：LTO（--lto 或 AYANAMI_LTO=1）
+    let env_lto = std::env::var("AYANAMI_LTO").map(|v| v != "0").unwrap_or(false);
+    ayanami::driver::set_lto(flags.lto || env_lto);
 }

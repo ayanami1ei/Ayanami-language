@@ -19,7 +19,10 @@
 
 | 语言事实 | 优化 | 阶段 |
 |---|---|---|
-| `ref mut T` 独占（借用检查保证） | 形参 `noalias` → GVN/LICM/重排 | M-opt.1 |
+| `ref mut T` 独占（借用检查保证） | 形参 `noalias` + `nonnull` | M-opt.1/6 |
+| `ref T` 共享（借用检查禁止经其写入） | 形参 `nonnull` + `readonly` → LICM/GVN | M-opt.6 |
+| 拥有指针/数组返回值（移动语义，调用方唯一） | 返回值 `noalias` | M-opt.6 |
+| `ref T` 返回值 | 返回值 `nonnull` | M-opt.6 |
 | 拥有值 `Unique`（`[T]`/`String`/拥有胖指针）无别名 | 形参 `noalias` | M-opt.1 |
 | 无异常、无栈展开（panic 为 noreturn 退出） | 全函数 `nounwind` | M-opt.1 |
 | 移动语义、无 RC/GC | 无写屏障/引用计数开销（天然） | — |
@@ -35,6 +38,11 @@
 |---|---|---|
 | M-opt.1 | 模式分离（debug 无 opt / release `-O3`）+ release 推断 `noalias`（`ref mut`/owned）与 `nounwind` | ✅ 已实现 |
 | M-opt.2 | 内部化：非导出函数/vtable wrapper/`static` 全局 `internal`（LIR4 携带 `is_pub`） | ✅ 已实现 |
+| M-opt.6 | 所有权属性细化：`ref` 参数 `nonnull`/`readonly`（共享）、拥有返回值 `noalias` | ✅ 已实现 |
+| M-opt.7 | 导入函数（.lcl extern 声明）同样推断参数/返回值属性 | ✅ 已实现 |
+| M-opt.8 | 运行时声明属性（分配器 malloc 语义、失败路径 cold） | ✅ 已实现 |
+| M-opt.9 | 跨对象内联 LTO：llvm-link 合并模块 IR → opt -O3 → llc -O3（`--lto`/`AYANAMI_LTO=1`） | ✅ 已实现 |
+| M-opt.10 | release 直接发 libc `malloc`/`free` → LLVM 堆提升（不逃逸分配 → alloca） | ✅ 已实现 |
 | M-opt.3 | 边界检查消除 | 已评估关闭：编译器不发射数组边界检查（内建 `[T]` 不检查；`String`/`ArrayList` 检查在 std 源码） |
 | M-opt.4 | 效应驱动的跨函数优化（`#[pure]` 常量折叠、DCE） | ✅ 已具备（A3 推断效应 → `memory(none/read)`/`nounwind` 自动属性） |
 | M-opt.5 | 基准套件（5 内核 × Ayanami/Rust/Java/Zig/C，校验和跨语言一致） | ✅ 已实现（`bench/`，见 `bench/README.md`） |
@@ -44,6 +52,45 @@
 - release 构建的 `.ll`：无 `__ayanami_ovf_*` 调用；含 `noalias`（`ref mut`/owned 形参）与 `nounwind`；
 - debug 构建的 `.ll`：有 `__ayanami_ovf_*`；无推断 `noalias`；
 - `example/test_release_opt.aya` 两种模式退出码一致；std 测试（debug）与抽样 release 运行通过。
+
+## LTO 与堆提升（M-opt.9/10，release）
+
+- **LTO**：`--lto` / `AYANAMI_LTO=1` 时，顶层链接前用 `llvm-link` 合并全部模块 `.ll`，
+  `opt -O3` 一次、`llc -O3` 产单个 `.o`。跨模块（含 std `.lcl`）调用可内联/向量化；
+  private/internal 符号由 llvm-link 去重/重命名，linkonce_odr 特化合并。
+- **堆提升**：release 直接把 `__ayanami_unique_alloc/free` 发射为 libc `malloc/free`
+  （debug 保留 runtime 包装以计 `live_allocs` 泄漏）。LLVM 识别分配/释放对后，
+  同模块内不逃逸的分配提升为 alloca。
+- 实测（bench/bench_std.aya，min-of-5）：
+  | kernel | 之前（包装） | malloc/free | +LTO |
+  |---|---:|---:|---:|
+  | list_push | 35ms | **5ms** | 5ms |
+  | str_build | 25ms | 25ms | 25ms |
+  | map_ops | 12ms | 8ms | 7ms |
+  | iface | 3ms | 3ms | 3ms |
+  （list_push 的 `index` 特化在调用方模块内，分配/释放对可见 → 每次调用的
+  `__file` String 提升为栈，7× 提升；str_build 为 O(N²) memcpy 主导，不受影响。）
+
+## 属性推断（M-opt.1/6，release）
+
+| 语言事实 | LLVM 属性 |
+|---|---|
+| `ref mut T` 独占 | 参数 `noalias nonnull` |
+| `ref T` 共享只读 | 参数 `nonnull readonly` |
+| 拥有 `[T]`/`Unique` 参数 | 参数 `noalias`（空数组可能为 null，不加 nonnull） |
+| 拥有指针/数组返回值 | 返回值 `noalias` |
+| `ref T` 返回值 | 返回值 `nonnull` |
+| 无栈展开 | 全函数 `nounwind` |
+| 非导出定义 | `internal`（M-opt.2） |
+| 导入函数声明（.lcl） | 同参数/返回值推断（M-opt.7） |
+
+风险（激进模式已知取舍）：`ref` 指向 `static mut` 且同指别名时可违反属性；M5 unsafe/裸指针落地后收紧。
+
+## 性能记录
+
+每次优化落地后跑基准并记录到 **`bench/RESULTS.md`**（含趋势总览表）；各测试项说明见
+**`bench/KERNELS.md`**；
+自动追加：`./scripts/bench_record.sh "说明"`。
 
 ## 基准（M-opt.5，2026-10-06，i7-13650HX）
 

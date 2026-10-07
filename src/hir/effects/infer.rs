@@ -138,10 +138,20 @@ fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet> {
                     set.throws.insert(v);
                 }
                 if let Some(callee) = inferred.get(&c.fn_id)
-                    .or_else(|| known.get(&c.fn_id))
                     .or_else(|| imported_known.get(&c.fn_id))
                 {
                     set.union(callee);
+                } else if let Some(k) = known.get(&c.fn_id) {
+                    // 本地无体声明（extern）：声明效应生效；未显式承诺 pure/no_error 时按「未知」保守处理
+                    // （extern 可能读写内存/失败）；编译器合成助手（溢出/契约失败）例外（#117）。
+                    set.union(k);
+                    let synth = names.get(&c.fn_id).map_or(false, |n| n.starts_with("__ayanami_ovf_")
+                        || n == "__ayanami_require_fail" || n == "__ayanami_ensure_fail" || n == "__ayanami_invariant_fail");
+                    if !synth {
+                        let d = declared.get(&c.fn_id);
+                        if !d.map_or(false, |d| d.pure) { set.may_unknown_effects = true; }
+                        if !d.map_or(false, |d| d.no_error) { set.may_unknown_errors = true; }
+                    }
                 } else if c.fn_id.0 != usize::MAX {
                     // 不可见目标（导入/未声明的 extern）。
                     // 合成标记（alloc/state/err，FnId(MAX)）已贡献各自效应，不算未知 extern（#117）。

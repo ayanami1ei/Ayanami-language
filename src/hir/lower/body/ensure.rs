@@ -32,7 +32,10 @@ impl crate::hir::lower::Ctx {
 
         let mut check_stmts: Vec<HirStmt> = Vec::new();
         for (cond, line, col) in &ensures {
+            // #148：前置语句随检查注入到各 return 点
+            let mark = self.pending_stmts.len();
             let hir_cond = self.lower_expr(cond)?;
+            check_stmts.extend(self.pending_stmts.split_off(mark));
             crate::hir::contracts::ensure_bool_condition(&hir_cond, "ensures", *line, *col)?;
             if checks {
                 check_stmts.push(HirStmt::Contract {
@@ -63,7 +66,10 @@ impl crate::hir::lower::Ctx {
         let checks = crate::hir::contracts::checks_enabled();
         let mut out = Vec::new();
         for (cond, line, col) in invariants {
+            // #148：条件降级的前置语句（短路/if 表达式）须在每轮检查前执行
+            let mark = self.pending_stmts.len();
             let hir_cond = self.lower_expr(cond)?;
+            out.extend(self.pending_stmts.split_off(mark));
             crate::hir::contracts::ensure_bool_condition(&hir_cond, "invariant", *line, *col)?;
             if checks {
                 out.push(HirStmt::Contract {

@@ -1,4 +1,4 @@
-// M-opt.1：release 语义优化（溢出回绕、所有权推断 noalias、nounwind、opt -O3）
+// M-opt.1/6：release 语义优化（溢出回绕、所有权推断参数/返回值属性、nounwind、opt -O3）
 fn sum_squares(int n) -> int {
     s = 0
     i = 0
@@ -14,6 +14,23 @@ fn bump(ref mut int x) -> int {
     return x
 }
 
+// 共享借用：release 推断 nonnull + readonly
+fn sum_ref(ref [int] a, int n) -> int {
+    s = 0
+    for i in (0, n) {
+        s = s + a[i]
+    }
+    return s
+}
+
+// 拥有返回值：release 推断 noalias 返回
+fn make(int n) -> [int] {
+    a = [int; 2]
+    a[0] = n
+    a[1] = n + 1
+    return a
+}
+
 pub fn public_double(int x) -> int {
     return x * 2
 }
@@ -24,5 +41,8 @@ fn main() -> int {
     a = 1
     if bump(a) != 2 { return 2 }
     if a != 2 { return 3 }
+    arr = make(5)
+    if arr[0] != 5 { return 5 }
+    if sum_ref(ref arr, 2) != 11 { return 6 }
     return 0
 }

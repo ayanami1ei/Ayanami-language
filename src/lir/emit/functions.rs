@@ -32,7 +32,9 @@ pub(super) fn llvm_attr_suffix(
         match a.name.as_str() {
             "cold" => s.push_str(" cold"),
             "noreturn" => s.push_str(" noreturn"),
-            "pure" => s.push_str(" memory(none)"),
+            // `#[pure]`：无写/无 io/无 state；但带指针形参时仍可能**读**内存
+            // （如 String.index_of 读缓冲区）→ memory(read)，否则 memory(none)
+            "pure" => s.push_str(if has_ptr_params { " memory(read)" } else { " memory(none)" }),
             "readonly" => s.push_str(" memory(read)"),
             "nounwind" => s.push_str(" nounwind"),
             "willreturn" => s.push_str(" willreturn"),
@@ -48,6 +50,25 @@ pub(super) fn llvm_attr_suffix(
         s.push_str(if has_ptr_params { " memory(read)" } else { " memory(none)" });
     }
     s
+}
+
+/// M-opt.6/7：release 按所有权/借用模型推断参数属性
+pub(super) fn infer_param_attrs(t: &HirType) -> &'static str {
+    match t {
+        HirType::Ref(_, true) => "noalias nonnull",
+        HirType::Ref(_, false) => "nonnull readonly",
+        HirType::Unique(_) | HirType::Array(_) | HirType::ArraySized(_, _) => "noalias",
+        _ => "",
+    }
+}
+
+/// M-opt.6/7：release 返回值属性（拥有指针 noalias、引用 nonnull）
+pub(super) fn infer_ret_attr(t: &HirType) -> &'static str {
+    match t {
+        HirType::Unique(_) | HirType::Array(_) | HirType::ArraySized(_, _) => "noalias ",
+        HirType::Ref(..) => "nonnull ",
+        _ => "",
+    }
 }
 
 /// 形参标注 → LLVM 参数属性（A1b：仅 noalias/nonnull）。
@@ -110,12 +131,11 @@ impl<'a> Emitter<'a> {
         let mut params_str: Vec<String> = Vec::new();
         for (i, (_, t)) in f.params.iter().enumerate() {
             let mut attrs = f.param_attrs.get(i).map(|v| llvm_param_attrs(v)).unwrap_or_default();
-            // M-opt.1：release 按所有权模型推断 noalias（ref mut 独占 / 拥有值唯一）
-            if crate::hir::contracts::is_release()
-                && matches!(t, HirType::Ref(_, true) | HirType::Unique(_))
-                && !attrs.contains("noalias")
-            {
-                attrs.push_str(" noalias");
+            // M-opt.1/6：release 按所有权模型推断参数属性
+            if crate::hir::contracts::is_release() {
+                for a in infer_param_attrs(t).split_whitespace() {
+                    if !attrs.contains(a) { attrs.push(' '); attrs.push_str(a); }
+                }
             }
             params_str.push(format!("{}{}", self.llvm_type(t), attrs));
         }
@@ -131,6 +151,12 @@ impl<'a> Emitter<'a> {
             inline_attr.push_str(" noreturn");
         }
 
+        // M-opt.6：release 返回值属性 —— 拥有指针 noalias、引用 nonnull
+        let ret_attr = if crate::hir::contracts::is_release() {
+            infer_ret_attr(&f.return_type)
+        } else {
+            ""
+        };
         self.current_fn_ret_ty = f.return_type.clone();
 
         // M-opt.2：release 下非导出定义标 internal（opt 可内联/DCE、免 PLT）；
@@ -147,10 +173,28 @@ impl<'a> Emitter<'a> {
             ""
         };
         self.wln_fmt(format_args!(
-            "define {}{} @{}({}){} {{",
-            linkage, ret_ty, fn_name, param_list, inline_attr
+            "define {}{}{} @{}({}){} {{",
+            linkage, ret_attr, ret_ty, fn_name, param_list, inline_attr
         ));
         self.indent += 1;
+
+        // #148 后续：所有静态 alloca 统一发射到函数入口块
+        // （循环内 alloca 会随迭代增长栈；LLVM 要求静态 alloca 位于入口块）
+        let actx = LirEmitCtx {
+            prog: self.prog,
+            load_tmp: self.load_tmp,
+            current_fn_ret_ty: self.current_fn_ret_ty.clone(),
+        };
+        let mut alloca_lines: Vec<String> = Vec::new();
+        for block in &f.blocks {
+            for inst in &block.insts {
+                alloca_lines.extend(inst.alloca_lines(&actx));
+            }
+        }
+        self.load_tmp = actx.load_tmp;
+        for line in alloca_lines {
+            self.wln(&line);
+        }
 
         // Emit all allocas and other instructions per block
         for (idx, block) in f.blocks.iter().enumerate() {

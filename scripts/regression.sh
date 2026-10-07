@@ -189,9 +189,26 @@ if [ -f example/test_release_opt.aya ]; then
         echo "FAIL M-opt.2: release 下 pub 函数被错误内部化"
         fail=$((fail + 1))
     fi
+    # M-opt.6：release 推断 ref 非空/只读与拥有返回值 noalias
+    if ! grep -q 'nonnull' build/test_release_opt.ll; then
+        echo "FAIL M-opt.6: release 构建缺少推断 nonnull"
+        fail=$((fail + 1))
+    fi
+    if ! grep -q 'readonly' build/test_release_opt.ll; then
+        echo "FAIL M-opt.6: release 构建缺少推断 readonly"
+        fail=$((fail + 1))
+    fi
+    if ! grep -q 'define internal noalias ptr @make_int' build/test_release_opt.ll; then
+        echo "FAIL M-opt.6: release 拥有返回值缺少 noalias"
+        fail=$((fail + 1))
+    fi
     "$BIN" build example/test_release_opt.aya >/dev/null 2>&1
     if grep -q 'define internal' build/test_release_opt.ll; then
         echo "FAIL M-opt.2: debug 构建不应有 internal"
+        fail=$((fail + 1))
+    fi
+    if grep 'define' build/test_release_opt.ll | grep -qE 'nonnull|readonly'; then
+        echo "FAIL M-opt.6: debug 构建不应有推断 nonnull/readonly"
         fail=$((fail + 1))
     fi
     timeout 60 "$BIN" run --release example/test_release_opt.aya >/dev/null 2>&1

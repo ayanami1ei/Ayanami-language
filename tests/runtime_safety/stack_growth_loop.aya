@@ -1,0 +1,14 @@
+// 循环内临时量（track_caller __file String）的 alloca 不得每轮消耗栈
+// （修复前 ~500k 轮后栈溢出；release 由 opt 提升故不复现）
+import "arraylist"
+
+fn main() -> int {
+    a = ArrayList::new[int]()
+    a.push(1)
+    s = 0
+    for i in (0, 800000) {
+        s = s + a.index(0)
+    }
+    if s != 800000 { return 1 }
+    return 0
+}

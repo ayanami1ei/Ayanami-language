@@ -5,14 +5,14 @@ target triple = "x86_64-unknown-linux-gnu"
 %struct.Point = type { i64, i64 }
 %struct.String = type { ptr, i64 }
 
-declare i8* @__ayanami_unique_alloc(i64)
-declare void @__ayanami_unique_free(i8*)
+declare noalias i8* @__ayanami_unique_alloc(i64) allocsize(0) nounwind
+declare void @__ayanami_unique_free(i8*) nounwind
 declare void @llvm.memcpy.p0.p0.i64(i8*, i8*, i64, i1)
 declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)
 declare void @llvm.assume(i1)
-declare void @__ayanami_require_fail(i64, i64) noreturn
-declare void @__ayanami_ensure_fail(i64, i64) noreturn
-declare void @__ayanami_invariant_fail(i64, i64) noreturn
+declare void @__ayanami_require_fail(i64, i64) noreturn cold nounwind
+declare void @__ayanami_ensure_fail(i64, i64) noreturn cold nounwind
+declare void @__ayanami_invariant_fail(i64, i64) noreturn cold nounwind
 
 define i64 @main() nounwind memory(none) {
   %v0 = alloca %struct.Point, align 8

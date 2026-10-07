@@ -45,12 +45,15 @@ impl LirNode for SLirRefTmp {
     fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
     fn kind(&self) -> &'static str { "RefTmp" }
     fn as_any(&self) -> &dyn std::any::Any { self }
+    fn alloca_lines(&self, ctx: &LirEmitCtx) -> Vec<String> {
+        let llvm = ctx.llvm_type(&self.ty);
+        vec![format!("%t{} = alloca {}, align 8", self.alloca_tmp, llvm)]
+    }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
-        // 对临时值取引用：先溢出到栈槽，再返回其地址
+        // 对临时值取引用：栈槽已在入口块发射（alloca_lines），此处仅 store + 取址
         let llvm = ctx.llvm_type(&self.ty);
         let src = ctx.value_ref(&self.src, &self.ty);
         vec![
-            format!("%t{} = alloca {}, align 8", self.alloca_tmp, llvm),
             format!("store {} {}, ptr %t{}", llvm, src, self.alloca_tmp),
             format!("%t{} = getelementptr i8, ptr %t{}, i32 0", self.dest, self.alloca_tmp),
         ]

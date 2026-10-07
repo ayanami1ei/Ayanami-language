@@ -52,7 +52,15 @@ impl<'a> Emitter<'a> {
         for _ in 0..self.indent {
             self.out.push_str("  ");
         }
-        self.out.push_str(s);
+        // M-opt.10：release 直接用 libc malloc/free（LLVM 识别分配/释放对 →
+        // 跨模块内联后不逃逸的分配可提升为 alloca；debug 保留 runtime 包装以计泄漏）
+        if crate::hir::contracts::is_release() {
+            let s = s.replace("@__ayanami_unique_alloc", "@malloc")
+                     .replace("@__ayanami_unique_free", "@free");
+            self.out.push_str(&s);
+        } else {
+            self.out.push_str(s);
+        }
         self.out.push('\n');
     }
 
@@ -84,15 +92,22 @@ impl<'a> Emitter<'a> {
         // Vtable globals
         self.emit_vtable_globals();
 
-        // Runtime declarations
-        self.wln("declare i8* @__ayanami_unique_alloc(i64)");
-        self.wln("declare void @__ayanami_unique_free(i8*)");
+        // Runtime declarations（M-opt.8：分配器 malloc 语义 noalias/allocsize；
+        // 契约失败路径 cold；C 侧无栈展开 nounwind）
+        // M-opt.10：release 直接声明 libc malloc/free（堆提升）
+        if crate::hir::contracts::is_release() {
+            self.wln("declare ptr @malloc(i64) nounwind");
+            self.wln("declare void @free(ptr) nounwind");
+        } else {
+            self.wln("declare noalias i8* @__ayanami_unique_alloc(i64) allocsize(0) nounwind");
+            self.wln("declare void @__ayanami_unique_free(i8*) nounwind");
+        }
         self.wln("declare void @llvm.memcpy.p0.p0.i64(i8*, i8*, i64, i1)");
         self.wln("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)");
         self.wln("declare void @llvm.assume(i1)");
-        self.wln("declare void @__ayanami_require_fail(i64, i64) noreturn");
-        self.wln("declare void @__ayanami_ensure_fail(i64, i64) noreturn");
-        self.wln("declare void @__ayanami_invariant_fail(i64, i64) noreturn");
+        self.wln("declare void @__ayanami_require_fail(i64, i64) noreturn cold nounwind");
+        self.wln("declare void @__ayanami_ensure_fail(i64, i64) noreturn cold nounwind");
+        self.wln("declare void @__ayanami_invariant_fail(i64, i64) noreturn cold nounwind");
         self.wln("");
 
         // Extern declarations（真实签名 + LLVM 属性）
@@ -100,7 +115,13 @@ impl<'a> Emitter<'a> {
             let ret = self.llvm_type(&d.return_type);
             let params: Vec<String> = d.params.iter().enumerate()
                 .map(|(i, t)| {
-                    let suffix = d.param_attrs.get(i).map(|v| functions::llvm_param_attrs(v)).unwrap_or_default();
+                    let mut suffix = d.param_attrs.get(i).map(|v| functions::llvm_param_attrs(v)).unwrap_or_default();
+                    // M-opt.7：release 导入函数（.lcl）声明同样按所有权模型推断参数属性
+                    if crate::hir::contracts::is_release() {
+                        for a in functions::infer_param_attrs(t).split_whitespace() {
+                            if !suffix.contains(a) { suffix.push(' '); suffix.push_str(a); }
+                        }
+                    }
                     format!("{}{}", self.llvm_type(t), suffix)
                 })
                 .collect();
@@ -110,7 +131,13 @@ impl<'a> Emitter<'a> {
             if crate::hir::contracts::is_release() && !suffix.contains("nounwind") {
                 suffix.push_str(" nounwind");
             }
-            self.wln_fmt(format_args!("declare {} @{}({}){}", ret, d.name, params.join(", "), suffix));
+            // M-opt.7：release 返回值属性
+            let ret_attr = if crate::hir::contracts::is_release() {
+                functions::infer_ret_attr(&d.return_type)
+            } else {
+                ""
+            };
+            self.wln_fmt(format_args!("declare {}{} @{}({}){}", ret_attr, ret, d.name, params.join(", "), suffix));
         }
         if !self.prog.extern_decls.is_empty() {
             self.wln("");

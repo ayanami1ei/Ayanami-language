@@ -1,0 +1,115 @@
+// std 密集基准（跨对象内联 / 堆提升收益测量用）
+// 协议：每内核单次计时（无内部重复，避免 LICM 提出计时区），输出 `name checksum ms`；
+// 由 scripts/bench_std.sh 外部重复 N 次取各内核最小值。
+import "io"
+import "time"
+import "arraylist"
+import "string"
+import "hashmap"
+import "option"
+
+// ── list_push：ArrayList 动态增长 + 索引（分配/边界检查/方法调用密集）──
+const LIST_N = 2000000
+
+fn list_push_run() {
+    a = ArrayList::new[int]()
+    t0 = now_millis()
+    for i in (0, LIST_N) {
+        a.push(i % 1000)
+    }
+    s = 0
+    for i in (0, LIST_N) {
+        s = s + a.index(i)
+    }
+    t1 = now_millis()
+    print("list_push ")
+    print(s)
+    print(" ")
+    print(t1 - t0)
+    println()
+}
+
+// ── str_build：String 拼接（每次分配 + 拷贝；ToString 泛型路径）──
+const STR_N = 10000
+
+fn str_build_run() {
+    s = ""
+    t0 = now_millis()
+    for i in (0, STR_N) {
+        s = s.add("ab")
+    }
+    s = s.add(123456)
+    t1 = now_millis()
+    print("str_build ")
+    print((s.len() as int) * 31 + (s.index(0) as int))
+    print(" ")
+    print(t1 - t0)
+    println()
+}
+
+// ── map_ops：HashMap 插入 + 查询（哈希/分配/接口边界）──
+const MAP_N = 500000
+
+fn map_ops_run() {
+    m = HashMap::new[int, int]()
+    t0 = now_millis()
+    for i in (0, MAP_N) {
+        m.insert(i, i * 3)
+    }
+    s = 0
+    for i in (0, MAP_N) {
+        s = s + m.get(i).unwrap_or(0)
+    }
+    t1 = now_millis()
+    print("map_ops ")
+    print(s)
+    print(" ")
+    print(t1 - t0)
+    println()
+}
+
+// ── iface：接口动态分派循环（装箱 + 虚调用）──
+interface Op {
+    fn apply(ref self, int x) -> int;
+}
+
+impl int {
+    fn apply(self, int x) -> int {
+        return self + x
+    }
+}
+
+impl float {
+    fn apply(self, int x) -> int {
+        return 0
+    }
+}
+
+fn call_apply(ref Op o, int x) -> int {
+    return o.apply(x)
+}
+
+const IFACE_N = 5000000
+
+fn iface_run() {
+    v = 5
+    t0 = now_millis()
+    s = 0
+    for i in (0, IFACE_N) {
+        s = s + call_apply(v, i % 7)
+    }
+    t1 = now_millis()
+    print("iface ")
+    print(s)
+    print(" ")
+    print(t1 - t0)
+    println()
+}
+
+fn main() -> int {
+    list_push_run()
+    str_build_run()
+    map_ops_run()
+    iface_run()
+    return 0
+}
