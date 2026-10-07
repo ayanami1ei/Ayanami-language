@@ -448,9 +448,9 @@ src/hir/lower/body/ensure.rs:139: fn default_literal(ty: &HirType) -> Option<Hir
 src/hir/lower/body/ensure.rs:150: fn append_default_return(
 src/hir/lower/body/expr_access.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_access.rs:4: pub(crate) fn lower_field_access(&mut self, object: &Box<Expr>, field: &Symbol, expr_span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:17: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:98: pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:118: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:17: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:132: pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:152: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_call.rs:5: pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, explicit: Option<&Vec<Type>>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call_extra.rs:3: impl crate::hir::lower::Ctx
@@ -2310,6 +2310,9 @@ example/test_fn_once.aya:9: fn make(int base) -> FnOnce() -> int
 example/test_fn_once.aya:14: fn apply(FnOnce() -> int f) -> int
 example/test_fn_once.aya:18: fn run() -> int
 example/test_fn_once.aya:32: fn main() -> int
+example/test_fn_value.aya:2: fn seven() -> int
+example/test_fn_value.aya:6: fn call0(Fn() -> int f) -> int
+example/test_fn_value.aya:10: fn main() -> int
 example/test_follow_with.aya:2: struct S
 example/test_follow_with.aya:8: fn pick(ref S s) -> ref S { return s }
 example/test_follow_with.aya:12: fn first(ref S a, ref S b) -> ref S { return a }
