@@ -67,6 +67,7 @@ pub enum ET {
     MacroCall,
     Asm,
     ArrayRepeat,
+    MacroBlock,
 }
 
 // 类型标签

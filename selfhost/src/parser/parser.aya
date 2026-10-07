@@ -210,6 +210,9 @@ impl Parser {
             bound = -1;
             if self.eat_delim(D::Colon._tag) {
                 bound = self.parse_type();
+                while self.eat_op("+") {
+                    self.parse_type();
+                }
             }
             gn = self.ast.push(xt(XT::GenericParam._tag), gname, bound, -1, -1, -1, -1, self.cur.line, self.cur.col);
             head = self.ast.push_tail(head, gn);
@@ -1232,7 +1235,20 @@ impl Parser {
             if self.check_delim(D::RParen._tag) { break; }
             if self.at_end() { break; }
             if self.failed == 1 { break; }
-            a = self.parse_expr();
+            a = -1;
+            if self.check_delim(D::LBrace._tag) {
+                // 宏块实参 { ... } -> Block (N stmts)
+                blk = self.parse_block();
+                cnt = 0;
+                st = self.ast.aa[blk];
+                while st >= 0 {
+                    cnt = cnt + 1;
+                    st = self.ast.nexts[st];
+                }
+                a = self.ast.push(et(ET::MacroBlock._tag), "", -1, self.ast.aa[blk], cnt, -1, -1, self.ast.lines[blk], self.ast.cols[blk]);
+            } else {
+                a = self.parse_expr();
+            }
             an = self.ast.push(xt(XT::Arg._tag), "", -1, a, -1, -1, -1, self.cur.line, self.cur.col);
             head = self.ast.push_tail(head, an);
             if !self.eat_delim(D::Comma._tag) { break; }
@@ -1567,7 +1583,8 @@ impl Parser {
             if self.failed == 1 { break; }
             fname = self.expect_ident("expected field name");
             if !self.eat_op("=") {
-                self.error_at("expected expression", bline, bcol);
+                // rust 现在报字面量起始（名字）位置
+                self.error_at("expected expression", line, col);
                 break;
             }
             val = self.parse_expr();

@@ -636,6 +636,10 @@ fn dump_expr(ref Ast ast, int id, int level, ref mut StringBuf b) {
                 s2 = ast.nexts[s2];
             }
         }
+    } elif tag == et(ET::MacroBlock._tag) {
+        b.push_str("Block (");
+        b.push_int(ast.bb[id]);
+        b.push_str(" stmts)\n");
     } elif tag == et(ET::Asm._tag) {
         b.push_str("Asm(\"");
         b.push_str(ast.texts[id]);
