@@ -527,22 +527,25 @@ src/hir/lower/body/match_lower.rs:16: fn setup_match_value(&mut self, value: &Ex
 src/hir/lower/body/match_lower.rs:41: fn normalize_pattern(&self, p: &Pattern, val_ty: &HirType) -> Pattern
 src/hir/lower/body/match_lower.rs:56: fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)>
 src/hir/lower/body/match_lower.rs:64: fn lower_match_arms(
-src/hir/lower/body/match_lower.rs:90: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
-src/hir/lower/body/match_lower.rs:116: fn enum_variant_count(&self, name: &Symbol) -> usize
-src/hir/lower/body/match_lower.rs:123: fn build_match_stmts(
-src/hir/lower/body/match_lower.rs:187: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
-src/hir/lower/body/match_lower.rs:204: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/match_lower.rs:264: fn collect_variants(p: &Pattern, out: &mut std::collections::HashSet<Symbol>)
-src/hir/lower/body/match_lower.rs:272: fn collect_bools(p: &Pattern, t: &mut bool, f: &mut bool)
-src/hir/lower/body/match_pattern.rs:5: impl crate::hir::lower::Ctx
-src/hir/lower/body/match_pattern.rs:7: pub(super) fn variant_tag(&self, enum_name: &Symbol, variant: &Symbol) -> Option<i64>
-src/hir/lower/body/match_pattern.rs:15: pub(super) fn pattern_cond(
-src/hir/lower/body/match_pattern.rs:86: pub(super) fn pattern_bindings(
-src/hir/lower/body/match_pattern.rs:166: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:181: fn span_of(l: &crate::parser::ast::Literal) -> Span
-src/hir/lower/body/match_pattern.rs:190: fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral
-src/hir/lower/body/match_pattern.rs:202: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
-src/hir/lower/body/match_pattern.rs:218: pub(super) fn block_diverges(b: &HirBlock) -> bool
+src/hir/lower/body/match_lower.rs:89: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
+src/hir/lower/body/match_lower.rs:115: fn enum_variant_count(&self, name: &Symbol) -> usize
+src/hir/lower/body/match_lower.rs:122: fn build_match_stmts(
+src/hir/lower/body/match_lower.rs:186: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
+src/hir/lower/body/match_lower.rs:203: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/match_lower.rs:263: fn collect_variants(p: &Pattern, out: &mut std::collections::HashSet<Symbol>)
+src/hir/lower/body/match_lower.rs:271: fn collect_bools(p: &Pattern, t: &mut bool, f: &mut bool)
+src/hir/lower/body/match_pattern.rs:6: impl crate::hir::lower::Ctx
+src/hir/lower/body/match_pattern.rs:8: pub(super) fn variant_tag(&self, enum_name: &Symbol, variant: &Symbol) -> Option<i64>
+src/hir/lower/body/match_pattern.rs:15: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:30: pub(super) fn pattern_match(
+src/hir/lower/body/match_pattern.rs:41: fn pattern_match_in(
+src/hir/lower/body/match_pattern.rs:195: fn cmp_const(
+src/hir/lower/body/match_pattern.rs:211: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:215: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:220: fn check_scalar_pattern(base: &HirType, lit: &crate::parser::ast::Literal, range: bool, span: &Span) -> Result<()>
+src/hir/lower/body/match_pattern.rs:240: fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral
+src/hir/lower/body/match_pattern.rs:252: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
+src/hir/lower/body/match_pattern.rs:268: pub(super) fn block_diverges(b: &HirBlock) -> bool
 src/hir/lower/body/mod.rs:10: mod collect_fns;
 src/hir/lower/body/mod.rs:11: mod collect_ns;
 src/hir/lower/body/mod.rs:12: mod vtables;
@@ -628,10 +631,10 @@ src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol,
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
 src/hir/lower/ctx_mono.rs:35: pub fn instantiate_named(&mut self, name: Symbol) -> Result<()>
-src/hir/lower/ctx_mono.rs:85: pub fn adapt_enum_args(
-src/hir/lower/ctx_mono.rs:103: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
-src/hir/lower/ctx_mono.rs:136: pub fn refine_enum_result_type(&self, ty: HirType) -> HirType
-src/hir/lower/ctx_mono.rs:151: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx_mono.rs:89: pub fn adapt_enum_args(
+src/hir/lower/ctx_mono.rs:109: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
+src/hir/lower/ctx_mono.rs:141: pub fn refine_enum_result_type(&self, ty: HirType) -> HirType
+src/hir/lower/ctx_mono.rs:156: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
 src/hir/lower/helpers/caller.rs:7: pub(crate) fn is_hidden_param(name: &Symbol) -> bool
 src/hir/lower/helpers/caller.rs:12: pub(crate) fn count_hidden_params(params: &[(Symbol, HirType)]) -> usize
 src/hir/lower/helpers/caller.rs:17: pub(crate) fn count_hidden_names<T>(params: &[(Symbol, T)]) -> usize
@@ -1953,11 +1956,12 @@ src/parser/ast/mod.rs:8: pub mod ty;
 src/parser/ast/mod.rs:9: pub mod unary_op;
 src/parser/ast/mod.rs:10: pub mod vis;
 src/parser/ast/pattern.rs:6: pub enum Pattern
-src/parser/ast/pattern.rs:19: impl Pattern
-src/parser/ast/pattern.rs:21: pub fn is_irrefutable(&self) -> bool
-src/parser/ast/pattern.rs:30: pub fn bindings(&self) -> Vec<Symbol>
-src/parser/ast/pattern.rs:40: pub fn display(&self) -> String
-src/parser/ast/pattern.rs:64: pub fn enum_variant(&self) -> Option<&Symbol>
+src/parser/ast/pattern.rs:23: impl Pattern
+src/parser/ast/pattern.rs:25: pub fn is_irrefutable(&self) -> bool
+src/parser/ast/pattern.rs:35: pub fn bindings(&self) -> Vec<Symbol>
+src/parser/ast/pattern.rs:46: pub fn display(&self) -> String
+src/parser/ast/pattern.rs:77: pub fn enum_variant(&self) -> Option<&Symbol>
+src/parser/ast/pattern.rs:86: fn display_lit(l: &Literal) -> String
 src/parser/ast/program.rs:4: pub struct Program
 src/parser/ast/program.rs:8: impl Program
 src/parser/ast/program.rs:9: pub fn new(stmts: Vec<Stmt>) -> Self
@@ -2069,7 +2073,8 @@ src/parser/parser/mod.rs:49: mod types;
 src/parser/parser/mod.rs:50: mod unary;
 src/parser/parser/pattern.rs:6: impl Parser
 src/parser/parser/pattern.rs:8: pub(super) fn parse_pattern(&mut self) -> Result<Pattern>
-src/parser/parser/pattern.rs:17: fn parse_pattern_atom(&mut self) -> Result<Pattern>
+src/parser/parser/pattern.rs:18: fn parse_pattern_literal(&mut self) -> Result<crate::parser::ast::literal::Literal>
+src/parser/parser/pattern.rs:41: fn parse_pattern_atom(&mut self) -> Result<Pattern>
 src/parser/parser/self_type.rs:4: pub(super) fn subst_self_in_type(ty: &Type, self_ty: &Type) -> Type
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
@@ -2338,6 +2343,14 @@ example/test_macro_fn.aya:3: fn main() -> int
 example/test_macro_import.aya:4: fn main() -> int
 example/test_macro_stmt.aya:4: fn helper() -> int
 example/test_macro_stmt.aya:11: fn main() -> int
+example/test_match_destructure.aya:2: enum Opt[T]
+example/test_match_destructure.aya:7: struct Point
+example/test_match_destructure.aya:12: fn nested(Opt[Opt[int]] o) -> int
+example/test_match_destructure.aya:20: fn destr(Point p) -> int
+example/test_match_destructure.aya:26: fn destr_rename(Point p) -> int
+example/test_match_destructure.aya:32: fn ranged(int n) -> int
+example/test_match_destructure.aya:41: fn nested_struct(Opt[Point] o) -> int
+example/test_match_destructure.aya:48: fn main() -> int
 example/test_match_expr.aya:5: enum TokenType
 example/test_match_expr.aya:11: impl TokenType
 example/test_match_expr.aya:12: fn to_string(ref self) -> String

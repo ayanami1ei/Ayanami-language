@@ -43,7 +43,7 @@ impl crate::hir::lower::Ctx {
             Pattern::Binding(n) => {
                 if let HirType::Named(en) = &strip_ownership(val_ty.clone()) {
                     if self.variant_tag(en, n).is_some() {
-                        return Pattern::Enum { name: *n, bindings: Vec::new() };
+                        return Pattern::Enum { name: *n, args: Vec::new() };
                     }
                 }
                 p.clone()
@@ -72,7 +72,7 @@ impl crate::hir::lower::Ctx {
         for arm in arms {
             let pat = self.normalize_pattern(&arm.pattern, val_ty);
             self.push_scope();
-            let mut bindings = self.pattern_bindings(&pat, val, val_ty, span)?;
+            let (cond, mut bindings) = self.pattern_match(&pat, val, val_ty, span)?;
             let guard = match &arm.guard {
                 Some(g) => Some(auto_deref(self.lower_expr(g)?)),
                 None => None,
@@ -80,7 +80,6 @@ impl crate::hir::lower::Ctx {
             let (mut pending, body) = self.lower_arm_body(arm)?;
             self.pop_scope();
             bindings.append(&mut pending);
-            let cond = self.pattern_cond(&pat, val, val_ty, span)?;
             out.push(LoweredArm { cond, bindings, guard, body });
         }
         Ok(out)

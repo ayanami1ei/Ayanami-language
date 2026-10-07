@@ -71,12 +71,16 @@ impl crate::hir::lower::Ctx {
                         let substituted: Vec<HirStructField> = vfields.iter()
                             .map(|f| HirStructField { name: f.name, ty: substitute_hir_type(&f.ty, &subst) })
                             .collect();
-                        self.struct_defs.insert(vn, substituted);
+                        self.struct_defs.insert(vn, substituted.clone());
                         self.generic_struct_params.insert(vn, Vec::new());
+                        // 变体字段中的嵌套泛型类型（如 `Opt[Opt[int]]` 的载荷 `Opt<int>`）递归实例化
+                        for f in &substituted {
+                            self.instantiate_type(&f.ty)?;
+                        }
                     }
                 }
-                self.instantiate_type(fty)?;
             }
+            self.instantiate_type(fty)?;
         }
         Ok(())
     }
@@ -99,12 +103,15 @@ impl crate::hir::lower::Ctx {
         Ok(out)
     }
 
-    /// 泛型单态化：把枚举构造的基名 `SStruct` 重写为期望的实例化名。
+    /// 泛型单态化：把枚举构造（或变体结构体构造）按期望类型**递归**实例化。
+    /// 仅处理期望为泛型命名类型的情况；字段按 `struct_defs` 中的字段类型递归，
+    /// 支持嵌套泛型枚举载荷（`Opt[Opt[int]]`）与无载荷变体回退基名后的重写。
     pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox> {
         let HirType::Named(ename) = expected else { return Ok(node); };
         let es = ename.as_str();
-        let Some(pos) = es.find('<') else { return Ok(node); };
-        let suffix = es[pos..].to_string();
+        if !es.contains('<') {
+            return Ok(node);
+        }
         let Some(mut st) = node.as_struct_cloned() else { return Ok(node); };
         if st.type_name == *ename {
             return Ok(node);
@@ -114,16 +121,14 @@ impl crate::hir::lower::Ctx {
         let mut new_fields = Vec::new();
         for (fname, fval) in st.fields {
             let fty = self.find_field_type(expected, &fname, &Span::default()).ok();
-            let nv: HirNodeBox = if let Some(mut inner) = fval.as_struct_cloned() {
-                let vn = inner.type_name.as_str();
-                let inst = Symbol::intern(&format!("{}{}", vn, suffix));
-                inner.type_name = inst;
-                inner.ty = HirType::Named(inst);
-                inner.into()
-            } else if let Some(t) = &fty {
-                fval.with_type(t.clone()).unwrap_or(fval)
-            } else {
-                fval
+            let nv: HirNodeBox = match (&fty, fval.as_struct_cloned()) {
+                // 字段是（枚举/结构体）构造：按字段类型递归实例化
+                (Some(HirType::Named(_)), Some(inner)) => {
+                    let inner_node: HirNodeBox = inner.into();
+                    self.instantiate_enum_value(inner_node, fty.as_ref().unwrap())?
+                }
+                (Some(t), None) => fval.with_type(t.clone()).unwrap_or(fval),
+                _ => fval,
             };
             new_fields.push((fname, nv));
         }
