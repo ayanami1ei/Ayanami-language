@@ -1,0 +1,16 @@
+// #156：Fn 值调用 + 循环内重赋值非 Copy 累加器（fold）
+import "string"
+
+fn fold_str(String acc, String item, Fn(String, String) -> String f) -> String {
+    i = 0
+    while i < 2 {
+        acc = f(acc, item)
+        i = i + 1
+    }
+    return acc
+}
+
+fn main() -> int {
+    r = fold_str("a", "b", (String a, String b) -> String { return a.add(b) })
+    return r.len() as int - 3
+}

@@ -9,6 +9,7 @@ use super::ir::*;
 
 mod ctx;
 mod fn_lower;
+mod mir_bool;
 mod mir_expr;
 mod mir_expr2;
 mod mir_contract;

@@ -64,7 +64,7 @@ impl From<HirNodeBox> for Box<dyn HirNode> {
     fn from(b: HirNodeBox) -> Self { b.0 }
 }
 
-use crate::hir::{SBin, SUn, SCall, SConst, SFileArg, SGlobal, SVar, SMove, SClone, SToUnique, SCast, SField, SStruct, SArrLit, SArrSz, SAsm, SRef, SDeref, SIdx, SVCall, SMFP, SEnumC, SEnumM, SFnPtr, SCallP};
+use crate::hir::{SBin, SUn, SCall, SConst, SFileArg, SGlobal, SVar, SMove, SClone, SToUnique, SCast, SField, SStruct, SArrLit, SArrSz, SAsm, SRef, SDeref, SIdx, SVCall, SMFP, SEnumC, SEnumM, SFnPtr, SCallP, SBoolToNum};
 
 // ── From<Struct> for HirNodeBox ──
 macro_rules! impl_into_hir_node_box {
@@ -74,4 +74,4 @@ macro_rules! impl_into_hir_node_box {
         })*
     };
 }
-impl_into_hir_node_box!(SBin, SUn, SCall, SConst, SFileArg, SGlobal, SVar, SMove, SClone, SToUnique, SCast, SField, SStruct, SArrLit, SArrSz, SAsm, SRef, SDeref, SIdx, SVCall, SMFP, SEnumC, SEnumM, SFnPtr, SCallP);
+impl_into_hir_node_box!(SBin, SUn, SCall, SConst, SFileArg, SGlobal, SVar, SMove, SClone, SToUnique, SCast, SField, SStruct, SArrLit, SArrSz, SAsm, SRef, SDeref, SIdx, SVCall, SMFP, SEnumC, SEnumM, SFnPtr, SCallP, SBoolToNum);

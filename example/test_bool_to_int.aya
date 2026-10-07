@@ -1,0 +1,17 @@
+// #155：比较表达式（i1）→ int/float/结构体字段的显式转换
+import "io"
+
+struct H { int v }
+
+fn main() -> int {
+    x = 5
+    n = 0
+    n = x != 0          // 赋值：int
+    d = 0.0
+    d = x != 0          // 赋值：float
+    h = H { v = x != 0 } // 结构体字段：int
+    println(n)
+    println(d)
+    println(h.v)
+    return n - 1
+}

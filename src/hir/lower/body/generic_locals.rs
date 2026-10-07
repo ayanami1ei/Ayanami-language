@@ -49,6 +49,11 @@ pub(super) fn collect_local_names_stmt(stmt: &Stmt, out: &mut Vec<Symbol>) {
             collect_local_names_expr(cond, out);
             collect_local_names_block(body, out);
         }
+        Stmt::ForIn { iterator, iterable, body, .. } => {
+            out.push(*iterator);
+            collect_local_names_expr(iterable, out);
+            collect_local_names_block(body, out);
+        }
         Stmt::Match { value, arms, .. } => {
             collect_local_names_expr(value, out);
             for a in arms {

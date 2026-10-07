@@ -98,6 +98,10 @@ fn scan_body(stmt: &crate::parser::ast::Stmt, obs: &mut Vec<Obs>) {
             scan_expr(cond, obs);
             for s in &body.stmts { scan_body(s, obs); }
         }
+        Stmt::ForIn { iterable, body, .. } => {
+            scan_expr(iterable, obs);
+            for s in &body.stmts { scan_body(s, obs); }
+        }
         Stmt::Match { value, arms, .. } => {
             scan_expr(value, obs);
             for a in arms {

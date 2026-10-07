@@ -34,7 +34,7 @@ impl crate::hir::lower::Ctx {
                         .or_else(|| elifs.iter().find_map(|(_, b)| self.find_elem_usage_stmts(var, &b.stmts)))
                         .or_else(|| else_block.as_ref().and_then(|b| self.find_elem_usage_stmts(var, &b.stmts)))
                 }
-                Stmt::While { body, .. } | Stmt::For { body, .. } => {
+                Stmt::While { body, .. } | Stmt::For { body, .. } | Stmt::ForIn { body, .. } => {
                     self.find_elem_usage_stmts(var, &body.stmts)
                 }
                 Stmt::Attributed { stmt, .. } => self.find_elem_usage_stmts(var, std::slice::from_ref(stmt)),

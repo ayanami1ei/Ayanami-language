@@ -109,6 +109,11 @@ impl crate::hir::lower::Ctx {
                 self.check_expr_names(cond, cx)?;
                 self.check_block_names(body, cx)
             }
+            Stmt::ForIn { iterator, iterable, body, .. } => {
+                self.check_expr_names(iterable, cx)?;
+                cx.env.insert(*iterator, GType::Other);
+                self.check_block_names(body, cx)
+            }
             Stmt::Match { value, arms, .. } => {
                 self.check_expr_names(value, cx)?;
                 for a in arms {

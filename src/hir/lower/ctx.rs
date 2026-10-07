@@ -49,8 +49,9 @@ pub(crate) struct Ctx {
     pub statics: HashMap<Symbol, crate::hir::HirStatic>,
     /// M6.3：`const fn` AST（名 → FnDecl），常量上下文编译期求值
     pub const_fns: HashMap<Symbol, Stmt>,
-    /// Lambda 计数器（生成唯一名称）
+    /// Lambda / for-in 迭代器临时变量计数器（生成唯一卫生名）
     pub lambda_counter: u64,
+    pub for_iter_counter: u64,
     /// Lambda 表达式降级产生的匿名函数
     pub lambda_fns: Vec<HirFn>,
     /// 当前正在降级的函数 ID
@@ -112,7 +113,7 @@ impl Ctx {
             const_exports: Vec::new(),
             statics: HashMap::new(),
             const_fns: HashMap::new(),
-            lambda_counter: 0,
+            lambda_counter: 0, for_iter_counter: 0,
             lambda_fns: Vec::new(),
             current_fn: FnId(0),
             locals: Vec::new(),
@@ -292,9 +293,7 @@ impl Ctx {
     }
 
     pub fn is_enum_type(&self, type_name: &Symbol) -> bool {
-        self.struct_defs.get(type_name)
-            .and_then(|fields| fields.first())
-            .map(|f| f.name.as_str() == "_tag")
-            .unwrap_or(false)
+        self.struct_defs.get(type_name).and_then(|f| f.first())
+            .map(|f| f.name.as_str() == "_tag").unwrap_or(false)
     }
 }

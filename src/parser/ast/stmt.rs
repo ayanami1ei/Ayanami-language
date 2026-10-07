@@ -148,6 +148,13 @@ pub enum Stmt {
         body: Block,
         span: Span,
     },
+    /// M3：`for x in iterable { ... }`（迭代器协议：`next(ref mut self) -> Option[T]`）
+    ForIn {
+        iterator: Symbol,
+        iterable: Expr,
+        body: Block,
+        span: Span,
+    },
     While {
         cond: Expr,
         body: Block,
@@ -230,6 +237,7 @@ impl Stmt {
             | Stmt::Return { span, .. }
             | Stmt::If { span, .. }
             | Stmt::For { span, .. }
+            | Stmt::ForIn { span, .. }
             | Stmt::While { span, .. }
             | Stmt::Match { span, .. }
             | Stmt::ExprStmt { span, .. }

@@ -131,11 +131,16 @@ pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Re
             return Ok(retype_float_literal(expr, &tgt_inner));
         }
     }
-    if src_inner == tgt_inner {
-        return Ok(expr);
+    // 比较表达式在 HIR 中保留操作数类型，MIR→LIR 才产出 bool（i1）
+    if expr.is_comparison() {
+        if tgt_inner == HirType::Bool {
+            return Ok(expr);
+        }
+        if matches!(tgt_inner, HirType::Int | HirType::IntN { .. } | HirType::Float | HirType::F32) {
+            return Ok(SBoolToNum { expr, ty: tgt_inner }.into());
+        }
     }
-    // 比较表达式在 HIR 中保留操作数类型，MIR→LIR 才产出 bool
-    if expr.is_comparison() && tgt_inner == HirType::Bool {
+    if src_inner == tgt_inner {
         return Ok(expr);
     }
     if implicit_cast_ok(&src_inner, &tgt_inner) {

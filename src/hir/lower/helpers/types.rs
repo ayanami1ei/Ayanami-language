@@ -164,20 +164,17 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         Type::Never(_) => HirType::Never,
         Type::Closure(ps, ret, _, once) => HirType::Closure(
             ps.iter().map(|p| ast_type_to_hir(p, interfaces)).collect(),
-            Box::new(ast_type_to_hir(ret, interfaces)),
-            true,
-            *once,
-        ),
+            Box::new(ast_type_to_hir(ret, interfaces)), true, *once),
         // `[T]` 即拥有堆数组（unique 已移除；借用写 `ref [T]`）
         Type::Array(inner, _) => HirType::Unique(Box::new(HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))))),
-        Type::ArraySized(inner, n, _) => HirType::Unique(Box::new(HirType::ArraySized(
-            Box::new(ast_type_to_hir(inner, interfaces)), *n))),
+        Type::ArraySized(inner, n, _) => HirType::Unique(Box::new(HirType::ArraySized(Box::new(ast_type_to_hir(inner, interfaces)), *n))),
         Type::Generic(name, args, _) => {
-            // Encode generic instantiation as a unique named type
-            let args_str: Vec<String> = args.iter()
-                .map(|a| type_to_string_generic(a, interfaces))
-                .collect();
-            HirType::Named(Symbol::intern(&format!("{}<{}>", name, args_str.join(","))))
+            // 泛型实例编码为命名类型；泛型接口实例 → 拥有所有权的胖指针（调用点按需特化）
+            let args_str: Vec<String> = args.iter().map(|a| type_to_string_generic(a, interfaces)).collect();
+            let sym = Symbol::intern(&format!("{}<{}>", name, args_str.join(",")));
+            if interfaces.contains_key(name) {
+                HirType::FatPtr { name: sym, kind: Box::new(HirType::Unique(Box::new(HirType::Void))) }
+            } else { HirType::Named(sym) }
         }
         Type::Named(s, _) => {
             let name = s.as_str();
@@ -195,9 +192,7 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
             let inner_hir = ast_type_to_hir(inner, interfaces);
             if is_iface_type(&inner_hir, interfaces) {
                 HirType::FatPtr { name: *extract_named(&inner_hir).unwrap(), kind: Box::new(HirType::Unique(Box::new(HirType::Void))) }
-            } else {
-                HirType::Unique(Box::new(inner_hir))
-            }
+            } else { HirType::Unique(Box::new(inner_hir)) }
         }
         Type::Ref(inner, mutable, _) => {
             let inner_hir = ast_type_to_hir(inner, interfaces);

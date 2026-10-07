@@ -148,7 +148,7 @@ fn validate_macros_stmt(
             for (_, b) in elifs { validate_block(b, macros, passes, checks, out); }
             if let Some(b) = else_block { validate_block(b, macros, passes, checks, out); }
         }
-        Stmt::For { body, .. } | Stmt::While { body, .. } => {
+        Stmt::For { body, .. } | Stmt::While { body, .. } | Stmt::ForIn { body, .. } => {
             validate_block(body, macros, passes, checks, out);
         }
         Stmt::Namespace { items, .. } => {
