@@ -12,6 +12,13 @@ pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox {
 
 /// 参数转换（不含最终移动）
 fn wrap_arg_conversions(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
+    // #155：比较表达式（i1）→ 数值形参：显式零扩展
+    if arg.is_comparison() {
+        let pt = strip_ownership_ref(param_ty);
+        if matches!(pt, HirType::Int | HirType::IntN { .. } | HirType::Float | HirType::F32) {
+            return SBoolToNum { expr: arg, ty: pt.clone() }.into();
+        }
+    }
     // M2：闭包实参按拥有值移动（非 Copy，调用方不再释放）
     if matches!(param_ty, HirType::Closure(..)) && matches!(arg.expr_type(), HirType::Closure(..)) {
         return implicit_move(arg);
@@ -100,10 +107,11 @@ pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNode
 
 /// extern C 实参：借用语义（C 侧不消费所有权，不插入移动）
 pub(crate) fn wrap_arg_borrowed(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
-    if matches!(param_ty, HirType::Unique(_) | HirType::Ref(..)) {
-        // 指针/拥有堆值：extern 侧借用，原样传递（不装箱、不移动）
+    if matches!(param_ty, HirType::Unique(_)) {
+        // 拥有堆值：extern 侧借用，原样传递（不装箱、不移动）
         arg
     } else {
+        // ref 形参仍需自动借用（SRef），只是不做最终移动
         wrap_arg_conversions(arg, param_ty)
     }
 }

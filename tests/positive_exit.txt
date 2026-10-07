@@ -115,3 +115,6 @@ test_fn_once.aya 0
 test_field_move.aya 0
 test_fn_value.aya 0
 test_for_in.aya 0
+test_bool_to_int.aya 0
+test_extern_out_param.aya 0
+test_fn_fold.aya 0

@@ -180,6 +180,13 @@ impl crate::hir::lower::Ctx {
         }
         hir_args = hir_args.into_iter().enumerate().map(|(i, arg)| {
             if i >= param_tys.len() { return arg; }
+            // #155：比较表达式（i1）→ 数值形参：显式零扩展
+            let arg = if arg.is_comparison() {
+                let pt = strip_ownership_ref(&param_tys[i]);
+                if matches!(pt, HirType::Int | HirType::IntN { .. } | HirType::Float | HirType::F32) {
+                    SBoolToNum { expr: arg, ty: pt.clone() }.into()
+                } else { arg }
+            } else { arg };
             let arg_ty = expr_type(&arg);
             // Check if param expects FatPtr and arg is a concrete type that implements the interface
             if let HirType::FatPtr { name: iface_name, .. } = &param_tys[i] {

@@ -129,6 +129,8 @@ impl Ctx {
         if let Some(tgt_var) = target.as_local() {
             let cleanup = self.emit_assign_cleanup(&tgt_var);
             stmts.extend(cleanup);
+            // 赋值后目标重新有效（循环回边重赋值场景）
+            self.moved.remove(&tgt_var);
 
             match value.as_move() {
                 Some(inner) => {

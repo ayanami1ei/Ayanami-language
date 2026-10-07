@@ -73,6 +73,20 @@ impl HirNode for SFileArg {
     }
 }
 
+impl HirNode for SBoolToNum {
+    fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
+        SMirBoolToNum { expr: self.expr.lower_to_mir(moved), ty: self.ty.clone() }.into()
+    }
+    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
+        writeln!(w, "{:width$}BoolToNum(ty: {})", "", crate::hir::display::display_type(&self.ty), width = level * 2)?;
+        self.expr.display(level + 1, w)?;
+        Ok(())
+    }
+    fn expr_type(&self) -> HirType { self.ty.clone() }
+    fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode)) { f(&*self.expr); }
+}
+
 impl HirNode for SBin {
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {

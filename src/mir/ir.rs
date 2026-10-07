@@ -134,6 +134,8 @@ s_mir!(SMirBinary { op: BinaryOp, lhs: MirNodeBox, rhs: MirNodeBox, ty: HirType 
 s_mir!(SMirUnary { op: UnaryOp, arg: MirNodeBox, ty: HirType });
 s_mir!(SMirCall { fn_id: FnId, args: Vec<MirNodeBox>, ty: HirType });
 s_mir!(SMirMove { expr: MirNodeBox, ty: HirType });
+// #155：比较（i1）→ 数值
+s_mir!(SMirBoolToNum { expr: MirNodeBox, ty: HirType });
 s_mir!(SMirClone { expr: MirNodeBox, ty: HirType });
 s_mir!(SMirToUnique { expr: MirNodeBox, ty: HirType });
 s_mir!(SMirCast { expr: MirNodeBox, ty: HirType });
@@ -177,7 +179,7 @@ macro_rules! impl_into_mir_node_box {
         })*
     };
 }
-impl_into_mir_node_box!(SMirLocal, SMirLiteral, SMirBinary, SMirUnary, SMirCall, SMirMove, SMirClone, SMirToUnique, SMirCast, SMirVirtualCall, SMirMakeFatPtr, SMirEnumConstruct, SMirFnPtr, SMirCallPtr, SMirEnumMatch, SMirFieldAccess, SMirStructLiteral, SMirArrayLiteral, SMirArraySized, SMirRef, SMirDeref, SMirGlobal, SMirIndex, SMirAsm);
+impl_into_mir_node_box!(SMirLocal, SMirLiteral, SMirBinary, SMirUnary, SMirCall, SMirMove, SMirClone, SMirToUnique, SMirCast, SMirVirtualCall, SMirMakeFatPtr, SMirEnumConstruct, SMirFnPtr, SMirCallPtr, SMirEnumMatch, SMirFieldAccess, SMirStructLiteral, SMirArrayLiteral, SMirArraySized, SMirRef, SMirDeref, SMirGlobal, SMirIndex, SMirAsm, SMirBoolToNum);
 
 macro_rules! impl_into_mir_stmt_box {
     ($($ty:ident),* $(,)?) => {

@@ -1,0 +1,9 @@
+// #154：extern 函数的 ref 参数写入反映到调用方（按地址传递）
+extern "C" fn time(ref int t) -> int;
+
+fn main() -> int {
+    t = 0
+    r = time(t)
+    // time 返回与写入相同的值：t == r
+    return t - r
+}
