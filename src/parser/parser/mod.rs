@@ -47,6 +47,7 @@ mod expr;
 mod impls;
 mod literal_text;
 mod macro_call;
+mod for_stmt;
 mod pattern;
 mod stmt;
 mod types;

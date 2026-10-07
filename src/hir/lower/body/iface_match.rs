@@ -1,15 +1,31 @@
 use super::*;
 
 impl crate::hir::lower::Ctx {
-    pub(crate) fn infer_iface_generic(
-        expected: &HirType, actual: &HirType,
-        gp_names: &[Symbol], subst: &mut HashMap<Symbol, HirType>,
-    ) -> bool {
+    pub(crate) fn infer_iface_generic(expected: &HirType, actual: &HirType,
+        gp_names: &[Symbol], subst: &mut HashMap<Symbol, HirType>) -> bool {
         match (expected, actual) {
             (HirType::Named(n), _) if gp_names.contains(n) => {
                 if let Some(existing) = subst.get(n) { existing == actual }
                 else { subst.insert(*n, actual.clone()); true }
             }
+            // 编码泛型名（Option<T> vs Option<int>）：逐参数统一（支持嵌套）
+            (HirType::Named(en), HirType::Named(an)) => {
+                let (es, as_) = (en.as_str(), an.as_str());
+                let (Some(ie), Some(ia)) = (generic_inner(&es), generic_inner(&as_)) else { return Self::type_matches(expected, actual); };
+                if crate::hir::lower::strip_generic_name(en) != crate::hir::lower::strip_generic_name(an) { return false; }
+                let (ae, aa) = (split_generic_args(ie), split_generic_args(ia));
+                ae.len() == aa.len() && ae.iter().zip(aa.iter()).all(|(e, a)|
+                    Self::infer_iface_generic(&sig_str_to_hir(e.trim()), &sig_str_to_hir(a.trim()), gp_names, subst))
+            }
+            // 复合类型：递归统一
+            (HirType::Unique(e), HirType::Unique(a)) | (HirType::Ref(e, _), HirType::Ref(a, _))
+            | (HirType::Array(e), HirType::Array(a)) | (HirType::ArraySized(e, _), HirType::ArraySized(a, _)) =>
+                Self::infer_iface_generic(e, a, gp_names, subst),
+            (HirType::FnPtr(ep, er), HirType::FnPtr(ap, ar))
+            | (HirType::Closure(ep, er, _, _), HirType::Closure(ap, ar, _, _)) =>
+                ep.len() == ap.len()
+                    && ep.iter().zip(ap.iter()).all(|(e, a)| Self::infer_iface_generic(e, a, gp_names, subst))
+                    && Self::infer_iface_generic(er, ar, gp_names, subst),
             _ => Self::type_matches(expected, actual),
         }
     }
@@ -17,12 +33,12 @@ impl crate::hir::lower::Ctx {
     pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType {
         match ty {
             HirType::Named(n) if gp_names.contains(n) => subst.get(n).cloned().unwrap_or_else(|| ty.clone()),
+            HirType::Named(_) => crate::hir::lower::helpers::substitute_hir_type(ty, subst),
             HirType::Unique(inner) => HirType::Unique(Box::new(Self::substitute_iface_type(inner, subst, gp_names))),
             HirType::FatPtr { name, kind } => HirType::FatPtr { name: *name, kind: Box::new(Self::substitute_iface_type(kind, subst, gp_names)) },
             HirType::FnPtr(params, ret) => HirType::FnPtr(
                 params.iter().map(|p| Self::substitute_iface_type(p, subst, gp_names)).collect(),
-                Box::new(Self::substitute_iface_type(ret, subst, gp_names)),
-            ),
+                Box::new(Self::substitute_iface_type(ret, subst, gp_names))),
             _ => ty.clone(),
         }
     }
@@ -30,11 +46,12 @@ impl crate::hir::lower::Ctx {
     pub(crate) fn type_matches(a: &HirType, b: &HirType) -> bool {
         if a == b { return true; }
         match (a, b) {
-            (HirType::Named(an), HirType::Int) if an.as_str() == "int" => true,
-            (HirType::Named(an), HirType::Float) if an.as_str() == "float" => true,
-            (HirType::Named(an), HirType::Char) if an.as_str() == "char" => true,
-            (HirType::Named(an), HirType::Void) if an.as_str() == "void" => true,
-            (HirType::Named(an), HirType::Bool) if an.as_str() == "bool" => true,
+            (HirType::Named(an), bt) => {
+                let n = an.as_str();
+                matches!((n.as_str(), bt),
+                    ("int", HirType::Int) | ("float", HirType::Float) | ("char", HirType::Char)
+                    | ("void", HirType::Void) | ("bool", HirType::Bool))
+            }
             _ => false,
         }
     }

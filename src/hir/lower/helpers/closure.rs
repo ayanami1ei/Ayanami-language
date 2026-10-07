@@ -143,6 +143,12 @@ fn walk_stmt(
             walk_expr(ctx, cond, declared, caps)?;
             walk_block(ctx, body, declared, caps)?;
         }
+        Stmt::ForIn { iterator, iterable, body, .. } => {
+            walk_expr(ctx, iterable, declared, caps)?;
+            let mut local = declared.clone();
+            local.insert(*iterator);
+            walk_block(ctx, body, &mut local, caps)?;
+        }
         Stmt::Match { value, arms, .. } => walk_match(ctx, value, arms, declared, caps)?,
         Stmt::ExprStmt { expr, .. } => walk_expr(ctx, expr, declared, caps)?,
         Stmt::Attributed { stmt, .. } => walk_stmt(ctx, stmt, declared, caps)?,

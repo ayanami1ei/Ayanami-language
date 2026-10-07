@@ -58,7 +58,7 @@ impl Ctx {
                     .get(id.0)
                     .map(|l| l.name.as_str().to_string())
                     .unwrap_or_else(|| format!("v{}", id.0));
-                self.errors.push(Error::Hir(format!(
+                                self.errors.push(Error::Hir(format!(
                     "use of moved value `{}` (use `.copy()` or restructure ownership) (at {}:{})",
                     name, sp.start_line, sp.start_col
                 )));

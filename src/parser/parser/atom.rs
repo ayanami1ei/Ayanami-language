@@ -256,7 +256,12 @@ impl Parser {
                     }
                 }
                 self.advance();
-                let expr = self.parse_expr()?;
+                // 括号内允许结构体字面量（`(Point { x = 1 }).x`；条件上下文默认禁止）
+                let saved_depth = self.struct_lit_depth;
+                self.struct_lit_depth = 0;
+                let expr = self.parse_expr();
+                self.struct_lit_depth = saved_depth;
+                let expr = expr?;
                 self.expect_delimiter(Delimiter::RParen)?;
                 Ok(expr)
             }

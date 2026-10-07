@@ -114,3 +114,4 @@ test_closure_collections.aya 0
 test_fn_once.aya 0
 test_field_move.aya 0
 test_fn_value.aya 0
+test_for_in.aya 0

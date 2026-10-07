@@ -113,12 +113,11 @@ impl Ctx {
                 if let Some(v) = value { v.record_moves(&mut self.moved); }
             }
             // 复合语句不预标记：子语句在各自 lower_stmt 中按顺序跟踪移动
-            HirStmt::If { .. } | HirStmt::While { .. } => {}
+            HirStmt::If { .. } | HirStmt::While { .. } | HirStmt::Block { .. } => {}
             HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
             HirStmt::Expr { expr, .. } => expr.record_moves(&mut self.moved),
             HirStmt::Assume { cond, .. } => cond.record_moves(&mut self.moved),
             HirStmt::Contract { cond, .. } => cond.record_moves(&mut self.moved),
-            HirStmt::Block { stmts, .. } => { for s in stmts { self.track_stmt_moves(s); } }
         }
     }
 

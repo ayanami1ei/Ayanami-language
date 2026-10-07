@@ -1,0 +1,73 @@
+// M3：for-in 迭代器协议（`next(ref mut self) -> Option[T]`）
+import "option"
+
+interface Iter[T] {
+    fn next(ref mut self) -> Option[T];
+}
+
+struct RangeIter {
+    int cur
+    int end
+}
+
+impl RangeIter {
+    #[state]
+    fn next(ref mut self) -> Option[int] {
+        if self.cur >= self.end { return Option::None }
+        v = self.cur
+        self.cur = self.cur + 1
+        return Option::Some(v)
+    }
+}
+
+// 适配器：闭包 + 迭代器组合（语言侧抽象能力，M3 .3）
+struct MapIter {
+    RangeIter inner
+    Fn(int) -> int f
+}
+
+impl MapIter {
+    #[state]
+    fn next(ref mut self) -> Option[int] {
+        return match self.inner.next() {
+            Some(x) => Option::Some((self.f)(x)),
+            None => Option::None,
+        }
+    }
+}
+
+fn sum_iface(Iter[int] it) -> int {
+    s = 0
+    for x in it { s = s + x }
+    return s
+}
+
+fn main() -> int {
+    // break
+    s1 = 0
+    for x in (RangeIter { cur = 0, end = 100 }) {
+        if x >= 3 { break }
+        s1 = s1 + x
+    }
+    // continue
+    s2 = 0
+    for x in (RangeIter { cur = 0, end = 6 }) {
+        if x % 2 == 1 { continue }
+        s2 = s2 + x
+    }
+    // 嵌套
+    s3 = 0
+    for i in (RangeIter { cur = 0, end = 3 }) {
+        for j in (RangeIter { cur = 0, end = 2 }) {
+            s3 = s3 + i * 10 + j
+        }
+    }
+    // 接口值迭代（泛型接口 → 虚调用）
+    s4 = sum_iface(RangeIter { cur = 0, end = 4 })
+    // 适配器：map（x * 2）→ 0+2+4+6 = 12
+    s5 = 0
+    m = MapIter { inner = RangeIter { cur = 0, end = 4 }, f = (int x) -> int { return x * 2 } }
+    for x in m { s5 = s5 + x }
+    // 3 + 6 + 63 + 6 + 12 = 90
+    return s1 + s2 + s3 + s4 + s5 - 90
+}

@@ -108,6 +108,11 @@ pub(super) fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
             write_expr(cond, level + 1, w);
             write_block(body, level + 1, w);
         }
+        Stmt::ForIn { iterator, iterable, body, .. } => {
+            writeln!(w, "{}ForIn {{ iterator: {} }}", p, iterator).unwrap();
+            write_expr(iterable, level + 1, w);
+            write_block(body, level + 1, w);
+        }
         Stmt::Match { .. } => {
             writeln!(w, "{}Match", p).unwrap();
         }

@@ -225,6 +225,7 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
             body: substitute_type_in_block(body, subst),
             span: *span,
         },
+        Stmt::ForIn { iterator, iterable, body, span } => Stmt::ForIn { iterator: *iterator, iterable: substitute_type_in_expr(iterable, subst), body: substitute_type_in_block(body, subst), span: *span },
         Stmt::Match { value, arms, span } => Stmt::Match {
             value: Box::new(substitute_type_in_expr(value, subst)),
             arms: arms.iter().map(|a| substitute_match_arm(a, subst)).collect(),

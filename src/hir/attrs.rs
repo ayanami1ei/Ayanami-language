@@ -256,7 +256,7 @@ fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()> {
                     "cfg" => {}
                     "invariant" => {
                         crate::hir::contracts::validate_invariant_attrs(std::slice::from_ref(a))?;
-                        if !matches!(stmt.as_ref(), Stmt::While { .. } | Stmt::For { .. }) {
+                        if !matches!(stmt.as_ref(), Stmt::While { .. } | Stmt::For { .. } | Stmt::ForIn { .. }) {
                             return Err(Error::Hir(format!(
                                 "#[invariant] is only allowed on while/for loops (at {}:{})",
                                 a.span.start_line, a.span.start_col

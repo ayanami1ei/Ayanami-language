@@ -160,6 +160,11 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
             out.push(Stmt::While { cond, body, span });
             Ok(())
         }
+        Stmt::ForIn { iterator, iterable, body, span } => {
+            let body = expand_block(body, ctx, depth)?;
+            out.push(Stmt::ForIn { iterator, iterable, body, span });
+            Ok(())
+        }
         Stmt::Namespace { vis, name, items, span } => {
             let items = expand_stmts(&items, ctx, depth + 1)?;
             out.push(Stmt::Namespace { vis, name, items, span });

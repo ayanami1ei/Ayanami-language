@@ -146,33 +146,6 @@ impl Parser {
         Ok((cond, then_block, elifs, else_block, start_span))
     }
 
-    pub(super) fn parse_for(&mut self) -> Result<Stmt> {
-        let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
-        self.advance();
-        let iter_name = self.expect_identifier()?;
-        self.expect_keyword(Keyword::In)?;
-        self.expect_delimiter(Delimiter::LParen)?;
-        let start = self.parse_expr()?;
-        self.expect_delimiter(Delimiter::Comma)?;
-        let end = self.parse_expr()?;
-        let step = if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
-            self.advance();
-            Some(self.parse_expr()?)
-        } else {
-            None
-        };
-        self.expect_delimiter(Delimiter::RParen)?;
-        let body = self.parse_block()?;
-        Ok(Stmt::For {
-            iterator: Symbol::intern(&iter_name),
-            start,
-            end,
-            step,
-            body,
-            span: start_span,
-        })
-    }
-
     pub(super) fn parse_while(&mut self) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();

@@ -176,6 +176,9 @@ impl crate::hir::lower::Ctx {
             Stmt::For { iterator, start, end, step, body, .. } => {
                 self.lower_for(*iterator, start, end, step.as_ref(), body, &[])
             }
+            Stmt::ForIn { iterator, iterable, body, span } => {
+                self.lower_for_in(*iterator, iterable, body, &[], span)
+            }
             Stmt::While { cond, body, .. } => self.lower_while(cond, body, &[]),
             Stmt::Attributed { attrs, stmt: inner, .. } => {
                 // cfg 已在 hir::cfg::filter_program 中过滤，这里只剩 invariant
@@ -184,6 +187,9 @@ impl crate::hir::lower::Ctx {
                     Stmt::While { cond, body, .. } => self.lower_while(cond, body, &invs),
                     Stmt::For { iterator, start, end, step, body, .. } => {
                         self.lower_for(*iterator, start, end, step.as_ref(), body, &invs)
+                    }
+                    Stmt::ForIn { iterator, iterable, body, span } => {
+                        self.lower_for_in(*iterator, iterable, body, &invs, span)
                     }
                     _ => self.lower_stmt(inner),
                 }

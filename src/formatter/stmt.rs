@@ -73,6 +73,12 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
                 let _ = writeln!(out);
             }
         }
+        ForIn { iterator, iterable, body, .. } => {
+            let i = indent(level);
+            let _ = write!(out, "{}for {} in {} ", i, iterator, write_expr_at(iterable, level));
+            write_block_same_line(out, body, level);
+            let _ = writeln!(out);
+        }
         For { iterator, start, end, step, body, .. } => {
             let i = indent(level);
             let _ = write!(out, "{}for {} in (", i, iterator);

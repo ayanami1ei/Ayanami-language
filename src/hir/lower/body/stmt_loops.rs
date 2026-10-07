@@ -113,6 +113,73 @@ impl crate::hir::lower::Ctx {
         })
     }
 
+    /// M3：`for x in iterable`（迭代器协议）：
+    /// `__it = iterable; while true { if __it.next() 匹配 Some(x) { body } else { break } }`
+    pub(crate) fn lower_for_in(
+        &mut self,
+        iter_name: Symbol,
+        iterable: &Expr,
+        body: &Block,
+        invariants: &[(&Expr, usize, usize)],
+        span: &Span,
+    ) -> Result<HirStmt> {
+        use crate::parser::ast::pattern::Pattern;
+        self.push_scope();
+        let hir_iter = self.lower_expr(iterable)?;
+        let iter_ty = expr_type(&hir_iter);
+        let n = self.for_iter_counter;
+        self.for_iter_counter += 1;
+        let tmp = Symbol::intern(&format!("__for_iter_{}", n));
+        let (var_id, _, _) = self.register_or_lookup(tmp, iter_ty.clone());
+        let init = HirStmt::Assign {
+            target: SVar { var: var_id, ty: iter_ty }.into(),
+            value: implicit_move(hir_iter),
+            span: *span,
+        };
+        // 每轮：next() 先存入临时局部（避免条件/绑定重复求值），再匹配 Some(x)
+        self.push_scope();
+        let next_call = self.lower_method_call(
+            &Box::new(Expr::Ident(tmp, *span)), &Symbol::intern("next"), &Vec::new(), span)?;
+        let next_ty = expr_type(&next_call);
+        let next_name = Symbol::intern(&format!("__for_next_{}", n));
+        let (next_var, _, _) = self.register_or_lookup(next_name, next_ty.clone());
+        let next_node: HirNodeBox = SVar { var: next_var, ty: next_ty.clone() }.into();
+        let assign_next = HirStmt::Assign {
+            target: next_node.clone(), value: next_call, span: *span,
+        };
+        let (cond, binds) = self.pattern_match(
+            &Pattern::Enum { name: Symbol::intern("Some"), args: vec![Pattern::Binding(iter_name)] },
+            &next_node, &next_ty, span)?;
+        let hir_body = self.lower_block(body)?;
+        let mut body_stmts = binds;
+        if !invariants.is_empty() {
+            body_stmts.extend(self.loop_check_stmts(invariants)?);
+        }
+        body_stmts.extend(hir_body.stmts);
+        self.pop_scope();
+        let cond = cond.unwrap_or_else(|| SConst { val: HirLiteral::Bool(true), ty: HirType::Bool }.into());
+        let loop_body = HirStmt::If {
+            cond,
+            then_block: HirBlock::new(body_stmts),
+            elifs: Vec::new(),
+            else_block: Some(HirBlock::new(vec![HirStmt::Break { span: *span }])),
+            span: *span,
+        };
+        self.pop_scope();
+        let always = || -> HirNodeBox { SConst { val: HirLiteral::Bool(true), ty: HirType::Bool }.into() };
+        Ok(HirStmt::Block {
+            stmts: vec![
+                init,
+                HirStmt::While {
+                    cond: always(),
+                    body: HirBlock::new(vec![assign_next, loop_body]),
+                    span: *span,
+                },
+            ],
+            span: *span,
+        })
+    }
+
     // ----------------------------------------------------------------
     //  表达式降级：将 AST 表达式递归降级为 HIR 表达式
     //  处理字面量、标识符、二元/一元运算、函数/方法调用、
