@@ -1111,14 +1111,14 @@ src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
 src/lir/emit/mod.rs:37: fn new(prog: &'a LirProgram) -> Self
-src/lir/emit/mod.rs:47: fn finish(self) -> String
-src/lir/emit/mod.rs:51: fn wln(&mut self, s: &str)
-src/lir/emit/mod.rs:67: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
-src/lir/emit/mod.rs:76: fn emit(&mut self)
-src/lir/emit/mod.rs:155: mod consts;
-src/lir/emit/mod.rs:156: mod functions;
-src/lir/emit/mod.rs:157: mod types;
-src/lir/emit/mod.rs:158: mod vtable;
+src/lir/emit/mod.rs:49: fn finish(self) -> String
+src/lir/emit/mod.rs:53: fn wln(&mut self, s: &str)
+src/lir/emit/mod.rs:69: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
+src/lir/emit/mod.rs:78: fn emit(&mut self)
+src/lir/emit/mod.rs:157: mod consts;
+src/lir/emit/mod.rs:158: mod functions;
+src/lir/emit/mod.rs:159: mod types;
+src/lir/emit/mod.rs:160: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
@@ -1137,7 +1137,10 @@ src/lir/ir/helpers.rs:79: pub(crate) fn elem_layout_size(
 src/lir/ir/helpers.rs:83: fn layout(ty: &HirType, defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> (u64, u64)
 src/lir/ir/helpers.rs:122: pub(super) fn is_pointer_type(ty: &HirType) -> bool
 src/lir/ir/helpers.rs:135: pub(crate) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
-src/lir/ir/helpers.rs:149: pub(super) fn emit_drop_value(
+src/lir/ir/helpers_drop.rs:6: fn find_len_field(fields: &[(Symbol, HirType)], array_idx: usize) -> Option<usize>
+src/lir/ir/helpers_drop.rs:24: fn emit_array_elem_drops_dyn(
+src/lir/ir/helpers_drop.rs:54: fn emit_array_elem_drops(
+src/lir/ir/helpers_drop.rs:92: pub(crate) fn emit_drop_value(
 src/lir/ir/mod.rs:12: pub struct IrNode
 src/lir/ir/mod.rs:18: pub enum IrValue
 src/lir/ir/mod.rs:27: impl IrNode
@@ -1171,13 +1174,14 @@ src/lir/ir/mod.rs:172: fn from(v: SLirCustom) -> Self { LirNodeBox(Box::new(v)) 
 src/lir/ir/mod.rs:182: pub struct $name { $(pub $field: $ty),* }
 src/lir/ir/mod.rs:189: fn from(v: $ty) -> Self { LirNodeBox(Box::new(v) as Box<dyn LirNode>) }
 src/lir/ir/mod.rs:194: mod helpers;
-src/lir/ir/mod.rs:195: mod nodes;
-src/lir/ir/mod.rs:196: mod nodes_a;
-src/lir/ir/mod.rs:197: mod nodes_b;
-src/lir/ir/mod.rs:198: mod nodes_c;
-src/lir/ir/mod.rs:199: mod nodes_d;
-src/lir/ir/mod.rs:200: mod nodes_e;
-src/lir/ir/mod.rs:201: mod nodes_f;
+src/lir/ir/mod.rs:195: mod helpers_drop;
+src/lir/ir/mod.rs:196: mod nodes;
+src/lir/ir/mod.rs:197: mod nodes_a;
+src/lir/ir/mod.rs:198: mod nodes_b;
+src/lir/ir/mod.rs:199: mod nodes_c;
+src/lir/ir/mod.rs:200: mod nodes_d;
+src/lir/ir/mod.rs:201: mod nodes_e;
+src/lir/ir/mod.rs:202: mod nodes_f;
 src/lir/ir/nodes_a.rs:3: impl LirNode for SLirAlloca
 src/lir/ir/nodes_a.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_a.rs:5: fn kind(&self) -> &'static str { "Alloca" }
