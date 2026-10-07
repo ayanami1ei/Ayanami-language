@@ -34,12 +34,14 @@ impl Ctx {
                 c.record_moves(&mut self.moved);
                 cond_entry = self.moved.clone();
                 fall_moved.extend(self.moved.iter().copied());
-                let cm = c.lower_to_mir(&self.moved);
+                let mut cm = c.lower_to_mir(&self.moved);
+                // elif 条件按需（前序条件失败才求值）：借用临时量在链内求值后 drop
+                let (epre, epost) = self.hoist_ref_temps(&mut cm, span);
                 let bm = self.lower_block(&b.stmts);
                 if !self.block_diverges(&b.stmts) {
                     fall_moved.extend(self.moved.iter().copied());
                 }
-                (cm, bm)
+                (cm, epre, epost, bm)
             })
             .collect();
         let mir_else = else_block
@@ -62,9 +64,11 @@ impl Ctx {
 
     pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox> {
         cond.record_moves(&mut self.moved);
-        let mir_cond = cond.lower_to_mir(&self.moved);
+        let mut mir_cond = cond.lower_to_mir(&self.moved);
+        // 条件每轮求值：借用临时量在循环头赋值、求值后 drop（不能提升到循环外）
+        let (pre_cond, post_cond) = self.hoist_ref_temps(&mut mir_cond, span);
         let mir_body = self.lower_block(&body.stmts);
-        vec![SMirWhileStmt { cond: mir_cond, body: mir_body, span }.into()]
+        vec![SMirWhileStmt { cond: mir_cond, pre_cond, post_cond, body: mir_body, span }.into()]
     }
 
     pub(super) fn lower_block(&mut self, stmts: &[HirStmt]) -> Vec<MirStmtBox> {

@@ -84,7 +84,10 @@ graph TD
 | 局部移出清零 | `lir/ir/nodes_f.rs::SLirLocalTake` | 局部变量移动后清零，循环回边重复移动不双重释放 |
 | 导入所有权补全 | `hir/lower/body/collect_import.rs` | 符号串路径 `[T]` → `unique [T]`；LIR 精确类型优先 |
 | 接口箱递归 drop | `lir/lower/mod.rs`（合成 vtable[0]）+ `lir/ir/helpers_drop.rs` | 拥有胖指针释放前调用具体类型 drop glue（弱链接、跨模块去重） |
-| 数组元素递归 drop | `lir/ir/helpers_drop.rs` | 静态计数数组逐元素释放；动态 `[T]` 依赖长度兄弟字段（`len`/`length`/`size`/`count` 或数组后最近整数） |
+| 数组元素递归 drop | `lir/ir/helpers_drop.rs` | 静态计数数组逐元素释放；动态 `[T]` 按容量兄弟字段（`capability`/`cap`，回退 `len`）覆盖全槽（pop/remove 越界原值也释放） |
+| 元素读取 clone | `lir/ir/helpers_clone.rs` | 非 Copy 元素读取深拷贝（非破坏性）：集合保留原值、调用方拥有副本，配合元素 drop 无泄漏/双重释放 |
+| 动态数组计数释放 | `mir/lower/assign_field.rs`、`lir/ir/helpers_drop.rs::SLirDropArray` | 字段覆盖旧动态数组时从兄弟字段取计数逐元素释放（expand 旧数据） |
+| 条件临时量 | `mir/lower/control.rs`、`lir/lower/mir_stmts_loops.rs` | while/elif 条件的借用临时量在循环头/分支链内每轮求值后 drop（pre_cond/post_cond） |
 | noreturn 分支发散 | `mir/lower/checks.rs::block_diverges` | panic 等 `!` 调用分支的移动不合并——隐藏文件参数正常路径正常释放 |
 | 内存运行时 | `src/runtime.c` | `unique_alloc/free` + 存活计数（无 RC/GC） |
 

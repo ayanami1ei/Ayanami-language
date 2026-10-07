@@ -16,3 +16,5 @@ match_if_result.aya 0
 noreturn_bounds_loop.aya 0
 iface_owned_drop.aya 0
 array_elem_drop.aya 0
+index_move_drop.aya 0
+cond_temp_drop.aya 0

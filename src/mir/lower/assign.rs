@@ -104,75 +104,6 @@ impl Ctx {
         stmts
     }
 
-    pub(super) fn lower_field_assign(
-        &mut self,
-        object: &HirNodeBox,
-        field: Symbol,
-        field_index: usize,
-        field_ty: &HirType,
-        value: &HirNodeBox,
-        span: crate::span::Span,
-    ) -> Vec<MirStmtBox> {
-        let mut stmts = Vec::new();
-        let mut post = Vec::new();
-        // 旧字段需要释放时，RHS 先求值到临时变量（drop 必须晚于 RHS 求值）
-        let drop_old = object.as_local()
-            .map(|v| needs_drop(field_ty, &self.struct_defs) && !self.moved.contains(&v))
-            .unwrap_or(false);
-        let tmp = if !drop_old || matches!(value.expr_type(), HirType::Never) {
-            None
-        } else {
-            Some(self.new_temp(field_ty.clone()))
-        };
-        if let Some(tmp_var) = tmp {
-            let mut mir_value = value.lower_to_mir(&self.moved);
-            let (pre, po) = self.hoist_ref_temps(&mut mir_value, span);
-            stmts.extend(pre);
-            stmts.push(SMirAssignStmt {
-                target: SMirLocal { var: tmp_var, ty: self.var_types[&tmp_var].clone(), moved: false }.into(),
-                value: mir_value,
-                span,
-            }.into());
-            post.extend(po);
-        }
-        // 旧字段拥有堆数据时移出并释放（覆盖不泄漏）；仅局部对象（避免重复求值）
-        if drop_old {
-            let old = self.new_temp(field_ty.clone());
-            let field_expr: MirNodeBox = SMirFieldAccess {
-                object: object.lower_to_mir(&self.moved),
-                field,
-                field_index,
-                ty: field_ty.clone(),
-            }.into();
-            stmts.push(SMirAssignStmt {
-                target: SMirLocal { var: old, ty: field_ty.clone(), moved: false }.into(),
-                value: SMirMove { expr: field_expr, ty: field_ty.clone() }.into(),
-                span,
-            }.into());
-            stmts.push(SMirDropStmt { var: old, ty: field_ty.clone(), span }.into());
-        }
-        let mir_value: MirNodeBox = match tmp {
-            Some(tmp_var) => SMirLocal { var: tmp_var, ty: self.var_types[&tmp_var].clone(), moved: false }.into(),
-            None => {
-                let mut mir_value = value.lower_to_mir(&self.moved);
-                let (pre, po) = self.hoist_ref_temps(&mut mir_value, span);
-                stmts.extend(pre);
-                post.extend(po);
-                mir_value
-            }
-        };
-        stmts.push(SMirFieldAssignStmt {
-            object: object.lower_to_mir(&self.moved),
-            field,
-            field_index,
-            field_ty: field_ty.clone(),
-            value: mir_value,
-            span,
-        }.into());
-        stmts.extend(post);
-        stmts
-    }
-
     pub(super) fn lower_index_assign(
         &mut self,
         object: &HirNodeBox,
@@ -183,6 +114,35 @@ impl Ctx {
         let mut mir_value = value.lower_to_mir(&self.moved);
         let (pre, post) = self.hoist_ref_temps(&mut mir_value, span);
         let mut stmts = pre;
+        // 旧元素拥有堆数据时先释放（覆盖不泄漏）；仅左值对象（求值纯）。
+        // 源元素移出（SMove(Index)）已清零源槽，位移 `data[j] = data[j+1]` 不产生别名。
+        // 数组分配零初始化（SLirArraySized memset），新槽 drop 为零释放，安全。
+        if object.as_local().is_some() || object.as_field_access().is_some() {
+            if let Some(elem) = index_elem_type(&object.expr_type()) {
+                if needs_drop(&elem, &self.struct_defs) {
+                    // RHS 先求值到临时量（`arr[i] = arr[i]` 等自引用先取旧值）
+                    let tmp = self.new_temp(elem.clone());
+                    stmts.push(SMirAssignStmt {
+                        target: SMirLocal { var: tmp, ty: elem.clone(), moved: false }.into(),
+                        value: mir_value,
+                        span,
+                    }.into());
+                    let old = self.new_temp(elem.clone());
+                    let idx_expr: MirNodeBox = SMirIndex {
+                        object: object.lower_to_mir(&self.moved),
+                        index: index.lower_to_mir(&self.moved),
+                        ty: elem.clone(),
+                    }.into();
+                    stmts.push(SMirAssignStmt {
+                        target: SMirLocal { var: old, ty: elem.clone(), moved: false }.into(),
+                        value: idx_expr,
+                        span,
+                    }.into());
+                    stmts.push(SMirDropStmt { var: old, ty: elem.clone(), span }.into());
+                    mir_value = SMirLocal { var: tmp, ty: elem, moved: false }.into();
+                }
+            }
+        }
         stmts.push(SMirIndexAssignStmt {
             object: object.lower_to_mir(&self.moved),
             index: index.lower_to_mir(&self.moved),
@@ -209,5 +169,21 @@ impl Ctx {
         }.into());
         stmts.extend(post);
         stmts
+    }
+}
+
+/// 索引赋值的元素类型：`unique [T]` / `ref [T]` / `[T]` / `[T; n]` → T
+fn index_elem_type(ty: &HirType) -> Option<HirType> {
+    let base = match ty {
+        HirType::Unique(i) => i.as_ref(),
+        other => other,
+    };
+    let base = match base {
+        HirType::Ref(i, _) => i.as_ref(),
+        other => other,
+    };
+    match base {
+        HirType::Array(e) | HirType::ArraySized(e, _) => Some((**e).clone()),
+        _ => None,
     }
 }

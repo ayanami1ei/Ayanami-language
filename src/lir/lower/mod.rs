@@ -14,6 +14,7 @@ mod mir_expr;
 mod mir_expr2;
 mod mir_contract;
 mod mir_stmts;
+mod mir_stmts_loops;
 mod mir_ref;
 pub(crate) mod names;
 mod strings;

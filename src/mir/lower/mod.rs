@@ -7,6 +7,7 @@ use crate::mir::mem::*;
 
 
 mod assign;
+mod assign_field;
 mod checks;
 mod control;
 mod ctx;

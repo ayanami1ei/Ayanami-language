@@ -5,13 +5,17 @@ use super::*;
 /// 其次数组字段之后最近的整数字段（如 ArrayList 的 data/len/capability）。
 fn find_len_field(fields: &[(Symbol, HirType)], array_idx: usize) -> Option<usize> {
     let is_int = |t: &HirType| matches!(t, HirType::Int | HirType::IntN { bits: 64, .. });
-    for (i, (n, t)) in fields.iter().enumerate() {
-        if i != array_idx && is_int(t) {
-            let name = n.as_str();
-            if name == "len" || name == "length" || name == "size" || name == "count" {
-                return Some(i);
-            }
-        }
+    let by_names = |names: &[&str]| -> Option<usize> {
+        fields.iter().enumerate().find(|(i, (n, t))| {
+            *i != array_idx && is_int(t) && names.iter().any(|x| n.as_str() == *x)
+        }).map(|(i, _)| i)
+    };
+    // 容量优先：pop/remove 后越界槽仍持有原值（分配时 memset 零初始化，释放安全）
+    if let Some(i) = by_names(&["capability", "capacity", "cap"]) {
+        return Some(i);
+    }
+    if let Some(i) = by_names(&["len", "length", "size", "count"]) {
+        return Some(i);
     }
     let after = array_idx + 1;
     if after < fields.len() && is_int(&fields[after].1) {
@@ -207,5 +211,40 @@ pub(crate) fn emit_drop_value(
             }
         }
         _ => {}
+    }
+}
+
+/// 动态数组按外部计数释放：元素递归 drop + 缓冲释放。
+impl LirNode for SLirDropArray {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "DropArray" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let mut lines = Vec::new();
+        let p = ctx.tmp();
+        lines.push(format!("%c{} = load ptr, ptr %v{}, align 8", p, self.var.0));
+        // 空指针（未分配/已移出）跳过元素循环；free(null) 安全
+        let n = ctx.tmp();
+        lines.push(format!("%c{} = icmp eq ptr %c{}, null", n, p));
+        lines.push(format!("br i1 %c{}, label %L{}skip, label %L{}body", n, n, n));
+        lines.push(format!("L{}body:", n));
+        let c = ctx.tmp();
+        lines.push(format!("%c{} = load i64, ptr %v{}, align 8", c, self.count_var.0));
+        emit_array_elem_drops_dyn(ctx, &format!("%c{}", p), &self.elem_ty, &format!("%c{}", c), &mut lines);
+        lines.push(format!("br label %L{}end", n));
+        lines.push(format!("L{}skip:", n));
+        lines.push(format!("br label %L{}end", n));
+        lines.push(format!("L{}end:", n));
+        lines.push(format!("call void @__ayanami_unique_free(i8* %c{})", p));
+        lines
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    drop_array v{} : {:?} count=v{}", self.var.0, self.elem_ty, self.count_var.0)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(40);
+        put_u32(buf, self.var.0 as u32);
+        put_type(buf, &self.elem_ty);
+        put_u32(buf, self.count_var.0 as u32);
     }
 }

@@ -124,8 +124,8 @@ impl MirStmtNode for SMirReturnStmt { fn span(&self) -> crate::span::Span { self
 }
 
 impl MirStmtNode for SMirIfStmt { fn span(&self) -> crate::span::Span { self.span }
-    fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); for (c, _) in &mut self.elifs { f(c); } }
-    fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.then_block { f(s); } for (_, b) in &mut self.elifs { for s in b { f(s); } } if let Some(b) = &mut self.else_block { for s in b { f(s); } } }
+    fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); for (c, _, _, _) in &mut self.elifs { f(c); } }
+    fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.then_block { f(s); } for (_, pre, post, b) in &mut self.elifs { for s in pre { f(s); } for s in post { f(s); } for s in b { f(s); } } if let Some(b) = &mut self.else_block { for s in b { f(s); } } }
     fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
     fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
         let then_lbl = ctx.next_block_label("then");
@@ -150,10 +150,12 @@ impl MirStmtNode for SMirIfStmt { fn span(&self) -> crate::span::Span { self.spa
         self.cond.display(level + 1, w)?;
         writeln!(w, "{:width$}  then:", "", width = level * 2)?;
         write_stmt_block(&self.then_block, level + 1, w)?;
-        for (i, (c, b)) in self.elifs.iter().enumerate() {
+        for (i, (c, pre, post, b)) in self.elifs.iter().enumerate() {
             writeln!(w, "{:width$}  elif[{}]:", "", i, width = level * 2)?;
             writeln!(w, "{:width$}    cond:", "", width = level * 2)?;
             c.display(level + 2, w)?;
+            if !pre.is_empty() { writeln!(w, "{:width$}    pre:", "", width = level * 2)?; write_stmt_block(pre, level + 2, w)?; }
+            if !post.is_empty() { writeln!(w, "{:width$}    post:", "", width = level * 2)?; write_stmt_block(post, level + 2, w)?; }
             write_stmt_block(b, level + 1, w)?;
         }
         if let Some(b) = &self.else_block {
@@ -162,16 +164,16 @@ impl MirStmtNode for SMirIfStmt { fn span(&self) -> crate::span::Span { self.spa
         }
         Ok(())
     }
-    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); for (c, _) in &self.elifs { f(&**c); } }
+    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); for (c, _, _, _) in &self.elifs { f(&**c); } }
     fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) {
         for s in &self.then_block { f(&**s); }
-        for (_, b) in &self.elifs { for s in b { f(&**s); } }
+        for (_, pre, post, b) in &self.elifs { for s in pre { f(&**s); } for s in post { f(&**s); } for s in b { f(&**s); } }
         if let Some(b) = &self.else_block { for s in b { f(&**s); } }
     }    fn as_if(&self) -> Option<IfParts<'_>> { Some((&self.cond, &self.then_block, &self.elifs, &self.else_block)) }
 
 }
 
-pub(super) fn lower_elifs(ctx: &mut dyn LirLowerCtx, elifs: &[(MirNodeBox, Vec<MirStmtBox>)], else_block: &Option<Vec<MirStmtBox>>, merge_lbl: &str) {
+pub(super) fn lower_elifs(ctx: &mut dyn LirLowerCtx, elifs: &[(MirNodeBox, Vec<MirStmtBox>, Vec<MirStmtBox>, Vec<MirStmtBox>)], else_block: &Option<Vec<MirStmtBox>>, merge_lbl: &str) {
     if elifs.is_empty() {
         if let Some(stmts) = else_block {
             for s in stmts { s.lower_to_lir_stmt(ctx); }
@@ -179,54 +181,19 @@ pub(super) fn lower_elifs(ctx: &mut dyn LirLowerCtx, elifs: &[(MirNodeBox, Vec<M
         ctx.emit(SLirBr { label: merge_lbl.to_string() }.into());
         return;
     }
-    let (cond, body) = &elifs[0];
+    let (cond, pre, post, body) = &elifs[0];
     let rest = &elifs[1..];
     let then_lbl = ctx.next_block_label("elif.then");
     let else_lbl = ctx.next_block_label("elif.else");
+    for s in pre { s.lower_to_lir_stmt(ctx); }
     let cond_val = cond.lower_to_lir(ctx);
+    for s in post { s.lower_to_lir_stmt(ctx); }
     ctx.emit(SLirBrCond { cond: cond_val, true_block: then_lbl.clone(), false_block: else_lbl.clone() }.into());
     ctx.set_current_block(then_lbl);
     for s in body { s.lower_to_lir_stmt(ctx); }
     ctx.emit(SLirBr { label: merge_lbl.to_string() }.into());
     ctx.set_current_block(else_lbl);
     lower_elifs(ctx, rest, else_block, merge_lbl);
-}
-
-impl MirStmtNode for SMirWhileStmt { fn span(&self) -> crate::span::Span { self.span }
-    fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); }
-    fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.body { f(s); } }
-    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
-        let cond_lbl = ctx.next_block_label("while.cond");
-        let body_lbl = ctx.next_block_label("while.body");
-        let end_lbl = ctx.next_block_label("while.end");
-
-        let cond_lbl2 = cond_lbl.clone();
-        ctx.loop_stack_mut().push((cond_lbl.clone(), end_lbl.clone()));
-        ctx.emit(SLirBr { label: cond_lbl.clone() }.into());
-
-        ctx.set_current_block(cond_lbl2);
-        let cond_val = self.cond.lower_to_lir(ctx);
-        ctx.emit(SLirBrCond { cond: cond_val, true_block: body_lbl.clone(), false_block: end_lbl.clone() }.into());
-
-        ctx.set_current_block(body_lbl);
-        for s in &self.body { s.lower_to_lir_stmt(ctx); }
-        ctx.emit(SLirBr { label: cond_lbl }.into());
-
-        ctx.loop_stack_mut().pop();
-        ctx.set_current_block(end_lbl);
-    }
-    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
-        writeln!(w, "{:width$}While", "", width = level * 2)?;
-        writeln!(w, "{:width$}  cond:", "", width = level * 2)?;
-        self.cond.display(level + 1, w)?;
-        writeln!(w, "{:width$}  body:", "", width = level * 2)?;
-        write_stmt_block(&self.body, level + 1, w)?;
-        Ok(())
-    }
-    fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); }
-    fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.body { f(&**s); } }    fn as_while(&self) -> Option<WhileParts<'_>> { Some((&self.cond, &self.body)) }
-
 }
 
 impl MirStmtNode for SMirBreakStmt { fn span(&self) -> crate::span::Span { self.span }
@@ -285,16 +252,3 @@ impl MirStmtNode for SMirBlockStmt { fn span(&self) -> crate::span::Span { self.
     fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.stmts { f(&**s); } }    fn as_block(&self) -> Option<&[MirStmtBox]> { Some(&self.stmts) }
 
 }
-
-impl MirStmtNode for SMirDropStmt { fn span(&self) -> crate::span::Span { self.span }
-    fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-    fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx) {
-        ctx.emit(SLirDropValue { var: self.var, ty: self.ty.clone() }.into());
-    }
-    fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
-        writeln!(w, "{:width$}Drop(v{} : {})", "", self.var.0, display_hir_type(&self.ty), width = level * 2)
-    }
-    fn as_drop(&self) -> Option<(VarId, &HirType)> { Some((self.var, &self.ty)) }
-}
-
-

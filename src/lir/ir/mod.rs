@@ -192,6 +192,7 @@ macro_rules! impl_into_lir_node_box {
 }
 
 mod helpers;
+mod helpers_clone;
 mod helpers_drop;
 mod nodes;
 mod nodes_a;
