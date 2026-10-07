@@ -1,0 +1,477 @@
+import "string";
+import "aya_sb";
+import "aya_ast";
+
+// M5a：AST -> LLVM IR 文本（int/bool 子集；bool 用 i64 0/1）
+// 目标：端到端 hello（main 返回/打印整数）。
+pub struct Emitter {
+    StringBuf buf
+    int tmp
+    [String] locals
+    int lv_count
+    int cur_ret_i1
+}
+
+pub namespace Emitter {
+    pub fn new() -> Emitter {
+        e = Emitter { buf = StringBuf::new(), tmp = 0, locals = [String; 512], lv_count = 0, cur_ret_i1 = 0 };
+        return e;
+    }
+}
+
+impl Emitter {
+    fn fresh(ref mut self) -> String {
+        b = StringBuf::new();
+        b.push_str("%t");
+        b.push_int(self.tmp);
+        self.tmp = self.tmp + 1;
+        return b.to_string();
+    }
+
+    fn has_local(ref mut self, ref String name) -> bool {
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    fn declare_local(ref mut self, ref String name) {
+        if self.has_local(name) { return; }
+        if self.lv_count < 512 {
+            self.locals[self.lv_count] = name.copy();
+            self.lv_count = self.lv_count + 1;
+        }
+        self.buf.push_str("  %v_");
+        self.buf.push_str(name);
+        self.buf.push_str(" = alloca i64\n");
+    }
+}
+
+/// LLVM 类型：int/bool -> i64（M5a 简化）
+pub fn llvm_ty(ref Ast ast, int ty) -> String {
+    return "i64";
+}
+
+fn bin_llvm_op(int op) -> String {
+    if op == bo(BinOp::Add._tag) { return "add"; }
+    if op == bo(BinOp::Sub._tag) { return "sub"; }
+    if op == bo(BinOp::Mul._tag) { return "mul"; }
+    if op == bo(BinOp::Div._tag) { return "sdiv"; }
+    if op == bo(BinOp::Mod._tag) { return "srem"; }
+    return "";
+}
+
+fn cmp_llvm_op(int op) -> String {
+    if op == bo(BinOp::Eq._tag) { return "eq"; }
+    if op == bo(BinOp::Neq._tag) { return "ne"; }
+    if op == bo(BinOp::Lt._tag) { return "slt"; }
+    if op == bo(BinOp::Gt._tag) { return "sgt"; }
+    if op == bo(BinOp::Le._tag) { return "sle"; }
+    if op == bo(BinOp::Ge._tag) { return "sge"; }
+    return "";
+}
+
+fn is_cmp(int op) -> bool {
+    if op == bo(BinOp::Eq._tag) { return true; }
+    if op == bo(BinOp::Neq._tag) { return true; }
+    if op == bo(BinOp::Lt._tag) { return true; }
+    if op == bo(BinOp::Gt._tag) { return true; }
+    if op == bo(BinOp::Le._tag) { return true; }
+    if op == bo(BinOp::Ge._tag) { return true; }
+    return false;
+}
+
+fn label(ref mut Emitter e, ref String prefix) -> String {
+    b = StringBuf::new();
+    b.push_str(prefix);
+    b.push_int(e.tmp);
+    e.tmp = e.tmp + 1;
+    return b.to_string();
+}
+
+/// 表达式 -> i64 值文本（常量或 %tN）
+fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> String {
+    if id < 0 { return "0"; }
+    tag = ast.tags[id];
+    if tag == et(ET::Literal._tag) {
+        k = ast.bb[id];
+        if k == lk(LK::Int._tag) {
+            return ast.texts[id].copy();
+        }
+        if k == lk(LK::Bool._tag) {
+            if ast.texts[id] == "true" { return "1"; }
+            return "0";
+        }
+        return "0";
+    }
+    if tag == et(ET::Ident._tag) {
+        e.declare_local(ast.texts[id]);
+        t = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t);
+        e.buf.push_str(" = load i64, ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n");
+        return t;
+    }
+    if tag == et(ET::Binary._tag) {
+        op = ast.tys[id];
+        lt = emit_expr(ast, ast.aa[id], e);
+        rt = emit_expr(ast, ast.bb[id], e);
+        if is_cmp(op) {
+            c = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(c);
+            e.buf.push_str(" = icmp ");
+            e.buf.push_str(cmp_llvm_op(op));
+            e.buf.push_str(" i64 ");
+            e.buf.push_str(lt);
+            e.buf.push_str(", ");
+            e.buf.push_str(rt);
+            e.buf.push_str("\n");
+            z = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(z);
+            e.buf.push_str(" = zext i1 ");
+            e.buf.push_str(c);
+            e.buf.push_str(" to i64\n");
+            return z;
+        }
+        if op == bo(BinOp::And._tag) || op == bo(BinOp::Or._tag) {
+            a = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(a);
+            e.buf.push_str(" = icmp ne i64 ");
+            e.buf.push_str(lt);
+            e.buf.push_str(", 0\n");
+            b2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(b2);
+            e.buf.push_str(" = icmp ne i64 ");
+            e.buf.push_str(rt);
+            e.buf.push_str(", 0\n");
+            c2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(c2);
+            if op == bo(BinOp::And._tag) {
+                e.buf.push_str(" = and i1 ");
+            } else {
+                e.buf.push_str(" = or i1 ");
+            }
+            e.buf.push_str(a);
+            e.buf.push_str(", ");
+            e.buf.push_str(b2);
+            e.buf.push_str("\n");
+            z2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(z2);
+            e.buf.push_str(" = zext i1 ");
+            e.buf.push_str(c2);
+            e.buf.push_str(" to i64\n");
+            return z2;
+        }
+        t2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t2);
+        e.buf.push_str(" = ");
+        e.buf.push_str(bin_llvm_op(op));
+        e.buf.push_str(" i64 ");
+        e.buf.push_str(lt);
+        e.buf.push_str(", ");
+        e.buf.push_str(rt);
+        e.buf.push_str("\n");
+        return t2;
+    }
+    if tag == et(ET::Unary._tag) {
+        at = emit_expr(ast, ast.aa[id], e);
+        op = ast.tys[id];
+        if op == uo(UnOp::Neg._tag) {
+            t3 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t3);
+            e.buf.push_str(" = sub i64 0, ");
+            e.buf.push_str(at);
+            e.buf.push_str("\n");
+            return t3;
+        }
+        if op == uo(UnOp::Not._tag) {
+            a3 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(a3);
+            e.buf.push_str(" = icmp eq i64 ");
+            e.buf.push_str(at);
+            e.buf.push_str(", 0\n");
+            z3 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(z3);
+            e.buf.push_str(" = zext i1 ");
+            e.buf.push_str(a3);
+            e.buf.push_str(" to i64\n");
+            return z3;
+        }
+        return at;
+    }
+    if tag == et(ET::FnCall._tag) {
+        nm = ast.texts[id];
+        if nm == "println" {
+            a = ast.aa[id];
+            if a >= 0 {
+                at = emit_expr(ast, ast.aa[a], e);
+                e.buf.push_str("  call void @__ayanami_print_int(i64 ");
+                e.buf.push_str(at);
+                e.buf.push_str(")\n");
+            }
+            e.buf.push_str("  call void @__ayanami_print_ln()\n");
+            return "0";
+        }
+        b = StringBuf::new();
+        b.push_str("  ");
+        t4 = e.fresh();
+        b.push_str(t4);
+        b.push_str(" = call i64 @");
+        b.push_str(nm);
+        b.push_str("(");
+        first = 1;
+        a2 = ast.aa[id];
+        while a2 >= 0 {
+            at2 = emit_expr(ast, ast.aa[a2], e);
+            if first == 0 { b.push_str(", "); }
+            b.push_str("i64 ");
+            b.push_str(at2);
+            first = 0;
+            a2 = ast.nexts[a2];
+        }
+        b.push_str(")\n");
+        e.buf.push_str(b.to_string());
+        return t4;
+    }
+    if tag == et(ET::MethodCall._tag) {
+        // M5a 不支持方法调用
+        return "0";
+    }
+    return "0";
+}
+
+/// 语句块（不生成新标签；用于函数体）
+fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e) {
+    s = stmts;
+    while s >= 0 {
+        emit_stmt(ast, s, e);
+        s = ast.nexts[s];
+    }
+}
+
+fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
+    tag = ast.tags[id];
+    if tag == st(ST::Assign._tag) {
+        v = emit_expr(ast, ast.aa[id], e);
+        e.declare_local(ast.texts[id]);
+        e.buf.push_str("  store i64 ");
+        e.buf.push_str(v);
+        e.buf.push_str(", ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n");
+    } elif tag == st(ST::Return._tag) {
+        if ast.aa[id] >= 0 {
+            v2 = emit_expr(ast, ast.aa[id], e);
+            e.buf.push_str("  ret i64 ");
+            e.buf.push_str(v2);
+            e.buf.push_str("\n");
+        } else {
+            e.buf.push_str("  ret i64 0\n");
+        }
+    } elif tag == st(ST::ExprStmt._tag) {
+        emit_expr(ast, ast.aa[id], e);
+    } elif tag == st(ST::If._tag) {
+        c = emit_expr(ast, ast.aa[id], e);
+        then_l = label(e, "if.then.");
+        else_l = label(e, "if.else.");
+        end_l = label(e, "if.end.");
+        cc = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(cc);
+        e.buf.push_str(" = icmp ne i64 ");
+        e.buf.push_str(c);
+        e.buf.push_str(", 0\n");
+        e.buf.push_str("  br i1 ");
+        e.buf.push_str(cc);
+        e.buf.push_str(", label %");
+        e.buf.push_str(then_l);
+        e.buf.push_str(", label %");
+        e.buf.push_str(else_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(then_l);
+        e.buf.push_str(":\n");
+        emit_stmts(ast, ast.aa[ast.bb[id]], e);
+        e.buf.push_str("  br label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(else_l);
+        e.buf.push_str(":\n");
+        // elif 链简化为：直接展开为嵌套 if（M5a 只处理 else 块）
+        e2 = ast.dd[id];
+        if e2 >= 0 {
+            emit_stmts(ast, ast.aa[e2], e);
+        }
+        e.buf.push_str("  br label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(end_l);
+        e.buf.push_str(":\n");
+    } elif tag == st(ST::While._tag) {
+        cond_l = label(e, "while.cond.");
+        body_l = label(e, "while.body.");
+        end_l = label(e, "while.end.");
+        e.buf.push_str("  br label %");
+        e.buf.push_str(cond_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(cond_l);
+        e.buf.push_str(":\n");
+        c2 = emit_expr(ast, ast.aa[id], e);
+        cc2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(cc2);
+        e.buf.push_str(" = icmp ne i64 ");
+        e.buf.push_str(c2);
+        e.buf.push_str(", 0\n");
+        e.buf.push_str("  br i1 ");
+        e.buf.push_str(cc2);
+        e.buf.push_str(", label %");
+        e.buf.push_str(body_l);
+        e.buf.push_str(", label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(body_l);
+        e.buf.push_str(":\n");
+        emit_stmts(ast, ast.aa[ast.bb[id]], e);
+        e.buf.push_str("  br label %");
+        e.buf.push_str(cond_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(end_l);
+        e.buf.push_str(":\n");
+    } elif tag == st(ST::For._tag) {
+        // for i in (start, end): 展开为 i = start; while i < end { body; i++ }
+        e.declare_local(ast.texts[id]);
+        v = emit_expr(ast, ast.aa[id], e);
+        e.buf.push_str("  store i64 ");
+        e.buf.push_str(v);
+        e.buf.push_str(", ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n");
+        cond_l = label(e, "for.cond.");
+        body_l = label(e, "for.body.");
+        end_l = label(e, "for.end.");
+        e.buf.push_str("  br label %");
+        e.buf.push_str(cond_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(cond_l);
+        e.buf.push_str(":\n");
+        iv = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(iv);
+        e.buf.push_str(" = load i64, ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n");
+        ev = emit_expr(ast, ast.bb[id], e);
+        c3 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c3);
+        e.buf.push_str(" = icmp slt i64 ");
+        e.buf.push_str(iv);
+        e.buf.push_str(", ");
+        e.buf.push_str(ev);
+        e.buf.push_str("\n");
+        e.buf.push_str("  br i1 ");
+        e.buf.push_str(c3);
+        e.buf.push_str(", label %");
+        e.buf.push_str(body_l);
+        e.buf.push_str(", label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(body_l);
+        e.buf.push_str(":\n");
+        emit_stmts(ast, ast.aa[ast.dd[id]], e);
+        iv2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(iv2);
+        e.buf.push_str(" = load i64, ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n");
+        nx = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(nx);
+        e.buf.push_str(" = add i64 ");
+        e.buf.push_str(iv2);
+        e.buf.push_str(", 1\n");
+        e.buf.push_str("  store i64 ");
+        e.buf.push_str(nx);
+        e.buf.push_str(", ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n");
+        e.buf.push_str("  br label %");
+        e.buf.push_str(cond_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(end_l);
+        e.buf.push_str(":\n");
+    }
+}
+
+fn emit_fn(ref Ast ast, int id, ref mut Emitter e) {
+    e.tmp = 0;
+    e.lv_count = 0;
+    name = ast.texts[id];
+    e.buf.push_str("define i64 @");
+    e.buf.push_str(name);
+    e.buf.push_str("(");
+    first = 1;
+    p = ast.aa[id];
+    idx = 0;
+    while p >= 0 {
+        if first == 0 { e.buf.push_str(", "); }
+        e.buf.push_str("i64 %a");
+        e.buf.push_int(idx);
+        first = 0;
+        idx = idx + 1;
+        p = ast.nexts[p];
+    }
+    e.buf.push_str(") {\n");
+    e.buf.push_str("entry:\n");
+    p2 = ast.aa[id];
+    idx2 = 0;
+    while p2 >= 0 {
+        e.buf.push_str("  %v_");
+        e.buf.push_str(ast.texts[p2]);
+        e.buf.push_str(" = alloca i64\n");
+        e.buf.push_str("  store i64 %a");
+        e.buf.push_int(idx2);
+        e.buf.push_str(", ptr %v_");
+        e.buf.push_str(ast.texts[p2]);
+        e.buf.push_str("\n");
+        if e.lv_count < 512 {
+            e.locals[e.lv_count] = ast.texts[p2].copy();
+            e.lv_count = e.lv_count + 1;
+        }
+        idx2 = idx2 + 1;
+        p2 = ast.nexts[p2];
+    }
+    emit_stmts(ast, ast.aa[ast.bb[id]], e);
+    e.buf.push_str("  ret i64 0\n");
+    e.buf.push_str("}\n");
+}
+
+pub fn emit_program(ref Ast ast, int prog) -> String {
+    e = Emitter::new();
+    s = ast.aa[prog];
+    while s >= 0 {
+        if ast.tags[s] == st(ST::FnDecl._tag) {
+            emit_fn(ast, s, e);
+        }
+        s = ast.nexts[s];
+    }
+    // 运行时声明
+    e.buf.push_str("declare void @__ayanami_print_int(i64)\n");
+    e.buf.push_str("declare void @__ayanami_print_ln()\n");
+    return e.buf.to_string();
+}

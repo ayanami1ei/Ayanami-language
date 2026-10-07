@@ -71,6 +71,13 @@ fn entry_matches(ref String data, int start, int end, ref String key) -> bool {
     return data.index((start as usize) + key.len) == '=';
 }
 
+/// 跨模块调用 system 的包装（规避跨模块 extern mangle，issue #160）
+#[alloc]
+#[state]
+pub fn system_cstr([char] cmd) -> int {
+    return system(cmd);
+}
+
 /// 执行 shell 命令；返回退出码（C system 状态 / 256）
 #[alloc]
 #[state]

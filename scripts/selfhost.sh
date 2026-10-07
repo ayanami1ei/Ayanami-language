@@ -10,6 +10,7 @@
 #   ./scripts/selfhost.sh ast [GLOB]      # 语法 golden：与 rust `dump ast` 对比 AST 树
 #   ./scripts/selfhost.sh errs            # 错误定位 golden：与 rust check 的首个错误 line:col 对比
 #   ./scripts/selfhost.sh check           # 类型检查 golden：与 rust check 的诊断（消息+位置）对比
+#   ./scripts/selfhost.sh e2e             # 端到端：自举管线编译 tests/e2e/*.aya 并与 stage-0 对比
 #   ./scripts/selfhost.sh diff [GLOB]    # stage-0/stage-1 差分（stage-1 存在后生效）
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -202,6 +203,31 @@ cmd_check() {
     [[ $fail -eq 0 ]]
 }
 
+cmd_e2e() {
+    local s0; s0=$(stage0)
+    echo "== 构建 stage-0 e2e_run =="
+    run_limited "$s0" run --release "$ROOT/selfhost/tests/e2e_run.aya" >/dev/null 2>&1 || true
+    [[ -x "$ROOT/build/e2e_run" ]] || { echo "e2e_run 构建失败"; exit 6; }
+    local fail=0 total=0
+    shopt -s nullglob
+    for f in "$ROOT"/selfhost/tests/e2e/*.aya; do
+        total=$((total + 1))
+        set +e
+        s0_out=$(run_limited "$s0" run --release "$f" 2>/dev/null); s0_code=$?
+        sh_out=$(run_limited env E2E_FILE="$f" "$ROOT/build/e2e_run" 2>/dev/null); sh_code=$?
+        set -e
+        if [[ "$s0_out" == "$sh_out" && "$s0_code" == "$sh_code" ]]; then
+            echo "E2E OK $(basename "$f") (exit=$sh_code out=${sh_out:-<empty>})"
+        else
+            echo "E2E DIFF $(basename "$f") stage0=$s0_code/${s0_out:-<empty>} ours=$sh_code/${sh_out:-<empty>}"
+            fail=$((fail + 1))
+        fi
+    done
+    shopt -u nullglob
+    echo "e2e: $((total - fail))/$total 一致"
+    [[ $fail -eq 0 ]]
+}
+
 cmd_diff() {
     local pattern="${1:-example/*.aya}"
     if [[ ! -x "$ROOT/selfhost/build/ayanami" ]]; then
@@ -232,6 +258,7 @@ case "${1:-}" in
     ast) shift; cmd_ast "$@" ;;
     errs) shift; cmd_errs "$@" ;;
     check) shift; cmd_check "$@" ;;
+    e2e) shift; cmd_e2e "$@" ;;
     diff) shift; cmd_diff "$@" ;;
     *) sed -n '2,12p' "$0"; exit 1 ;;
 esac

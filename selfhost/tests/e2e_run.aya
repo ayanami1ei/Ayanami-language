@@ -1,0 +1,27 @@
+// M5a 端到端驱动：E2E_FILE=src.aya -> 自举管线（parse/emit llc/gcc）-> 运行目标程序
+import "io";
+import "aya_file";
+import "aya_sys";
+import "aya_parser";
+import "aya_lir";
+
+fn main() -> int {
+    path = env("E2E_FILE");
+    if path.len == 0 { println("usage: E2E_FILE=FILE e2e_run"); return 1 }
+    r = read_file(path);
+    if !r.ok { println("cannot read"); return 2 }
+    p = Parser::new(r.data);
+    prog = p.parse_program();
+    if p.failed == 1 {
+        println("parse error:");
+        println(p.err);
+        return 3;
+    }
+    ir = emit_program(p.ast, prog);
+    w = write_file("/tmp/opencode/e2e_out.ll", ir);
+    if !w { println("cannot write ir"); return 4 }
+    build = "llc -filetype=obj /tmp/opencode/e2e_out.ll -o /tmp/opencode/e2e_out.o && gcc -no-pie /tmp/opencode/e2e_out.o src/runtime.c -lm -o /tmp/opencode/e2e_out";
+    st = system_cstr(to_cstr(build));
+    if st != 0 { println("link failed"); return 5 }
+    return system_cstr(to_cstr("/tmp/opencode/e2e_out")) / 256;
+}

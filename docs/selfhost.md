@@ -174,5 +174,6 @@ M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf�
 | #154 | extern `ref` 参数写不回调用方（临时副本）→ read_file 死循环/内存暴涨 | ✅ 已修复（2026-10-10） |
 | #155 | bool 传 println(int) 生成 i1/i64 非法 IR | ✅ 已修复（2026-10-10） |
 | #156 | 循环重赋值 moved（Fn 值累加器误报） | ✅ 已修复（上游） |
-| #157 | release 优化：extern 调用后 load 被常量折叠（忽略指针写入） | ✅ 已修复（2026-10-11，release 验证 t==r） |
+| #157 | release 优化：extern 调用后 load 被常量折叠（忽略指针写入） | ✅ 已修复（2026-10-11） |
+| #166 | 跨模块调用 extern（数组实参）符号被 mangle（system_arr_char） | 未修；extern 一律模块内包一层（system_cstr） |
 | #122 | 字符串字面量含非 ASCII 生成非法 LLVM 常量 | 未修；单测用 ASCII 片段 |
