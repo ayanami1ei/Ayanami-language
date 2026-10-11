@@ -1,0 +1,1 @@
+returns no value, but `return` has a value of type `int`

@@ -64,7 +64,14 @@ impl crate::hir::lower::Ctx {
         let saved_scopes = std::mem::replace(&mut self.scopes, Vec::new());
         let saved_fn = self.current_fn;
         let saved_env = self.lambda_env.take();
+        // #168：无标注 lambda 的返回类型在 body 降级时尚未知（签名暂为 void）——
+        // 期间 `return <值>` 只登记不校验，推断完成后再按实际返回类型补校验。
+        let ret_annotated = !lambda_ret_unannotated(return_type);
+        let saved_pending = std::mem::replace(&mut self.lambda_ret_pending, !ret_annotated);
+        let saved_ret_checks = std::mem::take(&mut self.pending_ret_checks);
         let mut hir_fn = self.lower_fn(fn_id, name_sym, params, return_type, body, false, false, false, body.span, vec![], vec![], false)?;
+        self.lambda_ret_pending = saved_pending;
+        let ret_checks = std::mem::replace(&mut self.pending_ret_checks, saved_ret_checks);
         // Restore parent function's locals/scope/current_fn（否则后续 return 按 lambda 返回类型转换）
         self.locals = saved_locals;
         self.scopes = saved_scopes;
@@ -81,6 +88,8 @@ impl crate::hir::lower::Ctx {
             hir_fn.return_type = inferred_ret.clone();
             self.fns[fn_id.0].return_type = inferred_ret.clone();
         }
+        // #168：按推断出的返回类型补校验待定 return
+        check_pending_returns(name_sym, &inferred_ret, &ret_checks)?;
         self.lambda_fns.push(hir_fn);
 
         let param_tys: Vec<HirType> = hir_params.iter().map(|(_, t)| t.clone()).collect();

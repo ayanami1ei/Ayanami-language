@@ -87,6 +87,11 @@ pub(crate) struct Ctx {
     pub unsafe_depth: usize,
     /// M5：当前函数是否为 `unsafe fn`（函数体整体处于 unsafe 上下文）
     pub cur_fn_unsafe: bool,
+    /// #168：当前函数返回类型待推断（无标注 lambda）——`return <值>` 暂不校验，
+    /// 推断出返回类型后再按 `pending_ret_checks` 补校验。
+    pub lambda_ret_pending: bool,
+    /// #168：(span, 值类型) —— 待推断期间遇到的带值 `return`
+    pub pending_ret_checks: Vec<(Span, HirType)>,
 }
 
 impl Ctx {
@@ -136,6 +141,8 @@ impl Ctx {
             extern_fn_ids: std::collections::HashSet::new(),
             unsafe_depth: 0,
             cur_fn_unsafe: false,
+            lambda_ret_pending: false,
+            pending_ret_checks: Vec::new(),
         }
     }
 

@@ -209,6 +209,17 @@ pub(crate) fn strip_ownership_ref(ty: &HirType) -> &HirType {
     }
 }
 
+/// lambda 的返回类型是否**没有写标注**（需要从 body 推断）。
+/// 解析器对 `(int x) { ... }` 这类无标注 lambda 填 `Type::Void` 且 span 为默认值，
+/// 与显式写的 `-> void`（span 有效）区分；`Type::Default` 为同一语义的兜底。
+pub(crate) fn lambda_ret_unannotated(ty: &Type) -> bool {
+    match ty {
+        Type::Default => true,
+        Type::Void(s) => *s == crate::span::Span::default(),
+        _ => false,
+    }
+}
+
     /// 推断 HIR 表达式的类型
 pub(crate) fn expr_type(expr: &HirNodeBox) -> HirType {
     expr.expr_type()

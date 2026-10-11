@@ -1,0 +1,11 @@
+// #168：`-> int` 里 `return <void 调用>` —— void 值不能作为非 void 返回值
+fn g() {
+}
+
+fn f() -> int {
+    return g()
+}
+
+fn main() -> int {
+    return f()
+}

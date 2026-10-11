@@ -87,6 +87,36 @@ pub(crate) fn find_return_type(stmts: &[crate::hir::HirStmt]) -> Option<HirType>
     None
 }
 
+/// #168：无标注 lambda 的返回类型推断完成后，校验此前登记的带值 `return`：
+/// 推断结果为 void 时按「void 函数不能返回值」报错；首个返回值若为 void，则后续非 void 返回值也不合法。
+/// （`!` 发散表达式是任意类型的子类型，不在此列。）
+pub(crate) fn check_pending_returns(
+    name: Symbol,
+    inferred_ret: &HirType,
+    checks: &[(Span, HirType)],
+) -> Result<()> {
+    let mut first_void_reported = false;
+    for (span, src_ty) in checks {
+        let src_is_void = matches!(super::strip_ownership_ref(src_ty), HirType::Void);
+        if matches!(inferred_ret, HirType::Void) {
+            if first_void_reported {
+                return Err(Error::Hir(format!(
+                    "function `{}` returns no value, but `return` has a value of type `{}` (at {}:{})",
+                    name, hir_type_display(src_ty), span.start_line, span.start_col
+                )));
+            }
+            first_void_reported = true;
+        } else if src_is_void {
+            return Err(Error::Hir(format!(
+                "function `{}` returns `{}`, but `return` has no value (`{}` call) (at {}:{})",
+                name, hir_type_display(inferred_ret), hir_type_display(src_ty),
+                span.start_line, span.start_col
+            )));
+        }
+    }
+    Ok(())
+}
+
 impl crate::hir::lower::Ctx {
     /// M2：有捕获 lambda → 闭包值（env + vtable + drop glue）。
     pub(crate) fn lower_closure_lambda(
@@ -162,7 +192,14 @@ impl crate::hir::lower::Ctx {
         let saved_scopes = std::mem::replace(&mut self.scopes, Vec::new());
         let saved_fn = self.current_fn;
         let saved_env = self.lambda_env.replace(lambda_env);
+        // #168：无标注 lambda 的返回类型在 body 降级时尚未知（签名暂为 void）——
+        // 期间 `return <值>` 只登记不校验，推断完成后再按实际返回类型补校验。
+        let ret_annotated = !lambda_ret_unannotated(return_type);
+        let saved_pending = std::mem::replace(&mut self.lambda_ret_pending, !ret_annotated);
+        let saved_ret_checks = std::mem::take(&mut self.pending_ret_checks);
         let mut code_hir = self.lower_fn(code_fn_id, name_sym, &code_params, return_type, body, false, false, false, body.span, vec![], vec![], false)?;
+        self.lambda_ret_pending = saved_pending;
+        let ret_checks = std::mem::replace(&mut self.pending_ret_checks, saved_ret_checks);
         self.locals = saved_locals;
         self.scopes = saved_scopes;
         self.current_fn = saved_fn;
@@ -177,6 +214,8 @@ impl crate::hir::lower::Ctx {
             code_hir.return_type = inferred_ret.clone();
             self.fns[code_fn_id.0].return_type = inferred_ret.clone();
         }
+        // #168：按推断出的返回类型补校验待定 return（此处才可能判定 void 与非 void 不匹配）
+        check_pending_returns(name_sym, &inferred_ret, &ret_checks)?;
         // M2/FnOnce：体内移出捕获 → FnOnce（调用消费闭包；env 由被调用方释放）
         // 体内移出捕获 → FnOnce（调用方以临时变量持有并在作用域结束释放环境）
         let once = super::closure_checks::find_capture_move_out(&code_hir.body.stmts, VarId(0)).is_some();

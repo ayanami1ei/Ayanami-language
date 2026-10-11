@@ -134,6 +134,34 @@ impl crate::hir::lower::Ctx {
                         let fn_ret = self.fns[self.current_fn.0].return_type.clone();
                         // #119/#120：无载荷变体（Opt::None()）按期望返回类型实例化
                         let expr = self.instantiate_enum_value(expr, &fn_ret)?;
+                        let src_ty = expr_type(&expr);
+                        // #168：void 返回值必须与函数返回类型一致，否则按值返回会读到垃圾值
+                        // （`-> int` 里 `return <void 调用>` / void 函数里 `return 5`）。
+                        // 只看 void 一个方向，避免与 coerce_expr 的包装/解引用规则冲突；`!` 是任意类型子类型。
+                        // 无标注 lambda 的返回类型此时尚未推断（仍显示 void），延后校验。
+                        if self.lambda_ret_pending {
+                            self.pending_ret_checks.push((*span, src_ty.clone()));
+                        } else {
+                            let src_is_never = matches!(strip_ownership_ref(&src_ty), HirType::Never);
+                            if !src_is_never {
+                                let src_is_void = matches!(strip_ownership_ref(&src_ty), HirType::Void);
+                                let ret_is_void = matches!(fn_ret, HirType::Void);
+                                let fn_name = self.fns[self.current_fn.0].name;
+                                if ret_is_void && !src_is_void {
+                                    return Err(Error::Hir(format!(
+                                        "function `{}` returns no value, but `return` has a value of type `{}` (at {}:{})",
+                                        fn_name, hir_type_display(&src_ty), span.start_line, span.start_col
+                                    )));
+                                }
+                                if !ret_is_void && src_is_void {
+                                    return Err(Error::Hir(format!(
+                                        "function `{}` returns `{}`, but `return` has no value (`{}` call) (at {}:{})",
+                                        fn_name, hir_type_display(&fn_ret), hir_type_display(&src_ty),
+                                        span.start_line, span.start_col
+                                    )));
+                                }
+                            }
+                        }
                         let expr = coerce_expr(expr, &fn_ret, span)?;
                         let expr_ty = expr_type(&expr);
                         // 若函数返回 unique T，但表达式是裸 T，自动包装为 ToUnique

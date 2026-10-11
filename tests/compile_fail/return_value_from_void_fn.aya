@@ -1,0 +1,15 @@
+fn f() -> int {
+    return 5
+}
+
+fn g() -> int {
+    return f()
+}
+
+fn h() {
+    return g()
+}
+
+fn main() -> int {
+    return g()
+}
