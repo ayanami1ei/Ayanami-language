@@ -1,8 +1,33 @@
-// Ayanami 自举编译器（stage-1）入口 —— M0：验证可被 stage-0 编译运行
+// Ayanami 自举编译器（stage-1）入口：ayanami <check|build|run> <file.aya>
+//
+// 设计与里程碑见 docs/selfhost.md；driver 实现在 src/driver/build.aya。
 import "io";
+import "aya_cli";
+import "aya_driver";
+
+fn usage_ok(ref Cli c) -> int {
+    c.usage();
+    return 0;
+}
+
+fn usage_unknown(ref Cli c) -> int {
+    raw_error("unknown command: " + c.raw);
+    c.usage();
+    return 2;
+}
+
+// 枚举不做 == 比较（见 docs/selfhost.md §2）：按 Cmd 的整数标签分派
+fn dispatch(ref Cli c) -> int {
+    t = c.kind.tag();
+    if t == Cmd::Check._tag { return cmd_check(c.file); }
+    if t == Cmd::Build._tag { return cmd_build(c.file, c.opts); }
+    if t == Cmd::Run._tag { return cmd_run(c.file, c.opts); }
+    if t == Cmd::Help._tag { return usage_ok(c); }
+    return usage_unknown(c);
+}
 
 fn main() -> int {
-    println("ayanami selfhost (stage-1)");
-    println("usage: ayanami <check|build|run|package> <file.aya>");
-    return 0;
+    a = Args::load();
+    c = Cli::parse(a);
+    return dispatch(c);
 }

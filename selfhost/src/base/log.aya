@@ -52,6 +52,8 @@ pub fn inline_error(ref String msg, int line, int col) {
 }
 
 /// 无位置行的原始错误（消息里已内联位置，如 match 穷尽）
+#[alloc]
+#[state]
 pub fn raw_error(ref String msg) {
     b = StringBuf::new();
     b.push_str("error: ");
@@ -62,6 +64,8 @@ pub fn raw_error(ref String msg) {
     write(2, c, s.len as int);
 }
 
+#[alloc]
+#[state]
 pub fn note(ref String msg) {
     b = StringBuf::new();
     b.push_str("note: ");

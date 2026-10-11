@@ -45,3 +45,10 @@ install/libedit.so.2
 
 # selfhost 知识库索引（生成物）
 tools/kb/index.json
+
+# selfhost：本机 stage-0 沙盒与 golden 工作目录
+selfhost/.stage0/
+selfhost/.work/
+.stage0/
+.work/
+selfhost/build/

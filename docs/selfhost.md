@@ -59,6 +59,36 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
    `type X has no method Y`。遇到「没有该方法」先检查该 impl 全部方法体（尤其私有方法），不要怀疑签名。
 11. 发现 rust/编译器缺陷时用 `gh issue create --repo ayanami1ei/Ayanami-language --label bug --label type::bug --label selfhost` 提 issue（附最小复现），
    并在 bd 里记录 issue 链接（bead 描述）。已提：#72 泛型 impl 错误被吞、#73 lcl 不消耗数组实参、#74 重复 import std。
+12. **`ref String` 形参直接存入结构体字段会双重释放**（实测：`fn f(ref String s) -> H { return H { raw = s }; }`
+    调用后 `free(): double free detected`；局部变量直接放字段正常，加 `.copy()` 正常）。
+    回归用例 `tests/ownership_field_test.aya`；规则：**把 ref 形参放进拥有字段/返回值，一律显式 `.copy()`**。
+13. **枚举不做 `==` 比较**（`eq(Cmd, Cmd)` 无重载）；用 `x._tag` / 自定义 `tag()` 做整数分派，
+    `match` 只用于字符串/整数。
+14. **namespace 内的函数互相调用要写全限定名**（`Path::last_sep(s)`），裸名报 `undefined function`；
+    `log::raw_error` 这种「模块别名当命名空间」的写法不成立——`import "aya_log"` 后直接用 `raw_error(...)`。
+15. **`[T]` 数组元素是拥有值**：`String` 元素直接放进结构体字段同样要 `.copy()`（同坑 12）。
+
+### 2.2 本机 stage-0 与 golden 环路（可复现）
+
+```bash
+./scripts/selfhost-stage0.sh init    # 建立 selfhost/.stage0/{bin/ayanami,bin/llc,runtime.c,std}
+./scripts/selfhost.sh stage0         # 打印实际使用的 stage-0
+./scripts/selfhost.sh test           # M1 base 自测（10 个）
+./scripts/selfhost.sh tokens         # 词法 golden（132 文件）
+./scripts/selfhost.sh ast            # AST golden（5/5）；errs（8/8）；check（29/29）；e2e（13/13）
+./scripts/selfhost.sh cli            # 用 stage-0 构建自举 CLI → selfhost/build/ayanami
+./scripts/selfhost.sh diff [GLOB]    # stage-0 vs stage-1 输出/退出码差分
+```
+
+要点：
+- **安装版编译器**（`~/ayanami/ayanami`）的 `runtime.c` 是转发文件（`#include "../std/runtime.c"`），
+  若 `~/ayanami/std/runtime.c` 缺失则链接失败；`selfhost-stage0.sh init` 生成的沙盒用仓库 `std/runtime.c`
+  绕开该问题，脚本自动用 `AYANAMI_RUNTIME` 指回仓库。
+- 若仓库内已有 `target/release/ayanami`（`cargo build --release`），脚本优先用它（driver 自行定位 `src/runtime.c`），
+  只需补 std 包：`(cd std && AYANAMI_BIN=$PWD/target/release/ayanami ./scripts/build.sh --install $PWD/target/release/std)`。
+- golden 中间产物统一放 `build/`（`AYANAMI_SELFHOST_WORK` 可覆盖），不再依赖 `/tmp/opencode`。
+- 自举源码改完必须 **零 effect 告警**：`python3 scripts/selfhost-annotate.py` 按编译器告警自动补
+  `#[alloc]`/`#[state]`/`#[io]`（幂等，可反复跑至收敛）。
 
 ## 3. 目录结构
 
@@ -66,7 +96,7 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 selfhost/
   README.md            # 快速上手（构建/测试命令）
   src/
-    main.aya           # CLI：check/build/run/package 分派（读 /proc/self/cmdline）
+    main.aya           # CLI 入口：读 /proc/self/cmdline，按 Cmd 标签分派
     base/              # 编译器内部基础库（先于 std 缺失部分）
       file.aya         # 文件读写（extern C）
       sb.aya           # StringBuf
@@ -74,13 +104,15 @@ selfhost/
       intern.aya       # Symbol 驻留（u32）
       log.aya          # 诊断输出（rustc 风格）
       sys.aya          # argv/env/system
+      path.aya         # 路径工具（last_sep/dir/file_name/stem/join）
+      cli.aya          # 子命令 + --std/--runtime/--release 解析
     lexer/             # token.aya / lexer.aya
     ast/               # 节点 enum、打印
     parser/            # 手写递归下降（对齐 rust 版回退解析器）
     hir/               # 降级、类型解析、接口、单态化
-    mir/               # 降级、内存策略、借用检查
-    lir/               # 三地址码 + LLVM IR 文本发射
-    driver/            # llc/gcc 调用、.lcl 包（后期）
+    mir/               # 降级、内存策略、借用检查（未实现，emit 直接从 AST 出）
+    lir/               # LLVM IR 文本发射（emit.aya）
+    driver/            # build.aya：check/build/run 管线 + llc/gcc 调用
   tests/               # 每个模块的 .aya 自测（stage-0 运行，返回非 0 即失败）
   scripts/             # 本目录内辅助脚本（构建/差分测试）
 ```
@@ -102,9 +134,9 @@ selfhost/
 ## 5. 测试策略
 
 1. **单元自测**：`selfhost/tests/*_test.aya` 用 `assert 风格`（返回非 0 报错），由 stage-0 运行；
-   脚本 `scripts/selfhost-test.sh` 编译并执行，失败即退出。
-2. **差分测试**：M5 起对 `example/` 与 `tests/positive` 同跑 stage-0/stage-1，比较 stdout+退出码；
-   脚本 `scripts/selfhost-diff.sh`。
+    入口 `./scripts/selfhost.sh test`，失败即退出（当前 10 个全过）。
+2. **差分测试**：`./scripts/selfhost.sh diff <glob>` 同跑 stage-0/stage-1，比较 stdout（剔除双方进度行）
+   与退出码；当前 `tests/e2e/*.aya` 13/13 一致。
 3. **IR 快照**：M5 起对同一 .aya 比较两版的 LLVM IR 语义等价（先按文本 diff 报告，人工确认）。
 4. **回归门禁**：在 `selfhost` 分支上不破坏 Rust 主线检查（`./scripts/check_all.sh` 仍须过），
    自举代码不进 Rust 编译单元。
@@ -148,10 +180,17 @@ selfhost/
 | M2 | ✅ 完成 | `lexer/token.aya` + `lexer/lexer.aya`；golden 130 文件零差异 |
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
+| M5 | 🔄 进行中 | M5a-e 端到端：**13/13** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
+
+M5 交付（M5d/M5e）：`src/main.aya` + `base/cli.aya` + `base/path.aya` + `driver/build.aya`。
+stage-1 CLI 现可 `check` / `build` / `run` 单文件程序：parse → check → LLVM IR → `llc` → `gcc`（+ runtime.c）
+→ 运行并透传退出码；`--std DIR` / `--runtime FILE` / `--release` 已解析，默认读 `AYANAMI_STD` / `AYANAMI_RUNTIME`。
+`./scripts/selfhost.sh cli` 构建该 CLI，`./scripts/selfhost.sh diff <glob>` 做 stage-0/stage-1 差分
+（2026-10-11 实测：`tests/e2e/*.aya` 13/13 一致，含退出码）。
 
 M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf）、`base/map.aya`（IntMap[V] 开放寻址）、
 `base/intern.aya`（驻留，内联槽位表）、`base/sys.aya`（argv/env/system）、`base/log.aya`（stderr 诊断）；
-全部 pub 函数带 effect 标注（构建零 warning）；8 个 `tests/base*_test.aya` 在 stage-0 全过。
+全部 pub 函数带 effect 标注（构建零 warning）；10 个 `tests/*_test.aya` 在 stage-0 全过。
 
 过程中发现并提交的编译器缺陷（均附最小复现，见 GitHub issues）：
 

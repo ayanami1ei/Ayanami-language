@@ -122,6 +122,8 @@ pub struct Parser {
 }
 
 pub namespace Parser {
+    #[alloc]
+    #[state]
     pub fn new(ref String src) -> Parser {
         lx = Lexer::new(src);
         t1 = lx.next_token();
@@ -134,6 +136,8 @@ pub namespace Parser {
 
 
 impl Parser {
+    #[alloc]
+    #[state]
     fn advance(ref mut self) {
         self.cur = self.la1;
         self.la1 = self.la2;
@@ -153,11 +157,14 @@ impl Parser {
     /// 记录回溯点：cur 的起始字节 + arena 长度
     /// 注意：lexer 有 2 token 前瞻，pos 已越过 la2，不能直接存 pos；
     /// restore 时从文件头重扫到 cur 起点（O(n)，回溯次数少可接受）
+    #[state]
     fn mark(ref mut self) {
         self.save_byte = self.cur.start;
         self.save_ast_len = self.ast.len;
     }
 
+    #[alloc]
+    #[state]
     fn restore(ref mut self) {
         self.lex.pos = 0;
         self.lex.line = 1;
@@ -198,6 +205,8 @@ impl Parser {
     }
 
     /// 解析泛型参数表 [T: Bound, U, ...]，返回 GenericParam 链；无 [ 时返回 -1
+    #[alloc]
+    #[state]
     fn parse_generics(ref mut self) -> int {
         head = -1;
         if !self.check_delim(D::LBracket._tag) { return -1; }
@@ -223,6 +232,8 @@ impl Parser {
     }
 
     /// 跳过配对的 [ ... ]（cur 必须是 [）
+    #[alloc]
+    #[state]
     fn skip_brackets(ref mut self) {
         depth = 0;
         while !self.at_end() {
@@ -236,6 +247,8 @@ impl Parser {
     }
 
     /// 跳过连续的 #[...] 属性
+    #[alloc]
+    #[state]
     fn skip_attrs(ref mut self) {
         while true {
             if !self.check_op("#") { break; }
@@ -245,6 +258,8 @@ impl Parser {
         }
     }
 
+    #[alloc]
+    #[state]
     fn error_at(ref mut self, ref String msg, int line, int col) {
         if self.failed == 0 {
             self.failed = 1;
@@ -254,6 +269,8 @@ impl Parser {
         }
     }
 
+    #[alloc]
+    #[state]
     fn error(ref mut self, ref String msg) {
         if self.failed == 0 {
             self.failed = 1;
@@ -278,6 +295,8 @@ impl Parser {
         return false;
     }
 
+    #[alloc]
+    #[state]
     fn eat_kw(ref mut self, int kw) -> bool {
         if self.check_kw(kw) {
             self.advance();
@@ -286,6 +305,8 @@ impl Parser {
         return false;
     }
 
+    #[alloc]
+    #[state]
     fn eat_delim(ref mut self, int d) -> bool {
         if self.check_delim(d) {
             self.advance();
@@ -294,6 +315,8 @@ impl Parser {
         return false;
     }
 
+    #[alloc]
+    #[state]
     fn eat_op(ref mut self, ref String op) -> bool {
         if self.check_op(op) {
             self.advance();
@@ -302,18 +325,24 @@ impl Parser {
         return false;
     }
 
+    #[alloc]
+    #[state]
     fn expect_kw(ref mut self, int kw, ref String what) {
         if !self.eat_kw(kw) {
             self.error(what);
         }
     }
 
+    #[alloc]
+    #[state]
     fn expect_delim(ref mut self, int d, ref String what) {
         if !self.eat_delim(d) {
             self.error(what);
         }
     }
 
+    #[alloc]
+    #[state]
     fn expect_ident(ref mut self, ref String what) -> String {
         if self.cur.kind == Tk::Ident._tag {
             s = self.cur.text.copy();
@@ -330,6 +359,8 @@ impl Parser {
 
     // ---------- 类型 ----------
 
+    #[alloc]
+    #[state]
     fn parse_type(ref mut self) -> int {
         self.skip_attrs();
         tag = tt(TT::Default._tag);
@@ -476,6 +507,8 @@ impl Parser {
 
     // ---------- 顶层 ----------
 
+    #[alloc]
+    #[state]
     pub fn parse_program(ref mut self) -> int {
         prog = self.ast.push(st(ST::Program._tag), "", -1, -1, -1, -1, -1, 1, 1);
         head = -1;
@@ -491,6 +524,8 @@ impl Parser {
         return prog;
     }
 
+    #[alloc]
+    #[state]
     fn parse_item(ref mut self) -> int {
         self.skip_attrs();
         pub_seen = self.eat_kw(Kw::Pub._tag);
@@ -567,6 +602,8 @@ impl Parser {
         return -1;
     }
 
+    #[alloc]
+    #[state]
     fn parse_struct(ref mut self) -> int {
         kline = self.cur.line;
         kcol = self.cur.col;
@@ -589,6 +626,8 @@ impl Parser {
         return self.ast.push(st(ST::StructDef._tag), name, -1, head, generics, -1, -1, kline, kcol);
     }
 
+    #[alloc]
+    #[state]
     fn parse_namespace(ref mut self) -> int {
         self.expect_kw(Kw::Namespace._tag, "expected namespace");
         name = self.expect_ident("expected namespace name");
@@ -605,6 +644,8 @@ impl Parser {
         return self.ast.push(st(ST::Namespace._tag), name, -1, head, -1, -1, -1, self.cur.line, self.cur.col);
     }
 
+    #[alloc]
+    #[state]
     fn parse_impl(ref mut self) -> int {
         self.expect_kw(Kw::Impl._tag, "expected impl");
         // impl[T] Type[T] / impl Type
@@ -652,10 +693,14 @@ impl Parser {
         return self.ast.push(st(ST::ImplBlock._tag), tname, -1, head, generics, -1, -1, kline, kcol);
     }
 
+    #[alloc]
+    #[state]
     fn parse_fn(ref mut self) -> int {
         return self.parse_fn_body(1);
     }
 
+    #[alloc]
+    #[state]
     fn parse_fn_body(ref mut self, int with_body) -> int {
         kline = self.cur.line;
         kcol = self.cur.col;
@@ -717,6 +762,8 @@ impl Parser {
         return node;
     }
 
+    #[alloc]
+    #[state]
     fn parse_enum(ref mut self) -> int {
         self.expect_kw(Kw::Enum._tag, "expected enum");
         name = self.expect_ident("expected enum name");
@@ -755,6 +802,8 @@ impl Parser {
         return self.ast.push(st(ST::EnumDef._tag), name, -1, variants, -1, -1, -1, self.cur.line, self.cur.col);
     }
 
+    #[alloc]
+    #[state]
     fn parse_interface(ref mut self) -> int {
         self.expect_kw(Kw::Interface._tag, "expected interface");
         name = self.expect_ident("expected interface name");
@@ -777,6 +826,8 @@ impl Parser {
         return self.ast.push(st(ST::InterfaceDef._tag), name, -1, head, -1, -1, -1, self.cur.line, self.cur.col);
     }
 
+    #[alloc]
+    #[state]
     fn parse_const(ref mut self) -> int {
         self.expect_kw(Kw::Const._tag, "expected const");
         name = self.expect_ident("expected const name");
@@ -791,6 +842,8 @@ impl Parser {
         return self.ast.push(st(ST::ConstDecl._tag), name, ty, val, -1, -1, -1, self.cur.line, self.cur.col);
     }
 
+    #[alloc]
+    #[state]
     fn parse_block(ref mut self) -> int {
         bline = self.cur.line;
         bcol = self.cur.col;
@@ -874,6 +927,8 @@ impl Parser {
         return false;
     }
 
+    #[alloc]
+    #[state]
     fn collect_attrs(ref mut self) -> int {
         n = 0;
         while true {
@@ -886,6 +941,8 @@ impl Parser {
         return n;
     }
 
+    #[alloc]
+    #[state]
     fn parse_stmt(ref mut self) -> int {
         nattrs = self.collect_attrs();
         s = self.parse_stmt_inner();
@@ -897,6 +954,8 @@ impl Parser {
         return s;
     }
 
+    #[alloc]
+    #[state]
     fn parse_stmt_inner(ref mut self) -> int {
         if self.check_kw(Kw::Return._tag) {
             line = self.cur.line;
@@ -997,6 +1056,8 @@ impl Parser {
         return self.ast.push(st(ST::ExprStmt._tag), "", -1, e, -1, -1, -1, line, col);
     }
 
+    #[alloc]
+    #[state]
     fn parse_if_stmt(ref mut self) -> int {
         line = self.cur.line;
         col = self.cur.col;
@@ -1022,6 +1083,7 @@ impl Parser {
 
     // ---------- 表达式（优先级爬升） ----------
 
+    #[alloc]
     fn bin_tag(ref mut self, ref String op) -> int {
         if op == "||" { return bo(BinOp::Or._tag); }
         if op == "&&" { return bo(BinOp::And._tag); }
@@ -1044,6 +1106,7 @@ impl Parser {
         return -1;
     }
 
+    #[alloc]
     fn op_level(ref mut self, ref String op) -> int {
         if op == "||" { return 1; }
         if op == "&&" { return 2; }
@@ -1058,10 +1121,14 @@ impl Parser {
         return 0;
     }
 
+    #[alloc]
+    #[state]
     fn parse_expr(ref mut self) -> int {
         return self.parse_bin(1);
     }
 
+    #[alloc]
+    #[state]
     fn parse_bin(ref mut self, int min_level) -> int {
         lhs = self.parse_unary();
         while self.cur.kind == Tk::Op._tag && self.failed == 0 {
@@ -1078,6 +1145,8 @@ impl Parser {
         return lhs;
     }
 
+    #[alloc]
+    #[state]
     fn apply_cast(ref mut self, int e, int line, int col) -> int {
         while self.check_kw(Kw::As._tag) {
             self.advance();
@@ -1087,6 +1156,8 @@ impl Parser {
         return e;
     }
 
+    #[alloc]
+    #[state]
     fn parse_unary(ref mut self) -> int {
         line = self.cur.line;
         col = self.cur.col;
@@ -1140,6 +1211,8 @@ impl Parser {
         return self.parse_postfix();
     }
 
+    #[alloc]
+    #[state]
     fn parse_postfix(ref mut self) -> int {
         qmark = "?";
         e = self.parse_primary();
@@ -1228,6 +1301,8 @@ impl Parser {
         return e;
     }
 
+    #[alloc]
+    #[state]
     fn parse_args(ref mut self) -> int {
         self.expect_delim(D::LParen._tag, "expected (");
         head = -1;
@@ -1258,6 +1333,8 @@ impl Parser {
     }
 
     /// 解析数字字面量；neg=1 时把负号折进字面量（与 rust 版一致）
+    #[alloc]
+    #[state]
     fn parse_number_literal(ref mut self, int neg, int line, int col) -> int {
         isf = 0;
         if self.cur.kind == Tk::FloatLit._tag { isf = 1; }
@@ -1278,6 +1355,8 @@ impl Parser {
         return lit;
     }
 
+    #[alloc]
+    #[state]
     fn parse_primary(ref mut self) -> int {
         line = self.cur.line;
         col = self.cur.col;
@@ -1441,6 +1520,8 @@ impl Parser {
     }
 
     /// 尝试解析 lambda `(类型 名称, ...) { 体 }`；失败返回 -1（调用方 restore）
+    #[alloc]
+    #[state]
     fn try_parse_lambda(ref mut self, int line, int col) -> int {
         self.advance();
         params = -1;
@@ -1466,6 +1547,8 @@ impl Parser {
     }
 
     /// 解析 match 臂（模式链存 XT::MatchArm，ty=模式种类：0=_, 1=变体, 2=bool, 3=其他）
+    #[alloc]
+    #[state]
     fn parse_match_arms(ref mut self) -> int {
         self.expect_delim(D::LBrace._tag, "expected { in match");
         head = -1;
@@ -1572,6 +1655,8 @@ impl Parser {
         return head;
     }
 
+    #[alloc]
+    #[state]
     fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int {
         bline = self.cur.line;
         bcol = self.cur.col;

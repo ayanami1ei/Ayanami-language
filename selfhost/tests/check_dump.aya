@@ -5,24 +5,18 @@ import "aya_parser";
 import "aya_check";
 
 fn main() -> int {
-    println(0);
     path = env("CHECK_FILE");
-    println(1);
     if path.len == 0 { println("usage: CHECK_FILE=FILE check_dump"); return 1 }
     r = read_file(path);
-    println(2);
     if !r.ok { println("cannot read"); return 2 }
     p = Parser::new(r.data);
-    println(3);
     prog = p.parse_program();
-    println(4);
     if p.failed == 1 {
         println("parse error:");
         println(p.err);
         return 3;
     }
     n = check_program(p.ast, prog, path);
-    println(5);
     if n == 0 {
         b = StringBuf::new();
         b.push_str("check passed: ");

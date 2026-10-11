@@ -165,6 +165,7 @@ pub struct Ast {
 }
 
 pub namespace Ast {
+    #[alloc]
     pub fn new() -> Ast {
         a = Ast {
             tags = [int; 65536],
@@ -185,6 +186,8 @@ pub namespace Ast {
 
 impl Ast {
     /// 追加节点，返回 id；text 会被复制
+    #[alloc]
+    #[state]
     pub fn push(ref mut self, int tag, ref String text, int ty, int a, int b, int c, int d, int line, int col) -> int {
         id = self.len;
         self.tags[id] = tag;
@@ -202,6 +205,7 @@ impl Ast {
     }
 
     /// 在链表尾追加：返回新的链头（head 为 -1 时即新节点）
+    #[state]
     pub fn push_tail(ref mut self, int head, int node) -> int {
         if head < 0 { return node; }
         cur = head;

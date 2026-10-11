@@ -1,12 +1,15 @@
 // M1 总验收（docs/selfhost.md）：读写临时文件 + Map 增删查 + 驻留
 import "io";
 import "aya_file";
+import "aya_sys";
 import "aya_map";
 import "aya_intern";
 
 fn main() -> int {
     // 1. 文件读写
-    path = "/tmp/opencode/selfhost_base_test.txt";
+    dir = env("AYANAMI_SELFHOST_WORK");
+    if dir.len == 0 { dir = "build"; }
+    path = dir + "/selfhost_base_test.txt";
     data = "ayanami selfhost\nline2";
     if !write_file(path, data) { println("fail: write"); return 1 }
     if !file_exists(path) { println("fail: exists"); return 2 }

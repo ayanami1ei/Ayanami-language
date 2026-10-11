@@ -1,12 +1,16 @@
 // M1 base/file 验收：读写/存在性/空文件/覆盖写（不用 std，避免重复 import std 的缺陷）
 import "io";
 import "aya_file";
+import "aya_sys";
 
 fn main() -> int {
-    path = "/tmp/opencode/selfhost_file_test.txt";
+    dir = env("AYANAMI_SELFHOST_WORK");
+    if dir.len == 0 { dir = "build"; }
+    path = dir + "/selfhost_file_test.txt";
+    missing = dir + "/selfhost_missing_xyz.txt";
     data = "hello ayanami\nline2";
 
-    miss = read_file("/tmp/opencode/selfhost_missing_xyz.txt");
+    miss = read_file(missing);
     if miss.ok { println("fail: missing file should be !ok"); return 1 }
 
     if !write_file(path, data) { println("fail: write"); return 2 }

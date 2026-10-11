@@ -1,0 +1,120 @@
+// 编译器内部：命令行参数（CLI 子命令、文件参数与 driver 选项）
+import "string";
+import "aya_sys";
+import "aya_path";
+import "aya_driver";
+
+pub enum Cmd {
+    Check
+    Build
+    Run
+    Help
+    Unknown
+}
+
+impl Cmd {
+    /// 枚举标签（本仓约定：枚举不做 == 比较，用整数标签分派）
+    pub fn tag(ref self) -> int { return self._tag }
+}
+
+pub struct Cli {
+    Cmd kind
+    String file
+    String raw
+    Opts opts
+}
+
+/// 参数扫描器：一次遍历同时得到 driver 选项与源文件
+struct Scan {
+    Opts opts
+    String file
+}
+
+impl Scan {
+    #[alloc]
+    #[state]
+    fn flag(ref mut self, ref String v) {
+        self.opts = Opts {
+            std_dir = v, runtime = self.opts.runtime, release = self.opts.release
+        };
+    }
+
+    #[alloc]
+    #[state]
+    fn rt(ref mut self, ref String v) {
+        self.opts = Opts {
+            std_dir = self.opts.std_dir, runtime = v, release = self.opts.release
+        };
+    }
+
+    #[alloc]
+    #[state]
+    fn rel(ref mut self) {
+        self.opts = Opts {
+            std_dir = self.opts.std_dir, runtime = self.opts.runtime, release = 1
+        };
+    }
+}
+
+pub namespace Cli {
+    /// 解析 `ayanami <check|build|run> [--std DIR] [--runtime FILE] [--release] <file.aya>`
+    #[alloc]
+    #[state]
+    pub fn parse(ref Args a) -> Cli {
+        base = Cli { kind = Cmd::Help, file = String::empty(), raw = String::empty(), opts = Opts::defaults() };
+        if a.len() < 2 {
+            return base;
+        }
+        raw = a.get(1);
+        // 枚举不做 == 比较：用 match 分派
+        return Cli::build(raw, a);
+    }
+
+    #[alloc]
+    #[state]
+    pub fn build(ref String raw, ref Args a) -> Cli {
+        if raw == "check" { return Cli::with_scan(a, Cmd::Check); }
+        if raw == "build" { return Cli::with_scan(a, Cmd::Build); }
+        if raw == "run" { return Cli::with_scan(a, Cmd::Run); }
+        if raw == "help" || raw == "--help" || raw == "-h" {
+            // 注意：argv 元素是 Args 拥有的 String，存入字段必须 copy（见 tests/ownership_field_test.aya）
+            return Cli { kind = Cmd::Help, file = String::empty(), raw = raw.copy(), opts = Opts::defaults() };
+        }
+        return Cli { kind = Cmd::Unknown, file = String::empty(), raw = raw.copy(), opts = Opts::defaults() };
+    }
+
+    fn with_scan(ref Args a, Cmd k) -> Cli {
+        s = Cli::scan(a);
+        return Cli { kind = k, file = s.file, raw = String::empty(), opts = s.opts };
+    }
+
+    /// 扫描 argv[2..]：--std/--runtime 取值，--release 置位，第一个非选项即源文件
+    fn scan(ref Args a) -> Scan {
+        s = Scan { opts = Opts::defaults(), file = String::empty() };
+        i = 2;
+        while i < a.len() {
+            v = a.get(i);
+            if v == "--std" {
+                if i + 1 < a.len() { s.flag(a.get(i + 1)); i = i + 2; } else { i = i + 1; }
+            } elif v == "--runtime" {
+                if i + 1 < a.len() { s.rt(a.get(i + 1)); i = i + 2; } else { i = i + 1; }
+            } elif v == "--release" {
+                s.rel(); i = i + 1;
+            } elif v.starts_with("-") {
+                i = i + 1;
+            } else {
+                if s.file.len == 0 { s.file = v; }
+                i = i + 1;
+            }
+        }
+        return s;
+    }
+}
+
+impl Cli {
+    #[io]
+    #[alloc]
+    pub fn usage(ref self) {
+        println("usage: ayanami <check|build|run> [--std DIR] [--runtime FILE] [--release] <file.aya>");
+    }
+}

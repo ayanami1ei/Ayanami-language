@@ -1,4 +1,5 @@
 // M5a 端到端驱动：E2E_FILE=src.aya -> 自举管线（parse/emit llc/gcc）-> 运行目标程序
+// 中间产物目录：AYANAMI_SELFHOST_WORK（默认 build/），与 scripts/selfhost.sh 的 WORK 一致
 import "io";
 import "aya_file";
 import "aya_sys";
@@ -8,6 +9,11 @@ import "aya_lir";
 fn main() -> int {
     path = env("E2E_FILE");
     if path.len == 0 { println("usage: E2E_FILE=FILE e2e_run"); return 1 }
+    dir = env("AYANAMI_SELFHOST_WORK");
+    if dir.len == 0 { dir = "build"; }
+    ll = dir + "/e2e_out.ll";
+    obj = dir + "/e2e_out.o";
+    exe = dir + "/e2e_out";
     r = read_file(path);
     if !r.ok { println("cannot read"); return 2 }
     p = Parser::new(r.data);
@@ -18,10 +24,10 @@ fn main() -> int {
         return 3;
     }
     ir = emit_program(p.ast, prog);
-    w = write_file("/tmp/opencode/e2e_out.ll", ir);
+    w = write_file(ll, ir);
     if !w { println("cannot write ir"); return 4 }
-    build = "llc -filetype=obj /tmp/opencode/e2e_out.ll -o /tmp/opencode/e2e_out.o && gcc -no-pie /tmp/opencode/e2e_out.o src/runtime.c -lm -o /tmp/opencode/e2e_out";
+    build = "llc -filetype=obj " + ll + " -o " + obj + " && gcc -no-pie " + obj + " src/runtime.c -lm -o " + exe;
     st = system_cstr(to_cstr(build));
     if st != 0 { println("link failed"); return 5 }
-    return system_cstr(to_cstr("/tmp/opencode/e2e_out")) / 256;
+    return system_cstr(to_cstr(exe)) / 256;
 }

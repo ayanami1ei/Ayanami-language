@@ -1,0 +1,28 @@
+// 回归：`ref String` 形参直接存入结构体字段必须拷贝（bd/issue 记录见 docs/selfhost.md §2.1）
+//   反例（不要这样写）：`fn make(ref String s) -> Holder { return Holder { raw = s }; }`
+//   → stage-0 生成双重释放（caller 与 callee 各释放一次），运行期 `free(): double free`
+//   正确写法：字段赋值处显式 `.copy()`
+import "io";
+
+struct Holder {
+    String raw
+}
+
+fn make_copy(ref String cmd) -> Holder {
+    return Holder { raw = cmd.copy() };
+}
+
+fn make_from_local() -> Holder {
+    src = "local";
+    return Holder { raw = src };
+}
+
+fn main() -> int {
+    a = "borrowed";
+    h1 = make_copy(a);
+    if h1.raw != "borrowed" { println("fail: copy field"); return 1 }
+    h2 = make_from_local();
+    if h2.raw != "local" { println("fail: local field"); return 2 }
+    println("ownership_field ok");
+    return 0;
+}

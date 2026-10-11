@@ -1,0 +1,64 @@
+// 编译器内部：路径工具（不 import std 的 fs 包，避免重复 import std 的泛型缺陷）
+import "string";
+import "aya_sb";
+
+pub namespace Path {
+    /// 最后一个 '/' 的下标；没有则 -1（含尾斜杠时返回 len-1，调用方自行 trim 尾斜杠）
+    pub fn last_sep(ref String s) -> int {
+        i = (s.len as int) - 1;
+        while i >= 0 {
+            if s.index(i as usize) == '/' { return i; }
+            i = i - 1;
+        }
+        return -1;
+    }
+
+    /// 路径的目录部分（无 '/' 返回 ""）
+    #[alloc]
+    #[state]
+    pub fn dir(ref String s) -> String {
+        i = Path::last_sep(s);
+        if i <= 0 { return String::empty(); }
+        return s.substring(0 as usize, i as usize);
+    }
+
+    /// 路径的文件名部分（无 '/' 返回原串）
+    #[alloc]
+    #[state]
+    pub fn file_name(ref String s) -> String {
+        i = Path::last_sep(s);
+        if i < 0 { return s.copy(); }
+        return s.substring((i + 1) as usize, s.len);
+    }
+
+    /// 去掉 ".aya" 后缀
+    #[alloc]
+    #[state]
+    pub fn stem(ref String s) -> String {
+        if s.ends_with(".aya") {
+            return s.substring(0 as usize, s.len - 4);
+        }
+        if s.ends_with(".lcl") {
+            return s.substring(0 as usize, s.len - 4);
+        }
+        return s.copy();
+    }
+
+    /// 是否为 .aya 源文件
+    #[alloc]
+    #[state]
+    pub fn is_aya(ref String s) -> bool { return s.ends_with(".aya") }
+
+    /// 拼目录与文件名，避免出现 "//"
+    #[alloc]
+    #[state]
+    pub fn join(ref String dir, ref String name) -> String {
+        b = StringBuf::new();
+        if dir.len > 0 {
+            b.push_str(dir);
+            if !dir.ends_with("/") { b.push('/'); }
+        }
+        b.push_str(name);
+        return b.to_string();
+    }
+}

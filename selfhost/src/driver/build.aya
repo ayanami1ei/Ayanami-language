@@ -1,0 +1,178 @@
+// 自举编译器 driver（M5d）：parse -> check -> emit LLVM -> llc -> gcc 链接 -> 运行
+//
+// 产物约定（与 Rust stage-0 一致）：可执行文件写到 CWD 的 build/<stem>；
+// 中间产物（.ll/.o）写到 AYANAMI_SELFHOST_WORK（默认 build/），供 golden 调试查看。
+import "io";
+import "string";
+import "aya_file";
+import "aya_sys";
+import "aya_sb";
+import "aya_log";
+import "aya_path";
+import "aya_parser";
+import "aya_check";
+import "aya_lir";
+
+/// driver 选项（--std / --runtime / --release）
+pub struct Opts {
+    String std_dir
+    String runtime
+    int release
+}
+
+pub namespace Opts {
+    pub fn defaults() -> Opts {
+        return Opts { std_dir = String::empty(), runtime = String::empty(), release = 0 };
+    }
+}
+
+/// C system() 原始状态 → 程序退出码（异常信号返回 1）
+#[alloc]
+#[state]
+pub fn exit_code(int st) -> int {
+    if st < 0 { return 1; }
+    c = (st / 256) % 256;
+    if (st % 256) != 0 { return 1; }
+    return c;
+}
+
+fn work_dir() -> String {
+    w = env("AYANAMI_SELFHOST_WORK");
+    if w.len == 0 { return "build"; }
+    return w;
+}
+
+fn out_dir() -> String {
+    d = env("AYANAMI_OUT_DIR");
+    if d.len == 0 { return "build"; }
+    return d;
+}
+
+/// 标准库包目录：--std 优先，其次 AYANAMI_STD，再退回仓库 std/
+#[alloc]
+#[state]
+pub fn std_dir(ref Opts o) -> String {
+    if o.std_dir.len > 0 { return o.std_dir; }
+    e = env("AYANAMI_STD");
+    if e.len > 0 { return e; }
+    if file_exists("std/src/std.aya") { return "std"; }
+    if file_exists("std/io.lcl") { return "std"; }
+    return String::empty();
+}
+
+/// 额外链接参数：lib 型 std 包导出 __ayanami_* 符号需要 --whole-archive
+fn link_extra(ref Opts o) -> String {
+    sd = std_dir(o);
+    if sd.len == 0 { return String::empty(); }
+    lib = Path::join(sd, "libstd.a");
+    if file_exists(lib) {
+        return "-Wl,--whole-archive " + lib + " -Wl,--no-whole-archive";
+    }
+    return String::empty();
+}
+
+/// runtime.c 候选：--runtime / AYANAMI_RUNTIME / 仓库根 src/runtime.c
+#[alloc]
+#[state]
+pub fn runtime_c(ref Opts o) -> String {
+    if o.runtime.len > 0 { return o.runtime; }
+    e = env("AYANAMI_RUNTIME");
+    if e.len > 0 { return e; }
+    if file_exists("src/runtime.c") { return "src/runtime.c"; }
+    return String::empty();
+}
+
+/// check：语法 + 类型检查，诊断打到 stderr
+#[io]
+#[alloc]
+#[state]
+pub fn cmd_check(ref String file) -> int {
+    if !Path::is_aya(file) {
+        raw_error("check requires a .aya file");
+        return 1;
+    }
+    r = read_file(file);
+    if !r.ok {
+        raw_error("cannot read " + file);
+        return 1;
+    }
+    p = Parser::new(r.data);
+    prog = p.parse_program();
+    if p.failed == 1 {
+        raw_error("parse error: " + p.err);
+        return 1;
+    }
+    n = check_program(p.ast, prog, file);
+    if n > 0 {
+        raw_error("check failed: " + file);
+        return 1;
+    }
+    println("check passed: " + file);
+    return 0;
+}
+
+/// build：check → LLVM IR → llc → gcc 链接，输出 build/<stem>
+#[alloc]
+#[state]
+pub fn cmd_build(ref String file, ref Opts o) -> int {
+    if !Path::is_aya(file) {
+        raw_error("build requires a .aya file");
+        return 1;
+    }
+    r = read_file(file);
+    if !r.ok {
+        raw_error("cannot read " + file);
+        return 1;
+    }
+    p = Parser::new(r.data);
+    prog = p.parse_program();
+    if p.failed == 1 {
+        raw_error("parse error: " + p.err);
+        return 1;
+    }
+    n = check_program(p.ast, prog, file);
+    if n > 0 {
+        raw_error("check failed: " + file);
+        return 1;
+    }
+    rt = runtime_c(o);
+    if rt.len == 0 {
+        raw_error("runtime.c not found（用 --runtime 或 AYANAMI_RUNTIME 指定）");
+        return 1;
+    }
+    stem = Path::stem(Path::file_name(file));
+    ir = emit_program(p.ast, prog);
+    w = work_dir();
+    ll = Path::join(w, stem + ".ll");
+    obj = Path::join(w, stem + ".o");
+    exe = Path::join(out_dir(), stem);
+    if !write_file(ll, ir) {
+        raw_error("cannot write " + ll);
+        return 1;
+    }
+    cc = "llc -filetype=obj " + ll + " -o " + obj;
+    st = system_cstr(to_cstr(cc));
+    if st != 0 {
+        raw_error("llc failed: " + ll);
+        return 1;
+    }
+    ld = "gcc -no-pie " + obj + " " + rt + " " + link_extra(o) + " -lm -o " + exe;
+    st2 = system_cstr(to_cstr(ld));
+    if st2 != 0 {
+        raw_error("gcc link failed: " + exe);
+        return 1;
+    }
+    return 0;
+}
+
+/// run：先 build，再执行产物，程序退出码即返回值
+#[alloc]
+#[state]
+pub fn cmd_run(ref String file, ref Opts o) -> int {
+    code = cmd_build(file, o);
+    if code != 0 { return code; }
+    stem = Path::stem(Path::file_name(file));
+    exe = Path::join(out_dir(), stem);
+    st = system_cstr(to_cstr(exe));
+    return exit_code(st);
+}

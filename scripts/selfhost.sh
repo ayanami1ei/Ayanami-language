@@ -11,28 +11,55 @@
 #   ./scripts/selfhost.sh errs            # 错误定位 golden：与 rust check 的首个错误 line:col 对比
 #   ./scripts/selfhost.sh check           # 类型检查 golden：与 rust check 的诊断（消息+位置）对比
 #   ./scripts/selfhost.sh e2e             # 端到端：自举管线编译 tests/e2e/*.aya 并与 stage-0 对比
-#   ./scripts/selfhost.sh diff [GLOB]    # stage-0/stage-1 差分（stage-1 存在后生效）
+#   ./scripts/selfhost.sh cli             # 用 stage-0 构建自举 CLI（selfhost/build/ayanami）
+#   ./scripts/selfhost.sh diff [GLOB]    # stage-0/stage-1 输出与退出码差分
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
+# golden 中间产物目录（build/ 已是 gitignore 的构建目录；可用 AYANAMI_SELFHOST_WORK 覆盖）
+WORK="${AYANAMI_SELFHOST_WORK:-$ROOT/build}"
+mkdir -p "$WORK"
+export AYANAMI_SELFHOST_WORK="$WORK"
+# stage-0 链接用的 runtime：仓库内 src/runtime.c（转发 std/runtime.c），
+# 避免安装版 runtime.c 的 `../std/runtime.c` 相对 include 在 ~/ayanami 下失效
+RUNTIME_C="$ROOT/src/runtime.c"
 
 # 资源隔离：单次调用限时 60s、虚拟内存 2GB（防止死循环/内存暴涨拖垮系统）
 run_limited() {
     ( ulimit -v 2097152 2>/dev/null; timeout 60 "$@" )
 }
 
+# 本机 stage-0 沙盒：`./scripts/selfhost-stage0.sh init`（安装版布局转发到仓库 src/runtime.c）
+LOCAL_STAGE0="$ROOT/selfhost/.stage0/bin/ayanami"
+
 stage0() {
     if [[ -n "${SELFHOST_STAGE0:-}" && -x "$SELFHOST_STAGE0" ]]; then
         echo "$SELFHOST_STAGE0"; return
     fi
+    # 本仓 release 构建（开发态）：driver 自行定位仓库 src/runtime.c
     if [[ -x "$ROOT/target/release/ayanami" ]]; then
         echo "$ROOT/target/release/ayanami"; return
     fi
+    # 工作区本地 stage-0 沙盒（.stage0/bin/{ayanami,llc,std}）
+    if [[ -e "$LOCAL_STAGE0" ]]; then
+        echo "$LOCAL_STAGE0"; return
+    fi
+    # 安装版：runtime.c 的 `../std/runtime.c` 相对 include 需靠 AYANAMI_RUNTIME 指回仓库
     if [[ -x "$HOME/ayanami/ayanami" ]]; then
         echo "$HOME/ayanami/ayanami"; return
     fi
     echo "selfhost: stage-0 不可用（先 ./scripts/selfhost.sh sync 或 SELFHOST_STAGE0=...）" >&2
     exit 3
+}
+
+# 统一入口：解析 stage-0，并保证 runtime 与 bundled llc 可用
+stage0_ready() {
+    local bin; bin=$(stage0)
+    [[ -f "$RUNTIME_C" ]] && export AYANAMI_RUNTIME="$RUNTIME_C"
+    if [[ "$(dirname "$bin")" == "$ROOT/selfhost/.stage0/bin" ]]; then
+        export PATH="$(dirname "$bin"):$PATH"
+    fi
+    echo "$bin"
 }
 
 cmd_sync() {
@@ -66,15 +93,15 @@ cmd_sync() {
 }
 
 cmd_test() {
-    local bin; bin=$(stage0)
+    local bin; bin=$(stage0_ready)
     local fail=0 total=0
     shopt -s nullglob
     for f in "$ROOT"/selfhost/tests/*_test.aya; do
         total=$((total + 1))
-        if run_limited "$bin" run --release "$f" >/tmp/opencode/selfhost_test.out 2>&1; then
+        if run_limited "$bin" run --release "$f" >$WORK/selfhost_test.out 2>&1; then
             echo "PASS $(basename "$f")"
         else
-            echo "FAIL $(basename "$f")"; tail -5 /tmp/opencode/selfhost_test.out || true; fail=$((fail + 1))
+            echo "FAIL $(basename "$f")"; tail -5 $WORK/selfhost_test.out || true; fail=$((fail + 1))
         fi
     done
     shopt -u nullglob
@@ -86,7 +113,7 @@ cmd_test() {
 
 cmd_tokens() {
     local pattern="${1:-example/*.aya}"
-    local s0; s0=$(stage0)
+    local s0; s0=$(stage0_ready)
     local rust_dump="$ROOT/tools/lexdump/target/release/lexdump"
     if [[ ! -x "$rust_dump" ]]; then
         echo "== 构建 lexdump =="
@@ -94,18 +121,18 @@ cmd_tokens() {
     fi
     echo "== 构建 stage-0 lexer_dump（用 run 触发链接）=="
     run_limited "$s0" run --release "$ROOT/selfhost/tests/lexer_dump.aya" >/dev/null 2>&1 || true
-    [[ -x "$ROOT/build/lexer_dump" ]] || { echo "lexer_dump 构建失败"; exit 6; }
+    [[ -x "$WORK/lexer_dump" ]] || { echo "lexer_dump 构建失败"; exit 6; }
     local fail=0 total=0
     shopt -s nullglob
     for f in $pattern; do
         total=$((total + 1))
-        run_limited "$rust_dump" "$f" > /tmp/opencode/tok_rust.txt 2>/dev/null || true
-        run_limited env LEX_FILE="$f" "$ROOT/build/lexer_dump" > /tmp/opencode/tok_aya.txt 2>/dev/null || true
-        if diff -q /tmp/opencode/tok_rust.txt /tmp/opencode/tok_aya.txt >/dev/null; then
+        run_limited "$rust_dump" "$f" > $WORK/tok_rust.txt 2>/dev/null || true
+        run_limited env LEX_FILE="$f" "$WORK/lexer_dump" > $WORK/tok_aya.txt 2>/dev/null || true
+        if diff -q $WORK/tok_rust.txt $WORK/tok_aya.txt >/dev/null; then
             echo "TOKENS OK $(basename "$f")"
         else
             echo "TOKENS DIFF $(basename "$f")"
-            diff /tmp/opencode/tok_rust.txt /tmp/opencode/tok_aya.txt | head -6 || true
+            diff $WORK/tok_rust.txt $WORK/tok_aya.txt | head -6 || true
             fail=$((fail + 1))
         fi
     done
@@ -116,27 +143,27 @@ cmd_tokens() {
 
 cmd_ast() {
     local pattern="${1:-selfhost/tests/parse/*.aya}"
-    local s0; s0=$(stage0)
+    local s0; s0=$(stage0_ready)
     echo "== 构建 stage-0 ast_dump（用 run 触发链接）=="
     run_limited "$s0" run --release "$ROOT/selfhost/tests/ast_dump.aya" >/dev/null 2>&1 || true
-    [[ -x "$ROOT/build/ast_dump" ]] || { echo "ast_dump 构建失败"; exit 6; }
+    [[ -x "$WORK/ast_dump" ]] || { echo "ast_dump 构建失败"; exit 6; }
     local fail=0 total=0
     shopt -s nullglob
     for f in $pattern; do
         total=$((total + 1))
-        run_limited "$s0" dump ast "$f" > /tmp/opencode/ast_rust.txt 2>/dev/null || true
-        run_limited env PARSE_FILE="$f" "$ROOT/build/ast_dump" > /tmp/opencode/ast_aya.txt 2>/dev/null || true
+        run_limited "$s0" dump ast "$f" > $WORK/ast_rust.txt 2>/dev/null || true
+        run_limited env PARSE_FILE="$f" "$WORK/ast_dump" > $WORK/ast_aya.txt 2>/dev/null || true
         # Import 路径依赖解析环境（相对路径/lcl 临时目录），golden 时归一化为占位符
-        sed -i 's|Import { path: .* }|Import { path: <p> }|' /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt
+        sed -i 's|Import { path: .* }|Import { path: <p> }|' $WORK/ast_rust.txt $WORK/ast_aya.txt
         # ConstDecl/StaticDecl 的 rust Debug 含 Span/Symbol 内部信息，归一化为占位符
-        sed -i -E 's|(ConstDecl \{ name: [A-Za-z0-9_]+).*|\1 }|; s|(StaticDecl \{ name: [A-Za-z0-9_]+).*|\1 }|' /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt
+        sed -i -E 's|(ConstDecl \{ name: [A-Za-z0-9_]+).*|\1 }|; s|(StaticDecl \{ name: [A-Za-z0-9_]+).*|\1 }|' $WORK/ast_rust.txt $WORK/ast_aya.txt
         # Lambda 的 rust Debug 含 Span 内部信息，归一化
-        sed -i -E 's|(Lambda\().*|\1...)|' /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt
-        if diff -q /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt >/dev/null; then
+        sed -i -E 's|(Lambda\().*|\1...)|' $WORK/ast_rust.txt $WORK/ast_aya.txt
+        if diff -q $WORK/ast_rust.txt $WORK/ast_aya.txt >/dev/null; then
             echo "AST OK $(basename "$f")"
         else
             echo "AST DIFF $(basename "$f")"
-            diff /tmp/opencode/ast_rust.txt /tmp/opencode/ast_aya.txt | head -8 || true
+            diff $WORK/ast_rust.txt $WORK/ast_aya.txt | head -8 || true
             fail=$((fail + 1))
         fi
     done
@@ -146,16 +173,16 @@ cmd_ast() {
 }
 
 cmd_errs() {
-    local s0; s0=$(stage0)
+    local s0; s0=$(stage0_ready)
     echo "== 构建 stage-0 ast_dump =="
     run_limited "$s0" run --release "$ROOT/selfhost/tests/ast_dump.aya" >/dev/null 2>&1 || true
-    [[ -x "$ROOT/build/ast_dump" ]] || { echo "ast_dump 构建失败"; exit 6; }
+    [[ -x "$WORK/ast_dump" ]] || { echo "ast_dump 构建失败"; exit 6; }
     local fail=0 total=0
     shopt -s nullglob
     for f in "$ROOT"/selfhost/tests/parse_bad/*.aya; do
         total=$((total + 1))
         rp=$(run_limited "$s0" check --release "$f" 2>&1 | grep -oE ':[0-9]+:[0-9]+' | head -1 || true)
-        out=$(run_limited env PARSE_FILE="$f" "$ROOT/build/ast_dump" 2>&1 || true)
+        out=$(run_limited env PARSE_FILE="$f" "$WORK/ast_dump" 2>&1 || true)
         ln=$(printf '%s\n' "$out" | sed -n '3p')
         co=$(printf '%s\n' "$out" | sed -n '4p')
         op=":$ln:$co"
@@ -179,16 +206,16 @@ sig() {
 }
 
 cmd_check() {
-    local s0; s0=$(stage0)
+    local s0; s0=$(stage0_ready)
     echo "== 构建 stage-0 check_dump =="
     run_limited "$s0" run --release "$ROOT/selfhost/tests/check_dump.aya" >/dev/null 2>&1 || true
-    [[ -x "$ROOT/build/check_dump" ]] || { echo "check_dump 构建失败"; exit 6; }
+    [[ -x "$WORK/check_dump" ]] || { echo "check_dump 构建失败"; exit 6; }
     local fail=0 total=0
     shopt -s nullglob
     for f in "$ROOT"/selfhost/tests/typecheck_bad/*.aya "$ROOT"/selfhost/tests/typecheck_ok/*.aya; do
         total=$((total + 1))
         rust_sig=$(run_limited "$s0" check --release "$f" 2>&1 | sig || true)
-        ours_sig=$(run_limited env CHECK_FILE="$f" "$ROOT/build/check_dump" 2>&1 | sig || true)
+        ours_sig=$(run_limited env CHECK_FILE="$f" "$WORK/check_dump" 2>&1 | sig || true)
         if [[ "$rust_sig" == "$ours_sig" ]]; then
             echo "CHECK OK $(basename "$f")"
         else
@@ -204,17 +231,17 @@ cmd_check() {
 }
 
 cmd_e2e() {
-    local s0; s0=$(stage0)
+    local s0; s0=$(stage0_ready)
     echo "== 构建 stage-0 e2e_run =="
     run_limited "$s0" run --release "$ROOT/selfhost/tests/e2e_run.aya" >/dev/null 2>&1 || true
-    [[ -x "$ROOT/build/e2e_run" ]] || { echo "e2e_run 构建失败"; exit 6; }
+    [[ -x "$WORK/e2e_run" ]] || { echo "e2e_run 构建失败"; exit 6; }
     local fail=0 total=0
     shopt -s nullglob
     for f in "$ROOT"/selfhost/tests/e2e/*.aya; do
         total=$((total + 1))
         set +e
         s0_out=$(run_limited "$s0" run --release "$f" 2>/dev/null); s0_code=$?
-        sh_out=$(run_limited env E2E_FILE="$f" "$ROOT/build/e2e_run" 2>/dev/null); sh_code=$?
+        sh_out=$(run_limited env E2E_FILE="$f" "$WORK/e2e_run" 2>/dev/null); sh_code=$?
         set -e
         if [[ "$s0_out" == "$sh_out" && "$s0_code" == "$sh_code" ]]; then
             echo "E2E OK $(basename "$f") (exit=$sh_code out=${sh_out:-<empty>})"
@@ -231,27 +258,57 @@ cmd_e2e() {
 cmd_diff() {
     local pattern="${1:-example/*.aya}"
     if [[ ! -x "$ROOT/selfhost/build/ayanami" ]]; then
-        echo "selfhost: stage-1 未构建（selfhost/build/ayanami），M5 后端到端差分才可用"
+        echo "selfhost: stage-1 未构建（先 ./scripts/selfhost.sh cli）"
         exit 4
     fi
-    local s0 s1 fail=0
-    s0=$(stage0); s1="$ROOT/selfhost/build/ayanami"
+    local s0 s1 fail=0 total=0
+    s0=$(stage0_ready); s1="$ROOT/selfhost/build/ayanami"
+    # stage-1（自举 CLI）需要 std 包做导入解析；stage-0 自带 target/release/std
+    export AYANAMI_STD="${AYANAMI_STD:-$ROOT/target/release/std}"
+    export AYANAMI_SELFHOST_WORK="${AYANAMI_SELFHOST_WORK:-$WORK}"
+    shopt -s nullglob
     for f in $pattern; do
-        "$s0" run "$f" >/tmp/opencode/diff.s0 2>&1 && c0=$? || c0=$?
-        "$s1" run "$f" >/tmp/opencode/diff.s1 2>&1 && c1=$? || c1=$?
-        if [[ $c0 -ne $c1 ]] || ! diff -q <(grep -v '^\s*\(Compiling\|Finished\|Running\)' /tmp/opencode/diff.s0) \
-                                     <(grep -v '^\s*\(Compiling\|Finished\|Running\)' /tmp/opencode/diff.s1) >/dev/null; then
-            echo "DIFF $f (stage0=$c0 stage1=$c1)"; fail=$((fail + 1))
+        total=$((total + 1))
+        "$s0" run "$f" >$WORK/diff.s0 2>&1 || c0=$?
+        c0=${c0:-0}
+        "$s1" run "$f" >$WORK/diff.s1 2>&1 || c1=$?
+        c1=${c1:-0}
+        # 两边都会打印自身进度行，比较时剔除（只留程序输出）；
+        # stage-0 在子进程非 0 退出时还会打印 "error: process didn't exit successfully"，一并剔除
+        NOISE="^[[:space:]]*(Compiling|Checking|Finished|Running|Packaging)|^error: process didn"
+        grep -v -E "$NOISE" $WORK/diff.s0 > $WORK/diff.s0.clean || true
+        grep -v -E "$NOISE" $WORK/diff.s1 > $WORK/diff.s1.clean || true
+        if [[ $c0 -ne $c1 ]] || ! diff -q $WORK/diff.s0.clean $WORK/diff.s1.clean >/dev/null; then
+            echo "DIFF $f (stage0=$c0 stage1=$c1)"
+            diff $WORK/diff.s0.clean $WORK/diff.s1.clean | head -6 || true
+            fail=$((fail + 1))
+        else
+            echo "SAME $f (exit=$c0)"
         fi
+        c0=""; c1=""
     done
-    [[ $fail -eq 0 ]] && echo "diff: 一致" || echo "diff: $fail 处不一致"
+    shopt -u nullglob
+    echo "diff: $((total - fail))/$total 一致（stage-0 vs stage-1）"
     [[ $fail -eq 0 ]]
+}
+
+# 用 stage-0 构建自举 CLI 本体 → selfhost/build/ayanami
+cmd_cli() {
+    local s0; s0=$(stage0_ready)
+    run_limited "$s0" run --release "$ROOT/selfhost/src/main.aya" >"$WORK/cli_build.log" 2>&1 || {
+        echo "stage-1 CLI 构建失败："; tail -5 "$WORK/cli_build.log"; exit 5;
+    }
+    [[ -x "$WORK/main" ]] || { echo "stage-1 CLI 产物缺失（$WORK/main）"; exit 5; }
+    mkdir -p "$ROOT/selfhost/build"
+    cp "$WORK/main" "$ROOT/selfhost/build/ayanami"
+    echo "stage-1 CLI: $ROOT/selfhost/build/ayanami"
+    "$ROOT/selfhost/build/ayanami" help || true
 }
 
 case "${1:-}" in
     sync) cmd_sync ;;
     stage0) stage0 ;;
-    run) shift; bin=$(stage0); exec "$bin" run "$@" ;;
+    run) shift; bin=$(stage0_ready); exec "$bin" run "$@" ;;
     test) cmd_test ;;
     kb) shift; python3 "$ROOT/tools/kb/kb.py" search "$@" ;;
     tokens) shift; cmd_tokens "$@" ;;
@@ -259,6 +316,7 @@ case "${1:-}" in
     errs) shift; cmd_errs "$@" ;;
     check) shift; cmd_check "$@" ;;
     e2e) shift; cmd_e2e "$@" ;;
+    cli) cmd_cli ;;
     diff) shift; cmd_diff "$@" ;;
-    *) sed -n '2,12p' "$0"; exit 1 ;;
+    *) sed -n '2,16p' "$0"; exit 1 ;;
 esac

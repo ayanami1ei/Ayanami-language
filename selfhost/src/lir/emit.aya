@@ -33,6 +33,7 @@ pub struct Emitter {
 }
 
 pub namespace Emitter {
+    #[alloc]
     pub fn new() -> Emitter {
         e = Emitter {
             buf = StringBuf::new(), tmp = 0,
@@ -57,6 +58,8 @@ fn mk_str(ref String ptr, int len) -> Val {
 }
 
 impl Emitter {
+    #[alloc]
+    #[state]
     fn fresh(ref mut self) -> String {
         b = StringBuf::new();
         b.push_str("%t");
@@ -74,6 +77,8 @@ impl Emitter {
         return -1;
     }
 
+    #[alloc]
+    #[state]
     fn declare_local(ref mut self, ref String name, int kind) {
         if self.local_kind(name) >= 0 { return; }
         if self.lv_count < 512 {
@@ -99,6 +104,8 @@ impl Emitter {
     }
 
     /// struct 局部变量的类型名（kind 2 的局部）
+    #[alloc]
+    #[state]
     fn struct_of_local(ref mut self, ref String name) -> String {
         i = 0;
         while i < self.lv_count {
@@ -147,6 +154,8 @@ impl Emitter {
         return -1;
     }
 
+    #[alloc]
+    #[state]
     fn add_struct(ref mut self, ref Ast ast, int id) {
         if self.st_count >= 128 { return; }
         si = self.st_count;
@@ -166,6 +175,8 @@ impl Emitter {
         self.st_count = si + 1;
     }
 
+    #[alloc]
+    #[state]
     fn add_method(ref mut self, ref Ast ast, ref String ty, int fid) {
         if self.m_count >= 256 { return; }
         self.m_ty[self.m_count] = ty.copy();
@@ -174,6 +185,8 @@ impl Emitter {
         self.m_count = self.m_count + 1;
     }
 
+    #[alloc]
+    #[state]
     fn collect_decls(ref mut self, ref Ast ast, int prog) {
         s = ast.aa[prog];
         while s >= 0 {
@@ -193,6 +206,8 @@ impl Emitter {
     }
 
     /// 注册字符串字面量，返回全局名与长度（存入 strs）
+    #[alloc]
+    #[state]
     fn add_str(ref mut self, ref String text) -> int {
         idx = self.str_count;
         if idx < 256 {
@@ -841,6 +856,8 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
     e.buf.push_str("  ret i64 0\n}\n");
 }
 
+#[alloc]
+#[state]
 pub fn emit_program(ref Ast ast, int prog) -> String {
     e = Emitter::new();
     e.collect_decls(ast, prog);
