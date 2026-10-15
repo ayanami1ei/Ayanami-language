@@ -34,25 +34,20 @@ impl Scan {
     #[alloc]
     #[state]
     fn flag(ref mut self, ref String v) {
-        self.opts = Opts {
-            std_dir = v, runtime = self.opts.runtime, release = self.opts.release
-        };
+        // 规避 #171：String 字段读入/重建结构体会触发越界 clone
+        self.opts.std_dir = v.copy();
     }
 
     #[alloc]
     #[state]
     fn rt(ref mut self, ref String v) {
-        self.opts = Opts {
-            std_dir = self.opts.std_dir, runtime = v, release = self.opts.release
-        };
+        self.opts.runtime = v.copy();
     }
 
     #[alloc]
     #[state]
     fn rel(ref mut self) {
-        self.opts = Opts {
-            std_dir = self.opts.std_dir, runtime = self.opts.runtime, release = 1
-        };
+        self.opts.release = 1;
     }
 }
 

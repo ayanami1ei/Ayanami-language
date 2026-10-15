@@ -89,6 +89,11 @@ impl StringBuf {
 
     #[alloc]
     #[state]
+    pub fn truncate(ref mut self, int n) {
+        if n < 0 { return; }
+        if n < self.len { self.len = n; }
+    }
+
     pub fn to_string(ref self) -> String {
         res = [char; self.len];
         for i in (0, self.len) {

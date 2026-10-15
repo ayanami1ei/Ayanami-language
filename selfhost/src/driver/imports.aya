@@ -1,0 +1,270 @@
+// M6e：import 合并 —— 把入口文件与其（递归）依赖合并成单源，
+// 依赖别名来自最近的 ayanami.toml 的 [dependencies] 段。
+// 说明：stage-1 的模块系统是「文本合并」：跳过 import 行，其余按序拼接。
+import "io";
+import "string";
+import "aya_file";
+import "aya_sb";
+import "aya_sys";
+import "aya_path";
+import "aya_log";
+
+pub struct Deps {
+    [String] names
+    [String] paths
+    int count
+}
+
+pub struct Seen {
+    [String] files
+    int count
+}
+
+pub namespace Deps {
+    pub fn new() -> Deps {
+        return Deps { names = [String; 256], paths = [String; 256], count = 0 };
+    }
+}
+
+impl Deps {
+    fn add(ref mut self, ref String name, ref String path) {
+        if self.count >= 256 { return; }
+        self.names[self.count] = name.copy();
+        self.paths[self.count] = path.copy();
+        self.count = self.count + 1;
+    }
+
+    fn path_of(ref self, ref String name) -> String {
+        i = 0;
+        while i < self.count {
+            if self.names[i] == name { return self.paths[i].copy(); }
+            i = i + 1;
+        }
+        return "";
+    }
+}
+
+pub namespace Seen {
+    pub fn new() -> Seen {
+        return Seen { files = [String; 256], count = 0 };
+    }
+}
+
+impl Seen {
+    // 注意：`ref self` 方法不能在 `ref mut` 变量上调用（stage-0 限制，见 issue），
+    // 这里统一用 ref mut self
+    fn has(ref mut self, ref String f) -> bool {
+        i = 0;
+        while i < self.count {
+            if self.files[i] == f { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    fn add(ref mut self, ref String f) {
+        if self.count >= 256 { return; }
+        self.files[self.count] = f.copy();
+        self.count = self.count + 1;
+    }
+}
+
+/// 行首空白数
+fn lead_ws(ref String line) -> int {
+    i = 0;
+    while i < line.len as int {
+        c = char_code(line.index(i as usize));
+        if c != 32 && c != 9 { break; }
+        i = i + 1;
+    }
+    return i;
+}
+
+/// 去掉行首空白
+fn trim_start2(ref String line) -> String {
+    n = lead_ws(line);
+    if n == 0 { return line.copy(); }
+    return line.substring(n as usize, line.len);
+}
+
+/// 去掉行尾空白与 \r
+fn trim_end2(ref String line) -> String {
+    e = line.len as int;
+    while e > 0 {
+        c = char_code(line.index((e - 1) as usize));
+        if c != 32 && c != 9 && c != 13 { break; }
+        e = e - 1;
+    }
+    return line.substring(0 as usize, e as usize);
+}
+
+/// import "alias"; -> alias（否则 ""）
+fn import_alias(ref String line) -> String {
+    t = trim_start2(line);
+    if t.len < 7 { return ""; }
+    if !t.starts_with("import") { return ""; }
+    // 找第一个引号
+    i = 0;
+    q1 = -1;
+    while i < t.len as int {
+        if t.index(i as usize) == '"' {
+            q1 = i;
+            break;
+        }
+        i = i + 1;
+    }
+    if q1 < 0 { return ""; }
+    j = q1 + 1;
+    q2 = -1;
+    while j < t.len as int {
+        if t.index(j as usize) == '"' {
+            q2 = j;
+            break;
+        }
+        j = j + 1;
+    }
+    if q2 < 0 { return ""; }
+    return t.substring((q1 + 1) as usize, q2 as usize);
+}
+
+/// 从 file 所在目录向上找 ayanami.toml（最多 3 层），返回目录（含尾 /）或 ""
+pub fn find_manifest_dir(ref String file) -> String {
+    d = Path::dir(file);
+    if d.len == 0 { d = "."; }
+    if d.len > 0 {
+        if d.index((d.len - 1) as usize) != '/' {
+            d = d + "/";
+        }
+    }
+    up = d;
+    i = 0;
+    while i < 3 {
+        t = up + "ayanami.toml";
+        r = read_file(t);
+        if r.ok { return up; }
+        // 上一级：跳过尾部 '/'，再找上一个 '/'
+        cut = up.len as int - 1;
+        if cut > 0 {
+            if up.index(cut as usize) == '/' {
+                cut = cut - 1;
+            }
+        }
+        while cut > 0 {
+            if up.index(cut as usize) == '/' { break; }
+            cut = cut - 1;
+        }
+        if cut <= 0 { break; }
+        up = up.substring(0 as usize, (cut + 1) as usize);
+        i = i + 1;
+    }
+    return "";
+}
+
+/// 解析 ayanami.toml 的 [dependencies]：name = "path"
+pub fn load_deps(ref String manifest_dir) -> Deps {
+    d = Deps::new();
+    if manifest_dir.len == 0 { return d; }
+    r = read_file(manifest_dir + "ayanami.toml");
+    if !r.ok { return d; }
+    in_deps = 0;
+    start = 0;
+    i = 0;
+    while i <= r.data.len as int {
+        at_end = 0;
+        if i == r.data.len as int { at_end = 1; }
+        is_nl = 0;
+        if at_end == 0 {
+            if char_code(r.data.index(i as usize)) == 10 { is_nl = 1; }
+        }
+        if at_end == 1 || is_nl == 1 {
+            line = r.data.substring(start as usize, i as usize);
+            line = trim_end2(line);
+            t = trim_start2(line);
+            if t.len > 0 {
+                if t.index(0) == '[' {
+                    // [section]
+                    if t.starts_with("[dependencies]") {
+                        in_deps = 1;
+                    } else {
+                        in_deps = 0;
+                    }
+                } elif in_deps == 1 {
+                    // name = "path"
+                    eq = -1;
+                    k = 0;
+                    while k < t.len as int {
+                        if t.index(k as usize) == '=' { eq = k; break; }
+                        k = k + 1;
+                    }
+                    if eq > 0 {
+                        nm = t.substring(0 as usize, eq as usize);
+                        nm = trim_end2(nm);
+                        rest = t.substring((eq + 1) as usize, t.len);
+                        rest = trim_start2(rest);
+                        if rest.len >= 2 {
+                            if rest.index(0) == '"' {
+                                q = rest.len as int - 1;
+                                if rest.index(q as usize) == '"' {
+                                    pv = rest.substring(1 as usize, q as usize);
+                                    d.add(nm, pv);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+    return d;
+}
+
+/// 递归合并：file 的依赖先入，再拼接自身（跳过 import 行）
+#[alloc]
+#[state]
+pub fn collect_file(ref String file, ref Deps deps, ref mut Seen seen, ref mut StringBuf dst, ref String mdir) {
+    if seen.has(file) { return; }
+    seen.add(file);
+    r = read_file(file);
+    if !r.ok { return; }
+    fdir = Path::dir(file);
+    if fdir.len == 0 { fdir = "."; }
+    start = 0;
+    i = 0;
+    while i <= r.data.len as int {
+        at_end = 0;
+        if i == r.data.len as int { at_end = 1; }
+        is_nl = 0;
+        if at_end == 0 {
+            if char_code(r.data.index(i as usize)) == 10 { is_nl = 1; }
+        }
+        if at_end == 1 || is_nl == 1 {
+            line = r.data.substring(start as usize, i as usize);
+            al = import_alias(line);
+            if al.len > 0 {
+                pv = deps.path_of(al);
+                if pv.len > 0 {
+                    collect_file(mdir + pv, deps, seen, dst, mdir);
+                }
+            } else {
+                dst.push_str(line);
+                dst.push('\n');
+            }
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+}
+
+/// 入口：返回合并后的源码（解析失败时返回单文件内容）
+#[alloc]
+#[state]
+pub fn merge_source(ref String file) -> String {
+    mdir = find_manifest_dir(file);
+    deps = load_deps(mdir);
+    seen = Seen::new();
+    dst = StringBuf::new();
+    collect_file(file, deps, seen, dst, mdir);
+    return dst.to_string();
+}

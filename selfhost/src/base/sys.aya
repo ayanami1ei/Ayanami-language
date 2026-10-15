@@ -17,17 +17,16 @@ pub namespace Args {
     pub fn load() -> Args {
         r = read_file("/proc/self/cmdline");
         if !r.ok { return Args { items = [String; 0], count = 0 }; }
-        data = r.data;
         n = 0;
-        for i in (0, data.len) {
-            if data.index(i) == '\0' { n = n + 1; }
+        for i in (0, r.data.len) {
+            if r.data.index(i) == '\0' { n = n + 1; }
         }
         items = [String; n];
         k = 0;
         start = 0 as usize;
-        for i in (0, data.len) {
-            if data.index(i) == '\0' {
-                items[k] = data.substring(start as usize, i);
+        for i in (0, r.data.len) {
+            if r.data.index(i) == '\0' {
+                items[k] = r.data.substring(start as usize, i);
                 k = k + 1;
                 start = i + 1;
             }
@@ -47,16 +46,15 @@ impl Args {
 pub fn env(ref String key) -> String {
     r = read_file("/proc/self/environ");
     if !r.ok { return String::empty(); }
-    data = r.data;
     i = 0;
-    while i < data.len as int {
+    while i < r.data.len as int {
         j = i;
-        while j < data.len as int {
-            if data.index(j as usize) == '\0' { break; }
+        while j < r.data.len as int {
+            if r.data.index(j as usize) == '\0' { break; }
             j = j + 1;
         }
-        if entry_matches(data, i, j, key) {
-            return data.substring((i + (key.len as int) + 1) as usize, j as usize);
+        if entry_matches(r.data, i, j, key) {
+            return r.data.substring((i + (key.len as int) + 1) as usize, j as usize);
         }
         i = j + 1;
     }

@@ -302,6 +302,41 @@ cmd_diff() {
 }
 
 # 用 stage-0 构建自举 CLI 本体 → selfhost/build/ayanami
+cmd_selfcompile() {
+    # M7 固定点：stage-1 编译自身 -> stage-2；stage-2 再编译 -> stage-3；要求字节一致
+    local s0; s0=$(stage0_ready)
+    run_limited "$s0" run --release "$ROOT/selfhost/src/main.aya" >"$WORK/cli_build.log" 2>&1 || {
+        echo "stage-1 构建失败："; tail -5 "$WORK/cli_build.log"; exit 5;
+    }
+    [[ -x "$WORK/main" ]] || { echo "stage-1 产物缺失"; exit 5; }
+    local s1="$WORK/main"
+    mkdir -p "$WORK/fp2" "$WORK/fp3"
+    export AYANAMI_STD="${AYANAMI_STD:-$ROOT/target/release/std}"
+    export AYANAMI_RUNTIME="${AYANAMI_RUNTIME:-$ROOT/src/runtime.c}"
+    echo "== stage-1 编译自身 -> stage-2 =="
+    AYANAMI_SELFHOST_WORK="$WORK/fp2" AYANAMI_OUT_DIR="$WORK/fp2" \
+        run_limited "$s1" build "$ROOT/selfhost/src/main.aya" >"$WORK/fp2.log" 2>&1 || {
+        echo "stage-2 构建失败："; tail -5 "$WORK/fp2.log"; exit 6;
+    }
+    [[ -x "$WORK/fp2/main" ]] || { echo "stage-2 产物缺失"; exit 6; }
+    echo "== stage-2 编译自身 -> stage-3 =="
+    AYANAMI_SELFHOST_WORK="$WORK/fp3" AYANAMI_OUT_DIR="$WORK/fp3" \
+        run_limited "$WORK/fp2/main" build "$ROOT/selfhost/src/main.aya" >"$WORK/fp3.log" 2>&1 || {
+        echo "stage-3 构建失败："; tail -5 "$WORK/fp3.log"; exit 7;
+    }
+    [[ -x "$WORK/fp3/main" ]] || { echo "stage-3 产物缺失"; exit 7; }
+    local m2 m3
+    m2=$(md5sum "$WORK/fp2/main" | cut -d' ' -f1)
+    m3=$(md5sum "$WORK/fp3/main" | cut -d' ' -f1)
+    if [[ "$m2" == "$m3" ]]; then
+        echo "固定点达成：stage-2 == stage-3 (md5=$m2)"
+        cp "$WORK/fp2/main" "$ROOT/selfhost/build/ayanami-stage2"
+        return 0
+    fi
+    echo "固定点失败：stage-2=$m2 stage-3=$m3"
+    return 1
+}
+
 cmd_cli() {
     local s0; s0=$(stage0_ready)
     run_limited "$s0" run --release "$ROOT/selfhost/src/main.aya" >"$WORK/cli_build.log" 2>&1 || {
@@ -326,6 +361,7 @@ case "${1:-}" in
     check) shift; cmd_check "$@" ;;
     e2e) shift; cmd_e2e "$@" ;;
     cli) cmd_cli ;;
+    selfcompile) cmd_selfcompile ;;
     diff) shift; cmd_diff "$@" ;;
     *) sed -n '2,16p' "$0"; exit 1 ;;
 esac

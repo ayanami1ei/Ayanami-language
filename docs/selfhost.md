@@ -78,6 +78,18 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     `etype_of_local`（不做 kind 检查）。
 20. **函数/方法签名要按参数类型传 `ptr`**：枚举/结构体参数在 LLVM 签名里是 `ptr %aN`（不是 `i64`），
     调用点同理；`Emitter` 维护 `fn_pkinds` 签名表（`add_fn_sig` 收集，`fn_param_kind` 查询）。
+21. **Emitter 表容量要留足**：自举合并源有 300+ 函数 / 40k AST 节点 / 1500+ 字符串字面量；
+    fn 表 1024、pkinds 8192、strs 4096、locals 512/函数（超限会静默丢条目 → ABI 错乱）。
+22. **`elem_bytes` 必须与 `elem_stride` 一致**：`[String; n]` 元素 16 字节（ptr+len），
+    曾经 malloc 按 8 字节而 GEP 按 16 字节 → 堆越界 → 大文件解析后 AST 表被踩坏（tags 变指针）。
+23. **char 载入用 `zext i8`**（0-255 码点）；只有 `fgetc` 这类 C `int` 才 `sext i32`。
+    曾经 char 用 sext → UTF-8 字节 ≥128 变负数 → 中文注释把 lexer 带偏。
+24. **alloca 必须前置到 entry 块**：emit 时把局部 alloca 写进 `pre_buf`，函数体收尾时拼回
+    `entry:` 之后，否则分支内声明的局部在支配关系上不合法（llc: instruction does not dominate）。
+25. **`break`/`continue`/`elif`/char 字面量/枚举方法**都要发射：`terminated` 标志避免终结符后继续发指令；
+    枚举接收者（`c.kind.tag()`）走 `find_method_id(枚举名, 方法)`。
+26. **同名局部不同类型**（源码里常见复用）：`declare_local` 按 form（int/ptr/String 双槽）分别分配存储，
+    但源码里最好避免同名跨类型复用。
 
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
@@ -192,7 +204,8 @@ selfhost/
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
 | M5 | 🔄 进行中 | M5a-e 端到端：**17/17** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
-| M6 | 🔄 进行中 | M6a 数组（定长/字面量/重复/索引读写）✅；M6b 枚举 + match（构造/`_tag`/载荷绑定/or 分支/表达式形式）✅，e2e `e_enum`/`e_match` |
+| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并（ayanami.toml + 递归 import）✅ |
+| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（md5 `39d46ae1533fab69931447fccd0d09d4`） |
 
 M6b 交付：`enum` 值表示为 `%enum.E = { i64 tag, i64 payload... }` 堆指针（`Val.kind=4`）；
 `E::V`/`E::V(args)` 构造（parser 产出 `Ident "E.V"`/`FnCall "E.V"`）；`._tag` 取标签；
