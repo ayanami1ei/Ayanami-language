@@ -156,6 +156,20 @@ impl Ctx {
     /// 退出当前作用域（丢弃该层所有变量绑定）
     pub fn pop_scope(&mut self) { self.scopes.pop(); }
 
+    /// M5：当前是否处于 unsafe 上下文（unsafe 块或 unsafe fn 体内）
+    pub fn in_unsafe(&self) -> bool {
+        self.unsafe_depth > 0 || self.cur_fn_unsafe
+    }
+
+    /// M5：要求 unsafe 上下文，否则报错（`what` 为操作描述，如 "read of mutable static `X`"）
+    pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()> {
+        if self.in_unsafe() { return Ok(()); }
+        Err(Error::Hir(format!(
+            "{} requires an `unsafe` block or `unsafe fn` (at {}:{})",
+            what, span.start_line, span.start_col
+        )))
+    }
+
     /// 在当前作用域中绑定变量
     pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool) {
         if let Some(scope) = self.scopes.last_mut() { scope.insert(name, (id, ty, mutable)); }

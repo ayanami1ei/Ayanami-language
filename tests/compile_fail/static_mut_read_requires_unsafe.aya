@@ -1,0 +1,5 @@
+static mut COUNTER = 0
+fn main() -> int {
+    x = COUNTER
+    return x
+}

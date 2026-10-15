@@ -26,7 +26,7 @@ safe 代码的健全性不因 unsafe 存在而削弱（unsafe 块内的违规不
 |---|---|---|
 | inline asm（`asm(...)`） | **P1** | 现无门控 → 纳入 |
 | `unsafe fn` 调用 | **P1** | 新语法，调用点门控 |
-| `static mut` 访问 | P1（联动 #143） | 待门控（std 未使用） |
+| `static mut` 访问（读/写/取引用） | **P1**（联动 #143） | 已门控：读写与 `ref mut` 均需 unsafe |
 | raw pointer 解引用/字段（`*p`） | P2（576.2） | 尚无 `*T` 类型 |
 | 指针 ↔ int cast | P2（联动 #71） | 尚无 |
 | unchecked indexing（`arr.get_unchecked`） | P3（576.3） | 尚无 |
@@ -57,8 +57,8 @@ fn main() -> int {
 ## 4. 语义与检查
 
 - HIR 降级期维护 `unsafe_depth`（块）+ 当前函数 `is_unsafe`；
-- 违规（asm / 调用 unsafe fn）在 safe 上下文报错，带 span；
-- 错误信息：`` `asm` requires an `unsafe` block (at l:c) `` / `` call to `unsafe fn f` requires an `unsafe` block (at l:c) ``；
+- 违规（asm / 调用 unsafe fn / `static mut` 访问）在 safe 上下文报错，带 span；
+- 错误信息：`` `asm` requires an `unsafe` block (at l:c) `` / `` call to `unsafe fn f` requires an `unsafe` block (at l:c) `` / `` read of mutable static `X` requires an `unsafe` block ``；
 - `.lcl` 导出（formatter）保留 `unsafe`（generic source round-trip）；
 - 不改变类型/ABI；`unsafe fn` 与普通 fn 同一调用约定。
 
@@ -66,7 +66,7 @@ fn main() -> int {
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| **P1（576.1）** | `unsafe {}` / `unsafe fn` 语法 + asm / unsafe-call 门控 | 正例：unsafe 内 asm、unsafe fn 调用；负例：safe 中 asm / 调用 unsafe fn 报错；formatter round-trip |
+| **P1（576.1）** | `unsafe {}` / `unsafe fn` 语法 + asm / unsafe-call / `static mut` 门控 | 正例：unsafe 内 asm、unsafe fn 调用、static mut 读写；负例：safe 中 asm / 调用 unsafe fn / static mut 访问报错；formatter round-trip |
 | P2（576.2） | `*T` raw pointer：`Ptr.as_ptr()`、`as *T`、`*p` 解引用与字段、指针↔int | 正/负例 + FFI 数组场景（#166 后续） |
 | P3（576.3） | unchecked indexing、union、reinterpret、volatile | 各自正/负例 |
 | P4 | extern/asm 调用迁移（std 协作，逐步） | std 全部经 unsafe 包装 |
@@ -77,6 +77,8 @@ fn main() -> int {
       - 例：`example/test_unsafe.aya`、`example/test_asm.aya`（已迁移 unsafe）
       - 负例：`tests/compile_fail/asm_requires_unsafe.aya`、`tests/compile_fail/unsafe_call_requires_unsafe.aya`
       - 检查点：`Ctx::unsafe_depth` / `cur_fn_unsafe`；`asm` 在 safe 上下文报错；调用 `unsafe fn` 在 safe 上下文报错
+      - `static mut`（#143）：读、写、`ref mut` 取引用均在 safe 上下文报错（`Ctx::require_unsafe`）；现有 static 用例已迁移 `unsafe` 块
+      - 负例：`tests/compile_fail/static_mut_read_requires_unsafe.aya`、`static_mut_write_requires_unsafe.aya`
       - 跨包：`.lcl` 符号 flags 携带 `unsafe`，导入侧调用点同样门控
 - [ ] P2：`*T` raw pointer 与指针↔int（#71）
 - [ ] P3：unchecked/union/reinterpret/volatile

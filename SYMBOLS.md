@@ -638,11 +638,13 @@ src/hir/lower/ctx.rs:97: impl Ctx
 src/hir/lower/ctx.rs:99: pub fn new() -> Self
 src/hir/lower/ctx.rs:154: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
 src/hir/lower/ctx.rs:157: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:160: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:165: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:173: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:183: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:196: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:160: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:165: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:174: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:179: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:187: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:197: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:210: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
 src/hir/lower/ctx_fields.rs:5: impl Ctx
 src/hir/lower/ctx_fields.rs:7: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
 src/hir/lower/ctx_fields.rs:20: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
@@ -2767,9 +2769,9 @@ example/test_self_type.aya:23: fn combine(ref self, Self other) -> Self { return
 example/test_self_type.aya:26: fn bump[T: Maker](ref T v) -> T { return v.make() }
 example/test_self_type.aya:27: fn merge[T: Maker](ref T a, ref T b) -> T { return a.combine(b) }
 example/test_self_type.aya:29: fn main() -> int
-example/test_static.aya:6: fn bump() -> int
-example/test_static.aya:11: fn inc(ref mut int x) -> int
-example/test_static.aya:20: fn main() -> int
+example/test_static.aya:7: fn bump() -> int
+example/test_static.aya:14: fn inc(ref mut int x) -> int
+example/test_static.aya:23: fn main() -> int
 example/test_static_array.aya:6: fn total(ref [int; 4] t) -> int
 example/test_static_array.aya:14: fn main() -> int
 example/test_static_struct.aya:2: struct Point

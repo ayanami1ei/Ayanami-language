@@ -94,7 +94,7 @@ graph TD
 | noreturn 分支发散 | `mir/lower/checks.rs::block_diverges` | panic 等 `!` 调用分支的移动不合并——隐藏文件参数正常路径正常释放 |
 | void 返回值（#168） | `hir/lower/body/stmt_lower.rs`（`Stmt::Return` 类型一致性）、`mir/lower/ctx.rs::lower_return` | `return <void 调用>` 求值副作用后无值返回（不建临时量 ⇒ 无 `alloca void`）；`-> int` 里返回 void 值 / void 函数里返回值均报错（`!` 发散表达式除外） |
 | 内存运行时 | `src/runtime.c` | `unique_alloc/free` + 存活计数（无 RC/GC） |
-| M5 unsafe 边界 | `parser/parser/stmt.rs`（`unsafe {}` / `unsafe fn`）、`hir/lower/body/stmt_lower.rs`（`unsafe_depth`）、`expr_call.rs`/`expr_misc.rs`（asm 与 unsafe 调用门控） | P1：unsafe 语法 + asm/unsafe-call 门控；设计见 docs/unsafe.md |
+| M5 unsafe 边界 | `parser/parser/stmt.rs`（`unsafe {}` / `unsafe fn`）、`hir/lower/body/stmt_lower.rs`（`unsafe_depth`）、`expr_call.rs`/`expr_misc.rs`/`ctx.rs`（asm、unsafe 调用、static mut 门控） | P1：unsafe 语法 + asm/unsafe-call/`static mut`（读写与 ref mut）门控；设计见 docs/unsafe.md |
 
 ## 3. 标注系统路线（设计见 `docs/annotations.md`）
 

@@ -37,6 +37,8 @@ impl crate::hir::lower::Ctx {
                             name.as_str(), span.start_line, span.start_col
                         )));
                     }
+                    // M5/#143：static mut 写入需 unsafe
+                    self.require_unsafe(&format!("assignment to mutable static `{}`", name.as_str()), span)?;
                     let target: HirNodeBox = SGlobal { name: st.name, ty: st.ty.clone(), mutable: true }.into();
                     let hir_value = self.lower_expr(value)?;
                     let hir_value = coerce_expr(hir_value, &st.ty, span)?;
