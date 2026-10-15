@@ -1713,7 +1713,8 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         return mk_int("0");
     }
     if tag == et(ET::Suffixed._tag) {
-        return mk_int(ast.texts[id].copy());
+        // 后缀字面量（1usize）：取内层数值
+        return emit_expr(ast, ast.aa[id], e);
     }
     if tag == et(ET::Ident._tag) {
         nm = ast.texts[id];

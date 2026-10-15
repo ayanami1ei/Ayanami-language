@@ -300,13 +300,61 @@ fn is_prim_type(ref String t) -> bool {
     return false;
 }
 
-/// 是否可隐式转换（int/float、bool/int 之间不可隐式转换）
+/// 去掉 ref / ref mut 前缀（自动解引用）
+fn strip_ref_ty(ref String t) -> String {
+    if t.starts_with("ref mut ") { return t.substring(8 as usize, t.len); }
+    if t.starts_with("ref ") { return t.substring(4 as usize, t.len); }
+    return t.copy();
+}
+
+/// 是否可隐式转换（int/float、bool/int 之间不可隐式转换；ref T -> T 自动解引用）
 fn convertible(ref String from, ref String to) -> bool {
     if from.len == 0 { return true; }
     if to.len == 0 { return true; }
     if from == to { return true; }
     if from == "!" { return true; }
+    f = strip_ref_ty(from);
+    t = strip_ref_ty(to);
+    if f == t { return true; }
+    // 泛型实参擦除：Box[T] 与 Box 视为同型
+    fb = strip_generic(f);
+    tb = strip_generic(t);
+    if fb == tb { return true; }
+    // 整型族互转
+    if f == "int" && t == "usize" { return true; }
+    if f == "usize" && t == "int" { return true; }
+    // 具体整型 -> int / int -> 具体整型
+    if t == "int" && is_int_ty(f) { return true; }
+    if f == "int" && is_int_ty(t) { return true; }
+    if f == t { return true; }
     return false;
+}
+
+/// 去掉泛型实参后缀（Box[T] -> Box）
+fn strip_generic(ref String t) -> String {
+    i = 0;
+    while i < t.len as int {
+        if t.index(i as usize) == '[' {
+            return t.substring(0 as usize, i as usize);
+        }
+        i = i + 1;
+    }
+    return t.copy();
+}
+
+/// 具体整型名（i8/i16/i32/i64/u8/.../usize）
+fn is_int_ty(ref String t) -> bool {
+    if t == "usize" { return true; }
+    if t.len < 2 { return false; }
+    c0 = t.index(0);
+    if c0 != 'i' && c0 != 'u' { return false; }
+    i = 1;
+    while i < t.len as int {
+        c = t.index(i as usize);
+        if c < '0' || c > '9' { return false; }
+        i = i + 1;
+    }
+    return true;
 }
 
 impl Checker {
