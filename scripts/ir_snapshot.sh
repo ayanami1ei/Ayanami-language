@@ -18,7 +18,7 @@ fail=0
 n=0
 
 sanitize() {
-    sed -e "s#$PWD#<ROOT>#g" -e "s#$HOME#<HOME>#g" -e "s#/tmp/ayanami-dump#<TMP>#g" \
+    sed -e "s#$PWD#<ROOT>#g" -e "s#$HOME#<HOME>#g" -e 's#/tmp/ayanami-dump[^/]*#<TMP>#g' \
         -e 's/Symbol([0-9][0-9]*)/Symbol(N)/g'  # 符号驻留 ID 与文法/解析器实现相关，归一化避免误报
 }
 

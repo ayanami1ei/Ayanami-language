@@ -27,6 +27,7 @@ src/cli/mod.rs:15: pub(crate) mod package_install;
 src/cli/mod.rs:28: pub(crate) struct CliFlags
 src/cli/mod.rs:36: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
 src/cli/mod.rs:51: pub(crate) fn apply_mode(flags: &CliFlags)
+src/cli/mod.rs:61: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
