@@ -3460,6 +3460,51 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
         p2 = ast.nexts[p2];
     }
     emit_stmts(ast, ast.aa[ast.bb[id]], e);
+    // 块尾表达式（无分号的最后表达式）：作为隐式返回值
+    if e.terminated == 0 {
+        body_blk = ast.bb[id];
+        if body_blk >= 0 {
+            tail = ast.bb[body_blk];
+            if tail >= 0 {
+                tv = emit_expr(ast, tail, e);
+                if rkind == 1 {
+                    if tv.kind == 1 {
+                        r0t = e.fresh();
+                        e.buf.push_str("  ");
+                        e.buf.push_str(r0t);
+                        e.buf.push_str(" = insertvalue { ptr, i64 } undef, ptr ");
+                        e.buf.push_str(tv.a);
+                        e.buf.push_str(", 0\n  ");
+                        r1t = e.fresh();
+                        e.buf.push_str(r1t);
+                        e.buf.push_str(" = insertvalue { ptr, i64 } ");
+                        e.buf.push_str(r0t);
+                        e.buf.push_str(", i64 ");
+                        e.buf.push_str(tv.b);
+                        e.buf.push_str(", 1\n  ret { ptr, i64 } ");
+                        e.buf.push_str(r1t);
+                        e.buf.push_str("\n");
+                    } else {
+                        e.buf.push_str("  ret { ptr, i64 } { ptr null, i64 0 }\n");
+                    }
+                } elif tv.kind == 2 || tv.kind == 3 || tv.kind == 4 {
+                    pit = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(pit);
+                    e.buf.push_str(" = ptrtoint ptr ");
+                    e.buf.push_str(tv.a);
+                    e.buf.push_str(" to i64\n  ret i64 ");
+                    e.buf.push_str(pit);
+                    e.buf.push_str("\n");
+                } else {
+                    e.buf.push_str("  ret i64 ");
+                    e.buf.push_str(tv.a);
+                    e.buf.push_str("\n");
+                }
+                e.terminated = 1;
+            }
+        }
+    }
     if rkind == 1 {
         e.buf.push_str("  ret { ptr, i64 } { ptr null, i64 0 }\n}\n");
     } else {

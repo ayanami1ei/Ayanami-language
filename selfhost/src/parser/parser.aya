@@ -903,7 +903,7 @@ impl Parser {
                 if ltag == st(ST::ExprStmt._tag) {
                     tail = self.ast.aa[last];
                 } elif ltag == st(ST::Match._tag) {
-                    tail = self.ast.push(et(ET::Match._tag), "", -1, self.ast.aa[last], -1, -1, -1, self.ast.lines[last], self.ast.cols[last]);
+                    tail = self.ast.push(et(ET::Match._tag), "", -1, self.ast.aa[last], self.ast.bb[last], -1, -1, self.ast.lines[last], self.ast.cols[last]);
                 } elif ltag == st(ST::If._tag) {
                     has_else = 0;
                     if self.ast.dd[last] >= 0 { has_else = 1; }
