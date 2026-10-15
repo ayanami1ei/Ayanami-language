@@ -559,6 +559,7 @@ impl Parser {
                 } else {
                     blk = self.ast.push(st(ST::Block._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
                     self.ast.bb[f] = blk;
+                    self.ast.dd[f] = 1;
                     self.eat_delim(D::Semicolon._tag);
                 }
                 return f;
@@ -1001,7 +1002,7 @@ impl Parser {
             col = self.cur.col;
             self.advance();
             val = -1;
-            if !self.check_delim(D::RBrace._tag) && !self.at_end() {
+            if !self.check_delim(D::RBrace._tag) && !self.check_delim(D::Semicolon._tag) && !self.at_end() {
                 val = self.parse_expr();
             }
             return self.ast.push(st(ST::Return._tag), "", -1, val, -1, -1, -1, line, col);

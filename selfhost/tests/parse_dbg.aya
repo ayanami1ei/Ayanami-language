@@ -1,0 +1,21 @@
+import "io";
+import "aya_file";
+import "aya_parser";
+import "aya_sys";
+
+fn main() -> int {
+    path = env("DBG_FILE");
+    r = read_file(path);
+    if !r.ok { println("cannot read"); return 2 }
+    p = Parser::new(r.data);
+    prog = p.parse_program();
+    println(p.err);
+    println("line=" + int_str(p.err_line) + " col=" + int_str(p.err_col));
+    return p.failed;
+}
+
+fn int_str(int v) -> String {
+    b = StringBuf::new();
+    b.push_int(v);
+    return b.to_string();
+}
