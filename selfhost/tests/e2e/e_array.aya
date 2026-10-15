@@ -1,0 +1,10 @@
+// M6a：数组（[T; n] / 索引写 / 索引读）
+fn main() -> int {
+    xs = [int; 4]
+    xs[0] = 7
+    xs[1] = 8
+    xs[2] = 9
+    xs[3] = 10
+    i = 2
+    return xs[0] + xs[i] + xs[3]
+}

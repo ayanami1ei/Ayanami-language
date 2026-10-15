@@ -1,0 +1,6 @@
+// M6a：数组字面量 + [expr; n] 重复
+fn main() -> int {
+    xs = [5, 6, 7]
+    ys = [2; 3]
+    return xs[0] + xs[2] + ys[0] + ys[2]
+}

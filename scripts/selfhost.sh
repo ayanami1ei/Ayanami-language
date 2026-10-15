@@ -53,6 +53,12 @@ stage0() {
 }
 
 # 统一入口：解析 stage-0，并保证 runtime 与 bundled llc 可用
+# 前端命令（dump/check）用的 stage-0：不导出 AYANAMI_RUNTIME（否则 dump 会尝试重编 std lcl）
+stage0_fe() {
+    local bin; bin=$(stage0)
+    echo "$bin"
+}
+
 stage0_ready() {
     local bin; bin=$(stage0)
     [[ -f "$RUNTIME_C" ]] && export AYANAMI_RUNTIME="$RUNTIME_C"
@@ -144,6 +150,7 @@ cmd_tokens() {
 cmd_ast() {
     local pattern="${1:-selfhost/tests/parse/*.aya}"
     local s0; s0=$(stage0_ready)
+    local s0f; s0f=$(stage0_fe)
     echo "== 构建 stage-0 ast_dump（用 run 触发链接）=="
     run_limited "$s0" run --release "$ROOT/selfhost/tests/ast_dump.aya" >/dev/null 2>&1 || true
     [[ -x "$WORK/ast_dump" ]] || { echo "ast_dump 构建失败"; exit 6; }
@@ -151,7 +158,7 @@ cmd_ast() {
     shopt -s nullglob
     for f in $pattern; do
         total=$((total + 1))
-        run_limited "$s0" dump ast "$f" > $WORK/ast_rust.txt 2>/dev/null || true
+        run_limited "$s0f" dump ast "$f" > $WORK/ast_rust.txt 2>/dev/null || true
         run_limited env PARSE_FILE="$f" "$WORK/ast_dump" > $WORK/ast_aya.txt 2>/dev/null || true
         # Import 路径依赖解析环境（相对路径/lcl 临时目录），golden 时归一化为占位符
         sed -i 's|Import { path: .* }|Import { path: <p> }|' $WORK/ast_rust.txt $WORK/ast_aya.txt
@@ -174,6 +181,7 @@ cmd_ast() {
 
 cmd_errs() {
     local s0; s0=$(stage0_ready)
+    local s0f; s0f=$(stage0_fe)
     echo "== 构建 stage-0 ast_dump =="
     run_limited "$s0" run --release "$ROOT/selfhost/tests/ast_dump.aya" >/dev/null 2>&1 || true
     [[ -x "$WORK/ast_dump" ]] || { echo "ast_dump 构建失败"; exit 6; }
@@ -181,7 +189,7 @@ cmd_errs() {
     shopt -s nullglob
     for f in "$ROOT"/selfhost/tests/parse_bad/*.aya; do
         total=$((total + 1))
-        rp=$(run_limited "$s0" check --release "$f" 2>&1 | grep -oE ':[0-9]+:[0-9]+' | head -1 || true)
+        rp=$(run_limited "$s0f" check --release "$f" 2>&1 | grep -oE ':[0-9]+:[0-9]+' | head -1 || true)
         out=$(run_limited env PARSE_FILE="$f" "$WORK/ast_dump" 2>&1 || true)
         ln=$(printf '%s\n' "$out" | sed -n '3p')
         co=$(printf '%s\n' "$out" | sed -n '4p')
@@ -207,6 +215,7 @@ sig() {
 
 cmd_check() {
     local s0; s0=$(stage0_ready)
+    local s0f; s0f=$(stage0_fe)
     echo "== 构建 stage-0 check_dump =="
     run_limited "$s0" run --release "$ROOT/selfhost/tests/check_dump.aya" >/dev/null 2>&1 || true
     [[ -x "$WORK/check_dump" ]] || { echo "check_dump 构建失败"; exit 6; }
@@ -214,7 +223,7 @@ cmd_check() {
     shopt -s nullglob
     for f in "$ROOT"/selfhost/tests/typecheck_bad/*.aya "$ROOT"/selfhost/tests/typecheck_ok/*.aya; do
         total=$((total + 1))
-        rust_sig=$(run_limited "$s0" check --release "$f" 2>&1 | sig || true)
+        rust_sig=$(run_limited "$s0f" check --release "$f" 2>&1 | sig || true)
         ours_sig=$(run_limited env CHECK_FILE="$f" "$WORK/check_dump" 2>&1 | sig || true)
         if [[ "$rust_sig" == "$ours_sig" ]]; then
             echo "CHECK OK $(basename "$f")"
