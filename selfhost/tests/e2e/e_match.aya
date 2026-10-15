@@ -1,0 +1,23 @@
+enum Shape { Circle(int), Rect(int, int) }
+
+fn area(Shape s) -> int {
+    return match s {
+        Circle(r) => r * r * 3,
+        Rect(w, h) => w * h,
+    }
+}
+
+fn classify(int n) -> int {
+    match n {
+        0 => return 100,
+        1 => return 200,
+        _ => return 300,
+    }
+    return -1
+}
+
+fn main() -> int {
+    a = area(Shape::Circle(5))
+    b = area(Shape::Rect(3, 4))
+    return a + b + classify(0) + classify(7)
+}

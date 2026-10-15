@@ -182,6 +182,11 @@ impl Parser {
         self.err = "";
     }
 
+    fn la1_is_op(ref mut self, ref String op) -> bool {
+        if self.la1.kind == Tk::Op._tag && self.la1.text == op { return true; }
+        return false;
+    }
+
     fn la1_is_delim(ref mut self, int d) -> bool {
         if self.la1.kind == Tk::Delim._tag && self.la1.sub == d { return true; }
         return false;
@@ -781,17 +786,51 @@ impl Parser {
                 self.advance();
                 vn = self.ast.push(xt(XT::EnumVariant._tag), vname, -1, -1, -1, -1, -1, vline, vcol);
                 variants = self.ast.push_tail(variants, vn);
-                if self.check_delim(D::LParen._tag) || self.check_delim(D::LBrace._tag) {
+                if self.check_delim(D::LParen._tag) {
+                    // 记录载荷个数（顶层逗号 + 1；空 () 为 0）
+                    depth = 0;
+                    nfields = 0;
+                    nonempty = 0;
+                    while true {
+                        if self.at_end() { break; }
+                        if self.check_delim(D::LParen._tag) {
+                            depth = depth + 1;
+                            if depth == 1 {
+                                self.advance();
+                                continue;
+                            }
+                        }
+                        if self.check_delim(D::RParen._tag) {
+                            depth = depth - 1;
+                            if depth == 0 {
+                                self.advance();
+                                break;
+                            }
+                        }
+                        if depth == 1 {
+                            if self.check_delim(D::Comma._tag) {
+                                nfields = nfields + 1;
+                            } else {
+                                nonempty = 1;
+                            }
+                        }
+                        self.advance();
+                    }
+                    if nonempty == 1 {
+                        self.ast.tys[vn] = nfields + 1;
+                    } else {
+                        self.ast.tys[vn] = 0;
+                    }
+                } elif self.check_delim(D::LBrace._tag) {
                     depth = 0;
                     while true {
                         if self.at_end() { break; }
                         if depth <= 0 { break; }
-                        if self.check_delim(D::LParen._tag) { depth = depth + 1; }
                         if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
-                        if self.check_delim(D::RParen._tag) { depth = depth - 1; }
                         if self.check_delim(D::RBrace._tag) { depth = depth - 1; }
                         self.advance();
                     }
+                    self.ast.tys[vn] = 1;
                 }
                 self.eat_delim(D::Comma._tag);
             } else {
@@ -1576,8 +1615,12 @@ impl Parser {
                             full = full + part;
                         }
                         pk = 1;
-                        ptext = full;
+                        ptext = full.copy();
                         if self.check_delim(D::LParen._tag) {
+                            // 收集载荷绑定名：Some(v) -> v；A(x, y) -> x,y；字面量跳过
+                            binds = StringBuf::new();
+                            firstb = 1;
+                            eq_pending = 0;
                             depth = 0;
                             while !self.at_end() {
                                 if self.check_delim(D::LParen._tag) { depth = depth + 1; }
@@ -1588,11 +1631,42 @@ impl Parser {
                                         break;
                                     }
                                 }
+                                if self.cur.kind == Tk::Ident._tag {
+                                    bn = self.cur.text.copy();
+                                    if bn != "_" {
+                                        take = 0;
+                                        if eq_pending == 1 {
+                                            take = 1;
+                                            eq_pending = 0;
+                                        } elif !self.la1_is_op("=") {
+                                            take = 1;
+                                        } else {
+                                            eq_pending = 1;
+                                        }
+                                        if take == 1 {
+                                            if firstb == 0 { binds.push(','); }
+                                            binds.push_str(bn);
+                                            firstb = 0;
+                                        }
+                                    }
+                                }
+                                if self.cur.kind == Tk::Op._tag {
+                                    if self.cur.text == "=" {
+                                        eq_pending = 1;
+                                    }
+                                }
                                 self.advance();
+                            }
+                            if firstb == 0 {
+                                ptext = full.copy() + "|";
+                                ptext = ptext + binds.to_string();
                             }
                         } elif self.check_delim(D::LBrace._tag) {
                             // 结构体解构模式 Point { x, y } / Point { x = a }
                             pk = 4;
+                            binds2 = StringBuf::new();
+                            firstb2 = 1;
+                            eq2 = 0;
                             depth = 0;
                             while !self.at_end() {
                                 if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
@@ -1603,7 +1677,35 @@ impl Parser {
                                         break;
                                     }
                                 }
+                                if self.cur.kind == Tk::Ident._tag {
+                                    bn2 = self.cur.text.copy();
+                                    if bn2 != "_" {
+                                        take2 = 0;
+                                        if eq2 == 1 {
+                                            take2 = 1;
+                                            eq2 = 0;
+                                        } elif !self.la1_is_op("=") {
+                                            take2 = 1;
+                                        } else {
+                                            eq2 = 1;
+                                        }
+                                        if take2 == 1 {
+                                            if firstb2 == 0 { binds2.push(','); }
+                                            binds2.push_str(bn2);
+                                            firstb2 = 0;
+                                        }
+                                    }
+                                }
+                                if self.cur.kind == Tk::Op._tag {
+                                    if self.cur.text == "=" {
+                                        eq2 = 1;
+                                    }
+                                }
                                 self.advance();
+                            }
+                            if firstb2 == 0 {
+                                ptext = full.copy() + "|";
+                                ptext = ptext + binds2.to_string();
                             }
                         }
                     }
@@ -1613,12 +1715,13 @@ impl Parser {
                     self.advance();
                 } else {
                     if self.cur.kind == Tk::IntLit._tag || self.cur.kind == Tk::FloatLit._tag || self.cur.kind == Tk::CharLit._tag || self.cur.kind == Tk::StrLit._tag {
+                        ptext = self.cur.text.copy();
                         self.advance();
                     } else {
                         self.parse_expr();
+                        ptext = "?";
                     }
                     pk = 3;
-                    ptext = "?";
                     // 区间模式 0..=100：跳过点号/等号部分
                     if self.check_delim(D::Dot._tag) {
                         while true {

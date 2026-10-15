@@ -33,6 +33,21 @@ pub struct Emitter {
     [String] m_name
     [int] m_id
     int m_count
+    // 枚举表
+    [String] en_names
+    [int] en_vstart
+    [int] en_vcount
+    [String] en_variants
+    [int] en_arity
+    int en_vtotal
+    int en_count
+    // 函数签名表（参数种类：0=int, 20=enum, 100+si=struct）
+    [String] fn_names
+    [int] fn_pstart
+    [int] fn_pcount
+    [int] fn_pkinds
+    int fn_ptotal
+    int fn_count
 }
 
 pub namespace Emitter {
@@ -45,7 +60,11 @@ pub namespace Emitter {
             strs = [String; 256], str_count = 0,
             st_names = [String; 128], st_fstart = [int; 128], st_fcount = [int; 128],
             st_fields = [String; 1024], st_ftotal = 0, st_count = 0,
-            m_ty = [String; 256], m_name = [String; 256], m_id = [int; 256], m_count = 0
+            m_ty = [String; 256], m_name = [String; 256], m_id = [int; 256], m_count = 0,
+            en_names = [String; 128], en_vstart = [int; 128], en_vcount = [int; 128],
+            en_variants = [String; 1024], en_arity = [int; 1024], en_vtotal = 0, en_count = 0,
+            fn_names = [String; 256], fn_pstart = [int; 256], fn_pcount = [int; 256],
+            fn_pkinds = [int; 2048], fn_ptotal = 0, fn_count = 0
         };
         return e;
     }
@@ -110,9 +129,32 @@ impl Emitter {
         }
     }
 
+    #[state]
+    fn record_etype(ref mut self, ref String name, int ety) {
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name {
+                self.local_etypes[i] = ety;
+                return;
+            }
+            i = i + 1;
+        }
+    }
+
     fn elem_of_local(ref mut self, ref String name) -> int {
         if self.local_kind(name) != 10 { return -1; }
         return self.find_elem(name);
+    }
+
+    fn etype_of_local(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name {
+                return self.local_etypes[i];
+            }
+            i = i + 1;
+        }
+        return -1;
     }
 
     #[alloc]
@@ -162,6 +204,21 @@ impl Emitter {
             i = i + 1;
         }
         return "";
+    }
+
+    /// 参数类型种类：0=int/其他, 20=枚举, 100+si=结构体
+    #[alloc]
+    #[state]
+    fn param_kind(ref mut self, ref Ast ast, int p) -> int {
+        pt = ast.tys[p];
+        if pt < 0 { return 0; }
+        if ast.tags[pt] != tt(TT::Named._tag) { return 0; }
+        tn = ast.texts[pt];
+        ei = self.find_enum_idx(tn);
+        if ei >= 0 { return 20; }
+        si = self.find_struct_idx(tn);
+        if si >= 0 { return 100 + si; }
+        return 0;
     }
 
     fn find_struct_idx(ref mut self, ref String name) -> int {
@@ -230,19 +287,127 @@ impl Emitter {
 
     #[alloc]
     #[state]
+    fn find_enum_idx(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.en_count {
+            if self.en_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn find_variant_idx(ref mut self, int ei, ref String vname) -> int {
+        start = self.en_vstart[ei];
+        n = self.en_vcount[ei];
+        i = 0;
+        while i < n {
+            if self.en_variants[start + i] == vname { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn variant_arity(ref mut self, int ei, int vi) -> int {
+        return self.en_arity[self.en_vstart[ei] + vi];
+    }
+
+    fn enum_max_arity(ref mut self, int ei) -> int {
+        start = self.en_vstart[ei];
+        n = self.en_vcount[ei];
+        mx = 0;
+        i = 0;
+        while i < n {
+            if self.en_arity[start + i] > mx { mx = self.en_arity[start + i]; }
+            i = i + 1;
+        }
+        return mx;
+    }
+
+    #[alloc]
+    #[state]
+    fn add_enum(ref mut self, ref Ast ast, int id) {
+        if self.en_count >= 128 { return; }
+        ei = self.en_count;
+        self.en_names[ei] = ast.texts[id].copy();
+        self.en_vstart[ei] = self.en_vtotal;
+        n = 0;
+        v = ast.aa[id];
+        while v >= 0 {
+            if self.en_vtotal < 1024 {
+                self.en_variants[self.en_vtotal] = ast.texts[v].copy();
+                self.en_arity[self.en_vtotal] = ast.tys[v];
+                self.en_vtotal = self.en_vtotal + 1;
+                n = n + 1;
+            }
+            v = ast.nexts[v];
+        }
+        self.en_vcount[ei] = n;
+        self.en_count = ei + 1;
+    }
+
+    #[alloc]
+    #[state]
+    /// 记录函数签名（参数种类）
+    #[alloc]
+    #[state]
+    fn add_fn_sig(ref mut self, ref Ast ast, int id, ref String prefix) {
+        if self.fn_count >= 256 { return; }
+        fi = self.fn_count;
+        name = ast.texts[id].copy();
+        if prefix.len > 0 {
+            name = prefix + ".";
+            name = name + ast.texts[id];
+        }
+        self.fn_names[fi] = name;
+        self.fn_pstart[fi] = self.fn_ptotal;
+        n = 0;
+        p = ast.aa[id];
+        while p >= 0 {
+            if self.fn_ptotal < 2048 {
+                self.fn_pkinds[self.fn_ptotal] = self.param_kind(ast, p);
+                self.fn_ptotal = self.fn_ptotal + 1;
+                n = n + 1;
+            }
+            p = ast.nexts[p];
+        }
+        self.fn_pcount[fi] = n;
+        self.fn_count = fi + 1;
+    }
+
+    fn fn_param_kind(ref mut self, ref String fname, int i) -> int {
+        f = 0;
+        while f < self.fn_count {
+            if self.fn_names[f] == fname {
+                if i < self.fn_pcount[f] {
+                    return self.fn_pkinds[self.fn_pstart[f] + i];
+                }
+                return 0;
+            }
+            f = f + 1;
+        }
+        return 0;
+    }
+
+    #[alloc]
+    #[state]
     fn collect_decls(ref mut self, ref Ast ast, int prog) {
         s = ast.aa[prog];
         while s >= 0 {
             if ast.tags[s] == st(ST::StructDef._tag) {
                 self.add_struct(ast, s);
+            } elif ast.tags[s] == st(ST::EnumDef._tag) {
+                self.add_enum(ast, s);
             } elif ast.tags[s] == st(ST::ImplBlock._tag) {
                 m = ast.aa[s];
                 while m >= 0 {
                     if ast.tags[m] == st(ST::FnDecl._tag) {
                         self.add_method(ast, ast.texts[s], m);
+                        self.add_fn_sig(ast, m, ast.texts[s]);
                     }
                     m = ast.nexts[m];
                 }
+            } elif ast.tags[s] == st(ST::FnDecl._tag) {
+                self.add_fn_sig(ast, s, "");
             }
             s = ast.nexts[s];
         }
@@ -380,12 +545,395 @@ fn elem_type_of(ref Ast ast, int id) -> int {
     return -1;
 }
 
+/// 模式名部分（"A|x,y" -> "A"；"E.A|x" -> "E.A"）
+fn pat_name(ref String p) -> String {
+    i = 0;
+    while i < p.len as int {
+        if p.index(i as usize) == '|' {
+            return p.substring(0 as usize, i as usize);
+        }
+        i = i + 1;
+    }
+    return p.copy();
+}
+
+/// 模式绑定部分（"A|x,y" -> "x,y"；无 -> ""）
+fn pat_binds(ref String p) -> String {
+    i = 0;
+    while i < p.len as int {
+        if p.index(i as usize) == '|' {
+            return p.substring((i + 1) as usize, p.len);
+        }
+        i = i + 1;
+    }
+    return "";
+}
+
+/// 变体短名（"E.A" -> "A"）
+fn pat_short(ref String p) -> String {
+    i = 0;
+    last = -1;
+    while i < p.len as int {
+        if p.index(i as usize) == '.' { last = i; }
+        i = i + 1;
+    }
+    if last >= 0 {
+        return p.substring((last + 1) as usize, p.len);
+    }
+    return p.copy();
+}
+
+/// 枚举名（"E.A" -> "E"；无点 -> ""）
+fn pat_enum(ref String p) -> String {
+    i = 0;
+    last = -1;
+    while i < p.len as int {
+        if p.index(i as usize) == '.' { last = i; }
+        i = i + 1;
+    }
+    if last >= 0 {
+        return p.substring(0 as usize, last as usize);
+    }
+    return "";
+}
+
+fn contains_dot2(ref String s) -> bool {
+    i = 0;
+    while i < s.len as int {
+        if s.index(i as usize) == '.' { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
 fn label(ref mut Emitter e, ref String prefix) -> String {
     b = StringBuf::new();
     b.push_str(prefix);
     b.push_int(e.tmp);
     e.tmp = e.tmp + 1;
     return b.to_string();
+}
+
+/// 枚举构造：full = "E.A"（裸变体或带实参）
+fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> Val {
+    ename = pat_enum(full);
+    vname = pat_short(full);
+    ei = e.find_enum_idx(ename);
+    if ei < 0 { return mk_int("0"); }
+    vi = e.find_variant_idx(ei, vname);
+    if vi < 0 { return mk_int("0"); }
+    t = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(t);
+    e.buf.push_str(" = alloca %enum.");
+    e.buf.push_str(ename);
+    e.buf.push_str("\n");
+    g0 = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(g0);
+    e.buf.push_str(" = getelementptr %enum.");
+    e.buf.push_str(ename);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(t);
+    e.buf.push_str(", i32 0, i32 0\n  store i64 ");
+    e.buf.push_int(vi);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(g0);
+    e.buf.push_str("\n");
+    k = 0;
+    a = args;
+    while a >= 0 {
+        v = mk_int("0");
+        if ast.tags[a] == xt(XT::Arg._tag) {
+            v = emit_expr(ast, ast.aa[a], e);
+        } else {
+            v = emit_expr(ast, a, e);
+        }
+        g = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(g);
+        e.buf.push_str(" = getelementptr %enum.");
+        e.buf.push_str(ename);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(t);
+        e.buf.push_str(", i32 0, i32 ");
+        e.buf.push_int(k + 1);
+        e.buf.push_str("\n  store i64 ");
+        e.buf.push_str(v.a);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(g);
+        e.buf.push_str("\n");
+        k = k + 1;
+        a = ast.nexts[a];
+    }
+    return Val { kind = 4, a = t, b = ename.copy(), ty = -1 };
+}
+
+/// 模式匹配条件（返回 i64 0/1 或 temp）
+fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val {
+    ptext = ast.texts[arm];
+    pk = ast.tys[arm];
+    if pk == 0 { return mk_int("1"); }
+    if pk == 4 { return mk_int("1"); }
+    if pk == 1 {
+        if sc.kind != 4 { return mk_int("0"); }
+        vname = pat_short(pat_name(ptext));
+        ename = pat_enum(pat_name(ptext));
+        if ename.len == 0 { ename = sc.b.copy(); }
+        ei = e.find_enum_idx(ename);
+        if ei < 0 { return mk_int("0"); }
+        vi = e.find_variant_idx(ei, vname);
+        if vi < 0 { return mk_int("0"); }
+        g = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(g);
+        e.buf.push_str(" = getelementptr %enum.");
+        e.buf.push_str(sc.b);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(sc.a);
+        e.buf.push_str(", i32 0, i32 0\n");
+        t = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t);
+        e.buf.push_str(" = load i64, ptr ");
+        e.buf.push_str(g);
+        e.buf.push_str("\n");
+        c = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c);
+        e.buf.push_str(" = icmp eq i64 ");
+        e.buf.push_str(t);
+        e.buf.push_str(", ");
+        e.buf.push_int(vi);
+        e.buf.push_str("\n");
+        return Val { kind = 5, a = c, b = "", ty = -1 };
+    }
+    if pk == 2 {
+        lit = "0";
+        if ptext == "true" { lit = "1"; }
+        c2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c2);
+        e.buf.push_str(" = icmp eq i64 ");
+        e.buf.push_str(sc.a);
+        e.buf.push_str(", ");
+        e.buf.push_str(lit);
+        e.buf.push_str("\n");
+        return Val { kind = 5, a = c2, b = "", ty = -1 };
+    }
+    if pk == 3 {
+        // 只支持整数字面量
+        ok = 1;
+        i = 0;
+        while i < ptext.len as int {
+            ch = ptext.index(i as usize);
+            if !(ch >= '0' && ch <= '9') { ok = 0; }
+            i = i + 1;
+        }
+        if ok == 0 { return mk_int("0"); }
+        c3 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c3);
+        e.buf.push_str(" = icmp eq i64 ");
+        e.buf.push_str(sc.a);
+        e.buf.push_str(", ");
+        e.buf.push_str(ptext);
+        e.buf.push_str("\n");
+        return Val { kind = 5, a = c3, b = "", ty = -1 };
+    }
+    return mk_int("0");
+}
+
+/// 模式绑定（载荷 -> 局部变量）
+fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
+    ptext = ast.texts[arm];
+    pk = ast.tys[arm];
+    binds = pat_binds(ptext);
+    if binds.len == 0 { return; }
+    // 按 ',' 切分
+    start = 0;
+    k = 0;
+    i = 0;
+    while i <= binds.len as int {
+        at_end = 0;
+        if i == binds.len as int { at_end = 1; }
+        is_comma = 0;
+        if at_end == 0 {
+            if binds.index(i as usize) == ',' { is_comma = 1; }
+        }
+        if at_end == 1 || is_comma == 1 {
+            if i > start {
+                bname = binds.substring(start as usize, i as usize);
+                g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g);
+                if pk == 1 {
+                    e.buf.push_str(" = getelementptr %enum.");
+                    e.buf.push_str(sc.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(sc.a);
+                    e.buf.push_str(", i32 0, i32 ");
+                    e.buf.push_int(k + 1);
+                } else {
+                    idx = e.find_field_idx(sc.b, bname);
+                    if idx < 0 { return; }
+                    e.buf.push_str(" = getelementptr %struct.");
+                    e.buf.push_str(sc.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(sc.a);
+                    e.buf.push_str(", i32 0, i32 ");
+                    e.buf.push_int(idx);
+                }
+                e.buf.push_str("\n");
+                v = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(v);
+                e.buf.push_str(" = load i64, ptr ");
+                e.buf.push_str(g);
+                e.buf.push_str("\n");
+                e.declare_local(bname, 0);
+                e.buf.push_str("  store i64 ");
+                e.buf.push_str(v);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(bname);
+                e.buf.push_str("\n");
+                k = k + 1;
+            }
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+}
+
+/// match（语句 want_value=0 / 表达式 want_value=1）
+fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
+    sc = emit_expr(ast, ast.aa[id], e);
+    arms = ast.bb[id];
+    cnt = 0;
+    a = arms;
+    while a >= 0 { cnt = cnt + 1; a = ast.nexts[a]; }
+    if cnt == 0 { return mk_int("0"); }
+    end_l = label(e, "match.end.");
+    res = "";
+    if want_value == 1 {
+        res = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(res);
+        e.buf.push_str(" = alloca i64\n");
+    }
+    e.buf.push_str("  br label %match.arm.0\n");
+    i = 0;
+    a = arms;
+    prev_body = -1;
+    while a >= 0 {
+        lbl = "match.arm.";
+        b1 = StringBuf::new();
+        b1.push_str(lbl);
+        b1.push_int(i);
+        nxt = end_l.copy();
+        if i + 1 < cnt {
+            n2 = StringBuf::new();
+            n2.push_str("match.arm.");
+            n2.push_int(i + 1);
+            nxt = n2.to_string();
+        }
+        bl = StringBuf::new();
+        bl.push_str("match.body.");
+        bl.push_int(i);
+        body_l = bl.to_string();
+        e.buf.push_str(b1.to_string());
+        e.buf.push_str(":\n");
+        cond = emit_pat_cond(ast, a, sc, e);
+        if cond.kind == 5 {
+            e.buf.push_str("  br i1 ");
+            e.buf.push_str(cond.a);
+            e.buf.push_str(", label %");
+            e.buf.push_str(body_l);
+            e.buf.push_str(", label %");
+            e.buf.push_str(nxt);
+            e.buf.push_str("\n");
+        } elif cond.kind == 0 {
+            if cond.a == "1" {
+                e.buf.push_str("  br label %");
+                e.buf.push_str(body_l);
+                e.buf.push_str("\n");
+            } elif cond.a == "0" {
+                e.buf.push_str("  br label %");
+                e.buf.push_str(nxt);
+                e.buf.push_str("\n");
+            } else {
+                cc = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(cc);
+                e.buf.push_str(" = icmp ne i64 ");
+                e.buf.push_str(cond.a);
+                e.buf.push_str(", 0\n  br i1 ");
+                e.buf.push_str(cc);
+                e.buf.push_str(", label %");
+                e.buf.push_str(body_l);
+                e.buf.push_str(", label %");
+                e.buf.push_str(nxt);
+                e.buf.push_str("\n");
+            }
+        } else {
+            cc2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(cc2);
+            e.buf.push_str(" = icmp ne i64 ");
+            e.buf.push_str(cond.a);
+            e.buf.push_str(", 0\n  br i1 ");
+            e.buf.push_str(cc2);
+            e.buf.push_str(", label %");
+            e.buf.push_str(body_l);
+            e.buf.push_str(", label %");
+            e.buf.push_str(nxt);
+            e.buf.push_str("\n");
+        }
+        e.buf.push_str(body_l);
+        e.buf.push_str(":\n");
+        emit_pat_binds(ast, a, sc, e);
+        body = ast.aa[a];
+        if body < 0 { body = prev_body; }
+        if body >= 0 {
+            prev_body = body;
+            btag = ast.tags[body];
+            if want_value == 1 {
+                if btag == st(ST::Return._tag) {
+                    emit_stmt(ast, body, e);
+                } elif btag == st(ST::ExprStmt._tag) {
+                    v = emit_expr(ast, ast.aa[body], e);
+                    e.buf.push_str("  store i64 ");
+                    e.buf.push_str(v.a);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(res);
+                    e.buf.push_str("\n");
+                } elif btag == st(ST::Block._tag) {
+                    emit_stmts(ast, ast.aa[body], e);
+                } else {
+                    emit_stmt(ast, body, e);
+                }
+            } else {
+                emit_stmt(ast, body, e);
+            }
+        }
+        e.buf.push_str("  br label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+        i = i + 1;
+        a = ast.nexts[a];
+    }
+    e.buf.push_str(end_l);
+    e.buf.push_str(":\n");
+    if want_value == 1 {
+        rv = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(rv);
+        e.buf.push_str(" = load i64, ptr ");
+        e.buf.push_str(res);
+        e.buf.push_str("\n");
+        return mk_int(rv);
+    }
+    return mk_int("0");
 }
 
 fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
@@ -414,6 +962,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     }
     if tag == et(ET::Ident._tag) {
         nm = ast.texts[id];
+        if contains_dot2(nm) {
+            return emit_enum_ctor(ast, nm, -1, e);
+        }
         kd = e.local_kind(nm);
         if kd == 10 {
             // 数组变量：装载 malloc 指针
@@ -424,6 +975,18 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(nm);
             e.buf.push_str("\n");
             return mk_arr(t9, e.find_elem(nm));
+        }
+        if kd == 20 {
+            t = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            ei5 = e.etype_of_local(nm);
+            en5 = "";
+            if ei5 >= 0 { en5 = e.en_names[ei5].copy(); }
+            return Val { kind = 4, a = t, b = en5, ty = -1 };
         }
         if kd >= 2 {
             e.declare_local(nm, 2);
@@ -567,6 +1130,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     }
     if tag == et(ET::FnCall._tag) {
         nm = ast.texts[id];
+        if contains_dot2(nm) {
+            return emit_enum_ctor(ast, nm, ast.aa[id], e);
+        }
         if nm == "println" || nm == "print" {
             a = ast.aa[id];
             if a >= 0 {
@@ -597,12 +1163,19 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         b.push_str("(");
         first = 1;
         a2 = ast.aa[id];
+        ak = 0;
         while a2 >= 0 {
             at2 = emit_expr(ast, ast.aa[a2], e);
             if first == 0 { b.push_str(", "); }
-            b.push_str("i64 ");
+            pk2 = e.fn_param_kind(nm, ak);
+            if pk2 == 0 {
+                b.push_str("i64 ");
+            } else {
+                b.push_str("ptr ");
+            }
             b.push_str(at2.a);
             first = 0;
+            ak = ak + 1;
             a2 = ast.nexts[a2];
         }
         b.push_str(")\n");
@@ -643,6 +1216,26 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     }
     if tag == et(ET::FieldAccess._tag) {
         obj = emit_expr(ast, ast.aa[id], e);
+        if obj.kind == 4 {
+            if ast.texts[id] == "_tag" {
+                g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g);
+                e.buf.push_str(" = getelementptr %enum.");
+                e.buf.push_str(obj.b);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", i32 0, i32 0\n");
+                v = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(v);
+                e.buf.push_str(" = load i64, ptr ");
+                e.buf.push_str(g);
+                e.buf.push_str("\n");
+                return mk_int(v);
+            }
+            return mk_int("0");
+        }
         if obj.kind == 2 {
             idx = e.find_field_idx(obj.b, ast.texts[id]);
             if idx >= 0 {
@@ -685,10 +1278,19 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             b3.push_str("(ptr ");
             b3.push_str(obj.a);
             a3 = ast.bb[id];
+            ak3 = 1;
             while a3 >= 0 {
                 at3 = emit_expr(ast, ast.aa[a3], e);
-                b3.push_str(", i64 ");
+                mfull = obj.b + ".";
+                mfull = mfull + ast.texts[id];
+                pk3 = e.fn_param_kind(mfull, ak3);
+                if pk3 == 0 {
+                    b3.push_str(", i64 ");
+                } else {
+                    b3.push_str(", ptr ");
+                }
                 b3.push_str(at3.a);
+                ak3 = ak3 + 1;
                 a3 = ast.nexts[a3];
             }
             b3.push_str(")\n");
@@ -696,6 +1298,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             return mk_int(t5);
         }
         return mk_int("0");
+    }
+    if tag == et(ET::Match._tag) {
+        return emit_match(ast, id, e, 1);
     }
     if tag == et(ET::Cast._tag) {
         return emit_expr(ast, ast.aa[id], e);
@@ -1085,6 +1690,17 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str("\n");
             return;
         }
+        if v.kind == 4 {
+            ei4 = e.find_enum_idx(v.b);
+            e.declare_local(nm, 20);
+            e.record_etype(nm, ei4);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
         if v.kind == 2 {
             si2 = e.find_struct_idx(v.b);
             e.declare_local(nm, 100 + si2);
@@ -1125,6 +1741,8 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         }
     } elif tag == st(ST::ExprStmt._tag) {
         emit_expr(ast, ast.aa[id], e);
+    } elif tag == st(ST::Match._tag) {
+        emit_match(ast, id, e, 0);
     } elif tag == st(ST::FieldAssign._tag) {
         obj = emit_expr(ast, ast.aa[id], e);
         if obj.kind == 2 {
@@ -1297,7 +1915,12 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
         if ast.texts[p] == "self" {
             e.buf.push_str("ptr %self");
         } else {
-            e.buf.push_str("i64 %a");
+            pk_sig = e.param_kind(ast, p);
+            if pk_sig == 0 {
+                e.buf.push_str("i64 %a");
+            } else {
+                e.buf.push_str("ptr %a");
+            }
             e.buf.push_int(idx);
         }
         first = 0;
@@ -1319,16 +1942,38 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
                 e.lv_count = e.lv_count + 1;
             }
         } else {
-            e.buf.push_str("  %v_");
-            e.buf.push_str(ast.texts[p2]);
-            e.buf.push_str(" = alloca i64\n  store i64 %a");
-            e.buf.push_int(idx2);
-            e.buf.push_str(", ptr %v_");
-            e.buf.push_str(ast.texts[p2]);
-            e.buf.push_str("\n");
+            pname = ast.texts[p2];
+            pk = e.param_kind(ast, p2);
+            ei_p = -1;
+            if pk == 20 {
+                ptn = "";
+                pt = ast.tys[p2];
+                if pt >= 0 {
+                    if ast.tags[pt] == tt(TT::Named._tag) { ptn = ast.texts[pt].copy(); }
+                }
+                ei_p = e.find_enum_idx(ptn);
+            }
+            if pk == 0 {
+                e.buf.push_str("  %v_");
+                e.buf.push_str(pname);
+                e.buf.push_str(" = alloca i64\n  store i64 %a");
+                e.buf.push_int(idx2);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(pname);
+                e.buf.push_str("\n");
+            } else {
+                e.buf.push_str("  %v_");
+                e.buf.push_str(pname);
+                e.buf.push_str(" = alloca ptr\n  store ptr %a");
+                e.buf.push_int(idx2);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(pname);
+                e.buf.push_str("\n");
+            }
             if e.lv_count < 512 {
-                e.locals[e.lv_count] = ast.texts[p2].copy();
-                e.local_kinds[e.lv_count] = 0;
+                e.locals[e.lv_count] = pname.copy();
+                e.local_kinds[e.lv_count] = pk;
+                e.local_etypes[e.lv_count] = ei_p;
                 e.lv_count = e.lv_count + 1;
             }
         }
@@ -1359,6 +2004,21 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
         }
         e.buf.push_str(" }\n");
         si = si + 1;
+    }
+    // 枚举类型定义（tag + 载荷槽）
+    ei2 = 0;
+    while ei2 < e.en_count {
+        e.buf.push_str("%enum.");
+        e.buf.push_str(e.en_names[ei2]);
+        e.buf.push_str(" = type { i64");
+        mx = e.enum_max_arity(ei2);
+        k2 = 0;
+        while k2 < mx {
+            e.buf.push_str(", i64");
+            k2 = k2 + 1;
+        }
+        e.buf.push_str(" }\n");
+        ei2 = ei2 + 1;
     }
     // 函数与方法
     s = ast.aa[prog];

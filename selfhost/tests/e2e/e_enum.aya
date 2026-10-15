@@ -1,0 +1,16 @@
+enum Color { Red, Green, Blue }
+
+fn pick(Color c) -> int {
+    match c {
+        Red => return 1,
+        Green => return 2,
+        Blue => return 3,
+    }
+    return 0
+}
+
+fn main() -> int {
+    c = Color::Green
+    if c._tag != 1 { return 9 }
+    return pick(Color::Blue) + pick(c) * 10
+}

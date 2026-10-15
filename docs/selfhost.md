@@ -67,6 +67,17 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 14. **namespace 内的函数互相调用要写全限定名**（`Path::last_sep(s)`），裸名报 `undefined function`；
     `log::raw_error` 这种「模块别名当命名空间」的写法不成立——`import "aya_log"` 后直接用 `raw_error(...)`。
 15. **`[T]` 数组元素是拥有值**：`String` 元素直接放进结构体字段同样要 `.copy()`（同坑 12）。
+16. **注释只有 `//`**；`#` 只用于属性（`#[alloc]`/`#[state]`），写成 `# 注释` 会被当运算符报
+    `expected '(', found Operator(+)`。批量生成代码时最容易踩。
+17. **`if/elif/else` 分支内首次赋值的变量不逃出块**：需要在分支内赋值、分支后使用，先在外层声明
+    （`v = mk_int("0"); if ... { v = ...; }`），否则报 `undefined variable`。
+18. **值在分支里被移动会传染**：`a = b` 移动 `b` 后再用 `b` 报 `use of moved value`；
+    多处使用一律 `.copy()`（`ptext = full.copy() + "|"`）。
+19. **emit 侧分派顺序**：`Ident` 局部变量按 `local_kinds` 分派，新 kind 必须插在 `kd >= 2`（struct）
+    这类宽条件**之前**；数组专用查询 `elem_of_local` 会按 kind==10 提前返回 -1，枚举局部要用
+    `etype_of_local`（不做 kind 检查）。
+20. **函数/方法签名要按参数类型传 `ptr`**：枚举/结构体参数在 LLVM 签名里是 `ptr %aN`（不是 `i64`），
+    调用点同理；`Emitter` 维护 `fn_pkinds` 签名表（`add_fn_sig` 收集，`fn_param_kind` 查询）。
 
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
@@ -136,7 +147,7 @@ selfhost/
 1. **单元自测**：`selfhost/tests/*_test.aya` 用 `assert 风格`（返回非 0 报错），由 stage-0 运行；
     入口 `./scripts/selfhost.sh test`，失败即退出（当前 10 个全过）。
 2. **差分测试**：`./scripts/selfhost.sh diff <glob>` 同跑 stage-0/stage-1，比较 stdout（剔除双方进度行）
-   与退出码；当前 `tests/e2e/*.aya` 13/13 一致。
+   与退出码；当前 `tests/e2e/*.aya` 17/17 一致。
 3. **IR 快照**：M5 起对同一 .aya 比较两版的 LLVM IR 语义等价（先按文本 diff 报告，人工确认）。
 4. **回归门禁**：在 `selfhost` 分支上不破坏 Rust 主线检查（`./scripts/check_all.sh` 仍须过），
    自举代码不进 Rust 编译单元。
@@ -180,7 +191,13 @@ selfhost/
 | M2 | ✅ 完成 | `lexer/token.aya` + `lexer/lexer.aya`；golden 130 文件零差异 |
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
-| M5 | 🔄 进行中 | M5a-e 端到端：**13/13** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
+| M5 | 🔄 进行中 | M5a-e 端到端：**17/17** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
+| M6 | 🔄 进行中 | M6a 数组（定长/字面量/重复/索引读写）✅；M6b 枚举 + match（构造/`_tag`/载荷绑定/or 分支/表达式形式）✅，e2e `e_enum`/`e_match` |
+
+M6b 交付：`enum` 值表示为 `%enum.E = { i64 tag, i64 payload... }` 堆指针（`Val.kind=4`）；
+`E::V`/`E::V(args)` 构造（parser 产出 `Ident "E.V"`/`FnCall "E.V"`）；`._tag` 取标签；
+`match` 语句与表达式（结果 alloca 合流）支持变体/字面量/`_`/bool/or 模式与载荷绑定；
+函数签名表让枚举/结构体参数按 `ptr` 传递（`add_fn_sig`/`fn_param_kind`）。
 
 M5 交付（M5d/M5e）：`src/main.aya` + `base/cli.aya` + `base/path.aya` + `driver/build.aya`。
 stage-1 CLI 现可 `check` / `build` / `run` 单文件程序：parse → check → LLVM IR → `llc` → `gcc`（+ runtime.c）
