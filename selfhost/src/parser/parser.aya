@@ -788,40 +788,23 @@ impl Parser {
                 vn = self.ast.push(xt(XT::EnumVariant._tag), vname, -1, -1, -1, -1, -1, vline, vcol);
                 variants = self.ast.push_tail(variants, vn);
                 if self.check_delim(D::LParen._tag) {
-                    // 记录载荷个数（顶层逗号 + 1；空 () 为 0）
-                    depth = 0;
+                    // 解析载荷类型（挂在变体 a 槽；个数记 ty）
+                    self.advance();
+                    ptypes = -1;
                     nfields = 0;
-                    nonempty = 0;
                     while true {
                         if self.at_end() { break; }
-                        if self.check_delim(D::LParen._tag) {
-                            depth = depth + 1;
-                            if depth == 1 {
-                                self.advance();
-                                continue;
-                            }
-                        }
-                        if self.check_delim(D::RParen._tag) {
-                            depth = depth - 1;
-                            if depth == 0 {
-                                self.advance();
-                                break;
-                            }
-                        }
-                        if depth == 1 {
-                            if self.check_delim(D::Comma._tag) {
-                                nfields = nfields + 1;
-                            } else {
-                                nonempty = 1;
-                            }
-                        }
-                        self.advance();
+                        if self.check_delim(D::RParen._tag) { break; }
+                        if self.failed == 1 { break; }
+                        pty = self.parse_type();
+                        pn = self.ast.push(xt(XT::GenericArg._tag), "", pty, -1, -1, -1, -1, self.cur.line, self.cur.col);
+                        ptypes = self.ast.push_tail(ptypes, pn);
+                        nfields = nfields + 1;
+                        if !self.eat_delim(D::Comma._tag) { break; }
                     }
-                    if nonempty == 1 {
-                        self.ast.tys[vn] = nfields + 1;
-                    } else {
-                        self.ast.tys[vn] = 0;
-                    }
+                    self.expect_delim(D::RParen._tag, "expected ) in enum payload");
+                    self.ast.aa[vn] = ptypes;
+                    self.ast.tys[vn] = nfields;
                 } elif self.check_delim(D::LBrace._tag) {
                     depth = 0;
                     while true {
@@ -1622,6 +1605,7 @@ impl Parser {
                             binds = StringBuf::new();
                             firstb = 1;
                             eq_pending = 0;
+                            nested_struct = "";
                             depth = 0;
                             while !self.at_end() {
                                 if self.check_delim(D::LParen._tag) { depth = depth + 1; }
@@ -1639,6 +1623,13 @@ impl Parser {
                                         if eq_pending == 1 {
                                             take = 1;
                                             eq_pending = 0;
+                                        } elif self.la1_is_delim(D::LParen._tag) {
+                                            // 嵌套变体名（Some(Some(v)) 的内层 Some）不是绑定
+                                            take = 0;
+                                        } elif self.la1_is_delim(D::LBrace._tag) {
+                                            // 嵌套结构体模式（Some(Point { x, y })）
+                                            nested_struct = bn.copy();
+                                            take = 0;
                                         } elif !self.la1_is_op("=") {
                                             take = 1;
                                         } else {
@@ -1660,6 +1651,10 @@ impl Parser {
                             }
                             if firstb == 0 {
                                 ptext = full.copy() + "|";
+                                if nested_struct.len > 0 {
+                                    ptext = ptext + nested_struct;
+                                    ptext = ptext + "|";
+                                }
                                 ptext = ptext + binds.to_string();
                             }
                         } elif self.check_delim(D::LBrace._tag) {
@@ -1668,6 +1663,7 @@ impl Parser {
                             binds2 = StringBuf::new();
                             firstb2 = 1;
                             eq2 = 0;
+                            pend_field = "";
                             depth = 0;
                             while !self.at_end() {
                                 if self.check_delim(D::LBrace._tag) { depth = depth + 1; }
@@ -1681,19 +1677,22 @@ impl Parser {
                                 if self.cur.kind == Tk::Ident._tag {
                                     bn2 = self.cur.text.copy();
                                     if bn2 != "_" {
-                                        take2 = 0;
                                         if eq2 == 1 {
-                                            take2 = 1;
+                                            // x = a：字段名 x，绑定名 a
+                                            if firstb2 == 0 { binds2.push(','); }
+                                            binds2.push_str(pend_field);
+                                            binds2.push('=');
+                                            binds2.push_str(bn2);
+                                            firstb2 = 0;
                                             eq2 = 0;
                                         } elif !self.la1_is_op("=") {
-                                            take2 = 1;
-                                        } else {
-                                            eq2 = 1;
-                                        }
-                                        if take2 == 1 {
+                                            // x：字段即绑定
                                             if firstb2 == 0 { binds2.push(','); }
                                             binds2.push_str(bn2);
                                             firstb2 = 0;
+                                        } else {
+                                            eq2 = 1;
+                                            pend_field = bn2.copy();
                                         }
                                     }
                                 }

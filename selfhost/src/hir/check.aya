@@ -263,16 +263,27 @@ fn is_int_type(ref String t) -> bool {
     return false;
 }
 
-/// 取模式里的变体名（E.V -> V）
+/// 取模式里的变体名（"E.V|bindings" -> V；先去载荷绑定后缀）
 fn pat_variant_name(ref String v) -> String {
+    end = v.len as int;
     i = 0;
     while i < v.len as int {
-        if v.index(i as usize) == '.' {
-            return v.substring((i + 1) as usize, v.len);
+        if v.index(i as usize) == '|' {
+            end = i;
+            break;
         }
         i = i + 1;
     }
-    return v.copy();
+    last = -1;
+    j = 0;
+    while j < end {
+        if v.index(j as usize) == '.' { last = j; }
+        j = j + 1;
+    }
+    if last >= 0 {
+        return v.substring((last + 1) as usize, end as usize);
+    }
+    return v.substring(0 as usize, end as usize);
 }
 
 /// 是否原始类型（match 穷尽要求 _）
