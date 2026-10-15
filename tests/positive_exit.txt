@@ -127,3 +127,4 @@ test_closure_field_call.aya 0
 test_ptr_tree.aya 0
 test_void_return.aya 0
 test_rawptr.aya 0
+test_ref_receiver.aya 0

@@ -98,9 +98,10 @@ pub(crate) fn emit_clone_value(
             }
         }
         HirType::Unique(inner) => {
-            let elem_size = elem_layout_size(inner, &ctx.prog.struct_defs);
             match inner.as_ref() {
                 HirType::ArraySized(elem, n) => {
+                    // #171：elem_size 必须是元素类型大小（如 char=1），不是数组类型大小（指针=8）
+                    let elem_size = elem_layout_size(elem, &ctx.prog.struct_defs);
                     emit_clone_array(ctx, dst, src, elem, &n.to_string(), elem_size, lines);
                 }
                 HirType::Array(elem) => {
@@ -111,10 +112,13 @@ pub(crate) fn emit_clone_value(
                         lines.push(format!("store ptr %t{}, ptr {}", t, dst));
                         return;
                     };
+                    // #171：同上，按元素类型取大小
+                    let elem_size = elem_layout_size(elem, &ctx.prog.struct_defs);
                     emit_clone_array(ctx, dst, src, elem, count, elem_size, lines);
                 }
                 _ => {
                     // 拥有非数组值（unique T）：分配 + 深拷贝
+                    let elem_size = elem_layout_size(inner, &ctx.prog.struct_defs);
                     let buf = ctx.tmp(); let dstp = ctx.tmp(); let srcp = ctx.tmp();
                     lines.push(format!("%t{} = call i8* @__ayanami_unique_alloc(i64 {})", buf, elem_size));
                     lines.push(format!("%t{} = bitcast i8* %t{} to ptr", dstp, buf));

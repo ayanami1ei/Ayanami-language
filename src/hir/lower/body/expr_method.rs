@@ -162,6 +162,19 @@ impl crate::hir::lower::Ctx {
         {
             Some(id) => id,
             None => {
+                // e88 诊断：存在同名方法但需要 `ref mut self`，而接收者是不可变引用
+                if let HirType::Ref(inner, false) = &receiver_ty {
+                    let wants_mut = self.fn_map.get(method).map(|cands| cands.iter().any(|fid| {
+                        let sig = &self.fns[fid.0];
+                        matches!(sig.params.first(), Some((_, HirType::Ref(p, true))) if p.as_ref() == inner.as_ref())
+                    })).unwrap_or(false);
+                    if wants_mut {
+                        return Err(Error::Hir(format!(
+                            "cannot call method `{}` requiring `ref mut self` on an immutable reference `{}` (at {}:{})",
+                            method.as_str(), hir_type_display(&receiver_ty), span.start_line, span.start_col
+                        )));
+                    }
+                }
                 let mut all_param_types = vec![receiver_ty.clone()];
                 all_param_types.extend(deref_arg_types.iter().cloned());
                 let fid = match self.specialize_generic_call(method, &all_param_types, span) {

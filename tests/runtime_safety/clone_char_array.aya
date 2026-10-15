@@ -1,0 +1,41 @@
+// #171：结构体 String 字段 clone（char 数组 1 字节/元素）——大字符串不越界/段错误
+import "string";
+import "io";
+
+extern "C" fn __ayanami_live_allocs() -> int;
+
+struct W {
+    String s
+}
+
+fn first(ref String s) -> char {
+    return s.index(0);
+}
+
+fn run() -> int {
+    // 大字符串（> 一页，旧实现按 count*8 拷贝会段错误）
+    w = W { s = "x".repeat(70000usize) };
+    t = w.s;
+    if first(t) != 'x' { return 1 }
+    if t.len() != 70000 { return 2 }
+    if t.index(69999) != 'x' { return 3 }
+    if w.s.len() != 70000 { return 4 }
+    // 小字符串边界
+    u = W { s = "ab" };
+    v = u.s;
+    if v.len() != 2 { return 5 }
+    if v.index(1) != 'b' { return 6 }
+    // 中英混合（按 UTF-8 字节数）
+    z = W { s = "a好b" };
+    y = z.s;
+    if y.len() != 5 { return 7 }
+    return 0
+}
+
+fn main() -> int {
+    r = run()
+    if r != 0 { return r }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 8 }
+    return 0
+}
