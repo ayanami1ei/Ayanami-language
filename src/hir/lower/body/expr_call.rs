@@ -44,6 +44,11 @@ impl crate::hir::lower::Ctx {
             return Ok(SToUnique { expr: arg, ty: HirType::Unique(Box::new(inner)) }.into());
         }
 
+        // P3：`bits::reinterpret[T](x)` 内置（见 expr_reinterpret.rs）
+        if name.as_str() == "bits.reinterpret" {
+            return self.lower_reinterpret_builtin(&mut hir_args, explicit, span);
+        }
+
         // Step 2: extract arg types（引用实参另存解引用类型，用于回退解析）
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();

@@ -17,6 +17,8 @@ mod drop_fns;
 mod mir_stmts;
 mod mir_stmts_loops;
 mod mir_ref;
+mod mir_ptr_ops;
+mod mir_conv;
 mod place;
 pub(crate) mod names;
 mod strings;

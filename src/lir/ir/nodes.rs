@@ -46,6 +46,8 @@ s_lir!(SLirIndexAddr { dest: u64, arr_tmp: u64, index: LirValue, elem_ty: HirTyp
 s_lir!(SLirFieldStorePtr { gep_tmp: u64, obj: LirValue, field_index: usize, field_ty: HirType, src: LirValue, struct_ty: HirType });
 s_lir!(SLirFieldStore { dest: u64, var_id: Option<VarId>, gep_tmp: u64, iv_tmp: u64, src: LirValue, field_index: usize, field_ty: HirType, struct_ty: HirType });
 s_lir!(SLirIndexStore { dest: u64, gep_tmp: u64, src: LirValue, index: LirValue, elem_ty: HirType, array_ty: HirType });
+s_lir!(SLirVolatileLoad { dest: u64, src: LirValue, ty: HirType });
+s_lir!(SLirVolatileStore { ptr: LirValue, src: LirValue, ty: HirType });
 s_lir!(SLirCustom { node: IrNode });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -62,6 +64,7 @@ impl_into_lir_node_box!(
     SLirVirtualCall, SLirFieldStore, SLirIndexStore, SLirFieldAddr, SLirFieldStorePtr,
     SLirGlobalAddr, SLirIndexAddr, SLirFieldTake, SLirLocalTake, SLirDropPtr,
     SLirClone, SLirDropArray, SLirIndexTake,
+    SLirVolatileLoad, SLirVolatileStore,
 );
 
 // ═══════════════════════════════════════════════════════════════════

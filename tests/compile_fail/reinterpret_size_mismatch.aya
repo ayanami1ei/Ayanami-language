@@ -1,0 +1,7 @@
+fn main() -> int {
+    x = 3.5
+    unsafe {
+        b = bits::reinterpret[i32](x)
+    }
+    return 0
+}

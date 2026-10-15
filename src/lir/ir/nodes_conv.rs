@@ -47,6 +47,22 @@ impl LirNode for SLirConv {
                 lines.push(format!("call void @llvm.memcpy.p0.p0.i64(i8* %l{}, ptr {}, i64 %z{}, i1 false)", self.malloc_tmp, src_ptr, sz_tmp));
                 lines.push(format!("%t{} = bitcast i8* %l{} to {}", self.dest, self.malloc_tmp, ctx.llvm_type(&self.ty)));
             }
+            // P3：位级重解释（同尺寸；尺寸由前端校验，LLVM 指令按类型选择）
+            ConvKind::Reinterpret => {
+                let from = ctx.llvm_type(&self.src_ty);
+                let to = ctx.llvm_type(&self.ty);
+                let src_ptr = matches!(&self.src_ty,
+                    HirType::RawPtr(_) | HirType::Ref(..) | HirType::FnPtr(..) | HirType::Unique(_));
+                let dst_ptr = matches!(&self.ty,
+                    HirType::RawPtr(_) | HirType::Ref(..) | HirType::FnPtr(..) | HirType::Unique(_));
+                if dst_ptr && !src_ptr {
+                    lines.push(format!("%t{} = inttoptr {} {} to {}", self.dest, from, src_val, to));
+                } else if src_ptr && !dst_ptr {
+                    lines.push(format!("%t{} = ptrtoint {} {} to {}", self.dest, from, src_val, to));
+                } else {
+                    lines.push(format!("%t{} = bitcast {} {} to {}", self.dest, from, src_val, to));
+                }
+            }
             ConvKind::Cast => {
                 let from = ctx.llvm_type(&self.src_ty);
                 let to = ctx.llvm_type(&self.ty);

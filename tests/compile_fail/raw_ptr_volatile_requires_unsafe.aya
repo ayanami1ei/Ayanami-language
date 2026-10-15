@@ -1,0 +1,4 @@
+fn rd(*int p) -> int {
+    return p.read_volatile()
+}
+fn main() -> int { return 0 }

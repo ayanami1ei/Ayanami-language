@@ -73,6 +73,40 @@ impl crate::hir::lower::Ctx {
             _ => (receiver, receiver_ty),
         };
 
+        // P3：裸指针 `*T` 方法 —— offset / read_volatile / write_volatile（需 unsafe）
+        if let HirType::RawPtr(inner) = &receiver_ty {
+            let inner_ty = inner.as_ref().clone();
+            match method.as_str().as_str() {
+                "offset" if hir_args.len() == 1 => {
+                    self.require_unsafe("`offset` on a raw pointer", span)?;
+                    let index = coerce_index(hir_args[0].clone(), &HirType::Int, span)?;
+                    return Ok(SPtrOffset { ptr: receiver, index, ty: receiver_ty.clone() }.into());
+                }
+                "read_volatile" if hir_args.is_empty() => {
+                    self.require_unsafe("`read_volatile` on a raw pointer", span)?;
+                    if !inner_ty.is_copy() {
+                        return Err(Error::Hir(format!(
+                            "`read_volatile` requires a Copy pointee (got `{}`) (at {}:{})",
+                            hir_type_display(&inner_ty), span.start_line, span.start_col
+                        )));
+                    }
+                    return Ok(SVolatileLoad { ptr: receiver, ty: inner_ty }.into());
+                }
+                "write_volatile" if hir_args.len() == 1 => {
+                    self.require_unsafe("`write_volatile` on a raw pointer", span)?;
+                    if !inner_ty.is_copy() {
+                        return Err(Error::Hir(format!(
+                            "`write_volatile` requires a Copy pointee (got `{}`) (at {}:{})",
+                            hir_type_display(&inner_ty), span.start_line, span.start_col
+                        )));
+                    }
+                    let value = coerce_expr(hir_args[0].clone(), &inner_ty, span)?;
+                    return Ok(SVolatileStore { ptr: receiver, value, ty: HirType::Void }.into());
+                }
+                _ => {}
+            }
+        }
+
         // Check if receiver type is a fat pointer (interface dispatch)
         // receiver_ty may be wrapped in ownership (e.g. Shared(FatPtr))
         let receiver_inner = strip_ownership_ref(&receiver_ty);

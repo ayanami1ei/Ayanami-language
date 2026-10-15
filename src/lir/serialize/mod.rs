@@ -237,6 +237,7 @@ struct Reader<'a> {
 }
 
 mod decode;
+mod decode_values;
 mod reader;
 mod write;
 

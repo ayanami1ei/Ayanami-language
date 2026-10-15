@@ -96,6 +96,7 @@ graph TD
 | 内存运行时 | `src/runtime.c` | `unique_alloc/free` + 存活计数（无 RC/GC） |
 | M5 unsafe 边界 | `parser/parser/stmt.rs`（`unsafe {}` / `unsafe fn`）、`hir/lower/body/stmt_lower.rs`（`unsafe_depth`）、`expr_call.rs`/`expr_misc.rs`/`ctx.rs`（asm、unsafe 调用、static mut 门控） | P1：unsafe 语法 + asm/unsafe-call/`static mut`（读写与 ref mut）门控；设计见 docs/unsafe.md |
 | M5 裸指针 `*T` | `parser/parser/types.rs`（`*T` 类型）、`unary.rs`（`*p`）、`expr_cast.rs`（int/ref/Ptr ↔ `*T`）、`expr_method.rs`（`as_ptr`）、`nodes_conv.rs`（inttoptr/ptrtoint/bitcast） | P2：Copy 标量（LLVM `ptr`）、解引用读写/字段、指针↔int、`ref [T]` 取缓冲区；全部需 unsafe |
+| M5 reinterpret / 指针算术 / volatile | `expr_call.rs`（`bits::reinterpret` 拦截 + 尺寸检查）、`expr_method.rs`（`offset`/`read_volatile`/`write_volatile`）、`nodes_volatile.rs`（LLVM volatile 发射）、`mir_ptr_ops.rs` | P3a：同尺寸位重解释 + 元素步长指针算术 + volatile 读写；全部需 unsafe |
 
 ## 3. 标注系统路线（设计见 `docs/annotations.md`）
 

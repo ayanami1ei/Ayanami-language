@@ -41,6 +41,8 @@ impl IrNode {
 pub enum ConvKind {
     ToUnique,
     Cast,
+    /// P3：位级重解释（同尺寸 bitcast）
+    Reinterpret,
 }
 
 #[derive(Debug, Clone)]
@@ -204,6 +206,7 @@ mod nodes_c;
 mod nodes_d;
 mod nodes_e;
 mod nodes_f;
+mod nodes_volatile;
 
 pub use helpers::*;
 pub(crate) use helpers_clone::is_cloneable;

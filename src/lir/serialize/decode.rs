@@ -1,38 +1,5 @@
 use super::*;
 impl<'a> Reader<'a> {
-    pub(super) fn literal(&mut self) -> Result<HirLiteral> {
-        let tag = self.read(1)?[0];
-        match tag {
-            0 => Ok(HirLiteral::Int(self.u64()? as i64)),
-            1 => { let b = self.read(8)?; Ok(HirLiteral::Float(f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]))) }
-            2 => Ok(HirLiteral::Char(char::from_u32(self.u32()?).unwrap_or('\0'))),
-            3 => Ok(HirLiteral::String(self.str()?)),
-            4 => Ok(HirLiteral::Bool(self.read(1)?[0] != 0)),
-            5 => {
-                let n = self.u32()? as usize;
-                let mut v = Vec::with_capacity(n);
-                for _ in 0..n { v.push(self.literal()?); }
-                Ok(HirLiteral::Array(v))
-            }
-            6 => {
-                let n = self.u32()? as usize;
-                let mut v = Vec::with_capacity(n);
-                for _ in 0..n { v.push(self.literal()?); }
-                Ok(HirLiteral::Struct(v))
-            }
-            _ => Err(Error::Serialize(format!("unknown literal tag: {}", tag))),
-        }
-    }
-    pub(super) fn value(&mut self) -> Result<LirValue> {
-        let tag = self.read(1)?[0];
-        match tag {
-            0 => Ok(LirValue::Var(VarId(self.u32()? as usize))),
-            1 => Ok(LirValue::Tmp(self.u64()?)),
-            2 => Ok(LirValue::Param(self.u64()?)),
-            3 => { let l = self.literal()?; let t = self.ty()?; Ok(LirValue::Literal(l, t)) }
-            _ => Err(Error::Serialize(format!("unknown value tag: {}", tag))),
-        }
-    }
     pub(super) fn inst(&mut self) -> Result<LirNodeBox> {
         let tag = self.read(1)?[0];
         match tag {
@@ -73,7 +40,7 @@ impl<'a> Reader<'a> {
             7 => {
                 let d = self.u64()?; let at = self.u64()?; let mt = self.u64()?;
                 let s = self.value()?; let k = self.u32()?; let st = self.ty()?; let t = self.ty()?;
-                let kind = match k { 0 => ConvKind::ToUnique, 1 => ConvKind::Cast, _ => return Err(Error::Serialize("unknown ConvKind".into())) };
+                let kind = match k { 0 => ConvKind::ToUnique, 1 => ConvKind::Cast, 2 => ConvKind::Reinterpret, _ => return Err(Error::Serialize("unknown ConvKind".into())) };
                 Ok(SLirConv { dest: d, alloca_tmp: at, malloc_tmp: mt, src: s, kind, src_ty: st, ty: t }.into())
             }
             8 => Ok(SLirDropValue { var: VarId(self.u32()? as usize), ty: self.ty()? }.into()),
@@ -122,6 +89,8 @@ impl<'a> Reader<'a> {
             38 => { let d = self.u64()?; let g = self.u64()?; let o = self.value()?; let i = self.value()?; let t = self.ty()?; Ok(SLirIndexTake { dest: d, gep_tmp: g, obj: o, index: i, elem_ty: t }.into()) }
             39 => { let d = self.u64()?; let a = self.u64()?; let s = self.value()?; let t = self.ty()?; Ok(SLirClone { dest: d, alloca_tmp: a, src: s, ty: t }.into()) }
             40 => { let v = self.u32()? as usize; let t = self.ty()?; let c = self.u32()? as usize; Ok(SLirDropArray { var: VarId(v), elem_ty: t, count_var: VarId(c) }.into()) }
+            41 => { let d = self.u64()?; let s = self.value()?; let t = self.ty()?; Ok(SLirVolatileLoad { dest: d, src: s, ty: t }.into()) }
+            42 => { let p = self.value()?; let s = self.value()?; let t = self.ty()?; Ok(SLirVolatileStore { ptr: p, src: s, ty: t }.into()) }
             32 => {
                 let d = self.u64()?; let n = Symbol::intern(&self.str()?);
                 Ok(SLirGlobalAddr { dest: d, name: n }.into())

@@ -29,8 +29,11 @@ safe 代码的健全性不因 unsafe 存在而削弱（unsafe 块内的违规不
 | `static mut` 访问（读/写/取引用） | **P1**（联动 #143） | 已门控：读写与 `ref mut` 均需 unsafe |
 | raw pointer 解引用/字段（`*p`） | **P2**（576.2） | 已实现：`*T` 类型、`*p` 读写、`(*p).field` |
 | 指针 ↔ int cast | **P2**（联动 #71） | 已实现：`*T as usize` / `usize as *T`（需 unsafe） |
-| unchecked indexing（`arr.get_unchecked`） | P3（576.3） | 尚无 |
-| union / reinterpret / volatile | P3 | 尚无 |
+| unchecked indexing | P3（576.3） | 裸数组 `arr[i]` 即未检查原语（模型待定：见 P3b） |
+| reinterpret（`bits::reinterpret[T]`） | **P3a** | 已实现：同尺寸位重解释（bitcast/ptrtoint/inttoptr），需 unsafe |
+| 裸指针算术 `offset` | **P3a** | 已实现：按元素步长；需 unsafe |
+| volatile 读/写 | **P3a** | 已实现：`read_volatile`/`write_volatile`（LLVM volatile）；需 unsafe |
+| union | P3b | 尚无 |
 | `extern "C"` 调用 | P4（迁移） | std 大量使用；需 std 侧 `unsafe` 包装迁移后再门控 |
 
 ## 3. 语法
@@ -51,7 +54,6 @@ fn main() -> int {
 ```
 
 ### 3.1 P2：裸指针 `*T` 语法
-
 ```ayanami
 extern "C" fn memcpy(*void dst, *void src, usize n) -> *void
 
@@ -74,6 +76,35 @@ fn main() -> int {
 - 需要 unsafe：解引用（读/写）、`*T` 相关 `as` 转换、`Ptr[T].as_ptr()`。
 - 字段访问经显式解引用：`(*p).field`（括号后接 `.`）。
 - 指针算术（`offset`）留 P2b/后续，先不做。
+
+### 3.2 P3：reinterpret / 裸指针算术 / volatile
+
+```ayanami
+fn main() -> int {
+    x = 3.5
+    unsafe {
+        b = bits::reinterpret[int](x)      // f64 位模式 → i64（同尺寸 bitcast）
+        y = bits::reinterpret[float](b)    // i64 位模式 → f64
+        if y != 3.5 { return 1 }
+    }
+    a = [1, 2, 3, 4]
+    unsafe {
+        p = ref mut a as *int
+        q = p.offset(2)                    // 指针算术（按元素步长）
+        if *q != 3 { return 2 }
+        v = p.read_volatile()              // volatile 读（LLVM load volatile）
+        p.write_volatile(20)               // volatile 写（LLVM store volatile）
+        if *p != 20 { return 3 }
+    }
+    return 0
+}
+```
+
+- `bits::reinterpret[T](x)`：位级重解释（bitcast）；要求 `sizeof(T) == sizeof(x)`，
+  两侧限基元/指针等 **Copy** 类型（避免复制拥有堆数据的值造成双重所有权）；需 unsafe。
+- `*T.offset(n)`：指针算术，返回 `*T`（按 `sizeof(T)` 步长）；需 unsafe。
+- `*T.read_volatile()` / `*T.write_volatile(v)`：volatile 读/写（MMIO 语义，不被优化掉）；需 unsafe。
+- 普通读写仍用 `*p` / `*p = v`；`union` 见 P3b（待实现）。
 
 - `unsafe { ... }` 是**语句块**（作用域/drop 语义与普通块一致）。
 - `unsafe fn` 的函数体整体处于 unsafe 上下文；**调用**该函数需 unsafe 上下文。
@@ -113,5 +144,11 @@ fn main() -> int {
       - 用例：`example/test_rawptr.aya`（as_ptr/解引用/指针↔int/ref→*T/libc memcpy）；负例 `raw_ptr_deref_requires_unsafe`、`raw_ptr_cast_requires_unsafe`
       - 跨包：`*T` 签名经 .lcl 符号往返（`sig_str_to_hir`/`type_to_string`）；`unsafe fn` 调用点门控
       - 未做（P2b）：指针算术 `offset`、`union`/`reinterpret`（P3）、`extern` 调用门控迁移（P4）
-- [ ] P3：unchecked/union/reinterpret/volatile
+- [x] **P3a（576.3 部分）**：reinterpret / 裸指针算术 / volatile
+      - `bits::reinterpret[T](x)`：同尺寸位重解释（f64↔i64、f32↔i32、ptr↔usize）；两侧限 Copy 类型，尺寸/类型不匹配报错；需 unsafe
+      - `*T.offset(n) -> *T`（元素步长 GEP）；`read_volatile()` / `write_volatile(v)`（LLVM `load/store volatile`）；需 unsafe
+      - 实现：HIR `SReinterpret`/`SPtrOffset`/`SVolatileLoad`/`SVolatileStore` → MIR 同名节点 → LIR `ConvKind::Reinterpret` / `SLirIndexAddr` / `SLirVolatileLoad`/`SLirVolatileStore`（序列化 tag 41/42）
+      - 用例：`example/test_rawptr_ops.aya`；负例 `reinterpret_requires_unsafe`、`reinterpret_size_mismatch`、`raw_ptr_offset_requires_unsafe`、`raw_ptr_volatile_requires_unsafe`
+- [ ] **P3b**：`union` 类型；unchecked indexing 模型（裸数组索引是否默认检查/unsafe 门控的决策）
+- [ ] P4：extern 调用迁移
 - [ ] P4：extern 调用迁移

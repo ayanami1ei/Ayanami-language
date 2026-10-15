@@ -1,0 +1,5 @@
+fn add1(*int p) -> int {
+    q = p.offset(1)
+    return *q
+}
+fn main() -> int { return 0 }
