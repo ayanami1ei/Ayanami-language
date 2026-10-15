@@ -78,6 +78,7 @@ pub(crate) fn emit_clone_value(
     match ty {
         HirType::Named(name) => {
             let Some(fields) = ctx.prog.struct_defs.get(name).cloned() else { return; };
+            let mut cap_fixes: Vec<(usize, String)> = Vec::new();
             for (idx, (_, ft)) in fields.iter().enumerate() {
                 let ds = ctx.tmp(); let ss = ctx.tmp();
                 lines.push(format!("%g{} = getelementptr inbounds {}, ptr {}, i32 0, i32 {}", ds, llvm_ty, dst, idx));
@@ -95,6 +96,18 @@ pub(crate) fn emit_clone_value(
                     _ => None,
                 };
                 emit_clone_value(ctx, &format!("%g{}", ds), &format!("%g{}", ss), ft, hint.as_deref(), lines);
+                // #170：clone 只分配 len 个槽 → 目标容量必须改写为 len（全部字段复制后统一修正，
+                // 否则会被随后的 capability 字段拷贝覆盖）；否则 drop 按源 capability 越界释放
+                if let Some(h) = &hint {
+                    if let Some(ci) = count_field(&fields, idx, &["capability", "capacity", "cap"]) {
+                        cap_fixes.push((ci, h.clone()));
+                    }
+                }
+            }
+            for (ci, h) in cap_fixes {
+                let cp = ctx.tmp();
+                lines.push(format!("%g{} = getelementptr inbounds {}, ptr {}, i32 0, i32 {}", cp, llvm_ty, dst, ci));
+                lines.push(format!("store i64 {}, ptr %g{}", h, cp));
             }
         }
         HirType::Unique(inner) => {

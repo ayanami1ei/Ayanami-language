@@ -263,16 +263,15 @@ src/driver/mod.rs:283: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsR
 src/driver/runtime.rs:12: pub(crate) fn resolve_runtime(src_path: &Path) -> Result<Option<PathBuf>>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
-src/formatter/expr.rs:4: pub(super) fn write_type(ty: &Type) -> String
-src/formatter/expr.rs:26: pub(super) fn write_expr(expr: &Expr) -> String
-src/formatter/expr.rs:32: fn binop_prec(op: &BinaryOp) -> u8
-src/formatter/expr.rs:47: fn expr_prec(e: &Expr) -> u8
-src/formatter/expr.rs:56: fn maybe_paren(cond: bool, e: &Expr, level: usize) -> String
-src/formatter/expr.rs:61: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
-src/formatter/expr.rs:221: fn asm_constraint(c: &str) -> &str
-src/formatter/expr.rs:225: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:269: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:292: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:5: pub(super) fn write_expr(expr: &Expr) -> String
+src/formatter/expr.rs:11: fn binop_prec(op: &BinaryOp) -> u8
+src/formatter/expr.rs:26: fn expr_prec(e: &Expr) -> u8
+src/formatter/expr.rs:35: fn maybe_paren(cond: bool, e: &Expr, level: usize) -> String
+src/formatter/expr.rs:40: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
+src/formatter/expr.rs:207: fn asm_constraint(c: &str) -> &str
+src/formatter/expr.rs:211: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:255: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:278: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &crate::parser::ast::block::Block, level: usize)
@@ -287,12 +286,14 @@ src/formatter/helpers.rs:133: pub(super) fn format_macro_arg(a: &crate::parser::
 src/formatter/mod.rs:7: const INDENT: &str = "    ";
 src/formatter/mod.rs:9: pub fn format_program(program: &Program) -> String
 src/formatter/mod.rs:21: mod expr;
-src/formatter/mod.rs:22: mod helpers;
-src/formatter/mod.rs:23: mod stmt;
-src/formatter/mod.rs:26: pub(crate) fn format_expr(expr: &Expr) -> String
-src/formatter/mod.rs:31: pub(crate) fn format_attr_arg(arg: &AttrArg) -> String
-src/formatter/mod.rs:38: pub fn format_file(code: &str) -> crate::error::Result<String>
-src/formatter/stmt.rs:5: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
+src/formatter/mod.rs:22: mod types;
+src/formatter/mod.rs:23: mod helpers;
+src/formatter/mod.rs:24: mod stmt;
+src/formatter/mod.rs:27: pub(crate) fn format_expr(expr: &Expr) -> String
+src/formatter/mod.rs:32: pub(crate) fn format_attr_arg(arg: &AttrArg) -> String
+src/formatter/mod.rs:39: pub fn format_file(code: &str) -> crate::error::Result<String>
+src/formatter/stmt.rs:6: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
+src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
 src/hir/attrs.rs:36: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
 src/hir/attrs.rs:40: pub struct Imports
@@ -1157,14 +1158,14 @@ src/lir/ir/helpers_clone.rs:21: fn field_cloneable(ty: &HirType, defs: &HashMap<
 src/lir/ir/helpers_clone.rs:39: fn deep(ty: &HirType, defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool
 src/lir/ir/helpers_clone.rs:44: fn count_field(fields: &[(Symbol, HirType)], array_idx: usize, names: &[&str]) -> Option<usize>
 src/lir/ir/helpers_clone.rs:63: pub(crate) fn emit_clone_value(
-src/lir/ir/helpers_clone.rs:141: fn emit_clone_array(
-src/lir/ir/helpers_clone.rs:196: impl LirNode for SLirClone
-src/lir/ir/helpers_clone.rs:197: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/helpers_clone.rs:198: fn kind(&self) -> &'static str { "Clone" }
-src/lir/ir/helpers_clone.rs:199: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/helpers_clone.rs:200: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/helpers_clone.rs:208: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/helpers_clone.rs:211: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/helpers_clone.rs:154: fn emit_clone_array(
+src/lir/ir/helpers_clone.rs:209: impl LirNode for SLirClone
+src/lir/ir/helpers_clone.rs:210: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/helpers_clone.rs:211: fn kind(&self) -> &'static str { "Clone" }
+src/lir/ir/helpers_clone.rs:212: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/helpers_clone.rs:213: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/helpers_clone.rs:221: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/helpers_clone.rs:224: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/ir/helpers_drop.rs:6: fn find_len_field(fields: &[(Symbol, HirType)], array_idx: usize) -> Option<usize>
 src/lir/ir/helpers_drop.rs:28: fn emit_array_elem_drops_dyn(
 src/lir/ir/helpers_drop.rs:58: fn emit_array_elem_drops(

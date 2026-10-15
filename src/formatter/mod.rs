@@ -19,6 +19,7 @@ pub fn format_program(program: &Program) -> String {
 }
 
 mod expr;
+mod types;
 mod helpers;
 mod stmt;
 

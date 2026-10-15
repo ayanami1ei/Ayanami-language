@@ -1,6 +1,7 @@
 use super::*;
 use super::helpers::*;
 use super::expr::*;
+use super::types::write_type;
 
 pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
     match stmt {
