@@ -80,6 +80,12 @@ pub struct MatchArm {
 pub enum Stmt {
     /// #88：块语句（语句级标注 `#[attr] { ... }` 的载体；也支持裸 `{ ... }`）
     Block(Block),
+    /// M5 P2：裸指针解引用赋值 `*p = v`
+    DerefAssign {
+        target: Box<Expr>,
+        value: Box<Expr>,
+        span: Span,
+    },
     /// M5：unsafe 块（块内允许机器级操作：asm / unsafe fn 调用等）
     Unsafe {
         block: Block,
@@ -241,6 +247,7 @@ impl Stmt {
         match self {
             Stmt::Block(block) => block.span,
             Stmt::Unsafe { span, .. } => *span,
+            Stmt::DerefAssign { span, .. } => *span,
             Stmt::FnDecl { span, .. }
             |             Stmt::Assign { span, .. }
             | Stmt::FieldAssign { span, .. }

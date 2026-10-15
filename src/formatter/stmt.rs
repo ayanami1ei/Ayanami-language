@@ -54,6 +54,10 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             let i = indent(level);
             let _ = writeln!(out, "{}{}[{}] = {};", i, write_expr_at(object, level), write_expr_at(index, level), write_expr_at(value, level));
         }
+        DerefAssign { target, value, .. } => {
+            let i = indent(level);
+            let _ = writeln!(out, "{}*{} = {};", i, write_expr_at(target, level), write_expr_at(value, level));
+        }
         Return { value, .. } => {
             let i = indent(level);
             match value {

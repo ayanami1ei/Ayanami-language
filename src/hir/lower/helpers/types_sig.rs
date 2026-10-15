@@ -3,6 +3,10 @@ use super::*;
 
 pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
     let s = s.trim();
+    // M5 P2：裸指针 `*T`
+    if let Some(inner) = s.strip_prefix('*') {
+        return HirType::RawPtr(Box::new(sig_str_to_hir(inner)));
+    }
     // M2：闭包签名 `Fn(T1,T2)->R`（.lcl 导出格式；见 type_to_string_generic）
     if let Some((rest, once)) = s.strip_prefix("FnOnce(").map(|r| (r, true)).or_else(|| s.strip_prefix("Fn(").map(|r| (r, false))) {
         let mut depth = 1i32;

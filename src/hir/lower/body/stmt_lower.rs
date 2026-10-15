@@ -118,6 +118,23 @@ impl crate::hir::lower::Ctx {
                     span: *span,
                 })
             }
+            // M5 P2：`*p = v` —— 裸指针解引用写（需 unsafe）
+            Stmt::DerefAssign { target, value, span } => {
+                self.require_unsafe("write through a raw pointer", span)?;
+                let hir_target = self.lower_expr(target)?;
+                let target_ty = expr_type(&hir_target);
+                let pointee = match strip_ownership_ref(&target_ty) {
+                    HirType::RawPtr(inner) => inner.as_ref().clone(),
+                    other => return Err(Error::Hir(format!(
+                        "cannot write through `{}`: expected a raw pointer `*T` (at {}:{})",
+                        hir_type_display(other), span.start_line, span.start_col
+                    ))),
+                };
+                let hir_value = self.lower_expr(value)?;
+                let hir_value = coerce_expr(hir_value, &pointee, span)?;
+                let hir_value = implicit_move(hir_value);
+                Ok(HirStmt::DerefAssign { target: hir_target, value: hir_value, span: *span })
+            }
             Stmt::Return { value, span } => {
                 if value.is_none() {
                     let ret_ty = self.fns[self.current_fn.0].return_type.clone();

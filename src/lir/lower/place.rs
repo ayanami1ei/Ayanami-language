@@ -34,7 +34,7 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
             return Some(LirValue::Tmp(dest));
         }
         // M4：解引用位置 —— 内层为指针（ref/unique/Ptr）时，指针值即地址
-        if matches!(inner.expr_type(), HirType::Ref(..) | HirType::Unique(_)) {
+        if matches!(inner.expr_type(), HirType::Ref(..) | HirType::Unique(_) | HirType::RawPtr(_)) {
             let val = inner.lower_to_lir(ctx);
             return Some(match val {
                 LirValue::Tmp(_) => val,

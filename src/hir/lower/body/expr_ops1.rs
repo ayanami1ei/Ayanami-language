@@ -157,51 +157,6 @@ impl crate::hir::lower::Ctx {
         }.into())
     }
 
-    pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox> {
-        let hir_arg = auto_deref(self.lower_expr(arg)?);
-        let arg_ty = expr_type(&hir_arg);
-        let inner_ty = strip_ownership(arg_ty.clone());
-        // M1.2：`~` 仅适用于整数/char
-        if matches!(op, UnaryOp::BitNot) && matches!(inner_ty, HirType::Float | HirType::Bool) {
-            return Err(Error::Hir(format!(
-                "cannot apply `~` to `{}` (at {}:{})",
-                hir_type_display(&inner_ty),
-                arg.span().start_line, arg.span().start_col
-            )));
-        }
-        // Try operator overloading (skip for primitive types)
-        let is_primitive = matches!(&inner_ty, HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
-        if !is_primitive {
-            if let Some(op_fn_name) = unary_op_to_fn_name(op) {
-                let param_types = [arg_ty.clone()];
-                if let Some(fn_id) = self.resolve_fn_call(&Symbol::intern(op_fn_name), &param_types) {
-                    let ret_ty = self.fns[fn_id.0].return_type.clone();
-                    let mut args = vec![implicit_move(hir_arg)];
-                    self.append_caller_args(fn_id, &mut args, &arg.span());
-                    return Ok(SCall { fn_id, args, ty: ret_ty }.into());
-                }
-            }
-        }
-        let ty = if matches!(op, UnaryOp::Not) {
-            HirType::Bool
-        } else {
-            strip_ownership(arg_ty)
-        };
-        Ok(SUn {
-            op: *op,
-            arg: hir_arg,
-            ty,
-        }.into())
-    }
-
-    /// A3d：`expr?` 真传播——`Ok(v)` 取值；`Err` 直接把整个 Result 返回（要求与函数返回类型一致）。
-    ///
-    /// 生成（内联到当前语句之前）：
-    /// ```text
-    /// __try_val = <expr>
-    /// if __try_val._tag == 0 { __try_ok = __try_val._data_Ok } else { return __try_val }
-    /// ```
-    /// 表达式结果 = `__try_ok`。
     pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox> {
         let hir_inner = self.lower_expr(inner)?;
         let inner_ty = expr_type(&hir_inner);

@@ -126,6 +126,9 @@ impl Parser {
                         Ok(Stmt::FieldAssign { object, field, value, span: fa_span }),
                     Expr::Index { object, index, span: ix_span } =>
                         Ok(Stmt::IndexAssign { object, index, value, span: ix_span }),
+                    // M5 P2：`*p = v`
+                    Expr::Unary { op: crate::parser::ast::unary_op::UnaryOp::Deref, arg, span: d_span } =>
+                        Ok(Stmt::DerefAssign { target: arg, value: Box::new(value), span: d_span }),
                     _ => Err(self.error("invalid assignment target")),
                 };
             }

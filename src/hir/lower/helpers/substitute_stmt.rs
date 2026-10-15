@@ -8,6 +8,11 @@ pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>
         Stmt::Unsafe { block, span } => Stmt::Unsafe {
             block: substitute_type_in_block(block, subst), span: *span,
         },
+        Stmt::DerefAssign { target, value, span } => Stmt::DerefAssign {
+            target: Box::new(substitute_type_in_expr(target, subst)),
+            value: Box::new(substitute_type_in_expr(value, subst)),
+            span: *span,
+        },
         Stmt::FnDecl { attrs, vis, is_inline, extern_c, is_unsafe, name, generic_params: _, params, param_attrs, return_type, body, span } => {
             Stmt::FnDecl {
                 attrs: attrs.clone(),

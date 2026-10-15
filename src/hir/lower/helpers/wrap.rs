@@ -175,5 +175,7 @@ pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str> {
         UnaryOp::Neg => Some("neg"),
         UnaryOp::Not => Some("not"),
         UnaryOp::BitNot => Some("bitnot"),
+        // M5 P2：解引用无运算符重载
+        UnaryOp::Deref => None,
     }
 }

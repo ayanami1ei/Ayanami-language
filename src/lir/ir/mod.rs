@@ -72,6 +72,8 @@ impl LirEmitCtx<'_> {
             HirType::Bool => "i1".into(),
             HirType::Void | HirType::Never => "void".into(),
             HirType::IntN { bits, .. } => format!("i{}", bits),
+            // M5 P2：裸指针 = LLVM opaque ptr
+            HirType::RawPtr(_) => "ptr".into(),
             HirType::Named(s) => {
                 if self.prog.struct_defs.contains_key(s) {
                     return format!("%struct.{}", sanitize_name(&s.as_str()));
@@ -197,6 +199,7 @@ mod helpers_drop;
 mod nodes;
 mod nodes_a;
 mod nodes_b;
+mod nodes_conv;
 mod nodes_c;
 mod nodes_d;
 mod nodes_e;

@@ -16,6 +16,7 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
         }
         Type::Array(inner, _) => format!("[{}]", type_to_string_generic(inner, interfaces)),
         Type::ArraySized(inner, n, _) => format!("[{}; {}]", type_to_string_generic(inner, interfaces), n),
+        Type::RawPtr(inner, _) => format!("*{}", type_to_string_generic(inner, interfaces)),
         Type::Ref(inner, mutable, _) => format!("ref{}{}",
             if *mutable { " mut" } else { "" },
             type_to_string_generic(inner, interfaces)),
@@ -77,6 +78,8 @@ pub(crate) fn ast_type_to_hir(ty: &Type, interfaces: &HashMap<Symbol, InterfaceR
         Type::Closure(ps, ret, _, once) => HirType::Closure(
             ps.iter().map(|p| ast_type_to_hir(p, interfaces)).collect(),
             Box::new(ast_type_to_hir(ret, interfaces)), true, *once),
+        // M5 P2：裸指针 `*T`
+        Type::RawPtr(inner, _) => HirType::RawPtr(Box::new(ast_type_to_hir(inner, interfaces))),
         // `[T]` 即拥有堆数组（unique 已移除；借用写 `ref [T]`）
         Type::Array(inner, _) => HirType::Unique(Box::new(HirType::Array(Box::new(ast_type_to_hir(inner, interfaces))))),
         Type::ArraySized(inner, n, _) => HirType::Unique(Box::new(HirType::ArraySized(Box::new(ast_type_to_hir(inner, interfaces)), *n))),
@@ -162,6 +165,7 @@ pub(crate) fn hir_type_display(ty: &HirType) -> String {
         HirType::Never => "!".into(),
         HirType::Bool => "bool".into(),
         HirType::IntN { bits, signed } => intn_name(*bits, *signed),
+        HirType::RawPtr(inner) => format!("*{}", hir_type_display(inner)),
         HirType::Named(s) => s.as_str().to_string(),
         // `[T]`/`[T; n]` 即拥有数组（内部 Unique(Array)）；其余 Unique 为 `Ptr<T>`
         // （HIR 泛型名统一角括号风格，与 `type_to_string_generic` 一致）

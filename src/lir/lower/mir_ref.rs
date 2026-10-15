@@ -119,7 +119,7 @@ pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode)
     // 解引用位置：内层为指针（ref/unique）时，指针值即地址
     // （match ref 接收者时字段移出清零原值，避免浅拷贝副本悬挂）
     if let Some(inner) = node.as_deref() {
-        if matches!(inner.expr_type(), HirType::Ref(..) | HirType::Unique(_)) {
+        if matches!(inner.expr_type(), HirType::Ref(..) | HirType::Unique(_) | HirType::RawPtr(_)) {
             return Some(inner.lower_to_lir(ctx));
         }
         return lower_field_addr_of(ctx, &**inner);
@@ -132,7 +132,7 @@ pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode)
     }
     let ty = node.expr_type();
     if let Some(var) = node.as_local() {
-        if matches!(ty, HirType::Ref(..) | HirType::Unique(_)) {
+        if matches!(ty, HirType::Ref(..) | HirType::Unique(_) | HirType::RawPtr(_)) {
             // 指针型局部：load 出的指针值即地址
             return Some(node.lower_to_lir(ctx));
         }
@@ -140,7 +140,7 @@ pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode)
         ctx.emit(SLirRefInst { dest, var_id: var, mutable: true, ty }.into());
         return Some(LirValue::Tmp(dest));
     }
-    if matches!(ty, HirType::Ref(..) | HirType::Unique(_)) {
+    if matches!(ty, HirType::Ref(..) | HirType::Unique(_) | HirType::RawPtr(_)) {
         return Some(node.lower_to_lir(ctx));
     }
     None

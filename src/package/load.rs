@@ -207,6 +207,7 @@ pub(super) fn type_to_string(ty: &Type) -> String {
         Type::Array(inner, _) => format!("[{}]", type_to_string(inner)),
         Type::ArraySized(inner, n, _) => format!("[{}; {}]", type_to_string(inner), n),
         Type::Unique(inner, _) => format!("unique {}", type_to_string(inner)),
+        Type::RawPtr(inner, _) => format!("*{}", type_to_string(inner)),
         Type::Generic(name, args, _) => format!("{}[{}]", name, args.iter().map(|a| type_to_string(a)).collect::<Vec<_>>().join(",")),
         Type::Ref(inner, mutable, _) => {
             if *mutable {

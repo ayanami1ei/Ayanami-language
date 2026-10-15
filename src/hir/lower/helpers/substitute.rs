@@ -15,6 +15,7 @@ pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) 
         Type::Array(inner, _) => Type::Array(Box::new(substitute_type_in_type(inner, subst)), s),
         Type::ArraySized(inner, n, _) => Type::ArraySized(Box::new(substitute_type_in_type(inner, subst)), *n, s),
         Type::Ref(inner, mutable, _) => Type::Ref(Box::new(substitute_type_in_type(inner, subst)), *mutable, s),
+        Type::RawPtr(inner, _) => Type::RawPtr(Box::new(substitute_type_in_type(inner, subst)), s),
         Type::Int(_) => Type::Int(s),
         Type::Float(_) => Type::Float(s),
         Type::Char(_) => Type::Char(s),

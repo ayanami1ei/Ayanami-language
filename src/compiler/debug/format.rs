@@ -18,6 +18,7 @@ pub(super) fn format_type(ty: &Type) -> String {
         Type::Array(inner, _) => format!("[{}]", format_type(inner)),
         Type::ArraySized(inner, n, _) => format!("[{}; {}]", format_type(inner), n),
         Type::Unique(inner, _) => format!("unique {}", format_type(inner)),
+        Type::RawPtr(inner, _) => format!("*{}", format_type(inner)),
         Type::Generic(name, args, _) => format!(
             "{}[{}]",
             name,
@@ -65,6 +66,7 @@ pub(super) fn format_unary(op: &UnaryOp) -> &str {
         UnaryOp::Neg => "Neg",
         UnaryOp::Not => "Not",
         UnaryOp::BitNot => "BitNot",
+        UnaryOp::Deref => "Deref",
     }
 }
 

@@ -36,6 +36,11 @@ impl crate::hir::lower::Ctx {
         let (receiver, receiver_ty) = match &receiver_ty {
             HirType::Unique(inner) => {
                 let inner_ty = (**inner).clone();
+                // M5 P2：`Ptr[T].as_ptr() -> *T`（需 unsafe；不消费 Ptr）
+                if method.as_str() == "as_ptr" && hir_args.is_empty() {
+                    self.require_unsafe("`as_ptr` on `Ptr[T]`", span)?;
+                    return Ok(SCast { expr: receiver, ty: HirType::RawPtr(Box::new(inner_ty)) }.into());
+                }
                 if (method.as_str() == "get" || method.as_str() == "get_mut") && hir_args.is_empty() {
                     let mutable = method.as_str() == "get_mut";
                     let d: HirNodeBox = SDeref { expr: receiver, ty: inner_ty.clone() }.into();
@@ -46,6 +51,14 @@ impl crate::hir::lower::Ctx {
             HirType::Ref(inner, _) if matches!(inner.as_ref(), HirType::Unique(_)) => {
                 let HirType::Unique(u) = inner.as_ref() else { unreachable!() };
                 let inner_ty = (**u).clone();
+                // M5 P2：`ref Ptr[T].as_ptr() -> *T`（先解引用到 Ptr 值再取指针）
+                if method.as_str() == "as_ptr" && hir_args.is_empty() {
+                    self.require_unsafe("`as_ptr` on `ref Ptr[T]`", span)?;
+                    let p: HirNodeBox = SDeref {
+                        expr: receiver, ty: HirType::Unique(Box::new(inner_ty.clone())),
+                    }.into();
+                    return Ok(SCast { expr: p, ty: HirType::RawPtr(Box::new(inner_ty)) }.into());
+                }
                 if (method.as_str() == "get" || method.as_str() == "get_mut") && hir_args.is_empty() {
                     let mutable = method.as_str() == "get_mut";
                     // *(*r)：先解引用到 Ptr 值，再解引用到 pointee

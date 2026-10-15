@@ -31,6 +31,7 @@ pub(crate) fn display_type(ty: &HirType) -> String {
         HirType::IntN { bits, signed } => crate::hir::lower::helpers::intn_name(*bits, *signed),
         HirType::Named(s) => format!("Named({})", s),
         HirType::Unique(inner) => format!("unique {}", display_type(inner)),
+        HirType::RawPtr(inner) => format!("*{}", display_type(inner)),
         HirType::FnPtr(..) => "fn(...)".to_string(),
         HirType::Closure(..) => "Fn(...)".to_string(),
         HirType::FatPtr { name, kind } => format!("fatptr({}, {})", name, display_type(kind)),

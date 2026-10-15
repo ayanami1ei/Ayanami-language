@@ -62,6 +62,7 @@ impl<'a> Reader<'a> {
                 let ret = Box::new(self.ty()?);
                 Ok(HirType::Closure(params, ret, owns_env, once))
             }
+            17 => Ok(HirType::RawPtr(Box::new(self.ty()?))),
             _ => Err(Error::Serialize(format!("unknown type tag: {}", tag))),
         }
     }

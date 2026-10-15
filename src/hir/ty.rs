@@ -45,6 +45,8 @@ pub enum HirType {
     Closure(Vec<HirType>, Box<HirType>, bool, bool),
     /// M1：定宽整数（i8..i128 / u8..u128 / isize / usize）
     IntN { bits: u8, signed: bool },
+    /// M5 P2：裸指针 `*T`（Copy 标量，LLVM `ptr`；无 drop/所有权）
+    RawPtr(Box<HirType>),
 }
 
 impl HirType {
@@ -63,6 +65,7 @@ impl HirType {
                 | HirType::Closure(_, _, false, _)
                 | HirType::Ref(..)
                 | HirType::IntN { .. }
+                | HirType::RawPtr(..)
         )
     }
 }

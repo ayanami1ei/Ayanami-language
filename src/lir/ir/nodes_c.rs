@@ -258,7 +258,7 @@ impl LirNode for SLirFieldStore {
             }
             _ => ctx.value_ref(&self.src, &self.field_ty),
         };
-        if matches!(&self.struct_ty, HirType::Unique(_) | HirType::Ref(..)) {
+        if matches!(&self.struct_ty, HirType::Unique(_) | HirType::Ref(..) | HirType::RawPtr(_)) {
             lines.push(format!("%t{} = getelementptr {}, ptr %t{}, i32 0, i32 {}", self.gep_tmp, struct_llvm, self.dest, self.field_index));
             lines.push(format!("store {} {}, ptr %t{}", field_llvm, src_str, self.gep_tmp));
         } else {

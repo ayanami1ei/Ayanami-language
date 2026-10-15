@@ -33,13 +33,13 @@ impl MirStmtNode for SMirFieldAssignStmt { fn span(&self) -> crate::span::Span {
         let obj_ty = self.object.expr_type();
         let var_id = match self.object.as_local() {
             Some(id) => {
-                let is_value = !matches!(obj_ty, HirType::Unique(_) | HirType::Ref(..));
+                let is_value = !matches!(obj_ty, HirType::Unique(_) | HirType::Ref(..) | HirType::RawPtr(_));
                 if is_value { Some(id) } else { None }
             }
             None => None,
         };
         // #91：值类型对象但非局部（嵌套字段/引用链）→ 取对象地址后 GEP 存储
-        if var_id.is_none() && !matches!(obj_ty, HirType::Unique(_) | HirType::Ref(..)) {
+        if var_id.is_none() && !matches!(obj_ty, HirType::Unique(_) | HirType::Ref(..) | HirType::RawPtr(_)) {
             if let Some(obj_ptr) = super::place::place_ptr(&self.object, ctx) {
                 let src_val = self.value.lower_to_lir(ctx);
                 let gep_tmp = ctx.next_tmp();

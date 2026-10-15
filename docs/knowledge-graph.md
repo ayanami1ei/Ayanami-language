@@ -95,6 +95,7 @@ graph TD
 | void 返回值（#168） | `hir/lower/body/stmt_lower.rs`（`Stmt::Return` 类型一致性）、`mir/lower/ctx.rs::lower_return` | `return <void 调用>` 求值副作用后无值返回（不建临时量 ⇒ 无 `alloca void`）；`-> int` 里返回 void 值 / void 函数里返回值均报错（`!` 发散表达式除外） |
 | 内存运行时 | `src/runtime.c` | `unique_alloc/free` + 存活计数（无 RC/GC） |
 | M5 unsafe 边界 | `parser/parser/stmt.rs`（`unsafe {}` / `unsafe fn`）、`hir/lower/body/stmt_lower.rs`（`unsafe_depth`）、`expr_call.rs`/`expr_misc.rs`/`ctx.rs`（asm、unsafe 调用、static mut 门控） | P1：unsafe 语法 + asm/unsafe-call/`static mut`（读写与 ref mut）门控；设计见 docs/unsafe.md |
+| M5 裸指针 `*T` | `parser/parser/types.rs`（`*T` 类型）、`unary.rs`（`*p`）、`expr_cast.rs`（int/ref/Ptr ↔ `*T`）、`expr_method.rs`（`as_ptr`）、`nodes_conv.rs`（inttoptr/ptrtoint/bitcast） | P2：Copy 标量（LLVM `ptr`）、解引用读写/字段、指针↔int、`ref [T]` 取缓冲区；全部需 unsafe |
 
 ## 3. 标注系统路线（设计见 `docs/annotations.md`）
 

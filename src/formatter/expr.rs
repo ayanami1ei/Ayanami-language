@@ -12,6 +12,7 @@ pub(super) fn write_type(ty: &Type) -> String {
         Type::Bool(_) => "bool".into(),
         Type::Void(_) => "void".into(),
         Type::Never(_) => "!".into(),
+        Type::RawPtr(inner, _) => format!("*{}", write_type(inner)),
         Type::Named(s, _) => s.as_str().to_string(),
         Type::Array(inner, _) => format!("[{}]", write_type(inner)),
         Type::ArraySized(inner, n, _) => format!("[{}; {}]", write_type(inner), n),
@@ -92,6 +93,7 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
                 UnaryOp::Neg => "-",
                 UnaryOp::Not => "!",
                 UnaryOp::BitNot => "~",
+                UnaryOp::Deref => "*",
             };
             let arg = maybe_paren(expr_prec(arg) < 13, arg, level);
             format!("{}{}", op_str, arg)

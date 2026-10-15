@@ -146,6 +146,8 @@ pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
             put_type(buf, ret);
         }
         HirType::Ref(inner, mutable) => { buf.push(11); put_type(buf, inner); buf.push(if *mutable { 1 } else { 0 }); }
+        // M5 P2：裸指针
+        HirType::RawPtr(inner) => { buf.push(17); put_type(buf, inner); }
         HirType::Closure(params, ret, owns_env, once) => {
             buf.push(16);
             buf.push(if *owns_env { 1 } else { 0 });

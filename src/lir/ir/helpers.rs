@@ -84,7 +84,7 @@ pub(crate) fn elem_layout_size(
         match ty {
             HirType::Void | HirType::Never => (0, 1),
             HirType::Char | HirType::Bool => (1, 1),
-            HirType::Int | HirType::Float | HirType::Ref(_, _) | HirType::FnPtr(..) => (8, 8),
+            HirType::Int | HirType::Float | HirType::Ref(_, _) | HirType::FnPtr(..) | HirType::RawPtr(_) => (8, 8),
             HirType::F32 => (4, 4),
             HirType::IntN { bits, .. } => { let sz = (*bits / 8) as u64; (sz, sz.min(16)) }
             HirType::FatPtr { .. } | HirType::Closure(..) => (16, 8),
@@ -122,7 +122,7 @@ pub(crate) fn elem_layout_size(
 pub(super) fn is_pointer_type(ty: &HirType) -> bool {
     matches!(ty,
         HirType::Named(_) | HirType::FatPtr { .. } | HirType::Array(_)
-        | HirType::Unique(_) | HirType::Ref(_, _) | HirType::FnPtr(..)
+        | HirType::Unique(_) | HirType::Ref(_, _) | HirType::FnPtr(..) | HirType::RawPtr(_)
     )
 }
 

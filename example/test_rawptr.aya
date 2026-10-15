@@ -1,0 +1,36 @@
+// M5 P2：裸指针 `*T`（Ptr.as_ptr / 解引用读写 / 指针↔int / ref→*T / FFI）
+struct Box {
+    int v
+}
+
+extern "C" fn memcpy(*void dst, *void src, usize n) -> *void;
+
+fn main() -> int {
+    p = Ptr::new(Box { v = 41 });
+    unsafe {
+        raw = p.as_ptr()
+        if (*raw).v != 41 { return 1 }
+        (*raw).v = 42
+        if p.get().v != 42 { return 2 }
+        addr = raw as usize
+        q = addr as *Box
+        if (*q).v != 42 { return 3 }
+    }
+    x = 7;
+    unsafe {
+        r = ref mut x as *int;
+        *r = 9
+        if x != 9 { return 4 }
+    }
+    // FFI：ref → *void，memcpy 数组缓冲区
+    a = [0; 4];
+    b = [1, 2, 3, 4];
+    unsafe {
+        d = ref mut a as *void
+        s = ref b as *void
+        memcpy(d, s, 32)
+        if a[0] != 1 { return 5 }
+        if a[3] != 4 { return 6 }
+    }
+    return 0
+}
