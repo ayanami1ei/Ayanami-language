@@ -69,7 +69,7 @@ impl Parser {
                 | Keyword::Interface | Keyword::Struct | Keyword::Impl | Keyword::Enum
                 | Keyword::Import | Keyword::Namespace | Keyword::Pub | Keyword::Inline
                 | Keyword::Extern | Keyword::Mut | Keyword::Asm | Keyword::Const | Keyword::Static
-                | Keyword::Unsafe)
+                | Keyword::Unsafe | Keyword::Union)
         )
     }
 

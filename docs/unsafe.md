@@ -29,11 +29,12 @@ safe 代码的健全性不因 unsafe 存在而削弱（unsafe 块内的违规不
 | `static mut` 访问（读/写/取引用） | **P1**（联动 #143） | 已门控：读写与 `ref mut` 均需 unsafe |
 | raw pointer 解引用/字段（`*p`） | **P2**（576.2） | 已实现：`*T` 类型、`*p` 读写、`(*p).field` |
 | 指针 ↔ int cast | **P2**（联动 #71） | 已实现：`*T as usize` / `usize as *T`（需 unsafe） |
-| unchecked indexing | P3（576.3） | 裸数组 `arr[i]` 即未检查原语（模型待定：见 P3b） |
+| unchecked indexing | P3（576.3） | 裸数组 `arr[i]` 即未检查原语（见 P3b 决策点） |
 | reinterpret（`bits::reinterpret[T]`） | **P3a** | 已实现：同尺寸位重解释（bitcast/ptrtoint/inttoptr），需 unsafe |
 | 裸指针算术 `offset` | **P3a** | 已实现：按元素步长；需 unsafe |
 | volatile 读/写 | **P3a** | 已实现：`read_volatile`/`write_volatile`（LLVM volatile）；需 unsafe |
-| union | P3b | 尚无 |
+| union | **P3b** | 已实现：字段共享存储、读取需 unsafe；字段限无 drop 类型 |
+| 裸指针比较 `==`/`!=` | **P3b** | 已实现：地址比较（ptrtoint+icmp），无需 unsafe |
 | `extern "C"` 调用 | P4（迁移） | std 大量使用；需 std 侧 `unsafe` 包装迁移后再门控 |
 
 ## 3. 语法
@@ -149,6 +150,14 @@ fn main() -> int {
       - `*T.offset(n) -> *T`（元素步长 GEP）；`read_volatile()` / `write_volatile(v)`（LLVM `load/store volatile`）；需 unsafe
       - 实现：HIR `SReinterpret`/`SPtrOffset`/`SVolatileLoad`/`SVolatileStore` → MIR 同名节点 → LIR `ConvKind::Reinterpret` / `SLirIndexAddr` / `SLirVolatileLoad`/`SLirVolatileStore`（序列化 tag 41/42）
       - 用例：`example/test_rawptr_ops.aya`；负例 `reinterpret_requires_unsafe`、`reinterpret_size_mismatch`、`raw_ptr_offset_requires_unsafe`、`raw_ptr_volatile_requires_unsafe`
-- [ ] **P3b**：`union` 类型；unchecked indexing 模型（裸数组索引是否默认检查/unsafe 门控的决策）
+- [x] **P3b（576.3 部分）**：`union` 类型 + 裸指针比较
+      - `union U { T1 a; T2 b }`：字段共享存储（布局取最大字段 size/align）；**读取**字段需 unsafe，初始化/写入按 Rust 语义无需
+      - 字段限**无 drop 类型**（基元/指针/引用/无堆 Named，递归检查）；泛型 union 暂不支持；字面量恰好初始化一个字段（其余别名清零）
+      - 表示：`struct_defs[U] = [(__union, 占位), (真实字段...)]`（零 .lcl 格式改动）；LLVM 类型为单一存储槽（最大字段类型）
+      - 裸指针 `==`/`!=`：地址比较（ptrtoint + icmp），支持与 `null`/`0` 比较；无需 unsafe
+      - 用例：`example/test_union.aya`；负例 `union_field_read_requires_unsafe`、`union_literal_one_field`、`union_heap_field`；跨包 .lcl 往返验证
+      - 顺带修复：结构体字面量字段乱序按声明顺序存储（原先按字面量顺序错位）
+- [ ] **P3b 决策点**：unchecked indexing —— 裸数组 `arr[i]` 现为未检查原语（安全代码可越界 UB）。
+      选项：(a) 安全上下文默认边界检查 + unsafe 内不检查；(b) 裸索引纳入 unsafe 门控；(c) 维持原语 + 提供显式检查助手。待定。
 - [ ] P4：extern 调用迁移
 - [ ] P4：extern 调用迁移

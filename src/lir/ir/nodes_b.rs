@@ -178,6 +178,25 @@ impl LirNode for SLirFieldAccess {
         let struct_llvm = ctx.struct_llvm_name(struct_name)
             .unwrap_or_else(|| panic!("unknown struct type `{}`", struct_name));
         let src_str = ctx.value_ref(&self.src, &self.struct_ty);
+        // P3b：union 值形式 —— 字段共享存储，经地址按字段类型 load
+        let is_union = ctx.prog.struct_defs.get(struct_name).and_then(|f| f.first())
+            .map(|(n, _)| n.as_str() == "__union").unwrap_or(false);
+        if is_union && !matches!(&self.struct_ty, HirType::Unique(_) | HirType::Ref(..) | HirType::RawPtr(_)) {
+            let field_llvm = ctx.llvm_type(&self.field_ty);
+            match &self.src {
+                LirValue::Var(v) => {
+                    return vec![format!("%t{} = load {}, ptr %v{}", self.dest, field_llvm, v.0)];
+                }
+                _ => {
+                    // 临时值：溢出到栈槽后按字段类型 load
+                    let a = ctx.tmp();
+                    let mut lines = vec![format!("%a{} = alloca {}, align 8", a, struct_llvm)];
+                    lines.push(format!("store {} {}, ptr %a{}", struct_llvm, src_str, a));
+                    lines.push(format!("%t{} = load {}, ptr %a{}", self.dest, field_llvm, a));
+                    return lines;
+                }
+            }
+        }
         if matches!(&self.struct_ty, HirType::Unique(_) | HirType::Ref(..) | HirType::RawPtr(_)) {
             vec![
                 format!("%t{} = getelementptr {}, ptr {}, i32 0, i32 {}", self.gep_tmp, struct_llvm, src_str, self.field_index),

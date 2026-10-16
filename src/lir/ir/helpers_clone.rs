@@ -78,6 +78,12 @@ pub(crate) fn emit_clone_value(
     match ty {
         HirType::Named(name) => {
             let Some(fields) = ctx.prog.struct_defs.get(name).cloned() else { return; };
+            // P3b：union —— 字段共享存储，整体 memcpy（按存储大小）
+            if fields.first().map(|(n, _)| n.as_str() == "__union").unwrap_or(false) {
+                let sz = elem_layout_size(ty, &ctx.prog.struct_defs);
+                lines.push(format!("call void @llvm.memcpy.p0.p0.i64(ptr {}, ptr {}, i64 {}, i1 false)", dst, src, sz));
+                return;
+            }
             let mut cap_fixes: Vec<(usize, String)> = Vec::new();
             for (idx, (_, ft)) in fields.iter().enumerate() {
                 let ds = ctx.tmp(); let ss = ctx.tmp();

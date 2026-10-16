@@ -134,11 +134,12 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
             let _ = writeln!(out, "{}}}", i);
         }
-        StructDef { attrs, vis, name, generic_params, fields, field_attrs, .. } => {
+        StructDef { attrs, vis, name, generic_params, is_union, fields, field_attrs, .. } => {
             write_attrs(out, attrs, level);
             let i = indent(level);
             let vis_str = vis_str(vis);
-            let _ = write!(out, "{}{}struct {}", i, vis_str, name);
+            let kw = if *is_union { "union" } else { "struct" };
+            let _ = write!(out, "{}{}{} {}", i, vis_str, kw, name);
             write_generic_params(out, generic_params);
             if fields.is_empty() {
                 let _ = writeln!(out, ";");

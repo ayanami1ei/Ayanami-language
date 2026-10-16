@@ -85,6 +85,26 @@ impl crate::hir::lower::Ctx {
         let is_null_ptr_cmp = (lhs_is_null || rhs_is_null)
             && is_pointer_type_for_cmp(non_null_ty)
             && !matches!(strip_ownership(non_null_ty.clone()), HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
+        // P3b：裸指针比较（`*T` vs `*T` / null）—— 按地址比较（ptrtoint + icmp），无需 unsafe
+        let raw_l = matches!(strip_ownership_ref(&lhs_ty), HirType::RawPtr(_));
+        let raw_r = matches!(strip_ownership_ref(&rhs_ty), HirType::RawPtr(_));
+        if matches!(op, BinaryOp::Eq | BinaryOp::Neq) && (raw_l || raw_r) {
+            let to_addr = |e: HirNodeBox, is_raw: bool, side: &str| -> Result<HirNodeBox> {
+                if is_raw {
+                    Ok(SCast { expr: e, ty: HirType::Int }.into())
+                } else if is_null_literal(&e) {
+                    Ok(e)
+                } else {
+                    Err(Error::Hir(format!(
+                        "cannot compare raw pointer with `{}` ({}) (at {}:{})",
+                        hir_type_display(&expr_type(&e)), side, span.start_line, span.start_col
+                    )))
+                }
+            };
+            let l = to_addr(hir_lhs, raw_l, "left")?;
+            let r = to_addr(hir_rhs, raw_r, "right")?;
+            return Ok(SBin { op: *op, lhs: l, rhs: r, ty: HirType::Int }.into());
+        }
         // Try operator overloading first: look for a matching function
         // Primitive types use built-in operators, not overloading
         // Null-vs-pointer comparisons use built-in ptr comparison, not overloading

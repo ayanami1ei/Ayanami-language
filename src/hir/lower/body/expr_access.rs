@@ -8,6 +8,12 @@ impl crate::hir::lower::Ctx {
         self.instantiate_type(&object_ty)?;
         let field_index = self.find_field_index(&object_ty, field, expr_span)?;
         let field_ty = self.find_field_type(&object_ty, field, expr_span)?;
+        // P3b：union 字段读取需 unsafe（初始化/写入按 Rust 语义无需）
+        if let HirType::Named(n) = strip_ownership_ref(&object_ty) {
+            if self.is_union_type(n) {
+                self.require_unsafe(&format!("read of union field `{}`", field.as_str()), expr_span)?;
+            }
+        }
         Ok(SField {
             object: hir_object,
             field: *field,
@@ -115,17 +121,32 @@ impl crate::hir::lower::Ctx {
             }
             hir_fields.push((*name, implicit_move(hir_val)));
         }
-        // #153 后续：缺少字段同样静默（未初始化）；要求字面量覆盖全部字段
         if let Some(defs) = &struct_fields {
-            let missing: Vec<String> = defs.iter()
-                .filter(|f| !seen.contains(&f.name))
-                .map(|f| format!("`{}`", f.name.as_str()))
-                .collect();
-            if !missing.is_empty() {
-                return Err(Error::Hir(format!(
-                    "missing field(s) {} in struct literal `{}` (at {}:{})",
-                    missing.join(", "), concrete_name.as_str(), span.start_line, span.start_col
-                )));
+            let is_union = defs.first().map(|f| f.name.as_str() == "__union").unwrap_or(false);
+            if is_union {
+                // P3b：union 字面量恰好初始化一个字段（其余字段是同一存储的别名）
+                if hir_fields.len() != 1 {
+                    return Err(Error::Hir(format!(
+                        "union `{}` literal must initialize exactly one field (at {}:{})",
+                        concrete_name.as_str(), span.start_line, span.start_col
+                    )));
+                }
+            } else {
+                // #153 后续：缺少字段同样静默（未初始化）；要求字面量覆盖全部字段
+                let missing: Vec<String> = defs.iter()
+                    .filter(|f| !seen.contains(&f.name))
+                    .map(|f| format!("`{}`", f.name.as_str()))
+                    .collect();
+                if !missing.is_empty() {
+                    return Err(Error::Hir(format!(
+                        "missing field(s) {} in struct literal `{}` (at {}:{})",
+                        missing.join(", "), concrete_name.as_str(), span.start_line, span.start_col
+                    )));
+                }
+                // 字段按声明顺序排序（LIR 按索引存字段；字面量顺序不得影响布局）
+                hir_fields.sort_by_key(|(n, _)| {
+                    defs.iter().position(|f| f.name == *n).unwrap_or(usize::MAX)
+                });
             }
         }
         Ok(SStruct {

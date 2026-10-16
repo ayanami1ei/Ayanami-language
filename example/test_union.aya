@@ -1,0 +1,48 @@
+// M5 P3b：union 类型（字段共享存储；读取需 unsafe，初始化/写入无需）
+// 顺带：裸指针 ==/!=（地址比较，无需 unsafe）、结构体字面量字段乱序修复
+struct Pair {
+    int a
+    int b
+}
+
+union W {
+    Pair pair
+    int i
+    float f
+    *int p
+}
+
+fn make(int x) -> W {
+    return W { pair = Pair { a = x, b = x + 1 } }
+}
+
+fn main() -> int {
+    w = make(10)
+    unsafe {
+        if w.pair.a != 10 { return 1 }
+        if w.pair.b != 11 { return 2 }
+        // 共享存储：写 i 后按 f 读（位模式）
+        w.i = bits::reinterpret[int](2.5)
+        if w.f != 2.5 { return 3 }
+        a = [7, 8];
+        p = ref mut a as *int
+        q = p.offset(1)
+        if p == q { return 4 }
+        if p == null { return 5 }
+        w.p = q
+        if w.p != q { return 6 }
+        w.p = null
+        if w.p != null { return 7 }
+    }
+    // union 字面量初始化 + 字段写入（无需 unsafe）
+    u = W { i = 42 }
+    u.f = 1.5
+    unsafe {
+        if u.f != 1.5 { return 8 }
+    }
+    // 结构体字面量字段乱序（按声明顺序存储）
+    pair = Pair { b = 8, a = 7 }
+    if pair.a != 7 { return 9 }
+    if pair.b != 8 { return 10 }
+    return 0
+}

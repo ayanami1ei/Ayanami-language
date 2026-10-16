@@ -58,6 +58,7 @@ impl<'a> Lexer<'a> {
                     "impl" => TokenKind::Keyword(Keyword::Impl),
                     "self" => TokenKind::Keyword(Keyword::Self_),
                     "unsafe" => TokenKind::Keyword(Keyword::Unsafe),
+                    "union" => TokenKind::Keyword(Keyword::Union),
                     _ => TokenKind::Identifier(s),
                 };
                 Token::new(kind, l, ccol, sbyte, self.byte_offset)

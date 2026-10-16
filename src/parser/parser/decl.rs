@@ -203,9 +203,9 @@ impl Parser {
 
     // ==================== Struct definition ====================
 
-    pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
+    pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>, is_union: bool) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
-        self.advance(); // struct
+        self.advance(); // struct / union
         let name = Symbol::intern(&self.expect_identifier()?);
         let generic_params = self.parse_generic_params()?;        self.expect_delimiter(Delimiter::LBrace)?;
         let mut fields = Vec::new();
@@ -223,6 +223,6 @@ impl Parser {
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Stmt::StructDef { attrs, vis, name, generic_params, fields, field_attrs, span: start_span })
+        Ok(Stmt::StructDef { attrs, vis, name, generic_params, is_union, fields, field_attrs, span: start_span })
     }
 }

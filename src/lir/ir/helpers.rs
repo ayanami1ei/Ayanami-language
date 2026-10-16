@@ -101,6 +101,17 @@ pub(crate) fn elem_layout_size(
                 });
                 match fields {
                     Some(fs) => {
+                        // P3b：union —— 字段共享存储：size/align 取各字段最大
+                        if fs.first().map(|(n, _)| n.as_str() == "__union").unwrap_or(false) {
+                            let mut size = 0u64;
+                            let mut align = 1u64;
+                            for (_, ft) in fs {
+                                let (sz, a) = layout(ft, defs);
+                                size = size.max(sz);
+                                align = align.max(a);
+                            }
+                            return ((size + align - 1) / align * align, align);
+                        }
                         let mut off = 0u64;
                         let mut align = 1u64;
                         for (_, ft) in fs {
