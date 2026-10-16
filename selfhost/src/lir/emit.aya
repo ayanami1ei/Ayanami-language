@@ -1823,6 +1823,110 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
 }
 
 /// match（语句 want_value=0 / 表达式 want_value=1）
+/// if 表达式分支：发射块语句 + 块尾值（存入 res）
+fn emit_if_branch(ref Ast ast, int blk, ref String res, ref mut Emitter e) {
+    if blk < 0 { return; }
+    emit_stmts(ast, ast.aa[blk], e);
+    if e.terminated == 1 { return; }
+    tail = ast.bb[blk];
+    if tail >= 0 {
+        tv = emit_expr(ast, tail, e);
+        e.buf.push_str("  store i64 ");
+        e.buf.push_str(tv.a);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(res);
+        e.buf.push_str("\n");
+    }
+}
+
+/// if 表达式：条件链 + 分支块尾值合流
+fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
+    end_l = label(e, "ifx.end.");
+    res = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(res);
+    e.buf.push_str(" = alloca i64\n");
+    c = emit_expr(ast, ast.aa[id], e);
+    then_l = label(e, "ifx.then.");
+    next_l = label(e, "ifx.next.");
+    cc = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(cc);
+    e.buf.push_str(" = icmp ne i64 ");
+    e.buf.push_str(c.a);
+    e.buf.push_str(", 0\n  br i1 ");
+    e.buf.push_str(cc);
+    e.buf.push_str(", label %");
+    e.buf.push_str(then_l);
+    e.buf.push_str(", label %");
+    e.buf.push_str(next_l);
+    e.buf.push_str("\n");
+    e.buf.push_str(then_l);
+    e.buf.push_str(":\n");
+    e.terminated = 0;
+    emit_if_branch(ast, ast.bb[id], res, e);
+    if e.terminated == 0 {
+        e.buf.push_str("  br label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+    }
+    en = ast.cc[id];
+    cur_next = next_l;
+    while en >= 0 {
+        e.buf.push_str(cur_next);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        ec2 = emit_expr(ast, ast.aa[en], e);
+        then_l2 = label(e, "ifx.then.");
+        next_l2 = label(e, "ifx.next.");
+        cc2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(cc2);
+        e.buf.push_str(" = icmp ne i64 ");
+        e.buf.push_str(ec2.a);
+        e.buf.push_str(", 0\n  br i1 ");
+        e.buf.push_str(cc2);
+        e.buf.push_str(", label %");
+        e.buf.push_str(then_l2);
+        e.buf.push_str(", label %");
+        e.buf.push_str(next_l2);
+        e.buf.push_str("\n");
+        e.buf.push_str(then_l2);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        emit_if_branch(ast, ast.bb[en], res, e);
+        if e.terminated == 0 {
+            e.buf.push_str("  br label %");
+            e.buf.push_str(end_l);
+            e.buf.push_str("\n");
+        }
+        cur_next = next_l2;
+        en = ast.nexts[en];
+    }
+    e.buf.push_str(cur_next);
+    e.buf.push_str(":\n");
+    e.terminated = 0;
+    e2 = ast.dd[id];
+    if e2 >= 0 {
+        emit_if_branch(ast, e2, res, e);
+    }
+    if e.terminated == 0 {
+        e.buf.push_str("  br label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+    }
+    e.buf.push_str(end_l);
+    e.buf.push_str(":\n");
+    e.terminated = 0;
+    rv = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(rv);
+    e.buf.push_str(" = load i64, ptr ");
+    e.buf.push_str(res);
+    e.buf.push_str("\n");
+    return mk_int(rv);
+}
+
 fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
     sc = emit_expr(ast, ast.aa[id], e);
     arms = ast.bb[id];
@@ -2810,6 +2914,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     }
     if tag == et(ET::Match._tag) {
         return emit_match(ast, id, e, 1);
+    }
+    if tag == et(ET::If._tag) {
+        return emit_if_expr(ast, id, e);
     }
     if tag == et(ET::Cast._tag) {
         return emit_expr(ast, ast.aa[id], e);
