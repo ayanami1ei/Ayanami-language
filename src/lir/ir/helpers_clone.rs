@@ -11,20 +11,22 @@ pub(crate) fn is_cloneable(
     defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>,
 ) -> bool {
     match ty {
-        HirType::Closure(..) | HirType::FatPtr { .. } => false,
-        HirType::Unique(inner) => {
-            !matches!(inner.as_ref(), HirType::Array(_)) && field_cloneable(inner, defs)
-        }
+        // `Ptr[T]`（Unique 非数组）与闭包/拥有胖指针：唯一所有权 → 字段读取按移动
+        HirType::Unique(_) | HirType::Closure(..) | HirType::FatPtr { .. } => false,
         _ => field_cloneable(ty, defs),
     }
 }
 
-/// 结构体字段上下文（动态数组有兄弟计数，可深拷贝）。
+/// 结构体字段上下文（动态数组有兄弟计数，可深拷贝；Ptr 仍为移动）。
 fn field_cloneable(ty: &HirType, defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool {
     match ty {
         HirType::Closure(..) | HirType::FatPtr { .. } => false,
-        HirType::Unique(inner) | HirType::Array(inner) | HirType::ArraySized(inner, _) =>
-            field_cloneable(inner, defs),
+        // 拥有数组（有兄弟计数）→ 元素可 clone；Ptr<T> → 移动
+        HirType::Unique(inner) => match inner.as_ref() {
+            HirType::Array(e) | HirType::ArraySized(e, _) => field_cloneable(e, defs),
+            _ => false,
+        },
+        HirType::Array(inner) | HirType::ArraySized(inner, _) => field_cloneable(inner, defs),
         HirType::Named(n) => defs
             .get(n)
             .map(|fs| fs.iter().all(|(_, ft)| field_cloneable(ft, defs)))
@@ -76,6 +78,7 @@ pub(crate) fn emit_clone_value(
     match ty {
         HirType::Named(name) => {
             let Some(fields) = ctx.prog.struct_defs.get(name).cloned() else { return; };
+            let mut cap_fixes: Vec<(usize, String)> = Vec::new();
             for (idx, (_, ft)) in fields.iter().enumerate() {
                 let ds = ctx.tmp(); let ss = ctx.tmp();
                 lines.push(format!("%g{} = getelementptr inbounds {}, ptr {}, i32 0, i32 {}", ds, llvm_ty, dst, idx));
@@ -93,12 +96,25 @@ pub(crate) fn emit_clone_value(
                     _ => None,
                 };
                 emit_clone_value(ctx, &format!("%g{}", ds), &format!("%g{}", ss), ft, hint.as_deref(), lines);
+                // #170：clone 只分配 len 个槽 → 目标容量必须改写为 len（全部字段复制后统一修正，
+                // 否则会被随后的 capability 字段拷贝覆盖）；否则 drop 按源 capability 越界释放
+                if let Some(h) = &hint {
+                    if let Some(ci) = count_field(&fields, idx, &["capability", "capacity", "cap"]) {
+                        cap_fixes.push((ci, h.clone()));
+                    }
+                }
+            }
+            for (ci, h) in cap_fixes {
+                let cp = ctx.tmp();
+                lines.push(format!("%g{} = getelementptr inbounds {}, ptr {}, i32 0, i32 {}", cp, llvm_ty, dst, ci));
+                lines.push(format!("store i64 {}, ptr %g{}", h, cp));
             }
         }
         HirType::Unique(inner) => {
-            let elem_size = elem_layout_size(inner, &ctx.prog.struct_defs);
             match inner.as_ref() {
                 HirType::ArraySized(elem, n) => {
+                    // #171：elem_size 必须是元素类型大小（如 char=1），不是数组类型大小（指针=8）
+                    let elem_size = elem_layout_size(elem, &ctx.prog.struct_defs);
                     emit_clone_array(ctx, dst, src, elem, &n.to_string(), elem_size, lines);
                 }
                 HirType::Array(elem) => {
@@ -109,10 +125,13 @@ pub(crate) fn emit_clone_value(
                         lines.push(format!("store ptr %t{}, ptr {}", t, dst));
                         return;
                     };
+                    // #171：同上，按元素类型取大小
+                    let elem_size = elem_layout_size(elem, &ctx.prog.struct_defs);
                     emit_clone_array(ctx, dst, src, elem, count, elem_size, lines);
                 }
                 _ => {
                     // 拥有非数组值（unique T）：分配 + 深拷贝
+                    let elem_size = elem_layout_size(inner, &ctx.prog.struct_defs);
                     let buf = ctx.tmp(); let dstp = ctx.tmp(); let srcp = ctx.tmp();
                     lines.push(format!("%t{} = call i8* @__ayanami_unique_alloc(i64 {})", buf, elem_size));
                     lines.push(format!("%t{} = bitcast i8* %t{} to ptr", dstp, buf));

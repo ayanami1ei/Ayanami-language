@@ -1,0 +1,30 @@
+// #167：捕获闭包存入集合后读出（ArrayList/HashMap），env 只 drop 一次、无泄漏
+import "io"
+import "arraylist"
+import "hashmap"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn run_list() -> int {
+    base = 100
+    a = ArrayList::new[Fn(int) -> int]()
+    a.push((int x) -> int { return x + base })
+    f = a.index(0)
+    return f(5)
+}
+
+fn run_map() -> int {
+    base = 100
+    m = HashMap::new[String, Fn(int) -> int]()
+    m.insert("add", (int x) -> int { return x + base })
+    o = m.get("add")
+    f = o._data_Some._0
+    return f(5)
+}
+
+fn main() -> int {
+    if run_list() != 105 { return 1 }
+    if run_map() != 105 { return 2 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 3 }
+    return 0
+}

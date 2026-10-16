@@ -65,6 +65,8 @@ fn op_code(op: BinaryOp) -> i64 {
 fn unary_code(op: UnaryOp) -> i64 {
     match op {
         UnaryOp::Neg => 20, UnaryOp::Not => 21, UnaryOp::BitNot => 22,
+        // M5 P2：解引用不参与常量折叠，仅编码
+        UnaryOp::Deref => 23,
     }
 }
 

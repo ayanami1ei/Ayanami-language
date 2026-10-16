@@ -1,0 +1,38 @@
+// M5 P3：位重解释（bits::reinterpret）/ 裸指针算术（offset）/ volatile 读写
+// 全部需 unsafe 上下文
+struct Pair {
+    int a
+    int b
+}
+
+fn main() -> int {
+    x = 3.5
+    unsafe {
+        b = bits::reinterpret[int](x)
+        y = bits::reinterpret[float](b)
+        if y != 3.5 { return 1 }
+        bits32 = bits::reinterpret[i32](1.5f32)
+        if bits::reinterpret[f32](bits32) != 1.5f32 { return 2 }
+    }
+    a = [1, 2, 3, 4];
+    unsafe {
+        p = ref mut a as *int
+        q = p.offset(2)
+        if *q != 3 { return 3 }
+        v = p.read_volatile()
+        if v != 1 { return 4 }
+        p.write_volatile(20)
+        if *p != 20 { return 5 }
+        *q = 30
+        if a[2] != 30 { return 6 }
+    }
+    pair = Pair { a = 7, b = 8 };
+    unsafe {
+        pp = ref mut pair as *Pair
+        if (*pp).a != 7 { return 7 }
+        // 元素步长 = sizeof(Pair) = 16
+        pp2 = pp.offset(1)
+        if bits::reinterpret[int](pp2) - bits::reinterpret[int](pp) != 16 { return 8 }
+    }
+    return 0
+}

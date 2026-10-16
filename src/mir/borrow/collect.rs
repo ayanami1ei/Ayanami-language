@@ -93,6 +93,15 @@ pub(super) fn collect(
                     ) + &at));
                 }
                 loans.insert(r, Loan { var, mutable, origin: r, extra: Vec::new() });
+            } else if let Some((var, mutable)) = deref_root_var(&value) {
+                // M4：`Ptr[T].get()` 等对堆 pointee 的借用 —— loan 绑定持有指针/引用的变量
+                if loans.contains_key(&r) {
+                    return Err(Error::Borrow(format!(
+                        "reference local `{}` cannot be reassigned (borrow checker limitation)",
+                        var_name(mir_fn, r)
+                    ) + &at));
+                }
+                loans.insert(r, Loan { var, mutable, origin: r, extra: Vec::new() });
             } else if let Some(src) = value.as_local() {
                 // 引用拷贝：r = s
                 if loans.contains_key(&r) {
@@ -205,4 +214,23 @@ pub(super) fn collect(
     }
 
     Ok((loans, defined_at, struct_ref_locals))
+}
+
+/// M4：借用表达式经 Deref/字段链回溯到根变量（`ref *p` → p；`ref obj.field` → obj）。
+fn deref_root_var(value: &MirNodeBox) -> Option<(VarId, bool)> {
+    let mut node = value.ref_expr()?;
+    loop {
+        if let Some(var) = node.as_local() {
+            return Some((var, matches!(value.expr_type(), HirType::Ref(_, true))));
+        }
+        if let Some(d) = node.as_deref() {
+            node = d;
+            continue;
+        }
+        if let Some((obj, _)) = node.as_field_access() {
+            node = obj;
+            continue;
+        }
+        return None;
+    }
 }

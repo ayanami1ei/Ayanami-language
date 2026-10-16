@@ -116,8 +116,12 @@ impl Ctx {
         if let Some(v) = value {
             let is_never = matches!(v.expr_type(), HirType::Never)
                 || matches!(self.return_type, HirType::Never);
+            // #168：void 返回值不建临时量（否则生成 alloca void）——求值副作用后按无值返回
+            let is_void_ret = matches!(self.return_type, HirType::Void);
             if is_never {
                 direct_value = Some(v.lower_to_mir(&self.moved));
+            } else if is_void_ret {
+                stmts.push(SMirExprStmt { expr: v.lower_to_mir(&self.moved), span }.into());
             } else {
                 // 临时变量使用函数返回类型（比较运算等表达式类型可能与返回类型不同）
                 let ty = self.return_type.clone();

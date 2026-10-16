@@ -1,5 +1,5 @@
 use super::*;
-use super::expr::write_type;
+use super::types::write_type;
 
 pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt) {
     match stmt {
@@ -109,11 +109,11 @@ pub(super) fn write_return_type(out: &mut String, ty: &Type) {
 
 /// 函数指针 / 闭包类型文本：`fn(T)->U` / `Fn(T)->U`（void 返回省略箭头）
 pub(super) fn write_fn_type(kw: &str, params: &[Type], ret: &Type) -> String {
-    let p: Vec<String> = params.iter().map(|p| super::expr::write_type(p)).collect();
+    let p: Vec<String> = params.iter().map(|p| write_type(p)).collect();
     if matches!(ret, Type::Void(_)) {
         format!("{}({})", kw, p.join(","))
     } else {
-        format!("{}({})->{}", kw, p.join(","), super::expr::write_type(ret))
+        format!("{}({})->{}", kw, p.join(","), write_type(ret))
     }
 }
 

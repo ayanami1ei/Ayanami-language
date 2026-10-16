@@ -1,0 +1,20 @@
+// #169：宏标注（#[test]）函数体内的未标注 lambda 返回类型推断
+// （formatter round-trip 不得把未标注写成 `-> void`，否则推断被禁用）
+import "option"
+import "test"
+
+fn some_int(int v) -> Option[int] {
+    return Option::Some(v)
+}
+
+#[test]
+fn t() {
+    a = some_int(3)
+    b = a.map((int x) { return x + 1 })
+    if b._tag != 0 { return }
+    if b._data_Some._0 != 4 { return }
+}
+
+fn main() -> int {
+    return 0
+}

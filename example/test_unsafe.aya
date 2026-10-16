@@ -1,0 +1,36 @@
+// M5 P1：unsafe 块 / unsafe fn / 调用点门控
+unsafe fn readreg(int a) -> int {
+    r = 0
+    asm("mov $1, $0", in(reg) a, out(reg) r)
+    return r
+}
+
+fn safe_add(int a, int b) -> int {
+    return a + b
+}
+
+fn main() -> int {
+    x = 0
+    unsafe { x = readreg(7) }
+    if x != 7 { return 1 }
+
+    y = 0
+    unsafe {
+        asm("mov $1, $0", in(reg) 5, out(reg) y)
+    }
+    if y != 5 { return 2 }
+
+    // unsafe 块是普通作用域：块内 let 不泄漏，drop 语义不变
+    unsafe {
+        z = safe_add(1, 2)
+        if z != 3 { return 3 }
+    }
+    // 嵌套 unsafe
+    unsafe {
+        unsafe {
+            w = readreg(9)
+            if w != 9 { return 4 }
+        }
+    }
+    return 0
+}

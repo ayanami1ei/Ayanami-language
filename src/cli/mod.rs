@@ -55,3 +55,9 @@ pub(crate) fn apply_mode(flags: &CliFlags) {
     let env_lto = std::env::var("AYANAMI_LTO").map(|v| v != "0").unwrap_or(false);
     ayanami::driver::set_lto(flags.lto || env_lto);
 }
+
+/// 进程级唯一临时目录：并发进程（多 worktree / 并行校验）互不干扰，用完即删。
+/// 共享目录 + `remove_dir_all` 会让并发编译的 llc 报 "Could not open input file"。
+pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("ayanami-{}-{}", tag, std::process::id()))
+}

@@ -26,6 +26,7 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
             }
         }
         HirType::Ref(inner, mutable) => Type::Ref(Box::new(hir_type_to_ast_type(inner)), *mutable, s),
+        HirType::RawPtr(inner) => Type::RawPtr(Box::new(hir_type_to_ast_type(inner)), s),
     }
 }
 

@@ -37,6 +37,7 @@ s_lir!(SLirFieldTake { dest: u64, gep_tmp: u64, obj: LirValue, field_index: usiz
 s_lir!(SLirLocalTake { dest: u64, var: VarId, ty: HirType });
 s_lir!(SLirDropPtr { ptr: LirValue, ty: HirType });
 s_lir!(SLirClone { dest: u64, alloca_tmp: u64, src: LirValue, ty: HirType });
+s_lir!(SLirIndexTake { dest: u64, gep_tmp: u64, obj: LirValue, index: LirValue, elem_ty: HirType });
 s_lir!(SLirDropArray { var: VarId, elem_ty: HirType, count_var: VarId });
 // M6.2：全局变量地址（dest = getelementptr 取 @name 指针）
 s_lir!(SLirGlobalAddr { dest: u64, name: Symbol });
@@ -45,6 +46,8 @@ s_lir!(SLirIndexAddr { dest: u64, arr_tmp: u64, index: LirValue, elem_ty: HirTyp
 s_lir!(SLirFieldStorePtr { gep_tmp: u64, obj: LirValue, field_index: usize, field_ty: HirType, src: LirValue, struct_ty: HirType });
 s_lir!(SLirFieldStore { dest: u64, var_id: Option<VarId>, gep_tmp: u64, iv_tmp: u64, src: LirValue, field_index: usize, field_ty: HirType, struct_ty: HirType });
 s_lir!(SLirIndexStore { dest: u64, gep_tmp: u64, src: LirValue, index: LirValue, elem_ty: HirType, array_ty: HirType });
+s_lir!(SLirVolatileLoad { dest: u64, src: LirValue, ty: HirType });
+s_lir!(SLirVolatileStore { ptr: LirValue, src: LirValue, ty: HirType });
 s_lir!(SLirCustom { node: IrNode });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -60,7 +63,8 @@ impl_into_lir_node_box!(
     SLirArraySized, SLirArrayLit, SLirIndexAccess, SLirStructLit,
     SLirVirtualCall, SLirFieldStore, SLirIndexStore, SLirFieldAddr, SLirFieldStorePtr,
     SLirGlobalAddr, SLirIndexAddr, SLirFieldTake, SLirLocalTake, SLirDropPtr,
-    SLirClone, SLirDropArray,
+    SLirClone, SLirDropArray, SLirIndexTake,
+    SLirVolatileLoad, SLirVolatileStore,
 );
 
 // ═══════════════════════════════════════════════════════════════════

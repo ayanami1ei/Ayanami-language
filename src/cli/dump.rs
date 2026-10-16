@@ -12,7 +12,7 @@ pub(crate) fn cmd_dump(args: &[String]) {
         Ok(c) => c,
         Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }
     };
-    let tmp = std::env::temp_dir().join("ayanami-dump");
+    let tmp = unique_tmp_dir("dump");
     fs::create_dir_all(&tmp).ok();
     let base = path.parent().unwrap_or(std::path::Path::new("."));
     let mut compiling = std::collections::HashSet::new();

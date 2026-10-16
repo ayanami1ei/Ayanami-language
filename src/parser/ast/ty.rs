@@ -18,6 +18,8 @@ pub enum Type {
     /// M6.2c：`[T; N]`（N 为字面量整数）
     ArraySized(Box<Type>, usize, Span),
     Ref(Box<Type>, bool, Span),  // ref T or ref mut T
+    /// M5 P2：裸指针 `*T`
+    RawPtr(Box<Type>, Span),
     Unique(Box<Type>, Span),
     Self_(Span),
     FnPtr(Vec<Type>, Box<Type>, Span),
@@ -38,6 +40,7 @@ impl Type {
             | Type::Array(_, s)
             | Type::ArraySized(_, _, s)
             | Type::Ref(_, _, s)
+            | Type::RawPtr(_, s)
             | Type::Unique(_, s)
             | Type::FnPtr(_, _, s)
             | Type::Closure(_, _, s, _) => *s,

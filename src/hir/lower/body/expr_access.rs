@@ -4,6 +4,8 @@ impl crate::hir::lower::Ctx {
     pub(crate) fn lower_field_access(&mut self, object: &Box<Expr>, field: &Symbol, expr_span: &Span) -> Result<HirNodeBox> {
         let hir_object = self.lower_expr(object)?;
         let object_ty = hir_object.expr_type();
+        // M4：先确保泛型实例（如 Option<Ptr[Tree]>）已单态化，字段查找才能取到特化类型
+        self.instantiate_type(&object_ty)?;
         let field_index = self.find_field_index(&object_ty, field, expr_span)?;
         let field_ty = self.find_field_type(&object_ty, field, expr_span)?;
         Ok(SField {

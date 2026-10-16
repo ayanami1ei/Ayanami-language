@@ -204,3 +204,11 @@ fn __iface_drop_String (fn_id=104) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))
     ret void
+fn __drop_ArrayList_lt_int_gt_ (fn_id=105) -> Void [1 blocks]
+entry:
+    drop_ptr : Named(Symbol(N))
+    ret void
+fn __drop_String (fn_id=106) -> Void [1 blocks]
+entry:
+    drop_ptr : Named(Symbol(N))
+    ret void

@@ -1,0 +1,18 @@
+// #168：`return <void 调用>` 等价于「求值副作用后直接返回」，不再生成 alloca void
+fn note(int v) {
+    sink = v
+    if sink < 0 {
+        return
+    }
+    return note(sink - 1)
+}
+
+fn wrap(int x) {
+    return note(x)
+}
+
+fn main() -> int {
+    note(3)
+    wrap(2)
+    return 0
+}

@@ -174,7 +174,8 @@ impl MirNode for SMirToUnique {
         let inner_ty = match &self.ty { HirType::Unique(i) => i.as_ref(), _ => &self.ty };
         if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
             let src = match inner_val {
-                LirValue::Tmp(_) => inner_val,
+                // 字面量/参数已是值，直接进 conv（无需 load）
+                LirValue::Tmp(_) | LirValue::Literal(..) | LirValue::Param(_) => inner_val,
                 _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&inner_val), ty: self.expr.expr_type() }.into()); LirValue::Tmp(t) }
             };
             let dest = ctx.next_tmp(); let alloca_tmp = ctx.next_tmp(); let malloc_tmp = ctx.next_tmp();
@@ -190,34 +191,6 @@ impl MirNode for SMirToUnique {
     fn expr_type(&self) -> HirType { self.ty.clone() }
     fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
 }
-
-impl MirNode for SMirCast {
-    fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
-    fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-    fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
-        let src = self.expr.lower_to_lir(ctx);
-        let dest = ctx.next_tmp();
-        ctx.emit(SLirConv {
-            dest,
-            alloca_tmp: 0,
-            malloc_tmp: 0,
-            src,
-            kind: ConvKind::Cast,
-            src_ty: self.expr.expr_type(),
-            ty: self.ty.clone(),
-        }.into());
-        LirValue::Tmp(dest)
-    }
-    fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
-        writeln!(w, "{:width$}Cast(ty: {})", "", display_hir_type(&self.ty), width = level * 2)?;
-        self.expr.display(level + 1, w)?;
-        Ok(())
-    }
-    fn expr_type(&self) -> HirType { self.ty.clone() }
-    fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-}
-
-
 
 impl MirNode for SMirVirtualCall {
     fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.receiver); for a in &mut self.args { f(a); } }

@@ -87,7 +87,7 @@ impl crate::hir::lower::Ctx {
         };
 
         let (gf_name, gf_params, gf_stmt) = &self.generic_fns[gf_idx];
-        let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, param_attrs, attrs, vis, .. } = gf_stmt else {
+        let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, is_unsafe, param_attrs, attrs, vis, .. } = gf_stmt else {
             return Err(Error::Hir(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col)));
         };
 
@@ -207,6 +207,7 @@ impl crate::hir::lower::Ctx {
             hidden,
             is_noreturn,
             extern_c: false,
+            is_unsafe: false,
         });
         self.fn_map.entry(*name).or_default().push(fid);
         self.specialized_ids.insert(fid);
@@ -217,7 +218,7 @@ impl crate::hir::lower::Ctx {
         let saved_scopes = std::mem::take(&mut self.scopes);
 
         // A3a：泛型实例继承定义上的标注（含效应；此前 A1 标注在此丢失）
-        let mut hir_fn = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, Span::default(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
+        let mut hir_fn = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, *is_unsafe, Span::default(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
         hir_fn.is_specialized = true;
 
         self.current_fn = saved_current_fn;

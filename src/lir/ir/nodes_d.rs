@@ -146,6 +146,8 @@ pub(crate) fn put_type(buf: &mut Vec<u8>, ty: &HirType) {
             put_type(buf, ret);
         }
         HirType::Ref(inner, mutable) => { buf.push(11); put_type(buf, inner); buf.push(if *mutable { 1 } else { 0 }); }
+        // M5 P2：裸指针
+        HirType::RawPtr(inner) => { buf.push(17); put_type(buf, inner); }
         HirType::Closure(params, ret, owns_env, once) => {
             buf.push(16);
             buf.push(if *owns_env { 1 } else { 0 });
@@ -197,6 +199,8 @@ pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral) {
 /// Trait interface for LIR lowering context — allows SMir* nodes to lower themselves.
 pub trait LirLowerCtx {
     fn next_tmp(&mut self) -> u64;
+    /// 结构体定义（clone/take 决策等 lowering 期需要）
+    fn struct_defs(&self) -> &HashMap<Symbol, Vec<(Symbol, HirType)>>;
     fn emit(&mut self, inst: LirNodeBox);
     fn str_map(&self) -> &HashMap<String, u64>;
     fn loop_stack(&self) -> &Vec<(String, String)>;

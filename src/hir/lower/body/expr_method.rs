@@ -31,6 +31,82 @@ impl crate::hir::lower::Ctx {
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();
 
+        // M4：`Ptr[T]` 接收者 —— `get`/`get_mut` 返回 pointee 借用；其余方法自动解引用。
+        // 拥有 `Ptr[T]` 与 `ref Ptr[T]`（字段借用）均支持。
+        let (receiver, receiver_ty) = match &receiver_ty {
+            HirType::Unique(inner) => {
+                let inner_ty = (**inner).clone();
+                // M5 P2：`Ptr[T].as_ptr() -> *T`（需 unsafe；不消费 Ptr）
+                if method.as_str() == "as_ptr" && hir_args.is_empty() {
+                    self.require_unsafe("`as_ptr` on `Ptr[T]`", span)?;
+                    return Ok(SCast { expr: receiver, ty: HirType::RawPtr(Box::new(inner_ty)) }.into());
+                }
+                if (method.as_str() == "get" || method.as_str() == "get_mut") && hir_args.is_empty() {
+                    let mutable = method.as_str() == "get_mut";
+                    let d: HirNodeBox = SDeref { expr: receiver, ty: inner_ty.clone() }.into();
+                    return Ok(SRef { expr: d, mutable, ty: HirType::Ref(Box::new(inner_ty), mutable) }.into());
+                }
+                (SDeref { expr: receiver, ty: inner_ty.clone() }.into(), inner_ty)
+            }
+            HirType::Ref(inner, _) if matches!(inner.as_ref(), HirType::Unique(_)) => {
+                let HirType::Unique(u) = inner.as_ref() else { unreachable!() };
+                let inner_ty = (**u).clone();
+                // M5 P2：`ref Ptr[T].as_ptr() -> *T`（先解引用到 Ptr 值再取指针）
+                if method.as_str() == "as_ptr" && hir_args.is_empty() {
+                    self.require_unsafe("`as_ptr` on `ref Ptr[T]`", span)?;
+                    let p: HirNodeBox = SDeref {
+                        expr: receiver, ty: HirType::Unique(Box::new(inner_ty.clone())),
+                    }.into();
+                    return Ok(SCast { expr: p, ty: HirType::RawPtr(Box::new(inner_ty)) }.into());
+                }
+                if (method.as_str() == "get" || method.as_str() == "get_mut") && hir_args.is_empty() {
+                    let mutable = method.as_str() == "get_mut";
+                    // *(*r)：先解引用到 Ptr 值，再解引用到 pointee
+                    let p: HirNodeBox = SDeref {
+                        expr: receiver, ty: HirType::Unique(Box::new(inner_ty.clone())),
+                    }.into();
+                    let d: HirNodeBox = SDeref { expr: p, ty: inner_ty.clone() }.into();
+                    return Ok(SRef { expr: d, mutable, ty: HirType::Ref(Box::new(inner_ty), mutable) }.into());
+                }
+                (receiver, receiver_ty)
+            }
+            _ => (receiver, receiver_ty),
+        };
+
+        // P3：裸指针 `*T` 方法 —— offset / read_volatile / write_volatile（需 unsafe）
+        if let HirType::RawPtr(inner) = &receiver_ty {
+            let inner_ty = inner.as_ref().clone();
+            match method.as_str().as_str() {
+                "offset" if hir_args.len() == 1 => {
+                    self.require_unsafe("`offset` on a raw pointer", span)?;
+                    let index = coerce_index(hir_args[0].clone(), &HirType::Int, span)?;
+                    return Ok(SPtrOffset { ptr: receiver, index, ty: receiver_ty.clone() }.into());
+                }
+                "read_volatile" if hir_args.is_empty() => {
+                    self.require_unsafe("`read_volatile` on a raw pointer", span)?;
+                    if !inner_ty.is_copy() {
+                        return Err(Error::Hir(format!(
+                            "`read_volatile` requires a Copy pointee (got `{}`) (at {}:{})",
+                            hir_type_display(&inner_ty), span.start_line, span.start_col
+                        )));
+                    }
+                    return Ok(SVolatileLoad { ptr: receiver, ty: inner_ty }.into());
+                }
+                "write_volatile" if hir_args.len() == 1 => {
+                    self.require_unsafe("`write_volatile` on a raw pointer", span)?;
+                    if !inner_ty.is_copy() {
+                        return Err(Error::Hir(format!(
+                            "`write_volatile` requires a Copy pointee (got `{}`) (at {}:{})",
+                            hir_type_display(&inner_ty), span.start_line, span.start_col
+                        )));
+                    }
+                    let value = coerce_expr(hir_args[0].clone(), &inner_ty, span)?;
+                    return Ok(SVolatileStore { ptr: receiver, value, ty: HirType::Void }.into());
+                }
+                _ => {}
+            }
+        }
+
         // Check if receiver type is a fat pointer (interface dispatch)
         // receiver_ty may be wrapped in ownership (e.g. Shared(FatPtr))
         let receiver_inner = strip_ownership_ref(&receiver_ty);
@@ -120,6 +196,19 @@ impl crate::hir::lower::Ctx {
         {
             Some(id) => id,
             None => {
+                // e88 诊断：存在同名方法但需要 `ref mut self`，而接收者是不可变引用
+                if let HirType::Ref(inner, false) = &receiver_ty {
+                    let wants_mut = self.fn_map.get(method).map(|cands| cands.iter().any(|fid| {
+                        let sig = &self.fns[fid.0];
+                        matches!(sig.params.first(), Some((_, HirType::Ref(p, true))) if p.as_ref() == inner.as_ref())
+                    })).unwrap_or(false);
+                    if wants_mut {
+                        return Err(Error::Hir(format!(
+                            "cannot call method `{}` requiring `ref mut self` on an immutable reference `{}` (at {}:{})",
+                            method.as_str(), hir_type_display(&receiver_ty), span.start_line, span.start_col
+                        )));
+                    }
+                }
                 let mut all_param_types = vec![receiver_ty.clone()];
                 all_param_types.extend(deref_arg_types.iter().cloned());
                 let fid = match self.specialize_generic_call(method, &all_param_types, span) {

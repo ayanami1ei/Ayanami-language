@@ -3,6 +3,11 @@ use super::*;
 impl Parser {
 
     pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
+        self.parse_fn_decl_unsafe(vis, is_inline, extern_c, false, attrs)
+    }
+
+    /// M5：`unsafe fn` 支持
+    pub(super) fn parse_fn_decl_unsafe(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, is_unsafe: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let name = self.expect_identifier()?;
@@ -55,7 +60,7 @@ impl Parser {
 
         Ok(Stmt::FnDecl {
             attrs,
-            vis, is_inline, extern_c,
+            vis, is_inline, extern_c, is_unsafe,
             generic_params,
             name: Symbol::intern(&name),
             params,

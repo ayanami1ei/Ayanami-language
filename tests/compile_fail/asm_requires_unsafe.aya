@@ -1,0 +1,5 @@
+fn main() -> int {
+    r = 0
+    asm("mov $1, $0", in(reg) 1, out(reg) r)
+    return r
+}

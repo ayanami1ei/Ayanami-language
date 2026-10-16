@@ -1,20 +1,22 @@
 use super::*;
 use super::helpers::*;
 use super::expr::*;
+use super::types::write_type;
 
 pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
     match stmt {
-        FnDecl { attrs, vis, is_inline, extern_c, name, generic_params, params, param_attrs, return_type, body, .. } => {
+        FnDecl { attrs, vis, is_inline, extern_c, is_unsafe, name, generic_params, params, param_attrs, return_type, body, .. } => {
             write_attrs(out, attrs, level);
             let i = indent(level);
+            let unsafe_kw = if *is_unsafe { "unsafe " } else { "" };
             if *extern_c {
-                let _ = write!(out, "{}extern \"C\" fn {}", i, name);
+                let _ = write!(out, "{}{}extern \"C\" fn {}", i, unsafe_kw, name);
             } else {
                 if *is_inline {
-                    let _ = write!(out, "{}inline fn {}", i, name);
+                    let _ = write!(out, "{}{}inline fn {}", i, unsafe_kw, name);
                 } else {
                     let vis_str = vis_str(vis);
-                    let _ = write!(out, "{}{}fn {}", i, vis_str, name);
+                    let _ = write!(out, "{}{}{}fn {}", i, unsafe_kw, vis_str, name);
                 }
             }
             write_generic_params(out, generic_params);
@@ -29,6 +31,11 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
         }
         Block(block) => {
+            write_block_same_line(out, block, level);
+            let _ = writeln!(out);
+        }
+        Unsafe { block, .. } => {
+            let _ = write!(out, "{}unsafe ", indent(level));
             write_block_same_line(out, block, level);
             let _ = writeln!(out);
         }
@@ -47,6 +54,10 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
         IndexAssign { object, index, value, .. } => {
             let i = indent(level);
             let _ = writeln!(out, "{}{}[{}] = {};", i, write_expr_at(object, level), write_expr_at(index, level), write_expr_at(value, level));
+        }
+        DerefAssign { target, value, .. } => {
+            let i = indent(level);
+            let _ = writeln!(out, "{}*{} = {};", i, write_expr_at(target, level), write_expr_at(value, level));
         }
         Return { value, .. } => {
             let i = indent(level);

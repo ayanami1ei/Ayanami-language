@@ -22,6 +22,33 @@ impl crate::hir::lower::Ctx {
             .map(|a| self.lower_expr(a))
             .collect::<std::result::Result<Vec<_>, _>>()?;
 
+        // M4：`Ptr::new(v)` 内置构造 —— 堆分配拥有指针（稳定地址）
+        if name.as_str() == "Ptr.new" {
+            if hir_args.len() != 1 {
+                return Err(Error::Hir(format!(
+                    "Ptr::new expects exactly 1 argument (at {}:{})", span.start_line, span.start_col
+                )));
+            }
+            let arg = hir_args.pop().unwrap();
+            let inner = strip_ownership(expr_type(&arg));
+            // 阶段 1：仅指针表示内层类型可装箱（标量 unique 当前非指针表示）
+            if !matches!(inner,
+                HirType::Named(_) | HirType::FatPtr { .. } | HirType::Unique(_)
+                | HirType::Array(_) | HirType::ArraySized(_, _) | HirType::Closure(..))
+            {
+                return Err(Error::Hir(format!(
+                    "Ptr[T] currently supports struct/enum/interface/array elements only (got {}) (at {}:{})",
+                    hir_type_display(&inner), span.start_line, span.start_col
+                )));
+            }
+            return Ok(SToUnique { expr: arg, ty: HirType::Unique(Box::new(inner)) }.into());
+        }
+
+        // P3：`bits::reinterpret[T](x)` 内置（见 expr_reinterpret.rs）
+        if name.as_str() == "bits.reinterpret" {
+            return self.lower_reinterpret_builtin(&mut hir_args, explicit, span);
+        }
+
         // Step 2: extract arg types（引用实参另存解引用类型，用于回退解析）
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();
@@ -136,6 +163,14 @@ impl crate::hir::lower::Ctx {
                 }
             }
         } };
+
+        // M5：调用 unsafe fn 需 unsafe 上下文
+        if self.fns[fn_id.0].is_unsafe && self.unsafe_depth == 0 && !self.cur_fn_unsafe {
+            return Err(Error::Hir(format!(
+                "call to `unsafe fn {}` requires an `unsafe` block (at {}:{})",
+                name.as_str(), span.start_line, span.start_col
+            )));
+        }
 
         // Step 4: wrap args into fat pointers where needed, apply implicit moves
         // extern "C" 声明：实参按借用传递（C 侧不消费所有权）

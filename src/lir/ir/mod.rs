@@ -41,6 +41,8 @@ impl IrNode {
 pub enum ConvKind {
     ToUnique,
     Cast,
+    /// P3：位级重解释（同尺寸 bitcast）
+    Reinterpret,
 }
 
 #[derive(Debug, Clone)]
@@ -72,6 +74,8 @@ impl LirEmitCtx<'_> {
             HirType::Bool => "i1".into(),
             HirType::Void | HirType::Never => "void".into(),
             HirType::IntN { bits, .. } => format!("i{}", bits),
+            // M5 P2：裸指针 = LLVM opaque ptr
+            HirType::RawPtr(_) => "ptr".into(),
             HirType::Named(s) => {
                 if self.prog.struct_defs.contains_key(s) {
                     return format!("%struct.{}", sanitize_name(&s.as_str()));
@@ -197,12 +201,15 @@ mod helpers_drop;
 mod nodes;
 mod nodes_a;
 mod nodes_b;
+mod nodes_conv;
 mod nodes_c;
 mod nodes_d;
 mod nodes_e;
 mod nodes_f;
+mod nodes_volatile;
 
 pub use helpers::*;
+pub(crate) use helpers_clone::is_cloneable;
 pub(crate) use helpers_drop::emit_drop_value;
 pub use nodes::*;
 pub use nodes_d::*;

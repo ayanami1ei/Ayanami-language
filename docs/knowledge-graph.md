@@ -81,6 +81,8 @@ graph TD
 | 借用临时量提升 | `mir/lower/temps.rs` | `f(ref "x")` 等拥有临时量提升为局部变量，语句后 drop |
 | match/if 表达式结果 | `hir/item.rs::HirLocal::result`、`match_lower.rs`/`if_expr.rs` | 条件赋值结果变量不参与覆盖/块末 drop，链后移出到最终临时量 |
 | 实参移动门控 | `helpers/wrap.rs::type_needs_drop`、`expr_call.rs` | 拥有堆数据的命名类型按值传参移动；extern 借用、POD 复制 |
+| M4 拥有指针 | `helpers/types.rs`（`Ptr[T]`→`Unique`）、`expr_call.rs`（`Ptr::new`）、`expr_method.rs`（`get`/`get_mut`/自动解引用） | `Ptr[T]` 堆拥有指针：字段/数组存储、递归 drop、`ref Ptr[T]` 借用；设计见 docs/refs-storage.md |
+| 类型化 drop 函数 | `lir/lower/mod.rs`（按需合成 `__drop_<n>`）、`lir/ir/helpers_drop.rs` | Named 释放统一走弱链接函数，递归/互递归类型终止 |
 | 泛型多约束 | `parser/parser/generic_params.rs`、`hir/lower/body/generic_types.rs` | `[T: A + B]`（每参数 `Vec<Symbol>` 约束）；方法/操作符按任一 bound 检查，调用点合并检查全部 |
 | 局部移出清零 | `lir/ir/nodes_f.rs::SLirLocalTake` | 局部变量移动后清零，循环回边重复移动不双重释放 |
 | 导入所有权补全 | `hir/lower/body/collect_import.rs` | 符号串路径 `[T]` → `unique [T]`；LIR 精确类型优先 |
@@ -90,7 +92,11 @@ graph TD
 | 动态数组计数释放 | `mir/lower/assign_field.rs`、`lir/ir/helpers_drop.rs::SLirDropArray` | 字段覆盖旧动态数组时从兄弟字段取计数逐元素释放（expand 旧数据） |
 | 条件临时量 | `mir/lower/control.rs`、`lir/lower/mir_stmts_loops.rs` | while/elif 条件的借用临时量在循环头/分支链内每轮求值后 drop（pre_cond/post_cond） |
 | noreturn 分支发散 | `mir/lower/checks.rs::block_diverges` | panic 等 `!` 调用分支的移动不合并——隐藏文件参数正常路径正常释放 |
+| void 返回值（#168） | `hir/lower/body/stmt_lower.rs`（`Stmt::Return` 类型一致性）、`mir/lower/ctx.rs::lower_return` | `return <void 调用>` 求值副作用后无值返回（不建临时量 ⇒ 无 `alloca void`）；`-> int` 里返回 void 值 / void 函数里返回值均报错（`!` 发散表达式除外） |
 | 内存运行时 | `src/runtime.c` | `unique_alloc/free` + 存活计数（无 RC/GC） |
+| M5 unsafe 边界 | `parser/parser/stmt.rs`（`unsafe {}` / `unsafe fn`）、`hir/lower/body/stmt_lower.rs`（`unsafe_depth`）、`expr_call.rs`/`expr_misc.rs`/`ctx.rs`（asm、unsafe 调用、static mut 门控） | P1：unsafe 语法 + asm/unsafe-call/`static mut`（读写与 ref mut）门控；设计见 docs/unsafe.md |
+| M5 裸指针 `*T` | `parser/parser/types.rs`（`*T` 类型）、`unary.rs`（`*p`）、`expr_cast.rs`（int/ref/Ptr ↔ `*T`）、`expr_method.rs`（`as_ptr`）、`nodes_conv.rs`（inttoptr/ptrtoint/bitcast） | P2：Copy 标量（LLVM `ptr`）、解引用读写/字段、指针↔int、`ref [T]` 取缓冲区；全部需 unsafe |
+| M5 reinterpret / 指针算术 / volatile | `expr_call.rs`（`bits::reinterpret` 拦截 + 尺寸检查）、`expr_method.rs`（`offset`/`read_volatile`/`write_volatile`）、`nodes_volatile.rs`（LLVM volatile 发射）、`mir_ptr_ops.rs` | P3a：同尺寸位重解释 + 元素步长指针算术 + volatile 读写；全部需 unsafe |
 
 ## 3. 标注系统路线（设计见 `docs/annotations.md`）
 

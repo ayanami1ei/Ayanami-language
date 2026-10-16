@@ -1,0 +1,34 @@
+// M4 阶段 1：Ptr[T] 树递归 drop 无泄漏（字段指针 + 自动解引用 + 递归释放）
+import "io"
+import "option"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+struct Tree {
+    int v
+    Option[Ptr[Tree]] left
+    Option[Ptr[Tree]] right
+}
+
+pub namespace Tree {
+    pub fn leaf(int v) -> Ptr[Tree] {
+        return Ptr::new(Tree { v = v, left = Option::None(), right = Option::None() })
+    }
+}
+
+fn build() -> int {
+    t = Tree::leaf(2)
+    t.left = Option::Some(Tree::leaf(1))
+    t.right = Option::Some(Tree::leaf(3))
+    l = t.left._data_Some._0
+    if l.v != 1 { return 0 }
+    t.left = Option::Some(l)
+    return t.v
+}
+
+fn main() -> int {
+    n = build()
+    if n != 2 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

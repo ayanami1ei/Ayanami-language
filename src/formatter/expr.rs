@@ -1,26 +1,6 @@
 use super::*;
-use super::helpers::{indent, write_fn_type, write_match_body};
-
-pub(super) fn write_type(ty: &Type) -> String {
-    match ty {
-        Type::Default => "???".into(),
-        Type::FnPtr(params, ret, _) => write_fn_type("fn", params, ret),
-        Type::Closure(params, ret, _, once) => write_fn_type(if *once { "FnOnce" } else { "Fn" }, params, ret),
-        Type::Int(_) => "int".into(),
-        Type::Float(_) => "float".into(),
-        Type::Char(_) => "char".into(),
-        Type::Bool(_) => "bool".into(),
-        Type::Void(_) => "void".into(),
-        Type::Never(_) => "!".into(),
-        Type::Named(s, _) => s.as_str().to_string(),
-        Type::Array(inner, _) => format!("[{}]", write_type(inner)),
-        Type::ArraySized(inner, n, _) => format!("[{}; {}]", write_type(inner), n),
-        Type::Unique(inner, _) => format!("unique {}", write_type(inner)),
-        Type::Generic(name, args, _) => format!("{}[{}]", name, args.iter().map(|a| write_type(a)).collect::<Vec<_>>().join(", ")),
-        Type::Ref(inner, mutable, _) => format!("ref {}{}", if *mutable { "mut " } else { "" }, write_type(inner)),
-        Type::Self_(_) => "Self".into(),
-    }
-}
+use super::helpers::{indent, write_match_body};
+use super::types::write_type;
 
 pub(super) fn write_expr(expr: &Expr) -> String {
     write_expr_at(expr, 0)
@@ -92,6 +72,7 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
                 UnaryOp::Neg => "-",
                 UnaryOp::Not => "!",
                 UnaryOp::BitNot => "~",
+                UnaryOp::Deref => "*",
             };
             let arg = maybe_paren(expr_prec(arg) < 13, arg, level);
             format!("{}{}", op_str, arg)
@@ -199,7 +180,14 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         }
         Expr::Lambda { params, return_type, body, .. } => {
             let params_str: Vec<String> = params.iter().map(|(n, t)| format!("{} {}", write_type(t), n)).collect();
-            let mut out = format!("({}) -> {} {{", params_str.join(", "), write_type(return_type));
+            // #169：未标注返回类型（哨兵 void）不能写成 `-> void`，否则宏展开/源码 round-trip
+            // 后变成显式 void 标注，lambda 返回类型推断被禁用
+            let ret = if crate::hir::lower::helpers::lambda_ret_unannotated(return_type) {
+                String::new()
+            } else {
+                format!(" -> {}", write_type(return_type))
+            };
+            let mut out = format!("({}){} {{", params_str.join(", "), ret);
             for st in &body.stmts {
                 out.push('\n');
                 write_stmt(&mut out, st, level + 1);

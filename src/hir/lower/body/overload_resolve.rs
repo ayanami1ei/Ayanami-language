@@ -151,13 +151,20 @@ impl crate::hir::lower::Ctx {
                 if receiver == inner.as_ref() { return true; }
             }
             // 允许向 ref/ref mut self 传入裸类型（自动借用）
-            HirType::Ref(inner, _) => {
+            HirType::Ref(inner, param_mut) => {
                 if receiver == inner.as_ref() { return true; }
                 let recv_inner2 = match receiver {
                     HirType::Unique(i) => i.as_ref(),
                     other => other,
                 };
                 if recv_inner2 == inner.as_ref() { return true; }
+                // e88：`ref mut T` 接收者可调用 `ref self` 方法（可变引用退化为不可变引用；
+                // 反向不允许，调用组装处另有 immut→mut 报错）
+                if !*param_mut {
+                    if let HirType::Ref(recv_inner, true) = receiver {
+                        if recv_inner.as_ref() == inner.as_ref() { return true; }
+                    }
+                }
             }
             _ => {}
         }

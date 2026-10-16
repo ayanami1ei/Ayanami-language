@@ -37,6 +37,8 @@ impl crate::hir::lower::Ctx {
                             name.as_str(), span.start_line, span.start_col
                         )));
                     }
+                    // M5/#143：static mut 写入需 unsafe
+                    self.require_unsafe(&format!("assignment to mutable static `{}`", name.as_str()), span)?;
                     let target: HirNodeBox = SGlobal { name: st.name, ty: st.ty.clone(), mutable: true }.into();
                     let hir_value = self.lower_expr(value)?;
                     let hir_value = coerce_expr(hir_value, &st.ty, span)?;
@@ -116,6 +118,23 @@ impl crate::hir::lower::Ctx {
                     span: *span,
                 })
             }
+            // M5 P2：`*p = v` —— 裸指针解引用写（需 unsafe）
+            Stmt::DerefAssign { target, value, span } => {
+                self.require_unsafe("write through a raw pointer", span)?;
+                let hir_target = self.lower_expr(target)?;
+                let target_ty = expr_type(&hir_target);
+                let pointee = match strip_ownership_ref(&target_ty) {
+                    HirType::RawPtr(inner) => inner.as_ref().clone(),
+                    other => return Err(Error::Hir(format!(
+                        "cannot write through `{}`: expected a raw pointer `*T` (at {}:{})",
+                        hir_type_display(other), span.start_line, span.start_col
+                    ))),
+                };
+                let hir_value = self.lower_expr(value)?;
+                let hir_value = coerce_expr(hir_value, &pointee, span)?;
+                let hir_value = implicit_move(hir_value);
+                Ok(HirStmt::DerefAssign { target: hir_target, value: hir_value, span: *span })
+            }
             Stmt::Return { value, span } => {
                 if value.is_none() {
                     let ret_ty = self.fns[self.current_fn.0].return_type.clone();
@@ -134,6 +153,34 @@ impl crate::hir::lower::Ctx {
                         let fn_ret = self.fns[self.current_fn.0].return_type.clone();
                         // #119/#120：无载荷变体（Opt::None()）按期望返回类型实例化
                         let expr = self.instantiate_enum_value(expr, &fn_ret)?;
+                        let src_ty = expr_type(&expr);
+                        // #168：void 返回值必须与函数返回类型一致，否则按值返回会读到垃圾值
+                        // （`-> int` 里 `return <void 调用>` / void 函数里 `return 5`）。
+                        // 只看 void 一个方向，避免与 coerce_expr 的包装/解引用规则冲突；`!` 是任意类型子类型。
+                        // 无标注 lambda 的返回类型此时尚未推断（仍显示 void），延后校验。
+                        if self.lambda_ret_pending {
+                            self.pending_ret_checks.push((*span, src_ty.clone()));
+                        } else {
+                            let src_is_never = matches!(strip_ownership_ref(&src_ty), HirType::Never);
+                            if !src_is_never {
+                                let src_is_void = matches!(strip_ownership_ref(&src_ty), HirType::Void);
+                                let ret_is_void = matches!(fn_ret, HirType::Void);
+                                let fn_name = self.fns[self.current_fn.0].name;
+                                if ret_is_void && !src_is_void {
+                                    return Err(Error::Hir(format!(
+                                        "function `{}` returns no value, but `return` has a value of type `{}` (at {}:{})",
+                                        fn_name, hir_type_display(&src_ty), span.start_line, span.start_col
+                                    )));
+                                }
+                                if !ret_is_void && src_is_void {
+                                    return Err(Error::Hir(format!(
+                                        "function `{}` returns `{}`, but `return` has no value (`{}` call) (at {}:{})",
+                                        fn_name, hir_type_display(&fn_ret), hir_type_display(&src_ty),
+                                        span.start_line, span.start_col
+                                    )));
+                                }
+                            }
+                        }
                         let expr = coerce_expr(expr, &fn_ret, span)?;
                         let expr_ty = expr_type(&expr);
                         // 若函数返回 unique T，但表达式是裸 T，自动包装为 ToUnique
@@ -198,6 +245,14 @@ impl crate::hir::lower::Ctx {
             // #88：块语句 → HirStmt::Block（作用域内语句顺序降级）
             Stmt::Block(block) => {
                 let hb = self.lower_block(block)?;
+                Ok(HirStmt::Block { stmts: hb.stmts, span: block.span })
+            }
+            // M5：unsafe 块 —— 块内 unsafe 上下文 +1（检查在 asm/调用点）
+            Stmt::Unsafe { block, .. } => {
+                self.unsafe_depth += 1;
+                let hb = self.lower_block(block);
+                self.unsafe_depth -= 1;
+                let hb = hb?;
                 Ok(HirStmt::Block { stmts: hb.stmts, span: block.span })
             }
             Stmt::Break { span } => Ok(HirStmt::Break { span: *span }),

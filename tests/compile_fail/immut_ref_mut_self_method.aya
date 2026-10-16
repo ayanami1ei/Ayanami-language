@@ -1,0 +1,16 @@
+struct S {
+    int v
+}
+
+impl S {
+    fn set(ref mut self, int x) {
+        self.v = x
+    }
+}
+
+fn main() -> int {
+    s = S { v = 1 };
+    r = ref s;
+    r.set(2)
+    return 0
+}

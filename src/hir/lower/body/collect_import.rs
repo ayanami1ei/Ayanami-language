@@ -2,47 +2,7 @@ use super::*;
 
 impl crate::hir::lower::Ctx {
     pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str, stmt_span: crate::span::Span) -> Result<()> {
-            let pkg_path = if std::path::Path::new(path).exists() {
-                path.clone()
-            } else {
-                // Try with .lcl extension
-                let with_lcl = format!("{}.lcl", path);
-                if std::path::Path::new(&with_lcl).exists() {
-                    with_lcl
-                } else {
-                    // Try with .aya extension
-                    let with_aya = if path.ends_with(".aya") {
-                        path.to_string()
-                    } else {
-                        format!("{}.aya", path)
-                    };
-                    if std::path::Path::new(&with_aya).exists() {
-                        with_aya
-                    } else {
-                        // Try standard library directory (use filename only, strip any directory prefix)
-                        let exe = std::env::current_exe().ok();
-                        let mut found = path.clone();
-                        if let Some(exe_dir) = exe.and_then(|p| p.parent().map(|d| d.to_path_buf())) {
-                            let stem = std::path::Path::new(path).file_stem()
-                                .and_then(|s| s.to_str())
-                                .unwrap_or(path);
-                            let std_candidates = [
-                                exe_dir.join("std").join(format!("{}.lcl", stem)),
-                                exe_dir.join("../std").join(format!("{}.lcl", stem)),
-                                exe_dir.join("std").join(format!("{}.aya", stem)),
-                                exe_dir.join("../std").join(format!("{}.aya", stem)),
-                            ];
-                            for candidate in &std_candidates {
-                                if candidate.exists() {
-                                    found = candidate.to_string_lossy().into_owned();
-                                    break;
-                                }
-                            }
-                        }
-                        found
-                    }
-                }
-            };
+            let pkg_path = super::collect_import_path::resolve_import_pkg_path(path);
             let (imported_syms, sources, lir_binary, _) = crate::package::load_package(&pkg_path)
                 .map_err(|e| Error::Import(format!("import error for '{}': {}", path, e)))?;
 
@@ -231,6 +191,7 @@ impl crate::hir::lower::Ctx {
                             hidden,
                             is_noreturn,
                             extern_c,
+                            is_unsafe: flags.iter().any(|f| f == "unsafe"),
                         });
                         if extern_c { self.extern_fn_ids.insert(fn_id); }
                         self.fn_map.entry(sym_name).or_default().push(fn_id);

@@ -1,0 +1,5 @@
+unsafe fn readreg(int a) -> int { return a }
+fn main() -> int {
+    x = readreg(7)
+    return 0
+}

@@ -1,0 +1,46 @@
+// e88：`ref mut T` 接收者可调用 `ref self` 方法（可变引用退化为不可变引用）
+struct S {
+    int v
+}
+
+impl S {
+    fn get(ref self) -> int {
+        return self.v
+    }
+    fn set(ref mut self, int x) {
+        self.v = x
+    }
+}
+
+fn via_ref_mut() -> int {
+    s = S { v = 1 };
+    r = ref mut s;
+    if r.get() != 1 { return 1 }
+    r.set(2)
+    if r.get() != 2 { return 2 }
+    r.v = 3
+    if r.get() != 3 { return 3 }
+    return 0
+}
+
+fn bare_value_auto_borrow() -> int {
+    s = S { v = 2 };
+    if s.get() != 2 { return 1 }
+    return 0
+}
+
+fn loan_ends_after_last_use() -> int {
+    s = S { v = 1 };
+    r = ref mut s;
+    r.set(5)
+    // r 最后一次使用之后，可变借用结束：可读 s
+    if s.v != 5 { return 1 }
+    return 0
+}
+
+fn main() -> int {
+    if via_ref_mut() != 0 { return 1 }
+    if bare_value_auto_borrow() != 0 { return 2 }
+    if loan_ends_after_last_use() != 0 { return 3 }
+    return 0
+}

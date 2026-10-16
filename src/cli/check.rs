@@ -1,7 +1,7 @@
 use super::*;
 
 fn do_check(path: &Path) -> ayanami::error::Result<()> {
-    let tmp_dir = std::env::temp_dir().join("ayanami-check");
+    let tmp_dir = unique_tmp_dir("check");
     std::fs::create_dir_all(&tmp_dir).ok();
     let mut compiling = std::collections::HashSet::new();
     let mut cache = std::collections::HashMap::new();

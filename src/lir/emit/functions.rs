@@ -5,7 +5,7 @@ pub(super) fn is_ptr_like(t: &HirType) -> bool {
     matches!(
         t,
         HirType::Ref(..) | HirType::Unique(_) | HirType::Array(_)
-            | HirType::ArraySized(_, _) | HirType::FatPtr { .. }
+            | HirType::ArraySized(_, _) | HirType::FatPtr { .. } | HirType::RawPtr(_)
     )
 }
 

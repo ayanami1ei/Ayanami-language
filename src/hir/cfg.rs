@@ -60,6 +60,15 @@ fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>> {
             tail: block.tail.clone(),
             span: block.span,
         }),
+        // M5：unsafe 块内同样做 cfg 过滤
+        Stmt::Unsafe { block, span } => Stmt::Unsafe {
+            block: crate::parser::ast::block::Block {
+                stmts: filter_stmts(&block.stmts)?,
+                tail: block.tail.clone(),
+                span: block.span,
+            },
+            span: *span,
+        },
         Stmt::Attributed { attrs, stmt: inner, span } => match filter_one(inner)? {
             Some(inner) => Stmt::Attributed { attrs: attrs.clone(), stmt: Box::new(inner), span: *span },
             None => return Ok(None),

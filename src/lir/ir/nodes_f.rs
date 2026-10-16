@@ -82,7 +82,12 @@ impl LirNode for SLirDropPtr {
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let slot = ctx.value_ref(&self.ptr, &HirType::Ref(Box::new(self.ty.clone()), true));
         let mut lines = Vec::new();
-        emit_drop_value(ctx, &slot, &self.ty, &mut lines);
+        // Named：函数体展开字段（不调用自身）；其余类型按通用规则
+        if matches!(&self.ty, HirType::Named(_)) {
+            super::helpers_drop::emit_drop_fields(ctx, &slot, &self.ty, &mut lines);
+        } else {
+            emit_drop_value(ctx, &slot, &self.ty, &mut lines);
+        }
         lines
     }
     fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
@@ -92,5 +97,33 @@ impl LirNode for SLirDropPtr {
         buf.push(37);
         put_value(buf, &self.ptr);
         put_type(buf, &self.ty);
+    }
+}
+
+/// 数组元素移出：load 值 + 源槽清零（闭包/拥有胖指针等无 clone glue 的元素）。
+impl LirNode for SLirIndexTake {
+    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+    fn kind(&self) -> &'static str { "IndexTake" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        let elem_llvm = ctx.llvm_type(&self.elem_ty);
+        let obj = ctx.value_ref(&self.obj, &HirType::Unique(Box::new(self.elem_ty.clone())));
+        let idx = ctx.value_ref(&self.index, &HirType::Int);
+        vec![
+            format!("%t{} = getelementptr {}, ptr {}, i64 {}", self.gep_tmp, elem_llvm, obj, idx),
+            format!("%t{} = load {}, ptr %t{}", self.dest, elem_llvm, self.gep_tmp),
+            format!("store {} zeroinitializer, ptr %t{}", elem_llvm, self.gep_tmp),
+        ]
+    }
+    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
+        writeln!(f, "    t{} = index_take : {:?}", self.dest, self.elem_ty)
+    }
+    fn serialize(&self, buf: &mut Vec<u8>) {
+        buf.push(38);
+        put_u64(buf, self.dest);
+        put_u64(buf, self.gep_tmp);
+        put_value(buf, &self.obj);
+        put_value(buf, &self.index);
+        put_type(buf, &self.elem_ty);
     }
 }

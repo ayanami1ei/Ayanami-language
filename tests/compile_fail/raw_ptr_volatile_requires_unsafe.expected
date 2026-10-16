@@ -1,0 +1,1 @@
+`read_volatile` on a raw pointer requires an `unsafe` block

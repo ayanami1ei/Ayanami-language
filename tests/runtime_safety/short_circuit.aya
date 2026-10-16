@@ -5,7 +5,9 @@ import "string"
 static mut CALLS = 0
 
 fn side() -> bool {
-    CALLS = CALLS + 1
+    unsafe {
+        CALLS = CALLS + 1
+    }
     return true
 }
 
@@ -17,7 +19,9 @@ fn main() -> int {
     if false && side() { return 2 }
     ok = true || side()
     if !ok { return 3 }
-    if CALLS != 0 { return 4 }
+    unsafe {
+        if CALLS != 0 { return 4 }
+    }
     println(42)
     return 0
 }

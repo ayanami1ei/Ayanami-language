@@ -30,6 +30,7 @@ fn ast_type_text(ty: &Type) -> String {
         Type::ArraySized(inner, n, _) => format!("[{}; {}]", ast_type_text(inner), n),
         Type::Ref(inner, m, _) => format!("ref {}{}", if *m { "mut " } else { "" }, ast_type_text(inner)),
         Type::Unique(inner, _) => ast_type_text(inner),
+        Type::RawPtr(inner, _) => format!("*{}", ast_type_text(inner)),
         Type::Self_(_) => "Self".into(),
         Type::FnPtr(..) => "fn".into(),
         Type::Closure(..) => "Fn".into(),

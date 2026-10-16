@@ -10,6 +10,12 @@ impl Parser {
             TokenKind::Keyword(Keyword::Unique) => {
                 Err(self.error("`unique` has been removed: ownership is the default; write `[T]`/`[T; n]` for owned arrays"))
             }
+            // M5 P2：裸指针 `*T`
+            TokenKind::Operator(s) if s == "*" => {
+                self.advance();
+                let inner = self.parse_base_type()?;
+                Ok(Type::RawPtr(Box::new(inner), span))
+            }
             TokenKind::Keyword(Keyword::Ref) => {
                 self.advance();
                 let mutable = self.peek().map(|t| &t.kind) == Some(&TokenKind::Keyword(Keyword::Mut));

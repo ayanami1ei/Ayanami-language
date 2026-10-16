@@ -1,23 +1,32 @@
 // M6.2b 夹具：导入 .lcl 的全局（裸名/限定名/命名空间；跨模块读写）
+// M5/#143：static mut 访问需 unsafe
 import "lib"
 
 fn main() -> int {
     if COUNTER != 5 { return 1 }
     if bump() != 1 { return 2 }
-    if TOTAL != 1 { return 3 }
-    TOTAL = 10
-    if TOTAL != 10 { return 4 }
+    unsafe {
+        if TOTAL != 1 { return 3 }
+        TOTAL = 10
+        if TOTAL != 10 { return 4 }
+    }
     if lib::COUNTER != 5 { return 5 }
-    cfg::LEVEL = 3
-    if cfg::LEVEL != 3 { return 6 }
+    unsafe {
+        cfg::LEVEL = 3
+        if cfg::LEVEL != 3 { return 6 }
+    }
     if PRIMES[4] != 11 { return 7 }
     if prime(0) != 2 { return 8 }
-    HITS[1] = 5
-    if HITS[1] != 5 { return 9 }
+    unsafe {
+        HITS[1] = 5
+        if HITS[1] != 5 { return 9 }
+    }
     if lib::PRIMES[2] != 5 { return 10 }
     if ORIGIN.a != 0 { return 11 }
-    CURSOR.b = 9
-    if CURSOR.b != 9 { return 12 }
+    unsafe {
+        CURSOR.b = 9
+        if CURSOR.b != 9 { return 12 }
+    }
     if lib::ORIGIN.b != 0 { return 13 }
     if PACK.pos.a != 5 { return 14 }
     if PACK.tags[1] != 2 { return 15 }

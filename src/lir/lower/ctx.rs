@@ -7,11 +7,15 @@ pub(super) struct LowerCtx<'a> {
     pub(super) current_insts: Vec<LirNodeBox>,
     pub(super) blocks: Vec<LirBlock>,
     pub(super) str_map: &'a HashMap<String, u64>,
+    pub(super) struct_defs: &'a HashMap<Symbol, Vec<(Symbol, HirType)>>,
     pub(super) loop_stack: Vec<(String, String)>,
 }
 
 impl<'a> LowerCtx<'a> {
-    pub(super) fn new(str_map: &'a HashMap<String, u64>) -> Self {
+    pub(super) fn new(
+        str_map: &'a HashMap<String, u64>,
+        struct_defs: &'a HashMap<Symbol, Vec<(Symbol, HirType)>>,
+    ) -> Self {
         Self {
             tmp: 0,
             block_id: 0,
@@ -19,6 +23,7 @@ impl<'a> LowerCtx<'a> {
             current_insts: Vec::new(),
             blocks: Vec::new(),
             str_map,
+            struct_defs,
             loop_stack: Vec::new(),
         }
     }
@@ -55,6 +60,7 @@ impl<'a> LowerCtx<'a> {
 }
 
 impl LirLowerCtx for LowerCtx<'_> {
+    fn struct_defs(&self) -> &HashMap<Symbol, Vec<(Symbol, HirType)>> { self.struct_defs }
     fn next_tmp(&mut self) -> u64 {
         let t = self.tmp;
         self.tmp += 1;

@@ -35,6 +35,10 @@ impl crate::hir::lower::Ctx {
                 }
                 // M6.2：全局变量读取（SGlobal 取址 + SDeref 载入）
                 if let Some(st) = self.statics.get(name).cloned() {
+                    // M5/#143：static mut 读取需 unsafe
+                    if st.is_mut {
+                        self.require_unsafe(&format!("read of mutable static `{}`", name.as_str()), span)?;
+                    }
                     let addr: HirNodeBox = SGlobal { name: st.name, ty: st.ty.clone(), mutable: st.is_mut }.into();
                     return Ok(SDeref { expr: addr, ty: st.ty.clone() }.into());
                 }
@@ -131,6 +135,10 @@ impl crate::hir::lower::Ctx {
                                 name.as_str(), span.start_line, span.start_col
                             )));
                         }
+                        // M5/#143：static mut 取引用需 unsafe
+                        if st.is_mut {
+                            self.require_unsafe(&format!("reference to mutable static `{}`", name.as_str()), span)?;
+                        }
                         let addr: HirNodeBox = SGlobal { name: st.name, ty: st.ty.clone(), mutable: *mutable }.into();
                         let ty = HirType::Ref(Box::new(st.ty.clone()), *mutable);
                         return Ok(SRef { expr: addr, mutable: *mutable, ty }.into());
@@ -170,7 +178,7 @@ impl crate::hir::lower::Ctx {
                 };
                 Ok(SArrSz { count: hir_count, elem_ty, ty }.into())
             }
-            Expr::Asm { template, outputs, inputs, .. } => self.lower_asm(template, outputs, inputs),
+            Expr::Asm { template, outputs, inputs, span } => self.lower_asm(template, outputs, inputs, span),
             Expr::Lambda { params, return_type, body, .. } => self.lower_lambda(params, return_type, body),
         }
     }

@@ -192,6 +192,7 @@ impl Parser {
             vis: Visibility::Pub,
             is_inline: false,
             extern_c: false,
+            is_unsafe: false,
             generic_params,
             name,
             params,

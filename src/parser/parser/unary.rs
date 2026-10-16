@@ -34,6 +34,12 @@ impl Parser {
                     span,
                 })
             }
+            // M5 P2：裸指针解引用 `*p`
+            TokenKind::Operator(s) if s == "*" => {
+                self.advance();
+                let expr = self.parse_unary()?;
+                Ok(Expr::Unary { op: UnaryOp::Deref, arg: Box::new(expr), span })
+            }
             TokenKind::Operator(s) if s == "~" => {
                 self.advance();
                 let expr = self.parse_unary()?;

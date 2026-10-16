@@ -1,0 +1,42 @@
+import "option"
+
+struct Tree {
+    int v
+    Option[Ptr[Tree]] left
+    Option[Ptr[Tree]] right
+}
+
+pub namespace Tree {
+    pub fn leaf(int v) -> Ptr[Tree] {
+        return Ptr::new(Tree { v = v, left = Option::None(), right = Option::None() })
+    }
+}
+
+impl Tree {
+    pub fn contains(ref self, int x) -> bool {
+        if self.v == x { return true }
+        if x < self.v {
+            if self.left._tag == 0 {
+                r = ref self.left._data_Some._0
+                return r.get().contains(x)
+            }
+            return false
+        }
+        if self.right._tag == 0 {
+            r = ref self.right._data_Some._0
+            return r.get().contains(x)
+        }
+        return false
+    }
+}
+
+fn main() -> int {
+    t = Tree::leaf(2)
+    t.left = Option::Some(Tree::leaf(1))
+    t.right = Option::Some(Tree::leaf(3))
+    if !t.contains(1) { return 1 }
+    if !t.contains(2) { return 2 }
+    if !t.contains(3) { return 3 }
+    if t.contains(9) { return 4 }
+    return 0
+}
