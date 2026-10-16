@@ -121,6 +121,27 @@ impl Parser {
         }
     }
 
+    /// 成员位置名称：标识符或任意关键字（`.union(...)`、`x.type`、字段声明/字面量）。
+    /// 与 `expect_identifier` 不同：成员位置无表达式歧义，关键字可安全作名字。
+    pub(super) fn expect_member_name(&mut self) -> Result<String> {
+        match self.peek() {
+            Some(tok) => {
+                let kind = tok.kind.clone();
+                match kind {
+                    TokenKind::Identifier(s) => { self.advance(); Ok(s) }
+                    TokenKind::Keyword(k) => { self.advance(); Ok(k.to_string()) }
+                    other => Err(self.error(&format!("expected identifier, found `{}`", other))),
+                }
+            }
+            None => Err(self.error("expected identifier, found EOF")),
+        }
+    }
+
+    /// 成员位置名称判定（供前瞻使用）：标识符或任意关键字。
+    pub(super) fn is_member_name(kind: &TokenKind) -> bool {
+        matches!(kind, TokenKind::Identifier(_) | TokenKind::Keyword(_))
+    }
+
     pub(super) fn expect_identifier(&mut self) -> Result<String> {
         match self.peek() {
             Some(tok) if matches!(&tok.kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_)) => {

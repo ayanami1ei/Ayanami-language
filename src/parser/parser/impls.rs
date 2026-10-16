@@ -97,7 +97,8 @@ impl Parser {
         }
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.expect_keyword(Keyword::Fn)?;
-        let name = Symbol::intern(&self.expect_identifier()?);
+        // #172：方法名允许关键字（如 `fn union(ref self)`）
+        let name = Symbol::intern(&self.expect_member_name()?);
 
         // Generic parameters: [T: Interface, U]
         let generic_params = self.parse_generic_params()?;

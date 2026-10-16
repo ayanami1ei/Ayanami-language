@@ -187,7 +187,7 @@ impl Parser {
                         loop {
                             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) { break; }
                             let fexpr = self.parse_expr()?;
-                            let fname = self.expect_identifier()?;
+                            let fname = self.expect_member_name()?;
                             fields.push((Symbol::intern(&fname), fexpr));
                             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
                                 self.advance();
@@ -212,7 +212,8 @@ impl Parser {
                 // Method call: expr.method(args) or field access: expr.field
                 Some(TokenKind::Delimiter(Delimiter::Dot)) => {
                     self.advance();
-                    let name = self.expect_identifier()?;
+                    // #172：成员位置允许关键字（如 `.union(...)`、`.type`）
+                    let name = self.expect_member_name()?;
                     if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
                         self.advance();
                         let mut args = Vec::new();

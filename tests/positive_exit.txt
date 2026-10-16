@@ -131,3 +131,4 @@ test_ref_receiver.aya 0
 test_rawptr_ops.aya 0
 test_union.aya 0
 test_array_bounds.aya 0
+test_kw_member.aya 0

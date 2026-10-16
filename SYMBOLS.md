@@ -2279,12 +2279,14 @@ src/parser/parser/core.rs:65: pub(super) fn is_stmt_only_keyword(kind: &TokenKin
 src/parser/parser/core.rs:77: pub(super) fn is_stmt_start(kind: &TokenKind) -> bool
 src/parser/parser/core.rs:92: pub(super) fn try_semicolon(&mut self) -> Result<()>
 src/parser/parser/core.rs:103: pub(super) fn parse_visibility(&mut self) -> Visibility
-src/parser/parser/core.rs:124: pub(super) fn expect_identifier(&mut self) -> Result<String>
-src/parser/parser/core.rs:142: pub fn parse_program(&mut self) -> Result<Program>
-src/parser/parser/core.rs:150: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
-src/parser/parser/core.rs:207: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
-src/parser/parser/core.rs:225: impl Parser
-src/parser/parser/core.rs:227: pub(super) fn matching_bracket(&self, start: usize) -> Option<usize>
+src/parser/parser/core.rs:126: pub(super) fn expect_member_name(&mut self) -> Result<String>
+src/parser/parser/core.rs:141: pub(super) fn is_member_name(kind: &TokenKind) -> bool
+src/parser/parser/core.rs:145: pub(super) fn expect_identifier(&mut self) -> Result<String>
+src/parser/parser/core.rs:163: pub fn parse_program(&mut self) -> Result<Program>
+src/parser/parser/core.rs:171: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
+src/parser/parser/core.rs:228: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
+src/parser/parser/core.rs:246: impl Parser
+src/parser/parser/core.rs:248: pub(super) fn matching_bracket(&self, start: usize) -> Option<usize>
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/decl.rs:10: pub(super) fn parse_fn_decl_unsafe(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, is_unsafe: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
@@ -2324,7 +2326,7 @@ src/parser/parser/impls.rs:6: pub(super) fn parse_import(&mut self) -> Result<St
 src/parser/parser/impls.rs:35: pub(super) fn parse_impl_block(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/impls.rs:42: fn extract_type_name(ty: &Type) -> Symbol
 src/parser/parser/impls.rs:79: pub(super) fn parse_impl_method(&mut self, impl_type: &Symbol, impl_generic_params: &[(Symbol, Vec<Symbol>)]) -> Result<Stmt>
-src/parser/parser/impls.rs:207: pub(super) fn parse_block(&mut self) -> Result<Block>
+src/parser/parser/impls.rs:208: pub(super) fn parse_block(&mut self) -> Result<Block>
 src/parser/parser/literal_text.rs:4: pub(super) fn split_literal_suffix(s: &str) -> (&str, Option<&str>)
 src/parser/parser/literal_text.rs:25: pub(super) fn parse_int_text(s: &str) -> Option<i64>
 src/parser/parser/macro_call.rs:3: impl Parser
@@ -2668,6 +2670,15 @@ example/test_iter_infer.aya:49: pub fn new[T, U, I: It[T], J: It[U]](I a, J b) -
 example/test_iter_infer.aya:54: impl[T, U, I: It[T], J: It[U]] ZipIt[T, U, I, J]
 example/test_iter_infer.aya:56: fn next(ref mut self) -> Option[T]
 example/test_iter_infer.aya:64: fn main() -> int
+example/test_kw_member.aya:3: struct Set
+example/test_kw_member.aya:8: interface Named
+example/test_kw_member.aya:9: fn union(ref self, int x) -> int;
+example/test_kw_member.aya:12: impl Set
+example/test_kw_member.aya:13: fn union(ref self, int x) -> int
+example/test_kw_member.aya:16: fn type(ref self) -> int
+example/test_kw_member.aya:19: fn move(ref self, int x)
+example/test_kw_member.aya:24: fn call(ref Named n) -> int
+example/test_kw_member.aya:28: fn main() -> int
 example/test_lambda_generic_method.aya:2: enum Opt[T] { Some(T), None }
 example/test_lambda_generic_method.aya:4: impl[T] Opt[T]
 example/test_lambda_generic_method.aya:5: pub fn map[U](self, Fn(T) -> U f) -> Opt[U]

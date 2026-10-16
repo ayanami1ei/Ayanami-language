@@ -217,7 +217,8 @@ impl Parser {
                     // A4a：字段级属性（#[follow_with(...)]）
                     field_attrs.push(self.parse_attr_list()?);
                     let field_type = self.parse_type()?;
-                    let field_name = self.expect_identifier()?;
+                    // #172：字段声明名允许关键字
+                    let field_name = self.expect_member_name()?;
                     fields.push((Symbol::intern(&field_name), field_type));
                 }
             }

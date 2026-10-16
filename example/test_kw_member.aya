@@ -1,0 +1,45 @@
+// #172：成员位置允许关键字（`.union(...)`、字段名 `union`/`type`/`move` 等）
+// 解决 std `HashSet.union` 等与语言关键字撞名的问题
+struct Set {
+    int union
+    int type
+}
+
+interface Named {
+    fn union(ref self, int x) -> int;
+}
+
+impl Set {
+    fn union(ref self, int x) -> int {
+        return self.union + x
+    }
+    fn type(ref self) -> int {
+        return self.type
+    }
+    fn move(ref self, int x) {
+        self.union = x
+    }
+}
+
+fn call(ref Named n) -> int {
+    return n.union(1)
+}
+
+fn main() -> int {
+    a = Set { union = 1, type = 2 }
+    if a.union(10) != 11 { return 1 }
+    if a.type() != 2 { return 2 }
+    a.move(5)
+    if a.union != 5 { return 3 }
+    if a.type != 2 { return 4 }
+    if call(a) != 6 { return 5 }
+    a.type = 7
+    if a.type() != 7 { return 6 }
+    match a {
+        Set { union = u, type = t } => {
+            if u != 5 { return 7 }
+            if t != 7 { return 8 }
+        }
+    }
+    return 0
+}

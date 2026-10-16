@@ -34,7 +34,7 @@ impl Parser {
                 loop {
                     if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) { break; }
                     let fty = self.parse_type()?;
-                    let fname = self.expect_identifier()?;
+                    let fname = self.expect_member_name()?;
                     named.push((Symbol::intern(&fname), fty));
                     if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
                         self.advance();
@@ -84,7 +84,8 @@ impl Parser {
     pub(super) fn parse_interface_method(&mut self) -> Result<InterfaceMethod> {
         let attrs = self.parse_attr_list()?;
         self.expect_keyword(Keyword::Fn)?;
-        let name = self.expect_identifier()?;
+        // #172：接口方法名允许关键字
+        let name = self.expect_member_name()?;
         self.expect_delimiter(Delimiter::LParen)?;
 
         // Parse self parameter: ref/ref mut/unique/shared/self

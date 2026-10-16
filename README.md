@@ -121,9 +121,9 @@ fn main() -> int {
 | 数组   | `[int]`                          | 拥有堆缓冲区，离开作用域自动释放；借用写 `ref [int]` |
 | 结构体 | `Point`                           | 自定义，值语义                                  |
 | 枚举   | `Option[T]`                       | tag + union，支持方法派发                       |
+| 联合   | `union Value { ... }`             | 字段共享存储（布局取最大字段）；读取需 `unsafe`    |
+| 裸指针 | `*int` / `*char`                  | `Ptr[T].as_ptr()` / `as *T`；解引用与指针算术需 `unsafe` |
 | ref    | `ref int` / `ref mut int`         | 借用，不拥有、不可逃逸                          |
-
-| 枚举 | `Color` | tag + union，支持方法派发 |
 
 ## 标准库
 
@@ -244,6 +244,32 @@ struct Point {
 }
 p = Point { x = 10, y = 3 };
 ```
+
+### union（联合）
+
+```
+union Value {
+    int i
+    float f
+    *char p
+}
+
+v = Value { i = 42 }      // 字面量恰好初始化一个字段（其余别名清零）
+v.f = 1.5                 // 字段写入无需 unsafe
+unsafe {
+    x = v.i               // 字段读取需 unsafe（共享存储）
+}
+```
+
+字段共享同一存储（布局取最大字段的 size/align）；字段限**无 drop 类型**
+（基元/指针/引用/无堆结构体）；泛型 union 暂不支持。
+
+### 成员名与关键字（#172）
+
+**方法/字段名位置允许关键字**：`a.union(b)`、`x.type`、`self.move(1)`、
+`struct S { int union }`、`S { union = 1 }`、模式 `S { union = u }`。
+变量名与顶层函数名仍须标识符；`union`、`move`、`clone`、`static` 等保留字
+仅在成员位置可作名字。
 
 ### 枚举
 
