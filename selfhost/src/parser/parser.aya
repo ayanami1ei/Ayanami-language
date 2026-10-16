@@ -588,6 +588,10 @@ impl Parser {
             return self.parse_const();
         }
         if self.cur.kind == Tk::Ident._tag {
+            if self.cur.text == "unsafe" && self.la1_is_kw(Kw::Fn._tag) {
+                self.advance();
+                return self.parse_fn();
+            }
             if self.cur.text == "static" {
                 self.advance();
                 self.eat_kw(Kw::Mut._tag);
@@ -980,6 +984,15 @@ impl Parser {
     #[alloc]
     #[state]
     fn parse_stmt_inner(ref mut self) -> int {
+        if self.cur.kind == Tk::Ident._tag {
+            if self.cur.text == "unsafe" && self.la1_is_delim(D::LBrace._tag) {
+                line = self.cur.line;
+                col = self.cur.col;
+                self.advance();
+                blk = self.parse_block();
+                return self.ast.push(st(ST::Unsafe._tag), "", -1, blk, -1, -1, -1, line, col);
+            }
+        }
         if self.check_kw(Kw::Return._tag) {
             line = self.cur.line;
             col = self.cur.col;

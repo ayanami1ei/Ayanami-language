@@ -940,8 +940,7 @@ impl Checker {
             disp = it_ty.copy();
             if it_ty.len > 0 {
                 if it_ty.index(0) == '[' {
-                    // 数组没有 next
-                    disp = "unique " + it_ty;
+                    // 数组没有 next（rust 侧显示为 [T]）
                     ok_next = 0;
                 } elif self.find_struct(it_ty) >= 0 {
                     if self.find_method(it_ty, "next") < 0 { ok_next = 0; }
@@ -981,6 +980,8 @@ impl Checker {
             self.check_match(ast, id);
         } elif tag == st(ST::Block._tag) {
             self.check_block(ast, id);
+        } elif tag == st(ST::Unsafe._tag) {
+            self.check_block(ast, ast.aa[id]);
         }
     }
 

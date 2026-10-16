@@ -36,6 +36,7 @@ pub enum ST {
     Block,
     StaticDecl,
     ForIn,
+    Unsafe,
 }
 
 // 表达式标签

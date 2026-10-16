@@ -3031,6 +3031,8 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
                 e.buf.push_str("  ret i64 0\n");
             }
         }
+    } elif tag == st(ST::Unsafe._tag) {
+        emit_stmts(ast, ast.aa[ast.aa[id]], e);
     } elif tag == st(ST::Break._tag) {
         if e.loop_depth > 0 {
             e.buf.push_str("  br label %");

@@ -451,6 +451,16 @@ fn dump_stmt(ref Ast ast, int id, int level, ref mut StringBuf b) {
         dump_stmt(ast, ast.aa[id], level + 1, b);
     } elif tag == st(ST::Block._tag) {
         dump_block(ast, id, level, b);
+    } elif tag == st(ST::Unsafe._tag) {
+        n = 0;
+        s2 = ast.aa[ast.aa[id]];
+        while s2 >= 0 {
+            n = n + 1;
+            s2 = ast.nexts[s2];
+        }
+        b.push_str("Unsafe (");
+        b.push_int(n);
+        b.push_str(" stmts)\n");
     } else {
         b.push_str("UnknownStmt\n");
     }
