@@ -66,6 +66,12 @@ pub struct Emitter {
     // 已发射的 extern 声明（去重）
     [String] decl_names
     int decl_count
+    // 全局常量/静态：0=int 2=数组；数组元素以逗号串存
+    [String] g_names
+    [int] g_kinds
+    [String] g_vals
+    [int] g_lens
+    int g_count
     // 函数体 alloca 前置缓冲（LLVM 要求 alloca 支配所有使用）
     StringBuf pre_buf
     int pre_active
@@ -97,6 +103,8 @@ pub namespace Emitter {
             fn_pkinds = [int; 8192], fn_ptotal = 0, fn_count = 0,
             fn_rtype = [int; 1024], fn_rllvm = [int; 1024], cur_rtype = -1, m_rtype = [int; 1024],
             decl_names = [String; 512], decl_count = 0,
+            g_names = [String; 512], g_kinds = [int; 512], g_vals = [String; 512],
+            g_lens = [int; 512], g_count = 0,
             pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
             loop_ends = [String; 64], loop_conds = [String; 64], loop_depth = 0,
             terminated = 0
@@ -119,6 +127,107 @@ fn ty_name(ref Ast ast, int t) -> String {
         return "";
     }
     return "";
+}
+
+/// 整数常量求值（字面量/括号/一元负/二元算术/位运算/引用其他常量）；失败返回 ""
+fn const_int(ref Ast ast, int id) -> String {
+    if id < 0 { return ""; }
+    tag = ast.tags[id];
+    if tag == et(ET::Literal._tag) {
+        k = ast.bb[id];
+        if k == lk(LK::Int._tag) {
+            return int_text_ok(ast.texts[id]);
+        }
+        if k == lk(LK::Bool._tag) {
+            if ast.texts[id] == "true" { return "1"; }
+            return "0";
+        }
+        return "";
+    }
+    if tag == et(ET::Suffixed._tag) {
+        return const_int(ast, ast.aa[id]);
+    }
+    if tag == et(ET::Binary._tag) {
+        lv = const_int(ast, ast.aa[id]);
+        rv = const_int(ast, ast.bb[id]);
+        if lv.len == 0 || rv.len == 0 { return ""; }
+        a = str_to_int_ok(lv);
+        b = str_to_int_ok(rv);
+        op = ast.tys[id];
+        r = -999999;
+        if op == bo(BinOp::Add._tag) { r = a + b; }
+        elif op == bo(BinOp::Sub._tag) { r = a - b; }
+        elif op == bo(BinOp::Mul._tag) { r = a * b; }
+        elif op == bo(BinOp::Div._tag) { if b == 0 { return ""; } r = a / b; }
+        elif op == bo(BinOp::Mod._tag) { if b == 0 { return ""; } r = a % b; }
+        elif op == bo(BinOp::BitAnd._tag) { r = a & b; }
+        elif op == bo(BinOp::BitOr._tag) { r = a | b; }
+        elif op == bo(BinOp::BitXor._tag) { r = a ^ b; }
+        elif op == bo(BinOp::Shl._tag) { r = a << b; }
+        elif op == bo(BinOp::Shr._tag) { r = a >> b; }
+        if r == -999999 { return ""; }
+        return int_str2(r);
+    }
+    if tag == et(ET::Unary._tag) {
+        // 一元负
+        ov = const_int(ast, ast.aa[id]);
+        if ov.len == 0 { return ""; }
+        op2 = ast.tys[id];
+        if op2 == uo(UnOp::Neg._tag) {
+            return int_str2(0 - str_to_int_ok(ov));
+        }
+        return "";
+    }
+    if tag == et(ET::Ident._tag) {
+        return "";
+    }
+    return "";
+}
+
+/// 十进制/十六进制整数字面量 -> 规范十进制文本（失败 ""）
+fn int_text_ok(ref String t) -> String {
+    v = str_to_int_ok(t);
+    if v == -999999 { return ""; }
+    return int_str2(v);
+}
+
+/// 解析整数字面量（支持 0x 前缀、下划线、负号）；失败 -999999
+fn str_to_int_ok(ref String t) -> int {
+    if t.len == 0 { return -999999; }
+    neg = 0;
+    i = 0;
+    if t.index(0) == '-' {
+        neg = 1;
+        i = 1;
+    }
+    base = 10;
+    if i + 1 < t.len as int {
+        if t.index(i as usize) == '0' {
+            c1 = t.index((i + 1) as usize);
+            if c1 == 'x' || c1 == 'X' {
+                base = 16;
+                i = i + 2;
+            }
+        }
+    }
+    v = 0;
+    n = 0;
+    while i < t.len as int {
+        ch = t.index(i as usize);
+        d = -1;
+        if ch == '_' { i = i + 1; continue; }
+        if ch >= '0' && ch <= '9' { d = char_code(ch) - 48; }
+        elif ch >= 'a' && ch <= 'f' { d = char_code(ch) - 87; }
+        elif ch >= 'A' && ch <= 'F' { d = char_code(ch) - 55; }
+        else { return -999999; }
+        if d >= base { return -999999; }
+        v = v * base + d;
+        n = n + 1;
+        i = i + 1;
+    }
+    if n == 0 { return -999999; }
+    if neg == 1 { return 0 - v; }
+    return v;
 }
 
 /// ptr 位置的立即数 0 -> null
@@ -570,6 +679,161 @@ impl Emitter {
         return -1;
     }
 
+    /// 全局常量/静态收集（顶层与 namespace 内）
+    #[alloc]
+    #[state]
+    fn collect_globals(ref mut self, ref Ast ast, int prog) {
+        s = ast.aa[prog];
+        while s >= 0 {
+            tag = ast.tags[s];
+            if tag == st(ST::ConstDecl._tag) || tag == st(ST::StaticDecl._tag) {
+                self.add_global(ast, ast.texts[s].copy(), s);
+            } elif tag == st(ST::Namespace._tag) {
+                ns = ast.texts[s].copy();
+                m = ast.aa[s];
+                while m >= 0 {
+                    if ast.tags[m] == st(ST::ConstDecl._tag) || ast.tags[m] == st(ST::StaticDecl._tag) {
+                        nm2 = ns + ".";
+                        nm2 = nm2 + ast.texts[m];
+                        self.add_global(ast, nm2, m);
+                    }
+                    m = ast.nexts[m];
+                }
+            }
+            s = ast.nexts[s];
+        }
+    }
+
+    /// 常量求值（可解析已注册的全局常量引用）
+    #[alloc]
+    #[state]
+    fn const_eval_g(ref mut self, ref Ast ast, int id) -> String {
+        if id < 0 { return ""; }
+        tag = ast.tags[id];
+        if tag == et(ET::Ident._tag) {
+            return self.global_val(ast.texts[id]);
+        }
+        if tag == et(ET::Binary._tag) {
+            lv2 = self.const_eval_g(ast, ast.aa[id]);
+            rv2 = self.const_eval_g(ast, ast.bb[id]);
+            if lv2.len == 0 || rv2.len == 0 { return ""; }
+            // 复用纯函数：构造不了 AST，这里直接算
+            a2 = str_to_int_ok(lv2);
+            b2 = str_to_int_ok(rv2);
+            op2 = ast.tys[id];
+            r2 = -999999;
+            if op2 == bo(BinOp::Add._tag) { r2 = a2 + b2; }
+            elif op2 == bo(BinOp::Sub._tag) { r2 = a2 - b2; }
+            elif op2 == bo(BinOp::Mul._tag) { r2 = a2 * b2; }
+            elif op2 == bo(BinOp::Div._tag) { if b2 == 0 { return ""; } r2 = a2 / b2; }
+            elif op2 == bo(BinOp::Mod._tag) { if b2 == 0 { return ""; } r2 = a2 % b2; }
+            elif op2 == bo(BinOp::BitAnd._tag) { r2 = a2 & b2; }
+            elif op2 == bo(BinOp::BitOr._tag) { r2 = a2 | b2; }
+            elif op2 == bo(BinOp::BitXor._tag) { r2 = a2 ^ b2; }
+            elif op2 == bo(BinOp::Shl._tag) { r2 = a2 << b2; }
+            elif op2 == bo(BinOp::Shr._tag) { r2 = a2 >> b2; }
+            if r2 == -999999 { return ""; }
+            return int_str2(r2);
+        }
+        return const_int(ast, id);
+    }
+
+    #[alloc]
+    #[state]
+    fn add_global(ref mut self, ref Ast ast, ref String name, int id) {
+        if self.g_count >= 512 { return; }
+        init = ast.aa[id];
+        v = self.const_eval_g(ast, init);
+        if v.len > 0 {
+            self.g_names[self.g_count] = name.copy();
+            self.g_kinds[self.g_count] = 0;
+            self.g_vals[self.g_count] = v.copy();
+            self.g_lens[self.g_count] = 0;
+            self.g_count = self.g_count + 1;
+            return;
+        }
+        if init >= 0 {
+            tg = ast.tags[init];
+            if tg == et(ET::ArrayLiteral._tag) {
+                b = StringBuf::new();
+                n = 0;
+                first = 1;
+                el = ast.aa[init];
+                while el >= 0 {
+                    ev = const_int(ast, el);
+                    if ev.len == 0 { return; }
+                    if first == 0 { b.push(','); }
+                    b.push_str(ev);
+                    first = 0;
+                    n = n + 1;
+                    el = ast.nexts[el];
+                }
+                if n == 0 { return; }
+                self.g_names[self.g_count] = name.copy();
+                self.g_kinds[self.g_count] = 2;
+                self.g_vals[self.g_count] = b.to_string();
+                self.g_lens[self.g_count] = n;
+                self.g_count = self.g_count + 1;
+                return;
+            }
+            if tg == et(ET::ArrayRepeat._tag) {
+                ev2 = const_int(ast, ast.aa[init]);
+                cnt2 = const_int(ast, ast.bb[init]);
+                if ev2.len == 0 || cnt2.len == 0 { return; }
+                cn = 0;
+                okc = 1;
+                q = 0;
+                while q < cnt2.len as int {
+                    ch = cnt2.index(q as usize);
+                    if ch < '0' || ch > '9' { okc = 0; break; }
+                    cn = cn * 10 + (char_code(ch) - 48);
+                    q = q + 1;
+                }
+                if okc == 0 || cn == 0 || cn > 4096 { return; }
+                b2 = StringBuf::new();
+                k = 0;
+                while k < cn {
+                    if k > 0 { b2.push(','); }
+                    b2.push_str(ev2);
+                    k = k + 1;
+                }
+                self.g_names[self.g_count] = name.copy();
+                self.g_kinds[self.g_count] = 2;
+                self.g_vals[self.g_count] = b2.to_string();
+                self.g_lens[self.g_count] = cn;
+                self.g_count = self.g_count + 1;
+                return;
+            }
+        }
+    }
+
+    fn global_kind(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.g_count {
+            if self.g_names[i] == name { return self.g_kinds[i]; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn global_val(ref mut self, ref String name) -> String {
+        i = 0;
+        while i < self.g_count {
+            if self.g_names[i] == name { return self.g_vals[i].copy(); }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    fn global_len(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.g_count {
+            if self.g_names[i] == name { return self.g_lens[i]; }
+            i = i + 1;
+        }
+        return 0;
+    }
+
     fn find_struct_idx(ref mut self, ref String name) -> int {
         i = 0;
         while i < self.st_count {
@@ -964,6 +1228,11 @@ fn bin_llvm_op(int op) -> String {
     if op == bo(BinOp::Mul._tag) { return "mul"; }
     if op == bo(BinOp::Div._tag) { return "sdiv"; }
     if op == bo(BinOp::Mod._tag) { return "srem"; }
+    if op == bo(BinOp::BitAnd._tag) { return "and"; }
+    if op == bo(BinOp::BitOr._tag) { return "or"; }
+    if op == bo(BinOp::BitXor._tag) { return "xor"; }
+    if op == bo(BinOp::Shl._tag) { return "shl"; }
+    if op == bo(BinOp::Shr._tag) { return "ashr"; }
     return "";
 }
 
@@ -1690,6 +1959,8 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     if tag == et(ET::Literal._tag) {
         k = ast.bb[id];
         if k == lk(LK::Int._tag) {
+            dec = int_text_ok(ast.texts[id]);
+            if dec.len > 0 { return mk_int(dec); }
             return mk_int(ast.texts[id]);
         }
         if k == lk(LK::Bool._tag) {
@@ -1718,6 +1989,19 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     }
     if tag == et(ET::Ident._tag) {
         nm = ast.texts[id];
+        gk = e.global_kind(nm);
+        if gk == 0 {
+            t = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t);
+            e.buf.push_str(" = load i64, ptr @");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return mk_int(t);
+        }
+        if gk == 2 {
+            return mk_arr("@" + nm, -1);
+        }
         if contains_dot2(nm) {
             if nm == "String.empty" || nm == "String.new" {
                 return mk_str("null", 0);
@@ -2667,6 +2951,19 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         // &x / ref x：返回地址（仅用于数组/结构体实参场景）
         if ast.tags[ast.aa[id]] == et(ET::Ident._tag) {
             nm7 = ast.texts[ast.aa[id]];
+            gk7 = e.global_kind(nm7);
+            if gk7 == 2 {
+                return mk_arr("@" + nm7, -1);
+            }
+            if gk7 == 0 {
+                t7g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(t7g);
+                e.buf.push_str(" = load i64, ptr @");
+                e.buf.push_str(nm7);
+                e.buf.push_str("\n");
+                return mk_int(t7g);
+            }
             e.declare_local(nm7, 0);
             t7 = e.fresh();
             e.buf.push_str("  ");
@@ -2922,6 +3219,15 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
     } elif tag == st(ST::Assign._tag) {
         rhs_id = ast.aa[id];
         nm = ast.texts[id];
+        if e.global_kind(nm) == 0 {
+            v = emit_expr(ast, rhs_id, e);
+            e.buf.push_str("  store i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr @");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
         v = emit_expr(ast, rhs_id, e);
         if v.kind == 3 {
             e.declare_array_local(nm, v.ty);
@@ -3529,6 +3835,7 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
 pub fn emit_program(ref Ast ast, int prog) -> String {
     e = Emitter::new();
     e.collect_decls(ast, prog);
+    e.collect_globals(ast, prog);
     // 结构体类型定义
     si = 0;
     while si < e.st_count {
@@ -3592,6 +3899,46 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
     // 数组分配/清零所需（M6a）：malloc + llvm.memset
     e.buf.push_str("declare ptr @malloc(i64)\ndeclare ptr @memcpy(ptr, ptr, i64)\ndeclare i32 @memcmp(ptr, ptr, i64)\n");
     e.buf.push_str("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)\n");
+    // 常量/静态全局
+    gi = 0;
+    while gi < e.g_count {
+        e.buf.push_str("@");
+        e.buf.push_str(e.g_names[gi]);
+        if e.g_kinds[gi] == 0 {
+            e.buf.push_str(" = global i64 ");
+            e.buf.push_str(e.g_vals[gi]);
+            e.buf.push_str("\n");
+        } else {
+            e.buf.push_str(" = global [");
+            e.buf.push_int(e.g_lens[gi]);
+            e.buf.push_str(" x i64] [");
+            // 元素以逗号串存，展开
+            vs = e.g_vals[gi];
+            st2 = 0;
+            ii = 0;
+            firstg = 1;
+            while ii <= vs.len as int {
+                at2 = 0;
+                if ii == vs.len as int { at2 = 1; }
+                isc = 0;
+                if at2 == 0 {
+                    if vs.index(ii as usize) == ',' { isc = 1; }
+                }
+                if at2 == 1 || isc == 1 {
+                    if ii > st2 {
+                        if firstg == 0 { e.buf.push_str(", "); }
+                        e.buf.push_str("i64 ");
+                        e.buf.push_str(vs.substring(st2 as usize, ii as usize));
+                        firstg = 0;
+                    }
+                    st2 = ii + 1;
+                }
+                ii = ii + 1;
+            }
+            e.buf.push_str("]\n");
+        }
+        gi = gi + 1;
+    }
     // 字符串字面量全局
     i = 0;
     while i < e.str_count {

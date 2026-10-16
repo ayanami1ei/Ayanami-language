@@ -59,6 +59,10 @@ pub struct Checker {
     // 当前函数
     String cur_fn
     String cur_ret
+    // 全局常量/静态表（含 namespace 前缀）
+    [String] g_names
+    [String] g_types
+    int g_count
 }
 
 pub namespace Checker {
@@ -107,8 +111,11 @@ pub namespace Checker {
             lv_types = [String; 4096],
             lv_count = 0,
             cur_fn = "",
-            cur_ret = ""
-        };
+            cur_ret = "",
+            g_names = [String; 512],
+            g_types = [String; 512],
+            g_count = 0
+};
         return c;
     }
 }
@@ -185,6 +192,41 @@ fn contains_dot(ref String s) -> bool {
 /// AST 类型节点 -> 显示名
 #[alloc]
 #[state]
+/// 从初值表达式推断类型（int/bool/String/数组）
+pub fn infer_init_ty(ref Ast ast, int id) -> String {
+    if id < 0 { return ""; }
+    tag = ast.tags[id];
+    if tag == et(ET::Literal._tag) {
+        k = ast.bb[id];
+        if k == lk(LK::Int._tag) { return "int"; }
+        if k == lk(LK::Float._tag) { return "float"; }
+        if k == lk(LK::Bool._tag) { return "bool"; }
+        if k == lk(LK::Str._tag) { return "String"; }
+        if k == lk(LK::Char._tag) { return "char"; }
+        return "";
+    }
+    if tag == et(ET::Suffixed._tag) { return infer_init_ty(ast, ast.aa[id]); }
+    if tag == et(ET::ArrayLiteral._tag) {
+        b = StringBuf::new();
+        b.push_str("[");
+        b.push_str(infer_init_ty(ast, ast.aa[id]));
+        b.push_str("]");
+        return b.to_string();
+    }
+    if tag == et(ET::ArrayRepeat._tag) {
+        b2 = StringBuf::new();
+        b2.push_str("[");
+        b2.push_str(infer_init_ty(ast, ast.aa[id]));
+        b2.push_str("]");
+        return b2.to_string();
+    }
+    if tag == et(ET::StructLiteral._tag) { return ast.texts[id].copy(); }
+    if tag == et(ET::Binary._tag) { return "int"; }
+    if tag == et(ET::Unary._tag) { return "int"; }
+    if tag == et(ET::Ident._tag) { return "int"; }
+    return "";
+}
+
 pub fn type_name(ref Ast ast, int ty) -> String {
     if ty < 0 { return ""; }
     t = ast.tags[ty];
@@ -503,6 +545,56 @@ impl Checker {
             i = i + 1;
         }
         return -1;
+    }
+
+    #[alloc]
+    #[state]
+    fn collect_globals(ref mut self, ref Ast ast, int prog) {
+        s = ast.aa[prog];
+        while s >= 0 {
+            tag = ast.tags[s];
+            if tag == st(ST::ConstDecl._tag) || tag == st(ST::StaticDecl._tag) {
+                self.add_global_ty(ast, ast.texts[s].copy(), s);
+            } elif tag == st(ST::Namespace._tag) {
+                ns = ast.texts[s].copy();
+                m = ast.aa[s];
+                while m >= 0 {
+                    if ast.tags[m] == st(ST::ConstDecl._tag) || ast.tags[m] == st(ST::StaticDecl._tag) {
+                        nm2 = ns + ".";
+                        nm2 = nm2 + ast.texts[m];
+                        self.add_global_ty(ast, nm2, m);
+                    }
+                    m = ast.nexts[m];
+                }
+            }
+            s = ast.nexts[s];
+        }
+    }
+
+    /// 注册全局常量/静态（顶层 + namespace），类型从注解或初值推断
+    #[alloc]
+    #[state]
+    fn add_global_ty(ref mut self, ref Ast ast, ref String name, int id) {
+        if self.g_count >= 512 { return; }
+        ty = "";
+        if ast.tys[id] >= 0 {
+            ty = type_name(ast, ast.tys[id]);
+        }
+        if ty.len == 0 {
+            ty = infer_init_ty(ast, ast.aa[id]);
+        }
+        self.g_names[self.g_count] = name.copy();
+        self.g_types[self.g_count] = ty.copy();
+        self.g_count = self.g_count + 1;
+    }
+
+    fn global_ty(ref mut self, ref String name) -> String {
+        i = 0;
+        while i < self.g_count {
+            if self.g_names[i] == name { return self.g_types[i].copy(); }
+            i = i + 1;
+        }
+        return "";
     }
 
     fn has_variant(ref mut self, int en, ref String name) -> bool {
@@ -1074,6 +1166,8 @@ impl Checker {
                 return "";
             }
             if self.has_local(nm) { return self.local_type(nm); }
+            gt = self.global_ty(nm);
+            if gt.len > 0 { return gt; }
             if self.find_fn(nm) >= 0 { return ""; }
             self.err_name("undefined variable `", nm, ast.lines[id], ast.cols[id]);
             return "";
@@ -1415,6 +1509,7 @@ pub fn check_program(ref Ast ast, int prog, ref String file) -> int {
     c = Checker::new(file);
     c.seed_std();
     c.collect(ast, prog);
+    c.collect_globals(ast, prog);
     s = ast.aa[prog];
     while s >= 0 {
         if ast.tags[s] == st(ST::FnDecl._tag) {
