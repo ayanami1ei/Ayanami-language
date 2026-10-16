@@ -93,7 +93,6 @@ pub fn cmd_check(ref String file) -> int {
         return 1;
     }
     src = merge_source(file);
-    write_file("/tmp/opencode/merged_cli.aya", src);
     p = Parser::new(src);
     prog = p.parse_program();
     if p.failed == 1 {

@@ -61,6 +61,7 @@ pub struct Emitter {
     int fn_count
     [int] fn_rtype
     [int] fn_rllvm
+    [int] fn_first
     int cur_rtype
     [int] m_rtype
     // 已发射的 extern 声明（去重）
@@ -90,19 +91,19 @@ pub namespace Emitter {
             buf = StringBuf::new(), tmp = 0,
             locals = [String; 512], local_kinds = [int; 512], local_forms = [int; 512], lv_count = 0,
             local_etypes = [int; 512],
-            strs = [String; 4096], str_count = 0,
+            strs = [String; 8192], str_count = 0,
             st_names = [String; 128], st_fstart = [int; 128], st_fcount = [int; 128],
             st_fields = [String; 1024], st_ftotal = 0, st_count = 0,
             st_fkind = [int; 1024], st_finfo = [int; 1024], st_fslot = [int; 1024],
             st_slots = [int; 128],
-            m_ty = [String; 1024], m_name = [String; 1024], m_id = [int; 1024], m_count = 0,
+            m_ty = [String; 4096], m_name = [String; 4096], m_id = [int; 4096], m_count = 0,
             en_names = [String; 128], en_vstart = [int; 128], en_vcount = [int; 128],
             en_variants = [String; 1024], en_arity = [int; 1024], en_vtotal = 0, en_count = 0,
             en_ptype = [int; 4096], en_pvstart = [int; 1024], en_ptotal = 0, en_vslots = [int; 1024],
-            fn_names = [String; 1024], fn_pstart = [int; 1024], fn_pcount = [int; 1024],
-            fn_pkinds = [int; 8192], fn_ptotal = 0, fn_count = 0,
-            fn_rtype = [int; 1024], fn_rllvm = [int; 1024], cur_rtype = -1, m_rtype = [int; 1024],
-            decl_names = [String; 512], decl_count = 0,
+            fn_names = [String; 4096], fn_pstart = [int; 4096], fn_pcount = [int; 4096],
+            fn_pkinds = [int; 32768], fn_ptotal = 0, fn_count = 0,
+            fn_rtype = [int; 4096], fn_rllvm = [int; 4096], fn_first = [int; 4096], cur_rtype = -1, m_rtype = [int; 4096],
+            decl_names = [String; 2048], decl_count = 0,
             g_names = [String; 512], g_kinds = [int; 512], g_vals = [String; 512],
             g_lens = [int; 512], g_count = 0,
             pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
@@ -673,6 +674,16 @@ impl Emitter {
         return 0;
     }
 
+    /// 该名首次定义的 FnDecl id（重载只发射第一个）
+    fn fn_first_id(ref mut self, ref String fname) -> int {
+        f = 0;
+        while f < self.fn_count {
+            if self.fn_names[f] == fname { return self.fn_first[f]; }
+            f = f + 1;
+        }
+        return -1;
+    }
+
     fn fn_ret_llvm(ref mut self, ref String fname) -> int {
         f = 0;
         while f < self.fn_count {
@@ -978,7 +989,7 @@ impl Emitter {
     #[alloc]
     #[state]
     fn add_method(ref mut self, ref Ast ast, ref String ty, int fid) {
-        if self.m_count >= 1024 { return; }
+        if self.m_count >= 4096 { return; }
         self.m_ty[self.m_count] = ty.copy();
         self.m_name[self.m_count] = ast.texts[fid].copy();
         self.m_id[self.m_count] = fid;
@@ -1095,7 +1106,7 @@ impl Emitter {
     #[alloc]
     #[state]
     fn add_fn_sig(ref mut self, ref Ast ast, int id, ref String prefix) {
-        if self.fn_count >= 1024 { return; }
+        if self.fn_count >= 4096 { return; }
         fi = self.fn_count;
         name = ast.texts[id].copy();
         if prefix.len > 0 {
@@ -1103,11 +1114,12 @@ impl Emitter {
             name = name + ast.texts[id];
         }
         self.fn_names[fi] = name;
+        self.fn_first[fi] = id;
         self.fn_pstart[fi] = self.fn_ptotal;
         n = 0;
         p = ast.aa[id];
         while p >= 0 {
-            if self.fn_ptotal < 8192 {
+            if self.fn_ptotal < 32768 {
                 self.fn_pkinds[self.fn_ptotal] = self.param_kind(ast, p);
                 self.fn_ptotal = self.fn_ptotal + 1;
                 n = n + 1;
@@ -1206,7 +1218,7 @@ impl Emitter {
     #[state]
     fn add_str(ref mut self, ref String text) -> int {
         idx = self.str_count;
-        if idx < 4096 {
+        if idx < 8192 {
             self.strs[idx] = text.copy();
             self.str_count = idx + 1;
         }
@@ -1353,7 +1365,9 @@ fn elem_addr(ref mut Emitter e, int stride, ref String base, ref String idx) -> 
 /// 元素是否为 String（布局 { ptr, i64 }，需要两次 store）
 fn elem_is_string(ref Ast ast, int ty) -> bool {
     if ty == 2000 { return true; }
+    if ty == 2002 { return false; }
     if ty < 0 { return false; }
+    if ty >= ast.len { return false; }
     if ast.tags[ty] != tt(TT::Named._tag) { return false; }
     return ast.texts[ty] == "String";
 }
@@ -2604,6 +2618,10 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             if ast.texts[id] == "len" {
                 return mk_int(obj.b);
             }
+            if ast.texts[id] == "data" {
+                // String.data -> [char]（元素 i8）
+                return mk_arr(obj.a, 2002);
+            }
             return mk_int("0");
         }
         if obj.kind == 4 {
@@ -2863,14 +2881,20 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             return mk_int("0");
         }
         mid = -1;
-        if obj.kind == 2 || obj.kind == 4 {
-            mid = e.find_method_id(obj.b, ast.texts[id]);
+        recv_ty = obj.b.copy();
+        prim_recv = 0;
+        if obj.kind == 0 {
+            recv_ty = "int";
+            prim_recv = 1;
+        }
+        if obj.kind == 2 || obj.kind == 4 || prim_recv == 1 {
+            mid = e.find_method_id(recv_ty, ast.texts[id]);
         }
         if mid >= 0 {
             b3 = StringBuf::new();
             b3.push_str("  ");
             t5 = e.fresh();
-            mrty = e.method_ret_type(obj.b, ast.texts[id]);
+            mrty = e.method_ret_type(recv_ty, ast.texts[id]);
             rk_m = e.ret_kind(ast, mrty);
             b3.push_str(t5);
             if rk_m == 1 {
@@ -2878,16 +2902,29 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             } else {
                 b3.push_str(" = call i64 @");
             }
-            b3.push_str(obj.b);
+            b3.push_str(recv_ty);
             b3.push_str(".");
             b3.push_str(ast.texts[id]);
             b3.push_str("(ptr ");
-            b3.push_str(obj.a);
+            if prim_recv == 1 {
+                // 原语接收者：落到临时槽取地址
+                tp3 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(tp3);
+                e.buf.push_str(" = alloca i64\n  store i64 ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(tp3);
+                e.buf.push_str("\n");
+                b3.push_str(tp3);
+            } else {
+                b3.push_str(obj.a);
+            }
             a3 = ast.bb[id];
             ak3 = 1;
             while a3 >= 0 {
                 at3 = emit_expr(ast, ast.aa[a3], e);
-                mfull = obj.b + ".";
+                mfull = recv_ty + ".";
                 mfull = mfull + ast.texts[id];
                 pk3 = e.fn_param_kind(mfull, ak3);
                 if pk3 == 30 {
@@ -3799,7 +3836,7 @@ fn emit_decl(ref Ast ast, int id, ref mut Emitter e) {
         if e.decl_names[i_d] == nm_d { return; }
         i_d = i_d + 1;
     }
-    if e.decl_count < 512 {
+    if e.decl_count < 2048 {
         e.decl_names[e.decl_count] = nm_d.copy();
         e.decl_count = e.decl_count + 1;
     }
@@ -3890,11 +3927,19 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             kind_self = 2;
             si_self = e.find_struct_idx(prefix);
             ei_self = -1;
-            if si_self >= 0 {
+            if prefix == "String" {
+                // impl String：self 是 String 值（ptr+len；len 占位 0，调用点走内建）
+                kind_self = 1;
+            } elif si_self >= 0 {
                 kind_self = 100 + si_self;
             } else {
                 ei_self = e.find_enum_idx(prefix);
-                if ei_self >= 0 { kind_self = 20; }
+                if ei_self >= 0 {
+                    kind_self = 20;
+                } else {
+                    // impl int / impl char 等原语 impl：self 是指向原语的引用
+                    kind_self = 30;
+                }
             }
             e.declare_local("self", kind_self);
             if ei_self >= 0 {
@@ -3902,7 +3947,11 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             } else {
                 e.record_etype("self", si_self);
             }
-            e.buf.push_str("  store ptr %self, ptr %v_self\n");
+            if kind_self == 1 {
+                e.buf.push_str("  store ptr %self, ptr %v_self.ptr\n  store i64 0, ptr %v_self.len\n");
+            } else {
+                e.buf.push_str("  store ptr %self, ptr %v_self\n");
+            }
             idx2 = idx2 + 1;
         } else {
             pname = ast.texts[p2];
@@ -4052,7 +4101,9 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
     s = ast.aa[prog];
     while s >= 0 {
         if ast.tags[s] == st(ST::FnDecl._tag) {
-            if ast.dd[s] == 1 {
+            if e.fn_first_id(ast.texts[s]) != s {
+                // 重名重载：只发射第一个定义
+            } elif ast.dd[s] == 1 {
                 emit_decl(ast, s, e);
             } else {
                 emit_fn(ast, s, e);
@@ -4061,7 +4112,11 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
             m = ast.aa[s];
             while m >= 0 {
                 if ast.tags[m] == st(ST::FnDecl._tag) {
-                    emit_fn_named(ast, m, ast.texts[s], e);
+                    full_n = ast.texts[s] + ".";
+                    full_n = full_n + ast.texts[m];
+                    if e.fn_first_id(full_n) == m {
+                        emit_fn_named(ast, m, ast.texts[s], e);
+                    }
                 }
                 m = ast.nexts[m];
             }
@@ -4069,7 +4124,11 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
             m3 = ast.aa[s];
             while m3 >= 0 {
                 if ast.tags[m3] == st(ST::FnDecl._tag) {
-                    emit_fn_named(ast, m3, ast.texts[s], e);
+                    full_n2 = ast.texts[s] + ".";
+                    full_n2 = full_n2 + ast.texts[m3];
+                    if e.fn_first_id(full_n2) == m3 {
+                        emit_fn_named(ast, m3, ast.texts[s], e);
+                    }
                 }
                 m3 = ast.nexts[m3];
             }

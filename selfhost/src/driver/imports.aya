@@ -220,6 +220,59 @@ pub fn load_deps(ref String manifest_dir) -> Deps {
     return d;
 }
 
+/// 是否启用 std 源码合并（默认关，避免影响自举固定点）
+fn std_src_enabled() -> int {
+    v = env("AYANAMI_STD_SRC");
+    if v == "1" { return 1; }
+    return 0;
+}
+
+/// 在 std 源码树中查模块：从 start_dir 向上找 std/src/{core,collections,system,meta,dev}/<stem>.aya
+#[alloc]
+#[state]
+fn std_src_path(ref String start_dir, ref String stem) -> String {
+    if std_src_enabled() == 0 { return ""; }
+    if stem.len == 0 { return ""; }
+    d = start_dir.copy();
+    if d.len > 0 {
+        if d.index((d.len - 1) as usize) != '/' { d = d + "/"; }
+    }
+    i = 0;
+    while i < 4 {
+        // std/src/<stem>.aya
+        p0 = d + "std/src/";
+        p0 = p0 + stem;
+        p0 = p0 + ".aya";
+        if file_exists(p0) { return p0; }
+        subs = ["core", "collections", "system", "meta", "dev"];
+        k = 0;
+        while k < 5 {
+            p = d + "std/src/";
+            p = p + subs[k];
+            p = p + "/";
+            p = p + stem;
+            p = p + ".aya";
+            if file_exists(p) { return p; }
+            k = k + 1;
+        }
+        // 上一级（到顶后改用相对 CWD）
+        if d.len == 0 { break; }
+        cut = d.len as int - 1;
+        if d.index(cut as usize) == '/' { cut = cut - 1; }
+        while cut > 0 {
+            if d.index(cut as usize) == '/' { break; }
+            cut = cut - 1;
+        }
+        if cut <= 0 {
+            d = "";
+        } else {
+            d = d.substring(0 as usize, (cut + 1) as usize);
+        }
+        i = i + 1;
+    }
+    return "";
+}
+
 /// 递归合并：file 的依赖先入，再拼接自身（跳过 import 行）
 #[alloc]
 #[state]
@@ -246,6 +299,12 @@ pub fn collect_file(ref String file, ref Deps deps, ref mut Seen seen, ref mut S
                 pv = deps.path_of(al);
                 if pv.len > 0 {
                     collect_file(mdir + pv, deps, seen, dst, mdir);
+                } else {
+                    // std 源码回退（AYANAMI_STD_SRC=1）
+                    sp2 = std_src_path(fdir, al);
+                    if sp2.len > 0 {
+                        collect_file(sp2, deps, seen, dst, mdir);
+                    }
                 }
             } else {
                 dst.push_str(line);

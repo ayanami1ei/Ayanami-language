@@ -1497,10 +1497,13 @@ impl Parser {
         }
         if self.check_delim(D::LBracket._tag) {
             sized = 0;
-            if self.la1_is_kw(Kw::Int._tag) || self.la1_is_kw(Kw::Float._tag) || self.la1_is_kw(Kw::Char._tag) || self.la1_is_kw(Kw::Bool._tag) || self.la1_is_kw(Kw::Self_._tag) || self.la1_is_kw(Kw::Ref._tag) || self.la1_is_kw(Kw::Unique._tag) || self.la1_is_kw(Kw::Fn._tag) {
-                sized = 1;
+            // 定长数组类型 [T; n]：元素类型后必须跟 ';'
+            if self.la2_is_delim(D::Semicolon._tag) {
+                if self.la1_is_kw(Kw::Int._tag) || self.la1_is_kw(Kw::Float._tag) || self.la1_is_kw(Kw::Char._tag) || self.la1_is_kw(Kw::Bool._tag) || self.la1_is_kw(Kw::Self_._tag) || self.la1_is_kw(Kw::Ref._tag) || self.la1_is_kw(Kw::Unique._tag) || self.la1_is_kw(Kw::Fn._tag) {
+                    sized = 1;
+                }
+                if self.la1_is_ident() { sized = 1; }
             }
-            if self.la1_is_ident() && self.la2_is_delim(D::Semicolon._tag) { sized = 1; }
             self.advance();
             if sized == 1 {
                 ety = self.parse_type();

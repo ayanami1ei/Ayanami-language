@@ -296,6 +296,16 @@ fn num_rank(ref String t) -> int {
     return -1;
 }
 
+/// 是否为整数字面量（字面量按上下文推断类型）
+fn is_int_literal(ref Ast ast, int id) -> int {
+    if id < 0 { return 0; }
+    if ast.tags[id] == et(ET::Literal._tag) {
+        if ast.bb[id] == lk(LK::Int._tag) { return 1; }
+    }
+    if ast.tags[id] == et(ET::Suffixed._tag) { return 1; }
+    return 0;
+}
+
 fn is_int_type(ref String t) -> bool {
     if t == "int" { return true; }
     if t.len == 0 { return false; }
@@ -362,9 +372,13 @@ fn convertible(ref String from, ref String to) -> bool {
     fb = strip_generic(f);
     tb = strip_generic(t);
     if fb == tb { return true; }
-    // 整型族互转
+    // 整型族互转（usize 与 u64 同宽，视为等价）
     if f == "int" && t == "usize" { return true; }
     if f == "usize" && t == "int" { return true; }
+    if f == "u64" && t == "usize" { return true; }
+    if f == "usize" && t == "u64" { return true; }
+    if f == "i64" && t == "int" { return true; }
+    if f == "int" && t == "i64" { return true; }
     // 具体整型 -> int / int -> 具体整型
     if t == "int" && is_int_ty(f) { return true; }
     if f == "int" && is_int_ty(t) { return true; }
@@ -1009,9 +1023,13 @@ impl Checker {
         } elif tag == st(ST::For._tag) {
             st1 = self.check_expr(ast, ast.aa[id]);
             st2 = self.check_expr(ast, ast.bb[id]);
+            lit1 = is_int_literal(ast, ast.aa[id]);
+            lit2 = is_int_literal(ast, ast.bb[id]);
             if st1.len > 0 && st2.len > 0 {
                 if st1 != st2 {
-                    if is_int_type(st1) && is_int_type(st2) {
+                    if lit1 == 1 || lit2 == 1 {
+                        // 整数字面量按上下文推断（rust 语义）
+                    } elif is_int_type(st1) && is_int_type(st2) {
                         b = StringBuf::new();
                         b.push_str("for bounds have different integer types: `");
                         b.push_str(st1);
