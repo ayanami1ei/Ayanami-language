@@ -129,6 +129,28 @@ fn ty_name(ref Ast ast, int t) -> String {
     return "";
 }
 
+/// 取实参地址（ref 原语形参）：变量/全局直接取址，其余落到临时槽
+fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String {
+    if id >= 0 {
+        if ast.tags[id] == et(ET::Ident._tag) {
+            nm = ast.texts[id];
+            if e.global_kind(nm) == 0 { return "@" + nm; }
+            kd = e.local_kind(nm);
+            if kd == 0 { return "%v_" + nm; }
+        }
+    }
+    v = emit_expr(ast, id, e);
+    tp = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(tp);
+    e.buf.push_str(" = alloca i64\n  store i64 ");
+    e.buf.push_str(v.a);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(tp);
+    e.buf.push_str("\n");
+    return tp;
+}
+
 /// 整数常量求值（字面量/括号/一元负/二元算术/位运算/引用其他常量）；失败返回 ""
 fn const_int(ref Ast ast, int id) -> String {
     if id < 0 { return ""; }
@@ -571,9 +593,11 @@ impl Emitter {
     fn param_kind(ref mut self, ref Ast ast, int p) -> int {
         pt = ast.tys[p];
         if pt < 0 { return 0; }
-        // 解开 ref/ref mut 包装
+        // 解开 ref/ref mut 包装（记下是否为引用）
+        is_ref = 0;
         while pt >= 0 {
             if ast.tags[pt] != tt(TT::Ref._tag) { break; }
+            is_ref = 1;
             pt = ast.aa[pt];
         }
         if pt < 0 { return 0; }
@@ -582,13 +606,18 @@ impl Emitter {
             return 3;
         }
         if ptg == tt(TT::Generic._tag) { ptg = tt(TT::Named._tag); }
-        if ptg != tt(TT::Named._tag) { return 0; }
+        if ptg != tt(TT::Named._tag) {
+            // 原语：ref 形参按指针传（30）
+            if is_ref == 1 { return 30; }
+            return 0;
+        }
         tn = ast.texts[pt];
         if tn == "String" { return 1; }
         ei = self.find_enum_idx(tn);
         if ei >= 0 { return 20; }
         si = self.find_struct_idx(tn);
         if si >= 0 { return 100 + si; }
+        if is_ref == 1 { return 30; }
         return 0;
     }
 
@@ -2123,6 +2152,20 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str("\n");
             return mk_arr(t9, e.find_elem(nm));
         }
+        if kd == 30 {
+            rp = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(rp);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n  ");
+            rv2 = e.fresh();
+            e.buf.push_str(rv2);
+            e.buf.push_str(" = load i64, ptr ");
+            e.buf.push_str(rp);
+            e.buf.push_str("\n");
+            return mk_int(rv2);
+        }
         if kd == 20 {
             t = e.fresh();
             e.buf.push_str("  ");
@@ -2382,7 +2425,10 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             at2 = emit_expr(ast, ast.aa[a2], e);
             if first == 0 { b.push_str(", "); }
             pk2 = e.fn_param_kind(nm, ak);
-            if pk2 == 0 {
+            if pk2 == 30 {
+                b.push_str("ptr ");
+                b.push_str(addr_of_arg(ast, ast.aa[a2], e));
+            } elif pk2 == 0 {
                 b.push_str("i64 ");
                 b.push_str(at2.a);
             } elif pk2 == 1 {
@@ -2844,7 +2890,10 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 mfull = obj.b + ".";
                 mfull = mfull + ast.texts[id];
                 pk3 = e.fn_param_kind(mfull, ak3);
-                if pk3 == 0 {
+                if pk3 == 30 {
+                    b3.push_str(", ptr ");
+                    b3.push_str(addr_of_arg(ast, ast.aa[a3], e));
+                } elif pk3 == 0 {
                     b3.push_str(", i64 ");
                     b3.push_str(at3.a);
                 } elif pk3 == 1 {
@@ -3332,6 +3381,31 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(v.a);
             e.buf.push_str(", ptr @");
             e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
+        if ast.tags[rhs_id] == et(ET::Ref._tag) {
+            // r = ref mut X：局部存引用（kind 30）
+            ad = addr_of_arg(ast, ast.aa[rhs_id], e);
+            e.declare_local(nm, 30);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(ad);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
+        if e.local_kind(nm) == 30 {
+            v = emit_expr(ast, rhs_id, e);
+            rp2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(rp2);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n  store i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(rp2);
             e.buf.push_str("\n");
             return;
         }
