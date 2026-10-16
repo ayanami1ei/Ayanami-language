@@ -195,6 +195,12 @@ impl crate::hir::lower::Ctx {
             // 动态 `[T]` 无长度信息，保持未检查原语
             let hir_index = match &deref_ty {
                 HirType::ArraySized(_, n) => self.insert_bounds_check(hir_index, *n, span),
+                // #175：动态数组字段（`s.data`）尝试用兄弟长度字段（`s.len`）检查；
+                // 无兄弟长度（裸 `[T]` 字段/动态值）无长度信息，保持未检查原语
+                HirType::Array(_) => match self.sibling_len_expr(&hir_object) {
+                    Some(len_expr) => self.insert_bounds_check_dyn(hir_index, len_expr, span),
+                    None => hir_index,
+                },
                 _ => hir_index,
             };
             return Ok(SIdx {

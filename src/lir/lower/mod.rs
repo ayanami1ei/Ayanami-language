@@ -105,6 +105,8 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
     for f in &all_fns {
         if f.extern_c && f.blocks.is_empty() {
             if let Some(name) = fn_names.get(&f.fn_id) {
+                // #174：同名声明去重（用户显式 extern + 编译器内置助手；LLVM 拒绝重复 declare）
+                if extern_decls.iter().any(|d| d.name == *name) { continue; }
                 extern_decls.push(ExternDecl {
                     name: name.clone(),
                     params: f.params.iter().map(|(_, t)| t.clone()).collect(),

@@ -1,0 +1,9 @@
+// #175：String.data 经 ref 字段访问的越界检查（兄弟 len）
+import "string"
+fn get(ref String s, usize i) -> char {
+    return s.data[i]
+}
+fn main() -> int {
+    s = "abc"
+    return char_code(get(ref s, 5))
+}

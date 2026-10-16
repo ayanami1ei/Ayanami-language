@@ -165,5 +165,7 @@ fn main() -> int {
       - `arr.get_unchecked(i)`：跳过检查，**需 unsafe**（Rust 语义；unsafe 块不改变 `arr[i]` 的检查）
       - 动态 `[T]`（无长度信息，如 extern `[char]` 缓冲）：保持未检查原语（表示层限制）
       - 用例：`example/test_array_bounds.aya`；运行时 `bounds_check_array`/`bounds_check_negative`（101）；负例 `get_unchecked_requires_unsafe`
+      - #174：extern 声明按名去重（用户/std 显式声明运行时符号不再重复 `declare`）
+      - #175：动态数组字段（`s.data`）按兄弟边界字段检查 —— **容量优先**（`capability`/`capacity`/`cap`，可增长缓冲如 ArrayList/HashMap），无容量字段才用 `len`/`length`/`size`/`count`（如 `String.data`）；无边界字段的裸 `[T]` 字段保持未检查原语
 - [ ] P4：extern 调用迁移
 - [ ] P4：extern 调用迁移

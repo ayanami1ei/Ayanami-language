@@ -19,7 +19,7 @@ MIR Program
         target:
         Local(v1 : Int)
         value:
-        Call(fn103, ty: Int)
+        Call(fn104, ty: Int)
           Ref(ty: ref Named(ArrayList<int>))
             Local(v0 : Named(ArrayList<int>))
           Literal(Int(5))
@@ -43,6 +43,9 @@ MIR Program
 │ Fn __ayanami_ovf_mul_u64 (a: u64, b: u64, __line: Int, __col: Int, __file: Named(String)) -> u64 [locals: 0]
 │ │ Block {
 │ │ }
+│ Fn __ayanami_panic_bounds_at (__line: Int, __col: Int, __file: Named(String), index: Int, len: Int) -> Void [locals: 0]
+│ │ Block {
+│ │ }
 │ Fn ArrayList.new () -> Named(ArrayList<int>) [locals: 1]
 │   local __ret: Named(ArrayList<int>)
 │ │ Block {
@@ -62,10 +65,12 @@ MIR Program
       Return
         Local(v0 : Named(ArrayList<int>))
 │ │ }
-│ Fn expand (self: ref mut Named(ArrayList<int>)) -> Void [locals: 7]
+│ Fn expand (self: ref mut Named(ArrayList<int>)) -> Void [locals: 9]
 │   local self: ref mut Named(ArrayList<int>)
 │   local tmp: unique [Int]
 │   local i: Int
+│   local __idx: Int
+│   local __len: Int
 │   local __ret: unique [Int]
 │   local __ret: unique [Int]
 │   local __ret: unique [Int]
@@ -88,7 +93,7 @@ MIR Program
             Literal(Int(1))
           Assign
             target:
-            Local(v3 : unique [Int])
+            Local(v5 : unique [Int])
             value:
             Move(ty: unique [Int])
               ArraySized { elem_ty: Int, ty: unique [Int] }
@@ -96,17 +101,17 @@ MIR Program
                 Literal(Int(1))
           Assign
             target:
-            Local(v4 : unique [Int])
+            Local(v6 : unique [Int])
             value:
             Move(ty: unique [Int])
               FieldAccess data ty=unique [Int]
                 Local(v0 : ref mut Named(ArrayList<int>))
-          Drop(v4 : unique [Int])
+          Drop(v6 : unique [Int])
           FieldAssign field=data index=0 ty=unique [Int]
             object:
             Local(v0 : ref mut Named(ArrayList<int>))
             value:
-            Local(v3 : unique [Int])
+            Local(v5 : unique [Int])
         }
         else:
         Block {
@@ -140,6 +145,36 @@ MIR Program
                   Local(v0 : ref mut Named(ArrayList<int>))
             body:
             Block {
+              Assign
+                target:
+                Local(v3 : Int)
+                value:
+                Local(v2 : Int)
+              Assign
+                target:
+                Local(v4 : Int)
+                value:
+                FieldAccess capability ty=Int
+                  Local(v0 : ref mut Named(ArrayList<int>))
+              If
+                cond:
+                Binary { op: Ge, ty: u64 }
+                  lhs:
+                  Cast(ty: u64)
+                    Local(v3 : Int)
+                  rhs:
+                  Cast(ty: u64)
+                    Local(v4 : Int)
+                then:
+                Block {
+                  Expr
+                    Call(fn103, ty: Void)
+                      Literal(Int(11))
+                      Literal(Int(35))
+                      Literal(String("example/test_bounds.aya"))
+                      Local(v3 : Int)
+                      Local(v4 : Int)
+                }
               IndexAssign
                 object:
                 Local(v1 : unique [Int])
@@ -151,7 +186,7 @@ MIR Program
                   FieldAccess data ty=unique [Int]
                     Local(v0 : ref mut Named(ArrayList<int>))
                   index:
-                  Local(v2 : Int)
+                  Local(v3 : Int)
               Assign
                 target:
                 Local(v2 : Int)
@@ -164,23 +199,23 @@ MIR Program
             }
           Assign
             target:
-            Local(v5 : unique [Int])
+            Local(v7 : unique [Int])
             value:
             Move(ty: unique [Int])
               Local(v1 : unique [Int] [moved])
           Assign
             target:
-            Local(v6 : unique [Int])
+            Local(v8 : unique [Int])
             value:
             Move(ty: unique [Int])
               FieldAccess data ty=unique [Int]
                 Local(v0 : ref mut Named(ArrayList<int>))
-          Drop(v6 : unique [Int])
+          Drop(v8 : unique [Int])
           FieldAssign field=data index=0 ty=unique [Int]
             object:
             Local(v0 : ref mut Named(ArrayList<int>))
             value:
-            Local(v5 : unique [Int])
+            Local(v7 : unique [Int])
           FieldAssign field=capability index=2 ty=u64
             object:
             Local(v0 : ref mut Named(ArrayList<int>))
@@ -240,12 +275,14 @@ MIR Program
           Literal(Int(29))
           Literal(String("example/test_bounds.aya"))
 │ │ }
-│ Fn index (self: ref Named(ArrayList<int>), index: u64, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 6]
+│ Fn index (self: ref Named(ArrayList<int>), index: u64, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 8]
 │   local self: ref Named(ArrayList<int>)
 │   local index: u64
 │   local __line: Int
 │   local __col: Int
 │   local __file: Named(String)
+│   local __idx: Int
+│   local __len: Int
 │   local __ret: Int
 │ │ Block {
       If
@@ -272,14 +309,44 @@ MIR Program
         target:
         Local(v5 : Int)
         value:
+        Cast(ty: Int)
+          Local(v1 : u64)
+      Assign
+        target:
+        Local(v6 : Int)
+        value:
+        FieldAccess capability ty=Int
+          Local(v0 : ref Named(ArrayList<int>))
+      If
+        cond:
+        Binary { op: Ge, ty: u64 }
+          lhs:
+          Cast(ty: u64)
+            Local(v5 : Int)
+          rhs:
+          Cast(ty: u64)
+            Local(v6 : Int)
+        then:
+        Block {
+          Expr
+            Call(fn103, ty: Void)
+              Literal(Int(30))
+              Literal(Int(25))
+              Literal(String("example/test_bounds.aya"))
+              Local(v5 : Int)
+              Local(v6 : Int)
+        }
+      Assign
+        target:
+        Local(v7 : Int)
+        value:
         Index ty=Int
           object:
           FieldAccess data ty=unique [Int]
             Local(v0 : ref Named(ArrayList<int>))
           index:
-          Cast(ty: Int)
-            Local(v1 : u64)
+          Local(v5 : Int)
       Drop(v4 : Named(String))
       Return
-        Local(v5 : Int)
+        Local(v7 : Int)
 │ │ }
