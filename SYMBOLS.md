@@ -472,8 +472,11 @@ src/hir/lower/body/expr_logic.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_logic.rs:5: pub(super) fn lower_short_circuit(&mut self, op: BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_lower.rs:4: pub(crate) fn lower_expr(&mut self, expr: &Expr) -> Result<HirNodeBox>
-src/hir/lower/body/expr_method.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/expr_method.rs:4: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_method.rs:4: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_method.rs:5: pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_method_arrays.rs:6: pub(crate) fn array_elem_type(receiver_ty: &HirType) -> Option<HirType>
+src/hir/lower/body/expr_method_arrays.rs:17: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_method_arrays.rs:19: pub(crate) fn lower_get_unchecked(
 src/hir/lower/body/expr_misc.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_misc.rs:31: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Block) -> Result<HirNodeBox>
@@ -613,7 +616,8 @@ src/hir/lower/body/mod.rs:49: mod expr_enum;
 src/hir/lower/body/mod.rs:50: mod expr_misc;
 src/hir/lower/body/mod.rs:51: mod expr_ops1;
 src/hir/lower/body/mod.rs:52: mod expr_unary;
-src/hir/lower/body/mod.rs:53: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:53: mod expr_method_arrays;
+src/hir/lower/body/mod.rs:54: mod expr_reinterpret;
 src/hir/lower/body/overload_resolve.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
@@ -671,6 +675,9 @@ src/hir/lower/ctx_mono.rs:89: pub fn adapt_enum_args(
 src/hir/lower/ctx_mono.rs:109: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
 src/hir/lower/ctx_mono.rs:141: pub fn refine_enum_result_type(&self, ty: HirType) -> HirType
 src/hir/lower/ctx_mono.rs:156: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/helpers/bounds.rs:10: impl crate::hir::lower::Ctx
+src/hir/lower/helpers/bounds.rs:12: pub(crate) fn ensure_bounds_helper(&mut self) -> FnId
+src/hir/lower/helpers/bounds.rs:61: pub(crate) fn insert_bounds_check(&mut self, index: HirNodeBox, len: usize, span: &Span) -> HirNodeBox
 src/hir/lower/helpers/caller.rs:7: pub(crate) fn is_hidden_param(name: &Symbol) -> bool
 src/hir/lower/helpers/caller.rs:12: pub(crate) fn count_hidden_params(params: &[(Symbol, HirType)]) -> usize
 src/hir/lower/helpers/caller.rs:17: pub(crate) fn count_hidden_names<T>(params: &[(Symbol, T)]) -> usize
@@ -729,20 +736,21 @@ src/hir/lower/helpers/convert.rs:153: pub(crate) fn substitute_hir_type(ty: &Hir
 src/hir/lower/helpers/fn_type.rs:9: pub(crate) fn ast_type_to_hir_extern(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> HirType
 src/hir/lower/helpers/fn_type.rs:20: pub(crate) fn ast_type_to_hir_param(
 src/hir/lower/helpers/fn_type.rs:34: pub(crate) fn unify_legacy_fn_type(ty: &HirType) -> HirType
-src/hir/lower/helpers/mod.rs:18: mod caller;
-src/hir/lower/helpers/mod.rs:19: mod closure;
-src/hir/lower/helpers/mod.rs:20: mod closure_checks;
-src/hir/lower/helpers/mod.rs:21: mod closure_lower;
-src/hir/lower/helpers/mod.rs:22: mod closure_static;
-src/hir/lower/helpers/mod.rs:23: mod coerce;
-src/hir/lower/helpers/mod.rs:24: mod overflow;
-src/hir/lower/helpers/mod.rs:25: mod convert;
-src/hir/lower/helpers/mod.rs:26: mod fn_type;
-src/hir/lower/helpers/mod.rs:27: mod substitute;
-src/hir/lower/helpers/mod.rs:28: mod substitute_stmt;
-src/hir/lower/helpers/mod.rs:29: mod types;
-src/hir/lower/helpers/mod.rs:30: mod types_sig;
-src/hir/lower/helpers/mod.rs:31: mod wrap;
+src/hir/lower/helpers/mod.rs:18: mod bounds;
+src/hir/lower/helpers/mod.rs:19: mod caller;
+src/hir/lower/helpers/mod.rs:20: mod closure;
+src/hir/lower/helpers/mod.rs:21: mod closure_checks;
+src/hir/lower/helpers/mod.rs:22: mod closure_lower;
+src/hir/lower/helpers/mod.rs:23: mod closure_static;
+src/hir/lower/helpers/mod.rs:24: mod coerce;
+src/hir/lower/helpers/mod.rs:25: mod overflow;
+src/hir/lower/helpers/mod.rs:26: mod convert;
+src/hir/lower/helpers/mod.rs:27: mod fn_type;
+src/hir/lower/helpers/mod.rs:28: mod substitute;
+src/hir/lower/helpers/mod.rs:29: mod substitute_stmt;
+src/hir/lower/helpers/mod.rs:30: mod types;
+src/hir/lower/helpers/mod.rs:31: mod types_sig;
+src/hir/lower/helpers/mod.rs:32: mod wrap;
 src/hir/lower/helpers/overflow.rs:10: pub(crate) fn ovf_op_name(op: &BinaryOp) -> Option<&'static str>
 src/hir/lower/helpers/overflow.rs:19: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/overflow.rs:21: pub(crate) fn lower_ovf_call(&mut self, op_name: &str, ty: &HirType, lhs: HirNodeBox, rhs: HirNodeBox, span: &Span) -> HirNodeBox
@@ -2402,6 +2410,7 @@ example/test_aggregate_array.aya:17: fn main() -> int
 example/test_annotation_scope.aya:5: fn placeholder() -> int { return 0 }
 example/test_annotation_scope.aya:7: fn main() -> int { return answer() - 42 }
 example/test_array.aya:1: fn main() -> int
+example/test_array_bounds.aya:2: fn main() -> int
 example/test_array_elem_field.aya:2: struct Inner { int a }
 example/test_array_elem_field.aya:3: struct Outer
 example/test_array_elem_field.aya:8: fn main() -> int

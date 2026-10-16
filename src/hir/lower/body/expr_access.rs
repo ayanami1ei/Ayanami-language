@@ -191,6 +191,12 @@ impl crate::hir::lower::Ctx {
         if let HirType::Array(elem) | HirType::ArraySized(elem, _) = &deref_ty {
             let elem_ty = (**elem).clone();
             let hir_index = coerce_index(hir_index, &HirType::Int, span)?;
+            // P3b（Rust 方式）：`[T; n]` 索引默认越界检查（panic 101）；
+            // 动态 `[T]` 无长度信息，保持未检查原语
+            let hir_index = match &deref_ty {
+                HirType::ArraySized(_, n) => self.insert_bounds_check(hir_index, *n, span),
+                _ => hir_index,
+            };
             return Ok(SIdx {
                 object: hir_object,
                 index: hir_index,

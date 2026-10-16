@@ -97,6 +97,7 @@ graph TD
 | M5 unsafe 边界 | `parser/parser/stmt.rs`（`unsafe {}` / `unsafe fn`）、`hir/lower/body/stmt_lower.rs`（`unsafe_depth`）、`expr_call.rs`/`expr_misc.rs`/`ctx.rs`（asm、unsafe 调用、static mut 门控） | P1：unsafe 语法 + asm/unsafe-call/`static mut`（读写与 ref mut）门控；设计见 docs/unsafe.md |
 | M5 裸指针 `*T` | `parser/parser/types.rs`（`*T` 类型）、`unary.rs`（`*p`）、`expr_cast.rs`（int/ref/Ptr ↔ `*T`）、`expr_method.rs`（`as_ptr`）、`nodes_conv.rs`（inttoptr/ptrtoint/bitcast） | P2：Copy 标量（LLVM `ptr`）、解引用读写/字段、指针↔int、`ref [T]` 取缓冲区；全部需 unsafe |
 | M5 reinterpret / 指针算术 / volatile | `expr_call.rs`（`bits::reinterpret` 拦截 + 尺寸检查）、`expr_method.rs`（`offset`/`read_volatile`/`write_volatile`）、`nodes_volatile.rs`（LLVM volatile 发射）、`mir_ptr_ops.rs` | P3a：同尺寸位重解释 + 元素步长指针算术 + volatile 读写；全部需 unsafe |
+| M5 数组越界检查 | `helpers/bounds.rs`（`insert_bounds_check`/`ensure_bounds_helper`）、`expr_access.rs`（`arr[i]` 插检查）、`expr_method_arrays.rs`（`get_unchecked`） | P3b（Rust 方式）：`[T; n]` 默认检查（panic 101）；`get_unchecked` 需 unsafe；动态 `[T]` 保持原语 |
 | M5 union | `parser/parser/decl.rs`（`union U { ... }`）、`collect_ns.rs`（`__union` 标记 + 字段 drop-free 检查）、`ctx_fields.rs`（字段索引恒 0）、`nodes_b/c.rs`（共享存储 load/store）、`helpers.rs`/`functions.rs`（max 布局/单槽类型） | P3b：字段共享存储；读取需 unsafe，写入/初始化无需；限无 drop 字段；裸指针 `==`/`!=` 地址比较 |
 
 ## 3. 标注系统路线（设计见 `docs/annotations.md`）

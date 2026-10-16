@@ -1,0 +1,20 @@
+// P3b（Rust 方式）：`arr[i]` 默认越界检查（panic 101）；`arr.get_unchecked(i)` 跳过（需 unsafe）
+fn main() -> int {
+    a = [10, 20, 30, 40]
+    i = 2
+    if a[i] != 30 { return 1 }
+    if a[0] != 10 { return 2 }
+    if a[3] != 40 { return 3 }
+    j = 0
+    s = 0
+    while j < 4 {
+        s = s + a[j]
+        j = j + 1
+    }
+    if s != 100 { return 4 }
+    unsafe {
+        if a.get_unchecked(1) != 20 { return 5 }
+        if a.get_unchecked(3) != 40 { return 6 }
+    }
+    return 0
+}

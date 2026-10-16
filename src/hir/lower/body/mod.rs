@@ -50,4 +50,5 @@ mod expr_enum;
 mod expr_misc;
 mod expr_ops1;
 mod expr_unary;
+mod expr_method_arrays;
 mod expr_reinterpret;

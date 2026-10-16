@@ -1,0 +1,6 @@
+// P3b（Rust 方式）：[T; n] 索引默认越界检查（panic 101 + 信息）
+fn main() -> int {
+    a = [10, 20, 30, 40]
+    i = 4
+    return a[i]
+}
