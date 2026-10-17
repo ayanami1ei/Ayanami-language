@@ -865,6 +865,16 @@ impl Emitter {
         return -1;
     }
 
+    /// extern 声明是否已存在（内置 declare 去重）
+    fn decl_has(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.decl_count {
+            if self.decl_names[i] == name { return 1; }
+            i = i + 1;
+        }
+        return 0;
+    }
+
     /// lambda AST id -> lambda 表下标
     fn lam_index_of(ref mut self, int id) -> int {
         i = 0;
@@ -3248,6 +3258,105 @@ fn cap_scan_node(ref Ast ast, int id, int li, ref mut Emitter e) {
     }
 }
 
+/// 索引读取：按元素类型装载（base 为数组值，idx 为下标临时名）
+#[alloc]
+fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e) -> Val {
+        ety3 = base3.ty;
+        lty4 = "i64";
+        if ety3 >= 0 {
+            lty4 = elem_llvm(ast, ety3);
+        }
+        g4 = elem_addr(e, elem_stride(ast, ety3), base3.a, idx);
+        if elem_is_string(ast, ety3) {
+            p4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(p4);
+            e.buf.push_str(" = load ptr, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str("\n");
+            g4b = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(g4b);
+            e.buf.push_str(" = getelementptr i8, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str(", i64 8\n");
+            l4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(l4);
+            e.buf.push_str(" = load i64, ptr ");
+            e.buf.push_str(g4b);
+            e.buf.push_str("\n");
+            return mk_str_tmp(p4, l4);
+        }
+        if lty4 == "ptr" {
+            // 指针元素：结构体/枚举/其他指针值
+            tp4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(tp4);
+            e.buf.push_str(" = load ptr, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str("\n");
+            if ety3 >= 10000 && ety3 < 10128 {
+                return Val { kind = 2, a = tp4, b = e.st_names[ety3 - 10000].copy(), ty = -1 };
+            }
+            if ety3 >= 20000 && ety3 < 20128 {
+                return Val { kind = 4, a = tp4, b = e.en_names[ety3 - 20000].copy(), ty = -1 };
+            }
+            etn4 = ty_name(ast, ety3);
+            if etn4.len > 0 {
+                si4 = e.find_struct_idx(etn4);
+                if si4 >= 0 {
+                    return Val { kind = 2, a = tp4, b = etn4.copy(), ty = -1 };
+                }
+                ei4i = e.find_enum_idx(etn4);
+                if ei4i >= 0 {
+                    return Val { kind = 4, a = tp4, b = etn4.copy(), ty = -1 };
+                }
+            }
+            return mk_int(tp4);
+        }
+        if lty4 == "i8" {
+            t4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t4);
+            e.buf.push_str(" = load i8, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str("\n  ");
+            s4 = e.fresh();
+            e.buf.push_str(s4);
+            e.buf.push_str(" = zext i8 ");
+            e.buf.push_str(t4);
+            e.buf.push_str(" to i64\n");
+            return mk_int(s4);
+        }
+        if lty4 == "i32" {
+            t5 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t5);
+            e.buf.push_str(" = load i32, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str("\n  ");
+            s5 = e.fresh();
+            e.buf.push_str(s5);
+            e.buf.push_str(" = sext i32 ");
+            e.buf.push_str(t5);
+            e.buf.push_str(" to i64\n");
+            return mk_int(s5);
+        }
+        t6 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t6);
+        e.buf.push_str(" = load ");
+        e.buf.push_str(lty4);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(g4);
+        e.buf.push_str("\n");
+        if lty4 == "double" {
+            return Val { kind = 0, a = t6, b = "", ty = ety3 };
+        }
+        return mk_int(t6);
+    }
+
 fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     if id < 0 { return mk_int("0"); }
     tag = ast.tags[id];
@@ -4223,6 +4332,15 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             }
             return mk_int("0");
         }
+        if obj.kind == 3 {
+            // 数组：get_unchecked / get / index 读元素（与 a[i] 相同）
+            mn_a = ast.texts[id];
+            if mn_a == "get_unchecked" || mn_a == "get" || mn_a == "index" {
+                iv_a = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                return emit_index_read(ast, obj, iv_a.a, e);
+            }
+            return mk_int("0");
+        }
         mid = -1;
         recv_ty = obj.b.copy();
         prim_recv = 0;
@@ -4357,6 +4475,26 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 return mk_arr(pi7, e.ret_info(ast, mrty));
             }
             return mk_int(t5);
+        }
+        return mk_int("0");
+    }
+    if tag == et(ET::MacroCall._tag) {
+        mname_m = ast.texts[id];
+        if mname_m == "panic" {
+            // #panic(msg)：调用运行时 panic（退出 101）
+            a_m = ast.aa[id];
+            msg_m = mk_str("null", 0);
+            if a_m >= 0 { msg_m = emit_expr(ast, ast.aa[a_m], e); }
+            e.buf.push_str("  call void @__ayanami_panic_at(i64 ");
+            e.buf.push_str(int_str2(ast.lines[id]));
+            e.buf.push_str(", i64 ");
+            e.buf.push_str(int_str2(ast.cols[id]));
+            e.buf.push_str(", ptr null, i64 0, ptr ");
+            e.buf.push_str(ptr_operand(msg_m.a));
+            e.buf.push_str(", i64 ");
+            e.buf.push_str(msg_m.b);
+            e.buf.push_str(")\n");
+            return mk_int("0");
         }
         return mk_int("0");
     }
@@ -4583,103 +4721,10 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         return av3;
     }
     if tag == et(ET::Index._tag) {
-        // xs[i]：取值（8 位元素做 sext；其余按元素类型装载）
+        // xs[i]：取值（按元素类型装载）
         base3 = emit_expr(ast, ast.aa[id], e);
         iv3 = emit_expr(ast, ast.bb[id], e);
-        ety3 = base3.ty;
-        lty4 = "i64";
-        if ety3 >= 0 {
-            lty4 = elem_llvm(ast, ety3);
-        }
-        g4 = elem_addr(e, elem_stride(ast, ety3), base3.a, iv3.a);
-        if elem_is_string(ast, ety3) {
-            p4 = e.fresh();
-            e.buf.push_str("  ");
-            e.buf.push_str(p4);
-            e.buf.push_str(" = load ptr, ptr ");
-            e.buf.push_str(g4);
-            e.buf.push_str("\n");
-            g4b = e.fresh();
-            e.buf.push_str("  ");
-            e.buf.push_str(g4b);
-            e.buf.push_str(" = getelementptr i8, ptr ");
-            e.buf.push_str(g4);
-            e.buf.push_str(", i64 8\n");
-            l4 = e.fresh();
-            e.buf.push_str("  ");
-            e.buf.push_str(l4);
-            e.buf.push_str(" = load i64, ptr ");
-            e.buf.push_str(g4b);
-            e.buf.push_str("\n");
-            return mk_str_tmp(p4, l4);
-        }
-        if lty4 == "ptr" {
-            // 指针元素：结构体/枚举/其他指针值
-            tp4 = e.fresh();
-            e.buf.push_str("  ");
-            e.buf.push_str(tp4);
-            e.buf.push_str(" = load ptr, ptr ");
-            e.buf.push_str(g4);
-            e.buf.push_str("\n");
-            if ety3 >= 10000 && ety3 < 10128 {
-                return Val { kind = 2, a = tp4, b = e.st_names[ety3 - 10000].copy(), ty = -1 };
-            }
-            if ety3 >= 20000 && ety3 < 20128 {
-                return Val { kind = 4, a = tp4, b = e.en_names[ety3 - 20000].copy(), ty = -1 };
-            }
-            etn4 = ty_name(ast, ety3);
-            if etn4.len > 0 {
-                si4 = e.find_struct_idx(etn4);
-                if si4 >= 0 {
-                    return Val { kind = 2, a = tp4, b = etn4.copy(), ty = -1 };
-                }
-                ei4i = e.find_enum_idx(etn4);
-                if ei4i >= 0 {
-                    return Val { kind = 4, a = tp4, b = etn4.copy(), ty = -1 };
-                }
-            }
-            return mk_int(tp4);
-        }
-        if lty4 == "i8" {
-            t4 = e.fresh();
-            e.buf.push_str("  ");
-            e.buf.push_str(t4);
-            e.buf.push_str(" = load i8, ptr ");
-            e.buf.push_str(g4);
-            e.buf.push_str("\n  ");
-            s4 = e.fresh();
-            e.buf.push_str(s4);
-            e.buf.push_str(" = zext i8 ");
-            e.buf.push_str(t4);
-            e.buf.push_str(" to i64\n");
-            return mk_int(s4);
-        }
-        if lty4 == "i32" {
-            t5 = e.fresh();
-            e.buf.push_str("  ");
-            e.buf.push_str(t5);
-            e.buf.push_str(" = load i32, ptr ");
-            e.buf.push_str(g4);
-            e.buf.push_str("\n  ");
-            s5 = e.fresh();
-            e.buf.push_str(s5);
-            e.buf.push_str(" = sext i32 ");
-            e.buf.push_str(t5);
-            e.buf.push_str(" to i64\n");
-            return mk_int(s5);
-        }
-        t6 = e.fresh();
-        e.buf.push_str("  ");
-        e.buf.push_str(t6);
-        e.buf.push_str(" = load ");
-        e.buf.push_str(lty4);
-        e.buf.push_str(", ptr ");
-        e.buf.push_str(g4);
-        e.buf.push_str("\n");
-        if lty4 == "double" {
-            return Val { kind = 0, a = t6, b = "", ty = ety3 };
-        }
-        return mk_int(t6);
+        return emit_index_read(ast, base3, iv3.a, e);
     }
     if tag == et(ET::Ref._tag) {
         // &x / ref x：返回地址（仅用于数组/结构体实参场景）
@@ -6004,7 +6049,10 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
     }
     e.buf.push_str("declare void @__ayanami_print_int(i64)\ndeclare void @__ayanami_print_ln()\ndeclare void @__ayanami_print_str(ptr, i64)\n");
     // 数组分配/清零所需（M6a）：malloc + llvm.memset
-    e.buf.push_str("declare ptr @malloc(i64)\ndeclare ptr @memcpy(ptr, ptr, i64)\ndeclare i32 @memcmp(ptr, ptr, i64)\n");
+    if e.decl_has("malloc") == 0 { e.buf.push_str("declare ptr @malloc(i64)\n"); }
+    if e.decl_has("memcpy") == 0 { e.buf.push_str("declare ptr @memcpy(ptr, ptr, i64)\n"); }
+    if e.decl_has("memcmp") == 0 { e.buf.push_str("declare i32 @memcmp(ptr, ptr, i64)\n"); }
+    if e.decl_has("__ayanami_panic_at") == 0 { e.buf.push_str("declare void @__ayanami_panic_at(i64, i64, ptr, i64, ptr, i64)\n"); }
     e.buf.push_str("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)\n");
     // lambda 函数定义（非捕获；捕获留待后续）
     li = 0;
