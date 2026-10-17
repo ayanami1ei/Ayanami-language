@@ -4,19 +4,24 @@ use super::util::*;
 use super::fn_lower::strip_ownership;
 use super::mir_ref::as_ptr_tmp;
 
+/// 指针型表达式取值：Tmp 直接用；Var（栈槽）先 load 出指针
+fn load_ptr_value(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> LirValue {
+    let val = expr.lower_to_lir(ctx);
+    match val {
+        LirValue::Tmp(_) => val,
+        other => {
+            let t = ctx.next_tmp();
+            ctx.emit(SLirLoad { dest: t, src: extract_var(&other), ty: expr.expr_type() }.into());
+            LirValue::Tmp(t)
+        }
+    }
+}
+
 /// #91：递归计算「可写位置」的地址（局部 / 引用值 / 字段，含嵌套字段）
 pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<LirValue> {
-    // 引用值本身就是指针（局部需从栈槽加载指针）
+    // 引用值（ref）自动解引用：指针值即所指位置的地址
     if matches!(expr.expr_type(), HirType::Ref(..)) {
-        let val = expr.lower_to_lir(ctx);
-        return Some(match val {
-            LirValue::Tmp(_) => val,
-            other => {
-                let t = ctx.next_tmp();
-                ctx.emit(SLirLoad { dest: t, src: extract_var(&other), ty: expr.expr_type() }.into());
-                LirValue::Tmp(t)
-            }
-        });
+        return Some(load_ptr_value(expr, ctx));
     }
     if let Some(v) = expr.as_local() {
         return Some(LirValue::Var(v));
@@ -59,7 +64,12 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
         return Some(LirValue::Tmp(dest));
     }
     if let Some((obj, field_index)) = expr.as_field_access() {
-        let obj_ptr = place_ptr(obj, ctx)?;
+        // 对象是 Ptr/裸指针值（如 `a.next`，a: Ptr[Node]）时自动解引用：指针值即基址
+        let obj_ptr = if matches!(obj.expr_type(), HirType::Unique(_) | HirType::RawPtr(_)) {
+            load_ptr_value(obj, ctx)
+        } else {
+            place_ptr(obj, ctx)?
+        };
         let dest = ctx.next_tmp();
         ctx.emit(SLirFieldAddr { dest, obj: obj_ptr, field_index, struct_ty: obj.expr_type() }.into());
         return Some(LirValue::Tmp(dest));

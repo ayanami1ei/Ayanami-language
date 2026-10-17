@@ -25,6 +25,7 @@ mod expr_method;
 mod match_coverage;
 mod match_lower;
 mod match_pattern;
+mod match_setup;
 mod match_util;
 mod usage_infer;
 mod macro_call;

@@ -1,0 +1,44 @@
+import "option"
+
+struct Node {
+    int v
+    Option[Ptr[Node]] next
+}
+
+struct Wrap {
+    Ptr[Node] link
+}
+
+// 链表求和：ref 借用遍历 + `Some(p)` 绑定 Ptr[Node] 载荷
+fn sum(ref Option[Ptr[Node]] n, ref mut int acc) {
+    match n {
+        None => {}
+        Some(p) => {
+            acc = acc + p.v
+            sum(ref p.next, ref mut acc)
+        }
+    }
+}
+
+fn main() -> int {
+    c = Ptr::new(Node { v = 3, next = Option::None() })
+    b = Ptr::new(Node { v = 2, next = Option::Some(c) })
+    a = Ptr::new(Node { v = 1, next = Option::Some(b) })
+    acc = 0
+    sum(ref a.next, ref mut acc)
+    if acc != 5 { return 1 }
+    // 结构体解构移出 Ptr 字段（源字段清零，不双重释放）
+    w = Wrap { link = Ptr::new(Node { v = 7, next = Option::None() }) }
+    match w {
+        Wrap { link } => {
+            if link.v != 7 { return 2 }
+        }
+    }
+    // Ptr 目标直接匹配（自动解引用，不复制 Ptr）
+    p = Ptr::new(Option::Some(9))
+    match p {
+        None => { return 3 }
+        Some(x) => { if x != 9 { return 4 } }
+    }
+    return 0
+}

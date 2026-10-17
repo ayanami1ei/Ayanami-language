@@ -109,6 +109,7 @@ impl HirNode for SRef {
 
 impl HirNode for SDeref {
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn as_deref(&self) -> Option<&HirNodeBox> { Some(&self.expr) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirDeref { expr: self.expr.lower_to_mir(moved), ty: self.ty.clone() }.into()
     }
@@ -125,6 +126,7 @@ impl HirNode for SDeref {
 
 impl HirNode for SIdx {
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn as_index(&self) -> Option<(&HirNodeBox, &HirNodeBox)> { Some((&self.object, &self.index)) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirIndex {
             object: self.object.lower_to_mir(moved),

@@ -12,38 +12,6 @@ struct LoweredArm {
 }
 
 impl crate::hir::lower::Ctx {
-    /// 求值 match 目标 → 临时局部；返回 (值节点, 值类型)
-    fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, HirType)> {
-        let lowered = self.lower_expr(value)?;
-        let is_ref = matches!(expr_type(&lowered), HirType::Ref(..));
-        let hir_value = auto_deref(lowered);
-        let value_ty = expr_type(&hir_value);
-        let base = strip_ownership(value_ty.clone());
-        if !matches!(base,
-            HirType::Named(_) | HirType::Int | HirType::IntN { .. } | HirType::Char
-            | HirType::Bool | HirType::Float | HirType::F32)
-        {
-            return Err(Error::Hir(format!(
-                "match on unsupported type `{}` at {}:{}",
-                hir_type_display(&value_ty), span.start_line, span.start_col
-            )));
-        }
-        // ref scrutinee：直接以解引用位置匹配——载荷移出时字段清零原值，
-        // 避免浅拷贝副本移出后原值悬挂（双重释放）
-        if is_ref {
-            return Ok((hir_value, value_ty));
-        }
-        let val_var = VarId(self.locals.len());
-        self.locals.push(HirLocal::new(Symbol::intern("__match_val"), value_ty.clone(), false));
-        let val_node: HirNodeBox = SVar { var: val_var, ty: value_ty.clone() }.into();
-        self.pending_stmts.push(HirStmt::Assign {
-            target: val_node.clone(),
-            value: hir_value,
-            span: *span,
-        });
-        Ok((val_node, value_ty))
-    }
-
     /// 模式归一化：枚举 scrutinee 下裸标识符若匹配变体名 → 无载荷变体模式
     fn normalize_pattern(&self, p: &Pattern, val_ty: &HirType) -> Pattern {
         match p {

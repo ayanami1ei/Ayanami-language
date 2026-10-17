@@ -58,6 +58,14 @@ impl crate::hir::lower::Ctx {
         match pat {
             Pattern::Wildcard => Ok((None, Vec::new())),
             Pattern::Binding(n) => {
+                // 限定名（`Option::None`）不是变体模式写法，给出明确诊断
+                if let Some(pos) = n.as_str().rfind('.') {
+                    return Err(Error::Hir(format!(
+                        "qualified variant pattern `{}` is not supported; write `{}` instead (at {}:{})",
+                        n.as_str().replace('.', "::"), &n.as_str()[pos + 1..],
+                        span.start_line, span.start_col
+                    )));
+                }
                 // #150 后续：枚举 scrutinee 下大写裸标识符多半是变体拼错，给出明确诊断
                 if let HirType::Named(en) = &base {
                     let looks_variant = n.as_str().chars().next().map_or(false, |c| c.is_uppercase());
@@ -68,17 +76,20 @@ impl crate::hir::lower::Ctx {
                         )));
                     }
                 }
-                if !nested && !base.is_copy() {
+                // 绑定变量保留源类型：`Ptr[T]`（`Unique`）是拥有指针值，
+                // 不能剥成 pointee——否则 `Some(p)` / `Struct { p }` 的载荷绑定类型错误
+                let bind_ty = ty.clone();
+                if !nested && !bind_ty.is_copy() {
                     return Err(Error::Hir(format!(
                         "binding the whole `{}` value is not supported yet; use `_` or destructure (at {}:{})",
-                        hir_type_display(&base), span.start_line, span.start_col
+                        hir_type_display(&bind_ty), span.start_line, span.start_col
                     )));
                 }
-                let (bid, _, _) = self.register_or_lookup(*n, base.clone());
+                let (bid, _, _) = self.register_or_lookup(*n, bind_ty.clone());
                 // 拥有类型载荷/字段绑定按移动处理：源字段清零（SLirFieldTake），
                 // 源枚举/结构体 drop 不再重复释放
                 Ok((None, vec![HirStmt::Assign {
-                    target: SVar { var: bid, ty: base }.into(),
+                    target: SVar { var: bid, ty: bind_ty }.into(),
                     value: implicit_move(expr.clone()),
                     span: *span,
                 }]))
@@ -96,6 +107,14 @@ impl crate::hir::lower::Ctx {
                 Ok((Some(and_cond(c1, c2)), Vec::new()))
             }
             Pattern::Enum { name, args } => {
+                // 变体模式用裸名（`Some(x)`）；限定名（`Option::Some(x)`）仅用于构造
+                if let Some(pos) = name.as_str().rfind('.') {
+                    return Err(Error::Hir(format!(
+                        "qualified variant pattern `{}` is not supported; write `{}` instead (at {}:{})",
+                        name.as_str().replace('.', "::"), &name.as_str()[pos + 1..],
+                        span.start_line, span.start_col
+                    )));
+                }
                 let HirType::Named(en) = &base else {
                     return Err(Error::Hir(format!(
                         "enum pattern `{}` cannot match `{}` (at {}:{})",

@@ -48,3 +48,4 @@ install/std/
 .beads-credential-key
 .beads/proxieddb/
 *.gate.lock*
+ayanami-*-build.txt
