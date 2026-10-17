@@ -296,6 +296,21 @@ fn num_rank(ref String t) -> int {
     return -1;
 }
 
+/// 数值字面量种类：0 非字面量, 1 整型字面量, 2 浮点字面量
+fn num_lit_kind(ref Ast ast, int id) -> int {
+    if id < 0 { return 0; }
+    if ast.tags[id] == et(ET::Literal._tag) {
+        if ast.bb[id] == lk(LK::Int._tag) { return 1; }
+        if ast.bb[id] == lk(LK::Float._tag) { return 2; }
+    }
+    if ast.tags[id] == et(ET::Suffixed._tag) {
+        sfx = ast.texts[id];
+        if sfx == "f32" || sfx == "f64" { return 2; }
+        return 1;
+    }
+    return 0;
+}
+
 /// 是否为整数字面量（字面量按上下文推断类型）
 fn is_int_literal(ref Ast ast, int id) -> int {
     if id < 0 { return 0; }
@@ -372,6 +387,8 @@ fn convertible(ref String from, ref String to) -> bool {
     fb = strip_generic(f);
     tb = strip_generic(t);
     if fb == tb { return true; }
+    // 浮点族互转（float/f32/f64）
+    if is_float_ty(f) && is_float_ty(t) { return true; }
     // 整型族互转（usize 与 u64 同宽，视为等价）
     if f == "int" && t == "usize" { return true; }
     if f == "usize" && t == "int" { return true; }
@@ -396,6 +413,12 @@ fn strip_generic(ref String t) -> String {
         i = i + 1;
     }
     return t.copy();
+}
+
+/// 浮点类型名
+fn is_float_ty(ref String t) -> bool {
+    if t == "float" || t == "f32" || t == "f64" { return true; }
+    return false;
 }
 
 /// 具体整型名（i8/i16/i32/i64/u8/.../usize）
@@ -1317,6 +1340,20 @@ impl Checker {
             lr = num_rank(lt);
             rr = num_rank(rt);
             if lr >= 0 && rr >= 0 {
+                lit_l = num_lit_kind(ast, ast.aa[id]);
+                lit_r = num_lit_kind(ast, ast.bb[id]);
+                ok_adapt = 0;
+                if lr >= 1 && rr >= 1 {
+                    // 浮点族：浮点字面量按上下文适配（f32/f64）
+                    if lit_l == 2 || lit_r == 2 { ok_adapt = 1; }
+                } elif lr == 0 && rr == 0 {
+                    // 整型族：整数字面量按上下文适配
+                    if lit_l == 1 || lit_r == 1 { ok_adapt = 1; }
+                }
+                if ok_adapt == 1 {
+                    if lt.len == 0 { return rt; }
+                    return lt;
+                }
                 if lr != rr {
                     if lr < rr {
                         self.convert_err(lt, rt, ast.lines[id], ast.cols[id]);
