@@ -624,21 +624,7 @@ impl Emitter {
             have = self.local_forms[idx_l];
             if have == form { return; }
             self.local_forms[idx_l] = form;
-            if form == 1 {
-                self.buf.push_str("  %v_");
-                self.buf.push_str(name);
-                self.buf.push_str(".ptr = alloca ptr\n  %v_");
-                self.buf.push_str(name);
-                self.buf.push_str(".len = alloca i64\n");
-            } elif form == 2 {
-                self.buf.push_str("  %v_");
-                self.buf.push_str(name);
-                self.buf.push_str(" = alloca ptr\n");
-            } else {
-                self.buf.push_str("  %v_");
-                self.buf.push_str(name);
-                self.buf.push_str(" = alloca i64\n");
-            }
+            self.emit_local_storage(name, form);
             return;
         }
         if self.lv_count < 512 {
@@ -3045,6 +3031,10 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 a1 = emit_expr(ast, ast.aa[ast.bb[id]], e);
                 a2s = emit_expr(ast, ast.aa[ast.nexts[ast.bb[id]]], e);
                 return emit_str_slice(obj, a1.a, a2s.a, e);
+            }
+            if mn == "add" {
+                tadd = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                return emit_str_concat(obj, tadd, e);
             }
             if mn == "eq" {
                 tq = emit_expr(ast, ast.aa[ast.bb[id]], e);
