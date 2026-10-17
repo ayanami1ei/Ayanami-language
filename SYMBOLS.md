@@ -277,6 +277,13 @@ src/driver/mod.rs:283: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsR
 src/driver/runtime.rs:12: pub(crate) fn resolve_runtime(src_path: &Path) -> Result<Option<PathBuf>>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
+src/formatter/comments.rs:13: static STATE: RefCell<CommentState> = RefCell::new(CommentState::default());
+src/formatter/comments.rs:17: struct CommentState
+src/formatter/comments.rs:24: pub(crate) fn install(comments: Vec<Comment>)
+src/formatter/comments.rs:34: pub(crate) fn uninstall()
+src/formatter/comments.rs:41: pub(crate) fn flush_before(out: &mut String, line: usize, level: usize)
+src/formatter/comments.rs:57: pub(crate) fn flush_trailing(out: &mut String, line: usize, col: usize)
+src/formatter/comments.rs:80: pub(crate) fn flush_rest(out: &mut String)
 src/formatter/expr.rs:5: pub(super) fn write_expr(expr: &Expr) -> String
 src/formatter/expr.rs:11: fn binop_prec(op: &BinaryOp) -> u8
 src/formatter/expr.rs:26: fn expr_prec(e: &Expr) -> u8
@@ -299,14 +306,19 @@ src/formatter/helpers.rs:121: pub(super) fn write_match_body(body: &crate::parse
 src/formatter/helpers.rs:133: pub(super) fn format_macro_arg(a: &crate::parser::ast::expr::MacroArg, level: usize) -> String
 src/formatter/mod.rs:7: const INDENT: &str = "    ";
 src/formatter/mod.rs:9: pub fn format_program(program: &Program) -> String
-src/formatter/mod.rs:21: mod expr;
-src/formatter/mod.rs:22: mod types;
-src/formatter/mod.rs:23: mod helpers;
-src/formatter/mod.rs:24: mod stmt;
-src/formatter/mod.rs:27: pub(crate) fn format_expr(expr: &Expr) -> String
-src/formatter/mod.rs:32: pub(crate) fn format_attr_arg(arg: &AttrArg) -> String
-src/formatter/mod.rs:39: pub fn format_file(code: &str) -> crate::error::Result<String>
-src/formatter/stmt.rs:6: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
+src/formatter/mod.rs:21: mod comments;
+src/formatter/mod.rs:22: mod expr;
+src/formatter/mod.rs:23: mod types;
+src/formatter/mod.rs:24: mod helpers;
+src/formatter/mod.rs:25: mod stmt;
+src/formatter/mod.rs:26: mod stmt_defs;
+src/formatter/mod.rs:29: pub(crate) fn format_expr(expr: &Expr) -> String
+src/formatter/mod.rs:34: pub(crate) fn format_attr_arg(arg: &AttrArg) -> String
+src/formatter/mod.rs:42: pub fn format_program_with_comments(program: &Program, comments: Vec<crate::lexer::Comment>) -> String
+src/formatter/mod.rs:57: pub fn format_file(code: &str) -> crate::error::Result<String>
+src/formatter/stmt.rs:7: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize)
+src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize)
+src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
 src/hir/attrs.rs:36: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
@@ -1117,18 +1129,19 @@ src/lexer/keyword.rs:4: pub enum Keyword
 src/lexer/keyword.rs:50: impl fmt::Display for Keyword
 src/lexer/keyword.rs:51: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 src/lexer/lexer/mod.rs:6: pub struct Lexer<'a>
-src/lexer/lexer/mod.rs:15: impl<'a> Lexer<'a>
-src/lexer/lexer/mod.rs:16: pub fn new(src: &'a str) -> Self
-src/lexer/lexer/mod.rs:27: fn peek(&self) -> Option<char>
-src/lexer/lexer/mod.rs:30: fn peek_next(&self) -> Option<char>
-src/lexer/lexer/mod.rs:34: fn bump(&mut self) -> Option<char>
-src/lexer/lexer/mod.rs:47: fn skip_whitespace_and_comments(&mut self)
-src/lexer/lexer/mod.rs:77: impl<'a> Lexer<'a>
-src/lexer/lexer/mod.rs:79: pub fn tokenize_all(&mut self) -> Vec<Token>
-src/lexer/lexer/mod.rs:93: mod next;
-src/lexer/lexer/mod.rs:94: mod reading;
-src/lexer/lexer/mod.rs:97: mod tests
-src/lexer/lexer/mod.rs:102: fn smoke()
+src/lexer/lexer/mod.rs:17: impl<'a> Lexer<'a>
+src/lexer/lexer/mod.rs:18: pub fn new(src: &'a str) -> Self
+src/lexer/lexer/mod.rs:31: pub fn comments(&self) -> &[crate::lexer::Comment]
+src/lexer/lexer/mod.rs:35: fn peek(&self) -> Option<char>
+src/lexer/lexer/mod.rs:38: fn peek_next(&self) -> Option<char>
+src/lexer/lexer/mod.rs:42: fn bump(&mut self) -> Option<char>
+src/lexer/lexer/mod.rs:55: fn skip_whitespace_and_comments(&mut self)
+src/lexer/lexer/mod.rs:100: impl<'a> Lexer<'a>
+src/lexer/lexer/mod.rs:102: pub fn tokenize_all(&mut self) -> Vec<Token>
+src/lexer/lexer/mod.rs:116: mod next;
+src/lexer/lexer/mod.rs:117: mod reading;
+src/lexer/lexer/mod.rs:120: mod tests
+src/lexer/lexer/mod.rs:125: fn smoke()
 src/lexer/lexer/next.rs:3: impl<'a> Lexer<'a>
 src/lexer/lexer/next.rs:4: pub fn next_token(&mut self) -> Token
 src/lexer/lexer/reading.rs:3: impl<'a> Lexer<'a>
@@ -1145,6 +1158,7 @@ src/lexer/mod.rs:10: pub mod lexer;
 src/lexer/mod.rs:11: pub mod token;
 src/lexer/mod.rs:12: pub mod token_kind;
 src/lexer/mod.rs:13: pub mod test;
+src/lexer/mod.rs:23: pub struct Comment
 src/lexer/test.rs:2: pub mod test
 src/lexer/test.rs:7: fn test()
 src/lexer/token.rs:7: pub struct Token

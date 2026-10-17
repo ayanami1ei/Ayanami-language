@@ -83,7 +83,7 @@ code --install-extension ayanami-0.6.6.vsix
 ```bash
 ayanami new <name>         创建新项目
 ayanami check [--watch] <file/proj>  前端检查；--watch 监听文件变更自动重检
-ayanami fmt [file]         格式化代码
+ayanami fmt [file]         格式化代码（保留注释：#179）
 ayanami package <file/proj> 打包为 .lcl（不生成可执行文件）
 ayanami build [file/proj]  构建可执行文件 + .lcl 包
 ayanami run [file/proj]    构建并运行

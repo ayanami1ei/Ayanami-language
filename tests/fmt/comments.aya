@@ -1,0 +1,26 @@
+// 头
+struct P {
+    // 字段 x 说明
+    int x
+    int y   // 行尾字段注释
+}
+
+impl P {
+    // 方法说明
+    fn sum(ref self) -> int {
+        return self.x + self.y
+    }
+}
+
+enum E {
+    // 变体 A
+    A(int),
+    B(char),  // 变体 B
+}
+
+/* 多行
+   块注释 */
+fn main() -> int {
+    p = P { x = 1, y = 2 }
+    return p.sum()
+}

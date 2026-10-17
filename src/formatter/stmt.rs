@@ -3,7 +3,15 @@ use super::helpers::*;
 use super::expr::*;
 use super::types::write_type;
 
+/// #179：语句写入（前置整行注释 + 行尾注释回插）。
 pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
+    let span = stmt.span();
+    super::comments::flush_before(out, span.start_line, level);
+    write_stmt_inner(out, stmt, level);
+    super::comments::flush_trailing(out, span.end_line, span.end_col);
+}
+
+fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize) {
     match stmt {
         FnDecl { attrs, vis, is_inline, extern_c, is_unsafe, name, generic_params, params, param_attrs, return_type, body, .. } => {
             write_attrs(out, attrs, level);
@@ -134,76 +142,9 @@ pub(super) fn write_stmt(out: &mut String, stmt: &Stmt, level: usize) {
             }
             let _ = writeln!(out, "{}}}", i);
         }
-        StructDef { attrs, vis, name, generic_params, is_union, fields, field_attrs, .. } => {
-            write_attrs(out, attrs, level);
-            let i = indent(level);
-            let vis_str = vis_str(vis);
-            let kw = if *is_union { "union" } else { "struct" };
-            let _ = write!(out, "{}{}{} {}", i, vis_str, kw, name);
-            write_generic_params(out, generic_params);
-            if fields.is_empty() {
-                let _ = writeln!(out, ";");
-            } else {
-                let _ = writeln!(out, " {{");
-                for (idx, (fname, fty)) in fields.iter().enumerate() {
-                    if let Some(fa) = field_attrs.get(idx) {
-                        write_attrs(out, fa, level + 1);
-                    }
-                    let _ = writeln!(out, "{}{} {}", indent(level + 1), write_type(fty), fname);
-                }
-                let _ = writeln!(out, "{}}}", i);
-            }
-        }
-        EnumDef { attrs, vis, name, generic_params, variants, .. } => {
-            write_attrs(out, attrs, level);
-            let i = indent(level);
-            let vis_str = vis_str(vis);
-            let _ = write!(out, "{}{}enum {}", i, vis_str, name);
-            write_generic_params(out, generic_params);
-            let _ = writeln!(out, " {{");
-            for v in variants {
-                let _ = write!(out, "{}{}", indent(level + 1), v.name);
-                match &v.fields {
-                    crate::parser::ast::stmt::EnumFields::Named(fields) => {
-                        let _ = writeln!(out, " {{");
-                        for (fname_e, fty_e) in fields {
-                            let _ = writeln!(out, "{}{} {}", indent(level + 2), write_type(fty_e), fname_e);
-                        }
-                        let _ = write!(out, "{}}}", indent(level + 1));
-                    }
-                    crate::parser::ast::stmt::EnumFields::Tuple(tys) => {
-                        let _ = write!(out, "({})", tys.iter().map(write_type).collect::<Vec<_>>().join(", "));
-                    }
-                    crate::parser::ast::stmt::EnumFields::None => {}
-                }
-                let _ = writeln!(out, ",");
-            }
-            let _ = writeln!(out, "{}}}", i);
-        }
-        InterfaceDef { attrs, name, generic_params, methods, .. } => {
-            write_attrs(out, attrs, level);
-            let i = indent(level);
-            let _ = write!(out, "{}interface {}", i, name);
-            write_generic_params(out, generic_params);
-            let _ = writeln!(out, " {{");
-            for m in methods {
-                write_attrs(out, &m.attrs, level + 1);
-                let _ = write!(out, "{}fn {}", indent(level + 1), m.name);
-                // self 关键字往返：self / ref self / ref mut self（refmut 必须拆开写）
-                let self_str = match m.self_keyword.as_str().as_str() {
-                    "ref" => "ref self",
-                    "refmut" => "ref mut self",
-                    _ => "self",
-                };
-                let _ = write!(out, "({}", self_str);
-                for (pn, pt) in &m.params {
-                    let _ = write!(out, ", {} {}", write_type(pt), pn);
-                }
-                let _ = write!(out, ")");
-                write_return_type(out, &m.return_type);
-                let _ = writeln!(out, ";");
-            }
-            let _ = writeln!(out, "{}}}", i);
+        // 定义类（struct/enum/interface）见 stmt_defs.rs（#179 注释回插 + 保持 ≤300 行）
+        StructDef { .. } | EnumDef { .. } | InterfaceDef { .. } => {
+            super::stmt_defs::write_def(out, stmt, level);
         }
         ImplBlock { attrs, type_name, methods, generic_params, .. } => {
             write_attrs(out, attrs, level);
