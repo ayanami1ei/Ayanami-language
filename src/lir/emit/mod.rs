@@ -94,26 +94,49 @@ impl<'a> Emitter<'a> {
         // Vtable globals
         self.emit_vtable_globals();
 
+        // #195：LLVM 21 拒绝同一模块内的重复声明/声明+定义——用户声明或定义的符号
+        // （如自定义分配器 __ayanami_unique_alloc）以用户签名为准，跳过内建声明
+        let mut user_declared: std::collections::HashSet<&str> = self.prog.extern_decls
+            .iter().map(|d| d.name.as_str()).collect();
+        for f in &self.prog.functions {
+            if let Some(n) = self.prog.fn_names.get(&f.fn_id) {
+                user_declared.insert(n.as_str());
+            }
+        }
+        let builtin_decl = |name: &str, line: &'static str| -> Option<&'static str> {
+            if !user_declared.contains(name) { Some(line) } else { None }
+        };
+
         // Runtime declarations（M-opt.8：分配器 malloc 语义 noalias/allocsize；
         // 契约失败路径 cold；C 侧无栈展开 nounwind）
         // M-opt.10：release 直接声明 libc malloc/free（堆提升）
         if crate::hir::contracts::is_release() {
-            self.wln("declare ptr @malloc(i64) nounwind");
-            self.wln("declare void @free(ptr) nounwind");
+            for l in [builtin_decl("malloc", "declare ptr @malloc(i64) nounwind"),
+                      builtin_decl("free", "declare void @free(ptr) nounwind")].into_iter().flatten() {
+                self.wln(l);
+            }
         } else {
-            self.wln("declare noalias i8* @__ayanami_unique_alloc(i64) allocsize(0) nounwind");
-            self.wln("declare void @__ayanami_unique_free(i8*) nounwind");
+            for l in [builtin_decl("__ayanami_unique_alloc", "declare noalias i8* @__ayanami_unique_alloc(i64) allocsize(0) nounwind"),
+                      builtin_decl("__ayanami_unique_free", "declare void @__ayanami_unique_free(i8*) nounwind")].into_iter().flatten() {
+                self.wln(l);
+            }
         }
         self.wln("declare void @llvm.memcpy.p0.p0.i64(i8*, i8*, i64, i1)");
         self.wln("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)");
         self.wln("declare void @llvm.assume(i1)");
-        self.wln("declare void @__ayanami_require_fail(i64, i64) noreturn cold nounwind");
-        self.wln("declare void @__ayanami_ensure_fail(i64, i64) noreturn cold nounwind");
-        self.wln("declare void @__ayanami_invariant_fail(i64, i64) noreturn cold nounwind");
+        for l in [builtin_decl("__ayanami_require_fail", "declare void @__ayanami_require_fail(i64, i64) noreturn cold nounwind"),
+                  builtin_decl("__ayanami_ensure_fail", "declare void @__ayanami_ensure_fail(i64, i64) noreturn cold nounwind"),
+                  builtin_decl("__ayanami_invariant_fail", "declare void @__ayanami_invariant_fail(i64, i64) noreturn cold nounwind")].into_iter().flatten() {
+            self.wln(l);
+        }
         self.wln("");
 
-        // Extern declarations（真实签名 + LLVM 属性）
+        // Extern declarations（真实签名 + LLVM 属性）；#195：同名去重（首个为准）
+        let mut emitted_decls: std::collections::HashSet<&str> = std::collections::HashSet::new();
         for d in &self.prog.extern_decls {
+            if !emitted_decls.insert(d.name.as_str()) {
+                continue;
+            }
             let ret = self.llvm_type(&d.return_type);
             let params: Vec<String> = d.params.iter().enumerate()
                 .map(|(i, t)| {
