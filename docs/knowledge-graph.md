@@ -85,6 +85,7 @@ graph TD
 | 类型化 drop 函数 | `lir/lower/mod.rs`（按需合成 `__drop_<n>`）、`lir/ir/helpers_drop.rs` | Named 释放统一走弱链接函数，递归/互递归类型终止 |
 | 泛型多约束 | `parser/parser/generic_params.rs`、`hir/lower/body/generic_types.rs` | `[T: A + B]`（每参数 `Vec<Symbol>` 约束）；方法/操作符按任一 bound 检查，调用点合并检查全部 |
 | 泛型推断（Phase 4） | `body/generic_specialize.rs`（调用点特化/冲突诊断/失败回滚）、`helpers/convert.rs`（实参→形参）、`body/expr_struct.rs`（结构体字面量实参推断） | P4a/P4b/P4d 已落地；P4c 收敛 unify、P4e 约束接口待做；见 docs/generic-inference.md |
+| 编译期求值/约束（P4e） | `body/const_eval.rs`（const 项求值）、解析期 `[T; N]` 尺寸、`body/generic_types.rs`/`generic_check.rs`（泛型约束）、`hir/effects/*`（纯度） | 接口边界与阶段见 docs/const-eval.md；P4e-2 `const fn`、P4e-3 const generics 待做 |
 | 局部移出清零 | `lir/ir/nodes_f.rs::SLirLocalTake` | 局部变量移动后清零，循环回边重复移动不双重释放 |
 | 导入所有权补全 | `hir/lower/body/collect_import.rs` | 符号串路径 `[T]` → `unique [T]`；LIR 精确类型优先 |
 | 接口箱递归 drop | `lir/lower/mod.rs`（合成 vtable[0]）+ `lir/ir/helpers_drop.rs` | 拥有胖指针释放前调用具体类型 drop glue（弱链接、跨模块去重） |
