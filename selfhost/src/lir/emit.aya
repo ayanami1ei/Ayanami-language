@@ -91,6 +91,11 @@ pub struct Emitter {
     // 全局常量/静态：0=int 2=数组；数组元素以逗号串存
     [String] g_names
     [int] g_kinds
+    // 结构体全局（kind 4）：初始化节点与结构体下标
+    [int] g_init_ids
+    [int] g_stype
+    int need_ginit
+    StringBuf ginit_buf
     [String] g_vals
     [int] g_lens
     int g_count
@@ -135,6 +140,7 @@ pub namespace Emitter {
             env_g_names = [String; 512], env_g_count = 0, env_defs = StringBuf::new(),
             g_names = [String; 512], g_kinds = [int; 512], g_vals = [String; 512],
             g_lens = [int; 512], g_count = 0,
+            g_init_ids = [int; 512], g_stype = [int; 512], need_ginit = 0, ginit_buf = StringBuf::new(),
             pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
             loop_ends = [String; 64], loop_conds = [String; 64], loop_depth = 0,
             terminated = 0
@@ -865,6 +871,16 @@ impl Emitter {
         return -1;
     }
 
+    /// 全局下标（按名）
+    fn global_idx(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.g_count {
+            if self.g_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
     /// extern 声明是否已存在（内置 declare 去重）
     fn decl_has(ref mut self, ref String name) -> int {
         i = 0;
@@ -1184,6 +1200,23 @@ impl Emitter {
                     self.g_vals[self.g_count] = float_text(ast.texts[ast.aa[init]]);
                     self.g_lens[self.g_count] = 0;
                     self.g_count = self.g_count + 1;
+                    return;
+                }
+            }
+        }
+        if init >= 0 {
+            if ast.tags[init] == et(ET::StructLiteral._tag) {
+                // 结构体全局：global i64（堆指针）+ 启动初始化
+                si_g = self.find_struct_idx(ast.texts[init]);
+                if si_g >= 0 {
+                    self.g_names[self.g_count] = name.copy();
+                    self.g_kinds[self.g_count] = 4;
+                    self.g_vals[self.g_count] = "";
+                    self.g_lens[self.g_count] = 0;
+                    self.g_init_ids[self.g_count] = init;
+                    self.g_stype[self.g_count] = si_g;
+                    self.g_count = self.g_count + 1;
+                    self.need_ginit = 1;
                     return;
                 }
             }
@@ -3414,6 +3447,52 @@ fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e
         return mk_int(t6);
     }
 
+/// 结构体全局初始化函数：@__aya_init_globals（main 入口调用）
+#[alloc]
+fn emit_globals_init(ref Ast ast, ref mut Emitter e) {
+    if e.need_ginit == 0 { return; }
+    sv_buf2 = e.buf;
+    sv_tmp2 = e.tmp;
+    sv_lv2 = e.lv_count;
+    sv_pre2 = e.pre_buf;
+    sv_prea2 = e.pre_active;
+    sv_term2 = e.terminated;
+    sv_rt2 = e.cur_rtype;
+    e.buf = StringBuf::new();
+    e.tmp = 0;
+    e.lv_count = 0;
+    e.pre_buf = StringBuf::new();
+    e.pre_active = 0;
+    e.terminated = 0;
+    e.buf.push_str("define void @__aya_init_globals() {\nentry:\n");
+    i_g = 0;
+    while i_g < e.g_count {
+        if e.g_kinds[i_g] == 4 {
+            v_g = emit_expr(ast, e.g_init_ids[i_g], e);
+            pi_g = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(pi_g);
+            e.buf.push_str(" = ptrtoint ptr ");
+            e.buf.push_str(v_g.a);
+            e.buf.push_str(" to i64\n  store i64 ");
+            e.buf.push_str(pi_g);
+            e.buf.push_str(", ptr @");
+            e.buf.push_str(e.g_names[i_g]);
+            e.buf.push_str("\n");
+        }
+        i_g = i_g + 1;
+    }
+    e.buf.push_str("  ret void\n}\n");
+    e.ginit_buf.push_str(e.buf.to_string());
+    e.buf = sv_buf2;
+    e.tmp = sv_tmp2;
+    e.lv_count = sv_lv2;
+    e.pre_buf = sv_pre2;
+    e.pre_active = sv_prea2;
+    e.terminated = sv_term2;
+    e.cur_rtype = sv_rt2;
+}
+
 fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     if id < 0 { return mk_int("0"); }
     tag = ast.tags[id];
@@ -3478,6 +3557,27 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(nm);
             e.buf.push_str("\n");
             return mk_float(fdg);
+        }
+        if gk == 4 {
+            // 结构体全局：装载堆指针
+            t_g4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t_g4);
+            e.buf.push_str(" = load i64, ptr @");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n  ");
+            p_g4 = e.fresh();
+            e.buf.push_str(p_g4);
+            e.buf.push_str(" = inttoptr i64 ");
+            e.buf.push_str(t_g4);
+            e.buf.push_str(" to ptr\n");
+            gi_g4 = e.global_idx(nm);
+            sn_g4 = "";
+            if gi_g4 >= 0 {
+                sti = e.g_stype[gi_g4];
+                if sti >= 0 && sti < e.st_count { sn_g4 = e.st_names[sti].copy(); }
+            }
+            return Val { kind = 2, a = p_g4, b = sn_g4, ty = -1 };
         }
         if contains_dot2(nm) {
             if nm == "String.empty" || nm == "String.new" {
@@ -4899,6 +4999,26 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 e.buf.push_str("\n");
                 return mk_int(t7g);
             }
+            if gk7 == 4 {
+                t7g4 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(t7g4);
+                e.buf.push_str(" = load i64, ptr @");
+                e.buf.push_str(nm7);
+                e.buf.push_str("\n  ");
+                p7g4 = e.fresh();
+                e.buf.push_str(p7g4);
+                e.buf.push_str(" = inttoptr i64 ");
+                e.buf.push_str(t7g4);
+                e.buf.push_str(" to ptr\n");
+                gi7 = e.global_idx(nm7);
+                sn7 = "";
+                if gi7 >= 0 {
+                    sti7 = e.g_stype[gi7];
+                    if sti7 >= 0 && sti7 < e.st_count { sn7 = e.st_names[sti7].copy(); }
+                }
+                return Val { kind = 2, a = p7g4, b = sn7, ty = -1 };
+            }
             kd7 = e.local_kind(nm7);
             if kd7 == 3 || kd7 == 10 {
                 t7a = e.fresh();
@@ -6097,6 +6217,9 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             }
         }
     }
+    if name == "main" && e.need_ginit == 1 {
+        e.buf.push_str("  call void @__aya_init_globals()\n");
+    }
     emit_stmts(ast, ast.aa[ast.bb[id]], e);
     // 块尾表达式（无分号的最后表达式）：作为隐式返回值
     if e.terminated == 0 {
@@ -6267,6 +6390,9 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
     e.buf.push_str(e.lambda_buf.to_string());
     // Fn 值环境块全局（@fnenv.* / @lamenv.*）
     e.buf.push_str(e.env_defs.to_string());
+    // 结构体全局初始化函数（main 入口调用）
+    emit_globals_init(ast, e);
+    e.buf.push_str(e.ginit_buf.to_string());
     // 常量/静态全局
     gi = 0;
     while gi < e.g_count {
@@ -6280,6 +6406,8 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
             e.buf.push_str(" = global double ");
             e.buf.push_str(e.g_vals[gi]);
             e.buf.push_str("\n");
+        } elif e.g_kinds[gi] == 4 {
+            e.buf.push_str(" = global i64 0\n");
         } else {
             e.buf.push_str(" = global [");
             e.buf.push_int(e.g_lens[gi]);

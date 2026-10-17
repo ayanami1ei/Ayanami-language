@@ -211,8 +211,15 @@ selfhost/
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
 | M5 | 🔄 进行中 | M5a-e 端到端：**17/17** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
-| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅。example diff **76/143**（2026-10-17，`./scripts/selfhost.sh diff`） |
-| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-17 md5 `d11c45ef34183caade63f634956a38c1`） |
+| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅；M6u prelude（String/char/int 方法补全）/int.to_string/静态结构体全局 ✅。example diff **79/143**（2026-10-17，`./scripts/selfhost.sh diff`） |
+| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-17 md5 `659362df66d16429332dc91e533b0eb4`） |
+
+M6u 交付（2026-10-17）：**prelude**（`selfhost/src/base/prelude.aya`，纯 Ayanami 实现 std 缺失方法：
+String trim/contains/index_of/repeat/to_upper/to_lower/parse_int/is_int、char is_space/is_digit/is_alpha/is_alnum/
+is_upper/is_lower/to_digit/to_upper/to_lower、int to_string；语义对齐 std/src/core/string.aya），
+driver 的 `merge_source` 无条件追加（候选路径探测）；emitter 按方法名分派到 `aya_*` 函数；
+**静态结构体全局**（kind 4 = global i64 堆指针 + `@__aya_init_globals` 启动初始化函数，main 入口调用；
+Ident/Ref 装载 inttoptr 还原结构体值）。
 
 M6t 交付（2026-10-17，闭包捕获之后）：**运算符重载**（结构体/枚举二元运算走 `add/eq/...` 方法，
 对应 rust `binary_op_to_fn_name`）；**整数/字符区间穷尽分析**（对应 rust `scalar_exhaustive`：字面量/区间/字符模式
