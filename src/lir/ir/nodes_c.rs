@@ -17,10 +17,25 @@ impl LirNode for SLirAsm {
             .map(|(v, t)| format!("{} {}", ctx.llvm_type(t), ctx.value_ref(v, t)))
             .collect();
         if let Some(d) = self.dest {
-            lines.push(format!("%t{} = call {} asm sideeffect \"{}\", \"{}\"({})", d, ret_llvm, self.template, constraint_str, args_str.join(", ")));
-            for (_, t, var) in &self.output_operands {
+            // #196：多 out(reg) 时 LLVM 按 `{t0, t1, ...}` 返回，逐元素 extractvalue 回写
+            let multi = self.output_operands.len() > 1;
+            let call_ret = if multi {
+                let tys: Vec<String> = self.output_operands.iter().map(|(_, t, _)| ctx.llvm_type(t)).collect();
+                format!("{{ {} }}", tys.join(", "))
+            } else {
+                ret_llvm
+            };
+            lines.push(format!("%t{} = call {} asm sideeffect \"{}\", \"{}\"({})", d, call_ret, self.template, constraint_str, args_str.join(", ")));
+            for (i, (_, t, var)) in self.output_operands.iter().enumerate() {
                 if let Some(id) = var {
-                    lines.push(format!("store {} %t{}, ptr %v{}, align 8", ctx.llvm_type(t), d, id.0));
+                    let val = if multi {
+                        let e = ctx.tmp();
+                        lines.push(format!("%t{} = extractvalue {} %t{}, {}", e, call_ret, d, i));
+                        format!("%t{}", e)
+                    } else {
+                        format!("%t{}", d)
+                    };
+                    lines.push(format!("store {} {}, ptr %v{}, align 8", ctx.llvm_type(t), val, id.0));
                 }
             }
             lines
