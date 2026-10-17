@@ -38,8 +38,9 @@ echo "== 2/5 构建 release 二进制 =="
 cargo build --release
 
 echo "== 3/5 重建 std 预编译包 =="
-AYANAMI_BIN="$PWD/target/release/ayanami" ./std/scripts/build.sh
-find std/src -name '*.lcl' -exec cp {} std/ \;
+# 直接安装新鲜构建产物到 std/：此前用 `find std/src -name '*.lcl'` 回拷会覆盖成
+# 旧提交产物（std/src/** 的历史 .lcl），导致发布 std 陈旧（如缺 iter 的自由 map）
+AYANAMI_BIN="$PWD/target/release/ayanami" ./std/scripts/build.sh --install "$PWD/std"
 
 echo "== 4/5 组装 install/ =="
 if [ ! -x install/llc ]; then
