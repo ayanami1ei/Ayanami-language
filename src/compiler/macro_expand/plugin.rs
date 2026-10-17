@@ -56,11 +56,15 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
             .map_err(|e| Error::Compile(format!("macro dep LIR decode '{}': {}", dep, e)))?;
         dep_irs.push(crate::lir::emit_program(&dlir));
     }
+    // #180：runtime 内容参与缓存键（runtime.c 变化必须重建插件，避免陈旧 .so 缺运行时符号）
+    let runtime = crate::driver::find_runtime_c()?;
+    let runtime_src = std::fs::read_to_string(&runtime).unwrap_or_default();
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     ABI_VERSION.hash(&mut hasher);
     symbol.hash(&mut hasher);
     format!("{:?}", mapping).hash(&mut hasher);
     ir.hash(&mut hasher);
+    runtime_src.hash(&mut hasher);
     for d in &dep_irs { d.hash(&mut hasher); }
     let hash = hasher.finish();
 
@@ -145,7 +149,6 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
     );
     std::fs::write(&shim_path, shim).map_err(|e| Error::Compile(format!("macro shim write: {}", e)))?;
 
-    let runtime = crate::driver::find_runtime_c()?;
     let mut gcc = Command::new("gcc");
     gcc.arg("-shared").arg("-fPIC");
     for o in &link_objs {
