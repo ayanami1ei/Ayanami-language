@@ -90,9 +90,10 @@ if command -v docker >/dev/null 2>&1; then
     for img in "${AYANAMI_BASELINE_IMAGE:-ubuntu:24.04}" "docker.m.daocloud.io/library/ubuntu:24.04"; do
         if docker run --rm -v "$PWD/install:/out" "$img" bash -c \
             'apt-get -o Acquire::http::Dl-Limit=10240 -o Acquire::https::Dl-Limit=10240 update -qq >/dev/null 2>&1 && apt-get -o Acquire::http::Dl-Limit=10240 -o Acquire::https::Dl-Limit=10240 install -y -qq libedit2 libncurses6 libbsd0 >/dev/null 2>&1 && \
-             for f in libedit.so.2 libncursesw.so.6 libbsd.so.0 libmd.so.0; do \
+             for f in libedit.so.2 libncursesw.so.6 libtinfo.so.6 libbsd.so.0 libmd.so.0; do \
                  if [ -e "/usr/lib/x86_64-linux-gnu/$f" ]; then cp -L "/usr/lib/x86_64-linux-gnu/$f" /out/; fi; \
-             done' \
+             done && \
+             if [ -e /usr/lib/x86_64-linux-gnu/libedit.so.2 ]; then cp -L /usr/lib/x86_64-linux-gnu/libedit.so.2 /out/libedit.so.0; fi' \
             >/dev/null 2>&1; then
             echo "已从 $img 取基线库（libedit/libncurses/libbsd）"
             fetched_baseline=1
@@ -117,6 +118,10 @@ for _round in 1 2 3 4; do
         added=1
         need=$(glibc_need "$p")
         if glibc_too_new "$need"; then
+            if [ "$fetched_baseline" = 1 ]; then
+                echo "错误: $base 需要 glibc $need > 基线 $BASELINE_GLIBC，且基线容器可用（应优先取基线库）" >&2
+                exit 1
+            fi
             echo "警告: $base 需要 glibc $need > 基线 $BASELINE_GLIBC（目标发行版可能不兼容）" >&2
         fi
     done < <({ ldd install/llc 2>/dev/null; ldd install/libLLVM.so.21.1 2>/dev/null; ldd install/*.so.* 2>/dev/null; } \
