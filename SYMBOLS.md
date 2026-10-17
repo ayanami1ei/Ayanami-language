@@ -485,9 +485,8 @@ src/hir/lower/body/ensure.rs:139: fn default_literal(ty: &HirType) -> Option<Hir
 src/hir/lower/body/ensure.rs:150: fn append_default_return(
 src/hir/lower/body/expr_access.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_access.rs:4: pub(crate) fn lower_field_access(&mut self, object: &Box<Expr>, field: &Symbol, expr_span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:25: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:159: pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:179: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:25: pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:45: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_call.rs:5: pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, explicit: Option<&Vec<Type>>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call_extra.rs:3: impl crate::hir::lower::Ctx
@@ -517,6 +516,10 @@ src/hir/lower/body/expr_ops1.rs:180: pub(crate) fn lower_try_op(&mut self, inner
 src/hir/lower/body/expr_reinterpret.rs:7: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_reinterpret.rs:9: pub(crate) fn lower_reinterpret_builtin(
 src/hir/lower/body/expr_reinterpret.rs:48: fn reinterpret_size(ty: &HirType) -> Option<u64>
+src/hir/lower/body/expr_struct.rs:4: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_struct.rs:5: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_struct.rs:155: fn infer_struct_literal_args(&self, type_name: &Symbol, raw_fields: &[(Symbol, HirNodeBox, Span)]) -> Vec<Type>
+src/hir/lower/body/expr_struct.rs:182: fn is_concrete_literal_type(&self, ty: &HirType) -> bool
 src/hir/lower/body/expr_unary.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_unary.rs:6: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
 src/hir/lower/body/generic_check.rs:13: struct CheckCtx
@@ -532,6 +535,7 @@ src/hir/lower/body/generic_specialize.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/generic_specialize.rs:12: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
 src/hir/lower/body/generic_specialize.rs:34: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId>
+src/hir/lower/body/generic_specialize.rs:266: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/generic_types.rs:10: pub(crate) enum GType
 src/hir/lower/body/generic_types.rs:19: pub(super) fn ast_is_concrete_primitive(ty: &Type) -> bool
 src/hir/lower/body/generic_types.rs:28: pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool
@@ -623,38 +627,39 @@ src/hir/lower/body/mod.rs:21: mod stmt_lower;
 src/hir/lower/body/mod.rs:22: mod stmt_loops;
 src/hir/lower/body/mod.rs:23: mod ref_assign;
 src/hir/lower/body/mod.rs:24: mod expr_method;
-src/hir/lower/body/mod.rs:25: mod match_coverage;
-src/hir/lower/body/mod.rs:26: mod match_lower;
-src/hir/lower/body/mod.rs:27: mod match_pattern;
-src/hir/lower/body/mod.rs:28: mod match_setup;
-src/hir/lower/body/mod.rs:29: mod match_util;
-src/hir/lower/body/mod.rs:30: mod usage_infer;
-src/hir/lower/body/mod.rs:31: mod macro_call;
-src/hir/lower/body/mod.rs:32: mod expr_logic;
-src/hir/lower/body/mod.rs:33: mod expr_lower;
-src/hir/lower/body/mod.rs:34: mod if_expr;
-src/hir/lower/body/mod.rs:35: mod ensure;
-src/hir/lower/body/mod.rs:36: mod literal;
-src/hir/lower/body/mod.rs:37: mod collect_enum;
-src/hir/lower/body/mod.rs:38: mod const_coerce;
-src/hir/lower/body/mod.rs:39: mod const_array;
-src/hir/lower/body/mod.rs:40: mod const_struct;
-src/hir/lower/body/mod.rs:41: mod const_eval;
-src/hir/lower/body/mod.rs:42: mod const_fn;
-src/hir/lower/body/mod.rs:43: mod collect_import;
-src/hir/lower/body/mod.rs:44: mod collect_import_path;
-src/hir/lower/body/mod.rs:45: mod expr_access;
-src/hir/lower/body/mod.rs:46: mod expr_call;
-src/hir/lower/body/mod.rs:47: mod expr_call_extra;
-src/hir/lower/body/mod.rs:48: mod block_lower;
-src/hir/lower/body/mod.rs:49: mod expr_cast;
-src/hir/lower/body/mod.rs:50: mod expr_enum;
-src/hir/lower/body/mod.rs:51: mod expr_misc;
-src/hir/lower/body/mod.rs:52: mod expr_ops1;
-src/hir/lower/body/mod.rs:53: mod expr_unary;
-src/hir/lower/body/mod.rs:54: mod expr_method_arrays;
-src/hir/lower/body/mod.rs:55: mod return_check;
-src/hir/lower/body/mod.rs:56: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:25: mod expr_struct;
+src/hir/lower/body/mod.rs:26: mod match_coverage;
+src/hir/lower/body/mod.rs:27: mod match_lower;
+src/hir/lower/body/mod.rs:28: mod match_pattern;
+src/hir/lower/body/mod.rs:29: mod match_setup;
+src/hir/lower/body/mod.rs:30: mod match_util;
+src/hir/lower/body/mod.rs:31: mod usage_infer;
+src/hir/lower/body/mod.rs:32: mod macro_call;
+src/hir/lower/body/mod.rs:33: mod expr_logic;
+src/hir/lower/body/mod.rs:34: mod expr_lower;
+src/hir/lower/body/mod.rs:35: mod if_expr;
+src/hir/lower/body/mod.rs:36: mod ensure;
+src/hir/lower/body/mod.rs:37: mod literal;
+src/hir/lower/body/mod.rs:38: mod collect_enum;
+src/hir/lower/body/mod.rs:39: mod const_coerce;
+src/hir/lower/body/mod.rs:40: mod const_array;
+src/hir/lower/body/mod.rs:41: mod const_struct;
+src/hir/lower/body/mod.rs:42: mod const_eval;
+src/hir/lower/body/mod.rs:43: mod const_fn;
+src/hir/lower/body/mod.rs:44: mod collect_import;
+src/hir/lower/body/mod.rs:45: mod collect_import_path;
+src/hir/lower/body/mod.rs:46: mod expr_access;
+src/hir/lower/body/mod.rs:47: mod expr_call;
+src/hir/lower/body/mod.rs:48: mod expr_call_extra;
+src/hir/lower/body/mod.rs:49: mod block_lower;
+src/hir/lower/body/mod.rs:50: mod expr_cast;
+src/hir/lower/body/mod.rs:51: mod expr_enum;
+src/hir/lower/body/mod.rs:52: mod expr_misc;
+src/hir/lower/body/mod.rs:53: mod expr_ops1;
+src/hir/lower/body/mod.rs:54: mod expr_unary;
+src/hir/lower/body/mod.rs:55: mod expr_method_arrays;
+src/hir/lower/body/mod.rs:56: mod return_check;
+src/hir/lower/body/mod.rs:57: mod expr_reinterpret;
 src/hir/lower/body/overload_resolve.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
@@ -2676,6 +2681,11 @@ example/test_generic_pair_map.aya:9: pub fn map_a[C](self, Fn(A) -> C f) -> Pair
 example/test_generic_pair_map.aya:17: fn mk() -> Pair[int, String]
 example/test_generic_pair_map.aya:21: fn get_p(Pair[int, String] q) -> int
 example/test_generic_pair_map.aya:28: fn main() -> int
+example/test_generic_struct_infer.aya:3: struct Box[T]
+example/test_generic_struct_infer.aya:7: struct Pair[A, B]
+example/test_generic_struct_infer.aya:12: fn unbox[T](Box[T] b) -> T { return b.v }
+example/test_generic_struct_infer.aya:14: fn len_of[T](ref ArrayList[T] l) -> int { return l.len() as int }
+example/test_generic_struct_infer.aya:16: fn main() -> int
 example/test_generic_struct_lit.aya:2: struct Pair[A, B]
 example/test_generic_struct_lit.aya:7: struct Box[T]
 example/test_generic_struct_lit.aya:11: fn main() -> int

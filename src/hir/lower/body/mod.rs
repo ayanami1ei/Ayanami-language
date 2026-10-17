@@ -22,6 +22,7 @@ mod stmt_lower;
 mod stmt_loops;
 mod ref_assign;
 mod expr_method;
+mod expr_struct;
 mod match_coverage;
 mod match_lower;
 mod match_pattern;

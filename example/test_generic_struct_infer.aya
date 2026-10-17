@@ -1,0 +1,27 @@
+import "arraylist"
+
+struct Box[T] {
+    T v
+}
+
+struct Pair[A, B] {
+    A first
+    B second
+}
+
+fn unbox[T](Box[T] b) -> T { return b.v }
+
+fn len_of[T](ref ArrayList[T] l) -> int { return l.len() as int }
+
+fn main() -> int {
+    // 结构体字面量从字段推断泛型实参（与 Option::Some(1) 一致）
+    b = Box { v = 42 }
+    if unbox(b) != 42 { return 1 }
+    p = Pair { first = 1, second = "s" }
+    if p.first != 1 { return 2 }
+    // std 泛型推断：ArrayList::new() 由后续使用点细化，再传泛型函数
+    l = ArrayList::new()
+    l.push(7)
+    if len_of(ref l) != 1 { return 3 }
+    return 0
+}
