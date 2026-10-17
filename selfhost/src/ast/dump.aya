@@ -5,7 +5,6 @@ import "aya_ast";
 // AST 文本 dump：与 rust 版 src/compiler/debug 输出逐字节一致
 // 注意：源文件里不能出现非 ASCII 字符串字面量（issue #122 未合并前会 llc 失败），
 // 树线字符 "│ " 用 UTF-8 字节拼出来。
-extern "C" fn __ayanami_int_to_char(int c) -> char;
 
 fn is_digit_d(int c) -> bool {
     if c >= 48 && c <= 57 { return true; }
@@ -106,9 +105,9 @@ fn parse_float_text(ref String s) -> float {
 fn push_pad(ref mut StringBuf b, int level) {
     i = 0;
     while i < level {
-        b.push(__ayanami_int_to_char(226));
-        b.push(__ayanami_int_to_char(148));
-        b.push(__ayanami_int_to_char(130));
+        b.push((226) as char);
+        b.push((148) as char);
+        b.push((130) as char);
         b.push(' ');
         i = i + 1;
     }

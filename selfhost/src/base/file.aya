@@ -8,7 +8,6 @@ extern "C" fn fopen([char] path, [char] mode) -> int;
 extern "C" fn fclose(int f) -> int;
 extern "C" fn fgetc(int f) -> i32;
 extern "C" fn fputc(int c, int f) -> i32;
-extern "C" fn __ayanami_int_to_char(int c) -> char;
 
 /// 读取结果：ok=false 时 data 为空串
 pub struct ReadResult {
@@ -46,7 +45,7 @@ pub fn read_file(ref String path) -> ReadResult {
     while true {
         c = fgetc(f);
         if c < 0 { break; }
-        acc.push(__ayanami_int_to_char(c as int));
+        acc.push((c as int) as char);
     }
     fclose(f);
     return ReadResult { ok = true, data = acc.to_string() };

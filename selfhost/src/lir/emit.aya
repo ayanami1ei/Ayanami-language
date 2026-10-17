@@ -1648,7 +1648,7 @@ fn escape_ir(ref String s) -> String {
         } elif c == 9 {
             b.push_str("\\09");
         } elif c >= 32 && c <= 126 {
-            b.push(__ayanami_int_to_char(c));
+            b.push(c as char);
         } else {
             b.push_str("\\");
             h = c / 16;
@@ -1662,11 +1662,9 @@ fn escape_ir(ref String s) -> String {
 }
 
 fn hex_digit(int v) -> char {
-    if v < 10 { return __ayanami_int_to_char(48 + v); }
-    return __ayanami_int_to_char(87 + v);
+    if v < 10 { return (48 + v) as char; }
+    return (87 + v) as char;
 }
-
-extern "C" fn __ayanami_int_to_char(int c) -> char;
 
 fn bin_llvm_op(int op) -> String {
     if op == bo(BinOp::Add._tag) { return "add"; }

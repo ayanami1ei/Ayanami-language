@@ -1,7 +1,6 @@
 import "string";
 
 // 字符串构建器（编译器内部用；不 import std，避免重复 import std 的泛型缺陷）
-extern "C" fn __ayanami_int_to_char(int c) -> char;
 
 pub struct StringBuf {
     [char] data
@@ -65,7 +64,7 @@ impl StringBuf {
         if v >= 10 {
             self.push_int_pos(v / 10);
         }
-        self.push(__ayanami_int_to_char(48 + v % 10));
+        self.push((48 + v % 10) as char);
     }
 
     #[alloc]

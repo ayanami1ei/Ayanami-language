@@ -4,7 +4,6 @@ import "aya_token";
 
 // Ayanami 词法器（按字节扫描；与 rust 版 lexer 对齐，ASCII 为主）
 // 已知差异：col/byte 按字节计数（rust 版按字符/UTF-8 字节）；非 ASCII 文件暂不用于 golden。
-extern "C" fn __ayanami_int_to_char(int c) -> char;
 
 pub struct Lexer {
     String src
@@ -135,7 +134,7 @@ impl Lexer {
     fn read_ident(ref mut self) -> String {
         b = StringBuf::new();
         while is_ident_cont(self.peek()) {
-            b.push(__ayanami_int_to_char(self.bump()));
+            b.push((self.bump()) as char);
         }
         return b.to_string();
     }
@@ -149,12 +148,12 @@ impl Lexer {
         c1 = self.peek();
         c2 = self.peek_next();
         if c1 == 48 && (c2 == 120 || c2 == 88 || c2 == 98 || c2 == 66 || c2 == 111 || c2 == 79) {
-            b.push(__ayanami_int_to_char(self.bump()));
+            b.push((self.bump()) as char);
             p = self.bump();
             if p == 120 || p == 88 { radix = 16; }
             elif p == 98 || p == 66 { radix = 2; }
             else { radix = 8; }
-            b.push(__ayanami_int_to_char(p));
+            b.push((p) as char);
         }
         while true {
             c = self.peek();
@@ -169,17 +168,17 @@ impl Lexer {
                 if is_digit(c) { ok = true; }
             }
             if !ok && c != 95 { break; }
-            b.push(__ayanami_int_to_char(self.bump()));
+            b.push((self.bump()) as char);
         }
         if radix == 10 {
             d1 = self.peek();
             d2 = self.peek_next();
             if d1 == 46 && (is_digit(d2) || d2 == 95) {
                 self.is_float = 1;
-                b.push(__ayanami_int_to_char(self.bump()));
+                b.push((self.bump()) as char);
                 while true {
                     c = self.peek();
-                    if is_digit(c) || c == 95 { b.push(__ayanami_int_to_char(self.bump())); } else { break; }
+                    if is_digit(c) || c == 95 { b.push((self.bump()) as char); } else { break; }
                 }
             }
             if self.peek() == 101 || self.peek() == 69 {
@@ -192,19 +191,19 @@ impl Lexer {
                     jc = char_code(self.src.index(j as usize));
                     if is_digit(jc) {
                         self.is_float = 1;
-                        b.push(__ayanami_int_to_char(self.bump()));
+                        b.push((self.bump()) as char);
                         c = self.peek();
-                        if c == 43 || c == 45 { b.push(__ayanami_int_to_char(self.bump())); }
+                        if c == 43 || c == 45 { b.push((self.bump()) as char); }
                         while true {
                             c = self.peek();
-                            if is_digit(c) || c == 95 { b.push(__ayanami_int_to_char(self.bump())); } else { break; }
+                            if is_digit(c) || c == 95 { b.push((self.bump()) as char); } else { break; }
                         }
                     }
                 }
             }
         }
         while is_ident_cont(self.peek()) {
-            b.push(__ayanami_int_to_char(self.bump()));
+            b.push((self.bump()) as char);
         }
         return b.to_string();
     }
@@ -237,12 +236,12 @@ impl Lexer {
             if c < 0 { break; }
             if c == 92 {
                 self.bump();
-                b.push(__ayanami_int_to_char(self.read_escape()));
+                b.push((self.read_escape()) as char);
             } elif c == 39 {
                 self.bump();
                 break;
             } else {
-                b.push(__ayanami_int_to_char(self.bump()));
+                b.push((self.bump()) as char);
             }
         }
         return b.to_string();
@@ -258,12 +257,12 @@ impl Lexer {
             if c < 0 { break; }
             if c == 92 {
                 self.bump();
-                b.push(__ayanami_int_to_char(self.read_escape()));
+                b.push((self.read_escape()) as char);
             } elif c == 34 {
                 self.bump();
                 break;
             } else {
-                b.push(__ayanami_int_to_char(self.bump()));
+                b.push((self.bump()) as char);
             }
         }
         return b.to_string();
@@ -347,7 +346,7 @@ impl Lexer {
         }
         ch = self.bump();
         b = StringBuf::new();
-        b.push(__ayanami_int_to_char(ch));
+        b.push((ch) as char);
         return Token { kind = Tk::Op._tag, sub = 0, text = b.to_string(), line = line, col = col, start = start, end = self.byte };
     }
 }

@@ -186,6 +186,13 @@ selfhost/
 约定：`selfhost/**`、`tools/kb/**` 为自举分支专属，不改动 `src/**`（Rust 模板）；
 如确需 stage-0 改进，先在 `rust` 侧提（对端在维护），再合并过来。
 
+同步注意（2026-10-17，rust 0.6.6 / std 3b35778）：
+- std runtime 移除 `__ayanami_int_to_char`（字符转换改纯 Ayanami）：自举源码里的 15 处调用改为 `(c) as char`
+  （与 std 新写法一致），并删除对应 extern 声明；
+- std 与 rust 都在频繁更新，合并后必须重跑 `cli` + 全套 golden + `selfcompile`（stage-0 行为变化会直接反映在 diff 数上）；
+- `sync` 脚本的「rust 有更新才重建」判断基于合并前后 HEAD 比较，**手动合并后要再跑一次 sync 或手动 `cargo build --release`**，
+  否则 stage-0/std 是旧的。
+
 ## 8. 风险
 
 - **语言缺口堆积**：M1 的 base 库是自举地基，接口一旦被大量代码依赖，返工代价高 → 先写测试再实现。
@@ -204,8 +211,18 @@ selfhost/
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
 | M5 | 🔄 进行中 | M5a-e 端到端：**17/17** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
-| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅。example diff **51/138**（`./scripts/selfhost.sh diff`） |
-| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（md5 `39d46ae1533fab69931447fccd0d09d4`） |
+| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅。example diff **69/143**（2026-10-17，`./scripts/selfhost.sh diff`） |
+| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-17 md5 `d0153267c252bbc91a711823400f8437`，随同步 rust 0.6.6/std 更新） |
+
+M6s 交付（2026-10-17）：**闭包捕获**。Fn 值统一为「环境块指针」（块首槽 = 代码指针，间接调用
+`code(args..., env)`，env 作末位实参；命名函数/非捕获 lambda 用静态 env 全局 `@fnenv.*`/`@lamenv.*`，忽略末位 env）。
+捕获分析在发射闭包值时扫描 lambda 子树（含嵌套 lambda 的引用传递），以外层局部表为准收集捕获名（同名去重、上限 32）；
+lambda 定义追加末位 env 形参并从 env 恢复捕获局部（标量/引用按 kind 30 写回 env；String/数组/结构体/枚举/浮点按种类装载）。
+结构体字段类型表新增 `st_ftype`；新增 `CallExpr` 发射（字段闭包调用 `(h.cb)(x)`）；`Assign` 记录 RHS 的 Fn 类型
+（lambda/命名函数/Fn 局部/结构体字段），支持 `f = lambda; f(x)`。附带修复：match/if 表达式结果槽对指针类值未 `ptrtoint`；
+AST 捕获遍历按标签白名单走子节点（`ET::Literal` 的 `bb` 存 LK、`ET::Ref` 存 mutable 标志等非节点字段）。
+验收：`test_closure_capture` / `test_closure_hof` / `test_fn_once` / `test_fn_value` / `test_fn_fold` 全过（含 `__ayanami_live_allocs()==0`）；
+diff 64 → 69/143；固定点保持。
 
 M6b 交付：`enum` 值表示为 `%enum.E = { i64 tag, i64 payload... }` 堆指针（`Val.kind=4`）；
 `E::V`/`E::V(args)` 构造（parser 产出 `Ident "E.V"`/`FnCall "E.V"`）；`._tag` 取标签；
@@ -246,4 +263,6 @@ M1 交付：`base/file.aya`（extern C 文件 IO）、`base/sb.aya`（StringBuf�
 | #157 | release 优化：extern 调用后 load 被常量折叠（忽略指针写入） | ✅ 已修复（2026-10-11） |
 | #166 | 跨模块调用 extern（数组实参）符号被 mangle（system_arr_char） | ✅ 已修复（2026-10-12） |
 | #168 | `return <void 调用>` 生成 alloca void（llc 报错） | 未修；去掉 return 规避 |
-| #122 | 字符串字面量含非 ASCII 生成非法 LLVM 常量 | 未修；单测用 ASCII 片段 |
+| #171 | clone char 数组越界（elem_size） | ✅ 已修复（2026-10-17） |
+| #173 | 结构体字面量按声明顺序赋值 | ✅ 已修复（2026-10-17）；新字段仍追加到结构体末尾 |
+| #181 | 兄弟边界启发式误判：`len`/`count` 作已用计数时合法 push 写入被误报越界（#175 回归） | 规避：`Ast`/`Deps`/`Seen` 增加 `cap` 字段（容量优先） |
