@@ -229,9 +229,11 @@ MIR Program
               Literal(String("example/test_bounds.aya"))
         }
 │ │ }
-│ Fn push (self: ref mut Named(ArrayList<int>), val: Int) -> Void [locals: 2]
+│ Fn push (self: ref mut Named(ArrayList<int>), val: Int) -> Void [locals: 4]
 │   local self: ref mut Named(ArrayList<int>)
 │   local val: Int
+│   local __idx: Int
+│   local __len: Int
 │ │ Block {
       If
         cond:
@@ -253,14 +255,44 @@ MIR Program
             Call(fn101, ty: Void)
               Local(v0 : ref mut Named(ArrayList<int>))
         }
+      Assign
+        target:
+        Local(v2 : Int)
+        value:
+        Cast(ty: Int)
+          FieldAccess len ty=u64
+            Local(v0 : ref mut Named(ArrayList<int>))
+      Assign
+        target:
+        Local(v3 : Int)
+        value:
+        FieldAccess capability ty=Int
+          Local(v0 : ref mut Named(ArrayList<int>))
+      If
+        cond:
+        Binary { op: Ge, ty: u64 }
+          lhs:
+          Cast(ty: u64)
+            Local(v2 : Int)
+          rhs:
+          Cast(ty: u64)
+            Local(v3 : Int)
+        then:
+        Block {
+          Expr
+            Call(fn103, ty: Void)
+              Literal(Int(23))
+              Literal(Int(18))
+              Literal(String("example/test_bounds.aya"))
+              Local(v2 : Int)
+              Local(v3 : Int)
+        }
       IndexAssign
         object:
         FieldAccess data ty=unique [Int]
           Local(v0 : ref mut Named(ArrayList<int>))
         index:
-        Cast(ty: Int)
-          FieldAccess len ty=u64
-            Local(v0 : ref mut Named(ArrayList<int>))
+        Local(v2 : Int)
         value:
         Local(v1 : Int)
       FieldAssign field=len index=1 ty=u64

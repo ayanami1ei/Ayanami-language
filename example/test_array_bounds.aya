@@ -19,5 +19,8 @@ fn main() -> int {
         if a.get_unchecked(1) != 20 { return 5 }
         if a.get_unchecked(3) != 40 { return 6 }
     }
+    // 索引写入（同样越界检查）
+    a[1] = 21
+    if a[1] != 21 { return 7 }
     return 0
 }

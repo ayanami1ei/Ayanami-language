@@ -159,7 +159,7 @@ fn main() -> int {
       - 用例：`example/test_union.aya`；负例 `union_field_read_requires_unsafe`、`union_literal_one_field`、`union_heap_field`；跨包 .lcl 往返验证
       - 顺带修复：结构体字面量字段乱序按声明顺序存储（原先按字面量顺序错位）
 - [x] **P3b 续（2026-10-16）**：unchecked indexing —— 按 **Rust 方式**落地
-      - `arr[i]`（`[T; n]`：字面量/参数/静态数组）**默认越界检查**：索引提升临时量，
+      - `arr[i]` 与 `arr[i] = v`（`[T; n]`：字面量/参数/静态数组）**默认越界检查**（读写统一）：索引提升临时量，
         `if (idx as usize) >= len { __ayanami_panic_bounds_at(line, col, file, idx, len) }`
         （负数亦捕获；panic 信息与退出码 101 与 std 一致；条件/循环内每轮求值）
       - `arr.get_unchecked(i)`：跳过检查，**需 unsafe**（Rust 语义；unsafe 块不改变 `arr[i]` 的检查）

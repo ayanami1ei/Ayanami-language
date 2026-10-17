@@ -103,6 +103,8 @@ impl crate::hir::lower::Ctx {
             Stmt::IndexAssign { object, index, value, span } => {
                 let hir_object = self.lower_expr(object)?;
                 let hir_index = coerce_index(self.lower_expr(index)?, &HirType::Int, span)?;
+                // P3b（Rust 方式）：索引写入同样越界检查（此前仅读路径有检查）
+                let hir_index = self.check_array_index(&hir_object, hir_index, span);
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
                 if matches!(expr_type(&hir_value), HirType::Ref(..)) {

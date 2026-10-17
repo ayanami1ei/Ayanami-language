@@ -678,11 +678,12 @@ src/hir/lower/ctx_mono.rs:141: pub fn refine_enum_result_type(&self, ty: HirType
 src/hir/lower/ctx_mono.rs:156: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
 src/hir/lower/helpers/bounds.rs:10: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/bounds.rs:12: pub(crate) fn ensure_bounds_helper(&mut self) -> FnId
-src/hir/lower/helpers/bounds.rs:64: pub(crate) fn sibling_len_expr(&self, object: &HirNodeBox) -> Option<HirNodeBox>
-src/hir/lower/helpers/bounds.rs:94: fn place_rooted(node: &HirNodeBox) -> bool
-src/hir/lower/helpers/bounds.rs:105: pub(crate) fn insert_bounds_check_dyn(&mut self, index: HirNodeBox, len_expr: HirNodeBox, span: &Span) -> HirNodeBox
-src/hir/lower/helpers/bounds.rs:128: fn hoist_to_temp(&mut self, value: HirNodeBox, name: &str, ty: HirType, span: &Span) -> HirNodeBox
-src/hir/lower/helpers/bounds.rs:137: pub(crate) fn insert_bounds_check(&mut self, index: HirNodeBox, len: usize, span: &Span) -> HirNodeBox
+src/hir/lower/helpers/bounds.rs:62: pub(crate) fn check_array_index(&mut self, object: &HirNodeBox, index: HirNodeBox, span: &Span) -> HirNodeBox
+src/hir/lower/helpers/bounds.rs:82: pub(crate) fn sibling_len_expr(&self, object: &HirNodeBox) -> Option<HirNodeBox>
+src/hir/lower/helpers/bounds.rs:112: fn place_rooted(node: &HirNodeBox) -> bool
+src/hir/lower/helpers/bounds.rs:123: pub(crate) fn insert_bounds_check_dyn(&mut self, index: HirNodeBox, len_expr: HirNodeBox, span: &Span) -> HirNodeBox
+src/hir/lower/helpers/bounds.rs:146: fn hoist_to_temp(&mut self, value: HirNodeBox, name: &str, ty: HirType, span: &Span) -> HirNodeBox
+src/hir/lower/helpers/bounds.rs:155: pub(crate) fn insert_bounds_check(&mut self, index: HirNodeBox, len: usize, span: &Span) -> HirNodeBox
 src/hir/lower/helpers/caller.rs:7: pub(crate) fn is_hidden_param(name: &Symbol) -> bool
 src/hir/lower/helpers/caller.rs:12: pub(crate) fn count_hidden_params(params: &[(Symbol, HirType)]) -> usize
 src/hir/lower/helpers/caller.rs:17: pub(crate) fn count_hidden_names<T>(params: &[(Symbol, T)]) -> usize

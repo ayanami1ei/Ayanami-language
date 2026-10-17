@@ -57,6 +57,24 @@ impl crate::hir::lower::Ctx {
         fn_id
     }
 
+    /// 数组读写统一的越界检查入口：`[T; n]` 静态长度 / 动态字段兄弟边界；
+    /// 非数组或无边界信息时原样返回索引。返回访问/写入使用的索引节点。
+    pub(crate) fn check_array_index(&mut self, object: &HirNodeBox, index: HirNodeBox, span: &Span) -> HirNodeBox {
+        let inner_ty = strip_ownership(object.expr_type());
+        let deref_ty = strip_ownership(match &inner_ty {
+            HirType::Ref(inner, _) => inner.as_ref().clone(),
+            other => other.clone(),
+        });
+        match &deref_ty {
+            HirType::ArraySized(_, n) => self.insert_bounds_check(index, *n, span),
+            HirType::Array(_) => match self.sibling_len_expr(object) {
+                Some(len_expr) => self.insert_bounds_check_dyn(index, len_expr, span),
+                None => index,
+            },
+            _ => index,
+        }
+    }
+
     /// #175：动态数组字段的兄弟边界表达式（`s.data` → `s.capability`/`s.len`）；无则 None。
     /// **容量优先**（与 drop/clone 约定一致）：可增长缓冲（ArrayList/HashMap）的
     /// 可访问槽数是 capacity/cap，`len` 只是逻辑长度（push 写 `data[len]`、探测越 len）。
