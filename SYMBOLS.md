@@ -40,20 +40,22 @@ src/cli/types.rs:78: fn walk_stmts(
 src/cli/types.rs:124: fn fmt_type(ty: &HirType) -> String
 src/cli/types.rs:151: fn name_at(code: &str, line: usize, col: usize, name: &str) -> bool
 src/cli/types.rs:168: fn esc(s: &str) -> String
-src/cli/update.rs:13: pub(crate) fn build_id() -> &'static str
-src/cli/update.rs:18: pub(crate) fn cmd_version()
-src/cli/update.rs:22: struct UpdateArgs
-src/cli/update.rs:32: fn parse_args(args: &[String]) -> UpdateArgs
-src/cli/update.rs:57: pub(crate) fn cmd_update(args: &[String])
+src/cli/update.rs:13: fn stage(step: usize, total: usize, msg: &str)
+src/cli/update.rs:18: pub(crate) fn build_id() -> &'static str
+src/cli/update.rs:23: pub(crate) fn cmd_version()
+src/cli/update.rs:27: struct UpdateArgs
+src/cli/update.rs:37: fn parse_args(args: &[String]) -> UpdateArgs
+src/cli/update.rs:62: pub(crate) fn cmd_update(args: &[String])
 src/cli/update_fetch.rs:8: const REPO: &str = "ayanami1ei/Ayanami-language";
 src/cli/update_fetch.rs:10: pub(super) fn asset_arch() -> String
 src/cli/update_fetch.rs:19: pub(super) fn curl_text(url: &str) -> Option<String>
 src/cli/update_fetch.rs:26: pub(super) fn parse_tag(json: &str) -> Option<String>
-src/cli/update_fetch.rs:36: pub(super) fn fetch_latest() -> Result<(String, String, Option<String>)>
-src/cli/update_fetch.rs:52: pub(super) fn version_from_name(path: &str) -> Option<String>
-src/cli/update_fetch.rs:59: pub(super) fn download(src: &str, dest: &Path, limit_rate: Option<&str>) -> Result<()>
-src/cli/update_fetch.rs:79: pub(super) fn tar_listing(tar: &Path) -> Result<String>
-src/cli/update_fetch.rs:89: pub(super) fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
+src/cli/update_fetch.rs:36: pub(super) fn fetch_latest() -> Result<(String, String, Option<String>, Option<f64>)>
+src/cli/update_fetch.rs:53: pub(super) fn asset_size_mb(json: &str, asset_name: &str) -> Option<f64>
+src/cli/update_fetch.rs:63: pub(super) fn version_from_name(path: &str) -> Option<String>
+src/cli/update_fetch.rs:70: pub(super) fn download(src: &str, dest: &Path, limit_rate: Option<&str>) -> Result<()>
+src/cli/update_fetch.rs:96: pub(super) fn tar_listing(tar: &Path) -> Result<String>
+src/cli/update_fetch.rs:106: pub(super) fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
 src/compiler/build/compile.rs:6: pub fn compile_file(
 src/compiler/build/compile.rs:144: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(

@@ -9,6 +9,11 @@ use std::path::PathBuf;
 use std::process::Command;
 use super::update_fetch::*;
 
+/// 更新阶段进度（stderr；插件/日志按 `[n/m]` 解析）。
+fn stage(step: usize, total: usize, msg: &str) {
+    eprintln!("[{}/{}] {}", step, total, msg);
+}
+
 /// 当前构建指纹（build.rs 注入：git 短哈希 + dirty；缺失回退 "unknown"）
 pub(crate) fn build_id() -> &'static str {
     option_env!("AYANAMI_BUILD_ID").unwrap_or("unknown")
@@ -59,20 +64,25 @@ pub(crate) fn cmd_update(args: &[String]) {
     let current = env!("CARGO_PKG_VERSION");
 
     // 版本与下载源
+    let started = std::time::Instant::now();
+    let mut size_hint: Option<f64> = None;
     let (latest, url) = match u.from.as_deref() {
         Some(src) if src.starts_with("http") => {
             (version_from_name(src).unwrap_or_else(|| "custom".into()), src.to_string())
         }
         Some(src) => (version_from_name(src).unwrap_or_else(|| "local".into()), src.to_string()),
-        None => match fetch_latest() {
-            Ok((v, u, _)) => (v, u),
-            Err(e) => { ayanami::diagnostics::error(&e.to_string()); std::process::exit(1); }
-        },
+        None => {
+            stage(1, 6, "查询最新版本（GitHub Release）…");
+            match fetch_latest() {
+                Ok((v, u, _, sz)) => { size_hint = sz; (v, u) }
+                Err(e) => { ayanami::diagnostics::error(&e.to_string()); std::process::exit(1); }
+            }
+        }
     };
 
     // 同版本 respin：比对远端构建指纹（无该资产时退化为版本比较）
     let remote_build: Option<String> = if u.from.is_none() {
-        fetch_latest().ok().and_then(|(_, _, bu)| bu).and_then(|bu| curl_text(&bu))
+        fetch_latest().ok().and_then(|(_, _, bu, _)| bu).and_then(|bu| curl_text(&bu))
     } else {
         None
     };
@@ -117,11 +127,15 @@ pub(crate) fn cmd_update(args: &[String]) {
     let tmp = unique_tmp_dir("update");
     fs::create_dir_all(&tmp).ok();
     let tar_path = tmp.join("ayanami.tar.gz");
+    let size_str = size_hint.map(|s| format!("（{:.1} MB）", s)).unwrap_or_default();
+    let what = std::path::Path::new(&url).file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| url.clone());
+    stage(2, 6, &format!("下载 {}{}…", what, size_str));
     if let Err(e) = download(&url, &tar_path, u.limit_rate.as_deref()) {
         ayanami::diagnostics::error(&e.to_string());
         let _ = fs::remove_dir_all(&tmp);
         std::process::exit(1);
     }
+    stage(3, 6, "校验包内容…");
     match tar_listing(&tar_path) {
         Ok(l) if l.contains("install/ayanami") => {}
         Ok(_) => {
@@ -135,6 +149,7 @@ pub(crate) fn cmd_update(args: &[String]) {
             std::process::exit(1);
         }
     }
+    stage(4, 6, "解压…");
     let status = Command::new("tar").args(["-xzf"]).arg(&tar_path).arg("-C").arg(&tmp).status()
         .expect("tar extract");
     if !status.success() {
@@ -149,6 +164,7 @@ pub(crate) fn cmd_update(args: &[String]) {
     let bak = target.with_file_name(format!("{}.bak-{}", dir_name, current));
     let need_bak = target.exists() && fs::read_dir(&target).map(|mut d| d.next().is_some()).unwrap_or(false);
     if need_bak {
+        stage(5, 6, &format!("备份旧版本 → {}", bak.display()));
         if bak.exists() {
             let _ = fs::remove_dir_all(&bak);
         }
@@ -160,6 +176,7 @@ pub(crate) fn cmd_update(args: &[String]) {
         }
     }
 
+    stage(6, 6, "安装…");
     // 覆盖：std-only 仅替换 std；全量清空后复制新内容
     let copy_result = (|| -> Result<()> {
         if u.std_only {
@@ -198,7 +215,8 @@ pub(crate) fn cmd_update(args: &[String]) {
     if u.std_only {
         println!("已更新 std（v{}；备份: {}）", latest, bak.display());
     } else {
-        println!("已更新: v{} → v{}（安装目录: {}；备份: {}）", current, latest, target.display(), bak.display());
+        println!("已更新: v{} → v{}（安装目录: {}；备份: {}；耗时 {:.1}s）",
+            current, latest, target.display(), bak.display(), started.elapsed().as_secs_f64());
         if let Some(rate) = &u.limit_rate {
             println!("（下载限速: {}/s）", rate);
         }

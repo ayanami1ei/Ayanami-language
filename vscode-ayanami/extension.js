@@ -135,11 +135,26 @@ function activate(context) {
         if (!bin) { vscode.window.showWarningMessage('Ayanami: 未找到编译器'); return; }
         const { spawn } = require('child_process');
         await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: 'Ayanami: 正在更新编译器与 std…', cancellable: false },
-            () => new Promise((resolve) => {
+            { location: vscode.ProgressLocation.Notification, title: 'Ayanami: 更新编译器与 std', cancellable: false },
+            (progress) => new Promise((resolve) => {
+                progress.report({ message: '启动…' });
                 const p = spawn(bin, ['update'], { stdio: ['ignore', 'pipe', 'pipe'] });
-                p.stdout.on('data', d => outputChannel.append(d.toString()));
-                p.stderr.on('data', d => outputChannel.append(d.toString()));
+                // 解析 CLI 阶段信息 `[n/m] 描述` → 通知栏进度条 + 文案
+                const onChunk = (d) => {
+                    const text = d.toString();
+                    outputChannel.append(text);
+                    const m = /\[(\d+)\/(\d+)\]\s*(.+)/.exec(text);
+                    if (m) {
+                        const step = parseInt(m[1], 10);
+                        const total = parseInt(m[2], 10);
+                        progress.report({
+                            message: `${m[3].trim()}（${step}/${total}）`,
+                            increment: total > 0 ? 100 / total : undefined,
+                        });
+                    }
+                };
+                p.stdout.on('data', onChunk);
+                p.stderr.on('data', onChunk);
                 p.on('error', (e) => { outputChannel.appendLine('update error: ' + e); resolve(); });
                 p.on('close', async (code) => {
                     if (code === 0) {

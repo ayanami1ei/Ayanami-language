@@ -33,7 +33,7 @@ pub(super) fn parse_tag(json: &str) -> Option<String> {
 }
 
 /// 查询最新 Release：版本、tar 资产 URL、构建指纹资产 URL（可能缺失）
-pub(super) fn fetch_latest() -> Result<(String, String, Option<String>)> {
+pub(super) fn fetch_latest() -> Result<(String, String, Option<String>, Option<f64>)> {
     let json = curl_text(&format!("https://api.github.com/repos/{REPO}/releases/latest"))
         .ok_or_else(|| Error::Compile(format!(
             "无法查询最新版本（网络不可用或缺少 curl）；可手动下载: https://github.com/{REPO}/releases")))?;
@@ -45,7 +45,18 @@ pub(super) fn fetch_latest() -> Result<(String, String, Option<String>)> {
     let build_name = format!("ayanami-{}-build.txt", latest);
     let build_url = json.contains(&build_name)
         .then(|| format!("https://github.com/{REPO}/releases/download/v{latest}/{build_name}"));
-    Ok((latest, url, build_url))
+    let size_mb = asset_size_mb(&json, &asset);
+    Ok((latest, url, build_url, size_mb))
+}
+
+/// 资产名 → 大小（MB，1 位小数）；解析失败返回 None。
+pub(super) fn asset_size_mb(json: &str, asset_name: &str) -> Option<f64> {
+    let idx = json.find(asset_name)?;
+    let rest = &json[idx..];
+    let si = rest.find("\"size\":")? + "\"size\":".len();
+    let rest2 = rest[si..].trim_start();
+    let end = rest2.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest2.len());
+    rest2[..end].parse::<u64>().ok().map(|b| b as f64 / (1024.0 * 1024.0))
 }
 
 /// 从 tar 文件名推断版本（`ayanami-<ver>-linux-<arch>.tar.gz`）
@@ -58,8 +69,14 @@ pub(super) fn version_from_name(path: &str) -> Option<String> {
 
 pub(super) fn download(src: &str, dest: &Path, limit_rate: Option<&str>) -> Result<()> {
     if src.starts_with("http://") || src.starts_with("https://") {
+        // 交互终端显示 curl 进度条；非 TTY（插件/日志）静默，由阶段信息报告
+        let tty = std::io::IsTerminal::is_terminal(&std::io::stderr());
         let mut cmd = Command::new("curl");
-        cmd.args(["-fsSL", "--retry", "3", "-o"]).arg(dest);
+        if tty {
+            cmd.args(["-fL", "--retry", "3", "--progress-bar", "-o"]).arg(dest);
+        } else {
+            cmd.args(["-fsSL", "--retry", "3", "-o"]).arg(dest);
+        }
         if let Some(rate) = limit_rate {
             cmd.arg("--limit-rate").arg(rate);
         }
