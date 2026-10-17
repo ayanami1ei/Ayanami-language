@@ -32,20 +32,48 @@ pub(super) fn parse_tag(json: &str) -> Option<String> {
     Some(rest[q1..q2].trim_start_matches('v').to_string())
 }
 
+/// curl 取重定向后的最终 URL（网页路径，不受 GitHub API 限流影响）
+pub(super) fn curl_effective_url(url: &str) -> Option<String> {
+    let out = Command::new("curl")
+        .args(["-fsSLI", "-o", "/dev/null", "-w", "%{url_effective}", "--retry", "2", "--max-time", "30"])
+        .arg(url)
+        .output().ok()?;
+    if !out.status.success() { return None; }
+    let s = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    (!s.is_empty()).then_some(s)
+}
+
 /// 查询最新 Release：版本、tar 资产 URL、构建指纹资产 URL（可能缺失）
 pub(super) fn fetch_latest() -> Result<(String, String, Option<String>, Option<f64>)> {
-    let json = curl_text(&format!("https://api.github.com/repos/{REPO}/releases/latest"))
-        .ok_or_else(|| Error::Compile(format!(
-            "无法查询最新版本（网络不可用或缺少 curl）；可手动下载: https://github.com/{REPO}/releases")))?;
-    let latest = parse_tag(&json)
-        .ok_or_else(|| Error::Compile("无法解析 GitHub Release 响应（tag_name 缺失）".into()))?;
+    let json = curl_text(&format!("https://api.github.com/repos/{REPO}/releases/latest"));
+    let api_ver = json.as_deref().and_then(parse_tag);
+    let (latest, build_url, size_mb) = match api_ver {
+        Some(latest) => {
+            let json = json.as_deref().unwrap_or_default();
+            let asset = format!("ayanami-{}-linux-{}.tar.gz", latest, asset_arch());
+            // 构建指纹资产（同版本 respin 检测）：ayanami-<ver>-build.txt
+            let build_name = format!("ayanami-{}-build.txt", latest);
+            let build_url = json.contains(&build_name)
+                .then(|| format!("https://github.com/{REPO}/releases/download/v{latest}/{build_name}"));
+            (latest, build_url, asset_size_mb(json, &asset))
+        }
+        None => {
+            // API 限流（403）等 → 回退网页重定向 `/releases/latest` → `/releases/tag/vX.Y.Z`
+            let eff = curl_effective_url(&format!("https://github.com/{REPO}/releases/latest"))
+                .ok_or_else(|| Error::Compile(format!(
+                    "无法查询最新版本（网络不可用或缺少 curl）；可手动下载: https://github.com/{REPO}/releases")))?;
+            let latest = eff.rsplit("/tag/").next()
+                .filter(|s| !s.is_empty() && !s.contains('/'))
+                .map(|s| s.trim_start_matches('v').to_string())
+                .ok_or_else(|| Error::Compile("无法从 releases/latest 重定向解析版本".into()))?;
+            // 构建指纹资产按约定存在（缺失时 404 → 跳过指纹检查）
+            let build_url = Some(format!(
+                "https://github.com/{REPO}/releases/download/v{latest}/ayanami-{latest}-build.txt"));
+            (latest, build_url, None)
+        }
+    };
     let asset = format!("ayanami-{}-linux-{}.tar.gz", latest, asset_arch());
     let url = format!("https://github.com/{REPO}/releases/download/v{latest}/{asset}");
-    // 构建指纹资产（同版本 respin 检测）：ayanami-<ver>-build.txt
-    let build_name = format!("ayanami-{}-build.txt", latest);
-    let build_url = json.contains(&build_name)
-        .then(|| format!("https://github.com/{REPO}/releases/download/v{latest}/{build_name}"));
-    let size_mb = asset_size_mb(&json, &asset);
     Ok((latest, url, build_url, size_mb))
 }
 
