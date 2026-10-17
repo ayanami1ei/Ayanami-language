@@ -1230,6 +1230,19 @@ impl Checker {
             }
             fi = self.find_fn(nm);
             if fi < 0 {
+                if self.has_local(nm) {
+                    // 可调用局部（Fn 值 / 函数指针）：参数照常检查
+                    a0l = ast.aa[id];
+                    while a0l >= 0 {
+                        if ast.tags[a0l] == xt(XT::Arg._tag) {
+                            self.check_expr(ast, ast.aa[a0l]);
+                        } else {
+                            self.check_expr(ast, a0l);
+                        }
+                        a0l = ast.nexts[a0l];
+                    }
+                    return "";
+                }
                 self.err_name("undefined function `", nm, ast.lines[id], ast.cols[id]);
                 return "";
             }

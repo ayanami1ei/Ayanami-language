@@ -119,6 +119,7 @@ pub struct Parser {
     int save_col
     int save_byte
     int save_ast_len
+    int lambda_count
 }
 
 pub namespace Parser {
@@ -129,7 +130,7 @@ pub namespace Parser {
         t1 = lx.next_token();
         t2 = lx.next_token();
         t3 = lx.next_token();
-        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0 };
+        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0 };
         return p;
     }
 }
@@ -422,21 +423,25 @@ impl Parser {
             if self.cur.text == "FnMut" { is_callable_kind = 1; }
             if is_callable_kind == 1 {
                 if self.la1_is_delim(D::LParen._tag) {
-                    // Fn(T) -> U 闭包类型（dump 打印 Fn(...)）
+                    // Fn(T) -> U 闭包类型（dump 打印 Fn(...)）；记录参数与返回类型
                     self.advance();
-                    depth = 0;
-                    while !self.at_end() {
-                        if self.check_delim(D::LParen._tag) { depth = depth + 1; }
-                        if self.check_delim(D::RParen._tag) {
-                            depth = depth - 1;
-                            if depth == 0 { self.advance(); break; }
-                        }
-                        self.advance();
+                    self.advance();
+                    cparams = -1;
+                    while true {
+                        if self.at_end() { break; }
+                        if self.check_delim(D::RParen._tag) { break; }
+                        if self.failed == 1 { break; }
+                        ct = self.parse_type();
+                        cn = self.ast.push(xt(XT::GenericArg._tag), "", ct, -1, -1, -1, -1, self.cur.line, self.cur.col);
+                        cparams = self.ast.push_tail(cparams, cn);
+                        if !self.eat_delim(D::Comma._tag) { break; }
                     }
+                    self.expect_delim(D::RParen._tag, "expected ) in Fn type");
+                    cret = -1;
                     if self.eat_delim(D::Arrow._tag) {
-                        self.parse_type();
+                        cret = self.parse_type();
                     }
-                    return self.ast.push(tt(TT::Closure._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+                    return self.ast.push(tt(TT::Closure._tag), "", cret, cparams, -1, -1, -1, self.cur.line, self.cur.col);
                 }
             }
         }
@@ -1576,13 +1581,18 @@ impl Parser {
             if !self.eat_delim(D::Comma._tag) { break; }
         }
         if !self.eat_delim(D::RParen._tag) { return -1; }
+        lret = -1;
         if self.eat_delim(D::Arrow._tag) {
-            self.parse_type();
+            lret = self.parse_type();
             if self.failed == 1 { return -1; }
         }
         if !self.check_delim(D::LBrace._tag) { return -1; }
         body = self.parse_block();
-        return self.ast.push(et(ET::Lambda._tag), "", -1, params, body, -1, -1, line, col);
+        lname = StringBuf::new();
+        lname.push_str("lam.");
+        lname.push_int(self.lambda_count);
+        self.lambda_count = self.lambda_count + 1;
+        return self.ast.push(et(ET::Lambda._tag), lname.to_string(), lret, params, body, -1, -1, line, col);
     }
 
     /// 解析 match 臂（模式链存 XT::MatchArm，ty=模式种类：0=_, 1=变体, 2=bool, 3=其他）

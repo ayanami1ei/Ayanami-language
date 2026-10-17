@@ -1,0 +1,4672 @@
+import "string";
+import "aya_sb";
+import "aya_ast";
+
+// M5b/M6a：AST -> LLVM IR 文本（int/bool/String/struct/数组 子集）
+// 值表示：Val { kind: 0=int, 1=String(ptr,len), 2=struct(ptr,类型名), 3=数组(ptr,元素类型 id) }
+pub struct Val {
+    int kind
+    String a
+    String b
+    int ty
+}
+
+pub struct Emitter {
+    StringBuf buf
+    int tmp
+    [String] locals
+    [int] local_kinds
+    [int] local_forms
+    int lv_count
+    // 数组局部变量的元素类型（AST 类型节点 id；-1 表示非数组）
+    [int] local_etypes
+    [String] strs
+    int str_count
+    // 结构体表（字段扁平）
+    [String] st_names
+    [int] st_fstart
+    [int] st_fcount
+    [String] st_fields
+    int st_ftotal
+    int st_count
+    // 字段类型：0=int槽 1=String(2槽) 2=struct 3=array
+    [int] st_fkind
+    [int] st_finfo
+    [int] st_fslot
+    [int] st_slots
+    // 方法表：(类型, 方法名) -> FnDecl id
+    [String] m_ty
+    [String] m_name
+    [int] m_id
+    int m_count
+    // 枚举表
+    [String] en_names
+    [int] en_vstart
+    [int] en_vcount
+    [String] en_variants
+    [int] en_arity
+    int en_vtotal
+    int en_count
+    // 载荷类型（扁平）与每变体起点；槽位数（String 载荷占 2 槽）
+    [int] en_ptype
+    [int] en_pvstart
+    int en_ptotal
+    [int] en_vslots
+    // 函数签名表（参数种类：0=int, 20=enum, 100+si=struct）
+    [String] fn_names
+    [int] fn_pstart
+    [int] fn_pcount
+    [int] fn_pkinds
+    int fn_ptotal
+    int fn_count
+    [int] fn_rtype
+    [int] fn_rllvm
+    [int] fn_first
+    int cur_rtype
+    [int] m_rtype
+    // 已发射的 extern 声明（去重）
+    [String] decl_names
+    int decl_count
+    // 全局常量/静态：0=int 2=数组；数组元素以逗号串存
+    [String] g_names
+    [int] g_kinds
+    [String] g_vals
+    [int] g_lens
+    int g_count
+    // 函数体 alloca 前置缓冲（LLVM 要求 alloca 支配所有使用）
+    StringBuf pre_buf
+    int pre_active
+    int entry_pos
+    // 循环标签栈（break/continue）
+    [String] loop_ends
+    [String] loop_conds
+    int loop_depth
+    int terminated
+}
+
+pub namespace Emitter {
+    #[alloc]
+    pub fn new() -> Emitter {
+        e = Emitter {
+            buf = StringBuf::new(), tmp = 0,
+            locals = [String; 512], local_kinds = [int; 512], local_forms = [int; 512], lv_count = 0,
+            local_etypes = [int; 512],
+            strs = [String; 8192], str_count = 0,
+            st_names = [String; 128], st_fstart = [int; 128], st_fcount = [int; 128],
+            st_fields = [String; 1024], st_ftotal = 0, st_count = 0,
+            st_fkind = [int; 1024], st_finfo = [int; 1024], st_fslot = [int; 1024],
+            st_slots = [int; 128],
+            m_ty = [String; 4096], m_name = [String; 4096], m_id = [int; 4096], m_count = 0,
+            en_names = [String; 128], en_vstart = [int; 128], en_vcount = [int; 128],
+            en_variants = [String; 1024], en_arity = [int; 1024], en_vtotal = 0, en_count = 0,
+            en_ptype = [int; 4096], en_pvstart = [int; 1024], en_ptotal = 0, en_vslots = [int; 1024],
+            fn_names = [String; 4096], fn_pstart = [int; 4096], fn_pcount = [int; 4096],
+            fn_pkinds = [int; 32768], fn_ptotal = 0, fn_count = 0,
+            fn_rtype = [int; 4096], fn_rllvm = [int; 4096], fn_first = [int; 4096], cur_rtype = -1, m_rtype = [int; 4096],
+            decl_names = [String; 2048], decl_count = 0,
+            g_names = [String; 512], g_kinds = [int; 512], g_vals = [String; 512],
+            g_lens = [int; 512], g_count = 0,
+            pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
+            loop_ends = [String; 64], loop_conds = [String; 64], loop_depth = 0,
+            terminated = 0
+        };
+        return e;
+    }
+}
+
+/// 类型节点的类型名（解 ref/泛型包装；非命名类型返回 ""）
+fn ty_name(ref Ast ast, int t) -> String {
+    while t >= 0 {
+        tg = ast.tags[t];
+        if tg == tt(TT::Ref._tag) {
+            t = ast.aa[t];
+            continue;
+        }
+        if tg == tt(TT::Named._tag) || tg == tt(TT::Generic._tag) {
+            return ast.texts[t].copy();
+        }
+        return "";
+    }
+    return "";
+}
+
+/// 取实参地址（ref 原语形参）：变量/全局直接取址，其余落到临时槽
+fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String {
+    if id >= 0 {
+        if ast.tags[id] == et(ET::Ident._tag) {
+            nm = ast.texts[id];
+            if e.global_kind(nm) == 0 { return "@" + nm; }
+            kd = e.local_kind(nm);
+            if kd == 0 { return "%v_" + nm; }
+        }
+    }
+    v = emit_expr(ast, id, e);
+    tp = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(tp);
+    e.buf.push_str(" = alloca i64\n  store i64 ");
+    e.buf.push_str(v.a);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(tp);
+    e.buf.push_str("\n");
+    return tp;
+}
+
+/// 浮点 -> 整数饱和下界（double 常量文本；未知返回 ""）
+fn fmin_text(ref String tn) -> String {
+    if tn == "u8" || tn == "char" || tn == "bool" { return "0.0"; }
+    if tn == "u16" { return "0.0"; }
+    if tn == "u32" { return "0.0"; }
+    if tn == "u64" || tn == "usize" { return "0.0"; }
+    if tn == "i8" { return "-128.0"; }
+    if tn == "i16" { return "-32768.0"; }
+    if tn == "i32" { return "-2147483648.0"; }
+    return "";
+}
+
+/// 浮点 -> 整数饱和上界（double 常量文本；未知返回 ""）
+fn fmax_text(ref String tn) -> String {
+    if tn == "u8" || tn == "char" || tn == "bool" { return "255.0"; }
+    if tn == "u16" { return "65535.0"; }
+    if tn == "u32" { return "4294967295.0"; }
+    if tn == "i8" { return "127.0"; }
+    if tn == "i16" { return "32767.0"; }
+    if tn == "i32" { return "2147483647.0"; }
+    return "";
+}
+
+/// 具体整型名 -> LLVM 宽度类型（未知返回 ""）
+fn int_ty_llvm(ref String tn) -> String {
+    if tn == "u8" || tn == "i8" { return "i8"; }
+    if tn == "u16" || tn == "i16" { return "i16"; }
+    if tn == "u32" || tn == "i32" { return "i32"; }
+    if tn == "u64" || tn == "i64" || tn == "usize" || tn == "isize" { return "i64"; }
+    return "";
+}
+
+fn int_ty_signed(ref String tn) -> int {
+    if tn == "i8" || tn == "i16" || tn == "i32" || tn == "i64" || tn == "isize" { return 1; }
+    return 0;
+}
+
+/// 整数常量求值（字面量/括号/一元负/二元算术/位运算/引用其他常量）；失败返回 ""
+fn const_int(ref Ast ast, int id) -> String {
+    if id < 0 { return ""; }
+    tag = ast.tags[id];
+    if tag == et(ET::Literal._tag) {
+        k = ast.bb[id];
+        if k == lk(LK::Int._tag) {
+            return int_text_ok(ast.texts[id]);
+        }
+        if k == lk(LK::Bool._tag) {
+            if ast.texts[id] == "true" { return "1"; }
+            return "0";
+        }
+        return "";
+    }
+    if tag == et(ET::Suffixed._tag) {
+        return const_int(ast, ast.aa[id]);
+    }
+    if tag == et(ET::Binary._tag) {
+        lv = const_int(ast, ast.aa[id]);
+        rv = const_int(ast, ast.bb[id]);
+        if lv.len == 0 || rv.len == 0 { return ""; }
+        a = str_to_int_ok(lv);
+        b = str_to_int_ok(rv);
+        op = ast.tys[id];
+        r = -999999;
+        if op == bo(BinOp::Add._tag) { r = a + b; }
+        elif op == bo(BinOp::Sub._tag) { r = a - b; }
+        elif op == bo(BinOp::Mul._tag) { r = a * b; }
+        elif op == bo(BinOp::Div._tag) { if b == 0 { return ""; } r = a / b; }
+        elif op == bo(BinOp::Mod._tag) { if b == 0 { return ""; } r = a % b; }
+        elif op == bo(BinOp::BitAnd._tag) { r = a & b; }
+        elif op == bo(BinOp::BitOr._tag) { r = a | b; }
+        elif op == bo(BinOp::BitXor._tag) { r = a ^ b; }
+        elif op == bo(BinOp::Shl._tag) { r = a << b; }
+        elif op == bo(BinOp::Shr._tag) { r = a >> b; }
+        if r == -999999 { return ""; }
+        return int_str2(r);
+    }
+    if tag == et(ET::Unary._tag) {
+        // 一元负
+        ov = const_int(ast, ast.aa[id]);
+        if ov.len == 0 { return ""; }
+        op2 = ast.tys[id];
+        if op2 == uo(UnOp::Neg._tag) {
+            return int_str2(0 - str_to_int_ok(ov));
+        }
+        return "";
+    }
+    if tag == et(ET::Ident._tag) {
+        return "";
+    }
+    return "";
+}
+
+/// 十进制/十六进制整数字面量 -> 规范十进制文本（失败 ""）
+fn int_text_ok(ref String t) -> String {
+    v = str_to_int_ok(t);
+    if v == -999999 { return ""; }
+    return int_str2(v);
+}
+
+/// 解析整数字面量（支持 0x 前缀、下划线、负号）；失败 -999999
+fn str_to_int_ok(ref String t) -> int {
+    if t.len == 0 { return -999999; }
+    neg = 0;
+    i = 0;
+    if t.index(0) == '-' {
+        neg = 1;
+        i = 1;
+    }
+    base = 10;
+    if i + 1 < t.len as int {
+        if t.index(i as usize) == '0' {
+            c1 = t.index((i + 1) as usize);
+            if c1 == 'x' || c1 == 'X' {
+                base = 16;
+                i = i + 2;
+            } elif c1 == 'b' || c1 == 'B' {
+                base = 2;
+                i = i + 2;
+            } elif c1 == 'o' || c1 == 'O' {
+                base = 8;
+                i = i + 2;
+            }
+        }
+    }
+    v = 0;
+    n = 0;
+    while i < t.len as int {
+        ch = t.index(i as usize);
+        d = -1;
+        if ch == '_' { i = i + 1; continue; }
+        if ch >= '0' && ch <= '9' { d = char_code(ch) - 48; }
+        elif ch >= 'a' && ch <= 'f' { d = char_code(ch) - 87; }
+        elif ch >= 'A' && ch <= 'F' { d = char_code(ch) - 55; }
+        else { return -999999; }
+        if d >= base { return -999999; }
+        v = v * base + d;
+        n = n + 1;
+        i = i + 1;
+    }
+    if n == 0 { return -999999; }
+    if neg == 1 { return 0 - v; }
+    return v;
+}
+
+/// ptr 位置的立即数 0 -> null
+fn ptr_operand(ref String a) -> String {
+    if a == "0" { return "null"; }
+    return a.copy();
+}
+
+fn int_str2(int v) -> String {
+    b = StringBuf::new();
+    b.push_int(v);
+    return b.to_string();
+}
+
+fn mk_int(ref String t) -> Val {
+    return Val { kind = 0, a = t.copy(), b = "", ty = -1 };
+}
+
+/// 数组值（malloc 指针 + 元素类型 id）
+fn mk_arr(ref String ptr, int ety) -> Val {
+    return Val { kind = 3, a = ptr.copy(), b = "", ty = ety };
+}
+
+fn mk_str(ref String ptr, int len) -> Val {
+    b = StringBuf::new();
+    b.push_int(len);
+    return Val { kind = 1, a = ptr.copy(), b = b.to_string(), ty = -1 };
+}
+
+/// 浮点运算操作数：浮点值直接用，整数/字面量转 double
+fn float_operand(ref Val v, ref mut Emitter e) -> String {
+    if v.kind == 6 { return v.a.copy(); }
+    t = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(t);
+    e.buf.push_str(" = sitofp i64 ");
+    e.buf.push_str(v.a);
+    e.buf.push_str(" to double\n");
+    return t;
+}
+
+/// 浮点比较谓词（有序比较）
+fn fcmp_op(int op) -> String {
+    if op == bo(BinOp::Eq._tag) { return "oeq"; }
+    if op == bo(BinOp::Neq._tag) { return "one"; }
+    if op == bo(BinOp::Lt._tag) { return "olt"; }
+    if op == bo(BinOp::Gt._tag) { return "ogt"; }
+    if op == bo(BinOp::Le._tag) { return "ole"; }
+    if op == bo(BinOp::Ge._tag) { return "oge"; }
+    return "oeq";
+}
+
+/// 浮点值（a = double 类型的操作数文本/临时名）
+fn mk_float(ref String a) -> Val {
+    return Val { kind = 6, a = a.copy(), b = "", ty = -1 };
+}
+
+/// 浮点字面量文本 -> LLVM double 常量文本（补 .0 / 0 前缀）
+fn float_text(ref String t) -> String {
+    has_dot = 0;
+    has_exp = 0;
+    i = 0;
+    while i < t.len as int {
+        c = t.index(i as usize);
+        if c == '.' { has_dot = 1; }
+        if c == 'e' || c == 'E' { has_exp = 1; }
+        i = i + 1;
+    }
+    if has_dot == 0 && has_exp == 0 {
+        return t.copy() + ".0";
+    }
+    if has_dot == 0 && has_exp == 1 {
+        // 1e3 -> 1.0e3（LLVM double 常量需要小数点）
+        b = StringBuf::new();
+        i = 0;
+        while i < t.len as int {
+            c = t.index(i as usize);
+            if c == 'e' || c == 'E' {
+                b.push_str(".0");
+            }
+            b.push(c);
+            i = i + 1;
+        }
+        return b.to_string();
+    }
+    if t.len > 0 {
+        if t.index(0) == '.' {
+            return "0" + t;
+        }
+    }
+    return t.copy();
+}
+
+/// String 值（len 已是临时名，运行期动态）
+fn mk_str_tmp(ref String ptr, ref String len_tmp) -> Val {
+    return Val { kind = 1, a = ptr.copy(), b = len_tmp.copy(), ty = -1 };
+}
+
+/// 逻辑取反（i64 0/1）
+fn emit_not(ref Val v, ref mut Emitter e) -> Val {
+    c = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(c);
+    e.buf.push_str(" = icmp eq i64 ");
+    e.buf.push_str(v.a);
+    e.buf.push_str(", 0\n");
+    z = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(z);
+    e.buf.push_str(" = zext i1 ");
+    e.buf.push_str(c);
+    e.buf.push_str(" to i64\n");
+    return mk_int(z);
+}
+
+/// 字符串内容相等：memcmp(min) == 0 且长度相等
+fn emit_str_eq(ref Val lt, ref Val rt, ref mut Emitter e) -> Val {
+    c0 = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(c0);
+    e.buf.push_str(" = icmp slt i64 ");
+    e.buf.push_str(lt.b);
+    e.buf.push_str(", ");
+    e.buf.push_str(rt.b);
+    e.buf.push_str("\n  ");
+    mn = e.fresh();
+    e.buf.push_str(mn);
+    e.buf.push_str(" = select i1 ");
+    e.buf.push_str(c0);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(lt.b);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(rt.b);
+    e.buf.push_str("\n  ");
+    r = e.fresh();
+    e.buf.push_str(r);
+    e.buf.push_str(" = call i32 @memcmp(ptr ");
+    e.buf.push_str(lt.a);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(rt.a);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(mn);
+    e.buf.push_str(")\n  ");
+    eqm = e.fresh();
+    e.buf.push_str(eqm);
+    e.buf.push_str(" = icmp eq i32 ");
+    e.buf.push_str(r);
+    e.buf.push_str(", 0\n  ");
+    le = e.fresh();
+    e.buf.push_str(le);
+    e.buf.push_str(" = icmp eq i64 ");
+    e.buf.push_str(lt.b);
+    e.buf.push_str(", ");
+    e.buf.push_str(rt.b);
+    e.buf.push_str("\n  ");
+    bo2 = e.fresh();
+    e.buf.push_str(bo2);
+    e.buf.push_str(" = and i1 ");
+    e.buf.push_str(eqm);
+    e.buf.push_str(", ");
+    e.buf.push_str(le);
+    e.buf.push_str("\n  ");
+    z = e.fresh();
+    e.buf.push_str(z);
+    e.buf.push_str(" = zext i1 ");
+    e.buf.push_str(bo2);
+    e.buf.push_str(" to i64\n");
+    return mk_int(z);
+}
+
+/// 字符串拼接
+fn emit_str_concat(ref Val lt, ref Val rt, ref mut Emitter e) -> Val {
+    n = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(n);
+    e.buf.push_str(" = add i64 ");
+    e.buf.push_str(lt.b);
+    e.buf.push_str(", ");
+    e.buf.push_str(rt.b);
+    e.buf.push_str("\n  ");
+    buf = e.fresh();
+    e.buf.push_str(buf);
+    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_str(n);
+    e.buf.push_str(")\n  call ptr @memcpy(ptr ");
+    e.buf.push_str(buf);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(lt.a);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(lt.b);
+    e.buf.push_str(")\n  ");
+    dst = e.fresh();
+    e.buf.push_str(dst);
+    e.buf.push_str(" = getelementptr i8, ptr ");
+    e.buf.push_str(buf);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(lt.b);
+    e.buf.push_str("\n  call ptr @memcpy(ptr ");
+    e.buf.push_str(dst);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(rt.a);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(rt.b);
+    e.buf.push_str(")\n");
+    return mk_str_tmp(buf, n);
+}
+
+/// 子串 [start, end)：malloc + memcpy
+fn emit_str_slice(ref Val sv, ref String start, ref String end, ref mut Emitter e) -> Val {
+    n = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(n);
+    e.buf.push_str(" = sub i64 ");
+    e.buf.push_str(end);
+    e.buf.push_str(", ");
+    e.buf.push_str(start);
+    e.buf.push_str("\n  ");
+    buf = e.fresh();
+    e.buf.push_str(buf);
+    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_str(n);
+    e.buf.push_str(")\n  ");
+    src = e.fresh();
+    e.buf.push_str(src);
+    e.buf.push_str(" = getelementptr i8, ptr ");
+    e.buf.push_str(sv.a);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(start);
+    e.buf.push_str("\n  call ptr @memcpy(ptr ");
+    e.buf.push_str(buf);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(src);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(n);
+    e.buf.push_str(")\n");
+    return mk_str_tmp(buf, n);
+}
+
+impl Emitter {
+    #[alloc]
+    #[state]
+    fn fresh(ref mut self) -> String {
+        b = StringBuf::new();
+        b.push_str("%t");
+        b.push_int(self.tmp);
+        self.tmp = self.tmp + 1;
+        return b.to_string();
+    }
+
+    fn local_kind(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name { return self.local_kinds[i]; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    /// 数组局部的元素类型（AST 类型节点 id）；非数组返回 -1
+    fn find_elem(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name { return self.local_etypes[i]; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    #[alloc]
+    #[state]
+    fn declare_array_local(ref mut self, ref String name, int ety) {
+        self.declare_local(name, 10);
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name {
+                self.local_etypes[i] = ety;
+                return;
+            }
+            i = i + 1;
+        }
+    }
+
+    #[state]
+    fn record_etype(ref mut self, ref String name, int ety) {
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name {
+                self.local_etypes[i] = ety;
+                return;
+            }
+            i = i + 1;
+        }
+    }
+
+    fn elem_of_local(ref mut self, ref String name) -> int {
+        if self.local_kind(name) != 10 { return -1; }
+        return self.find_elem(name);
+    }
+
+    fn etype_of_local(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name {
+                return self.local_etypes[i];
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    /// 声明/复用局部；同名不同类型时补分配对应存储（源码里同名局部在不同分支复用不同类型）
+    #[alloc]
+    #[state]
+    fn declare_local(ref mut self, ref String name, int kind) {
+        idx_l = -1;
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name {
+                idx_l = i;
+                break;
+            }
+            i = i + 1;
+        }
+        form = 0;
+        if kind == 1 { form = 1; } elif kind == 40 { form = 3; } elif kind >= 2 { form = 2; }
+        if idx_l >= 0 {
+            self.local_kinds[idx_l] = kind;
+            have = self.local_forms[idx_l];
+            if have == form { return; }
+            self.local_forms[idx_l] = form;
+            self.emit_local_storage(name, form);
+            return;
+        }
+        if self.lv_count < 512 {
+            self.locals[self.lv_count] = name.copy();
+            self.local_kinds[self.lv_count] = kind;
+            self.local_etypes[self.lv_count] = -1;
+            self.local_forms[self.lv_count] = form;
+            self.lv_count = self.lv_count + 1;
+        }
+        self.emit_local_storage(name, form);
+    }
+
+    /// 局部存储分配（写 pre_buf，最终拼到 entry 块）
+    #[alloc]
+    #[state]
+    fn emit_local_storage(ref mut self, ref String name, int form) {
+        tmp2 = StringBuf::new();
+        if form == 1 {
+            tmp2.push_str("  %v_");
+            tmp2.push_str(name);
+            tmp2.push_str(".ptr = alloca ptr\n  %v_");
+            tmp2.push_str(name);
+            tmp2.push_str(".len = alloca i64\n");
+        } elif form == 2 {
+            tmp2.push_str("  %v_");
+            tmp2.push_str(name);
+            tmp2.push_str(" = alloca ptr\n");
+        } else {
+            tmp2.push_str("  %v_");
+            tmp2.push_str(name);
+            tmp2.push_str(" = alloca i64\n");
+        }
+        if self.pre_active == 1 {
+            self.pre_buf.push_str(tmp2.to_string());
+        } else {
+            self.buf.push_str(tmp2.to_string());
+        }
+    }
+
+    /// struct 局部变量的类型名（kind 2 的局部）
+    #[alloc]
+    #[state]
+    fn struct_of_local(ref mut self, ref String name) -> String {
+        i = 0;
+        while i < self.lv_count {
+            if self.locals[i] == name {
+                ety = self.local_etypes[i];
+                if ety >= 0 {
+                    if ety < self.st_count { return self.st_names[ety].copy(); }
+                }
+            }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    /// 参数类型种类：0=int/其他, 1=String(双槽), 3=数组(ptr), 20=枚举, 100+si=结构体
+    #[alloc]
+    #[state]
+    fn param_kind(ref mut self, ref Ast ast, int p) -> int {
+        pt = ast.tys[p];
+        if pt < 0 { return 0; }
+        // 解开 ref/ref mut 包装（记下是否为引用）
+        is_ref = 0;
+        while pt >= 0 {
+            if ast.tags[pt] != tt(TT::Ref._tag) { break; }
+            is_ref = 1;
+            pt = ast.aa[pt];
+        }
+        if pt < 0 { return 0; }
+        ptg = ast.tags[pt];
+        if ptg == tt(TT::Array._tag) || ptg == tt(TT::ArraySized._tag) {
+            return 3;
+        }
+        if ptg == tt(TT::Generic._tag) { ptg = tt(TT::Named._tag); }
+        if ptg == tt(TT::Float._tag) {
+            return 31;
+        }
+        if ptg != tt(TT::Named._tag) {
+            // 原语：ref 形参按指针传（30）
+            if is_ref == 1 { return 30; }
+            return 0;
+        }
+        tn = ast.texts[pt];
+        if tn == "f32" || tn == "f64" { return 31; }
+        if tn == "String" { return 1; }
+        ei = self.find_enum_idx(tn);
+        if ei >= 0 { return 20; }
+        si = self.find_struct_idx(tn);
+        if si >= 0 { return 100 + si; }
+        if is_ref == 1 { return 30; }
+        return 0;
+    }
+
+    /// 返回类型种类：0=int, 1=String, 2=struct, 3=array, 4=enum
+    #[alloc]
+    #[state]
+    fn ret_kind(ref mut self, ref Ast ast, int rty) -> int {
+        if rty < 0 { return 0; }
+        while rty >= 0 {
+            if ast.tags[rty] != tt(TT::Ref._tag) { break; }
+            rty = ast.aa[rty];
+        }
+        if rty < 0 { return 0; }
+        rtg = ast.tags[rty];
+        if rtg == tt(TT::Array._tag) || rtg == tt(TT::ArraySized._tag) {
+            return 3;
+        }
+        if rtg == tt(TT::Float._tag) { return 5; }
+        if rtg == tt(TT::Generic._tag) { rtg = tt(TT::Named._tag); }
+        if rtg != tt(TT::Named._tag) { return 0; }
+        tn = ast.texts[rty];
+        if tn == "f32" || tn == "f64" { return 5; }
+        if tn == "String" { return 1; }
+        if self.find_struct_idx(tn) >= 0 { return 2; }
+        if self.find_enum_idx(tn) >= 0 { return 4; }
+        return 0;
+    }
+
+    /// 返回类型附加信息：struct index / array elem type / enum index
+    #[alloc]
+    #[state]
+    fn ret_info(ref mut self, ref Ast ast, int rty) -> int {
+        if rty < 0 { return -1; }
+        rtg = ast.tags[rty];
+        if rtg == tt(TT::Array._tag) || rtg == tt(TT::ArraySized._tag) {
+            return ast.aa[rty];
+        }
+        if rtg == tt(TT::Generic._tag) { rtg = tt(TT::Named._tag); }
+        if rtg != tt(TT::Named._tag) { return -1; }
+        tn = ast.texts[rty];
+        si = self.find_struct_idx(tn);
+        if si >= 0 { return si; }
+        return self.find_enum_idx(tn);
+    }
+
+    /// 返回 LLVM 宽度码（0=i64, 1=i32, 2=i8）
+    #[alloc]
+    #[state]
+    fn ret_llvm_code(ref mut self, ref Ast ast, int rty) -> int {
+        if rty < 0 { return 0; }
+        if ast.tags[rty] != tt(TT::Named._tag) { return 0; }
+        tn = ast.texts[rty];
+        if tn == "i32" { return 1; }
+        if tn == "i8" { return 2; }
+        return 0;
+    }
+
+    /// 该名首次定义的 FnDecl id（重载只发射第一个）
+    fn fn_first_id(ref mut self, ref String fname) -> int {
+        f = 0;
+        while f < self.fn_count {
+            if self.fn_names[f] == fname { return self.fn_first[f]; }
+            f = f + 1;
+        }
+        return -1;
+    }
+
+    fn fn_ret_llvm(ref mut self, ref String fname) -> int {
+        f = 0;
+        while f < self.fn_count {
+            if self.fn_names[f] == fname {
+                return self.fn_rllvm[f];
+            }
+            f = f + 1;
+        }
+        return 0;
+    }
+
+    /// 函数返回类型节点 id（-1 未知）
+    fn fn_ret_type(ref mut self, ref String fname) -> int {
+        f = 0;
+        while f < self.fn_count {
+            if self.fn_names[f] == fname {
+                return self.fn_rtype[f];
+            }
+            f = f + 1;
+        }
+        return -1;
+    }
+
+    /// 方法返回类型节点 id
+    fn method_ret_type(ref mut self, ref String ty, ref String name) -> int {
+        i = 0;
+        while i < self.m_count {
+            if self.m_ty[i] == ty {
+                if self.m_name[i] == name { return self.m_rtype[i]; }
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    /// 全局常量/静态收集（顶层与 namespace 内）
+    #[alloc]
+    #[state]
+    fn collect_globals(ref mut self, ref Ast ast, int prog) {
+        s = ast.aa[prog];
+        while s >= 0 {
+            tag = ast.tags[s];
+            if tag == st(ST::ConstDecl._tag) || tag == st(ST::StaticDecl._tag) {
+                self.add_global(ast, ast.texts[s].copy(), s);
+            } elif tag == st(ST::Namespace._tag) {
+                ns = ast.texts[s].copy();
+                m = ast.aa[s];
+                while m >= 0 {
+                    if ast.tags[m] == st(ST::ConstDecl._tag) || ast.tags[m] == st(ST::StaticDecl._tag) {
+                        nm2 = ns + ".";
+                        nm2 = nm2 + ast.texts[m];
+                        self.add_global(ast, nm2, m);
+                    }
+                    m = ast.nexts[m];
+                }
+            }
+            s = ast.nexts[s];
+        }
+    }
+
+    /// 常量求值（可解析已注册的全局常量引用）
+    #[alloc]
+    #[state]
+    fn const_eval_g(ref mut self, ref Ast ast, int id) -> String {
+        if id < 0 { return ""; }
+        tag = ast.tags[id];
+        if tag == et(ET::Ident._tag) {
+            return self.global_val(ast.texts[id]);
+        }
+        if tag == et(ET::Binary._tag) {
+            lv2 = self.const_eval_g(ast, ast.aa[id]);
+            rv2 = self.const_eval_g(ast, ast.bb[id]);
+            if lv2.len == 0 || rv2.len == 0 { return ""; }
+            // 复用纯函数：构造不了 AST，这里直接算
+            a2 = str_to_int_ok(lv2);
+            b2 = str_to_int_ok(rv2);
+            op2 = ast.tys[id];
+            r2 = -999999;
+            if op2 == bo(BinOp::Add._tag) { r2 = a2 + b2; }
+            elif op2 == bo(BinOp::Sub._tag) { r2 = a2 - b2; }
+            elif op2 == bo(BinOp::Mul._tag) { r2 = a2 * b2; }
+            elif op2 == bo(BinOp::Div._tag) { if b2 == 0 { return ""; } r2 = a2 / b2; }
+            elif op2 == bo(BinOp::Mod._tag) { if b2 == 0 { return ""; } r2 = a2 % b2; }
+            elif op2 == bo(BinOp::BitAnd._tag) { r2 = a2 & b2; }
+            elif op2 == bo(BinOp::BitOr._tag) { r2 = a2 | b2; }
+            elif op2 == bo(BinOp::BitXor._tag) { r2 = a2 ^ b2; }
+            elif op2 == bo(BinOp::Shl._tag) { r2 = a2 << b2; }
+            elif op2 == bo(BinOp::Shr._tag) { r2 = a2 >> b2; }
+            if r2 == -999999 { return ""; }
+            return int_str2(r2);
+        }
+        return const_int(ast, id);
+    }
+
+    #[alloc]
+    #[state]
+    fn add_global(ref mut self, ref Ast ast, ref String name, int id) {
+        if self.g_count >= 512 { return; }
+        init = ast.aa[id];
+        v = self.const_eval_g(ast, init);
+        if v.len > 0 {
+            self.g_names[self.g_count] = name.copy();
+            self.g_kinds[self.g_count] = 0;
+            self.g_vals[self.g_count] = v.copy();
+            self.g_lens[self.g_count] = 0;
+            self.g_count = self.g_count + 1;
+            return;
+        }
+        if init >= 0 {
+            tg = ast.tags[init];
+            if tg == et(ET::ArrayLiteral._tag) {
+                b = StringBuf::new();
+                n = 0;
+                first = 1;
+                el = ast.aa[init];
+                while el >= 0 {
+                    ev = const_int(ast, el);
+                    if ev.len == 0 { return; }
+                    if first == 0 { b.push(','); }
+                    b.push_str(ev);
+                    first = 0;
+                    n = n + 1;
+                    el = ast.nexts[el];
+                }
+                if n == 0 { return; }
+                self.g_names[self.g_count] = name.copy();
+                self.g_kinds[self.g_count] = 2;
+                self.g_vals[self.g_count] = b.to_string();
+                self.g_lens[self.g_count] = n;
+                self.g_count = self.g_count + 1;
+                return;
+            }
+            if tg == et(ET::ArrayRepeat._tag) {
+                ev2 = const_int(ast, ast.aa[init]);
+                cnt2 = const_int(ast, ast.bb[init]);
+                if ev2.len == 0 || cnt2.len == 0 { return; }
+                cn = 0;
+                okc = 1;
+                q = 0;
+                while q < cnt2.len as int {
+                    ch = cnt2.index(q as usize);
+                    if ch < '0' || ch > '9' { okc = 0; break; }
+                    cn = cn * 10 + (char_code(ch) - 48);
+                    q = q + 1;
+                }
+                if okc == 0 || cn == 0 || cn > 4096 { return; }
+                b2 = StringBuf::new();
+                k = 0;
+                while k < cn {
+                    if k > 0 { b2.push(','); }
+                    b2.push_str(ev2);
+                    k = k + 1;
+                }
+                self.g_names[self.g_count] = name.copy();
+                self.g_kinds[self.g_count] = 2;
+                self.g_vals[self.g_count] = b2.to_string();
+                self.g_lens[self.g_count] = cn;
+                self.g_count = self.g_count + 1;
+                return;
+            }
+        }
+    }
+
+    fn global_kind(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.g_count {
+            if self.g_names[i] == name { return self.g_kinds[i]; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn global_val(ref mut self, ref String name) -> String {
+        i = 0;
+        while i < self.g_count {
+            if self.g_names[i] == name { return self.g_vals[i].copy(); }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    fn global_len(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.g_count {
+            if self.g_names[i] == name { return self.g_lens[i]; }
+            i = i + 1;
+        }
+        return 0;
+    }
+
+    fn find_struct_idx(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.st_count {
+            if self.st_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn find_field_idx(ref mut self, ref String stname, ref String fname) -> int {
+        si = self.find_struct_idx(stname);
+        if si < 0 { return -1; }
+        start = self.st_fstart[si];
+        n = self.st_fcount[si];
+        i = 0;
+        while i < n {
+            if self.st_fields[start + i] == fname { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn fkind_at(ref mut self, int si, int idx) -> int {
+        if si < 0 { return 0; }
+        return self.st_fkind[self.st_fstart[si] + idx];
+    }
+
+    fn finfo_at(ref mut self, int si, int idx) -> int {
+        if si < 0 { return -1; }
+        return self.st_finfo[self.st_fstart[si] + idx];
+    }
+
+    fn fslot_at(ref mut self, int si, int idx) -> int {
+        if si < 0 { return idx; }
+        return self.st_fslot[self.st_fstart[si] + idx];
+    }
+
+    fn find_method_id(ref mut self, ref String ty, ref String name) -> int {
+        i = 0;
+        while i < self.m_count {
+            if self.m_ty[i] == ty {
+                if self.m_name[i] == name { return self.m_id[i]; }
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    #[alloc]
+    #[state]
+    fn reg_struct(ref mut self, ref Ast ast, int id) {
+        if self.st_count >= 128 { return; }
+        si = self.st_count;
+        self.st_names[si] = ast.texts[id].copy();
+        self.st_fstart[si] = self.st_ftotal;
+        self.st_fcount[si] = 0;
+        self.st_slots[si] = 0;
+        self.st_count = si + 1;
+    }
+
+    #[alloc]
+    #[state]
+    fn fill_struct(ref mut self, ref Ast ast, int id) {
+        si = self.find_struct_idx(ast.texts[id]);
+        if si < 0 { return; }
+        self.st_fstart[si] = self.st_ftotal;
+        n = 0;
+        slot = 0;
+        f = ast.aa[id];
+        while f >= 0 {
+            if self.st_ftotal < 1024 {
+                self.st_fields[self.st_ftotal] = ast.texts[f].copy();
+                fk = 0;
+                finfo = -1;
+                fty = ast.tys[f];
+                if fty >= 0 {
+                    ftag = ast.tags[fty];
+                    if ftag == tt(TT::Float._tag) {
+                        fk = 5;
+                    } elif ftag == tt(TT::Array._tag) || ftag == tt(TT::ArraySized._tag) {
+                        fk = 3;
+                        finfo = ast.aa[fty];
+                    } elif ftag == tt(TT::Named._tag) || ftag == tt(TT::Generic._tag) {
+                        tn = ast.texts[fty];
+                        if tn == "f32" || tn == "f64" {
+                            fk = 5;
+                        } elif tn == "String" {
+                            fk = 1;
+                        } else {
+                            si2 = self.find_struct_idx(tn);
+                            if si2 >= 0 {
+                                fk = 2;
+                                finfo = si2;
+                            } else {
+                                ei2 = self.find_enum_idx(tn);
+                                if ei2 >= 0 {
+                                    fk = 4;
+                                    finfo = ei2;
+                                }
+                            }
+                        }
+                    }
+                }
+                self.st_fkind[self.st_ftotal] = fk;
+                self.st_finfo[self.st_ftotal] = finfo;
+                self.st_fslot[self.st_ftotal] = slot;
+                if fk == 1 { slot = slot + 2; } else { slot = slot + 1; }
+                self.st_ftotal = self.st_ftotal + 1;
+                n = n + 1;
+            }
+            f = ast.nexts[f];
+        }
+        self.st_fcount[si] = n;
+        self.st_slots[si] = slot;
+    }
+
+    #[alloc]
+    #[state]
+    fn add_method(ref mut self, ref Ast ast, ref String ty, int fid) {
+        if self.m_count >= 4096 { return; }
+        self.m_ty[self.m_count] = ty.copy();
+        self.m_name[self.m_count] = ast.texts[fid].copy();
+        self.m_id[self.m_count] = fid;
+        self.m_rtype[self.m_count] = ast.tys[fid];
+        self.m_count = self.m_count + 1;
+    }
+
+    #[alloc]
+    #[state]
+    fn find_enum_idx(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.en_count {
+            if self.en_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn find_variant_idx(ref mut self, int ei, ref String vname) -> int {
+        start = self.en_vstart[ei];
+        n = self.en_vcount[ei];
+        i = 0;
+        while i < n {
+            if self.en_variants[start + i] == vname { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    fn variant_arity(ref mut self, int ei, int vi) -> int {
+        return self.en_arity[self.en_vstart[ei] + vi];
+    }
+
+    fn enum_max_arity(ref mut self, int ei) -> int {
+        start = self.en_vstart[ei];
+        n = self.en_vcount[ei];
+        mx = 0;
+        i = 0;
+        while i < n {
+            if self.en_vslots[start + i] > mx { mx = self.en_vslots[start + i]; }
+            i = i + 1;
+        }
+        return mx;
+    }
+
+    /// 变体第 k 个载荷的类型节点 id（-1 未知）
+    fn variant_ptype(ref mut self, int ei, int vi, int k) -> int {
+        idx = self.en_vstart[ei] + vi;
+        if k >= self.en_arity[idx] { return -1; }
+        return self.en_ptype[self.en_pvstart[idx] + k];
+    }
+
+    /// 变体第 k 个载荷的槽位偏移（1 起，tag 占 0）
+    #[alloc]
+    #[state]
+    fn payload_slot(ref mut self, ref Ast ast, int ei, int vi, int k) -> int {
+        idx = self.en_vstart[ei] + vi;
+        off = 1;
+        i = 0;
+        while i < k {
+            pty = self.en_ptype[self.en_pvstart[idx] + i];
+            if ty_name(ast, pty) == "String" {
+                off = off + 2;
+            } else {
+                off = off + 1;
+            }
+            i = i + 1;
+        }
+        return off;
+    }
+
+    #[alloc]
+    #[state]
+    fn add_enum(ref mut self, ref Ast ast, int id) {
+        if self.en_count >= 128 { return; }
+        ei = self.en_count;
+        self.en_names[ei] = ast.texts[id].copy();
+        self.en_vstart[ei] = self.en_vtotal;
+        n = 0;
+        v = ast.aa[id];
+        while v >= 0 {
+            if self.en_vtotal < 1024 {
+                self.en_variants[self.en_vtotal] = ast.texts[v].copy();
+                self.en_arity[self.en_vtotal] = ast.tys[v];
+                self.en_pvstart[self.en_vtotal] = self.en_ptotal;
+                slots = 0;
+                pa = ast.aa[v];
+                while pa >= 0 {
+                    if self.en_ptotal < 4096 {
+                        pty = ast.tys[pa];
+                        self.en_ptype[self.en_ptotal] = pty;
+                        self.en_ptotal = self.en_ptotal + 1;
+                        if ty_name(ast, pty) == "String" {
+                            slots = slots + 2;
+                        } else {
+                            slots = slots + 1;
+                        }
+                    }
+                    pa = ast.nexts[pa];
+                }
+                self.en_vslots[self.en_vtotal] = slots;
+                self.en_vtotal = self.en_vtotal + 1;
+                n = n + 1;
+            }
+            v = ast.nexts[v];
+        }
+        self.en_vcount[ei] = n;
+        self.en_count = ei + 1;
+    }
+
+    #[alloc]
+    #[state]
+    /// 记录函数签名（参数种类）
+    #[alloc]
+    #[state]
+    fn add_fn_sig(ref mut self, ref Ast ast, int id, ref String prefix) {
+        if self.fn_count >= 4096 { return; }
+        fi = self.fn_count;
+        name = ast.texts[id].copy();
+        if prefix.len > 0 {
+            name = prefix + ".";
+            name = name + ast.texts[id];
+        }
+        self.fn_names[fi] = name;
+        self.fn_first[fi] = id;
+        self.fn_pstart[fi] = self.fn_ptotal;
+        n = 0;
+        p = ast.aa[id];
+        while p >= 0 {
+            if self.fn_ptotal < 32768 {
+                self.fn_pkinds[self.fn_ptotal] = self.param_kind(ast, p);
+                self.fn_ptotal = self.fn_ptotal + 1;
+                n = n + 1;
+            }
+            p = ast.nexts[p];
+        }
+        self.fn_pcount[fi] = n;
+        self.fn_rtype[fi] = ast.tys[id];
+        self.fn_rllvm[fi] = self.ret_llvm_code(ast, ast.tys[id]);
+        self.fn_count = fi + 1;
+    }
+
+    fn fn_param_kind(ref mut self, ref String fname, int i) -> int {
+        f = 0;
+        while f < self.fn_count {
+            if self.fn_names[f] == fname {
+                if i < self.fn_pcount[f] {
+                    return self.fn_pkinds[self.fn_pstart[f] + i];
+                }
+                return 0;
+            }
+            f = f + 1;
+        }
+        return 0;
+    }
+
+    #[alloc]
+    #[state]
+    fn collect_decls(ref mut self, ref Ast ast, int prog) {
+        // 第一遍：结构体名（字段引用需全部名字就绪）
+        s = ast.aa[prog];
+        while s >= 0 {
+            if ast.tags[s] == st(ST::StructDef._tag) {
+                self.reg_struct(ast, s);
+            } elif ast.tags[s] == st(ST::EnumDef._tag) {
+                self.add_enum(ast, s);
+            } elif ast.tags[s] == st(ST::Namespace._tag) {
+                m2 = ast.aa[s];
+                while m2 >= 0 {
+                    if ast.tags[m2] == st(ST::StructDef._tag) {
+                        self.reg_struct(ast, m2);
+                    } elif ast.tags[m2] == st(ST::EnumDef._tag) {
+                        self.add_enum(ast, m2);
+                    }
+                    m2 = ast.nexts[m2];
+                }
+            }
+            s = ast.nexts[s];
+        }
+        // 第二遍：结构体字段
+        s = ast.aa[prog];
+        while s >= 0 {
+            if ast.tags[s] == st(ST::StructDef._tag) {
+                self.fill_struct(ast, s);
+            } elif ast.tags[s] == st(ST::Namespace._tag) {
+                m2 = ast.aa[s];
+                while m2 >= 0 {
+                    if ast.tags[m2] == st(ST::StructDef._tag) {
+                        self.fill_struct(ast, m2);
+                    }
+                    m2 = ast.nexts[m2];
+                }
+            }
+            s = ast.nexts[s];
+        }
+        // 第三遍：枚举 + 函数/方法签名
+        s = ast.aa[prog];
+        while s >= 0 {
+            if ast.tags[s] == st(ST::ImplBlock._tag) {
+                m = ast.aa[s];
+                while m >= 0 {
+                    if ast.tags[m] == st(ST::FnDecl._tag) {
+                        self.add_method(ast, ast.texts[s], m);
+                        self.add_fn_sig(ast, m, ast.texts[s]);
+                    }
+                    m = ast.nexts[m];
+                }
+            } elif ast.tags[s] == st(ST::FnDecl._tag) {
+                self.add_fn_sig(ast, s, "");
+            } elif ast.tags[s] == st(ST::Namespace._tag) {
+                ns = ast.texts[s].copy();
+                m2 = ast.aa[s];
+                while m2 >= 0 {
+                    if ast.tags[m2] == st(ST::FnDecl._tag) {
+                        self.add_fn_sig(ast, m2, ns);
+                    }
+                    m2 = ast.nexts[m2];
+                }
+            }
+            s = ast.nexts[s];
+        }
+    }
+
+    /// 注册字符串字面量，返回全局名与长度（存入 strs）
+    #[alloc]
+    #[state]
+    fn add_str(ref mut self, ref String text) -> int {
+        idx = self.str_count;
+        if idx < 8192 {
+            self.strs[idx] = text.copy();
+            self.str_count = idx + 1;
+        }
+        return idx;
+    }
+}
+
+/// LLVM c"..." 转义（UTF-8 字节）
+fn escape_ir(ref String s) -> String {
+    b = StringBuf::new();
+    i = 0;
+    while i < s.len as int {
+        c = char_code(s.index(i as usize));
+        if c == 34 {
+            b.push_str("\\22");
+        } elif c == 92 {
+            b.push_str("\\5c");
+        } elif c == 10 {
+            b.push_str("\\0a");
+        } elif c == 13 {
+            b.push_str("\\0d");
+        } elif c == 9 {
+            b.push_str("\\09");
+        } elif c >= 32 && c <= 126 {
+            b.push(__ayanami_int_to_char(c));
+        } else {
+            b.push_str("\\");
+            h = c / 16;
+            l = c % 16;
+            b.push(hex_digit(h));
+            b.push(hex_digit(l));
+        }
+        i = i + 1;
+    }
+    return b.to_string();
+}
+
+fn hex_digit(int v) -> char {
+    if v < 10 { return __ayanami_int_to_char(48 + v); }
+    return __ayanami_int_to_char(87 + v);
+}
+
+extern "C" fn __ayanami_int_to_char(int c) -> char;
+
+fn bin_llvm_op(int op) -> String {
+    if op == bo(BinOp::Add._tag) { return "add"; }
+    if op == bo(BinOp::Sub._tag) { return "sub"; }
+    if op == bo(BinOp::Mul._tag) { return "mul"; }
+    if op == bo(BinOp::Div._tag) { return "sdiv"; }
+    if op == bo(BinOp::Mod._tag) { return "srem"; }
+    if op == bo(BinOp::BitAnd._tag) { return "and"; }
+    if op == bo(BinOp::BitOr._tag) { return "or"; }
+    if op == bo(BinOp::BitXor._tag) { return "xor"; }
+    if op == bo(BinOp::Shl._tag) { return "shl"; }
+    if op == bo(BinOp::Shr._tag) { return "ashr"; }
+    return "";
+}
+
+fn cmp_llvm_op(int op) -> String {
+    if op == bo(BinOp::Eq._tag) { return "eq"; }
+    if op == bo(BinOp::Neq._tag) { return "ne"; }
+    if op == bo(BinOp::Lt._tag) { return "slt"; }
+    if op == bo(BinOp::Gt._tag) { return "sgt"; }
+    if op == bo(BinOp::Le._tag) { return "sle"; }
+    if op == bo(BinOp::Ge._tag) { return "sge"; }
+    return "";
+}
+
+fn is_cmp(int op) -> bool {
+    if op == bo(BinOp::Eq._tag) { return true; }
+    if op == bo(BinOp::Neq._tag) { return true; }
+    if op == bo(BinOp::Lt._tag) { return true; }
+    if op == bo(BinOp::Gt._tag) { return true; }
+    if op == bo(BinOp::Le._tag) { return true; }
+    if op == bo(BinOp::Ge._tag) { return true; }
+    return false;
+}
+
+/// 数组元素槽布局：统一 8 字节槽（String/结构体为 {ptr, i64} → 16 字节）
+/// 内建哨兵：2000 = String（ptr 槽，16 字节）、2001 = float（double 槽）
+fn elem_slot(ref Ast ast, int ty) -> String {
+    if ty == 2000 { return "ptr"; }
+    if ty == 2001 { return "double"; }
+    if ty == 2002 { return "i8"; }
+    if ty < 0 { return "i64"; }
+    t = ast.tags[ty];
+    if t == tt(TT::Char._tag) { return "i8"; }
+    if t == tt(TT::Float._tag) { return "double"; }
+    if t == tt(TT::Named._tag) { return "ptr"; }
+    if t == tt(TT::Array._tag) { return "ptr"; }
+    if t == tt(TT::ArraySized._tag) { return "ptr"; }
+    if t == tt(TT::Unique._tag) { return "ptr"; }
+    if t == tt(TT::Ref._tag) { return "ptr"; }
+    if t == tt(TT::FnPtr._tag) { return "ptr"; }
+    if t == tt(TT::Closure._tag) { return "ptr"; }
+    return "i64";
+}
+
+/// 槽的 LLVM 类型（getelementptr / store 用）
+fn elem_llvm(ref Ast ast, int ty) -> String {
+    return elem_slot(ast, ty);
+}
+
+/// 槽字节数（malloc 分配用）
+fn elem_bytes(ref Ast ast, int ty) -> int {
+    // 必须与 elem_stride 一致（String 元素 16 字节）
+    if elem_is_string(ast, ty) { return 16; }
+    if ty == 2002 { return 1; }
+    if elem_slot(ast, ty) == "i8" { return 1; }
+    return 8;
+}
+
+/// 元素字节跨度（String 元素 16 字节：ptr + len）
+fn elem_stride(ref Ast ast, int ety) -> int {
+    if elem_is_string(ast, ety) { return 16; }
+    if ety == 2002 { return 1; }
+    if ety >= 0 {
+        if elem_slot(ast, ety) == "i8" { return 1; }
+    }
+    return 8;
+}
+
+/// 元素地址（字节偏移 GEP）：off = idx * stride
+fn elem_addr(ref mut Emitter e, int stride, ref String base, ref String idx) -> String {
+    off = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(off);
+    e.buf.push_str(" = mul i64 ");
+    e.buf.push_str(idx);
+    e.buf.push_str(", ");
+    e.buf.push_int(stride);
+    e.buf.push_str("\n");
+    g = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(g);
+    e.buf.push_str(" = getelementptr i8, ptr ");
+    e.buf.push_str(base);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(off);
+    e.buf.push_str("\n");
+    return g;
+}
+
+/// 元素是否为 String（布局 { ptr, i64 }，需要两次 store）
+fn elem_is_string(ref Ast ast, int ty) -> bool {
+    if ty == 2000 { return true; }
+    if ty == 2002 { return false; }
+    if ty < 0 { return false; }
+    if ty >= ast.len { return false; }
+    if ast.tags[ty] != tt(TT::Named._tag) { return false; }
+    return ast.texts[ty] == "String";
+}
+
+/// 元素的 AST 类型 id：字面量用内建哨兵，数组用其元素类型，其余 -1（i64 槽）
+fn elem_type_of(ref Ast ast, int id) -> int {
+    if id < 0 { return -1; }
+    if ast.tags[id] == et(ET::Literal._tag) {
+        k = ast.bb[id];
+        if k == lk(LK::Str._tag) { return 2000; }
+        if k == lk(LK::Float._tag) { return 2001; }
+        return -1;
+    }
+    if ast.tags[id] == et(ET::ArraySized._tag) { return ast.aa[id]; }
+    if ast.tags[id] == et(ET::ArrayLiteral._tag) { return elem_type_of(ast, ast.aa[id]); }
+    if ast.tags[id] == et(ET::ArrayRepeat._tag) { return elem_type_of(ast, ast.aa[id]); }
+    return -1;
+}
+
+/// 模式名部分（"A|x,y" -> "A"；"E.A|x" -> "E.A"）
+fn pat_name(ref String p) -> String {
+    i = 0;
+    while i < p.len as int {
+        if p.index(i as usize) == '|' {
+            return p.substring(0 as usize, i as usize);
+        }
+        i = i + 1;
+    }
+    return p.copy();
+}
+
+/// 模式绑定部分（"A|x,y" -> "x,y"；无 -> ""）
+fn pat_binds(ref String p) -> String {
+    i = 0;
+    while i < p.len as int {
+        if p.index(i as usize) == '|' {
+            return p.substring((i + 1) as usize, p.len);
+        }
+        i = i + 1;
+    }
+    return "";
+}
+
+/// 变体短名（"E.A" -> "A"）
+fn pat_short(ref String p) -> String {
+    i = 0;
+    last = -1;
+    while i < p.len as int {
+        if p.index(i as usize) == '.' { last = i; }
+        i = i + 1;
+    }
+    if last >= 0 {
+        return p.substring((last + 1) as usize, p.len);
+    }
+    return p.copy();
+}
+
+/// 枚举名（"E.A" -> "E"；无点 -> ""）
+fn pat_enum(ref String p) -> String {
+    i = 0;
+    last = -1;
+    while i < p.len as int {
+        if p.index(i as usize) == '.' { last = i; }
+        i = i + 1;
+    }
+    if last >= 0 {
+        return p.substring(0 as usize, last as usize);
+    }
+    return "";
+}
+
+fn contains_dot2(ref String s) -> bool {
+    i = 0;
+    while i < s.len as int {
+        if s.index(i as usize) == '.' { return true; }
+        i = i + 1;
+    }
+    return false;
+}
+
+fn label(ref mut Emitter e, ref String prefix) -> String {
+    b = StringBuf::new();
+    b.push_str(prefix);
+    b.push_int(e.tmp);
+    e.tmp = e.tmp + 1;
+    return b.to_string();
+}
+
+/// 枚举构造：full = "E.A"（裸变体或带实参）
+fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> Val {
+    ename = pat_enum(full);
+    vname = pat_short(full);
+    ei = e.find_enum_idx(ename);
+    if ei < 0 { return mk_int("0"); }
+    vi = e.find_variant_idx(ei, vname);
+    if vi < 0 { return mk_int("0"); }
+    nbytes = 8;
+    if ei >= 0 { nbytes = (e.enum_max_arity(ei) + 1) * 8; }
+    nb2 = StringBuf::new();
+    nb2.push_int(nbytes);
+    t = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(t);
+    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_str(nb2.to_string());
+    e.buf.push_str(")\n  call void @llvm.memset.p0.i64(ptr ");
+    e.buf.push_str(t);
+    e.buf.push_str(", i8 0, i64 ");
+    e.buf.push_str(nb2.to_string());
+    e.buf.push_str(", i1 false)\n");
+    g0 = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(g0);
+    e.buf.push_str(" = getelementptr %enum.");
+    e.buf.push_str(ename);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(t);
+    e.buf.push_str(", i32 0, i32 0\n  store i64 ");
+    e.buf.push_int(vi);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(g0);
+    e.buf.push_str("\n");
+    k = 0;
+    a = args;
+    while a >= 0 {
+        v = mk_int("0");
+        if ast.tags[a] == xt(XT::Arg._tag) {
+            v = emit_expr(ast, ast.aa[a], e);
+        } else {
+            v = emit_expr(ast, a, e);
+        }
+        sl2 = e.payload_slot(ast, ei, vi, k);
+        g = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(g);
+        e.buf.push_str(" = getelementptr %enum.");
+        e.buf.push_str(ename);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(t);
+        e.buf.push_str(", i32 0, i32 ");
+        e.buf.push_int(sl2);
+        e.buf.push_str("\n");
+        if v.kind == 1 {
+            // String 载荷：ptr + len 两槽
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(ptr_operand(v.a));
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(g);
+            e.buf.push_str("\n");
+            g2b = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(g2b);
+            e.buf.push_str(" = getelementptr %enum.");
+            e.buf.push_str(ename);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(t);
+            e.buf.push_str(", i32 0, i32 ");
+            e.buf.push_int(sl2 + 1);
+            e.buf.push_str("\n  store i64 ");
+            e.buf.push_str(v.b);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(g2b);
+            e.buf.push_str("\n");
+        } elif v.kind == 2 || v.kind == 3 || v.kind == 4 {
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(ptr_operand(v.a));
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(g);
+            e.buf.push_str("\n");
+        } else {
+            e.buf.push_str("  store i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(g);
+            e.buf.push_str("\n");
+        }
+        k = k + 1;
+        a = ast.nexts[a];
+    }
+    return Val { kind = 4, a = t, b = ename.copy(), ty = -1 };
+}
+
+/// 模式匹配条件（返回 i64 0/1 或 temp）
+fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val {
+    ptext = ast.texts[arm];
+    pk = ast.tys[arm];
+    if pk == 0 { return mk_int("1"); }
+    if pk == 4 { return mk_int("1"); }
+    if pk == 1 {
+        if sc.kind != 4 { return mk_int("0"); }
+        vname = pat_short(pat_name(ptext));
+        ename = pat_enum(pat_name(ptext));
+        if ename.len == 0 { ename = sc.b.copy(); }
+        ei = e.find_enum_idx(ename);
+        if ei < 0 { return mk_int("0"); }
+        vi = e.find_variant_idx(ei, vname);
+        if vi < 0 { return mk_int("0"); }
+        g = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(g);
+        e.buf.push_str(" = getelementptr %enum.");
+        e.buf.push_str(sc.b);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(sc.a);
+        e.buf.push_str(", i32 0, i32 0\n");
+        t = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t);
+        e.buf.push_str(" = load i64, ptr ");
+        e.buf.push_str(g);
+        e.buf.push_str("\n");
+        c = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c);
+        e.buf.push_str(" = icmp eq i64 ");
+        e.buf.push_str(t);
+        e.buf.push_str(", ");
+        e.buf.push_int(vi);
+        e.buf.push_str("\n");
+        return Val { kind = 5, a = c, b = "", ty = -1 };
+    }
+    if pk == 2 {
+        lit = "0";
+        if ptext == "true" { lit = "1"; }
+        c2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c2);
+        e.buf.push_str(" = icmp eq i64 ");
+        e.buf.push_str(sc.a);
+        e.buf.push_str(", ");
+        e.buf.push_str(lit);
+        e.buf.push_str("\n");
+        return Val { kind = 5, a = c2, b = "", ty = -1 };
+    }
+    if pk == 3 {
+        // 只支持整数字面量
+        ok = 1;
+        i = 0;
+        while i < ptext.len as int {
+            ch = ptext.index(i as usize);
+            if !(ch >= '0' && ch <= '9') { ok = 0; }
+            i = i + 1;
+        }
+        if ok == 0 { return mk_int("0"); }
+        c3 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c3);
+        e.buf.push_str(" = icmp eq i64 ");
+        e.buf.push_str(sc.a);
+        e.buf.push_str(", ");
+        e.buf.push_str(ptext);
+        e.buf.push_str("\n");
+        return Val { kind = 5, a = c3, b = "", ty = -1 };
+    }
+    return mk_int("0");
+}
+
+/// 模式绑定（载荷 -> 局部变量）
+fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
+    ptext = ast.texts[arm];
+    pk = ast.tys[arm];
+    binds = pat_binds(ptext);
+    if binds.len == 0 { return; }
+    // 枚举 + 嵌套结构体模式（Some|Point|x,y）：先取载荷槽 1 的指针，再按字段解构
+    if pk == 1 {
+        bar1 = -1;
+        bar2 = -1;
+        q0 = 0;
+        while q0 < ptext.len as int {
+            if ptext.index(q0 as usize) == '|' {
+                if bar1 < 0 { bar1 = q0; } elif bar2 < 0 { bar2 = q0; }
+            }
+            q0 = q0 + 1;
+        }
+        if bar2 > 0 {
+            sname = ptext.substring((bar1 + 1) as usize, bar2 as usize);
+            binds = ptext.substring((bar2 + 1) as usize, ptext.len);
+            gp = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(gp);
+            e.buf.push_str(" = getelementptr %enum.");
+            e.buf.push_str(sc.b);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(sc.a);
+            e.buf.push_str(", i32 0, i32 1\n");
+            sp = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(sp);
+            e.buf.push_str(" = load ptr, ptr ");
+            e.buf.push_str(gp);
+            e.buf.push_str("\n");
+            start2 = 0;
+            i2 = 0;
+            while i2 <= binds.len as int {
+                at_end2 = 0;
+                if i2 == binds.len as int { at_end2 = 1; }
+                is_comma2 = 0;
+                if at_end2 == 0 {
+                    if binds.index(i2 as usize) == ',' { is_comma2 = 1; }
+                }
+                if at_end2 == 1 || is_comma2 == 1 {
+                    if i2 > start2 {
+                        item = binds.substring(start2 as usize, i2 as usize);
+                        fld = item.copy();
+                        bnd = item.copy();
+                        eqp2 = -1;
+                        q3 = 0;
+                        while q3 < item.len as int {
+                            if item.index(q3 as usize) == '=' { eqp2 = q3; break; }
+                            q3 = q3 + 1;
+                        }
+                        if eqp2 >= 0 {
+                            fld = item.substring(0 as usize, eqp2 as usize);
+                            bnd = item.substring((eqp2 + 1) as usize, item.len);
+                        }
+                        fi2 = e.find_field_idx(sname, fld);
+                        if fi2 < 0 { return; }
+                        gf = e.fresh();
+                        e.buf.push_str("  ");
+                        e.buf.push_str(gf);
+                        e.buf.push_str(" = getelementptr %struct.");
+                        e.buf.push_str(sname);
+                        e.buf.push_str(", ptr ");
+                        e.buf.push_str(sp);
+                        e.buf.push_str(", i32 0, i32 ");
+                        e.buf.push_int(fi2);
+                        e.buf.push_str("\n");
+                        vf = e.fresh();
+                        e.buf.push_str("  ");
+                        e.buf.push_str(vf);
+                        e.buf.push_str(" = load i64, ptr ");
+                        e.buf.push_str(gf);
+                        e.buf.push_str("\n");
+                        e.declare_local(bnd, 0);
+                        e.buf.push_str("  store i64 ");
+                        e.buf.push_str(vf);
+                        e.buf.push_str(", ptr %v_");
+                        e.buf.push_str(bnd);
+                        e.buf.push_str("\n");
+                    }
+                    start2 = i2 + 1;
+                }
+                i2 = i2 + 1;
+            }
+            return;
+        }
+    }
+    // 按 ',' 切分
+    start = 0;
+    k = 0;
+    i = 0;
+    while i <= binds.len as int {
+        at_end = 0;
+        if i == binds.len as int { at_end = 1; }
+        is_comma = 0;
+        if at_end == 0 {
+            if binds.index(i as usize) == ',' { is_comma = 1; }
+        }
+        if at_end == 1 || is_comma == 1 {
+            if i > start {
+                bname = binds.substring(start as usize, i as usize);
+                g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g);
+                bname2 = bname.copy();
+                pty_k = -1;
+                psl_k = k + 1;
+                pkind_k = 0;
+                psi_k = -1;
+                if pk == 1 {
+                    ei_b = e.find_enum_idx(sc.b);
+                    vn_b = pat_short(pat_name(ptext));
+                    vi_b = -1;
+                    if ei_b >= 0 { vi_b = e.find_variant_idx(ei_b, vn_b); }
+                    if ei_b >= 0 && vi_b >= 0 {
+                        pty_k = e.variant_ptype(ei_b, vi_b, k);
+                        psl_k = e.payload_slot(ast, ei_b, vi_b, k);
+                        tn_k = ty_name(ast, pty_k);
+                        if tn_k == "String" {
+                            pkind_k = 1;
+                        } else {
+                            si_k = e.find_struct_idx(tn_k);
+                            if si_k >= 0 {
+                                pkind_k = 100 + si_k;
+                                psi_k = si_k;
+                            } else {
+                                ei_k = e.find_enum_idx(tn_k);
+                                if ei_k >= 0 {
+                                    pkind_k = 20;
+                                    psi_k = ei_k;
+                                }
+                            }
+                        }
+                    }
+                    e.buf.push_str(" = getelementptr %enum.");
+                    e.buf.push_str(sc.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(sc.a);
+                    e.buf.push_str(", i32 0, i32 ");
+                    e.buf.push_int(psl_k);
+                } else {
+                    // 结构体解构：bname 可能是 field 或 field=binding
+                    fname2 = bname.copy();
+                    eqp = -1;
+                    q = 0;
+                    while q < bname.len as int {
+                        if bname.index(q as usize) == '=' { eqp = q; break; }
+                        q = q + 1;
+                    }
+                    if eqp >= 0 {
+                        fname2 = bname.substring(0 as usize, eqp as usize);
+                        bname2 = bname.substring((eqp + 1) as usize, bname.len);
+                    }
+                    idx = e.find_field_idx(sc.b, fname2);
+                    if idx < 0 { return; }
+                    e.buf.push_str(" = getelementptr %struct.");
+                    e.buf.push_str(sc.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(sc.a);
+                    e.buf.push_str(", i32 0, i32 ");
+                    e.buf.push_int(idx);
+                    e.buf.push_str("\n");
+                }
+                if pk == 1 && pkind_k == 1 {
+                    // String 载荷：ptr + len
+                    e.buf.push_str("\n");
+                    vp_s = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(vp_s);
+                    e.buf.push_str(" = load ptr, ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                    gl_s = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(gl_s);
+                    e.buf.push_str(" = getelementptr %enum.");
+                    e.buf.push_str(sc.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(sc.a);
+                    e.buf.push_str(", i32 0, i32 ");
+                    e.buf.push_int(psl_k + 1);
+                    e.buf.push_str("\n");
+                    vl_s = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(vl_s);
+                    e.buf.push_str(" = load i64, ptr ");
+                    e.buf.push_str(gl_s);
+                    e.buf.push_str("\n");
+                    e.declare_local(bname2, 1);
+                    e.buf.push_str("  store ptr ");
+                    e.buf.push_str(vp_s);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(bname2);
+                    e.buf.push_str(".ptr\n  store i64 ");
+                    e.buf.push_str(vl_s);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(bname2);
+                    e.buf.push_str(".len\n");
+                } elif pk == 1 && pkind_k >= 2 {
+                    // 结构体/枚举载荷：指针
+                    e.buf.push_str("\n");
+                    vp_p = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(vp_p);
+                    e.buf.push_str(" = load ptr, ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                    e.declare_local(bname2, pkind_k);
+                    e.record_etype(bname2, psi_k);
+                    e.buf.push_str("  store ptr ");
+                    e.buf.push_str(vp_p);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(bname2);
+                    e.buf.push_str("\n");
+                } else {
+                    e.buf.push_str("\n");
+                    v = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(v);
+                    e.buf.push_str(" = load i64, ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                    e.declare_local(bname2, 0);
+                    e.buf.push_str("  store i64 ");
+                    e.buf.push_str(v);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(bname2);
+                    e.buf.push_str("\n");
+                }
+                k = k + 1;
+            }
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+}
+
+/// match（语句 want_value=0 / 表达式 want_value=1）
+/// 分支块尾是否为浮点值（用于 if/match 表达式结果槽的装载方式）
+fn tail_is_float(ref Ast ast, int blk) -> int {
+    if blk < 0 { return 0; }
+    t = ast.bb[blk];
+    if t < 0 { return 0; }
+    if ast.tags[t] == et(ET::Literal._tag) {
+        if ast.bb[t] == lk(LK::Float._tag) { return 1; }
+        return 0;
+    }
+    if ast.tags[t] == et(ET::Suffixed._tag) {
+        sfx = ast.texts[t];
+        if sfx == "f32" || sfx == "f64" { return 1; }
+        return 0;
+    }
+    return 0;
+}
+
+/// if 表达式分支：发射块语句 + 块尾值（存入 res）
+fn emit_if_branch(ref Ast ast, int blk, ref String res, int want_float, ref mut Emitter e) {
+    if blk < 0 { return; }
+    emit_stmts(ast, ast.aa[blk], e);
+    if e.terminated == 1 { return; }
+    tail = ast.bb[blk];
+    if tail >= 0 {
+        tv = emit_expr(ast, tail, e);
+        if tv.kind == 6 {
+            // 浮点：按位存入 i64 结果槽
+            // 浮点：按位存入 i64 结果槽
+            fb = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(fb);
+            e.buf.push_str(" = bitcast double ");
+            e.buf.push_str(tv.a);
+            e.buf.push_str(" to i64\n  store i64 ");
+            e.buf.push_str(fb);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(res);
+            e.buf.push_str("\n");
+        } elif want_float == 1 {
+            // 结果槽按浮点解释：整数分支 sitofp 后按位存
+            cf = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(cf);
+            e.buf.push_str(" = sitofp i64 ");
+            e.buf.push_str(tv.a);
+            e.buf.push_str(" to double\n  ");
+            cb = e.fresh();
+            e.buf.push_str(cb);
+            e.buf.push_str(" = bitcast double ");
+            e.buf.push_str(cf);
+            e.buf.push_str(" to i64\n  store i64 ");
+            e.buf.push_str(cb);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(res);
+            e.buf.push_str("\n");
+        } else {
+            e.buf.push_str("  store i64 ");
+            e.buf.push_str(tv.a);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(res);
+            e.buf.push_str("\n");
+        }
+    }
+}
+
+/// if 表达式：条件链 + 分支块尾值合流
+fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
+    is_float_res = tail_is_float(ast, ast.bb[id]);
+    if is_float_res == 0 { is_float_res = tail_is_float(ast, ast.dd[id]); }
+    end_l = label(e, "ifx.end.");
+    res = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(res);
+    e.buf.push_str(" = alloca i64\n");
+    c = emit_expr(ast, ast.aa[id], e);
+    then_l = label(e, "ifx.then.");
+    next_l = label(e, "ifx.next.");
+    cc = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(cc);
+    e.buf.push_str(" = icmp ne i64 ");
+    e.buf.push_str(c.a);
+    e.buf.push_str(", 0\n  br i1 ");
+    e.buf.push_str(cc);
+    e.buf.push_str(", label %");
+    e.buf.push_str(then_l);
+    e.buf.push_str(", label %");
+    e.buf.push_str(next_l);
+    e.buf.push_str("\n");
+    e.buf.push_str(then_l);
+    e.buf.push_str(":\n");
+    e.terminated = 0;
+    emit_if_branch(ast, ast.bb[id], res, is_float_res, e);
+    if e.terminated == 0 {
+        e.buf.push_str("  br label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+    }
+    en = ast.cc[id];
+    cur_next = next_l;
+    while en >= 0 {
+        e.buf.push_str(cur_next);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        ec2 = emit_expr(ast, ast.aa[en], e);
+        then_l2 = label(e, "ifx.then.");
+        next_l2 = label(e, "ifx.next.");
+        cc2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(cc2);
+        e.buf.push_str(" = icmp ne i64 ");
+        e.buf.push_str(ec2.a);
+        e.buf.push_str(", 0\n  br i1 ");
+        e.buf.push_str(cc2);
+        e.buf.push_str(", label %");
+        e.buf.push_str(then_l2);
+        e.buf.push_str(", label %");
+        e.buf.push_str(next_l2);
+        e.buf.push_str("\n");
+        e.buf.push_str(then_l2);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        emit_if_branch(ast, ast.bb[en], res, is_float_res, e);
+        if e.terminated == 0 {
+            e.buf.push_str("  br label %");
+            e.buf.push_str(end_l);
+            e.buf.push_str("\n");
+        }
+        cur_next = next_l2;
+        en = ast.nexts[en];
+    }
+    e.buf.push_str(cur_next);
+    e.buf.push_str(":\n");
+    e.terminated = 0;
+    e2 = ast.dd[id];
+    if e2 >= 0 {
+        emit_if_branch(ast, e2, res, is_float_res, e);
+    }
+    if e.terminated == 0 {
+        e.buf.push_str("  br label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+    }
+    e.buf.push_str(end_l);
+    e.buf.push_str(":\n");
+    e.terminated = 0;
+    rv = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(rv);
+    e.buf.push_str(" = load i64, ptr ");
+    e.buf.push_str(res);
+    e.buf.push_str("\n");
+    if is_float_res == 1 {
+        fd = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(fd);
+        e.buf.push_str(" = bitcast i64 ");
+        e.buf.push_str(rv);
+        e.buf.push_str(" to double\n");
+        return mk_float(fd);
+    }
+    return mk_int(rv);
+}
+
+fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
+    sc = emit_expr(ast, ast.aa[id], e);
+    arms = ast.bb[id];
+    cnt = 0;
+    a = arms;
+    while a >= 0 { cnt = cnt + 1; a = ast.nexts[a]; }
+    if cnt == 0 { return mk_int("0"); }
+    end_l = label(e, "match.end.");
+    res = "";
+    if want_value == 1 {
+        res = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(res);
+        e.buf.push_str(" = alloca i64\n");
+    }
+    e.buf.push_str("  br label %match.arm.0\n");
+    i = 0;
+    a = arms;
+    prev_body = -1;
+    while a >= 0 {
+        lbl = "match.arm.";
+        b1 = StringBuf::new();
+        b1.push_str(lbl);
+        b1.push_int(i);
+        nxt = end_l.copy();
+        if i + 1 < cnt {
+            n2 = StringBuf::new();
+            n2.push_str("match.arm.");
+            n2.push_int(i + 1);
+            nxt = n2.to_string();
+        }
+        bl = StringBuf::new();
+        bl.push_str("match.body.");
+        bl.push_int(i);
+        body_l = bl.to_string();
+        e.buf.push_str(b1.to_string());
+        e.buf.push_str(":\n");
+        cond = emit_pat_cond(ast, a, sc, e);
+        if cond.kind == 5 {
+            e.buf.push_str("  br i1 ");
+            e.buf.push_str(cond.a);
+            e.buf.push_str(", label %");
+            e.buf.push_str(body_l);
+            e.buf.push_str(", label %");
+            e.buf.push_str(nxt);
+            e.buf.push_str("\n");
+        } elif cond.kind == 0 {
+            if cond.a == "1" {
+                e.buf.push_str("  br label %");
+                e.buf.push_str(body_l);
+                e.buf.push_str("\n");
+            } elif cond.a == "0" {
+                e.buf.push_str("  br label %");
+                e.buf.push_str(nxt);
+                e.buf.push_str("\n");
+            } else {
+                cc = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(cc);
+                e.buf.push_str(" = icmp ne i64 ");
+                e.buf.push_str(cond.a);
+                e.buf.push_str(", 0\n  br i1 ");
+                e.buf.push_str(cc);
+                e.buf.push_str(", label %");
+                e.buf.push_str(body_l);
+                e.buf.push_str(", label %");
+                e.buf.push_str(nxt);
+                e.buf.push_str("\n");
+            }
+        } else {
+            cc2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(cc2);
+            e.buf.push_str(" = icmp ne i64 ");
+            e.buf.push_str(cond.a);
+            e.buf.push_str(", 0\n  br i1 ");
+            e.buf.push_str(cc2);
+            e.buf.push_str(", label %");
+            e.buf.push_str(body_l);
+            e.buf.push_str(", label %");
+            e.buf.push_str(nxt);
+            e.buf.push_str("\n");
+        }
+        e.buf.push_str(body_l);
+        e.buf.push_str(":\n");
+        emit_pat_binds(ast, a, sc, e);
+        body = ast.aa[a];
+        if body < 0 { body = prev_body; }
+        if body >= 0 {
+            prev_body = body;
+            btag = ast.tags[body];
+            if want_value == 1 {
+                if btag == st(ST::Return._tag) {
+                    emit_stmt(ast, body, e);
+                } elif btag == st(ST::ExprStmt._tag) {
+                    v = emit_expr(ast, ast.aa[body], e);
+                    e.buf.push_str("  store i64 ");
+                    e.buf.push_str(v.a);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(res);
+                    e.buf.push_str("\n");
+                } elif btag == st(ST::Block._tag) {
+                    emit_stmts(ast, ast.aa[body], e);
+                } else {
+                    emit_stmt(ast, body, e);
+                }
+            } else {
+                emit_stmt(ast, body, e);
+            }
+        }
+        e.buf.push_str("  br label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+        i = i + 1;
+        a = ast.nexts[a];
+    }
+    e.buf.push_str(end_l);
+    e.buf.push_str(":\n");
+    if want_value == 1 {
+        rv = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(rv);
+        e.buf.push_str(" = load i64, ptr ");
+        e.buf.push_str(res);
+        e.buf.push_str("\n");
+        return mk_int(rv);
+    }
+    return mk_int("0");
+}
+
+fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
+    if id < 0 { return mk_int("0"); }
+    tag = ast.tags[id];
+    if tag == et(ET::Literal._tag) {
+        k = ast.bb[id];
+        if k == lk(LK::Int._tag) {
+            dec = int_text_ok(ast.texts[id]);
+            if dec.len > 0 { return mk_int(dec); }
+            return mk_int(ast.texts[id]);
+        }
+        if k == lk(LK::Bool._tag) {
+            if ast.texts[id] == "true" { return mk_int("1"); }
+            return mk_int("0");
+        }
+        if k == lk(LK::Float._tag) {
+            return mk_float(float_text(ast.texts[id]));
+        }
+        if k == lk(LK::Str._tag) {
+            si = e.add_str(ast.texts[id]);
+            b = StringBuf::new();
+            b.push_str("@.str.");
+            b.push_int(si);
+            return mk_str(b.to_string(), ast.texts[id].len as int);
+        }
+        if k == lk(LK::Char._tag) {
+            t = ast.texts[id];
+            if t.len == 0 { return mk_int("0"); }
+            cb = StringBuf::new();
+            cb.push_int(char_code(t.index(0)));
+            return mk_int(cb.to_string());
+        }
+        return mk_int("0");
+    }
+    if tag == et(ET::Suffixed._tag) {
+        // 后缀字面量（1usize / 3f64）：f32/f64 按浮点
+        sufx = ast.texts[id];
+        if sufx == "f32" || sufx == "f64" {
+            return mk_float(float_text(ast.texts[ast.aa[id]]));
+        }
+        return emit_expr(ast, ast.aa[id], e);
+    }
+    if tag == et(ET::Ident._tag) {
+        nm = ast.texts[id];
+        gk = e.global_kind(nm);
+        if gk == 0 {
+            t = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t);
+            e.buf.push_str(" = load i64, ptr @");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return mk_int(t);
+        }
+        if gk == 2 {
+            return mk_arr("@" + nm, -1);
+        }
+        if contains_dot2(nm) {
+            if nm == "String.empty" || nm == "String.new" {
+                return mk_str("null", 0);
+            }
+            return emit_enum_ctor(ast, nm, -1, e);
+        }
+        kd = e.local_kind(nm);
+        if kd == 10 {
+            // 数组变量：装载 malloc 指针
+            t9 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t9);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return mk_arr(t9, e.find_elem(nm));
+        }
+        if kd == 40 {
+            df = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(df);
+            e.buf.push_str(" = load double, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return mk_float(df);
+        }
+        if kd == 30 {
+            rp = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(rp);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n  ");
+            rv2 = e.fresh();
+            e.buf.push_str(rv2);
+            e.buf.push_str(" = load i64, ptr ");
+            e.buf.push_str(rp);
+            e.buf.push_str("\n");
+            return mk_int(rv2);
+        }
+        if kd == 20 {
+            t = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            ei5 = e.etype_of_local(nm);
+            en5 = "";
+            if ei5 >= 0 { en5 = e.en_names[ei5].copy(); }
+            return Val { kind = 4, a = t, b = en5, ty = -1 };
+        }
+        if kd >= 2 {
+            e.declare_local(nm, 2);
+            t = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return Val { kind = 2, a = t, b = e.struct_of_local(nm), ty = -1 };
+        }
+        if kd == 1 {
+            p = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(p);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str(".ptr\n");
+            l = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(l);
+            e.buf.push_str(" = load i64, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str(".len\n");
+            return Val { kind = 1, a = p, b = l, ty = -1 };
+        }
+        if kd == 10 {
+            t = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return mk_arr(t, e.elem_of_local(nm));
+        }
+        e.declare_local(nm, 0);
+        t = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t);
+        e.buf.push_str(" = load i64, ptr %v_");
+        e.buf.push_str(nm);
+        e.buf.push_str("\n");
+        return mk_int(t);
+    }
+    if tag == et(ET::Binary._tag) {
+        op = ast.tys[id];
+        lt = emit_expr(ast, ast.aa[id], e);
+        rt = emit_expr(ast, ast.bb[id], e);
+        if lt.kind == 6 || rt.kind == 6 {
+            // 浮点运算/比较（混合时把整数侧 sitofp 到 double）
+            la = float_operand(lt, e);
+            ra = float_operand(rt, e);
+            if is_cmp(op) {
+                fc = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(fc);
+                e.buf.push_str(" = fcmp ");
+                e.buf.push_str(fcmp_op(op));
+                e.buf.push_str(" double ");
+                e.buf.push_str(la);
+                e.buf.push_str(", ");
+                e.buf.push_str(ra);
+                e.buf.push_str("\n  ");
+                fz = e.fresh();
+                e.buf.push_str(fz);
+                e.buf.push_str(" = zext i1 ");
+                e.buf.push_str(fc);
+                e.buf.push_str(" to i64\n");
+                return mk_int(fz);
+            }
+            fop = "";
+            if op == bo(BinOp::Add._tag) { fop = "fadd"; }
+            elif op == bo(BinOp::Sub._tag) { fop = "fsub"; }
+            elif op == bo(BinOp::Mul._tag) { fop = "fmul"; }
+            elif op == bo(BinOp::Div._tag) { fop = "fdiv"; }
+            if fop.len > 0 {
+                fr = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(fr);
+                e.buf.push_str(" = ");
+                e.buf.push_str(fop);
+                e.buf.push_str(" double ");
+                e.buf.push_str(la);
+                e.buf.push_str(", ");
+                e.buf.push_str(ra);
+                e.buf.push_str("\n");
+                return mk_float(fr);
+            }
+            return mk_float("0.0");
+        }
+        if lt.kind == 1 || rt.kind == 1 {
+            if op == bo(BinOp::Add._tag) {
+                return emit_str_concat(lt, rt, e);
+            }
+            if op == bo(BinOp::Eq._tag) {
+                return emit_str_eq(lt, rt, e);
+            }
+            if op == bo(BinOp::Neq._tag) {
+                q = emit_str_eq(lt, rt, e);
+                return emit_not(q, e);
+            }
+        }
+        if is_cmp(op) {
+            c = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(c);
+            e.buf.push_str(" = icmp ");
+            e.buf.push_str(cmp_llvm_op(op));
+            e.buf.push_str(" i64 ");
+            e.buf.push_str(lt.a);
+            e.buf.push_str(", ");
+            e.buf.push_str(rt.a);
+            e.buf.push_str("\n");
+            z = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(z);
+            e.buf.push_str(" = zext i1 ");
+            e.buf.push_str(c);
+            e.buf.push_str(" to i64\n");
+            return mk_int(z);
+        }
+        if op == bo(BinOp::And._tag) || op == bo(BinOp::Or._tag) {
+            a = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(a);
+            e.buf.push_str(" = icmp ne i64 ");
+            e.buf.push_str(lt.a);
+            e.buf.push_str(", 0\n");
+            b2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(b2);
+            e.buf.push_str(" = icmp ne i64 ");
+            e.buf.push_str(rt.a);
+            e.buf.push_str(", 0\n");
+            c2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(c2);
+            if op == bo(BinOp::And._tag) {
+                e.buf.push_str(" = and i1 ");
+            } else {
+                e.buf.push_str(" = or i1 ");
+            }
+            e.buf.push_str(a);
+            e.buf.push_str(", ");
+            e.buf.push_str(b2);
+            e.buf.push_str("\n");
+            z2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(z2);
+            e.buf.push_str(" = zext i1 ");
+            e.buf.push_str(c2);
+            e.buf.push_str(" to i64\n");
+            return mk_int(z2);
+        }
+        t2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t2);
+        e.buf.push_str(" = ");
+        e.buf.push_str(bin_llvm_op(op));
+        e.buf.push_str(" i64 ");
+        e.buf.push_str(lt.a);
+        e.buf.push_str(", ");
+        e.buf.push_str(rt.a);
+        e.buf.push_str("\n");
+        return mk_int(t2);
+    }
+    if tag == et(ET::Unary._tag) {
+        at = emit_expr(ast, ast.aa[id], e);
+        op = ast.tys[id];
+        if op == uo(UnOp::Neg._tag) {
+            if at.kind == 6 {
+                fn3 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(fn3);
+                e.buf.push_str(" = fneg double ");
+                e.buf.push_str(at.a);
+                e.buf.push_str("\n");
+                return mk_float(fn3);
+            }
+            t3 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t3);
+            e.buf.push_str(" = sub i64 0, ");
+            e.buf.push_str(at.a);
+            e.buf.push_str("\n");
+            return mk_int(t3);
+        }
+        if op == uo(UnOp::Not._tag) {
+            a3 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(a3);
+            e.buf.push_str(" = icmp eq i64 ");
+            e.buf.push_str(at.a);
+            e.buf.push_str(", 0\n");
+            z3 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(z3);
+            e.buf.push_str(" = zext i1 ");
+            e.buf.push_str(a3);
+            e.buf.push_str(" to i64\n");
+            return mk_int(z3);
+        }
+        return at;
+    }
+    if tag == et(ET::FnCall._tag) {
+        nm = ast.texts[id];
+        if nm == "String.new" {
+            // String::new([char], usize) -> (ptr, len)
+            a0 = emit_expr(ast, ast.aa[ast.aa[id]], e);
+            a1 = emit_expr(ast, ast.aa[ast.nexts[ast.aa[id]]], e);
+            return mk_str_tmp(a0.a, a1.a);
+        }
+        if nm == "String.empty" {
+            return mk_str("null", 0);
+        }
+        if contains_dot2(nm) {
+            if e.fn_ret_type(nm) < 0 {
+                return emit_enum_ctor(ast, nm, ast.aa[id], e);
+            }
+        }
+        if nm == "char_code" {
+            ac = emit_expr(ast, ast.aa[ast.aa[id]], e);
+            return mk_int(ac.a);
+        }
+        if nm == "to_cstr" {
+            av2 = emit_expr(ast, ast.aa[ast.aa[id]], e);
+            n4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(n4);
+            e.buf.push_str(" = add i64 ");
+            e.buf.push_str(av2.b);
+            e.buf.push_str(", 1\n  ");
+            buf4 = e.fresh();
+            e.buf.push_str(buf4);
+            e.buf.push_str(" = call ptr @malloc(i64 ");
+            e.buf.push_str(n4);
+            e.buf.push_str(")\n  call ptr @memcpy(ptr ");
+            e.buf.push_str(buf4);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(av2.a);
+            e.buf.push_str(", i64 ");
+            e.buf.push_str(av2.b);
+            e.buf.push_str(")\n  ");
+            nul4 = e.fresh();
+            e.buf.push_str(nul4);
+            e.buf.push_str(" = getelementptr i8, ptr ");
+            e.buf.push_str(buf4);
+            e.buf.push_str(", i64 ");
+            e.buf.push_str(av2.b);
+            e.buf.push_str("\n  store i8 0, ptr ");
+            e.buf.push_str(nul4);
+            e.buf.push_str("\n");
+            return mk_arr(buf4, 2002);
+        }
+        if nm == "println" || nm == "print" {
+            a = ast.aa[id];
+            if a >= 0 {
+                v = emit_expr(ast, ast.aa[a], e);
+                if v.kind == 1 {
+                    e.buf.push_str("  call void @__ayanami_print_str(ptr ");
+                    e.buf.push_str(v.a);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_str(v.b);
+                    e.buf.push_str(")\n");
+                } else {
+                    e.buf.push_str("  call void @__ayanami_print_int(i64 ");
+                    e.buf.push_str(v.a);
+                    e.buf.push_str(")\n");
+                }
+            }
+            if nm == "println" {
+                e.buf.push_str("  call void @__ayanami_print_ln()\n");
+            }
+            return mk_int("0");
+        }
+        b = StringBuf::new();
+        b.push_str("  ");
+        t4 = e.fresh();
+        rk_c = e.ret_kind(ast, e.fn_ret_type(nm));
+        rll_c = e.fn_ret_llvm(nm);
+        b.push_str(t4);
+        if rk_c == 5 {
+            b.push_str(" = call double @");
+        } elif rk_c == 1 {
+            b.push_str(" = call { ptr, i64 } @");
+        } elif rll_c == 1 {
+            b.push_str(" = call i32 @");
+        } elif rll_c == 2 {
+            b.push_str(" = call i8 @");
+        } else {
+            b.push_str(" = call i64 @");
+        }
+        b.push_str(nm);
+        b.push_str("(");
+        first = 1;
+        a2 = ast.aa[id];
+        ak = 0;
+        while a2 >= 0 {
+            at2 = emit_expr(ast, ast.aa[a2], e);
+            if first == 0 { b.push_str(", "); }
+            pk2 = e.fn_param_kind(nm, ak);
+            if pk2 == 31 {
+                b.push_str("double ");
+                b.push_str(at2.a);
+            } elif pk2 == 30 {
+                b.push_str("ptr ");
+                b.push_str(addr_of_arg(ast, ast.aa[a2], e));
+            } elif pk2 == 0 {
+                b.push_str("i64 ");
+                b.push_str(at2.a);
+            } elif pk2 == 1 {
+                b.push_str("ptr ");
+                b.push_str(at2.a);
+                b.push_str(", i64 ");
+                b.push_str(at2.b);
+            } else {
+                b.push_str("ptr ");
+                b.push_str(at2.a);
+            }
+            first = 0;
+            ak = ak + 1;
+            a2 = ast.nexts[a2];
+        }
+        b.push_str(")\n");
+        e.buf.push_str(b.to_string());
+        if rk_c == 5 {
+            return mk_float(t4);
+        }
+        if rk_c == 1 {
+            p5 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(p5);
+            e.buf.push_str(" = extractvalue { ptr, i64 } ");
+            e.buf.push_str(t4);
+            e.buf.push_str(", 0\n  ");
+            l5 = e.fresh();
+            e.buf.push_str(l5);
+            e.buf.push_str(" = extractvalue { ptr, i64 } ");
+            e.buf.push_str(t4);
+            e.buf.push_str(", 1\n");
+            return mk_str_tmp(p5, l5);
+        }
+        if rk_c == 2 {
+            rinfo = e.ret_info(ast, e.fn_ret_type(nm));
+            rnm = "";
+            if rinfo >= 0 { rnm = e.st_names[rinfo].copy(); }
+            pi2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(pi2);
+            e.buf.push_str(" = inttoptr i64 ");
+            e.buf.push_str(t4);
+            e.buf.push_str(" to ptr\n");
+            return Val { kind = 2, a = pi2, b = rnm, ty = -1 };
+        }
+        if rk_c == 4 {
+            rinfo2 = e.ret_info(ast, e.fn_ret_type(nm));
+            rnm2 = "";
+            if rinfo2 >= 0 { rnm2 = e.en_names[rinfo2].copy(); }
+            pi3 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(pi3);
+            e.buf.push_str(" = inttoptr i64 ");
+            e.buf.push_str(t4);
+            e.buf.push_str(" to ptr\n");
+            return Val { kind = 4, a = pi3, b = rnm2, ty = -1 };
+        }
+        if rk_c == 3 {
+            pi4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(pi4);
+            e.buf.push_str(" = inttoptr i64 ");
+            e.buf.push_str(t4);
+            e.buf.push_str(" to ptr\n");
+            return mk_arr(pi4, e.ret_info(ast, e.fn_ret_type(nm)));
+        }
+        if rll_c != 0 {
+            sx = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(sx);
+            if rll_c == 1 {
+                e.buf.push_str(" = sext i32 ");
+            } else {
+                e.buf.push_str(" = zext i8 ");
+            }
+            e.buf.push_str(t4);
+            e.buf.push_str(" to i64\n");
+            return mk_int(sx);
+        }
+        return mk_int(t4);
+    }
+    if tag == et(ET::StructLiteral._tag) {
+        nm = ast.texts[id];
+        if nm == "String" {
+            // 内建 String：{ data, len } -> (ptr, len) 值
+            vd = Val { kind = 0, a = "null", b = "", ty = -1 };
+            vl = Val { kind = 0, a = "0", b = "", ty = -1 };
+            f2 = ast.aa[id];
+            while f2 >= 0 {
+                if ast.texts[f2] == "data" {
+                    vd = emit_expr(ast, ast.aa[f2], e);
+                } elif ast.texts[f2] == "len" {
+                    vl = emit_expr(ast, ast.aa[f2], e);
+                }
+                f2 = ast.nexts[f2];
+            }
+            pd = vd.a;
+            if vd.kind != 1 { pd = ptr_operand(vd.a); }
+            return mk_str_tmp(pd, vl.a);
+        }
+        si_n = e.find_struct_idx(nm);
+        nslots = 1;
+        if si_n >= 0 { nslots = e.st_slots[si_n]; }
+        nb = StringBuf::new();
+        nb.push_int(nslots * 8);
+        t = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t);
+        e.buf.push_str(" = call ptr @malloc(i64 ");
+        e.buf.push_str(nb.to_string());
+        e.buf.push_str(")\n  call void @llvm.memset.p0.i64(ptr ");
+        e.buf.push_str(t);
+        e.buf.push_str(", i8 0, i64 ");
+        e.buf.push_str(nb.to_string());
+        e.buf.push_str(", i1 false)\n");
+        f = ast.aa[id];
+        while f >= 0 {
+            idx = e.find_field_idx(nm, ast.texts[f]);
+            if idx >= 0 {
+                v = emit_expr(ast, ast.aa[f], e);
+                si_l = e.find_struct_idx(nm);
+                sl = e.fslot_at(si_l, idx);
+                fk = e.fkind_at(si_l, idx);
+                g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g);
+                e.buf.push_str(" = getelementptr %struct.");
+                e.buf.push_str(nm);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(t);
+                e.buf.push_str(", i32 0, i32 ");
+                e.buf.push_int(sl);
+                e.buf.push_str("\n");
+                if fk == 1 {
+                    e.buf.push_str("  store ptr ");
+                    e.buf.push_str(ptr_operand(v.a));
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                    g1b = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(g1b);
+                    e.buf.push_str(" = getelementptr %struct.");
+                    e.buf.push_str(nm);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(t);
+                    e.buf.push_str(", i32 0, i32 ");
+                    e.buf.push_int(sl + 1);
+                    e.buf.push_str("\n  store i64 ");
+                    e.buf.push_str(v.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(g1b);
+                    e.buf.push_str("\n");
+                } elif fk == 5 {
+                    e.buf.push_str("  store double ");
+                    e.buf.push_str(v.a);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                } elif fk == 2 || fk == 3 || fk == 4 {
+                    e.buf.push_str("  store ptr ");
+                    e.buf.push_str(ptr_operand(v.a));
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                } else {
+                    e.buf.push_str("  store i64 ");
+                    e.buf.push_str(v.a);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                }
+            }
+            f = ast.nexts[f];
+        }
+        return Val { kind = 2, a = t, b = nm.copy(), ty = -1 };
+    }
+    if tag == et(ET::FieldAccess._tag) {
+        obj = emit_expr(ast, ast.aa[id], e);
+        if obj.kind == 1 {
+            if ast.texts[id] == "len" {
+                return mk_int(obj.b);
+            }
+            if ast.texts[id] == "data" {
+                // String.data -> [char]（元素 i8）
+                return mk_arr(obj.a, 2002);
+            }
+            return mk_int("0");
+        }
+        if obj.kind == 4 {
+            if ast.texts[id] == "_tag" {
+                g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g);
+                e.buf.push_str(" = getelementptr %enum.");
+                e.buf.push_str(obj.b);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", i32 0, i32 0\n");
+                vtag = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(vtag);
+                e.buf.push_str(" = load i64, ptr ");
+                e.buf.push_str(g);
+                e.buf.push_str("\n");
+                return mk_int(vtag);
+            }
+            return mk_int("0");
+        }
+        if obj.kind == 2 {
+            idx = e.find_field_idx(obj.b, ast.texts[id]);
+            if idx >= 0 {
+                si_f = e.find_struct_idx(obj.b);
+                sl = e.fslot_at(si_f, idx);
+                fk = e.fkind_at(si_f, idx);
+                g2 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g2);
+                e.buf.push_str(" = getelementptr %struct.");
+                e.buf.push_str(obj.b);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", i32 0, i32 ");
+                e.buf.push_int(sl);
+                e.buf.push_str("\n");
+                if fk == 1 {
+                    // String 字段：ptr + len 两槽
+                    vp = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(vp);
+                    e.buf.push_str(" = load ptr, ptr ");
+                    e.buf.push_str(g2);
+                    e.buf.push_str("\n");
+                    g2b = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(g2b);
+                    e.buf.push_str(" = getelementptr %struct.");
+                    e.buf.push_str(obj.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(obj.a);
+                    e.buf.push_str(", i32 0, i32 ");
+                    e.buf.push_int(sl + 1);
+                    e.buf.push_str("\n");
+                    vllen = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(vllen);
+                    e.buf.push_str(" = load i64, ptr ");
+                    e.buf.push_str(g2b);
+                    e.buf.push_str("\n");
+                    return mk_str_tmp(vp, vllen);
+                }
+                if fk == 2 {
+                    vp2 = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(vp2);
+                    e.buf.push_str(" = load ptr, ptr ");
+                    e.buf.push_str(g2);
+                    e.buf.push_str("\n");
+                    fnm = e.st_names[e.finfo_at(si_f, idx)].copy();
+                    return Val { kind = 2, a = vp2, b = fnm, ty = -1 };
+                }
+                if fk == 3 {
+                    vp3 = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(vp3);
+                    e.buf.push_str(" = load ptr, ptr ");
+                    e.buf.push_str(g2);
+                    e.buf.push_str("\n");
+                    return mk_arr(vp3, e.finfo_at(si_f, idx));
+                }
+                if fk == 5 {
+                    vd5 = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(vd5);
+                    e.buf.push_str(" = load double, ptr ");
+                    e.buf.push_str(g2);
+                    e.buf.push_str("\n");
+                    return mk_float(vd5);
+                }
+                if fk == 4 {
+                    vp4 = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(vp4);
+                    e.buf.push_str(" = load ptr, ptr ");
+                    e.buf.push_str(g2);
+                    e.buf.push_str("\n");
+                    enm4 = "";
+                    ei4 = e.finfo_at(si_f, idx);
+                    if ei4 >= 0 { enm4 = e.en_names[ei4].copy(); }
+                    return Val { kind = 4, a = vp4, b = enm4, ty = -1 };
+                }
+                v2 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(v2);
+                e.buf.push_str(" = load i64, ptr ");
+                e.buf.push_str(g2);
+                e.buf.push_str("\n");
+                return mk_int(v2);
+            }
+        }
+        return mk_int("0");
+    }
+    if tag == et(ET::MethodCall._tag) {
+        obj = emit_expr(ast, ast.aa[id], e);
+        if obj.kind == 1 {
+            mn = ast.texts[id];
+            if mn == "len" { return mk_int(obj.b); }
+            if mn == "to_string" { return obj; }
+            if mn == "is_empty" {
+                c = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(c);
+                e.buf.push_str(" = icmp eq i64 ");
+                e.buf.push_str(obj.b);
+                e.buf.push_str(", 0\n");
+                z = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(z);
+                e.buf.push_str(" = zext i1 ");
+                e.buf.push_str(c);
+                e.buf.push_str(" to i64\n");
+                return mk_int(z);
+            }
+            if mn == "index" {
+                iv = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g);
+                e.buf.push_str(" = getelementptr i8, ptr ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", i64 ");
+                e.buf.push_str(iv.a);
+                e.buf.push_str("\n  ");
+                t8 = e.fresh();
+                e.buf.push_str(t8);
+                e.buf.push_str(" = load i8, ptr ");
+                e.buf.push_str(g);
+                e.buf.push_str("\n  ");
+                z8 = e.fresh();
+                e.buf.push_str(z8);
+                e.buf.push_str(" = zext i8 ");
+                e.buf.push_str(t8);
+                e.buf.push_str(" to i64\n");
+                return mk_int(z8);
+            }
+            if mn == "copy" {
+                return emit_str_slice(obj, "0", obj.b, e);
+            }
+            if mn == "substring" {
+                a1 = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                a2s = emit_expr(ast, ast.aa[ast.nexts[ast.bb[id]]], e);
+                return emit_str_slice(obj, a1.a, a2s.a, e);
+            }
+            if mn == "add" {
+                tadd = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                return emit_str_concat(obj, tadd, e);
+            }
+            if mn == "eq" {
+                tq = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                return emit_str_eq(obj, tq, e);
+            }
+            if mn == "ne" {
+                tq2 = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                q2 = emit_str_eq(obj, tq2, e);
+                return emit_not(q2, e);
+            }
+            if mn == "starts_with" {
+                tp = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                ok = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(ok);
+                e.buf.push_str(" = icmp sle i64 ");
+                e.buf.push_str(tp.b);
+                e.buf.push_str(", ");
+                e.buf.push_str(obj.b);
+                e.buf.push_str("\n  ");
+                r2 = e.fresh();
+                e.buf.push_str(r2);
+                e.buf.push_str(" = call i32 @memcmp(ptr ");
+                e.buf.push_str(tp.a);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", i64 ");
+                e.buf.push_str(tp.b);
+                e.buf.push_str(")\n  ");
+                e2b = e.fresh();
+                e.buf.push_str(e2b);
+                e.buf.push_str(" = icmp eq i32 ");
+                e.buf.push_str(r2);
+                e.buf.push_str(", 0\n  ");
+                b2b = e.fresh();
+                e.buf.push_str(b2b);
+                e.buf.push_str(" = and i1 ");
+                e.buf.push_str(ok);
+                e.buf.push_str(", ");
+                e.buf.push_str(e2b);
+                e.buf.push_str("\n  ");
+                z2b = e.fresh();
+                e.buf.push_str(z2b);
+                e.buf.push_str(" = zext i1 ");
+                e.buf.push_str(b2b);
+                e.buf.push_str(" to i64\n");
+                return mk_int(z2b);
+            }
+            if mn == "ends_with" {
+                ts = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                ok3 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(ok3);
+                e.buf.push_str(" = icmp sle i64 ");
+                e.buf.push_str(ts.b);
+                e.buf.push_str(", ");
+                e.buf.push_str(obj.b);
+                e.buf.push_str("\n  ");
+                off3 = e.fresh();
+                e.buf.push_str(off3);
+                e.buf.push_str(" = sub i64 ");
+                e.buf.push_str(obj.b);
+                e.buf.push_str(", ");
+                e.buf.push_str(ts.b);
+                e.buf.push_str("\n  ");
+                p3 = e.fresh();
+                e.buf.push_str(p3);
+                e.buf.push_str(" = getelementptr i8, ptr ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", i64 ");
+                e.buf.push_str(off3);
+                e.buf.push_str("\n  ");
+                r3 = e.fresh();
+                e.buf.push_str(r3);
+                e.buf.push_str(" = call i32 @memcmp(ptr ");
+                e.buf.push_str(ts.a);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(p3);
+                e.buf.push_str(", i64 ");
+                e.buf.push_str(ts.b);
+                e.buf.push_str(")\n  ");
+                e3b = e.fresh();
+                e.buf.push_str(e3b);
+                e.buf.push_str(" = icmp eq i32 ");
+                e.buf.push_str(r3);
+                e.buf.push_str(", 0\n  ");
+                b3b = e.fresh();
+                e.buf.push_str(b3b);
+                e.buf.push_str(" = and i1 ");
+                e.buf.push_str(ok3);
+                e.buf.push_str(", ");
+                e.buf.push_str(e3b);
+                e.buf.push_str("\n  ");
+                z3b = e.fresh();
+                e.buf.push_str(z3b);
+                e.buf.push_str(" = zext i1 ");
+                e.buf.push_str(b3b);
+                e.buf.push_str(" to i64\n");
+                return mk_int(z3b);
+            }
+            return mk_int("0");
+        }
+        mid = -1;
+        recv_ty = obj.b.copy();
+        prim_recv = 0;
+        if obj.kind == 0 {
+            recv_ty = "int";
+            prim_recv = 1;
+        }
+        if obj.kind == 2 || obj.kind == 4 || prim_recv == 1 {
+            mid = e.find_method_id(recv_ty, ast.texts[id]);
+        }
+        if mid >= 0 {
+            b3 = StringBuf::new();
+            b3.push_str("  ");
+            t5 = e.fresh();
+            mrty = e.method_ret_type(recv_ty, ast.texts[id]);
+            rk_m = e.ret_kind(ast, mrty);
+            b3.push_str(t5);
+            if rk_m == 5 {
+                b3.push_str(" = call double @");
+            } elif rk_m == 1 {
+                b3.push_str(" = call { ptr, i64 } @");
+            } else {
+                b3.push_str(" = call i64 @");
+            }
+            b3.push_str(recv_ty);
+            b3.push_str(".");
+            b3.push_str(ast.texts[id]);
+            b3.push_str("(ptr ");
+            if prim_recv == 1 {
+                // 原语接收者：落到临时槽取地址
+                tp3 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(tp3);
+                e.buf.push_str(" = alloca i64\n  store i64 ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(tp3);
+                e.buf.push_str("\n");
+                b3.push_str(tp3);
+            } else {
+                b3.push_str(obj.a);
+            }
+            a3 = ast.bb[id];
+            ak3 = 1;
+            while a3 >= 0 {
+                at3 = emit_expr(ast, ast.aa[a3], e);
+                mfull = recv_ty + ".";
+                mfull = mfull + ast.texts[id];
+                pk3 = e.fn_param_kind(mfull, ak3);
+                if pk3 == 31 {
+                    b3.push_str(", double ");
+                    b3.push_str(at3.a);
+                } elif pk3 == 30 {
+                    b3.push_str(", ptr ");
+                    b3.push_str(addr_of_arg(ast, ast.aa[a3], e));
+                } elif pk3 == 0 {
+                    b3.push_str(", i64 ");
+                    b3.push_str(at3.a);
+                } elif pk3 == 1 {
+                    b3.push_str(", ptr ");
+                    b3.push_str(at3.a);
+                    b3.push_str(", i64 ");
+                    b3.push_str(at3.b);
+                } else {
+                    b3.push_str(", ptr ");
+                    b3.push_str(at3.a);
+                }
+                ak3 = ak3 + 1;
+                a3 = ast.nexts[a3];
+            }
+            b3.push_str(")\n");
+            e.buf.push_str(b3.to_string());
+            if rk_m == 5 {
+                return mk_float(t5);
+            }
+            if rk_m == 1 {
+                p6 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(p6);
+                e.buf.push_str(" = extractvalue { ptr, i64 } ");
+                e.buf.push_str(t5);
+                e.buf.push_str(", 0\n  ");
+                l6 = e.fresh();
+                e.buf.push_str(l6);
+                e.buf.push_str(" = extractvalue { ptr, i64 } ");
+                e.buf.push_str(t5);
+                e.buf.push_str(", 1\n");
+                return mk_str_tmp(p6, l6);
+            }
+            if rk_m == 2 {
+                rinfo3 = e.ret_info(ast, mrty);
+                rnm3 = "";
+                if rinfo3 >= 0 { rnm3 = e.st_names[rinfo3].copy(); }
+                pi5 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(pi5);
+                e.buf.push_str(" = inttoptr i64 ");
+                e.buf.push_str(t5);
+                e.buf.push_str(" to ptr\n");
+                return Val { kind = 2, a = pi5, b = rnm3, ty = -1 };
+            }
+            if rk_m == 4 {
+                rinfo4 = e.ret_info(ast, mrty);
+                rnm4 = "";
+                if rinfo4 >= 0 { rnm4 = e.en_names[rinfo4].copy(); }
+                pi6 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(pi6);
+                e.buf.push_str(" = inttoptr i64 ");
+                e.buf.push_str(t5);
+                e.buf.push_str(" to ptr\n");
+                return Val { kind = 4, a = pi6, b = rnm4, ty = -1 };
+            }
+            if rk_m == 3 {
+                pi7 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(pi7);
+                e.buf.push_str(" = inttoptr i64 ");
+                e.buf.push_str(t5);
+                e.buf.push_str(" to ptr\n");
+                return mk_arr(pi7, e.ret_info(ast, mrty));
+            }
+            return mk_int(t5);
+        }
+        return mk_int("0");
+    }
+    if tag == et(ET::Match._tag) {
+        return emit_match(ast, id, e, 1);
+    }
+    if tag == et(ET::If._tag) {
+        return emit_if_expr(ast, id, e);
+    }
+    if tag == et(ET::Cast._tag) {
+        v = emit_expr(ast, ast.aa[id], e);
+        tty = ast.tys[id];
+        if tty < 0 { return v; }
+        if v.kind == 6 {
+            // 浮点源：目标为浮点则透传；目标为整数则饱和转换（rust as 语义）
+            tv6 = ty_name(ast, tty);
+            ttag6 = ast.tags[tty];
+            is_float_dst = 0;
+            if ttag6 == tt(TT::Float._tag) { is_float_dst = 1; }
+            if tv6 == "f32" || tv6 == "f64" || tv6 == "float" { is_float_dst = 1; }
+            if is_float_dst == 1 { return v; }
+            itn6 = tv6;
+            if itn6.len == 0 {
+                if ttag6 == tt(TT::Char._tag) { itn6 = "char"; }
+                elif ttag6 == tt(TT::Bool._tag) { itn6 = "bool"; }
+            }
+            // 饱和：按目标宽度夹取
+            lo6 = fmin_text(itn6);
+            hi6 = fmax_text(itn6);
+            xd = v.a;
+            if lo6.len > 0 {
+                cl = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(cl);
+                e.buf.push_str(" = fcmp olt double ");
+                e.buf.push_str(xd);
+                e.buf.push_str(", ");
+                e.buf.push_str(lo6);
+                e.buf.push_str("\n  ");
+                sd = e.fresh();
+                e.buf.push_str(sd);
+                e.buf.push_str(" = select i1 ");
+                e.buf.push_str(cl);
+                e.buf.push_str(", double ");
+                e.buf.push_str(lo6);
+                e.buf.push_str(", double ");
+                e.buf.push_str(xd);
+                e.buf.push_str("\n");
+                xd = sd;
+            }
+            if hi6.len > 0 {
+                ch = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(ch);
+                e.buf.push_str(" = fcmp ogt double ");
+                e.buf.push_str(xd);
+                e.buf.push_str(", ");
+                e.buf.push_str(hi6);
+                e.buf.push_str("\n  ");
+                sh = e.fresh();
+                e.buf.push_str(sh);
+                e.buf.push_str(" = select i1 ");
+                e.buf.push_str(ch);
+                e.buf.push_str(", double ");
+                e.buf.push_str(hi6);
+                e.buf.push_str(", double ");
+                e.buf.push_str(xd);
+                e.buf.push_str("\n");
+                xd = sh;
+            }
+            fi6 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(fi6);
+            e.buf.push_str(" = fptosi double ");
+            e.buf.push_str(xd);
+            e.buf.push_str(" to i64\n");
+            v = mk_int(fi6);
+            if itn6 == "char" {
+                t8c6 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(t8c6);
+                e.buf.push_str(" = trunc i64 ");
+                e.buf.push_str(v.a);
+                e.buf.push_str(" to i8\n  ");
+                z8c6 = e.fresh();
+                e.buf.push_str(z8c6);
+                e.buf.push_str(" = zext i8 ");
+                e.buf.push_str(t8c6);
+                e.buf.push_str(" to i64\n");
+                return mk_int(z8c6);
+            }
+            lty6 = int_ty_llvm(itn6);
+            if lty6.len == 0 || lty6 == "i64" { return v; }
+            t1c6 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t1c6);
+            e.buf.push_str(" = trunc i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(" to ");
+            e.buf.push_str(lty6);
+            e.buf.push_str("\n  ");
+            t2c6 = e.fresh();
+            e.buf.push_str(t2c6);
+            if int_ty_signed(itn6) == 1 {
+                e.buf.push_str(" = sext ");
+            } else {
+                e.buf.push_str(" = zext ");
+            }
+            e.buf.push_str(lty6);
+            e.buf.push_str(" ");
+            e.buf.push_str(t1c6);
+            e.buf.push_str(" to i64\n");
+            return mk_int(t2c6);
+        }
+        tn = ty_name(ast, tty);
+        if tn.len == 0 {
+            tg = ast.tags[tty];
+            if tg == tt(TT::Char._tag) { tn = "char"; }
+            elif tg == tt(TT::Bool._tag) { tn = "bool"; }
+            elif tg == tt(TT::Float._tag) { return v; }
+            elif tg == tt(TT::Int._tag) { return v; }
+            else { return v; }
+        }
+        if tn == "char" {
+            // int -> char：低 8 位
+            t8c = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t8c);
+            e.buf.push_str(" = trunc i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(" to i8\n  ");
+            z8c = e.fresh();
+            e.buf.push_str(z8c);
+            e.buf.push_str(" = zext i8 ");
+            e.buf.push_str(t8c);
+            e.buf.push_str(" to i64\n");
+            return mk_int(z8c);
+        }
+        lty_c = int_ty_llvm(tn);
+        if lty_c.len == 0 || lty_c == "i64" { return v; }
+        t1c = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t1c);
+        e.buf.push_str(" = trunc i64 ");
+        e.buf.push_str(v.a);
+        e.buf.push_str(" to ");
+        e.buf.push_str(lty_c);
+        e.buf.push_str("\n  ");
+        t2c = e.fresh();
+        e.buf.push_str(t2c);
+        if int_ty_signed(tn) == 1 {
+            e.buf.push_str(" = sext ");
+        } else {
+            e.buf.push_str(" = zext ");
+        }
+        e.buf.push_str(lty_c);
+        e.buf.push_str(" ");
+        e.buf.push_str(t1c);
+        e.buf.push_str(" to i64\n");
+        return mk_int(t2c);
+    }
+    if tag == et(ET::ArraySized._tag) {
+        // [T; n]：元素类型来自 tys，n 是表达式
+        cnt = emit_expr(ast, ast.aa[id], e);
+        return emit_array_new(ast, id, ast.tys[id], cnt.a, e);
+    }
+    if tag == et(ET::ArrayLiteral._tag) {
+        // [a, b, c]：元素类型由首元素推导，逐个 store（首元素只求值一次）
+        head = ast.aa[id];
+        cnt2 = 0;
+        t2 = head;
+        while t2 >= 0 { cnt2 = cnt2 + 1; t2 = ast.nexts[t2]; }
+        bcnt = StringBuf::new();
+        bcnt.push_int(cnt2);
+        ety = elem_type_of(ast, head);
+        cnt_s = bcnt.to_string();
+        av = emit_array_new(ast, id, ety, cnt_s, e);
+        lty = elem_llvm(ast, ety);
+        two_char = 0;
+        if elem_is_string(ast, ety) { two_char = 1; }
+        el = ast.aa[id];
+        k = 0;
+        while el >= 0 {
+            ev = emit_expr(ast, el, e);
+            kb = StringBuf::new();
+            kb.push_int(k);
+            g = elem_addr(e, elem_stride(ast, ety), av.a, kb.to_string());
+            store_elem(e, lty, two_char, g, ev);
+            k = k + 1;
+            el = ast.nexts[el];
+        }
+        return av;
+    }
+    if tag == et(ET::ArrayRepeat._tag) {
+        // [expr; n]：值求值一次，循环填充到 n 个槽
+        cnt3 = emit_expr(ast, ast.bb[id], e);
+        ety3 = elem_type_of(ast, ast.aa[id]);
+        ev3 = emit_expr(ast, ast.aa[id], e);
+        av3 = emit_array_new(ast, id, ety3, cnt3.a, e);
+        lty3 = elem_llvm(ast, ety3);
+        fill = ev3.a;
+        if elem_is_leaf(lty3) {
+            t3b = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t3b);
+            e.buf.push_str(" = trunc i64 ");
+            e.buf.push_str(ev3.a);
+            e.buf.push_str(" to ");
+            e.buf.push_str(lty3);
+            e.buf.push_str("\n  ");
+            z3 = e.fresh();
+            e.buf.push_str(z3);
+            e.buf.push_str(" = zext ");
+            e.buf.push_str(lty3);
+            e.buf.push_str(" ");
+            e.buf.push_str(t3b);
+            e.buf.push_str(" to i64\n");
+            fill = z3;
+        }
+        emit_array_fill(e, lty3, elem_stride(ast, ety3), av3.a, cnt3.a, fill);
+        return av3;
+    }
+    if tag == et(ET::Index._tag) {
+        // xs[i]：取值（8 位元素做 sext；其余按元素类型装载）
+        base3 = emit_expr(ast, ast.aa[id], e);
+        iv3 = emit_expr(ast, ast.bb[id], e);
+        ety3 = base3.ty;
+        lty4 = "i64";
+        if ety3 >= 0 {
+            lty4 = elem_llvm(ast, ety3);
+        }
+        g4 = elem_addr(e, elem_stride(ast, ety3), base3.a, iv3.a);
+        if elem_is_string(ast, ety3) {
+            p4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(p4);
+            e.buf.push_str(" = load ptr, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str("\n");
+            g4b = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(g4b);
+            e.buf.push_str(" = getelementptr i8, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str(", i64 8\n");
+            l4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(l4);
+            e.buf.push_str(" = load i64, ptr ");
+            e.buf.push_str(g4b);
+            e.buf.push_str("\n");
+            return mk_str_tmp(p4, l4);
+        }
+        if lty4 == "i8" {
+            t4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t4);
+            e.buf.push_str(" = load i8, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str("\n  ");
+            s4 = e.fresh();
+            e.buf.push_str(s4);
+            e.buf.push_str(" = zext i8 ");
+            e.buf.push_str(t4);
+            e.buf.push_str(" to i64\n");
+            return mk_int(s4);
+        }
+        if lty4 == "i32" {
+            t5 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t5);
+            e.buf.push_str(" = load i32, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str("\n  ");
+            s5 = e.fresh();
+            e.buf.push_str(s5);
+            e.buf.push_str(" = sext i32 ");
+            e.buf.push_str(t5);
+            e.buf.push_str(" to i64\n");
+            return mk_int(s5);
+        }
+        t6 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t6);
+        e.buf.push_str(" = load ");
+        e.buf.push_str(lty4);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(g4);
+        e.buf.push_str("\n");
+        if lty4 == "double" {
+            return Val { kind = 0, a = t6, b = "", ty = ety3 };
+        }
+        return mk_int(t6);
+    }
+    if tag == et(ET::Ref._tag) {
+        // &x / ref x：返回地址（仅用于数组/结构体实参场景）
+        if ast.tags[ast.aa[id]] == et(ET::Ident._tag) {
+            nm7 = ast.texts[ast.aa[id]];
+            gk7 = e.global_kind(nm7);
+            if gk7 == 2 {
+                return mk_arr("@" + nm7, -1);
+            }
+            if gk7 == 0 {
+                t7g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(t7g);
+                e.buf.push_str(" = load i64, ptr @");
+                e.buf.push_str(nm7);
+                e.buf.push_str("\n");
+                return mk_int(t7g);
+            }
+            e.declare_local(nm7, 0);
+            t7 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t7);
+            e.buf.push_str(" = load i64, ptr %v_");
+            e.buf.push_str(nm7);
+            e.buf.push_str("\n");
+            return mk_int(t7);
+        }
+        return emit_expr(ast, ast.aa[id], e);
+    }
+    return mk_int("0");
+}
+
+fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e) {
+    s = stmts;
+    while s >= 0 {
+        if e.terminated == 1 { break; }
+        emit_stmt(ast, s, e);
+        s = ast.nexts[s];
+    }
+}
+
+/// 元素是否为<8 字节标量（需要 trunc / sext 转换）
+fn elem_is_leaf(ref String lty) -> bool {
+    if lty == "i8" { return true; }
+    if lty == "i32" { return true; }
+    return false;
+}
+
+/// 单元素赋值（emit_array_fill 用）
+fn store_one(ref mut Emitter e, ref String lty, ref String gep, ref String v) {
+    if elem_is_leaf(lty) {
+        w = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(w);
+        e.buf.push_str(" = trunc i64 ");
+        e.buf.push_str(v);
+        e.buf.push_str(" to ");
+        e.buf.push_str(lty);
+        e.buf.push_str("\n  store ");
+        e.buf.push_str(lty);
+        e.buf.push_str(" ");
+        e.buf.push_str(w);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(gep);
+        e.buf.push_str("\n");
+        return;
+    }
+    e.buf.push_str("  store ");
+    e.buf.push_str(lty);
+    e.buf.push_str(" ");
+    e.buf.push_str(v);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(gep);
+    e.buf.push_str("\n");
+}
+
+/// 循环填充：`[T; n]`（val 为 "0"）/ `[expr; n]`（val 为元素值）的元素写入
+/// 用 alloca 计数器（不依赖 %entry 块，可在任意位置展开）
+fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val) {
+    n = e.tmp;
+    e.tmp = e.tmp + 1;
+    e.buf.push_str("  %fi.");
+    e.buf.push_int(n);
+    e.buf.push_str(" = alloca i64\n  store i64 0, ptr %fi.");
+    e.buf.push_int(n);
+    e.buf.push_str("\n  br label %fill.cond.");
+    e.buf.push_int(n);
+    e.buf.push_str("\nfill.cond.");
+    e.buf.push_int(n);
+    e.buf.push_str(":\n  %fv.");
+    e.buf.push_int(n);
+    e.buf.push_str(" = load i64, ptr %fi.");
+    e.buf.push_int(n);
+    e.buf.push_str("\n  %fc.");
+    e.buf.push_int(n);
+    e.buf.push_str(" = icmp slt i64 %fv.");
+    e.buf.push_int(n);
+    e.buf.push_str(", ");
+    e.buf.push_str(cnt);
+    e.buf.push_str("\n  br i1 %fc.");
+    e.buf.push_int(n);
+    e.buf.push_str(", label %fill.body.");
+    e.buf.push_int(n);
+    e.buf.push_str(", label %fill.end.");
+    e.buf.push_int(n);
+    e.buf.push_str("\nfill.body.");
+    e.buf.push_int(n);
+    e.buf.push_str(":\n");
+    g = elem_addr(e, stride, base, "%fv.".to_string() + int_str2(n));
+    e.buf.push_str("  store ");
+    e.buf.push_str(lty);
+    e.buf.push_str(" ");
+    e.buf.push_str(val);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(g);
+    e.buf.push_str("\n  %fn.");
+    e.buf.push_int(n);
+    e.buf.push_str(" = add i64 %fv.");
+    e.buf.push_int(n);
+    e.buf.push_str(", 1\n  store i64 %fn.");
+    e.buf.push_int(n);
+    e.buf.push_str(", ptr %fi.");
+    e.buf.push_int(n);
+    e.buf.push_str("\n  br label %fill.cond.");
+    e.buf.push_int(n);
+    e.buf.push_str("\nfill.end.");
+    e.buf.push_int(n);
+    e.buf.push_str(":\n");
+}
+
+/// 数组元素写入：lty 元素 LLVM 类型，two_char 时按 { ptr, i64 } 双字写
+fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v) {
+    if lty == "i64" {
+        e.buf.push_str("  store i64 ");
+        e.buf.push_str(v.a);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(gep);
+        e.buf.push_str("\n");
+        return;
+    }
+    if lty == "ptr" {
+        e.buf.push_str("  store ptr ");
+        e.buf.push_str(v.a);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(gep);
+        e.buf.push_str("\n");
+        if two_char == 1 {
+            g2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(g2);
+            e.buf.push_str(" = getelementptr i8, ptr ");
+            e.buf.push_str(gep);
+            e.buf.push_str(", i64 8\n  store i64 ");
+            e.buf.push_str(v.b);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(g2);
+            e.buf.push_str("\n");
+        }
+        return;
+    }
+    // i8/i32/double：截断后写入，读回时按同样宽度
+    e.buf.push_str("  ");
+    w = e.fresh();
+    e.buf.push_str(w);
+    e.buf.push_str(" = trunc i64 ");
+    e.buf.push_str(v.a);
+    e.buf.push_str(" to ");
+    e.buf.push_str(lty);
+    e.buf.push_str("\n  store ");
+    e.buf.push_str(lty);
+    e.buf.push_str(" ");
+    e.buf.push_str(w);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(gep);
+    e.buf.push_str("\n");
+}
+
+/// 数组 GEP：base 指针 + i64 下标 → 元素地址
+fn elem_gep(ref mut Emitter e, ref String lty, ref String base, ref String idx) -> String {
+    g = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(g);
+    e.buf.push_str(" = getelementptr ");
+    e.buf.push_str(lty);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(base);
+    e.buf.push_str(", i64 ");
+    e.buf.push_str(idx);
+    e.buf.push_str("\n");
+    return g;
+}
+
+/// `xs[i] = v`（ST::IndexAssign）：aa=基址表达式，bb=下标，cc=值
+/// 基址是数组局部变量时按元素类型直接写入 malloc 缓冲区
+fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e) {
+    base_id = ast.aa[id];
+    bp = "";
+    ety = -1;
+    if ast.tags[base_id] == et(ET::Ident._tag) {
+        nm = ast.texts[base_id];
+        ety_l = e.elem_of_local(nm);
+        if ety_l >= 0 {
+            t = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            bp = t;
+            ety = ety_l;
+        }
+    }
+    if ety < 0 {
+        bv = emit_expr(ast, base_id, e);
+        if bv.kind != 3 { return; }
+        bp = bv.a;
+        ety = bv.ty;
+    }
+    lty = elem_llvm(ast, ety);
+    two_char = 0;
+    if elem_is_string(ast, ety) { two_char = 1; }
+    iv = emit_expr(ast, ast.bb[id], e);
+    g = elem_addr(e, elem_stride(ast, ety), bp, iv.a);
+    v = emit_expr(ast, ast.cc[id], e);
+    store_elem(e, lty, two_char, g, v);
+}
+
+/// 数组字面量 / [expr; n] / [T; n]：malloc 缓冲区，返回 ptr 值
+fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val {
+    lty = elem_llvm(ast, ety);
+    sz = elem_bytes(ast, ety);
+    c = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(c);
+    e.buf.push_str(" = mul i64 ");
+    e.buf.push_str(count);
+    e.buf.push_str(", ");
+    e.buf.push_int(sz);
+    e.buf.push_str("\n");
+    big = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(big);
+    e.buf.push_str(" = icmp slt i64 ");
+    e.buf.push_str(c);
+    e.buf.push_str(", 1\n  ");
+    z = e.fresh();
+    e.buf.push_str(z);
+    e.buf.push_str(" = select i1 ");
+    e.buf.push_str(big);
+    e.buf.push_str(", i64 1, i64 ");
+    e.buf.push_str(c);
+    e.buf.push_str("\n");
+    raw = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(raw);
+    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_str(z);
+    e.buf.push_str(")\n");
+    e.buf.push_str("  call void @llvm.memset.p0.i64(ptr ");
+    e.buf.push_str(raw);
+    e.buf.push_str(", i8 0, i64 ");
+    e.buf.push_str(z);
+    e.buf.push_str(", i1 false)\n");
+    return mk_arr(raw, ety);
+}
+
+fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
+    tag = ast.tags[id];
+    if tag == st(ST::IndexAssign._tag) {
+        emit_index_assign(ast, id, e);
+    } elif tag == st(ST::Assign._tag) {
+        rhs_id = ast.aa[id];
+        nm = ast.texts[id];
+        if e.global_kind(nm) == 0 {
+            v = emit_expr(ast, rhs_id, e);
+            e.buf.push_str("  store i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr @");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
+        if ast.tags[rhs_id] == et(ET::Ref._tag) {
+            // r = ref mut X：局部存引用（kind 30）
+            ad = addr_of_arg(ast, ast.aa[rhs_id], e);
+            e.declare_local(nm, 30);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(ad);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
+        if e.local_kind(nm) == 30 {
+            v = emit_expr(ast, rhs_id, e);
+            rp2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(rp2);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n  store i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(rp2);
+            e.buf.push_str("\n");
+            return;
+        }
+        v = emit_expr(ast, rhs_id, e);
+        if v.kind == 3 {
+            e.declare_array_local(nm, v.ty);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
+        if v.kind == 6 {
+            e.declare_local(nm, 40);
+            e.buf.push_str("  store double ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
+        if v.kind == 4 {
+            ei4 = e.find_enum_idx(v.b);
+            e.declare_local(nm, 20);
+            e.record_etype(nm, ei4);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
+        if v.kind == 2 {
+            si2 = e.find_struct_idx(v.b);
+            e.declare_local(nm, 100 + si2);
+            e.record_etype(nm, si2);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
+        if v.kind == 1 {
+            e.declare_local(nm, 1);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str(".ptr\n  store i64 ");
+            e.buf.push_str(v.b);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str(".len\n");
+        } else {
+            e.declare_local(nm, 0);
+            e.buf.push_str("  store i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+        }
+    } elif tag == st(ST::Return._tag) {
+        rk_ret = e.ret_kind(ast, e.cur_rtype);
+        if ast.aa[id] >= 0 {
+            v2 = emit_expr(ast, ast.aa[id], e);
+            if rk_ret == 5 {
+                if v2.kind == 6 {
+                    e.buf.push_str("  ret double ");
+                    e.buf.push_str(v2.a);
+                    e.buf.push_str("\n");
+                } else {
+                    fr5 = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(fr5);
+                    e.buf.push_str(" = sitofp i64 ");
+                    e.buf.push_str(v2.a);
+                    e.buf.push_str(" to double\n  ret double ");
+                    e.buf.push_str(fr5);
+                    e.buf.push_str("\n");
+                }
+            } elif rk_ret == 1 {
+                // llc 22 不接受聚合字面量里的函数局部名，用 insertvalue
+                if v2.kind == 1 {
+                    r0 = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(r0);
+                    e.buf.push_str(" = insertvalue { ptr, i64 } undef, ptr ");
+                    e.buf.push_str(v2.a);
+                    e.buf.push_str(", 0\n  ");
+                    r1 = e.fresh();
+                    e.buf.push_str(r1);
+                    e.buf.push_str(" = insertvalue { ptr, i64 } ");
+                    e.buf.push_str(r0);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_str(v2.b);
+                    e.buf.push_str(", 1\n  ret { ptr, i64 } ");
+                    e.buf.push_str(r1);
+                    e.buf.push_str("\n");
+                } else {
+                    r2 = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(r2);
+                    e.buf.push_str(" = insertvalue { ptr, i64 } undef, ptr null, 0\n  ");
+                    r3 = e.fresh();
+                    e.buf.push_str(r3);
+                    e.buf.push_str(" = insertvalue { ptr, i64 } ");
+                    e.buf.push_str(r2);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_str(v2.a);
+                    e.buf.push_str(", 1\n  ret { ptr, i64 } ");
+                    e.buf.push_str(r3);
+                    e.buf.push_str("\n");
+                }
+            } elif v2.kind == 2 || v2.kind == 3 || v2.kind == 4 {
+                pi = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(pi);
+                e.buf.push_str(" = ptrtoint ptr ");
+                e.buf.push_str(v2.a);
+                e.buf.push_str(" to i64\n  ret i64 ");
+                e.buf.push_str(pi);
+                e.buf.push_str("\n");
+            } else {
+                e.buf.push_str("  ret i64 ");
+                e.buf.push_str(v2.a);
+                e.buf.push_str("\n");
+            }
+        } else {
+            if rk_ret == 1 {
+                e.buf.push_str("  ret { ptr, i64 } { ptr null, i64 0 }\n");
+            } else {
+                e.buf.push_str("  ret i64 0\n");
+            }
+        }
+    } elif tag == st(ST::Unsafe._tag) {
+        emit_stmts(ast, ast.aa[ast.aa[id]], e);
+    } elif tag == st(ST::Break._tag) {
+        if e.loop_depth > 0 {
+            e.buf.push_str("  br label %");
+            e.buf.push_str(e.loop_ends[e.loop_depth - 1]);
+            e.buf.push_str("\n");
+            e.terminated = 1;
+        }
+    } elif tag == st(ST::Continue._tag) {
+        if e.loop_depth > 0 {
+            e.buf.push_str("  br label %");
+            e.buf.push_str(e.loop_conds[e.loop_depth - 1]);
+            e.buf.push_str("\n");
+            e.terminated = 1;
+        }
+    } elif tag == st(ST::ExprStmt._tag) {
+        emit_expr(ast, ast.aa[id], e);
+    } elif tag == st(ST::Match._tag) {
+        emit_match(ast, id, e, 0);
+    } elif tag == st(ST::FieldAssign._tag) {
+        obj = emit_expr(ast, ast.aa[id], e);
+        if obj.kind == 2 {
+            idx = e.find_field_idx(obj.b, ast.texts[id]);
+            if idx >= 0 {
+                v = emit_expr(ast, ast.bb[id], e);
+                si_a = e.find_struct_idx(obj.b);
+                sl_a = e.fslot_at(si_a, idx);
+                fk_a = e.fkind_at(si_a, idx);
+                g = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(g);
+                e.buf.push_str(" = getelementptr %struct.");
+                e.buf.push_str(obj.b);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(", i32 0, i32 ");
+                e.buf.push_int(sl_a);
+                e.buf.push_str("\n");
+                if fk_a == 1 {
+                    e.buf.push_str("  store ptr ");
+                    e.buf.push_str(ptr_operand(v.a));
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                    gab = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(gab);
+                    e.buf.push_str(" = getelementptr %struct.");
+                    e.buf.push_str(obj.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(obj.a);
+                    e.buf.push_str(", i32 0, i32 ");
+                    e.buf.push_int(sl_a + 1);
+                    e.buf.push_str("\n  store i64 ");
+                    e.buf.push_str(v.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(gab);
+                    e.buf.push_str("\n");
+                } elif fk_a == 5 {
+                    e.buf.push_str("  store double ");
+                    e.buf.push_str(v.a);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                } elif fk_a == 2 || fk_a == 3 || fk_a == 4 {
+                    e.buf.push_str("  store ptr ");
+                    e.buf.push_str(ptr_operand(v.a));
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                } else {
+                    e.buf.push_str("  store i64 ");
+                    e.buf.push_str(v.a);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(g);
+                    e.buf.push_str("\n");
+                }
+            }
+        }
+    } elif tag == st(ST::If._tag) {
+        end_l = label(e, "if.end.");
+        // 首条件
+        c = emit_expr(ast, ast.aa[id], e);
+        then_l = label(e, "if.then.");
+        next_l = label(e, "if.next.");
+        cc = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(cc);
+        e.buf.push_str(" = icmp ne i64 ");
+        e.buf.push_str(c.a);
+        e.buf.push_str(", 0\n  br i1 ");
+        e.buf.push_str(cc);
+        e.buf.push_str(", label %");
+        e.buf.push_str(then_l);
+        e.buf.push_str(", label %");
+        e.buf.push_str(next_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(then_l);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        emit_stmts(ast, ast.aa[ast.bb[id]], e);
+        if e.terminated == 0 {
+            e.buf.push_str("  br label %");
+            e.buf.push_str(end_l);
+            e.buf.push_str("\n");
+        }
+        // elif 链
+        en = ast.cc[id];
+        cur_next = next_l;
+        while en >= 0 {
+            e.buf.push_str(cur_next);
+            e.buf.push_str(":\n");
+            e.terminated = 0;
+            ec2 = emit_expr(ast, ast.aa[en], e);
+            then_l2 = label(e, "if.then.");
+            next_l2 = label(e, "if.next.");
+            cc2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(cc2);
+            e.buf.push_str(" = icmp ne i64 ");
+            e.buf.push_str(ec2.a);
+            e.buf.push_str(", 0\n  br i1 ");
+            e.buf.push_str(cc2);
+            e.buf.push_str(", label %");
+            e.buf.push_str(then_l2);
+            e.buf.push_str(", label %");
+            e.buf.push_str(next_l2);
+            e.buf.push_str("\n");
+            e.buf.push_str(then_l2);
+            e.buf.push_str(":\n");
+            e.terminated = 0;
+            emit_stmts(ast, ast.aa[ast.bb[en]], e);
+            if e.terminated == 0 {
+                e.buf.push_str("  br label %");
+                e.buf.push_str(end_l);
+                e.buf.push_str("\n");
+            }
+            cur_next = next_l2;
+            en = ast.nexts[en];
+        }
+        e.buf.push_str(cur_next);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        e2 = ast.dd[id];
+        if e2 >= 0 {
+            emit_stmts(ast, ast.aa[e2], e);
+        }
+        if e.terminated == 0 {
+            e.buf.push_str("  br label %");
+            e.buf.push_str(end_l);
+            e.buf.push_str("\n");
+        }
+        e.buf.push_str(end_l);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+    } elif tag == st(ST::While._tag) {
+        cond_l = label(e, "while.cond.");
+        body_l = label(e, "while.body.");
+        end_l = label(e, "while.end.");
+        if e.loop_depth < 64 {
+            e.loop_ends[e.loop_depth] = end_l.copy();
+            e.loop_conds[e.loop_depth] = cond_l.copy();
+            e.loop_depth = e.loop_depth + 1;
+        }
+        e.buf.push_str("  br label %");
+        e.buf.push_str(cond_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(cond_l);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        c2 = emit_expr(ast, ast.aa[id], e);
+        cc2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(cc2);
+        e.buf.push_str(" = icmp ne i64 ");
+        e.buf.push_str(c2.a);
+        e.buf.push_str(", 0\n  br i1 ");
+        e.buf.push_str(cc2);
+        e.buf.push_str(", label %");
+        e.buf.push_str(body_l);
+        e.buf.push_str(", label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(body_l);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        emit_stmts(ast, ast.aa[ast.bb[id]], e);
+        if e.terminated == 0 {
+            e.buf.push_str("  br label %");
+            e.buf.push_str(cond_l);
+            e.buf.push_str("\n");
+        }
+        e.buf.push_str(end_l);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        if e.loop_depth > 0 { e.loop_depth = e.loop_depth - 1; }
+    } elif tag == st(ST::For._tag) {
+        e.declare_local(ast.texts[id], 0);
+        v = emit_expr(ast, ast.aa[id], e);
+        e.buf.push_str("  store i64 ");
+        e.buf.push_str(v.a);
+        e.buf.push_str(", ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n");
+        cond_l = label(e, "for.cond.");
+        body_l = label(e, "for.body.");
+        end_l = label(e, "for.end.");
+        if e.loop_depth < 64 {
+            e.loop_ends[e.loop_depth] = end_l.copy();
+            e.loop_conds[e.loop_depth] = cond_l.copy();
+            e.loop_depth = e.loop_depth + 1;
+        }
+        e.buf.push_str("  br label %");
+        e.buf.push_str(cond_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(cond_l);
+        e.buf.push_str(":\n");
+        iv = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(iv);
+        e.buf.push_str(" = load i64, ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n");
+        ev = emit_expr(ast, ast.bb[id], e);
+        c3 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c3);
+        e.buf.push_str(" = icmp slt i64 ");
+        e.buf.push_str(iv);
+        e.buf.push_str(", ");
+        e.buf.push_str(ev.a);
+        e.buf.push_str("\n  br i1 ");
+        e.buf.push_str(c3);
+        e.buf.push_str(", label %");
+        e.buf.push_str(body_l);
+        e.buf.push_str(", label %");
+        e.buf.push_str(end_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(body_l);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        emit_stmts(ast, ast.aa[ast.dd[id]], e);
+        if e.terminated == 1 {
+            e.buf.push_str(end_l);
+            e.buf.push_str(":\n");
+            e.terminated = 0;
+            if e.loop_depth > 0 { e.loop_depth = e.loop_depth - 1; }
+            return;
+        }
+        iv2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(iv2);
+        e.buf.push_str(" = load i64, ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n");
+        nx = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(nx);
+        e.buf.push_str(" = add i64 ");
+        e.buf.push_str(iv2);
+        e.buf.push_str(", 1\n  store i64 ");
+        e.buf.push_str(nx);
+        e.buf.push_str(", ptr %v_");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str("\n  br label %");
+        e.buf.push_str(cond_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(end_l);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        if e.loop_depth > 0 { e.loop_depth = e.loop_depth - 1; }
+    }
+}
+
+fn emit_fn(ref Ast ast, int id, ref mut Emitter e) {
+    emit_fn_named(ast, id, "", e);
+}
+
+/// extern 声明：declare i64 @name(...)（同名去重）
+fn emit_decl(ref Ast ast, int id, ref mut Emitter e) {
+    nm_d = ast.texts[id];
+    i_d = 0;
+    while i_d < e.decl_count {
+        if e.decl_names[i_d] == nm_d { return; }
+        i_d = i_d + 1;
+    }
+    if e.decl_count < 2048 {
+        e.decl_names[e.decl_count] = nm_d.copy();
+        e.decl_count = e.decl_count + 1;
+    }
+    rll = e.ret_llvm_code(ast, ast.tys[id]);
+    if rll == 1 {
+        e.buf.push_str("declare i32 @");
+    } elif rll == 2 {
+        e.buf.push_str("declare i8 @");
+    } else {
+        e.buf.push_str("declare i64 @");
+    }
+    e.buf.push_str(ast.texts[id]);
+    e.buf.push_str("(");
+    first = 1;
+    p = ast.aa[id];
+    idx = 0;
+    while p >= 0 {
+        if first == 0 { e.buf.push_str(", "); }
+        pk = e.param_kind(ast, p);
+        if pk == 0 {
+            e.buf.push_str("i64 %a");
+        } else {
+            e.buf.push_str("ptr %a");
+        }
+        e.buf.push_int(idx);
+        first = 0;
+        idx = idx + 1;
+        p = ast.nexts[p];
+    }
+    e.buf.push_str(")\n");
+}
+
+fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
+    e.tmp = 0;
+    e.lv_count = 0;
+    name = ast.texts[id];
+    rty = ast.tys[id];
+    rkind = e.ret_kind(ast, rty);
+    e.cur_rtype = rty;
+    if rkind == 1 {
+        e.buf.push_str("define { ptr, i64 } @");
+    } elif rkind == 5 {
+        e.buf.push_str("define double @");
+    } else {
+        e.buf.push_str("define i64 @");
+    }
+    if prefix.len > 0 {
+        e.buf.push_str(prefix);
+        e.buf.push_str(".");
+    }
+    e.buf.push_str(name);
+    e.buf.push_str("(");
+    first = 1;
+    p = ast.aa[id];
+    idx = 0;
+    while p >= 0 {
+        if first == 0 { e.buf.push_str(", "); }
+        if ast.texts[p] == "self" {
+            e.buf.push_str("ptr %self");
+            idx = idx + 1;
+        } else {
+            pk_sig = e.param_kind(ast, p);
+            if pk_sig == 31 {
+                e.buf.push_str("double %a");
+                e.buf.push_int(idx);
+                idx = idx + 1;
+            } elif pk_sig == 1 {
+                e.buf.push_str("ptr %a");
+                e.buf.push_int(idx);
+                e.buf.push_str(", i64 %a");
+                e.buf.push_int(idx + 1);
+                idx = idx + 2;
+            } elif pk_sig == 0 {
+                e.buf.push_str("i64 %a");
+                e.buf.push_int(idx);
+                idx = idx + 1;
+            } else {
+                e.buf.push_str("ptr %a");
+                e.buf.push_int(idx);
+                idx = idx + 1;
+            }
+        }
+        first = 0;
+        p = ast.nexts[p];
+    }
+    e.buf.push_str(") {\nentry:\n");
+    e.entry_pos = e.buf.len;
+    e.pre_buf = StringBuf::new();
+    e.pre_active = 1;
+    p2 = ast.aa[id];
+    idx2 = 0;
+    while p2 >= 0 {
+        if ast.texts[p2] == "self" {
+            kind_self = 2;
+            si_self = e.find_struct_idx(prefix);
+            ei_self = -1;
+            if prefix == "String" {
+                // impl String：self 是 String 值（ptr+len；len 占位 0，调用点走内建）
+                kind_self = 1;
+            } elif si_self >= 0 {
+                kind_self = 100 + si_self;
+            } else {
+                ei_self = e.find_enum_idx(prefix);
+                if ei_self >= 0 {
+                    kind_self = 20;
+                } else {
+                    // impl int / impl char 等原语 impl：self 是指向原语的引用
+                    kind_self = 30;
+                }
+            }
+            e.declare_local("self", kind_self);
+            if ei_self >= 0 {
+                e.record_etype("self", ei_self);
+            } else {
+                e.record_etype("self", si_self);
+            }
+            if kind_self == 1 {
+                e.buf.push_str("  store ptr %self, ptr %v_self.ptr\n  store i64 0, ptr %v_self.len\n");
+            } else {
+                e.buf.push_str("  store ptr %self, ptr %v_self\n");
+            }
+            idx2 = idx2 + 1;
+        } else {
+            pname = ast.texts[p2];
+            pk = e.param_kind(ast, p2);
+            ei_p = -1;
+            if pk == 20 {
+                ptn = ty_name(ast, ast.tys[p2]);
+                ei_p = e.find_enum_idx(ptn);
+            } elif pk >= 100 {
+                ei_p = pk - 100;
+            }
+            if pk == 31 {
+                e.declare_local(pname, 40);
+                e.buf.push_str("  store double %a");
+                e.buf.push_int(idx2);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(pname);
+                e.buf.push_str("\n");
+                idx2 = idx2 + 1;
+            } elif pk == 1 {
+                // String 参数：ptr + len 双槽
+                e.declare_local(pname, 1);
+                e.buf.push_str("  store ptr %a");
+                e.buf.push_int(idx2);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(pname);
+                e.buf.push_str(".ptr\n  store i64 %a");
+                e.buf.push_int(idx2 + 1);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(pname);
+                e.buf.push_str(".len\n");
+                idx2 = idx2 + 2;
+            } elif pk == 0 {
+                e.declare_local(pname, 0);
+                e.buf.push_str("  store i64 %a");
+                e.buf.push_int(idx2);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(pname);
+                e.buf.push_str("\n");
+                idx2 = idx2 + 1;
+            } else {
+                e.declare_local(pname, pk);
+                e.record_etype(pname, ei_p);
+                e.buf.push_str("  store ptr %a");
+                e.buf.push_int(idx2);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(pname);
+                e.buf.push_str("\n");
+                idx2 = idx2 + 1;
+            }
+        }
+        p2 = ast.nexts[p2];
+    }
+    emit_stmts(ast, ast.aa[ast.bb[id]], e);
+    // 块尾表达式（无分号的最后表达式）：作为隐式返回值
+    if e.terminated == 0 {
+        body_blk = ast.bb[id];
+        if body_blk >= 0 {
+            tail = ast.bb[body_blk];
+            if tail >= 0 {
+                tv = emit_expr(ast, tail, e);
+                if rkind == 5 {
+                    if tv.kind == 6 {
+                        e.buf.push_str("  ret double ");
+                        e.buf.push_str(tv.a);
+                        e.buf.push_str("\n");
+                    } else {
+                        ft5 = e.fresh();
+                        e.buf.push_str("  ");
+                        e.buf.push_str(ft5);
+                        e.buf.push_str(" = sitofp i64 ");
+                        e.buf.push_str(tv.a);
+                        e.buf.push_str(" to double\n  ret double ");
+                        e.buf.push_str(ft5);
+                        e.buf.push_str("\n");
+                    }
+                    e.terminated = 1;
+                } elif rkind == 1 {
+                    if tv.kind == 1 {
+                        r0t = e.fresh();
+                        e.buf.push_str("  ");
+                        e.buf.push_str(r0t);
+                        e.buf.push_str(" = insertvalue { ptr, i64 } undef, ptr ");
+                        e.buf.push_str(tv.a);
+                        e.buf.push_str(", 0\n  ");
+                        r1t = e.fresh();
+                        e.buf.push_str(r1t);
+                        e.buf.push_str(" = insertvalue { ptr, i64 } ");
+                        e.buf.push_str(r0t);
+                        e.buf.push_str(", i64 ");
+                        e.buf.push_str(tv.b);
+                        e.buf.push_str(", 1\n  ret { ptr, i64 } ");
+                        e.buf.push_str(r1t);
+                        e.buf.push_str("\n");
+                    } else {
+                        e.buf.push_str("  ret { ptr, i64 } { ptr null, i64 0 }\n");
+                    }
+                } elif tv.kind == 2 || tv.kind == 3 || tv.kind == 4 {
+                    pit = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(pit);
+                    e.buf.push_str(" = ptrtoint ptr ");
+                    e.buf.push_str(tv.a);
+                    e.buf.push_str(" to i64\n  ret i64 ");
+                    e.buf.push_str(pit);
+                    e.buf.push_str("\n");
+                } else {
+                    e.buf.push_str("  ret i64 ");
+                    e.buf.push_str(tv.a);
+                    e.buf.push_str("\n");
+                }
+                e.terminated = 1;
+            }
+        }
+    }
+    if rkind == 1 {
+        e.buf.push_str("  ret { ptr, i64 } { ptr null, i64 0 }\n}\n");
+    } elif rkind == 5 {
+        e.buf.push_str("  ret double 0.0\n}\n");
+    } else {
+        e.buf.push_str("  ret i64 0\n}\n");
+    }
+    // 把 alloca 前置到 entry 块
+    e.pre_active = 0;
+    all_s = e.buf.to_string();
+    head_s = all_s.substring(0 as usize, e.entry_pos as usize);
+    body_s = all_s.substring(e.entry_pos as usize, all_s.len);
+    e.buf = StringBuf::new();
+    e.buf.push_str(head_s);
+    e.buf.push_str(e.pre_buf.to_string());
+    e.buf.push_str(body_s);
+    e.cur_rtype = -1;
+}
+
+#[alloc]
+#[state]
+pub fn emit_program(ref Ast ast, int prog) -> String {
+    e = Emitter::new();
+    e.collect_decls(ast, prog);
+    e.collect_globals(ast, prog);
+    // 结构体类型定义
+    si = 0;
+    while si < e.st_count {
+        e.buf.push_str("%struct.");
+        e.buf.push_str(e.st_names[si]);
+        e.buf.push_str(" = type { ");
+        n = e.st_slots[si];
+        i = 0;
+        while i < n {
+            if i > 0 { e.buf.push_str(", "); }
+            e.buf.push_str("i64");
+            i = i + 1;
+        }
+        e.buf.push_str(" }\n");
+        si = si + 1;
+    }
+    // 枚举类型定义（tag + 载荷槽）
+    ei2 = 0;
+    while ei2 < e.en_count {
+        e.buf.push_str("%enum.");
+        e.buf.push_str(e.en_names[ei2]);
+        e.buf.push_str(" = type { i64");
+        mx = e.enum_max_arity(ei2);
+        k2 = 0;
+        while k2 < mx {
+            e.buf.push_str(", i64");
+            k2 = k2 + 1;
+        }
+        e.buf.push_str(" }\n");
+        ei2 = ei2 + 1;
+    }
+    // 函数与方法
+    s = ast.aa[prog];
+    while s >= 0 {
+        if ast.tags[s] == st(ST::FnDecl._tag) {
+            if e.fn_first_id(ast.texts[s]) != s {
+                // 重名重载：只发射第一个定义
+            } elif ast.dd[s] == 1 {
+                emit_decl(ast, s, e);
+            } else {
+                emit_fn(ast, s, e);
+            }
+        } elif ast.tags[s] == st(ST::ImplBlock._tag) {
+            m = ast.aa[s];
+            while m >= 0 {
+                if ast.tags[m] == st(ST::FnDecl._tag) {
+                    full_n = ast.texts[s] + ".";
+                    full_n = full_n + ast.texts[m];
+                    if e.fn_first_id(full_n) == m {
+                        emit_fn_named(ast, m, ast.texts[s], e);
+                    }
+                }
+                m = ast.nexts[m];
+            }
+        } elif ast.tags[s] == st(ST::Namespace._tag) {
+            m3 = ast.aa[s];
+            while m3 >= 0 {
+                if ast.tags[m3] == st(ST::FnDecl._tag) {
+                    full_n2 = ast.texts[s] + ".";
+                    full_n2 = full_n2 + ast.texts[m3];
+                    if e.fn_first_id(full_n2) == m3 {
+                        emit_fn_named(ast, m3, ast.texts[s], e);
+                    }
+                }
+                m3 = ast.nexts[m3];
+            }
+        }
+        s = ast.nexts[s];
+    }
+    e.buf.push_str("declare void @__ayanami_print_int(i64)\ndeclare void @__ayanami_print_ln()\ndeclare void @__ayanami_print_str(ptr, i64)\n");
+    // 数组分配/清零所需（M6a）：malloc + llvm.memset
+    e.buf.push_str("declare ptr @malloc(i64)\ndeclare ptr @memcpy(ptr, ptr, i64)\ndeclare i32 @memcmp(ptr, ptr, i64)\n");
+    e.buf.push_str("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)\n");
+    // 常量/静态全局
+    gi = 0;
+    while gi < e.g_count {
+        e.buf.push_str("@");
+        e.buf.push_str(e.g_names[gi]);
+        if e.g_kinds[gi] == 0 {
+            e.buf.push_str(" = global i64 ");
+            e.buf.push_str(e.g_vals[gi]);
+            e.buf.push_str("\n");
+        } else {
+            e.buf.push_str(" = global [");
+            e.buf.push_int(e.g_lens[gi]);
+            e.buf.push_str(" x i64] [");
+            // 元素以逗号串存，展开
+            vs = e.g_vals[gi];
+            st2 = 0;
+            ii = 0;
+            firstg = 1;
+            while ii <= vs.len as int {
+                at2 = 0;
+                if ii == vs.len as int { at2 = 1; }
+                isc = 0;
+                if at2 == 0 {
+                    if vs.index(ii as usize) == ',' { isc = 1; }
+                }
+                if at2 == 1 || isc == 1 {
+                    if ii > st2 {
+                        if firstg == 0 { e.buf.push_str(", "); }
+                        e.buf.push_str("i64 ");
+                        e.buf.push_str(vs.substring(st2 as usize, ii as usize));
+                        firstg = 0;
+                    }
+                    st2 = ii + 1;
+                }
+                ii = ii + 1;
+            }
+            e.buf.push_str("]\n");
+        }
+        gi = gi + 1;
+    }
+    // 字符串字面量全局
+    i = 0;
+    while i < e.str_count {
+        text = e.strs[i];
+        e.buf.push_str("@.str.");
+        e.buf.push_int(i);
+        e.buf.push_str(" = private unnamed_addr constant [");
+        e.buf.push_int(text.len as int + 1);
+        e.buf.push_str(" x i8] c\"");
+        e.buf.push_str(escape_ir(text));
+        e.buf.push_str("\\00\"\n");
+        i = i + 1;
+    }
+    return e.buf.to_string();
+}
