@@ -72,10 +72,12 @@ pub(super) fn download(src: &str, dest: &Path, limit_rate: Option<&str>) -> Resu
         // 交互终端显示 curl 进度条；非 TTY（插件/日志）静默，由阶段信息报告
         let tty = std::io::IsTerminal::is_terminal(&std::io::stderr());
         let mut cmd = Command::new("curl");
+        // --http1.1：避免慢链路下 GitHub HTTP/2 stream reset（error 92）；
+        // --retry-all-errors：协议级错误也重试（普通 --retry 不含）
         if tty {
-            cmd.args(["-fL", "--retry", "3", "--progress-bar", "-o"]).arg(dest);
+            cmd.args(["-fL", "--http1.1", "--retry", "5", "--retry-delay", "3", "--retry-all-errors", "--progress-bar", "-o"]).arg(dest);
         } else {
-            cmd.args(["-fsSL", "--retry", "3", "-o"]).arg(dest);
+            cmd.args(["-fsSL", "--http1.1", "--retry", "5", "--retry-delay", "3", "--retry-all-errors", "-o"]).arg(dest);
         }
         if let Some(rate) = limit_rate {
             cmd.arg("--limit-rate").arg(rate);
