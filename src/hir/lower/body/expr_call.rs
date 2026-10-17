@@ -39,7 +39,7 @@ impl crate::hir::lower::Ctx {
         // Step 3：显式泛型实参优先（零参构造函数特化后参数表相同，
         // 重载解析无法区分返回类型，必须先按显式实参特化）
         let explicit_id = match explicit {
-            Some(types) => self.specialize_generic_call_with(name, &arg_types, Some(types), span).ok(),
+            Some(types) => self.specialize_generic_call_with(name, &arg_types, Some(types), span, false).ok(),
             None => None,
         };
         let lit_mask: Vec<bool> = hir_args.iter().map(is_numeric_literal).collect();
@@ -62,10 +62,10 @@ impl crate::hir::lower::Ctx {
             Some(fid) => fid,
             None => {
                 // Step 3b: try generic specialization
-                let spec = self.specialize_generic_call_with(name, &arg_types, explicit, span);
+                let spec = self.specialize_generic_call_with(name, &arg_types, explicit, span, false);
                 let spec = match spec {
                     Ok(fid) => Ok(fid),
-                    Err(_) => self.specialize_generic_call_with(name, &deref_arg_types, explicit, span),
+                    Err(_) => self.specialize_generic_call_with(name, &deref_arg_types, explicit, span, false),
                 };
                 match spec {
                     Ok(fid) => fid,

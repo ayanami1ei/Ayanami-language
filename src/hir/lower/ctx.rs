@@ -34,7 +34,8 @@ pub(crate) struct Ctx {
     /// 泛型结构体参数：结构体名 → [(参数名, 约束接口)]
     pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
     /// 泛型函数 AST：(函数名, 泛型参数列表, FnDecl 语句)
-    pub generic_fns: Vec<(Symbol, Vec<(Symbol, Vec<Symbol>)>, Stmt)>,
+    /// 泛型函数表：(名字, 泛型参数, 声明, 是否 impl 方法)——方法调用解析优先方法候选（bd 8yn）
+    pub generic_fns: Vec<(Symbol, Vec<(Symbol, Vec<Symbol>)>, Stmt, bool)>,
     /// 降级过程中特化（单态化）产生的泛型函数
     pub specialized_fns: Vec<HirFn>,
     /// M1.7：合成的外部运行时助手（溢出检查等）

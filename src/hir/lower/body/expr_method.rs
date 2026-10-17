@@ -8,7 +8,7 @@ impl crate::hir::lower::Ctx {
             if self.lookup_var(rname).is_none() {
                 let qualified = Symbol::intern(&format!("{}.{}", rname, method));
                 let has_ns_fn = self.fn_map.contains_key(&qualified)
-                    || self.generic_fns.iter().any(|(n, _, _)| *n == qualified);
+                    || self.generic_fns.iter().any(|(n, ..)| *n == qualified);
                 let is_type = self.struct_defs.contains_key(rname)
                     || self.is_enum_type(rname)
                     || self.type_ifaces.contains_key(rname);

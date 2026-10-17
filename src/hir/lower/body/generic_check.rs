@@ -24,7 +24,7 @@ struct CheckCtx {
 impl crate::hir::lower::Ctx {
     /// 对全部泛型函数/泛型 impl 方法体做未定义函数名与 T 上方法约束检查。
     pub(crate) fn check_generic_bodies(&self) -> Result<()> {
-        for (_, gp, stmt) in &self.generic_fns {
+        for (_, gp, stmt, _) in &self.generic_fns {
             if let Stmt::FnDecl { params, return_type, body, .. } = stmt {
                 let mut cx = CheckCtx {
                     gp: gp.clone(),
@@ -145,7 +145,7 @@ impl crate::hir::lower::Ctx {
                 let known = name.as_str().contains('.')
                     || cx.known.contains(name)
                     || self.fn_map.contains_key(name)
-                    || self.generic_fns.iter().any(|(n, _, _)| n == name);
+                    || self.generic_fns.iter().any(|(n, ..)| n == name);
                 if !known {
                     return Err(Error::Hir(format!(
                         "undefined function `{}` (at {}:{})",

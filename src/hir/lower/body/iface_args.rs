@@ -38,7 +38,7 @@ impl crate::hir::lower::Ctx {
                 }
             }
             // 候选 2：泛型 impl 方法（用具体类型统一 self 类型得到 impl 泛型实参）
-            for (gf_name, gp, gf_stmt) in &self.generic_fns {
+            for (gf_name, gp, gf_stmt, _) in &self.generic_fns {
                 if *gf_name != im.name { continue; }
                 let Stmt::FnDecl { params, return_type, .. } = gf_stmt else { continue };
                 if params.is_empty() { continue; }

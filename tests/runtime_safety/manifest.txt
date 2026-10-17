@@ -44,3 +44,4 @@ drop_rvalue_temp.aya 0 0
 ref_self_match_return.aya 0 aa
 index_element_type.aya 0
 method_shadow_free_fn.aya 0
+method_generic_shadow.aya 0

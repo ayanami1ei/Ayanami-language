@@ -14,7 +14,7 @@ impl crate::hir::lower::Ctx {
             let Expr::FnCall { name: fn_name, generic_args, .. } = value else { continue };
             if !generic_args.is_empty() { continue; }
             // 只处理泛型函数（命名空间构造函数等）
-            if !self.generic_fns.iter().any(|(n, _, _)| n == fn_name) { continue; }
+            if !self.generic_fns.iter().any(|(n, ..)| n == fn_name) { continue; }
             if let Some(ty) = self.find_elem_usage_stmts(name, &stmts[i + 1..]) {
                 hints.insert(*name, vec![ty]);
             }

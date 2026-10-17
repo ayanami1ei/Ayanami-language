@@ -3,14 +3,24 @@ use super::*;
 use super::overload_resolve::same_base_name;
 
 impl crate::hir::lower::Ctx {
-    /// 方法调用分派：impl 方法候选优先（bd 8yn，自由函数同名时不抢占），
-    /// 按接收者类型精确/字面量/解引用解析；泛型方法由调用侧特化回退处理。
-    /// 已知限制：同名**泛型**方法与自由函数同名时，自由函数仍可能被优先匹配（待后续）。
+    /// 方法调用分派（bd 8yn）：1) 仅 impl 方法候选精确匹配；2) 同名**泛型方法**特化
+    /// （精确门控 + 仅方法候选，避免被同名自由函数抢占）；3) 常规链（含自由函数以
+    /// 接收者为首参的兼容用法）。
     pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
-        arg_types: &[HirType], _deref_arg_types: &[HirType], lit_mask: &[bool], _span: &Span) -> Option<FnId> {
-        self.resolve_method(receiver_ty, method, arg_types)
+        arg_types: &[HirType], deref_arg_types: &[HirType], lit_mask: &[bool], span: &Span) -> Option<FnId> {
+        self.resolve_method_only(receiver_ty, method, arg_types)
+            .or_else(|| {
+                let mut all_param_types = vec![receiver_ty.clone()];
+                all_param_types.extend(deref_arg_types.iter().cloned());
+                if self.has_generic_method_candidate(method, receiver_ty, all_param_types.len()) {
+                    self.specialize_generic_method_call(method, &all_param_types, span).ok()
+                } else {
+                    None
+                }
+            })
+            .or_else(|| self.resolve_method(receiver_ty, method, arg_types))
             .or_else(|| self.resolve_method_literals(receiver_ty, method, arg_types, lit_mask))
-            .or_else(|| self.resolve_method(receiver_ty, method, _deref_arg_types))
+            .or_else(|| self.resolve_method(receiver_ty, method, deref_arg_types))
     }
 
     /// bd 8yn：方法调用候选顺序——impl 方法在前（自由函数同名时不抢占），
@@ -192,6 +202,11 @@ impl crate::hir::lower::Ctx {
 
     pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId> {
         self.resolve_method_impl(receiver_type, method_name, arg_types, false)
+    }
+
+    /// 仅 impl 方法候选的解析（bd 8yn：方法优先于同名自由函数）
+    pub(crate) fn resolve_method_only(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId> {
+        self.resolve_method_impl(receiver_type, method_name, arg_types, true)
     }
 
     fn resolve_method_impl(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], methods_only: bool) -> Option<FnId> {

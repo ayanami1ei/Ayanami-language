@@ -4,7 +4,12 @@ impl crate::hir::lower::Ctx {
     /// Try to resolve a call by specializing a generic function.
     /// Returns the FnId of the newly-created specialized function on success.
     pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId> {
-        self.specialize_generic_call_with(name, arg_types, None, span)
+        self.specialize_generic_call_with(name, arg_types, None, span, false)
+    }
+
+    /// bd 8yn：方法调用特化——仅考虑 impl 泛型方法候选（同名自由泛型函数不抢占）
+    pub(crate) fn specialize_generic_method_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId> {
+        self.specialize_generic_call_with(name, arg_types, None, span, true)
     }
 
     /// #72：是否存在同名、参数个数一致且接收者基类型匹配的泛型方法候选。
@@ -14,8 +19,8 @@ impl crate::hir::lower::Ctx {
             HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
             _ => return false,
         };
-        self.generic_fns.iter().any(|(gf_name, _, gf_stmt)| {
-            if gf_name != method { return false; }
+        self.generic_fns.iter().any(|(gf_name, _, gf_stmt, is_method)| {
+            if gf_name != method || !*is_method { return false; }
             let Stmt::FnDecl { params, .. } = gf_stmt else { return false; };
             let visible = params.len().saturating_sub(count_hidden_names(params));
             if visible != argc { return false; }
@@ -31,7 +36,7 @@ impl crate::hir::lower::Ctx {
     }
 
     /// `explicit`：显式泛型实参（优先于形参推导）
-    pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId> {
+    pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span, prefer_method: bool) -> Result<FnId> {
         // Find matching generic function — prefer one where self's base type matches
         let arg_base = (!arg_types.is_empty()).then(|| {
             match strip_ownership_ref(&arg_types[0]) {
@@ -41,8 +46,8 @@ impl crate::hir::lower::Ctx {
         }).flatten();
 
         let mut best_gf_idx = None;
-        for (i, (gf_name, _, gf_stmt)) in self.generic_fns.iter().enumerate() {
-            if gf_name != name { continue; }
+        for (i, (gf_name, _, gf_stmt, gf_is_method)) in self.generic_fns.iter().enumerate() {
+            if gf_name != name || (prefer_method && !*gf_is_method) { continue; }
             if let Stmt::FnDecl { params, .. } = gf_stmt {
                 let visible = params.len().saturating_sub(count_hidden_names(params));
                 if visible != arg_types.len() { continue; }
@@ -65,8 +70,8 @@ impl crate::hir::lower::Ctx {
             Some(i) => i,
             None => {
                 // Fallback: 同名且可见参数个数一致
-                if let Some(i) = self.generic_fns.iter().position(|(gf_name, _, gf_stmt)| {
-                    gf_name == name && match gf_stmt {
+                if let Some(i) = self.generic_fns.iter().position(|(gf_name, _, gf_stmt, gf_is_method)| {
+                    gf_name == name && (!prefer_method || *gf_is_method) && match gf_stmt {
                         Stmt::FnDecl { params, .. } => {
                             params.len().saturating_sub(count_hidden_names(params)) == arg_types.len()
                         }
@@ -86,7 +91,7 @@ impl crate::hir::lower::Ctx {
             }
         };
 
-        let (gf_name, gf_params, gf_stmt) = &self.generic_fns[gf_idx];
+        let (gf_name, gf_params, gf_stmt, _gf_is_method) = &self.generic_fns[gf_idx];
         let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, is_unsafe, param_attrs, attrs, vis, .. } = gf_stmt else {
             return Err(Error::Hir(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col)));
         };

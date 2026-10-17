@@ -198,7 +198,7 @@ impl crate::hir::lower::Ctx {
             None => return false,
         };
         for iface_method in &iface_reg.methods {
-            let has_match = self.generic_fns.iter().any(|(gf_name, _, gf_stmt)| {
+            let has_match = self.generic_fns.iter().any(|(gf_name, _, gf_stmt, _)| {
                 if *gf_name != iface_method.name { return false; }
                 if let Stmt::FnDecl { params, .. } = gf_stmt {
                     if params.is_empty() { return false; }

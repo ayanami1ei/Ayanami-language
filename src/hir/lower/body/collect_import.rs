@@ -43,6 +43,9 @@ impl crate::hir::lower::Ctx {
                 }
             }
 
+            // bd 8yn：包源码里的 impl 方法名（非泛型）——签名表无方法标记，
+            // 用源码集合在注册导入函数时补记 method_fn_ids（方法解析优先方法候选）
+            let mut imported_method_names: std::collections::HashSet<Symbol> = std::collections::HashSet::new();
             for src in &sources {
                 let mut lexer = crate::lexer::Lexer::new(src);
                 let tokens = lexer.tokenize_all();
@@ -61,7 +64,7 @@ impl crate::hir::lower::Ctx {
                         match stmt {
                             Stmt::FnDecl { name, generic_params, span, .. } if !generic_params.is_empty() => {
                                 super::collect_ns::check_unique_generic_params(generic_params, span)?;
-                                self.generic_fns.push((*name, generic_params.clone(), stmt.clone()));
+                                self.generic_fns.push((*name, generic_params.clone(), stmt.clone(), false));
                             }
                             Stmt::ImplBlock { methods, generic_params: impl_gp, span, .. } => {
                                 super::collect_ns::check_unique_generic_params(impl_gp, span)?;
@@ -74,7 +77,9 @@ impl crate::hir::lower::Ctx {
                                         };
                                         super::collect_ns::check_unique_generic_params(&combined, m_span)?;
                                         if !combined.is_empty() {
-                                            self.generic_fns.push((*name, combined, m.clone()));
+                                            self.generic_fns.push((*name, combined, m.clone(), true));
+                                        } else {
+                                            imported_method_names.insert(*name);
                                         }
                                     }
                                 }
@@ -86,7 +91,7 @@ impl crate::hir::lower::Ctx {
                                         super::collect_ns::check_unique_generic_params(generic_params, span)?;
                                         if !generic_params.is_empty() {
                                             let full = Symbol::intern(&format!("{}.{}", prefix, fn_name));
-                                            self.generic_fns.push((full, generic_params.clone(), it.clone()));
+                                            self.generic_fns.push((full, generic_params.clone(), it.clone(), false));
                                         }
                                     }
                                 }
@@ -195,6 +200,9 @@ impl crate::hir::lower::Ctx {
                         });
                         if extern_c { self.extern_fn_ids.insert(fn_id); }
                         self.fn_map.entry(sym_name).or_default().push(fn_id);
+                        if imported_method_names.contains(&sym_name) {
+                            self.method_fn_ids.insert(fn_id);
+                        }
                     }
                     crate::package::ImportedSymbol::Const { name, ty, value } => {
                         // M6.1b：导入常量注册（限定名 `pkg.NAME` + 裸名；本地同名优先）
