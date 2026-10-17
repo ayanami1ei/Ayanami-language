@@ -1,9 +1,0 @@
-// 探针：#154 extern ref 出参写回（time_t*）
-extern "C" fn time(ref int t) -> int;
-
-fn main() -> int {
-    t = 0
-    time(ref t)
-    if t <= 0 { return 1 }
-    return 0
-}

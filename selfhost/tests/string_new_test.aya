@@ -1,5 +1,5 @@
 import "string";
-// 探针：String::new(本地数组, len) 返回后是否悬空（坑 2 / bd 3hh）
+// 回归：String::new(本地数组, len) 返回后不悬空（坑 2 / bd 3hh，2026-10-17 已修）
 fn make() -> String {
     buf = [char; 3]
     buf[0] = 'a'
