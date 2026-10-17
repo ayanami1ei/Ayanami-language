@@ -1684,6 +1684,112 @@ fn bin_llvm_op(int op) -> String {
     return "";
 }
 
+/// 运算符 -> 重载方法名（对应 rust binary_op_to_fn_name）
+fn op_method_name(int op) -> String {
+    if op == bo(BinOp::Add._tag) { return "add"; }
+    if op == bo(BinOp::Sub._tag) { return "sub"; }
+    if op == bo(BinOp::Mul._tag) { return "mul"; }
+    if op == bo(BinOp::Div._tag) { return "div"; }
+    if op == bo(BinOp::Mod._tag) { return "rem"; }
+    if op == bo(BinOp::Eq._tag) { return "eq"; }
+    if op == bo(BinOp::Neq._tag) { return "ne"; }
+    if op == bo(BinOp::Lt._tag) { return "lt"; }
+    if op == bo(BinOp::Gt._tag) { return "gt"; }
+    if op == bo(BinOp::Le._tag) { return "le"; }
+    if op == bo(BinOp::Ge._tag) { return "ge"; }
+    if op == bo(BinOp::BitAnd._tag) { return "bitand"; }
+    if op == bo(BinOp::BitOr._tag) { return "bitor"; }
+    if op == bo(BinOp::BitXor._tag) { return "bitxor"; }
+    if op == bo(BinOp::Shl._tag) { return "shl"; }
+    if op == bo(BinOp::Shr._tag) { return "shr"; }
+    return "";
+}
+
+/// 运算符重载：obj OP arg -> Type.method(obj, arg) 直接调用
+#[alloc]
+fn emit_op_method_call(ref Ast ast, int id, ref Val lt, ref String mn, int mid, ref mut Emitter e) -> Val {
+    mname = lt.b + "." + mn;
+    rty_m = ast.tys[mid];
+    rk_m = e.ret_kind(ast, rty_m);
+    b = StringBuf::new();
+    b.push_str("  ");
+    t = e.fresh();
+    b.push_str(t);
+    if rk_m == 1 {
+        b.push_str(" = call { ptr, i64 } ");
+    } elif rk_m == 5 {
+        b.push_str(" = call double ");
+    } else {
+        b.push_str(" = call i64 ");
+    }
+    b.push_str("@");
+    b.push_str(mname);
+    b.push_str("(ptr ");
+    b.push_str(lt.a);
+    at = emit_expr(ast, ast.bb[id], e);
+    pk = e.fn_param_kind(mname, 0);
+    if pk == 1 {
+        b.push_str(", ptr ");
+        b.push_str(at.a);
+        b.push_str(", i64 ");
+        b.push_str(at.b);
+    } elif pk == 31 {
+        b.push_str(", double ");
+        b.push_str(at.a);
+    } elif pk == 0 {
+        b.push_str(", i64 ");
+        b.push_str(at.a);
+    } else {
+        b.push_str(", ptr ");
+        b.push_str(at.a);
+    }
+    b.push_str(")\n");
+    e.buf.push_str(b.to_string());
+    if rk_m == 1 {
+        ip = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(ip);
+        e.buf.push_str(" = extractvalue { ptr, i64 } ");
+        e.buf.push_str(t);
+        e.buf.push_str(", 0\n  ");
+        il = e.fresh();
+        e.buf.push_str(il);
+        e.buf.push_str(" = extractvalue { ptr, i64 } ");
+        e.buf.push_str(t);
+        e.buf.push_str(", 1\n");
+        return mk_str_tmp(ip, il);
+    }
+    if rk_m == 5 { return mk_float(t); }
+    if rk_m == 2 {
+        pi = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pi);
+        e.buf.push_str(" = inttoptr i64 ");
+        e.buf.push_str(t);
+        e.buf.push_str(" to ptr\n");
+        return Val { kind = 2, a = pi, b = ty_name(ast, rty_m).copy(), ty = -1 };
+    }
+    if rk_m == 4 {
+        pi2 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pi2);
+        e.buf.push_str(" = inttoptr i64 ");
+        e.buf.push_str(t);
+        e.buf.push_str(" to ptr\n");
+        return Val { kind = 4, a = pi2, b = ty_name(ast, rty_m).copy(), ty = -1 };
+    }
+    if rk_m == 3 {
+        pi3 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pi3);
+        e.buf.push_str(" = inttoptr i64 ");
+        e.buf.push_str(t);
+        e.buf.push_str(" to ptr\n");
+        return mk_arr(pi3, e.ret_info(ast, rty_m));
+    }
+    return mk_int(t);
+}
+
 fn cmp_llvm_op(int op) -> String {
     if op == bo(BinOp::Eq._tag) { return "eq"; }
     if op == bo(BinOp::Neq._tag) { return "ne"; }
@@ -3327,6 +3433,16 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     if tag == et(ET::Binary._tag) {
         op = ast.tys[id];
         lt = emit_expr(ast, ast.aa[id], e);
+        if lt.kind == 2 || lt.kind == 4 {
+            // 运算符重载：结构体/枚举值走 add/eq/... 方法
+            mn_ov = op_method_name(op);
+            if mn_ov.len > 0 {
+                mid_ov = e.find_method_id(lt.b, mn_ov);
+                if mid_ov >= 0 {
+                    return emit_op_method_call(ast, id, lt, mn_ov, mid_ov, e);
+                }
+            }
+        }
         rt = emit_expr(ast, ast.bb[id], e);
         if lt.kind == 6 || rt.kind == 6 {
             // 浮点运算/比较（混合时把整数侧 sitofp 到 double）
