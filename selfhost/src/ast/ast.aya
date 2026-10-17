@@ -171,18 +171,18 @@ pub namespace Ast {
     #[alloc]
     pub fn new() -> Ast {
         a = Ast {
-            tags = [int; 65536],
-            texts = [String; 65536],
-            tys = [int; 65536],
-            aa = [int; 65536],
-            bb = [int; 65536],
-            cc = [int; 65536],
-            dd = [int; 65536],
-            nexts = [int; 65536],
-            lines = [int; 65536],
-            cols = [int; 65536],
+            tags = [int; 131072],
+            texts = [String; 131072],
+            tys = [int; 131072],
+            aa = [int; 131072],
+            bb = [int; 131072],
+            cc = [int; 131072],
+            dd = [int; 131072],
+            nexts = [int; 131072],
+            lines = [int; 131072],
+            cols = [int; 131072],
             len = 0,
-            cap = 65536
+            cap = 131072
         };
         return a;
     }

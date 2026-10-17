@@ -2,6 +2,7 @@ import "string";
 import "aya_sb";
 import "aya_ast";
 import "aya_log";
+import "aya_sys";
 
 // M4b：HIR 子集类型检查（名称解析 + 表达式/语句类型检查）
 // 诊断格式与 rust 版 `ayanami check` 对齐：error: msg + file:line:col
@@ -63,6 +64,23 @@ pub struct Checker {
     [String] g_names
     [String] g_types
     int g_count
+    // effect 推断（A3）：每函数推断标记 + 调用图 + 声明信息
+    [int] fx_alloc
+    [int] fx_state
+    [int] fx_pub
+    [int] fx_mask
+    [int] fx_line
+    [int] fx_col
+    [int] fx_id
+    [String] fx_names
+    int fx_count
+    [String] fx_call_to
+    [int] fx_call_from
+    int fx_call_count
+    int cur_fx
+    int fx_self_ref
+    [String] fx_refs
+    int fx_ref_count
 }
 
 pub namespace Checker {
@@ -72,18 +90,18 @@ pub namespace Checker {
         c = Checker {
             errors = 0,
             file = file.copy(),
-            fn_names = [String; 4096],
-            fn_rets = [String; 4096],
-            fn_nparams = [int; 4096],
-            fn_pstart = [int; 4096],
-            fn_ptypes = [String; 16384],
+            fn_names = [String; 8192],
+            fn_rets = [String; 8192],
+            fn_nparams = [int; 8192],
+            fn_pstart = [int; 8192],
+            fn_ptypes = [String; 32768],
             fn_ptotal = 0,
             fn_count = 0,
-            m_recv = [String; 2048],
-            m_names = [String; 2048],
-            m_nparams = [int; 2048],
-            m_pstart = [int; 2048],
-            m_ptypes = [String; 8192],
+            m_recv = [String; 4096],
+            m_names = [String; 4096],
+            m_nparams = [int; 4096],
+            m_pstart = [int; 4096],
+            m_ptypes = [String; 16384],
             m_ptotal = 0,
             m_count = 0,
             st_names = [String; 1024],
@@ -114,10 +132,50 @@ pub namespace Checker {
             cur_ret = "",
             g_names = [String; 512],
             g_types = [String; 512],
-            g_count = 0
+            g_count = 0,
+            fx_alloc = [int; 4096],
+            fx_state = [int; 4096],
+            fx_pub = [int; 4096],
+            fx_mask = [int; 4096],
+            fx_line = [int; 4096],
+            fx_col = [int; 4096],
+            fx_id = [int; 4096],
+            fx_names = [String; 4096],
+            fx_count = 0,
+            fx_call_to = [String; 16384],
+            fx_call_from = [int; 16384],
+            fx_call_count = 0,
+            cur_fx = -1,
+            fx_self_ref = 0,
+            fx_refs = [String; 512],
+            fx_ref_count = 0
 };
         return c;
     }
+}
+
+/// 表达式是否为字符串字面量
+fn is_str_lit(ref Ast ast, int id) -> int {
+    if id < 0 { return 0; }
+    if ast.tags[id] != et(ET::Literal._tag) { return 0; }
+    if ast.bb[id] == lk(LK::Str._tag) { return 1; }
+    return 0;
+}
+
+/// std 中带 #[alloc] 的常见函数名（未合并 std 源码时的近似）
+fn is_std_alloc_name(ref String name) -> int {
+    if name == "String.new" { return 1; }
+    if name == "String.empty" { return 1; }
+    if name == "String.add" { return 1; }
+    if name == "String.substring" { return 1; }
+    if name == "String.to_upper" { return 1; }
+    if name == "String.to_lower" { return 1; }
+    if name == "String.repeat" { return 1; }
+    if name == "String.trim" { return 1; }
+    if name == "String.trim_start" { return 1; }
+    if name == "String.trim_end" { return 1; }
+    if name == "to_string" { return 1; }
+    return 0;
 }
 
 fn str_starts_with(ref String s, ref String prefix) -> bool {
@@ -555,6 +613,142 @@ impl Checker {
         return -1;
     }
 
+    /// effect 表登记（pub：自由函数看标志位，impl 方法恒 pub；名称：带 self 用裸名，关联函数用 Type.name）
+    #[alloc]
+    #[state]
+    fn add_fx(ref mut self, ref Ast ast, int id, ref String recv) {
+        if self.fx_count >= 4096 { return; }
+        i = self.fx_count;
+        dd = ast.dd[id];
+        pubf = 0;
+        if recv.len > 0 { pubf = 1; }
+        if dd >= 16384 { pubf = 1; }
+        nmf = ast.texts[id].copy();
+        has_self = 0;
+        p = ast.aa[id];
+        while p >= 0 {
+            if ast.texts[p] == "self" { has_self = 1; }
+            p = ast.nexts[p];
+        }
+        if recv.len > 0 && has_self == 0 {
+            nmf = recv + "." + ast.texts[id];
+        }
+        self.fx_names[i] = nmf;
+        self.fx_pub[i] = pubf;
+        self.fx_mask[i] = dd % 16384;
+        self.fx_line[i] = ast.lines[id];
+        self.fx_col[i] = ast.cols[id];
+        self.fx_id[i] = id;
+        self.fx_alloc[i] = 0;
+        self.fx_state[i] = 0;
+        self.fx_count = i + 1;
+    }
+
+    /// 记录调用（调用图）或 std alloc 名直接标记
+    #[alloc]
+    #[state]
+    fn fx_note_call(ref mut self, ref String name) {
+        if self.cur_fx < 0 { return; }
+        if is_std_alloc_name(name) == 1 {
+            self.fx_alloc[self.cur_fx] = 1;
+            return;
+        }
+        if self.fx_call_count < 16384 {
+            self.fx_call_to[self.fx_call_count] = name.copy();
+            self.fx_call_from[self.fx_call_count] = self.cur_fx;
+            self.fx_call_count = self.fx_call_count + 1;
+        }
+    }
+
+    /// 对象根标识符是否为引用（self 为 ref 接收者，或局部 ref 变量）
+    fn fx_root_is_ref(ref mut self, ref Ast ast, int id) -> bool {
+        while id >= 0 {
+            tg = ast.tags[id];
+            if tg == et(ET::Ident._tag) {
+                nm = ast.texts[id];
+                if nm == "self" { return self.fx_self_ref == 1; }
+                i = 0;
+                while i < self.fx_ref_count {
+                    if self.fx_refs[i] == nm { return true; }
+                    i = i + 1;
+                }
+                return false;
+            }
+            if tg == et(ET::FieldAccess._tag) {
+                id = ast.aa[id];
+                continue;
+            }
+            if tg == et(ET::Index._tag) {
+                id = ast.aa[id];
+                continue;
+            }
+            if tg == et(ET::MethodCall._tag) {
+                id = ast.aa[id];
+                continue;
+            }
+            return false;
+        }
+        return false;
+    }
+
+    /// effect 不动点推断 + 缺失建议警告（只对 pub/impl 方法；alloc 先于 state）
+    #[alloc]
+    #[state]
+    fn fx_infer(ref mut self, ref Ast ast) {
+        it = 0;
+        while it < 8 {
+            changed = 0;
+            c = 0;
+            while c < self.fx_call_count {
+                to = self.fx_call_to[c];
+                from = self.fx_call_from[c];
+                ti = 0;
+                while ti < self.fx_count {
+                    if self.fx_names[ti] == to {
+                        if self.fx_alloc[ti] == 1 && self.fx_alloc[from] == 0 {
+                            self.fx_alloc[from] = 1;
+                            changed = 1;
+                        }
+                        if self.fx_state[ti] == 1 && self.fx_state[from] == 0 {
+                            self.fx_state[from] = 1;
+                            changed = 1;
+                        }
+                    }
+                    ti = ti + 1;
+                }
+                c = c + 1;
+            }
+            if changed == 0 { break; }
+            it = it + 1;
+        }
+        // 警告输出默认关闭（AYANAMI_FX_WARN=1 打开）：需要先补齐诊断帧格式与
+        // match 降级 state 标记的精确复刻，见 bd「effect 警告对齐」
+        if env("AYANAMI_FX_WARN") != "1" { return; }
+        i = 0;
+        while i < self.fx_count {
+            if self.fx_pub[i] == 1 {
+                if (self.fx_mask[i] / 2048) % 2 == 0 {
+                    // 非 pure：检查缺失声明
+                    if self.fx_alloc[i] == 1 && (self.fx_mask[i] / 256) % 2 == 0 {
+                        w = StringBuf::new();
+                        w.push_str("function `");
+                        w.push_str(self.fx_names[i]);
+                        w.push_str("` may have effect `alloc`; consider adding #[alloc]");
+                        warn_at(self.file, self.fx_line[i], self.fx_col[i], w.to_string());
+                    }
+                    if self.fx_state[i] == 1 && (self.fx_mask[i] / 512) % 2 == 0 {
+                        w2 = StringBuf::new();
+                        w2.push_str("function `");
+                        w2.push_str(self.fx_names[i]);
+                        w2.push_str("` may have effect `state`; consider adding #[state]");
+                        warn_at(self.file, self.fx_line[i], self.fx_col[i], w2.to_string());
+                    }
+                }
+            }
+            i = i + 1;
+        }
+    }
+
     fn find_method(ref mut self, ref String recv, ref String name) -> int {
         i = 0;
         while i < self.m_count {
@@ -818,6 +1012,7 @@ impl Checker {
             tag = ast.tags[s];
             if tag == st(ST::FnDecl._tag) {
                 self.add_fn(ast, s, recv);
+                self.add_fx(ast, s, recv);
                 self.check_dup_generics(ast, ast.cc[s], ast.lines[s], ast.cols[s]);
             } elif tag == st(ST::StructDef._tag) {
                 self.add_struct(ast, s);
@@ -956,6 +1151,17 @@ impl Checker {
     #[state]
     fn check_fn(ref mut self, ref Ast ast, int id) {
         self.lv_count = 0;
+        self.fx_ref_count = 0;
+        self.fx_self_ref = 0;
+        self.cur_fx = -1;
+        i_fx = 0;
+        while i_fx < self.fx_count {
+            if self.fx_id[i_fx] == id {
+                self.cur_fx = i_fx;
+                break;
+            }
+            i_fx = i_fx + 1;
+        }
         if ast.cc[id] >= 0 {
             self.load_generics(ast, ast.cc[id]);
         }
@@ -964,6 +1170,19 @@ impl Checker {
         p = ast.aa[id];
         while p >= 0 {
             self.set_local(ast.texts[p], type_name(ast, ast.tys[p]));
+            ty_s = ast.tys[p];
+            if ty_s >= 0 {
+                if ast.tags[ty_s] == tt(TT::Ref._tag) {
+                    if ast.texts[p] == "self" {
+                        self.fx_self_ref = 1;
+                    } else {
+                        if self.fx_ref_count < 512 {
+                            self.fx_refs[self.fx_ref_count] = ast.texts[p].copy();
+                            self.fx_ref_count = self.fx_ref_count + 1;
+                        }
+                    }
+                }
+            }
             p = ast.nexts[p];
         }
         self.check_block(ast, ast.bb[id]);
@@ -1151,6 +1370,27 @@ impl Checker {
     #[state]
     fn check_stmt(ref mut self, ref Ast ast, int id) {
         tag = ast.tags[id];
+        // effect 观察（A3）
+        if self.cur_fx >= 0 {
+            if tag == st(ST::FieldAssign._tag) {
+                if self.fx_root_is_ref(ast, ast.aa[id]) {
+                    self.fx_state[self.cur_fx] = 1;
+                }
+            } elif tag == st(ST::IndexAssign._tag) {
+                if self.fx_root_is_ref(ast, ast.aa[id]) {
+                    self.fx_state[self.cur_fx] = 1;
+                }
+            } elif tag == st(ST::Assign._tag) {
+                if ast.aa[id] >= 0 {
+                    if ast.tags[ast.aa[id]] == et(ET::Ref._tag) {
+                        if self.fx_ref_count < 512 {
+                            self.fx_refs[self.fx_ref_count] = ast.texts[id].copy();
+                            self.fx_ref_count = self.fx_ref_count + 1;
+                        }
+                    }
+                }
+            }
+        }
         if tag == st(ST::FnDecl._tag) {
             self.check_fn(ast, id);
         } elif tag == st(ST::Assign._tag) {
@@ -1357,6 +1597,24 @@ impl Checker {
     fn check_expr(ref mut self, ref Ast ast, int id) -> String {
         if id < 0 { return ""; }
         tag = ast.tags[id];
+        // effect 观察（A3）
+        if self.cur_fx >= 0 {
+            if tag == et(ET::Literal._tag) {
+                if ast.bb[id] == lk(LK::Str._tag) { self.fx_alloc[self.cur_fx] = 1; }
+            } elif tag == et(ET::ArrayLiteral._tag) || tag == et(ET::ArraySized._tag) || tag == et(ET::ToUnique._tag) {
+                self.fx_alloc[self.cur_fx] = 1;
+            } elif tag == et(ET::Binary._tag) {
+                if ast.tys[id] == bo(BinOp::Add._tag) {
+                    if is_str_lit(ast, ast.aa[id]) == 1 || is_str_lit(ast, ast.bb[id]) == 1 {
+                        self.fx_alloc[self.cur_fx] = 1;
+                    }
+                }
+            } elif tag == et(ET::FnCall._tag) {
+                self.fx_note_call(ast.texts[id]);
+            } elif tag == et(ET::MethodCall._tag) {
+                self.fx_note_call(ast.texts[id]);
+            }
+        }
         if tag == et(ET::Suffixed._tag) {
             self.check_expr(ast, ast.aa[id]);
             return suffix_type(ast.texts[id]);
@@ -1768,5 +2026,6 @@ pub fn check_program(ref Ast ast, int prog, ref String file) -> int {
         }
         s = ast.nexts[s];
     }
+    c.fx_infer(ast);
     return c.errors;
 }
