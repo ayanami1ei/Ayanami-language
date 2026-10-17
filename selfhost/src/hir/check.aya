@@ -164,8 +164,7 @@ fn is_str_lit(ref Ast ast, int id) -> int {
 
 /// std 中带 #[alloc] 的常见函数名（未合并 std 源码时的近似）
 fn is_std_alloc_name(ref String name) -> int {
-    if name == "String.new" { return 1; }
-    if name == "String.empty" { return 1; }
+    // 注：String.new/empty 只构造视图（std 实现无分配），不在列
     if name == "String.add" { return 1; }
     if name == "String.substring" { return 1; }
     if name == "String.to_upper" { return 1; }
@@ -285,6 +284,8 @@ pub fn infer_init_ty(ref Ast ast, int id) -> String {
     return "";
 }
 
+#[alloc]
+#[state]
 pub fn type_name(ref Ast ast, int ty) -> String {
     if ty < 0 { return ""; }
     t = ast.tags[ty];
@@ -661,6 +662,7 @@ impl Checker {
     }
 
     /// 对象根标识符是否为引用（self 为 ref 接收者，或局部 ref 变量）
+    #[alloc]
     fn fx_root_is_ref(ref mut self, ref Ast ast, int id) -> bool {
         while id >= 0 {
             tg = ast.tags[id];
@@ -921,6 +923,8 @@ impl Checker {
         self.g_count = self.g_count + 1;
     }
 
+    #[state]
+    #[alloc]
     fn global_ty(ref mut self, ref String name) -> String {
         i = 0;
         while i < self.g_count {

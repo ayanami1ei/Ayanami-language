@@ -1294,6 +1294,8 @@ impl Emitter {
         return -1;
     }
 
+    #[alloc]
+    #[state]
     fn global_val(ref mut self, ref String name) -> String {
         i = 0;
         while i < self.g_count {

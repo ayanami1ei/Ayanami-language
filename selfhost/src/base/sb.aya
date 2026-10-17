@@ -94,6 +94,8 @@ impl StringBuf {
     }
 
     /// 取区间 [start, end) 的子串（只复制该区间）
+    #[alloc]
+    #[state]
     pub fn substring(ref self, int start, int end) -> String {
         s = start;
         e = end;
@@ -110,6 +112,8 @@ impl StringBuf {
         return String::new(res, n as usize);
     }
 
+    #[alloc]
+    #[state]
     pub fn to_string(ref self) -> String {
         res = [char; self.len];
         for i in (0, self.len) {

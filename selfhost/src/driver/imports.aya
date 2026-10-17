@@ -21,12 +21,15 @@ pub struct Seen {
 }
 
 pub namespace Deps {
+    #[alloc]
     pub fn new() -> Deps {
         return Deps { names = [String; 256], paths = [String; 256], count = 0 };
     }
 }
 
 impl Deps {
+    #[alloc]
+    #[state]
     fn add(ref mut self, ref String name, ref String path) {
         if self.count >= 256 { return; }
         self.names[self.count] = name.copy();
@@ -34,6 +37,8 @@ impl Deps {
         self.count = self.count + 1;
     }
 
+    #[alloc]
+    #[state]
     fn path_of(ref self, ref String name) -> String {
         i = 0;
         while i < self.count {
@@ -45,6 +50,7 @@ impl Deps {
 }
 
 pub namespace Seen {
+    #[alloc]
     pub fn new() -> Seen {
         return Seen { files = [String; 256], count = 0 };
     }
@@ -62,6 +68,8 @@ impl Seen {
         return false;
     }
 
+    #[alloc]
+    #[state]
     fn add(ref mut self, ref String f) {
         if self.count >= 256 { return; }
         self.files[self.count] = f.copy();
@@ -128,6 +136,8 @@ fn import_alias(ref String line) -> String {
 }
 
 /// 从 file 所在目录向上找 ayanami.toml（最多 3 层），返回目录（含尾 /）或 ""
+#[alloc]
+#[state]
 pub fn find_manifest_dir(ref String file) -> String {
     d = Path::dir(file);
     if d.len == 0 { d = "."; }
@@ -161,6 +171,8 @@ pub fn find_manifest_dir(ref String file) -> String {
 }
 
 /// 解析 ayanami.toml 的 [dependencies]：name = "path"
+#[alloc]
+#[state]
 pub fn load_deps(ref String manifest_dir) -> Deps {
     d = Deps::new();
     if manifest_dir.len == 0 { return d; }

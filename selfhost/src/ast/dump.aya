@@ -225,6 +225,8 @@ fn push_literal(ref Ast ast, int id, ref mut StringBuf b) {
     }
 }
 
+#[alloc]
+#[state]
 pub fn dump_ast(ref Ast ast, int program) -> String {
     b = StringBuf::new();
     b.push_str("Program\n");
