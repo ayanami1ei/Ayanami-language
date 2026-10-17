@@ -39,6 +39,8 @@ pub trait MirNode: std::fmt::Debug {
     fn as_ref(&self) -> Option<(VarId, bool)> { None }
     /// #91：字段访问节点（SMirFieldAccess）的（对象, 字段下标）
     fn as_field_access(&self) -> Option<(&MirNodeBox, usize)> { None }
+    /// #186：字段/下标访问的**对象**可变视图（拥有临时量提升用）
+    fn object_mut(&mut self) -> Option<&mut MirNodeBox> { None }
     /// 是否是函数/方法/函数指针调用（借用检查的求值上下文边界）
     fn is_call(&self) -> bool { false }
     /// A4b-2：结构体字面量的字段（仅 SMirStructLiteral）

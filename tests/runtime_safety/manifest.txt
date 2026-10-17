@@ -38,3 +38,6 @@ bounds_push_arena.aya 0
 bounds_write_past_len.aya 101 index out of bounds
 bool_comparison_contexts.aya 0
 neg_overflow.aya 101 overflow
+opt_none_monomorphize.aya 0 zz
+drop_cond_move_loop.aya 0 0
+drop_rvalue_temp.aya 0 0

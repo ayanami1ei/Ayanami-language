@@ -91,6 +91,7 @@ impl HirNode for SArrSz {
 }
 
 impl HirNode for SRef {
+    fn as_ref_expr(&self) -> Option<&HirNodeBox> { Some(&self.expr) }
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirRef { expr: self.expr.lower_to_mir(moved), mutable: self.mutable, ty: self.ty.clone() }.into()

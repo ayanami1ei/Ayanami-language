@@ -42,7 +42,7 @@ impl crate::hir::lower::Ctx {
 
         // M4：`Ptr[T]` 接收者 —— `get`/`get_mut` 返回 pointee 借用；其余方法自动解引用。
         // 拥有 `Ptr[T]` 与 `ref Ptr[T]`（字段借用）均支持。
-        let (receiver, receiver_ty) = match &receiver_ty {
+        let (mut receiver, receiver_ty) = match &receiver_ty {
             HirType::Unique(inner) => {
                 let inner_ty = (**inner).clone();
                 // M5 P2：`Ptr[T].as_ptr() -> *T`（需 unsafe；不消费 Ptr）
@@ -246,9 +246,9 @@ impl crate::hir::lower::Ctx {
                 };
                 // 泛型推导成功后，尝试更新接收者变量的类型
                 if let Some(var_id) = receiver.as_local() {
-                    let spec_param_ty = &self.fns[fid.0].params[0].1;
+                    let spec_param_ty = self.fns[fid.0].params[0].1.clone();
                     let recv_stripped = strip_ownership_ref(&receiver_ty);
-                    let spec_stripped = strip_ownership_ref(spec_param_ty);
+                    let spec_stripped = strip_ownership_ref(&spec_param_ty);
                     if let (HirType::Named(rn), HirType::Named(sn)) = (recv_stripped, spec_stripped) {
                         let rs = rn.as_str();
                         let ss = sn.as_str();
@@ -256,6 +256,9 @@ impl crate::hir::lower::Ctx {
                             let base = crate::hir::lower::strip_generic_name(&sn);
                             if base.as_str() == rs {
                                 self.update_var_type(var_id, spec_param_ty.clone());
+                                // #185：接收者节点按细化后的类型重建——旧（裸）类型会让
+                                // 调用以错误 ABI 传参（裸 Option 16 字节 vs 单态化 24 字节 → 崩溃）
+                                receiver = SVar { var: var_id, ty: spec_param_ty.clone() }.into();
                             }
                         }
                     }

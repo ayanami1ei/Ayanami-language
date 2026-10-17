@@ -102,6 +102,7 @@ impl MirNode for SMirEnumMatch {
 }
 
 impl MirNode for SMirFieldAccess {
+    fn object_mut(&mut self) -> Option<&mut MirNodeBox> { Some(&mut self.object) }
     fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
@@ -197,6 +198,7 @@ impl MirNode for SMirArraySized {
 
 impl MirNode for SMirIndex {
     fn as_index(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.index)) }
+    fn object_mut(&mut self) -> Option<&mut MirNodeBox> { Some(&mut self.object) }
     fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); }
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {

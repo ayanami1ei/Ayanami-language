@@ -25,6 +25,33 @@ impl Ctx {
         post: &mut Vec<MirStmtBox>,
     ) {
         node.for_each_child_mut(&mut |c| self.hoist_walk(c, span, pre, post));
+        // #186：字段/下标访问的**对象**是拥有临时量（如 `("a"+"b").len`）→
+        // 提升为临时局部并在语句末 drop（否则每次泄漏其缓冲）。
+        {
+            let hoist_ty = node.object_mut().and_then(|obj| {
+                let is_place = obj.as_local().is_some()
+                    || obj.as_global().is_some()
+                    || obj.as_deref().is_some()
+                    || obj.as_index().is_some()
+                    || obj.as_field_access().is_some();
+                if is_place || obj.move_expr().is_some() {
+                    return None;
+                }
+                let ty = obj.expr_type();
+                needs_drop(&ty, &self.struct_defs).then_some(ty)
+            });
+            if let Some(ty) = hoist_ty {
+                let tmp = self.new_temp(ty.clone());
+                let obj = node.object_mut().expect("object_mut");
+                let old = std::mem::replace(obj, SMirLocal { var: tmp, ty: ty.clone(), moved: false }.into());
+                pre.push(SMirAssignStmt {
+                    target: SMirLocal { var: tmp, ty: ty.clone(), moved: false }.into(),
+                    value: old,
+                    span,
+                }.into());
+                post.push(SMirDropStmt { var: tmp, ty, span }.into());
+            }
+        }
         // 仅处理「借用的拥有临时量」：左值（局部/字段/下标/解引用/全局）由所有者释放，
         // 移动/克隆节点已转移所有权。
         let ty = {
