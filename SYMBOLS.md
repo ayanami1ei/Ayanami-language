@@ -359,14 +359,14 @@ src/hir/effects/infer.rs:44: pub fn verify_effects() -> bool
 src/hir/effects/infer.rs:49: pub fn analyze(hir: &mut HirProgram, ast: &crate::parser::ast::Program, src_path: &Path) -> Result<()>
 src/hir/effects/infer.rs:62: pub fn summarize(hir: &HirProgram) -> HashMap<String, crate::hir::effects::EffectSummary>
 src/hir/effects/infer.rs:77: fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet>
-src/hir/effects/infer.rs:181: fn declared_to_set(d: &EffectDecl) -> EffectSet
-src/hir/effects/infer.rs:189: pub(super) fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
-src/hir/effects/infer.rs:199: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
-src/hir/effects/infer.rs:210: struct CallInfo
-src/hir/effects/infer.rs:217: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
-src/hir/effects/infer.rs:270: fn state_marker() -> CallInfo
-src/hir/effects/infer.rs:274: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
-src/hir/effects/infer.rs:278: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:180: fn declared_to_set(d: &EffectDecl) -> EffectSet
+src/hir/effects/infer.rs:188: pub(super) fn collect_fns<'a>(items: &'a [HirItem], out: &mut Vec<&'a HirFn>)
+src/hir/effects/infer.rs:198: fn for_each_fn_mut(items: &mut [HirItem], f: &mut impl FnMut(&mut HirFn))
+src/hir/effects/infer.rs:209: struct CallInfo
+src/hir/effects/infer.rs:216: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:269: fn state_marker() -> CallInfo
+src/hir/effects/infer.rs:273: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
+src/hir/effects/infer.rs:277: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
 src/hir/effects/mod.rs:15: pub const BUILTIN_EFFECTS: &[&str] = &["io", "state", "alloc"];
 src/hir/effects/mod.rs:18: pub(crate) const IO_NAMES: &[&str] = &[
 src/hir/effects/mod.rs:24: pub mod diag;
@@ -389,6 +389,7 @@ src/hir/effects/mod.rs:162: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
 src/hir/effects/mod.rs:183: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
 src/hir/effects/mod.rs:204: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
 src/hir/effects/mod.rs:221: fn bad_throws(a: &Attr) -> Error
+src/hir/effects/mod.rs:230: pub(crate) fn is_synth_helper(name: &str) -> bool
 src/hir/effects/scan.rs:8: pub(super) enum Obs
 src/hir/effects/scan.rs:15: impl Obs
 src/hir/effects/scan.rs:17: pub(super) fn site_of(&self, kind: &str) -> Option<(usize, usize)>

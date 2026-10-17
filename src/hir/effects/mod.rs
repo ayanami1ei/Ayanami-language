@@ -224,3 +224,13 @@ fn bad_throws(a: &Attr) -> Error {
         a.span.start_line, a.span.start_col
     ))
 }
+
+/// 编译器合成助手（溢出/契约失败/越界检查）：noreturn 错误路径或纯检查，
+/// 不算「未知 extern」（#117、#176）。
+pub(crate) fn is_synth_helper(name: &str) -> bool {
+    name.starts_with("__ayanami_ovf_")
+        || name == "__ayanami_panic_bounds_at"
+        || name == "__ayanami_require_fail"
+        || name == "__ayanami_ensure_fail"
+        || name == "__ayanami_invariant_fail"
+}

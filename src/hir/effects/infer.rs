@@ -145,8 +145,7 @@ fn compute(hir: &HirProgram) -> HashMap<crate::hir::ty::FnId, EffectSet> {
                     // 本地无体声明（extern）：声明效应生效；未显式承诺 pure/no_error 时按「未知」保守处理
                     // （extern 可能读写内存/失败）；编译器合成助手（溢出/契约失败）例外（#117）。
                     set.union(k);
-                    let synth = names.get(&c.fn_id).map_or(false, |n| n.starts_with("__ayanami_ovf_")
-                        || n == "__ayanami_require_fail" || n == "__ayanami_ensure_fail" || n == "__ayanami_invariant_fail");
+                    let synth = names.get(&c.fn_id).map_or(false, |n| super::is_synth_helper(n));
                     if !synth {
                         let d = declared.get(&c.fn_id);
                         if !d.map_or(false, |d| d.pure) { set.may_unknown_effects = true; }

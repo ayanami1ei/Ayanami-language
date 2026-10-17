@@ -93,6 +93,13 @@ if [ -d tests/effects ]; then
         echo "FAIL tests/effects/pure_real_alloc.aya: want verify failure（#117 真 alloc 应仍报错）"
         fail=$((fail + 1))
     fi
+    # #176：边界检查合成调用不应破坏 #[pure]
+    "$BIN" check --verify-effects tests/effects/pure_bounds.aya >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL tests/effects/pure_bounds.aya: exit $got, want 0（#176 越界检查纯函数误报）"
+        fail=$((fail + 1))
+    fi
 fi
 
 # #84 ③：导出 C 符号 + C harness 互操作
