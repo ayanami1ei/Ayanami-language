@@ -57,7 +57,8 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 12. **`ref String` 形参直接存入结构体字段会双重释放**（2026-10-17 用探针 `tests/probe_ref_field.aya` 复测，
     仍然存在）。规则：**把 ref 形参放进拥有字段/返回值，一律显式 `.copy()`**。
 13. **枚举不做 `==` 比较**（2026-10-17 复测仍报 `no matching overload of ne (E, E)`）；
-    用 `x._tag` / 自定义 `tag()` 做整数分派。
+    用 **`match`** 分派（惯用法，模式用裸变体名：`match x { A => ..., B => ... }`；
+    注意 `E::A` 限定形式会被检查器拒绝）。AST/Token 的 tag 存 int 属表示设计（并行数组），不算绕路。
 14. **namespace 内的函数互相调用要写全限定名**（`Path::last_sep(s)`），裸名报 `undefined function`；
     `log::raw_error` 这种「模块别名当命名空间」的写法不成立——`import "aya_log"` 后直接用 `raw_error(...)`。
 15. **`[T]` 数组元素是拥有值**：`String` 元素直接放进结构体字段同样要 `.copy()`（同坑 12）。
@@ -84,6 +85,10 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     枚举接收者（`c.kind.tag()`）走 `find_method_id(枚举名, 方法)`。
 26. **同名局部不同类型**（源码里常见复用）：`declare_local` 按 form（int/ptr/String 双槽）分别分配存储，
     但源码里最好避免同名跨类型复用。
+
+27. **函数体被静默丢弃（已修，2026-10-17）**：`emit_fn_named` 未复位 `e.terminated`，上一个函数以
+    `return`（尤其 match 臂内 return）结束会残留标志，导致**下一个函数体整段被跳过**（发射成空函数）。
+    回归用例 `tests/e2e/e_terminated_leak.aya`；修复：函数入口复位 `terminated`。
 
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 

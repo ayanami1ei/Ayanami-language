@@ -16,14 +16,15 @@ fn usage_unknown(ref Cli c) -> int {
     return 2;
 }
 
-// 枚举不做 == 比较（见 docs/selfhost.md §2）：按 Cmd 的整数标签分派
+// 子命令分派：直接 match 枚举（枚举不支持 ==，match 是惯用法）
 fn dispatch(ref Cli c) -> int {
-    t = c.kind.tag();
-    if t == Cmd::Check._tag { return cmd_check(c.file); }
-    if t == Cmd::Build._tag { return cmd_build(c.file, c.opts); }
-    if t == Cmd::Run._tag { return cmd_run(c.file, c.opts); }
-    if t == Cmd::Help._tag { return usage_ok(c); }
-    return usage_unknown(c);
+    match c.kind {
+        Check => return cmd_check(c.file),
+        Build => return cmd_build(c.file, c.opts),
+        Run => return cmd_run(c.file, c.opts),
+        Help => return usage_ok(c),
+        Unknown => return usage_unknown(c),
+    }
 }
 
 fn main() -> int {

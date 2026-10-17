@@ -5888,6 +5888,8 @@ fn emit_decl(ref Ast ast, int id, ref mut Emitter e) {
 fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
     e.tmp = 0;
     e.lv_count = 0;
+    // 上一函数以 ret 结束会残留 terminated；新函数体必须复位，否则整段被跳过
+    e.terminated = 0;
     name = ast.texts[id];
     rty = ast.tys[id];
     rkind = e.ret_kind(ast, rty);

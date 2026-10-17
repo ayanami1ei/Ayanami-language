@@ -12,11 +12,6 @@ pub enum Cmd {
     Unknown
 }
 
-impl Cmd {
-    /// 枚举标签（本仓约定：枚举不做 == 比较，用整数标签分派）
-    pub fn tag(ref self) -> int { return self._tag }
-}
-
 pub struct Cli {
     Cmd kind
     String file

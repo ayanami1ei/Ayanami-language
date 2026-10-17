@@ -3084,21 +3084,19 @@ selfhost/src/ast/dump.aya:253: fn dump_block(ref Ast ast, int id, int level, ref
 selfhost/src/ast/dump.aya:265: fn dump_stmt(ref Ast ast, int id, int level, ref mut StringBuf b)
 selfhost/src/ast/dump.aya:469: fn dump_expr(ref Ast ast, int id, int level, ref mut StringBuf b)
 selfhost/src/base/cli.aya:7: pub enum Cmd
-selfhost/src/base/cli.aya:15: impl Cmd
-selfhost/src/base/cli.aya:17: pub fn tag(ref self) -> int { return self._tag }
-selfhost/src/base/cli.aya:20: pub struct Cli
-selfhost/src/base/cli.aya:28: struct Scan
-selfhost/src/base/cli.aya:33: impl Scan
-selfhost/src/base/cli.aya:36: fn flag(ref mut self, ref String v)
-selfhost/src/base/cli.aya:43: fn rt(ref mut self, ref String v)
-selfhost/src/base/cli.aya:49: fn rel(ref mut self)
-selfhost/src/base/cli.aya:54: pub namespace Cli
-selfhost/src/base/cli.aya:58: pub fn parse(ref Args a) -> Cli
-selfhost/src/base/cli.aya:70: pub fn build(ref String raw, ref Args a) -> Cli
-selfhost/src/base/cli.aya:81: fn with_scan(ref Args a, Cmd k) -> Cli
-selfhost/src/base/cli.aya:87: fn scan(ref Args a) -> Scan
-selfhost/src/base/cli.aya:109: impl Cli
-selfhost/src/base/cli.aya:112: pub fn usage(ref self)
+selfhost/src/base/cli.aya:15: pub struct Cli
+selfhost/src/base/cli.aya:23: struct Scan
+selfhost/src/base/cli.aya:28: impl Scan
+selfhost/src/base/cli.aya:31: fn flag(ref mut self, ref String v)
+selfhost/src/base/cli.aya:38: fn rt(ref mut self, ref String v)
+selfhost/src/base/cli.aya:44: fn rel(ref mut self)
+selfhost/src/base/cli.aya:49: pub namespace Cli
+selfhost/src/base/cli.aya:53: pub fn parse(ref Args a) -> Cli
+selfhost/src/base/cli.aya:65: pub fn build(ref String raw, ref Args a) -> Cli
+selfhost/src/base/cli.aya:76: fn with_scan(ref Args a, Cmd k) -> Cli
+selfhost/src/base/cli.aya:82: fn scan(ref Args a) -> Scan
+selfhost/src/base/cli.aya:104: impl Cli
+selfhost/src/base/cli.aya:107: pub fn usage(ref self)
 selfhost/src/base/file.aya:13: pub struct ReadResult
 selfhost/src/base/file.aya:20: pub fn to_cstr(ref String s) -> [char]
 selfhost/src/base/file.aya:29: fn open_mode(ref String path, ref String mode) -> int
@@ -3459,11 +3457,11 @@ selfhost/src/lir/emit.aya:5819: fn emit_lambda(ref Ast ast, int lam_id, ref mut 
 selfhost/src/lir/emit.aya:5843: fn emit_fn(ref Ast ast, int id, ref mut Emitter e)
 selfhost/src/lir/emit.aya:5848: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
 selfhost/src/lir/emit.aya:5888: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
-selfhost/src/lir/emit.aya:6269: pub fn emit_program(ref Ast ast, int prog) -> String
+selfhost/src/lir/emit.aya:6271: pub fn emit_program(ref Ast ast, int prog) -> String
 selfhost/src/main.aya:8: fn usage_ok(ref Cli c) -> int
 selfhost/src/main.aya:13: fn usage_unknown(ref Cli c) -> int
 selfhost/src/main.aya:20: fn dispatch(ref Cli c) -> int
-selfhost/src/main.aya:29: fn main() -> int
+selfhost/src/main.aya:30: fn main() -> int
 selfhost/src/parser/parser.aya:8: fn is_digit_c(int c) -> bool
 selfhost/src/parser/parser.aya:13: fn is_hex_digit_c(int c) -> bool
 selfhost/src/parser/parser.aya:20: fn digit_val_p(int c) -> int

@@ -1,0 +1,18 @@
+// 回归：以 match+return 结束的函数后面，下一个函数体不得被跳过
+// （emit_fn_named 需复位 terminated；见 docs/selfhost.md §2.1 坑 27）
+enum K { A, B }
+
+fn pick(K k) -> int {
+    match k {
+        A => return 10,
+        B => return 20,
+    }
+}
+
+fn after(int x) -> int {
+    return x + 1
+}
+
+fn main() -> int {
+    return pick(K::B) + after(1) - 22
+}
