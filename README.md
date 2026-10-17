@@ -30,6 +30,9 @@ install/
 
 编译器自动在同目录查找 `llc`、`std/`、`runtime.c`。
 
+> 平台要求：Linux x86_64，**glibc ≥ 2.39**（Ubuntu 24.04 / Debian 13 / Arch 等）；
+> 发布包已内含 `llc`/`libLLVM` 及其运行时依赖（libxml2/libicu/libedit 等），无需系统 LLVM。
+
 ### 联网更新（编译器 + std）
 
 ```bash

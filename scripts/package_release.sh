@@ -39,7 +39,11 @@ if [ ! -f install/libLLVM.so.21.1 ]; then
     exit 1
 fi
 cp target/release/ayanami install/ayanami
-cp src/runtime.c install/runtime.c
+# 安装版 runtime：真实 runtime.c + runtime/ 子目录随包分发
+# （编译器按“可执行文件同目录 runtime.c”查找；`#include "runtime/sys.c"` 相对其目录解析）
+cp std/runtime.c install/runtime.c
+mkdir -p install/runtime
+cp std/runtime/abi.h std/runtime/sys.c install/runtime/
 # bundled libLLVM 依赖 libedit.so.2；部分发行版只有 .so.0，打包兼容副本以自包含
 if [ ! -e install/libedit.so.2 ]; then
     libedit_src=""
@@ -60,6 +64,46 @@ fi
 rm -rf install/std
 mkdir -p install/std
 cp std/*.lcl install/std/
+
+# 运行时依赖打包（跨发行版）：llc/libLLVM 的非基线依赖按 soname 放入 install/
+# 基线 glibc：2.39（Ubuntu 24.04 / Debian 13 / Arch）；高于基线的库优先从基线容器取。
+BASELINE_GLIBC="2.39"
+glibc_need() { objdump -T "$1" 2>/dev/null | grep -o 'GLIBC_[0-9]\+\.[0-9]\+' | sort -Vu | tail -1 | sed 's/GLIBC_//'; }
+glibc_too_new() { [ -n "$1" ] && [ "$(printf '%s\n%s\n' "$BASELINE_GLIBC" "$1" | sort -V | tail -1)" != "$BASELINE_GLIBC" ]; }
+
+# 1) 基线库（libedit/libncurses 等）优先从 ubuntu:24.04 容器取
+fetched_baseline=0
+if command -v docker >/dev/null 2>&1; then
+    # 镜像可配（默认 ubuntu:24.04；国内镜像源可用 AYANAMI_BASELINE_IMAGE 覆盖）
+    for img in "${AYANAMI_BASELINE_IMAGE:-ubuntu:24.04}" "docker.m.daocloud.io/library/ubuntu:24.04"; do
+        if docker run --rm -v "$PWD/install:/out" "$img" bash -c \
+            'apt-get -o Acquire::http::Dl-Limit=10240 -o Acquire::https::Dl-Limit=10240 update -qq >/dev/null 2>&1 && apt-get -o Acquire::http::Dl-Limit=10240 -o Acquire::https::Dl-Limit=10240 install -y -qq libedit2 libncurses6 >/dev/null 2>&1 && \
+             cp -L /usr/lib/x86_64-linux-gnu/libedit.so.2 /usr/lib/x86_64-linux-gnu/libncursesw.so.6 /out/' \
+            >/dev/null 2>&1; then
+            echo "已从 $img 取基线库（libedit/libncurses）"
+            fetched_baseline=1
+            break
+        fi
+    done
+fi
+if [ "$fetched_baseline" = 0 ]; then
+    echo "警告：无法从基线容器取库（docker/网络不可用），沿用本机库（仅基线 glibc 兼容发行版可用）" >&2
+fi
+
+# 2) 收集 llc + libLLVM 的依赖，按 soname 复制（跳过 libc/libm/libstdc++ 等基线库）
+{ ldd install/llc 2>/dev/null; ldd install/libLLVM.so.21.1 2>/dev/null; } \
+    | awk '{print $3}' | grep -E '^/' | sort -u | while read -r p; do
+    base=$(basename "$p")
+    case "$base" in
+        libc.so.6|libm.so.6|libgcc_s.so.1|libstdc++.so.6) continue;;
+    esac
+    [ -e "install/$base" ] && continue
+    cp -L "$p" "install/$base"
+    need=$(glibc_need "$p")
+    if glibc_too_new "$need"; then
+        echo "警告: $base 需要 glibc $need > 基线 $BASELINE_GLIBC（目标发行版可能不兼容）" >&2
+    fi
+done
 
 echo "== 5/5 打包 =="
 tar czf "$tar_name" install/
