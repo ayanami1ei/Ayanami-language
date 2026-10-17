@@ -1801,6 +1801,22 @@ fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val {
         if ei < 0 { return mk_int("0"); }
         vi = e.find_variant_idx(ei, vname);
         if vi < 0 { return mk_int("0"); }
+        // 嵌套变体模式（Some|Some|v）：还需检查内层标签
+        bar1 = -1;
+        bar2 = -1;
+        qq = 0;
+        while qq < ptext.len as int {
+            if ptext.index(qq as usize) == '|' {
+                if bar1 < 0 { bar1 = qq; } elif bar2 < 0 { bar2 = qq; }
+            }
+            qq = qq + 1;
+        }
+        if bar2 > 0 {
+            mid = ptext.substring((bar1 + 1) as usize, bar2 as usize);
+            if e.find_struct_idx(mid) < 0 {
+                // 内层标签检查在 body 块（外层标签确认后）进行，避免空指针解引用
+            }
+        }
         g = e.fresh();
         e.buf.push_str("  ");
         e.buf.push_str(g);
@@ -1837,6 +1853,60 @@ fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val {
         e.buf.push_str(lit);
         e.buf.push_str("\n");
         return Val { kind = 5, a = c2, b = "", ty = -1 };
+    }
+    if pk == 6 {
+        // 区间模式 start..end（左闭右开）或 start..=end（闭区间）
+        dd = -1;
+        eqq = 0;
+        ii = 0;
+        while ii < ptext.len as int {
+            if ptext.index(ii as usize) == '.' {
+                dd = ii;
+                break;
+            }
+            ii = ii + 1;
+        }
+        if dd < 0 { return mk_int("0"); }
+        rstart = ptext.substring(0 as usize, dd as usize);
+        rest = ptext.substring((dd + 1) as usize, ptext.len);
+        if rest.len > 0 {
+            if rest.index(0) == '.' { rest = rest.substring(1 as usize, rest.len); }
+        }
+        if rest.len > 0 {
+            if rest.index(0) == '=' {
+                eqq = 1;
+                rest = rest.substring(1 as usize, rest.len);
+            }
+        }
+        rend = rest;
+        if rstart.len == 0 || rend.len == 0 { return mk_int("0"); }
+        c1r = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c1r);
+        e.buf.push_str(" = icmp sge i64 ");
+        e.buf.push_str(sc.a);
+        e.buf.push_str(", ");
+        e.buf.push_str(rstart);
+        e.buf.push_str("\n  ");
+        c2r = e.fresh();
+        e.buf.push_str(c2r);
+        if eqq == 1 {
+            e.buf.push_str(" = icmp sle i64 ");
+        } else {
+            e.buf.push_str(" = icmp slt i64 ");
+        }
+        e.buf.push_str(sc.a);
+        e.buf.push_str(", ");
+        e.buf.push_str(rend);
+        e.buf.push_str("\n  ");
+        c3r = e.fresh();
+        e.buf.push_str(c3r);
+        e.buf.push_str(" = and i1 ");
+        e.buf.push_str(c1r);
+        e.buf.push_str(", ");
+        e.buf.push_str(c2r);
+        e.buf.push_str("\n");
+        return Val { kind = 5, a = c3r, b = "", ty = -1 };
     }
     if pk == 5 {
         // 字符字面量模式
@@ -1876,6 +1946,73 @@ fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val {
     return mk_int("0");
 }
 
+/// 嵌套变体模式的内层标签检查（在外层确认后、绑定前调用）；返回 1 表示已发射分支
+#[alloc]
+#[state]
+fn emit_pat_inner_check(ref Ast ast, int arm, ref Val sc, ref String nxt, ref mut Emitter e) -> int {
+    ptext = ast.texts[arm];
+    pk = ast.tys[arm];
+    if pk != 1 { return 0; }
+    bar1 = -1;
+    bar2 = -1;
+    qq = 0;
+    while qq < ptext.len as int {
+        if ptext.index(qq as usize) == '|' {
+            if bar1 < 0 { bar1 = qq; } elif bar2 < 0 { bar2 = qq; }
+        }
+        qq = qq + 1;
+    }
+    if bar2 <= 0 { return 0; }
+    mid = ptext.substring((bar1 + 1) as usize, bar2 as usize);
+    if e.find_struct_idx(mid) >= 0 { return 0; }
+    ei = e.find_enum_idx(sc.b);
+    if ei < 0 { return 0; }
+    ivi = e.find_variant_idx(ei, mid);
+    if ivi < 0 { return 0; }
+    gpi = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(gpi);
+    e.buf.push_str(" = getelementptr %enum.");
+    e.buf.push_str(sc.b);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(sc.a);
+    e.buf.push_str(", i32 0, i32 1\n  ");
+    ipi = e.fresh();
+    e.buf.push_str(ipi);
+    e.buf.push_str(" = load ptr, ptr ");
+    e.buf.push_str(gpi);
+    e.buf.push_str("\n  ");
+    gti = e.fresh();
+    e.buf.push_str(gti);
+    e.buf.push_str(" = getelementptr %enum.");
+    e.buf.push_str(sc.b);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(ipi);
+    e.buf.push_str(", i32 0, i32 0\n  ");
+    tvi = e.fresh();
+    e.buf.push_str(tvi);
+    e.buf.push_str(" = load i64, ptr ");
+    e.buf.push_str(gti);
+    e.buf.push_str("\n  ");
+    cvi = e.fresh();
+    e.buf.push_str(cvi);
+    e.buf.push_str(" = icmp eq i64 ");
+    e.buf.push_str(tvi);
+    e.buf.push_str(", ");
+    e.buf.push_int(ivi);
+    e.buf.push_str("\n  br i1 ");
+    e.buf.push_str(cvi);
+    e.buf.push_str(", label %");
+    ok_l = label(e, "pat.ok.");
+    e.buf.push_str(ok_l);
+    e.buf.push_str(", label %");
+    e.buf.push_str(nxt);
+    e.buf.push_str("\n");
+    e.buf.push_str(ok_l);
+    e.buf.push_str(":\n");
+    return 1;
+}
+
 /// 模式绑定（载荷 -> 局部变量）
 fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
     ptext = ast.texts[arm];
@@ -1909,6 +2046,63 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
         if bar2 > 0 {
             sname = ptext.substring((bar1 + 1) as usize, bar2 as usize);
             binds = ptext.substring((bar2 + 1) as usize, ptext.len);
+            if e.find_struct_idx(sname) < 0 {
+                // 嵌套变体：内层载荷槽依次绑定
+                gpv = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(gpv);
+                e.buf.push_str(" = getelementptr %enum.");
+                e.buf.push_str(sc.b);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(sc.a);
+                e.buf.push_str(", i32 0, i32 1\n  ");
+                ipv = e.fresh();
+                e.buf.push_str(ipv);
+                e.buf.push_str(" = load ptr, ptr ");
+                e.buf.push_str(gpv);
+                e.buf.push_str("\n");
+                start3 = 0;
+                i3 = 0;
+                k3 = 0;
+                while i3 <= binds.len as int {
+                    at3e = 0;
+                    if i3 == binds.len as int { at3e = 1; }
+                    isc3 = 0;
+                    if at3e == 0 {
+                        if binds.index(i3 as usize) == ',' { isc3 = 1; }
+                    }
+                    if at3e == 1 || isc3 == 1 {
+                        if i3 > start3 {
+                            bnd3 = binds.substring(start3 as usize, i3 as usize);
+                            g3 = e.fresh();
+                            e.buf.push_str("  ");
+                            e.buf.push_str(g3);
+                            e.buf.push_str(" = getelementptr %enum.");
+                            e.buf.push_str(sc.b);
+                            e.buf.push_str(", ptr ");
+                            e.buf.push_str(ipv);
+                            e.buf.push_str(", i32 0, i32 ");
+                            e.buf.push_int(k3 + 1);
+                            e.buf.push_str("\n  ");
+                            v3 = e.fresh();
+                            e.buf.push_str(v3);
+                            e.buf.push_str(" = load i64, ptr ");
+                            e.buf.push_str(g3);
+                            e.buf.push_str("\n");
+                            e.declare_local(bnd3, 0);
+                            e.buf.push_str("  store i64 ");
+                            e.buf.push_str(v3);
+                            e.buf.push_str(", ptr %v_");
+                            e.buf.push_str(bnd3);
+                            e.buf.push_str("\n");
+                            k3 = k3 + 1;
+                        }
+                        start3 = i3 + 1;
+                    }
+                    i3 = i3 + 1;
+                }
+                return;
+            }
             gp = e.fresh();
             e.buf.push_str("  ");
             e.buf.push_str(gp);
@@ -2380,6 +2574,7 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
         }
         e.buf.push_str(body_l);
         e.buf.push_str(":\n");
+        emit_pat_inner_check(ast, a, sc, nxt, e);
         emit_pat_binds(ast, a, sc, e);
         gd = ast.bb[a];
         if gd >= 0 {

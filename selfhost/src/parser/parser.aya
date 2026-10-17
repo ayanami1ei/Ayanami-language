@@ -1650,7 +1650,8 @@ impl Parser {
                                             take = 1;
                                             eq_pending = 0;
                                         } elif self.la1_is_delim(D::LParen._tag) {
-                                            // 嵌套变体名（Some(Some(v)) 的内层 Some）不是绑定
+                                            // 嵌套变体名（Some(Some(v)) 的内层 Some）
+                                            nested_struct = bn.copy();
                                             take = 0;
                                         } elif self.la1_is_delim(D::LBrace._tag) {
                                             // 嵌套结构体模式（Some(Point { x, y })）
@@ -1749,14 +1750,25 @@ impl Parser {
                         ptext = "?";
                     }
                     if pk != 5 { pk = 3; }
-                    // 区间模式 0..=100：跳过点号/等号部分
+                    // 区间模式 0..100 / 0..=100：记录起止
                     if self.check_delim(D::Dot._tag) {
-                        while true {
-                            if self.at_end() { break; }
-                            if self.check_delim(D::FatArrow._tag) { break; }
-                            if self.check_op("|") { break; }
+                        incl = 0;
+                        rstart = ptext.copy();
+                        self.advance();
+                        if self.check_delim(D::Dot._tag) { self.advance(); }
+                        if self.check_op("=") { incl = 1; self.advance(); }
+                        rend = "";
+                        if self.cur.kind == Tk::IntLit._tag {
+                            rend = self.cur.text.copy();
                             self.advance();
                         }
+                        rb = StringBuf::new();
+                        rb.push_str(rstart);
+                        rb.push_str("..");
+                        if incl == 1 { rb.push_str("="); }
+                        rb.push_str(rend);
+                        ptext = rb.to_string();
+                        pk = 6;
                     }
                 }
                 an = self.ast.push(xt(XT::MatchArm._tag), ptext, pk, -1, -1, -1, -1, self.cur.line, self.cur.col);
