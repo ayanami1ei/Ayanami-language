@@ -546,7 +546,7 @@ src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_cal
 src/hir/lower/body/generic_specialize.rs:11: pub(crate) fn specialize_generic_method_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/generic_specialize.rs:17: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
 src/hir/lower/body/generic_specialize.rs:39: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span, prefer_method: bool) -> Result<FnId>
-src/hir/lower/body/generic_specialize.rs:271: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
+src/hir/lower/body/generic_specialize.rs:279: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/generic_types.rs:10: pub(crate) enum GType
 src/hir/lower/body/generic_types.rs:19: pub(super) fn ast_is_concrete_primitive(ty: &Type) -> bool
 src/hir/lower/body/generic_types.rs:28: pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool

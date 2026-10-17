@@ -46,7 +46,10 @@ impl crate::hir::lower::Ctx {
         }).flatten();
 
         let mut best_gf_idx = None;
-        for (i, (gf_name, _, gf_stmt, gf_is_method)) in self.generic_fns.iter().enumerate() {
+        // #189：首参是候选自身泛型参数（如自由函数 map 的 I）时可绑定任意接收者，
+        // 作为次级候选——精确基名匹配（如 Option.map）优先，避免自由调用被同名方法抢占
+        let mut gp_self_idx = None;
+        for (i, (gf_name, gf_params, gf_stmt, gf_is_method)) in self.generic_fns.iter().enumerate() {
             if gf_name != name || (prefer_method && !*gf_is_method) { continue; }
             if let Stmt::FnDecl { params, .. } = gf_stmt {
                 let visible = params.len().saturating_sub(count_hidden_names(params));
@@ -58,13 +61,18 @@ impl crate::hir::lower::Ctx {
                             HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
                             _ => continue,
                         };
-                        if self_base != *ab { continue; }
+                        if self_base != *ab {
+                            let is_gp = gf_params.iter().any(|(p, _)| *p == self_base);
+                            if is_gp && gp_self_idx.is_none() { gp_self_idx = Some(i); }
+                            continue;
+                        }
                     }
                 }
                 best_gf_idx = Some(i);
                 break;
             }
         }
+        let best_gf_idx = best_gf_idx.or(gp_self_idx);
 
         let gf_idx = match best_gf_idx {
             Some(i) => i,
