@@ -320,6 +320,19 @@ pub fn collect_file(ref String file, ref Deps deps, ref mut Seen seen, ref mut S
     }
 }
 
+/// 自举 prelude 路径（String 方法补全）：按候选顺序找存在的文件
+fn prelude_path(ref String mdir) -> String {
+    c1 = mdir + "selfhost/src/base/prelude.aya";
+    if read_file(c1).ok { return c1; }
+    c2 = mdir + "src/base/prelude.aya";
+    if read_file(c2).ok { return c2; }
+    c3 = mdir + "../selfhost/src/base/prelude.aya";
+    if read_file(c3).ok { return c3; }
+    c4 = "selfhost/src/base/prelude.aya";
+    if read_file(c4).ok { return c4; }
+    return "";
+}
+
 /// 入口：返回合并后的源码（解析失败时返回单文件内容）
 #[alloc]
 #[state]
@@ -329,5 +342,10 @@ pub fn merge_source(ref String file) -> String {
     seen = Seen::new();
     dst = StringBuf::new();
     collect_file(file, deps, seen, dst, mdir);
+    // 自举 prelude：无条件追加（缺失时静默跳过）
+    pp = prelude_path(mdir);
+    if pp.len > 0 {
+        collect_file(pp, deps, seen, dst, mdir);
+    }
     return dst.to_string();
 }

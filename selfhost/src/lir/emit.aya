@@ -3258,6 +3258,63 @@ fn cap_scan_node(ref Ast ast, int id, int li, ref mut Emitter e) {
     }
 }
 
+/// prelude 一元 int 调用：@fn(i64) -> i64（char 方法）
+#[alloc]
+fn emit_prelude_int1(ref String fname, ref String arg, ref mut Emitter e) -> Val {
+    t = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(t);
+    e.buf.push_str(" = call i64 @");
+    e.buf.push_str(fname);
+    e.buf.push_str("(i64 ");
+    e.buf.push_str(arg);
+    e.buf.push_str(")\n");
+    return mk_int(t);
+}
+
+/// prelude String 辅助调用：@fn(ptr s, i64 len[, ptr arg, i64 arglen])；rk 1 返回 String
+#[alloc]
+fn emit_prelude_str(ref String fname, ref Val s, ref Val arg, int has_arg, int rk, ref mut Emitter e) -> Val {
+    b = StringBuf::new();
+    b.push_str("  ");
+    t = e.fresh();
+    b.push_str(t);
+    if rk == 1 {
+        b.push_str(" = call { ptr, i64 } ");
+    } else {
+        b.push_str(" = call i64 ");
+    }
+    b.push_str("@");
+    b.push_str(fname);
+    b.push_str("(ptr ");
+    b.push_str(ptr_operand(s.a));
+    b.push_str(", i64 ");
+    b.push_str(s.b);
+    if has_arg == 1 {
+        b.push_str(", ptr ");
+        b.push_str(ptr_operand(arg.a));
+        b.push_str(", i64 ");
+        b.push_str(arg.b);
+    }
+    b.push_str(")\n");
+    e.buf.push_str(b.to_string());
+    if rk == 1 {
+        ip = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(ip);
+        e.buf.push_str(" = extractvalue { ptr, i64 } ");
+        e.buf.push_str(t);
+        e.buf.push_str(", 0\n  ");
+        il = e.fresh();
+        e.buf.push_str(il);
+        e.buf.push_str(" = extractvalue { ptr, i64 } ");
+        e.buf.push_str(t);
+        e.buf.push_str(", 1\n");
+        return mk_str_tmp(ip, il);
+    }
+    return mk_int(t);
+}
+
 /// 索引读取：按元素类型装载（base 为数组值，idx 为下标临时名）
 #[alloc]
 fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e) -> Val {
@@ -4193,6 +4250,70 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 e.buf.push_str(" to i64\n");
                 return mk_int(z);
             }
+            // prelude String 方法（std 语义；见 base/prelude.aya）
+            if mn == "trim" {
+                if e.fn_ret_type("aya_str_trim") >= 0 {
+                    return emit_prelude_str("aya_str_trim", obj, obj, 0, 1, e);
+                }
+            }
+            if mn == "to_upper" {
+                if e.fn_ret_type("aya_str_to_upper") >= 0 {
+                    return emit_prelude_str("aya_str_to_upper", obj, obj, 0, 1, e);
+                }
+            }
+            if mn == "to_lower" {
+                if e.fn_ret_type("aya_str_to_lower") >= 0 {
+                    return emit_prelude_str("aya_str_to_lower", obj, obj, 0, 1, e);
+                }
+            }
+            if mn == "parse_int" {
+                if e.fn_ret_type("aya_str_parse_int") >= 0 {
+                    return emit_prelude_str("aya_str_parse_int", obj, obj, 0, 0, e);
+                }
+            }
+            if mn == "is_int" {
+                if e.fn_ret_type("aya_str_is_int") >= 0 {
+                    return emit_prelude_str("aya_str_is_int", obj, obj, 0, 0, e);
+                }
+            }
+            if mn == "contains" {
+                if e.fn_ret_type("aya_str_contains") >= 0 {
+                    a_c = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                    return emit_prelude_str("aya_str_contains", obj, a_c, 1, 0, e);
+                }
+            }
+            if mn == "index_of" {
+                if e.fn_ret_type("aya_str_index_of") >= 0 {
+                    a_i = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                    return emit_prelude_str("aya_str_index_of", obj, a_i, 1, 0, e);
+                }
+            }
+            if mn == "repeat" {
+                if e.fn_ret_type("aya_str_repeat") >= 0 {
+                    a_r = emit_expr(ast, ast.aa[ast.bb[id]], e);
+                    t_r = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(t_r);
+                    e.buf.push_str(" = call { ptr, i64 } @aya_str_repeat(ptr ");
+                    e.buf.push_str(ptr_operand(obj.a));
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_str(obj.b);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_str(a_r.a);
+                    e.buf.push_str(")\n  ");
+                    ip_r = e.fresh();
+                    e.buf.push_str(ip_r);
+                    e.buf.push_str(" = extractvalue { ptr, i64 } ");
+                    e.buf.push_str(t_r);
+                    e.buf.push_str(", 0\n  ");
+                    il_r = e.fresh();
+                    e.buf.push_str(il_r);
+                    e.buf.push_str(" = extractvalue { ptr, i64 } ");
+                    e.buf.push_str(t_r);
+                    e.buf.push_str(", 1\n");
+                    return mk_str_tmp(ip_r, il_r);
+                }
+            }
             if mn == "index" {
                 iv = emit_expr(ast, ast.aa[ast.bb[id]], e);
                 g = e.fresh();
@@ -4345,6 +4466,41 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         recv_ty = obj.b.copy();
         prim_recv = 0;
         if obj.kind == 0 {
+            // int.to_string（prelude）
+            if ast.texts[id] == "to_string" {
+                if e.fn_ret_type("aya_int_to_string") >= 0 {
+                    t_is = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(t_is);
+                    e.buf.push_str(" = call { ptr, i64 } @aya_int_to_string(i64 ");
+                    e.buf.push_str(obj.a);
+                    e.buf.push_str(")\n  ");
+                    ip_is = e.fresh();
+                    e.buf.push_str(ip_is);
+                    e.buf.push_str(" = extractvalue { ptr, i64 } ");
+                    e.buf.push_str(t_is);
+                    e.buf.push_str(", 0\n  ");
+                    il_is = e.fresh();
+                    e.buf.push_str(il_is);
+                    e.buf.push_str(" = extractvalue { ptr, i64 } ");
+                    e.buf.push_str(t_is);
+                    e.buf.push_str(", 1\n");
+                    return mk_str_tmp(ip_is, il_is);
+                }
+            }
+            // char 方法（prelude；char 以 i64 传入）
+            mn_c = ast.texts[id];
+            if e.fn_ret_type("aya_ch_is_digit") >= 0 {
+                if mn_c == "is_digit" { return emit_prelude_int1("aya_ch_is_digit", obj.a, e); }
+                if mn_c == "is_alpha" { return emit_prelude_int1("aya_ch_is_alpha", obj.a, e); }
+                if mn_c == "is_alnum" { return emit_prelude_int1("aya_ch_is_alnum", obj.a, e); }
+                if mn_c == "is_upper" { return emit_prelude_int1("aya_ch_is_upper", obj.a, e); }
+                if mn_c == "is_lower" { return emit_prelude_int1("aya_ch_is_lower", obj.a, e); }
+                if mn_c == "to_digit" { return emit_prelude_int1("aya_ch_to_digit", obj.a, e); }
+                if mn_c == "to_upper" { return emit_prelude_int1("aya_ch_to_upper", obj.a, e); }
+                if mn_c == "to_lower" { return emit_prelude_int1("aya_ch_to_lower", obj.a, e); }
+                if mn_c == "is_space" { return emit_prelude_int1("aya_ch_is_space", obj.a, e); }
+            }
             // 原语接收者：按常见整型/浮点类型名依次查找
             prim_recv = 1;
             recv_ty = "";

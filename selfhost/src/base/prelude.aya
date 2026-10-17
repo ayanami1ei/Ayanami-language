@@ -1,0 +1,229 @@
+// 自举 prelude：std String 方法补全（stage-1 无 std 泛型/集合；纯 Ayanami 实现）
+// 由 driver 的 merge_source 无条件合并；emitter 的 String 方法分派按名调用（aya_str_*）。
+// 语义对齐 std/src/core/string.aya（trim/contains/index_of/repeat/to_upper/to_lower/parse_int/is_int）。
+
+/// 空白判定（char 以 int 传入；对应 char.is_space）
+fn aya_ch_is_space(int k) -> bool {
+    if k == 32 { return true; }
+    if k >= 9 && k <= 13 { return true; }
+    return false;
+}
+
+/// 去除首尾空白
+#[alloc]
+pub fn aya_str_trim(String s) -> String {
+    b = 0;
+    e = s.len as int;
+    while b < e {
+        if !aya_ch_is_space(s.data[b]) { break; }
+        b = b + 1;
+    }
+    while e > b {
+        if !aya_ch_is_space(s.data[e - 1]) { break; }
+        e = e - 1;
+    }
+    return s.substring(b as usize, e as usize);
+}
+
+/// 子串查找（空 needle 返回 0；未找到 -1）
+#[alloc]
+pub fn aya_str_index_of(String s, String needle) -> int {
+    if needle.len == 0 { return 0; }
+    if needle.len > s.len { return -1; }
+    last = s.len as int - needle.len as int;
+    i = 0;
+    while i <= last {
+        ok = 1;
+        j = 0;
+        while j < needle.len as int {
+            if s.data[i + j] != needle.data[j] {
+                ok = 0;
+                break;
+            }
+            j = j + 1;
+        }
+        if ok == 1 { return i; }
+        i = i + 1;
+    }
+    return -1;
+}
+
+#[alloc]
+pub fn aya_str_contains(String s, String needle) -> bool {
+    if aya_str_index_of(s, needle) >= 0 { return true; }
+    return false;
+}
+
+/// 重复 times 次
+#[alloc]
+pub fn aya_str_repeat(String s, int times) -> String {
+    n = s.len as int * times;
+    buf = [char; n];
+    t = 0;
+    while t < times {
+        i = 0;
+        while i < s.len as int {
+            buf[t * (s.len as int) + i] = (s.data[i]) as char;
+            i = i + 1;
+        }
+        t = t + 1;
+    }
+    return String::new(buf, n as usize);
+}
+
+/// ASCII 大写
+#[alloc]
+pub fn aya_str_to_upper(String s) -> String {
+    n = s.len as int;
+    buf = [char; n];
+    i = 0;
+    while i < n {
+        k = s.data[i];
+        if k >= 97 && k <= 122 { k = k - 32; }
+        buf[i] = k as char;
+        i = i + 1;
+    }
+    return String::new(buf, n as usize);
+}
+
+/// ASCII 小写
+#[alloc]
+pub fn aya_str_to_lower(String s) -> String {
+    n = s.len as int;
+    buf = [char; n];
+    i = 0;
+    while i < n {
+        k = s.data[i];
+        if k >= 65 && k <= 90 { k = k + 32; }
+        buf[i] = k as char;
+        i = i + 1;
+    }
+    return String::new(buf, n as usize);
+}
+
+/// 解析整数（前导空白跳过，可带 +/-；非法字符处停止）
+#[alloc]
+pub fn aya_str_parse_int(String s) -> int {
+    i = 0;
+    n = s.len as int;
+    while i < n {
+        if !aya_ch_is_space(s.data[i]) { break; }
+        i = i + 1;
+    }
+    neg = 0;
+    if i < n {
+        k = s.data[i];
+        if k == 45 {
+            neg = 1;
+            i = i + 1;
+        } elif k == 43 {
+            i = i + 1;
+        }
+    }
+    v = 0;
+    while i < n {
+        k = s.data[i];
+        if k < 48 || k > 57 { break; }
+        v = v * 10 + (k - 48);
+        i = i + 1;
+    }
+    if neg == 1 { return 0 - v; }
+    return v;
+}
+
+/// 是否整数（跳过前导空白与 +/- 后至少一位数字且全是数字）
+#[alloc]
+pub fn aya_str_is_int(String s) -> bool {
+    i = 0;
+    n = s.len as int;
+    while i < n {
+        if !aya_ch_is_space(s.data[i]) { break; }
+        i = i + 1;
+    }
+    if i < n {
+        k = s.data[i];
+        if k == 45 || k == 43 { i = i + 1; }
+    }
+    if i >= n { return false; }
+    while i < n {
+        k = s.data[i];
+        if k < 48 || k > 57 { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+// ---- char 方法（char 以 int 传入；语义对齐 std/src/core/string.aya）----
+
+fn aya_ch_is_digit(int k) -> bool {
+    if k >= 48 && k <= 57 { return true; }
+    return false;
+}
+
+fn aya_ch_is_alpha(int k) -> bool {
+    if k >= 65 && k <= 90 { return true; }
+    if k >= 97 && k <= 122 { return true; }
+    return false;
+}
+
+fn aya_ch_is_alnum(int k) -> bool {
+    if aya_ch_is_digit(k) { return true; }
+    return aya_ch_is_alpha(k);
+}
+
+fn aya_ch_is_upper(int k) -> bool {
+    if k >= 65 && k <= 90 { return true; }
+    return false;
+}
+
+fn aya_ch_is_lower(int k) -> bool {
+    if k >= 97 && k <= 122 { return true; }
+    return false;
+}
+
+fn aya_ch_to_digit(int k) -> int {
+    return k - 48;
+}
+
+fn aya_ch_to_upper(int k) -> int {
+    if k >= 97 && k <= 122 { return k - 32; }
+    return k;
+}
+
+fn aya_ch_to_lower(int k) -> int {
+    if k >= 65 && k <= 90 { return k + 32; }
+    return k;
+}
+
+/// int -> String（十进制；对应 std int.to_string）
+#[alloc]
+pub fn aya_int_to_string(int v) -> String {
+    if v == 0 {
+        z = [char; 1];
+        z[0] = '0';
+        return String::new(z, 1 as usize);
+    }
+    neg = 0;
+    u = v;
+    if u < 0 {
+        neg = 1;
+        u = 0 - u;
+    }
+    n = 0;
+    t = u;
+    while t > 0 {
+        n = n + 1;
+        t = t / 10;
+    }
+    buf = [char; n + neg];
+    i = n + neg - 1;
+    t2 = u;
+    while t2 > 0 {
+        d = t2 % 10;
+        buf[i] = (48 + d) as char;
+        i = i - 1;
+        t2 = t2 / 10;
+    }
+    if neg == 1 { buf[0] = '-'; }
+    return String::new(buf, (n + neg) as usize);
+}
