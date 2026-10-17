@@ -1305,15 +1305,6 @@ impl Emitter {
         return "";
     }
 
-    fn global_len(ref mut self, ref String name) -> int {
-        i = 0;
-        while i < self.g_count {
-            if self.g_names[i] == name { return self.g_lens[i]; }
-            i = i + 1;
-        }
-        return 0;
-    }
-
     fn find_struct_idx(ref mut self, ref String name) -> int {
         i = 0;
         while i < self.st_count {
@@ -1467,10 +1458,6 @@ impl Emitter {
             i = i + 1;
         }
         return -1;
-    }
-
-    fn variant_arity(ref mut self, int ei, int vi) -> int {
-        return self.en_arity[self.en_vstart[ei] + vi];
     }
 
     fn enum_max_arity(ref mut self, int ei) -> int {
@@ -5099,34 +5086,6 @@ fn elem_is_leaf(ref String lty) -> bool {
     return false;
 }
 
-/// 单元素赋值（emit_array_fill 用）
-fn store_one(ref mut Emitter e, ref String lty, ref String gep, ref String v) {
-    if elem_is_leaf(lty) {
-        w = e.fresh();
-        e.buf.push_str("  ");
-        e.buf.push_str(w);
-        e.buf.push_str(" = trunc i64 ");
-        e.buf.push_str(v);
-        e.buf.push_str(" to ");
-        e.buf.push_str(lty);
-        e.buf.push_str("\n  store ");
-        e.buf.push_str(lty);
-        e.buf.push_str(" ");
-        e.buf.push_str(w);
-        e.buf.push_str(", ptr ");
-        e.buf.push_str(gep);
-        e.buf.push_str("\n");
-        return;
-    }
-    e.buf.push_str("  store ");
-    e.buf.push_str(lty);
-    e.buf.push_str(" ");
-    e.buf.push_str(v);
-    e.buf.push_str(", ptr ");
-    e.buf.push_str(gep);
-    e.buf.push_str("\n");
-}
-
 /// 循环填充：`[T; n]`（val 为 "0"）/ `[expr; n]`（val 为元素值）的元素写入
 /// 用 alloca 计数器（不依赖 %entry 块，可在任意位置展开）
 fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val) {
@@ -5255,21 +5214,6 @@ fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, r
     e.buf.push_str(", ptr ");
     e.buf.push_str(gep);
     e.buf.push_str("\n");
-}
-
-/// 数组 GEP：base 指针 + i64 下标 → 元素地址
-fn elem_gep(ref mut Emitter e, ref String lty, ref String base, ref String idx) -> String {
-    g = e.fresh();
-    e.buf.push_str("  ");
-    e.buf.push_str(g);
-    e.buf.push_str(" = getelementptr ");
-    e.buf.push_str(lty);
-    e.buf.push_str(", ptr ");
-    e.buf.push_str(base);
-    e.buf.push_str(", i64 ");
-    e.buf.push_str(idx);
-    e.buf.push_str("\n");
-    return g;
 }
 
 /// `xs[i] = v`（ST::IndexAssign）：aa=基址表达式，bb=下标，cc=值

@@ -206,13 +206,6 @@ impl Parser {
         return false;
     }
 
-    fn la1_is_upper_ident(ref mut self) -> bool {
-        if self.la1.kind != Tk::Ident._tag { return false; }
-        c = char_code(self.la1.text.index(0));
-        if c >= 65 && c <= 90 { return true; }
-        return false;
-    }
-
     /// 解析泛型参数表 [T: Bound, U, ...]，返回 GenericParam 链；无 [ 时返回 -1
     #[alloc]
     #[state]

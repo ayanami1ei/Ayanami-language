@@ -118,10 +118,4 @@ impl[T] IntMap[T] {
     pub fn is_used(ref self, int i) -> bool {
         return self.used[i]
     }
-    pub fn key_at(ref self, int i) -> int {
-        return self.keys[i]
-    }
-    pub fn value_at(ref self, int i) -> T {
-        return self.values[i]
-    }
 }
