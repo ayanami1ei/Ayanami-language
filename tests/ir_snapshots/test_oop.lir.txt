@@ -2,13 +2,13 @@ LIR Program
 Strings: 1 entries
   @__str_0 = "example/test_oop.aya"
 
-fn draw (fn_id=0) -> Void [1 blocks]
+fn draw (fn_id=N) -> Void [1 blocks]
   local self: Int
 entry:
     alloca v0 : Int
     store Param(0) -> v0 : Int
     ret void
-fn get_id (fn_id=1) -> Int [1 blocks]
+fn get_id (fn_id=N) -> Int [1 blocks]
   local self: Int
   local __ret: Int
 entry:
@@ -19,7 +19,7 @@ entry:
     store Tmp(0) -> v1 : Int
     t1 = load v1 : Int
     ret Tmp(1)
-fn resize (fn_id=2) -> Int [1 blocks]
+fn resize (fn_id=N) -> Int [1 blocks]
   local self: Int
   local factor: Int
   local __ret: Int
@@ -37,7 +37,7 @@ entry:
     store Tmp(7) -> v2 : Int
     t8 = load v2 : Int
     ret Tmp(8)
-fn triple (fn_id=3) -> Int [1 blocks]
+fn triple (fn_id=N) -> Int [1 blocks]
   local self: Int
   local __ret: Int
 entry:
@@ -51,13 +51,13 @@ entry:
     store Tmp(6) -> v1 : Int
     t7 = load v1 : Int
     ret Tmp(7)
-fn draw (fn_id=4) -> Void [1 blocks]
+fn draw (fn_id=N) -> Void [1 blocks]
   local self: Float
 entry:
     alloca v0 : Float
     store Param(0) -> v0 : Float
     ret void
-fn get_id (fn_id=5) -> Int [1 blocks]
+fn get_id (fn_id=N) -> Int [1 blocks]
   local self: Float
   local __ret: Int
 entry:
@@ -67,7 +67,7 @@ entry:
     store Literal(Int(0), Int) -> v1 : Int
     t0 = load v1 : Int
     ret Tmp(0)
-fn resize (fn_id=6) -> Int [1 blocks]
+fn resize (fn_id=N) -> Int [1 blocks]
   local self: Float
   local factor: Int
   local __ret: Int
@@ -80,7 +80,7 @@ entry:
     store Literal(Int(0), Int) -> v2 : Int
     t0 = load v2 : Int
     ret Tmp(0)
-fn render_drawable (fn_id=7) -> Void [1 blocks]
+fn render_drawable (fn_id=N) -> Void [1 blocks]
   local d: FatPtr { name: Symbol(N), kind: Ref(Void, false) }
 entry:
     alloca v0 : FatPtr { name: Symbol(N), kind: Ref(Void, false) }
@@ -88,7 +88,7 @@ entry:
     t0 = load v0 : FatPtr { name: Symbol(N), kind: Ref(Void, false) }
     _ = virtual_call [receiver=t0, slot=1]
     ret void
-fn get_any_id (fn_id=8) -> Int [1 blocks]
+fn get_any_id (fn_id=N) -> Int [1 blocks]
   local d: FatPtr { name: Symbol(N), kind: Ref(Void, false) }
   local __ret: Int
 entry:
@@ -100,7 +100,7 @@ entry:
     store Tmp(1) -> v1 : Int
     t6 = load v1 : Int
     ret Tmp(6)
-fn scale (fn_id=9) -> Int [1 blocks]
+fn scale (fn_id=N) -> Int [1 blocks]
   local r: FatPtr { name: Symbol(N), kind: Ref(Void, false) }
   local f: Int
   local __ret: Int
@@ -116,7 +116,7 @@ entry:
     store Tmp(2) -> v2 : Int
     t7 = load v2 : Int
     ret Tmp(7)
-fn main (fn_id=10) -> Int [1 blocks]
+fn main (fn_id=N) -> Int [1 blocks]
   local a: Int
   local b: Float
   local id1: Int

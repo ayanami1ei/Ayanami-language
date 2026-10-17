@@ -51,4 +51,5 @@ mod expr_misc;
 mod expr_ops1;
 mod expr_unary;
 mod expr_method_arrays;
+mod return_check;
 mod expr_reinterpret;

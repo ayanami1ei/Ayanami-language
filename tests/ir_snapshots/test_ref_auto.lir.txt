@@ -3,7 +3,7 @@ Strings: 2 entries
   @__str_0 = "example/test_ref_auto.aya"
   @__str_1 = "hi"
 
-fn bump (fn_id=94) -> Void [1 blocks]
+fn bump (fn_id=N) -> Void [1 blocks]
   local i: Ref(Int, true)
 entry:
     alloca v0 : Ref(Int, true)
@@ -16,7 +16,7 @@ entry:
     t10 = call fn(N) (Tmp(2):Int, Literal(Int(1), Int):Int, Literal(Int(6), Int):Int, Literal(Int(11), Int):Int, Tmp(6):Named(Symbol(N))) : Int
     t0 = index_store elem_ty=Int
     ret void
-fn bump_by (fn_id=95) -> Int [4 blocks]
+fn bump_by (fn_id=N) -> Int [4 blocks]
   local i: Ref(Int, true)
   local n: Int
   local __ret: Int
@@ -43,7 +43,7 @@ while.end2:
     store Tmp(8) -> v2 : Int
     t11 = load v2 : Int
     ret Tmp(11)
-fn add_one (fn_id=96) -> Int [1 blocks]
+fn add_one (fn_id=N) -> Int [1 blocks]
   local v: Int
   local __ret: Int
 entry:
@@ -57,7 +57,7 @@ entry:
     store Tmp(6) -> v1 : Int
     t7 = load v1 : Int
     ret Tmp(7)
-fn via_value (fn_id=97) -> Int [1 blocks]
+fn via_value (fn_id=N) -> Int [1 blocks]
   local i: Ref(Int, true)
   local __ret: Int
 entry:
@@ -70,7 +70,7 @@ entry:
     store Tmp(4) -> v1 : Int
     t5 = load v1 : Int
     ret Tmp(5)
-fn total (fn_id=98) -> Void [1 blocks]
+fn total (fn_id=N) -> Void [1 blocks]
   local i: Ref(Int, false)
   local acc: Ref(Int, true)
 entry:
@@ -88,7 +88,7 @@ entry:
     t14 = call fn(N) (Tmp(2):Int, Tmp(6):Int, Literal(Int(25), Int):Int, Literal(Int(15), Int):Int, Tmp(10):Named(Symbol(N))) : Int
     t0 = index_store elem_ty=Int
     ret void
-fn set_hi (fn_id=99) -> Void [1 blocks]
+fn set_hi (fn_id=N) -> Void [1 blocks]
   local s: Ref(Named(Symbol(N)), true)
 entry:
     alloca v0 : Ref(Named(Symbol(N)), true)
@@ -98,7 +98,7 @@ entry:
     t2 = struct_lit String (2 fields)
     t0 = index_store elem_ty=Named(Symbol(N))
     ret void
-fn main (fn_id=100) -> Int [25 blocks]
+fn main (fn_id=N) -> Int [25 blocks]
   local x: Int
   local y: Int
   local r: Int
@@ -258,11 +258,11 @@ ifcont23:
     store Literal(Int(0), Int) -> v17 : Int
     t41 = load v17 : Int
     ret Tmp(41)
-fn __iface_drop_String (fn_id=102) -> Void [1 blocks]
+fn __iface_drop_String (fn_id=N) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))
     ret void
-fn __drop_String (fn_id=103) -> Void [1 blocks]
+fn __drop_String (fn_id=N) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))
     ret void

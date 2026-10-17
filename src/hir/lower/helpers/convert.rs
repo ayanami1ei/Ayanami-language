@@ -61,10 +61,10 @@ pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirTy
                     let Some(inner) = generic_inner(&arg_name) else { return out; };
                     let inner_parts = split_generic_args(inner);
                     // Decode each inner part: "int" → Int, "String" → Named("String")
+                    // P4b：嵌套泛型模式（如 `Box[Box[T]]` ← `Box<Box<int>>`）递归推导
                     for (gp, inner_str) in params.iter().zip(inner_parts.iter()) {
-                        if let Type::Named(gp_name, _) = gp {
-                            out.push((*gp_name, sig_str_to_hir(inner_str.trim())));
-                        }
+                        let arg_inner = sig_str_to_hir(inner_str.trim());
+                        out.extend(infer_generic_from_param(gp, &arg_inner));
                     }
                 }
             }

@@ -194,6 +194,8 @@ impl crate::hir::lower::Ctx {
                         };
                         // 泛型单态化：枚举构造按返回类型实例化
                         let wrapped = self.instantiate_enum_value(wrapped, &fn_ret)?;
+                        // P4b 附带：返回类型一致性（见 return_check.rs）
+                        self.check_return_type(&wrapped, &fn_ret, span)?;
                         Some(implicit_move(wrapped))
                     }
                     None => None,

@@ -19,7 +19,7 @@ n=0
 
 sanitize() {
     sed -e "s#$PWD#<ROOT>#g" -e "s#$HOME#<HOME>#g" -e 's#/tmp/ayanami-dump[^/]*#<TMP>#g' \
-        -e 's/Symbol([0-9][0-9]*)/Symbol(N)/g' -e 's/fn[0-9][0-9]*/fn(N)/g'  # 符号/FnId 编号与 std 构建顺序相关，归一化避免误报
+        -e 's/Symbol([0-9][0-9]*)/Symbol(N)/g' -e 's/fn_id=[0-9][0-9]*/fn_id=N/g' -e 's/fn[0-9][0-9]*/fn(N)/g'  # 符号/FnId 编号与 std 构建顺序相关，归一化避免误报
 }
 
 for f in $FILES; do

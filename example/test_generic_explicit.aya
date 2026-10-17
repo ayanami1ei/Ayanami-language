@@ -1,0 +1,23 @@
+// P4a：单标识符显式泛型实参 `f[T](args)`（含歧义消解：索引后调用不受影响）
+struct Box[T] {
+    T v
+}
+
+fn make[T](T x) -> Box[T] {
+    return Box[T] { v = x }
+}
+
+fn pair[T](T a, T b) -> int {
+    return 0
+}
+
+fn main() -> int {
+    b = make[int](7)
+    if b.v != 7 { return 1 }
+    if pair[int](1, 2) != 0 { return 2 }
+    // 索引后调用（小写标识符 → 非泛型实参，按索引解析）
+    a = [(int x) -> int { return x + 1 }]
+    i = 0
+    if a[i](5) != 6 { return 3 }
+    return 0
+}

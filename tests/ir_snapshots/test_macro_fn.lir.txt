@@ -2,7 +2,7 @@ LIR Program
 Strings: 1 entries
   @__str_0 = "example/macro_lib.aya"
 
-fn main (fn_id=94) -> Int [10 blocks]
+fn main (fn_id=N) -> Int [10 blocks]
   local x: Int
   local y: Int
   local l: Int
@@ -74,11 +74,11 @@ ifcont8:
     store Literal(Int(0), Int) -> v7 : Int
     t34 = load v7 : Int
     ret Tmp(34)
-fn __iface_drop_String (fn_id=96) -> Void [1 blocks]
+fn __iface_drop_String (fn_id=N) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))
     ret void
-fn __drop_String (fn_id=97) -> Void [1 blocks]
+fn __drop_String (fn_id=N) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))
     ret void

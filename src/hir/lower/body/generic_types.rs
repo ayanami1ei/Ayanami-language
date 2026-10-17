@@ -10,8 +10,8 @@ use super::*;
 pub(crate) enum GType {
     /// 类型是泛型参数 `T`
     Param(Symbol),
-    /// 类型是结构体/枚举（基名），用于字段与方法返回推断
-    Struct(Symbol),
+    /// 类型是结构体/枚举（基名 + 泛型实参），用于字段与方法返回推断与嵌套替换
+    Struct(Symbol, Vec<GType>),
     Other,
 }
 
@@ -40,13 +40,15 @@ impl crate::hir::lower::Ctx {
                 if gp.iter().any(|(g, _)| g == n) {
                     GType::Param(*n)
                 } else if self.struct_defs.contains_key(n) {
-                    GType::Struct(*n)
+                    GType::Struct(*n, Vec::new())
                 } else {
                     GType::Other
                 }
             }
-            Type::Generic(n, _, _) => {
-                if self.struct_defs.contains_key(n) { GType::Struct(*n) } else { GType::Other }
+            Type::Generic(n, args, _) => {
+                if self.struct_defs.contains_key(n) {
+                    GType::Struct(*n, args.iter().map(|a| self.ast_gtype(a, gp)).collect())
+                } else { GType::Other }
             }
             Type::Ref(inner, _, _) | Type::Unique(inner, _) => self.ast_gtype(inner, gp),
             _ => GType::Other,
@@ -65,27 +67,24 @@ impl crate::hir::lower::Ctx {
             Expr::Move(i, _) | Expr::Clone(i, _) | Expr::ToUnique(i, _)
             | Expr::Ref(i, _, _) | Expr::TryOp(i, _) => self.infer_gtype(i, gp, env),
             Expr::FieldAccess { object, field, .. } => {
-                if let GType::Struct(base) = self.infer_gtype(object, gp, env) {
+                if let GType::Struct(base, args) = self.infer_gtype(object, gp, env) {
                     if let Some(f) = self.struct_defs.get(&base)
                         .and_then(|fs| fs.iter().find(|f| f.name == *field))
                     {
-                        if let HirType::Named(p) = strip_ownership_ref(&f.ty) {
-                            if gp.iter().any(|(g, _)| g == p) {
-                                return GType::Param(*p);
-                            }
-                        }
+                        // P4b：字段类型按接收者泛型实参替换（`Box[Box[T]].v` → `Box<T>`）
+                        return self.gtype_of_field(&base, &args, &f.ty.clone(), gp);
                     }
                 }
                 GType::Other
             }
             Expr::MethodCall { object, method, .. } => {
-                if let GType::Struct(base) = self.infer_gtype(object, gp, env) {
+                if let GType::Struct(base, args) = self.infer_gtype(object, gp, env) {
                     for (m, _, stmt) in &self.generic_fns {
                         if m != method { continue; }
                         if let Stmt::FnDecl { params, return_type, .. } = stmt {
                             if let Some((_, rt)) = params.first() {
-                                if matches!(self.ast_gtype(rt, gp), GType::Struct(b) if b == base) {
-                                    return self.ast_gtype(return_type, gp);
+                                if matches!(self.ast_gtype(rt, gp), GType::Struct(b, _) if b == base) {
+                                    return self.substitute_gtype_param(&base, &args, return_type, gp);
                                 }
                             }
                         }
@@ -95,6 +94,36 @@ impl crate::hir::lower::Ctx {
             }
             _ => GType::Other,
         }
+    }
+
+    /// 字段类型在接收者实例化下的浅层类型（P4b：结构体泛型参数用接收者实参替换）。
+    fn gtype_of_field(&self, base: &Symbol, args: &[GType], field_ty: &HirType, gp: &[(Symbol, Vec<Symbol>)]) -> GType {
+        let HirType::Named(p) = strip_ownership_ref(field_ty) else { return GType::Other };
+        if let Some(idx) = self.generic_struct_params.get(base)
+            .and_then(|ps| ps.iter().position(|(g, _)| g == p))
+        {
+            return args.get(idx).cloned().unwrap_or(GType::Param(*p));
+        }
+        if gp.iter().any(|(g, _)| g == p) {
+            return GType::Param(*p);
+        }
+        let base_name = crate::hir::lower::strip_generic_name(p);
+        if self.struct_defs.contains_key(p) || self.struct_defs.contains_key(&base_name) {
+            return GType::Struct(base_name, Vec::new());
+        }
+        GType::Other
+    }
+
+    /// 返回类型中的结构体泛型参数按接收者实参替换（P4b：嵌套泛型方法返回）。
+    fn substitute_gtype_param(&self, base: &Symbol, args: &[GType], ret: &Type, gp: &[(Symbol, Vec<Symbol>)]) -> GType {
+        if let Type::Named(n, _) = ret {
+            if let Some(idx) = self.generic_struct_params.get(base)
+                .and_then(|ps| ps.iter().position(|(g, _)| g == n))
+            {
+                return args.get(idx).cloned().unwrap_or(GType::Param(*n));
+            }
+        }
+        self.ast_gtype(ret, gp)
     }
 
     /// C2：泛型参数 `T` 参与的运算符按约束检查（映射到 add/sub/.../eq/... 方法）。

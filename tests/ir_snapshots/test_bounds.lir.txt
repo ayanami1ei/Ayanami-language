@@ -2,7 +2,7 @@ LIR Program
 Strings: 1 entries
   @__str_0 = "example/test_bounds.aya"
 
-fn main (fn_id=99) -> Int [1 blocks]
+fn main (fn_id=N) -> Int [1 blocks]
   local a: Named(Symbol(N))
   local __ret: Int
   local __ret: Int
@@ -25,7 +25,7 @@ entry:
     store Literal(Int(0), Int) -> v2 : Int
     t10 = load v2 : Int
     ret Tmp(10)
-fn ArrayList.new (fn_id=100) -> Named(Symbol(N)) [1 blocks]
+fn ArrayList.new (fn_id=N) -> Named(Symbol(N)) [1 blocks]
   local __ret: Named(Symbol(N))
 entry:
     alloca v0 : Named(Symbol(N))
@@ -33,7 +33,7 @@ entry:
     store Tmp(0) -> v0 : Named(Symbol(N))
     t5 = load v0 : Named(Symbol(N))
     ret Tmp(5)
-fn expand (fn_id=103) -> Void [10 blocks]
+fn expand (fn_id=N) -> Void [10 blocks]
   local self: Ref(Named(Symbol(N)), true)
   local tmp: Unique(Array(Int))
   local i: Int
@@ -141,7 +141,7 @@ while.end5:
     br %ifcont2
 ifcont2:
     ret void
-fn push (fn_id=101) -> Void [7 blocks]
+fn push (fn_id=N) -> Void [7 blocks]
   local self: Ref(Named(Symbol(N)), true)
   local val: Int
   local __idx: Int
@@ -205,7 +205,7 @@ ifcont5:
     t48 = call fn(N) (Tmp(41):IntN { bits: 64, signed: false }, Literal(Int(1), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(24), Int):Int, Literal(Int(29), Int):Int, Tmp(44):Named(Symbol(N))) : IntN { bits: 64, signed: false }
     t39 = field_store field=1 : IntN { bits: 64, signed: false }
     ret void
-fn index (fn_id=106) -> Int [7 blocks]
+fn index (fn_id=N) -> Int [7 blocks]
   local self: Ref(Named(Symbol(N)), false)
   local index: IntN { bits: 64, signed: false }
   local __line: Int
@@ -275,15 +275,15 @@ ifcont5:
     drop v4 : Named(Symbol(N))
     t37 = load v7 : Int
     ret Tmp(37)
-fn __iface_drop_String (fn_id=107) -> Void [1 blocks]
+fn __iface_drop_String (fn_id=N) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))
     ret void
-fn __drop_ArrayList_lt_int_gt_ (fn_id=108) -> Void [1 blocks]
+fn __drop_ArrayList_lt_int_gt_ (fn_id=N) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))
     ret void
-fn __drop_String (fn_id=109) -> Void [1 blocks]
+fn __drop_String (fn_id=N) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))
     ret void

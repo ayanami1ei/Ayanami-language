@@ -521,9 +521,11 @@ src/hir/lower/body/generic_types.rs:19: pub(super) fn ast_is_concrete_primitive(
 src/hir/lower/body/generic_types.rs:28: pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool
 src/hir/lower/body/generic_types.rs:35: impl crate::hir::lower::Ctx
 src/hir/lower/body/generic_types.rs:37: pub(crate) fn ast_gtype(&self, ty: &Type, gp: &[(Symbol, Vec<Symbol>)]) -> GType
-src/hir/lower/body/generic_types.rs:57: pub(crate) fn infer_gtype(
-src/hir/lower/body/generic_types.rs:101: pub(crate) fn check_param_operator(
-src/hir/lower/body/generic_types.rs:146: pub(crate) fn check_param_method(
+src/hir/lower/body/generic_types.rs:59: pub(crate) fn infer_gtype(
+src/hir/lower/body/generic_types.rs:100: fn gtype_of_field(&self, base: &Symbol, args: &[GType], field_ty: &HirType, gp: &[(Symbol, Vec<Symbol>)]) -> GType
+src/hir/lower/body/generic_types.rs:118: fn substitute_gtype_param(&self, base: &Symbol, args: &[GType], ret: &Type, gp: &[(Symbol, Vec<Symbol>)]) -> GType
+src/hir/lower/body/generic_types.rs:130: pub(crate) fn check_param_operator(
+src/hir/lower/body/generic_types.rs:175: pub(crate) fn check_param_method(
 src/hir/lower/body/if_expr.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/if_expr.rs:6: pub(crate) fn lower_if_expr(
 src/hir/lower/body/iface_args.rs:8: impl crate::hir::lower::Ctx
@@ -632,7 +634,8 @@ src/hir/lower/body/mod.rs:50: mod expr_misc;
 src/hir/lower/body/mod.rs:51: mod expr_ops1;
 src/hir/lower/body/mod.rs:52: mod expr_unary;
 src/hir/lower/body/mod.rs:53: mod expr_method_arrays;
-src/hir/lower/body/mod.rs:54: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:54: mod return_check;
+src/hir/lower/body/mod.rs:55: mod expr_reinterpret;
 src/hir/lower/body/overload_resolve.rs:4: fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
@@ -643,6 +646,9 @@ src/hir/lower/body/overload_resolve.rs:195: pub(crate) fn resolve_method_literal
 src/hir/lower/body/overload_resolve.rs:218: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
 src/hir/lower/body/ref_assign.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/ref_assign.rs:6: pub(crate) fn try_lower_ref_assign(
+src/hir/lower/body/return_check.rs:8: impl crate::hir::lower::Ctx
+src/hir/lower/body/return_check.rs:10: pub(crate) fn check_return_type(&self, wrapped: &HirNodeBox, fn_ret: &HirType, span: &Span) -> Result<()>
+src/hir/lower/body/return_check.rs:37: fn return_types_compatible(got: &HirType, want: &HirType) -> bool
 src/hir/lower/body/stmt_loops.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/stmt_loops.rs:5: pub(crate) fn lower_while(
 src/hir/lower/body/stmt_loops.rs:47: pub(crate) fn lower_for(
@@ -2389,6 +2395,9 @@ src/parser/parser/types.rs:155: pub(super) fn handle_path_sep(&mut self, name_st
 src/parser/parser/unary.rs:3: impl Parser
 src/parser/parser/unary.rs:4: pub(super) fn parse_unary(&mut self) -> Result<Expr>
 src/parser/parser/unary.rs:77: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
+src/parser/parser/unary.rs:213: impl Parser
+src/parser/parser/unary.rs:219: pub(super) fn try_parse_generic_call_args(
+src/parser/parser/unary.rs:270: fn is_type_like_arg(t: &Type) -> bool
 src/span.rs:5: pub struct Span
 src/span.rs:14: impl Span
 src/span.rs:15: pub fn new(
@@ -2615,6 +2624,10 @@ example/test_generic_enum_match.aya:2: pub enum O[T]
 example/test_generic_enum_match.aya:7: fn mk() -> O[int] { return O::Some(7) }
 example/test_generic_enum_match.aya:9: fn get(O[int] v) -> int
 example/test_generic_enum_match.aya:16: fn main() -> int
+example/test_generic_explicit.aya:2: struct Box[T]
+example/test_generic_explicit.aya:6: fn make[T](T x) -> Box[T]
+example/test_generic_explicit.aya:10: fn pair[T](T a, T b) -> int
+example/test_generic_explicit.aya:14: fn main() -> int
 example/test_generic_impl_multi.aya:2: pub enum Pair[A, B]
 example/test_generic_impl_multi.aya:7: impl[A, B] Pair[A, B]
 example/test_generic_impl_multi.aya:8: pub fn first(self) -> A
@@ -2626,6 +2639,10 @@ example/test_generic_impl_multi.aya:32: fn mk_p() -> Pair[int, int] { return Pai
 example/test_generic_impl_multi.aya:33: fn mk_q() -> Pair[int, int] { return Pair::Q(7) }
 example/test_generic_impl_multi.aya:34: fn mk_w() -> Wrap[int] { return Wrap::W(9) }
 example/test_generic_impl_multi.aya:36: fn main() -> int
+example/test_generic_nested.aya:2: struct Box[T]
+example/test_generic_nested.aya:6: fn inner[T](ref Box[T] b) -> T
+example/test_generic_nested.aya:10: fn deep[T](ref Box[Box[T]] b) -> T
+example/test_generic_nested.aya:15: fn main() -> int
 example/test_generic_nested_arg.aya:6: fn main() -> int
 example/test_generic_pair_map.aya:3: enum Pair[A, B]
 example/test_generic_pair_map.aya:8: impl[A, B] Pair[A, B]
