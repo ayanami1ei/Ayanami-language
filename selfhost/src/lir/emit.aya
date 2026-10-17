@@ -168,6 +168,10 @@ fn ty_name(ref Ast ast, int t) -> String {
 /// 取实参地址（ref 原语形参）：变量/全局直接取址，其余落到临时槽
 fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String {
     if id >= 0 {
+        if ast.tags[id] == et(ET::Ref._tag) {
+            // ref x：取 x 的地址（避免落到临时槽存成 i64 符号）
+            return addr_of_arg(ast, ast.aa[id], e);
+        }
         if ast.tags[id] == et(ET::Ident._tag) {
             nm = ast.texts[id];
             if e.global_kind(nm) == 0 { return "@" + nm; }
