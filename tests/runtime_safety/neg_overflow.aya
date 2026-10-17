@@ -1,0 +1,6 @@
+// #183：一元负号（int）溢出检查——`-i64::MIN` 与 `0 - MIN` 一致 panic
+fn main() -> int {
+    min = 0 - 9223372036854775807 - 1
+    x = -min
+    return x as int
+}
