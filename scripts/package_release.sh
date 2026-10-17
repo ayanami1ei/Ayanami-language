@@ -14,6 +14,18 @@ if [ "${1:-}" = "--no-vsix" ]; then
     build_vsix=0
 fi
 
+# std 子仓：打包前检查（落后/未提交提示；不自动 pull，避免动用户工作区）
+if git -C std rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git -C std fetch -q origin 2>/dev/null || true
+    behind=$(git -C std rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+    if [ "$behind" != "0" ]; then
+        echo "警告：std 子仓落后 origin/main $behind 个提交（建议先 git -C std pull --ff-only）" >&2
+    fi
+    if [ -n "$(git -C std status --porcelain 2>/dev/null)" ]; then
+        echo "警告：std 子仓有未提交改动，请确认后再打包" >&2
+    fi
+fi
+
 ver=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 arch=$(uname -m)
 tar_name="ayanami-${ver}-linux-${arch}.tar.gz"
