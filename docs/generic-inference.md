@@ -28,6 +28,8 @@ constraint generation → unification → type inference → generic instantiati
 | 方法接收者 | `impl[T] Box[T] { fn get(ref self) -> T }` ← `b.get()` | ✓ |
 | 限定名显式实参 | `ArrayList::new[int]()` | ✓ |
 | 嵌套**实参** | `Box[Box[int]]` → 形参 `Box[T]`（`first(b).v`） | ✓ |
+| 结构体字面量实参推断 | `Box { v = 42 }` → `Box<int>`；`Pair { first = 1, second = "s" }` → `Pair<int,String>` | ✓ |
+| 冲突诊断（P4d） | `pair(1, "s")` → `generic parameter \`T\` ... inferred as \`int\` ... but \`String\` here` | ✓ |
 
 缺口：
 
@@ -36,7 +38,7 @@ constraint generation → unification → type inference → generic instantiati
 | a | 单标识符显式实参 `make[int]()` | **解析失败** `expected expression`（显式泛型调用仅支持含 `.`/`::` 的限定名） |
 | b | 泛型体内嵌套字段**经局部变量**：`x = b.v; x.v`（`b: ref Box[Box[T]]`） | 报 `field access v on generic parameter T` —— `x` 的类型被收窄为 `T` 而非 `Box[T]` |
 | c | 嵌套**调用点**特化：`inner(ref Box[Box[int]])`（形参 `ref Box[T]`） | llc 类型错误：`%t7 defined with type %struct.Box<int> but expected i64`（替换/装箱不一致） |
-| d | 规则分散 | 实参→形参 `infer_generic_from_param`、后续用法 `usage_infer`、调用点 `specialize_generic_call`、约束检查 `generic_types`、重载解析各自实现，缺统一约束表示与冲突诊断 |
+| d | 规则分散 | 实参→形参 `infer_generic_from_param`、后续用法 `usage_infer`、调用点 `specialize_generic_call`、约束检查 `generic_types`、重载解析各自实现；**冲突诊断已落地（P4d）**，统一约束表示待 P4c |
 
 代码入口：`helpers/convert.rs::infer_generic_from_param`、`body/generic_specialize.rs`、`body/generic_types.rs`、`body/generic_check.rs`、`body/usage_infer.rs`、`body/overload_resolve.rs`、`helpers/types.rs::sig_str_to_hir`/`split_generic_args`。
 
@@ -90,7 +92,7 @@ coercion 顺序：**先 unify 产生约束并解出泛型实参**，再按期望
 | **P4a** | 解析 `f[T](x)`（单标识符显式实参） | 正例：`make[int]()`、`pair[int](1,2)`；负例：`a[i](x)`（索引调用）不受影响；回归全绿 |
 | **P4b** | 嵌套泛型 unify/替换：修 b（局部变量收窄）、c（特化装箱） | `x = b.v; x.v`（`Box[Box[T]]`）通过；`inner(ref Box[Box[int]])` 生成正确 IR 并运行；负例：嵌套不匹配报错位置化 |
 | P4c | 收敛 `infer_generic_from_param`/`usage_infer`/`specialize_*` 到 `unify`，删除重复规则 | 行为不回退（全量回归 + IR 快照），代码入口减少 |
-| P4d | 诊断：未解参数/冲突位置化（期望 vs 实际） | 负例覆盖；错误信息含位置与类型对 |
+| **P4d** | 诊断：未解参数/冲突位置化（期望 vs 实际） | 负例覆盖；错误信息含位置与类型对 |
 | P4e | 与编译期约束求解（const fn/类型级）接口预留 | 设计说明 + 最小接入点 |
 
 ## 5. 实现状态
@@ -100,6 +102,8 @@ coercion 顺序：**先 unify 产生约束并解出泛型实参**，再按期望
       - `infer_generic_from_param` 对嵌套模式（`Box[Box[T]]` ← `Box<Box<int>>`）**递归推导**；
       - `GType::Struct(base, args)` 携带泛型实参，字段/方法返回按接收者实参替换（`x = b.v; x.v` 不再收窄为 `T`）；
       - 附带：**返回类型一致性检查**（`return Box[int]` 当 `int` 返回不再静默生成坏 IR；`Fn`→`FnOnce`/数组尺寸擦除/接口装箱/`null` 字面量/未标注 lambda 延后校验均放行）
+- [x] **P4d** 位置化诊断：推断冲突（`inferred as A from earlier argument(s) but B here`，数值互转/所有权包装放行）；未解参数保留调用点位置
+- [x] 结构体字面量实参推断（`Box { v = 42 }` → `Box<int>`，与枚举构造 `Option::Some(1)` 一致；`Ptr[T]`/`Box[T]` 等复合字段类型留给使用点细化）
+- [x] 特化失败回滚：修复“僵尸签名”（失败的特化仍注册，重试去重命中 → 调用引用无函数体、真实错误被吞）
 - [ ] P4c 统一到 `unify`（收敛重复规则）
-- [ ] P4d 位置化诊断
 - [ ] P4e 编译期约束求解接口

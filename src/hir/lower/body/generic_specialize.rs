@@ -116,8 +116,18 @@ impl crate::hir::lower::Ctx {
         } else {
             for ((_, param_ty), arg_ty) in params.iter().take(visible).zip(arg_types.iter()) {
                 for (gp_name, hir_concrete) in infer_generic_from_param(param_ty, arg_ty) {
-                    if generic_names.contains(&gp_name) && !generic_mappings.contains_key(&gp_name) {
-                        generic_mappings.insert(gp_name, hir_concrete);
+                    if !generic_names.contains(&gp_name) { continue; }
+                    match generic_mappings.get(&gp_name) {
+                        None => { generic_mappings.insert(gp_name, hir_concrete); }
+                        Some(prev) if types_infer_conflict(prev, &hir_concrete) => {
+                            return Err(Error::Hir(format!(
+                                "generic parameter `{}` of `{}` inferred as `{}` from earlier argument(s) but `{}` here (at {}:{})",
+                                gp_name.as_str(), gf_name.as_str(),
+                                hir_type_display(prev), hir_type_display(&hir_concrete),
+                                span.start_line, span.start_col
+                            )));
+                        }
+                        Some(_) => {}
                     }
                 }
             }
@@ -218,7 +228,22 @@ impl crate::hir::lower::Ctx {
         let saved_scopes = std::mem::take(&mut self.scopes);
 
         // A3a：泛型实例继承定义上的标注（含效应；此前 A1 标注在此丢失）
-        let mut hir_fn = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, *is_unsafe, Span::default(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
+        let lowered = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, *is_unsafe, Span::default(), attrs.clone(), param_attrs.clone(), vis.is_public());
+        let mut hir_fn = match lowered {
+            Ok(f) => f,
+            Err(e) => {
+                // 回滚注册：否则后续重试/解析会命中去重返回“僵尸签名”，
+                // 调用引用无函数体（链接失败）且真实错误被吞掉
+                if let Some(ids) = self.fn_map.get_mut(name) {
+                    ids.retain(|x| *x != fid);
+                }
+                self.specialized_ids.remove(&fid);
+                if self.fns.len() == fid.0 + 1 {
+                    self.fns.pop();
+                }
+                return Err(e);
+            }
+        };
         hir_fn.is_specialized = true;
 
         self.current_fn = saved_current_fn;
@@ -234,4 +259,26 @@ impl crate::hir::lower::Ctx {
     //  阶段 2：降级顶层项（函数、结构体、命名空间等）
     //  将 AST 中声明级别的节点递归降级为 HIR 节点
     // ----------------------------------------------------------------
+}
+
+/// 泛型实参推断冲突：两侧都具体且类别不同。
+/// 数值互转与所有权包装差异放行（交由后续 coerce），单字母大写未解参数放行。
+fn types_infer_conflict(a: &HirType, b: &HirType) -> bool {
+    let a = strip_ownership_ref(a);
+    let b = strip_ownership_ref(b);
+    if a == b {
+        return false;
+    }
+    let numeric = |t: &HirType| matches!(t, HirType::Int | HirType::IntN { .. } | HirType::Float | HirType::F32);
+    if numeric(a) && numeric(b) {
+        return false;
+    }
+    let bare_param = |t: &HirType| matches!(t, HirType::Named(n)
+        if n.as_str().len() == 1 && n.as_str().chars().all(|c| c.is_uppercase()));
+    if bare_param(a) || bare_param(b) {
+        return false;
+    }
+    // 一侧为命名类型、另一侧不是 → 冲突（如 `int` vs `String`）；命名类型之间不同也冲突
+    matches!((a, b), (HirType::Named(_), HirType::Named(_)))
+        || matches!(a, HirType::Named(_)) != matches!(b, HirType::Named(_))
 }

@@ -31,3 +31,6 @@ bounds_check_field_array.aya 101 index out of bounds
 bounds_check_string_data.aya 101 index out of bounds
 bounds_check_index_assign.aya 101 index out of bounds
 bounds_check_write_capacity.aya 0
+ptr_chain_match.aya 0 5
+struct_destructure_owned.aya 0 hi
+ptr_match_scrutinee.aya 0 5

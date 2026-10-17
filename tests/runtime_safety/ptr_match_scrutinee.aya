@@ -1,0 +1,15 @@
+import "io"
+import "option"
+
+struct Node {
+    int v
+}
+
+fn main() -> int {
+    p = Ptr::new(Option::Some(Node { v = 5 }))
+    match p {
+        None => { return 1 }
+        Some(n) => { println(n.v) }
+    }
+    return 0
+}

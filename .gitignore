@@ -58,3 +58,4 @@ selfhost/.work/
 .stage0/
 .work/
 selfhost/build/
+ayanami-*-build.txt

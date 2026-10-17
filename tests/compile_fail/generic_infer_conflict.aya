@@ -1,0 +1,6 @@
+fn pair[T](T a, T b) -> T { return a }
+
+fn main() -> int {
+    x = pair(1, "s")
+    return 0
+}

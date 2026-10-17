@@ -1,0 +1,9 @@
+import "arraylist"
+
+fn len_of[T](ref ArrayList[T] l) -> int { return l.len() }
+
+fn main() -> int {
+    l = ArrayList::new()
+    l.push(1)
+    return len_of(ref l)
+}

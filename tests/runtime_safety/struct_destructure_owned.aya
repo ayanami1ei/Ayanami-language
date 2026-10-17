@@ -1,0 +1,13 @@
+import "io"
+
+struct S {
+    String s
+}
+
+fn main() -> int {
+    v = S { s = "hi" }
+    match v {
+        S { s } => { println(s) }
+    }
+    return 0
+}
