@@ -6,6 +6,41 @@ import "aya_file";
 // 诊断输出（stderr，fd=2）
 extern "C" fn write(int fd, [char] buf, int n) -> int;
 
+/// 取第 n 行（1 起，不含换行；越界返回 ""）
+fn src_line_text(ref String data, int n) -> String {
+    cur = 1;
+    start = 0;
+    i = 0;
+    while i <= data.len as int {
+        at_end = 0;
+        if i == data.len as int { at_end = 1; }
+        is_nl = 0;
+        if at_end == 0 {
+            if char_code(data.index(i as usize)) == 10 { is_nl = 1; }
+        }
+        if at_end == 1 || is_nl == 1 {
+            if cur == n {
+                return data.substring(start as usize, i as usize);
+            }
+            cur = cur + 1;
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+    return "";
+}
+
+/// 十进制位数
+fn num_width(int v) -> int {
+    w = 1;
+    t = v;
+    while t >= 10 {
+        w = w + 1;
+        t = t / 10;
+    }
+    return w;
+}
+
 fn emit(ref String prefix, ref String file, int line, int col, ref String msg) {
     b = StringBuf::new();
     b.push_str(prefix);
@@ -17,9 +52,44 @@ fn emit(ref String prefix, ref String file, int line, int col, ref String msg) {
     b.push_str(":");
     b.push_int(col);
     b.push_str("\n");
+    // rust 风格代码帧：gutter | 源行 | 脱字符
+    r = read_file(file);
+    if r.ok {
+        text = src_line_text(r.data, line);
+        if text.len > 0 || line > 0 {
+            w = num_width(line);
+            pad = StringBuf::new();
+            i = 0;
+            while i < w + 1 {
+                pad.push(' ');
+                i = i + 1;
+            }
+            b.push_str(pad.to_string());
+            b.push_str("|\n");
+            b.push_str(int_dec(line));
+            b.push_str(" | ");
+            b.push_str(text);
+            b.push_str("\n");
+            b.push_str(pad.to_string());
+            b.push_str("| ");
+            i = 1;
+            while i < col {
+                b.push(' ');
+                i = i + 1;
+            }
+            b.push_str("^\n");
+        }
+    }
     s = b.to_string();
     c = to_cstr(s);
     write(2, c, s.len as int);
+}
+
+/// 十进制字符串
+fn int_dec(int v) -> String {
+    b = StringBuf::new();
+    b.push_int(v);
+    return b.to_string();
 }
 
 #[alloc]

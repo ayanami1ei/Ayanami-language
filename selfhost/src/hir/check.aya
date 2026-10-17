@@ -721,9 +721,8 @@ impl Checker {
             if changed == 0 { break; }
             it = it + 1;
         }
-        // 警告输出默认关闭（AYANAMI_FX_WARN=1 打开）：需要先补齐诊断帧格式与
-        // match 降级 state 标记的精确复刻，见 bd「effect 警告对齐」
-        if env("AYANAMI_FX_WARN") != "1" { return; }
+        // 默认开启；AYANAMI_FX_WARN=0 可关闭（调试用）
+        if env("AYANAMI_FX_WARN") == "0" { return; }
         i = 0;
         while i < self.fx_count {
             if self.fx_pub[i] == 1 {
