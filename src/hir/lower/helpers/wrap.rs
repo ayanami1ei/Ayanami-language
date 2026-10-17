@@ -18,6 +18,10 @@ fn wrap_arg_conversions(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
         if matches!(pt, HirType::Int | HirType::IntN { .. } | HirType::Float | HirType::F32) {
             return SBoolToNum { expr: arg, ty: pt.clone() }.into();
         }
+        // #182：Bool 形参：修正结果类型（值即 i1，无需转换）
+        if matches!(pt, HirType::Bool) {
+            return super::coerce::retype_comparison_bool(arg);
+        }
     }
     // M2：闭包实参按拥有值移动（非 Copy，调用方不再释放）
     if matches!(param_ty, HirType::Closure(..)) && matches!(arg.expr_type(), HirType::Closure(..)) {

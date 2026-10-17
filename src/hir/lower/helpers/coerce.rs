@@ -134,7 +134,9 @@ pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Re
     // 比较表达式在 HIR 中保留操作数类型，MIR→LIR 才产出 bool（i1）
     if expr.is_comparison() {
         if tgt_inner == HirType::Bool {
-            return Ok(expr);
+            // #182：结果类型修正为 Bool（值即 i1），否则下游按操作数类型发射
+            // （结构体 bool 字段 store i64、Option::Some(a==b) 实例化成 Option[int] 等）
+            return Ok(retype_comparison_bool(expr));
         }
         if matches!(tgt_inner, HirType::Int | HirType::IntN { .. } | HirType::Float | HirType::F32) {
             return Ok(SBoolToNum { expr, ty: tgt_inner }.into());
@@ -154,4 +156,14 @@ pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Re
         )));
     }
     Ok(expr)
+}
+
+/// #182：比较表达式结果类型修正为 Bool（发射结果本就是 i1，bitcast i1→i1 合法且会被折叠）。
+/// 比较在 HIR 中保留操作数类型（A2c），此处在目标类型为 Bool 的上下文中显式标注，
+/// 避免下游按操作数类型发射（结构体 bool 字段 store i64、Option::Some(a==b) 成 Option[int] 等）。
+pub(crate) fn retype_comparison_bool(expr: HirNodeBox) -> HirNodeBox {
+    if expr.expr_type() == HirType::Bool || !expr.is_comparison() {
+        return expr;
+    }
+    SBoolToNum { expr, ty: HirType::Bool }.into()
 }

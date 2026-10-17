@@ -61,7 +61,7 @@ impl crate::hir::lower::Ctx {
             // 动态 `[T]` 无长度信息，保持未检查原语
             // P3b（Rust 方式）：越界检查（`[T; n]` 静态 / 动态字段兄弟边界；
             // 裸 `[T]` 无边界信息保持未检查原语）
-            let hir_index = self.check_array_index(&hir_object, hir_index, span);
+            let hir_index = self.check_array_index(&hir_object, hir_index, span, false);
             return Ok(SIdx {
                 object: hir_object,
                 index: hir_index,
