@@ -48,6 +48,20 @@ if [[ -d "example" ]]; then
         >> "$tmpfile" || true
 fi
 
+{
+    echo ""
+    echo "## Selfhost (selfhost/)"
+} >> "$tmpfile"
+
+if [[ -d "selfhost/src" ]]; then
+    rg --line-number --sort path --no-heading --color never \
+        '^[[:space:]]*(pub[[:space:]]+)?(fn|struct|enum|interface|impl|type|namespace)([^A-Za-z0-9_]|$)' \
+        --glob="*.aya" \
+        selfhost/src \
+        | sed -E 's/^([^:]+:[0-9]+:)[[:space:]]*/\1 /; s/[[:space:]]+$//; s/[[:space:]]*\{$//' \
+        >> "$tmpfile" || true
+fi
+
 if [[ "$check_mode" == true ]]; then
     if [[ ! -f "SYMBOLS.md" ]]; then
         echo "Error: SYMBOLS.md does not exist." >&2
