@@ -211,8 +211,16 @@ selfhost/
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
 | M5 | 🔄 进行中 | M5a-e 端到端：**17/17** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
-| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅。example diff **69/143**（2026-10-17，`./scripts/selfhost.sh diff`） |
-| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-17 md5 `d0153267c252bbc91a711823400f8437`，随同步 rust 0.6.6/std 更新） |
+| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅。example diff **76/143**（2026-10-17，`./scripts/selfhost.sh diff`） |
+| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-17 md5 `d11c45ef34183caade63f634956a38c1`） |
+
+M6t 交付（2026-10-17，闭包捕获之后）：**运算符重载**（结构体/枚举二元运算走 `add/eq/...` 方法，
+对应 rust `binary_op_to_fn_name`）；**整数/字符区间穷尽分析**（对应 rust `scalar_exhaustive`：字面量/区间/字符模式
+按 u8/i8/u16/i16/u32/i32/char 值域合并覆盖）；**ref 数组/结构体取值**（数组引用取数据指针、结构体/枚举取堆指针，
+与形参 ABI 一致；kd 3 数组引用形参按数组装载）；**块尾语句发射**（`emit_block_all`：if/while/for/unsafe 体的
+块尾表达式此前被提升出语句链后丢弃，如 `if lo < j { qsort(ref mut a, lo, j) }` 递归调用消失）；
+**get_unchecked/get/index 数组方法**；**`#panic` 宏**（调用运行时 `__ayanami_panic_at`，退出 101）；
+**内置 declare 去重**（`decl_has`，修 memcmp 重复 declare）；**指针类值槽写入统一**（`store_slot_i64`）。
 
 M6s 交付（2026-10-17）：**闭包捕获**。Fn 值统一为「环境块指针」（块首槽 = 代码指针，间接调用
 `code(args..., env)`，env 作末位实参；命名函数/非捕获 lambda 用静态 env 全局 `@fnenv.*`/`@lamenv.*`，忽略末位 env）。
