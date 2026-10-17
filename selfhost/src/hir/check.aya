@@ -367,6 +367,82 @@ fn is_prim_type(ref String t) -> bool {
     return false;
 }
 
+/// 十进制字面量文本 -> 值（非纯数字返回 -1）
+fn dec_val(ref String s) -> int {
+    if s.len == 0 { return -1; }
+    v = 0;
+    i = 0;
+    while i < s.len as int {
+        c = char_code(s.index(i as usize));
+        if c < 48 || c > 57 { return -1; }
+        v = v * 10 + (c - 48);
+        i = i + 1;
+    }
+    return v;
+}
+
+/// 类型值域 + 区间集合是否连续全覆盖（对应 rust scalar_exhaustive）
+fn scalar_covers(ref String base, ref [int; 64] los, ref [int; 64] his, int n) -> int {
+    mn = 0;
+    mx = 0;
+    known = 1;
+    if base == "u8" { mn = 0; mx = 255; }
+    elif base == "i8" { mn = -128; mx = 127; }
+    elif base == "u16" { mn = 0; mx = 65535; }
+    elif base == "i16" { mn = -32768; mx = 32767; }
+    elif base == "u32" { mn = 0; mx = 4294967295; }
+    elif base == "i32" { mn = -2147483648; mx = 2147483647; }
+    elif base == "char" { mn = 0; mx = 255; }
+    else { known = 0; }
+    if known == 0 { return 0; }
+    if n == 0 { return 0; }
+    c_lo = [int; 64];
+    c_hi = [int; 64];
+    cnt = 0;
+    i = 0;
+    while i < n {
+        l = los[i];
+        h = his[i];
+        if h >= mn && l <= mx {
+            if l < mn { l = mn; }
+            if h > mx { h = mx; }
+            if l <= h {
+                c_lo[cnt] = l;
+                c_hi[cnt] = h;
+                cnt = cnt + 1;
+            }
+        }
+        i = i + 1;
+    }
+    if cnt == 0 { return 0; }
+    i = 0;
+    while i < cnt {
+        j = i + 1;
+        while j < cnt {
+            if c_lo[j] < c_lo[i] {
+                tl = c_lo[i];
+                th = c_hi[i];
+                c_lo[i] = c_lo[j];
+                c_hi[i] = c_hi[j];
+                c_lo[j] = tl;
+                c_hi[j] = th;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    if c_lo[0] > mn { return 0; }
+    end = c_hi[0];
+    i = 1;
+    while i < cnt {
+        if c_lo[i] > end + 1 { return 0; }
+        if c_hi[i] > end { end = c_hi[i]; }
+        i = i + 1;
+    }
+    if end >= mx { return 1; }
+    return 0;
+}
+
 /// 去掉 ref / ref mut 前缀（自动解引用）
 fn strip_ref_ty(ref String t) -> String {
     if t.starts_with("ref mut ") { return t.substring(8 as usize, t.len); }
@@ -903,14 +979,78 @@ impl Checker {
         has_true = 0;
         has_false = 0;
         struct_destr = 0;
+        iv_lo = [int; 64];
+        iv_hi = [int; 64];
+        iv_n = 0;
         base = base_type(ty);
         en = self.find_enum(base);
         st = self.find_struct(base);
         a = arms;
         while a >= 0 {
             pk = ast.tys[a];
+            guarded = 0;
+            if ast.bb[a] >= 0 { guarded = 1; }
             if pk == 0 {
                 wild = 1;
+            } elif pk == 3 {
+                // 整数字面量模式（区间收集用）
+                if guarded == 0 {
+                    v3 = dec_val(ast.texts[a]);
+                    if v3 >= 0 {
+                        if iv_n < 64 {
+                            iv_lo[iv_n] = v3;
+                            iv_hi[iv_n] = v3;
+                            iv_n = iv_n + 1;
+                        }
+                    }
+                }
+            } elif pk == 5 {
+                // 字符字面量模式
+                if guarded == 0 {
+                    t5 = ast.texts[a];
+                    if t5.len > 0 {
+                        v5 = char_code(t5.index(0));
+                        if iv_n < 64 {
+                            iv_lo[iv_n] = v5;
+                            iv_hi[iv_n] = v5;
+                            iv_n = iv_n + 1;
+                        }
+                    }
+                }
+            } elif pk == 6 {
+                // 区间模式 A..=B / A..B
+                if guarded == 0 {
+                    t6 = ast.texts[a];
+                    dots = -1;
+                    q6 = 0;
+                    while q6 + 1 < t6.len as int {
+                        if t6.index(q6 as usize) == '.' {
+                            if t6.index((q6 + 1) as usize) == '.' { dots = q6; break; }
+                        }
+                        q6 = q6 + 1;
+                    }
+                    if dots >= 0 {
+                        lo_s = t6.substring(0 as usize, dots as usize);
+                        hi_s = t6.substring((dots + 2) as usize, t6.len);
+                        incl6 = 0;
+                        if hi_s.len > 0 {
+                            if hi_s.index(0) == '=' {
+                                incl6 = 1;
+                                hi_s = hi_s.substring(1 as usize, hi_s.len);
+                            }
+                        }
+                        lv6 = dec_val(lo_s);
+                        hv6 = dec_val(hi_s);
+                        if lv6 >= 0 && hv6 >= 0 {
+                            if incl6 == 0 { hv6 = hv6 - 1; }
+                            if iv_n < 64 {
+                                iv_lo[iv_n] = lv6;
+                                iv_hi[iv_n] = hv6;
+                                iv_n = iv_n + 1;
+                            }
+                        }
+                    }
+                }
             } elif pk == 1 {
                 vname = pat_variant_name(ast.texts[a]);
                 if en >= 0 {
@@ -964,7 +1104,7 @@ impl Checker {
             } elif st >= 0 {
                 if struct_destr == 0 { need = 1; }
             } elif is_prim_type(base) {
-                need = 1;
+                if scalar_covers(base, iv_lo, iv_hi, iv_n) == 0 { need = 1; }
             }
             if need == 1 {
                 b = StringBuf::new();

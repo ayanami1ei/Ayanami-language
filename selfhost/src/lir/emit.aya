@@ -167,6 +167,10 @@ fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String {
             if e.global_kind(nm) == 0 { return "@" + nm; }
             kd = e.local_kind(nm);
             if kd == 0 { return "%v_" + nm; }
+            if kd == 10 || kd == 20 || (kd >= 100 && kd < 228) {
+                // 数组/枚举/结构体局部：.p 槽即其指针存储地址
+                return "%v_" + nm + ".p";
+            }
             if kd == 30 {
                 // 已是引用：直接传递保存的指针
                 rp30 = e.fresh();
@@ -1703,6 +1707,8 @@ fn is_cmp(int op) -> bool {
 /// 数组元素槽布局：统一 8 字节槽（String/结构体为 {ptr, i64} → 16 字节）
 /// 内建哨兵：2000 = String（ptr 槽，16 字节）、2001 = float（double 槽）
 fn elem_slot(ref Ast ast, int ty) -> String {
+    if ty >= 10000 && ty < 10128 { return "ptr"; }
+    if ty >= 20000 && ty < 20128 { return "ptr"; }
     if ty == 2000 { return "ptr"; }
     if ty == 2001 { return "double"; }
     if ty == 2002 { return "i8"; }
@@ -1767,6 +1773,8 @@ fn elem_addr(ref mut Emitter e, int stride, ref String base, ref String idx) -> 
 
 /// 元素是否为 String（布局 { ptr, i64 }，需要两次 store）
 fn elem_is_string(ref Ast ast, int ty) -> bool {
+    if ty >= 10000 && ty < 10128 { return false; }
+    if ty >= 20000 && ty < 20128 { return false; }
     if ty == 2000 { return true; }
     if ty == 2002 { return false; }
     if ty < 0 { return false; }
@@ -1788,6 +1796,37 @@ fn elem_type_of(ref Ast ast, int id) -> int {
     if ast.tags[id] == et(ET::ArrayLiteral._tag) { return elem_type_of(ast, ast.aa[id]); }
     if ast.tags[id] == et(ET::ArrayRepeat._tag) { return elem_type_of(ast, ast.aa[id]); }
     return -1;
+}
+
+/// 数组元素类型（含结构体/枚举字面量与结构体/枚举局部；合成 id：10000+si / 20000+ei）
+impl Emitter {
+    #[alloc]
+    #[state]
+    fn elem_type_of_m(ref mut self, ref Ast ast, int id) -> int {
+        if id < 0 { return -1; }
+        tg = ast.tags[id];
+        if tg == et(ET::StructLiteral._tag) {
+            si = self.find_struct_idx(ast.texts[id]);
+            if si >= 0 { return 10000 + si; }
+            return -1;
+        }
+        if tg == et(ET::EnumConstruct._tag) {
+            en = pat_name(ast.texts[id]);
+            ei = self.find_enum_idx(en);
+            if ei >= 0 { return 20000 + ei; }
+            return -1;
+        }
+        if tg == et(ET::Ident._tag) {
+            kd = self.local_kind(ast.texts[id]);
+            if kd >= 100 && kd < 228 { return 10000 + (kd - 100); }
+            if kd == 20 {
+                ei2 = self.etype_of_local(ast.texts[id]);
+                if ei2 >= 0 { return 20000 + ei2; }
+            }
+            return -1;
+        }
+        return elem_type_of(ast, id);
+    }
 }
 
 /// 模式名部分（"A|x,y" -> "A"；"E.A|x" -> "E.A"）
@@ -3737,11 +3776,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     e.buf.push_str(g);
                     e.buf.push_str("\n");
                 } else {
-                    e.buf.push_str("  store i64 ");
-                    e.buf.push_str(v.a);
-                    e.buf.push_str(", ptr ");
-                    e.buf.push_str(g);
-                    e.buf.push_str("\n");
+                    store_slot_i64(e, g, v);
                 }
             }
             f = ast.nexts[f];
@@ -4383,7 +4418,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         while t2 >= 0 { cnt2 = cnt2 + 1; t2 = ast.nexts[t2]; }
         bcnt = StringBuf::new();
         bcnt.push_int(cnt2);
-        ety = elem_type_of(ast, head);
+        ety = e.elem_type_of_m(ast, head);
         cnt_s = bcnt.to_string();
         av = emit_array_new(ast, id, ety, cnt_s, e);
         lty = elem_llvm(ast, ety);
@@ -4405,7 +4440,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     if tag == et(ET::ArrayRepeat._tag) {
         // [expr; n]：值求值一次，循环填充到 n 个槽
         cnt3 = emit_expr(ast, ast.bb[id], e);
-        ety3 = elem_type_of(ast, ast.aa[id]);
+        ety3 = e.elem_type_of_m(ast, ast.aa[id]);
         ev3 = emit_expr(ast, ast.aa[id], e);
         av3 = emit_array_new(ast, id, ety3, cnt3.a, e);
         lty3 = elem_llvm(ast, ety3);
@@ -4470,6 +4505,12 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(" = load ptr, ptr ");
             e.buf.push_str(g4);
             e.buf.push_str("\n");
+            if ety3 >= 10000 && ety3 < 10128 {
+                return Val { kind = 2, a = tp4, b = e.st_names[ety3 - 10000].copy(), ty = -1 };
+            }
+            if ety3 >= 20000 && ety3 < 20128 {
+                return Val { kind = 4, a = tp4, b = e.en_names[ety3 - 20000].copy(), ty = -1 };
+            }
             etn4 = ty_name(ast, ety3);
             if etn4.len > 0 {
                 si4 = e.find_struct_idx(etn4);
@@ -4654,13 +4695,32 @@ fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String bas
 }
 
 /// 数组元素写入：lty 元素 LLVM 类型，two_char 时按 { ptr, i64 } 双字写
-fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v) {
-    if lty == "i64" {
-        e.buf.push_str("  store i64 ");
+/// i64 槽写入：结构体/枚举/数组值先 ptrtoint
+#[alloc]
+fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v) {
+    if v.kind == 2 || v.kind == 3 || v.kind == 4 {
+        pi = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pi);
+        e.buf.push_str(" = ptrtoint ptr ");
         e.buf.push_str(v.a);
+        e.buf.push_str(" to i64\n  store i64 ");
+        e.buf.push_str(pi);
         e.buf.push_str(", ptr ");
         e.buf.push_str(gep);
         e.buf.push_str("\n");
+        return;
+    }
+    e.buf.push_str("  store i64 ");
+    e.buf.push_str(v.a);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(gep);
+    e.buf.push_str("\n");
+}
+
+fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v) {
+    if lty == "i64" {
+        store_slot_i64(e, gep, v);
         return;
     }
     if lty == "ptr" {
@@ -5112,11 +5172,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
                     e.buf.push_str(g);
                     e.buf.push_str("\n");
                 } else {
-                    e.buf.push_str("  store i64 ");
-                    e.buf.push_str(v.a);
-                    e.buf.push_str(", ptr ");
-                    e.buf.push_str(g);
-                    e.buf.push_str("\n");
+                    store_slot_i64(e, g, v);
                 }
             }
         }
