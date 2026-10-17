@@ -56,7 +56,8 @@ impl Parser {
                         close > self.pos + 1
                             && close + 3 < self.tokens.len()
                             && self.tokens[close + 1].kind == TokenKind::Delimiter(Delimiter::LBrace)
-                            && matches!(&self.tokens[close + 2].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
+                            // #172：字段名位置允许关键字
+                            && Self::is_member_name(&self.tokens[close + 2].kind)
                             && self.tokens[close + 3].kind == TokenKind::Operator("=".to_string())
                     });
                 if is_generic_struct && self.struct_lit_depth == 0 {

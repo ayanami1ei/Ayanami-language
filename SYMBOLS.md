@@ -2683,8 +2683,9 @@ example/test_kw_member.aya:12: impl Set
 example/test_kw_member.aya:13: fn union(ref self, int x) -> int
 example/test_kw_member.aya:16: fn type(ref self) -> int
 example/test_kw_member.aya:19: fn move(ref self, int x)
-example/test_kw_member.aya:24: fn call(ref Named n) -> int
-example/test_kw_member.aya:28: fn main() -> int
+example/test_kw_member.aya:25: struct G[T]
+example/test_kw_member.aya:30: fn call(ref Named n) -> int
+example/test_kw_member.aya:34: fn main() -> int
 example/test_lambda_generic_method.aya:2: enum Opt[T] { Some(T), None }
 example/test_lambda_generic_method.aya:4: impl[T] Opt[T]
 example/test_lambda_generic_method.aya:5: pub fn map[U](self, Fn(T) -> U f) -> Opt[U]
