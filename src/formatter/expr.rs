@@ -92,10 +92,14 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         Expr::ToUnique(inner, _) => format!("unique {}", maybe_paren(expr_prec(inner) < 13, inner, level)),
         Expr::MethodCall { object, method, args, .. } => {
             let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
-            format!("{}.{}({})", write_expr_at(object, level), method, args_str.join(", "))
+            // #190：接收者是低优先级表达式（如 `(a - b).to_string()`）时必须保留括号
+            let o = maybe_paren(expr_prec(object) < 14, object, level);
+            format!("{}.{}({})", o, method, args_str.join(", "))
         }
         Expr::FieldAccess { object, field, .. } => {
-            format!("{}.{}", write_expr_at(object, level), field)
+            // #190：同上（`(a - b).x`）
+            let o = maybe_paren(expr_prec(object) < 14, object, level);
+            format!("{}.{}", o, field)
         }
         Expr::StructLiteral { type_name, generic_args, fields, .. } => {
             let generic_str = if generic_args.is_empty() {
@@ -140,7 +144,9 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
             format!("asm(\"{}\"{})", template, extra)
         }
         Expr::Index { object, index, .. } => {
-            format!("{}[{}]", write_expr_at(object, level), write_expr_at(index, level))
+            // #190：索引对象同接收者（`(a - b)[0]`）
+            let o = maybe_paren(expr_prec(object) < 14, object, level);
+            format!("{}[{}]", o, write_expr_at(index, level))
         }
         Expr::CallExpr { target, args, .. } => {
             let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();

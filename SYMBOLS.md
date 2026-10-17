@@ -295,10 +295,10 @@ src/formatter/expr.rs:11: fn binop_prec(op: &BinaryOp) -> u8
 src/formatter/expr.rs:26: fn expr_prec(e: &Expr) -> u8
 src/formatter/expr.rs:35: fn maybe_paren(cond: bool, e: &Expr, level: usize) -> String
 src/formatter/expr.rs:40: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
-src/formatter/expr.rs:207: fn asm_constraint(c: &str) -> &str
-src/formatter/expr.rs:211: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:255: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:278: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:213: fn asm_constraint(c: &str) -> &str
+src/formatter/expr.rs:217: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:261: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:284: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &crate::parser::ast::block::Block, level: usize)
