@@ -593,18 +593,29 @@ impl Checker {
             if tag == st(ST::ConstDecl._tag) || tag == st(ST::StaticDecl._tag) {
                 self.add_global_ty(ast, ast.texts[s].copy(), s);
             } elif tag == st(ST::Namespace._tag) {
-                ns = ast.texts[s].copy();
-                m = ast.aa[s];
-                while m >= 0 {
-                    if ast.tags[m] == st(ST::ConstDecl._tag) || ast.tags[m] == st(ST::StaticDecl._tag) {
-                        nm2 = ns + ".";
-                        nm2 = nm2 + ast.texts[m];
-                        self.add_global_ty(ast, nm2, m);
-                    }
-                    m = ast.nexts[m];
-                }
+                self.collect_globals_ns(ast, s, "");
             }
             s = ast.nexts[s];
+        }
+    }
+
+    /// namespace 内全局收集（支持嵌套）
+    #[alloc]
+    #[state]
+    fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix) {
+        ns = prefix.copy();
+        if ns.len > 0 { ns = ns + "."; }
+        ns = ns + ast.texts[ns_id];
+        m = ast.aa[ns_id];
+        while m >= 0 {
+            if ast.tags[m] == st(ST::ConstDecl._tag) || ast.tags[m] == st(ST::StaticDecl._tag) {
+                nm2 = ns + ".";
+                nm2 = nm2 + ast.texts[m];
+                self.add_global_ty(ast, nm2, m);
+            } elif ast.tags[m] == st(ST::Namespace._tag) {
+                self.collect_globals_ns(ast, m, ns);
+            }
+            m = ast.nexts[m];
         }
     }
 

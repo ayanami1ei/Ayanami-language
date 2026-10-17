@@ -917,18 +917,29 @@ impl Emitter {
             if tag == st(ST::ConstDecl._tag) || tag == st(ST::StaticDecl._tag) {
                 self.add_global(ast, ast.texts[s].copy(), s);
             } elif tag == st(ST::Namespace._tag) {
-                ns = ast.texts[s].copy();
-                m = ast.aa[s];
-                while m >= 0 {
-                    if ast.tags[m] == st(ST::ConstDecl._tag) || ast.tags[m] == st(ST::StaticDecl._tag) {
-                        nm2 = ns + ".";
-                        nm2 = nm2 + ast.texts[m];
-                        self.add_global(ast, nm2, m);
-                    }
-                    m = ast.nexts[m];
-                }
+                self.collect_globals_ns(ast, s, "");
             }
             s = ast.nexts[s];
+        }
+    }
+
+    /// namespace 内全局收集（支持嵌套：前缀逐级拼接）
+    #[alloc]
+    #[state]
+    fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix) {
+        ns = prefix.copy();
+        if ns.len > 0 { ns = ns + "."; }
+        ns = ns + ast.texts[ns_id];
+        m = ast.aa[ns_id];
+        while m >= 0 {
+            if ast.tags[m] == st(ST::ConstDecl._tag) || ast.tags[m] == st(ST::StaticDecl._tag) {
+                nm2 = ns + ".";
+                nm2 = nm2 + ast.texts[m];
+                self.add_global(ast, nm2, m);
+            } elif ast.tags[m] == st(ST::Namespace._tag) {
+                self.collect_globals_ns(ast, m, ns);
+            }
+            m = ast.nexts[m];
         }
     }
 
@@ -971,6 +982,28 @@ impl Emitter {
     fn add_global(ref mut self, ref Ast ast, ref String name, int id) {
         if self.g_count >= 512 { return; }
         init = ast.aa[id];
+        // 浮点字面量（含 f32/f64 后缀）
+        if init >= 0 {
+            if ast.tags[init] == et(ET::Literal._tag) && ast.bb[init] == lk(LK::Float._tag) {
+                self.g_names[self.g_count] = name.copy();
+                self.g_kinds[self.g_count] = 3;
+                self.g_vals[self.g_count] = float_text(ast.texts[init]);
+                self.g_lens[self.g_count] = 0;
+                self.g_count = self.g_count + 1;
+                return;
+            }
+            if ast.tags[init] == et(ET::Suffixed._tag) {
+                sfx = ast.texts[init];
+                if sfx == "f32" || sfx == "f64" {
+                    self.g_names[self.g_count] = name.copy();
+                    self.g_kinds[self.g_count] = 3;
+                    self.g_vals[self.g_count] = float_text(ast.texts[ast.aa[init]]);
+                    self.g_lens[self.g_count] = 0;
+                    self.g_count = self.g_count + 1;
+                    return;
+                }
+            }
+        }
         v = self.const_eval_g(ast, init);
         if v.len > 0 {
             self.g_names[self.g_count] = name.copy();
@@ -1320,7 +1353,11 @@ impl Emitter {
         }
         self.fn_pcount[fi] = n;
         self.fn_rtype[fi] = ast.tys[id];
-        self.fn_rllvm[fi] = self.ret_llvm_code(ast, ast.tys[id]);
+        // 只有 extern 声明才按声明宽度调用（普通函数定义统一 i64）
+        self.fn_rllvm[fi] = 0;
+        if ast.dd[id] == 1 {
+            self.fn_rllvm[fi] = self.ret_llvm_code(ast, ast.tys[id]);
+        }
         self.fn_count = fi + 1;
     }
 
@@ -2408,6 +2445,15 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         if gk == 2 {
             return mk_arr("@" + nm, -1);
         }
+        if gk == 3 {
+            fdg = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(fdg);
+            e.buf.push_str(" = load double, ptr @");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return mk_float(fdg);
+        }
         if contains_dot2(nm) {
             if nm == "String.empty" || nm == "String.new" {
                 return mk_str("null", 0);
@@ -2660,6 +2706,15 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(at.a);
             e.buf.push_str("\n");
             return mk_int(t3);
+        }
+        if op == uo(UnOp::BitNot._tag) {
+            tbn = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(tbn);
+            e.buf.push_str(" = xor i64 ");
+            e.buf.push_str(at.a);
+            e.buf.push_str(", -1\n");
+            return mk_int(tbn);
         }
         if op == uo(UnOp::Not._tag) {
             a3 = e.fresh();
@@ -3333,8 +3388,19 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         recv_ty = obj.b.copy();
         prim_recv = 0;
         if obj.kind == 0 {
-            recv_ty = "int";
+            // 原语接收者：按常见整型/浮点类型名依次查找
             prim_recv = 1;
+            recv_ty = "";
+            ptnames = ["int", "i32", "i64", "u32", "u64", "usize", "i8", "u8", "i16", "u16", "float", "f32", "f64", "char", "bool"];
+            pi_t = 0;
+            while pi_t < 15 {
+                if e.find_method_id(ptnames[pi_t], ast.texts[id]) >= 0 {
+                    recv_ty = ptnames[pi_t].copy();
+                    break;
+                }
+                pi_t = pi_t + 1;
+            }
+            if recv_ty.len == 0 { recv_ty = "int"; }
         }
         if obj.kind == 2 || obj.kind == 4 || prim_recv == 1 {
             mid = e.find_method_id(recv_ty, ast.texts[id]);
@@ -4865,6 +4931,10 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
         e.buf.push_str(e.g_names[gi]);
         if e.g_kinds[gi] == 0 {
             e.buf.push_str(" = global i64 ");
+            e.buf.push_str(e.g_vals[gi]);
+            e.buf.push_str("\n");
+        } elif e.g_kinds[gi] == 3 {
+            e.buf.push_str(" = global double ");
             e.buf.push_str(e.g_vals[gi]);
             e.buf.push_str("\n");
         } else {
