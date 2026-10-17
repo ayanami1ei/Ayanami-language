@@ -13,6 +13,7 @@ pub(crate) mod fmt;
 pub(crate) mod new;
 pub(crate) mod types;
 pub(crate) mod update;
+pub(crate) mod update_fetch;
 pub(crate) mod package_install;
 
 pub(crate) use build::{cmd_build, cmd_run};

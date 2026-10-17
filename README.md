@@ -45,6 +45,9 @@ install/
 ```
 
 - 走 GitHub Release（HTTPS），需要 `curl` 与 `tar`；更新失败自动回滚。
+- 同版本 **respin（修复构建）** 也能检测：Release 附 `ayanami-<ver>-build.txt` 构建指纹，
+  `--check` 会比较本地/远端构建哈希并提示更新；已装同版本时用
+  `ayanami update --from <资产 URL>` 强制拉取。
 - VSCode 插件提供同款命令：`Ayanami: Check for Updates` / `Ayanami: Update Compiler & Std`，
   发现新版本时状态栏显示 `Ayanami ↑ vX.Y.Z`，点击一键更新并提示重载。
   可选设置 `ayanami.update.checkOnStartup`（默认关闭）。

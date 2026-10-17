@@ -24,11 +24,12 @@ src/cli/mod.rs:12: pub(crate) mod fmt;
 src/cli/mod.rs:13: pub(crate) mod new;
 src/cli/mod.rs:14: pub(crate) mod types;
 src/cli/mod.rs:15: pub(crate) mod update;
-src/cli/mod.rs:16: pub(crate) mod package_install;
-src/cli/mod.rs:30: pub(crate) struct CliFlags
-src/cli/mod.rs:38: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
-src/cli/mod.rs:53: pub(crate) fn apply_mode(flags: &CliFlags)
-src/cli/mod.rs:63: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
+src/cli/mod.rs:16: pub(crate) mod update_fetch;
+src/cli/mod.rs:17: pub(crate) mod package_install;
+src/cli/mod.rs:31: pub(crate) struct CliFlags
+src/cli/mod.rs:39: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
+src/cli/mod.rs:54: pub(crate) fn apply_mode(flags: &CliFlags)
+src/cli/mod.rs:64: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
@@ -39,19 +40,20 @@ src/cli/types.rs:78: fn walk_stmts(
 src/cli/types.rs:124: fn fmt_type(ty: &HirType) -> String
 src/cli/types.rs:151: fn name_at(code: &str, line: usize, col: usize, name: &str) -> bool
 src/cli/types.rs:168: fn esc(s: &str) -> String
-src/cli/update.rs:11: const REPO: &str = "ayanami1ei/Ayanami-language";
-src/cli/update.rs:14: pub(crate) fn cmd_version()
-src/cli/update.rs:18: struct UpdateArgs
-src/cli/update.rs:28: fn parse_args(args: &[String]) -> UpdateArgs
-src/cli/update.rs:53: fn asset_arch() -> String
-src/cli/update.rs:62: fn curl_text(url: &str) -> Option<String>
-src/cli/update.rs:69: fn parse_tag(json: &str) -> Option<String>
-src/cli/update.rs:78: fn fetch_latest() -> Result<(String, String)>
-src/cli/update.rs:90: fn version_from_name(path: &str) -> Option<String>
-src/cli/update.rs:97: fn download(src: &str, dest: &Path, limit_rate: Option<&str>) -> Result<()>
-src/cli/update.rs:117: fn tar_listing(tar: &Path) -> Result<String>
-src/cli/update.rs:127: fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
-src/cli/update.rs:149: pub(crate) fn cmd_update(args: &[String])
+src/cli/update.rs:13: pub(crate) fn build_id() -> &'static str
+src/cli/update.rs:18: pub(crate) fn cmd_version()
+src/cli/update.rs:22: struct UpdateArgs
+src/cli/update.rs:32: fn parse_args(args: &[String]) -> UpdateArgs
+src/cli/update.rs:57: pub(crate) fn cmd_update(args: &[String])
+src/cli/update_fetch.rs:8: const REPO: &str = "ayanami1ei/Ayanami-language";
+src/cli/update_fetch.rs:10: pub(super) fn asset_arch() -> String
+src/cli/update_fetch.rs:19: pub(super) fn curl_text(url: &str) -> Option<String>
+src/cli/update_fetch.rs:26: pub(super) fn parse_tag(json: &str) -> Option<String>
+src/cli/update_fetch.rs:36: pub(super) fn fetch_latest() -> Result<(String, String, Option<String>)>
+src/cli/update_fetch.rs:52: pub(super) fn version_from_name(path: &str) -> Option<String>
+src/cli/update_fetch.rs:59: pub(super) fn download(src: &str, dest: &Path, limit_rate: Option<&str>) -> Result<()>
+src/cli/update_fetch.rs:79: pub(super) fn tar_listing(tar: &Path) -> Result<String>
+src/cli/update_fetch.rs:89: pub(super) fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
 src/compiler/build/compile.rs:6: pub fn compile_file(
 src/compiler/build/compile.rs:144: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(

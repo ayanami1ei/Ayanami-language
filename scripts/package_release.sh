@@ -109,6 +109,11 @@ echo "== 5/5 打包 =="
 tar czf "$tar_name" install/
 echo "产物：$tar_name"
 
+# 构建指纹资产（#177 后续）：同版本 respin 也能被 ayanami update --check 检测
+build_id=$(./install/ayanami --version | sed -n 's/.*(build \(.*\))/\1/p')
+printf '%s\n' "$build_id" > "ayanami-${ver}-build.txt"
+echo "产物：ayanami-${ver}-build.txt（build $build_id）"
+
 if [ "$build_vsix" = 1 ]; then
     vsce_bin=""
     if command -v vsce >/dev/null 2>&1; then
@@ -132,3 +137,8 @@ if [ "$build_vsix" = 1 ]; then
 fi
 
 echo "打包完成"
+echo
+echo "上传/更新 Release（含构建指纹，respin 用 --clobber 覆盖）："
+echo "  gh release create v${ver} ${tar_name} ayanami-${ver}-build.txt [${vsix_name}] --title v${ver} --notes-file <notes>"
+echo "  gh release upload v${ver} ${tar_name} ayanami-${ver}-build.txt [${vsix_name}] --clobber"
+echo "  gh release edit v${ver} --notes-file <notes>"
