@@ -27,7 +27,7 @@ fn main() -> int {
     w = write_file(ll, ir);
     if !w { println("cannot write ir"); return 4 }
     build = "llc -filetype=obj " + ll + " -o " + obj + " && gcc -no-pie " + obj + " src/runtime.c -lm -o " + exe;
-    st = system_cstr(to_cstr(build));
+    st = system(to_cstr(build));
     if st != 0 { println("link failed"); return 5 }
-    return system_cstr(to_cstr(exe)) / 256;
+    return system(to_cstr(exe)) / 256;
 }

@@ -1,0 +1,16 @@
+import "string";
+// 探针：String::new(本地数组, len) 返回后是否悬空（坑 2 / bd 3hh）
+fn make() -> String {
+    buf = [char; 3]
+    buf[0] = 'a'
+    buf[1] = 'b'
+    buf[2] = 'c'
+    return String::new(buf, 3 as usize)
+}
+
+fn main() -> int {
+    s = make()
+    if s.len != 3 { return 1 }
+    if s != "abc" { return 2 }
+    return 0
+}

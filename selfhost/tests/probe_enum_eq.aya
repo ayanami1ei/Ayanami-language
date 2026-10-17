@@ -1,0 +1,9 @@
+// 探针：枚举 == 比较（坑 13）
+enum E { A, B }
+
+fn main() -> int {
+    x = E::A
+    y = E::A
+    if x != y { return 1 }
+    return 0
+}

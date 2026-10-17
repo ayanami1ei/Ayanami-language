@@ -150,13 +150,13 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
         return 1;
     }
     cc = "llc -filetype=obj " + ll + " -o " + obj;
-    st = system_cstr(to_cstr(cc));
+    st = system(to_cstr(cc));
     if st != 0 {
         raw_error("llc failed: " + ll);
         return 1;
     }
     ld = "gcc -no-pie " + obj + " " + rt + " " + link_extra(o) + " -lm -o " + exe;
-    st2 = system_cstr(to_cstr(ld));
+    st2 = system(to_cstr(ld));
     if st2 != 0 {
         raw_error("gcc link failed: " + exe);
         return 1;
@@ -172,6 +172,6 @@ pub fn cmd_run(ref String file, ref Opts o) -> int {
     if code != 0 { return code; }
     stem = Path::stem(Path::file_name(file));
     exe = Path::join(out_dir(), stem);
-    st = system_cstr(to_cstr(exe));
+    st = system(to_cstr(exe));
     return exit_code(st);
 }

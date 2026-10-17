@@ -1,0 +1,10 @@
+// 探针：extern ref 出参写回调用方（#154）
+extern "C" fn sscanf_int([char] s, ref int dst) -> int;
+extern "C" fn to_cstr(ref String s) -> [char];
+
+fn main() -> int {
+    v = 0
+    sscanf_int(to_cstr("42"), ref mut v)
+    if v != 42 { return 1 }
+    return 0
+}
