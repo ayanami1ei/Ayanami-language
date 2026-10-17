@@ -986,6 +986,9 @@ impl Checker {
         self.add_builtin("note");
         self.add_builtin("panic");
         self.add_builtin("error_at");
+        // 发射器内建（FnCall 特判）
+        self.add_builtin("char_code");
+        self.add_builtin("to_cstr");
     }
 
     #[alloc]

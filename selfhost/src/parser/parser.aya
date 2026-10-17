@@ -251,6 +251,24 @@ impl Parser {
     /// 跳过连续的 #[...] 属性
     #[alloc]
     #[state]
+    /// 扫描属性参数（`[` 之后），识别 cfg 目标（windows=32768 / linux=65536）
+    fn scan_attr_args(ref mut self) {
+        depth2 = 1;
+        while !self.at_end() {
+            if self.check_delim(D::LBracket._tag) { depth2 = depth2 + 1; }
+            if self.check_delim(D::RBracket._tag) {
+                depth2 = depth2 - 1;
+                if depth2 == 0 { self.advance(); break; }
+            }
+            if self.cur.kind == Tk::StrLit._tag {
+                t2 = self.cur.text;
+                if t2 == "windows" { self.attr_mask = self.attr_mask | 32768; }
+                elif t2 == "linux" { self.attr_mask = self.attr_mask | 65536; }
+            }
+            self.advance();
+        }
+    }
+
     fn skip_attrs(ref mut self) {
         while true {
             if !self.check_op("#") { break; }
@@ -267,15 +285,7 @@ impl Parser {
                 elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
                 self.advance();
             }
-            depth2 = 1;
-            while !self.at_end() {
-                if self.check_delim(D::LBracket._tag) { depth2 = depth2 + 1; }
-                if self.check_delim(D::RBracket._tag) {
-                    depth2 = depth2 - 1;
-                    if depth2 == 0 { self.advance(); break; }
-                }
-                self.advance();
-            }
+            self.scan_attr_args();
         }
     }
 
@@ -739,6 +749,9 @@ impl Parser {
     fn parse_fn_body(ref mut self, int with_body) -> int {
         kline = self.cur.line;
         kcol = self.cur.col;
+        // 函数自身属性掩码（体内语句的 collect_attrs 会覆盖 attr_mask，需先保存）
+        fn_mask0 = self.attr_mask;
+        fn_pub0 = self.last_pub;
         self.expect_kw(Kw::Fn._tag, "expected fn");
         name = self.expect_ident("expected fn name");
         generics = self.parse_generics();
@@ -793,7 +806,7 @@ impl Parser {
         if with_body == 1 {
             body = self.parse_block();
         }
-        node = self.ast.push(st(ST::FnDecl._tag), name, ret, head, body, generics, self.attr_mask + self.last_pub * 16384, kline, kcol);
+        node = self.ast.push(st(ST::FnDecl._tag), name, ret, head, body, generics, fn_mask0 + fn_pub0 * 16384, kline, kcol);
         return node;
     }
 
@@ -989,7 +1002,18 @@ impl Parser {
             if !self.check_op("#") { break; }
             if !self.la1_is_delim(D::LBracket._tag) { break; }
             self.advance();
-            self.skip_brackets();
+            self.advance();
+            if self.cur.kind == Tk::Ident._tag {
+                an = self.cur.text;
+                if an == "alloc" { self.attr_mask = self.attr_mask | 256; }
+                elif an == "state" { self.attr_mask = self.attr_mask | 512; }
+                elif an == "io" { self.attr_mask = self.attr_mask | 1024; }
+                elif an == "pure" { self.attr_mask = self.attr_mask | 2048; }
+                elif an == "no_error" { self.attr_mask = self.attr_mask | 4096; }
+                elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
+                self.advance();
+            }
+            self.scan_attr_args();
             n = n + 1;
         }
         return n;
@@ -998,11 +1022,12 @@ impl Parser {
     #[alloc]
     #[state]
     fn parse_stmt(ref mut self) -> int {
+        self.attr_mask = 0;
         nattrs = self.collect_attrs();
         s = self.parse_stmt_inner();
         if nattrs > 0 {
             if s >= 0 {
-                return self.ast.push(st(ST::Attributed._tag), "", -1, s, nattrs, -1, -1, self.cur.line, self.cur.col);
+                return self.ast.push(st(ST::Attributed._tag), "", -1, s, nattrs, self.attr_mask, -1, self.cur.line, self.cur.col);
             }
         }
         return s;

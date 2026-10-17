@@ -5464,6 +5464,14 @@ fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitte
 
 fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
     tag = ast.tags[id];
+    if tag == st(ST::Attributed._tag) {
+        // 语句级属性：#[cfg(target="windows")] 在 linux 上跳过，其余解包执行
+        // （#[invariant(...)] 等检查未发射——不变量成立时行为等价）
+        mask_a = ast.cc[id];
+        if (mask_a / 32768) % 2 == 1 { return; }
+        emit_stmt(ast, ast.aa[id], e);
+        return;
+    }
     if tag == st(ST::IndexAssign._tag) {
         emit_index_assign(ast, id, e);
     } elif tag == st(ST::Assign._tag) {
