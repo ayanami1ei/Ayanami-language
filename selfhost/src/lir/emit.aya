@@ -3781,6 +3781,27 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str("\n");
             return mk_str_tmp(p4, l4);
         }
+        if lty4 == "ptr" {
+            // 指针元素：结构体/枚举/其他指针值
+            tp4 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(tp4);
+            e.buf.push_str(" = load ptr, ptr ");
+            e.buf.push_str(g4);
+            e.buf.push_str("\n");
+            etn4 = ty_name(ast, ety3);
+            if etn4.len > 0 {
+                si4 = e.find_struct_idx(etn4);
+                if si4 >= 0 {
+                    return Val { kind = 2, a = tp4, b = etn4.copy(), ty = -1 };
+                }
+                ei4i = e.find_enum_idx(etn4);
+                if ei4i >= 0 {
+                    return Val { kind = 4, a = tp4, b = etn4.copy(), ty = -1 };
+                }
+            }
+            return mk_int(tp4);
+        }
         if lty4 == "i8" {
             t4 = e.fresh();
             e.buf.push_str("  ");
@@ -4084,6 +4105,75 @@ fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitte
     e.buf.push_str(", i8 0, i64 ");
     e.buf.push_str(z);
     e.buf.push_str(", i1 false)\n");
+    // 结构体/枚举元素：逐元素分配（默认零值对象）
+    etn = ty_name(ast, ety);
+    if etn.len > 0 {
+        si_e = e.find_struct_idx(etn);
+        ei_e = -1;
+        if si_e < 0 { ei_e = e.find_enum_idx(etn); }
+        if si_e >= 0 || ei_e >= 0 {
+            nbytes = 8;
+            if si_e >= 0 { nbytes = e.st_slots[si_e] * 8; }
+            else { nbytes = (e.enum_max_arity(ei_e) + 1) * 8; }
+            nb3 = StringBuf::new();
+            nb3.push_int(nbytes);
+            n_e = e.tmp;
+            e.tmp = e.tmp + 1;
+            e.buf.push_str("  %ei.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(" = alloca i64\n  store i64 0, ptr %ei.");
+            e.buf.push_int(n_e);
+            e.buf.push_str("\n  br label %ec.");
+            e.buf.push_int(n_e);
+            e.buf.push_str("\nec.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(":\n  %ev.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(" = load i64, ptr %ei.");
+            e.buf.push_int(n_e);
+            e.buf.push_str("\n  %ecmp.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(" = icmp slt i64 %ev.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(", ");
+            e.buf.push_str(count);
+            e.buf.push_str("\n  br i1 %ecmp.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(", label %eb.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(", label %ee.");
+            e.buf.push_int(n_e);
+            e.buf.push_str("\neb.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(":\n  %ep.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(" = call ptr @malloc(i64 ");
+            e.buf.push_str(nb3.to_string());
+            e.buf.push_str(")\n  call void @llvm.memset.p0.i64(ptr %ep.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(", i8 0, i64 ");
+            e.buf.push_str(nb3.to_string());
+            e.buf.push_str(", i1 false)\n");
+            g_e = elem_addr(e, elem_stride(ast, ety), raw, "%ev.".to_string() + int_str2(n_e));
+            e.buf.push_str("  store ptr %ep.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(g_e);
+            e.buf.push_str("\n  %en.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(" = add i64 %ev.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(", 1\n  store i64 %en.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(", ptr %ei.");
+            e.buf.push_int(n_e);
+            e.buf.push_str("\n  br label %ec.");
+            e.buf.push_int(n_e);
+            e.buf.push_str("\nee.");
+            e.buf.push_int(n_e);
+            e.buf.push_str(":\n");
+        }
+    }
     return mk_arr(raw, ety);
 }
 
