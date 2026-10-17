@@ -1,0 +1,12 @@
+// #195：用户声明运行时符号不再触发 llc 重复声明（内建声明按名跳过）
+import "io"
+
+extern "C" fn __ayanami_unique_alloc(usize size) -> *u8;
+extern "C" fn __ayanami_unique_free(*u8 p);
+
+fn main() -> int {
+    p = __ayanami_unique_alloc(8usize)
+    __ayanami_unique_free(p)
+    println(1)
+    return 0
+}

@@ -1,0 +1,19 @@
+// #194：空结构体字面量 U { } 与各位置
+import "io"
+
+struct U {
+}
+
+struct Wrap {
+    U u
+}
+
+fn take(U x) -> int { return 0 }
+
+fn main() -> int {
+    w = Wrap { u = U { } }
+    if take(U { }) != 0 { return 1 }
+    u2 = U { }
+    println(1)
+    return 0
+}

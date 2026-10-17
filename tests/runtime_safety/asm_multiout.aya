@@ -1,0 +1,16 @@
+// #196：内联汇编多 out(reg) 输出（LLVM 结构体返回 + extractvalue 回写）
+import "io"
+
+fn two() -> int {
+    r = 0
+    t = 0
+    unsafe {
+        asm("movq $$7, $0\n movq $$9, $1", out(reg) r, out(reg) t)
+    }
+    println(r * 10 + t)
+    return 0
+}
+
+fn main() -> int {
+    return two()
+}

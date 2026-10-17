@@ -1,0 +1,15 @@
+// fmt：asm 模板/字符串转义不展开（#197）；含非 ASCII 字符串（\x 截断修复）
+import "io"
+
+fn addmul(int a, int b) -> int {
+    r = 0
+    unsafe {
+        asm("movq $1, $0\n imulq $2, $0", in(reg) a, in(reg) b, out(reg) r)
+    }
+    return r
+}
+
+fn main() -> int {
+    println("中文\t制表\n换行")
+    return addmul(3, 4) - 12
+}

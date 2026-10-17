@@ -45,3 +45,6 @@ ref_self_match_return.aya 0 aa
 index_element_type.aya 0
 method_shadow_free_fn.aya 0
 method_generic_shadow.aya 0
+asm_multiout.aya 0 79
+extern_runtime_sym.aya 0 1
+empty_struct.aya 0 1
