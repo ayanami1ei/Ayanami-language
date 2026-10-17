@@ -1790,7 +1790,10 @@ fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val {
     if pk == 0 { return mk_int("1"); }
     if pk == 4 { return mk_int("1"); }
     if pk == 1 {
-        if sc.kind != 4 { return mk_int("0"); }
+        if sc.kind != 4 {
+            // 绑定模式（n => ...）：恒匹配
+            return mk_int("1");
+        }
         vname = pat_short(pat_name(ptext));
         ename = pat_enum(pat_name(ptext));
         if ename.len == 0 { ename = sc.b.copy(); }
@@ -1835,6 +1838,21 @@ fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val {
         e.buf.push_str("\n");
         return Val { kind = 5, a = c2, b = "", ty = -1 };
     }
+    if pk == 5 {
+        // 字符字面量模式
+        if ptext.len == 0 { return mk_int("0"); }
+        cb5 = StringBuf::new();
+        cb5.push_int(char_code(ptext.index(0)));
+        c5 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(c5);
+        e.buf.push_str(" = icmp eq i64 ");
+        e.buf.push_str(sc.a);
+        e.buf.push_str(", ");
+        e.buf.push_str(cb5.to_string());
+        e.buf.push_str("\n");
+        return Val { kind = 5, a = c5, b = "", ty = -1 };
+    }
     if pk == 3 {
         // 只支持整数字面量
         ok = 1;
@@ -1862,6 +1880,19 @@ fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val {
 fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
     ptext = ast.texts[arm];
     pk = ast.tys[arm];
+    if pk == 1 && sc.kind != 4 {
+        // 绑定模式：把整个 scrutinee 绑定到模式名
+        bn0 = pat_short(pat_name(ptext));
+        if bn0.len > 0 && bn0 != "_" {
+            e.declare_local(bn0, 0);
+            e.buf.push_str("  store i64 ");
+            e.buf.push_str(sc.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(bn0);
+            e.buf.push_str("\n");
+        }
+        return;
+    }
     binds = pat_binds(ptext);
     if binds.len == 0 { return; }
     // 枚举 + 嵌套结构体模式（Some|Point|x,y）：先取载荷槽 1 的指针，再按字段解构
@@ -2350,6 +2381,28 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
         e.buf.push_str(body_l);
         e.buf.push_str(":\n");
         emit_pat_binds(ast, a, sc, e);
+        gd = ast.bb[a];
+        if gd >= 0 {
+            // 守卫：绑定已就位，条件为假则跳到下一臂
+            gv = emit_expr(ast, gd, e);
+            gc = e.fresh();
+            b2l = StringBuf::new();
+            b2l.push_str("match.guard.");
+            b2l.push_int(i);
+            e.buf.push_str("  ");
+            e.buf.push_str(gc);
+            e.buf.push_str(" = icmp ne i64 ");
+            e.buf.push_str(gv.a);
+            e.buf.push_str(", 0\n  br i1 ");
+            e.buf.push_str(gc);
+            e.buf.push_str(", label %");
+            e.buf.push_str(b2l.to_string());
+            e.buf.push_str(", label %");
+            e.buf.push_str(nxt);
+            e.buf.push_str("\n");
+            e.buf.push_str(b2l.to_string());
+            e.buf.push_str(":\n");
+        }
         body = ast.aa[a];
         if body < 0 { body = prev_body; }
         if body >= 0 {
