@@ -56,7 +56,8 @@ impl Parser {
                         close > self.pos + 1
                             && close + 3 < self.tokens.len()
                             && self.tokens[close + 1].kind == TokenKind::Delimiter(Delimiter::LBrace)
-                            && matches!(&self.tokens[close + 2].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
+                            // #172：字段名位置允许关键字
+                            && Self::is_member_name(&self.tokens[close + 2].kind)
                             && self.tokens[close + 3].kind == TokenKind::Operator("=".to_string())
                     });
                 if is_generic_struct && self.struct_lit_depth == 0 {
@@ -71,14 +72,14 @@ impl Parser {
                     // Now check for { — struct literal
                     if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LBrace)) {
                             let is_struct_lit = self.pos + 2 < self.tokens.len()
-                                && matches!(&self.tokens[self.pos + 1].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
+                                && Self::is_member_name(&self.tokens[self.pos + 1].kind)
                                 && self.tokens[self.pos + 2].kind == TokenKind::Operator("=".to_string());
                             if is_struct_lit {
                                 self.advance(); // consume {
                                 let mut fields = Vec::new();
                                 if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
                                     loop {
-                                        let field_name = Symbol::intern(&self.expect_identifier()?);
+                                        let field_name = Symbol::intern(&self.expect_member_name()?);
                                         self.expect_operator("=")?;
                                         let field_val = self.parse_expr()?;
                                         fields.push((field_name, field_val));
@@ -116,7 +117,7 @@ impl Parser {
 
                         // Peek: ident { ident = pattern
                         let looks_like_struct = self.pos + 2 < self.tokens.len()
-                            && matches!(&self.tokens[self.pos + 1].kind, TokenKind::Identifier(_) | TokenKind::Keyword(Keyword::Self_))
+                            && Self::is_member_name(&self.tokens[self.pos + 1].kind)
                             && self.tokens[self.pos + 2].kind == TokenKind::Operator("=".to_string());
                         if !looks_like_struct || self.struct_lit_depth > 0 {
                             return Ok(Expr::Ident(name_sym, span));
@@ -124,7 +125,7 @@ impl Parser {
 
                         // Tentatively parse as struct literal: consume {, field, =, expr
                         self.advance(); // consume {
-                        let field_name = Symbol::intern(&self.expect_identifier()?);
+                        let field_name = Symbol::intern(&self.expect_member_name()?);
                         self.expect_operator("=")?;
                         let field_val = self.parse_expr()?;
                         let next = self.peek().map(|t| &t.kind);
@@ -137,7 +138,7 @@ impl Parser {
                                     if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
                                         break;
                                     }
-                                    let fn2 = Symbol::intern(&self.expect_identifier()?);
+                                    let fn2 = Symbol::intern(&self.expect_member_name()?);
                                     self.expect_operator("=")?;
                                     let fv2 = self.parse_expr()?;
                                     fields.push((fn2, fv2));

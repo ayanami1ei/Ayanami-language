@@ -1,0 +1,18 @@
+// P3b：可增长缓冲的容量内写（push 模式：data[len] 写、capability 优先）不得误报
+struct Buf {
+    [int] data
+    usize len
+    usize capability
+}
+fn push(ref mut Buf b, int v) {
+    b.data[b.len] = v
+    b.len = b.len + 1
+}
+fn main() -> int {
+    b = Buf { data = [0; 4], len = 0, capability = 4 }
+    push(ref mut b, 7)
+    push(ref mut b, 8)
+    if b.data[0] != 7 { return 1 }
+    if b.data[1] != 8 { return 2 }
+    return 0
+}

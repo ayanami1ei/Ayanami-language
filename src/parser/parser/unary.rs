@@ -104,43 +104,13 @@ impl Parser {
                         expr = Expr::CallExpr { target: Box::new(expr), args, span };
                     }
                 }
-                // 显式泛型调用：ns.fn[T1, T2](args)（仅限含 `::` 的路径，避免与索引歧义）
+                // 显式泛型调用：`ns.fn[T](args)`（限定名）或 `f[T](args)`（单标识符，P4a）
                 Some(TokenKind::Delimiter(Delimiter::LBracket)) => {
                     if let Expr::Ident(name, _) = &expr {
-                        if name.as_str().contains('.') {
-                            let saved = self.pos;
-                            self.advance(); // [
-                            let mut tys: Vec<Type> = Vec::new();
-                            let mut ok = true;
-                            loop {
-                                match self.parse_type() {
-                                    Ok(t) => tys.push(t),
-                                    Err(_) => { ok = false; break; }
-                                }
-                                match self.peek().map(|t| &t.kind) {
-                                    Some(TokenKind::Delimiter(Delimiter::RBracket)) => break,
-                                    Some(TokenKind::Delimiter(Delimiter::Comma)) => { self.advance(); }
-                                    _ => { ok = false; break; }
-                                }
-                            }
-                            if ok && self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
-                                self.advance(); // ]
-                                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
-                                    self.advance(); // (
-                                    let mut args = Vec::new();
-                                    if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
-                                        loop {
-                                            args.push(self.parse_expr()?);
-                                            if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
-                                            self.expect_delimiter(Delimiter::Comma)?;
-                                        }
-                                    }
-                                    self.expect_delimiter(Delimiter::RParen)?;
-                                    expr = Expr::FnCall { name: *name, args, generic_args: tys, span };
-                                    continue;
-                                }
-                            }
-                            self.pos = saved; // 回退为普通索引
+                        let dotted = name.as_str().contains('.');
+                        if let Some((tys, args)) = self.try_parse_generic_call_args(!dotted)? {
+                            expr = Expr::FnCall { name: *name, args, generic_args: tys, span };
+                            continue;
                         }
                     }
                     self.advance();
@@ -187,7 +157,7 @@ impl Parser {
                         loop {
                             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RBrace)) { break; }
                             let fexpr = self.parse_expr()?;
-                            let fname = self.expect_identifier()?;
+                            let fname = self.expect_member_name()?;
                             fields.push((Symbol::intern(&fname), fexpr));
                             if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::Comma)) {
                                 self.advance();
@@ -212,7 +182,8 @@ impl Parser {
                 // Method call: expr.method(args) or field access: expr.field
                 Some(TokenKind::Delimiter(Delimiter::Dot)) => {
                     self.advance();
-                    let name = self.expect_identifier()?;
+                    // #172：成员位置允许关键字（如 `.union(...)`、`.type`）
+                    let name = self.expect_member_name()?;
                     if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
                         self.advance();
                         let mut args = Vec::new();
@@ -236,5 +207,73 @@ impl Parser {
             }
         }
         Ok(expr)
+    }
+}
+
+impl Parser {
+    /// P4a：尝试解析显式泛型调用实参 `[T1, T2](args)`（回退不消耗 token）。
+    ///
+    /// `require_type_like`：单标识符场景下要求类型列表「像类型」
+    /// （关键字类型 / `ref`/`*`/数组/嵌套泛型 / 大写开头标识符），
+    /// 避免把 `a[i](x)`（索引后调用）误判为泛型调用。
+    pub(super) fn try_parse_generic_call_args(
+        &mut self,
+        require_type_like: bool,
+    ) -> Result<Option<(Vec<Type>, Vec<Expr>)>> {
+        let saved = self.pos;
+        if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::LBracket)) {
+            return Ok(None);
+        }
+        self.advance(); // [
+        let mut tys: Vec<Type> = Vec::new();
+        let mut ok = true;
+        loop {
+            match self.parse_type() {
+                Ok(t) => tys.push(t),
+                Err(_) => { ok = false; break; }
+            }
+            match self.peek().map(|t| &t.kind) {
+                Some(TokenKind::Delimiter(Delimiter::RBracket)) => break,
+                Some(TokenKind::Delimiter(Delimiter::Comma)) => { self.advance(); }
+                _ => { ok = false; break; }
+            }
+        }
+        if !ok || self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBracket)) {
+            self.pos = saved;
+            return Ok(None);
+        }
+        if require_type_like && !tys.iter().any(is_type_like_arg) {
+            self.pos = saved;
+            return Ok(None);
+        }
+        self.advance(); // ]
+        if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::LParen)) {
+            self.pos = saved;
+            return Ok(None);
+        }
+        self.advance(); // (
+        let mut args = Vec::new();
+        if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
+            loop {
+                args.push(self.parse_expr()?);
+                if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::RParen)) { break; }
+                self.expect_delimiter(Delimiter::Comma)?;
+            }
+        }
+        self.expect_delimiter(Delimiter::RParen)?;
+        Ok(Some((tys, args)))
+    }
+}
+
+/// 类型列表「像类型」判定（P4a 单标识符歧义消解）：关键字类型/引用/指针/数组/
+/// 嵌套泛型/大写开头标识符（类型参数与类型名约定大写）。
+fn is_type_like_arg(t: &Type) -> bool {
+    match t {
+        Type::Int(_) | Type::Float(_) | Type::Char(_) | Type::Bool(_) | Type::Void(_)
+        | Type::Never(_) | Type::Ref(..) | Type::RawPtr(..) | Type::Array(..)
+        | Type::ArraySized(..) | Type::FnPtr(..) | Type::Closure(..) | Type::Unique(..)
+        | Type::Generic(..) | Type::Self_(..) => true,
+        Type::Named(s, _) => s.as_str().chars().next().map(|c| c.is_uppercase()).unwrap_or(false),
+        Type::Default => false,
     }
 }

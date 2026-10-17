@@ -1,0 +1,5 @@
+struct Box[T] { T v }
+fn main() -> int {
+    b = Box[int] { v = 7 }
+    return b
+}

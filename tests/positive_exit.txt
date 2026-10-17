@@ -129,3 +129,8 @@ test_void_return.aya 0
 test_rawptr.aya 0
 test_ref_receiver.aya 0
 test_rawptr_ops.aya 0
+test_union.aya 0
+test_array_bounds.aya 0
+test_kw_member.aya 0
+test_generic_explicit.aya 0
+test_generic_nested.aya 0

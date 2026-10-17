@@ -126,14 +126,41 @@ impl crate::hir::lower::Ctx {
                     }).collect();
                     self.interfaces.insert(*name, InterfaceReg { generic_params: generic_params.clone(), methods: hir_methods });
                 }
-                Stmt::StructDef { name, fields, generic_params, span, .. } => {
+                Stmt::StructDef { name, fields, generic_params, is_union, span, .. } => {
                     check_unique_generic_params(generic_params, span)?;
                     let hir_fields: Vec<HirStructField> = fields.iter()
                         .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
                         .collect();
-                    self.struct_defs.insert(*name, hir_fields);
-                    if !generic_params.is_empty() {
-                        self.generic_struct_params.insert(*name, generic_params.clone());
+                    if *is_union {
+                        // P3b：union —— 泛型暂不支持；字段限无 drop 类型（共享存储别名）
+                        if !generic_params.is_empty() {
+                            return Err(Error::Hir(format!(
+                                "generic unions are not supported yet (`{}`) (at {}:{})",
+                                name.as_str(), span.start_line, span.start_col
+                            )));
+                        }
+                        for f in &hir_fields {
+                            if !self.union_field_ok(&f.ty) {
+                                return Err(Error::Hir(format!(
+                                    "union `{}` field `{}` has type `{}` which may own heap data; union fields must be drop-free (at {}:{})",
+                                    name.as_str(), f.name.as_str(), hir_type_display(&f.ty),
+                                    span.start_line, span.start_col
+                                )));
+                            }
+                        }
+                        // 首字段保留为存储标记 `__union`（类型占位为第一个真实字段；
+                        // 实际布局与 LLVM 类型按最大字段在 LIR 决定）
+                        let mut def = vec![HirStructField {
+                            name: Symbol::intern("__union"),
+                            ty: hir_fields.first().map(|f| f.ty.clone()).unwrap_or(HirType::Int),
+                        }];
+                        def.extend(hir_fields);
+                        self.struct_defs.insert(*name, def);
+                    } else {
+                        self.struct_defs.insert(*name, hir_fields);
+                        if !generic_params.is_empty() {
+                            self.generic_struct_params.insert(*name, generic_params.clone());
+                        }
                     }
                 }
                 Stmt::EnumDef { name, variants, generic_params, span, .. } => {

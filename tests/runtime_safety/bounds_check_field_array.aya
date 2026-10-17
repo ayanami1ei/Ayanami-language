@@ -1,0 +1,9 @@
+// #175：动态数组字段 + 兄弟 len 的越界检查（s.a[i] 按 s.len 检查）
+struct S {
+    [int] a
+    usize len
+}
+fn main() -> int {
+    s = S { a = [1, 2, 3], len = 3 }
+    return s.a[5]
+}

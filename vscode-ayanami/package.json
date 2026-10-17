@@ -2,7 +2,7 @@
   "name": "ayanami",
   "displayName": "Ayanami Language",
   "description": "Ayanami language support",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "publisher": "ayanami",
   "engines": {
     "vscode": "^1.60.0"
@@ -26,6 +26,16 @@
         "command": "ayanami.fmt",
         "title": "Ayanami: Format Code",
         "category": "Ayanami"
+      },
+      {
+        "command": "ayanami.checkUpdates",
+        "title": "Ayanami: Check for Updates",
+        "category": "Ayanami"
+      },
+      {
+        "command": "ayanami.update",
+        "title": "Ayanami: Update Compiler & Std",
+        "category": "Ayanami"
       }
     ],
     "configuration": {
@@ -35,6 +45,11 @@
           "type": "string",
           "default": "",
           "description": "Path to ayanami compiler (leave empty to search PATH)"
+        },
+        "ayanami.update.checkOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "启动时检查编译器/std 更新（联网 GitHub Release）"
         }
       }
     },
@@ -65,4 +80,5 @@
         "when": "editorLangId == ayanami"
       }
     ]
-  }}
+  }
+}

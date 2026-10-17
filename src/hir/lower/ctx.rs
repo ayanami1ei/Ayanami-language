@@ -211,4 +211,24 @@ impl Ctx {
         self.struct_defs.get(type_name).and_then(|f| f.first())
             .map(|f| f.name.as_str() == "_tag").unwrap_or(false)
     }
+
+    /// P3b：union 类型（首字段为保留名 `__union`；其后为真实字段列表）
+    pub fn is_union_type(&self, type_name: &Symbol) -> bool {
+        self.struct_defs.get(type_name).and_then(|f| f.first())
+            .map(|f| f.name.as_str() == "__union").unwrap_or(false)
+    }
+
+    /// P3b：union 字段可用类型（无 drop glue；Named 递归检查）
+    pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool {
+        match ty {
+            HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool
+            | HirType::Never | HirType::Void | HirType::IntN { .. }
+            | HirType::Ref(..) | HirType::FnPtr(..) | HirType::RawPtr(_) => true,
+            HirType::Closure(_, _, false, _) => true,
+            HirType::Named(n) => self.struct_defs.get(n)
+                .map(|fs| fs.iter().all(|f| self.union_field_ok(&f.ty)))
+                .unwrap_or(false),
+            _ => false,
+        }
+    }
 }

@@ -93,6 +93,40 @@ if [ -d tests/effects ]; then
         echo "FAIL tests/effects/pure_real_alloc.aya: want verify failure（#117 真 alloc 应仍报错）"
         fail=$((fail + 1))
     fi
+    # #176：边界检查合成调用不应破坏 #[pure]
+    "$BIN" check --verify-effects tests/effects/pure_bounds.aya >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL tests/effects/pure_bounds.aya: exit $got, want 0（#176 越界检查纯函数误报）"
+        fail=$((fail + 1))
+    fi
+fi
+
+# #179：fmt 保留注释（文件头/文档/行尾/字段/变体）+ 幂等 + 格式化后可编译
+if [ -d tests/fmt ]; then
+    for f in tests/fmt/*.aya; do
+        [ -e "$f" ] || continue
+        fdir=$(mktemp -d)
+        cp "$f" "$fdir/t.aya"
+        "$BIN" fmt "$fdir/t.aya" >/dev/null 2>&1
+        before=$(grep -c '//\|/\*' "$f" || true)
+        after=$(grep -c '//\|/\*' "$fdir/t.aya" || true)
+        if [ "$after" -lt "$before" ]; then
+            echo "FAIL $f: fmt 丢失注释（$before → $after）"
+            fail=$((fail + 1))
+        fi
+        cp "$fdir/t.aya" "$fdir/t2.aya"
+        "$BIN" fmt "$fdir/t2.aya" >/dev/null 2>&1
+        if ! diff -q "$fdir/t.aya" "$fdir/t2.aya" >/dev/null; then
+            echo "FAIL $f: fmt 非幂等"
+            fail=$((fail + 1))
+        fi
+        if ! "$BIN" check "$fdir/t.aya" >/dev/null 2>&1; then
+            echo "FAIL $f: 格式化结果不可编译"
+            fail=$((fail + 1))
+        fi
+        rm -rf "$fdir"
+    done
 fi
 
 # #84 ③：导出 C 符号 + C harness 互操作

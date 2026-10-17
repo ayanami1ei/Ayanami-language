@@ -201,6 +201,8 @@ pub enum Stmt {
         vis: Visibility,
         name: Symbol,
         generic_params: Vec<(Symbol, Vec<Symbol>)>,
+        /// P3b：`union`（字段共享存储，读取需 unsafe；字段限无 drop 类型）
+        is_union: bool,
         fields: Vec<(Symbol, Type)>,
         /// A4a：字段级属性（与 fields 等长并行，如 `#[follow_with(...)]`）
         field_attrs: Vec<Vec<Attr>>,

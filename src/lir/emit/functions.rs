@@ -90,10 +90,19 @@ impl<'a> Emitter<'a> {
         let mut defs: Vec<_> = self.prog.struct_defs.iter().collect();
         defs.sort_by(|a, b| a.0.as_str().cmp(&b.0.as_str()));
         for (name, fields) in defs {
+            let safe_name = sanitize_name(&name.as_str());
+            // P3b：union —— 单一存储槽：取最大字段的 LLVM 类型（size/align 覆盖所有字段）
+            if fields.first().map(|(n, _)| n.as_str() == "__union").unwrap_or(false) {
+                let largest = fields.iter()
+                    .max_by_key(|(_, ty)| crate::lir::ir::elem_layout_size(ty, &self.prog.struct_defs))
+                    .map(|(_, ty)| self.llvm_type(ty))
+                    .unwrap_or_else(|| "i64".into());
+                self.wln_fmt(format_args!("%struct.{} = type {{ {} }}", safe_name, largest));
+                continue;
+            }
             let field_types: Vec<String> = fields.iter()
                 .map(|(_, ty)| self.llvm_type(ty))
                 .collect();
-            let safe_name = sanitize_name(&name.as_str());
             self.wln_fmt(format_args!(
                 "%struct.{} = type {{ {} }}",
                 safe_name, field_types.join(", ")

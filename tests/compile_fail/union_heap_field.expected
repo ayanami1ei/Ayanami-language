@@ -1,0 +1,1 @@
+which may own heap data; union fields must be drop-free

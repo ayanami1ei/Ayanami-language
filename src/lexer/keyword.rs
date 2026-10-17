@@ -44,6 +44,7 @@ pub enum Keyword {
     True,
     False,
     Unsafe,
+    Union,
 }
 
 impl fmt::Display for Keyword {
@@ -91,6 +92,7 @@ impl fmt::Display for Keyword {
             Keyword::True => "true",
             Keyword::False => "false",
             Keyword::Unsafe => "unsafe",
+            Keyword::Union => "union",
         };
         write!(f, "{}", s)
     }

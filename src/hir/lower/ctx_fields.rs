@@ -19,8 +19,11 @@ impl Ctx {
     /// 按类型名查找字段索引（含泛型回退与替换）
     fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize> {
         if let Some(fields) = self.struct_defs.get(type_name) {
-            return fields.iter().position(|f| f.name == *field)
-                .ok_or_else(|| Error::Hir(format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col)));
+            let idx = fields.iter().position(|f| f.name == *field)
+                .ok_or_else(|| Error::Hir(format!("结构体 `{}` 没有字段 `{}` (位置 {}:{})", type_name, field, span.start_line, span.start_col)))?;
+            // P3b：union 所有字段共享存储（访问索引 0；`__union` 标记占第 0 位）
+            let is_union = fields.first().map(|f| f.name.as_str() == "__union").unwrap_or(false);
+            return Ok(if is_union { 0 } else { idx });
         }
         let base = strip_generic_name(type_name);
         if base != *type_name {

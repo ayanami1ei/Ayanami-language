@@ -160,6 +160,12 @@ impl LirNode for SLirStructLit {
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
         let mut lines = Vec::new();
         let struct_llvm = format!("%struct.{}", sanitize_name(&self.struct_name.as_str()));
+        // P3b：union —— 先清零存储（其余字段别名读到确定值）
+        let is_union = ctx.prog.struct_defs.get(&self.struct_name).and_then(|f| f.first())
+            .map(|(n, _)| n.as_str() == "__union").unwrap_or(false);
+        if is_union {
+            lines.push(format!("store {} zeroinitializer, ptr %t{}", struct_llvm, self.alloca_tmp));
+        }
         for (i, ((val, fty), gep_tmp)) in self.fields.iter().zip(self.field_geps.iter()).enumerate() {
             let field_llvm = ctx.llvm_type(fty);
             // Var 源是栈槽地址，需要 load 出值再存
@@ -258,8 +264,15 @@ impl LirNode for SLirFieldStore {
             }
             _ => ctx.value_ref(&self.src, &self.field_ty),
         };
+        let is_union = ctx.prog.struct_defs.get(struct_name).and_then(|f| f.first())
+            .map(|(n, _)| n.as_str() == "__union").unwrap_or(false);
         if matches!(&self.struct_ty, HirType::Unique(_) | HirType::Ref(..) | HirType::RawPtr(_)) {
             lines.push(format!("%t{} = getelementptr {}, ptr %t{}, i32 0, i32 {}", self.gep_tmp, struct_llvm, self.dest, self.field_index));
+            lines.push(format!("store {} {}, ptr %t{}", field_llvm, src_str, self.gep_tmp));
+        } else if is_union {
+            // P3b：union 值对象 —— 经局部地址 GEP 0,0 存储（字段共享存储）
+            let store_var = self.var_id.expect("FieldStore: union needs var_id");
+            lines.push(format!("%t{} = getelementptr {}, ptr %v{}, i32 0, i32 0", self.gep_tmp, struct_llvm, store_var.0));
             lines.push(format!("store {} {}, ptr %t{}", field_llvm, src_str, self.gep_tmp));
         } else {
             let var_ty = ctx.llvm_type(&self.struct_ty);

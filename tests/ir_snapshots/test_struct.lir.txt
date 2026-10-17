@@ -1,7 +1,7 @@
 LIR Program
 Strings: 0 entries
 
-fn main (fn_id=0) -> Int [1 blocks]
+fn main (fn_id=N) -> Int [1 blocks]
   local p: Named(Symbol(N))
   local __ret: Int
   local __ret: Int

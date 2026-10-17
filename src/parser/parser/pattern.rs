@@ -90,7 +90,7 @@ impl Parser {
                     let mut fields = Vec::new();
                     if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RBrace)) {
                         loop {
-                            let fname = Symbol::intern(&self.expect_identifier()?);
+                            let fname = Symbol::intern(&self.expect_member_name()?);
                             let sub = match self.peek().map(|t| &t.kind) {
                                 Some(TokenKind::Operator(op)) if op == "=" => {
                                     self.advance();

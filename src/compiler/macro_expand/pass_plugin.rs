@@ -60,11 +60,15 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
         dep_irs.push(crate::lir::emit_program(&dlir));
     }
 
+    // #180：runtime 内容参与缓存键（runtime.c 变化必须重建插件）
+    let runtime = crate::driver::find_runtime_c()?;
+    let runtime_src = std::fs::read_to_string(&runtime).unwrap_or_default();
     let mut hasher = DefaultHasher::new();
     ABI_VERSION.hash(&mut hasher);
     SCHEMA_VERSION.hash(&mut hasher);
     symbol.hash(&mut hasher);
     ir.hash(&mut hasher);
+    runtime_src.hash(&mut hasher);
     for d in &dep_irs { d.hash(&mut hasher); }
     let hash = hasher.finish();
 
@@ -99,7 +103,6 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
     std::fs::write(&shim_path, pass_shim(symbol))
         .map_err(|e| Error::Compile(format!("pass shim write: {}", e)))?;
 
-    let runtime = crate::driver::find_runtime_c()?;
     let mut gcc = Command::new("gcc");
     gcc.arg("-shared").arg("-fPIC");
     for o in &link_objs { gcc.arg(o); }

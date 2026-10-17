@@ -203,9 +203,9 @@ impl Parser {
 
     // ==================== Struct definition ====================
 
-    pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
+    pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>, is_union: bool) -> Result<Stmt> {
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
-        self.advance(); // struct
+        self.advance(); // struct / union
         let name = Symbol::intern(&self.expect_identifier()?);
         let generic_params = self.parse_generic_params()?;        self.expect_delimiter(Delimiter::LBrace)?;
         let mut fields = Vec::new();
@@ -217,12 +217,13 @@ impl Parser {
                     // A4a：字段级属性（#[follow_with(...)]）
                     field_attrs.push(self.parse_attr_list()?);
                     let field_type = self.parse_type()?;
-                    let field_name = self.expect_identifier()?;
+                    // #172：字段声明名允许关键字
+                    let field_name = self.expect_member_name()?;
                     fields.push((Symbol::intern(&field_name), field_type));
                 }
             }
         }
         self.expect_delimiter(Delimiter::RBrace)?;
-        Ok(Stmt::StructDef { attrs, vis, name, generic_params, fields, field_attrs, span: start_span })
+        Ok(Stmt::StructDef { attrs, vis, name, generic_params, is_union, fields, field_attrs, span: start_span })
     }
 }

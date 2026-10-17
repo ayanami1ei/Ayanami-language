@@ -68,7 +68,9 @@ impl Parser {
                     _ => return Err(self.error("expected `{` or `fn` after `unsafe`")),
                 }
             }
-            TokenKind::Keyword(Keyword::Struct) => return self.parse_struct_def(vis, attrs),
+            TokenKind::Keyword(Keyword::Struct) => return self.parse_struct_def(vis, attrs, false),
+            // P3b：`union U { ... }`（字段共享存储）
+            TokenKind::Keyword(Keyword::Union) => return self.parse_struct_def(vis, attrs, true),
             TokenKind::Keyword(Keyword::Enum) => return self.parse_enum_def(vis, attrs),
             TokenKind::Keyword(Keyword::Interface) => return self.parse_interface_def(attrs),
             TokenKind::Keyword(Keyword::Impl) => return self.parse_impl_block(attrs),

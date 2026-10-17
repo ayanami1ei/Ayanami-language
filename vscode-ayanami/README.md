@@ -1,5 +1,8 @@
 # Ayanami Language Support for VS Code
 
+> 联网更新：命令面板 `Ayanami: Check for Updates` / `Ayanami: Update Compiler & Std`
+> （调用 `ayanami update`；发现新版本时状态栏显示 `Ayanami ↑ vX.Y.Z`，点击一键更新并提示重载）。
+
 Syntax highlighting and basic language support for `.aya` files.
 
 ## Features

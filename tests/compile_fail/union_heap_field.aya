@@ -1,0 +1,8 @@
+import "string"
+union U {
+    String s
+    int i
+}
+fn main() -> int {
+    return 0
+}

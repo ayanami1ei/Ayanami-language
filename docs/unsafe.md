@@ -29,11 +29,13 @@ safe 代码的健全性不因 unsafe 存在而削弱（unsafe 块内的违规不
 | `static mut` 访问（读/写/取引用） | **P1**（联动 #143） | 已门控：读写与 `ref mut` 均需 unsafe |
 | raw pointer 解引用/字段（`*p`） | **P2**（576.2） | 已实现：`*T` 类型、`*p` 读写、`(*p).field` |
 | 指针 ↔ int cast | **P2**（联动 #71） | 已实现：`*T as usize` / `usize as *T`（需 unsafe） |
-| unchecked indexing | P3（576.3） | 裸数组 `arr[i]` 即未检查原语（模型待定：见 P3b） |
+| 越界检查（`arr[i]`） | **P3b** | 已实现（Rust 方式）：`[T; n]` 默认检查（panic 101）；动态 `[T]` 无长度信息保持原语 |
+| unchecked indexing（`get_unchecked`） | **P3b** | 已实现：跳过检查，需 unsafe |
 | reinterpret（`bits::reinterpret[T]`） | **P3a** | 已实现：同尺寸位重解释（bitcast/ptrtoint/inttoptr），需 unsafe |
 | 裸指针算术 `offset` | **P3a** | 已实现：按元素步长；需 unsafe |
 | volatile 读/写 | **P3a** | 已实现：`read_volatile`/`write_volatile`（LLVM volatile）；需 unsafe |
-| union | P3b | 尚无 |
+| union | **P3b** | 已实现：字段共享存储、读取需 unsafe；字段限无 drop 类型 |
+| 裸指针比较 `==`/`!=` | **P3b** | 已实现：地址比较（ptrtoint+icmp），无需 unsafe |
 | `extern "C"` 调用 | P4（迁移） | std 大量使用；需 std 侧 `unsafe` 包装迁移后再门控 |
 
 ## 3. 语法
@@ -149,6 +151,21 @@ fn main() -> int {
       - `*T.offset(n) -> *T`（元素步长 GEP）；`read_volatile()` / `write_volatile(v)`（LLVM `load/store volatile`）；需 unsafe
       - 实现：HIR `SReinterpret`/`SPtrOffset`/`SVolatileLoad`/`SVolatileStore` → MIR 同名节点 → LIR `ConvKind::Reinterpret` / `SLirIndexAddr` / `SLirVolatileLoad`/`SLirVolatileStore`（序列化 tag 41/42）
       - 用例：`example/test_rawptr_ops.aya`；负例 `reinterpret_requires_unsafe`、`reinterpret_size_mismatch`、`raw_ptr_offset_requires_unsafe`、`raw_ptr_volatile_requires_unsafe`
-- [ ] **P3b**：`union` 类型；unchecked indexing 模型（裸数组索引是否默认检查/unsafe 门控的决策）
+- [x] **P3b（576.3 部分）**：`union` 类型 + 裸指针比较
+      - `union U { T1 a; T2 b }`：字段共享存储（布局取最大字段 size/align）；**读取**字段需 unsafe，初始化/写入按 Rust 语义无需
+      - 字段限**无 drop 类型**（基元/指针/引用/无堆 Named，递归检查）；泛型 union 暂不支持；字面量恰好初始化一个字段（其余别名清零）
+      - 表示：`struct_defs[U] = [(__union, 占位), (真实字段...)]`（零 .lcl 格式改动）；LLVM 类型为单一存储槽（最大字段类型）
+      - 裸指针 `==`/`!=`：地址比较（ptrtoint + icmp），支持与 `null`/`0` 比较；无需 unsafe
+      - 用例：`example/test_union.aya`；负例 `union_field_read_requires_unsafe`、`union_literal_one_field`、`union_heap_field`；跨包 .lcl 往返验证
+      - 顺带修复：结构体字面量字段乱序按声明顺序存储（原先按字面量顺序错位）
+- [x] **P3b 续（2026-10-16）**：unchecked indexing —— 按 **Rust 方式**落地
+      - `arr[i]` 与 `arr[i] = v`（`[T; n]`：字面量/参数/静态数组）**默认越界检查**（读写统一）：索引提升临时量，
+        `if (idx as usize) >= len { __ayanami_panic_bounds_at(line, col, file, idx, len) }`
+        （负数亦捕获；panic 信息与退出码 101 与 std 一致；条件/循环内每轮求值）
+      - `arr.get_unchecked(i)`：跳过检查，**需 unsafe**（Rust 语义；unsafe 块不改变 `arr[i]` 的检查）
+      - 动态 `[T]`（无长度信息，如 extern `[char]` 缓冲）：保持未检查原语（表示层限制）
+      - 用例：`example/test_array_bounds.aya`；运行时 `bounds_check_array`/`bounds_check_negative`（101）；负例 `get_unchecked_requires_unsafe`
+      - #174：extern 声明按名去重（用户/std 显式声明运行时符号不再重复 `declare`）
+      - #175：动态数组字段（`s.data`）按兄弟边界字段检查 —— **容量优先**（`capability`/`capacity`/`cap`，可增长缓冲如 ArrayList/HashMap），无容量字段才用 `len`/`length`/`size`/`count`（如 `String.data`）；无边界字段的裸 `[T]` 字段保持未检查原语
 - [ ] P4：extern 调用迁移
 - [ ] P4：extern 调用迁移

@@ -19,7 +19,7 @@ HIR Program
 │   local factor: Int
 │ │ Block {
 │ │ │ Return
-        Call(fn11, ty: Int)
+        Call(fn(N), ty: Int)
           Local(v0 : Int)
           Local(v1 : Int)
           Literal(Int(13))
@@ -30,7 +30,7 @@ HIR Program
 │   local self: Int
 │ │ Block {
 │ │ │ Return
-        Call(fn12, ty: Int)
+        Call(fn(N), ty: Int)
           Local(v0 : Int)
           Literal(Int(3))
           Literal(Int(14))
@@ -100,12 +100,12 @@ HIR Program
 │ │ │   value:
         Literal(Float(3))
 │ │ │ Expr
-        Call(fn7, ty: Void)
+        Call(fn(N), ty: Void)
           MakeFatPtr int -> Drawable ty=fatptr(Drawable, ref Void)
             Ref(ty: ref Int)
               Local(v0 : Int)
 │ │ │ Expr
-        Call(fn7, ty: Void)
+        Call(fn(N), ty: Void)
           MakeFatPtr float -> Drawable ty=fatptr(Drawable, ref Void)
             Ref(ty: ref Float)
               Local(v1 : Float)
@@ -113,7 +113,7 @@ HIR Program
 │ │ │   target:
         Local(v2 : Int)
 │ │ │   value:
-        Call(fn8, ty: Int)
+        Call(fn(N), ty: Int)
           MakeFatPtr int -> Drawable ty=fatptr(Drawable, ref Void)
             Ref(ty: ref Int)
               Local(v0 : Int)
@@ -121,7 +121,7 @@ HIR Program
 │ │ │   target:
         Local(v3 : Int)
 │ │ │   value:
-        Call(fn8, ty: Int)
+        Call(fn(N), ty: Int)
           MakeFatPtr float -> Drawable ty=fatptr(Drawable, ref Void)
             Ref(ty: ref Float)
               Local(v1 : Float)
@@ -129,7 +129,7 @@ HIR Program
 │ │ │   target:
         Local(v4 : Int)
 │ │ │   value:
-        Call(fn9, ty: Int)
+        Call(fn(N), ty: Int)
           MakeFatPtr int -> Resizable ty=fatptr(Resizable, ref Void)
             Ref(ty: ref Int)
               Local(v0 : Int)
@@ -138,7 +138,7 @@ HIR Program
 │ │ │   target:
         Local(v5 : Int)
 │ │ │   value:
-        Call(fn9, ty: Int)
+        Call(fn(N), ty: Int)
           MakeFatPtr float -> Resizable ty=fatptr(Resizable, ref Void)
             Ref(ty: ref Float)
               Local(v1 : Float)
@@ -147,13 +147,13 @@ HIR Program
 │ │ │   target:
         Local(v6 : Int)
 │ │ │   value:
-        Call(fn3, ty: Int)
+        Call(fn(N), ty: Int)
           Local(v0 : Int)
 │ │ │ Return
-        Call(fn13, ty: Int)
-          Call(fn13, ty: Int)
-            Call(fn11, ty: Int)
-              Call(fn11, ty: Int)
+        Call(fn(N), ty: Int)
+          Call(fn(N), ty: Int)
+            Call(fn(N), ty: Int)
+              Call(fn(N), ty: Int)
                 Local(v4 : Int)
                 Local(v5 : Int)
                 Literal(Int(50))

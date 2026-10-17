@@ -1,4 +1,5 @@
 use super::*;
+use super::expr_method_arrays::array_elem_type;
 
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_method_call(&mut self, object: &Box<Expr>, method: &Symbol, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox> {
@@ -30,6 +31,14 @@ impl crate::hir::lower::Ctx {
 
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();
+
+        // P3b（Rust 方式）：数组内置方法（`get_unchecked` 跳过越界检查，需 unsafe）
+        if method.as_str().as_str() == "get_unchecked" && hir_args.len() == 1 {
+            if let Some(elem_ty) = array_elem_type(&receiver_ty) {
+                return self.lower_get_unchecked(receiver, &hir_args, elem_ty, span);
+            }
+        }
+
 
         // M4：`Ptr[T]` 接收者 —— `get`/`get_mut` 返回 pointee 借用；其余方法自动解引用。
         // 拥有 `Ptr[T]` 与 `ref Ptr[T]`（字段借用）均支持。

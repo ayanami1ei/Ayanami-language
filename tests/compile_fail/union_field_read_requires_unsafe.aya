@@ -1,0 +1,9 @@
+union U {
+    int i
+    float f
+}
+fn main() -> int {
+    u = U { i = 1 }
+    if u.i != 1 { return 1 }
+    return 0
+}

@@ -18,10 +18,12 @@ pub fn format_program(program: &Program) -> String {
     if s.is_empty() { s } else { s + "\n" }
 }
 
+mod comments;
 mod expr;
 mod types;
 mod helpers;
 mod stmt;
+mod stmt_defs;
 
 /// 表达式 → 源码文本（A2a：标注实参渲染复用）
 pub(crate) fn format_expr(expr: &Expr) -> String {
@@ -36,13 +38,30 @@ pub(crate) fn format_attr_arg(arg: &AttrArg) -> String {
 use helpers::write_stmt_separator;
 use stmt::write_stmt;
 
+/// #179：带注释保留的格式化（`ayanami fmt` 使用）。
+pub fn format_program_with_comments(program: &Program, comments: Vec<crate::lexer::Comment>) -> String {
+    comments::install(comments);
+    let mut out = String::new();
+    for (i, stmt) in program.stmts.iter().enumerate() {
+        if i > 0 {
+            write_stmt_separator(&mut out, stmt);
+        }
+        write_stmt(&mut out, stmt, 0);
+    }
+    comments::flush_rest(&mut out);
+    comments::uninstall();
+    let s = out.trim_end().to_string();
+    if s.is_empty() { s } else { s + "\n" }
+}
+
 pub fn format_file(code: &str) -> crate::error::Result<String> {
     let mut lexer = crate::lexer::Lexer::new(code);
     let tokens = lexer.tokenize_all();
+    let comments = lexer.comments().to_vec();
     let filtered: Vec<_> = tokens.into_iter()
         .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
         .collect();
     let mut parser = crate::parser::Parser::new(filtered);
     let program = parser.parse_program()?;
-    Ok(format_program(&program))
+    Ok(format_program_with_comments(&program, comments))
 }

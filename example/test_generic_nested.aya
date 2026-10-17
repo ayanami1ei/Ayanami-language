@@ -1,0 +1,20 @@
+// P4b：嵌套泛型（`Box[Box[T]]` 字段类型替换 / 调用点特化）
+struct Box[T] {
+    T v
+}
+
+fn inner[T](ref Box[T] b) -> T {
+    return b.v
+}
+
+fn deep[T](ref Box[Box[T]] b) -> T {
+    x = b.v
+    return x.v
+}
+
+fn main() -> int {
+    o = Box[Box[int]] { v = Box[int] { v = 5 } }
+    if inner(ref o).v != 5 { return 1 }
+    if deep(ref o) != 5 { return 2 }
+    return 0
+}

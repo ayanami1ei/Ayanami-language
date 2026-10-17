@@ -15,6 +15,7 @@ use super::InterfaceReg;
 
     /// 自动插入 Move 包装：如果表达式是 unique 类型且尚未包装，则包装为 Move
 
+mod bounds;
 mod caller;
 mod closure;
 mod closure_checks;

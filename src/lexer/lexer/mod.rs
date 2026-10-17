@@ -10,6 +10,8 @@ pub struct Lexer<'a> {
     col: usize,
     byte_offset: usize,
     _src: &'a str,
+    /// #179：跳过的注释（供格式化保留）
+    comments: Vec<crate::lexer::Comment>,
 }
 
 impl<'a> Lexer<'a> {
@@ -21,7 +23,13 @@ impl<'a> Lexer<'a> {
             col: 1,
             byte_offset: 0,
             _src: src,
+            comments: Vec::new(),
         }
+    }
+
+    /// #179：本次词法收集到的注释（按出现顺序）。
+    pub fn comments(&self) -> &[crate::lexer::Comment] {
+        &self.comments
     }
 
     fn peek(&self) -> Option<char> {
@@ -51,21 +59,36 @@ impl<'a> Lexer<'a> {
                     self.bump();
                 }
                 Some('/') if self.peek_next() == Some('/') => {
+                    let (l, c) = (self.line, self.col);
                     self.bump(); self.bump();
-                    while let Some(c) = self.peek() {
-                        if c == '\n' { break; }
+                    let mut text = String::from("//");
+                    while let Some(ch) = self.peek() {
+                        if ch == '\n' { break; }
+                        text.push(ch);
                         self.bump();
                     }
+                    self.comments.push(crate::lexer::Comment {
+                        text,
+                        span: crate::span::Span::new(l, c, self.line, self.col, 0, 0),
+                    });
                 }
                 Some('/') if self.peek_next() == Some('*') => {
+                    let (l, c) = (self.line, self.col);
                     self.bump(); self.bump();
-                    while let Some(c) = self.peek() {
-                        if c == '*' && self.peek_next() == Some('/') {
+                    let mut text = String::from("/*");
+                    while let Some(ch) = self.peek() {
+                        if ch == '*' && self.peek_next() == Some('/') {
+                            text.push_str("*/");
                             self.bump(); self.bump();
                             break;
                         }
+                        text.push(ch);
                         self.bump();
                     }
+                    self.comments.push(crate::lexer::Comment {
+                        text,
+                        span: crate::span::Span::new(l, c, self.line, self.col, 0, 0),
+                    });
                 }
                 _ => break,
             }

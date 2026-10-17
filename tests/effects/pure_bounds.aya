@@ -1,0 +1,17 @@
+// #176：边界检查合成调用（__ayanami_panic_bounds_at）不应破坏 #[pure] 判定
+#[pure]
+fn eq3(ref [int; 3] a, ref [int; 3] b) -> bool {
+    i = 0
+    while i < 3 {
+        if a[i] != b[i] { return false }
+        i = i + 1
+    }
+    return true
+}
+
+fn main() -> int {
+    x = [1, 2, 3];
+    y = [1, 2, 3];
+    if !eq3(ref x, ref y) { return 1 }
+    return 0
+}

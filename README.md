@@ -6,7 +6,7 @@ Ayanami 是一个自带 LLVM 后端、不需要系统预装 LLVM 的编译型语
 
 ```bash
 # 1. 下载并解压
-tar xzf ayanami-0.6.5-linux-x86_64.tar.gz
+tar xzf ayanami-0.6.6-linux-x86_64.tar.gz
 cd install
 
 # 2. 运行
@@ -30,6 +30,28 @@ install/
 
 编译器自动在同目录查找 `llc`、`std/`、`runtime.c`。
 
+> 平台要求：Linux x86_64，**glibc ≥ 2.39**（Ubuntu 24.04 / Debian 13 / Arch 等）；
+> 发布包已内含 `llc`/`libLLVM` 及其运行时依赖（libxml2/libicu/libedit 等），无需系统 LLVM。
+
+### 联网更新（编译器 + std）
+
+```bash
+./ayanami --version            # 当前版本
+./ayanami update --check       # 查询最新 Release（0=已最新，1=有更新）
+./ayanami update               # 下载并原地更新（自动备份 install.bak-<ver>）
+./ayanami update --std-only    # 仅更新 std（编译器不动）
+./ayanami update --dir <path>  # 安装到指定目录（全新安装也可）
+./ayanami update --limit-rate 10M   # 下载限速（curl 语法；也可用 AYANAMI_UPDATE_LIMIT）
+```
+
+- 走 GitHub Release（HTTPS），需要 `curl` 与 `tar`；更新失败自动回滚。
+- 同版本 **respin（修复构建）** 也能检测：Release 附 `ayanami-<ver>-build.txt` 构建指纹，
+  `--check` 会比较本地/远端构建哈希并提示更新；已装同版本时用
+  `ayanami update --from <资产 URL>` 强制拉取。
+- VSCode 插件提供同款命令：`Ayanami: Check for Updates` / `Ayanami: Update Compiler & Std`，
+  发现新版本时状态栏显示 `Ayanami ↑ vX.Y.Z`，点击一键更新并提示重载。
+  可选设置 `ayanami.update.checkOnStartup`（默认关闭）。
+
 ## 从源码打包
 
 ```bash
@@ -51,10 +73,10 @@ install/
 
 ## VSCode 插件
 
-`ayanami-0.6.5.vsix` 位于项目根目录：
+`ayanami-0.6.6.vsix` 位于项目根目录：
 
 ```bash
-code --install-extension ayanami-0.6.5.vsix
+code --install-extension ayanami-0.6.6.vsix
 ```
 
 功能：语法高亮、代码补全（结构体字段、方法、变量类型推断）、保存/打开时错误检查、hover 文档、Run CodeLens。
@@ -64,7 +86,7 @@ code --install-extension ayanami-0.6.5.vsix
 ```bash
 ayanami new <name>         创建新项目
 ayanami check [--watch] <file/proj>  前端检查；--watch 监听文件变更自动重检
-ayanami fmt [file]         格式化代码
+ayanami fmt [file]         格式化代码（保留注释：#179）
 ayanami package <file/proj> 打包为 .lcl（不生成可执行文件）
 ayanami build [file/proj]  构建可执行文件 + .lcl 包
 ayanami run [file/proj]    构建并运行
@@ -80,7 +102,7 @@ ayanami clean              清除 build/ 目录
 ```toml
 [package]
 name = "my_project"
-version = "0.6.5"
+version = "0.6.6"
 
 [build]
 target = "executable"
@@ -121,9 +143,9 @@ fn main() -> int {
 | 数组   | `[int]`                          | 拥有堆缓冲区，离开作用域自动释放；借用写 `ref [int]` |
 | 结构体 | `Point`                           | 自定义，值语义                                  |
 | 枚举   | `Option[T]`                       | tag + union，支持方法派发                       |
+| 联合   | `union Value { ... }`             | 字段共享存储（布局取最大字段）；读取需 `unsafe`    |
+| 裸指针 | `*int` / `*char`                  | `Ptr[T].as_ptr()` / `as *T`；解引用与指针算术需 `unsafe` |
 | ref    | `ref int` / `ref mut int`         | 借用，不拥有、不可逃逸                          |
-
-| 枚举 | `Color` | tag + union，支持方法派发 |
 
 ## 标准库
 
@@ -244,6 +266,32 @@ struct Point {
 }
 p = Point { x = 10, y = 3 };
 ```
+
+### union（联合）
+
+```
+union Value {
+    int i
+    float f
+    *char p
+}
+
+v = Value { i = 42 }      // 字面量恰好初始化一个字段（其余别名清零）
+v.f = 1.5                 // 字段写入无需 unsafe
+unsafe {
+    x = v.i               // 字段读取需 unsafe（共享存储）
+}
+```
+
+字段共享同一存储（布局取最大字段的 size/align）；字段限**无 drop 类型**
+（基元/指针/引用/无堆结构体）；泛型 union 暂不支持。
+
+### 成员名与关键字（#172）
+
+**方法/字段名位置允许关键字**：`a.union(b)`、`x.type`、`self.move(1)`、
+`struct S { int union }`、`S { union = 1 }`、模式 `S { union = u }`。
+变量名与顶层函数名仍须标识符；`union`、`move`、`clone`、`static` 等保留字
+仅在成员位置可作名字。
 
 ### 枚举
 

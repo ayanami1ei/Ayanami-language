@@ -25,3 +25,9 @@ closure_in_collection.aya 0
 clone_char_array.aya 0
 lambda_in_macro.aya 0
 clone_capacity_option.aya 0
+bounds_check_array.aya 101 index out of bounds
+bounds_check_negative.aya 101 index out of bounds
+bounds_check_field_array.aya 101 index out of bounds
+bounds_check_string_data.aya 101 index out of bounds
+bounds_check_index_assign.aya 101 index out of bounds
+bounds_check_write_capacity.aya 0

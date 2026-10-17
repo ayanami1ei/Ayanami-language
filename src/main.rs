@@ -31,6 +31,8 @@ fn main() {
     eprintln!("  dump <stage> <file> 输出 IR 阶段文本（ast|hir|mir|lir|llvm）");
         eprintln!("  run [--release] [--verify-effects] [file/proj] 构建并运行");
         eprintln!("  clean              清除 build/ 目录");
+        eprintln!("  update [--check] [--std-only] [--dir <path>]  联网更新编译器与 std（GitHub Release）");
+        eprintln!("  --version          打印版本");
         std::process::exit(1);
     }
 
@@ -47,6 +49,8 @@ fn main() {
         "dump" => cmd_dump(&args[2..]),
         "run" => cmd_run(&args[2..]),
         "clean" => cmd_clean(),
+        "update" => cmd_update(&args[2..]),
+        "--version" | "-V" | "version" => cmd_version(),
         _ => {
             ayanami::diagnostics::error(&format!("unknown command: {}", command));
             std::process::exit(1);
@@ -110,7 +114,7 @@ pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf {
 
 mod cli;
 
-pub(crate) use cli::{cmd_build, cmd_check, cmd_clean, cmd_defs, cmd_fmt, cmd_install, cmd_new, cmd_package, cmd_run, cmd_dump, cmd_types};
+pub(crate) use cli::{cmd_build, cmd_check, cmd_clean, cmd_defs, cmd_fmt, cmd_install, cmd_new, cmd_package, cmd_run, cmd_dump, cmd_types, cmd_update, cmd_version};
 
 pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)> {
     let cwd = std::env::current_dir().ok()?;

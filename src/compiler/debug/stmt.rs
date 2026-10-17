@@ -135,8 +135,9 @@ pub(super) fn write_stmt(stmt: &Stmt, level: usize, w: &mut impl Write) {
             writeln!(w, "{}ExprStmt", p).unwrap();
             write_expr(expr, level + 1, w);
         }
-        Stmt::StructDef { name, fields, .. } => {
-            writeln!(w, "{}StructDef {{ name: {} }}", p, name).unwrap();
+        Stmt::StructDef { name, fields, is_union, .. } => {
+            let kw = if *is_union { "UnionDef" } else { "StructDef" };
+            writeln!(w, "{}{} {{ name: {} }}", p, kw, name).unwrap();
             for (fname, fty) in fields {
                 writeln!(w, "{}  {}: {}", p, fname, format_type(fty)).unwrap();
             }

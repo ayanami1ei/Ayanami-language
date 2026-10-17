@@ -103,6 +103,8 @@ impl crate::hir::lower::Ctx {
             Stmt::IndexAssign { object, index, value, span } => {
                 let hir_object = self.lower_expr(object)?;
                 let hir_index = coerce_index(self.lower_expr(index)?, &HirType::Int, span)?;
+                // P3b（Rust 方式）：索引写入同样越界检查（此前仅读路径有检查）
+                let hir_index = self.check_array_index(&hir_object, hir_index, span);
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = implicit_move(hir_value);
                 if matches!(expr_type(&hir_value), HirType::Ref(..)) {
@@ -192,6 +194,8 @@ impl crate::hir::lower::Ctx {
                         };
                         // 泛型单态化：枚举构造按返回类型实例化
                         let wrapped = self.instantiate_enum_value(wrapped, &fn_ret)?;
+                        // P4b 附带：返回类型一致性（见 return_check.rs）
+                        self.check_return_type(&wrapped, &fn_ret, span)?;
                         Some(implicit_move(wrapped))
                     }
                     None => None,

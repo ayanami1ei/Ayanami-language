@@ -34,6 +34,12 @@ install/llc
 install/libLLVM.so.21.1
 install/ayanami
 install/libedit.so.2
+# 发布打包生成物（运行时依赖按 soname 收集 / runtime / std）
+install/lib*.so*
+install/ld-linux-x86-64.so.2
+install/runtime/
+install/runtime.c
+install/std/
 *.tar.gz
 
 # Beads / Dolt files (added by bd init)
