@@ -1,0 +1,25 @@
+// #187：ref self + match 各臂返回字面量 → 返回值不得悬垂（此前 double free）
+import "io"
+import "string"
+
+enum PE4 {
+    A,
+    B,
+}
+
+impl PE4 {
+    fn selfmatch(ref self) -> String {
+        match self {
+            PE4::A => "aa",
+            PE4::B => "bb",
+        }
+    }
+}
+
+fn main() -> int {
+    e = PE4::A
+    m = e.selfmatch()
+    if m != "aa" { return 1 }
+    println(m)
+    return 0
+}

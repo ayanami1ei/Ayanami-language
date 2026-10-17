@@ -1,0 +1,14 @@
+// #188：容器索引运算符按元素类型解析（ArrayList[String] 的 s[i] 是 String，非 char）
+import "arraylist"
+import "string"
+
+fn first(ref ArrayList[String] s) -> String {
+    return s[0]
+}
+
+fn main() -> int {
+    l = ArrayList::new()
+    l.push("hi")
+    if first(ref l) != "hi" { return 1 }
+    return 0
+}

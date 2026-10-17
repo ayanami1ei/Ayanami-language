@@ -22,6 +22,13 @@ impl crate::hir::lower::Ctx {
         if let HirType::Unique(inner) = arg_ty {
             if param_ty == inner.as_ref() { return true; }
         }
+        // 基名回退：形参为裸泛型基名、实参同基名已实例化（impl 自类型 `Box2` vs `Box2<String>`）
+        if let (HirType::Named(pn), HirType::Named(an)) = (strip_ownership_ref(param_ty), strip_ownership_ref(arg_ty)) {
+            if !pn.as_str().contains('<') && an.as_str().contains('<')
+                && crate::hir::lower::strip_generic_name(an) == *pn {
+                return true;
+            }
+        }
         // 数组：Array 与 ArraySized 在元素类型一致时兼容（定长缓冲区可传入不定长形参）
         {
             let p_inner = strip_ownership_ref(param_ty);
@@ -35,8 +42,13 @@ impl crate::hir::lower::Ctx {
         }
         // ref/ref mut 形参：允许传裸值（自动借用）或已借用值
         if let HirType::Ref(inner, _) = param_ty {
-            if arg_ty == inner.as_ref() || matches!(arg_ty, HirType::Ref(..)) {
+            if arg_ty == inner.as_ref() {
                 return true;
+            }
+            if let HirType::Ref(arg_inner, _) = arg_ty {
+                // ref 形参 + ref 实参：内层类型须兼容。此前任意 ref 皆匹配 →
+                // 重载误选（ArrayList[String] 索引解析到 String.index → 元素类型 char，#188）
+                return self.param_compatible(inner.as_ref(), arg_inner.as_ref());
             }
             if let HirType::Unique(a) = arg_ty {
                 if a.as_ref() == inner.as_ref() {
