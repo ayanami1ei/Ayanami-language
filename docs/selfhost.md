@@ -37,33 +37,27 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 ### 2.1 已踩过的坑（实测，写代码必须遵守）
 
 1. **`[T]` 数组没有 `.len` 字段**（它是裸指针）。要带长度就另存 `int count`（见 `sys.Args`）。
-2. **不要用 `String::new(本地数组, len)` 构造 String**：std lcl 函数调用不会把 owned 数组实参标记为移动，
-   调用方仍在帧退出时释放该数组，返回的 String 悬空（bd `Ayanami-language-3hh`）。
-   正确做法：
-   - 用 `StringBuf.to_string()`（内部是「局部数组 → `String::new` → 再移入 extern 调用抑制释放」模式）；
-   - 或在**调用方**内联同样模式：`s = String::new(buf, n); strlen(buf);`（`buf` 必须是局部变量，
-     形参版本无效——extern 调用不消耗形参）；
-   - 或改用字符串字面量 / `substring` / `trim` / `copy` / `+` 等 std 安全构造。
-3. **C 的 `int` 返回值上 32 位是脏的**（如 `fgetc` 的 EOF 会变成大正数）。单字节读写用
-   `fread/fwrite` + `ref int` 单字节槽（size_t 返回，ABI 干净，且 `ref` 形参不搬移数组）。
+2. **`String::new(本地数组, len)` 悬空问题已修（2026-10-17 实测）**：`fn make() -> String { buf = [char; 3]; ...; return String::new(buf, 3 as usize) }`
+   返回后使用正常（探针 `tests/probe_string_new.aya`）。`StringBuf.to_string/substring` 可直接用该模式。
+3. **C 的 `int` 返回值上 32 位是脏的**（如 `fgetc` 的 EOF 会变成大正数）：extern 返回定宽 `i32`
+   并在调用点显式 `as int`（新版 rust 不再隐式转换 i32→int，2026-10-17 起编译报错）。
+   文件 IO 用 `fread/fwrite` 块读写（`#154` 已修，不必再逐字节绕路）。
 4. `out` 是保留关键字（asm 操作数），不能用作标识符。
 5. **嵌套导入按入口文件目录解析**，不是按当前文件目录。统一用 `selfhost/ayanami.toml` 的
    `[dependencies]` 别名导入（`import "aya_file"` 等）。
 6. **/proc 文件 `ftell` 为 0**：读文件不能依赖 fseek/ftell 定长，要循环读到 EOF（`read_file` 已处理）。
-7. **同一程序里 std 被多个源文件各自 import 会破坏泛型方法解析**（bd `Ayanami-language-8xa`）。
-   base 模块一律不 `import "std"`，边界用自有结构体（如 `ReadResult`）而不是 `Option`。
+7. **std 多源重复 import 破坏泛型方法解析**（#74）已修；base 模块仍保持「不 import std、边界用自有结构体
+   （如 `ReadResult`）」的风格以减少依赖。
 8. `extern` 调用会消耗**局部**数组实参（标记 moved），但**不消耗形参**——这是坑 2 中 forget 模式的原理。
 9. **`if`/`else` 分支里首次赋值的变量不会逃出分支**（块作用域）：`if c { x = 1 } else { x = 2 }` 之后用 `x`
    会报 `undefined variable x`。要先在分支外赋初值（`x = 0`），再在分支里改。
-10. **泛型 impl 方法体里的编译错误会被吞掉**（GitHub issue #72）：整个 impl 被丢弃，调用方只报
-   `type X has no method Y`。遇到「没有该方法」先检查该 impl 全部方法体（尤其私有方法），不要怀疑签名。
+10. **泛型 impl 方法体错误被吞（#72）已修**（2026-10-05）。
 11. 发现 rust/编译器缺陷时用 `gh issue create --repo ayanami1ei/Ayanami-language --label bug --label type::bug --label selfhost` 提 issue（附最小复现），
    并在 bd 里记录 issue 链接（bead 描述）。已提：#72 泛型 impl 错误被吞、#73 lcl 不消耗数组实参、#74 重复 import std。
-12. **`ref String` 形参直接存入结构体字段会双重释放**（实测：`fn f(ref String s) -> H { return H { raw = s }; }`
-    调用后 `free(): double free detected`；局部变量直接放字段正常，加 `.copy()` 正常）。
-    回归用例 `tests/ownership_field_test.aya`；规则：**把 ref 形参放进拥有字段/返回值，一律显式 `.copy()`**。
-13. **枚举不做 `==` 比较**（`eq(Cmd, Cmd)` 无重载）；用 `x._tag` / 自定义 `tag()` 做整数分派，
-    `match` 只用于字符串/整数。
+12. **`ref String` 形参直接存入结构体字段会双重释放**（2026-10-17 用探针 `tests/probe_ref_field.aya` 复测，
+    仍然存在）。规则：**把 ref 形参放进拥有字段/返回值，一律显式 `.copy()`**。
+13. **枚举不做 `==` 比较**（2026-10-17 复测仍报 `no matching overload of ne (E, E)`）；
+    用 `x._tag` / 自定义 `tag()` 做整数分派。
 14. **namespace 内的函数互相调用要写全限定名**（`Path::last_sep(s)`），裸名报 `undefined function`；
     `log::raw_error` 这种「模块别名当命名空间」的写法不成立——`import "aya_log"` 后直接用 `raw_error(...)`。
 15. **`[T]` 数组元素是拥有值**：`String` 元素直接放进结构体字段同样要 `.copy()`（同坑 12）。
@@ -185,6 +179,13 @@ selfhost/
 
 约定：`selfhost/**`、`tools/kb/**` 为自举分支专属，不改动 `src/**`（Rust 模板）；
 如确需 stage-0 改进，先在 `rust` 侧提（对端在维护），再合并过来。
+
+同步注意（2026-10-17 第二次同步：rust 0.6.6（3900cd9）/ std 0cf5e1b）：
+- `.gitignore` 与 origin/rust 有合并冲突（双方各自追加规则），解决时保留两侧；
+- 新版 rust 收紧 `i32`→`int` 隐式转换，自举源码里 extern i32 返回值需显式 `as int`；
+- 旧绕路批量清理（本轮）：`system_cstr` 包装（#160/#166 已修）、`fgetc` 逐字节读（#154 已修）、
+  lexer 的 `&&` 嵌套（#147 已修）、`String::new` 悬空注释（已修）；
+  仍保留：`ref String` 入字段需 `.copy()`（复测仍在）、枚举 `==` 不支持（复测仍在）。
 
 同步注意（2026-10-17，rust 0.6.6 / std 3b35778）：
 - std runtime 移除 `__ayanami_int_to_char`（字符转换改纯 Ayanami）：自举源码里的 15 处调用改为 `(c) as char`

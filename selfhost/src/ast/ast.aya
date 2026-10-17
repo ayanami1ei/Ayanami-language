@@ -2,8 +2,8 @@ import "string";
 
 // 索引式 AST：所有节点存在并行数组里（struct-of-arrays），子节点用 int id（-1 = 无），
 // 列表用 nexts 串成单链。
-// 说明：不用 [Node] + nodes[id].field = v —— 那会触发 #130 panic；
-// 递归 enum 也会栈溢出（无限大小）。并行标量数组是最稳的表示。
+// 说明：并行标量数组（struct-of-arrays）而非 [Node]：缓存友好、无递归 enum 无限大小问题；
+// #130（数组元素字段赋值 panic）虽已修，此表示仍是本仓约定。
 //
 // 字段含义（按 tag 解释）：
 //   texts = 名字/字面量文本/操作符名

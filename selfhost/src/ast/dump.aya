@@ -3,8 +3,7 @@ import "aya_sb";
 import "aya_ast";
 
 // AST 文本 dump：与 rust 版 src/compiler/debug 输出逐字节一致
-// 注意：源文件里不能出现非 ASCII 字符串字面量（issue #122 未合并前会 llc 失败），
-// 树线字符 "│ " 用 UTF-8 字节拼出来。
+// 注：#122（非 ASCII 字符串字面量）已修，但树线仍用 UTF-8 字节拼装以保持输出逐字节稳定。
 
 fn is_digit_d(int c) -> bool {
     if c >= 48 && c <= 57 { return true; }

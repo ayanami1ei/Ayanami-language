@@ -107,9 +107,7 @@ impl Lexer {
             } elif c == 47 && self.peek_next() == 47 {
                 self.bump();
                 self.bump();
-                // 注：#147（&& 两侧同一方法调用不更新）→ 用嵌套结构
-                while self.peek() >= 0 {
-                    if self.peek() == 10 { break; }
+                while self.peek() >= 0 && self.peek() != 10 {
                     self.bump();
                 }
             } elif c == 47 && self.peek_next() == 42 {
