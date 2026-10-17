@@ -592,22 +592,23 @@ src/hir/lower/body/match_coverage.rs:91: fn collect_bools(p: &Pattern, t: &mut b
 src/hir/lower/body/match_coverage.rs:100: pub(super) fn check_or_bindings(
 src/hir/lower/body/match_lower.rs:7: struct LoweredArm
 src/hir/lower/body/match_lower.rs:14: impl crate::hir::lower::Ctx
-src/hir/lower/body/match_lower.rs:16: fn normalize_pattern(&self, p: &Pattern, val_ty: &HirType) -> Pattern
-src/hir/lower/body/match_lower.rs:31: fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)>
-src/hir/lower/body/match_lower.rs:62: fn lower_match_arms(
-src/hir/lower/body/match_lower.rs:87: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
-src/hir/lower/body/match_lower.rs:108: fn enum_variant_count(&self, name: &Symbol) -> usize
-src/hir/lower/body/match_lower.rs:115: fn build_match_stmts(
-src/hir/lower/body/match_lower.rs:179: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
-src/hir/lower/body/match_lower.rs:196: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/match_lower.rs:17: fn normalize_pattern(&self, p: &Pattern, val_ty: &HirType) -> Pattern
+src/hir/lower/body/match_lower.rs:38: fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)>
+src/hir/lower/body/match_lower.rs:69: fn lower_match_arms(
+src/hir/lower/body/match_lower.rs:94: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
+src/hir/lower/body/match_lower.rs:115: fn enum_variant_count(&self, name: &Symbol) -> usize
+src/hir/lower/body/match_lower.rs:122: fn build_match_stmts(
+src/hir/lower/body/match_lower.rs:186: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
+src/hir/lower/body/match_lower.rs:203: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_pattern.rs:6: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_pattern.rs:8: pub(super) fn variant_tag(&self, enum_name: &Symbol, variant: &Symbol) -> Option<i64>
-src/hir/lower/body/match_pattern.rs:15: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:30: pub(super) fn pattern_match(
-src/hir/lower/body/match_pattern.rs:41: fn pattern_match_in(
-src/hir/lower/body/match_pattern.rs:260: fn cmp_const(
-src/hir/lower/body/match_pattern.rs:276: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:280: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:17: pub(super) fn bare_variant_name(&self, scrutinee: &HirType, name: &Symbol) -> Symbol
+src/hir/lower/body/match_pattern.rs:29: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:44: pub(super) fn pattern_match(
+src/hir/lower/body/match_pattern.rs:55: fn pattern_match_in(
+src/hir/lower/body/match_pattern.rs:269: fn cmp_const(
+src/hir/lower/body/match_pattern.rs:285: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:289: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
 src/hir/lower/body/match_setup.rs:5: fn is_match_place(node: &HirNodeBox) -> bool
 src/hir/lower/body/match_setup.rs:12: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_setup.rs:14: pub(super) fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -2807,6 +2808,9 @@ example/test_match_literals.aya:29: fn flag(bool b) -> int
 example/test_match_literals.aya:36: fn letter(char c) -> int
 example/test_match_literals.aya:43: fn opt_kind(Opt[int] o) -> int
 example/test_match_literals.aya:51: fn main() -> int
+example/test_match_qualified.aya:4: fn pick(Option[int] o) -> int
+example/test_match_qualified.aya:11: fn nested(Option[Option[int]] o) -> int
+example/test_match_qualified.aya:19: fn main() -> int
 example/test_memory.aya:5: fn make() -> int
 example/test_memory.aya:11: fn main() -> int
 example/test_memory_enum.aya:4: enum Maybe

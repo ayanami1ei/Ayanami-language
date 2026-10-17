@@ -1,9 +1,0 @@
-import "option"
-
-fn main() -> int {
-    o = Option::Some(1)
-    match o {
-        Option::None() => { return 1 }
-        Option::Some(x) => { return x }
-    }
-}

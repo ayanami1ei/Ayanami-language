@@ -12,17 +12,24 @@ struct LoweredArm {
 }
 
 impl crate::hir::lower::Ctx {
-    /// 模式归一化：枚举 scrutinee 下裸标识符若匹配变体名 → 无载荷变体模式
+    /// 模式归一化：裸标识符/限定名（`Option::None`）若匹配变体名 → 无载荷变体模式；
+    /// 限定名变体模式（`Option::Some(x)`）归一化为裸变体名（穷尽性检查按名匹配）。
     fn normalize_pattern(&self, p: &Pattern, val_ty: &HirType) -> Pattern {
+        let base = strip_ownership(val_ty.clone());
         match p {
             Pattern::Binding(n) => {
-                if let HirType::Named(en) = &strip_ownership(val_ty.clone()) {
-                    if self.variant_tag(en, n).is_some() {
-                        return Pattern::Enum { name: *n, args: Vec::new() };
+                if let HirType::Named(en) = &base {
+                    let bare = self.bare_variant_name(&base, n);
+                    if self.variant_tag(en, &bare).is_some() {
+                        return Pattern::Enum { name: bare, args: Vec::new() };
                     }
                 }
                 p.clone()
             }
+            Pattern::Enum { name, args } => Pattern::Enum {
+                name: self.bare_variant_name(&base, name),
+                args: args.clone(),
+            },
             Pattern::Or(ps) => Pattern::Or(ps.iter().map(|x| self.normalize_pattern(x, val_ty)).collect()),
             other => other.clone(),
         }

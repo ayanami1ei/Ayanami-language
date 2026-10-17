@@ -12,6 +12,20 @@ impl crate::hir::lower::Ctx {
         })
     }
 
+    /// 限定名变体（`Option::Some`/`Option.Some`）→ 裸变体名；
+    /// 仅当前缀等于 scrutinee 枚举基名且该变体存在时归一化（否则原样返回，走未知变体诊断）。
+    pub(super) fn bare_variant_name(&self, scrutinee: &HirType, name: &Symbol) -> Symbol {
+        let HirType::Named(en) = strip_ownership_ref(scrutinee) else { return *name };
+        let base_name = crate::hir::lower::strip_generic_name(en);
+        let Some(pos) = name.as_str().rfind('.') else { return *name };
+        let (prefix, bare) = (&name.as_str()[..pos], &name.as_str()[pos + 1..]);
+        let bare_sym = Symbol::intern(bare);
+        if prefix == base_name.as_str() && self.variant_tag(&base_name, &bare_sym).is_some() {
+            return bare_sym;
+        }
+        *name
+    }
+
     pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox {
         SBin {
             op: crate::parser::ast::BinaryOp::Eq,
@@ -47,22 +61,23 @@ impl crate::hir::lower::Ctx {
         nested: bool,
     ) -> Result<(Option<HirNodeBox>, Vec<HirStmt>)> {
         let base = strip_ownership(ty.clone());
-        // 裸标识符若匹配枚举变体名 → 变体模式（无载荷），支持嵌套 `Some(None)`
+        // 裸标识符/限定名若匹配枚举变体名 → 变体模式（无载荷），支持嵌套 `Some(None)`、`Option::None`
         if let Pattern::Binding(n) = pat {
             if let HirType::Named(en) = &base {
-                if self.variant_tag(en, n).is_some() {
-                    return self.pattern_match_in(&Pattern::Enum { name: *n, args: Vec::new() }, expr, ty, span, nested);
+                let bare = self.bare_variant_name(&base, n);
+                if self.variant_tag(en, &bare).is_some() {
+                    return self.pattern_match_in(&Pattern::Enum { name: bare, args: Vec::new() }, expr, ty, span, nested);
                 }
             }
         }
         match pat {
             Pattern::Wildcard => Ok((None, Vec::new())),
             Pattern::Binding(n) => {
-                // 限定名（`Option::None`）不是变体模式写法，给出明确诊断
-                if let Some(pos) = n.as_str().rfind('.') {
+                // 点号名未能归一化为变体（前缀不匹配/变体不存在）→ 明确诊断
+                if n.as_str().contains('.') {
                     return Err(Error::Hir(format!(
-                        "qualified variant pattern `{}` is not supported; write `{}` instead (at {}:{})",
-                        n.as_str().replace('.', "::"), &n.as_str()[pos + 1..],
+                        "unknown variant `{}` of enum `{}` (at {}:{})",
+                        n.as_str().replace('.', "::"), hir_type_display(&base),
                         span.start_line, span.start_col
                     )));
                 }
@@ -107,14 +122,8 @@ impl crate::hir::lower::Ctx {
                 Ok((Some(and_cond(c1, c2)), Vec::new()))
             }
             Pattern::Enum { name, args } => {
-                // 变体模式用裸名（`Some(x)`）；限定名（`Option::Some(x)`）仅用于构造
-                if let Some(pos) = name.as_str().rfind('.') {
-                    return Err(Error::Hir(format!(
-                        "qualified variant pattern `{}` is not supported; write `{}` instead (at {}:{})",
-                        name.as_str().replace('.', "::"), &name.as_str()[pos + 1..],
-                        span.start_line, span.start_col
-                    )));
-                }
+                // 限定名变体模式（`Option::Some(x)`）归一化为裸变体名
+                let name = &self.bare_variant_name(&base, name);
                 let HirType::Named(en) = &base else {
                     return Err(Error::Hir(format!(
                         "enum pattern `{}` cannot match `{}` (at {}:{})",
@@ -123,7 +132,7 @@ impl crate::hir::lower::Ctx {
                 };
                 let tag = self.variant_tag(en, name).ok_or_else(|| Error::Hir(format!(
                     "unknown variant `{}` of enum `{}` (at {}:{})",
-                    name.as_str(), en.as_str(), span.start_line, span.start_col
+                    name.as_str().replace('.', "::"), en.as_str(), span.start_line, span.start_col
                 )))?;
                 let mut cond = Self::tag_cond(expr, tag as usize);
                 let mut binds = Vec::new();

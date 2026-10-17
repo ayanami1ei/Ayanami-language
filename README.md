@@ -253,7 +253,7 @@ const PI: float = 3.14159
 if a > b { return 1; } elif a < b { return 2; } else { return 3; }
 while a < 10 { a = a + 1; }
 for i in (0, 10) { /* i: 0..9 */ }
-match x { V(v) => expr, W => expr }   // 枚举模式匹配
+match x { V(v) => expr, W => expr }   // 枚举模式匹配（也支持限定名 Enum::V(x) / Enum::W）
 break / continue                      // 循环控制
 ```
 
