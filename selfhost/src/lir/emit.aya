@@ -696,10 +696,14 @@ impl Emitter {
             tmp2.push_str(".ptr = alloca ptr\n  %v_");
             tmp2.push_str(name);
             tmp2.push_str(".len = alloca i64\n");
+        } elif form == 3 {
+            tmp2.push_str("  %v_");
+            tmp2.push_str(name);
+            tmp2.push_str(".d = alloca double\n");
         } elif form == 2 {
             tmp2.push_str("  %v_");
             tmp2.push_str(name);
-            tmp2.push_str(" = alloca ptr\n");
+            tmp2.push_str(".p = alloca ptr\n");
         } else {
             tmp2.push_str("  %v_");
             tmp2.push_str(name);
@@ -2070,6 +2074,7 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                     e.buf.push_str(vp_p);
                     e.buf.push_str(", ptr %v_");
                     e.buf.push_str(bname2);
+                    e.buf.push_str(".p");
                     e.buf.push_str("\n");
                 } else {
                     e.buf.push_str("\n");
@@ -2483,6 +2488,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(t9);
             e.buf.push_str(" = load ptr, ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n");
             return mk_arr(t9, e.find_elem(nm));
         }
@@ -2492,6 +2498,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(df);
             e.buf.push_str(" = load double, ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".d");
             e.buf.push_str("\n");
             return mk_float(df);
         }
@@ -2501,6 +2508,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(rp);
             e.buf.push_str(" = load ptr, ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n  ");
             rv2 = e.fresh();
             e.buf.push_str(rv2);
@@ -2515,6 +2523,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(t);
             e.buf.push_str(" = load ptr, ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n");
             ei5 = e.etype_of_local(nm);
             en5 = "";
@@ -2528,6 +2537,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(t);
             e.buf.push_str(" = load ptr, ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n");
             return Val { kind = 2, a = t, b = e.struct_of_local(nm), ty = -1 };
         }
@@ -2552,6 +2562,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(t);
             e.buf.push_str(" = load ptr, ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n");
             return mk_arr(t, e.elem_of_local(nm));
         }
@@ -4049,6 +4060,7 @@ fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(t);
             e.buf.push_str(" = load ptr, ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n");
             bp = t;
             ety = ety_l;
@@ -4201,6 +4213,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(ad);
             e.buf.push_str(", ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n");
             return;
         }
@@ -4211,6 +4224,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(rp2);
             e.buf.push_str(" = load ptr, ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n  store i64 ");
             e.buf.push_str(v.a);
             e.buf.push_str(", ptr ");
@@ -4225,6 +4239,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(v.a);
             e.buf.push_str(", ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n");
             return;
         }
@@ -4234,6 +4249,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(v.a);
             e.buf.push_str(", ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".d");
             e.buf.push_str("\n");
             return;
         }
@@ -4245,6 +4261,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(v.a);
             e.buf.push_str(", ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n");
             return;
         }
@@ -4256,6 +4273,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(v.a);
             e.buf.push_str(", ptr %v_");
             e.buf.push_str(nm);
+            e.buf.push_str(".p");
             e.buf.push_str("\n");
             return;
         }
@@ -4785,7 +4803,7 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             if kind_self == 1 {
                 e.buf.push_str("  store ptr %self, ptr %v_self.ptr\n  store i64 0, ptr %v_self.len\n");
             } else {
-                e.buf.push_str("  store ptr %self, ptr %v_self\n");
+                e.buf.push_str("  store ptr %self, ptr %v_self.p\n");
             }
             idx2 = idx2 + 1;
         } else {
@@ -4804,7 +4822,7 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
                 e.buf.push_int(idx2);
                 e.buf.push_str(", ptr %v_");
                 e.buf.push_str(pname);
-                e.buf.push_str("\n");
+                e.buf.push_str(".d\n");
                 idx2 = idx2 + 1;
             } elif pk == 1 {
                 // String 参数：ptr + len 双槽
@@ -4834,7 +4852,7 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
                 e.buf.push_int(idx2);
                 e.buf.push_str(", ptr %v_");
                 e.buf.push_str(pname);
-                e.buf.push_str("\n");
+                e.buf.push_str(".p\n");
                 idx2 = idx2 + 1;
             }
             pty2 = ast.tys[p2];

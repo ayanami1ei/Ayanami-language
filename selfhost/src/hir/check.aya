@@ -387,6 +387,12 @@ fn convertible(ref String from, ref String to) -> bool {
     fb = strip_generic(f);
     tb = strip_generic(t);
     if fb == tb { return true; }
+    // i1（比较/逻辑结果）可隐式转 int/float/bool
+    if f == "i1" {
+        if t == "int" || t == "float" || t == "bool" || t == "f32" || t == "f64" { return true; }
+        if t == "usize" || t == "i32" || t == "i64" || t == "u32" || t == "u64" { return true; }
+    }
+    if t == "i1" && f == "bool" { return true; }
     // 浮点族互转（float/f32/f64）
     if is_float_ty(f) && is_float_ty(t) { return true; }
     // 整型族互转（usize 与 u64 同宽，视为等价）
@@ -396,6 +402,8 @@ fn convertible(ref String from, ref String to) -> bool {
     if f == "usize" && t == "u64" { return true; }
     if f == "i64" && t == "int" { return true; }
     if f == "int" && t == "i64" { return true; }
+    if f == "isize" && t == "int" { return true; }
+    if f == "int" && t == "isize" { return true; }
     // 具体整型 -> int / int -> 具体整型
     if t == "int" && is_int_ty(f) { return true; }
     if f == "int" && is_int_ty(t) { return true; }
@@ -413,6 +421,14 @@ fn strip_generic(ref String t) -> String {
         i = i + 1;
     }
     return t.copy();
+}
+
+/// 隐式注入形参（调用点不写）
+fn is_implicit_param(ref String name) -> bool {
+    if name == "__line" { return true; }
+    if name == "__col" { return true; }
+    if name == "__file" { return true; }
+    return false;
 }
 
 /// 浮点类型名
@@ -756,11 +772,13 @@ impl Checker {
             n = 0;
             p = ast.aa[id];
             while p >= 0 {
-                if self.fn_ptotal < 16384 {
-                    self.fn_ptypes[self.fn_ptotal] = type_name(ast, ast.tys[p]);
-                    self.fn_ptotal = self.fn_ptotal + 1;
+                if !is_implicit_param(ast.texts[p]) {
+                    if self.fn_ptotal < 16384 {
+                        self.fn_ptypes[self.fn_ptotal] = type_name(ast, ast.tys[p]);
+                        self.fn_ptotal = self.fn_ptotal + 1;
+                    }
+                    n = n + 1;
                 }
-                n = n + 1;
                 p = ast.nexts[p];
             }
             self.fn_nparams[fi] = n;
@@ -941,7 +959,7 @@ impl Checker {
                     }
                     i = i + 1;
                 }
-            } elif ty == "bool" {
+            } elif ty == "bool" || ty == "i1" {
                 if !(has_true == 1 && has_false == 1) { need = 1; }
             } elif st >= 0 {
                 if struct_destr == 0 { need = 1; }
@@ -1285,7 +1303,10 @@ impl Checker {
                 b.push_str(at);
                 first = 0;
                 if n < self.fn_nparams[fi] {
-                    if !convertible(at, self.fn_ptypes[pstart + n]) { ok = 0; }
+                    pty_m = self.fn_ptypes[pstart + n];
+                    if !self.is_gp(pty_m) && self.find_interface(pty_m) < 0 {
+                        if !convertible(at, pty_m) { ok = 0; }
+                    }
                 } else {
                     ok = 0;
                 }
@@ -1338,15 +1359,15 @@ impl Checker {
                     }
                 }
                 if op == bo(BinOp::Eq._tag) || op == bo(BinOp::Neq._tag) || op == bo(BinOp::Lt._tag) || op == bo(BinOp::Gt._tag) || op == bo(BinOp::Le._tag) || op == bo(BinOp::Ge._tag) {
-                    return "bool";
+                    return "i1";
                 }
                 return "";
             }
             if op == bo(BinOp::And._tag) || op == bo(BinOp::Or._tag) {
-                return "bool";
+                return "i1";
             }
             if op == bo(BinOp::Eq._tag) || op == bo(BinOp::Neq._tag) || op == bo(BinOp::Lt._tag) || op == bo(BinOp::Gt._tag) || op == bo(BinOp::Le._tag) || op == bo(BinOp::Ge._tag) {
-                return "bool";
+                return "i1";
             }
             if op == bo(BinOp::BitAnd._tag) || op == bo(BinOp::BitOr._tag) || op == bo(BinOp::BitXor._tag) || op == bo(BinOp::Shl._tag) || op == bo(BinOp::Shr._tag) {
                 bad = "";
@@ -1396,7 +1417,7 @@ impl Checker {
         if tag == et(ET::Unary._tag) {
             t2 = self.check_expr(ast, ast.aa[id]);
             op = ast.tys[id];
-            if op == uo(UnOp::Not._tag) { return "bool"; }
+            if op == uo(UnOp::Not._tag) { return "i1"; }
             return t2;
         }
         if tag == et(ET::StructLiteral._tag) {
