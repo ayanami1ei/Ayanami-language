@@ -89,10 +89,12 @@ if command -v docker >/dev/null 2>&1; then
     # 镜像可配（默认 ubuntu:24.04；国内镜像源可用 AYANAMI_BASELINE_IMAGE 覆盖）
     for img in "${AYANAMI_BASELINE_IMAGE:-ubuntu:24.04}" "docker.m.daocloud.io/library/ubuntu:24.04"; do
         if docker run --rm -v "$PWD/install:/out" "$img" bash -c \
-            'apt-get -o Acquire::http::Dl-Limit=10240 -o Acquire::https::Dl-Limit=10240 update -qq >/dev/null 2>&1 && apt-get -o Acquire::http::Dl-Limit=10240 -o Acquire::https::Dl-Limit=10240 install -y -qq libedit2 libncurses6 >/dev/null 2>&1 && \
-             cp -L /usr/lib/x86_64-linux-gnu/libedit.so.2 /usr/lib/x86_64-linux-gnu/libncursesw.so.6 /out/' \
+            'apt-get -o Acquire::http::Dl-Limit=10240 -o Acquire::https::Dl-Limit=10240 update -qq >/dev/null 2>&1 && apt-get -o Acquire::http::Dl-Limit=10240 -o Acquire::https::Dl-Limit=10240 install -y -qq libedit2 libncurses6 libbsd0 >/dev/null 2>&1 && \
+             for f in libedit.so.2 libncursesw.so.6 libbsd.so.0 libmd.so.0; do \
+                 if [ -e "/usr/lib/x86_64-linux-gnu/$f" ]; then cp -L "/usr/lib/x86_64-linux-gnu/$f" /out/; fi; \
+             done' \
             >/dev/null 2>&1; then
-            echo "已从 $img 取基线库（libedit/libncurses）"
+            echo "已从 $img 取基线库（libedit/libncurses/libbsd）"
             fetched_baseline=1
             break
         fi
@@ -102,19 +104,24 @@ if [ "$fetched_baseline" = 0 ]; then
     echo "警告：无法从基线容器取库（docker/网络不可用），沿用本机库（仅基线 glibc 兼容发行版可用）" >&2
 fi
 
-# 2) 收集 llc + libLLVM 的依赖，按 soname 复制（跳过 libc/libm/libstdc++ 等基线库）
-{ ldd install/llc 2>/dev/null; ldd install/libLLVM.so.21.1 2>/dev/null; } \
-    | awk '{print $3}' | grep -E '^/' | sort -u | while read -r p; do
-    base=$(basename "$p")
-    case "$base" in
-        libc.so.6|libm.so.6|libgcc_s.so.1|libstdc++.so.6) continue;;
-    esac
-    [ -e "install/$base" ] && continue
-    cp -L "$p" "install/$base"
-    need=$(glibc_need "$p")
-    if glibc_too_new "$need"; then
-        echo "警告: $base 需要 glibc $need > 基线 $BASELINE_GLIBC（目标发行版可能不兼容）" >&2
-    fi
+# 2) 收集 llc + libLLVM + 已打包库的依赖（递归），按 soname 复制（跳过 libc/libm/libstdc++ 等基线库）
+for _round in 1 2 3 4; do
+    added=0
+    while read -r p; do
+        base=$(basename "$p")
+        case "$base" in
+            libc.so.6|libm.so.6|libgcc_s.so.1|libstdc++.so.6) continue;;
+        esac
+        [ -e "install/$base" ] && continue
+        cp -L "$p" "install/$base"
+        added=1
+        need=$(glibc_need "$p")
+        if glibc_too_new "$need"; then
+            echo "警告: $base 需要 glibc $need > 基线 $BASELINE_GLIBC（目标发行版可能不兼容）" >&2
+        fi
+    done < <({ ldd install/llc 2>/dev/null; ldd install/libLLVM.so.21.1 2>/dev/null; ldd install/*.so.* 2>/dev/null; } \
+        | awk '{print $3}' | grep -E '^/' | sort -u)
+    [ "$added" = 0 ] && break
 done
 
 echo "== 5/5 打包 =="
