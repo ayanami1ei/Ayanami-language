@@ -1,0 +1,16 @@
+// bd 8yn：同名自由函数不得遮蔽 impl 方法（此前 w.get() 解析到自由函数）
+struct W {
+    int v
+}
+
+fn get(W w) -> int { return 100 }
+
+impl W {
+    fn get(ref self) -> int { return self.v }
+}
+
+fn main() -> int {
+    w = W { v = 7 }
+    if w.get() != 7 { return 1 }
+    return 0
+}

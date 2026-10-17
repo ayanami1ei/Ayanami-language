@@ -204,6 +204,7 @@ impl crate::hir::lower::Ctx {
                                 is_unsafe: false,
                             });
                             self.fn_map.entry(*name).or_default().push(fn_id);
+                            self.method_fn_ids.insert(fn_id);
                         } else {
                             let s = method.span();
                             return Err(Error::Hir(format!("unexpected non-FnDecl inside impl block (at {}:{})", s.start_line, s.start_col)));

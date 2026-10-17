@@ -41,6 +41,8 @@ pub(crate) struct Ctx {
     pub synth_externs: Vec<HirFn>,
     /// M1.7：溢出助手去重（名称 → FnId）
     pub ovf_helpers: HashMap<Symbol, FnId>,
+    /// bd 8yn：impl 方法（非泛型）的 FnId——方法调用解析优先方法候选，避免被同名自由函数抢占
+    pub method_fn_ids: std::collections::HashSet<FnId>,
     /// M6.1：编译期常量（名 → (类型, 值)），使用点内联为 SConst
     pub consts: HashMap<Symbol, (HirType, HirLiteral)>,
     /// M6.1b：可导出常量（规范化名 → (类型, 值)）；顶层裸名、命名空间限定名
@@ -118,6 +120,7 @@ impl Ctx {
             specialized_fns: Vec::new(),
             synth_externs: Vec::new(),
             ovf_helpers: HashMap::new(),
+            method_fn_ids: std::collections::HashSet::new(),
             consts: HashMap::new(),
             const_exports: Vec::new(),
             statics: HashMap::new(),

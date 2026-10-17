@@ -13,6 +13,7 @@ mod vtables;
 mod iface_args;
 mod iface_match;
 mod overload_resolve;
+mod overload_method;
 mod generic_check;
 mod generic_locals;
 mod generic_specialize;
