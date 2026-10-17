@@ -141,7 +141,8 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
                 parts.push(format!("in({}) {}", asm_constraint(c), write_expr_at(e, level)));
             }
             let extra = if parts.is_empty() { String::new() } else { format!(", {}", parts.join(", ")) };
-            format!("asm(\"{}\"{})", template, extra)
+            // #197：模板按源码转义输出（不展开 `\n` 等）
+            format!("asm(\"{}\"{})", escape_string(template), extra)
         }
         Expr::Index { object, index, .. } => {
             // #190：索引对象同接收者（`(a - b)[0]`）
@@ -214,6 +215,25 @@ fn asm_constraint(c: &str) -> &str {
     if c.contains('r') { "reg" } else { c }
 }
 
+/// 字符串转义（与源码字符串字面量一致）：fmt 不得展开转义（#197 asm 模板换行）。
+/// 仅控制字符用 `\xNN`；非 ASCII 按 UTF-8 原样（`\x` 只吃两位十六进制）。
+pub(super) fn escape_string(s: &str) -> String {
+    let mut out = String::new();
+    for c in s.chars() {
+        match c {
+            '\n' => out.push_str("\\n"),
+            '\t' => out.push_str("\\t"),
+            '\r' => out.push_str("\\r"),
+            '\0' => out.push_str("\\0"),
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            c if c.is_control() => out.push_str(&format!("\\x{:02x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 pub(super) fn write_literal(lit: &Literal) -> String {
     match lit {
         Literal::Int(n, _) => n.to_string(),
@@ -237,23 +257,7 @@ pub(super) fn write_literal(lit: &Literal) -> String {
             };
             format!("'{}'", s)
         }
-        Literal::String(s, _) => {
-            let mut out = String::from("\"");
-            for c in s.chars() {
-                match c {
-                    '\n' => out.push_str("\\n"),
-                    '\t' => out.push_str("\\t"),
-                    '\r' => out.push_str("\\r"),
-                    '\0' => out.push_str("\\0"),
-                    '\\' => out.push_str("\\\\"),
-                    '"' => out.push_str("\\\""),
-                    c if c.is_ascii_graphic() || c == ' ' => out.push(c),
-                    c => out.push_str(&format!("\\x{:02x}", c as u32)),
-                }
-            }
-            out.push('"');
-            out
-        }
+        Literal::String(s, _) => format!("\"{}\"", escape_string(s)),
         Literal::Bool(b, _) => b.to_string(),
     }
 }
