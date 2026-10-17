@@ -116,8 +116,9 @@ src/compiler/build/passes/mod.rs:16: mod flat;
 src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<FnId, bool>
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
 src/compiler/build/passes/mod.rs:46: pub(super) fn apply_passes(
-src/compiler/build/target.rs:4: pub fn build_source_with_target(
-src/compiler/build/target.rs:128: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:6: fn scan_source_deps(src_path: &Path) -> bool
+src/compiler/build/target.rs:30: pub fn build_source_with_target(
+src/compiler/build/target.rs:157: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:72: fn has_return_in_stmt(s: &HirStmt) -> bool
@@ -366,12 +367,15 @@ src/hir/contracts.rs:21: pub fn ensure_bool_condition(cond: &crate::hir::HirNode
 src/hir/contracts.rs:31: static RELEASE_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 src/hir/contracts.rs:34: pub fn set_release(v: bool)
 src/hir/contracts.rs:39: pub fn is_release() -> bool
-src/hir/contracts.rs:45: pub fn checks_enabled() -> bool
-src/hir/contracts.rs:53: pub fn requires_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
-src/hir/contracts.rs:64: pub fn validate_invariant_attrs(attrs: &[Attr]) -> Result<()>
-src/hir/contracts.rs:79: pub fn invariant_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
-src/hir/contracts.rs:90: pub fn ensure_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
-src/hir/contracts.rs:101: pub fn assume_conditions(attrs: &[Attr]) -> Vec<&Expr>
+src/hir/contracts.rs:44: static MULTI_MODULE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+src/hir/contracts.rs:47: pub fn set_multi_module(v: bool)
+src/hir/contracts.rs:52: pub fn is_multi_module() -> bool
+src/hir/contracts.rs:58: pub fn checks_enabled() -> bool
+src/hir/contracts.rs:66: pub fn requires_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
+src/hir/contracts.rs:77: pub fn validate_invariant_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/contracts.rs:92: pub fn invariant_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
+src/hir/contracts.rs:103: pub fn ensure_conditions(attrs: &[Attr]) -> Vec<(&Expr, usize, usize)>
+src/hir/contracts.rs:114: pub fn assume_conditions(attrs: &[Attr]) -> Vec<&Expr>
 src/hir/display.rs:5: pub fn display_hir_program(program: &HirProgram)
 src/hir/display.rs:9: pub fn hir_program_to_string(program: &HirProgram) -> String
 src/hir/display.rs:18: pub(crate) fn pad(n: usize) -> String
@@ -1225,9 +1229,9 @@ src/lir/emit/functions.rs:87: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:88: pub(super) fn emit_struct_defs(&mut self)
 src/lir/emit/functions.rs:117: pub(super) fn emit_string_globals(&mut self)
 src/lir/emit/functions.rs:137: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:238: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:255: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:269: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:240: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:257: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:271: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
