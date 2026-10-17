@@ -3067,7 +3067,7 @@ fn emit_indirect_call(ref Ast ast, ref String fval, int fty, int args, ref mut E
             b.push_str(at0.b);
         } elif pk0 == 31 {
             b.push_str("double ");
-            b.push_str(at0.a);
+            b.push_str(float_operand(at0, e));
         } elif pk0 == 0 {
             b.push_str("i64 ");
             b.push_str(at0.a);
@@ -3986,7 +3986,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             pk2 = e.fn_param_kind(nm, ak);
             if pk2 == 31 {
                 b.push_str("double ");
-                b.push_str(at2.a);
+                b.push_str(float_operand(at2, e));
             } elif pk2 == 30 {
                 b.push_str("ptr ");
                 b.push_str(addr_of_arg(ast, ast.aa[a2], e));
@@ -4146,8 +4146,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     e.buf.push_str(g1b);
                     e.buf.push_str("\n");
                 } elif fk == 5 {
+                    fv5 = float_operand(v, e);
                     e.buf.push_str("  store double ");
-                    e.buf.push_str(v.a);
+                    e.buf.push_str(fv5);
                     e.buf.push_str(", ptr ");
                     e.buf.push_str(g);
                     e.buf.push_str("\n");
@@ -4659,7 +4660,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 pk3 = e.fn_param_kind(mfull, ak3);
                 if pk3 == 31 {
                     b3.push_str(", double ");
-                    b3.push_str(at3.a);
+                    b3.push_str(float_operand(at3, e));
                 } elif pk3 == 30 {
                     b3.push_str(", ptr ");
                     b3.push_str(addr_of_arg(ast, ast.aa[a3], e));
@@ -4955,7 +4956,15 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         av3 = emit_array_new(ast, id, ety3, cnt3.a, e);
         lty3 = elem_llvm(ast, ety3);
         fill = ev3.a;
-        if elem_is_leaf(lty3) {
+        if lty3 == "double" && ev3.kind != 6 {
+            fd3 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(fd3);
+            e.buf.push_str(" = sitofp i64 ");
+            e.buf.push_str(ev3.a);
+            e.buf.push_str(" to double\n");
+            fill = fd3;
+        } elif elem_is_leaf(lty3) {
             t3b = e.fresh();
             e.buf.push_str("  ");
             e.buf.push_str(t3b);
@@ -5219,7 +5228,17 @@ fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, r
         }
         return;
     }
-    // i8/i32/double：截断后写入，读回时按同样宽度
+    if lty == "double" {
+        // 浮点元素：整数/字面量 sitofp
+        fve = float_operand(v, e);
+        e.buf.push_str("  store double ");
+        e.buf.push_str(fve);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(gep);
+        e.buf.push_str("\n");
+        return;
+    }
+    // i8/i32：截断后写入，读回时按同样宽度
     e.buf.push_str("  ");
     w = e.fresh();
     e.buf.push_str(w);
@@ -5636,8 +5655,9 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
                     e.buf.push_str(gab);
                     e.buf.push_str("\n");
                 } elif fk_a == 5 {
+                    fv5a = float_operand(v, e);
                     e.buf.push_str("  store double ");
-                    e.buf.push_str(v.a);
+                    e.buf.push_str(fv5a);
                     e.buf.push_str(", ptr ");
                     e.buf.push_str(g);
                     e.buf.push_str("\n");
