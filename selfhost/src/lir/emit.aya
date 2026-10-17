@@ -34,6 +34,7 @@ pub struct Emitter {
     [int] st_fkind
     [int] st_finfo
     [int] st_fslot
+    [int] st_ftype
     [int] st_slots
     // 方法表：(类型, 方法名) -> FnDecl id
     [String] m_ty
@@ -74,6 +75,19 @@ pub struct Emitter {
     [int] lam_ids
     [String] lam_names
     int lam_count
+    // 闭包捕获表（按 lambda 表下标索引）
+    [int] cap_start
+    [int] cap_count
+    [int] cap_done
+    [String] cap_names
+    [int] cap_kinds
+    [int] cap_etypes
+    [int] cap_ids
+    int cap_total
+    // Fn 值环境块全局（@fnenv.* / @lamenv.*）
+    [String] env_g_names
+    int env_g_count
+    StringBuf env_defs
     // 全局常量/静态：0=int 2=数组；数组元素以逗号串存
     [String] g_names
     [int] g_kinds
@@ -103,6 +117,7 @@ pub namespace Emitter {
             st_names = [String; 128], st_fstart = [int; 128], st_fcount = [int; 128],
             st_fields = [String; 1024], st_ftotal = 0, st_count = 0,
             st_fkind = [int; 1024], st_finfo = [int; 1024], st_fslot = [int; 1024],
+            st_ftype = [int; 1024],
             st_slots = [int; 128],
             m_ty = [String; 4096], m_name = [String; 4096], m_id = [int; 4096], m_count = 0,
             en_names = [String; 128], en_vstart = [int; 128], en_vcount = [int; 128],
@@ -114,6 +129,10 @@ pub namespace Emitter {
             decl_names = [String; 2048], decl_count = 0,
             lambda_buf = StringBuf::new(),
             lam_ids = [int; 256], lam_names = [String; 256], lam_count = 0,
+            cap_start = [int; 256], cap_count = [int; 256], cap_done = [int; 256],
+            cap_names = [String; 1024], cap_kinds = [int; 1024], cap_etypes = [int; 1024],
+            cap_ids = [int; 1024], cap_total = 0,
+            env_g_names = [String; 512], env_g_count = 0, env_defs = StringBuf::new(),
             g_names = [String; 512], g_kinds = [int; 512], g_vals = [String; 512],
             g_lens = [int; 512], g_count = 0,
             pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
@@ -148,6 +167,16 @@ fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String {
             if e.global_kind(nm) == 0 { return "@" + nm; }
             kd = e.local_kind(nm);
             if kd == 0 { return "%v_" + nm; }
+            if kd == 30 {
+                // 已是引用：直接传递保存的指针
+                rp30 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(rp30);
+                e.buf.push_str(" = load ptr, ptr %v_");
+                e.buf.push_str(nm);
+                e.buf.push_str(".p\n");
+                return rp30;
+            }
         }
     }
     v = emit_expr(ast, id, e);
@@ -333,41 +362,24 @@ fn mk_str(ref String ptr, int len) -> Val {
     return Val { kind = 1, a = ptr.copy(), b = b.to_string(), ty = -1 };
 }
 
-/// 闭包类型第 i 个参数的种类（与 param_kind 同编码）
-fn closure_param_kind(ref Ast ast, int fty, int i) -> int {
-    if fty < 0 { return 0; }
-    if ast.tags[fty] != tt(TT::Closure._tag) { return 0; }
-    p = ast.aa[fty];
-    k = 0;
-    while p >= 0 {
-        if k == i {
-            pt = ast.tys[p];
-            return param_kind_of_ty(ast, pt);
-        }
-        k = k + 1;
-        p = ast.nexts[p];
-    }
-    return 0;
+/// Fn 类型/函数/lambda 节点的参数链（-1 表示无）
+fn fn_type_params(ref Ast ast, int fty) -> int {
+    if fty < 0 { return -1; }
+    tg = ast.tags[fty];
+    if tg == tt(TT::Closure._tag) { return ast.aa[fty]; }
+    if tg == et(ET::Lambda._tag) { return ast.aa[fty]; }
+    if tg == st(ST::FnDecl._tag) { return ast.aa[fty]; }
+    return -1;
 }
 
-/// 类型节点 -> 参数种类（与 Emitter.param_kind 相同规则，无表查询）
-fn param_kind_of_ty(ref Ast ast, int pt) -> int {
-    if pt < 0 { return 0; }
-    while pt >= 0 {
-        if ast.tags[pt] != tt(TT::Ref._tag) { break; }
-        pt = ast.aa[pt];
-    }
-    if pt < 0 { return 0; }
-    tg = ast.tags[pt];
-    if tg == tt(TT::Float._tag) { return 31; }
-    if tg == tt(TT::Array._tag) || tg == tt(TT::ArraySized._tag) { return 3; }
-    if tg == tt(TT::Named._tag) || tg == tt(TT::Generic._tag) {
-        tn = ast.texts[pt];
-        if tn == "String" { return 1; }
-        if tn == "f32" || tn == "f64" { return 31; }
-        return 2;
-    }
-    return 0;
+/// Fn 类型/函数/lambda 节点的返回类型（-1 表示无）
+fn fn_type_ret(ref Ast ast, int fty) -> int {
+    if fty < 0 { return -1; }
+    tg = ast.tags[fty];
+    if tg == tt(TT::Closure._tag) { return ast.tys[fty]; }
+    if tg == et(ET::Lambda._tag) { return ast.tys[fty]; }
+    if tg == st(ST::FnDecl._tag) { return ast.tys[fty]; }
+    return -1;
 }
 
 /// 浮点运算操作数：浮点值直接用，整数/字面量转 double
@@ -849,6 +861,160 @@ impl Emitter {
         return -1;
     }
 
+    /// lambda AST id -> lambda 表下标
+    fn lam_index_of(ref mut self, int id) -> int {
+        i = 0;
+        while i < self.lam_count {
+            if self.lam_ids[i] == id { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    /// 追加一个闭包捕获（同名去重）
+    #[alloc]
+    #[state]
+    fn cap_add(ref mut self, int li, ref String name, int kind, int ety, int cid) {
+        start = self.cap_start[li];
+        cnt = self.cap_count[li];
+        i = 0;
+        while i < cnt {
+            if self.cap_names[start + i] == name { return; }
+            i = i + 1;
+        }
+        if self.cap_total >= 1024 { return; }
+        if cnt >= 32 { return; }
+        self.cap_names[self.cap_total] = name.copy();
+        self.cap_kinds[self.cap_total] = kind;
+        self.cap_etypes[self.cap_total] = ety;
+        self.cap_ids[self.cap_total] = cid;
+        self.cap_total = self.cap_total + 1;
+        self.cap_count[li] = cnt + 1;
+    }
+
+    /// Fn 值环境块全局（去重）：@<prefix>.<code> = global [1 x ptr] [ptr @<code>]
+    #[alloc]
+    #[state]
+    fn add_env_global(ref mut self, ref String prefix, ref String code_name) -> String {
+        gname = prefix + "." + code_name;
+        i = 0;
+        while i < self.env_g_count {
+            if self.env_g_names[i] == gname { return gname; }
+            i = i + 1;
+        }
+        if self.env_g_count < 512 {
+            self.env_g_names[self.env_g_count] = gname.copy();
+            self.env_g_count = self.env_g_count + 1;
+        }
+        self.env_defs.push_str("@");
+        self.env_defs.push_str(gname);
+        self.env_defs.push_str(" = global [1 x ptr] [ptr @");
+        self.env_defs.push_str(code_name);
+        self.env_defs.push_str("]\n");
+        return gname;
+    }
+
+    /// 赋值时记录函数值的 Fn 类型（lambda/命名函数/Fn 局部/结构体字段）
+    #[alloc]
+    #[state]
+    fn record_assign_ftype(ref mut self, ref Ast ast, ref String nm, int rhs) {
+        if self.ftype_of_local(nm) >= 0 { return; }
+        tg_r = ast.tags[rhs];
+        if tg_r == et(ET::Lambda._tag) {
+            self.record_ftype(nm, rhs);
+            return;
+        }
+        if tg_r == et(ET::Ident._tag) {
+            rn_r = ast.texts[rhs];
+            ft_r = self.ftype_of_local(rn_r);
+            if ft_r >= 0 {
+                self.record_ftype(nm, ft_r);
+                return;
+            }
+            if self.fn_ret_type(rn_r) >= 0 {
+                fid_r = self.fn_first_id(rn_r);
+                if fid_r >= 0 { self.record_ftype(nm, fid_r); }
+            }
+            return;
+        }
+        if tg_r == et(ET::FnCall._tag) {
+            rn_r2 = ast.texts[rhs];
+            rt_r = self.fn_ret_type(rn_r2);
+            if rt_r >= 0 {
+                if ast.tags[rt_r] == tt(TT::Closure._tag) {
+                    self.record_ftype(nm, rt_r);
+                }
+            }
+            return;
+        }
+        if tg_r == et(ET::FieldAccess._tag) {
+            ob_r = ast.aa[rhs];
+            if ob_r >= 0 {
+                if ast.tags[ob_r] == et(ET::Ident._tag) {
+                    stn_r = self.struct_of_local(ast.texts[ob_r]);
+                    si_r = self.find_struct_idx(stn_r);
+                    fi_r = self.find_field_idx(stn_r, ast.texts[rhs]);
+                    if si_r >= 0 && fi_r >= 0 {
+                        ft_r2 = self.ftype_at(si_r, fi_r);
+                        if ft_r2 >= 0 {
+                            if ast.tags[ft_r2] == tt(TT::Closure._tag) {
+                                self.record_ftype(nm, ft_r2);
+                            }
+                        }
+                    }
+                }
+            }
+            return;
+        }
+    }
+
+    /// 类型节点 -> 参数种类（与 param_kind 同规则）
+    #[alloc]
+    #[state]
+    fn pk_of_ty(ref mut self, ref Ast ast, int pt) -> int {
+        if pt < 0 { return 0; }
+        is_ref2 = 0;
+        while pt >= 0 {
+            if ast.tags[pt] != tt(TT::Ref._tag) { break; }
+            is_ref2 = 1;
+            pt = ast.aa[pt];
+        }
+        if pt < 0 { return 0; }
+        ptg = ast.tags[pt];
+        if ptg == tt(TT::Array._tag) || ptg == tt(TT::ArraySized._tag) { return 3; }
+        if ptg == tt(TT::Float._tag) { return 31; }
+        if ptg == tt(TT::Generic._tag) { ptg = tt(TT::Named._tag); }
+        if ptg != tt(TT::Named._tag) {
+            if is_ref2 == 1 { return 30; }
+            return 0;
+        }
+        tn = ast.texts[pt];
+        if tn == "f32" || tn == "f64" { return 31; }
+        if tn == "String" { return 1; }
+        ei = self.find_enum_idx(tn);
+        if ei >= 0 { return 20; }
+        si = self.find_struct_idx(tn);
+        if si >= 0 { return 100 + si; }
+        if is_ref2 == 1 { return 30; }
+        return 0;
+    }
+
+    /// 闭包类型第 i 个参数的种类
+    #[alloc]
+    #[state]
+    fn closure_param_kind(ref mut self, ref Ast ast, int fty, int i) -> int {
+        p = fn_type_params(ast, fty);
+        k = 0;
+        while p >= 0 {
+            if k == i {
+                return self.pk_of_ty(ast, ast.tys[p]);
+            }
+            k = k + 1;
+            p = ast.nexts[p];
+        }
+        return 0;
+    }
+
     /// 该名首次定义的 FnDecl id（重载只发射第一个）
     fn fn_first_id(ref mut self, ref String fname) -> int {
         f = 0;
@@ -1136,6 +1302,11 @@ impl Emitter {
         return self.st_fslot[self.st_fstart[si] + idx];
     }
 
+    fn ftype_at(ref mut self, int si, int idx) -> int {
+        if si < 0 { return -1; }
+        return self.st_ftype[self.st_fstart[si] + idx];
+    }
+
     fn find_method_id(ref mut self, ref String ty, ref String name) -> int {
         i = 0;
         while i < self.m_count {
@@ -1205,6 +1376,7 @@ impl Emitter {
                 self.st_fkind[self.st_ftotal] = fk;
                 self.st_finfo[self.st_ftotal] = finfo;
                 self.st_fslot[self.st_ftotal] = slot;
+                self.st_ftype[self.st_ftotal] = fty;
                 if fk == 1 { slot = slot + 2; } else { slot = slot + 1; }
                 self.st_ftotal = self.st_ftotal + 1;
                 n = n + 1;
@@ -2381,13 +2553,32 @@ fn emit_if_branch(ref Ast ast, int blk, ref String res, int want_float, ref mut 
             e.buf.push_str(res);
             e.buf.push_str("\n");
         } else {
-            e.buf.push_str("  store i64 ");
-            e.buf.push_str(tv.a);
-            e.buf.push_str(", ptr ");
-            e.buf.push_str(res);
-            e.buf.push_str("\n");
+            store_match_val(tv, res, e);
         }
     }
+}
+
+/// 分支尾值存入 i64 结果槽（指针类值先 ptrtoint）
+#[alloc]
+fn store_match_val(ref Val tv, ref String res, ref mut Emitter e) {
+    if tv.kind == 2 || tv.kind == 3 || tv.kind == 4 {
+        pv = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pv);
+        e.buf.push_str(" = ptrtoint ptr ");
+        e.buf.push_str(tv.a);
+        e.buf.push_str(" to i64\n  store i64 ");
+        e.buf.push_str(pv);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(res);
+        e.buf.push_str("\n");
+        return;
+    }
+    e.buf.push_str("  store i64 ");
+    e.buf.push_str(tv.a);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(res);
+    e.buf.push_str("\n");
 }
 
 /// if 表达式：条件链 + 分支块尾值合流
@@ -2608,13 +2799,16 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
                     emit_stmt(ast, body, e);
                 } elif btag == st(ST::ExprStmt._tag) {
                     v = emit_expr(ast, ast.aa[body], e);
-                    e.buf.push_str("  store i64 ");
-                    e.buf.push_str(v.a);
-                    e.buf.push_str(", ptr ");
-                    e.buf.push_str(res);
-                    e.buf.push_str("\n");
+                    store_match_val(v, res, e);
                 } elif btag == st(ST::Block._tag) {
                     emit_stmts(ast, ast.aa[body], e);
+                    if e.terminated == 0 {
+                        tail_m = ast.bb[body];
+                        if tail_m >= 0 {
+                            tv_m = emit_expr(ast, tail_m, e);
+                            store_match_val(tv_m, res, e);
+                        }
+                    }
                 } else {
                     emit_stmt(ast, body, e);
                 }
@@ -2640,6 +2834,275 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
         return mk_int(rv);
     }
     return mk_int("0");
+}
+
+/// 间接调用 Fn 值：值 = 环境块指针（块首代码指针），env 作为末位参数
+#[alloc]
+fn emit_indirect_call(ref Ast ast, ref String fval, int fty, int args, ref mut Emitter e) -> Val {
+    b = StringBuf::new();
+    b.push_str("  ");
+    envp = e.fresh();
+    b.push_str(envp);
+    b.push_str(" = inttoptr i64 ");
+    b.push_str(fval);
+    b.push_str(" to ptr\n  ");
+    codep = e.fresh();
+    b.push_str(codep);
+    b.push_str(" = load ptr, ptr ");
+    b.push_str(envp);
+    b.push_str("\n  ");
+    t4 = e.fresh();
+    b.push_str(t4);
+    frk = 0;
+    frty = fn_type_ret(ast, fty);
+    if frty >= 0 {
+        frk = e.ret_kind(ast, frty);
+    }
+    if frk == 1 {
+        b.push_str(" = call { ptr, i64 } ");
+    } elif frk == 5 {
+        b.push_str(" = call double ");
+    } else {
+        b.push_str(" = call i64 ");
+    }
+    b.push_str(codep);
+    b.push_str("(");
+    first0 = 1;
+    a0f = args;
+    fk_i = 0;
+    while a0f >= 0 {
+        at0 = emit_expr(ast, ast.aa[a0f], e);
+        if first0 == 0 { b.push_str(", "); }
+        pk0 = e.closure_param_kind(ast, fty, fk_i);
+        if pk0 == 1 {
+            b.push_str("ptr ");
+            b.push_str(at0.a);
+            b.push_str(", i64 ");
+            b.push_str(at0.b);
+        } elif pk0 == 31 {
+            b.push_str("double ");
+            b.push_str(at0.a);
+        } elif pk0 == 0 {
+            b.push_str("i64 ");
+            b.push_str(at0.a);
+        } else {
+            b.push_str("ptr ");
+            b.push_str(at0.a);
+        }
+        first0 = 0;
+        fk_i = fk_i + 1;
+        a0f = ast.nexts[a0f];
+    }
+    if first0 == 0 { b.push_str(", "); }
+    b.push_str("ptr ");
+    b.push_str(envp);
+    b.push_str(")\n");
+    e.buf.push_str(b.to_string());
+    if frk == 1 {
+        ip5 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(ip5);
+        e.buf.push_str(" = extractvalue { ptr, i64 } ");
+        e.buf.push_str(t4);
+        e.buf.push_str(", 0\n  ");
+        il5 = e.fresh();
+        e.buf.push_str(il5);
+        e.buf.push_str(" = extractvalue { ptr, i64 } ");
+        e.buf.push_str(t4);
+        e.buf.push_str(", 1\n");
+        return mk_str_tmp(ip5, il5);
+    }
+    if frk == 5 {
+        return mk_float(t4);
+    }
+    return mk_int(t4);
+}
+
+/// 闭包值：非捕获 -> 静态环境块；捕获 -> 堆环境块（块首代码指针，后续捕获槽）
+#[alloc]
+fn emit_lambda_value(ref Ast ast, int id, ref mut Emitter e) -> Val {
+    li = e.lam_index_of(id);
+    if li < 0 {
+        lp0 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(lp0);
+        e.buf.push_str(" = ptrtoint ptr @");
+        e.buf.push_str(ast.texts[id]);
+        e.buf.push_str(" to i64\n");
+        return mk_int(lp0);
+    }
+    if e.cap_done[li] == 0 {
+        e.cap_start[li] = e.cap_total;
+        e.cap_count[li] = 0;
+        e.cap_done[li] = 1;
+        cap_scan_list(ast, ast.bb[id], li, e);
+    }
+    cnt = e.cap_count[li];
+    lname = ast.texts[id];
+    if cnt == 0 {
+        gnm = e.add_env_global("lamenv", lname);
+        lp = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(lp);
+        e.buf.push_str(" = ptrtoint ptr @");
+        e.buf.push_str(gnm);
+        e.buf.push_str(" to i64\n");
+        return mk_int(lp);
+    }
+    sz = (cnt + 1) * 8;
+    envp = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(envp);
+    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_int(sz);
+    e.buf.push_str(")\n  store ptr @");
+    e.buf.push_str(lname);
+    e.buf.push_str(", ptr ");
+    e.buf.push_str(envp);
+    e.buf.push_str("\n");
+    start = e.cap_start[li];
+    i = 0;
+    while i < cnt {
+        cid = e.cap_ids[start + i];
+        ck = e.cap_kinds[start + i];
+        off = (i + 1) * 8;
+        if ck == 30 {
+            ad = addr_of_arg(ast, cid, e);
+            sp = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(sp);
+            e.buf.push_str(" = getelementptr i8, ptr ");
+            e.buf.push_str(envp);
+            e.buf.push_str(", i64 ");
+            e.buf.push_int(off);
+            e.buf.push_str("\n  store ptr ");
+            e.buf.push_str(ad);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(sp);
+            e.buf.push_str("\n");
+        } else {
+            v = emit_expr(ast, cid, e);
+            sp2 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(sp2);
+            e.buf.push_str(" = getelementptr i8, ptr ");
+            e.buf.push_str(envp);
+            e.buf.push_str(", i64 ");
+            e.buf.push_int(off);
+            e.buf.push_str("\n");
+            if v.kind == 1 {
+                e.buf.push_str("  store ptr ");
+                e.buf.push_str(v.a);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(sp2);
+                e.buf.push_str("\n  ");
+                sp2b = e.fresh();
+                e.buf.push_str(sp2b);
+                e.buf.push_str(" = getelementptr i8, ptr ");
+                e.buf.push_str(envp);
+                e.buf.push_str(", i64 ");
+                e.buf.push_int(off + 8);
+                e.buf.push_str("\n  store i64 ");
+                e.buf.push_str(v.b);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(sp2b);
+                e.buf.push_str("\n");
+            } elif v.kind == 3 || v.kind == 2 || v.kind == 4 {
+                e.buf.push_str("  store ptr ");
+                e.buf.push_str(v.a);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(sp2);
+                e.buf.push_str("\n");
+            } elif v.kind == 6 {
+                bb0 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(bb0);
+                e.buf.push_str(" = bitcast double ");
+                e.buf.push_str(v.a);
+                e.buf.push_str(" to i64\n  store i64 ");
+                e.buf.push_str(bb0);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(sp2);
+                e.buf.push_str("\n");
+            } else {
+                e.buf.push_str("  store i64 ");
+                e.buf.push_str(v.a);
+                e.buf.push_str(", ptr ");
+                e.buf.push_str(sp2);
+                e.buf.push_str("\n");
+            }
+        }
+        i = i + 1;
+    }
+    lp2 = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(lp2);
+    e.buf.push_str(" = ptrtoint ptr ");
+    e.buf.push_str(envp);
+    e.buf.push_str(" to i64\n");
+    return mk_int(lp2);
+}
+
+/// 捕获扫描：收集 lambda 子树中引用到外层局部的名字（含嵌套 lambda 的引用）
+#[alloc]
+fn cap_scan_list(ref Ast ast, int id, int li, ref mut Emitter e) {
+    while id >= 0 {
+        cap_scan_node(ast, id, li, e);
+        id = ast.nexts[id];
+    }
+}
+
+/// bb 是否为子节点（Literal 存 LK、Ref 存 mutable 标志、Attributed 存属性数、MacroBlock 存计数）
+fn bb_is_child(int tag) -> int {
+    if tag == et(ET::Literal._tag) { return 0; }
+    if tag == et(ET::Ref._tag) { return 0; }
+    if tag == et(ET::MacroBlock._tag) { return 0; }
+    if tag == st(ST::Attributed._tag) { return 0; }
+    return 1;
+}
+
+/// cc/dd 为子节点的标签（if/for/index-assign）
+fn ccdd_is_child(int tag) -> int {
+    if tag == et(ET::If._tag) { return 1; }
+    if tag == st(ST::If._tag) { return 1; }
+    if tag == st(ST::For._tag) { return 1; }
+    if tag == st(ST::IndexAssign._tag) { return 1; }
+    return 0;
+}
+
+#[alloc]
+fn cap_scan_node(ref Ast ast, int id, int li, ref mut Emitter e) {
+    tag0 = ast.tags[id];
+    if tag0 == et(ET::Ident._tag) {
+        nm0 = ast.texts[id];
+        kd0 = e.local_kind(nm0);
+        if kd0 >= 0 {
+            ety0 = e.etype_of_local(nm0);
+            e.cap_add(li, nm0, kd0, ety0, id);
+        }
+        return;
+    }
+    if tag0 == et(ET::Lambda._tag) {
+        // 内层 lambda：其引用同样需要外层可见（捕获传递）
+        cap_scan_list(ast, ast.bb[id], li, e);
+        return;
+    }
+    if ast.aa[id] >= 0 {
+        cap_scan_list(ast, ast.aa[id], li, e);
+    }
+    if ast.bb[id] >= 0 {
+        if bb_is_child(tag0) == 1 {
+            cap_scan_list(ast, ast.bb[id], li, e);
+        }
+    }
+    if ccdd_is_child(tag0) == 1 {
+        if ast.cc[id] >= 0 {
+            cap_scan_list(ast, ast.cc[id], li, e);
+        }
+        if ast.dd[id] >= 0 {
+            cap_scan_list(ast, ast.dd[id], li, e);
+        }
+    }
 }
 
 fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
@@ -2716,14 +3179,15 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         kd_pv = e.local_kind(nm);
         gk_pv = e.global_kind(nm);
         if kd_pv < 0 && gk_pv < 0 {
-            // 命名函数作为值：取函数地址
+            // 命名函数作为值：取环境块地址（块首为代码指针）
             frt_pv = e.fn_ret_type(nm);
             if frt_pv >= 0 {
+                gnm_pv = e.add_env_global("fnenv", nm);
                 fp0 = e.fresh();
                 e.buf.push_str("  ");
                 e.buf.push_str(fp0);
                 e.buf.push_str(" = ptrtoint ptr @");
-                e.buf.push_str(nm);
+                e.buf.push_str(gnm_pv);
                 e.buf.push_str(" to i64\n");
                 return mk_int(fp0);
             }
@@ -3067,85 +3531,13 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         ft_ic = e.ftype_of_local(nm);
         if kd_ic >= 0 && ft_ic >= 0 {
             // 函数值（i64 槽）：间接调用（仅 Fn 类型局部）
-            b = StringBuf::new();
-            b.push_str("  ");
             fpv = e.fresh();
-            b.push_str(fpv);
-            b.push_str(" = load i64, ptr %v_");
-            b.push_str(nm);
-            b.push_str("\n  ");
-            fpp = e.fresh();
-            b.push_str(fpp);
-            b.push_str(" = inttoptr i64 ");
-            b.push_str(fpv);
-            b.push_str(" to ptr\n  ");
-            fty0 = e.ftype_of_local(nm);
-            t4 = e.fresh();
-            b.push_str(t4);
-            frk = 0;
-            frty = -1;
-            if fty0 >= 0 {
-                frty = ast.tys[fty0];
-                frk = e.ret_kind(ast, frty);
-            }
-            if frk == 1 {
-                b.push_str(" = call { ptr, i64 } ");
-            } elif frk == 5 {
-                b.push_str(" = call double ");
-            } else {
-                b.push_str(" = call i64 ");
-            }
-            b.push_str(fpp);
-            b.push_str("(");
-            first0 = 1;
-            a0f = ast.aa[id];
-            fk_i = 0;
-            while a0f >= 0 {
-                at0 = emit_expr(ast, ast.aa[a0f], e);
-                if first0 == 0 { b.push_str(", "); }
-                pk0 = 0;
-                if fty0 >= 0 {
-                    pk0 = closure_param_kind(ast, fty0, fk_i);
-                }
-                if pk0 == 1 {
-                    b.push_str("ptr ");
-                    b.push_str(at0.a);
-                    b.push_str(", i64 ");
-                    b.push_str(at0.b);
-                } elif pk0 == 31 {
-                    b.push_str("double ");
-                    b.push_str(at0.a);
-                } elif pk0 == 0 {
-                    b.push_str("i64 ");
-                    b.push_str(at0.a);
-                } else {
-                    b.push_str("ptr ");
-                    b.push_str(at0.a);
-                }
-                first0 = 0;
-                fk_i = fk_i + 1;
-                a0f = ast.nexts[a0f];
-            }
-            b.push_str(")\n");
-            e.buf.push_str(b.to_string());
-            if frk == 1 {
-                ip5 = e.fresh();
-                e.buf.push_str("  ");
-                e.buf.push_str(ip5);
-                e.buf.push_str(" = extractvalue { ptr, i64 } ");
-                e.buf.push_str(t4);
-                e.buf.push_str(", 0\n  ");
-                il5 = e.fresh();
-                e.buf.push_str(il5);
-                e.buf.push_str(" = extractvalue { ptr, i64 } ");
-                e.buf.push_str(t4);
-                e.buf.push_str(", 1\n");
-                return mk_str_tmp(ip5, il5);
-            }
-            if frk == 5 {
-                return mk_float(t4);
-            }
-            return mk_int(t4);
+            e.buf.push_str("  ");
+            e.buf.push_str(fpv);
+            e.buf.push_str(" = load i64, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return emit_indirect_call(ast, fpv, ft_ic, ast.aa[id], e);
         }
         b = StringBuf::new();
         b.push_str("  ");
@@ -3483,6 +3875,45 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         }
         return mk_int("0");
     }
+    if tag == et(ET::CallExpr._tag) {
+        // (callee)(args)：字段闭包调用（结构体字段为 Fn 类型）
+        callee = ast.aa[id];
+        cargs = ast.bb[id];
+        if callee >= 0 {
+            if ast.tags[callee] == et(ET::FieldAccess._tag) {
+                obj = emit_expr(ast, ast.aa[callee], e);
+                if obj.kind == 2 {
+                    si_ce = e.find_struct_idx(obj.b);
+                    fi_ce = e.find_field_idx(obj.b, ast.texts[callee]);
+                    if si_ce >= 0 && fi_ce >= 0 {
+                        fty_ce = e.ftype_at(si_ce, fi_ce);
+                        if fty_ce >= 0 {
+                            if ast.tags[fty_ce] == tt(TT::Closure._tag) {
+                                sl_ce = e.fslot_at(si_ce, fi_ce);
+                                g_ce = e.fresh();
+                                e.buf.push_str("  ");
+                                e.buf.push_str(g_ce);
+                                e.buf.push_str(" = getelementptr %struct.");
+                                e.buf.push_str(obj.b);
+                                e.buf.push_str(", ptr ");
+                                e.buf.push_str(obj.a);
+                                e.buf.push_str(", i32 0, i32 ");
+                                e.buf.push_int(sl_ce);
+                                e.buf.push_str("\n  ");
+                                fv_ce = e.fresh();
+                                e.buf.push_str(fv_ce);
+                                e.buf.push_str(" = load i64, ptr ");
+                                e.buf.push_str(g_ce);
+                                e.buf.push_str("\n");
+                                return emit_indirect_call(ast, fv_ce, fty_ce, cargs, e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return mk_int("0");
+    }
     if tag == et(ET::MethodCall._tag) {
         obj = emit_expr(ast, ast.aa[id], e);
         if obj.kind == 1 {
@@ -3781,14 +4212,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         return mk_int("0");
     }
     if tag == et(ET::Lambda._tag) {
-        // 非捕获 lambda：取提升后函数的地址
-        lp = e.fresh();
-        e.buf.push_str("  ");
-        e.buf.push_str(lp);
-        e.buf.push_str(" = ptrtoint ptr @");
-        e.buf.push_str(ast.texts[id]);
-        e.buf.push_str(" to i64\n");
-        return mk_int(lp);
+        return emit_lambda_value(ast, id, e);
     }
     if tag == et(ET::Match._tag) {
         return emit_match(ast, id, e, 1);
@@ -4544,6 +4968,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(nm);
             e.buf.push_str("\n");
         }
+        e.record_assign_ftype(ast, nm, rhs_id);
     } elif tag == st(ST::Return._tag) {
         rk_ret = e.ret_kind(ast, e.cur_rtype);
         if ast.aa[id] >= 0 {
@@ -5017,6 +5442,18 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
         first = 0;
         p = ast.nexts[p];
     }
+    env_slot = -1;
+    if ast.tags[id] == et(ET::Lambda._tag) {
+        li_sig = e.lam_index_of(id);
+        if li_sig >= 0 {
+            if e.cap_count[li_sig] > 0 {
+                if first == 0 { e.buf.push_str(", "); }
+                e.buf.push_str("ptr %a");
+                e.buf.push_int(idx);
+                env_slot = idx;
+            }
+        }
+    }
     e.buf.push_str(") {\nentry:\n");
     e.entry_pos = e.buf.len;
     e.pre_buf = StringBuf::new();
@@ -5111,6 +5548,135 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             }
         }
         p2 = ast.nexts[p2];
+    }
+    // 闭包捕获序言：从环境块恢复捕获局部
+    if ast.tags[id] == et(ET::Lambda._tag) {
+        li_pr = e.lam_index_of(id);
+        if li_pr >= 0 && env_slot >= 0 {
+            cnt_pr = e.cap_count[li_pr];
+            start_pr = e.cap_start[li_pr];
+            i_pr = 0;
+            while i_pr < cnt_pr {
+                cnm = e.cap_names[start_pr + i_pr];
+                ckd = e.cap_kinds[start_pr + i_pr];
+                cey = e.cap_etypes[start_pr + i_pr];
+                off_pr = (i_pr + 1) * 8;
+                if ckd == 0 {
+                    e.declare_local(cnm, 30);
+                    tp_pr = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(tp_pr);
+                    e.buf.push_str(" = getelementptr i8, ptr %a");
+                    e.buf.push_int(env_slot);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_int(off_pr);
+                    e.buf.push_str("\n  store ptr ");
+                    e.buf.push_str(tp_pr);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(cnm);
+                    e.buf.push_str(".p\n");
+                } elif ckd == 30 {
+                    e.declare_local(cnm, 30);
+                    tp30 = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(tp30);
+                    e.buf.push_str(" = getelementptr i8, ptr %a");
+                    e.buf.push_int(env_slot);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_int(off_pr);
+                    e.buf.push_str("\n  ");
+                    rp30b = e.fresh();
+                    e.buf.push_str(rp30b);
+                    e.buf.push_str(" = load ptr, ptr ");
+                    e.buf.push_str(tp30);
+                    e.buf.push_str("\n  store ptr ");
+                    e.buf.push_str(rp30b);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(cnm);
+                    e.buf.push_str(".p\n");
+                } elif ckd == 1 {
+                    e.declare_local(cnm, 1);
+                    tp1 = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(tp1);
+                    e.buf.push_str(" = getelementptr i8, ptr %a");
+                    e.buf.push_int(env_slot);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_int(off_pr);
+                    e.buf.push_str("\n  ");
+                    vp1 = e.fresh();
+                    e.buf.push_str(vp1);
+                    e.buf.push_str(" = load ptr, ptr ");
+                    e.buf.push_str(tp1);
+                    e.buf.push_str("\n  ");
+                    tl1 = e.fresh();
+                    e.buf.push_str(tl1);
+                    e.buf.push_str(" = getelementptr i8, ptr %a");
+                    e.buf.push_int(env_slot);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_int(off_pr + 8);
+                    e.buf.push_str("\n  ");
+                    vl1 = e.fresh();
+                    e.buf.push_str(vl1);
+                    e.buf.push_str(" = load i64, ptr ");
+                    e.buf.push_str(tl1);
+                    e.buf.push_str("\n  store ptr ");
+                    e.buf.push_str(vp1);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(cnm);
+                    e.buf.push_str(".ptr\n  store i64 ");
+                    e.buf.push_str(vl1);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(cnm);
+                    e.buf.push_str(".len\n");
+                } elif ckd == 40 {
+                    e.declare_local(cnm, 40);
+                    tpd = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(tpd);
+                    e.buf.push_str(" = getelementptr i8, ptr %a");
+                    e.buf.push_int(env_slot);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_int(off_pr);
+                    e.buf.push_str("\n  ");
+                    bd0 = e.fresh();
+                    e.buf.push_str(bd0);
+                    e.buf.push_str(" = load i64, ptr ");
+                    e.buf.push_str(tpd);
+                    e.buf.push_str("\n  ");
+                    dd0 = e.fresh();
+                    e.buf.push_str(dd0);
+                    e.buf.push_str(" = bitcast i64 ");
+                    e.buf.push_str(bd0);
+                    e.buf.push_str(" to double\n  store double ");
+                    e.buf.push_str(dd0);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(cnm);
+                    e.buf.push_str(".d\n");
+                } else {
+                    e.declare_local(cnm, ckd);
+                    e.record_etype(cnm, cey);
+                    tpp = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(tpp);
+                    e.buf.push_str(" = getelementptr i8, ptr %a");
+                    e.buf.push_int(env_slot);
+                    e.buf.push_str(", i64 ");
+                    e.buf.push_int(off_pr);
+                    e.buf.push_str("\n  ");
+                    vpp = e.fresh();
+                    e.buf.push_str(vpp);
+                    e.buf.push_str(" = load ptr, ptr ");
+                    e.buf.push_str(tpp);
+                    e.buf.push_str("\n  store ptr ");
+                    e.buf.push_str(vpp);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(cnm);
+                    e.buf.push_str(".p\n");
+                }
+                i_pr = i_pr + 1;
+            }
+        }
     }
     emit_stmts(ast, ast.aa[ast.bb[id]], e);
     // 块尾表达式（无分号的最后表达式）：作为隐式返回值
@@ -5277,6 +5843,8 @@ pub fn emit_program(ref Ast ast, int prog) -> String {
         li = li + 1;
     }
     e.buf.push_str(e.lambda_buf.to_string());
+    // Fn 值环境块全局（@fnenv.* / @lamenv.*）
+    e.buf.push_str(e.env_defs.to_string());
     // 常量/静态全局
     gi = 0;
     while gi < e.g_count {
