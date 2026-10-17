@@ -1,6 +1,6 @@
 # M4：引用存储 / arena / stable object（设计）
 
-> 状态：**设计完成（hfj.1）；阶段 1（`Ptr[T]`）已落地**（2026-10-07）
+> 状态：**设计完成（hfj.1）；阶段 1（`Ptr[T]`）已落地；hfj.4 评估完成**（2026-10-07 / 2026-10-17）
 > 关联：bd `Ayanami-language-hfj`（epic）、GitHub #9；依赖 M3（已完成）；M5 unsafe（联动）
 > 目标：自然表达自引用结构 / parent pointer / graph / 双向链表 / intrusive / arena+reference /
 > AST 内部引用——对自举尤其重要。
@@ -51,10 +51,27 @@ n = p.method()                         // 方法自动解引用（等价 p.get()
 
 ## 4. 自引用 struct 评估（hfj.4）
 
-- 安全自引用需要**稳定地址 + 不移动**（pin）；Ayanami 无 pin 标注。
-- 结论：**不引入安全自引用字段**；用 arena+`Idx`（安全）或 M5 unsafe 裸指针（显式）。
-- `Ptr[T]` 的 pointee 地址稳定（堆），因此 `struct Node { Ptr[Node] next }` 可表达
-  **单向链/树**（每个 next 拥有下一个节点）；环需阶段 2/M5。
+问题：parent pointer / 双向链表是否进入安全核心？
+
+| 场景 | 表达方式 | 判定 |
+|---|---|---|
+| 单向链 / 树 | `Option[Ptr[T]] next`（每个 next 拥有下一个节点） | **支持**（阶段 1，已验证） |
+| parent 指针 | `Ptr[T] parent` 拥有父指针 | **不支持**：子拥有父 ∧ 父拥有子 = 双所有权，构造即环，drop 双释放/泄漏 |
+| parent 借用 | `ref T parent` 存字段 | **不支持**：借用存字段需跨结构生命周期标注，NLL 生命周期不跨结构 |
+| 双向链表 | `Ptr[T] prev` + `Ptr[T] next` 互指 | **不支持**：同 parent 指针，环无法安全释放 |
+| 图 / DAG / 交叉引用 | arena + `Idx`（阶段 2，std） | **支持路径**：句柄不拥有，arena 统一释放 |
+| intrusive / 极致控制 | `*T` 裸指针（M5 unsafe） | **显式不安全**：生命周期与别名自证 |
+
+结论：
+- **不引入安全自引用字段**（无 pin 标注；安全自引用需要稳定地址 + 不移动）。
+- 安全图结构统一用 **arena + `Idx`**（阶段 2，std 实现）；`Ptr[T]` 负责拥有式树/链。
+- parent / 双向链 / 环需求走 arena+`Idx`（安全）或 M5 裸指针（显式 unsafe）。
+
+`Ptr` 结构的 match 支持（2026-10-17 修复，含回归）：
+- `Some(p)` 绑定 `Ptr[T]` 载荷（此前绑定类型被剥成 pointee，IR 类型错配）；
+- `match p { ... }`（Ptr 目标自动解引用、不复制指针）；
+- `ref a.next`（a: `Ptr[T]`）字段地址（此前漏解引用）；`Struct { p }` 解构移出 Ptr 字段；
+- 回归：example/test_ptr_match、tests/runtime_safety/{ptr_chain_match,ptr_match_scrutinee,struct_destructure_owned}。
 
 ## 5. 阶段与验收
 
@@ -69,5 +86,7 @@ n = p.method()                         // 方法自动解引用（等价 p.get()
 - [x] 阶段 1 `Ptr[T]`：类型映射 `Ptr[T]`↔`Unique(T)`、`Ptr::new`、`get`/`get_mut`（含 `ref Ptr[T]` 接收者）、
   字段/方法自动解引用、字段/数组存储、递归 drop（按类型合成 `__drop_<n>`，弱链接）、
   `ref Ptr[T]` 借用读取；回归 example/test_ptr_tree + tests/runtime_safety/ptr_tree_drop
+- [x] hfj.4 评估：parent pointer / 双向链表**不进入安全核心**（§4）
+- [x] `Ptr` 与 match 互操作：载荷绑定 / Ptr 目标自动解引用 / `ref` 字段地址（§4 末，2026-10-17）
 - [ ] 阶段 2 `Arena[T]` + `Idx`（std 子仓）
 - [ ] 阶段 3（M5）
