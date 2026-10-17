@@ -1,4 +1,4 @@
-//! A5d-2：MIR pass 插件构建与调用（schema v0 的生成式 C 桥接）。
+//! A5d-2：MIR pass 插件构建与调用（schema v3 的生成式 C 桥接，见 `SCHEMA_VERSION`）。
 //!
 //! shim 负责：AyaBuf(blob) → 解码为 `std/mir.aya` 的 `MirFunction`（C 结构体布局一致）
 //! → 调用用户 pass → 编码回 AyaBuf。Ayanami 侧无需手写编解码。
@@ -117,7 +117,7 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
     Ok(so_path)
 }
 
-/// 生成 schema v0 的 C 桥接（结构体布局与 std/mir.aya 的 MirFunction 一致）
+/// 生成 schema v3 的 C 桥接（结构体布局与 std/mir.aya 的 MirFunction 一致）
 fn pass_shim(symbol: &str) -> String {
     format!(
         "#include <stdlib.h>\n#include <string.h>\n\
