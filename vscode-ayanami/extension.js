@@ -89,6 +89,80 @@ function activate(context) {
     });
     context.subscriptions.push(restartCmd);
 
+    // ─── Update（编译器与 std，#177）─────────────────────────────────
+    const updateBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 999);
+    updateBar.command = 'ayanami.update';
+    updateBar.tooltip = 'Ayanami: 有可用更新 — 点击更新编译器与 std';
+    context.subscriptions.push(updateBar);
+
+    function runCompilerCapture(bin, args, timeoutMs) {
+        const { spawnSync } = require('child_process');
+        const r = spawnSync(bin, args, { encoding: 'utf8', timeout: timeoutMs || 60000 });
+        return { code: r.status, out: (r.stdout || '') + (r.stderr || '') };
+    }
+
+    async function checkUpdates(interactive) {
+        const bin = findAyanamiPath(context);
+        if (!bin) {
+            if (interactive) vscode.window.showWarningMessage('Ayanami: 未找到编译器（ayanami.compilerPath 或 PATH）');
+            return;
+        }
+        const r = runCompilerCapture(bin, ['update', '--check']);
+        const mCur = /当前版本:\s*v?([0-9][^\s]*)/.exec(r.out);
+        const mNew = /最新版本:\s*v?([0-9][^\s]*)/.exec(r.out);
+        const cur = mCur ? mCur[1] : '?';
+        const latest = mNew ? mNew[1] : '?';
+        if (r.code === 0) {
+            updateBar.hide();
+            if (interactive) vscode.window.showInformationMessage(`Ayanami: 已是最新（v${cur}）`);
+        } else if (r.code === 1 && mNew) {
+            updateBar.text = `$(cloud-download) Ayanami ↑ v${latest}`;
+            updateBar.show();
+            if (interactive) {
+                const pick = await vscode.window.showInformationMessage(
+                    `Ayanami: 有可用更新 v${latest}（当前 v${cur}）`, '更新', '稍后');
+                if (pick === '更新') vscode.commands.executeCommand('ayanami.update');
+            }
+        } else if (interactive) {
+            vscode.window.showWarningMessage('Ayanami: 检查更新失败（网络不可用或编译器不支持 update）');
+        }
+    }
+
+    context.subscriptions.push(vscode.commands.registerCommand('ayanami.checkUpdates', () => checkUpdates(true)));
+
+    context.subscriptions.push(vscode.commands.registerCommand('ayanami.update', async () => {
+        const bin = findAyanamiPath(context);
+        if (!bin) { vscode.window.showWarningMessage('Ayanami: 未找到编译器'); return; }
+        const { spawn } = require('child_process');
+        await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Notification, title: 'Ayanami: 正在更新编译器与 std…', cancellable: false },
+            () => new Promise((resolve) => {
+                const p = spawn(bin, ['update'], { stdio: ['ignore', 'pipe', 'pipe'] });
+                p.stdout.on('data', d => outputChannel.append(d.toString()));
+                p.stderr.on('data', d => outputChannel.append(d.toString()));
+                p.on('error', (e) => { outputChannel.appendLine('update error: ' + e); resolve(); });
+                p.on('close', async (code) => {
+                    if (code === 0) {
+                        updateBar.hide();
+                        const pick = await vscode.window.showInformationMessage('Ayanami: 更新完成，重载窗口以生效？', '重载', '稍后');
+                        if (pick === '重载') vscode.commands.executeCommand('workbench.action.reloadWindow');
+                    } else {
+                        vscode.window.showErrorMessage('Ayanami: 更新失败（详见输出面板 Ayanami）');
+                    }
+                    resolve();
+                });
+            })
+        );
+    }));
+
+    // 启动时检查（可配置；默认关闭避免无网环境打扰）
+    try {
+        const cfg = vscode.workspace.getConfiguration('ayanami');
+        if (cfg.get('update.checkOnStartup', false)) {
+            setTimeout(() => checkUpdates(false), 1500);
+        }
+    } catch (_) {}
+
     // ─── Completion Provider ─────────────────────────────────────────
     const completionProvider = vscode.languages.registerCompletionItemProvider('ayanami', {
         provideCompletionItems(document, position) {

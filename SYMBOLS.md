@@ -23,11 +23,12 @@ src/cli/mod.rs:11: pub(crate) mod dump;
 src/cli/mod.rs:12: pub(crate) mod fmt;
 src/cli/mod.rs:13: pub(crate) mod new;
 src/cli/mod.rs:14: pub(crate) mod types;
-src/cli/mod.rs:15: pub(crate) mod package_install;
-src/cli/mod.rs:28: pub(crate) struct CliFlags
-src/cli/mod.rs:36: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
-src/cli/mod.rs:51: pub(crate) fn apply_mode(flags: &CliFlags)
-src/cli/mod.rs:61: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
+src/cli/mod.rs:15: pub(crate) mod update;
+src/cli/mod.rs:16: pub(crate) mod package_install;
+src/cli/mod.rs:30: pub(crate) struct CliFlags
+src/cli/mod.rs:38: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
+src/cli/mod.rs:53: pub(crate) fn apply_mode(flags: &CliFlags)
+src/cli/mod.rs:63: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
@@ -38,6 +39,19 @@ src/cli/types.rs:78: fn walk_stmts(
 src/cli/types.rs:124: fn fmt_type(ty: &HirType) -> String
 src/cli/types.rs:151: fn name_at(code: &str, line: usize, col: usize, name: &str) -> bool
 src/cli/types.rs:168: fn esc(s: &str) -> String
+src/cli/update.rs:11: const REPO: &str = "ayanami1ei/Ayanami-language";
+src/cli/update.rs:14: pub(crate) fn cmd_version()
+src/cli/update.rs:18: struct UpdateArgs
+src/cli/update.rs:26: fn parse_args(args: &[String]) -> UpdateArgs
+src/cli/update.rs:47: fn asset_arch() -> String
+src/cli/update.rs:56: fn curl_text(url: &str) -> Option<String>
+src/cli/update.rs:63: fn parse_tag(json: &str) -> Option<String>
+src/cli/update.rs:72: fn fetch_latest() -> Result<(String, String)>
+src/cli/update.rs:84: fn version_from_name(path: &str) -> Option<String>
+src/cli/update.rs:91: fn download(src: &str, dest: &Path) -> Result<()>
+src/cli/update.rs:108: fn tar_listing(tar: &Path) -> Result<String>
+src/cli/update.rs:118: fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
+src/cli/update.rs:140: pub(crate) fn cmd_update(args: &[String])
 src/compiler/build/compile.rs:6: pub fn compile_file(
 src/compiler/build/compile.rs:144: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
@@ -1980,11 +1994,11 @@ src/lir/serialize/reader.rs:25: pub(super) fn ty(&mut self) -> Result<HirType>
 src/lir/serialize/write.rs:7: pub(super) fn put_inst(buf: &mut Vec<u8>, inst: &LirNodeBox)
 src/lir/serialize/write.rs:11: pub(super) fn put_fn(buf: &mut Vec<u8>, f: &LirFn)
 src/main.rs:18: fn main()
-src/main.rs:59: pub(crate) fn find_project(dir: &Path) -> Option<(PathBuf, String)>
-src/main.rs:74: pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBuf>
-src/main.rs:83: pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf
-src/main.rs:111: mod cli;
-src/main.rs:115: pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
+src/main.rs:63: pub(crate) fn find_project(dir: &Path) -> Option<(PathBuf, String)>
+src/main.rs:78: pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBuf>
+src/main.rs:87: pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf
+src/main.rs:115: mod cli;
+src/main.rs:119: pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
 src/mir/borrow/cfg.rs:5: pub enum Payload<'a>
 src/mir/borrow/cfg.rs:14: pub struct Node<'a>
 src/mir/borrow/cfg.rs:25: pub struct Cfg<'a>

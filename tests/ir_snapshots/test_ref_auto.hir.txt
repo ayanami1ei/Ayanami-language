@@ -6,7 +6,7 @@ HIR Program
 │ │ │   target:
         Local(v0 : ref mut Int)
 │ │ │   value:
-        Call(fn99, ty: Int)
+        Call(fn(N), ty: Int)
           Deref ty=Int
             Local(v0 : ref mut Int)
           Literal(Int(1))
@@ -29,7 +29,7 @@ HIR Program
 │ │ │   body:
 │ │ │ │ Block {
 │ │ │ │ │ Expr
-            Call(fn92, ty: Void)
+            Call(fn(N), ty: Void)
               Local(v0 : ref mut Int)
 │ │ │ │ }
 │ │ │ Return
@@ -40,7 +40,7 @@ HIR Program
 │   local v: Int
 │ │ Block {
 │ │ │ Return
-        Call(fn99, ty: Int)
+        Call(fn(N), ty: Int)
           Local(v0 : Int)
           Literal(Int(1))
           Literal(Int(17))
@@ -51,7 +51,7 @@ HIR Program
 │   local i: ref mut Int
 │ │ Block {
 │ │ │ Return
-        Call(fn94, ty: Int)
+        Call(fn(N), ty: Int)
           Deref ty=Int
             Local(v0 : ref mut Int)
 │ │ }
@@ -63,7 +63,7 @@ HIR Program
 │ │ │   target:
         Local(v1 : ref mut Int)
 │ │ │   value:
-        Call(fn99, ty: Int)
+        Call(fn(N), ty: Int)
           Deref ty=Int
             Local(v1 : ref mut Int)
           Deref ty=Int
@@ -97,7 +97,7 @@ HIR Program
 │ │ │   value:
         Literal(Int(0))
 │ │ │ Expr
-        Call(fn92, ty: Void)
+        Call(fn(N), ty: Void)
           Ref(mut ty: ref mut Int)
             Local(v0 : Int)
 │ │ │ If
@@ -121,7 +121,7 @@ HIR Program
 │ │ │   target:
         Local(v2 : Int)
 │ │ │   value:
-        Call(fn93, ty: Int)
+        Call(fn(N), ty: Int)
           Ref(mut ty: ref mut Int)
             Local(v1 : Int)
           Literal(Int(3))
@@ -160,13 +160,13 @@ HIR Program
 │ │ │   value:
         Literal(Int(0))
 │ │ │ Expr
-        Call(fn96, ty: Void)
+        Call(fn(N), ty: Void)
           Ref(ty: ref Int)
             Local(v3 : Int)
           Ref(mut ty: ref mut Int)
             Local(v4 : Int)
 │ │ │ Expr
-        Call(fn96, ty: Void)
+        Call(fn(N), ty: Void)
           Ref(ty: ref Int)
             Local(v3 : Int)
           Ref(mut ty: ref mut Int)
@@ -204,7 +204,7 @@ HIR Program
 │ │ │   cond:
         Binary { op: Neq, ty: Int }
           lhs:
-          Call(fn95, ty: Int)
+          Call(fn(N), ty: Int)
             Ref(mut ty: ref mut Int)
               Local(v5 : Int)
           rhs:
@@ -231,14 +231,14 @@ HIR Program
         Local(v6 : Named(String))
 │ │ │   value:
         Move(ty: Named(String))
-          Call(fn62, ty: Named(String))
+          Call(fn(N), ty: Named(String))
 │ │ │ Expr
-        Call(fn97, ty: Void)
+        Call(fn(N), ty: Void)
           Ref(mut ty: ref mut Named(String))
             Local(v6 : Named(String))
 │ │ │ If
 │ │ │   cond:
-        Call(fn70, ty: Bool)
+        Call(fn(N), ty: Bool)
           Ref(ty: ref Named(String))
             Local(v6 : Named(String))
           Ref(ty: ref Named(String))

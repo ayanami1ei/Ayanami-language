@@ -12,6 +12,7 @@ pub(crate) mod dump;
 pub(crate) mod fmt;
 pub(crate) mod new;
 pub(crate) mod types;
+pub(crate) mod update;
 pub(crate) mod package_install;
 
 pub(crate) use build::{cmd_build, cmd_run};
@@ -22,6 +23,7 @@ pub(crate) use dump::cmd_dump;
 pub(crate) use fmt::cmd_fmt;
 pub(crate) use new::cmd_new;
 pub(crate) use types::cmd_types;
+pub(crate) use update::{cmd_update, cmd_version};
 pub(crate) use package_install::{cmd_install, cmd_package};
 
 /// 编译器 CLI 标志。

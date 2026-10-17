@@ -30,6 +30,21 @@ install/
 
 编译器自动在同目录查找 `llc`、`std/`、`runtime.c`。
 
+### 联网更新（编译器 + std）
+
+```bash
+./ayanami --version            # 当前版本
+./ayanami update --check       # 查询最新 Release（0=已最新，1=有更新）
+./ayanami update               # 下载并原地更新（自动备份 install.bak-<ver>）
+./ayanami update --std-only    # 仅更新 std（编译器不动）
+./ayanami update --dir <path>  # 安装到指定目录（全新安装也可）
+```
+
+- 走 GitHub Release（HTTPS），需要 `curl` 与 `tar`；更新失败自动回滚。
+- VSCode 插件提供同款命令：`Ayanami: Check for Updates` / `Ayanami: Update Compiler & Std`，
+  发现新版本时状态栏显示 `Ayanami ↑ vX.Y.Z`，点击一键更新并提示重载。
+  可选设置 `ayanami.update.checkOnStartup`（默认关闭）。
+
 ## 从源码打包
 
 ```bash
