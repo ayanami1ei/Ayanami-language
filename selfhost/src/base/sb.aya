@@ -94,6 +94,23 @@ impl StringBuf {
         if n < self.len { self.len = n; }
     }
 
+    /// 取区间 [start, end) 的子串（只复制该区间）
+    pub fn substring(ref self, int start, int end) -> String {
+        s = start;
+        e = end;
+        if s < 0 { s = 0; }
+        if e > self.len { e = self.len; }
+        if e < s { e = s; }
+        n = e - s;
+        res = [char; n];
+        i = 0;
+        while i < n {
+            res[i] = self.data[s + i];
+            i = i + 1;
+        }
+        return String::new(res, n as usize);
+    }
+
     pub fn to_string(ref self) -> String {
         res = [char; self.len];
         for i in (0, self.len) {

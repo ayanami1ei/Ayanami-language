@@ -26,7 +26,7 @@ RUNTIME_C="$ROOT/src/runtime.c"
 
 # 资源隔离：单次调用限时 60s、虚拟内存 2GB（防止死循环/内存暴涨拖垮系统）
 run_limited() {
-    ( ulimit -v 4194304 2>/dev/null; timeout 60 "$@" )
+    ( ulimit -v 2097152 2>/dev/null; timeout 60 "$@" )
 }
 
 # 本机 stage-0 沙盒：`./scripts/selfhost-stage0.sh init`（安装版布局转发到仓库 src/runtime.c）

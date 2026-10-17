@@ -5181,13 +5181,10 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
     } else {
         e.buf.push_str("  ret i64 0\n}\n");
     }
-    // 把 alloca 前置到 entry 块
+    // 把 alloca 前置到 entry 块（只复制函数体片段，避免整缓冲复制）
     e.pre_active = 0;
-    all_s = e.buf.to_string();
-    head_s = all_s.substring(0 as usize, e.entry_pos as usize);
-    body_s = all_s.substring(e.entry_pos as usize, all_s.len);
-    e.buf = StringBuf::new();
-    e.buf.push_str(head_s);
+    body_s = e.buf.substring(e.entry_pos, e.buf.len);
+    e.buf.truncate(e.entry_pos);
     e.buf.push_str(e.pre_buf.to_string());
     e.buf.push_str(body_s);
     e.cur_rtype = -1;
