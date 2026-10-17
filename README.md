@@ -41,6 +41,7 @@ install/
 ./ayanami update               # 下载并原地更新（自动备份 install.bak-<ver>）
 ./ayanami update --std-only    # 仅更新 std（编译器不动）
 ./ayanami update --dir <path>  # 安装到指定目录（全新安装也可）
+./ayanami update --limit-rate 10M   # 下载限速（curl 语法；也可用 AYANAMI_UPDATE_LIMIT）
 ```
 
 - 走 GitHub Release（HTTPS），需要 `curl` 与 `tar`；更新失败自动回滚。

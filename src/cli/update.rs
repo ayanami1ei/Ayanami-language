@@ -21,10 +21,15 @@ struct UpdateArgs {
     dir: Option<String>,
     from: Option<String>,
     force: bool,
+    /// 下载限速（curl `--limit-rate` 语法，如 `10M` / `10240k`；env AYANAMI_UPDATE_LIMIT 兜底）
+    limit_rate: Option<String>,
 }
 
 fn parse_args(args: &[String]) -> UpdateArgs {
-    let mut u = UpdateArgs { check: false, std_only: false, dir: None, from: None, force: false };
+    let mut u = UpdateArgs {
+        check: false, std_only: false, dir: None, from: None, force: false,
+        limit_rate: std::env::var("AYANAMI_UPDATE_LIMIT").ok().filter(|v| !v.trim().is_empty()),
+    };
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -33,9 +38,10 @@ fn parse_args(args: &[String]) -> UpdateArgs {
             "--force" => u.force = true,
             "--dir" => { i += 1; u.dir = args.get(i).cloned(); }
             "--from" => { i += 1; u.from = args.get(i).cloned(); }
+            "--limit-rate" => { i += 1; u.limit_rate = args.get(i).cloned(); }
             other => {
                 eprintln!("error: unknown update flag `{}`", other);
-                eprintln!("usage: ayanami update [--check] [--std-only] [--dir <path>] [--from <url|tar>] [--force]");
+                eprintln!("usage: ayanami update [--check] [--std-only] [--dir <path>] [--from <url|tar>] [--limit-rate <10M|10240k>] [--force]");
                 std::process::exit(2);
             }
         }
@@ -88,11 +94,14 @@ fn version_from_name(path: &str) -> Option<String> {
     Some(ver.to_string())
 }
 
-fn download(src: &str, dest: &Path) -> Result<()> {
+fn download(src: &str, dest: &Path, limit_rate: Option<&str>) -> Result<()> {
     if src.starts_with("http://") || src.starts_with("https://") {
-        let status = Command::new("curl")
-            .args(["-fsSL", "--retry", "3", "-o"])
-            .arg(dest)
+        let mut cmd = Command::new("curl");
+        cmd.args(["-fsSL", "--retry", "3", "-o"]).arg(dest);
+        if let Some(rate) = limit_rate {
+            cmd.arg("--limit-rate").arg(rate);
+        }
+        let status = cmd
             .arg(src)
             .status()
             .map_err(|e| Error::Compile(format!("无法执行 curl（更新需要 curl）: {}", e)))?;
@@ -182,7 +191,7 @@ pub(crate) fn cmd_update(args: &[String]) {
     let tmp = unique_tmp_dir("update");
     fs::create_dir_all(&tmp).ok();
     let tar_path = tmp.join("ayanami.tar.gz");
-    if let Err(e) = download(&url, &tar_path) {
+    if let Err(e) = download(&url, &tar_path, u.limit_rate.as_deref()) {
         ayanami::diagnostics::error(&e.to_string());
         let _ = fs::remove_dir_all(&tmp);
         std::process::exit(1);
@@ -264,5 +273,8 @@ pub(crate) fn cmd_update(args: &[String]) {
         println!("已更新 std（v{}；备份: {}）", latest, bak.display());
     } else {
         println!("已更新: v{} → v{}（安装目录: {}；备份: {}）", current, latest, target.display(), bak.display());
+        if let Some(rate) = &u.limit_rate {
+            println!("（下载限速: {}/s）", rate);
+        }
     }
 }

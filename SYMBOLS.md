@@ -42,16 +42,16 @@ src/cli/types.rs:168: fn esc(s: &str) -> String
 src/cli/update.rs:11: const REPO: &str = "ayanami1ei/Ayanami-language";
 src/cli/update.rs:14: pub(crate) fn cmd_version()
 src/cli/update.rs:18: struct UpdateArgs
-src/cli/update.rs:26: fn parse_args(args: &[String]) -> UpdateArgs
-src/cli/update.rs:47: fn asset_arch() -> String
-src/cli/update.rs:56: fn curl_text(url: &str) -> Option<String>
-src/cli/update.rs:63: fn parse_tag(json: &str) -> Option<String>
-src/cli/update.rs:72: fn fetch_latest() -> Result<(String, String)>
-src/cli/update.rs:84: fn version_from_name(path: &str) -> Option<String>
-src/cli/update.rs:91: fn download(src: &str, dest: &Path) -> Result<()>
-src/cli/update.rs:108: fn tar_listing(tar: &Path) -> Result<String>
-src/cli/update.rs:118: fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
-src/cli/update.rs:140: pub(crate) fn cmd_update(args: &[String])
+src/cli/update.rs:28: fn parse_args(args: &[String]) -> UpdateArgs
+src/cli/update.rs:53: fn asset_arch() -> String
+src/cli/update.rs:62: fn curl_text(url: &str) -> Option<String>
+src/cli/update.rs:69: fn parse_tag(json: &str) -> Option<String>
+src/cli/update.rs:78: fn fetch_latest() -> Result<(String, String)>
+src/cli/update.rs:90: fn version_from_name(path: &str) -> Option<String>
+src/cli/update.rs:97: fn download(src: &str, dest: &Path, limit_rate: Option<&str>) -> Result<()>
+src/cli/update.rs:117: fn tar_listing(tar: &Path) -> Result<String>
+src/cli/update.rs:127: fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
+src/cli/update.rs:149: pub(crate) fn cmd_update(args: &[String])
 src/compiler/build/compile.rs:6: pub fn compile_file(
 src/compiler/build/compile.rs:144: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
