@@ -227,3 +227,34 @@ pub fn aya_int_to_string(int v) -> String {
     if neg == 1 { buf[0] = '-'; }
     return String::new(buf, (n + neg) as usize);
 }
+
+// ---- Option（std 语义；stage-1 未合并 std 时的补全）----
+
+pub enum Option[T] {
+    Some(T),
+    None,
+}
+
+impl[T] Option[T] {
+    #[pure]
+    pub fn is_some(self) -> bool {
+        return self._tag == 0;
+    }
+    #[pure]
+    pub fn is_none(self) -> bool {
+        return self._tag != 0;
+    }
+    #[pure]
+    pub fn unwrap_or(self, T default) -> T {
+        if self._tag == 0 {
+            return self._data_Some._0;
+        }
+        return default;
+    }
+    pub fn or(self, Option[T] other) -> Option[T] {
+        if self._tag == 0 {
+            return self;
+        }
+        return other;
+    }
+}

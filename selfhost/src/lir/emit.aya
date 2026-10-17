@@ -2984,6 +2984,11 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
                             store_match_val(tv_m, res, e);
                         }
                     }
+                } elif btag == st(ST::If._tag) {
+                    // 臂体是尾位置 if（无花括号）：按 if 表达式取值
+                    // （ST::If 与 ET::If 字段布局相同：aa=cond bb=then cc=elifs dd=else）
+                    v_if = emit_if_expr(ast, body, e);
+                    store_match_val(v_if, res, e);
                 } else {
                     emit_stmt(ast, body, e);
                 }
@@ -3480,6 +3485,20 @@ fn emit_globals_init(ref Ast ast, ref mut Emitter e) {
     e.pre_active = sv_prea2;
     e.terminated = sv_term2;
     e.cur_rtype = sv_rt2;
+}
+
+/// 十进制文本 -> int（非纯数字返回 -1；载荷下标 _N 解析用）
+fn dec_val_e(ref String s) -> int {
+    if s.len == 0 { return -1; }
+    v = 0;
+    i = 0;
+    while i < s.len as int {
+        c = char_code(s.index(i as usize));
+        if c < 48 || c > 57 { return -1; }
+        v = v * 10 + (c - 48);
+        i = i + 1;
+    }
+    return v;
 }
 
 fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
@@ -4156,6 +4175,89 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         return Val { kind = 2, a = t, b = nm.copy(), ty = -1 };
     }
     if tag == et(ET::FieldAccess._tag) {
+        // _data_<Variant>._<N>：整体识别（内层不能单独发射，否则会先退化成 0）
+        ob4 = ast.aa[id];
+        if ob4 >= 0 {
+            if ast.tags[ob4] == et(ET::FieldAccess._tag) {
+                f4 = ast.texts[ob4];
+                if f4.starts_with("_data_") {
+                    ix4 = ast.texts[id];
+                    if ix4.starts_with("_") {
+                        oo4 = emit_expr(ast, ast.aa[ob4], e);
+                        if oo4.kind == 4 {
+                            vn4 = f4.substring(6 as usize, f4.len);
+                            k4 = dec_val_e(ix4.substring(1 as usize, ix4.len));
+                            ei4 = e.find_enum_idx(oo4.b);
+                            if ei4 >= 0 && k4 >= 0 {
+                                vi4 = e.find_variant_idx(ei4, vn4);
+                                if vi4 >= 0 {
+                                    sl4 = e.payload_slot(ast, ei4, vi4, k4);
+                                    g4p = e.fresh();
+                                    e.buf.push_str("  ");
+                                    e.buf.push_str(g4p);
+                                    e.buf.push_str(" = getelementptr %enum.");
+                                    e.buf.push_str(oo4.b);
+                                    e.buf.push_str(", ptr ");
+                                    e.buf.push_str(oo4.a);
+                                    e.buf.push_str(", i32 0, i32 ");
+                                    e.buf.push_int(sl4);
+                                    e.buf.push_str("\n");
+                                    pty4 = e.variant_ptype(ei4, vi4, k4);
+                                    if pty4 >= 0 {
+                                        if ty_name(ast, pty4) == "String" {
+                                            p4s = e.fresh();
+                                            e.buf.push_str("  ");
+                                            e.buf.push_str(p4s);
+                                            e.buf.push_str(" = load ptr, ptr ");
+                                            e.buf.push_str(g4p);
+                                            e.buf.push_str("\n  ");
+                                            l4s = e.fresh();
+                                            e.buf.push_str(l4s);
+                                            e.buf.push_str(" = getelementptr i8, ptr ");
+                                            e.buf.push_str(g4p);
+                                            e.buf.push_str(", i64 8\n  ");
+                                            v4s = e.fresh();
+                                            e.buf.push_str(v4s);
+                                            e.buf.push_str(" = load i64, ptr ");
+                                            e.buf.push_str(l4s);
+                                            e.buf.push_str("\n");
+                                            return mk_str_tmp(p4s, v4s);
+                                        }
+                                        pn4 = ty_name(ast, pty4);
+                                        if pn4.len > 0 {
+                                            if e.find_struct_idx(pn4) >= 0 || e.find_enum_idx(pn4) >= 0 {
+                                                i4p = e.fresh();
+                                                e.buf.push_str("  ");
+                                                e.buf.push_str(i4p);
+                                                e.buf.push_str(" = load i64, ptr ");
+                                                e.buf.push_str(g4p);
+                                                e.buf.push_str("\n  ");
+                                                q4p = e.fresh();
+                                                e.buf.push_str(q4p);
+                                                e.buf.push_str(" = inttoptr i64 ");
+                                                e.buf.push_str(i4p);
+                                                e.buf.push_str(" to ptr\n");
+                                                if e.find_struct_idx(pn4) >= 0 {
+                                                    return Val { kind = 2, a = q4p, b = pn4.copy(), ty = -1 };
+                                                }
+                                                return Val { kind = 4, a = q4p, b = pn4.copy(), ty = -1 };
+                                            }
+                                        }
+                                    }
+                                    v4i = e.fresh();
+                                    e.buf.push_str("  ");
+                                    e.buf.push_str(v4i);
+                                    e.buf.push_str(" = load i64, ptr ");
+                                    e.buf.push_str(g4p);
+                                    e.buf.push_str("\n");
+                                    return mk_int(v4i);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         obj = emit_expr(ast, ast.aa[id], e);
         if obj.kind == 1 {
             if ast.texts[id] == "len" {

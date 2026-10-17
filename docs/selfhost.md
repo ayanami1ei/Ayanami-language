@@ -90,6 +90,11 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     `return`（尤其 match 臂内 return）结束会残留标志，导致**下一个函数体整段被跳过**（发射成空函数）。
     回归用例 `tests/e2e/e_terminated_leak.aya`；修复：函数入口复位 `terminated`。
 
+28. **枚举载荷字段访问 `o._data_S._0` 需整体识别（已修，2026-10-17）**：载荷槽由
+    `payload_slot`/`variant_ptype` 计算（tag 占槽 0，String 载荷占 2 槽）；必须在 `FieldAccess`
+    入口把 `_data_<V>._<N>` 作为**组合**处理——先发射内层会退化成 0（外层拿不到枚举值）。
+    回归用例 `tests/e2e/e_payload_field.aya`；配套 prelude 增加 `Option[T]`（is_some/is_none/unwrap_or/or）。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash

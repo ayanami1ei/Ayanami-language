@@ -1,0 +1,12 @@
+// 回归：枚举载荷字段访问 o._data_S._0（组合识别，内层不能先退化成 0）
+enum O[T] { S(T), N }
+
+fn get(O[int] o) -> int {
+    if o._tag == 0 { return o._data_S._0; }
+    return 0;
+}
+
+fn main() -> int {
+    x = O::S(5);
+    return get(x) - 5;
+}
