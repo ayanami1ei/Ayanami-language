@@ -24,24 +24,7 @@ impl crate::hir::lower::Ctx {
 
         // M4：`Ptr::new(v)` 内置构造 —— 堆分配拥有指针（稳定地址）
         if name.as_str() == "Ptr.new" {
-            if hir_args.len() != 1 {
-                return Err(Error::Hir(format!(
-                    "Ptr::new expects exactly 1 argument (at {}:{})", span.start_line, span.start_col
-                )));
-            }
-            let arg = hir_args.pop().unwrap();
-            let inner = strip_ownership(expr_type(&arg));
-            // 阶段 1：仅指针表示内层类型可装箱（标量 unique 当前非指针表示）
-            if !matches!(inner,
-                HirType::Named(_) | HirType::FatPtr { .. } | HirType::Unique(_)
-                | HirType::Array(_) | HirType::ArraySized(_, _) | HirType::Closure(..))
-            {
-                return Err(Error::Hir(format!(
-                    "Ptr[T] currently supports struct/enum/interface/array elements only (got {}) (at {}:{})",
-                    hir_type_display(&inner), span.start_line, span.start_col
-                )));
-            }
-            return Ok(SToUnique { expr: arg, ty: HirType::Unique(Box::new(inner)) }.into());
+            return self.lower_ptr_new(&mut hir_args, span);
         }
 
         // P3：`bits::reinterpret[T](x)` 内置（见 expr_reinterpret.rs）
@@ -60,12 +43,21 @@ impl crate::hir::lower::Ctx {
             None => None,
         };
         let lit_mask: Vec<bool> = hir_args.iter().map(is_numeric_literal).collect();
-        // Step 3: resolve overloaded function（原类型 → 字面量适配 → 解引用类型）
+        // #182 关联：比较表达式实参（HIR 类型为操作数类型、实际为 i1/Bool）→ 按 Bool 再解析一次
+        let bool_arg_types: Vec<HirType> = if hir_args.iter().any(|a| a.is_comparison()) {
+            arg_types.iter().zip(hir_args.iter())
+                .map(|(t, a)| if a.is_comparison() { HirType::Bool } else { t.clone() })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        // Step 3: resolve overloaded function（原类型 → 字面量适配 → 解引用类型 → 比较实参按 Bool）
         let fn_id = match explicit_id {
             Some(fid) => fid,
             None => match self.resolve_fn_call(name, &arg_types)
             .or_else(|| self.resolve_fn_call_literals(name, &arg_types, &lit_mask))
             .or_else(|| self.resolve_fn_call(name, &deref_arg_types))
+            .or_else(|| (!bool_arg_types.is_empty()).then(|| self.resolve_fn_call(name, &bool_arg_types)).flatten())
         {
             Some(fid) => fid,
             None => {
@@ -263,6 +255,9 @@ impl crate::hir::lower::Ctx {
             } else if matches!(param_tys[i], HirType::F32) && arg_ty == HirType::Float && as_float_literal(&arg).is_some() {
                 // 浮点字面量 → f32 形参（值形参）
                 retype_float_literal(arg, &param_tys[i])
+            } else if arg.is_comparison() && matches!(strip_ownership_ref(&param_tys[i]), HirType::Bool) {
+                // #182：比较表达式实参 + Bool 形参 → 结果类型标注为 Bool（值即 i1）
+                retype_comparison_bool(arg)
             } else if implicit_cast_ok(&arg_ty, &param_tys[i]) {
                 // 按值基元参数的隐式数值转换（char→int / int→float / char→float）
                 SCast { expr: arg, ty: strip_ownership_ref(&param_tys[i]).clone() }.into()

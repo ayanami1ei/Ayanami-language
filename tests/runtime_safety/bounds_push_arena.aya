@@ -1,0 +1,16 @@
+// #181：固定容量 arena 的 push 写入（index == len）不得误报越界
+struct Ast2 {
+    [int] tags
+    int len
+}
+
+fn main() -> int {
+    a = Ast2 { tags = [int; 4], len = 0 }
+    a.tags[a.len] = 1
+    a.len = a.len + 1
+    a.tags[a.len] = 2
+    a.len = a.len + 1
+    if a.tags[0] != 1 { return 1 }
+    if a.tags[1] != 2 { return 2 }
+    return 0
+}

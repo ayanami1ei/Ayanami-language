@@ -1,0 +1,11 @@
+// #181：长度族兄弟字段的写入仅允许 index == len（push 槽位），越过仍报越界
+struct Ast2 {
+    [int] tags
+    int len
+}
+
+fn main() -> int {
+    a = Ast2 { tags = [int; 4], len = 0 }
+    a.tags[a.len + 2] = 1
+    return 0
+}

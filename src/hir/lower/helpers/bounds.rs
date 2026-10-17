@@ -59,7 +59,7 @@ impl crate::hir::lower::Ctx {
 
     /// 数组读写统一的越界检查入口：`[T; n]` 静态长度 / 动态字段兄弟边界；
     /// 非数组或无边界信息时原样返回索引。返回访问/写入使用的索引节点。
-    pub(crate) fn check_array_index(&mut self, object: &HirNodeBox, index: HirNodeBox, span: &Span) -> HirNodeBox {
+    pub(crate) fn check_array_index(&mut self, object: &HirNodeBox, index: HirNodeBox, span: &Span, is_write: bool) -> HirNodeBox {
         let inner_ty = strip_ownership(object.expr_type());
         let deref_ty = strip_ownership(match &inner_ty {
             HirType::Ref(inner, _) => inner.as_ref().clone(),
@@ -68,7 +68,13 @@ impl crate::hir::lower::Ctx {
         match &deref_ty {
             HirType::ArraySized(_, n) => self.insert_bounds_check(index, *n, span),
             HirType::Array(_) => match self.sibling_len_expr(object) {
-                Some(len_expr) => self.insert_bounds_check_dyn(index, len_expr, span),
+                // 容量族（cap/capacity）写入同样须 `idx >= cap` 报错；
+                // 长度族（len/count 等，多为已用计数）写入允许 `idx == len`（push 槽位），
+                // 读取仍按 `idx >= len` 检查（#181：固定容量 arena 的合法 push 不得误报）
+                Some((len_expr, is_cap)) => {
+                    let strict = is_cap || !is_write;
+                    self.insert_bounds_check_dyn(index, len_expr, span, strict)
+                }
                 None => index,
             },
             _ => index,
@@ -76,10 +82,10 @@ impl crate::hir::lower::Ctx {
     }
 
     /// #175：动态数组字段的兄弟边界表达式（`s.data` → `s.capability`/`s.len`）；无则 None。
-    /// **容量优先**（与 drop/clone 约定一致）：可增长缓冲（ArrayList/HashMap）的
-    /// 可访问槽数是 capacity/cap，`len` 只是逻辑长度（push 写 `data[len]`、探测越 len）。
+    /// 返回 (边界表达式, 是否容量族)。**容量优先**（与 drop/clone 约定一致）：可增长缓冲
+    /// （ArrayList/HashMap）的可访问槽数是 capacity/cap，`len` 只是逻辑长度。
     /// 仅按名匹配（避免误用无关整数字段造成假 panic）；基址须为可寻址的局部/字段链。
-    pub(crate) fn sibling_len_expr(&self, object: &HirNodeBox) -> Option<HirNodeBox> {
+    pub(crate) fn sibling_len_expr(&self, object: &HirNodeBox) -> Option<(HirNodeBox, bool)> {
         let (base, _field, array_idx) = object.as_field_access()?;
         if !Self::place_rooted(base) {
             return None;
@@ -98,14 +104,19 @@ impl crate::hir::lower::Ctx {
             })
         };
         // 容量优先（可增长缓冲），无容量字段才用逻辑长度
-        let (len_idx, len_field) = find_named(&["capability", "capacity", "cap"])
-            .or_else(|| find_named(&["len", "length", "size", "count"]))?;
-        Some(SField {
+        let (len_idx, len_field, is_cap) = match find_named(&["capability", "capacity", "cap"]) {
+            Some((i, f)) => (i, f, true),
+            None => {
+                let (i, f) = find_named(&["len", "length", "size", "count"])?;
+                (i, f, false)
+            }
+        };
+        Some((SField {
             object: base.clone(),
             field: len_field.name,
             field_index: len_idx,
             ty: HirType::Int,
-        }.into())
+        }.into(), is_cap))
     }
 
     /// 基址是否可寻址（局部或字段链）——保证复制求值无副作用。
@@ -120,13 +131,15 @@ impl crate::hir::lower::Ctx {
     }
 
     /// 运行时长度表达式的越界检查（#175：动态数组字段 + 兄弟 len）；返回访问用索引临时量。
-    pub(crate) fn insert_bounds_check_dyn(&mut self, index: HirNodeBox, len_expr: HirNodeBox, span: &Span) -> HirNodeBox {
+    /// `strict`：`idx >= len` 报错（读取/容量族）；非 strict：`idx > len` 报错（长度族写入，push 槽位合法）。
+    pub(crate) fn insert_bounds_check_dyn(&mut self, index: HirNodeBox, len_expr: HirNodeBox, span: &Span, strict: bool) -> HirNodeBox {
         let idx_node = self.hoist_to_temp(index, "__idx", HirType::Int, span);
         let len_node = self.hoist_to_temp(len_expr, "__len", HirType::Int, span);
         let usize_ty = HirType::IntN { bits: 64, signed: false };
         let idx_u: HirNodeBox = SCast { expr: idx_node.clone(), ty: usize_ty.clone() }.into();
         let len_u: HirNodeBox = SCast { expr: len_node.clone(), ty: usize_ty.clone() }.into();
-        let cond: HirNodeBox = SBin { op: BinaryOp::Ge, lhs: idx_u, rhs: len_u, ty: usize_ty }.into();
+        let op = if strict { BinaryOp::Ge } else { BinaryOp::Gt };
+        let cond: HirNodeBox = SBin { op, lhs: idx_u, rhs: len_u, ty: usize_ty }.into();
         let fid = self.ensure_bounds_helper();
         let mut args: Vec<HirNodeBox> = self.caller_hidden_args(span, 3);
         args.push(idx_node.clone());

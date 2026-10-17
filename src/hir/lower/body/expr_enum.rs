@@ -27,11 +27,22 @@ impl crate::hir::lower::Ctx {
                 )));
             }
         }
-        let hir_args: Vec<HirNodeBox> = tuple_args
+        let mut hir_args: Vec<HirNodeBox> = tuple_args
             .iter()
             .map(|e| self.lower_expr(e).map(implicit_move))
             .collect::<std::result::Result<Vec<_>, _>>()?;
-        let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
+        // #182 关联：比较表达式在 HIR 中保留操作数类型（结果由 MIR→LIR 降级为 i1/Bool），
+        // 变体实参推断须按 Bool 处理，否则 `Option::Some(a == b)` 实例化成 `Option[int]`
+        let arg_types: Vec<HirType> = hir_args.iter().map(|a| {
+            if a.is_comparison() { HirType::Bool } else { expr_type(a) }
+        }).collect();
+        // #182：比较载荷显式标注 Bool（值即 i1；变体字段类型为 Bool 时 store 类型一致）
+        for a in hir_args.iter_mut() {
+            if a.is_comparison() {
+                let wrapped = retype_comparison_bool(a.clone());
+                *a = wrapped;
+            }
+        }
         let data_field = Symbol::intern(&format!("_data_{}", variant_name));
         // #120：泛型枚举构造单态化（从载荷推断类型实参；E::A(1) → E<int>）
         let (enum_ty_name, var_struct_name) = self.monomorphize_enum_construct(enum_name, variant_name, &arg_types);
