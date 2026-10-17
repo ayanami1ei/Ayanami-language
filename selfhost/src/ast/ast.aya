@@ -163,8 +163,6 @@ pub struct Ast {
     [int] lines
     [int] cols
     int len
-    // 容量（= 数组槽数；越界检查按 cap，len 只是已用计数）
-    int cap
 }
 
 pub namespace Ast {
@@ -181,8 +179,7 @@ pub namespace Ast {
             nexts = [int; 131072],
             lines = [int; 131072],
             cols = [int; 131072],
-            len = 0,
-            cap = 131072
+            len = 0
         };
         return a;
     }

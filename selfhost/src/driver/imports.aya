@@ -13,20 +13,16 @@ pub struct Deps {
     [String] names
     [String] paths
     int count
-    // 容量（= 数组槽数；越界检查按 cap）
-    int cap
 }
 
 pub struct Seen {
     [String] files
     int count
-    // 容量（= 数组槽数；越界检查按 cap）
-    int cap
 }
 
 pub namespace Deps {
     pub fn new() -> Deps {
-        return Deps { names = [String; 256], paths = [String; 256], count = 0, cap = 256 };
+        return Deps { names = [String; 256], paths = [String; 256], count = 0 };
     }
 }
 
@@ -50,7 +46,7 @@ impl Deps {
 
 pub namespace Seen {
     pub fn new() -> Seen {
-        return Seen { files = [String; 256], count = 0, cap = 256 };
+        return Seen { files = [String; 256], count = 0 };
     }
 }
 
