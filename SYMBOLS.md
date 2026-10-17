@@ -54,8 +54,8 @@ src/cli/update_fetch.rs:36: pub(super) fn fetch_latest() -> Result<(String, Stri
 src/cli/update_fetch.rs:53: pub(super) fn asset_size_mb(json: &str, asset_name: &str) -> Option<f64>
 src/cli/update_fetch.rs:63: pub(super) fn version_from_name(path: &str) -> Option<String>
 src/cli/update_fetch.rs:70: pub(super) fn download(src: &str, dest: &Path, limit_rate: Option<&str>) -> Result<()>
-src/cli/update_fetch.rs:96: pub(super) fn tar_listing(tar: &Path) -> Result<String>
-src/cli/update_fetch.rs:106: pub(super) fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
+src/cli/update_fetch.rs:98: pub(super) fn tar_listing(tar: &Path) -> Result<String>
+src/cli/update_fetch.rs:108: pub(super) fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
 src/compiler/build/compile.rs:6: pub fn compile_file(
 src/compiler/build/compile.rs:144: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
