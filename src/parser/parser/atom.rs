@@ -96,6 +96,10 @@ impl Parser {
                     Some(TokenKind::Delimiter(Delimiter::LParen)) => {
                         self.advance();
                         let mut args = Vec::new();
+                        // #194：调用实参内允许结构体字面量（`f(U { })`、`if f(Point { x = 1 })`）；
+                        // 条件上下文默认禁止（parse_cond_expr），括号/实参内重置
+                        let saved_depth = self.struct_lit_depth;
+                        self.struct_lit_depth = 0;
                         if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
                             loop {
                                 args.push(self.parse_expr()?);
@@ -105,10 +109,22 @@ impl Parser {
                                 self.expect_delimiter(Delimiter::Comma)?;
                             }
                         }
+                        self.struct_lit_depth = saved_depth;
                         self.expect_delimiter(Delimiter::RParen)?;
                         Ok(Expr::FnCall { name: name_sym, args, generic_args: Vec::new(), span })
                     }
                     Some(TokenKind::Delimiter(Delimiter::LBrace)) => {
+                        // #194：空结构体字面量 `U { }`（条件/scrutinee 位置禁用，
+                        // 避免吞掉 if/while/match 的块）
+                        let empty_lit = self.pos + 1 < self.tokens.len()
+                            && self.tokens[self.pos + 1].kind == TokenKind::Delimiter(Delimiter::RBrace);
+                        if empty_lit && self.struct_lit_depth == 0 {
+                            self.advance(); // consume {
+                            self.advance(); // consume }
+                            return Ok(Expr::StructLiteral {
+                                type_name: name_sym, generic_args: Vec::new(), fields: Vec::new(), span,
+                            });
+                        }
                         // Try to parse as struct literal: ident { field = val, ... }
                         // If the first field ends with , → definitely struct
                         // If it ends with } → one-field struct

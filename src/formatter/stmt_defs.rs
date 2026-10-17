@@ -17,7 +17,8 @@ pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize) {
             let _ = write!(out, "{}{}{} {}", i, vis_str, kw, name);
             write_generic_params(out, generic_params);
             if fields.is_empty() {
-                let _ = writeln!(out, ";");
+                // #194：fmt 产物必须可编译——空结构体保留 `{}` 形式（`struct X;` 解析器不接受）
+                let _ = writeln!(out, " {{}}");
             } else {
                 let _ = writeln!(out, " {{");
                 for (idx, (fname, fty)) in fields.iter().enumerate() {
