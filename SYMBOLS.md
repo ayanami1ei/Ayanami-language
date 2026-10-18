@@ -295,11 +295,11 @@ src/formatter/expr.rs:11: fn binop_prec(op: &BinaryOp) -> u8
 src/formatter/expr.rs:26: fn expr_prec(e: &Expr) -> u8
 src/formatter/expr.rs:35: fn maybe_paren(cond: bool, e: &Expr, level: usize) -> String
 src/formatter/expr.rs:40: pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String
-src/formatter/expr.rs:214: fn asm_constraint(c: &str) -> &str
-src/formatter/expr.rs:220: pub(super) fn escape_string(s: &str) -> String
-src/formatter/expr.rs:237: pub(super) fn write_literal(lit: &Literal) -> String
-src/formatter/expr.rs:265: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
-src/formatter/expr.rs:288: pub(super) fn vis_str(vis: &Visibility) -> &str
+src/formatter/expr.rs:214: fn asm_constraint(c: &str) -> String
+src/formatter/expr.rs:223: pub(super) fn escape_string(s: &str) -> String
+src/formatter/expr.rs:240: pub(super) fn write_literal(lit: &Literal) -> String
+src/formatter/expr.rs:268: pub(super) fn write_bin_op(op: &BinaryOp) -> &str
+src/formatter/expr.rs:291: pub(super) fn vis_str(vis: &Visibility) -> &str
 src/formatter/helpers.rs:4: pub(super) fn write_stmt_separator(out: &mut String, stmt: &Stmt)
 src/formatter/helpers.rs:14: pub(super) fn indent(level: usize) -> String
 src/formatter/helpers.rs:18: pub(super) fn write_block_same_line(out: &mut String, block: &crate::parser::ast::block::Block, level: usize)
@@ -2346,6 +2346,8 @@ src/parser/mod.rs:15: pub fn parse_source(source: &str) -> Result<crate::parser:
 src/parser/mod.rs:25: pub fn parse_expression(source: &str) -> Result<crate::parser::ast::expr::Expr>
 src/parser/parser/array_expr.rs:3: impl Parser
 src/parser/parser/array_expr.rs:5: pub(super) fn parse_array_expr(&mut self, bracket_span: Span) -> Result<Expr>
+src/parser/parser/asm.rs:5: impl Parser
+src/parser/parser/asm.rs:6: pub(super) fn parse_asm(&mut self) -> Result<Expr>
 src/parser/parser/atom.rs:5: impl Parser
 src/parser/parser/atom.rs:6: pub(super) fn parse_atom(&mut self) -> Result<Expr>
 src/parser/parser/const_decl.rs:3: impl Parser
@@ -2419,22 +2421,23 @@ src/parser/parser/macro_call.rs:5: pub(super) fn parse_macro_call(&mut self) -> 
 src/parser/parser/mod.rs:8: pub struct Parser
 src/parser/parser/mod.rs:18: fn ast_type_text(ty: &Type) -> String
 src/parser/parser/mod.rs:40: mod array_expr;
-src/parser/parser/mod.rs:41: mod atom;
-src/parser/parser/mod.rs:42: mod const_decl;
-src/parser/parser/mod.rs:43: mod self_type;
-src/parser/parser/mod.rs:44: mod core;
-src/parser/parser/mod.rs:45: mod decl;
-src/parser/parser/mod.rs:46: mod enum_iface;
-src/parser/parser/mod.rs:47: mod expr;
-src/parser/parser/mod.rs:48: mod generic_params;
-src/parser/parser/mod.rs:49: mod impls;
-src/parser/parser/mod.rs:50: mod literal_text;
-src/parser/parser/mod.rs:51: mod macro_call;
-src/parser/parser/mod.rs:52: mod for_stmt;
-src/parser/parser/mod.rs:53: mod pattern;
-src/parser/parser/mod.rs:54: mod stmt;
-src/parser/parser/mod.rs:55: mod types;
-src/parser/parser/mod.rs:56: mod unary;
+src/parser/parser/mod.rs:41: mod asm;
+src/parser/parser/mod.rs:42: mod atom;
+src/parser/parser/mod.rs:43: mod const_decl;
+src/parser/parser/mod.rs:44: mod self_type;
+src/parser/parser/mod.rs:45: mod core;
+src/parser/parser/mod.rs:46: mod decl;
+src/parser/parser/mod.rs:47: mod enum_iface;
+src/parser/parser/mod.rs:48: mod expr;
+src/parser/parser/mod.rs:49: mod generic_params;
+src/parser/parser/mod.rs:50: mod impls;
+src/parser/parser/mod.rs:51: mod literal_text;
+src/parser/parser/mod.rs:52: mod macro_call;
+src/parser/parser/mod.rs:53: mod for_stmt;
+src/parser/parser/mod.rs:54: mod pattern;
+src/parser/parser/mod.rs:55: mod stmt;
+src/parser/parser/mod.rs:56: mod types;
+src/parser/parser/mod.rs:57: mod unary;
 src/parser/parser/pattern.rs:6: impl Parser
 src/parser/parser/pattern.rs:8: pub(super) fn parse_pattern(&mut self) -> Result<Pattern>
 src/parser/parser/pattern.rs:18: fn parse_pattern_literal(&mut self) -> Result<crate::parser::ast::literal::Literal>

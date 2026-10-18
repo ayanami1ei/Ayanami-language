@@ -49,3 +49,4 @@ asm_multiout.aya 0 79
 extern_runtime_sym.aya 0 1
 empty_struct.aya 0 1
 extern_attr.aya 0 1
+asm_early_clobber.aya 0 12

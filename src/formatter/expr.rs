@@ -211,8 +211,11 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
 }
 
 /// asm 约束 → 源码关键字（当前仅支持 reg）
-fn asm_constraint(c: &str) -> &str {
-    if c.contains('r') { "reg" } else { c }
+fn asm_constraint(c: &str) -> String {
+    // #198：early-clobber 输出 `=&r` 还原为 `out(early reg)`
+    if c.starts_with("=&") { "early reg".into() }
+    else if c.contains('r') { "reg".into() }
+    else { c.into() }
 }
 
 /// 字符串转义（与源码字符串字面量一致）：fmt 不得展开转义（#197 asm 模板换行）。

@@ -1,0 +1,19 @@
+// #198：early-clobber 输出（out(early reg)）——先写输出后读输入不再破坏输入
+import "io"
+
+fn satmul(int a, int b) -> int {
+    r = 0
+    s = 0
+    hi = 0
+    lo = 0
+    unsafe {
+        asm("movq $4, $1\n xorq $5, $1\n movabsq $$0x7fffffffffffffff, $2\n movabsq $$0x8000000000000000, $3\n testq $1, $1\n cmovsq $3, $2\n movq $4, $0\n imulq $5, $0\n cmovoq $2, $0",
+            in(reg) a, in(reg) b, out(early reg) r, out(early reg) s, out(early reg) hi, out(early reg) lo)
+    }
+    println(r)
+    return 0
+}
+
+fn main() -> int {
+    return satmul(3, 4)
+}
