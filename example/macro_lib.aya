@@ -89,3 +89,7 @@ pub fn err_me(String input) -> String {
     __ayanami_macro_diag(2, "err_me: demo error")
     return input
 }
+
+// mcl.2：生成非法代码（负例——错误应带宏名与调用点）
+#[macro]
+pub fn broken(String input) -> String { return "fn broken( {" }
