@@ -30,7 +30,9 @@ fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize) {
             write_generic_params(out, generic_params);
             write_params(out, params, param_attrs);
             write_return_type(out, return_type);
-            if *extern_c && body.stmts.is_empty() {
+            // #199：仅当既无语句又无尾表达式时才是纯声明——`{ g(x) }` 的尾表达式在
+            // stmts 之外，此前被误判为声明 → fmt 丢弃函数体
+            if *extern_c && body.stmts.is_empty() && body.tail.is_none() {
                 let _ = writeln!(out, ";");
             } else {
                 let _ = write!(out, " ");
