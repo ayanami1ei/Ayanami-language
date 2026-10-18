@@ -2063,16 +2063,18 @@ impl Emitter {
     /// 元素槽类型（表感知）：未知 Named（泛型参数 T 等）按 i64，与 param_kind 一致
     #[alloc]
     fn elem_llvm_m(ref mut self, ref Ast ast, int ety) -> String {
-        // 哨兵（2000-2002）与合成 id（10000+）直接走原逻辑
-        if ety >= 2000 { return elem_llvm(ast, ety); }
+        // 精确哨兵（2000-2002）直接走原逻辑；合成 id 为负值不在此列
+        if ety == 2000 || ety == 2001 || ety == 2002 { return elem_llvm(ast, ety); }
         if ety >= 0 {
             tg = ast.tags[ety];
-            if tg == tt(TT::Named._tag) {
+            if tg == tt(TT::Named._tag) || tg == tt(TT::Generic._tag) {
                 tn = ast.texts[ety];
                 if tn != "String" && tn != "f32" && tn != "f64" {
                     if self.find_struct_idx(tn) < 0 {
                         if self.find_enum_idx(tn) < 0 {
-                            return "i64";
+                            if self.find_iface_idx(tn) < 0 {
+                                return "i64";
+                            }
                         }
                     }
                 }
@@ -2667,8 +2669,9 @@ fn is_cmp(int op) -> bool {
 /// 数组元素槽布局：统一 8 字节槽（String/结构体为 {ptr, i64} → 16 字节）
 /// 内建哨兵：2000 = String（ptr 槽，16 字节）、2001 = float（double 槽）
 fn elem_slot(ref Ast ast, int ty) -> String {
-    if ty >= 10000 && ty < 10128 { return "ptr"; }
-    if ty >= 20000 && ty < 20128 { return "ptr"; }
+    // 合成 id（负值，避免与真实 AST 节点 id 冲突）
+    if ty <= -1000 && ty > -1128 { return "ptr"; }
+    if ty <= -2000 && ty > -2128 { return "ptr"; }
     if ty == 2000 { return "ptr"; }
     if ty == 2001 { return "double"; }
     if ty == 2002 { return "i8"; }
@@ -2733,8 +2736,8 @@ fn elem_addr(ref mut Emitter e, int stride, ref String base, ref String idx) -> 
 
 /// 元素是否为 String（布局 { ptr, i64 }，需要两次 store）
 fn elem_is_string(ref Ast ast, int ty) -> bool {
-    if ty >= 10000 && ty < 10128 { return false; }
-    if ty >= 20000 && ty < 20128 { return false; }
+    if ty <= -1000 && ty > -1128 { return false; }
+    if ty <= -2000 && ty > -2128 { return false; }
     if ty == 2000 { return true; }
     if ty == 2002 { return false; }
     if ty < 0 { return false; }
@@ -2758,7 +2761,7 @@ fn elem_type_of(ref Ast ast, int id) -> int {
     return -1;
 }
 
-/// 数组元素类型（含结构体/枚举字面量与结构体/枚举局部；合成 id：10000+si / 20000+ei）
+/// 数组元素类型（含结构体/枚举字面量与结构体/枚举局部；合成 id：-1000-si / -2000-ei）
 impl Emitter {
     #[alloc]
     #[state]
@@ -2767,21 +2770,21 @@ impl Emitter {
         tg = ast.tags[id];
         if tg == et(ET::StructLiteral._tag) {
             si = self.find_struct_idx(ast.texts[id]);
-            if si >= 0 { return 10000 + si; }
+            if si >= 0 { return -1000 - si; }
             return -1;
         }
         if tg == et(ET::EnumConstruct._tag) {
             en = pat_name(ast.texts[id]);
             ei = self.find_enum_idx(en);
-            if ei >= 0 { return 20000 + ei; }
+            if ei >= 0 { return -2000 - ei; }
             return -1;
         }
         if tg == et(ET::Ident._tag) {
             kd = self.local_kind(ast.texts[id]);
-            if kd >= 100 && kd < 228 { return 10000 + (kd - 100); }
+            if kd >= 100 && kd < 228 { return -1000 - (kd - 100); }
             if kd == 20 {
                 ei2 = self.etype_of_local(ast.texts[id]);
-                if ei2 >= 0 { return 20000 + ei2; }
+                if ei2 >= 0 { return -2000 - ei2; }
             }
             return -1;
         }
@@ -4215,11 +4218,11 @@ fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e
             e.buf.push_str(" = load ptr, ptr ");
             e.buf.push_str(g4);
             e.buf.push_str("\n");
-            if ety3 >= 10000 && ety3 < 10128 {
-                return Val { kind = 2, a = tp4, b = e.st_names[ety3 - 10000].copy(), ty = -1 };
+            if ety3 <= -1000 && ety3 > -1128 {
+                return Val { kind = 2, a = tp4, b = e.st_names[0 - 1000 - ety3].copy(), ty = -1 };
             }
-            if ety3 >= 20000 && ety3 < 20128 {
-                return Val { kind = 4, a = tp4, b = e.en_names[ety3 - 20000].copy(), ty = -1 };
+            if ety3 <= -2000 && ety3 > -2128 {
+                return Val { kind = 4, a = tp4, b = e.en_names[0 - 2000 - ety3].copy(), ty = -1 };
             }
             etn4 = ty_name(ast, ety3);
             if etn4.len > 0 {
