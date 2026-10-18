@@ -2334,6 +2334,168 @@ fn emit_op_method_call(ref Ast ast, int id, ref Val lt, ref String mn, int mid, 
     return mk_int(t);
 }
 
+/// UFCS 回退：同名自由函数且首参类型名 == recv_ty
+#[alloc]
+fn find_fn_by_recv(ref mut Emitter e, ref Ast ast, ref String name, ref String recv_ty) -> int {
+    i = 0;
+    while i < e.fn_count {
+        if e.fn_names[i] == name {
+            fid = e.fn_first[i];
+            if fid >= 0 {
+                p0 = ast.aa[fid];
+                if p0 >= 0 {
+                    pn = ty_name(ast, ast.tys[p0]);
+                    if pn == recv_ty { return i; }
+                }
+            }
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+/// UFCS 调用：自由函数（接收者作首参）
+#[alloc]
+#[state]
+fn emit_ufcs_call(ref Ast ast, int id, ref Val obj, ref String name, ref mut Emitter e) -> Val {
+    full = name.copy();
+    mrty = e.fn_ret_type(full);
+    rk_m = e.ret_kind(ast, mrty);
+    b = StringBuf::new();
+    b.push_str("  ");
+    t = e.fresh();
+    b.push_str(t);
+    if rk_m == 5 {
+        b.push_str(" = call double @");
+    } elif rk_m == 1 {
+        b.push_str(" = call { ptr, i64 } @");
+    } else {
+        b.push_str(" = call i64 @");
+    }
+    b.push_str(e.fn_sym(full));
+    pkc = e.fn_param_kind(full, 0);
+    if pkc == 0 {
+        b.push_str("(i64 ");
+        b.push_str(obj.a);
+    } elif pkc == 30 {
+        tp0 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(tp0);
+        e.buf.push_str(" = alloca i64\n  store i64 ");
+        e.buf.push_str(obj.a);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(tp0);
+        e.buf.push_str("\n");
+        b.push_str("(ptr ");
+        b.push_str(tp0);
+    } elif pkc == 31 {
+        b.push_str("(double ");
+        b.push_str(float_operand(obj, e));
+    } else {
+        b.push_str("(ptr ");
+        b.push_str(obj.a);
+    }
+    a3 = ast.bb[id];
+    ak3 = 1;
+    while a3 >= 0 {
+        at3 = emit_expr(ast, ast.aa[a3], e);
+        pk3 = e.fn_param_kind(full, ak3);
+        if pk3 == 31 {
+            b.push_str(", double ");
+            b.push_str(float_operand(at3, e));
+        } elif pk3 == 30 {
+            b.push_str(", ptr ");
+            b.push_str(addr_of_arg(ast, ast.aa[a3], e));
+        } elif pk3 == 0 {
+            b.push_str(", i64 ");
+            b.push_str(at3.a);
+        } elif pk3 == 1 {
+            b.push_str(", ptr ");
+            b.push_str(at3.a);
+            b.push_str(", i64 ");
+            b.push_str(at3.b);
+        } elif pk3 == 21 {
+            ii_p3u = e.fn_piface_of(full, ak3);
+            if ii_p3u > 0 && at3.kind != 21 {
+                in_p3u = e.if_names[ii_p3u - 1].copy();
+                b.push_str(", ptr ");
+                b.push_str(e.emit_box(at3, in_p3u));
+            } else {
+                b.push_str(", ptr ");
+                b.push_str(at3.a);
+            }
+        } else {
+            b.push_str(", ptr ");
+            b.push_str(at3.a);
+        }
+        ak3 = ak3 + 1;
+        a3 = ast.nexts[a3];
+    }
+    b.push_str(")\n");
+    e.buf.push_str(b.to_string());
+    if rk_m == 5 { return mk_float(t); }
+    if rk_m == 1 {
+        p6 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(p6);
+        e.buf.push_str(" = extractvalue { ptr, i64 } ");
+        e.buf.push_str(t);
+        e.buf.push_str(", 0\n  ");
+        l6 = e.fresh();
+        e.buf.push_str(l6);
+        e.buf.push_str(" = extractvalue { ptr, i64 } ");
+        e.buf.push_str(t);
+        e.buf.push_str(", 1\n");
+        return mk_str_tmp(p6, l6);
+    }
+    if rk_m == 2 {
+        rinfo3 = e.ret_info(ast, mrty);
+        rnm3 = "";
+        if rinfo3 >= 0 { rnm3 = e.st_names[rinfo3].copy(); }
+        pi5 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pi5);
+        e.buf.push_str(" = inttoptr i64 ");
+        e.buf.push_str(t);
+        e.buf.push_str(" to ptr\n");
+        return Val { kind = 2, a = pi5, b = rnm3, ty = -1 };
+    }
+    if rk_m == 4 {
+        rinfo4 = e.ret_info(ast, mrty);
+        rnm4 = "";
+        if rinfo4 >= 0 { rnm4 = e.en_names[rinfo4].copy(); }
+        pi6 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pi6);
+        e.buf.push_str(" = inttoptr i64 ");
+        e.buf.push_str(t);
+        e.buf.push_str(" to ptr\n");
+        return Val { kind = 4, a = pi6, b = rnm4, ty = -1 };
+    }
+    if rk_m == 6 {
+        rinfo6 = e.ret_info(ast, mrty);
+        rnm6 = "";
+        if rinfo6 >= 0 { rnm6 = e.if_names[rinfo6].copy(); }
+        pi6b = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pi6b);
+        e.buf.push_str(" = inttoptr i64 ");
+        e.buf.push_str(t);
+        e.buf.push_str(" to ptr\n");
+        return Val { kind = 21, a = pi6b, b = rnm6, ty = -1 };
+    }
+    if rk_m == 3 {
+        pi7 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pi7);
+        e.buf.push_str(" = inttoptr i64 ");
+        e.buf.push_str(t);
+        e.buf.push_str(" to ptr\n");
+        return mk_arr(pi7, e.ret_info(ast, mrty));
+    }
+    return mk_int(t);
+}
+
 /// for-in 的 next() 调用（无参）：结构体/枚举静态、接口 vtable
 #[alloc]
 #[state]
@@ -6126,6 +6288,11 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 return mk_arr(pi7, e.ret_info(ast, mrty));
             }
             return mk_int(t5);
+        }
+        // UFCS 回退：同名自由函数、接收者作首参（如 f.replace_int(i, v)）
+        fi_u = find_fn_by_recv(e, ast, ast.texts[id], recv_ty);
+        if fi_u >= 0 {
+            return emit_ufcs_call(ast, id, obj, ast.texts[id], e);
         }
         return mk_int("0");
     }

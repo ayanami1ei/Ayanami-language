@@ -133,8 +133,11 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
     }
     n = check_program(p.ast, prog, file, smap);
     if n > 0 {
-        // 自举期：checker 尚不完整（缺 std 符号表/部分重载规则），降级为警告继续发射
-        raw_error("check warnings: " + int_str3(n));
+        // 自举期：checker 尚不完整（缺 std 符号表/部分重载规则），降级为警告继续发射。
+        // 计数行默认不打印（对齐 stage-0 输出），调试用 AYANAMI_SELFHOST_DEBUG=1
+        if env("AYANAMI_SELFHOST_DEBUG") == "1" {
+            raw_error("check warnings: " + int_str3(n));
+        }
     }
     rt = runtime_c(o);
     if rt.len == 0 {
@@ -154,13 +157,13 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
     cc = "llc -filetype=obj " + ll + " -o " + obj;
     st = system(to_cstr(cc));
     if st != 0 {
-        raw_error("llc failed: " + ll);
+        raw_error("link failed: driver error: llc failed");
         return 1;
     }
     ld = "gcc -no-pie " + obj + " " + rt + " " + link_extra(o) + " -lm -o " + exe;
     st2 = system(to_cstr(ld));
     if st2 != 0 {
-        raw_error("gcc link failed: " + exe);
+        raw_error("link failed: driver error: gcc link failed");
         return 1;
     }
     return 0;

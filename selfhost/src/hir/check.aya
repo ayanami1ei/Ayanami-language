@@ -790,6 +790,22 @@ impl Checker {
 
     #[alloc]
     #[state]
+    /// UFCS 回退：同名自由函数且首参（去 ref）类型 == 接收者
+    #[alloc]
+    fn find_free_fn_recv(ref mut self, ref String name, ref String base) -> int {
+        i = 0;
+        while i < self.fn_count {
+            if self.fn_names[i] == name {
+                if self.fn_nparams[i] >= 1 {
+                    p0 = self.fn_ptypes[self.fn_pstart[i]];
+                    if base_type(p0) == base { return i; }
+                }
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+
     fn find_struct(ref mut self, ref String name) -> int {
         base = base_type(name);
         i = 0;
@@ -1972,14 +1988,17 @@ impl Checker {
             if self.find_struct(base) >= 0 {
                 mi = self.find_method(base, ast.texts[id]);
                 if mi < 0 {
-                    b = StringBuf::new();
-                    b.push_str("type `");
-                    b.push_str(base);
-                    b.push_str("` has no method `");
-                    b.push_str(ast.texts[id]);
-                    b.push_str("` for argument types ");
-                    b.push_str(given);
-                    self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                    // UFCS 回退：同名自由函数、接收者作首参
+                    if self.find_free_fn_recv(ast.texts[id], base) < 0 {
+                        b = StringBuf::new();
+                        b.push_str("type `");
+                        b.push_str(base);
+                        b.push_str("` has no method `");
+                        b.push_str(ast.texts[id]);
+                        b.push_str("` for argument types ");
+                        b.push_str(given);
+                        self.err(b.to_string(), ast.lines[id], ast.cols[id]);
+                    }
                 }
             } elif self.is_gp(ot) {
                 bound = self.gp_bound(ot);
