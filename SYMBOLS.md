@@ -328,26 +328,26 @@ src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, lev
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:36: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:40: pub struct Imports
-src/hir/attrs.rs:47: impl Imports
-src/hir/attrs.rs:48: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:56: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:79: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:89: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:94: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:102: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:137: fn validate_follow_with(a: &Attr) -> Result<()>
-src/hir/attrs.rs:157: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
-src/hir/attrs.rs:164: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
-src/hir/attrs.rs:176: pub fn validate_program(program: &Program) -> Result<()>
-src/hir/attrs.rs:184: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
-src/hir/attrs.rs:207: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
-src/hir/attrs_export.rs:5: fn find_export(attrs: &[Attr]) -> Option<&Attr>
-src/hir/attrs_export.rs:10: pub(super) fn validate_fn_export(attrs: &[Attr], has_generics: bool) -> Result<()>
-src/hir/attrs_export.rs:23: pub(super) fn validate_compile_time(attrs: &[Attr], has_generics: bool) -> Result<()>
-src/hir/attrs_export.rs:36: pub(super) fn reject_compile_time(attrs: &[Attr], place: &str) -> Result<()>
-src/hir/attrs_export.rs:47: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
+src/hir/attrs.rs:38: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:42: pub struct Imports
+src/hir/attrs.rs:49: impl Imports
+src/hir/attrs.rs:50: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:58: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:81: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:91: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:96: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:104: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:139: fn validate_follow_with(a: &Attr) -> Result<()>
+src/hir/attrs.rs:159: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/attrs.rs:166: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
+src/hir/attrs.rs:178: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:186: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
+src/hir/attrs.rs:209: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs_export.rs:6: fn find_export(attrs: &[Attr]) -> Option<&Attr>
+src/hir/attrs_export.rs:15: pub(super) fn validate_fn_export(attrs: &[Attr], has_generics: bool) -> Result<()>
+src/hir/attrs_export.rs:28: pub(super) fn validate_compile_time(attrs: &[Attr], has_generics: bool) -> Result<()>
+src/hir/attrs_export.rs:41: pub(super) fn reject_compile_time(attrs: &[Attr], place: &str) -> Result<()>
+src/hir/attrs_export.rs:52: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_macro.rs:16: fn is_compiler_attr(a: &Attr) -> bool
 src/hir/attrs_macro.rs:28: pub fn validate_macros(
 src/hir/attrs_macro.rs:43: enum AnnKind { Macro, Pass, Check }
@@ -2375,16 +2375,16 @@ src/parser/parser/core.rs:248: pub(super) fn matching_bracket(&self, start: usiz
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/decl.rs:10: pub(super) fn parse_fn_decl_unsafe(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, is_unsafe: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
-src/parser/parser/decl.rs:74: pub(super) fn parse_return(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:91: pub(super) fn parse_cond_expr(&mut self) -> Result<Expr>
-src/parser/parser/decl.rs:98: pub(super) fn parse_if(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:104: pub(super) fn parse_if_expr(&mut self) -> Result<Expr>
-src/parser/parser/decl.rs:109: fn parse_if_parts(&mut self) -> Result<(Expr, Block, Vec<(Expr, Block)>, Option<Block>, Span)>
-src/parser/parser/decl.rs:135: pub(super) fn parse_while(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:145: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
-src/parser/parser/decl.rs:153: pub(super) fn parse_match_expr(&mut self) -> Result<Expr>
-src/parser/parser/decl.rs:183: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
-src/parser/parser/decl.rs:206: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>, is_union: bool) -> Result<Stmt>
+src/parser/parser/decl.rs:77: pub(super) fn parse_return(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:94: pub(super) fn parse_cond_expr(&mut self) -> Result<Expr>
+src/parser/parser/decl.rs:101: pub(super) fn parse_if(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:107: pub(super) fn parse_if_expr(&mut self) -> Result<Expr>
+src/parser/parser/decl.rs:112: fn parse_if_parts(&mut self) -> Result<(Expr, Block, Vec<(Expr, Block)>, Option<Block>, Span)>
+src/parser/parser/decl.rs:138: pub(super) fn parse_while(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:148: pub(super) fn parse_match_stmt(&mut self) -> Result<Stmt>
+src/parser/parser/decl.rs:156: pub(super) fn parse_match_expr(&mut self) -> Result<Expr>
+src/parser/parser/decl.rs:186: pub(super) fn parse_namespace(&mut self, vis: Visibility) -> Result<Stmt>
+src/parser/parser/decl.rs:209: pub(super) fn parse_struct_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>, is_union: bool) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:3: impl Parser
 src/parser/parser/enum_iface.rs:6: pub(super) fn parse_enum_def(&mut self, vis: Visibility, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/enum_iface.rs:59: pub(super) fn parse_interface_def(&mut self, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>

@@ -1,0 +1,10 @@
+// fmt：extern "C" 迁移为 #[extern] 标注（旧语法仍可解析）
+extern "C" fn g(usize x);
+
+extern "C" fn f(usize x) {
+    g(x)
+}
+
+fn main() -> int {
+    return 0
+}

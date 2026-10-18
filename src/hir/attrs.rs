@@ -28,6 +28,8 @@ pub const ALLOWED: &[&str] = &[
     "nonnull",
     // #84 ③：导出 C 符号（等价 `extern "C"` 定义）
     "export",
+    // `#[extern]`：C ABI 标注（等价 `extern "C"`，含无体声明）
+    "extern",
     // M6.3：编译期求值函数（常量上下文解释执行）
     "compile_time",
 ];

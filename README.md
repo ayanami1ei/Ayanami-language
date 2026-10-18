@@ -218,7 +218,7 @@ fn main() -> int {
   捕获 lambda 是**拥有闭包**（移动语义，环境在作用域结束递归释放）。
 - 捕获按值（Copy 复制 / 拥有类型移动），lambda 内可修改捕获副本（FnMut 语义）。
 - 形参写 `ref Fn(T) -> U` 可借用闭包（调用点自动借用，可重复传入同一闭包）。
-- 裸函数指针类型 `fn(T) -> U` 仅允许出现在 `extern "C"`（含 `#[export]`）签名中，
+- 裸函数指针类型 `fn(T) -> U` 仅允许出现在 C ABI 标注（`#[extern]` / `#[export]`，旧语法 `extern "C"`）签名中，
   供 C 回调使用；安全代码中使用会报错（留待未来的 unsafe）。
 - `#[track_caller]` 见标注文档；lambda 尾表达式 `(int x) -> int { x + 1 }` 作为隐式返回值。
 
@@ -369,7 +369,8 @@ fn bump[T: Maker](ref T v) -> T { return v.make() }   // 返回 T
 #[export]
 fn aya_add(int a, int b) -> int { return a + b }   // C: int64_t aya_add(int64_t, int64_t)
 
-extern "C" fn c_helper(int x) -> int;               // 空体 = 导入 C 符号
+#[extern]
+fn c_helper(int x) -> int;                          // 空体 = 导入 C 符号（等价 extern "C"）
 ```
 
 - 导出函数保留原始符号名；`int` = `int64_t`、`ref mut T` = `T*`，类型映射见 `docs/c-interop.md`。
@@ -453,7 +454,8 @@ import "panic";
 fn add(int a, int b) -> int { return a + b }
 
 #[pure]
-extern "C" fn strlen(unique [char] s) -> int;
+#[extern]
+fn strlen(unique [char] s) -> int;
 ```
 
 ### 效应系统
