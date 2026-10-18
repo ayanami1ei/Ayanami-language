@@ -582,6 +582,30 @@ fn str_of_val(ref Val v, ref mut Emitter e) -> Val {
         // 返回拥有值：ref 形参的 String 字段必须显式 copy（否则双重释放）
         return Val { kind = v.kind, a = v.a.copy(), b = v.b.copy(), ty = v.ty };
     }
+    if v.ty == 7000 {
+        // char：转单字符 String（拼接语义，对应 rust 侧 char 参与 concat）
+        if e.fn_ret_type("aya_ch_to_string") >= 0 {
+            tc = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(tc);
+            e.buf.push_str(" = call { ptr, i64 } @");
+            e.buf.push_str(e.fn_sym("aya_ch_to_string"));
+            e.buf.push_str("(i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(")\n  ");
+            ipc = e.fresh();
+            e.buf.push_str(ipc);
+            e.buf.push_str(" = extractvalue { ptr, i64 } ");
+            e.buf.push_str(tc);
+            e.buf.push_str(", 0\n  ");
+            ilc = e.fresh();
+            e.buf.push_str(ilc);
+            e.buf.push_str(" = extractvalue { ptr, i64 } ");
+            e.buf.push_str(tc);
+            e.buf.push_str(", 1\n");
+            return mk_str_tmp(ipc, ilc);
+        }
+    }
     if v.kind != 6 {
         if e.fn_ret_type("aya_int_to_string") >= 0 {
             t = e.fresh();
@@ -3588,8 +3612,15 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                         pty_k = e.variant_ptype(ei_b, vi_b, k);
                         psl_k = e.payload_slot(ast, ei_b, vi_b, k);
                         tn_k = ty_name(ast, pty_k);
+                        is_ch_k = 0;
+                        if pty_k >= 0 {
+                            if ast.tags[pty_k] == tt(TT::Char._tag) { is_ch_k = 1; }
+                        }
                         if tn_k == "String" {
                             pkind_k = 1;
+                        } elif tn_k == "char" || is_ch_k == 1 {
+                            // char 载荷：标记 7000，拼接时按字符转换
+                            pkind_k = 7000;
                         } else {
                             si_k = e.find_struct_idx(tn_k);
                             if si_k >= 0 {
@@ -3668,7 +3699,7 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                     e.buf.push_str(", ptr %v_");
                     e.buf.push_str(bname2);
                     e.buf.push_str(".len\n");
-                } elif pk == 1 && pkind_k >= 2 {
+                } elif pk == 1 && pkind_k >= 2 && pkind_k < 7000 {
                     // 结构体/枚举载荷：指针
                     e.buf.push_str("\n");
                     vp_p = e.fresh();
@@ -3694,6 +3725,7 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                     e.buf.push_str(g);
                     e.buf.push_str("\n");
                     e.declare_local(bname2, 0);
+                    if pkind_k == 7000 { e.record_etype(bname2, 7000); }
                     e.buf.push_str("  store i64 ");
                     e.buf.push_str(v);
                     e.buf.push_str(", ptr %v_");
@@ -5061,6 +5093,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         e.buf.push_str(" = load i64, ptr %v_");
         e.buf.push_str(nm);
         e.buf.push_str("\n");
+        if e.etype_of_local(nm) == 7000 {
+            return Val { kind = 0, a = t, b = "", ty = 7000 };
+        }
         return mk_int(t);
     }
     if tag == et(ET::Binary._tag) {

@@ -259,3 +259,11 @@ impl[T] Option[T] {
         return other;
     }
 }
+
+/// char -> 单字符 String（String 拼接用；对应 rust 侧 char 参与 concat）
+#[alloc]
+pub fn aya_ch_to_string(char c) -> String {
+    buf = [char; 1];
+    buf[0] = c;
+    return String::new(buf, 1usize);
+}
