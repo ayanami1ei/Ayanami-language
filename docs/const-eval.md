@@ -1,6 +1,6 @@
 # 编译期求值与约束（const fn / 类型级）— P4e 接口预留
 
-> 状态：**设计（P4e-1 接口边界）；现状盘点完成**（2026-10-17）
+> 状态：**P4e-1 接口边界确认（接入点在位）；P4e-2/P4e-3 待做（#58 / bd `nku.2`）**（2026-10-17 / 2026-10-18）
 > 关联：GitHub #58（const fn / 编译期断言 / type-level constants）、#48/#49（Phase 4 统一推断）、
 > bd `Ayanami-language-upt.2`（P4e）；文档：`docs/generic-inference.md`、`docs/annotations.md`（效应）
 > 目标：为 `const fn`、编译期断言、类型级常量建立**统一求值/约束接口**，并与

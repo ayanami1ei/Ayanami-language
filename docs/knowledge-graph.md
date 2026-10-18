@@ -15,6 +15,7 @@
 | `docs/bootstrap.md` | Compiler Bootstrap / self-hosting 路线（Phase 0.4） |
 | `docs/annotations.md` | 标注系统（标注式编程）设计：A0–A5 路线 |
 | `docs/generic-monomorphization.md` | 泛型结构体/枚举单态化（最小实现完成） |
+| `docs/generic-inference.md` | 泛型推断统一化（Phase 4：P4a–P4d 已落地，统一 `unify`；P4e 接口见 const-eval） |
 | `docs/lifetimes.md` | 注解式生命周期 `#[follow_with]` 设计（A4） |
 | `docs/int-types.md` | 定宽整数类型（M1.1 核心完成）：集合/字面量适配/语义/实现位置 |
 | `docs/c-interop.md` | C 互操作（`#[export]`）与 runtime 选择（`[runtime] path`/`AYANAMI_RUNTIME`，已实现） |
@@ -91,7 +92,7 @@ graph TD
 | M4 拥有指针 | `helpers/types.rs`（`Ptr[T]`→`Unique`）、`expr_call.rs`（`Ptr::new`）、`expr_method.rs`（`get`/`get_mut`/自动解引用）、`match_setup.rs`+`match_pattern.rs`（match 就地匹配/载荷绑定）、`place.rs`（字段地址自动解引用） | `Ptr[T]` 堆拥有指针：字段/数组存储、递归 drop、`ref Ptr[T]` 借用、match 互操作（`Some(p)` 载荷、Ptr 目标、`ref a.next`）；设计见 docs/refs-storage.md |
 | 类型化 drop 函数 | `lir/lower/mod.rs`（按需合成 `__drop_<n>`）、`lir/ir/helpers_drop.rs` | Named 释放统一走弱链接函数，递归/互递归类型终止 |
 | 泛型多约束 | `parser/parser/generic_params.rs`、`hir/lower/body/generic_types.rs` | `[T: A + B]`（每参数 `Vec<Symbol>` 约束）；方法/操作符按任一 bound 检查，调用点合并检查全部 |
-| 泛型推断（Phase 4） | `body/generic_specialize.rs`（调用点特化/冲突诊断/失败回滚）、`helpers/convert.rs`（实参→形参）、`body/expr_struct.rs`（结构体字面量实参推断） | P4a/P4b/P4d 已落地；P4c 收敛 unify、P4e 约束接口待做；见 docs/generic-inference.md |
+| 泛型推断（Phase 4） | `helpers/unify.rs`（统一结构匹配/绑定）、`body/generic_specialize.rs`（调用点特化/冲突诊断/失败回滚）、`helpers/convert.rs`（AST 形参→HirType→unify 适配器）、`body/iface_args.rs`（约束反推 `infer_from_iface_constraints`）、`body/expr_struct.rs`（结构体字面量实参推断） | P4a/P4b/P4c/P4d 已落地（嵌套匹配唯一实现 = unify）；P4e 接口预留见 docs/const-eval.md |
 | 编译期求值/约束（P4e） | `body/const_eval.rs`（const 项求值）、解析期 `[T; N]` 尺寸、`body/generic_types.rs`/`generic_check.rs`（泛型约束）、`hir/effects/*`（纯度） | 接口边界与阶段见 docs/const-eval.md；P4e-2 `const fn`、P4e-3 const generics 待做 |
 | 局部移出清零 | `lir/ir/nodes_f.rs::SLirLocalTake` | 局部变量移动后清零，循环回边重复移动不双重释放 |
 | 导入所有权补全 | `hir/lower/body/collect_import.rs` | 符号串路径 `[T]` → `unique [T]`；LIR 精确类型优先 |
@@ -195,6 +196,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 效应：`#[pure]/#[no_error]/#[throws]` —推断→ `hir/effects/infer.rs`（调用图不动点）—发射→ `nounwind`/`memory(none|read)`；合成位置串（`SFileArg`）与标记不计入（#117）
 - 位运算：`& | ^ << >> ~` —文法→ operator（prec 6–9 / 前缀）—HIR→ `lower_binary`/`lower_unary` —发射→ `and/or/xor/shl/ashr/lshr` —折叠→ `example/constfold_lib.aya`
 - 显式转换：`expr as T` —解析→ `parse_cast` / 运算符表 prec:12 —HIR→ `lower_cast`/`SCast` —发射→ `sext/zext/trunc/sitofp/uitofp/fptosi.sat/fptoui.sat`
+- 泛型推断：约束收集 → `helpers/unify.rs`（统一结构匹配/泛型参数绑定）—应用→ `substitute_hir_type` —特化→ `generic_specialize.rs`（冲突诊断 P4d/失败回滚）；见 docs/generic-inference.md
 - 闭包：`Fn(T)->U` / lambda —解析→ `parse_type`（`Fn(` 特判；安全代码禁裸 `fn`）/ `parse_lambda`（Block 尾表达式）—捕获分析→ `helpers/closure.rs` —降级→ 拥有：`closure_lower.rs`（`__ClosureEnv_N` + `__lambda_N(env,…)` + `__closure_drop_N`）；静态：`closure_static.rs`（每签名 trampoline + noop drop）—调用→ `SVCall`（vtable slot 1）—释放→ `emit_drop_value(Closure)` 经 vtable slot 0
 
 ## 8. 未来方向（规划记录，未实现）

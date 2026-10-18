@@ -128,7 +128,7 @@ impl crate::hir::lower::Ctx {
             }
         } else {
             for ((_, param_ty), arg_ty) in params.iter().take(visible).zip(arg_types.iter()) {
-                for (gp_name, hir_concrete) in infer_generic_from_param(param_ty, arg_ty) {
+                for (gp_name, hir_concrete) in infer_generic_from_param(param_ty, arg_ty, &self.interfaces) {
                     if !generic_names.contains(&gp_name) { continue; }
                     match generic_mappings.get(&gp_name) {
                         None => { generic_mappings.insert(gp_name, hir_concrete); }
@@ -147,28 +147,7 @@ impl crate::hir::lower::Ctx {
         }
         // #160：从参数化约束推断剩余泛型参数（I: Iterator[T]，I 已推断 → T 由实现方法反推）
         if generic_mappings.len() < gf_params.len() {
-            for (gp_name, constraints) in gf_params {
-                for iface_sym in constraints {
-                let Some(concrete) = generic_mappings.get(gp_name).cloned() else { continue };
-                let iface_base = crate::hir::lower::strip_generic_name(iface_sym);
-                let iface_gp: Vec<Symbol> = match self.interfaces.get(&iface_base) {
-                    Some(reg) => reg.generic_params.iter().map(|(n, _)| *n).collect(),
-                    None => continue,
-                };
-                let sym_text = iface_sym.as_str();
-                let Some(inner) = generic_inner(&sym_text) else { continue };
-                let arg_texts = split_generic_args(inner);
-                if arg_texts.len() != iface_gp.len() { continue; }
-                let Some(iface_args) = self.infer_iface_args_for_concrete(iface_sym, &concrete) else { continue };
-                for (i, text) in arg_texts.iter().enumerate() {
-                    let Some(ty) = iface_args.get(&iface_gp[i]) else { continue };
-                    let gp = Symbol::intern(text.trim());
-                    if generic_names.contains(&gp) && !generic_mappings.contains_key(&gp) {
-                        generic_mappings.insert(gp, ty.clone());
-                    }
-                }
-                }
-            }
+            self.infer_from_iface_constraints(gf_params, &generic_names, &mut generic_mappings);
         }
         // Ensure all generic params were resolved
         for (gp_name, _) in gf_params {

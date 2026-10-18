@@ -29,6 +29,7 @@ mod substitute;
 mod substitute_stmt;
 mod types;
 mod types_sig;
+mod unify;
 mod wrap;
 
 pub(crate) use caller::*;
@@ -42,4 +43,5 @@ pub(crate) use substitute::*;
 pub(crate) use substitute_stmt::*;
 pub(crate) use types::*;
 pub(crate) use types_sig::*;
+pub(crate) use unify::*;
 pub(crate) use wrap::*;

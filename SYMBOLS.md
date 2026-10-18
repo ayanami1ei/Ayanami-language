@@ -547,7 +547,7 @@ src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_cal
 src/hir/lower/body/generic_specialize.rs:11: pub(crate) fn specialize_generic_method_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/generic_specialize.rs:17: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
 src/hir/lower/body/generic_specialize.rs:39: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span, prefer_method: bool) -> Result<FnId>
-src/hir/lower/body/generic_specialize.rs:279: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
+src/hir/lower/body/generic_specialize.rs:258: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/generic_types.rs:10: pub(crate) enum GType
 src/hir/lower/body/generic_types.rs:19: pub(super) fn ast_is_concrete_primitive(ty: &Type) -> bool
 src/hir/lower/body/generic_types.rs:28: pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool
@@ -564,6 +564,7 @@ src/hir/lower/body/iface_args.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/iface_args.rs:10: pub(crate) fn infer_iface_args_for_concrete(
 src/hir/lower/body/iface_args.rs:74: pub(crate) fn check_generic_constraint(
 src/hir/lower/body/iface_args.rs:168: pub(crate) fn coerce_iface_value(
+src/hir/lower/body/iface_args.rs:194: pub(crate) fn infer_from_iface_constraints(
 src/hir/lower/body/iface_match.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/iface_match.rs:4: pub(crate) fn infer_iface_generic(expected: &HirType, actual: &HirType,
 src/hir/lower/body/iface_match.rs:33: pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
@@ -801,10 +802,10 @@ src/hir/lower/helpers/coerce.rs:95: fn is_primitive(ty: &HirType) -> bool
 src/hir/lower/helpers/coerce.rs:103: pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/helpers/coerce.rs:164: pub(crate) fn retype_comparison_bool(expr: HirNodeBox) -> HirNodeBox
 src/hir/lower/helpers/convert.rs:3: pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type
-src/hir/lower/helpers/convert.rs:35: pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Vec<(Symbol, HirType)>
-src/hir/lower/helpers/convert.rs:114: pub(crate) fn generic_inner(s: &str) -> Option<&str>
-src/hir/lower/helpers/convert.rs:133: pub(crate) fn split_generic_args(s: &str) -> Vec<&str>
-src/hir/lower/helpers/convert.rs:153: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
+src/hir/lower/helpers/convert.rs:36: pub(crate) fn infer_generic_from_param(
+src/hir/lower/helpers/convert.rs:47: pub(crate) fn generic_inner(s: &str) -> Option<&str>
+src/hir/lower/helpers/convert.rs:66: pub(crate) fn split_generic_args(s: &str) -> Vec<&str>
+src/hir/lower/helpers/convert.rs:86: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
 src/hir/lower/helpers/fn_type.rs:9: pub(crate) fn ast_type_to_hir_extern(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> HirType
 src/hir/lower/helpers/fn_type.rs:20: pub(crate) fn ast_type_to_hir_param(
 src/hir/lower/helpers/fn_type.rs:34: pub(crate) fn unify_legacy_fn_type(ty: &HirType) -> HirType
@@ -822,7 +823,8 @@ src/hir/lower/helpers/mod.rs:28: mod substitute;
 src/hir/lower/helpers/mod.rs:29: mod substitute_stmt;
 src/hir/lower/helpers/mod.rs:30: mod types;
 src/hir/lower/helpers/mod.rs:31: mod types_sig;
-src/hir/lower/helpers/mod.rs:32: mod wrap;
+src/hir/lower/helpers/mod.rs:32: mod unify;
+src/hir/lower/helpers/mod.rs:33: mod wrap;
 src/hir/lower/helpers/overflow.rs:10: pub(crate) fn ovf_op_name(op: &BinaryOp) -> Option<&'static str>
 src/hir/lower/helpers/overflow.rs:19: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/overflow.rs:21: pub(crate) fn lower_ovf_call(&mut self, op_name: &str, ty: &HirType, lhs: HirNodeBox, rhs: HirNodeBox, span: &Span) -> HirNodeBox
@@ -847,6 +849,8 @@ src/hir/lower/helpers/types.rs:233: pub(crate) fn is_null_literal(expr: &HirNode
 src/hir/lower/helpers/types.rs:238: pub(crate) fn is_pointer_type_for_cmp(ty: &HirType) -> bool
 src/hir/lower/helpers/types_sig.rs:4: pub(crate) fn sig_str_to_hir(s: &str) -> HirType
 src/hir/lower/helpers/types_sig.rs:77: pub(crate) fn normalize_generic_brackets(s: &str) -> String
+src/hir/lower/helpers/unify.rs:8: pub(crate) fn unify(expected: &HirType, actual: &HirType, subst: &mut HashMap<Symbol, HirType>) -> bool
+src/hir/lower/helpers/unify.rs:44: fn unify_named(name: &Symbol, actual: &HirType, subst: &mut HashMap<Symbol, HirType>) -> bool
 src/hir/lower/helpers/wrap.rs:3: pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:14: fn wrap_arg_conversions(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:105: pub(crate) fn type_needs_drop(
