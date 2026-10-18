@@ -1,0 +1,57 @@
+// R2：arena 有效性语义——越界句柄 panic（退出码 101；与数组越界一致）
+import "io"
+import "option"
+import "panic"
+
+struct Idx {
+    usize v
+}
+
+pub namespace Idx {
+    pub fn copy(Idx i) -> Idx {
+        return Idx { v = i.v }
+    }
+}
+
+struct Arena[T] {
+    [Ptr[T]] data
+    usize len
+    usize cap
+}
+
+pub namespace Arena {
+    pub fn with_capacity[T](usize cap) -> Arena[T] {
+        return Arena[T] { data = [Ptr[T]; cap], len = 0usize, cap = cap }
+    }
+}
+
+impl[T] Arena[T] {
+    pub fn alloc(ref mut self, T v) -> Idx {
+        if self.len >= self.cap {
+            panic_at(0, 0, "arena", "arena capacity exceeded")
+        }
+        self.data[self.len] = Ptr::new(v)
+        self.len = self.len + 1usize
+        return Idx { v = self.len - 1usize }
+    }
+    pub fn get(ref self, Idx i) -> ref T {
+        if i.v >= self.len {
+            panic_at(0, 0, "arena", "invalid Idx (arena)")
+        }
+        p = ref self.data[i.v]
+        return p.get()
+    }
+}
+
+struct Node {
+    int v
+}
+
+fn main() -> int {
+    mut a = Arena::with_capacity[Node](2usize)
+    i0 = a.alloc(Node { v = 1 })
+    if a.get(Idx::copy(i0)).v != 1 { return 1 }
+    // 越界句柄 → panic（退出码 101）
+    r = a.get(Idx { v = 5usize })
+    return r.v
+}

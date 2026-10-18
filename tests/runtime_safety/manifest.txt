@@ -51,3 +51,4 @@ empty_struct.aya 0 1
 extern_attr.aya 0 1
 asm_early_clobber.aya 0 12
 arena_linked_list.aya 0
+arena_oob.aya 101 invalid Idx
