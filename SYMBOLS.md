@@ -526,8 +526,8 @@ src/hir/lower/body/ensure.rs:139: fn default_literal(ty: &HirType) -> Option<Hir
 src/hir/lower/body/ensure.rs:150: fn append_default_return(
 src/hir/lower/body/expr_access.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_access.rs:4: pub(crate) fn lower_field_access(&mut self, object: &Box<Expr>, field: &Symbol, expr_span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:25: pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:45: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:36: pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:56: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_call.rs:5: pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, explicit: Option<&Vec<Type>>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call_args.rs:5: impl crate::hir::lower::Ctx
@@ -557,6 +557,8 @@ src/hir/lower/body/expr_method.rs:5: pub(crate) fn lower_method_call(&mut self, 
 src/hir/lower/body/expr_method_arrays.rs:6: pub(crate) fn array_elem_type(receiver_ty: &HirType) -> Option<HirType>
 src/hir/lower/body/expr_method_arrays.rs:17: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_method_arrays.rs:19: pub(crate) fn lower_get_unchecked(
+src/hir/lower/body/expr_method_ptr.rs:4: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_method_ptr.rs:6: pub(crate) fn lower_rawptr_method(
 src/hir/lower/body/expr_misc.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_misc.rs:31: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Block) -> Result<HirNodeBox>
@@ -571,7 +573,7 @@ src/hir/lower/body/expr_static_assert.rs:8: pub(crate) fn lower_static_assert(&m
 src/hir/lower/body/expr_struct.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_struct.rs:5: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_struct.rs:155: fn infer_struct_literal_args(&self, type_name: &Symbol, raw_fields: &[(Symbol, HirNodeBox, Span)]) -> Vec<Type>
-src/hir/lower/body/expr_struct.rs:182: fn is_concrete_literal_type(&self, ty: &HirType) -> bool
+src/hir/lower/body/expr_struct.rs:185: fn is_concrete_literal_type(&self, ty: &HirType) -> bool
 src/hir/lower/body/expr_unary.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_unary.rs:6: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
 src/hir/lower/body/generic_check.rs:13: pub(super) struct CheckCtx
@@ -580,7 +582,8 @@ src/hir/lower/body/generic_check.rs:26: pub(crate) fn check_generic_bodies(&self
 src/hir/lower/body/generic_check.rs:47: pub(super) fn check_block_names(&self, block: &Block, cx: &mut CheckCtx) -> Result<()>
 src/hir/lower/body/generic_check.rs:57: pub(super) fn check_stmt_names(&self, stmt: &Stmt, cx: &mut CheckCtx) -> Result<()>
 src/hir/lower/body/generic_check_expr.rs:6: impl crate::hir::lower::Ctx
-src/hir/lower/body/generic_check_expr.rs:7: pub(super) fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()>
+src/hir/lower/body/generic_check_expr.rs:8: fn receiver_decl_is_ptr_field(&self, expr: &Expr, cx: &CheckCtx) -> bool
+src/hir/lower/body/generic_check_expr.rs:17: pub(super) fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()>
 src/hir/lower/body/generic_locals.rs:5: pub(super) fn collect_local_names_block(block: &Block, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_locals.rs:14: pub(super) fn collect_local_names_stmt(stmt: &Stmt, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_locals.rs:74: pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>)
@@ -684,45 +687,47 @@ src/hir/lower/body/mod.rs:22: mod lower_items;
 src/hir/lower/body/mod.rs:23: mod stmt_lower;
 src/hir/lower/body/mod.rs:24: mod stmt_loops;
 src/hir/lower/body/mod.rs:25: mod ref_assign;
-src/hir/lower/body/mod.rs:26: mod expr_method;
-src/hir/lower/body/mod.rs:27: mod expr_layout;
-src/hir/lower/body/mod.rs:28: mod expr_static_assert;
-src/hir/lower/body/mod.rs:29: mod const_eval_binary;
-src/hir/lower/body/mod.rs:30: mod expr_struct;
-src/hir/lower/body/mod.rs:31: mod match_coverage;
-src/hir/lower/body/mod.rs:32: mod match_lower;
-src/hir/lower/body/mod.rs:33: mod match_pattern;
-src/hir/lower/body/mod.rs:34: mod match_setup;
-src/hir/lower/body/mod.rs:35: mod match_util;
-src/hir/lower/body/mod.rs:36: mod usage_infer;
-src/hir/lower/body/mod.rs:37: mod macro_call;
-src/hir/lower/body/mod.rs:38: mod expr_logic;
-src/hir/lower/body/mod.rs:39: mod expr_lower;
-src/hir/lower/body/mod.rs:40: mod if_expr;
-src/hir/lower/body/mod.rs:41: mod ensure;
-src/hir/lower/body/mod.rs:42: mod literal;
-src/hir/lower/body/mod.rs:43: mod collect_enum;
-src/hir/lower/body/mod.rs:44: mod const_coerce;
-src/hir/lower/body/mod.rs:45: mod const_array;
-src/hir/lower/body/mod.rs:46: mod const_struct;
-src/hir/lower/body/mod.rs:47: mod const_eval;
-src/hir/lower/body/mod.rs:48: mod const_fn;
-src/hir/lower/body/mod.rs:49: mod collect_import;
-src/hir/lower/body/mod.rs:50: mod collect_import_path;
-src/hir/lower/body/mod.rs:51: mod expr_access;
-src/hir/lower/body/mod.rs:52: mod expr_call;
-src/hir/lower/body/mod.rs:53: mod expr_call_builtins;
-src/hir/lower/body/mod.rs:54: mod expr_call_args;
-src/hir/lower/body/mod.rs:55: mod expr_call_extra;
-src/hir/lower/body/mod.rs:56: mod block_lower;
-src/hir/lower/body/mod.rs:57: mod expr_cast;
-src/hir/lower/body/mod.rs:58: mod expr_enum;
-src/hir/lower/body/mod.rs:59: mod expr_misc;
-src/hir/lower/body/mod.rs:60: mod expr_ops1;
-src/hir/lower/body/mod.rs:61: mod expr_unary;
-src/hir/lower/body/mod.rs:62: mod expr_method_arrays;
-src/hir/lower/body/mod.rs:63: mod return_check;
-src/hir/lower/body/mod.rs:64: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:26: mod ref_protocol;
+src/hir/lower/body/mod.rs:27: mod expr_method;
+src/hir/lower/body/mod.rs:28: mod expr_method_ptr;
+src/hir/lower/body/mod.rs:29: mod expr_layout;
+src/hir/lower/body/mod.rs:30: mod expr_static_assert;
+src/hir/lower/body/mod.rs:31: mod const_eval_binary;
+src/hir/lower/body/mod.rs:32: mod expr_struct;
+src/hir/lower/body/mod.rs:33: mod match_coverage;
+src/hir/lower/body/mod.rs:34: mod match_lower;
+src/hir/lower/body/mod.rs:35: mod match_pattern;
+src/hir/lower/body/mod.rs:36: mod match_setup;
+src/hir/lower/body/mod.rs:37: mod match_util;
+src/hir/lower/body/mod.rs:38: mod usage_infer;
+src/hir/lower/body/mod.rs:39: mod macro_call;
+src/hir/lower/body/mod.rs:40: mod expr_logic;
+src/hir/lower/body/mod.rs:41: mod expr_lower;
+src/hir/lower/body/mod.rs:42: mod if_expr;
+src/hir/lower/body/mod.rs:43: mod ensure;
+src/hir/lower/body/mod.rs:44: mod literal;
+src/hir/lower/body/mod.rs:45: mod collect_enum;
+src/hir/lower/body/mod.rs:46: mod const_coerce;
+src/hir/lower/body/mod.rs:47: mod const_array;
+src/hir/lower/body/mod.rs:48: mod const_struct;
+src/hir/lower/body/mod.rs:49: mod const_eval;
+src/hir/lower/body/mod.rs:50: mod const_fn;
+src/hir/lower/body/mod.rs:51: mod collect_import;
+src/hir/lower/body/mod.rs:52: mod collect_import_path;
+src/hir/lower/body/mod.rs:53: mod expr_access;
+src/hir/lower/body/mod.rs:54: mod expr_call;
+src/hir/lower/body/mod.rs:55: mod expr_call_builtins;
+src/hir/lower/body/mod.rs:56: mod expr_call_args;
+src/hir/lower/body/mod.rs:57: mod expr_call_extra;
+src/hir/lower/body/mod.rs:58: mod block_lower;
+src/hir/lower/body/mod.rs:59: mod expr_cast;
+src/hir/lower/body/mod.rs:60: mod expr_enum;
+src/hir/lower/body/mod.rs:61: mod expr_misc;
+src/hir/lower/body/mod.rs:62: mod expr_ops1;
+src/hir/lower/body/mod.rs:63: mod expr_unary;
+src/hir/lower/body/mod.rs:64: mod expr_method_arrays;
+src/hir/lower/body/mod.rs:65: mod return_check;
+src/hir/lower/body/mod.rs:66: mod expr_reinterpret;
 src/hir/lower/body/overload_method.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_method.rs:9: pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
 src/hir/lower/body/overload_method.rs:28: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
@@ -738,6 +743,12 @@ src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
 src/hir/lower/body/ref_assign.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/ref_assign.rs:6: pub(crate) fn try_lower_ref_assign(
+src/hir/lower/body/ref_protocol.rs:9: impl crate::hir::lower::Ctx
+src/hir/lower/body/ref_protocol.rs:11: pub(crate) fn ref_protocol_target(&self, ty: &HirType) -> Option<(HirType, bool)>
+src/hir/lower/body/ref_protocol.rs:23: fn find_ref_protocol_method(
+src/hir/lower/body/ref_protocol.rs:71: pub(crate) fn build_ref_protocol_call(
+src/hir/lower/body/ref_protocol.rs:118: pub(crate) fn try_ref_protocol_deref(
+src/hir/lower/body/ref_protocol.rs:149: fn ref_target_from_return(
 src/hir/lower/body/return_check.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/return_check.rs:10: pub(crate) fn check_return_type(&self, wrapped: &HirNodeBox, fn_ret: &HirType, span: &Span) -> Result<()>
 src/hir/lower/body/return_check.rs:37: fn return_types_compatible(got: &HirType, want: &HirType) -> bool
@@ -3049,6 +3060,14 @@ example/test_ref_auto.aya:32: fn main() -> int
 example/test_ref_param.aya:2: struct Box2
 example/test_ref_param.aya:6: fn get(ref Box2 b) -> int
 example/test_ref_param.aya:10: fn main() -> int
+example/test_ref_protocol.aya:5: struct Point
+example/test_ref_protocol.aya:10: impl Point
+example/test_ref_protocol.aya:11: pub fn sum(ref self) -> int
+example/test_ref_protocol.aya:17: struct MyPtr[T]
+example/test_ref_protocol.aya:21: impl[T] MyPtr[T]
+example/test_ref_protocol.aya:22: pub fn get(ref self) -> ref T
+example/test_ref_protocol.aya:25: pub fn get_mut(ref mut self) -> ref mut T
+example/test_ref_protocol.aya:30: fn main() -> int
 example/test_ref_receiver.aya:2: struct S
 example/test_ref_receiver.aya:6: impl S
 example/test_ref_receiver.aya:7: fn get(ref self) -> int

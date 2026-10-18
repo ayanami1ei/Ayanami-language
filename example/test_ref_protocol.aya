@@ -1,0 +1,38 @@
+// R1：引用协议（自含型 get/get_mut）——用户自定义引用类型自动解引用
+// （docs/reference-model.md §2.1；字段读/写与方法调用均经协议解析）
+import "io"
+
+struct Point {
+    int x
+    int y
+}
+
+impl Point {
+    pub fn sum(ref self) -> int {
+        return self.x + self.y
+    }
+}
+
+// 自定义引用类型（协议形态：get/get_mut）
+struct MyPtr[T] {
+    Ptr[T] inner
+}
+
+impl[T] MyPtr[T] {
+    pub fn get(ref self) -> ref T {
+        return self.inner.get()
+    }
+    pub fn get_mut(ref mut self) -> ref mut T {
+        return self.inner.get_mut()
+    }
+}
+
+fn main() -> int {
+    mut p = MyPtr { inner = Ptr::new(Point { x = 1, y = 2 }) }
+    if p.x != 1 { return 1 }        // 字段读（协议解引用）
+    if p.sum() != 3 { return 2 }    // 方法调用（协议解引用）
+    p.x = 7                         // 字段写（get_mut 协议）
+    if p.x != 7 { return 3 }
+    if p.sum() != 9 { return 4 }
+    return 0
+}

@@ -2,6 +2,7 @@
 // Arena 内部用 [Ptr[T]] 持有节点（地址稳定）；Idx 为不拥有节点的轻量句柄。
 import "io"
 import "option"
+import "panic"
 
 extern "C" fn __ayanami_live_allocs() -> int;
 
@@ -30,15 +31,24 @@ pub namespace Arena {
 
 impl[T] Arena[T] {
     pub fn alloc(ref mut self, T v) -> Idx {
+        if self.len >= self.cap {
+            panic_at(0, 0, "arena", "arena capacity exceeded")
+        }
         self.data[self.len] = Ptr::new(v)
         self.len = self.len + 1usize
         return Idx { v = self.len - 1usize }
     }
     pub fn get(ref self, Idx i) -> ref T {
+        if i.v >= self.len {
+            panic_at(0, 0, "arena", "invalid Idx (arena)")
+        }
         p = ref self.data[i.v]
         return p.get()
     }
     pub fn get_mut(ref mut self, Idx i) -> ref mut T {
+        if i.v >= self.len {
+            panic_at(0, 0, "arena", "invalid Idx (arena)")
+        }
         p = ref mut self.data[i.v]
         return p.get_mut()
     }

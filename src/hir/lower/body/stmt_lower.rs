@@ -74,8 +74,18 @@ impl crate::hir::lower::Ctx {
                 })
             }
             Stmt::FieldAssign { object, field, value, span: stmt_span } => {
-                let hir_object = self.lower_expr(object)?;
-                let object_ty = expr_type(&hir_object);
+                let mut hir_object = self.lower_expr(object)?;
+                let mut object_ty = expr_type(&hir_object);
+                // R1：协议回退——接收者本身上无此字段时，`get_mut()` 解引用后写入
+                if self.find_field_index(&object_ty, field, stmt_span).is_err() {
+                    if let Some((target_ty, has_mut)) = self.ref_protocol_target(&object_ty) {
+                        if has_mut && self.find_field_index(&target_ty, field, stmt_span).is_ok() {
+                            let call = self.build_ref_protocol_call(hir_object, &object_ty, true, stmt_span)?;
+                            hir_object = call;
+                            object_ty = target_ty;
+                        }
+                    }
+                }
                 let field_index = self.find_field_index(&object_ty, field, stmt_span)?;
                 let field_ty = self.find_field_type(&object_ty, field, stmt_span)?;
                 let hir_value = self.lower_expr(value)?;

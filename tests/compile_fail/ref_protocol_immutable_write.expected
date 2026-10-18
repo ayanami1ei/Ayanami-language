@@ -1,0 +1,1 @@
+cannot borrow `ref MyPtr` as mutable through an immutable reference

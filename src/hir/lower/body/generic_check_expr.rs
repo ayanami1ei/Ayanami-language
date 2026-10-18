@@ -4,6 +4,16 @@ use super::generic_check::CheckCtx;
 use super::generic_types::{GType, hir_is_concrete_primitive};
 
 impl crate::hir::lower::Ctx {
+    /// R1：`Ptr[T]` 字段接收者判定（对象是字段访问且声明类型为 `Unique`）。
+    fn receiver_decl_is_ptr_field(&self, expr: &Expr, cx: &CheckCtx) -> bool {
+        let Expr::FieldAccess { object, field, .. } = expr else { return false };
+        let GType::Struct(base, _) = self.infer_gtype(object, &cx.gp, &cx.env) else { return false };
+        self.struct_defs.get(&base)
+            .and_then(|fs| fs.iter().find(|f| f.name == *field))
+            .map(|f| matches!(&f.ty, HirType::Unique(_)))
+            .unwrap_or(false)
+    }
+
     pub(super) fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()> {
         match expr {
             Expr::ArrayRepeat { value, count, .. } => {
@@ -57,9 +67,15 @@ impl crate::hir::lower::Ctx {
                 Ok(())
             }
             Expr::MethodCall { object, method, args, span } => {
-                // C1：接收者为泛型参数 T 时按约束检查
-                if let GType::Param(p) = self.infer_gtype(object, &cx.gp, &cx.env) {
-                    self.check_param_method(&p, method, args.len(), span, &cx.gp)?;
+                // C1：接收者为泛型参数 T 时按约束检查。
+                // 例外（R1）：`Ptr[T]`（Unique 字段）的内建方法 get/get_mut/as_ptr 在
+                // 降级期处理，不需要 T 的约束（避免误报）。
+                let ptr_builtin = matches!(method.as_str().as_str(), "get" | "get_mut" | "as_ptr")
+                    && self.receiver_decl_is_ptr_field(object, cx);
+                if !ptr_builtin {
+                    if let GType::Param(p) = self.infer_gtype(object, &cx.gp, &cx.env) {
+                        self.check_param_method(&p, method, args.len(), span, &cx.gp)?;
+                    }
                 }
                 self.check_expr_names(object, cx)?;
                 for a in args { self.check_expr_names(a, cx)?; }

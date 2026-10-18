@@ -1,0 +1,24 @@
+// 负例：协议解析的借用冲突——持有不可变解析结果时不能再取可变解析
+struct Point {
+    int x
+}
+
+struct MyPtr {
+    Ptr[Point] inner
+}
+
+impl MyPtr {
+    pub fn get(ref self) -> ref Point {
+        return self.inner.get()
+    }
+    pub fn get_mut(ref mut self) -> ref mut Point {
+        return self.inner.get_mut()
+    }
+}
+
+fn main() -> int {
+    mut p = MyPtr { inner = Ptr::new(Point { x = 1 }) }
+    r = p.get()
+    q = p.get_mut()      // ✗ 与 r 的借用冲突
+    return r.x
+}
