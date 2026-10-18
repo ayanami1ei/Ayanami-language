@@ -926,6 +926,27 @@ impl Checker {
         self.g_count = self.g_count + 1;
     }
 
+    /// 是否为泛型/未知类型名（泛型参数 T、泛型结构体字面量字段等 -> 转换检查放行）
+    fn is_unknown_ty(ref mut self, ref String t) -> bool {
+        if t.len == 0 { return false; }
+        if self.is_gp(t) { return true; }
+        b = base_type(t);
+        if b == "int" || b == "float" || b == "bool" || b == "char" { return false; }
+        if b == "String" || b == "void" || b == "!" || b == "f32" || b == "f64" { return false; }
+        if b == "usize" || b == "isize" { return false; }
+        if b.len > 1 {
+            c0 = b.index(0);
+            if c0 == 'i' || c0 == 'u' {
+                d0 = char_code(b.index(1));
+                if d0 >= 48 && d0 <= 57 { return false; }
+            }
+        }
+        if self.find_struct(b) >= 0 { return false; }
+        if self.find_enum(b) >= 0 { return false; }
+        if self.find_interface(b) >= 0 { return false; }
+        return true;
+    }
+
     /// 是否已登记全局（类型未知时也返回 true）
     fn is_global(ref mut self, ref String name) -> bool {
         i = 0;
@@ -1427,8 +1448,10 @@ impl Checker {
                         return;
                     }
                 }
-                if !convertible(ty, old) {
-                    self.convert_err(ty, old, ast.lines[id], ast.cols[id]);
+                if !self.is_unknown_ty(old) {
+                    if !convertible(ty, old) {
+                        self.convert_err(ty, old, ast.lines[id], ast.cols[id]);
+                    }
                 }
             } else {
                 self.set_local(nm, ty);
@@ -1436,8 +1459,10 @@ impl Checker {
         } elif tag == st(ST::Return._tag) {
             if ast.aa[id] >= 0 {
                 ty = self.check_expr(ast, ast.aa[id]);
-                if !convertible(ty, self.cur_ret) {
-                    self.convert_err(ty, self.cur_ret, ast.lines[id], ast.cols[id]);
+                if !self.is_unknown_ty(self.cur_ret) {
+                    if !convertible(ty, self.cur_ret) {
+                        self.convert_err(ty, self.cur_ret, ast.lines[id], ast.cols[id]);
+                    }
                 }
             } else {
                 if self.cur_ret.len > 0 {
@@ -1729,7 +1754,9 @@ impl Checker {
                     pty_m = self.fn_ptypes[pstart + n];
                     // 接口形参（含泛型实参写法 Iter[int]）不参与类型匹配（静态分派）
                     if !self.is_gp(pty_m) && self.find_interface(base_type(pty_m)) < 0 {
-                        if !convertible(at, pty_m) { ok = 0; }
+                        if !self.is_unknown_ty(pty_m) {
+                            if !convertible(at, pty_m) { ok = 0; }
+                        }
                     }
                 } else {
                     ok = 0;
@@ -1882,8 +1909,10 @@ impl Checker {
                     }
                 } else {
                     ft = self.fld_types[fi];
-                    if !convertible(vt, ft) {
-                        self.convert_err(vt, ft, ast.lines[f], ast.cols[f]);
+                    if !self.is_unknown_ty(ft) {
+                        if !convertible(vt, ft) {
+                            self.convert_err(vt, ft, ast.lines[f], ast.cols[f]);
+                        }
                     }
                 }
                 f = ast.nexts[f];
