@@ -144,3 +144,4 @@ test_macro_tokens.aya 0
 test_macro_hygiene.aya 0
 test_const_table.aya 0
 test_copy_attr.aya 0
+test_ref_protocol.aya 0

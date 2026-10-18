@@ -42,7 +42,7 @@ impl crate::hir::lower::Ctx {
 
         // M4：`Ptr[T]` 接收者 —— `get`/`get_mut` 返回 pointee 借用；其余方法自动解引用。
         // 拥有 `Ptr[T]` 与 `ref Ptr[T]`（字段借用）均支持。
-        let (mut receiver, receiver_ty) = match &receiver_ty {
+        let (mut receiver, mut receiver_ty) = match &receiver_ty {
             HirType::Unique(inner) => {
                 let inner_ty = (**inner).clone();
                 // M5 P2：`Ptr[T].as_ptr() -> *T`（需 unsafe；不消费 Ptr）
@@ -83,37 +83,9 @@ impl crate::hir::lower::Ctx {
         };
 
         // P3：裸指针 `*T` 方法 —— offset / read_volatile / write_volatile（需 unsafe）
-        if let HirType::RawPtr(inner) = &receiver_ty {
-            let inner_ty = inner.as_ref().clone();
-            match method.as_str().as_str() {
-                "offset" if hir_args.len() == 1 => {
-                    self.require_unsafe("`offset` on a raw pointer", span)?;
-                    let index = coerce_index(hir_args[0].clone(), &HirType::Int, span)?;
-                    return Ok(SPtrOffset { ptr: receiver, index, ty: receiver_ty.clone() }.into());
-                }
-                "read_volatile" if hir_args.is_empty() => {
-                    self.require_unsafe("`read_volatile` on a raw pointer", span)?;
-                    if !inner_ty.is_copy() {
-                        return Err(Error::Hir(format!(
-                            "`read_volatile` requires a Copy pointee (got `{}`) (at {}:{})",
-                            hir_type_display(&inner_ty), span.start_line, span.start_col
-                        )));
-                    }
-                    return Ok(SVolatileLoad { ptr: receiver, ty: inner_ty }.into());
-                }
-                "write_volatile" if hir_args.len() == 1 => {
-                    self.require_unsafe("`write_volatile` on a raw pointer", span)?;
-                    if !inner_ty.is_copy() {
-                        return Err(Error::Hir(format!(
-                            "`write_volatile` requires a Copy pointee (got `{}`) (at {}:{})",
-                            hir_type_display(&inner_ty), span.start_line, span.start_col
-                        )));
-                    }
-                    let value = coerce_expr(hir_args[0].clone(), &inner_ty, span)?;
-                    return Ok(SVolatileStore { ptr: receiver, value, ty: HirType::Void }.into());
-                }
-                _ => {}
-            }
+        // M5 P2：裸指针方法（offset/read_volatile/write_volatile；均需 unsafe）
+        if let Some(node) = self.lower_rawptr_method(&receiver, &receiver_ty, method, &hir_args, span)? {
+            return Ok(node);
         }
 
         // Check if receiver type is a fat pointer (interface dispatch)
@@ -203,46 +175,54 @@ impl crate::hir::lower::Ctx {
         {
             Some(id) => id,
             None => {
-                // e88 诊断：存在同名方法但需要 `ref mut self`，而接收者是不可变引用
-                if let HirType::Ref(inner, false) = &receiver_ty {
-                    let wants_mut = self.fn_map.get(method).map(|cands| cands.iter().any(|fid| {
-                        let sig = &self.fns[fid.0];
-                        matches!(sig.params.first(), Some((_, HirType::Ref(p, true))) if p.as_ref() == inner.as_ref())
-                    })).unwrap_or(false);
-                    if wants_mut {
-                        return Err(Error::Hir(format!(
-                            "cannot call method `{}` requiring `ref mut self` on an immutable reference `{}` (at {}:{})",
-                            method.as_str(), hir_type_display(&receiver_ty), span.start_line, span.start_col
-                        )));
+                // R1：协议回退——接收者实现自含型协议（get/get_mut）时，解引用后重试
+                // （docs/reference-model.md §2.1）
+                if let Some(id) = self.try_ref_protocol_deref(
+                    &mut receiver, &mut receiver_ty, method, &arg_types, &deref_arg_types, &lit_mask, span,
+                )? {
+                    id
+                } else {
+                    // e88 诊断：存在同名方法但需要 `ref mut self`，而接收者是不可变引用
+                    if let HirType::Ref(inner, false) = &receiver_ty {
+                        let wants_mut = self.fn_map.get(method).map(|cands| cands.iter().any(|fid| {
+                            let sig = &self.fns[fid.0];
+                            matches!(sig.params.first(), Some((_, HirType::Ref(p, true))) if p.as_ref() == inner.as_ref())
+                        })).unwrap_or(false);
+                        if wants_mut {
+                            return Err(Error::Hir(format!(
+                                "cannot call method `{}` requiring `ref mut self` on an immutable reference `{}` (at {}:{})",
+                                method.as_str(), hir_type_display(&receiver_ty), span.start_line, span.start_col
+                            )));
+                        }
                     }
+                    let mut all_param_types = vec![receiver_ty.clone()];
+                    all_param_types.extend(deref_arg_types.iter().cloned());
+                    let fid = match self.specialize_generic_call(method, &all_param_types, span) {
+                        Ok(fid) => fid,
+                        Err(e) => {
+                            // #72：存在泛型候选 → 失败发生在特化内部（如方法体编译错误），
+                            // 传播真实错误而不是吞成「没有该方法」
+                            if self.has_generic_method_candidate(method, &receiver_ty, all_param_types.len()) {
+                                return Err(e);
+                            }
+                            let mut msg = format!(
+                                "type `{}` has no method `{}` for argument types ({}) at {}:{}",
+                                hir_type_display(&receiver_ty),
+                                method,
+                                arg_types.iter().map(hir_type_display).collect::<Vec<_>>().join(", "),
+                                span.start_line, span.start_col
+                            );
+                            if !self.receiver_type_known(&receiver_ty) {
+                                msg.push_str(&format!(
+                                    "（类型 `{}` 未知：若来自包，请确认已 import 对应模块）",
+                                    hir_type_display(&receiver_ty)
+                                ));
+                            }
+                            return Err(Error::Hir(msg));
+                        }
+                    };
+                    fid
                 }
-                let mut all_param_types = vec![receiver_ty.clone()];
-                all_param_types.extend(deref_arg_types.iter().cloned());
-                let fid = match self.specialize_generic_call(method, &all_param_types, span) {
-                    Ok(fid) => fid,
-                    Err(e) => {
-                        // #72：存在泛型候选 → 失败发生在特化内部（如方法体编译错误），
-                        // 传播真实错误而不是吞成「没有该方法」
-                        if self.has_generic_method_candidate(method, &receiver_ty, all_param_types.len()) {
-                            return Err(e);
-                        }
-                        let mut msg = format!(
-                            "type `{}` has no method `{}` for argument types ({}) at {}:{}",
-                            hir_type_display(&receiver_ty),
-                            method,
-                            arg_types.iter().map(hir_type_display).collect::<Vec<_>>().join(", "),
-                            span.start_line, span.start_col
-                        );
-                        if !self.receiver_type_known(&receiver_ty) {
-                            msg.push_str(&format!(
-                                "（类型 `{}` 未知：若来自包，请确认已 import 对应模块）",
-                                hir_type_display(&receiver_ty)
-                            ));
-                        }
-                        return Err(Error::Hir(msg));
-                    }
-                };
-                fid
             }
         };
 

@@ -161,16 +161,19 @@ impl crate::hir::lower::Ctx {
         let mut subst: HashMap<Symbol, HirType> = HashMap::new();
         for (name, node, _) in raw_fields {
             let Some(field) = defs.iter().find(|f| f.name == *name) else { continue };
-            // 声明类型必须恰为泛型参数（`T`）；`Ptr[T]`/`Box[T]` 等复合类型留给使用点细化
-            let HirType::Named(gp) = &field.ty else { continue };
-            if !params.iter().any(|(p, _)| p == gp) {
-                continue;
-            }
             let val_ty = node.expr_type();
             if !self.is_concrete_literal_type(&val_ty) {
                 continue;
             }
-            subst.entry(*gp).or_insert(val_ty);
+            // R1/P4c：统一结构匹配——`T` 直接绑定；`Ptr[T]`/`Box[T]` 等复合字段同样绑定
+            // （此前复合字段留给使用点细化，字段访问路径无细化点 → 裸基名）
+            let mut local: HashMap<Symbol, HirType> = HashMap::new();
+            let _ = unify(&field.ty, &val_ty, &mut local);
+            for (gp, ty) in local {
+                if params.iter().any(|(p, _)| *p == gp) {
+                    subst.entry(gp).or_insert(ty);
+                }
+            }
         }
         if subst.len() != params.len() {
             return Vec::new();

@@ -1,0 +1,24 @@
+// 负例：经不可变引用（ref MyPtr）不能走 get_mut 写入协议目标
+struct Point {
+    int x
+}
+
+struct MyPtr {
+    Ptr[Point] inner
+}
+
+impl MyPtr {
+    pub fn get(ref self) -> ref Point {
+        return self.inner.get()
+    }
+    pub fn get_mut(ref mut self) -> ref mut Point {
+        return self.inner.get_mut()
+    }
+}
+
+fn main() -> int {
+    mut p = MyPtr { inner = Ptr::new(Point { x = 1 }) }
+    rp = ref p
+    rp.x = 2             // ✗ 不可变引用借出可变
+    return 0
+}

@@ -1,6 +1,6 @@
 # 统一引用关系模型（Extensible Reference Model）设计提案
 
-> 状态：**设计提案（Proposed，未实现；语法与约定在实现开工时冻结）**（2026-10-18）。
+> 状态：**设计提案；R1 已落地**（2026-10-18）。
 > 关联：bd `Ayanami-language-tex`；原始规划记录：`docs/future-directions.md` §一。
 > 联动：M4 引用存储（`Ptr[T]` 阶段 1 ✓、arena 语言能力 + 示例 ✓、std 移植 `dka`）、
 > M5 unsafe（`*T` ✓ P1–P3）、`#[copy]` 句柄（✓）、环境注入（解析器/注册表可经 `env::` 提供，见 `docs/env-injection.md`）。
@@ -75,7 +75,7 @@ LIR 内联后消除（零开销路径不残留标记）。
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| **R1** | 协议形态统一：`Ptr[T]` / `ref` / `*T` 归入自含型（字段/方法自动解引用已有 ✓） | 零开销验证：`Ptr` 字段访问内联后与裸字段访问 IR 等价；负例：借用冲突 / 失效使用 |
+| **R1**（完成 ✓） | 协议形态统一：`Ptr[T]` / `ref` / `*T` 归入自含型；任意 `get`/`get_mut` 类型自动解引用（字段读/写/方法） | 零开销验证：release 产物中协议 getter 调用 = 0（objdump）；负例：借用冲突 / 不可变借出可变 |
 | **R2** | 句柄型转正：arena + `Idx` 的 `resolve` 形态识别 + 解析去重（CSE） | 双向链表 / 图用例（已有 ✓）+ 循环内解析 CSE（IR 快照）；std 移植 `dka` |
 | **R3** | 用户自定义解析器（ID / 注册表）：协议 + 失效检查 + 契约 | 正例：ID + 哈希表解析示例；负例：失效 ID / 重复注册 / 契约违背诊断 |
 | **R4** | 序列化 / 对象图（引用字段 → 表示；对象图重建） | 往返用例；循环 / 多对一 / 失效 ID 边界（区分“序列化引用”与“序列化完整对象图”） |
@@ -94,3 +94,20 @@ LIR 内联后消除（零开销路径不残留标记）。
 3. 句柄值语义优先 `#[copy]`；失效检查显式（运行时或契约）；
 4. 与 M4/M5 既有实现不冲突：`Ptr` / `*T` / arena 是协议的首批实现 ✓；
 5. 测试口径同仓库（正/负例 + `runtime_safety` + IR 快照）。
+
+## 8. 实现状态
+
+- [x] **R1（2026-10-18）**：协议形态统一 + 自动解引用 + 零开销验证
+      - 识别：`get`/`get_mut`（单参数 `ref self`，返回 `ref T`）方法形态；覆盖非泛型与泛型 impl
+        （`method_fn_ids` + `generic_fns`）；目标类型按接收者实例实参替换（`ref_protocol.rs`）
+      - 自动解引用：字段读（`expr_access.rs`）、字段写（`stmt_lower.rs`，经 `get_mut`）、
+        方法调用（`expr_method.rs` 回退）——协议类型与 `Ptr`/`ref`/`*T` 同权
+      - 借用规则：合成调用与显式调用同规则（不可变引用不能借出可变；loan 冲突照常报错）
+      - 连带修复：结构体字面量对**复合字段**（`Ptr[T]` 等）的泛型实参推断（改用 P4c `unify`；
+        此前裸基名导致字段访问无细化点）
+      - 零开销验证：`example/test_ref_protocol.aya` release 产物中协议 getter 调用 = 0（objdump）
+      - 回归：`test_ref_protocol`（正例）+ `ref_protocol_borrow_conflict` /
+        `ref_protocol_immutable_write`（负例）
+      - 已知边界（沿既有模型）：rvalue 引用（如 `p.get_mut().x = 2` 的调用结果）不登记 loan
+        ——`Ptr` 原生路径同形亦然（借用检查为变量级）；如需收紧另立设计。
+- [ ] R2（arena + `Idx` 协议转正与解析去重）、R3（用户自定义解析器）、R4（序列化）
