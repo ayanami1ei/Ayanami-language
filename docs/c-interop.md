@@ -13,13 +13,16 @@ fn aya_add(int a, int b) -> int {
     return a + b
 }
 
-// 等价：显式 extern "C" 定义
-extern "C" fn aya_scale(int v, int factor) -> int {
+// 等价：`#[extern]` 标注（无体 = 导入声明，有体 = 定义并导出；
+// 旧语法 `extern "C" fn` 仍可解析，fmt 迁移为标注）
+#[extern]
+fn aya_scale(int v, int factor) -> int {
     return v * factor
 }
 
 // 空体 = 外部声明（导入 C 符号，不导出）
-extern "C" fn c_helper(int x) -> int;
+#[extern]
+fn c_helper(int x) -> int;
 ```
 
 - 导出函数的符号名**不加 mangle**（就是函数名），与 C 直接互通。
@@ -61,7 +64,7 @@ void aya_fill(int64_t *dst, int64_t v);
 | 环节 | 位置 |
 |---|---|
 | 属性白名单/校验 | `src/hir/attrs.rs`（`ALLOWED`、泛型/非函数拒绝） |
-| `#[export]` → extern C | `src/hir/lower/body/lower_items.rs::lower_fn` |
+| `#[export]` / `#[extern]` → extern C | `src/hir/lower/body/lower_items.rs::lower_fn`（`#[extern]` 解析器等价 `extern "C"`） |
 | 定义 vs 声明 | `src/mir/lower/functions.rs`、`src/lir/lower/fn_lower.rs`（空体 = 声明） |
 | 原始符号名 | `src/lir/lower/names.rs::collect_fn_names`（`extern_c` 不加 mangle） |
 | 发射 | `src/lir/emit/functions.rs::emit_fn`（普通 `define`，默认可见） |

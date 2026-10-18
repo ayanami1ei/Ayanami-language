@@ -1,4 +1,5 @@
 use super::*;
+use super::mem::needs_drop;
 use super::mem::{action_to_stmt, strategy_for};
 
 impl Ctx {
@@ -25,15 +26,20 @@ impl Ctx {
 
         self.moved = base.clone();
         self.alive = base_alive.clone();
-        let mir_then = self.lower_block(&then_block.stmts);
-        if !self.block_diverges(&then_block.stmts) {
+        let mut mir_then = self.lower_block(&then_block.stmts);
+        // #184：分支 delta-moved（用于条件 drop；块末 drop 对「可能移动」整体跳过）
+        let mut then_delta: Vec<VarId> = Vec::new();
+        let then_diverges = self.block_diverges(&then_block.stmts);
+        if !then_diverges {
+            then_delta = self.moved.difference(&base).copied().collect();
             fall_moved.extend(self.moved.iter().copied());
             fall_alive.extend(self.alive.iter().copied());
         }
 
         // 进入第 i 个 elif 的路径：前面分支体未执行，但条件已求值
         let mut cond_entry = base.clone();
-        let mir_elifs: Vec<_> = elifs
+        let mut elif_deltas: Vec<Vec<VarId>> = Vec::new();
+        let mut mir_elifs: Vec<_> = elifs
             .iter()
             .map(|(c, b)| {
                 self.moved = cond_entry.clone();
@@ -45,25 +51,67 @@ impl Ctx {
                 let (epre, epost) = self.hoist_ref_temps(&mut cm, span);
                 self.alive = base_alive.clone();
                 let bm = self.lower_block(&b.stmts);
+                let mut delta: Vec<VarId> = Vec::new();
                 if !self.block_diverges(&b.stmts) {
+                    delta = self.moved.difference(&base).copied().collect();
                     fall_moved.extend(self.moved.iter().copied());
                     fall_alive.extend(self.alive.iter().copied());
                 }
+                elif_deltas.push(delta);
                 (cm, epre, epost, bm)
             })
             .collect();
-        let mir_else = else_block
+        let mut else_delta: Vec<VarId> = Vec::new();
+        let mut mir_else = else_block
             .as_ref()
             .map(|b| {
                 self.moved = cond_entry.clone();
                 self.alive = base_alive.clone();
                 let bm = self.lower_block(&b.stmts);
                 if !self.block_diverges(&b.stmts) {
+                    else_delta = self.moved.difference(&base).copied().collect();
                     fall_moved.extend(self.moved.iter().copied());
                     fall_alive.extend(self.alive.iter().copied());
                 }
                 bm
             });
+        // #184：分支级条件 drop —— 某分支移动、本路径未移动的拥有型局部在路径末尾补 drop。
+        // 否则（如循环内 `if c { y = x }`）未移动路径的 x 泄漏（块末 drop 因「可能移动」被跳过）。
+        {
+            // 仅限 if 入口已存活的局部（分支内新声明的变量在其它分支不存在，drop 会读垃圾）
+            let mut union: Vec<VarId> = then_delta.iter().copied()
+                .filter(|v| base_alive.contains(v)).collect();
+            for d in &elif_deltas {
+                union.extend(d.iter().copied().filter(|v| base_alive.contains(v)));
+            }
+            union.extend(else_delta.iter().copied().filter(|v| base_alive.contains(v)));
+            union.sort_by_key(|v| v.0);
+            union.dedup();
+            let drops_for = |delta: &[VarId], this: &Self| -> Vec<MirStmtBox> {
+                union.iter()
+                    .filter(|v| !delta.contains(v))
+                    .filter_map(|v| {
+                        let ty = this.var_types.get(v)?.clone();
+                        needs_drop(&ty, &this.struct_defs)
+                            .then(|| SMirDropStmt { var: *v, ty, span }.into())
+                    })
+                    .collect()
+            };
+            if !then_diverges {
+                mir_then.extend(drops_for(&then_delta, self));
+            }
+            for ((_, _, _, bm), d) in mir_elifs.iter_mut().zip(elif_deltas.iter()) {
+                let drops = drops_for(d, self);
+                bm.extend(drops);
+            }
+            let else_drops = drops_for(&else_delta, self);
+            if !else_drops.is_empty() {
+                match &mut mir_else {
+                    Some(b) => b.extend(else_drops),
+                    None => mir_else = Some(else_drops),
+                }
+            }
+        }
 
         self.moved = fall_moved;
         self.alive = fall_alive;

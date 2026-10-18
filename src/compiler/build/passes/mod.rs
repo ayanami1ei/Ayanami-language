@@ -1,6 +1,6 @@
-//! A5d-3：MIR 优化注解执行器（schema v1：分析 + 编辑面）。
+//! A5d-3：MIR 优化注解执行器（schema v3：分析 + 编辑面，见 SCHEMA_VERSION）。
 //!
-//! - 编译器把 `MirFn` 展平为 preorder 视图（v0 结构数组 + 运算符/字面量 + 编辑数组）；
+//! - 编译器把 `MirFn` 展平为 preorder 视图（结构数组 + 运算符/字面量 + 编辑数组）；
 //! - 插件就地修改：改效应、按节点下标标记「表达式替换为整型字面量」；
 //! - 编译器只接受编辑数组的变化，其余结构变化报错；应用编辑后由管线重跑借用检查。
 
@@ -63,7 +63,7 @@ pub(super) fn apply_passes(
         let mut passes: Vec<(Attr, String, String)> = Vec::new();
         let mut checks: Vec<(Attr, String, String)> = Vec::new();
         for a in attrs {
-            let Some((pkg, name, kind)) = tables.resolve(&a)? else {
+            let Some((pkg, name, kind, _tokens)) = tables.resolve(&a)? else {
                 return Err(Error::Compile(format!(
                     "unknown annotation #[{}] at {}:{}", a.path_str(), a.span.start_line, a.span.start_col
                 )));
@@ -126,8 +126,8 @@ pub(super) fn apply_passes(
             for (level, msg) in diags {
                 if level >= 2 {
                     return Err(Error::Compile(format!(
-                        "check #[{}] at {}:{}: {}",
-                        a.path_str(), a.span.start_line, a.span.start_col, msg
+                        "{} (check #[{}] at {}:{})",
+                        msg, a.path_str(), a.span.start_line, a.span.start_col
                     )));
                 }
                 eprintln!(

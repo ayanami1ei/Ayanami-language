@@ -1,0 +1,29 @@
+// dld：`#[copy]` trivial 结构体（句柄类类型自由复制；opt-in，不影响普通结构体移动语义）
+import "io"
+
+#[copy]
+struct Idx {
+    usize v
+}
+
+#[copy]
+struct Pair2 {
+    Idx a
+    int b
+}
+
+fn take(Idx i) -> usize { return i.v }
+
+fn main() -> int {
+    a = Idx { v = 3usize }
+    b = a              // Copy：a 仍可用
+    c = take(a)        // 传参不移动
+    if a.v != 3usize { return 1 }
+    if b.v != 3usize { return 2 }
+    if c != 3usize { return 3 }
+    p = Pair2 { a = Idx { v = 1usize }, b = 2 }
+    q = p              // 嵌套（已登记的 #[copy] 字段）
+    if p.a.v != 1usize { return 4 }
+    if q.b != 2 { return 5 }
+    return 0
+}

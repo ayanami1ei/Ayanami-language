@@ -117,7 +117,7 @@ if [ -d tests/fmt ]; then
         fi
         cp "$fdir/t.aya" "$fdir/t2.aya"
         "$BIN" fmt "$fdir/t2.aya" >/dev/null 2>&1
-        if ! /usr/bin/diff -q "$fdir/t.aya" "$fdir/t2.aya" >/dev/null; then
+        if ! cmp -s "$fdir/t.aya" "$fdir/t2.aya" >/dev/null; then
             echo "FAIL $f: fmt 非幂等"
             fail=$((fail + 1))
         fi
@@ -317,6 +317,62 @@ if [ -d tests/lcl_transitive ]; then
         fail=$((fail + 1))
     fi
     rm -f "$(dirname "$BIN")/std/liba.lcl" "$(dirname "$BIN")/std/libb.lcl"
+fi
+
+# nsr：跨模块同名私有函数（模块私有符号不进入导入方符号表）
+if [ -d tests/lcl_nsr ]; then
+    ndir=tests/lcl_nsr
+    "$BIN" package "$ndir/lib.aya" >/dev/null 2>&1 || true
+    cp "$ndir/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    timeout 120 "$BIN" run "$ndir/entry.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL $ndir/entry.aya: exit $got, want 0（nsr 跨模块同名私有函数）"
+        fail=$((fail + 1))
+    fi
+
+# M8：缺失依赖 .lcl 清晰诊断（此前静默跳过 → 裸链接错误 undefined reference）
+if [ -d tests/lcl_missing_dep ]; then
+    mdir=tests/lcl_missing_dep
+    "$BIN" package "$mdir/src/libb.aya" >/dev/null 2>&1 || true
+    cp "$mdir/src/libb.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    out=$(timeout 120 "$BIN" run "$mdir/entry/entry.aya" 2>&1)
+    got=$?
+    if [ "$got" = 0 ] || ! printf '%s' "$out" | grep -q "depends on 'liba'"; then
+        echo "FAIL $mdir/entry/entry.aya: 期望缺失依赖诊断（got=$got）"
+        fail=$((fail + 1))
+    fi
+
+# M8：版本漂移告警（陈旧 .lcl；篡改版本行后导入应告警且不阻断）
+if [ -d tests/lcl_version_drift ]; then
+    vdir=tests/lcl_version_drift
+    "$BIN" package "$vdir/lib.aya" >/dev/null 2>&1 || true
+    sed -i 's/version="[^"]*"/version="0.0.0"/' "$vdir/lib.lcl" 2>/dev/null || true
+    cp "$vdir/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    out=$(timeout 120 "$BIN" run "$vdir/entry/entry.aya" 2>&1)
+    got=$?
+    if [ "$got" != 0 ] || ! printf '%s' "$out" | grep -q "was built with ayanami 0.0.0"; then
+        echo "FAIL $vdir/entry/entry.aya: 期望版本漂移告警（got=$got）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$vdir/lib.lcl" "$(dirname "$BIN")/std/lib.lcl"
+fi
+
+# M8：feature flags（#[cfg(feature = "x")]；AYANAMI_FEATURES 与 ayanami.toml features）
+if [ -d tests/cfg_feature ]; then
+    fdir=tests/cfg_feature
+    timeout 120 "$BIN" run "$fdir/entry.aya" >/dev/null 2>&1
+    got_off=$?
+    AYANAMI_FEATURES=extra timeout 120 "$BIN" run "$fdir/entry.aya" >/dev/null 2>&1
+    got_on=$?
+    if [ "$got_off" != 1 ] || [ "$got_on" != 42 ]; then
+        echo "FAIL $fdir/entry.aya: feature off=$got_off（want 1）/ on=$got_on（want 42）"
+        fail=$((fail + 1))
+    fi
+fi
+    rm -f "$mdir/src/libb.lcl" "$(dirname "$BIN")/std/libb.lcl"
+fi
+    rm -f "$(dirname "$BIN")/std/lib.lcl"
 fi
 
 # M6.1b：pub const 跨 .lcl 导出/导入 + 命名空间 const

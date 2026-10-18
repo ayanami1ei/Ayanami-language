@@ -10,6 +10,8 @@ pub struct ProjectConfig {
     pub dependencies: HashMap<String, String>,
     /// #84 ②：`[runtime] path`——自定义 runtime（.c/.a/.o），相对项目根
     pub runtime: Option<String>,
+    /// M8：启用 feature 列表（`features = ["a", "b"]`，供 `#[cfg(feature = "a")]`）
+    pub features: Vec<String>,
 }
 
 impl ProjectConfig {
@@ -24,6 +26,7 @@ impl ProjectConfig {
         let mut in_runtime = false;
         let mut runtime: Option<String> = None;
         let mut dependencies = HashMap::new();
+        let mut features: Vec<String> = Vec::new();
 
         for line in toml_content.lines() {
             let line = line.trim();
@@ -53,12 +56,17 @@ impl ProjectConfig {
                     match k {
                         "name" => name = v.to_string(),
                         "version" => version = v.to_string(),
+                        "features" => {
+                            features = v.trim_start_matches('[').trim_end_matches(']')
+                                .split(',').map(|s| s.trim().trim_matches('"').to_string())
+                                .filter(|s| !s.is_empty()).collect();
+                        }
                         _ => {}
                     }
                 }
             }
         }
-        ProjectConfig { name, version, default_target, file_targets, dependencies, runtime }
+        ProjectConfig { name, version, default_target, file_targets, dependencies, runtime, features }
     }
 
     /// Resolve an import path using the [dependencies] aliases.

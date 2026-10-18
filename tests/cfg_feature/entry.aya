@@ -1,0 +1,7 @@
+// M8：feature flags —— 默认关闭（exit 1）；AYANAMI_FEATURES=extra 时启用额外路径（exit 42）
+fn main() -> int {
+    v = 1
+    #[cfg(feature = "extra")]
+    v = 42
+    return v
+}

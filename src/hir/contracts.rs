@@ -40,6 +40,19 @@ pub fn is_release() -> bool {
     RELEASE_MODE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// 多模块构建全局开关（源码级 import → 逐模块对象后链接；驱动预扫描设置）。
+static MULTI_MODULE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// 设置多模块构建（CLI/驱动调用；进程级）。
+pub fn set_multi_module(v: bool) {
+    MULTI_MODULE.store(v, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// 是否多模块构建（非 pub 定义须 internal，避免跨模块同名私有符号冲突）。
+pub fn is_multi_module() -> bool {
+    MULTI_MODULE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// 运行检查是否开启：release 关闭（requires/ensures/invariant 退化为 assume）。
 /// `AYANAMI_CHECKS=0/1` 环境变量优先，便于脚本与测试覆盖。
 pub fn checks_enabled() -> bool {

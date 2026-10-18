@@ -48,6 +48,17 @@ impl crate::hir::lower::Ctx {
         } else {
             strip_ownership(arg_ty)
         };
+        // #183：一元负号（整数）按二元减法做溢出检查：`-x` ≡ `0 - x`（release 回绕）。
+        // 与 `+`/`-`/`*` 一致，`-i64::MIN` 不再静默回绕。
+        // 字面量负号（`-128`）保留 SUn 形态：二元运算的字面量适配依赖 `as_neg_int_literal`
+        if matches!(op, UnaryOp::Neg)
+            && !crate::hir::contracts::is_release()
+            && matches!(inner_ty, HirType::Int | HirType::IntN { .. })
+            && hir_arg.as_const().is_none()
+        {
+            let zero: HirNodeBox = SConst { val: HirLiteral::Int(0), ty: inner_ty.clone() }.into();
+            return Ok(self.lower_ovf_call("sub", &inner_ty, zero, hir_arg, &arg.span()));
+        }
         Ok(SUn {
             op: *op,
             arg: hir_arg,

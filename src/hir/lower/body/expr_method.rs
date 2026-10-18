@@ -8,7 +8,7 @@ impl crate::hir::lower::Ctx {
             if self.lookup_var(rname).is_none() {
                 let qualified = Symbol::intern(&format!("{}.{}", rname, method));
                 let has_ns_fn = self.fn_map.contains_key(&qualified)
-                    || self.generic_fns.iter().any(|(n, _, _)| *n == qualified);
+                    || self.generic_fns.iter().any(|(n, ..)| *n == qualified);
                 let is_type = self.struct_defs.contains_key(rname)
                     || self.is_enum_type(rname)
                     || self.type_ifaces.contains_key(rname);
@@ -42,7 +42,7 @@ impl crate::hir::lower::Ctx {
 
         // M4：`Ptr[T]` 接收者 —— `get`/`get_mut` 返回 pointee 借用；其余方法自动解引用。
         // 拥有 `Ptr[T]` 与 `ref Ptr[T]`（字段借用）均支持。
-        let (receiver, receiver_ty) = match &receiver_ty {
+        let (mut receiver, receiver_ty) = match &receiver_ty {
             HirType::Unique(inner) => {
                 let inner_ty = (**inner).clone();
                 // M5 P2：`Ptr[T].as_ptr() -> *T`（需 unsafe；不消费 Ptr）
@@ -199,9 +199,7 @@ impl crate::hir::lower::Ctx {
         }
         // Static dispatch: find method by receiver type（精确 → 字面量适配 → 解引用）
         let lit_mask: Vec<bool> = hir_args.iter().map(is_numeric_literal).collect();
-        let fn_id = match self.resolve_method(&receiver_ty, method, &arg_types)
-            .or_else(|| self.resolve_method_literals(&receiver_ty, method, &arg_types, &lit_mask))
-            .or_else(|| self.resolve_method(&receiver_ty, method, &deref_arg_types))
+        let fn_id = match self.resolve_method_dispatch(&receiver_ty, method, &arg_types, &deref_arg_types, &lit_mask, span)
         {
             Some(id) => id,
             None => {
@@ -244,25 +242,28 @@ impl crate::hir::lower::Ctx {
                         return Err(Error::Hir(msg));
                     }
                 };
-                // 泛型推导成功后，尝试更新接收者变量的类型
-                if let Some(var_id) = receiver.as_local() {
-                    let spec_param_ty = &self.fns[fid.0].params[0].1;
-                    let recv_stripped = strip_ownership_ref(&receiver_ty);
-                    let spec_stripped = strip_ownership_ref(spec_param_ty);
-                    if let (HirType::Named(rn), HirType::Named(sn)) = (recv_stripped, spec_stripped) {
-                        let rs = rn.as_str();
-                        let ss = sn.as_str();
-                        if !rs.contains('<') && ss.contains('<') {
-                            let base = crate::hir::lower::strip_generic_name(&sn);
-                            if base.as_str() == rs {
-                                self.update_var_type(var_id, spec_param_ty.clone());
-                            }
-                        }
-                    }
-                }
                 fid
             }
         };
+
+        // 泛型推导成功后，更新接收者变量类型并按细化类型重建节点（#185/#8yn：
+        // 解析成功路径（含泛型优先）都要走，否则裸接收者以错误 ABI 传参）
+        if let Some(var_id) = receiver.as_local() {
+            let spec_param_ty = self.fns[fn_id.0].params[0].1.clone();
+            let recv_stripped = strip_ownership_ref(&receiver_ty);
+            let spec_stripped = strip_ownership_ref(&spec_param_ty);
+            if let (HirType::Named(rn), HirType::Named(sn)) = (recv_stripped, spec_stripped) {
+                let rs = rn.as_str();
+                let ss = sn.as_str();
+                if !rs.contains('<') && ss.contains('<') {
+                    let base = crate::hir::lower::strip_generic_name(&sn);
+                    if base.as_str() == rs {
+                        self.update_var_type(var_id, spec_param_ty.clone());
+                        receiver = SVar { var: var_id, ty: spec_param_ty.clone() }.into();
+                    }
+                }
+            }
+        }
 
         // Apply implicit moves and ownership conversions on all args (including receiver)
         let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()

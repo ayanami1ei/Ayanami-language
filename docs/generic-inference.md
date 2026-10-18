@@ -1,6 +1,6 @@
 # Phase 4：泛型推断统一化（设计）
 
-> 状态：**设计完成；P4a/P4b 实施中**（2026-10-17）
+> 状态：**设计完成；P4a/P4b/P4c/P4d 已实施；P4e 接口预留确认（见 docs/const-eval.md）**（2026-10-17 / 2026-10-18）
 > 关联：bd `Ayanami-language-upt`（epic）、GitHub #48（epic）/ #49（设计问题）；`upt.1` 本文档。
 > 依赖说明：bd 将 Phase 4 挂在 M4 之后（软依赖）；P4a/P4b 与 M4 无耦合，可先行。
 
@@ -105,5 +105,16 @@ coercion 顺序：**先 unify 产生约束并解出泛型实参**，再按期望
 - [x] **P4d** 位置化诊断：推断冲突（`inferred as A from earlier argument(s) but B here`，数值互转/所有权包装放行）；未解参数保留调用点位置
 - [x] 结构体字面量实参推断（`Box { v = 42 }` → `Box<int>`，与枚举构造 `Option::Some(1)` 一致；`Ptr[T]`/`Box[T]` 等复合字段类型留给使用点细化）
 - [x] 特化失败回滚：修复“僵尸签名”（失败的特化仍注册，重试去重命中 → 调用引用无函数体、真实错误被吞）
-- [ ] P4c 统一到 `unify`（收敛重复规则）
-- [ ] P4e 编译期约束求解接口
+- [x] **P4c** 统一到 `unify`（收敛重复规则，2026-10-18）：
+      - 新增 `helpers/unify.rs`：统一结构匹配（Named/`Base<A,B>` 配对括号拆分、Unique/Ref/RawPtr/
+        Array/ArraySized/Closure/FnPtr 穿透、泛型参数绑定）——**嵌套匹配的唯一实现**；
+      - `infer_generic_from_param` 改为「AST 形参 → HirType → `unify`」适配器（删除手写
+        `generic_inner`/`split_generic_args` 递归，~70 → ~14 行）；
+      - `#160` 约束反推（`I: Iterator[T]` → T）从手工括号拆分/逐位匹配改为 `unify`
+        （抽到 `iface_args.rs::infer_from_iface_constraints`）；
+      - 行为不回退：全量回归 140/83/52 + IR 快照 21 无差异；
+      - 保留未收敛项：`usage_infer`（构造 + 后续 push/set 的局部 AST 启发式，待后续统一）。
+- [x] **P4e** 编译期约束求解接口预留（2026-10-18）：设计 docs/const-eval.md（P4e-1）；
+      最小接入点已在位——`iface_args.rs::check_generic_constraint`（约束检查同点扩展）、
+      `generic_mappings` 替换表（const 参数将来同表）、效应系统复用（`#[pure]` ⇒ 可编译期求值）；
+      P4e-2/P4e-3 由 #58（bd `nku.2`）跟踪。

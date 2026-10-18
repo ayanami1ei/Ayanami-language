@@ -109,6 +109,44 @@ fn cfg_enabled(attrs: Option<&[Attr]>) -> Result<bool> {
     Ok(true)
 }
 
+/// M8：feature flags（`#[cfg(feature = "x")]`）——来源：ayanami.toml `features = [...]`
+/// 与 `AYANAMI_FEATURES`（逗号分隔，叠加；便于脚本/测试）。仅首次配置生效（一进程一编译）。
+static FEATURES: std::sync::RwLock<Option<std::collections::HashSet<String>>> =
+    std::sync::RwLock::new(None);
+
+/// 该 feature 是否启用（未配置视为空集）。
+pub fn feature_enabled(name: &str) -> bool {
+    FEATURES.read().map(|g| g.as_ref().map_or(false, |s| s.contains(name))).unwrap_or(false)
+}
+
+/// 从源码路径向上查找 ayanami.toml 的 `features` 并与 `AYANAMI_FEATURES` 合并；
+/// 已配置则直接返回（顶层编译入口调用一次）。
+pub fn configure_features_from(src: &std::path::Path) {
+    if FEATURES.read().map(|g| g.is_some()).unwrap_or(false) {
+        return;
+    }
+    let mut set: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if let Ok(v) = std::env::var("AYANAMI_FEATURES") {
+        for f in v.split(',') {
+            let f = f.trim();
+            if !f.is_empty() { set.insert(f.to_string()); }
+        }
+    }
+    let mut dir = src.parent();
+    while let Some(d) = dir {
+        let toml = d.join("ayanami.toml");
+        if toml.exists() {
+            if let Ok(content) = std::fs::read_to_string(&toml) {
+                let cfg = crate::package::config::ProjectConfig::load(&content);
+                set.extend(cfg.features.iter().cloned());
+            }
+            break;
+        }
+        dir = d.parent();
+    }
+    if let Ok(mut g) = FEATURES.write() { *g = Some(set); }
+}
+
 fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool> {
     match arg {
         AttrArg::KeyValue(key, val) => {
@@ -123,8 +161,9 @@ fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool> {
             match key.as_str().as_str() {
                 "target" => Ok(value == std::env::consts::OS),
                 "arch" => Ok(value == std::env::consts::ARCH),
+                "feature" => Ok(feature_enabled(&value)),
                 other => Err(Error::Hir(format!(
-                    "unknown cfg key `{}` (supported: target, arch) (at {}:{})",
+                    "unknown cfg key `{}` (supported: target, arch, feature) (at {}:{})",
                     other, span.start_line, span.start_col))),
             }
         }
@@ -151,6 +190,6 @@ fn eval_bare(e: &Expr, span: crate::span::Span) -> Result<bool> {
 
 fn unsupported(span: crate::span::Span) -> Error {
     Error::Hir(format!(
-        "unsupported #[cfg] predicate: use `target = \"...\"`, `arch = \"...\"`, a bare target name, or `!` negation (at {}:{})",
+        "unsupported #[cfg] predicate: use `target = \"...\"`, `arch = \"...\"`, `feature = \"...\"`, a bare target name, or `!` negation (at {}:{})",
         span.start_line, span.start_col))
 }

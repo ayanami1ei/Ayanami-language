@@ -38,7 +38,7 @@ impl crate::hir::lower::Ctx {
                 }
             }
             // 候选 2：泛型 impl 方法（用具体类型统一 self 类型得到 impl 泛型实参）
-            for (gf_name, gp, gf_stmt) in &self.generic_fns {
+            for (gf_name, gp, gf_stmt, _) in &self.generic_fns {
                 if *gf_name != im.name { continue; }
                 let Stmt::FnDecl { params, return_type, .. } = gf_stmt else { continue };
                 if params.is_empty() { continue; }
@@ -186,6 +186,46 @@ impl crate::hir::lower::Ctx {
             Ok(Some(self.make_fatptr_arg(arg, param_ty, ct, iface_name)))
         } else {
             Ok(None)
+        }
+    }
+
+    /// #160/P4c：从参数化约束（`I: Iterator[T]`）补齐剩余泛型参数——已解出的 `I` 经
+    /// 实现方法反推接口实参，约束名与具体实例走统一 `unify`（不再手工拆分括号/逐位匹配）。
+    pub(crate) fn infer_from_iface_constraints(
+        &self,
+        gf_params: &[(Symbol, Vec<Symbol>)],
+        generic_names: &[Symbol],
+        generic_mappings: &mut HashMap<Symbol, HirType>,
+    ) {
+        for (gp_name, constraints) in gf_params {
+            for iface_sym in constraints {
+                let Some(concrete) = generic_mappings.get(gp_name).cloned() else { continue };
+                let iface_base = crate::hir::lower::strip_generic_name(iface_sym);
+                let iface_gp: Vec<Symbol> = match self.interfaces.get(&iface_base) {
+                    Some(reg) => reg.generic_params.iter().map(|(n, _)| *n).collect(),
+                    None => continue,
+                };
+                let sym_text = iface_sym.as_str();
+                let Some(_inner) = generic_inner(&sym_text) else { continue };
+                let Some(iface_args) = self.infer_iface_args_for_concrete(iface_sym, &concrete) else { continue };
+                let mut concrete_parts: Vec<String> = Vec::new();
+                let mut complete = true;
+                for g in &iface_gp {
+                    match iface_args.get(g) {
+                        Some(t) => concrete_parts.push(hir_type_display(t)),
+                        None => { complete = false; break; }
+                    }
+                }
+                if !complete { continue; }
+                let concrete_sym = Symbol::intern(&format!("{}<{}>", iface_base, concrete_parts.join(",")));
+                let mut subst = HashMap::new();
+                let _ = unify(&HirType::Named(*iface_sym), &HirType::Named(concrete_sym), &mut subst);
+                for (gp, ty) in subst {
+                    if generic_names.contains(&gp) && !generic_mappings.contains_key(&gp) {
+                        generic_mappings.insert(gp, ty);
+                    }
+                }
+            }
         }
     }
 }

@@ -34,13 +34,16 @@ pub(crate) struct Ctx {
     /// 泛型结构体参数：结构体名 → [(参数名, 约束接口)]
     pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
     /// 泛型函数 AST：(函数名, 泛型参数列表, FnDecl 语句)
-    pub generic_fns: Vec<(Symbol, Vec<(Symbol, Vec<Symbol>)>, Stmt)>,
+    /// 泛型函数表：(名字, 泛型参数, 声明, 是否 impl 方法)——方法调用解析优先方法候选（bd 8yn）
+    pub generic_fns: Vec<(Symbol, Vec<(Symbol, Vec<Symbol>)>, Stmt, bool)>,
     /// 降级过程中特化（单态化）产生的泛型函数
     pub specialized_fns: Vec<HirFn>,
     /// M1.7：合成的外部运行时助手（溢出检查等）
     pub synth_externs: Vec<HirFn>,
     /// M1.7：溢出助手去重（名称 → FnId）
     pub ovf_helpers: HashMap<Symbol, FnId>,
+    /// bd 8yn：impl 方法（非泛型）的 FnId——方法调用解析优先方法候选，避免被同名自由函数抢占
+    pub method_fn_ids: std::collections::HashSet<FnId>,
     /// M6.1：编译期常量（名 → (类型, 值)），使用点内联为 SConst
     pub consts: HashMap<Symbol, (HirType, HirLiteral)>,
     /// M6.1b：可导出常量（规范化名 → (类型, 值)）；顶层裸名、命名空间限定名
@@ -76,6 +79,8 @@ pub(crate) struct Ctx {
     pub usage_hints: HashMap<Symbol, Vec<Type>>,
     /// A5c-2：导入包导出的函数宏（宏名 → lcl 路径，可多个用于歧义报错）
     pub imported_macro_lcls: HashMap<Symbol, Vec<String>>,
+    /// mcl.1：宏名 → 是否 token 宏（表达式宏展开用）
+    pub imported_macro_kinds: HashMap<Symbol, bool>,
     /// A5c-2：宏展开递归深度
     pub macro_depth: usize,
     /// M2：当前正在降级的 lambda 的捕获环境（捕获名 → env 字段）
@@ -118,6 +123,7 @@ impl Ctx {
             specialized_fns: Vec::new(),
             synth_externs: Vec::new(),
             ovf_helpers: HashMap::new(),
+            method_fn_ids: std::collections::HashSet::new(),
             consts: HashMap::new(),
             const_exports: Vec::new(),
             statics: HashMap::new(),
@@ -135,6 +141,7 @@ impl Ctx {
             specialized_ids: std::collections::HashSet::new(),
             usage_hints: HashMap::new(),
             imported_macro_lcls: HashMap::new(),
+            imported_macro_kinds: HashMap::new(),
             macro_depth: 0,
             lambda_env: None,
             closure_tramps: HashMap::new(),

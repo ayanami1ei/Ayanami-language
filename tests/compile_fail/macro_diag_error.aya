@@ -1,0 +1,9 @@
+// 负例：宏内 diag_error → 编译失败（带宏名）
+import "../../example/macro_lib.aya";
+
+#[err_me]
+fn bad() -> int { return 0 }
+
+fn main() -> int {
+    return 0
+}

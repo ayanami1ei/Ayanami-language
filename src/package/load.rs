@@ -62,7 +62,12 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
                 }
             } else if let Some(rest) = line.strip_prefix("struct=") {
                 let val = parse_ini_value(rest);
-                symbols.push(ImportedSymbol::Struct { name: val });
+                // dld：`name(..),copy` 后缀（旧格式缺省非 Copy）
+                let (name, copy) = match val.rsplit_once(',') {
+                    Some((n, "copy")) => (n.to_string(), true),
+                    _ => (val, false),
+                };
+                symbols.push(ImportedSymbol::Struct { name, copy });
             } else if let Some(rest) = line.strip_prefix("namespace=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Namespace { name: val });
@@ -71,7 +76,12 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
                 symbols.push(ImportedSymbol::Interface { name: val });
             } else if let Some(rest) = line.strip_prefix("macro=") {
                 let val = parse_ini_value(rest);
-                symbols.push(ImportedSymbol::Macro { name: val });
+                // mcl.1：`name,tokens`（旧格式无后缀 → 文本宏）
+                let (name, tokens) = match val.rsplit_once(',') {
+                    Some((n, "tokens")) => (n.to_string(), true),
+                    _ => (val, false),
+                };
+                symbols.push(ImportedSymbol::Macro { name, tokens });
             } else if let Some(rest) = line.strip_prefix("pass=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Pass { name: val });
@@ -131,7 +141,41 @@ fn parse_ini_value(s: &str) -> String {
 
 /// 递归解析 .lcl 的依赖闭包（`[deps]` 段按 stem 记录）：
 /// 每个 stem 依次在引用方目录、std 目录、cwd 查找；返回去重后的路径（不含入口自身）。
-pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf> {
+/// M8：读取 .lcl 的 `version="..."`（版本漂移告警用；轻量扫描，失败返回 None）。
+pub fn load_version(path: &str) -> Option<String> {
+    let data = std::fs::read(path).ok()?;
+    let head_len = data.len().min(4096);
+    let head = String::from_utf8_lossy(&data[..head_len]);
+    for line in head.lines() {
+        if let Some(rest) = line.strip_prefix("version=") {
+            return Some(rest.trim().trim_matches('"').to_string());
+        }
+    }
+    None
+}
+
+/// M8：版本漂移告警（同一包仅一次/进程）。
+pub fn warn_version_drift(path: &str, stem: &str) {
+    use std::sync::{OnceLock, RwLock};
+    static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+    let set = WARNED.get_or_init(|| RwLock::new(std::collections::HashSet::new()));
+    let current = env!("CARGO_PKG_VERSION");
+    if let Some(v) = load_version(path) {
+        if v != current {
+            let key = format!("{}@{}", stem, v);
+            if let Ok(mut g) = set.write() {
+                if g.insert(key) {
+                    eprintln!(
+                        "warning: package '{}' was built with ayanami {}, current {}; rebuild it (at {})",
+                        stem, v, current, path
+                    );
+                }
+            }
+        }
+    }
+}
+
+pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>> {
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
     let mut queue = vec![std::path::PathBuf::from(path)];
@@ -147,15 +191,21 @@ pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf> {
             } else {
                 None
             };
-            if let Some(c) = candidate {
-                if seen.insert(c.clone()) {
-                    out.push(c.clone());
-                    queue.push(c);
-                }
+            let Some(c) = candidate else {
+                // M8：缺失依赖给出清晰诊断（此前静默跳过 → 裸链接错误 undefined reference）
+                return Err(Error::Import(format!(
+                    "package '{}' depends on '{}', but '{}.lcl' was not found (searched: {} and the std directory); rebuild or install the dependency",
+                    p.file_stem().unwrap_or_default().to_string_lossy(),
+                    stem, stem, dir.display()
+                )));
+            };
+            if seen.insert(c.clone()) {
+                out.push(c.clone());
+                queue.push(c);
             }
         }
     }
-    out
+    Ok(out)
 }
 
 /// A5b-3：读取 .lcl 的依赖包 stem 列表（`[deps]` 段；旧包/无依赖返回空）。

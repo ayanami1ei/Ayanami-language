@@ -13,7 +13,8 @@ use crate::parser::ast::{Attr, Stmt};
 #[derive(Default, Clone)]
 pub(super) struct PkgAnnotations {
     pub lcl_path: String,
-    pub macros: Vec<String>,
+    /// (宏名, 是否 token 宏；mcl.1)
+    pub macros: Vec<(String, bool)>,
     pub passes: Vec<String>,
     pub checks: Vec<String>,
 }
@@ -53,7 +54,7 @@ impl AnnotationTables {
                     let mut pkg = PkgAnnotations { lcl_path: path.clone(), ..Default::default() };
                     for s in syms {
                         match s {
-                            crate::package::ImportedSymbol::Macro { name } => pkg.macros.push(name),
+                            crate::package::ImportedSymbol::Macro { name, tokens } => pkg.macros.push((name, tokens)),
                             crate::package::ImportedSymbol::Pass { name } => pkg.passes.push(name),
                             crate::package::ImportedSymbol::Check { name } => pkg.checks.push(name),
                             _ => {}
@@ -79,42 +80,42 @@ impl AnnotationTables {
     /// 解析标注：
     /// - 全限定 `pkg::name`：查该包表；未导入/未找到返回 None；
     /// - 裸名：跨所有已导入包查找；0 个 → None，多个 → 歧义错误。
-    pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind)>> {
+    pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>> {
         let name = a.name.as_str();
         if !a.qualifier.is_empty() {
             let pkg = a.qualifier[0].as_str();
             let rest: Vec<String> = a.qualifier[1..].iter().map(|s| s.as_str()).collect();
             let ann = if rest.is_empty() { name.clone() } else { format!("{}.{}", rest.join("."), name) };
             let Some(p) = self.pkgs.get(&pkg) else { return Ok(None) };
-            if p.macros.iter().any(|m| *m == ann) {
-                return Ok(Some((pkg, ann, AnnKind::Macro)));
+            if let Some((_, tokens)) = p.macros.iter().find(|(m, _)| *m == ann) {
+                return Ok(Some((pkg, ann, AnnKind::Macro, *tokens)));
             }
             if p.passes.iter().any(|m| *m == ann) {
-                return Ok(Some((pkg, ann, AnnKind::Pass)));
+                return Ok(Some((pkg, ann, AnnKind::Pass, false)));
             }
             if p.checks.iter().any(|m| *m == ann) {
-                return Ok(Some((pkg, ann, AnnKind::Check)));
+                return Ok(Some((pkg, ann, AnnKind::Check, false)));
             }
             return Ok(None);
         }
-        let mut hits: Vec<(String, AnnKind)> = Vec::new();
+        let mut hits: Vec<(String, AnnKind, bool)> = Vec::new();
         for (pkg, p) in &self.pkgs {
-            if p.macros.iter().any(|m| *m == name) {
-                hits.push((pkg.clone(), AnnKind::Macro));
+            if let Some((_, tokens)) = p.macros.iter().find(|(m, _)| *m == name) {
+                hits.push((pkg.clone(), AnnKind::Macro, *tokens));
             } else if p.passes.iter().any(|m| *m == name) {
-                hits.push((pkg.clone(), AnnKind::Pass));
+                hits.push((pkg.clone(), AnnKind::Pass, false));
             } else if p.checks.iter().any(|m| *m == name) {
-                hits.push((pkg.clone(), AnnKind::Check));
+                hits.push((pkg.clone(), AnnKind::Check, false));
             }
         }
         match hits.len() {
             0 => Ok(None),
             1 => {
-                let (pkg, kind) = hits.pop().unwrap();
-                Ok(Some((pkg, name, kind)))
+                let (pkg, kind, tokens) = hits.pop().unwrap();
+                Ok(Some((pkg, name, kind, tokens)))
             }
             _ => {
-                let list: Vec<String> = hits.iter().map(|(p, _)| format!("{}::{}", p, name)).collect();
+                let list: Vec<String> = hits.iter().map(|(p, _, _)| format!("{}::{}", p, name)).collect();
                 Err(Error::Compile(format!(
                     "ambiguous annotation #[{}]: exported by multiple packages ({}); use a qualified name (at {}:{})",
                     name, list.join(", "), a.span.start_line, a.span.start_col

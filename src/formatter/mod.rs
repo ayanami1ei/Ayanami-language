@@ -65,3 +65,4 @@ pub fn format_file(code: &str) -> crate::error::Result<String> {
     let program = parser.parse_program()?;
     Ok(format_program_with_comments(&program, comments))
 }
+pub(crate) use expr::escape_string;

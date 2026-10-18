@@ -110,7 +110,7 @@ pub(super) fn resolve_dependencies(
                     if o_path.exists() && !dep_obj_paths.contains(&o_path) {
                         dep_obj_paths.push(o_path);
                     }
-                    for d in crate::package::resolve_package_deps(&path.to_string_lossy()) {
+                    for d in crate::package::resolve_package_deps(&path.to_string_lossy())? {
                         queue.push(d);
                     }
                 }
@@ -160,8 +160,8 @@ pub(super) fn merge_symbols(
                             flags,
                         }
                     }
-                    crate::package::ImportedSymbol::Struct { name } => {
-                        PackageSymbol::Struct { name }
+                    crate::package::ImportedSymbol::Struct { name, copy } => {
+                        PackageSymbol::Struct { name, copy }
                     }
                     crate::package::ImportedSymbol::Namespace { name } => {
                         PackageSymbol::Namespace { name }
@@ -169,8 +169,8 @@ pub(super) fn merge_symbols(
                     crate::package::ImportedSymbol::Interface { name } => {
                         PackageSymbol::Interface { name }
                     }
-                    crate::package::ImportedSymbol::Macro { name } => {
-                        PackageSymbol::Macro { name }
+                    crate::package::ImportedSymbol::Macro { name, tokens } => {
+                        PackageSymbol::Macro { name, tokens }
                     }
                     crate::package::ImportedSymbol::Pass { name } => {
                         PackageSymbol::Pass { name }

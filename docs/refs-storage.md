@@ -1,6 +1,6 @@
 # M4：引用存储 / arena / stable object（设计）
 
-> 状态：**设计完成（hfj.1）；阶段 1（`Ptr[T]`）已落地；hfj.4 评估完成**（2026-10-07 / 2026-10-17）
+> 状态：**设计完成（hfj.1）；阶段 1（`Ptr[T]`）已落地；hfj.4 评估完成；阶段 2 语言能力 + 示例完成（std 移植待做）**（2026-10-07 / 2026-10-18）
 > 关联：bd `Ayanami-language-hfj`（epic）、GitHub #9；依赖 M3（已完成）；M5 unsafe（联动）
 > 目标：自然表达自引用结构 / parent pointer / graph / 双向链表 / intrusive / arena+reference /
 > AST 内部引用——对自举尤其重要。
@@ -49,6 +49,14 @@ n = p.method()                         // 方法自动解引用（等价 p.get()
 - AST：`Arena[Node]` + `Idx` 交叉引用（自举友好）。
 - 编译器支持：仅阶段 1 的 `Ptr` 能力；arena 本身是 std。
 
+**阶段 2 语言能力（2026-10-18 落地）**：`ref` 元素地址（`ref arr[i]` / `ref mut arr[i]`——
+`place_ptr` 元素地址 → 借用检查 loan 回溯数组根变量）；`[Ptr[T]; n]` 等**复合元素类型**的
+定长数组解析；示例 `example/test_arena.aya`（双向链表 + 图 DFS + `live_allocs` 归零）。
+- 句柄复制：`Idx` 为结构体（非 Copy），需 `Idx::copy(i)` 显式复制；trivial 结构体自动
+  Copy / `#[copy]` 列为后续项。
+- std 移植：`Arena[T]`/`Idx` 进 std 子仓（可参照示例；`ArrayList` 需补
+  `get(ref self, usize) -> ref T` 式借用访问）。
+
 ## 4. 自引用 struct 评估（hfj.4）
 
 问题：parent pointer / 双向链表是否进入安全核心？
@@ -78,7 +86,7 @@ n = p.method()                         // 方法自动解引用（等价 p.get()
 | 阶段 | 内容 | 验收 |
 |---|---|---|
 | 1 | `Ptr[T]`：类型/`Ptr::new`/`get`/`get_mut`/字段与方法自动解引用/存字段与数组/传返/深 drop/clone | example：二叉搜索树（`Ptr` 子节点）+ 递归 drop 无泄漏；`Ptr[String]` 深 clone；负例（空/移动后使用） |
-| 2 | `Arena[T]` + `Idx`（std） | example：双向链表 / 图遍历，无泄漏 |
+| 2 | `Arena[T]` + `Idx`（std；语言能力与示例已完成，std 移植待做） | example/test_arena.aya：双向链表 + 图 DFS，无泄漏（**已完成**） |
 | 3 | 联动 M5：裸指针 / intrusive / unsafe 边界 | 见 M5 epic |
 
 ## 6. 实现状态
@@ -88,5 +96,9 @@ n = p.method()                         // 方法自动解引用（等价 p.get()
   `ref Ptr[T]` 借用读取；回归 example/test_ptr_tree + tests/runtime_safety/ptr_tree_drop
 - [x] hfj.4 评估：parent pointer / 双向链表**不进入安全核心**（§4）
 - [x] `Ptr` 与 match 互操作：载荷绑定 / Ptr 目标自动解引用 / `ref` 字段地址（§4 末，2026-10-17）
-- [ ] 阶段 2 `Arena[T]` + `Idx`（std 子仓）
+- [x] 阶段 2 语言能力 + 示例（2026-10-18）：`ref` 索引元素地址（含 `ref mut`）→ 借用检查 loan 回溯
+  （`deref_root_var` 索引分支 + origin 取根变量）；`[T; n]` 复合元素类型解析（`[Ptr[T]; n]`）；
+  示例 `example/test_arena.aya`（双向链表 + 图 DFS + 无泄漏）；回归 `tests/runtime_safety/arena_linked_list.aya`；
+  负例 `ref_local_return` / `ref_mut_through_immutable`
+- [ ] 阶段 2 std 移植：`Arena[T]` + `Idx` 进 std 子仓（含 `ArrayList` 借用访问）
 - [ ] 阶段 3（M5）

@@ -8,14 +8,25 @@ impl crate::hir::lower::Ctx {
         ty: Option<&Type>,
         value: &Expr,
         span: &Span,
+        is_pub: bool,
     ) -> Result<()> {
         let (mut hir_ty, mut lit) = self.eval_const_expr(value, &HashMap::new(), 0)?;
-        if matches!(lit, HirLiteral::Array(_)) {
-            return Err(Error::Hir(format!("array constants are not supported yet; use `static` (at {}:{})", span.start_line, span.start_col)));
-        }
         if let Some(ann) = ty {
             let want = ast_type_to_hir(ann, &self.interfaces);
             super::const_coerce::coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
+        }
+        // M6.3b：数组/结构体常量 → 常量表（内部全局，与 static 同发射路径；
+        // 标量 const 仍内联）。此前报「use static」。
+        if matches!(lit, HirLiteral::Array(_) | HirLiteral::Struct(_)) {
+            self.statics.insert(name, crate::hir::HirStatic {
+                name,
+                ty: hir_ty,
+                value: lit,
+                is_mut: false,
+                is_pub,
+                is_external: false,
+            });
+            return Ok(());
         }
         self.consts.insert(name, (hir_ty, lit));
         Ok(())
@@ -135,125 +146,12 @@ impl crate::hir::lower::Ctx {
                     ))),
                 }
             }
-            Expr::Binary { op, lhs, rhs, span } => {
-                let (lt, ll) = self.eval_const_expr(lhs, env, depth)?;
-                let (rt, rl) = self.eval_const_expr(rhs, env, depth)?;
-                if lt != rt {
-                    return Err(Error::Hir(format!(
-                        "const operator type mismatch: {} vs {} (at {}:{})",
-                        hir_type_display(&lt), hir_type_display(&rt), span.start_line, span.start_col
-                    )));
+            Expr::Binary { op, lhs, rhs, span } => self.eval_const_binary(op, lhs, rhs, span, env, depth),
+            Expr::FnCall { name, args, generic_args, span } => {
+                // Phase 7：布局内置（size_of/align_of/offset_of）在 const 上下文同样可用
+                if let Some((t, v)) = self.eval_layout_builtin_call(name, generic_args, args, span)? {
+                    return Ok((t, v));
                 }
-                let err_ovf = || {
-                    Error::Hir(format!(
-                        "const evaluation overflow (at {}:{})",
-                        span.start_line, span.start_col
-                    ))
-                };
-                let err_div0 = || {
-                    Error::Hir(format!(
-                        "const evaluation division by zero (at {}:{})",
-                        span.start_line, span.start_col
-                    ))
-                };
-                match (op, lt, ll, rl) {
-                    (BinaryOp::Add, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l.checked_add(r).ok_or_else(err_ovf)?)))
-                    }
-                    (BinaryOp::Sub, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l.checked_sub(r).ok_or_else(err_ovf)?)))
-                    }
-                    (BinaryOp::Mul, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l.checked_mul(r).ok_or_else(err_ovf)?)))
-                    }
-                    (BinaryOp::Div, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l.checked_div(r).ok_or_else(err_div0)?)))
-                    }
-                    (BinaryOp::Mod, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l.checked_rem(r).ok_or_else(err_div0)?)))
-                    }
-                    (BinaryOp::BitAnd, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l & r)))
-                    }
-                    (BinaryOp::BitOr, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l | r)))
-                    }
-                    (BinaryOp::BitXor, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l ^ r)))
-                    }
-                    (BinaryOp::Shl, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l << (r & 63))))
-                    }
-                    (BinaryOp::Shr, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Int, HirLiteral::Int(l >> (r & 63))))
-                    }
-                    (BinaryOp::Eq, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l == r)))
-                    }
-                    (BinaryOp::Neq, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l != r)))
-                    }
-                    (BinaryOp::Lt, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l < r)))
-                    }
-                    (BinaryOp::Gt, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l > r)))
-                    }
-                    (BinaryOp::Le, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l <= r)))
-                    }
-                    (BinaryOp::Ge, HirType::Int, HirLiteral::Int(l), HirLiteral::Int(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l >= r)))
-                    }
-                    (op, ty @ (HirType::Float | HirType::F32), HirLiteral::Float(l), HirLiteral::Float(r)) => {
-                        match op {
-                            BinaryOp::Add => Ok((ty, HirLiteral::Float(l + r))),
-                            BinaryOp::Sub => Ok((ty, HirLiteral::Float(l - r))),
-                            BinaryOp::Mul => Ok((ty, HirLiteral::Float(l * r))),
-                            BinaryOp::Div => {
-                                if r == 0.0 {
-                                    Err(err_div0())
-                                } else {
-                                    Ok((ty, HirLiteral::Float(l / r)))
-                                }
-                            }
-                            BinaryOp::Eq => Ok((HirType::Bool, HirLiteral::Bool(l == r))),
-                            BinaryOp::Neq => Ok((HirType::Bool, HirLiteral::Bool(l != r))),
-                            BinaryOp::Lt => Ok((HirType::Bool, HirLiteral::Bool(l < r))),
-                            BinaryOp::Gt => Ok((HirType::Bool, HirLiteral::Bool(l > r))),
-                            BinaryOp::Le => Ok((HirType::Bool, HirLiteral::Bool(l <= r))),
-                            BinaryOp::Ge => Ok((HirType::Bool, HirLiteral::Bool(l >= r))),
-                            _ => Err(Error::Hir(format!(
-                                "invalid const binary operator (at {}:{})",
-                                span.start_line, span.start_col
-                            ))),
-                        }
-                    }
-                    (BinaryOp::And, HirType::Bool, HirLiteral::Bool(l), HirLiteral::Bool(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l && r)))
-                    }
-                    (BinaryOp::Or, HirType::Bool, HirLiteral::Bool(l), HirLiteral::Bool(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l || r)))
-                    }
-                    (BinaryOp::Eq, HirType::Bool, HirLiteral::Bool(l), HirLiteral::Bool(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l == r)))
-                    }
-                    (BinaryOp::Neq, HirType::Bool, HirLiteral::Bool(l), HirLiteral::Bool(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l != r)))
-                    }
-                    (BinaryOp::Eq, HirType::Char, HirLiteral::Char(l), HirLiteral::Char(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l == r)))
-                    }
-                    (BinaryOp::Neq, HirType::Char, HirLiteral::Char(l), HirLiteral::Char(r)) => {
-                        Ok((HirType::Bool, HirLiteral::Bool(l != r)))
-                    }
-                    _ => Err(Error::Hir(format!(
-                        "invalid const binary operator (at {}:{})",
-                        span.start_line, span.start_col
-                    ))),
-                }
-            }
-            Expr::FnCall { name, args, span, .. } => {
                 // M6.3：`const fn` 调用 → 编译期解释执行
                 if self.const_fns.contains_key(name) {
                     let mut vals = Vec::with_capacity(args.len());

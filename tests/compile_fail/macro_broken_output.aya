@@ -1,0 +1,9 @@
+// 负例：宏输出无法解析 → 错误带宏名与调用点
+import "../../example/macro_lib.aya";
+
+#[broken]
+fn ok_name() -> int { return 0 }
+
+fn main() -> int {
+    return 0
+}

@@ -30,84 +30,17 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
     }
 }
 
-/// Given an AST param type and the corresponding HirType from the lowered arg,
-/// extract bindings for **all** generic parameter names used by the param type.
-pub(crate) fn infer_generic_from_param<'a>(param_ty: &'a Type, arg_ty: &'a HirType) -> Vec<(Symbol, HirType)> {
-    match (param_ty, arg_ty) {
-        (Type::Named(name, _), _) => vec![(*name, arg_ty.clone())],
-        // Generic("Pair", [A, B]) vs Named("Pair<int,int>") → A = int, B = int
-        (Type::Generic(name, params, _), _) => {
-            let mut out = Vec::new();
-            let base = name.as_str();
-            // 剥离所有所有权包装，获取底层的 Named 类型名
-            let stripped = strip_ownership_ref(arg_ty);
-            let arg_name = match stripped {
-                HirType::Named(n) => n.as_str(),
-                _ => return out,
-            };
-            // 如果 arg 本身就是泛型参数（如 Named("T")），直接映射
-            for gp in params.iter() {
-                if let Type::Named(gp_name, _) = gp {
-                    if arg_name == gp_name.as_str() {
-                        out.push((*gp_name, arg_ty.clone()));
-                        return out;
-                    }
-                }
-            }
-            // Check if arg_name is "Name<...>"（兼容 `Name[...]` 旧编码）
-            if let Some(start) = arg_name.find('<').or_else(|| arg_name.find('[')) {
-                if &arg_name[..start] == base {
-                    // #134：必须用配对括号提取（trim_end_matches 会吃掉嵌套泛型的多个 `>`）
-                    let Some(inner) = generic_inner(&arg_name) else { return out; };
-                    let inner_parts = split_generic_args(inner);
-                    // Decode each inner part: "int" → Int, "String" → Named("String")
-                    // P4b：嵌套泛型模式（如 `Box[Box[T]]` ← `Box<Box<int>>`）递归推导
-                    for (gp, inner_str) in params.iter().zip(inner_parts.iter()) {
-                        let arg_inner = sig_str_to_hir(inner_str.trim());
-                        out.extend(infer_generic_from_param(gp, &arg_inner));
-                    }
-                }
-            }
-            out
-        }
-        (Type::Unique(inner, _), HirType::Unique(hir_inner)) => infer_generic_from_param(inner, hir_inner),
-        // Param expects wrapper but arg is unwrapped (auto-wrap will handle)
-        (Type::Unique(inner, _), _) => {
-            infer_generic_from_param(inner, arg_ty)
-        }
-        // 借用形参（如 ref Box[T]）→ 继续推导内层
-        (Type::Ref(inner, _, _), _) => infer_generic_from_param(inner, arg_ty),
-        // 数组形参（[T]）→ 从拥有/借用数组的元素类型推导
-        (Type::Array(inner, _), _) => match strip_ownership_ref(arg_ty) {
-            HirType::Array(a) | HirType::ArraySized(a, _) => infer_generic_from_param(inner, a),
-            _ => Vec::new(),
-        },
-        // #119：函数指针形参（fn(T) -> U）→ 从 lambda/FnPtr 实参推导参数与返回类型
-        (Type::FnPtr(ps, ret, _), _) => {
-            let mut out = Vec::new();
-            let arg = strip_ownership_ref(arg_ty);
-            if let HirType::FnPtr(aps, aret) | HirType::Closure(aps, aret, _, _) = arg {
-                for (pt, at) in ps.iter().zip(aps.iter()) {
-                    out.extend(infer_generic_from_param(pt, at));
-                }
-                out.extend(infer_generic_from_param(ret, aret));
-            }
-            out
-        }
-        // M2：闭包形参（Fn(T) -> U）→ 从 lambda/Closure/FnPtr 实参推导
-        (Type::Closure(ps, ret, _, _), _) => {
-            let mut out = Vec::new();
-            let arg = strip_ownership_ref(arg_ty);
-            if let HirType::FnPtr(aps, aret) | HirType::Closure(aps, aret, _, _) = arg {
-                for (pt, at) in ps.iter().zip(aps.iter()) {
-                    out.extend(infer_generic_from_param(pt, at));
-                }
-                out.extend(infer_generic_from_param(ret, aret));
-            }
-            out
-        }
-        _ => Vec::new(),
-    }
+/// 给定 AST 形参类型与实参 HirType，收集全部泛型参数绑定。
+/// P4c：AST 形参编码为 HirType 后交给统一 `unify`（helpers/unify.rs）——嵌套泛型匹配
+/// 的唯一实现；wrapper（Unique/Ref/数组/闭包）穿透由 unify 承担。
+pub(crate) fn infer_generic_from_param(
+    param_ty: &Type,
+    arg_ty: &HirType,
+    interfaces: &HashMap<Symbol, InterfaceReg>,
+) -> Vec<(Symbol, HirType)> {
+    let mut subst = HashMap::new();
+    let _ = unify(&ast_type_to_hir(param_ty, interfaces), arg_ty, &mut subst);
+    subst.into_iter().collect()
 }
 
 /// 提取 `Base<...>` / `Base[...]` 的外层参数串（匹配首个开括号的配对闭括号，尊重嵌套）。

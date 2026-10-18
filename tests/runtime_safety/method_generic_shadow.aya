@@ -1,0 +1,13 @@
+// bd 8yn（泛型方法）：自由函数与 std 泛型方法同名时，方法调用须解析到方法
+// （此前 o.is_none() 解析回自由函数自身 → 无限递归/栈溢出）
+import "option"
+
+fn is_none(ref Option[String] o) -> bool { return o.is_none() }
+
+fn main() -> int {
+    o = Option::None()
+    if !is_none(ref o) { return 1 }
+    r = o.unwrap_or("z" + "z")
+    if r.len != 2 { return 2 }
+    return 0
+}

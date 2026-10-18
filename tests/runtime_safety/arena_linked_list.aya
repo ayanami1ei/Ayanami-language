@@ -1,0 +1,99 @@
+// M4 阶段 2：Arena[T] + Idx 双向链表 —— 句柄互连 + 批量释放（live_allocs 归零）
+import "io"
+import "option"
+
+extern "C" fn __ayanami_live_allocs() -> int;
+
+struct Idx {
+    usize v
+}
+
+pub namespace Idx {
+    /// 句柄复制：Idx 是轻量句柄（结构体非 Copy，需显式复制）
+    pub fn copy(Idx i) -> Idx {
+        return Idx { v = i.v }
+    }
+}
+
+struct Arena[T] {
+    [Ptr[T]] data
+    usize len
+    usize cap
+}
+
+pub namespace Arena {
+    pub fn with_capacity[T](usize cap) -> Arena[T] {
+        return Arena[T] { data = [Ptr[T]; cap], len = 0usize, cap = cap }
+    }
+}
+
+impl[T] Arena[T] {
+    pub fn alloc(ref mut self, T v) -> Idx {
+        self.data[self.len] = Ptr::new(v)
+        self.len = self.len + 1usize
+        return Idx { v = self.len - 1usize }
+    }
+    pub fn get(ref self, Idx i) -> ref T {
+        p = ref self.data[i.v]
+        return p.get()
+    }
+    pub fn get_mut(ref mut self, Idx i) -> ref mut T {
+        p = ref mut self.data[i.v]
+        return p.get_mut()
+    }
+}
+
+struct Node {
+    int v
+    Option[Idx] prev
+    Option[Idx] next
+}
+
+fn build() -> int {
+    mut a = Arena::with_capacity[Node](5usize)
+    i0 = a.alloc(Node { v = 10, prev = Option::None(), next = Option::None() })
+    i1 = a.alloc(Node { v = 20, prev = Option::None(), next = Option::None() })
+    i2 = a.alloc(Node { v = 30, prev = Option::None(), next = Option::None() })
+    i3 = a.alloc(Node { v = 40, prev = Option::None(), next = Option::None() })
+    i4 = a.alloc(Node { v = 50, prev = Option::None(), next = Option::None() })
+    n0 = a.get_mut(Idx::copy(i0))
+    n0.next = Option::Some(Idx::copy(i1))
+    n1 = a.get_mut(Idx::copy(i1))
+    n1.prev = Option::Some(Idx::copy(i0))
+    n1.next = Option::Some(Idx::copy(i2))
+    n2 = a.get_mut(Idx::copy(i2))
+    n2.prev = Option::Some(Idx::copy(i1))
+    n2.next = Option::Some(Idx::copy(i3))
+    n3 = a.get_mut(Idx::copy(i3))
+    n3.prev = Option::Some(Idx::copy(i2))
+    n3.next = Option::Some(Idx::copy(i4))
+    n4 = a.get_mut(Idx::copy(i4))
+    n4.prev = Option::Some(Idx::copy(i3))
+    // 正向遍历：10+20+30+40+50 = 150
+    mut cur = i0
+    sum = 0
+    mut going = true
+    while going {
+        r = a.get(cur)
+        sum = sum + r.v
+        if r.next._tag == 0 {
+            cur = r.next._data_Some._0
+        } else {
+            going = false
+        }
+    }
+    // 反向一步：50 -> 40
+    tail = a.get(Idx::copy(i4))
+    back = tail.prev._data_Some._0
+    rb = a.get(back)
+    if rb.v != 40 { return 0 - 1 }
+    return sum
+}
+
+fn main() -> int {
+    s = build()
+    if s != 150 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

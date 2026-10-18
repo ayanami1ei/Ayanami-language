@@ -67,10 +67,12 @@ if [[ "$check_mode" == true ]]; then
         echo "Error: SYMBOLS.md does not exist." >&2
         exit 1
     fi
-    /usr/bin/diff -u "SYMBOLS.md" "$tmpfile" >&2 || {
-        echo "Error: SYMBOLS.md is out of date." >&2
+    # 判定用 cmp（本机 PATH 中的 diff 可能是玩具版：不支持选项且永远 exit 0）
+    if ! cmp -s "SYMBOLS.md" "$tmpfile"; then
+        echo "Error: SYMBOLS.md is out of date (run ./scripts/gen_symbols.sh)." >&2
+        diff -u "SYMBOLS.md" "$tmpfile" >&2 || true
         exit 1
-    }
+    fi
     echo "SYMBOLS.md is up to date"
     exit 0
 else

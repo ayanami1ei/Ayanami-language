@@ -1,0 +1,16 @@
+// mcl.1：token 宏（TokenStream 编解码往返；语句级拼接）
+import "macro_lib.aya";
+
+#[tok_keep]
+fn tok_kept() -> int { return 3 }
+
+fn main() -> int {
+    if tok_kept() != 3 { return 1 }
+    v = 0;
+    #[tok_twice]
+    v = v + 1;
+    if v != 2 { return 2 }
+    v2 = #tok_expr(41 + 1)
+    if v2 != 42 { return 3 }
+    return 0
+}

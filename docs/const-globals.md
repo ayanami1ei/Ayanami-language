@@ -1,7 +1,6 @@
 # const / static / 编译期求值设计（M6）
 
-> 状态：**M6.1 / M6.1b / M6.2a / M6.2b（pub static）/ M6.3a 已实现**；M6.2c（复合初始化）、
-> M6.3b（常量表）待做。见文末排期与各节实现状态。
+> 状态：**M6.1 / M6.1b / M6.2a / M6.2b（pub static）/ M6.2c（复合初始化）/ M6.3a / M6.3b（常量表）已实现**（2026-10-18）。见文末排期与各节实现状态。
 
 ## 目标与用途
 
@@ -118,7 +117,7 @@ M6.2c（数组部分已实现，2026-10）：复合初始化——数组全局�
 结构体常量中的数组字段（已实现，2026-10）：字段类型为指针语义，发射层预发射数据数组
 `@__ayanami_gdata_<static>_<field路径>` 并在结构体常量中引用（`ptr @...`）；支持嵌套结构体路径。
 
-待做（M6.2c 剩余）：`static mut` 的 unsafe 门控（M5）、数组/结构体常量用于 `const`（M6.3b）。
+待做（M6.2c 剩余）：`static mut` 的 unsafe 门控（M5）。数组/结构体常量用于 `const`（M6.3b）已实现——见下。
 
 - **所有权**：static 值不可含堆所有权（`String` / `[T]` 动态数组）——避免无 drop 的全局；
   需要表时用固定大小 `[T; n]` 或 M6.3 生成的常量。
@@ -141,7 +140,7 @@ M6.2c（数组部分已实现，2026-10）：复合初始化——数组全局�
 - 回归：`example/test_const_fn.aya`（fib 递归 + 运行期调用、for/while、尾 if、命名空间）、
   负例 `const_fn_not_const` / `const_fn_generic` / `const_fn_recursion`。
 
-待做（M6.3b）：固定大小数组/字符串表（`const TABLE = make_table()` 产出 `[N x T]` 常量）、
+已实现（M6.3b，2026-10-18）：`const TABLE = [..]` / `const P = Point { .. }` / `#[compile_time] fn make_table()` 产出数组常量 → **常量表**（内部全局，与 `static` 同发射路径；命名空间限定名与 static 一致；`example/test_const_table.aya`）。剩余：
 `HirLiteral::Array` 与只读全局发射。
 
 ## 阶段与排期
@@ -151,7 +150,7 @@ M6.2c（数组部分已实现，2026-10）：复合初始化——数组全局�
 | M6.1 | const 基础（标量 / 数组大小 / 0x） | ✅ 已实现 |
 | M6.1b | `pub const` / 命名空间 const 导出导入 | ✅ 已实现 |
 | M6.2 | static / global（可寻址、常量初始化、跨模块） | ✅ M6.2a/b 已实现；M6.2c 数组/结构体全局（含数组字段）已实现（unsafe 门控待做） |
-| M6.3 | `#[compile_time] fn` / make_table()（解释执行 + 常量表） | ✅ M6.3a 已实现（标量；M6.3b 常量表待做） |
+| M6.3 | `#[compile_time] fn` / make_table()（解释执行 + 常量表） | ✅ M6.3a 已实现（标量）；M6.3b 常量表已实现（数组/结构体 const → 内部全局） |
 
 ## 风险
 

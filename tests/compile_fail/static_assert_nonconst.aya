@@ -1,0 +1,6 @@
+// 负例：static_assert 条件必须是编译期常量（局部变量不行）
+fn main() -> int {
+    x = 5
+    static_assert(x > 0)
+    return 0
+}

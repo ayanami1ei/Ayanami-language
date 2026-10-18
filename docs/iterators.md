@@ -1,7 +1,8 @@
 # 迭代器与 for（M3）
 
 > 状态：**I1 完成**（2026-10-07）：`for x in iterable` + 泛型接口 `Iterator[T]` 虚调用；
-> 语言侧已具备适配器表达能力（示例 `MapIter`）。std 集合的 `next` 与适配器由 std 子仓跟进（I2/I3）。
+> 语言侧已具备适配器表达能力（示例 `MapIter`）。std 集合的 `next` 与适配器已在 std main 落地
+> （I2/I3：`map/filter/take/zip/enumerate` + 方法语法链，2026-10-18）。
 > 关联：bd `Ayanami-language-2bd`（epic）与 `.1`/`.2`/`.3`。
 
 ## 1. 目标
@@ -51,8 +52,8 @@ while true {
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | I1 | 语法 + HIR 降级 + 泛型接口虚调用 + 测试（本地迭代器/嵌套/break/continue/接口/适配器） | **完成** |
-| I2 | std 集合提供 `next`（Range/ArrayList/LinkedList/…，std 子仓，用户） | 待做 |
-| I3 | 适配器 map/filter/take/zip/enumerate（std/示例；语言侧已具备，`MapIter` 示例验证） | 语言侧完成 |
+| I2 | std 集合提供 `next`（Range/ArrayList/LinkedList/…，std 子仓） | **完成**（std main：集合/文本/链表迭代器，2026-10-18） |
+| I3 | 适配器 map/filter/take/zip/enumerate（std） | **完成**（std main：`MapIter`/`FilterIter`/`TakeIter`/`EnumerateIter`/`ZipIter` + 方法语法链 UFCS） |
 
 ## 5. 实现位置
 

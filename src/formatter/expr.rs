@@ -92,10 +92,14 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
         Expr::ToUnique(inner, _) => format!("unique {}", maybe_paren(expr_prec(inner) < 13, inner, level)),
         Expr::MethodCall { object, method, args, .. } => {
             let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
-            format!("{}.{}({})", write_expr_at(object, level), method, args_str.join(", "))
+            // #190：接收者是低优先级表达式（如 `(a - b).to_string()`）时必须保留括号
+            let o = maybe_paren(expr_prec(object) < 14, object, level);
+            format!("{}.{}({})", o, method, args_str.join(", "))
         }
         Expr::FieldAccess { object, field, .. } => {
-            format!("{}.{}", write_expr_at(object, level), field)
+            // #190：同上（`(a - b).x`）
+            let o = maybe_paren(expr_prec(object) < 14, object, level);
+            format!("{}.{}", o, field)
         }
         Expr::StructLiteral { type_name, generic_args, fields, .. } => {
             let generic_str = if generic_args.is_empty() {
@@ -137,10 +141,13 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
                 parts.push(format!("in({}) {}", asm_constraint(c), write_expr_at(e, level)));
             }
             let extra = if parts.is_empty() { String::new() } else { format!(", {}", parts.join(", ")) };
-            format!("asm(\"{}\"{})", template, extra)
+            // #197：模板按源码转义输出（不展开 `\n` 等）
+            format!("asm(\"{}\"{})", escape_string(template), extra)
         }
         Expr::Index { object, index, .. } => {
-            format!("{}[{}]", write_expr_at(object, level), write_expr_at(index, level))
+            // #190：索引对象同接收者（`(a - b)[0]`）
+            let o = maybe_paren(expr_prec(object) < 14, object, level);
+            format!("{}[{}]", o, write_expr_at(index, level))
         }
         Expr::CallExpr { target, args, .. } => {
             let args_str: Vec<String> = args.iter().map(|a| write_expr_at(a, level)).collect();
@@ -204,8 +211,30 @@ pub(super) fn write_expr_at(expr: &Expr, level: usize) -> String {
 }
 
 /// asm 约束 → 源码关键字（当前仅支持 reg）
-fn asm_constraint(c: &str) -> &str {
-    if c.contains('r') { "reg" } else { c }
+fn asm_constraint(c: &str) -> String {
+    // #198：early-clobber 输出 `=&r` 还原为 `out(early reg)`
+    if c.starts_with("=&") { "early reg".into() }
+    else if c.contains('r') { "reg".into() }
+    else { c.into() }
+}
+
+/// 字符串转义（与源码字符串字面量一致）：fmt 不得展开转义（#197 asm 模板换行）。
+/// 仅控制字符用 `\xNN`；非 ASCII 按 UTF-8 原样（`\x` 只吃两位十六进制）。
+pub(crate) fn escape_string(s: &str) -> String {
+    let mut out = String::new();
+    for c in s.chars() {
+        match c {
+            '\n' => out.push_str("\\n"),
+            '\t' => out.push_str("\\t"),
+            '\r' => out.push_str("\\r"),
+            '\0' => out.push_str("\\0"),
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            c if c.is_control() => out.push_str(&format!("\\x{:02x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 pub(super) fn write_literal(lit: &Literal) -> String {
@@ -231,23 +260,7 @@ pub(super) fn write_literal(lit: &Literal) -> String {
             };
             format!("'{}'", s)
         }
-        Literal::String(s, _) => {
-            let mut out = String::from("\"");
-            for c in s.chars() {
-                match c {
-                    '\n' => out.push_str("\\n"),
-                    '\t' => out.push_str("\\t"),
-                    '\r' => out.push_str("\\r"),
-                    '\0' => out.push_str("\\0"),
-                    '\\' => out.push_str("\\\\"),
-                    '"' => out.push_str("\\\""),
-                    c if c.is_ascii_graphic() || c == ' ' => out.push(c),
-                    c => out.push_str(&format!("\\x{:02x}", c as u32)),
-                }
-            }
-            out.push('"');
-            out
-        }
+        Literal::String(s, _) => format!("\"{}\"", escape_string(s)),
         Literal::Bool(b, _) => b.to_string(),
     }
 }

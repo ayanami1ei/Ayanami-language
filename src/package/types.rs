@@ -25,6 +25,7 @@ pub enum PackageSymbol {
     },
     Struct {
         name: String,
+        copy: bool,
     },
     Namespace {
         name: String,
@@ -35,6 +36,7 @@ pub enum PackageSymbol {
     /// A5b：导出的宏（`#[macro]` 函数）
     Macro {
         name: String,
+        tokens: bool,
     },
     /// A5d：导出的 MIR 优化注解（`#[pass]` 函数）
     Pass {
@@ -74,6 +76,7 @@ pub enum ImportedSymbol {
     },
     Struct {
         name: String,
+        copy: bool,
     },
     Namespace {
         name: String,
@@ -84,6 +87,7 @@ pub enum ImportedSymbol {
     /// A5b：包导出的宏
     Macro {
         name: String,
+        tokens: bool,
     },
     /// A5d：包导出的 MIR 优化注解
     Pass {

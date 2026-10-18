@@ -66,7 +66,7 @@ arm       := pattern ('if' expr)? '=>' expr (',' | ';')?
   （`u8: 0..=255`、`i8: -128..=127`、重叠区间、`|` 内区间等）；bool/枚举逻辑保持。
 - 回归：`example/test_match_arms.aya`；负例 `match_or_binding`、`match_range_non_exhaustive`。
 
-## 待做
+## 暂不做 / 已知限制
 
 - tuple：语言无元组类型，暂不做；
-- 结构体解构的字段级部分移动在 drop 侧的完备性（当前与枚举载荷同策略）。
+- 结构体解构的字段级部分移动在 drop 侧的完备性：当前与枚举载荷同策略（已知限制）。

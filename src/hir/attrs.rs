@@ -28,8 +28,10 @@ pub const ALLOWED: &[&str] = &[
     "nonnull",
     // #84 ③：导出 C 符号（等价 `extern "C"` 定义）
     "export",
-    // M6.3：编译期求值函数（常量上下文解释执行）
-    "compile_time",
+    // `#[extern]`：C ABI 标注（等价 `extern "C"`，含无体声明）
+    "extern",
+    "copy", // dld：trivial Copy 结构体（句柄类类型）
+    "compile_time", // M6.3：编译期求值函数（常量上下文解释执行）
 ];
 
 /// 形参位置允许的属性（A1b）。

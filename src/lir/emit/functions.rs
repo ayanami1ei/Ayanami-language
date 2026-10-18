@@ -173,8 +173,9 @@ impl<'a> Emitter<'a> {
 
         // M-opt.2：release 下非导出定义标 internal（opt 可内联/DCE、免 PLT）；
         // main / extern "C" / pub / 弱特化保持外部链接。
-        // M2：编译器生成的闭包函数（__lambda_N / __closure_drop_N）总是 internal，
-        // 否则跨模块（包 + 使用方）同名冲突导致链接失败。
+        // 多模块构建：非 pub 也必须 internal——各模块对象同名私有函数（如各模块
+        // 自己的 op_method_name）强符号重复定义冲突（#M6 跨模块符号表前的最小修复）。
+        // M2：编译器生成的闭包函数（__lambda_N / __closure_drop_N）总是 internal。
         let is_synth = fn_name.starts_with("__lambda_")
             || fn_name.starts_with("__closure_drop_")
             || fn_name.starts_with("__closure_noop_drop")
@@ -182,10 +183,11 @@ impl<'a> Emitter<'a> {
         let linkage = if self.prog.specialized_fns.contains(&f.fn_id) || f.is_inline {
             "linkonce_odr "
         } else if is_synth
-            || (crate::hir::contracts::is_release()
-                && !f.is_pub
+            || (!f.is_pub
                 && !f.extern_c
-                && fn_name != "main")
+                && fn_name != "main"
+                && (crate::hir::contracts::is_release()
+                    || crate::hir::contracts::is_multi_module()))
         {
             "internal "
         } else {

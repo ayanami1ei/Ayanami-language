@@ -24,13 +24,13 @@ HIR Program
 │ │ │ Return
         Literal(Int(0))
 │ │ }
-│ Fn __ayanami_ovf_add_u64 (a: u64, b: u64, __line: Int, __col: Int, __file: Named(String)) -> u64 [locals: 0]
-│ │ Block {
-│ │ }
 │ Fn __ayanami_ovf_mul_u64 (a: u64, b: u64, __line: Int, __col: Int, __file: Named(String)) -> u64 [locals: 0]
 │ │ Block {
 │ │ }
 │ Fn __ayanami_panic_bounds_at (__line: Int, __col: Int, __file: Named(String), index: Int, len: Int) -> Void [locals: 0]
+│ │ Block {
+│ │ }
+│ Fn __ayanami_ovf_add_u64 (a: u64, b: u64, __line: Int, __col: Int, __file: Named(String)) -> u64 [locals: 0]
 │ │ Block {
 │ │ }
 │ Fn ArrayList.new () -> Named(ArrayList<int>) [locals: 0]
@@ -192,13 +192,8 @@ HIR Program
 │ │ │   cond:
         Binary { op: Ge, ty: u64 }
           lhs:
-          Call(fn(N), ty: u64)
-            FieldAccess len ty=u64
-              Local(v0 : ref mut Named(ArrayList<int>))
-            Literal(Int(1))
-            Literal(Int(20))
-            Literal(Int(21))
-            FileArg("example/test_bounds.aya")
+          FieldAccess len ty=u64
+            Local(v0 : ref mut Named(ArrayList<int>))
           rhs:
           FieldAccess capability ty=u64
             Local(v0 : ref mut Named(ArrayList<int>))

@@ -1,0 +1,13 @@
+// 负例：返回的引用必须来自引用参数，不能来自局部变量（悬垂借用）
+struct S {
+    int v
+}
+
+fn bad(ref S s) -> ref int {
+    x = 5
+    return ref x
+}
+
+fn main() -> int {
+    return 0
+}

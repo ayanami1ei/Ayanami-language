@@ -17,7 +17,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 | 重新生成符号地图 | `./scripts/gen_symbols.sh` |
 | 校验符号地图是否过期 | `./scripts/gen_symbols.sh --check` |
 | 零告警校验 | `./scripts/check_warnings.sh` |
-| 构建发布产物（tar + vsix） | `./scripts/package_release.sh` |
+| 构建发布产物（tar + vsix） | `./scripts/package_release.sh package`（等价旧用法；子命令：`upload` 上传资产+更新 notes 构建号、`verify` 干净容器跑 runtime_safety 全量、`machines [--from tar]` 本机+远端更新、`all` 一条龙） |
 | 校验文件行数 | `./scripts/check_file_sizes.sh`（默认上限 300 行） |
 | 刷新模块依赖图 | `python3 scripts/gen_module_graph.py` |
 | 安装版 CLI | `cd install && ./ayanami run ../example/test_struct.aya` |
@@ -50,7 +50,7 @@ Ayanami 是一门自带 LLVM 后端的编译型语言（单二进制分发，无
 
 1. **解析器是手写递归下降**（`src/parser/parser/`，AST 在 `src/parser/ast/`）：唯一解析路径，无生成解析器/回退路径（asuka 生成器与 `ayanami.grammar` 已于 2026-10 移除，不要重新引入文法生成）。
 2. `SYMBOLS.md`、`target/`、`build/` 都是产物或生成物，不要整读；`.lcl` 是二进制包，不要读。
-3. `example/*.aya`（26 个）是端到端测试的主要手段；新特性至少配一个 example 用例。
+3. `example/*.aya`（147 个；回归正例清单 `tests/positive_exit.txt`）是端到端测试的主要手段；新特性至少配一个 example 用例（并登记退出码）。
 4. `std/` 交付预编译 `.lcl`，源码在子仓 `std/src/**/*.aya`（按领域分目录 core/collections/system/meta/dev）。构建/安装 `.lcl` 用子仓 `scripts/build.sh`（开发态安装到 `target/debug/std`）。
 5. `std/`、`book/` 是 git 子仓：在子仓内修改后要先在子仓提交并推送，主仓再提交新的子仓指针。
 
@@ -116,7 +116,7 @@ cargo test
 
 - 编译器源码禁止硬编码版本号：已统一用 `env!("CARGO_PKG_VERSION")` 自动跟随（`src/compiler/build.rs`、`src/main.rs` 的 `new` 模板）。
 - 校验：`./scripts/check_version.sh`（版本漂移时报错退出），发布前必跑。
-- 发布流程：改版本 → `cargo check` → `./scripts/check_version.sh` → `./scripts/package_release.sh`（构建 tar + vsix）→ 提交 → 打 `vX.Y.Z` 标签 → 推送分支和标签。
+- 发布流程：改版本 → `cargo check` → `./scripts/check_version.sh` → `./scripts/package_release.sh`（构建 tar + vsix）→ `upload`（上传+notes）→ `verify`（干净容器全量）→ 提交 → 打 `vX.Y.Z` 标签 → 推送分支和标签 → `machines`（本机+远端更新）。
 
 ## 文档先行
 

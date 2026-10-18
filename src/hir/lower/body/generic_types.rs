@@ -79,7 +79,7 @@ impl crate::hir::lower::Ctx {
             }
             Expr::MethodCall { object, method, .. } => {
                 if let GType::Struct(base, args) = self.infer_gtype(object, gp, env) {
-                    for (m, _, stmt) in &self.generic_fns {
+                    for (m, _, stmt, _) in &self.generic_fns {
                         if m != method { continue; }
                         if let Stmt::FnDecl { params, return_type, .. } = stmt {
                             if let Some((_, rt)) = params.first() {

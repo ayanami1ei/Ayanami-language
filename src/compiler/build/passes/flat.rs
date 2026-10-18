@@ -11,7 +11,7 @@ use crate::parser::ast::Attr;
 pub(super) const SCHEMA_VERSION: i64 = 3;
 /// 头部字段数：version / pure / no_error / node_count
 pub(super) const HEADER_WORDS: usize = 4;
-/// 数组个数：v0 七项 + ops/lit_kinds/lit_i64/lit_f64 + stmt_kinds/var_ids + 编辑数组
+/// 数组个数：初版七项 + ops/lit_kinds/lit_i64/lit_f64 + stmt_kinds/var_ids + 编辑数组
 pub(super) const ARRAY_COUNT: usize = 15;
 /// 只读数组个数（前 13 个；后 2 个是编辑数组）
 pub(super) const READONLY_ARRAYS: usize = 13;
@@ -152,7 +152,7 @@ fn push_i64(buf: &mut Vec<u8>, v: i64) {
     buf.extend_from_slice(&v.to_le_bytes());
 }
 
-/// MirFn → 扁平视图 blob（schema v1）
+/// MirFn → 扁平视图 blob（schema v3，见 SCHEMA_VERSION）
 pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8> {
     let mut v = FlatView::new(purity.clone());
     let root = v.push(KIND_FN, false, false, false, false, false, 0, 0, 0, 0, 0, 0);
@@ -207,7 +207,7 @@ pub(super) fn parse_output(input: &[u8], out: &[u8], a: &Attr) -> Result<PassOut
     let ro_end = header + READONLY_ARRAYS * arr_len;
     if out[header..ro_end] != input[header..ro_end] {
         return Err(Error::Compile(format!(
-            "pass #[{}] modified read-only MIR fields; use the edit arrays (schema v1) (at {}:{})",
+            "pass #[{}] modified read-only MIR fields; use the edit arrays (schema v3) (at {}:{})",
             a.path_str(), a.span.start_line, a.span.start_col
         )));
     }

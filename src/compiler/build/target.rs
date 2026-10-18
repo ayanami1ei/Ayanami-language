@@ -1,6 +1,32 @@
 use super::*;
 use super::deps::merge_symbols;
 
+/// 预扫描源码 import 图：存在源码级依赖（可解析到 .aya 的模块）→ 多模块构建。
+/// 多模块下每个模块编译为独立对象，非 pub 定义须 internal（同名私有函数强符号冲突）。
+fn scan_source_deps(src_path: &Path) -> bool {
+    use crate::compiler::import::resolve_import_path;
+    let mut seen: HashSet<std::path::PathBuf> = HashSet::new();
+    let mut stack: Vec<std::path::PathBuf> = vec![src_path.to_path_buf()];
+    while let Some(p) = stack.pop() {
+        if !seen.insert(p.clone()) { continue; }
+        let Ok(code) = std::fs::read_to_string(&p) else { continue };
+        let base = p.parent().unwrap_or(Path::new("."));
+        for line in code.lines() {
+            let t = line.trim();
+            let Some(rest) = t.strip_prefix("import ") else { continue };
+            let name = rest.trim().trim_end_matches(';').trim().trim_matches('"');
+            if name.is_empty() { continue; }
+            if let Some(cand) = resolve_import_path(name, base) {
+                if cand.extension().map(|e| e == "aya").unwrap_or(false) {
+                    return true;
+                }
+                stack.push(cand);
+            }
+        }
+    }
+    false
+}
+
 pub fn build_source_with_target(
     src_path: &str,
     _code: &str,
@@ -18,6 +44,9 @@ pub fn build_source_with_target(
 
     // #84 ②：runtime 选择（AYANAMI_RUNTIME > ayanami.toml [runtime] path > 内置 runtime.c）
     let runtime = crate::driver::resolve_runtime(src_path)?;
+
+    // 多模块构建检测（源码级 import）：非 pub 定义须 internal，避免跨对象同名私有符号冲突
+    crate::hir::contracts::set_multi_module(scan_source_deps(src_path));
 
     let compiled = compile_file(
         src_path,

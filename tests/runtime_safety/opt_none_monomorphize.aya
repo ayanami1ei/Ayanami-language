@@ -1,0 +1,10 @@
+// #185：Option::None() 须按用法单态化（裸布局传参 ABI 错配 → 崩溃）
+import "io"
+import "string"
+
+fn main() -> int {
+    o = Option::None()
+    r = o.unwrap_or("z" + "z")
+    println(r)
+    return 0
+}

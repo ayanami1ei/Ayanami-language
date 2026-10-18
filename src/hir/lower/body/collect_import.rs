@@ -5,6 +5,8 @@ impl crate::hir::lower::Ctx {
             let pkg_path = super::collect_import_path::resolve_import_pkg_path(path);
             let (imported_syms, sources, lir_binary, _) = crate::package::load_package(&pkg_path)
                 .map_err(|e| Error::Import(format!("import error for '{}': {}", path, e)))?;
+            // M8：版本漂移告警（陈旧 .lcl；仅警告，不阻断）
+            crate::package::warn_version_drift(&pkg_path, &crate::hir::attrs::pkg_stem(path));
 
             // Merge struct definitions from the package's LIR data
             if !lir_binary.is_empty() {
@@ -43,6 +45,9 @@ impl crate::hir::lower::Ctx {
                 }
             }
 
+            // bd 8yn：包源码里的 impl 方法名（非泛型）——签名表无方法标记，
+            // 用源码集合在注册导入函数时补记 method_fn_ids（方法解析优先方法候选）
+            let mut imported_method_names: std::collections::HashSet<Symbol> = std::collections::HashSet::new();
             for src in &sources {
                 let mut lexer = crate::lexer::Lexer::new(src);
                 let tokens = lexer.tokenize_all();
@@ -61,7 +66,7 @@ impl crate::hir::lower::Ctx {
                         match stmt {
                             Stmt::FnDecl { name, generic_params, span, .. } if !generic_params.is_empty() => {
                                 super::collect_ns::check_unique_generic_params(generic_params, span)?;
-                                self.generic_fns.push((*name, generic_params.clone(), stmt.clone()));
+                                self.generic_fns.push((*name, generic_params.clone(), stmt.clone(), false));
                             }
                             Stmt::ImplBlock { methods, generic_params: impl_gp, span, .. } => {
                                 super::collect_ns::check_unique_generic_params(impl_gp, span)?;
@@ -74,7 +79,9 @@ impl crate::hir::lower::Ctx {
                                         };
                                         super::collect_ns::check_unique_generic_params(&combined, m_span)?;
                                         if !combined.is_empty() {
-                                            self.generic_fns.push((*name, combined, m.clone()));
+                                            self.generic_fns.push((*name, combined, m.clone(), true));
+                                        } else {
+                                            imported_method_names.insert(*name);
                                         }
                                     }
                                 }
@@ -86,7 +93,7 @@ impl crate::hir::lower::Ctx {
                                         super::collect_ns::check_unique_generic_params(generic_params, span)?;
                                         if !generic_params.is_empty() {
                                             let full = Symbol::intern(&format!("{}.{}", prefix, fn_name));
-                                            self.generic_fns.push((full, generic_params.clone(), it.clone()));
+                                            self.generic_fns.push((full, generic_params.clone(), it.clone(), false));
                                         }
                                     }
                                 }
@@ -111,14 +118,17 @@ impl crate::hir::lower::Ctx {
             }
             for sym in &imported_syms {
                 match sym {
-                    crate::package::ImportedSymbol::Macro { name } => {
+                    crate::package::ImportedSymbol::Macro { name, tokens } => {
                         let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
                         self.imported_macros.entry(stem).or_default().push(Symbol::intern(name));
                         // A5c-2：函数宏 `#name(args)` 解析用（裸名 + 全限定 pkg.name）
                         let lcl = path.clone();
                         self.imported_macro_lcls.entry(Symbol::intern(name)).or_default().push(lcl.clone());
+                        // mcl.1：记录 token 宏种类（表达式宏展开用）
+                        self.imported_macro_kinds.insert(Symbol::intern(name), *tokens);
                         let qualified = format!("{}.{}", stem.as_str(), name);
                         self.imported_macro_lcls.entry(Symbol::intern(&qualified)).or_default().push(lcl);
+                        self.imported_macro_kinds.insert(Symbol::intern(&qualified), *tokens);
                     }
                     crate::package::ImportedSymbol::Pass { name } => {
                         let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
@@ -129,6 +139,11 @@ impl crate::hir::lower::Ctx {
                         self.imported_checks.entry(stem).or_default().push(Symbol::intern(name));
                     }
                     crate::package::ImportedSymbol::Fn { name, sig, flags } => {
+                        // nsr：非 pub（`private` 标记）为来源模块私有——不注册进导入方
+                        // 符号表（此前与使用方同名私有函数冲突：重载歧义/llc 重定义）
+                        if flags.iter().any(|f| f == "private") {
+                            continue;
+                        }
                         // sig format: "fnName(param_types...)->ret_type"
                         let sig_body = sig.trim_start_matches(name.as_str());
                         // M2：按配对的 ')' 找参数表结束（形参可能含 `Fn(...)` 内层括号）
@@ -195,6 +210,9 @@ impl crate::hir::lower::Ctx {
                         });
                         if extern_c { self.extern_fn_ids.insert(fn_id); }
                         self.fn_map.entry(sym_name).or_default().push(fn_id);
+                        if imported_method_names.contains(&sym_name) {
+                            self.method_fn_ids.insert(fn_id);
+                        }
                     }
                     crate::package::ImportedSymbol::Const { name, ty, value } => {
                         // M6.1b：导入常量注册（限定名 `pkg.NAME` + 裸名；本地同名优先）
@@ -220,7 +238,12 @@ impl crate::hir::lower::Ctx {
                             self.statics.entry(qualified).or_insert_with(|| mk(bare));
                         }
                     }
-                    crate::package::ImportedSymbol::Struct { name } => {
+                    crate::package::ImportedSymbol::Struct { name, copy } => {
+                        // dld：导入的 `#[copy]` 结构体登记（名字取 `name(fields)` 前缀）
+                        if *copy {
+                            let base = name.split('(').next().unwrap_or(name);
+                            crate::hir::ty::register_copy_struct(Symbol::intern(base));
+                        }
                         // Parse "Name(field1:type1,field2:type2)" format
                         let (struct_name, fields_str) = if let Some(paren) = name.find('(') {
                             let n = &name[..paren];

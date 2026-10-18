@@ -96,6 +96,10 @@ impl Parser {
                     Some(TokenKind::Delimiter(Delimiter::LParen)) => {
                         self.advance();
                         let mut args = Vec::new();
+                        // #194：调用实参内允许结构体字面量（`f(U { })`、`if f(Point { x = 1 })`）；
+                        // 条件上下文默认禁止（parse_cond_expr），括号/实参内重置
+                        let saved_depth = self.struct_lit_depth;
+                        self.struct_lit_depth = 0;
                         if self.peek().map(|t| &t.kind) != Some(&TokenKind::Delimiter(Delimiter::RParen)) {
                             loop {
                                 args.push(self.parse_expr()?);
@@ -105,10 +109,22 @@ impl Parser {
                                 self.expect_delimiter(Delimiter::Comma)?;
                             }
                         }
+                        self.struct_lit_depth = saved_depth;
                         self.expect_delimiter(Delimiter::RParen)?;
                         Ok(Expr::FnCall { name: name_sym, args, generic_args: Vec::new(), span })
                     }
                     Some(TokenKind::Delimiter(Delimiter::LBrace)) => {
+                        // #194：空结构体字面量 `U { }`（条件/scrutinee 位置禁用，
+                        // 避免吞掉 if/while/match 的块）
+                        let empty_lit = self.pos + 1 < self.tokens.len()
+                            && self.tokens[self.pos + 1].kind == TokenKind::Delimiter(Delimiter::RBrace);
+                        if empty_lit && self.struct_lit_depth == 0 {
+                            self.advance(); // consume {
+                            self.advance(); // consume }
+                            return Ok(Expr::StructLiteral {
+                                type_name: name_sym, generic_args: Vec::new(), fields: Vec::new(), span,
+                            });
+                        }
                         // Try to parse as struct literal: ident { field = val, ... }
                         // If the first field ends with , → definitely struct
                         // If it ends with } → one-field struct
@@ -185,57 +201,7 @@ impl Parser {
                 self.advance();
                 Ok(Expr::Ident(Symbol::intern("self"), tok.span()))
             }
-            TokenKind::Keyword(Keyword::Asm) => {
-                let tok = self.peek().cloned().unwrap();
-                let span = tok.span();
-                self.advance();
-                self.expect_delimiter(Delimiter::LParen)?;
-                let template = match self.peek().map(|t| &t.kind) {
-                    Some(TokenKind::StringLiteral(s)) => { let s = s.clone(); self.advance(); s }
-                    _ => return Err(self.error("expected string literal in asm")),
-                };
-                let mut outputs = Vec::new();
-                let mut inputs = Vec::new();
-                loop {
-                    match self.peek().map(|t| &t.kind) {
-                        Some(TokenKind::Delimiter(Delimiter::RParen)) | None => break,
-                        _ => {
-                            self.expect_delimiter(Delimiter::Comma)?;
-                            match self.peek().map(|t| &t.kind) {
-                                Some(TokenKind::Keyword(Keyword::Out)) => {
-                                    self.advance();
-                                    self.expect_delimiter(Delimiter::LParen)?;
-                                    let constraint = match self.peek().map(|t| &t.kind) {
-                                        Some(TokenKind::Keyword(Keyword::Reg)) => {
-                                            self.advance(); "=r".to_string()
-                                        }
-                                        _ => return Err(self.error("expected reg in asm out")),
-                                    };
-                                    self.expect_delimiter(Delimiter::RParen)?;
-                                    let output = self.parse_expr()?;
-                                    outputs.push((constraint, Box::new(output)));
-                                }
-                                Some(TokenKind::Keyword(Keyword::In)) => {
-                                    self.advance();
-                                    self.expect_delimiter(Delimiter::LParen)?;
-                                    let constraint = match self.peek().map(|t| &t.kind) {
-                                        Some(TokenKind::Keyword(Keyword::Reg)) => {
-                                            self.advance(); "r".to_string()
-                                        }
-                                        _ => return Err(self.error("expected reg in asm in")),
-                                    };
-                                    self.expect_delimiter(Delimiter::RParen)?;
-                                    let input = self.parse_expr()?;
-                                    inputs.push((constraint, Box::new(input)));
-                                }
-                                _ => break,
-                            }
-                        }
-                    }
-                }
-                self.expect_delimiter(Delimiter::RParen)?;
-                Ok(Expr::Asm { template, outputs, inputs, span })
-            }
+            TokenKind::Keyword(Keyword::Asm) => self.parse_asm(),
             TokenKind::Delimiter(Delimiter::LParen) => {
                 // Check if this is a lambda: (type name, ...) -> ret_type { ... }
                 // M2：零参数 `() -> ...` / `() { ... }` 也按 lambda 处理

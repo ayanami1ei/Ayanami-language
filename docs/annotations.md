@@ -67,6 +67,9 @@ fn read_config(ref String path) -> Config { ... }
 | `#[willreturn]` | 函数 | `willreturn` | 必然返回，可提升循环 |
 | `#[noalias]` | 指针参数（ref/[T]/fn） | `noalias` | 该指针不与其它指针别名（已实现，A1b） |
 | `#[nonnull]` | 指针参数（ref/[T]/fn） | `nonnull` | 参数非空（已实现，A1b） |
+| `#[export]` | 函数（非泛型，需函数体） | 导出 C 符号 | 定义并导出（等价 `extern "C"` 定义；已实现） |
+| `#[extern]` | 函数（非泛型） | C ABI | 等价 `extern "C"`：无体 = 导入声明，有体 = 定义并导出（已实现；旧语法 `extern "C" fn` 仍可解析，fmt 迁移为标注） |
+| `#[copy]` | 结构体（非泛型） | trivial Copy | 句柄类类型自由复制（字段须 Copy；按源码顺序登记，`example/test_copy_attr.aya`） |
 
 **跨语言优化**：以上标注用在 `extern "C"` 声明上时，属性进入
 `declare` 行，LLVM 即可跨越 FFI 调用做优化。例：
@@ -105,6 +108,7 @@ extern "C" fn strlen([char] s) -> int;
 ## 5. 条件与契约（A2）
 
 - `#[cfg(target = "linux")]`：编译期裁剪 item 与语句；已实现（A2b/A2f）。
+  M8：`#[cfg(feature = "x")]` 按 feature 开关裁剪（见 A2b）。
 - `#[requires(cond)]`：函数前置条件（已实现运行检查，A2d）。默认插入运行检查
   （失败打印位置并 abort）；`--release`（或 `AYANAMI_CHECKS=0`）时转为 `llvm.assume`。
 - `#[ensures(cond)]`：后置条件，`result` 绑定返回值（已实现，A2e）。
@@ -126,9 +130,12 @@ extern "C" fn strlen([char] s) -> int;
 
 - 求值点：HIR 降低前 `hir/cfg.rs::filter_program`，递归过滤顶层 /
   namespace / impl / interface 方法；`validate_program` 先行，未知谓词报错（ADR-2）。
-- 谓词：`target = "linux"`、`arch = "x86_64"`、裸标识符
+- 谓词：`target = "linux"`、`arch = "x86_64"`、`feature = "x"`、裸标识符
   （`unix`/`windows`/`linux`/`macos`/`x86_64`/`aarch64`）、`!` 取反；
   多个谓词/多个 `#[cfg]` 之间为「与」。
+- M8 feature flags：启用集合 = `ayanami.toml` 顶层 `features = ["a", "b"]`
+  与 `AYANAMI_FEATURES=a,b`（逗号分隔，叠加）之并；仅首次配置生效
+  （`hir/cfg.rs::configure_features_from`，`compile_file` 入口调用）。
 - 包导出（`package/symbols.rs`）同样跳过被裁剪项；
   `defs` 命令仍列出两侧（IDE 视角），语句级 cfg 待后续。
 
@@ -436,7 +443,7 @@ struct Holder {
 ### A2（已完成，2026-10）
 
 - [x] A2a 标注实参结构化（`AttrArg`：`key = value` / 表达式），formatter 保真
-- [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致）
+- [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致；M8 追加 feature 键）
 - [x] A2c `#[assume(cond)]` → `llvm.assume`
 - [x] A2d `#[requires]` 运行检查
 - [x] A2e `#[ensures(result)]` 后置条件（契约链路统一为 ContractKind）
@@ -456,6 +463,12 @@ struct Holder {
 - [ ] A3d `try/handle`（后期）
 
 ### A5（设计，待拍板）
+
+> Phase 6 升级（文本 → AST/HIR：TokenStream/Span/Diagnostic，ABI v6）设计见 `docs/macros.md`；
+> mcl.1/mcl.2 部分实现：`#[macro(tokens)]` token 宏（编解码 + 字节通道，`example/test_macro_tokens.aya`）；
+> hygiene 原语（`__ayanami_macro_hygienic`）与诊断通道（`__ayanami_macro_diag`，`example/test_macro_hygiene.aya`）；
+> mcl.3 部分：`ayanami dump expanded`（展开后源码）+ `AYANAMI_MACRO_TRACE=1` 追踪 + 生成代码错误包装；
+> token 宏支持分组 token 与表达式形态（`#tok_expr(x)`）。
 
 - [x] A5a 标注名路径化（`pkg::macro`）+ provider 解析 + `core::` 别名 + import 短名列表
 - [x] A5b-1 `#[macro]` 声明 + `.lcl` 宏表（`macro="name"`）+ `pkg::macro`/import 短名解析与存在性诊断

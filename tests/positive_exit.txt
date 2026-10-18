@@ -40,6 +40,7 @@ test_generic_bound_check.aya 0
 test_generic_enum_match.aya 0
 test_generic_struct_infer.aya 0
 test_match_literals.aya 0
+test_match_qualified.aya 0
 test_match_destructure.aya 0
 test_generic_struct_lit.aya 0
 test_generic_enum_ctor.aya 0
@@ -136,3 +137,10 @@ test_array_bounds.aya 0
 test_kw_member.aya 0
 test_generic_explicit.aya 0
 test_generic_nested.aya 0
+test_arena.aya 0
+test_sizeof.aya 0
+test_static_assert.aya 0
+test_macro_tokens.aya 0
+test_macro_hygiene.aya 0
+test_const_table.aya 0
+test_copy_attr.aya 0

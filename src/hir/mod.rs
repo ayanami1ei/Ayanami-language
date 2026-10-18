@@ -5,6 +5,7 @@ pub mod cfg;
 pub mod contracts;
 pub mod effects;
 pub mod ir;
+pub mod layout;
 pub mod ty;
 pub mod node;
 pub mod stmt;

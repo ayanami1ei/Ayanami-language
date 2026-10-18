@@ -1,0 +1,9 @@
+// 负例：#[copy] 结构体字段必须 Copy
+#[copy]
+struct Bad {
+    String s
+}
+
+fn main() -> int {
+    return 0
+}

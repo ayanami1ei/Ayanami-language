@@ -18,6 +18,11 @@ pub(crate) use plugin::invoke_macro_expr;
 const MAX_DEPTH: usize = 32;
 
 mod annotations;
+mod expand_util;
+mod plugin_call;
+mod token_stream;
+
+use expand_util::*;
 mod check_plugin;
 mod pass_plugin;
 mod plugin;
@@ -92,7 +97,7 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
             if attrs.iter().any(|a| !is_compiler_attr(a)) =>
         {
             let attr = attrs.iter().find(|a| !is_compiler_attr(a)).cloned().unwrap();
-            let (lcl_path, macro_name, args) = resolve_macro_call(ctx, &attr)?;
+            let (lcl_path, macro_name, args, tokens) = resolve_macro_call(ctx, &attr)?;
             let remaining: Vec<Attr> = attrs.iter()
                 .filter(|a| a.path_str() != attr.path_str())
                 .cloned()
@@ -106,8 +111,12 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
                     span,
                 }]))
             };
-            let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args)?;
-            let parsed = parse_source(&output)?;
+            let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens, attr.span.start_line, attr.span.start_col)?;
+            trace_expansion(&macro_name, &input, &output);
+            let parsed = parse_source(&output).map_err(|e| Error::Compile(format!(
+                "in macro `{}` expansion: {} (at {}:{})",
+                macro_name, e, attr.span.start_line, attr.span.start_col
+            )))?;
             for s in &parsed.stmts {
                 for e in expand_one(s, ctx, depth + 1)? {
                     expand_nested(e, out, ctx, depth + 1)?;
@@ -194,17 +203,17 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
     }
 }
 
-/// 解析并校验宏标注 → (lcl 路径, 宏名, 实参源码文本)
-fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>)> {
+/// 解析并校验宏标注 → (lcl 路径, 宏名, 实参源码文本, 是否 token 宏)
+fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)> {
     let args: Vec<String> = attr.args.iter().map(crate::formatter::format_attr_arg).collect();
     match ctx.tables.resolve(attr)? {
-        Some((pkg, macro_name, AnnKind::Macro)) => {
+        Some((pkg, macro_name, AnnKind::Macro, tokens)) => {
             let lcl_path = ctx.tables.lcl_path(&pkg).ok_or_else(|| Error::Compile(format!(
                 "package `{}` has no annotation table", pkg
             )))?;
-            Ok((lcl_path, macro_name, args))
+            Ok((lcl_path, macro_name, args, tokens))
         }
-        Some((pkg, name, AnnKind::Pass)) | Some((pkg, name, AnnKind::Check)) => Err(Error::Compile(format!(
+        Some((pkg, name, AnnKind::Pass, _)) | Some((pkg, name, AnnKind::Check, _)) => Err(Error::Compile(format!(
             "`#[{}]` is a MIR annotation (`{}::{}`), not a macro (at {}:{})",
             attr.path_str(), pkg, name, attr.span.start_line, attr.span.start_col
         ))),
@@ -221,14 +230,14 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     let mut macro_attr = None;
     if let Some(attrs) = attrs_of(stmt) {
         for a in attrs.iter().filter(|a| !is_compiler_attr(a)) {
-            if let Some((_, _, AnnKind::Macro)) = ctx.tables.resolve(a)? {
+            if let Some((_, _, AnnKind::Macro, _)) = ctx.tables.resolve(a)? {
                 macro_attr = Some(a.clone());
                 break;
             }
         }
     }
     let Some(attr) = macro_attr else { return Ok(vec![stmt.clone()]); };
-    let (lcl_path, macro_name, args) = resolve_macro_call(ctx, &attr)?;
+    let (lcl_path, macro_name, args, tokens) = resolve_macro_call(ctx, &attr)?;
 
     // 去掉被调用的宏标注后格式化 item 源码
     let mut input_stmt = stmt.clone();
@@ -237,51 +246,12 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     }
     let input = crate::formatter::format_program(&Program::new(vec![input_stmt]));
 
-    let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args)?;
+    let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens, attr.span.start_line, attr.span.start_col)?;
+    trace_expansion(&macro_name, &input, &output);
 
-    let parsed = parse_source(&output)?;
+    let parsed = parse_source(&output).map_err(|e| Error::Compile(format!(
+        "in macro `{}` expansion: {} (at {}:{})",
+        macro_name, e, attr.span.start_line, attr.span.start_col
+    )))?;
     expand_stmts(&parsed.stmts, ctx, depth + 1)
-}
-
-fn parse_source(code: &str) -> Result<Program> {
-    let mut lexer = crate::lexer::Lexer::new(code);
-    let tokens = lexer.tokenize_all();
-    let filtered: Vec<_> = tokens.into_iter()
-        .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
-        .collect();
-    let mut parser = crate::parser::Parser::new(filtered);
-    parser.parse_program().map_err(|e| Error::Compile(format!("macro output parse error: {}", e)))
-}
-
-fn is_compiler_attr(a: &Attr) -> bool {
-    let name = a.name.as_str();
-    if crate::hir::effects::is_effect(&name) {
-        return true;
-    }
-    if a.is_builtin() {
-        return crate::hir::attrs::ALLOWED.contains(&name.as_str());
-    }
-    false
-}
-
-fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>> {
-    match stmt {
-        Stmt::FnDecl { attrs, .. }
-        | Stmt::StructDef { attrs, .. }
-        | Stmt::EnumDef { attrs, .. }
-        | Stmt::InterfaceDef { attrs, .. }
-        | Stmt::ImplBlock { attrs, .. } => Some(attrs),
-        _ => None,
-    }
-}
-
-fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>> {
-    match stmt {
-        Stmt::FnDecl { attrs, .. }
-        | Stmt::StructDef { attrs, .. }
-        | Stmt::EnumDef { attrs, .. }
-        | Stmt::InterfaceDef { attrs, .. }
-        | Stmt::ImplBlock { attrs, .. } => Some(attrs),
-        _ => None,
-    }
 }

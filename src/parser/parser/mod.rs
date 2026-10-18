@@ -38,6 +38,7 @@ fn ast_type_text(ty: &Type) -> String {
 }
 
 mod array_expr;
+mod asm;
 mod atom;
 mod const_decl;
 mod self_type;

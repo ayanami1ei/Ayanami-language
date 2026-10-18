@@ -236,6 +236,8 @@ impl crate::hir::lower::Ctx {
                 hir_body.stmts.push(HirStmt::Expr { expr: tail, span });
             } else {
                 let coerced = coerce_expr(tail, &return_type, &span)?;
+                // 尾表达式即隐式返回值：拥有值按移动处理（#187：否则清理 drop 已移出局部）
+                let coerced = implicit_move(coerced);
                 hir_body.stmts.push(HirStmt::Return { value: Some(coerced), span });
             }
         }

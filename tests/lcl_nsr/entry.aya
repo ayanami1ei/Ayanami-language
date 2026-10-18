@@ -1,0 +1,14 @@
+// nsr：使用方同名私有 helper 不得影响 lib 内部调用；lib 私有符号不得进入使用方符号表
+import "lib"
+
+fn helper(int x) -> int {
+    return x + 20
+}
+
+fn main() -> int {
+    a = from_lib(1)
+    b = helper(1)
+    if a != 11 { return a }        // lib 内部解析到 lib 的 helper
+    if b != 21 { return b + 100 }  // 使用方解析到自己的 helper
+    return 0
+}

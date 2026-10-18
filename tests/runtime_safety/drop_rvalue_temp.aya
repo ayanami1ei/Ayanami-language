@@ -1,0 +1,23 @@
+// #186：拥有型临时值（rvalue）用于字段/方法访问后须 drop（此前泄漏）
+import "io"
+import "string"
+
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn ret_local() -> String {
+    d = "z" + "z"
+    return d
+}
+
+fn t2() -> int { return ("a" + "b").len as int }
+fn t3() -> int { return ("a" + "b").to_upper().len as int }
+fn t4() -> int { return ret_local().len as int }
+
+fn main() -> int {
+    b = __ayanami_live_allocs()
+    t2()
+    t3()
+    t4()
+    println(__ayanami_live_allocs() - b)
+    return 0
+}

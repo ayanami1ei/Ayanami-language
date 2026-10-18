@@ -1,0 +1,26 @@
+import "option"
+
+// 限定名变体模式：`Option::Some(x)` / `Option::None`（前缀须与 scrutinee 枚举一致）
+fn pick(Option[int] o) -> int {
+    return match o {
+        Option::None => 0 - 1,
+        Option::Some(x) => x,
+    }
+}
+
+fn nested(Option[Option[int]] o) -> int {
+    return match o {
+        Option::Some(Option::Some(v)) => v,
+        Option::Some(Option::None()) => 0 - 1,
+        Option::None() => 0 - 2,
+    }
+}
+
+fn main() -> int {
+    if pick(Option::Some(7)) != 7 { return 1 }
+    if pick(Option::None()) != -1 { return 2 }
+    if nested(Option::Some(Option::Some(5))) != 5 { return 3 }
+    if nested(Option::Some(Option::None())) != -1 { return 4 }
+    if nested(Option::None()) != -2 { return 5 }
+    return 0
+}

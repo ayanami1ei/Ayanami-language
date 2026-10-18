@@ -1,0 +1,6 @@
+// M8 夹具：依赖 liba；打包后 deps=[liba]
+import "liba"
+
+pub fn from_b() -> int {
+    return use_a() + 1
+}

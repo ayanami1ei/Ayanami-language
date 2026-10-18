@@ -8,6 +8,9 @@ impl Parser {
 
     /// M5：`unsafe fn` 支持
     pub(super) fn parse_fn_decl_unsafe(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, is_unsafe: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt> {
+        // 标注形式：`#[extern]` ≡ `extern "C"`（含无体声明）
+        let extern_c = extern_c
+            || attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "extern");
         let start_span = self.peek().map(|t| t.span()).unwrap_or_default();
         self.advance();
         let name = self.expect_identifier()?;

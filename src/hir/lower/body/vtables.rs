@@ -28,7 +28,7 @@ impl crate::hir::lower::Ctx {
         }
 
         // Also add generic_fns methods for interface matching
-        for (gf_name, _, gf_stmt) in &self.generic_fns {
+        for (gf_name, _, gf_stmt, _) in &self.generic_fns {
             if let Stmt::FnDecl { params, return_type, .. } = gf_stmt {
                 if params.is_empty() { continue; }
                 let param_ty = ast_type_to_hir(&params[0].1, &self.interfaces);

@@ -147,6 +147,10 @@ fn main() -> int {
 | 裸指针 | `*int` / `*char`                  | `Ptr[T].as_ptr()` / `as *T`；解引用与指针算术需 `unsafe` |
 | ref    | `ref int` / `ref mut int`         | 借用，不拥有、不可逃逸                          |
 
+布局查询：`size_of[T]()` / `align_of[T]()` / `offset_of[T](field)` 为编译期常量（自然对齐，与结构体布局一致；见 `example/test_sizeof.aya`）。
+
+句柄类型：`#[copy] struct Idx { usize v }` 为 trivial Copy（自由复制、传参不移动；字段须为基元/引用/指针/已登记的 `#[copy]` 结构体）。
+
 ## 标准库
 
 ```ayanami
@@ -218,7 +222,7 @@ fn main() -> int {
   捕获 lambda 是**拥有闭包**（移动语义，环境在作用域结束递归释放）。
 - 捕获按值（Copy 复制 / 拥有类型移动），lambda 内可修改捕获副本（FnMut 语义）。
 - 形参写 `ref Fn(T) -> U` 可借用闭包（调用点自动借用，可重复传入同一闭包）。
-- 裸函数指针类型 `fn(T) -> U` 仅允许出现在 `extern "C"`（含 `#[export]`）签名中，
+- 裸函数指针类型 `fn(T) -> U` 仅允许出现在 C ABI 标注（`#[extern]` / `#[export]`，旧语法 `extern "C"`）签名中，
   供 C 回调使用；安全代码中使用会报错（留待未来的 unsafe）。
 - `#[track_caller]` 见标注文档；lambda 尾表达式 `(int x) -> int { x + 1 }` 作为隐式返回值。
 
@@ -245,7 +249,9 @@ const PI: float = 3.14159
 - 顶层声明；`pub` 可选、类型标注可选、行尾 `;` 可选。
 - 编译期求值并内联（不占运行时存储）：支持字面量（含 0x/后缀）、一元/二元运算、引用此前 const。
 - 可用于数组大小：`buf = [int; MAX_SIZE]`；局部变量可遮蔽 const。
-- 设计（含待做的 static / const fn）见 `docs/const-globals.md`。
+- 编译期断言：`static_assert(cond)`——条件须为常量（含 `#[compile_time]` 函数调用），false 编译期报错。
+- 常量表：数组/结构体常量（`const TABLE = [..]`、`#[compile_time]` 生成）落地为内部全局，可直接索引/取字段。
+- 设计见 `docs/const-globals.md`（const/static）与 `docs/const-eval.md`（编译期求值/断言/const fn）。
 
 ### 控制流
 
@@ -253,7 +259,7 @@ const PI: float = 3.14159
 if a > b { return 1; } elif a < b { return 2; } else { return 3; }
 while a < 10 { a = a + 1; }
 for i in (0, 10) { /* i: 0..9 */ }
-match x { V(v) => expr, W => expr }   // 枚举模式匹配
+match x { V(v) => expr, W => expr }   // 枚举模式匹配（也支持限定名 Enum::V(x) / Enum::W）
 break / continue                      // 循环控制
 ```
 
@@ -369,7 +375,8 @@ fn bump[T: Maker](ref T v) -> T { return v.make() }   // 返回 T
 #[export]
 fn aya_add(int a, int b) -> int { return a + b }   // C: int64_t aya_add(int64_t, int64_t)
 
-extern "C" fn c_helper(int x) -> int;               // 空体 = 导入 C 符号
+#[extern]
+fn c_helper(int x) -> int;                          // 空体 = 导入 C 符号（等价 extern "C"）
 ```
 
 - 导出函数保留原始符号名；`int` = `int64_t`、`ref mut T` = `T*`，类型映射见 `docs/c-interop.md`。
@@ -453,12 +460,27 @@ import "panic";
 fn add(int a, int b) -> int { return a + b }
 
 #[pure]
-extern "C" fn strlen(unique [char] s) -> int;
+#[extern]
+fn strlen(unique [char] s) -> int;
 ```
 
 ### 效应系统
 
 引入代数效应（algebraic effects），将副作用（IO、可变状态、异常、非确定性等）纳入类型系统。函数通过 `eff`/`#[throws]` 声明其可能产生的效应，编译器静态确保效应处理（见标注系统 A3）。
+
+### 统一引用关系模型（探索）
+
+将引用从具体内存表示（指针）提升为编译器理解、用户可扩展的语言级语义：`Ref<T, U>`
+统一指针、ID、句柄与自定义解析，使生命周期、失效、别名分析与序列化/反序列化获得
+统一的编译期信息（**统一语义，不强制统一底层存储表示或访问成本**）。规划记录
+（未实现，示例语法未锁定）：[`docs/future-directions.md`](docs/future-directions.md)。
+
+### 环境注入（探索）
+
+由编译器支持的环境依赖声明与自动传播：函数/类型声明所需环境（首个应用为可自定义
+分配器），调用链自动继承、内层可显式覆盖；依赖可见、成本明确，编译期已知时优先
+静态派发与特化。规划记录（未实现，示例语法未锁定）：
+[`docs/future-directions.md`](docs/future-directions.md)。
 
 ### 代码设计平台
 
@@ -486,7 +508,7 @@ extern "C" fn strlen(unique [char] s) -> int;
 
 ## 示例
 
-见 [`example/`](example/)（26 个端到端用例）。
+见 [`example/`](example/)（147 个；回归正例清单 `tests/positive_exit.txt`）。
 
 ## CLI 输出（cargo 风格）
 

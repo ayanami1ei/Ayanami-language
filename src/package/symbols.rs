@@ -81,14 +81,20 @@ impl Package {
                     return;
                 }
                 // A5b：宏单独入宏表，不作为普通函数导出
-                if attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "macro") {
+                if let Some(macro_attr) = attrs.iter().find(|a| a.is_builtin() && a.name.as_str() == "macro") {
                     if all || vis.is_public() {
                         let full_name = if ns_prefix.is_empty() {
                             name.as_str().to_string()
                         } else {
                             format!("{}.{}", ns_prefix, name)
                         };
-                        self.symbols.push(PackageSymbol::Macro { name: full_name });
+                        // mcl.1：`#[macro(tokens)]` → token 宏（输入/输出为 TokenStream 编码）
+                        let tokens = macro_attr.args.iter().any(|arg| matches!(
+                            arg,
+                            crate::parser::ast::AttrArg::Expr(e)
+                                if matches!(&**e, crate::parser::ast::Expr::Ident(s, _) if s.as_str() == "tokens")
+                        ));
+                        self.symbols.push(PackageSymbol::Macro { name: full_name, tokens });
                     }
                     return;
                 }
@@ -149,6 +155,13 @@ impl Package {
                         .take_while(|(n, _)| matches!(n.as_str().as_str(), "__line" | "__col" | "__file"))
                         .count();
                     if hidden > 0 { flags.push("caller".to_string()); }
+                    // nsr：非 pub 自由函数标记 `private`（导入侧不注册进全局符号表——
+                    // 模块私有；跨模块引用与来源作用域解析属 M6 跨模块符号表后续）。
+                    // extern "C" / #[export] 是 C ABI 符号（无 mangle、全局可见），豁免。
+                    let is_c_export = *extern_c || crate::hir::attrs::has(attrs, "export");
+                    if !vis.is_public() && !is_c_export {
+                        flags.push("private".to_string());
+                    }
                     self.symbols.push(PackageSymbol::Fn {
                         name: full_name,
                         signature: sig,
@@ -216,13 +229,16 @@ impl Package {
                     }
                 }
             }
-            Stmt::StructDef { vis, name, fields, .. } => {
+            Stmt::StructDef { vis, name, fields, attrs, .. } => {
                 if vis.is_public() {
                     let fields_str: Vec<String> = fields.iter()
                         .map(|(fn_name, fty)| format!("{}:{}", fn_name, type_to_string(fty)))
                         .collect();
+                    // dld：`#[copy]` 结构体标记随包导出（导入侧登记注册表）
+                    let copy = attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "copy");
                     self.symbols.push(PackageSymbol::Struct {
                         name: format!("{}({})", name, fields_str.join(",")),
+                        copy,
                     });
                 }
             }

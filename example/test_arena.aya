@@ -1,0 +1,147 @@
+// M4 阶段 2：Arena[T] + Idx —— 稳定地址分配与批量释放（双向链表 + 图 DFS，无泄漏检查）
+// Arena 内部用 [Ptr[T]] 持有节点（地址稳定）；Idx 为不拥有节点的轻量句柄。
+import "io"
+import "option"
+
+extern "C" fn __ayanami_live_allocs() -> int;
+
+struct Idx {
+    usize v
+}
+
+pub namespace Idx {
+    /// 句柄复制：Idx 是轻量句柄（结构体非 Copy，需显式复制）
+    pub fn copy(Idx i) -> Idx {
+        return Idx { v = i.v }
+    }
+}
+
+struct Arena[T] {
+    [Ptr[T]] data
+    usize len
+    usize cap
+}
+
+pub namespace Arena {
+    pub fn with_capacity[T](usize cap) -> Arena[T] {
+        return Arena[T] { data = [Ptr[T]; cap], len = 0usize, cap = cap }
+    }
+}
+
+impl[T] Arena[T] {
+    pub fn alloc(ref mut self, T v) -> Idx {
+        self.data[self.len] = Ptr::new(v)
+        self.len = self.len + 1usize
+        return Idx { v = self.len - 1usize }
+    }
+    pub fn get(ref self, Idx i) -> ref T {
+        p = ref self.data[i.v]
+        return p.get()
+    }
+    pub fn get_mut(ref mut self, Idx i) -> ref mut T {
+        p = ref mut self.data[i.v]
+        return p.get_mut()
+    }
+    pub fn len(ref self) -> usize {
+        return self.len
+    }
+}
+
+struct Node {
+    int v
+    Option[Idx] prev
+    Option[Idx] next
+}
+
+struct GNode {
+    int v
+    Option[Idx] e0
+    Option[Idx] e1
+    bool seen
+}
+
+fn dfs(ref mut Arena[GNode] a, Idx start) -> int {
+    rm = a.get_mut(Idx::copy(start))
+    if rm.seen { return 0 }
+    rm.seen = true
+    sum = rm.v
+    e0 = rm.e0
+    e1 = rm.e1
+    if e0._tag == 0 {
+        sum = sum + dfs(ref mut a, e0._data_Some._0)
+    }
+    if e1._tag == 0 {
+        sum = sum + dfs(ref mut a, e1._data_Some._0)
+    }
+    return sum
+}
+
+fn demo_list() -> int {
+    // 双向链表演示
+    mut a = Arena::with_capacity[Node](4usize)
+    i0 = a.alloc(Node { v = 10, prev = Option::None(), next = Option::None() })
+    i1 = a.alloc(Node { v = 20, prev = Option::None(), next = Option::None() })
+    i2 = a.alloc(Node { v = 30, prev = Option::None(), next = Option::None() })
+    if a.len() != 3usize { return 1 }
+    n0 = a.get_mut(Idx::copy(i0))
+    n0.next = Option::Some(Idx::copy(i1))
+    n1 = a.get_mut(Idx::copy(i1))
+    n1.prev = Option::Some(Idx::copy(i0))
+    n1.next = Option::Some(Idx::copy(i2))
+    n2 = a.get_mut(Idx::copy(i2))
+    n2.prev = Option::Some(Idx::copy(i1))
+    mut cur = i0
+    sum = 0
+    mut going = true
+    while going {
+        r = a.get(cur)
+        sum = sum + r.v
+        if r.next._tag == 0 {
+            cur = r.next._data_Some._0
+        } else {
+            going = false
+        }
+    }
+    if sum != 60 { return 2 }
+    r2 = a.get(Idx::copy(i2))
+    p = r2.prev._data_Some._0
+    rp = a.get(p)
+    if rp.v != 20 { return 3 }
+    return 0
+}
+
+fn demo_graph() -> int {
+    // 图 DFS 演示
+    mut a2 = Arena::with_capacity[GNode](8usize)
+    i0 = a2.alloc(GNode { v = 1, e0 = Option::None(), e1 = Option::None(), seen = false })
+    i1 = a2.alloc(GNode { v = 2, e0 = Option::None(), e1 = Option::None(), seen = false })
+    i2 = a2.alloc(GNode { v = 4, e0 = Option::None(), e1 = Option::None(), seen = false })
+    i3 = a2.alloc(GNode { v = 8, e0 = Option::None(), e1 = Option::None(), seen = false })
+    n0 = a2.get_mut(Idx::copy(i0))
+    n0.e0 = Option::Some(Idx::copy(i1))
+    n0.e1 = Option::Some(Idx::copy(i2))
+    n1 = a2.get_mut(Idx::copy(i1))
+    n1.e0 = Option::Some(Idx::copy(i3))
+    n2 = a2.get_mut(Idx::copy(i2))
+    n2.e0 = Option::Some(Idx::copy(i3))
+    if a2.len() != 4usize { return 4 }
+    total = dfs(ref mut a2, Idx::copy(i0))
+    if total != 15 { return 5 }
+    return 0
+}
+
+fn demo() -> int {
+    rc = demo_list()
+    if rc != 0 { return rc }
+    rc = demo_graph()
+    if rc != 0 { return rc }
+    return 0
+}
+
+fn main() -> int {
+    rc = demo()
+    if rc != 0 { return rc }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 9 }
+    return 0
+}

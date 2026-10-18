@@ -37,3 +37,17 @@ ptr_match_scrutinee.aya 0 5
 bounds_push_arena.aya 0
 bounds_write_past_len.aya 101 index out of bounds
 bool_comparison_contexts.aya 0
+neg_overflow.aya 101 overflow
+opt_none_monomorphize.aya 0 zz
+drop_cond_move_loop.aya 0 0
+drop_rvalue_temp.aya 0 0
+ref_self_match_return.aya 0 aa
+index_element_type.aya 0
+method_shadow_free_fn.aya 0
+method_generic_shadow.aya 0
+asm_multiout.aya 0 79
+extern_runtime_sym.aya 0 1
+empty_struct.aya 0 1
+extern_attr.aya 0 1
+asm_early_clobber.aya 0 12
+arena_linked_list.aya 0

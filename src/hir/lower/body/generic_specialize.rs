@@ -4,7 +4,12 @@ impl crate::hir::lower::Ctx {
     /// Try to resolve a call by specializing a generic function.
     /// Returns the FnId of the newly-created specialized function on success.
     pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId> {
-        self.specialize_generic_call_with(name, arg_types, None, span)
+        self.specialize_generic_call_with(name, arg_types, None, span, false)
+    }
+
+    /// bd 8yn：方法调用特化——仅考虑 impl 泛型方法候选（同名自由泛型函数不抢占）
+    pub(crate) fn specialize_generic_method_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId> {
+        self.specialize_generic_call_with(name, arg_types, None, span, true)
     }
 
     /// #72：是否存在同名、参数个数一致且接收者基类型匹配的泛型方法候选。
@@ -14,8 +19,8 @@ impl crate::hir::lower::Ctx {
             HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
             _ => return false,
         };
-        self.generic_fns.iter().any(|(gf_name, _, gf_stmt)| {
-            if gf_name != method { return false; }
+        self.generic_fns.iter().any(|(gf_name, _, gf_stmt, is_method)| {
+            if gf_name != method || !*is_method { return false; }
             let Stmt::FnDecl { params, .. } = gf_stmt else { return false; };
             let visible = params.len().saturating_sub(count_hidden_names(params));
             if visible != argc { return false; }
@@ -31,7 +36,7 @@ impl crate::hir::lower::Ctx {
     }
 
     /// `explicit`：显式泛型实参（优先于形参推导）
-    pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span) -> Result<FnId> {
+    pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span, prefer_method: bool) -> Result<FnId> {
         // Find matching generic function — prefer one where self's base type matches
         let arg_base = (!arg_types.is_empty()).then(|| {
             match strip_ownership_ref(&arg_types[0]) {
@@ -41,8 +46,11 @@ impl crate::hir::lower::Ctx {
         }).flatten();
 
         let mut best_gf_idx = None;
-        for (i, (gf_name, _, gf_stmt)) in self.generic_fns.iter().enumerate() {
-            if gf_name != name { continue; }
+        // #189：首参是候选自身泛型参数（如自由函数 map 的 I）时可绑定任意接收者，
+        // 作为次级候选——精确基名匹配（如 Option.map）优先，避免自由调用被同名方法抢占
+        let mut gp_self_idx = None;
+        for (i, (gf_name, gf_params, gf_stmt, gf_is_method)) in self.generic_fns.iter().enumerate() {
+            if gf_name != name || (prefer_method && !*gf_is_method) { continue; }
             if let Stmt::FnDecl { params, .. } = gf_stmt {
                 let visible = params.len().saturating_sub(count_hidden_names(params));
                 if visible != arg_types.len() { continue; }
@@ -53,20 +61,25 @@ impl crate::hir::lower::Ctx {
                             HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
                             _ => continue,
                         };
-                        if self_base != *ab { continue; }
+                        if self_base != *ab {
+                            let is_gp = gf_params.iter().any(|(p, _)| *p == self_base);
+                            if is_gp && gp_self_idx.is_none() { gp_self_idx = Some(i); }
+                            continue;
+                        }
                     }
                 }
                 best_gf_idx = Some(i);
                 break;
             }
         }
+        let best_gf_idx = best_gf_idx.or(gp_self_idx);
 
         let gf_idx = match best_gf_idx {
             Some(i) => i,
             None => {
                 // Fallback: 同名且可见参数个数一致
-                if let Some(i) = self.generic_fns.iter().position(|(gf_name, _, gf_stmt)| {
-                    gf_name == name && match gf_stmt {
+                if let Some(i) = self.generic_fns.iter().position(|(gf_name, _, gf_stmt, gf_is_method)| {
+                    gf_name == name && (!prefer_method || *gf_is_method) && match gf_stmt {
                         Stmt::FnDecl { params, .. } => {
                             params.len().saturating_sub(count_hidden_names(params)) == arg_types.len()
                         }
@@ -86,7 +99,7 @@ impl crate::hir::lower::Ctx {
             }
         };
 
-        let (gf_name, gf_params, gf_stmt) = &self.generic_fns[gf_idx];
+        let (gf_name, gf_params, gf_stmt, _gf_is_method) = &self.generic_fns[gf_idx];
         let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, is_unsafe, param_attrs, attrs, vis, .. } = gf_stmt else {
             return Err(Error::Hir(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col)));
         };
@@ -115,7 +128,7 @@ impl crate::hir::lower::Ctx {
             }
         } else {
             for ((_, param_ty), arg_ty) in params.iter().take(visible).zip(arg_types.iter()) {
-                for (gp_name, hir_concrete) in infer_generic_from_param(param_ty, arg_ty) {
+                for (gp_name, hir_concrete) in infer_generic_from_param(param_ty, arg_ty, &self.interfaces) {
                     if !generic_names.contains(&gp_name) { continue; }
                     match generic_mappings.get(&gp_name) {
                         None => { generic_mappings.insert(gp_name, hir_concrete); }
@@ -134,28 +147,7 @@ impl crate::hir::lower::Ctx {
         }
         // #160：从参数化约束推断剩余泛型参数（I: Iterator[T]，I 已推断 → T 由实现方法反推）
         if generic_mappings.len() < gf_params.len() {
-            for (gp_name, constraints) in gf_params {
-                for iface_sym in constraints {
-                let Some(concrete) = generic_mappings.get(gp_name).cloned() else { continue };
-                let iface_base = crate::hir::lower::strip_generic_name(iface_sym);
-                let iface_gp: Vec<Symbol> = match self.interfaces.get(&iface_base) {
-                    Some(reg) => reg.generic_params.iter().map(|(n, _)| *n).collect(),
-                    None => continue,
-                };
-                let sym_text = iface_sym.as_str();
-                let Some(inner) = generic_inner(&sym_text) else { continue };
-                let arg_texts = split_generic_args(inner);
-                if arg_texts.len() != iface_gp.len() { continue; }
-                let Some(iface_args) = self.infer_iface_args_for_concrete(iface_sym, &concrete) else { continue };
-                for (i, text) in arg_texts.iter().enumerate() {
-                    let Some(ty) = iface_args.get(&iface_gp[i]) else { continue };
-                    let gp = Symbol::intern(text.trim());
-                    if generic_names.contains(&gp) && !generic_mappings.contains_key(&gp) {
-                        generic_mappings.insert(gp, ty.clone());
-                    }
-                }
-                }
-            }
+            self.infer_from_iface_constraints(gf_params, &generic_names, &mut generic_mappings);
         }
         // Ensure all generic params were resolved
         for (gp_name, _) in gf_params {
@@ -194,11 +186,21 @@ impl crate::hir::lower::Ctx {
 
 
 
-        // 去重：检查是否已存在相同签名的特化函数
+        // 特化名：附加泛型实参（`sz[T]() -> int` 等 T 无关签名两次特化必须区分，
+        // 否则会误复用首个特化并生成同名符号）
+        let args_suffix: String = gf_params.iter()
+            .filter_map(|(gp, _)| generic_mappings.get(gp))
+            .map(crate::lir::lower::type_to_mangle)
+            .collect::<Vec<_>>()
+            .join("_");
+        let specialized_name = Symbol::intern(&format!("{}${}", name.as_str(), args_suffix));
+
+        // 去重：签名 + 特化名（含泛型实参）都一致才复用
         if let Some(existing) = self.fn_map.get(name).and_then(|ids| {
             ids.iter().find(|id| {
                 let s = &self.fns[id.0];
-                s.params == hir_params && s.return_type == hir_return
+                s.name == specialized_name
+                    && s.params == hir_params && s.return_type == hir_return
             })
         }) {
             return Ok(*existing);
@@ -208,7 +210,7 @@ impl crate::hir::lower::Ctx {
         let hidden = count_hidden_params(&hir_params);
         let is_noreturn = matches!(hir_return, HirType::Never);
         self.fns.push(FnSig {
-            name: *name,
+            name: specialized_name,
             params: hir_params,
             return_type: hir_return,
             span: crate::span::Span::default(),

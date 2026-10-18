@@ -2,17 +2,22 @@
 use crate::error::{Error, Result};
 use crate::parser::ast::Attr;
 
+/// `#[export]` / `#[extern]`（C ABI 标注，同规则）
 fn find_export(attrs: &[Attr]) -> Option<&Attr> {
-    attrs.iter().find(|a| a.is_builtin() && a.name.as_str() == "export")
+    attrs.iter().find(|a| {
+        if !a.is_builtin() { return false; }
+        let n = a.name.as_str();
+        n == "export" || n == "extern"
+    })
 }
 
-/// 函数声明：`#[export]` 不允许泛型。
+/// 函数声明：`#[export]`/`#[extern]` 不允许泛型。
 pub(super) fn validate_fn_export(attrs: &[Attr], has_generics: bool) -> Result<()> {
     if let Some(a) = find_export(attrs) {
         if has_generics {
             return Err(Error::Hir(format!(
-                "#[export] functions cannot be generic (at {}:{})",
-                a.span.start_line, a.span.start_col
+                "#[{}] functions cannot be generic (at {}:{})",
+                a.name.as_str(), a.span.start_line, a.span.start_col
             )));
         }
     }
@@ -47,8 +52,8 @@ pub(super) fn reject_compile_time(attrs: &[Attr], place: &str) -> Result<()> {
 pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()> {
     if let Some(a) = find_export(attrs) {
         return Err(Error::Hir(format!(
-            "#[export] is only allowed on functions (not on {}) (at {}:{})",
-            place, a.span.start_line, a.span.start_col
+            "#[{}] is only allowed on functions (not on {}) (at {}:{})",
+            a.name.as_str(), place, a.span.start_line, a.span.start_col
         )));
     }
     Ok(())

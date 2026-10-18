@@ -18,7 +18,11 @@ fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize) {
             let i = indent(level);
             let unsafe_kw = if *is_unsafe { "unsafe " } else { "" };
             if *extern_c {
-                let _ = write!(out, "{}{}extern \"C\" fn {}", i, unsafe_kw, name);
+                // 标注形式输出：`#[extern]`（用户已写则不重复）
+                if !attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "extern") {
+                    let _ = writeln!(out, "{}#[extern]", i);
+                }
+                let _ = write!(out, "{}{}fn {}", i, unsafe_kw, name);
             } else {
                 if *is_inline {
                     let _ = write!(out, "{}{}inline fn {}", i, unsafe_kw, name);
@@ -30,7 +34,9 @@ fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize) {
             write_generic_params(out, generic_params);
             write_params(out, params, param_attrs);
             write_return_type(out, return_type);
-            if *extern_c && body.stmts.is_empty() {
+            // #199：仅当既无语句又无尾表达式时才是纯声明——`{ g(x) }` 的尾表达式在
+            // stmts 之外，此前被误判为声明 → fmt 丢弃函数体
+            if *extern_c && body.stmts.is_empty() && body.tail.is_none() {
                 let _ = writeln!(out, ";");
             } else {
                 let _ = write!(out, " ");

@@ -1,0 +1,18 @@
+// mcl.2：hygiene（生成名后缀不捕获调用点同名函数）+ 诊断通道（warn）
+import "macro_lib.aya";
+
+// 用户自己的 helper（与宏生成名同基名——不得被捕获/覆盖）
+fn helper() -> int { return 1 }
+
+#[hygienic_fn(helper)]
+fn hygienic_demo() -> int { return 0 }
+
+#[warn_me]
+fn warned() -> int { return 5 }
+
+fn main() -> int {
+    if helper() != 1 { return 1 }
+    if hygienic_call() != 9 { return 2 }
+    if warned() != 5 { return 3 }
+    return 0
+}

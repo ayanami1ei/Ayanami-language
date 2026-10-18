@@ -107,6 +107,11 @@ impl Ctx {
 
     fn lower_return(&mut self, value: &Option<HirNodeBox>, span: crate::span::Span) -> Vec<MirStmtBox> {
         let mut stmts = Vec::new();
+        // #187：返回值中的移动须记录（如尾表达式临时量 move 进返回槽）——否则作用域清理
+        // 会 drop 已移出的局部，返回悬垂缓冲（ref self + match 各臂返回字面量 → double free）
+        if let Some(v) = value {
+            v.record_moves(&mut self.moved);
+        }
 
         // 先把返回值求值到临时变量，再做作用域清理，
         // 避免 `return up.x` 这类表达式在 drop 之后才读取变量（use-after-free）。
