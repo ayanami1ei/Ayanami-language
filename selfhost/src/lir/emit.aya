@@ -1680,6 +1680,27 @@ impl Emitter {
         return "aya." + fname;
     }
 
+    /// 元素槽类型（表感知）：未知 Named（泛型参数 T 等）按 i64，与 param_kind 一致
+    #[alloc]
+    fn elem_llvm_m(ref mut self, ref Ast ast, int ety) -> String {
+        // 哨兵（2000-2002）与合成 id（10000+）直接走原逻辑
+        if ety >= 2000 { return elem_llvm(ast, ety); }
+        if ety >= 0 {
+            tg = ast.tags[ety];
+            if tg == tt(TT::Named._tag) {
+                tn = ast.texts[ety];
+                if tn != "String" && tn != "f32" && tn != "f64" {
+                    if self.find_struct_idx(tn) < 0 {
+                        if self.find_enum_idx(tn) < 0 {
+                            return "i64";
+                        }
+                    }
+                }
+            }
+        }
+        return elem_llvm(ast, ety);
+    }
+
     fn fn_param_kind(ref mut self, ref String fname, int i) -> int {
         f = 0;
         while f < self.fn_count {
@@ -3467,7 +3488,7 @@ fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e
         ety3 = base3.ty;
         lty4 = "i64";
         if ety3 >= 0 {
-            lty4 = elem_llvm(ast, ety3);
+            lty4 = e.elem_llvm_m(ast, ety3);
         }
         g4 = elem_addr(e, elem_stride(ast, ety3), base3.a, idx);
         if elem_is_string(ast, ety3) {
@@ -5371,7 +5392,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         ety = e.elem_type_of_m(ast, head);
         cnt_s = bcnt.to_string();
         av = emit_array_new(ast, id, ety, cnt_s, e);
-        lty = elem_llvm(ast, ety);
+        lty = e.elem_llvm_m(ast, ety);
         two_char = 0;
         if elem_is_string(ast, ety) { two_char = 1; }
         el = ast.aa[id];
@@ -5393,7 +5414,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         ety3 = e.elem_type_of_m(ast, ast.aa[id]);
         ev3 = emit_expr(ast, ast.aa[id], e);
         av3 = emit_array_new(ast, id, ety3, cnt3.a, e);
-        lty3 = elem_llvm(ast, ety3);
+        lty3 = e.elem_llvm_m(ast, ety3);
         fill = ev3.a;
         if lty3 == "double" && ev3.kind != 6 {
             fd3 = e.fresh();
@@ -5707,7 +5728,7 @@ fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e) {
         bp = bv.a;
         ety = bv.ty;
     }
-    lty = elem_llvm(ast, ety);
+    lty = e.elem_llvm_m(ast, ety);
     two_char = 0;
     if elem_is_string(ast, ety) { two_char = 1; }
     iv = emit_expr(ast, ast.bb[id], e);
@@ -5718,7 +5739,7 @@ fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e) {
 
 /// 数组字面量 / [expr; n] / [T; n]：malloc 缓冲区，返回 ptr 值
 fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val {
-    lty = elem_llvm(ast, ety);
+    lty = e.elem_llvm_m(ast, ety);
     sz = elem_bytes(ast, ety);
     c = e.fresh();
     e.buf.push_str("  ");
