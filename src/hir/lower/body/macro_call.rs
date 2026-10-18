@@ -21,6 +21,8 @@ impl crate::hir::lower::Ctx {
         let lcl = &lcls[0];
         let full = name.as_str();
         let macro_name = full.rsplit('.').next().unwrap_or(&full).to_string();
+        // mcl.1：token 宏（实参/输出为 TokenStream 编码）
+        let tokens = self.imported_macro_kinds.get(name).copied().unwrap_or(false);
 
         // 实参以源码文本传给宏（保留原始形态；块实参格式化为块文本）
         let arg_src: Vec<String> = args.iter().map(|a| match a {
@@ -47,6 +49,7 @@ impl crate::hir::lower::Ctx {
             span.start_line,
             span.start_col,
             &crate::hir::lower::source_path(),
+            tokens,
         );
         self.macro_depth -= 1;
 

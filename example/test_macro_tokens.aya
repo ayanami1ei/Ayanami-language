@@ -10,5 +10,7 @@ fn main() -> int {
     #[tok_twice]
     v = v + 1;
     if v != 2 { return 2 }
+    v2 = #tok_expr(41 + 1)
+    if v2 != 42 { return 3 }
     return 0
 }

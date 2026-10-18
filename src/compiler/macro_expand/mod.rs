@@ -19,6 +19,7 @@ const MAX_DEPTH: usize = 32;
 
 mod annotations;
 mod expand_util;
+mod plugin_call;
 mod token_stream;
 
 use expand_util::*;
@@ -110,7 +111,7 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
                     span,
                 }]))
             };
-            let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens)?;
+            let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens, attr.span.start_line, attr.span.start_col)?;
             trace_expansion(&macro_name, &input, &output);
             let parsed = parse_source(&output).map_err(|e| Error::Compile(format!(
                 "in macro `{}` expansion: {} (at {}:{})",
@@ -245,7 +246,7 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     }
     let input = crate::formatter::format_program(&Program::new(vec![input_stmt]));
 
-    let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens)?;
+    let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens, attr.span.start_line, attr.span.start_col)?;
     trace_expansion(&macro_name, &input, &output);
 
     let parsed = parse_source(&output).map_err(|e| Error::Compile(format!(

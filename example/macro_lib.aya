@@ -93,3 +93,7 @@ pub fn err_me(String input) -> String {
 // mcl.2：生成非法代码（负例——错误应带宏名与调用点）
 #[macro]
 pub fn broken(String input) -> String { return "fn broken( {" }
+
+// mcl.1：表达式级 token 宏（`#tok_expr(x)`；实参为 token 流，此处恒等返回）
+#[macro(tokens)]
+pub fn tok_expr(String input, String a) -> String { return a }

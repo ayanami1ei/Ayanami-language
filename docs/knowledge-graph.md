@@ -133,7 +133,7 @@ graph LR
 | extern 真实签名 | `lir/lower/mod.rs`（`extern_decls`） | A1 已完成 |
 | cfg 条件裁剪 | `hir/cfg.rs`、`package/symbols.rs` | A2b 已完成（A2f 起含语句级）；M8：`feature = "x"` 键 + `features`/`AYANAMI_FEATURES` 配置 |
 | 契约标注（assume/requires/ensures/invariant） | `hir/contracts.rs`、`hir/lower/body/ensure.rs`、`HirStmt::{Assume,Contract}` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d/A2e/A2f 已完成 |
-| 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs*.rs`（Imports/注解校验）、`.lcl` 宏/pass/依赖表、`compiler/macro_expand/{mod,plugin,pass_plugin}.rs`（.so + dlopen）、`compiler/build/passes.rs` + `std/mir.aya`（MIR pass，A5d-2） | A5a–A5d-2 已完成（MVP）；mcl.1：`#[macro(tokens)]` token 宏（`token_stream.rs` 编解码 + `plugin.rs` 字节通道，ABI v7）；mcl.2：hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ 诊断通道（`__ayanami_macro_diag`；`extern_weak` 发射）；mcl.3 部分：`AYANAMI_MACRO_TRACE` 追踪 + 生成代码错误包装 |
+| 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs*.rs`（Imports/注解校验）、`.lcl` 宏/pass/依赖表、`compiler/macro_expand/{mod,plugin,pass_plugin}.rs`（.so + dlopen）、`compiler/build/passes.rs` + `std/mir.aya`（MIR pass，A5d-2） | A5a–A5d-2 已完成（MVP）；mcl.1：`#[macro(tokens)]` token 宏（`token_stream.rs` 编解码 + `plugin.rs` 字节通道，ABI v7）；mcl.2：hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ 诊断通道（`__ayanami_macro_diag`；`extern_weak` 发射）；mcl.3 部分：`dump expanded` + `AYANAMI_MACRO_TRACE` 追踪 + 生成代码错误包装 |
 | 效应系统 | `hir/effects/{mod,infer,diag,scan}.rs`（注册表/推断/诊断）、`LirEffects` 自动属性、`.lcl` 效应 tokens（声明+推断+承诺） | A3 重构完成（Stage 1–3） |
 | 错误传播 `?` | `hir/lower/body/expr_ops1.rs`（pending 语句内联 + 早退）、`ctx.{variant_payload_type,instantiate_*}` | A3d 已完成（含泛型 Result 最小单态化） |
 | 生命周期 `#[follow_with]` | 计划：字段属性文法 + `mir/borrow/` 来源标记 | A4 设计（docs/lifetimes.md） |

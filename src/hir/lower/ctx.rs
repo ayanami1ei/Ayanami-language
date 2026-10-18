@@ -79,6 +79,8 @@ pub(crate) struct Ctx {
     pub usage_hints: HashMap<Symbol, Vec<Type>>,
     /// A5c-2：导入包导出的函数宏（宏名 → lcl 路径，可多个用于歧义报错）
     pub imported_macro_lcls: HashMap<Symbol, Vec<String>>,
+    /// mcl.1：宏名 → 是否 token 宏（表达式宏展开用）
+    pub imported_macro_kinds: HashMap<Symbol, bool>,
     /// A5c-2：宏展开递归深度
     pub macro_depth: usize,
     /// M2：当前正在降级的 lambda 的捕获环境（捕获名 → env 字段）
@@ -139,6 +141,7 @@ impl Ctx {
             specialized_ids: std::collections::HashSet::new(),
             usage_hints: HashMap::new(),
             imported_macro_lcls: HashMap::new(),
+            imported_macro_kinds: HashMap::new(),
             macro_depth: 0,
             lambda_env: None,
             closure_tramps: HashMap::new(),

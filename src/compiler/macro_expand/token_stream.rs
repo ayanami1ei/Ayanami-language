@@ -21,13 +21,14 @@ pub(crate) struct Token {
     pub line: u32,
     pub col: u32,
     pub text: String,
+    /// 分组 token（`(...)`/`[...]`/`{...}`）的子流（编码为内层字节；见 encode/decode）
+    pub children: Option<Vec<Token>>,
 }
 
-/// 源码 → token 流（复用 lexer；EOF 剔除；span 为源码位置）。
+/// 源码 → token 流（复用 lexer；EOF 剔除；span 为源码位置；成对括号折叠为分组 token）。
 pub(crate) fn lex_to_tokens(src: &str) -> Vec<Token> {
     let mut lexer = crate::lexer::Lexer::new(src);
-    let tokens = lexer.tokenize_all();
-    tokens.into_iter()
+    let flat: Vec<Token> = lexer.tokenize_all().into_iter()
         .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
         .map(|t| {
             let (kind, text) = classify(&t.kind);
@@ -38,9 +39,56 @@ pub(crate) fn lex_to_tokens(src: &str) -> Vec<Token> {
                 line: span.start_line as u32,
                 col: span.start_col as u32,
                 text,
+                children: None,
             }
         })
-        .collect()
+        .collect();
+    group_tokens(flat)
+}
+
+/// 扁平 token 序列 → 成对括号折叠为分组（`(`/`[`/`{` 开组，对应闭符收组）。
+fn group_tokens(flat: Vec<Token>) -> Vec<Token> {
+    fn close_of(open: &str) -> Option<&'static str> {
+        match open {
+            "(" => Some(")"),
+            "[" => Some("]"),
+            "{" => Some("}"),
+            _ => None,
+        }
+    }
+    let mut out: Vec<Token> = Vec::new();
+    let mut stack: Vec<(Token, Vec<Token>)> = Vec::new(); // (开组符, 已收集子流)
+    for t in flat {
+        if t.kind == TOK_PUNCT {
+            if let Some(_c) = close_of(&t.text) {
+                let mut g = t;
+                g.kind = TOK_GROUP;
+                stack.push((g, Vec::new()));
+                continue;
+            }
+            let closes = matches!(t.text.as_str(), ")" | "]" | "}");
+            if closes {
+                if let Some((mut g, children)) = stack.pop() {
+                    g.children = Some(group_tokens(children));
+                    let target = &mut if stack.is_empty() { &mut out } else { &mut stack.last_mut().unwrap().1 };
+                    target.push(g);
+                    continue;
+                }
+            }
+        }
+        let target = &mut if stack.is_empty() { &mut out } else { &mut stack.last_mut().unwrap().1 };
+        target.push(t);
+    }
+    // 未闭合的开组符降级回标点（容错）
+    while let Some((g, children)) = stack.pop() {
+        let mut g = g;
+        g.kind = TOK_PUNCT;
+        g.children = None;
+        let target = &mut if stack.is_empty() { &mut out } else { &mut stack.last_mut().unwrap().1 };
+        target.push(g);
+        target.extend(children);
+    }
+    out
 }
 
 fn classify(kind: &crate::lexer::TokenKind) -> (u8, String) {
@@ -59,17 +107,31 @@ fn classify(kind: &crate::lexer::TokenKind) -> (u8, String) {
     }
 }
 
-/// token 流 → 编码字节流。
+/// token 流 → 编码字节流（分组 token 的负载为递归编码的子流）。
 pub(crate) fn encode(tokens: &[Token]) -> Vec<u8> {
     let mut out = Vec::new();
     for t in tokens {
-        let bytes = t.text.as_bytes();
+        let payload: Vec<u8> = match &t.children {
+            Some(children) => {
+                // 分组：首字节为开符码（`(`/`[`/`{`），其后为递归编码的子流
+                let code = match t.text.as_str() {
+                    "(" => 0u8,
+                    "[" => 1u8,
+                    "{" => 2u8,
+                    _ => 3u8,
+                };
+                let mut p = vec![code];
+                p.extend(encode(children));
+                p
+            }
+            None => t.text.as_bytes().to_vec(),
+        };
         out.push(t.kind);
         out.extend_from_slice(&t.file.to_le_bytes());
         out.extend_from_slice(&t.line.to_le_bytes());
         out.extend_from_slice(&t.col.to_le_bytes());
-        out.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
-        out.extend_from_slice(bytes);
+        out.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        out.extend_from_slice(&payload);
     }
     out
 }
@@ -103,17 +165,46 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<Vec<Token>> {
                 "token stream: unknown token kind {} at byte {}", kind, i
             )));
         }
-        let text = String::from_utf8(bytes[start..start + len].to_vec())
-            .map_err(|_| Error::Compile(format!("token stream: invalid UTF-8 at byte {}", start)))?;
-        out.push(Token { kind, file, line, col, text });
+        let payload = &bytes[start..start + len];
+        let (text, children) = if kind == TOK_GROUP {
+            let delim = match payload.first().copied().unwrap_or(3) {
+                0 => "(",
+                1 => "[",
+                2 => "{",
+                _ => "",
+            };
+            let rest = if payload.is_empty() { &payload[..] } else { &payload[1..] };
+            (delim.to_string(), Some(decode(rest)?))
+        } else {
+            let text = String::from_utf8(payload.to_vec())
+                .map_err(|_| Error::Compile(format!("token stream: invalid UTF-8 at byte {}", start)))?;
+            (text, None)
+        };
+        out.push(Token { kind, file, line, col, text, children });
         i = start + len;
     }
     Ok(out)
 }
 
-/// token 流 → 源码（空格分隔；字面量/标点按原文——字符串字面量含引号整体成 token）。
+/// token 流 → 源码（空格分隔；分组还原为「开符 + 子流 + 闭符」；
+/// 字面量/标点按原文——字符串字面量含引号整体成 token）。
 pub(crate) fn to_source(tokens: &[Token]) -> String {
-    tokens.iter().map(|t| t.text.as_str()).collect::<Vec<_>>().join(" ")
+    let mut out: Vec<String> = Vec::new();
+    for t in tokens {
+        match &t.children {
+            Some(children) => {
+                let close = match t.text.as_str() {
+                    "(" => ")",
+                    "[" => "]",
+                    "{" => "}",
+                    _ => "",
+                };
+                out.push(format!("{} {} {}", t.text, to_source(children), close));
+            }
+            None => out.push(t.text.clone()),
+        }
+    }
+    out.join(" ")
 }
 
 #[cfg(test)]
@@ -127,7 +218,7 @@ mod tests {
         let bytes = encode(&toks);
         let back = decode(&bytes).expect("decode");
         assert_eq!(toks, back);
-        assert_eq!(to_source(&back), "fn f ( ) -> int { return 42 }");
+        assert_eq!(to_source(&back), "fn f (  ) -> int { return 42 }");
     }
 
     #[test]
@@ -135,6 +226,20 @@ mod tests {
         let toks = lex_to_tokens("fn f() -> int { return 1 }");
         let bytes = encode(&toks);
         assert!(decode(&bytes[..bytes.len() - 3]).is_err());
+    }
+
+    #[test]
+    fn group_roundtrip() {
+        let src = "fn f(a: int) -> int { return a }";
+        let toks = lex_to_tokens(src);
+        // `(a: int)` 与 `{ return a }` 折叠为分组
+        assert!(toks.iter().any(|t| t.kind == TOK_GROUP && t.text == "("));
+        let bytes = encode(&toks);
+        let back = decode(&bytes).expect("decode");
+        assert_eq!(toks, back);
+        let src2 = to_source(&back);
+        assert!(src2.contains("( a : int )"));
+        assert!(src2.contains("{ return a }"));
     }
 
     #[test]

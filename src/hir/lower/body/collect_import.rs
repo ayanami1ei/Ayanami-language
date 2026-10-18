@@ -116,14 +116,17 @@ impl crate::hir::lower::Ctx {
             }
             for sym in &imported_syms {
                 match sym {
-                    crate::package::ImportedSymbol::Macro { name, .. } => {
+                    crate::package::ImportedSymbol::Macro { name, tokens } => {
                         let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
                         self.imported_macros.entry(stem).or_default().push(Symbol::intern(name));
                         // A5c-2：函数宏 `#name(args)` 解析用（裸名 + 全限定 pkg.name）
                         let lcl = path.clone();
                         self.imported_macro_lcls.entry(Symbol::intern(name)).or_default().push(lcl.clone());
+                        // mcl.1：记录 token 宏种类（表达式宏展开用）
+                        self.imported_macro_kinds.insert(Symbol::intern(name), *tokens);
                         let qualified = format!("{}.{}", stem.as_str(), name);
                         self.imported_macro_lcls.entry(Symbol::intern(&qualified)).or_default().push(lcl);
+                        self.imported_macro_kinds.insert(Symbol::intern(&qualified), *tokens);
                     }
                     crate::package::ImportedSymbol::Pass { name } => {
                         let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));

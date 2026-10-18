@@ -1,6 +1,6 @@
 # Phase 6：宏系统升级（文本 → AST/HIR）设计
 
-> 状态：**mcl.1 / mcl.2 / mcl.3 部分实现**（TokenStream 编解码 + token 宏 + hygiene 原语 + 诊断通道 + 展开追踪/错误包装；std API / 分组 token / span 归属待做）（2026-10-18）。关联：bd `Ayanami-language-mcl`（epic）与
+> 状态：**mcl.1 / mcl.2 / mcl.3 部分实现**（TokenStream 编解码（含分组）+ token 宏（item/语句/表达式）+ hygiene 原语 + 诊断通道（含调用点）+ `dump expanded` / 展开追踪 / 错误包装；std API / span 归属与自动改名待做）（2026-10-18）。关联：bd `Ayanami-language-mcl`（epic）与
 > `mcl.1`（TokenStream/Span/Diagnostic）/ `mcl.2`（hygiene 与错误定位）/ `mcl.3`（展开调试与 IDE）；
 > GitHub #43 / #42 / #45 / #62。现状（A5 已落地部分）见 `docs/annotations.md` §A5。
 
@@ -33,6 +33,7 @@
 ### 3.1 TokenStream 表示（ABI v6）
 
 - 编码（小端）：`[kind:u8][file:u32][line:u32][col:u32][len:u32][bytes...]` 序列；
+  **分组**：`(...)`/`[...]`/`{...}` 折叠为 GROUP token，负载 = 开符码 + 递归编码的子流；
 - kind：标识符 / 字面量（int/float/char/bool/string）/ 标点（含多字符）/ 关键字 /
   **分组**（`(...)` `[...]` `{...}`，递归承载子流）；
 - 输入：调用点 item / 语句 / 表达式的 token 序列（**含调用点 span**）；
@@ -57,8 +58,8 @@
   warn → stderr `warning: <msg> (in macro `<symbol>`)`；error → 编译失败并附宏名；
 - 宏库可直接 `extern "C" fn __ayanami_macro_diag(int, String) -> void;` 声明使用；
 - 生成代码错误包装：宏输出解析失败 → `in macro `<name>` expansion: … (at 调用点)`；
-- 待做：span 参数（错误指向调用点/宏内位置的区分，随 span 归属一起做）、
-  与 `#[check]` warn/error 渲染路径统一。
+- 位置：`__ayanami_macro_diag` 产生的 warn/error 附带调用点（`at l:c`，编译器在调用时注入）；
+- 待做：span 参数（错误指向宏内位置的区分，随 span 归属一起做）、与 `#[check]` 渲染路径统一。
 
 ### 3.4 与现有 A5 的关系
 
@@ -92,9 +93,9 @@ pub fn diag_warn(String msg, Span span)
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| **mcl.1**（部分 ✓） | ABI v6：TokenStream 编解码（`token_stream.rs`：`[kind:u8][file/line/col:u32×3][len:u32][bytes]`，v1 扁平）+ 编译器侧桥（`plugin.rs` 字节通道）+ 宏分类（`#[macro(tokens)]`） | 正例：`example/test_macro_tokens.aya`（item 往返 `tok_keep` + 语句级拼接 `tok_twice`）；回归全绿（文本宏不回退）；**待做**：std `TokenStream` API、分组 token、表达式宏 tokens |
-| **mcl.2**（部分 ✓） | hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ Diagnostic 通道（warn/error + 宏名） | 正例：`example/test_macro_hygiene.aya`（生成名不捕获用户同名函数 + warn 输出）；负例：`tests/compile_fail/macro_diag_error.aya`；**待做**：token span 归属/自动改名、诊断位置化 |
-| **mcl.3**（部分 ✓） | 展开追踪（`AYANAMI_MACRO_TRACE=1` → stderr 打印 `macro trace: 宏名/input/output`） | 手工验证（`example/test_macro.aya` 追踪输出）；**待做**：结构化展开记录导出（`--dump-macros`/IDE 视图）、span 映射链 |
+| **mcl.1**（部分 ✓） | ABI v6/v7：TokenStream 编解码（分组 token 已支持）+ 编译器侧桥（字节通道）+ 宏分类（`#[macro(tokens)]`；item/语句/表达式三形态） | 正例：`example/test_macro_tokens.aya`（`tok_keep` 往返 / `tok_twice` 拼接 / `#tok_expr` 表达式）+ 编解码单测 ×3；回归全绿；**待做**：std `TokenStream` API |
+| **mcl.2**（部分 ✓） | hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ Diagnostic 通道（warn/error + 宏名 + 调用点 `at l:c`） | 正例：`example/test_macro_hygiene.aya`（生成名不捕获用户同名函数 + warn 带位置）；负例：`macro_diag_error.aya`；**待做**：token span 归属/自动改名、`#[check]` 渲染统一 |
+| **mcl.3**（部分 ✓） | `ayanami dump expanded <file>`（展开后源码）+ `AYANAMI_MACRO_TRACE=1` 追踪 | `dump expanded` 输出展开后源码（宏替换可见）；**待做**：span 映射链（IDE 视图） |
 | 远期 | 其它语言插件 / WASM 沙箱 / 插件清单与权限 | — |
 
 ## 6. 非目标
