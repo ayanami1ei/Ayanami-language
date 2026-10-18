@@ -2581,22 +2581,22 @@ example/test_aggregate_array.aya:11: enum E
 example/test_aggregate_array.aya:17: fn main() -> int
 example/test_annotation_scope.aya:5: fn placeholder() -> int { return 0 }
 example/test_annotation_scope.aya:7: fn main() -> int { return answer() - 42 }
-example/test_arena.aya:8: struct Idx
-example/test_arena.aya:14: pub fn copy(Idx i) -> Idx
-example/test_arena.aya:19: struct Arena[T]
-example/test_arena.aya:26: pub fn with_capacity[T](usize cap) -> Arena[T]
-example/test_arena.aya:31: impl[T] Arena[T]
-example/test_arena.aya:32: pub fn alloc(ref mut self, T v) -> Idx
-example/test_arena.aya:37: pub fn get(ref self, Idx i) -> ref T
-example/test_arena.aya:41: pub fn get_mut(ref mut self, Idx i) -> ref mut T
-example/test_arena.aya:45: pub fn len(ref self) -> usize
-example/test_arena.aya:50: struct Node
-example/test_arena.aya:56: struct GNode
-example/test_arena.aya:63: fn dfs(ref mut Arena[GNode] a, Idx start) -> int
-example/test_arena.aya:79: fn demo_list() -> int
-example/test_arena.aya:113: fn demo_graph() -> int
-example/test_arena.aya:133: fn demo() -> int
-example/test_arena.aya:141: fn main() -> int
+example/test_arena.aya:9: struct Idx
+example/test_arena.aya:15: pub fn copy(Idx i) -> Idx
+example/test_arena.aya:20: struct Arena[T]
+example/test_arena.aya:27: pub fn with_capacity[T](usize cap) -> Arena[T]
+example/test_arena.aya:32: impl[T] Arena[T]
+example/test_arena.aya:33: pub fn alloc(ref mut self, T v) -> Idx
+example/test_arena.aya:41: pub fn get(ref self, Idx i) -> ref T
+example/test_arena.aya:48: pub fn get_mut(ref mut self, Idx i) -> ref mut T
+example/test_arena.aya:55: pub fn len(ref self) -> usize
+example/test_arena.aya:60: struct Node
+example/test_arena.aya:66: struct GNode
+example/test_arena.aya:73: fn dfs(ref mut Arena[GNode] a, Idx start) -> int
+example/test_arena.aya:89: fn demo_list() -> int
+example/test_arena.aya:123: fn demo_graph() -> int
+example/test_arena.aya:143: fn demo() -> int
+example/test_arena.aya:151: fn main() -> int
 example/test_array.aya:1: fn main() -> int
 example/test_array_bounds.aya:5: fn main() -> int
 example/test_array_elem_field.aya:2: struct Inner { int a }
@@ -3200,6 +3200,17 @@ example/test_void_return.aya:10: fn wrap(int x)
 example/test_void_return.aya:14: fn main() -> int
 example/test_zero_arg_fn.aya:2: fn time() -> int { return 7 }
 example/test_zero_arg_fn.aya:4: fn main() -> int
+example/tmp_c1.aya:3: fn main() -> int
+example/tmp_c2.aya:3: fn main() -> int
+example/tmp_c3.aya:6: fn main() -> int
+example/tmp_c4.aya:6: fn main() -> int
+example/tmp_c5.aya:6: fn main() -> int
+example/tmp_c6.aya:3: fn main() -> int
+example/tmp_c7.aya:3: fn main() -> int
+example/tmp_c8.aya:4: fn main() -> int
+example/tmp_c9.aya:3: fn main() -> int
+example/tmp_ca.aya:3: fn main() -> int
+example/tmp_cb.aya:3: fn main() -> int
 
 ## Selfhost (selfhost/)
 selfhost/src/ast/ast.aya:14: pub enum ST
@@ -3459,7 +3470,7 @@ selfhost/src/hir/check.aya:1617: fn convert_err(ref mut self, ref String from, r
 selfhost/src/hir/check.aya:1630: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
 selfhost/src/hir/check.aya:1652: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
 selfhost/src/hir/check.aya:1682: fn check_expr(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:2107: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
+selfhost/src/hir/check.aya:2124: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
 selfhost/src/lexer/lexer.aya:8: pub struct Lexer
 selfhost/src/lexer/lexer.aya:17: pub namespace Lexer
 selfhost/src/lexer/lexer.aya:20: pub fn new(ref String src) -> Lexer
@@ -3650,20 +3661,20 @@ selfhost/src/lir/emit.aya:4646: fn ct_stmt(ref Ast ast, int id, ref mut Emitter 
 selfhost/src/lir/emit.aya:4709: fn ct_expr(ref Ast ast, int id, ref mut Emitter e) -> int
 selfhost/src/lir/emit.aya:4765: fn ct_call(ref Ast ast, int fn_id, int nargs, ref mut Emitter e) -> int
 selfhost/src/lir/emit.aya:4792: fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:6639: fn emit_block_all(ref Ast ast, int blk, ref mut Emitter e)
-selfhost/src/lir/emit.aya:6650: fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e)
-selfhost/src/lir/emit.aya:6660: fn elem_is_leaf(ref String lty) -> bool
-selfhost/src/lir/emit.aya:6668: fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val)
-selfhost/src/lir/emit.aya:6723: fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v)
-selfhost/src/lir/emit.aya:6758: fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v)
-selfhost/src/lir/emit.aya:6812: fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:6847: fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:6954: fn emit_stmt(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:7605: fn emit_lambda(ref Ast ast, int lam_id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:7629: fn emit_fn(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:7634: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:7674: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
-selfhost/src/lir/emit.aya:8061: pub fn emit_program(ref Ast ast, int prog, ref String file) -> String
+selfhost/src/lir/emit.aya:6646: fn emit_block_all(ref Ast ast, int blk, ref mut Emitter e)
+selfhost/src/lir/emit.aya:6657: fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e)
+selfhost/src/lir/emit.aya:6667: fn elem_is_leaf(ref String lty) -> bool
+selfhost/src/lir/emit.aya:6675: fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val)
+selfhost/src/lir/emit.aya:6730: fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v)
+selfhost/src/lir/emit.aya:6765: fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v)
+selfhost/src/lir/emit.aya:6819: fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:6854: fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:6961: fn emit_stmt(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7612: fn emit_lambda(ref Ast ast, int lam_id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7636: fn emit_fn(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7641: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7681: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
+selfhost/src/lir/emit.aya:8068: pub fn emit_program(ref Ast ast, int prog, ref String file) -> String
 selfhost/src/main.aya:8: fn usage_ok(ref Cli c) -> int
 selfhost/src/main.aya:13: fn usage_unknown(ref Cli c) -> int
 selfhost/src/main.aya:20: fn dispatch(ref Cli c) -> int

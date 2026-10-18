@@ -1,0 +1,10 @@
+import "arraylist"
+import "string"
+
+fn main() -> int {
+    a = ArrayList::new[int]()
+    a.push(7)
+    e1 = String::empty()
+    if e1 != "" { return 10 }
+    return 0
+}

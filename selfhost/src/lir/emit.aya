@@ -5207,8 +5207,15 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     if tag == et(ET::FnCall._tag) {
         nm = ast.texts[id];
         if nm == "String.new" {
-            // String::new([char], usize) -> (ptr, len)
+            // String::new()：空字符串；String::new([char], usize) -> (ptr, len)
+            if ast.aa[id] < 0 {
+                return mk_str("null", 0);
+            }
             a0 = emit_expr(ast, ast.aa[ast.aa[id]], e);
+            if ast.nexts[ast.aa[id]] < 0 {
+                // 单参形式：按缓冲长度构造（防御；std 未提供该重载）
+                return mk_str_tmp(a0.a, a0.b);
+            }
             a1 = emit_expr(ast, ast.aa[ast.nexts[ast.aa[id]]], e);
             return mk_str_tmp(a0.a, a1.a);
         }

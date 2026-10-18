@@ -1773,13 +1773,12 @@ impl Checker {
                 }
                 return "";
             }
-            // 非 builtin：单次遍历收集实参类型并匹配
+            // 非 builtin：先收集实参类型，再按候选（重载）逐个匹配
+            atypes = [""; 16];
+            an = 0;
             b = StringBuf::new();
             b.push_str("(");
-            n = 0;
-            ok = 1;
             first = 1;
-            pstart = self.fn_pstart[fi];
             a = ast.aa[id];
             while a >= 0 {
                 at = "";
@@ -1791,23 +1790,40 @@ impl Checker {
                 if first == 0 { b.push_str(", "); }
                 b.push_str(at);
                 first = 0;
-                if n < self.fn_nparams[fi] {
-                    pty_m = self.fn_ptypes[pstart + n];
-                    // 接口形参（含泛型实参写法 Iter[int]）不参与类型匹配（静态分派）
-                    if !self.is_gp(pty_m) && self.find_interface(base_type(pty_m)) < 0 {
-                        if !self.is_unknown_ty(pty_m) {
-                            if !convertible(at, pty_m) { ok = 0; }
-                        }
-                    }
-                } else {
-                    ok = 0;
-                }
-                n = n + 1;
+                if an < 16 { atypes[an] = at.copy(); }
+                an = an + 1;
                 a = ast.nexts[a];
             }
             b.push_str(")");
-            if n != self.fn_nparams[fi] { ok = 0; }
-            if ok == 0 {
+            fi_ok = -1;
+            i2 = 0;
+            while i2 < self.fn_count {
+                if self.fn_names[i2] == nm {
+                    if self.fn_nparams[i2] == an {
+                        ok = 1;
+                        n = 0;
+                        pstart = self.fn_pstart[i2];
+                        while n < an {
+                            if n < 16 {
+                                pty_m = self.fn_ptypes[pstart + n];
+                                // 接口形参（含泛型实参写法 Iter[int]）不参与类型匹配（静态分派）
+                                if !self.is_gp(pty_m) && self.find_interface(base_type(pty_m)) < 0 {
+                                    if !self.is_unknown_ty(pty_m) {
+                                        if !convertible(atypes[n], pty_m) { ok = 0; }
+                                    }
+                                }
+                            }
+                            n = n + 1;
+                        }
+                        if ok == 1 {
+                            fi_ok = i2;
+                            break;
+                        }
+                    }
+                }
+                i2 = i2 + 1;
+            }
+            if fi_ok < 0 {
                 b2 = StringBuf::new();
                 b2.push_str("no matching overload of `");
                 b2.push_str(nm);
@@ -1815,8 +1831,9 @@ impl Checker {
                 b2.push_str(b.to_string());
                 b2.push_str("; candidate(s) exist");
                 self.err(b2.to_string(), ast.lines[id], ast.cols[id]);
+                return "";
             }
-            return self.fn_rets[fi].copy();
+            return self.fn_rets[fi_ok].copy();
         }
         if tag == et(ET::Binary._tag) {
             lt = self.check_expr(ast, ast.aa[id]);
@@ -1826,7 +1843,7 @@ impl Checker {
                 // 仅当左操作数是泛型参数时做 bound 方法检查（rust 按接收者解析：
                 // String + T 这类左操作数具体的情形走左类型的方法，不查 bound）
                 gpn = lt.copy();
-                bound = self.gp_bound(gpn);
+                bound = base_type(self.gp_bound(gpn));
                 if bound.len > 0 {
                     mname = op_method_name(op);
                     if mname.len > 0 {
@@ -2001,7 +2018,7 @@ impl Checker {
                     }
                 }
             } elif self.is_gp(ot) {
-                bound = self.gp_bound(ot);
+                bound = base_type(self.gp_bound(ot));
                 if bound.len > 0 {
                     ifi = self.find_interface(bound);
                     okm = 0;

@@ -1,0 +1,7 @@
+import "string"
+
+fn main() -> int {
+    e1 = String::empty()
+    if e1 != "" { return 10 }
+    return 0
+}
