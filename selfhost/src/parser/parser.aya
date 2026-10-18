@@ -283,6 +283,7 @@ impl Parser {
                 elif an == "pure" { self.attr_mask = self.attr_mask | 2048; }
                 elif an == "no_error" { self.attr_mask = self.attr_mask | 4096; }
                 elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
+                elif an == "compile_time" { self.attr_mask = self.attr_mask | 131072; }
                 self.advance();
             }
             self.scan_attr_args();
@@ -1011,6 +1012,7 @@ impl Parser {
                 elif an == "pure" { self.attr_mask = self.attr_mask | 2048; }
                 elif an == "no_error" { self.attr_mask = self.attr_mask | 4096; }
                 elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
+                elif an == "compile_time" { self.attr_mask = self.attr_mask | 131072; }
                 self.advance();
             }
             self.scan_attr_args();

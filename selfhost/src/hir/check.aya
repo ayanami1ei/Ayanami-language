@@ -923,6 +923,16 @@ impl Checker {
         self.g_count = self.g_count + 1;
     }
 
+    /// 是否已登记全局（类型未知时也返回 true）
+    fn is_global(ref mut self, ref String name) -> bool {
+        i = 0;
+        while i < self.g_count {
+            if self.g_names[i] == name { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
     #[state]
     #[alloc]
     fn global_ty(ref mut self, ref String name) -> String {
@@ -1642,6 +1652,8 @@ impl Checker {
             if self.has_local(nm) { return self.local_type(nm); }
             gt = self.global_ty(nm);
             if gt.len > 0 { return gt; }
+            // 已登记但类型未知（如 #[compile_time] 求值初始化）：放行
+            if self.is_global(nm) { return ""; }
             if self.find_fn(nm) >= 0 { return ""; }
             self.err_name("undefined variable `", nm, ast.lines[id], ast.cols[id]);
             return "";

@@ -1,6 +1,7 @@
 import "string";
 import "aya_sb";
 import "aya_ast";
+import "aya_log";
 
 // M5b/M6a：AST -> LLVM IR 文本（int/bool/String/struct/数组 子集）
 // 值表示：Val { kind: 0=int, 1=String(ptr,len), 2=struct(ptr,类型名), 3=数组(ptr,元素类型 id) }
@@ -91,6 +92,17 @@ pub struct Emitter {
     // 全局常量/静态：0=int 2=数组；数组元素以逗号串存
     [String] g_names
     [int] g_kinds
+    // #[compile_time] 函数表与常量求值环境（编译期解释器）
+    [String] ct_names
+    [int] ct_ids
+    int ct_count
+    [String] ct_env_names
+    [int] ct_env_vals
+    int ct_env_count
+    [int] ct_args
+    int ct_ret
+    int ct_depth
+    int ct_frame
     // 结构体全局（kind 4）：初始化节点与结构体下标
     [int] g_init_ids
     [int] g_stype
@@ -141,6 +153,9 @@ pub namespace Emitter {
             g_names = [String; 512], g_kinds = [int; 512], g_vals = [String; 512],
             g_lens = [int; 512], g_count = 0,
             g_init_ids = [int; 512], g_stype = [int; 512], need_ginit = 0, ginit_buf = StringBuf::new(),
+            ct_names = [String; 256], ct_ids = [int; 256], ct_count = 0,
+            ct_env_names = [String; 256], ct_env_vals = [int; 256], ct_env_count = 0,
+            ct_args = [int; 16], ct_ret = 0, ct_depth = 0, ct_frame = 0,
             pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
             loop_ends = [String; 64], loop_conds = [String; 64], loop_depth = 0,
             terminated = 0
@@ -1178,7 +1193,63 @@ impl Emitter {
             if r2 == -999999 { return ""; }
             return int_str2(r2);
         }
+        if tag == et(ET::FnCall._tag) {
+            // #[compile_time] 函数：编译期解释求值
+            fid = self.ct_find(ast.texts[id]);
+            if fid >= 0 {
+                n = 0;
+                a3 = ast.aa[id];
+                while a3 >= 0 {
+                    av = self.const_eval_g(ast, ast.aa[a3]);
+                    if av.len == 0 { return ""; }
+                    if n < 16 { self.ct_args[n] = str_to_int_ok(av); }
+                    n = n + 1;
+                    a3 = ast.nexts[a3];
+                }
+                r3 = ct_call(ast, fid, n, self);
+                if r3 == -999999 { return ""; }
+                return int_str2(r3);
+            }
+        }
         return const_int(ast, id);
+    }
+
+    /// 常量求值环境读写
+    #[alloc]
+    #[state]
+    fn ct_set(ref mut self, ref String name, int v) {
+        // 同帧内更新已有绑定；跨帧（递归/嵌套调用）追加，查找取最内层
+        i = self.ct_frame;
+        while i < self.ct_env_count {
+            if self.ct_env_names[i] == name {
+                self.ct_env_vals[i] = v;
+                return;
+            }
+            i = i + 1;
+        }
+        if self.ct_env_count < 256 {
+            self.ct_env_names[self.ct_env_count] = name.copy();
+            self.ct_env_vals[self.ct_env_count] = v;
+            self.ct_env_count = self.ct_env_count + 1;
+        }
+    }
+
+    fn ct_get(ref mut self, ref String name) -> int {
+        i = self.ct_env_count - 1;
+        while i >= 0 {
+            if self.ct_env_names[i] == name { return self.ct_env_vals[i]; }
+            i = i - 1;
+        }
+        return -999999;
+    }
+
+    fn ct_find(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.ct_count {
+            if self.ct_names[i] == name { return self.ct_ids[i]; }
+            i = i + 1;
+        }
+        return -1;
     }
 
     #[alloc]
@@ -1554,8 +1625,15 @@ impl Emitter {
             name = prefix + ".";
             name = name + ast.texts[id];
         }
-        self.fn_names[fi] = name;
+        self.fn_names[fi] = name.copy();
         self.fn_first[fi] = id;
+        if (ast.dd[id] / 131072) % 2 == 1 {
+            if self.ct_count < 256 {
+                self.ct_names[self.ct_count] = name.copy();
+                self.ct_ids[self.ct_count] = id;
+                self.ct_count = self.ct_count + 1;
+            }
+        }
         self.fn_pstart[fi] = self.fn_ptotal;
         n = 0;
         p = ast.aa[id];
@@ -3503,6 +3581,226 @@ fn dec_val_e(ref String s) -> int {
         i = i + 1;
     }
     return v;
+}
+
+/// ---- #[compile_time] 编译期解释器（int 域；失败 -999999）----
+
+/// 二元运算求值
+fn ct_binop(int op, int a, int b) -> int {
+    if op == bo(BinOp::Add._tag) { return a + b; }
+    if op == bo(BinOp::Sub._tag) { return a - b; }
+    if op == bo(BinOp::Mul._tag) { return a * b; }
+    if op == bo(BinOp::Div._tag) { if b == 0 { return -999999; } return a / b; }
+    if op == bo(BinOp::Mod._tag) { if b == 0 { return -999999; } return a % b; }
+    if op == bo(BinOp::BitAnd._tag) { return a & b; }
+    if op == bo(BinOp::BitOr._tag) { return a | b; }
+    if op == bo(BinOp::BitXor._tag) { return a ^ b; }
+    if op == bo(BinOp::Shl._tag) { return a << b; }
+    if op == bo(BinOp::Shr._tag) { return a >> b; }
+    if op == bo(BinOp::Eq._tag) { if a == b { return 1; } return 0; }
+    if op == bo(BinOp::Neq._tag) { if a != b { return 1; } return 0; }
+    if op == bo(BinOp::Lt._tag) { if a < b { return 1; } return 0; }
+    if op == bo(BinOp::Gt._tag) { if a > b { return 1; } return 0; }
+    if op == bo(BinOp::Le._tag) { if a <= b { return 1; } return 0; }
+    if op == bo(BinOp::Ge._tag) { if a >= b { return 1; } return 0; }
+    if op == bo(BinOp::And._tag) { if a != 0 && b != 0 { return 1; } return 0; }
+    if op == bo(BinOp::Or._tag) { if a != 0 || b != 0 { return 1; } return 0; }
+    return -999999;
+}
+
+/// 解释语句链：0=正常 1=return -1=失败
+fn ct_block(ref Ast ast, int stmts, ref mut Emitter e) -> int {
+    st = stmts;
+    while st >= 0 {
+        r = ct_stmt(ast, st, e);
+        if r != 0 { return r; }
+        st = ast.nexts[st];
+    }
+    return 0;
+}
+
+/// 解释 if 的 then/elif/else 取值（表达式形式）
+fn ct_if_value(ref Ast ast, int id, ref mut Emitter e) -> int {
+    c = ct_expr(ast, ast.aa[id], e);
+    if c == -999999 { return -999999; }
+    if c != 0 {
+        return ct_branch_value(ast, ast.bb[id], e);
+    }
+    en = ast.cc[id];
+    while en >= 0 {
+        c2 = ct_expr(ast, ast.aa[en], e);
+        if c2 == -999999 { return -999999; }
+        if c2 != 0 {
+            return ct_branch_value(ast, ast.bb[en], e);
+        }
+        en = ast.nexts[en];
+    }
+    if ast.dd[id] >= 0 {
+        return ct_branch_value(ast, ast.dd[id], e);
+    }
+    return -999999;
+}
+
+/// 解释分支块取值（语句 + 尾表达式）
+fn ct_branch_value(ref Ast ast, int blk, ref mut Emitter e) -> int {
+    if blk < 0 { return -999999; }
+    base = e.ct_env_count;
+    r = ct_block(ast, ast.aa[blk], e);
+    res = -999999;
+    if r == 1 {
+        res = e.ct_ret;
+    } elif r == 0 {
+        t = ast.bb[blk];
+        if t >= 0 { res = ct_expr(ast, t, e); }
+    }
+    e.ct_env_count = base;
+    return res;
+}
+
+fn ct_stmt(ref Ast ast, int id, ref mut Emitter e) -> int {
+    tag = ast.tags[id];
+    if tag == st(ST::Assign._tag) {
+        v = ct_expr(ast, ast.aa[id], e);
+        if v == -999999 { return -1; }
+        e.ct_set(ast.texts[id], v);
+        return 0;
+    }
+    if tag == st(ST::Return._tag) {
+        if ast.aa[id] >= 0 {
+            v2 = ct_expr(ast, ast.aa[id], e);
+            if v2 == -999999 { return -1; }
+            e.ct_ret = v2;
+        }
+        return 1;
+    }
+    if tag == st(ST::If._tag) {
+        // 语句语义：分支内的 return 必须向外传播（勿用表达式求值）
+        c3 = ct_expr(ast, ast.aa[id], e);
+        if c3 == -999999 { return -1; }
+        if c3 != 0 { return ct_block(ast, ast.aa[ast.bb[id]], e); }
+        en3 = ast.cc[id];
+        while en3 >= 0 {
+            c4 = ct_expr(ast, ast.aa[en3], e);
+            if c4 == -999999 { return -1; }
+            if c4 != 0 { return ct_block(ast, ast.aa[ast.bb[en3]], e); }
+            en3 = ast.nexts[en3];
+        }
+        if ast.dd[id] >= 0 { return ct_block(ast, ast.aa[ast.dd[id]], e); }
+        return 0;
+    }
+    if tag == st(ST::For._tag) {
+        a1 = ct_expr(ast, ast.aa[id], e);
+        b1 = ct_expr(ast, ast.bb[id], e);
+        c1 = 1;
+        if ast.cc[id] >= 0 {
+            c1 = ct_expr(ast, ast.cc[id], e);
+        }
+        if a1 == -999999 || b1 == -999999 || c1 == -999999 { return -1; }
+        if c1 == 0 { return -1; }
+        base4 = e.ct_env_count;
+        i1 = a1;
+        while i1 < b1 {
+            e.ct_set(ast.texts[id], i1);
+            r4 = ct_block(ast, ast.aa[ast.dd[id]], e);
+            if r4 != 0 { return r4; }
+            e.ct_env_count = base4;
+            i1 = i1 + c1;
+        }
+        e.ct_env_count = base4;
+        return 0;
+    }
+    if tag == st(ST::ExprStmt._tag) {
+        v5 = ct_expr(ast, ast.aa[id], e);
+        if v5 == -999999 { return -1; }
+        return 0;
+    }
+    if tag == st(ST::Block._tag) {
+        return ct_block(ast, ast.aa[id], e);
+    }
+    return -1;
+}
+
+fn ct_expr(ref Ast ast, int id, ref mut Emitter e) -> int {
+    if id < 0 { return -999999; }
+    tag = ast.tags[id];
+    if tag == et(ET::Literal._tag) {
+        sv = const_int(ast, id);
+        if sv.len == 0 { return -999999; }
+        return str_to_int_ok(sv);
+    }
+    if tag == et(ET::Ident._tag) {
+        nm = ast.texts[id];
+        v = e.ct_get(nm);
+        if v != -999999 { return v; }
+        g = e.global_val(nm);
+        if g.len == 0 { return -999999; }
+        return str_to_int_ok(g);
+    }
+    if tag == et(ET::Binary._tag) {
+        a = ct_expr(ast, ast.aa[id], e);
+        if a == -999999 { return -999999; }
+        b = ct_expr(ast, ast.bb[id], e);
+        if b == -999999 { return -999999; }
+        return ct_binop(ast.tys[id], a, b);
+    }
+    if tag == et(ET::Unary._tag) {
+        a2 = ct_expr(ast, ast.aa[id], e);
+        if a2 == -999999 { return -999999; }
+        op2 = ast.tys[id];
+        if op2 == uo(UnOp::Neg._tag) { return 0 - a2; }
+        if op2 == uo(UnOp::Not._tag) { if a2 == 0 { return 1; } return 0; }
+        if op2 == uo(UnOp::BitNot._tag) { return ~a2; }
+        return -999999;
+    }
+    if tag == et(ET::If._tag) {
+        return ct_if_value(ast, id, e);
+    }
+    if tag == et(ET::FnCall._tag) {
+        fid = e.ct_find(ast.texts[id]);
+        if fid < 0 { return -999999; }
+        n = 0;
+        a3 = ast.aa[id];
+        while a3 >= 0 {
+            av = ct_expr(ast, ast.aa[a3], e);
+            if av == -999999 { return -999999; }
+            if n < 16 { e.ct_args[n] = av; }
+            n = n + 1;
+            a3 = ast.nexts[a3];
+        }
+        return ct_call(ast, fid, n, e);
+    }
+    if tag == et(ET::Cast._tag) {
+        return ct_expr(ast, ast.aa[id], e);
+    }
+    return -999999;
+}
+
+/// 解释 #[compile_time] 函数调用
+fn ct_call(ref Ast ast, int fn_id, int nargs, ref mut Emitter e) -> int {
+    if e.ct_depth > 64 { return -999999; }
+    e.ct_depth = e.ct_depth + 1;
+    base = e.ct_env_count;
+    sv_frame = e.ct_frame;
+    e.ct_frame = base;
+    p = ast.aa[fn_id];
+    i = 0;
+    while p >= 0 {
+        if i < nargs { e.ct_set(ast.texts[p], e.ct_args[i]); }
+        i = i + 1;
+        p = ast.nexts[p];
+    }
+    res = -999999;
+    r = ct_block(ast, ast.aa[ast.bb[fn_id]], e);
+    if r == 1 {
+        res = e.ct_ret;
+    } elif r == 0 {
+        tail = ast.bb[ast.bb[fn_id]];
+        if tail >= 0 { res = ct_expr(ast, tail, e); }
+    }
+    e.ct_env_count = base;
+    e.ct_frame = sv_frame;
+    e.ct_depth = e.ct_depth - 1;
+    return res;
 }
 
 fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
