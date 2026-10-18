@@ -342,6 +342,19 @@ if [ -d tests/lcl_missing_dep ]; then
         echo "FAIL $mdir/entry/entry.aya: 期望缺失依赖诊断（got=$got）"
         fail=$((fail + 1))
     fi
+
+# M8：feature flags（#[cfg(feature = "x")]；AYANAMI_FEATURES 与 ayanami.toml features）
+if [ -d tests/cfg_feature ]; then
+    fdir=tests/cfg_feature
+    timeout 120 "$BIN" run "$fdir/entry.aya" >/dev/null 2>&1
+    got_off=$?
+    AYANAMI_FEATURES=extra timeout 120 "$BIN" run "$fdir/entry.aya" >/dev/null 2>&1
+    got_on=$?
+    if [ "$got_off" != 1 ] || [ "$got_on" != 42 ]; then
+        echo "FAIL $fdir/entry.aya: feature off=$got_off（want 1）/ on=$got_on（want 42）"
+        fail=$((fail + 1))
+    fi
+fi
     rm -f "$mdir/src/libb.lcl" "$(dirname "$BIN")/std/libb.lcl"
 fi
     rm -f "$(dirname "$BIN")/std/lib.lcl"

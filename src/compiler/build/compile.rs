@@ -12,6 +12,9 @@ pub fn compile_file(
     target_override: Option<&str>,
     runtime: Option<&Path>,
 ) -> Result<CompiledFile> {
+    // M8：feature flags（ayanami.toml `features` + AYANAMI_FEATURES；首次生效）
+    crate::hir::cfg::configure_features_from(src_path);
+
     let canonical = src_path
         .canonicalize()
         .map_err(|e| Error::Import(format!("cannot resolve '{}': {}", src_path.display(), e)))?;

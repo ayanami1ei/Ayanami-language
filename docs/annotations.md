@@ -107,6 +107,7 @@ extern "C" fn strlen([char] s) -> int;
 ## 5. 条件与契约（A2）
 
 - `#[cfg(target = "linux")]`：编译期裁剪 item 与语句；已实现（A2b/A2f）。
+  M8：`#[cfg(feature = "x")]` 按 feature 开关裁剪（见 A2b）。
 - `#[requires(cond)]`：函数前置条件（已实现运行检查，A2d）。默认插入运行检查
   （失败打印位置并 abort）；`--release`（或 `AYANAMI_CHECKS=0`）时转为 `llvm.assume`。
 - `#[ensures(cond)]`：后置条件，`result` 绑定返回值（已实现，A2e）。
@@ -128,9 +129,12 @@ extern "C" fn strlen([char] s) -> int;
 
 - 求值点：HIR 降低前 `hir/cfg.rs::filter_program`，递归过滤顶层 /
   namespace / impl / interface 方法；`validate_program` 先行，未知谓词报错（ADR-2）。
-- 谓词：`target = "linux"`、`arch = "x86_64"`、裸标识符
+- 谓词：`target = "linux"`、`arch = "x86_64"`、`feature = "x"`、裸标识符
   （`unix`/`windows`/`linux`/`macos`/`x86_64`/`aarch64`）、`!` 取反；
   多个谓词/多个 `#[cfg]` 之间为「与」。
+- M8 feature flags：启用集合 = `ayanami.toml` 顶层 `features = ["a", "b"]`
+  与 `AYANAMI_FEATURES=a,b`（逗号分隔，叠加）之并；仅首次配置生效
+  （`hir/cfg.rs::configure_features_from`，`compile_file` 入口调用）。
 - 包导出（`package/symbols.rs`）同样跳过被裁剪项；
   `defs` 命令仍列出两侧（IDE 视角），语句级 cfg 待后续。
 
@@ -438,7 +442,7 @@ struct Holder {
 ### A2（已完成，2026-10）
 
 - [x] A2a 标注实参结构化（`AttrArg`：`key = value` / 表达式），formatter 保真
-- [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致）
+- [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致；M8 追加 feature 键）
 - [x] A2c `#[assume(cond)]` → `llvm.assume`
 - [x] A2d `#[requires]` 运行检查
 - [x] A2e `#[ensures(result)]` 后置条件（契约链路统一为 ContractKind）
