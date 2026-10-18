@@ -1,0 +1,8 @@
+// 负例：offset_of 字段不存在 → 编译期报错
+struct Point {
+    int x
+}
+
+fn main() -> int {
+    return offset_of[Point](z)
+}

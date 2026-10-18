@@ -13,7 +13,7 @@ impl crate::hir::lower::Ctx {
             }
             Expr::FnCall { name, args, generic_args, span } => {
                 // Phase 7：size_of/align_of 为编译期内置（仅显式类型实参形态）
-                let layout_builtin = matches!(name.as_str().as_str(), "size_of" | "align_of")
+                let layout_builtin = matches!(name.as_str().as_str(), "size_of" | "align_of" | "offset_of")
                     && !generic_args.is_empty();
                 let known = name.as_str().contains('.')
                     || name.as_str() == "static_assert"

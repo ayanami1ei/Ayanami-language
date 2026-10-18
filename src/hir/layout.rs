@@ -58,3 +58,23 @@ pub(crate) fn type_layout(ty: &HirType, defs: &StructDefs) -> (u64, u64) {
         }
     }
 }
+
+/// 字段偏移（字节）：仅支持结构体（`Named` 且字段表已知）。
+/// 自然对齐规则与 `type_layout` 一致；字段不存在或类型未知返回 `None`。
+pub(crate) fn field_offset(ty: &HirType, field: Symbol, defs: &StructDefs) -> Option<u64> {
+    let HirType::Named(name) = ty else { return None };
+    let fields = defs.get(name).or_else(|| {
+        let n = name.as_str();
+        n.find('<').map(|pos| Symbol::intern(&n[..pos])).and_then(|b| defs.get(&b))
+    })?;
+    let mut off = 0u64;
+    for (fname, fty) in fields {
+        let (sz, a) = type_layout(fty, defs);
+        off = (off + a - 1) / a * a;
+        if *fname == field {
+            return Some(off);
+        }
+        off += sz;
+    }
+    None
+}

@@ -17,6 +17,11 @@ impl crate::hir::lower::Ctx {
             }
         }
 
+        // Phase 7 续：`offset_of[T](field)` 字段偏移（AST 层读字段名；见 expr_layout.rs）
+        if name.as_str() == "offset_of" && explicit.is_some() {
+            return self.lower_offset_of(args, explicit, span);
+        }
+
         // Step 1: lower all arguments
         let mut hir_args: Vec<HirNodeBox> = args.iter()
             .map(|a| self.lower_expr(a))

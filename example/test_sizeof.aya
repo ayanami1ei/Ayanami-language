@@ -1,4 +1,4 @@
-// Phase 7：size_of[T]() / align_of[T]() 编译期常量（自然对齐，与 %struct 布局一致）
+// Phase 7：size_of[T]() / align_of[T]() / offset_of[T](field) 编译期常量（自然对齐，与 %struct 布局一致）
 import "io"
 import "option"
 
@@ -44,5 +44,11 @@ fn main() -> int {
     if sz[int]() != 8 { return 18 }
     if sz[Point]() != 16 { return 19 }
     if sz[bool]() != 1 { return 20 }
+    if offset_of[Point](x) != 0 { return 21 }
+    if offset_of[Point](y) != 8 { return 22 }
+    if offset_of[Mix](b) != 0 { return 23 }
+    if offset_of[Mix](n) != 8 { return 24 }
+    if offset_of[Small](a) != 0 { return 25 }
+    if offset_of[Small](b) != 1 { return 26 }
     return 0
 }

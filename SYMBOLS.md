@@ -452,6 +452,7 @@ src/hir/item.rs:117: pub struct HirStatic
 src/hir/item.rs:129: pub struct HirProgram
 src/hir/layout.rs:8: pub(crate) type StructDefs = HashMap<Symbol, Vec<(Symbol, HirType)>>;
 src/hir/layout.rs:15: pub(crate) fn type_layout(ty: &HirType, defs: &StructDefs) -> (u64, u64)
+src/hir/layout.rs:64: pub(crate) fn field_offset(ty: &HirType, field: Symbol, defs: &StructDefs) -> Option<u64>
 src/hir/lower/body/block_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/block_lower.rs:8: pub(crate) fn lower_block(&mut self, block: &Block) -> Result<HirBlock>
 src/hir/lower/body/block_lower.rs:14: pub(crate) fn lower_block_impl(&mut self, block: &Block, tail_as_value: bool) -> Result<(HirBlock, Option<HirNodeBox>)>
@@ -516,6 +517,7 @@ src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self,
 src/hir/lower/body/expr_enum.rs:79: fn monomorphize_enum_construct(
 src/hir/lower/body/expr_layout.rs:7: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_layout.rs:9: pub(crate) fn lower_layout_builtin(
+src/hir/lower/body/expr_layout.rs:38: pub(crate) fn lower_offset_of(
 src/hir/lower/body/expr_logic.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_logic.rs:5: pub(super) fn lower_short_circuit(&mut self, op: BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_lower.rs:3: impl crate::hir::lower::Ctx
