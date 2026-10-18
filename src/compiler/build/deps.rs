@@ -110,7 +110,7 @@ pub(super) fn resolve_dependencies(
                     if o_path.exists() && !dep_obj_paths.contains(&o_path) {
                         dep_obj_paths.push(o_path);
                     }
-                    for d in crate::package::resolve_package_deps(&path.to_string_lossy()) {
+                    for d in crate::package::resolve_package_deps(&path.to_string_lossy())? {
                         queue.push(d);
                     }
                 }

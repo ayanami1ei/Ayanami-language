@@ -330,6 +330,20 @@ if [ -d tests/lcl_nsr ]; then
         echo "FAIL $ndir/entry.aya: exit $got, want 0（nsr 跨模块同名私有函数）"
         fail=$((fail + 1))
     fi
+
+# M8：缺失依赖 .lcl 清晰诊断（此前静默跳过 → 裸链接错误 undefined reference）
+if [ -d tests/lcl_missing_dep ]; then
+    mdir=tests/lcl_missing_dep
+    "$BIN" package "$mdir/src/libb.aya" >/dev/null 2>&1 || true
+    cp "$mdir/src/libb.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    out=$(timeout 120 "$BIN" run "$mdir/entry/entry.aya" 2>&1)
+    got=$?
+    if [ "$got" = 0 ] || ! printf '%s' "$out" | grep -q "depends on 'liba'"; then
+        echo "FAIL $mdir/entry/entry.aya: 期望缺失依赖诊断（got=$got）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$mdir/src/libb.lcl" "$(dirname "$BIN")/std/libb.lcl"
+fi
     rm -f "$(dirname "$BIN")/std/lib.lcl"
 fi
 

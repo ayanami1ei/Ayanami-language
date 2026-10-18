@@ -131,7 +131,7 @@ fn parse_ini_value(s: &str) -> String {
 
 /// 递归解析 .lcl 的依赖闭包（`[deps]` 段按 stem 记录）：
 /// 每个 stem 依次在引用方目录、std 目录、cwd 查找；返回去重后的路径（不含入口自身）。
-pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf> {
+pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>> {
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
     let mut queue = vec![std::path::PathBuf::from(path)];
@@ -147,15 +147,21 @@ pub fn resolve_package_deps(path: &str) -> Vec<std::path::PathBuf> {
             } else {
                 None
             };
-            if let Some(c) = candidate {
-                if seen.insert(c.clone()) {
-                    out.push(c.clone());
-                    queue.push(c);
-                }
+            let Some(c) = candidate else {
+                // M8：缺失依赖给出清晰诊断（此前静默跳过 → 裸链接错误 undefined reference）
+                return Err(Error::Import(format!(
+                    "package '{}' depends on '{}', but '{}.lcl' was not found (searched: {} and the std directory); rebuild or install the dependency",
+                    p.file_stem().unwrap_or_default().to_string_lossy(),
+                    stem, stem, dir.display()
+                )));
+            };
+            if seen.insert(c.clone()) {
+                out.push(c.clone());
+                queue.push(c);
             }
         }
     }
-    out
+    Ok(out)
 }
 
 /// A5b-3：读取 .lcl 的依赖包 stem 列表（`[deps]` 段；旧包/无依赖返回空）。

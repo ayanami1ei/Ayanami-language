@@ -1,0 +1,6 @@
+// M8：libb.lcl 存在但 liba.lcl 缺失 → 应报清晰诊断（此前为裸链接错误 undefined reference）
+import "libb"
+
+fn main() -> int {
+    return from_b()
+}

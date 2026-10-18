@@ -1,0 +1,4 @@
+// M8 夹具：libb 的依赖（仅源码——不提供 liba.lcl，用于缺失依赖诊断）
+pub fn use_a() -> int {
+    return 1
+}
