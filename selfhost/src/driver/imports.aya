@@ -311,10 +311,30 @@ pub fn collect_lines(ref String file, ref Deps deps, ref mut Seen seen, ref mut 
                 if pv.len > 0 {
                     if !seen.has(mdir + pv) { seen.add(mdir + pv); }
                 } else {
-                    // std 源码回退（AYANAMI_STD_SRC=1）
-                    sp2 = std_src_path(fdir, al);
-                    if sp2.len > 0 {
-                        if !seen.has(sp2) { seen.add(sp2); }
+                    added = 0;
+                    // 相对路径 import（如 "../std/std.aya"）：按文件目录直接解析
+                    if Path::is_aya(al) {
+                        rp = Path::join(fdir, al);
+                        if file_exists(rp) {
+                            if !seen.has(rp) { seen.add(rp); }
+                            added = 1;
+                        }
+                        if added == 0 {
+                            // 再按文件名在 std/src 各子目录查（std 源码合并）
+                            st2 = Path::stem(Path::file_name(al));
+                            sp3 = std_src_path(fdir, st2);
+                            if sp3.len > 0 {
+                                if !seen.has(sp3) { seen.add(sp3); }
+                                added = 1;
+                            }
+                        }
+                    }
+                    if added == 0 {
+                        // std 源码回退（AYANAMI_STD_SRC=1）
+                        sp2 = std_src_path(fdir, al);
+                        if sp2.len > 0 {
+                            if !seen.has(sp2) { seen.add(sp2); }
+                        }
                     }
                 }
                 // import 行补空行：保持本文件行号与原始一致

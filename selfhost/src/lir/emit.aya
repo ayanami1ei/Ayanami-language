@@ -2423,13 +2423,13 @@ fn emit_forin_next(ref Ast ast, ref String it_nm, int it_kind, ref String it_ty,
     return mk_int(t);
 }
 
-/// for-in 载荷：Option 的 Some 第 0 个载荷
+/// 变体第 0 个载荷（for-in 的 Some / ? 的 Ok）
 #[alloc]
 #[state]
-fn emit_forin_payload(ref Ast ast, ref String opt_a, ref String en_name, ref mut Emitter e) -> Val {
+fn emit_variant_payload(ref Ast ast, ref String opt_a, ref String en_name, ref String variant, ref mut Emitter e) -> Val {
     ei = e.find_enum_idx(en_name);
     if ei < 0 { return mk_int("0"); }
-    vi = e.find_variant_idx(ei, "Some");
+    vi = e.find_variant_idx(ei, variant);
     if vi < 0 { return mk_int("0"); }
     sl = e.payload_slot(ast, ei, vi, 0);
     pty = e.variant_ptype(ei, vi, 0);
@@ -4695,9 +4695,29 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(rp);
             e.buf.push_str(" = load ptr, ptr %v_");
             e.buf.push_str(nm);
-            e.buf.push_str(".p");
-            e.buf.push_str("\n  ");
+            e.buf.push_str(".p\n");
+            e30 = e.etype_of_local(nm);
+            if e30 >= 5000 && e30 < 5128 {
+                // ref 到结构体：槽里存的是结构体指针槽地址，再解一层
+                rv30 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(rv30);
+                e.buf.push_str(" = load ptr, ptr ");
+                e.buf.push_str(rp);
+                e.buf.push_str("\n");
+                return Val { kind = 2, a = rv30, b = e.st_names[e30 - 5000].copy(), ty = -1 };
+            }
+            if e30 >= 6000 && e30 < 6128 {
+                rv30e = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(rv30e);
+                e.buf.push_str(" = load ptr, ptr ");
+                e.buf.push_str(rp);
+                e.buf.push_str("\n");
+                return Val { kind = 4, a = rv30e, b = e.en_names[e30 - 6000].copy(), ty = -1 };
+            }
             rv2 = e.fresh();
+            e.buf.push_str("  ");
             e.buf.push_str(rv2);
             e.buf.push_str(" = load i64, ptr ");
             e.buf.push_str(rp);
@@ -5280,6 +5300,65 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             f = ast.nexts[f];
         }
         return Val { kind = 2, a = t, b = nm.copy(), ty = -1 };
+    }
+    if tag == et(ET::TryOp._tag) {
+        // `expr?`：枚举 tag != Ok/Some 则从当前函数原样返回，否则取载荷
+        v_try = emit_expr(ast, ast.aa[id], e);
+        if v_try.kind != 4 { return v_try; }
+        en_try = v_try.b.copy();
+        ei_try = e.find_enum_idx(en_try);
+        ok_i = -1;
+        ok_nm = "Ok";
+        if ei_try >= 0 {
+            ok_i = e.find_variant_idx(ei_try, "Ok");
+            if ok_i < 0 {
+                ok_i = e.find_variant_idx(ei_try, "Some");
+                ok_nm = "Some";
+            }
+        }
+        gt_try = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(gt_try);
+        e.buf.push_str(" = getelementptr %enum.");
+        e.buf.push_str(en_try);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(v_try.a);
+        e.buf.push_str(", i32 0, i32 0\n  ");
+        tg_try = e.fresh();
+        e.buf.push_str(tg_try);
+        e.buf.push_str(" = load i64, ptr ");
+        e.buf.push_str(gt_try);
+        e.buf.push_str("\n  ");
+        c_try = e.fresh();
+        e.buf.push_str(c_try);
+        e.buf.push_str(" = icmp ne i64 ");
+        e.buf.push_str(tg_try);
+        e.buf.push_str(", ");
+        e.buf.push_int(ok_i);
+        e.buf.push_str("\n  br i1 ");
+        e.buf.push_str(c_try);
+        err_l = label(e, "try.err.");
+        ok_l = label(e, "try.ok.");
+        e.buf.push_str(", label %");
+        e.buf.push_str(err_l);
+        e.buf.push_str(", label %");
+        e.buf.push_str(ok_l);
+        e.buf.push_str("\n");
+        e.buf.push_str(err_l);
+        e.buf.push_str(":\n");
+        e.terminated = 1;
+        pi_try = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(pi_try);
+        e.buf.push_str(" = ptrtoint ptr ");
+        e.buf.push_str(v_try.a);
+        e.buf.push_str(" to i64\n  ret i64 ");
+        e.buf.push_str(pi_try);
+        e.buf.push_str("\n");
+        e.buf.push_str(ok_l);
+        e.buf.push_str(":\n");
+        e.terminated = 0;
+        return emit_variant_payload(ast, v_try.a, en_try, ok_nm, e);
     }
     if tag == et(ET::FieldAccess._tag) {
         // _data_<Variant>._<N>：整体识别（内层不能单独发射，否则会先退化成 0）
@@ -6665,6 +6744,20 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             // r = ref mut X：局部存引用（kind 30）
             ad = addr_of_arg(ast, ast.aa[rhs_id], e);
             e.declare_local(nm, 30);
+            // 记录被引用目标类型（结构体 5000+si / 枚举 6000+ei），供解引用/方法派发
+            inner_id = ast.aa[rhs_id];
+            if inner_id >= 0 {
+                if ast.tags[inner_id] == et(ET::Ident._tag) {
+                    pnm = ast.texts[inner_id];
+                    pkd = e.local_kind(pnm);
+                    if pkd >= 100 && pkd < 228 {
+                        e.record_etype(nm, 5000 + (pkd - 100));
+                    } elif pkd == 20 {
+                        pei = e.etype_of_local(pnm);
+                        if pei >= 0 { e.record_etype(nm, 6000 + pei); }
+                    }
+                }
+            }
             e.buf.push_str("  store ptr ");
             e.buf.push_str(ad);
             e.buf.push_str(", ptr %v_");
@@ -7137,7 +7230,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         e.buf.push_str(body_l2);
         e.buf.push_str(":\n");
         e.terminated = 0;
-        v_pl = emit_forin_payload(ast, v_opt.a, v_opt.b, e);
+        v_pl = emit_variant_payload(ast, v_opt.a, v_opt.b, "Some", e);
         if v_pl.kind == 1 {
             e.declare_local(x_nm, 1);
             e.buf.push_str("  store ptr ");
