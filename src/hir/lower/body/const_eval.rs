@@ -8,14 +8,25 @@ impl crate::hir::lower::Ctx {
         ty: Option<&Type>,
         value: &Expr,
         span: &Span,
+        is_pub: bool,
     ) -> Result<()> {
         let (mut hir_ty, mut lit) = self.eval_const_expr(value, &HashMap::new(), 0)?;
-        if matches!(lit, HirLiteral::Array(_)) {
-            return Err(Error::Hir(format!("array constants are not supported yet; use `static` (at {}:{})", span.start_line, span.start_col)));
-        }
         if let Some(ann) = ty {
             let want = ast_type_to_hir(ann, &self.interfaces);
             super::const_coerce::coerce_literal(&mut hir_ty, &mut lit, &want, span)?;
+        }
+        // M6.3b：数组/结构体常量 → 常量表（内部全局，与 static 同发射路径；
+        // 标量 const 仍内联）。此前报「use static」。
+        if matches!(lit, HirLiteral::Array(_) | HirLiteral::Struct(_)) {
+            self.statics.insert(name, crate::hir::HirStatic {
+                name,
+                ty: hir_ty,
+                value: lit,
+                is_mut: false,
+                is_pub,
+                is_external: false,
+            });
+            return Ok(());
         }
         self.consts.insert(name, (hir_ty, lit));
         Ok(())

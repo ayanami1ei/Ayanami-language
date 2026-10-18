@@ -1,0 +1,26 @@
+// M6.3b：常量表 —— const 数组/结构体（含 #[compile_time] 生成）落地为内部全局
+import "io"
+
+struct Point {
+    int x
+    int y
+}
+
+const TABLE = [10, 20, 30]
+const P = Point { x = 1, y = 2 }
+
+#[compile_time]
+fn make() -> [int; 3] {
+    return [7, 8, 9]
+}
+
+const T2 = make()
+
+fn main() -> int {
+    if TABLE[0] != 10 { return 1 }
+    if TABLE[1] != 20 { return 2 }
+    if TABLE[2] != 30 { return 3 }
+    if P.x + P.y != 3 { return 4 }
+    if T2[2] != 9 { return 5 }
+    return 0
+}

@@ -248,6 +248,7 @@ const PI: float = 3.14159
 - 编译期求值并内联（不占运行时存储）：支持字面量（含 0x/后缀）、一元/二元运算、引用此前 const。
 - 可用于数组大小：`buf = [int; MAX_SIZE]`；局部变量可遮蔽 const。
 - 编译期断言：`static_assert(cond)`——条件须为常量（含 `#[compile_time]` 函数调用），false 编译期报错。
+- 常量表：数组/结构体常量（`const TABLE = [..]`、`#[compile_time]` 生成）落地为内部全局，可直接索引/取字段。
 - 设计见 `docs/const-globals.md`（const/static）与 `docs/const-eval.md`（编译期求值/断言/const fn）。
 
 ### 控制流

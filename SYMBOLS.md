@@ -497,8 +497,8 @@ src/hir/lower/body/const_coerce.rs:83: pub(super) fn check_intn_range(v: i64, bi
 src/hir/lower/body/const_coerce.rs:102: fn lit_scalar_type(l: &HirLiteral) -> Option<HirType>
 src/hir/lower/body/const_eval.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/const_eval.rs:5: pub(crate) fn collect_const_decl(
-src/hir/lower/body/const_eval.rs:25: pub(crate) fn collect_static_decl(
-src/hir/lower/body/const_eval.rs:44: pub(crate) fn eval_const_expr(
+src/hir/lower/body/const_eval.rs:36: pub(crate) fn collect_static_decl(
+src/hir/lower/body/const_eval.rs:55: pub(crate) fn eval_const_expr(
 src/hir/lower/body/const_eval_binary.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/const_eval_binary.rs:6: pub(super) fn eval_const_binary(
 src/hir/lower/body/const_fn.rs:4: const MAX_CONST_DEPTH: usize = 64;
@@ -2637,6 +2637,9 @@ example/test_const_fn.aya:18: fn abs(int x) -> int
 example/test_const_fn.aya:25: fn square(int x) -> int { return x * x }
 example/test_const_fn.aya:29: fn main() -> int
 example/test_const_ns.aya:11: fn main() -> int
+example/test_const_table.aya:4: struct Point
+example/test_const_table.aya:13: fn make() -> [int; 3]
+example/test_const_table.aya:19: fn main() -> int
 example/test_constfold.aya:5: fn folded() -> int
 example/test_constfold.aya:10: fn folded_mul() -> int
 example/test_constfold.aya:16: fn folded_cmp_true() -> int

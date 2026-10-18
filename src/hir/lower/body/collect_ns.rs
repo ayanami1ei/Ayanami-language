@@ -83,21 +83,32 @@ impl crate::hir::lower::Ctx {
                     };
                     self.collect_fns_with_ns(items, &nested)?;
                 }
-                Stmt::ConstDecl { name, ty, value, span, .. } => {
-                    self.collect_const_decl(*name, ty.as_ref(), value, span)?;
-                    // M6.1b：顶层导出裸名；命名空间内同时注册/导出限定名 `ns.NAME`
-                    let export = if ns_prefix.is_empty() {
-                        Some(*name)
+                Stmt::ConstDecl { vis, name, ty, value, span, .. } => {
+                    self.collect_const_decl(*name, ty.as_ref(), value, span, vis.is_public())?;
+                    // M6.3b：数组/结构体常量走常量表（statics）——命名空间限定名与 static 一致
+                    if self.statics.contains_key(name) {
+                        if !ns_prefix.is_empty() {
+                            let qualified = Symbol::intern(&format!("{}.{}", ns_prefix, name));
+                            if let Some(st) = self.statics.get(name).cloned() {
+                                self.statics.insert(*name, crate::hir::HirStatic { name: qualified, ..st.clone() });
+                                self.statics.insert(qualified, crate::hir::HirStatic { name: qualified, ..st });
+                            }
+                        }
                     } else {
-                        let qualified = Symbol::intern(&format!("{}.{}", ns_prefix, name));
-                        self.consts.get(name).cloned().map(|e| {
-                            self.consts.insert(qualified, e);
-                            qualified
-                        })
-                    };
-                    if let Some(export) = export {
-                        if let Some((ty, lit)) = self.consts.get(&export).cloned() {
-                            self.const_exports.push((export, ty, lit));
+                        // M6.1b：顶层导出裸名；命名空间内同时注册/导出限定名 `ns.NAME`
+                        let export = if ns_prefix.is_empty() {
+                            Some(*name)
+                        } else {
+                            let qualified = Symbol::intern(&format!("{}.{}", ns_prefix, name));
+                            self.consts.get(name).cloned().map(|e| {
+                                self.consts.insert(qualified, e);
+                                qualified
+                            })
+                        };
+                        if let Some(export) = export {
+                            if let Some((ty, lit)) = self.consts.get(&export).cloned() {
+                                self.const_exports.push((export, ty, lit));
+                            }
                         }
                     }
                 }

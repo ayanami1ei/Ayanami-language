@@ -35,7 +35,7 @@ for f in $FILES; do
         if [ ! -f "$snap" ]; then
             echo "MISSING $snap (run ./scripts/ir_snapshot.sh --update)"
             fail=$((fail + 1))
-        elif ! diff -q <(printf '%s\n' "$out") "$snap" >/dev/null; then
+        elif ! cmp -s <(printf '%s\n' "$out") "$snap" >/dev/null; then
             echo "IR SNAPSHOT DIFF: example/$f.aya ($st) — ./scripts/ir_snapshot.sh --update"
             fail=$((fail + 1))
         fi
@@ -47,7 +47,7 @@ out=$("$BIN" dump llvm example/test_struct.aya 2>/dev/null | sanitize)
 snap="$DIR/test_struct.llvm.txt"
 if [ "$UPDATE" = 1 ]; then
     printf '%s\n' "$out" > "$snap"
-elif ! diff -q <(printf '%s\n' "$out") "$snap" >/dev/null 2>&1; then
+elif ! cmp -s <(printf '%s\n' "$out") "$snap" >/dev/null 2>&1; then
     echo "IR SNAPSHOT DIFF: example/test_struct.aya (llvm)"
     fail=$((fail + 1))
 fi
