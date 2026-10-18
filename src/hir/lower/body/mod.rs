@@ -25,6 +25,7 @@ mod stmt_loops;
 mod ref_assign;
 mod expr_method;
 mod expr_layout;
+mod expr_static_assert;
 mod expr_struct;
 mod match_coverage;
 mod match_lower;

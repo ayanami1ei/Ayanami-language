@@ -16,6 +16,7 @@ impl crate::hir::lower::Ctx {
                 let layout_builtin = matches!(name.as_str().as_str(), "size_of" | "align_of")
                     && !generic_args.is_empty();
                 let known = name.as_str().contains('.')
+                    || name.as_str() == "static_assert"
                     || layout_builtin
                     || cx.known.contains(name)
                     || self.fn_map.contains_key(name)

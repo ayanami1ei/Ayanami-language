@@ -139,3 +139,4 @@ test_generic_explicit.aya 0
 test_generic_nested.aya 0
 test_arena.aya 0
 test_sizeof.aya 0
+test_static_assert.aya 0

@@ -1,0 +1,17 @@
+// Phase 12（P4e-2）：static_assert(cond) 编译期断言（常量条件；含 #[compile_time] 调用）
+import "io"
+
+const LIMIT = 4
+
+#[compile_time]
+fn sq(int x) -> int {
+    return x * x
+}
+
+fn main() -> int {
+    static_assert(1 + 1 == 2)
+    static_assert(LIMIT * 2 == 8)
+    static_assert(sq(3) == 9)
+    static_assert(!(2 > 3))
+    return 0
+}

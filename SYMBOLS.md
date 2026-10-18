@@ -534,6 +534,8 @@ src/hir/lower/body/expr_ops1.rs:180: pub(crate) fn lower_try_op(&mut self, inner
 src/hir/lower/body/expr_reinterpret.rs:7: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_reinterpret.rs:9: pub(crate) fn lower_reinterpret_builtin(
 src/hir/lower/body/expr_reinterpret.rs:48: fn reinterpret_size(ty: &HirType) -> Option<u64>
+src/hir/lower/body/expr_static_assert.rs:6: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_static_assert.rs:8: pub(crate) fn lower_static_assert(&mut self, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_struct.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_struct.rs:5: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_struct.rs:155: fn infer_struct_literal_args(&self, type_name: &Symbol, raw_fields: &[(Symbol, HirNodeBox, Span)]) -> Vec<Type>
@@ -652,41 +654,42 @@ src/hir/lower/body/mod.rs:24: mod stmt_loops;
 src/hir/lower/body/mod.rs:25: mod ref_assign;
 src/hir/lower/body/mod.rs:26: mod expr_method;
 src/hir/lower/body/mod.rs:27: mod expr_layout;
-src/hir/lower/body/mod.rs:28: mod expr_struct;
-src/hir/lower/body/mod.rs:29: mod match_coverage;
-src/hir/lower/body/mod.rs:30: mod match_lower;
-src/hir/lower/body/mod.rs:31: mod match_pattern;
-src/hir/lower/body/mod.rs:32: mod match_setup;
-src/hir/lower/body/mod.rs:33: mod match_util;
-src/hir/lower/body/mod.rs:34: mod usage_infer;
-src/hir/lower/body/mod.rs:35: mod macro_call;
-src/hir/lower/body/mod.rs:36: mod expr_logic;
-src/hir/lower/body/mod.rs:37: mod expr_lower;
-src/hir/lower/body/mod.rs:38: mod if_expr;
-src/hir/lower/body/mod.rs:39: mod ensure;
-src/hir/lower/body/mod.rs:40: mod literal;
-src/hir/lower/body/mod.rs:41: mod collect_enum;
-src/hir/lower/body/mod.rs:42: mod const_coerce;
-src/hir/lower/body/mod.rs:43: mod const_array;
-src/hir/lower/body/mod.rs:44: mod const_struct;
-src/hir/lower/body/mod.rs:45: mod const_eval;
-src/hir/lower/body/mod.rs:46: mod const_fn;
-src/hir/lower/body/mod.rs:47: mod collect_import;
-src/hir/lower/body/mod.rs:48: mod collect_import_path;
-src/hir/lower/body/mod.rs:49: mod expr_access;
-src/hir/lower/body/mod.rs:50: mod expr_call;
-src/hir/lower/body/mod.rs:51: mod expr_call_builtins;
-src/hir/lower/body/mod.rs:52: mod expr_call_args;
-src/hir/lower/body/mod.rs:53: mod expr_call_extra;
-src/hir/lower/body/mod.rs:54: mod block_lower;
-src/hir/lower/body/mod.rs:55: mod expr_cast;
-src/hir/lower/body/mod.rs:56: mod expr_enum;
-src/hir/lower/body/mod.rs:57: mod expr_misc;
-src/hir/lower/body/mod.rs:58: mod expr_ops1;
-src/hir/lower/body/mod.rs:59: mod expr_unary;
-src/hir/lower/body/mod.rs:60: mod expr_method_arrays;
-src/hir/lower/body/mod.rs:61: mod return_check;
-src/hir/lower/body/mod.rs:62: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:28: mod expr_static_assert;
+src/hir/lower/body/mod.rs:29: mod expr_struct;
+src/hir/lower/body/mod.rs:30: mod match_coverage;
+src/hir/lower/body/mod.rs:31: mod match_lower;
+src/hir/lower/body/mod.rs:32: mod match_pattern;
+src/hir/lower/body/mod.rs:33: mod match_setup;
+src/hir/lower/body/mod.rs:34: mod match_util;
+src/hir/lower/body/mod.rs:35: mod usage_infer;
+src/hir/lower/body/mod.rs:36: mod macro_call;
+src/hir/lower/body/mod.rs:37: mod expr_logic;
+src/hir/lower/body/mod.rs:38: mod expr_lower;
+src/hir/lower/body/mod.rs:39: mod if_expr;
+src/hir/lower/body/mod.rs:40: mod ensure;
+src/hir/lower/body/mod.rs:41: mod literal;
+src/hir/lower/body/mod.rs:42: mod collect_enum;
+src/hir/lower/body/mod.rs:43: mod const_coerce;
+src/hir/lower/body/mod.rs:44: mod const_array;
+src/hir/lower/body/mod.rs:45: mod const_struct;
+src/hir/lower/body/mod.rs:46: mod const_eval;
+src/hir/lower/body/mod.rs:47: mod const_fn;
+src/hir/lower/body/mod.rs:48: mod collect_import;
+src/hir/lower/body/mod.rs:49: mod collect_import_path;
+src/hir/lower/body/mod.rs:50: mod expr_access;
+src/hir/lower/body/mod.rs:51: mod expr_call;
+src/hir/lower/body/mod.rs:52: mod expr_call_builtins;
+src/hir/lower/body/mod.rs:53: mod expr_call_args;
+src/hir/lower/body/mod.rs:54: mod expr_call_extra;
+src/hir/lower/body/mod.rs:55: mod block_lower;
+src/hir/lower/body/mod.rs:56: mod expr_cast;
+src/hir/lower/body/mod.rs:57: mod expr_enum;
+src/hir/lower/body/mod.rs:58: mod expr_misc;
+src/hir/lower/body/mod.rs:59: mod expr_ops1;
+src/hir/lower/body/mod.rs:60: mod expr_unary;
+src/hir/lower/body/mod.rs:61: mod expr_method_arrays;
+src/hir/lower/body/mod.rs:62: mod return_check;
+src/hir/lower/body/mod.rs:63: mod expr_reinterpret;
 src/hir/lower/body/overload_method.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_method.rs:9: pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
 src/hir/lower/body/overload_method.rs:28: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
@@ -3037,6 +3040,8 @@ example/test_static.aya:14: fn inc(ref mut int x) -> int
 example/test_static.aya:23: fn main() -> int
 example/test_static_array.aya:6: fn total(ref [int; 4] t) -> int
 example/test_static_array.aya:14: fn main() -> int
+example/test_static_assert.aya:7: fn sq(int x) -> int
+example/test_static_assert.aya:11: fn main() -> int
 example/test_static_struct.aya:2: struct Point
 example/test_static_struct.aya:7: struct Line
 example/test_static_struct.aya:12: struct Buf

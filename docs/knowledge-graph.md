@@ -191,7 +191,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 定宽整数：`i8..i128/u8..u128/isize/usize` —解析→ `fixed_width_int` —HIR→→ `HirType::IntN` —字面量适配→ `as_int_literal`/`retype_int_literal` —发射→ `iN` 算术/`icmp`（按 signed）
 - C 导出：`#[export]`/`extern "C"` 定义 —校验→ `hir/attrs` —HIR→ `extern_c` —MIR/LIR→ 保留函数体 —发射→ 原始符号名（默认可见）
 - runtime：`AYANAMI_RUNTIME`/`[runtime] path` —解析→ `driver/runtime.rs` —链接→ `objects_to_exe_with_runtime`（.c/.a/.o 替代内置 runtime.c）
-- const：`const NAME = expr` —解析→ `Stmt::ConstDecl` —求值→ `hir/lower/body/const_eval.rs` —替换→ `expr_lower.rs`（Ident → `SConst`）—用途→ 数组大小（`ArraySized`）
+- const：`const NAME = expr` —解析→ `Stmt::ConstDecl` —求值→ `hir/lower/body/const_eval.rs` —替换→ `expr_lower.rs`（Ident → `SConst`）—用途→ 数组大小（`ArraySized`）；`static_assert(cond)` —拦截→ `expr_static_assert.rs` —求值→ 同一 const-eval（false 编译期报错）
 - compile_time：`#[compile_time] fn f(...)` —预收集→ `collect_fns`（`ctx.const_fns`）—常量上下文→ 解释执行（`const_fn.rs` + `const_eval.rs`）—运行期→ 普通函数调用
 - 优化模式：`--release` —关溢出/契约检查→ 回绕/assume —推断属性→ `noalias`（`ref mut`/owned）/`nounwind` —内部化→ 非导出函数/全局/vtable wrapper `internal`（LIR4 `is_pub`）—中端→ `opt -O3` + `llc -O3`；debug 跳过 opt
 - static：`static [mut] NAME = expr` —求值→ `const_eval.rs` —HIR→ `SGlobal`（地址）—MIR→ `SMirGlobal` —LIR→ `SLirGlobalAddr` + `LirProgram.globals` —发射→ `@name = global`

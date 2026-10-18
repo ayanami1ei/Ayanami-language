@@ -38,6 +38,11 @@ impl crate::hir::lower::Ctx {
             return self.lower_layout_builtin(name, explicit, &mut hir_args, span);
         }
 
+        // Phase 12：`static_assert(cond)` 编译期断言（const-eval；见 expr_static_assert.rs）
+        if name.as_str() == "static_assert" {
+            return self.lower_static_assert(args, span);
+        }
+
         // Step 2: extract arg types（引用实参另存解引用类型，用于回退解析）
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();

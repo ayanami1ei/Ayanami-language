@@ -1,6 +1,6 @@
 # 编译期求值与约束（const fn / 类型级）— P4e 接口预留
 
-> 状态：**P4e-1 接口边界确认（接入点在位）；P4e-2/P4e-3 待做（#58 / bd `nku.2`）**（2026-10-17 / 2026-10-18）
+> 状态：**P4e-1 接口边界确认；P4e-2 部分实现（`#[compile_time]` 编译期求值 + `static_assert` 已落地；const if/type-level 待做）；P4e-3 待做（#58 / bd `nku.2`）**（2026-10-17 / 2026-10-18）
 > 关联：GitHub #58（const fn / 编译期断言 / type-level constants）、#48/#49（Phase 4 统一推断）、
 > bd `Ayanami-language-upt.2`（P4e）；文档：`docs/generic-inference.md`、`docs/annotations.md`（效应）
 > 目标：为 `const fn`、编译期断言、类型级常量建立**统一求值/约束接口**，并与
@@ -56,7 +56,7 @@ trait ConstConstraint {
 | 阶段 | 内容 | 验收 |
 |---|---|---|
 | **P4e-1**（本文档） | 接口边界 + 现状盘点 + 最小接入点说明 | 文档评审通过；后续实现不得新开求值链 |
-| P4e-2 | `const fn`（`#[pure]` 函数编译期求值）+ 编译期断言（`static_assert`/`const if`） | 正例：const fn 求值进 `const`/数组尺寸；负例：非纯函数/溢出位置化报错 |
+| P4e-2 | `const fn`（`#[compile_time]` 已实现）+ 编译期断言（`static_assert` **已实现**；`const if` 待做） | 正例：`example/test_static_assert.aya`（常量/`#[compile_time]` 调用）；负例：`static_assert_fail` / `static_assert_nonconst` |
 | P4e-3 | const generics（`[T; N]` 参数化 + 单态化） | 正例：`struct Buf[T; N]` 按 N 单态化；与 P4c unify 共用替换表 |
 
 ## 4. 实现状态
