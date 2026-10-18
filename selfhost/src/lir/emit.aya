@@ -3527,10 +3527,10 @@ fn tail_is_float(ref Ast ast, int blk) -> int {
 }
 
 /// if 表达式分支：发射块语句 + 块尾值（存入 res）
-fn emit_if_branch(ref Ast ast, int blk, ref String res, int want_float, ref mut Emitter e) {
-    if blk < 0 { return; }
+fn emit_if_branch(ref Ast ast, int blk, ref String res, int want_float, ref mut Emitter e) -> int {
+    if blk < 0 { return 0; }
     emit_stmts(ast, ast.aa[blk], e);
-    if e.terminated == 1 { return; }
+    if e.terminated == 1 { return 0; }
     tail = ast.bb[blk];
     if tail >= 0 {
         tv = emit_expr(ast, tail, e);
@@ -3564,16 +3564,48 @@ fn emit_if_branch(ref Ast ast, int blk, ref String res, int want_float, ref mut 
             e.buf.push_str(", ptr ");
             e.buf.push_str(res);
             e.buf.push_str("\n");
+            return 0;
         } else {
-            store_match_val(tv, res, e);
+            return store_match_val(tv, res, e);
         }
     }
+    return 0;
 }
 
-/// 分支尾值存入 i64 结果槽（指针类值先 ptrtoint）
+/// 分支尾值存入 i64 结果槽（指针类值先 ptrtoint；String 装箱为 16 字节单元，槽存单元指针）
+/// 返回 1 表示本次存的是 String 单元（结果槽按 String 解释）
 #[alloc]
-fn store_match_val(ref Val tv, ref String res, ref mut Emitter e) {
-    if tv.kind == 2 || tv.kind == 3 || tv.kind == 4 {
+fn store_match_val(ref Val tv, ref String res, ref mut Emitter e) -> int {
+    if tv.kind == 1 {
+        cell = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(cell);
+        e.buf.push_str(" = call ptr @malloc(i64 16)\n  store ptr ");
+        e.buf.push_str(tv.a);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(cell);
+        e.buf.push_str("\n  ");
+        c8 = e.fresh();
+        e.buf.push_str(c8);
+        e.buf.push_str(" = getelementptr i8, ptr ");
+        e.buf.push_str(cell);
+        e.buf.push_str(", i64 8\n  store i64 ");
+        e.buf.push_str(tv.b);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(c8);
+        e.buf.push_str("\n  ");
+        pi = e.fresh();
+        e.buf.push_str(pi);
+        e.buf.push_str(" = ptrtoint ptr ");
+        e.buf.push_str(cell);
+        e.buf.push_str(" to i64\n  store i64 ");
+        e.buf.push_str(pi);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(res);
+        e.buf.push_str("\n");
+        return 1;
+    }
+    if tv.kind == 2 || tv.kind == 3 || tv.kind == 4 || tv.kind == 21 {
         pv = e.fresh();
         e.buf.push_str("  ");
         e.buf.push_str(pv);
@@ -3584,13 +3616,41 @@ fn store_match_val(ref Val tv, ref String res, ref mut Emitter e) {
         e.buf.push_str(", ptr ");
         e.buf.push_str(res);
         e.buf.push_str("\n");
-        return;
+        return 0;
     }
     e.buf.push_str("  store i64 ");
     e.buf.push_str(tv.a);
     e.buf.push_str(", ptr ");
     e.buf.push_str(res);
     e.buf.push_str("\n");
+    return 0;
+}
+
+/// String 结果槽拆包：槽内 i64 是 16 字节单元指针（ptr + len）
+#[alloc]
+fn unpack_str_res(ref String slot_i64, ref mut Emitter e) -> Val {
+    pc = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(pc);
+    e.buf.push_str(" = inttoptr i64 ");
+    e.buf.push_str(slot_i64);
+    e.buf.push_str(" to ptr\n  ");
+    rp = e.fresh();
+    e.buf.push_str(rp);
+    e.buf.push_str(" = load ptr, ptr ");
+    e.buf.push_str(pc);
+    e.buf.push_str("\n  ");
+    rl8 = e.fresh();
+    e.buf.push_str(rl8);
+    e.buf.push_str(" = getelementptr i8, ptr ");
+    e.buf.push_str(pc);
+    e.buf.push_str(", i64 8\n  ");
+    rl = e.fresh();
+    e.buf.push_str(rl);
+    e.buf.push_str(" = load i64, ptr ");
+    e.buf.push_str(rl8);
+    e.buf.push_str("\n");
+    return mk_str_tmp(rp, rl);
 }
 
 /// if 表达式：条件链 + 分支块尾值合流
@@ -3602,6 +3662,7 @@ fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     e.buf.push_str("  ");
     e.buf.push_str(res);
     e.buf.push_str(" = alloca i64\n");
+    sf = 0;
     c = emit_expr(ast, ast.aa[id], e);
     then_l = label(e, "ifx.then.");
     next_l = label(e, "ifx.next.");
@@ -3620,7 +3681,7 @@ fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     e.buf.push_str(then_l);
     e.buf.push_str(":\n");
     e.terminated = 0;
-    emit_if_branch(ast, ast.bb[id], res, is_float_res, e);
+    sf = sf | emit_if_branch(ast, ast.bb[id], res, is_float_res, e);
     if e.terminated == 0 {
         e.buf.push_str("  br label %");
         e.buf.push_str(end_l);
@@ -3650,7 +3711,7 @@ fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         e.buf.push_str(then_l2);
         e.buf.push_str(":\n");
         e.terminated = 0;
-        emit_if_branch(ast, ast.bb[en], res, is_float_res, e);
+        sf = sf | emit_if_branch(ast, ast.bb[en], res, is_float_res, e);
         if e.terminated == 0 {
             e.buf.push_str("  br label %");
             e.buf.push_str(end_l);
@@ -3664,7 +3725,7 @@ fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     e.terminated = 0;
     e2 = ast.dd[id];
     if e2 >= 0 {
-        emit_if_branch(ast, e2, res, is_float_res, e);
+        sf = sf | emit_if_branch(ast, e2, res, is_float_res, e);
     }
     if e.terminated == 0 {
         e.buf.push_str("  br label %");
@@ -3680,6 +3741,9 @@ fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     e.buf.push_str(" = load i64, ptr ");
     e.buf.push_str(res);
     e.buf.push_str("\n");
+    if sf == 1 {
+        return unpack_str_res(rv, e);
+    }
     if is_float_res == 1 {
         fd = e.fresh();
         e.buf.push_str("  ");
@@ -3701,6 +3765,7 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
     if cnt == 0 { return mk_int("0"); }
     end_l = label(e, "match.end.");
     res = "";
+    sf_m = 0;
     if want_value == 1 {
         res = e.fresh();
         e.buf.push_str("  ");
@@ -3811,21 +3876,21 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
                     emit_stmt(ast, body, e);
                 } elif btag == st(ST::ExprStmt._tag) {
                     v = emit_expr(ast, ast.aa[body], e);
-                    store_match_val(v, res, e);
+                    sf_m = sf_m | store_match_val(v, res, e);
                 } elif btag == st(ST::Block._tag) {
                     emit_stmts(ast, ast.aa[body], e);
                     if e.terminated == 0 {
                         tail_m = ast.bb[body];
                         if tail_m >= 0 {
                             tv_m = emit_expr(ast, tail_m, e);
-                            store_match_val(tv_m, res, e);
+                            sf_m = sf_m | store_match_val(tv_m, res, e);
                         }
                     }
                 } elif btag == st(ST::If._tag) {
                     // 臂体是尾位置 if（无花括号）：按 if 表达式取值
                     // （ST::If 与 ET::If 字段布局相同：aa=cond bb=then cc=elifs dd=else）
                     v_if = emit_if_expr(ast, body, e);
-                    store_match_val(v_if, res, e);
+                    sf_m = sf_m | store_match_val(v_if, res, e);
                 } else {
                     emit_stmt(ast, body, e);
                 }
@@ -3848,6 +3913,9 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
         e.buf.push_str(" = load i64, ptr ");
         e.buf.push_str(res);
         e.buf.push_str("\n");
+        if sf_m == 1 {
+            return unpack_str_res(rv, e);
+        }
         return mk_int(rv);
     }
     return mk_int("0");
