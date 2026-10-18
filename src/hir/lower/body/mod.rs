@@ -15,6 +15,7 @@ mod iface_match;
 mod overload_resolve;
 mod overload_method;
 mod generic_check;
+mod generic_check_expr;
 mod generic_locals;
 mod generic_specialize;
 mod generic_types;

@@ -187,7 +187,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 模块私有（nsr 可见性层）：非 pub 自由函数 —导出→ `.lcl` `private` 标记（`package/symbols.rs`）—导入→ 不注册进导入方符号表（`collect_import.rs`；extern `"C"`/`#[export]` 豁免）；private static —多模块→ `internal`（`lir/emit/consts.rs`）；来源作用域解析/模块限定名属 M6 后续
 - 工具链：`check_all` ⊃ `check_version` + `check_file_sizes` + `gen_symbols --check` + `check_warnings` + `regression` + `ir_snapshot`
 - 标注：`#[...]` —校验→ `hir/attrs` —携带→ MIR/LIR(`LirAttr`/`ExternDecl`) —映射→ LLVM 属性（A1 函数级）—计划→ 效应（A3）/生命周期（A4）
-- 泛型/内联：定义以**源码**随 `.lcl` 导出（`source=`）→ 导入方本地重新实例化 → 发射 `linkonce_odr` 弱链接去重（#100 设计）
+- 泛型/内联：定义以**源码**随 `.lcl` 导出（`source=`）→ 导入方本地重新实例化 → 发射 `linkonce_odr` 弱链接去重（#100 设计）；特化名附泛型实参（`f$int`，`generic_specialize.rs`）——T 无关签名（如 `sz[T]() -> int`）两次特化不误复用同一符号（2026-10-18）
 - 定宽整数：`i8..i128/u8..u128/isize/usize` —解析→ `fixed_width_int` —HIR→→ `HirType::IntN` —字面量适配→ `as_int_literal`/`retype_int_literal` —发射→ `iN` 算术/`icmp`（按 signed）
 - C 导出：`#[export]`/`extern "C"` 定义 —校验→ `hir/attrs` —HIR→ `extern_c` —MIR/LIR→ 保留函数体 —发射→ 原始符号名（默认可见）
 - runtime：`AYANAMI_RUNTIME`/`[runtime] path` —解析→ `driver/runtime.rs` —链接→ `objects_to_exe_with_runtime`（.c/.a/.o 替代内置 runtime.c）

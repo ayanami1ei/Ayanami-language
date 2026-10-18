@@ -21,6 +21,7 @@ mod mir_ptr_ops;
 mod mir_conv;
 mod place;
 pub(crate) mod names;
+pub(crate) use names::type_to_mangle;
 mod strings;
 mod util;
 

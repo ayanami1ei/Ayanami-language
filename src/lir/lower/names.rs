@@ -62,7 +62,7 @@ pub(crate) fn mangle(prefix: &str, name: &str, params: &[(crate::intern::Symbol,
     }
 }
 
-pub(super) fn type_to_mangle(ty: &HirType) -> String {
+pub(crate) fn type_to_mangle(ty: &HirType) -> String {
     match ty {
         HirType::Int => "int".into(),
         HirType::Float => "float".into(),

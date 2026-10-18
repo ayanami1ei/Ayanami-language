@@ -186,11 +186,21 @@ impl crate::hir::lower::Ctx {
 
 
 
-        // 去重：检查是否已存在相同签名的特化函数
+        // 特化名：附加泛型实参（`sz[T]() -> int` 等 T 无关签名两次特化必须区分，
+        // 否则会误复用首个特化并生成同名符号）
+        let args_suffix: String = gf_params.iter()
+            .filter_map(|(gp, _)| generic_mappings.get(gp))
+            .map(crate::lir::lower::type_to_mangle)
+            .collect::<Vec<_>>()
+            .join("_");
+        let specialized_name = Symbol::intern(&format!("{}${}", name.as_str(), args_suffix));
+
+        // 去重：签名 + 特化名（含泛型实参）都一致才复用
         if let Some(existing) = self.fn_map.get(name).and_then(|ids| {
             ids.iter().find(|id| {
                 let s = &self.fns[id.0];
-                s.params == hir_params && s.return_type == hir_return
+                s.name == specialized_name
+                    && s.params == hir_params && s.return_type == hir_return
             })
         }) {
             return Ok(*existing);
@@ -200,7 +210,7 @@ impl crate::hir::lower::Ctx {
         let hidden = count_hidden_params(&hir_params);
         let is_noreturn = matches!(hir_return, HirType::Never);
         self.fns.push(FnSig {
-            name: *name,
+            name: specialized_name,
             params: hir_params,
             return_type: hir_return,
             span: crate::span::Span::default(),

@@ -17,6 +17,12 @@ struct Small {
     bool b
 }
 
+// 特化去重回归：T 无关签名（`sz[T]() -> int`）两次特化必须各自正确
+// （此前按签名去重 → 误复用首个特化 → 静默错值）
+fn sz[T]() -> int {
+    return size_of[T]()
+}
+
 fn main() -> int {
     if size_of[int]() != 8 { return 1 }
     if align_of[int]() != 8 { return 2 }
@@ -35,5 +41,8 @@ fn main() -> int {
     if size_of[Ptr[Point]]() != 8 { return 15 }
     if size_of[[int]]() != 8 { return 16 }
     if align_of[ref int]() != 8 { return 17 }
+    if sz[int]() != 8 { return 18 }
+    if sz[Point]() != 16 { return 19 }
+    if sz[bool]() != 1 { return 20 }
     return 0
 }
