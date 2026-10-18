@@ -232,11 +232,12 @@ pub fn load_deps(ref String manifest_dir) -> Deps {
     return d;
 }
 
-/// 是否启用 std 源码合并（默认关，避免影响自举固定点）
+/// 是否启用 std 源码合并（默认开；AYANAMI_STD_SRC=0 关闭）
+/// 自举源码自身的 import 全部经 ayanami.toml 解析，不会落到 std 回退
 fn std_src_enabled() -> int {
     v = env("AYANAMI_STD_SRC");
-    if v == "1" { return 1; }
-    return 0;
+    if v == "0" { return 0; }
+    return 1;
 }
 
 /// 在 std 源码树中查模块：从 start_dir 向上找 std/src/{core,collections,system,meta,dev}/<stem>.aya
