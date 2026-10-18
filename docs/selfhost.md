@@ -246,8 +246,15 @@ selfhost/
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
 | M5 | 🔄 进行中 | M5a-e 端到端：**17/17** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
-| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅；M6u prelude（String/char/int 方法补全）/int.to_string/静态结构体全局 ✅；M6v 接口 vtable 动态派发 + for-in 迭代器协议 + 哨兵/合成 id 冲突修复 ✅；M6w ref 结构体解引用 + `?` 运算符 + import 三层回退 + **std 源码合并转正（默认开）** ✅。example diff **102/153**（2026-10-18，同步 rust 后例子数 145 -> 153）；运行时对照 **135/153**（stage-0 vs stage-1 默认模式） |
-| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-18 md5 `8f8ea3b0e7e9a21f430d6b1e8eae6f4e`） |
+| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅；M6u prelude（String/char/int 方法补全）/int.to_string/静态结构体全局 ✅；M6v 接口 vtable 动态派发 + for-in 迭代器协议 + 哨兵/合成 id 冲突修复 ✅；M6w ref 结构体解引用 + `?` 运算符 + import 三层回退 + **std 源码合并转正（默认开）** ✅。example diff **108/153**（2026-10-18，同步 rust 后例子数 145 -> 153）；运行时对照 **135/153**（stage-0 vs stage-1 默认模式） |
+| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-18 md5 `e40d8504945c9f73c3f7d82fbfba4f6d`） |
+
+M6z 交付（2026-10-18，UFCS + 驱动消息对齐）：**UFCS 方法语法**（新 std「方法语法链」依赖，
+如 `f.replace_int(i, v)` 调自由函数 `replace_int(ref mut MirFunction, ...)`）：检查器在方法
+找不到时回退同名自由函数（首参去 ref 后与接收者同名）；发射器 `find_fn_by_recv` +
+`emit_ufcs_call`（接收者按 `fn_param_kind(full,0)` 以 i64/ptr/临时槽/浮点传入）。
+**驱动错误消息对齐**：llc/链接失败统一 `link failed: driver error: ...`（对齐 rust target.rs
+包装格式）；`check warnings: N` 计数行默认不打印（`AYANAMI_SELFHOST_DEBUG=1` 开启）。
 
 M6y 交付（2026-10-18，诊断坐标回映）：**SrcMap** 行映射（见坑 33）。剩余 diff 类别主要是
 新语言特性：宏引擎（7 例）、单态化（3 例）、Ptr 内置（1 例）、asm（2 例）、标注检查
