@@ -12,6 +12,7 @@
 | `AGENTS.md` | AI 协作入口：命令、陷阱、约定、分支/版本规则 |
 | `docs/knowledge-graph.md` | 本文件：概念与代码的映射 |
 | `docs/module-graph.md` | 生成物：顶层模块依赖图（Mermaid） |
+| `docs/bootstrap.md` | Compiler Bootstrap / self-hosting 路线（Phase 0.4） |
 | `docs/annotations.md` | 标注系统（标注式编程）设计：A0–A5 路线 |
 | `docs/generic-monomorphization.md` | 泛型结构体/枚举单态化（最小实现完成） |
 | `docs/lifetimes.md` | 注解式生命周期 `#[follow_with]` 设计（A4） |
@@ -19,10 +20,15 @@
 | `docs/c-interop.md` | C 互操作（`#[export]`）与 runtime 选择（`[runtime] path`/`AYANAMI_RUNTIME`，已实现） |
 | `docs/typeclass.md` | typeclass/`Self`/关联类型设计（T1 已实现，其余评估关闭） |
 | `docs/const-globals.md` | const / static / 编译期求值设计（M6.1 已实现） |
+| `docs/const-eval.md` | 编译期求值与约束设计（P4e-1 接口边界；const fn / 类型级跟踪 #58） |
 | `docs/optimization.md` | debug/release 双模式与语义优化（M-opt.1 已实现） |
 | `docs/never-type.md` | never 类型 `!`（M1.9：发散表达式、`! → T`、`-> !` 发射） |
-| `docs/pattern-matching.md` | 模式匹配增强（Phase 1.3：atb.1 字面量/`_`/`|`/guard 已实现） |
-| `docs/closures.md` | 闭包与捕获（M2：`Fn(T)->U` 类型、按值/可变捕获、接口机制复用） |
+| `docs/pattern-matching.md` | 模式匹配增强（Phase 1.3：atb.1/2/3 已实现——字面量/`_`/`|`/guard、嵌套/解构/range、穷尽检查） |
+| `docs/closures.md` | 闭包与捕获（M2 完成：`Fn(T)->U`/`FnOnce` 类型、按值/可变捕获、接口机制复用） |
+| `docs/iterators.md` | 迭代器与 for（M3：for-in 协议 + 泛型接口虚调用；std 适配器已落地） |
+| `docs/refs-storage.md` | 引用存储（M4 设计：需求分类 + 阶段 1 `Ptr[T]` 已落地；arena 方案 hfj.2 跟踪） |
+| `docs/unsafe.md` | unsafe / FFI 安全边界（M5：P1/P2/P3 已落地；P4 extern 调用迁移待做） |
+| `docs/runtime-safety.md` | 运行时安全行为权威清单（UB/panic；`tests/runtime_safety/` 覆盖） |
 | `docs/future-directions.md` | 未来规划（探索，未实现）：统一引用关系模型 + 环境注入 |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |

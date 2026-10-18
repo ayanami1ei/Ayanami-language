@@ -1,6 +1,6 @@
 # M5：unsafe / FFI 安全边界（设计）
 
-> 状态：**设计完成；P1（`unsafe {}` / `unsafe fn` + asm/unsafe-call 门控）实施中**（2026-10-07）
+> 状态：**设计完成；P1/P2/P3 已落地；P4（extern/asm 调用迁移，std 协作）待做**（2026-10-07 / 2026-10-18）
 > 关联：bd `Ayanami-language-576`（epic）、GitHub #6；联动 #143（static mut）、#71（指针↔int）
 > 依赖说明：bd 中 M5 链接了 Phase 4（泛型推断统一化），但 P1 的语法与检查与泛型推断无耦合，
 > 可先行；P2+ 的 raw pointer 泛型化再与 Phase 4 对齐。
