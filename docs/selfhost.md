@@ -95,6 +95,19 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     入口把 `_data_<V>._<N>` 作为**组合**处理——先发射内层会退化成 0（外层拿不到枚举值）。
     回归用例 `tests/e2e/e_payload_field.aya`；配套 prelude 增加 `Option[T]`（is_some/is_none/unwrap_or/or）。
 
+29. **lambda 形参不得被捕获扫描当自由变量（已修，2026-10-18）**：`cap_scan_node` 只看
+    `local_kind(name) >= 0`，外层同名局部（如 for-in 的 `x`）会被误捕获进 `(int x) -> int { x * 2 }`，
+    导致闭包读到外层旧值/未初始化槽（段错误）。修复：`lam_param_of` 排除 lambda 自身形参。
+30. **哨兵/合成 id 不得与真实 AST 节点 id 冲突（已修，2026-10-18）**：`elem_llvm_m` 曾把
+    `ety >= 2000` 一律当哨兵放行，合并 std 后真实节点 id 超过 2000（`LinkedList` 的 `[T]` 字段元素
+    类型被误判 `ptr`，llc 报 `'%t23' defined with type 'i64' but expected 'ptr'`）。修复：合成 id
+    改负值（`-1000-si` / `-2000-ei`），哨兵只按精确值 2000-2002 判定；泛型元素（Named/Generic 且非
+    结构体/枚举/接口）归 i64。
+31. **for-in/接口约定的两个 ABI 要点**：迭代器隐藏局部的 `.p` 是**槽地址**，静态 `next()` 调用前必须
+    `load ptr` 取值（接口分支同理）；接口值 = `malloc(16)` 的 `{data, vtable}` box，`data` 是方法
+    `self` 直接可用的指针（结构体/枚举取堆指针，int/float/String 先装箱成堆单元），vtable 槽位 =
+    接口方法声明顺序，接口名从局部 `etype`（形参序言记录）取。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash
@@ -222,8 +235,23 @@ selfhost/
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
 | M5 | 🔄 进行中 | M5a-e 端到端：**17/17** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
-| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅；M6u prelude（String/char/int 方法补全）/int.to_string/静态结构体全局 ✅。example diff **79/143**（2026-10-17，`./scripts/selfhost.sh diff`） |
-| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-17 md5 `659362df66d16429332dc91e533b0eb4`） |
+| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅；M6u prelude（String/char/int 方法补全）/int.to_string/静态结构体全局 ✅；M6v 接口 vtable 动态派发 + for-in 迭代器协议 + 哨兵/合成 id 冲突修复 ✅。example diff **91/145**（两种模式一致，2026-10-18）；运行时对照 **126/145**（stage-0 默认 vs stage-1 std 合并） |
+| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-18 md5 `7f34f3b83805ee5cb4e6b1b595a55053`） |
+
+M6v 交付（2026-10-18，接口 vtable + for-in）：
+
+**接口 vtable 动态派发**（对齐 rust 侧 `{data, vtable}` 装箱设计）：接口形参按 `ptr` 传（box 指针）；
+调用点对具体值自动装箱（`emit_box`：malloc(16) `{data, vtable}`，int/float/String 先装箱成堆单元）；
+接收者 kind 21 经 `emit_iface_dispatch` 间接调用（vtable 槽位 = 接口方法声明顺序）；接口返回类型
+（`ret_kind 6`）装箱 + `ptrtoint`，调用点 `inttoptr` 还原；接口结构体字段（`fill_struct fk 6`）与字面量
+自动装箱；`emit_vtables` 按登记的 (类型.接口) 对发射 `@vtable.<T>.<I>` 全局（条目 = impl 方法本体，
+primitive 的 `self` 本就是指向值的指针，与 box `data` 一致，无需 thunk）。
+**for-in 发射器**（此前完全缺失）：`ST::ForIn` 直接发射迭代器协议（`next() -> Option`，tag==Some 循环），
+`emit_forin_next`（结构体/枚举静态调用、接口 vtable 派发）+ `emit_forin_payload`；break/continue/嵌套可用。
+**哨兵/合成 id 冲突修复**：见坑 30；**闭包形参遮蔽修复**：见坑 29。
+验收：diff 88 → **91/145**（test_oop/test_for_in/test_iter_infer 转正）；std 合并模式下
+test_iface_box/test_iface_field/test_constructors/test_collection_any/test_usage_infer/test_early_return_move/
+test_arraylist 行为通过；固定点保持。
 
 M6u 交付（2026-10-17）：**prelude**（`selfhost/src/base/prelude.aya`，纯 Ayanami 实现 std 缺失方法：
 String trim/contains/index_of/repeat/to_upper/to_lower/parse_int/is_int、char is_space/is_digit/is_alpha/is_alnum/
