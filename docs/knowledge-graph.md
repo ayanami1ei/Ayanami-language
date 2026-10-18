@@ -30,6 +30,7 @@
 | `docs/refs-storage.md` | 引用存储（M4：阶段 1 `Ptr[T]` 已落地；阶段 2 Arena 语言能力 + 示例完成，std 移植待做） |
 | `docs/unsafe.md` | unsafe / FFI 安全边界（M5：P1/P2/P3 已落地；P4 extern 调用迁移待做） |
 | `docs/runtime-safety.md` | 运行时安全行为权威清单（UB/panic；`tests/runtime_safety/` 覆盖） |
+| `docs/enum-layout.md` | 枚举布局优化设计（niche / boxed variant / indirect payload；未实现） |
 | `docs/macros.md` | Phase 6 宏系统升级（TokenStream/Span/Diagnostic，ABI v6；mcl.1 部分实现） |
 | `docs/future-directions.md` | 未来规划（探索，未实现）：统一引用关系模型 + 环境注入 |
 | `README.md` | 语言与 CLI 用户手册 |
