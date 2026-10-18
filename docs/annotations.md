@@ -463,6 +463,8 @@ struct Holder {
 
 ### A5（设计，待拍板）
 
+> Phase 6 升级（文本 → AST/HIR：TokenStream/Span/Diagnostic，ABI v6）设计见 `docs/macros.md`。
+
 - [x] A5a 标注名路径化（`pkg::macro`）+ provider 解析 + `core::` 别名 + import 短名列表
 - [x] A5b-1 `#[macro]` 声明 + `.lcl` 宏表（`macro="name"`）+ `pkg::macro`/import 短名解析与存在性诊断
 - [x] A5b-2 M3 插件 ABI（Ayanami 优先）：宏库 LIR → llc(PIC) + C shim + runtime → `.so`；编译期 dlopen 调用；
