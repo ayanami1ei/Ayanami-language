@@ -1,0 +1,102 @@
+// R3：注册表缺失 ID → panic（101；检查式解析路径：contains 通过但 resolve 缺失）
+// 设计见 docs/reference-model.md §2.2（句柄型协议）；失效语义：移除后 contains=false，
+// resolve 对缺失/越界 ID 一律 panic（101，与数组越界一致——受检路径，不依赖 Option[ref T]）。
+import "io"
+import "option"
+import "panic"
+import "hashmap"
+
+#[copy]
+struct Idx {
+    usize v
+}
+
+pub namespace Idx {
+    pub fn copy(Idx i) -> Idx {
+        return Idx { v = i.v }
+    }
+}
+
+struct Arena[T] {
+    [Ptr[T]] data
+    usize len
+    usize cap
+}
+
+pub namespace Arena {
+    pub fn with_capacity[T](usize cap) -> Arena[T] {
+        return Arena[T] { data = [Ptr[T]; cap], len = 0usize, cap = cap }
+    }
+}
+
+impl[T] Arena[T] {
+    pub fn alloc(ref mut self, T v) -> Idx {
+        if self.len >= self.cap {
+            panic_at(0, 0, "arena", "arena capacity exceeded")
+        }
+        self.data[self.len] = Ptr::new(v)
+        self.len = self.len + 1usize
+        return Idx { v = self.len - 1usize }
+    }
+    pub fn get(ref self, Idx i) -> ref T {
+        if i.v >= self.len {
+            panic_at(0, 0, "arena", "invalid Idx (arena)")
+        }
+        p = ref self.data[i.v]
+        return p.get()
+    }
+    pub fn get_mut(ref mut self, Idx i) -> ref mut T {
+        if i.v >= self.len {
+            panic_at(0, 0, "arena", "invalid Idx (arena)")
+        }
+        p = ref mut self.data[i.v]
+        return p.get_mut()
+    }
+}
+
+struct Entry {
+    int v
+}
+
+// 注册表：外部 ID（usize）→ arena 句柄；对象批量释放归 arena
+struct Registry[T] {
+    HashMap[int, Idx] map
+    Arena[T] arena
+}
+
+pub namespace Registry {
+    pub fn new[T](usize cap) -> Registry[T] {
+        return Registry[T] { map = HashMap::new[int, Idx](), arena = Arena::with_capacity[T](cap) }
+    }
+}
+
+impl[T] Registry[T] {
+    pub fn register(ref mut self, int id, T v) -> bool {
+        idx = self.arena.alloc(v)
+        return self.map.insert(id, idx)
+    }
+    pub fn contains(ref self, int id) -> bool {
+        return self.map.contains_key(id)
+    }
+    pub fn remove(ref mut self, int id) -> bool {
+        return self.map.remove(id)
+    }
+    /// 检查式解析：调用方应先 contains；缺失/越界 → panic（受检路径）
+    pub fn resolve(ref self, int id) -> ref T {
+        if !self.map.contains_key(id) {
+            panic_at(0, 0, "registry", "unknown id (registry)")
+        }
+        idx = self.map.get(id)._data_Some._0
+        return self.arena.get(idx)
+    }
+}
+
+fn main() -> int {
+    mut registry = Registry::new[Entry](4usize)
+    e1 = Entry { v = 7 }
+    if !registry.register(100, e1) { return 1 }
+    if !registry.contains(100) { return 2 }
+    // 缺失 ID → panic（未知 id）
+    r = registry.resolve(999)
+    return r.v
+}

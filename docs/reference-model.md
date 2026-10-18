@@ -1,6 +1,6 @@
 # 统一引用关系模型（Extensible Reference Model）设计提案
 
-> 状态：**设计提案；R1 / R2 已落地**（2026-10-18）。
+> 状态：**设计提案；R1 / R2 / R3 已落地**（2026-10-18）。
 > 关联：bd `Ayanami-language-tex`；原始规划记录：`docs/future-directions.md` §一。
 > 联动：M4 引用存储（`Ptr[T]` 阶段 1 ✓、arena 语言能力 + 示例 ✓、std 移植 `dka`）、
 > M5 unsafe（`*T` ✓ P1–P3）、`#[copy]` 句柄（✓）、环境注入（解析器/注册表可经 `env::` 提供，见 `docs/env-injection.md`）。
@@ -77,7 +77,7 @@ LIR 内联后消除（零开销路径不残留标记）。
 |---|---|---|
 | **R1**（完成 ✓） | 协议形态统一：`Ptr[T]` / `ref` / `*T` 归入自含型；任意 `get`/`get_mut` 类型自动解引用（字段读/写/方法） | 零开销验证：release 产物中协议 getter 调用 = 0（objdump）；负例：借用冲突 / 不可变借出可变 |
 | **R2**（完成 ✓） | 句柄型语义：arena + `Idx` 有效性（越界句柄 / 容量越界 → panic 101）；解析成本验证（去重由 release opt 承担） | 双向链表 / 图用例（已有 ✓ + 边界检查）；release objdump：`Arena_get` 调用 = 0；越界用例 `arena_oob`（101）；std 移植 `dka` |
-| **R3** | 用户自定义解析器（ID / 注册表）：协议 + 失效检查 + 契约 | 正例：ID + 哈希表解析示例；负例：失效 ID / 重复注册 / 契约违背诊断 |
+| **R3**（完成 ✓） | 用户自定义解析器（ID + 注册表）：`HashMap[int, Idx]` + arena 两级解析；检查式 API（`contains` + `resolve`） | 正例：`example/test_ref_registry.aya`（注册/解析/移除失效）；负例：`ref_registry_missing.aya`（缺失 ID → 101） |
 | **R4** | 序列化 / 对象图（引用字段 → 表示；对象图重建） | 往返用例；循环 / 多对一 / 失效 ID 边界（区分“序列化引用”与“序列化完整对象图”） |
 
 ## 6. 非目标
@@ -116,4 +116,12 @@ LIR 内联后消除（零开销路径不残留标记）。
       - 解析去重（CSE）：release 下协议解析完全内联（objdump：`Arena_get` 调用 = 0），
         冗余解析由 `opt -O3` 消除——**不需要编译器专用 CSE pass**（设计修订；此前验收项据此更新）
       - 句柄型 `resolve` 形态识别：留待 R3/R4 的真实消费者（无消费者的识别不写死代码）
-- [ ] R3（用户自定义解析器：ID / 注册表 + 失效检查）、R4（序列化 / 对象图）
+- [x] **R3（2026-10-18）**：用户自定义解析器（ID + 注册表）
+      - 示例 `example/test_ref_registry.aya`：`HashMap[int, Idx]` + arena 两级解析；检查式 API
+        （`contains` + `resolve`，缺失 → panic 101）；移除后 `contains=false`（arena 节点保留——批量释放语义）
+      - 运行时用例 `tests/runtime_safety/ref_registry_missing.aya`（101 + "unknown id"）
+      - 连带修复（借用检查）：调用返回借用的实参扫描支持**字段接收者**
+        （`self.arena.get(i)` → `deref_root_var` 回溯根变量 + origin 口径）
+      - 已知边界：`Option[ref T]` 可构造/传递，但**返回值内的引用不登记 loan**（聚合载体未跟踪）
+        ——解析器建议用检查式（panic）路径；如需跟踪另立设计
+- [ ] R4（序列化 / 对象图）

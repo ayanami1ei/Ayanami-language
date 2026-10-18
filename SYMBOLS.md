@@ -2142,7 +2142,7 @@ src/mir/borrow/cfg.rs:56: fn seq(&mut self, stmts: &'a [MirStmtBox], next: usize
 src/mir/borrow/cfg.rs:64: fn stmt(&mut self, s: &'a dyn MirStmtNode, next: usize, loops: &[(usize, usize)]) -> usize
 src/mir/borrow/cfg.rs:105: fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<VarId>) -> (HashSet<VarId>, HashSet<VarId>)
 src/mir/borrow/collect.rs:11: pub(super) fn collect(
-src/mir/borrow/collect.rs:229: fn deref_root_var(value: &MirNodeBox) -> Option<(VarId, bool)>
+src/mir/borrow/collect.rs:240: fn deref_root_var(value: &dyn MirNode) -> Option<(VarId, bool)>
 src/mir/borrow/follow.rs:12: pub fn match_source(
 src/mir/borrow/follow.rs:60: pub struct FollowInfo
 src/mir/borrow/follow.rs:65: pub fn build_table(mir: &MirProgram) -> HashMap<FnId, FollowInfo>
@@ -2581,22 +2581,22 @@ example/test_aggregate_array.aya:11: enum E
 example/test_aggregate_array.aya:17: fn main() -> int
 example/test_annotation_scope.aya:5: fn placeholder() -> int { return 0 }
 example/test_annotation_scope.aya:7: fn main() -> int { return answer() - 42 }
-example/test_arena.aya:8: struct Idx
-example/test_arena.aya:14: pub fn copy(Idx i) -> Idx
-example/test_arena.aya:19: struct Arena[T]
-example/test_arena.aya:26: pub fn with_capacity[T](usize cap) -> Arena[T]
-example/test_arena.aya:31: impl[T] Arena[T]
-example/test_arena.aya:32: pub fn alloc(ref mut self, T v) -> Idx
-example/test_arena.aya:37: pub fn get(ref self, Idx i) -> ref T
-example/test_arena.aya:41: pub fn get_mut(ref mut self, Idx i) -> ref mut T
-example/test_arena.aya:45: pub fn len(ref self) -> usize
-example/test_arena.aya:50: struct Node
-example/test_arena.aya:56: struct GNode
-example/test_arena.aya:63: fn dfs(ref mut Arena[GNode] a, Idx start) -> int
-example/test_arena.aya:79: fn demo_list() -> int
-example/test_arena.aya:113: fn demo_graph() -> int
-example/test_arena.aya:133: fn demo() -> int
-example/test_arena.aya:141: fn main() -> int
+example/test_arena.aya:9: struct Idx
+example/test_arena.aya:15: pub fn copy(Idx i) -> Idx
+example/test_arena.aya:20: struct Arena[T]
+example/test_arena.aya:27: pub fn with_capacity[T](usize cap) -> Arena[T]
+example/test_arena.aya:32: impl[T] Arena[T]
+example/test_arena.aya:33: pub fn alloc(ref mut self, T v) -> Idx
+example/test_arena.aya:41: pub fn get(ref self, Idx i) -> ref T
+example/test_arena.aya:48: pub fn get_mut(ref mut self, Idx i) -> ref mut T
+example/test_arena.aya:55: pub fn len(ref self) -> usize
+example/test_arena.aya:60: struct Node
+example/test_arena.aya:66: struct GNode
+example/test_arena.aya:73: fn dfs(ref mut Arena[GNode] a, Idx start) -> int
+example/test_arena.aya:89: fn demo_list() -> int
+example/test_arena.aya:123: fn demo_graph() -> int
+example/test_arena.aya:143: fn demo() -> int
+example/test_arena.aya:151: fn main() -> int
 example/test_array.aya:1: fn main() -> int
 example/test_array_bounds.aya:5: fn main() -> int
 example/test_array_elem_field.aya:2: struct Inner { int a }
@@ -3076,6 +3076,23 @@ example/test_ref_receiver.aya:15: fn via_ref_mut() -> int
 example/test_ref_receiver.aya:26: fn bare_value_auto_borrow() -> int
 example/test_ref_receiver.aya:32: fn loan_ends_after_last_use() -> int
 example/test_ref_receiver.aya:41: fn main() -> int
+example/test_ref_registry.aya:10: struct Idx
+example/test_ref_registry.aya:15: pub fn copy(Idx i) -> Idx
+example/test_ref_registry.aya:20: struct Arena[T]
+example/test_ref_registry.aya:27: pub fn with_capacity[T](usize cap) -> Arena[T]
+example/test_ref_registry.aya:32: impl[T] Arena[T]
+example/test_ref_registry.aya:33: pub fn alloc(ref mut self, T v) -> Idx
+example/test_ref_registry.aya:41: pub fn get(ref self, Idx i) -> ref T
+example/test_ref_registry.aya:48: pub fn get_mut(ref mut self, Idx i) -> ref mut T
+example/test_ref_registry.aya:57: struct Entry
+example/test_ref_registry.aya:62: struct Registry[T]
+example/test_ref_registry.aya:68: pub fn new[T](usize cap) -> Registry[T]
+example/test_ref_registry.aya:73: impl[T] Registry[T]
+example/test_ref_registry.aya:74: pub fn register(ref mut self, int id, T v) -> bool
+example/test_ref_registry.aya:78: pub fn contains(ref self, int id) -> bool
+example/test_ref_registry.aya:81: pub fn remove(ref mut self, int id) -> bool
+example/test_ref_registry.aya:85: pub fn resolve(ref self, int id) -> ref T
+example/test_ref_registry.aya:94: fn main() -> int
 example/test_ref_return.aya:3: struct S
 example/test_ref_return.aya:7: fn pick(ref S s) -> ref S
 example/test_ref_return.aya:11: fn main() -> int
