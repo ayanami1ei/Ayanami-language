@@ -140,7 +140,7 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
         return 1;
     }
     stem = Path::stem(Path::file_name(file));
-    ir = emit_program(p.ast, prog);
+    ir = emit_program(p.ast, prog, file);
     w = work_dir();
     ll = Path::join(w, stem + ".ll");
     obj = Path::join(w, stem + ".o");

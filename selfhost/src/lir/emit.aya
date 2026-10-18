@@ -103,6 +103,8 @@ pub struct Emitter {
     int ct_ret
     int ct_depth
     int ct_frame
+    // 源文件名（#panic 位置用）
+    String src_file
     // 结构体全局（kind 4）：初始化节点与结构体下标
     [int] g_init_ids
     [int] g_stype
@@ -155,7 +157,7 @@ pub namespace Emitter {
             g_init_ids = [int; 512], g_stype = [int; 512], need_ginit = 0, ginit_buf = StringBuf::new(),
             ct_names = [String; 256], ct_ids = [int; 256], ct_count = 0,
             ct_env_names = [String; 256], ct_env_vals = [int; 256], ct_env_count = 0,
-            ct_args = [int; 16], ct_ret = 0, ct_depth = 0, ct_frame = 0,
+            ct_args = [int; 16], ct_ret = 0, ct_depth = 0, ct_frame = 0, src_file = String::empty(),
             pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
             loop_ends = [String; 64], loop_conds = [String; 64], loop_depth = 0,
             terminated = 0
@@ -5135,11 +5137,16 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             a_m = ast.aa[id];
             msg_m = mk_str("null", 0);
             if a_m >= 0 { msg_m = emit_expr(ast, ast.aa[a_m], e); }
+            fi_p = e.add_str(e.src_file);
             e.buf.push_str("  call void @__ayanami_panic_at(i64 ");
             e.buf.push_str(int_str2(ast.lines[id]));
             e.buf.push_str(", i64 ");
             e.buf.push_str(int_str2(ast.cols[id]));
-            e.buf.push_str(", ptr null, i64 0, ptr ");
+            e.buf.push_str(", ptr @.str.");
+            e.buf.push_int(fi_p);
+            e.buf.push_str(", i64 ");
+            e.buf.push_int(e.src_file.len as int);
+            e.buf.push_str(", ptr ");
             e.buf.push_str(ptr_operand(msg_m.a));
             e.buf.push_str(", i64 ");
             e.buf.push_str(msg_m.b);
@@ -6680,8 +6687,9 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
 
 #[alloc]
 #[state]
-pub fn emit_program(ref Ast ast, int prog) -> String {
+pub fn emit_program(ref Ast ast, int prog, ref String file) -> String {
     e = Emitter::new();
+    e.src_file = file.copy();
     e.collect_decls(ast, prog);
     e.collect_globals(ast, prog);
     e.collect_lambdas(ast);

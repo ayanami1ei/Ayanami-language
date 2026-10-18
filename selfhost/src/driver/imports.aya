@@ -318,6 +318,8 @@ pub fn collect_file(ref String file, ref Deps deps, ref mut Seen seen, ref mut S
                         collect_file(sp2, deps, seen, dst, mdir);
                     }
                 }
+                // 保留行号：import 行本身补空行（否则后续诊断行号整体上移）
+                dst.push('\n');
             } else {
                 dst.push_str(line);
                 dst.push('\n');

@@ -23,7 +23,7 @@ fn main() -> int {
         println(p.err);
         return 3;
     }
-    ir = emit_program(p.ast, prog);
+    ir = emit_program(p.ast, prog, path);
     w = write_file(ll, ir);
     if !w { println("cannot write ir"); return 4 }
     build = "llc -filetype=obj " + ll + " -o " + obj + " && gcc -no-pie " + obj + " src/runtime.c -lm -o " + exe;
