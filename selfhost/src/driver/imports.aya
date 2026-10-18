@@ -285,12 +285,10 @@ fn std_src_path(ref String start_dir, ref String stem) -> String {
     return "";
 }
 
-/// 递归合并：file 的依赖先入，再拼接自身（跳过 import 行）
+/// 输出单个文件正文（import 行补空行保行号），并把 import 目标加入 Seen 队列
 #[alloc]
 #[state]
-pub fn collect_file(ref String file, ref Deps deps, ref mut Seen seen, ref mut StringBuf dst, ref String mdir) {
-    if seen.has(file) { return; }
-    seen.add(file);
+pub fn collect_lines(ref String file, ref Deps deps, ref mut Seen seen, ref mut StringBuf dst, ref String mdir) {
     r = read_file(file);
     if !r.ok { return; }
     fdir = Path::dir(file);
@@ -308,17 +306,18 @@ pub fn collect_file(ref String file, ref Deps deps, ref mut Seen seen, ref mut S
             line = r.data.substring(start as usize, i as usize);
             al = import_alias(line);
             if al.len > 0 {
+                // 两段式合并：模块内容不内联（否则推移后续行号），只入队
                 pv = deps.path_of(al);
                 if pv.len > 0 {
-                    collect_file(mdir + pv, deps, seen, dst, mdir);
+                    if !seen.has(mdir + pv) { seen.add(mdir + pv); }
                 } else {
                     // std 源码回退（AYANAMI_STD_SRC=1）
                     sp2 = std_src_path(fdir, al);
                     if sp2.len > 0 {
-                        collect_file(sp2, deps, seen, dst, mdir);
+                        if !seen.has(sp2) { seen.add(sp2); }
                     }
                 }
-                // 保留行号：import 行本身补空行（否则后续诊断行号整体上移）
+                // import 行补空行：保持本文件行号与原始一致
                 dst.push('\n');
             } else {
                 dst.push_str(line);
@@ -351,11 +350,21 @@ pub fn merge_source(ref String file) -> String {
     deps = load_deps(mdir);
     seen = Seen::new();
     dst = StringBuf::new();
-    collect_file(file, deps, seen, dst, mdir);
-    // 自举 prelude：无条件追加（缺失时静默跳过）
+    // 两段式：根文件正文在前（行号与原始一致），模块按队列追加在后
+    seen.add(file);
+    collect_lines(file, deps, seen, dst, mdir);
+    qi = 1;
+    while qi < seen.count {
+        collect_lines(seen.files[qi], deps, seen, dst, mdir);
+        qi = qi + 1;
+    }
+    // 自举 prelude：最后追加（缺失时静默跳过）
     pp = prelude_path(mdir);
     if pp.len > 0 {
-        collect_file(pp, deps, seen, dst, mdir);
+        if !seen.has(pp) {
+            seen.add(pp);
+            collect_lines(pp, deps, seen, dst, mdir);
+        }
     }
     return dst.to_string();
 }
