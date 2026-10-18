@@ -3,6 +3,15 @@ import "io"
 
 const LIMIT = 4
 
+struct Header {
+    int a
+    int b
+}
+
+// 布局内置在 const 上下文同样可用（与运行期 lowering 共用求值）
+const H_SIZE = size_of[Header]()
+const H_OFF_B = offset_of[Header](b)
+
 #[compile_time]
 fn sq(int x) -> int {
     return x * x
@@ -13,5 +22,9 @@ fn main() -> int {
     static_assert(LIMIT * 2 == 8)
     static_assert(sq(3) == 9)
     static_assert(!(2 > 3))
+    static_assert(size_of[Header]() == 16)
+    static_assert(align_of[Header]() == 8)
+    static_assert(H_SIZE == 16)
+    static_assert(H_OFF_B == 8)
     return 0
 }

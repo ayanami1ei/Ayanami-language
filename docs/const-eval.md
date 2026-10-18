@@ -56,7 +56,7 @@ trait ConstConstraint {
 | 阶段 | 内容 | 验收 |
 |---|---|---|
 | **P4e-1**（本文档） | 接口边界 + 现状盘点 + 最小接入点说明 | 文档评审通过；后续实现不得新开求值链 |
-| P4e-2 | `const fn`（`#[compile_time]` 已实现）+ 编译期断言（`static_assert` **已实现**；`const if` 待做） | 正例：`example/test_static_assert.aya`（常量/`#[compile_time]` 调用）；负例：`static_assert_fail` / `static_assert_nonconst` |
+| P4e-2 | `const fn`（`#[compile_time]` 已实现）+ 编译期断言（`static_assert` **已实现**；`const if` 待做）；布局内置（size_of/align_of/offset_of）在 const 上下文可用 | 正例：`example/test_static_assert.aya`（常量/`#[compile_time]`/布局内置）；负例：`static_assert_fail` / `static_assert_nonconst` |
 | P4e-3 | const generics（`[T; N]` 参数化 + 单态化） | 正例：`struct Buf[T; N]` 按 N 单态化；与 P4c unify 共用替换表 |
 
 ## 4. 实现状态

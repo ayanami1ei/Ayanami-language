@@ -476,6 +476,8 @@ src/hir/lower/body/const_eval.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/const_eval.rs:5: pub(crate) fn collect_const_decl(
 src/hir/lower/body/const_eval.rs:25: pub(crate) fn collect_static_decl(
 src/hir/lower/body/const_eval.rs:44: pub(crate) fn eval_const_expr(
+src/hir/lower/body/const_eval_binary.rs:4: impl crate::hir::lower::Ctx
+src/hir/lower/body/const_eval_binary.rs:6: pub(super) fn eval_const_binary(
 src/hir/lower/body/const_fn.rs:4: const MAX_CONST_DEPTH: usize = 64;
 src/hir/lower/body/const_fn.rs:5: const MAX_CONST_ITERS: u64 = 1_000_000;
 src/hir/lower/body/const_fn.rs:7: pub(crate) enum Flow { Normal, Break, Continue, Return(HirType, HirLiteral) }
@@ -515,9 +517,10 @@ src/hir/lower/body/expr_cast.rs:60: fn is_array_like(t: &HirType) -> bool
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_enum.rs:79: fn monomorphize_enum_construct(
-src/hir/lower/body/expr_layout.rs:7: impl crate::hir::lower::Ctx
-src/hir/lower/body/expr_layout.rs:9: pub(crate) fn lower_layout_builtin(
-src/hir/lower/body/expr_layout.rs:38: pub(crate) fn lower_offset_of(
+src/hir/lower/body/expr_layout.rs:8: impl crate::hir::lower::Ctx
+src/hir/lower/body/expr_layout.rs:10: pub(crate) fn eval_layout_builtin_call(
+src/hir/lower/body/expr_layout.rs:61: pub(crate) fn lower_layout_builtin(
+src/hir/lower/body/expr_layout.rs:81: pub(crate) fn lower_offset_of(
 src/hir/lower/body/expr_logic.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_logic.rs:5: pub(super) fn lower_short_circuit(&mut self, op: BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_lower.rs:3: impl crate::hir::lower::Ctx
@@ -657,41 +660,42 @@ src/hir/lower/body/mod.rs:25: mod ref_assign;
 src/hir/lower/body/mod.rs:26: mod expr_method;
 src/hir/lower/body/mod.rs:27: mod expr_layout;
 src/hir/lower/body/mod.rs:28: mod expr_static_assert;
-src/hir/lower/body/mod.rs:29: mod expr_struct;
-src/hir/lower/body/mod.rs:30: mod match_coverage;
-src/hir/lower/body/mod.rs:31: mod match_lower;
-src/hir/lower/body/mod.rs:32: mod match_pattern;
-src/hir/lower/body/mod.rs:33: mod match_setup;
-src/hir/lower/body/mod.rs:34: mod match_util;
-src/hir/lower/body/mod.rs:35: mod usage_infer;
-src/hir/lower/body/mod.rs:36: mod macro_call;
-src/hir/lower/body/mod.rs:37: mod expr_logic;
-src/hir/lower/body/mod.rs:38: mod expr_lower;
-src/hir/lower/body/mod.rs:39: mod if_expr;
-src/hir/lower/body/mod.rs:40: mod ensure;
-src/hir/lower/body/mod.rs:41: mod literal;
-src/hir/lower/body/mod.rs:42: mod collect_enum;
-src/hir/lower/body/mod.rs:43: mod const_coerce;
-src/hir/lower/body/mod.rs:44: mod const_array;
-src/hir/lower/body/mod.rs:45: mod const_struct;
-src/hir/lower/body/mod.rs:46: mod const_eval;
-src/hir/lower/body/mod.rs:47: mod const_fn;
-src/hir/lower/body/mod.rs:48: mod collect_import;
-src/hir/lower/body/mod.rs:49: mod collect_import_path;
-src/hir/lower/body/mod.rs:50: mod expr_access;
-src/hir/lower/body/mod.rs:51: mod expr_call;
-src/hir/lower/body/mod.rs:52: mod expr_call_builtins;
-src/hir/lower/body/mod.rs:53: mod expr_call_args;
-src/hir/lower/body/mod.rs:54: mod expr_call_extra;
-src/hir/lower/body/mod.rs:55: mod block_lower;
-src/hir/lower/body/mod.rs:56: mod expr_cast;
-src/hir/lower/body/mod.rs:57: mod expr_enum;
-src/hir/lower/body/mod.rs:58: mod expr_misc;
-src/hir/lower/body/mod.rs:59: mod expr_ops1;
-src/hir/lower/body/mod.rs:60: mod expr_unary;
-src/hir/lower/body/mod.rs:61: mod expr_method_arrays;
-src/hir/lower/body/mod.rs:62: mod return_check;
-src/hir/lower/body/mod.rs:63: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:29: mod const_eval_binary;
+src/hir/lower/body/mod.rs:30: mod expr_struct;
+src/hir/lower/body/mod.rs:31: mod match_coverage;
+src/hir/lower/body/mod.rs:32: mod match_lower;
+src/hir/lower/body/mod.rs:33: mod match_pattern;
+src/hir/lower/body/mod.rs:34: mod match_setup;
+src/hir/lower/body/mod.rs:35: mod match_util;
+src/hir/lower/body/mod.rs:36: mod usage_infer;
+src/hir/lower/body/mod.rs:37: mod macro_call;
+src/hir/lower/body/mod.rs:38: mod expr_logic;
+src/hir/lower/body/mod.rs:39: mod expr_lower;
+src/hir/lower/body/mod.rs:40: mod if_expr;
+src/hir/lower/body/mod.rs:41: mod ensure;
+src/hir/lower/body/mod.rs:42: mod literal;
+src/hir/lower/body/mod.rs:43: mod collect_enum;
+src/hir/lower/body/mod.rs:44: mod const_coerce;
+src/hir/lower/body/mod.rs:45: mod const_array;
+src/hir/lower/body/mod.rs:46: mod const_struct;
+src/hir/lower/body/mod.rs:47: mod const_eval;
+src/hir/lower/body/mod.rs:48: mod const_fn;
+src/hir/lower/body/mod.rs:49: mod collect_import;
+src/hir/lower/body/mod.rs:50: mod collect_import_path;
+src/hir/lower/body/mod.rs:51: mod expr_access;
+src/hir/lower/body/mod.rs:52: mod expr_call;
+src/hir/lower/body/mod.rs:53: mod expr_call_builtins;
+src/hir/lower/body/mod.rs:54: mod expr_call_args;
+src/hir/lower/body/mod.rs:55: mod expr_call_extra;
+src/hir/lower/body/mod.rs:56: mod block_lower;
+src/hir/lower/body/mod.rs:57: mod expr_cast;
+src/hir/lower/body/mod.rs:58: mod expr_enum;
+src/hir/lower/body/mod.rs:59: mod expr_misc;
+src/hir/lower/body/mod.rs:60: mod expr_ops1;
+src/hir/lower/body/mod.rs:61: mod expr_unary;
+src/hir/lower/body/mod.rs:62: mod expr_method_arrays;
+src/hir/lower/body/mod.rs:63: mod return_check;
+src/hir/lower/body/mod.rs:64: mod expr_reinterpret;
 src/hir/lower/body/overload_method.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_method.rs:9: pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
 src/hir/lower/body/overload_method.rs:28: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
@@ -3042,8 +3046,9 @@ example/test_static.aya:14: fn inc(ref mut int x) -> int
 example/test_static.aya:23: fn main() -> int
 example/test_static_array.aya:6: fn total(ref [int; 4] t) -> int
 example/test_static_array.aya:14: fn main() -> int
-example/test_static_assert.aya:7: fn sq(int x) -> int
-example/test_static_assert.aya:11: fn main() -> int
+example/test_static_assert.aya:6: struct Header
+example/test_static_assert.aya:16: fn sq(int x) -> int
+example/test_static_assert.aya:20: fn main() -> int
 example/test_static_struct.aya:2: struct Point
 example/test_static_struct.aya:7: struct Line
 example/test_static_struct.aya:12: struct Buf
