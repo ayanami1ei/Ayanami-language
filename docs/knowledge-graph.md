@@ -23,6 +23,7 @@
 | `docs/never-type.md` | never 类型 `!`（M1.9：发散表达式、`! → T`、`-> !` 发射） |
 | `docs/pattern-matching.md` | 模式匹配增强（Phase 1.3：atb.1 字面量/`_`/`|`/guard 已实现） |
 | `docs/closures.md` | 闭包与捕获（M2：`Fn(T)->U` 类型、按值/可变捕获、接口机制复用） |
+| `docs/future-directions.md` | 未来规划（探索，未实现）：统一引用关系模型 + 环境注入 |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |
 
@@ -188,3 +189,11 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 位运算：`& | ^ << >> ~` —文法→ operator（prec 6–9 / 前缀）—HIR→ `lower_binary`/`lower_unary` —发射→ `and/or/xor/shl/ashr/lshr` —折叠→ `example/constfold_lib.aya`
 - 显式转换：`expr as T` —解析→ `parse_cast` / 运算符表 prec:12 —HIR→ `lower_cast`/`SCast` —发射→ `sext/zext/trunc/sitofp/uitofp/fptosi.sat/fptoui.sat`
 - 闭包：`Fn(T)->U` / lambda —解析→ `parse_type`（`Fn(` 特判；安全代码禁裸 `fn`）/ `parse_lambda`（Block 尾表达式）—捕获分析→ `helpers/closure.rs` —降级→ 拥有：`closure_lower.rs`（`__ClosureEnv_N` + `__lambda_N(env,…)` + `__closure_drop_N`）；静态：`closure_static.rs`（每签名 trampoline + noop drop）—调用→ `SVCall`（vtable slot 1）—释放→ `emit_drop_value(Closure)` 经 vtable slot 0
+
+## 8. 未来方向（规划记录，未实现）
+
+设计探索记录见 [`docs/future-directions.md`](future-directions.md)（示例语法未锁定）：
+
+- **统一引用关系模型**：`Ref<T, U>` —语义→ 指针/ID/句柄/自定义解析统一为编译器可分析的引用关系（目标：生命周期、失效、别名、序列化信息进入 IR）
+- **环境注入**：`#[env::alloc]` —声明→ 环境需求（编译期可分析的隐式泛型约束）—传播→ 调用链自动继承、内层显式覆盖 —首个应用→ 自定义分配器
+- 共享基础设施：环境传播、约束检查、IR 分析；不合并语义边界（引用关系 ≠ 环境依赖 ≠ 所有权 ≠ effect）
