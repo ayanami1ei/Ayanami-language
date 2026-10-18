@@ -3,9 +3,10 @@
 // 语义对齐 std/src/core/string.aya（trim/contains/index_of/repeat/to_upper/to_lower/parse_int/is_int）。
 
 /// 空白判定（char 以 int 传入；对应 char.is_space）
-fn aya_ch_is_space(int k) -> bool {
-    if k == 32 { return true; }
-    if k >= 9 && k <= 13 { return true; }
+fn aya_ch_is_space(char k) -> bool {
+    if k == ' ' { return true; }
+    c = char_code(k);
+    if c >= 9 && c <= 13 { return true; }
     return false;
 }
 
@@ -79,8 +80,8 @@ pub fn aya_str_to_upper(String s) -> String {
     i = 0;
     while i < n {
         k = s.data[i];
-        if k >= 97 && k <= 122 { k = k - 32; }
-        buf[i] = k as char;
+        if k >= 'a' && k <= 'z' { k = (char_code(k) - 32) as char; }
+        buf[i] = k;
         i = i + 1;
     }
     return String::new(buf, n as usize);
@@ -94,8 +95,8 @@ pub fn aya_str_to_lower(String s) -> String {
     i = 0;
     while i < n {
         k = s.data[i];
-        if k >= 65 && k <= 90 { k = k + 32; }
-        buf[i] = k as char;
+        if k >= 'A' && k <= 'Z' { k = (char_code(k) + 32) as char; }
+        buf[i] = k;
         i = i + 1;
     }
     return String::new(buf, n as usize);
@@ -113,18 +114,18 @@ pub fn aya_str_parse_int(String s) -> int {
     neg = 0;
     if i < n {
         k = s.data[i];
-        if k == 45 {
+        if k == '-' {
             neg = 1;
             i = i + 1;
-        } elif k == 43 {
+        } elif k == '+' {
             i = i + 1;
         }
     }
     v = 0;
     while i < n {
         k = s.data[i];
-        if k < 48 || k > 57 { break; }
-        v = v * 10 + (k - 48);
+        if k < '0' || k > '9' { break; }
+        v = v * 10 + (char_code(k) - 48);
         i = i + 1;
     }
     if neg == 1 { return 0 - v; }
@@ -142,12 +143,12 @@ pub fn aya_str_is_int(String s) -> bool {
     }
     if i < n {
         k = s.data[i];
-        if k == 45 || k == 43 { i = i + 1; }
+        if k == '-' || k == '+' { i = i + 1; }
     }
     if i >= n { return false; }
     while i < n {
         k = s.data[i];
-        if k < 48 || k > 57 { return false; }
+        if k < '0' || k > '9' { return false; }
         i = i + 1;
     }
     return true;
@@ -155,43 +156,43 @@ pub fn aya_str_is_int(String s) -> bool {
 
 // ---- char 方法（char 以 int 传入；语义对齐 std/src/core/string.aya）----
 
-fn aya_ch_is_digit(int k) -> bool {
-    if k >= 48 && k <= 57 { return true; }
+fn aya_ch_is_digit(char k) -> bool {
+    if k >= '0' && k <= '9' { return true; }
     return false;
 }
 
-fn aya_ch_is_alpha(int k) -> bool {
-    if k >= 65 && k <= 90 { return true; }
-    if k >= 97 && k <= 122 { return true; }
+fn aya_ch_is_alpha(char k) -> bool {
+    if k >= 'A' && k <= 'Z' { return true; }
+    if k >= 'a' && k <= 'z' { return true; }
     return false;
 }
 
-fn aya_ch_is_alnum(int k) -> bool {
+fn aya_ch_is_alnum(char k) -> bool {
     if aya_ch_is_digit(k) { return true; }
     return aya_ch_is_alpha(k);
 }
 
-fn aya_ch_is_upper(int k) -> bool {
-    if k >= 65 && k <= 90 { return true; }
+fn aya_ch_is_upper(char k) -> bool {
+    if k >= 'A' && k <= 'Z' { return true; }
     return false;
 }
 
-fn aya_ch_is_lower(int k) -> bool {
-    if k >= 97 && k <= 122 { return true; }
+fn aya_ch_is_lower(char k) -> bool {
+    if k >= 'a' && k <= 'z' { return true; }
     return false;
 }
 
-fn aya_ch_to_digit(int k) -> int {
-    return k - 48;
+fn aya_ch_to_digit(char k) -> int {
+    return char_code(k) - 48;
 }
 
-fn aya_ch_to_upper(int k) -> int {
-    if k >= 97 && k <= 122 { return k - 32; }
+fn aya_ch_to_upper(char k) -> char {
+    if k >= 'a' && k <= 'z' { return (char_code(k) - 32) as char; }
     return k;
 }
 
-fn aya_ch_to_lower(int k) -> int {
-    if k >= 65 && k <= 90 { return k + 32; }
+fn aya_ch_to_lower(char k) -> char {
+    if k >= 'A' && k <= 'Z' { return (char_code(k) + 32) as char; }
     return k;
 }
 

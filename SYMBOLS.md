@@ -3140,30 +3140,30 @@ selfhost/src/base/path.aya:28: pub fn file_name(ref String s) -> String
 selfhost/src/base/path.aya:37: pub fn stem(ref String s) -> String
 selfhost/src/base/path.aya:50: pub fn is_aya(ref String s) -> bool { return s.ends_with(".aya") }
 selfhost/src/base/path.aya:55: pub fn join(ref String dir, ref String name) -> String
-selfhost/src/base/prelude.aya:6: fn aya_ch_is_space(int k) -> bool
-selfhost/src/base/prelude.aya:14: pub fn aya_str_trim(String s) -> String
-selfhost/src/base/prelude.aya:30: pub fn aya_str_index_of(String s, String needle) -> int
-selfhost/src/base/prelude.aya:52: pub fn aya_str_contains(String s, String needle) -> bool
-selfhost/src/base/prelude.aya:59: pub fn aya_str_repeat(String s, int times) -> String
-selfhost/src/base/prelude.aya:76: pub fn aya_str_to_upper(String s) -> String
-selfhost/src/base/prelude.aya:91: pub fn aya_str_to_lower(String s) -> String
-selfhost/src/base/prelude.aya:106: pub fn aya_str_parse_int(String s) -> int
-selfhost/src/base/prelude.aya:136: pub fn aya_str_is_int(String s) -> bool
-selfhost/src/base/prelude.aya:158: fn aya_ch_is_digit(int k) -> bool
-selfhost/src/base/prelude.aya:163: fn aya_ch_is_alpha(int k) -> bool
-selfhost/src/base/prelude.aya:169: fn aya_ch_is_alnum(int k) -> bool
-selfhost/src/base/prelude.aya:174: fn aya_ch_is_upper(int k) -> bool
-selfhost/src/base/prelude.aya:179: fn aya_ch_is_lower(int k) -> bool
-selfhost/src/base/prelude.aya:184: fn aya_ch_to_digit(int k) -> int
-selfhost/src/base/prelude.aya:188: fn aya_ch_to_upper(int k) -> int
-selfhost/src/base/prelude.aya:193: fn aya_ch_to_lower(int k) -> int
-selfhost/src/base/prelude.aya:200: pub fn aya_int_to_string(int v) -> String
-selfhost/src/base/prelude.aya:233: pub enum Option[T]
-selfhost/src/base/prelude.aya:238: impl[T] Option[T]
-selfhost/src/base/prelude.aya:240: pub fn is_some(self) -> bool
-selfhost/src/base/prelude.aya:244: pub fn is_none(self) -> bool
-selfhost/src/base/prelude.aya:248: pub fn unwrap_or(self, T default) -> T
-selfhost/src/base/prelude.aya:254: pub fn or(self, Option[T] other) -> Option[T]
+selfhost/src/base/prelude.aya:6: fn aya_ch_is_space(char k) -> bool
+selfhost/src/base/prelude.aya:15: pub fn aya_str_trim(String s) -> String
+selfhost/src/base/prelude.aya:31: pub fn aya_str_index_of(String s, String needle) -> int
+selfhost/src/base/prelude.aya:53: pub fn aya_str_contains(String s, String needle) -> bool
+selfhost/src/base/prelude.aya:60: pub fn aya_str_repeat(String s, int times) -> String
+selfhost/src/base/prelude.aya:77: pub fn aya_str_to_upper(String s) -> String
+selfhost/src/base/prelude.aya:92: pub fn aya_str_to_lower(String s) -> String
+selfhost/src/base/prelude.aya:107: pub fn aya_str_parse_int(String s) -> int
+selfhost/src/base/prelude.aya:137: pub fn aya_str_is_int(String s) -> bool
+selfhost/src/base/prelude.aya:159: fn aya_ch_is_digit(char k) -> bool
+selfhost/src/base/prelude.aya:164: fn aya_ch_is_alpha(char k) -> bool
+selfhost/src/base/prelude.aya:170: fn aya_ch_is_alnum(char k) -> bool
+selfhost/src/base/prelude.aya:175: fn aya_ch_is_upper(char k) -> bool
+selfhost/src/base/prelude.aya:180: fn aya_ch_is_lower(char k) -> bool
+selfhost/src/base/prelude.aya:185: fn aya_ch_to_digit(char k) -> int
+selfhost/src/base/prelude.aya:189: fn aya_ch_to_upper(char k) -> char
+selfhost/src/base/prelude.aya:194: fn aya_ch_to_lower(char k) -> char
+selfhost/src/base/prelude.aya:201: pub fn aya_int_to_string(int v) -> String
+selfhost/src/base/prelude.aya:234: pub enum Option[T]
+selfhost/src/base/prelude.aya:239: impl[T] Option[T]
+selfhost/src/base/prelude.aya:241: pub fn is_some(self) -> bool
+selfhost/src/base/prelude.aya:245: pub fn is_none(self) -> bool
+selfhost/src/base/prelude.aya:249: pub fn unwrap_or(self, T default) -> T
+selfhost/src/base/prelude.aya:255: pub fn or(self, Option[T] other) -> Option[T]
 selfhost/src/base/sb.aya:5: pub struct StringBuf
 selfhost/src/base/sb.aya:11: pub namespace StringBuf
 selfhost/src/base/sb.aya:12: pub fn new() -> StringBuf
