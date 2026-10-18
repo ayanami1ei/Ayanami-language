@@ -1439,6 +1439,8 @@ impl Emitter {
     #[state]
     fn reg_struct(ref mut self, ref Ast ast, int id) {
         if self.st_count >= 128 { return; }
+        // 同名去重
+        if self.find_struct_idx(ast.texts[id]) >= 0 { return; }
         si = self.st_count;
         self.st_names[si] = ast.texts[id].copy();
         self.st_fstart[si] = self.st_ftotal;
@@ -1579,6 +1581,8 @@ impl Emitter {
     #[state]
     fn add_enum(ref mut self, ref Ast ast, int id) {
         if self.en_count >= 128 { return; }
+        // 同名去重（prelude 与 std 合并时 Option/Result 会重复定义）
+        if self.find_enum_idx(ast.texts[id]) >= 0 { return; }
         ei = self.en_count;
         self.en_names[ei] = ast.texts[id].copy();
         self.en_vstart[ei] = self.en_vtotal;
@@ -2198,6 +2202,18 @@ fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> 
         } elif v.kind == 2 || v.kind == 3 || v.kind == 4 {
             e.buf.push_str("  store ptr ");
             e.buf.push_str(ptr_operand(v.a));
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(g);
+            e.buf.push_str("\n");
+        } elif v.kind == 6 {
+            // 浮点载荷：按位存入 i64 槽
+            b6e = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(b6e);
+            e.buf.push_str(" = bitcast double ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(" to i64\n  store i64 ");
+            e.buf.push_str(b6e);
             e.buf.push_str(", ptr ");
             e.buf.push_str(g);
             e.buf.push_str("\n");
@@ -5555,6 +5571,20 @@ fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String bas
 /// i64 槽写入：结构体/枚举/数组值先 ptrtoint
 #[alloc]
 fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v) {
+    if v.kind == 6 {
+        // 浮点值：按位存入 i64 槽
+        b6 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(b6);
+        e.buf.push_str(" = bitcast double ");
+        e.buf.push_str(v.a);
+        e.buf.push_str(" to i64\n  store i64 ");
+        e.buf.push_str(b6);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(gep);
+        e.buf.push_str("\n");
+        return;
+    }
     if v.kind == 2 || v.kind == 3 || v.kind == 4 {
         pi = e.fresh();
         e.buf.push_str("  ");
@@ -6762,7 +6792,9 @@ pub fn emit_program(ref Ast ast, int prog, ref String file) -> String {
         }
         s = ast.nexts[s];
     }
-    e.buf.push_str("declare void @__ayanami_print_int(i64)\ndeclare void @__ayanami_print_ln()\ndeclare void @__ayanami_print_str(ptr, i64)\n");
+    if e.decl_has("__ayanami_print_int") == 0 { e.buf.push_str("declare void @__ayanami_print_int(i64)\n"); }
+    if e.decl_has("__ayanami_print_ln") == 0 { e.buf.push_str("declare void @__ayanami_print_ln()\n"); }
+    if e.decl_has("__ayanami_print_str") == 0 { e.buf.push_str("declare void @__ayanami_print_str(ptr, i64)\n"); }
     // 数组分配/清零所需（M6a）：malloc + llvm.memset
     if e.decl_has("malloc") == 0 { e.buf.push_str("declare ptr @malloc(i64)\n"); }
     if e.decl_has("memcpy") == 0 { e.buf.push_str("declare ptr @memcpy(ptr, ptr, i64)\n"); }
