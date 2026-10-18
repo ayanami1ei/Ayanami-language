@@ -57,6 +57,8 @@ pub struct Emitter {
     [int] en_vslots
     // 函数签名表（参数种类：0=int, 20=enum, 100+si=struct）
     [String] fn_names
+    // 是否 extern（C 符号，不加修饰）
+    [int] fn_extern
     [int] fn_pstart
     [int] fn_pcount
     [int] fn_pkinds
@@ -142,7 +144,7 @@ pub namespace Emitter {
             en_names = [String; 128], en_vstart = [int; 128], en_vcount = [int; 128],
             en_variants = [String; 1024], en_arity = [int; 1024], en_vtotal = 0, en_count = 0,
             en_ptype = [int; 4096], en_pvstart = [int; 1024], en_ptotal = 0, en_vslots = [int; 1024],
-            fn_names = [String; 8192], fn_pstart = [int; 8192], fn_pcount = [int; 8192],
+            fn_names = [String; 8192], fn_extern = [int; 8192], fn_pstart = [int; 8192], fn_pcount = [int; 8192],
             fn_pkinds = [int; 65536], fn_ptotal = 0, fn_count = 0,
             fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, m_rtype = [int; 8192],
             decl_names = [String; 2048], decl_count = 0,
@@ -960,7 +962,7 @@ impl Emitter {
         self.env_defs.push_str("@");
         self.env_defs.push_str(gname);
         self.env_defs.push_str(" = global [1 x ptr] [ptr @");
-        self.env_defs.push_str(code_name);
+        self.env_defs.push_str(self.fn_sym(code_name));
         self.env_defs.push_str("]\n");
         return gname;
     }
@@ -1632,6 +1634,8 @@ impl Emitter {
             name = name + ast.texts[id];
         }
         self.fn_names[fi] = name.copy();
+        self.fn_extern[fi] = 0;
+        if ast.dd[id] == 1 { self.fn_extern[fi] = 1; }
         self.fn_first[fi] = id;
         if (ast.dd[id] / 131072) % 2 == 1 {
             if self.ct_count < 256 {
@@ -1659,6 +1663,21 @@ impl Emitter {
             self.fn_rllvm[fi] = self.ret_llvm_code(ast, ast.tys[id]);
         }
         self.fn_count = fi + 1;
+    }
+
+    /// Ayanami 函数符号：非 extern 加 `aya.` 前缀（避免与 libc 重名；extern 保持裸名）
+    #[alloc]
+    fn fn_sym(ref mut self, ref String fname) -> String {
+        if fname == "main" { return fname.copy(); }
+        i = 0;
+        while i < self.fn_count {
+            if self.fn_names[i] == fname {
+                if self.fn_extern[i] == 1 { return fname.copy(); }
+                return "aya." + fname;
+            }
+            i = i + 1;
+        }
+        return "aya." + fname;
     }
 
     fn fn_param_kind(ref mut self, ref String fname, int i) -> int {
@@ -1843,7 +1862,7 @@ fn emit_op_method_call(ref Ast ast, int id, ref Val lt, ref String mn, int mid, 
         b.push_str(" = call i64 ");
     }
     b.push_str("@");
-    b.push_str(mname);
+    b.push_str(e.fn_sym(mname));
     b.push_str("(ptr ");
     b.push_str(lt.a);
     at = emit_expr(ast, ast.bb[id], e);
@@ -3236,7 +3255,7 @@ fn emit_lambda_value(ref Ast ast, int id, ref mut Emitter e) -> Val {
     e.buf.push_str(" = call ptr @malloc(i64 ");
     e.buf.push_int(sz);
     e.buf.push_str(")\n  store ptr @");
-    e.buf.push_str(lname);
+    e.buf.push_str(e.fn_sym(lname));
     e.buf.push_str(", ptr ");
     e.buf.push_str(envp);
     e.buf.push_str("\n");
@@ -3392,7 +3411,7 @@ fn emit_prelude_int1(ref String fname, ref String arg, ref mut Emitter e) -> Val
     e.buf.push_str("  ");
     e.buf.push_str(t);
     e.buf.push_str(" = call i64 @");
-    e.buf.push_str(fname);
+    e.buf.push_str(e.fn_sym(fname));
     e.buf.push_str("(i64 ");
     e.buf.push_str(arg);
     e.buf.push_str(")\n");
@@ -3412,7 +3431,7 @@ fn emit_prelude_str(ref String fname, ref Val s, ref Val arg, int has_arg, int r
         b.push_str(" = call i64 ");
     }
     b.push_str("@");
-    b.push_str(fname);
+    b.push_str(e.fn_sym(fname));
     b.push_str("(ptr ");
     b.push_str(ptr_operand(s.a));
     b.push_str(", i64 ");
@@ -4303,7 +4322,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         } else {
             b.push_str(" = call i64 @");
         }
-        b.push_str(nm);
+        b.push_str(e.fn_sym(nm));
         b.push_str("(");
         first = 1;
         a2 = ast.aa[id];
@@ -4806,7 +4825,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     t_r = e.fresh();
                     e.buf.push_str("  ");
                     e.buf.push_str(t_r);
-                    e.buf.push_str(" = call { ptr, i64 } @aya_str_repeat(ptr ");
+                    e.buf.push_str(" = call { ptr, i64 } @");
+                    e.buf.push_str(e.fn_sym("aya_str_repeat"));
+                    e.buf.push_str("(ptr ");
                     e.buf.push_str(ptr_operand(obj.a));
                     e.buf.push_str(", i64 ");
                     e.buf.push_str(obj.b);
@@ -4984,7 +5005,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     t_is = e.fresh();
                     e.buf.push_str("  ");
                     e.buf.push_str(t_is);
-                    e.buf.push_str(" = call { ptr, i64 } @aya_int_to_string(i64 ");
+                    e.buf.push_str(" = call { ptr, i64 } @");
+                    e.buf.push_str(e.fn_sym("aya_int_to_string"));
+                    e.buf.push_str("(i64 ");
                     e.buf.push_str(obj.a);
                     e.buf.push_str(")\n  ");
                     ip_is = e.fresh();
@@ -5044,9 +5067,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             } else {
                 b3.push_str(" = call i64 @");
             }
-            b3.push_str(recv_ty);
-            b3.push_str(".");
-            b3.push_str(ast.texts[id]);
+            mfull_d = recv_ty + ".";
+            mfull_d = mfull_d + ast.texts[id];
+            b3.push_str(e.fn_sym(mfull_d));
             b3.push_str("(ptr ");
             if prim_recv == 1 {
                 // 原语接收者：落到临时槽取地址
@@ -6350,11 +6373,12 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
     } else {
         e.buf.push_str("define i64 @");
     }
+    full_d = name.copy();
     if prefix.len > 0 {
-        e.buf.push_str(prefix);
-        e.buf.push_str(".");
+        full_d = prefix + ".";
+        full_d = full_d + name;
     }
-    e.buf.push_str(name);
+    e.buf.push_str(e.fn_sym(full_d));
     e.buf.push_str("(");
     first = 1;
     p = ast.aa[id];
