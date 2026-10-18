@@ -3229,73 +3229,73 @@ selfhost/src/hir/check.aya:86: pub namespace Checker
 selfhost/src/hir/check.aya:89: pub fn new(ref String file) -> Checker
 selfhost/src/hir/check.aya:158: fn is_str_lit(ref Ast ast, int id) -> int
 selfhost/src/hir/check.aya:166: fn is_std_alloc_name(ref String name) -> int
-selfhost/src/hir/check.aya:180: fn str_starts_with(ref String s, ref String prefix) -> bool
-selfhost/src/hir/check.aya:191: fn base_type(ref String t) -> String
-selfhost/src/hir/check.aya:209: fn op_method_name(int op) -> String
-selfhost/src/hir/check.aya:225: fn op_disp_name(int op) -> String
-selfhost/src/hir/check.aya:240: fn contains_dot(ref String s) -> bool
-selfhost/src/hir/check.aya:253: pub fn infer_init_ty(ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:289: pub fn type_name(ref Ast ast, int ty) -> String
-selfhost/src/hir/check.aya:343: fn suffix_type(ref String suf) -> String
-selfhost/src/hir/check.aya:351: fn num_rank(ref String t) -> int
-selfhost/src/hir/check.aya:359: fn num_lit_kind(ref Ast ast, int id) -> int
-selfhost/src/hir/check.aya:374: fn is_int_literal(ref Ast ast, int id) -> int
-selfhost/src/hir/check.aya:383: fn is_int_type(ref String t) -> bool
-selfhost/src/hir/check.aya:393: fn pat_variant_name(ref String v) -> String
-selfhost/src/hir/check.aya:416: fn is_prim_type(ref String t) -> bool
-selfhost/src/hir/check.aya:430: fn dec_val(ref String s) -> int
-selfhost/src/hir/check.aya:444: fn scalar_covers(ref String base, ref [int; 64] los, ref [int; 64] his, int n) -> int
-selfhost/src/hir/check.aya:506: fn strip_ref_ty(ref String t) -> String
-selfhost/src/hir/check.aya:513: fn convertible(ref String from, ref String to) -> bool
-selfhost/src/hir/check.aya:550: fn strip_generic(ref String t) -> String
-selfhost/src/hir/check.aya:562: fn is_implicit_param(ref String name) -> bool
-selfhost/src/hir/check.aya:570: fn is_float_ty(ref String t) -> bool
-selfhost/src/hir/check.aya:576: fn is_int_ty(ref String t) -> bool
-selfhost/src/hir/check.aya:590: impl Checker
-selfhost/src/hir/check.aya:593: fn err(ref mut self, ref String msg, int line, int col)
-selfhost/src/hir/check.aya:600: fn err_name(ref mut self, ref String prefix, ref String name, int line, int col)
-selfhost/src/hir/check.aya:608: fn find_fn(ref mut self, ref String name) -> int
-selfhost/src/hir/check.aya:620: fn add_fx(ref mut self, ref Ast ast, int id, ref String recv)
-selfhost/src/hir/check.aya:651: fn fx_note_call(ref mut self, ref String name)
-selfhost/src/hir/check.aya:666: fn fx_root_is_ref(ref mut self, ref Ast ast, int id) -> bool
-selfhost/src/hir/check.aya:699: fn fx_infer(ref mut self, ref Ast ast)
-selfhost/src/hir/check.aya:753: fn find_method(ref mut self, ref String recv, ref String name) -> int
-selfhost/src/hir/check.aya:766: fn find_struct(ref mut self, ref String name) -> int
-selfhost/src/hir/check.aya:776: fn find_interface(ref mut self, ref String name) -> int
-selfhost/src/hir/check.aya:785: fn has_if_method(ref mut self, int ifi, ref String name) -> bool
-selfhost/src/hir/check.aya:798: fn gp_bound(ref mut self, ref String name) -> String
-selfhost/src/hir/check.aya:807: fn is_gp(ref mut self, ref String name) -> bool
-selfhost/src/hir/check.aya:819: fn load_generics(ref mut self, ref Ast ast, int chain)
-selfhost/src/hir/check.aya:835: fn check_dup_generics(ref mut self, ref Ast ast, int chain, int line, int col)
-selfhost/src/hir/check.aya:854: fn find_field(ref mut self, int st, ref String name) -> int
-selfhost/src/hir/check.aya:865: fn find_enum(ref mut self, ref String name) -> int
-selfhost/src/hir/check.aya:876: fn collect_globals(ref mut self, ref Ast ast, int prog)
-selfhost/src/hir/check.aya:892: fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix)
-selfhost/src/hir/check.aya:912: fn add_global_ty(ref mut self, ref Ast ast, ref String name, int id)
-selfhost/src/hir/check.aya:927: fn is_global(ref mut self, ref String name) -> bool
-selfhost/src/hir/check.aya:938: fn global_ty(ref mut self, ref String name) -> String
-selfhost/src/hir/check.aya:947: fn has_variant(ref mut self, int en, ref String name) -> bool
-selfhost/src/hir/check.aya:960: fn local_type(ref mut self, ref String name) -> String
-selfhost/src/hir/check.aya:969: fn has_local(ref mut self, ref String name) -> bool
-selfhost/src/hir/check.aya:980: fn set_local(ref mut self, ref String name, ref String ty)
-selfhost/src/hir/check.aya:990: fn seed_std(ref mut self)
-selfhost/src/hir/check.aya:1006: fn add_builtin(ref mut self, ref String name)
-selfhost/src/hir/check.aya:1019: fn collect(ref mut self, ref Ast ast, int prog)
-selfhost/src/hir/check.aya:1025: fn collect_recv(ref mut self, ref Ast ast, int prog, ref String recv)
-selfhost/src/hir/check.aya:1052: fn add_fn(ref mut self, ref Ast ast, int id, ref String recv)
-selfhost/src/hir/check.aya:1096: fn add_struct(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1118: fn add_interface(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1139: fn add_enum(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1168: fn check_fn(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1210: fn check_match(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:1360: fn arms_cover_variant(ref mut self, ref Ast ast, int arms, ref String vname) -> bool
-selfhost/src/hir/check.aya:1373: fn check_block(ref mut self, ref Ast ast, int blk)
-selfhost/src/hir/check.aya:1387: fn check_stmt(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1548: fn convert_err(ref mut self, ref String from, ref String to, int line, int col)
-selfhost/src/hir/check.aya:1561: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
-selfhost/src/hir/check.aya:1583: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
-selfhost/src/hir/check.aya:1613: fn check_expr(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:2024: pub fn check_program(ref Ast ast, int prog, ref String file) -> int
+selfhost/src/hir/check.aya:183: fn str_starts_with(ref String s, ref String prefix) -> bool
+selfhost/src/hir/check.aya:194: fn base_type(ref String t) -> String
+selfhost/src/hir/check.aya:212: fn op_method_name(int op) -> String
+selfhost/src/hir/check.aya:228: fn op_disp_name(int op) -> String
+selfhost/src/hir/check.aya:243: fn contains_dot(ref String s) -> bool
+selfhost/src/hir/check.aya:256: pub fn infer_init_ty(ref Ast ast, int id) -> String
+selfhost/src/hir/check.aya:292: pub fn type_name(ref Ast ast, int ty) -> String
+selfhost/src/hir/check.aya:346: fn suffix_type(ref String suf) -> String
+selfhost/src/hir/check.aya:354: fn num_rank(ref String t) -> int
+selfhost/src/hir/check.aya:362: fn num_lit_kind(ref Ast ast, int id) -> int
+selfhost/src/hir/check.aya:377: fn is_int_literal(ref Ast ast, int id) -> int
+selfhost/src/hir/check.aya:386: fn is_int_type(ref String t) -> bool
+selfhost/src/hir/check.aya:396: fn pat_variant_name(ref String v) -> String
+selfhost/src/hir/check.aya:419: fn is_prim_type(ref String t) -> bool
+selfhost/src/hir/check.aya:433: fn dec_val(ref String s) -> int
+selfhost/src/hir/check.aya:447: fn scalar_covers(ref String base, ref [int; 64] los, ref [int; 64] his, int n) -> int
+selfhost/src/hir/check.aya:509: fn strip_ref_ty(ref String t) -> String
+selfhost/src/hir/check.aya:516: fn convertible(ref String from, ref String to) -> bool
+selfhost/src/hir/check.aya:553: fn strip_generic(ref String t) -> String
+selfhost/src/hir/check.aya:565: fn is_implicit_param(ref String name) -> bool
+selfhost/src/hir/check.aya:573: fn is_float_ty(ref String t) -> bool
+selfhost/src/hir/check.aya:579: fn is_int_ty(ref String t) -> bool
+selfhost/src/hir/check.aya:593: impl Checker
+selfhost/src/hir/check.aya:596: fn err(ref mut self, ref String msg, int line, int col)
+selfhost/src/hir/check.aya:603: fn err_name(ref mut self, ref String prefix, ref String name, int line, int col)
+selfhost/src/hir/check.aya:611: fn find_fn(ref mut self, ref String name) -> int
+selfhost/src/hir/check.aya:623: fn add_fx(ref mut self, ref Ast ast, int id, ref String recv)
+selfhost/src/hir/check.aya:654: fn fx_note_call(ref mut self, ref String name)
+selfhost/src/hir/check.aya:669: fn fx_root_is_ref(ref mut self, ref Ast ast, int id) -> bool
+selfhost/src/hir/check.aya:702: fn fx_infer(ref mut self, ref Ast ast)
+selfhost/src/hir/check.aya:756: fn find_method(ref mut self, ref String recv, ref String name) -> int
+selfhost/src/hir/check.aya:769: fn find_struct(ref mut self, ref String name) -> int
+selfhost/src/hir/check.aya:779: fn find_interface(ref mut self, ref String name) -> int
+selfhost/src/hir/check.aya:788: fn has_if_method(ref mut self, int ifi, ref String name) -> bool
+selfhost/src/hir/check.aya:801: fn gp_bound(ref mut self, ref String name) -> String
+selfhost/src/hir/check.aya:810: fn is_gp(ref mut self, ref String name) -> bool
+selfhost/src/hir/check.aya:822: fn load_generics(ref mut self, ref Ast ast, int chain)
+selfhost/src/hir/check.aya:838: fn check_dup_generics(ref mut self, ref Ast ast, int chain, int line, int col)
+selfhost/src/hir/check.aya:857: fn find_field(ref mut self, int st, ref String name) -> int
+selfhost/src/hir/check.aya:868: fn find_enum(ref mut self, ref String name) -> int
+selfhost/src/hir/check.aya:879: fn collect_globals(ref mut self, ref Ast ast, int prog)
+selfhost/src/hir/check.aya:895: fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix)
+selfhost/src/hir/check.aya:915: fn add_global_ty(ref mut self, ref Ast ast, ref String name, int id)
+selfhost/src/hir/check.aya:930: fn is_global(ref mut self, ref String name) -> bool
+selfhost/src/hir/check.aya:941: fn global_ty(ref mut self, ref String name) -> String
+selfhost/src/hir/check.aya:950: fn has_variant(ref mut self, int en, ref String name) -> bool
+selfhost/src/hir/check.aya:963: fn local_type(ref mut self, ref String name) -> String
+selfhost/src/hir/check.aya:972: fn has_local(ref mut self, ref String name) -> bool
+selfhost/src/hir/check.aya:983: fn set_local(ref mut self, ref String name, ref String ty)
+selfhost/src/hir/check.aya:993: fn seed_std(ref mut self)
+selfhost/src/hir/check.aya:1009: fn add_builtin(ref mut self, ref String name)
+selfhost/src/hir/check.aya:1022: fn collect(ref mut self, ref Ast ast, int prog)
+selfhost/src/hir/check.aya:1028: fn collect_recv(ref mut self, ref Ast ast, int prog, ref String recv)
+selfhost/src/hir/check.aya:1055: fn add_fn(ref mut self, ref Ast ast, int id, ref String recv)
+selfhost/src/hir/check.aya:1099: fn add_struct(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1121: fn add_interface(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1142: fn add_enum(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1171: fn check_fn(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1213: fn check_match(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/hir/check.aya:1363: fn arms_cover_variant(ref mut self, ref Ast ast, int arms, ref String vname) -> bool
+selfhost/src/hir/check.aya:1376: fn check_block(ref mut self, ref Ast ast, int blk)
+selfhost/src/hir/check.aya:1390: fn check_stmt(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1551: fn convert_err(ref mut self, ref String from, ref String to, int line, int col)
+selfhost/src/hir/check.aya:1564: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
+selfhost/src/hir/check.aya:1586: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
+selfhost/src/hir/check.aya:1616: fn check_expr(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/hir/check.aya:2031: pub fn check_program(ref Ast ast, int prog, ref String file) -> int
 selfhost/src/lexer/lexer.aya:8: pub struct Lexer
 selfhost/src/lexer/lexer.aya:17: pub namespace Lexer
 selfhost/src/lexer/lexer.aya:20: pub fn new(ref String src) -> Lexer
