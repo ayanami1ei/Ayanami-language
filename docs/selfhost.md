@@ -108,6 +108,11 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     `self` 直接可用的指针（结构体/枚举取堆指针，int/float/String 先装箱成堆单元），vtable 槽位 =
     接口方法声明顺序，接口名从局部 `etype`（形参序言记录）取。
 
+32. **import 解析三层回退（2026-10-18）**：`deps.path_of`（ayanami.toml）→ 相对路径
+    （`Path::join(fdir, al)`，`.aya`）→ 文件名在 `std/src/{core,collections,system,meta,dev}`
+    查（std 源码合并，**默认开**，`AYANAMI_STD_SRC=0` 关闭）；`.lcl` 预编译包回退同目录 `.aya` 源码
+    （自举读不了 .lcl）。自举源码自身的 import 全部命中 manifest，std 回退不会影响固定点。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash
@@ -235,8 +240,19 @@ selfhost/
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
 | M5 | 🔄 进行中 | M5a-e 端到端：**17/17** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
-| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅；M6u prelude（String/char/int 方法补全）/int.to_string/静态结构体全局 ✅；M6v 接口 vtable 动态派发 + for-in 迭代器协议 + 哨兵/合成 id 冲突修复 ✅。example diff **91/145**（两种模式一致，2026-10-18）；运行时对照 **126/145**（stage-0 默认 vs stage-1 std 合并） |
-| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-18 md5 `7f34f3b83805ee5cb4e6b1b595a55053`） |
+| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅；M6u prelude（String/char/int 方法补全）/int.to_string/静态结构体全局 ✅；M6v 接口 vtable 动态派发 + for-in 迭代器协议 + 哨兵/合成 id 冲突修复 ✅；M6w ref 结构体解引用 + `?` 运算符 + import 三层回退 + **std 源码合并转正（默认开）** ✅。example diff **114/145**（2026-10-18）；运行时对照 **129/145**（stage-0 vs stage-1 默认模式） |
+| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-18 md5 `7b20e28604756f7804154dbe2aedd779`） |
+
+M6w 交付（2026-10-18，ref/`?`/import/std 转正）：
+
+**ref 结构体/枚举解引用**：`r = ref mut s`（kind 30）记录被引用目标类型（结构体 5000+si / 枚举
+6000+ei），Ident kd 30 命中时再解一层返回结构体/枚举值——`r.get()`/`r.v`/`r.v = x` 全部可用
+（test_ref_receiver、test_nll 转正）。**`?` 运算符**（`ET::TryOp`）：tag != Ok/Some 时 ptrtoint
+后从当前函数返回，否则取载荷（`emit_variant_payload` 由 for-in 泛化；test_try 转正）。
+**import 三层回退**：见坑 32。**std 源码合并转正**：默认开（`AYANAMI_STD_SRC=0` 关闭），
+自举源码 import 全走 manifest 不受影响，固定点验证通过——diff 99 → 113（std 集合/接口例子群检查输出对齐）。
+**遗留**：std 代码 4 条 effect 警告（arraylist/linkedlist `first`/`last` 缺 `#[alloc]`，上游同样缺；
+std 子仓 pinned 0cf5e1b、main 领先 67 提交，待 std 同步后提交修复）。
 
 M6v 交付（2026-10-18，接口 vtable + for-in）：
 
