@@ -1,7 +1,0 @@
-import "string"
-
-fn main() -> int {
-    e1 = String::empty()
-    e2 = String::new()
-    return 0
-}

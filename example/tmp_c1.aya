@@ -1,9 +1,0 @@
-import "arraylist"
-
-fn main() -> int {
-    a = ArrayList::new[int]()
-    if !a.is_empty() { return 1 }
-    a.push(7)
-    if a.index(0) != 7 { return 2 }
-    return 0
-}

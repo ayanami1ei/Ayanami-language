@@ -2083,6 +2083,42 @@ impl Emitter {
         return elem_llvm(ast, ety);
     }
 
+    /// 隐式位置参数（__line/__col/__file）在调用点注入；返回附加实参文本
+    #[alloc]
+    #[state]
+    fn implicit_args_m(ref mut self, ref Ast ast, int id, int fnode, int start, int first) -> String {
+        b = StringBuf::new();
+        if fnode < 0 { return ""; }
+        pp = ast.aa[fnode];
+        pi = 0;
+        fst = first;
+        while pp >= 0 {
+            if pi >= start {
+                pname = ast.texts[pp];
+                if pname == "__line" || pname == "__col" || pname == "__file" {
+                    if fst == 0 { b.push_str(", "); }
+                    fst = 0;
+                    if pname == "__file" {
+                        si_f = self.add_str(self.src_file);
+                        b.push_str("ptr @.str.");
+                        b.push_int(si_f);
+                        b.push_str(", i64 ");
+                        b.push_int(self.src_file.len as int);
+                    } elif pname == "__line" {
+                        b.push_str("i64 ");
+                        if id >= 0 { b.push_int(ast.lines[id]); } else { b.push_int(0); }
+                    } else {
+                        b.push_str("i64 ");
+                        if id >= 0 { b.push_int(ast.cols[id]); } else { b.push_int(0); }
+                    }
+                }
+            }
+            pi = pi + 1;
+            pp = ast.nexts[pp];
+        }
+        return b.to_string();
+    }
+
     fn fn_param_kind(ref mut self, ref String fname, int i) -> int {
         f = 0;
         while f < self.fn_count {
@@ -2431,6 +2467,7 @@ fn emit_ufcs_call(ref Ast ast, int id, ref Val obj, ref String name, ref mut Emi
         ak3 = ak3 + 1;
         a3 = ast.nexts[a3];
     }
+    b.push_str(e.implicit_args_m(ast, id, e.fn_first_id(full), ak3, 0));
     b.push_str(")\n");
     e.buf.push_str(b.to_string());
     if rk_m == 5 { return mk_float(t); }
@@ -2743,6 +2780,7 @@ fn emit_iface_dispatch(ref Ast ast, int args_head, ref Val obj, int ii, int mi, 
         ak3 = ak3 + 1;
         a3 = ast.nexts[a3];
     }
+    b.push_str(e.implicit_args_m(ast, -1, mnode, ak3, 0));
     b.push_str(")\n");
     e.buf.push_str(b.to_string());
     if rk_m == 5 { return mk_float(t5); }
@@ -5352,6 +5390,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             ak = ak + 1;
             a2 = ast.nexts[a2];
         }
+        b.push_str(e.implicit_args_m(ast, id, e.fn_first_id(nm), ak, first));
         b.push_str(")\n");
         e.buf.push_str(b.to_string());
         if rk_c == 5 {
@@ -6230,6 +6269,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 ak3 = ak3 + 1;
                 a3 = ast.nexts[a3];
             }
+            mfull_ia = recv_ty + ".";
+            mfull_ia = mfull_ia + ast.texts[id];
+            b3.push_str(e.implicit_args_m(ast, id, e.fn_first_id(mfull_ia), ak3, 0));
             b3.push_str(")\n");
             e.buf.push_str(b3.to_string());
             if rk_m == 5 {
