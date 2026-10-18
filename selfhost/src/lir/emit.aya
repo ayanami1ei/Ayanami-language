@@ -94,6 +94,9 @@ pub struct Emitter {
     // 全局常量/静态：0=int 2=数组；数组元素以逗号串存
     [String] g_names
     [int] g_kinds
+    // 接口名表（静态派发：接口形参按 ptr 传递，方法按名在 impl 表查找）
+    [String] if_names
+    int if_count
     // #[compile_time] 函数表与常量求值环境（编译期解释器）
     [String] ct_names
     [int] ct_ids
@@ -157,6 +160,7 @@ pub namespace Emitter {
             g_names = [String; 512], g_kinds = [int; 512], g_vals = [String; 512],
             g_lens = [int; 512], g_count = 0,
             g_init_ids = [int; 512], g_stype = [int; 512], need_ginit = 0, ginit_buf = StringBuf::new(),
+            if_names = [String; 128], if_count = 0,
             ct_names = [String; 256], ct_ids = [int; 256], ct_count = 0,
             ct_env_names = [String; 256], ct_env_vals = [int; 256], ct_env_count = 0,
             ct_args = [int; 16], ct_ret = 0, ct_depth = 0, ct_frame = 0, src_file = String::empty(),
@@ -849,6 +853,7 @@ impl Emitter {
         if ei >= 0 { return 20; }
         si = self.find_struct_idx(tn);
         if si >= 0 { return 100 + si; }
+        if self.find_iface_idx(tn) >= 0 { return 21; }
         if is_ref == 1 { return 30; }
         return 0;
     }
@@ -1476,6 +1481,47 @@ impl Emitter {
 
     #[alloc]
     #[state]
+    /// 登记接口名
+    #[alloc]
+    #[state]
+    fn reg_iface(ref mut self, ref Ast ast, int id) {
+        if self.if_count >= 128 { return; }
+        if self.find_iface_idx(ast.texts[id]) >= 0 { return; }
+        self.if_names[self.if_count] = ast.texts[id].copy();
+        self.if_count = self.if_count + 1;
+    }
+
+    fn find_iface_idx(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.if_count {
+            if self.if_names[i] == name { return i; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    /// 方法 id -> impl 类型名
+    #[alloc]
+    fn method_ty_of(ref mut self, int mid) -> String {
+        i = 0;
+        while i < self.m_count {
+            if self.m_id[i] == mid { return self.m_ty[i].copy(); }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    /// 按方法名在 impl 表里查（接口静态派发；多实现时取第一个）
+    #[alloc]
+    fn find_method_any(ref mut self, ref String name) -> int {
+        i = 0;
+        while i < self.m_count {
+            if self.m_name[i] == name { return self.m_id[i]; }
+            i = i + 1;
+        }
+        return -1;
+    }
+
     fn reg_struct(ref mut self, ref Ast ast, int id) {
         if self.st_count >= 128 { return; }
         // 同名去重
@@ -1762,6 +1808,8 @@ impl Emitter {
                 self.reg_struct(ast, s);
             } elif ast.tags[s] == st(ST::EnumDef._tag) {
                 self.add_enum(ast, s);
+            } elif ast.tags[s] == st(ST::InterfaceDef._tag) {
+                self.reg_iface(ast, s);
             } elif ast.tags[s] == st(ST::Namespace._tag) {
                 m2 = ast.aa[s];
                 while m2 >= 0 {
@@ -4056,6 +4104,16 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             if ei5 >= 0 { en5 = e.en_names[ei5].copy(); }
             return Val { kind = 4, a = t, b = en5, ty = -1 };
         }
+        if kd == 21 {
+            // 接口值（静态派发）：保持 kind 21，供方法调用按名查找
+            t21 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t21);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str(".p\n");
+            return Val { kind = 21, a = t21, b = "", ty = -1 };
+        }
         if kd >= 2 {
             e.declare_local(nm, 2);
             t = e.fresh();
@@ -5108,7 +5166,11 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             }
             if recv_ty.len == 0 { recv_ty = "int"; }
         }
-        if obj.kind == 2 || obj.kind == 4 || prim_recv == 1 {
+        if obj.kind == 21 {
+            // 接口值（静态派发）：按方法名在 impl 表查找，调用名用 impl 类型
+            mid = e.find_method_any(ast.texts[id]);
+            recv_ty = e.method_ty_of(mid);
+        } elif obj.kind == 2 || obj.kind == 4 || prim_recv == 1 {
             mid = e.find_method_id(recv_ty, ast.texts[id]);
         }
         if mid >= 0 {
