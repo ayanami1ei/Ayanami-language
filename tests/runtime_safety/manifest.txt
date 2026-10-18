@@ -53,3 +53,4 @@ asm_early_clobber.aya 0 12
 arena_linked_list.aya 0
 arena_oob.aya 101 invalid Idx
 ref_registry_missing.aya 101 unknown id
+ref_graph_bad_id.aya 101 unknown link id

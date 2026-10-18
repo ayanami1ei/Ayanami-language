@@ -146,3 +146,4 @@ test_const_table.aya 0
 test_copy_attr.aya 0
 test_ref_protocol.aya 0
 test_ref_registry.aya 0
+test_ref_graph.aya 0

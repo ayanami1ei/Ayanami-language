@@ -3057,6 +3057,21 @@ example/test_ref_auto.aya:20: fn via_value(ref mut int i) -> int
 example/test_ref_auto.aya:24: fn total(ref int i, ref mut int acc)
 example/test_ref_auto.aya:28: fn set_hi(ref mut String s)
 example/test_ref_auto.aya:32: fn main() -> int
+example/test_ref_graph.aya:16: struct Idx
+example/test_ref_graph.aya:20: struct Arena[T]
+example/test_ref_graph.aya:27: pub fn with_capacity[T](usize cap) -> Arena[T]
+example/test_ref_graph.aya:32: impl[T] Arena[T]
+example/test_ref_graph.aya:33: pub fn alloc(ref mut self, T v) -> Idx
+example/test_ref_graph.aya:41: pub fn get(ref self, Idx i) -> ref T
+example/test_ref_graph.aya:48: pub fn get_mut(ref mut self, Idx i) -> ref mut T
+example/test_ref_graph.aya:55: pub fn len(ref self) -> usize
+example/test_ref_graph.aya:60: struct Node
+example/test_ref_graph.aya:68: struct Graph
+example/test_ref_graph.aya:74: fn link_id(ref Arena[Node] a, ref Option[Idx] o) -> int
+example/test_ref_graph.aya:84: fn serialize(ref Arena[Node] a) -> String
+example/test_ref_graph.aya:100: fn rebuild(ArrayList[String] lines) -> Graph
+example/test_ref_graph.aya:143: fn roundtrip() -> int
+example/test_ref_graph.aya:186: fn main() -> int
 example/test_ref_param.aya:2: struct Box2
 example/test_ref_param.aya:6: fn get(ref Box2 b) -> int
 example/test_ref_param.aya:10: fn main() -> int
