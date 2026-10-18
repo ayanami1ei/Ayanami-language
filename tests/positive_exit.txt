@@ -137,3 +137,4 @@ test_array_bounds.aya 0
 test_kw_member.aya 0
 test_generic_explicit.aya 0
 test_generic_nested.aya 0
+test_arena.aya 0

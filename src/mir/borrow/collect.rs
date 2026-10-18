@@ -101,7 +101,16 @@ pub(super) fn collect(
                         var_name(mir_fn, r)
                     ) + &at));
                 }
-                loans.insert(r, Loan { var, mutable, origin: r, extra: Vec::new() });
+                // M4 阶段 2：origin 取「根变量或其借用的来源」——返回检查（loans.rs）按
+                // origin 对齐引用参数；此前固定为 r 导致 `return ref self.field[i]` 被误拒
+                let origin = if ref_params.iter().any(|(p, _)| *p == var) {
+                    var
+                } else if let Some(l) = loans.get(&var) {
+                    l.origin
+                } else {
+                    var
+                };
+                loans.insert(r, Loan { var, mutable, origin, extra: Vec::new() });
             } else if let Some(src) = value.as_local() {
                 // 引用拷贝：r = s
                 if loans.contains_key(&r) {
@@ -228,6 +237,11 @@ fn deref_root_var(value: &MirNodeBox) -> Option<(VarId, bool)> {
             continue;
         }
         if let Some((obj, _)) = node.as_field_access() {
+            node = obj;
+            continue;
+        }
+        // M4 阶段 2：`ref arr[i]` / `ref obj.data[i]` 元素地址 → 回溯到数组对象
+        if let Some((obj, _)) = node.as_index() {
             node = obj;
             continue;
         }

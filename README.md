@@ -502,7 +502,7 @@ fn strlen(unique [char] s) -> int;
 
 ## 示例
 
-见 [`example/`](example/)（26 个端到端用例）。
+见 [`example/`](example/)（147 个；回归正例清单 `tests/positive_exit.txt`）。
 
 ## CLI 输出（cargo 风格）
 

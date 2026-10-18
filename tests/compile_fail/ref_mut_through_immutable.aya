@@ -1,0 +1,12 @@
+// 负例：不可变引用不能借出可变引用
+struct S {
+    int v
+}
+
+fn bad(ref S s) -> ref mut int {
+    return ref mut s.v
+}
+
+fn main() -> int {
+    return 0
+}
