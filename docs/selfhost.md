@@ -113,10 +113,11 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     查（std 源码合并，**默认开**，`AYANAMI_STD_SRC=0` 关闭）；`.lcl` 预编译包回退同目录 `.aya` 源码
     （自举读不了 .lcl）。自举源码自身的 import 全部命中 manifest，std 回退不会影响固定点。
 
-33. **诊断坐标未映射（未修，2026-10-18）**：导入模块内的函数报 warning/error 时，stage-1 显示
-    合并后坐标（如 `test_pass.aya:933`，指向导入占位空行），stage-0 显示原文件（`pass_lib.aya:5:5`）
-    并打印原源码行。需在 `merge_source` 建立「合并行 ->（原文件, 原行）」映射表并让诊断帧按映射输出。
-    约 8 个 diff 例子（0/0 文本差异）由此产生；bd: Ayanami-language-yn9。
+33. **诊断坐标回映原文件（已修，2026-10-18）**：导入模块内的函数报 warning/error 时，stage-1 曾显示
+    合并后坐标（如 `test_pass.aya:933`，指向导入占位空行）。修复：`SrcMap`（每追加文件的
+    路径/起始行/行数，`merge_source_map` 记录，`collect_lines` 返回行数）；Checker 持 SrcMap，
+    `map_pos` 把合并行解析回原文件/原行，`err`/`warn`/`inline_error` 全部走映射——
+    test_pass 等与 stage-0 逐字一致（含原源码行与脱字符）。
 
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
@@ -245,8 +246,12 @@ selfhost/
 | M3 | ✅ 完成 | AST golden 118/119（唯一差异为 rust dump 自身失败）；错误定位 golden 8/8 |
 | M4 | 🔄 进行中 | M4a-e 类型检查：诊断 golden **29/29**（+ match 穷尽/未知变体/模式解析：变体/字面量/区间/通配/or/结构体解构）；接口实现检查待扩展 |
 | M5 | 🔄 进行中 | M5a-e 端到端：**17/17** e2e 与 stage-0 输出/退出码一致；**自举 CLI 可用**（`selfhost/build/ayanami <check\|build\|run>`，见下）|
-| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅；M6u prelude（String/char/int 方法补全）/int.to_string/静态结构体全局 ✅；M6v 接口 vtable 动态派发 + for-in 迭代器协议 + 哨兵/合成 id 冲突修复 ✅；M6w ref 结构体解引用 + `?` 运算符 + import 三层回退 + **std 源码合并转正（默认开）** ✅。example diff **101/153**（2026-10-18，同步 rust 后例子数 145 -> 153）；运行时对照 **135/153**（stage-0 vs stage-1 默认模式） |
-| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-18 md5 `8b58e3e564c9c312a2fa2a51bcc6bcd6`） |
+| M6 | 🔄 进行中 | M6a 数组 ✅；M6b 枚举 + match ✅；M6c 字段类型/字符串内建/ABI ✅；M6e import 合并 ✅；M6f 枚举载荷类型/模式绑定 ✅；M6i const/static + unsafe ✅；M6j ref 原语 ✅；M6l 浮点 ✅；M6s 闭包捕获 ✅；M6t 运算符重载/区间穷尽/ref 数组/块尾语句/get_unchecked/#panic ✅；M6u prelude（String/char/int 方法补全）/int.to_string/静态结构体全局 ✅；M6v 接口 vtable 动态派发 + for-in 迭代器协议 + 哨兵/合成 id 冲突修复 ✅；M6w ref 结构体解引用 + `?` 运算符 + import 三层回退 + **std 源码合并转正（默认开）** ✅。example diff **102/153**（2026-10-18，同步 rust 后例子数 145 -> 153）；运行时对照 **135/153**（stage-0 vs stage-1 默认模式） |
+| M7 | ✅ 固定点达成（2026-10-15） | `./scripts/selfhost.sh selfcompile`：stage-1 编译自身 → stage-2，stage-2 再编译 → stage-3，**stage-2 == stage-3**（2026-10-18 md5 `8f8ea3b0e7e9a21f430d6b1e8eae6f4e`） |
+
+M6y 交付（2026-10-18，诊断坐标回映）：**SrcMap** 行映射（见坑 33）。剩余 diff 类别主要是
+新语言特性：宏引擎（7 例）、单态化（3 例）、Ptr 内置（1 例）、asm（2 例）、标注检查
+（`#[check_*]`，5 例）、ref String ABI（1 例）。
 
 M6x 交付（2026-10-18，rust/std 同步 + String 结果槽）：
 
