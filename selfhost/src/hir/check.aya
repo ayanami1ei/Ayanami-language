@@ -1727,7 +1727,8 @@ impl Checker {
                 first = 0;
                 if n < self.fn_nparams[fi] {
                     pty_m = self.fn_ptypes[pstart + n];
-                    if !self.is_gp(pty_m) && self.find_interface(pty_m) < 0 {
+                    // 接口形参（含泛型实参写法 Iter[int]）不参与类型匹配（静态分派）
+                    if !self.is_gp(pty_m) && self.find_interface(base_type(pty_m)) < 0 {
                         if !convertible(at, pty_m) { ok = 0; }
                     }
                 } else {

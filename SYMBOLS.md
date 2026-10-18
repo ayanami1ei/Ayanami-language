@@ -3295,7 +3295,7 @@ selfhost/src/hir/check.aya:1551: fn convert_err(ref mut self, ref String from, r
 selfhost/src/hir/check.aya:1564: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
 selfhost/src/hir/check.aya:1586: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
 selfhost/src/hir/check.aya:1616: fn check_expr(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:2032: pub fn check_program(ref Ast ast, int prog, ref String file) -> int
+selfhost/src/hir/check.aya:2033: pub fn check_program(ref Ast ast, int prog, ref String file) -> int
 selfhost/src/lexer/lexer.aya:8: pub struct Lexer
 selfhost/src/lexer/lexer.aya:17: pub namespace Lexer
 selfhost/src/lexer/lexer.aya:20: pub fn new(ref String src) -> Lexer
