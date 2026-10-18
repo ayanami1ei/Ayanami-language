@@ -502,7 +502,9 @@ fn emit_not(ref Val v, ref mut Emitter e) -> Val {
 }
 
 /// 字符串内容相等：memcmp(min) == 0 且长度相等
-fn emit_str_eq(ref Val lt, ref Val rt, ref mut Emitter e) -> Val {
+fn emit_str_eq(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val {
+    lt = str_of_val(lt0, e);
+    rt = str_of_val(rt0, e);
     c0 = e.fresh();
     e.buf.push_str("  ");
     e.buf.push_str(c0);
@@ -556,8 +558,43 @@ fn emit_str_eq(ref Val lt, ref Val rt, ref mut Emitter e) -> Val {
     return mk_int(z);
 }
 
-/// 字符串拼接
-fn emit_str_concat(ref Val lt, ref Val rt, ref mut Emitter e) -> Val {
+/// 非 String 值转 String（int/泛型 i64 走 aya_int_to_string；浮点暂给空串）
+#[alloc]
+fn str_of_val(ref Val v, ref mut Emitter e) -> Val {
+    if v.kind == 1 {
+        // 返回拥有值：ref 形参的 String 字段必须显式 copy（否则双重释放）
+        return Val { kind = v.kind, a = v.a.copy(), b = v.b.copy(), ty = v.ty };
+    }
+    if v.kind != 6 {
+        if e.fn_ret_type("aya_int_to_string") >= 0 {
+            t = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t);
+            e.buf.push_str(" = call { ptr, i64 } @");
+            e.buf.push_str(e.fn_sym("aya_int_to_string"));
+            e.buf.push_str("(i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(")\n  ");
+            ip = e.fresh();
+            e.buf.push_str(ip);
+            e.buf.push_str(" = extractvalue { ptr, i64 } ");
+            e.buf.push_str(t);
+            e.buf.push_str(", 0\n  ");
+            il = e.fresh();
+            e.buf.push_str(il);
+            e.buf.push_str(" = extractvalue { ptr, i64 } ");
+            e.buf.push_str(t);
+            e.buf.push_str(", 1\n");
+            return mk_str_tmp(ip, il);
+        }
+    }
+    return mk_str("null", 0);
+}
+
+/// 字符串拼接（非 String 操作数先转 String）
+fn emit_str_concat(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val {
+    lt = str_of_val(lt0, e);
+    rt = str_of_val(rt0, e);
     n = e.fresh();
     e.buf.push_str("  ");
     e.buf.push_str(n);
