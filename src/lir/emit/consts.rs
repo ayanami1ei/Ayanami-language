@@ -21,7 +21,7 @@ impl<'a> Emitter<'a> {
     pub(super) fn emit_global_defs(&mut self) {
         use crate::hir::ir::HirLiteral;
         for g in &self.prog.globals {
-            let linkage = if crate::hir::contracts::is_release() && !g.is_pub { "internal " } else { "" };
+            let linkage = if (crate::hir::contracts::is_release() || crate::hir::contracts::is_multi_module()) && !g.is_pub { "internal " } else { "" };
             if let HirLiteral::Struct(_) = &g.value {
                 let mut arrays: std::collections::HashMap<Vec<usize>, String> = std::collections::HashMap::new();
                 let mut path = Vec::new();

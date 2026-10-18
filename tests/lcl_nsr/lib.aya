@@ -1,0 +1,8 @@
+// nsr 夹具：lib 私有 helper（与使用方同名但不同实现）
+fn helper(int x) -> int {
+    return x + 10
+}
+
+pub fn from_lib(int x) -> int {
+    return helper(x)
+}

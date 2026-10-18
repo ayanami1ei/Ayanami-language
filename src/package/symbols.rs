@@ -149,6 +149,13 @@ impl Package {
                         .take_while(|(n, _)| matches!(n.as_str().as_str(), "__line" | "__col" | "__file"))
                         .count();
                     if hidden > 0 { flags.push("caller".to_string()); }
+                    // nsr：非 pub 自由函数标记 `private`（导入侧不注册进全局符号表——
+                    // 模块私有；跨模块引用与来源作用域解析属 M6 跨模块符号表后续）。
+                    // extern "C" / #[export] 是 C ABI 符号（无 mangle、全局可见），豁免。
+                    let is_c_export = *extern_c || crate::hir::attrs::has(attrs, "export");
+                    if !vis.is_public() && !is_c_export {
+                        flags.push("private".to_string());
+                    }
                     self.symbols.push(PackageSymbol::Fn {
                         name: full_name,
                         signature: sig,

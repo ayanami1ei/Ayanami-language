@@ -134,6 +134,11 @@ impl crate::hir::lower::Ctx {
                         self.imported_checks.entry(stem).or_default().push(Symbol::intern(name));
                     }
                     crate::package::ImportedSymbol::Fn { name, sig, flags } => {
+                        // nsr：非 pub（`private` 标记）为来源模块私有——不注册进导入方
+                        // 符号表（此前与使用方同名私有函数冲突：重载歧义/llc 重定义）
+                        if flags.iter().any(|f| f == "private") {
+                            continue;
+                        }
                         // sig format: "fnName(param_types...)->ret_type"
                         let sig_body = sig.trim_start_matches(name.as_str());
                         // M2：按配对的 ')' 找参数表结束（形参可能含 `Fn(...)` 内层括号）
