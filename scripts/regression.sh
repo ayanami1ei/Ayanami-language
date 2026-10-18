@@ -343,6 +343,21 @@ if [ -d tests/lcl_missing_dep ]; then
         fail=$((fail + 1))
     fi
 
+# M8：版本漂移告警（陈旧 .lcl；篡改版本行后导入应告警且不阻断）
+if [ -d tests/lcl_version_drift ]; then
+    vdir=tests/lcl_version_drift
+    "$BIN" package "$vdir/lib.aya" >/dev/null 2>&1 || true
+    sed -i 's/version="[^"]*"/version="0.0.0"/' "$vdir/lib.lcl" 2>/dev/null || true
+    cp "$vdir/lib.lcl" "$(dirname "$BIN")/std/" 2>/dev/null || true
+    out=$(timeout 120 "$BIN" run "$vdir/entry/entry.aya" 2>&1)
+    got=$?
+    if [ "$got" != 0 ] || ! printf '%s' "$out" | grep -q "was built with ayanami 0.0.0"; then
+        echo "FAIL $vdir/entry/entry.aya: 期望版本漂移告警（got=$got）"
+        fail=$((fail + 1))
+    fi
+    rm -f "$vdir/lib.lcl" "$(dirname "$BIN")/std/lib.lcl"
+fi
+
 # M8：feature flags（#[cfg(feature = "x")]；AYANAMI_FEATURES 与 ayanami.toml features）
 if [ -d tests/cfg_feature ]; then
     fdir=tests/cfg_feature

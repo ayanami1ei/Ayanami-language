@@ -2319,9 +2319,12 @@ src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> 
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
 src/package/load.rs:133: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:144: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:178: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:208: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:145: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:158: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:160: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:178: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:212: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:242: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
 src/package/mod.rs:7: pub(crate) mod const_codec;

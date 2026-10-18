@@ -126,8 +126,8 @@ pub(super) fn apply_passes(
             for (level, msg) in diags {
                 if level >= 2 {
                     return Err(Error::Compile(format!(
-                        "check #[{}] at {}:{}: {}",
-                        a.path_str(), a.span.start_line, a.span.start_col, msg
+                        "{} (check #[{}] at {}:{})",
+                        msg, a.path_str(), a.span.start_line, a.span.start_col
                     )));
                 }
                 eprintln!(

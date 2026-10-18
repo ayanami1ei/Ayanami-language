@@ -1,0 +1,6 @@
+// M8：陈旧 .lcl（版本不符）→ 导入告警（不阻断；exit 0）
+import "lib"
+
+fn main() -> int {
+    return v() - 1
+}

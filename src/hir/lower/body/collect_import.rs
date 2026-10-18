@@ -5,6 +5,8 @@ impl crate::hir::lower::Ctx {
             let pkg_path = super::collect_import_path::resolve_import_pkg_path(path);
             let (imported_syms, sources, lir_binary, _) = crate::package::load_package(&pkg_path)
                 .map_err(|e| Error::Import(format!("import error for '{}': {}", path, e)))?;
+            // M8：版本漂移告警（陈旧 .lcl；仅警告，不阻断）
+            crate::package::warn_version_drift(&pkg_path, &crate::hir::attrs::pkg_stem(path));
 
             // Merge struct definitions from the package's LIR data
             if !lir_binary.is_empty() {
