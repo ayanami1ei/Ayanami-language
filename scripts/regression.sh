@@ -117,7 +117,7 @@ if [ -d tests/fmt ]; then
         fi
         cp "$fdir/t.aya" "$fdir/t2.aya"
         "$BIN" fmt "$fdir/t2.aya" >/dev/null 2>&1
-        if ! diff -q "$fdir/t.aya" "$fdir/t2.aya" >/dev/null; then
+        if ! /usr/bin/diff -q "$fdir/t.aya" "$fdir/t2.aya" >/dev/null; then
             echo "FAIL $f: fmt 非幂等"
             fail=$((fail + 1))
         fi

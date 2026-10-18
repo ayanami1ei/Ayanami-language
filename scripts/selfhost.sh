@@ -134,11 +134,11 @@ cmd_tokens() {
         total=$((total + 1))
         run_limited "$rust_dump" "$f" > $WORK/tok_rust.txt 2>/dev/null || true
         run_limited env LEX_FILE="$f" "$WORK/lexer_dump" > $WORK/tok_aya.txt 2>/dev/null || true
-        if diff -q $WORK/tok_rust.txt $WORK/tok_aya.txt >/dev/null; then
+        if /usr/bin/diff -q $WORK/tok_rust.txt $WORK/tok_aya.txt >/dev/null; then
             echo "TOKENS OK $(basename "$f")"
         else
             echo "TOKENS DIFF $(basename "$f")"
-            diff $WORK/tok_rust.txt $WORK/tok_aya.txt | head -6 || true
+            /usr/bin/diff $WORK/tok_rust.txt $WORK/tok_aya.txt | head -6 || true
             fail=$((fail + 1))
         fi
     done
@@ -166,11 +166,11 @@ cmd_ast() {
         sed -i -E 's|(ConstDecl \{ name: [A-Za-z0-9_]+).*|\1 }|; s|(StaticDecl \{ name: [A-Za-z0-9_]+).*|\1 }|' $WORK/ast_rust.txt $WORK/ast_aya.txt
         # Lambda 的 rust Debug 含 Span 内部信息，归一化
         sed -i -E 's|(Lambda\().*|\1...)|' $WORK/ast_rust.txt $WORK/ast_aya.txt
-        if diff -q $WORK/ast_rust.txt $WORK/ast_aya.txt >/dev/null; then
+        if /usr/bin/diff -q $WORK/ast_rust.txt $WORK/ast_aya.txt >/dev/null; then
             echo "AST OK $(basename "$f")"
         else
             echo "AST DIFF $(basename "$f")"
-            diff $WORK/ast_rust.txt $WORK/ast_aya.txt | head -8 || true
+            /usr/bin/diff $WORK/ast_rust.txt $WORK/ast_aya.txt | head -8 || true
             fail=$((fail + 1))
         fi
     done
@@ -287,9 +287,9 @@ cmd_diff() {
         NOISE="^[[:space:]]*(Compiling|Checking|Finished|Running|Packaging)|^error: process didn"
         grep -v -E "$NOISE" $WORK/diff.s0 > $WORK/diff.s0.clean || true
         grep -v -E "$NOISE" $WORK/diff.s1 > $WORK/diff.s1.clean || true
-        if [[ $c0 -ne $c1 ]] || ! diff -q $WORK/diff.s0.clean $WORK/diff.s1.clean >/dev/null; then
+        if [[ $c0 -ne $c1 ]] || ! /usr/bin/diff -q $WORK/diff.s0.clean $WORK/diff.s1.clean >/dev/null; then
             echo "DIFF $f (stage0=$c0 stage1=$c1)"
-            diff $WORK/diff.s0.clean $WORK/diff.s1.clean | head -6 || true
+            /usr/bin/diff $WORK/diff.s0.clean $WORK/diff.s1.clean | head -6 || true
             fail=$((fail + 1))
         else
             echo "SAME $f (exit=$c0)"

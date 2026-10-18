@@ -3222,8 +3222,8 @@ selfhost/src/driver/imports.aya:176: pub fn load_deps(ref String manifest_dir) -
 selfhost/src/driver/imports.aya:237: fn std_src_enabled() -> int
 selfhost/src/driver/imports.aya:246: fn std_src_path(ref String start_dir, ref String stem) -> String
 selfhost/src/driver/imports.aya:292: pub fn collect_lines(ref String file, ref Deps deps, ref mut Seen seen, ref mut StringBuf dst, ref String mdir)
-selfhost/src/driver/imports.aya:354: fn prelude_path(ref String mdir) -> String
-selfhost/src/driver/imports.aya:369: pub fn merge_source(ref String file) -> String
+selfhost/src/driver/imports.aya:362: fn prelude_path(ref String mdir) -> String
+selfhost/src/driver/imports.aya:377: pub fn merge_source(ref String file) -> String
 selfhost/src/hir/check.aya:12: pub struct Checker
 selfhost/src/hir/check.aya:86: pub namespace Checker
 selfhost/src/hir/check.aya:89: pub fn new(ref String file) -> Checker

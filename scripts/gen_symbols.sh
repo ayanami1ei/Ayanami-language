@@ -67,7 +67,7 @@ if [[ "$check_mode" == true ]]; then
         echo "Error: SYMBOLS.md does not exist." >&2
         exit 1
     fi
-    diff -u "SYMBOLS.md" "$tmpfile" >&2 || {
+    /usr/bin/diff -u "SYMBOLS.md" "$tmpfile" >&2 || {
         echo "Error: SYMBOLS.md is out of date." >&2
         exit 1
     }

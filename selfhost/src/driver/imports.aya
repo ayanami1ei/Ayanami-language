@@ -329,6 +329,14 @@ pub fn collect_lines(ref String file, ref Deps deps, ref mut Seen seen, ref mut 
                                 added = 1;
                             }
                         }
+                    } elif al.ends_with(".lcl") {
+                        // 预编译包（自举读不了 .lcl）：回退到同目录 .aya 源码
+                        al2 = Path::stem(al) + ".aya";
+                        rp2 = Path::join(fdir, al2);
+                        if file_exists(rp2) {
+                            if !seen.has(rp2) { seen.add(rp2); }
+                            added = 1;
+                        }
                     }
                     if added == 0 {
                         // std 源码回退（AYANAMI_STD_SRC=1）
