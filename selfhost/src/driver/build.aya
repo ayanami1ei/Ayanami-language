@@ -92,14 +92,15 @@ pub fn cmd_check(ref String file) -> int {
         raw_error("check requires a .aya file");
         return 1;
     }
-    src = merge_source(file);
+    smap = SrcMap::new();
+    src = merge_source_map(file, smap);
     p = Parser::new(src);
     prog = p.parse_program();
     if p.failed == 1 {
         raw_error("parse error: " + p.err);
         return 1;
     }
-    n = check_program(p.ast, prog, file);
+    n = check_program(p.ast, prog, file, smap);
     if n > 0 {
         raw_error("check failed: " + file);
         return 1;
@@ -122,14 +123,15 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
         raw_error("build requires a .aya file");
         return 1;
     }
-    src = merge_source(file);
+    smap = SrcMap::new();
+    src = merge_source_map(file, smap);
     p = Parser::new(src);
     prog = p.parse_program();
     if p.failed == 1 {
         raw_error("parse error: " + p.err);
         return 1;
     }
-    n = check_program(p.ast, prog, file);
+    n = check_program(p.ast, prog, file, smap);
     if n > 0 {
         // 自举期：checker 尚不完整（缺 std 符号表/部分重载规则），降级为警告继续发射
         raw_error("check warnings: " + int_str3(n));

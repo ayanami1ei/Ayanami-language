@@ -16,7 +16,8 @@ fn main() -> int {
         println(p.err);
         return 3;
     }
-    n = check_program(p.ast, prog, path);
+    smap = SrcMap::new();
+    n = check_program(p.ast, prog, path, smap);
     if n == 0 {
         b = StringBuf::new();
         b.push_str("check passed: ");

@@ -286,12 +286,13 @@ fn std_src_path(ref String start_dir, ref String stem) -> String {
     return "";
 }
 
-/// 输出单个文件正文（import 行补空行保行号），并把 import 目标加入 Seen 队列
+/// 输出单个文件正文（import 行补空行保行号），并把 import 目标加入 Seen 队列；返回输出行数
 #[alloc]
 #[state]
-pub fn collect_lines(ref String file, ref Deps deps, ref mut Seen seen, ref mut StringBuf dst, ref String mdir) {
+pub fn collect_lines(ref String file, ref Deps deps, ref mut Seen seen, ref mut StringBuf dst, ref String mdir) -> int {
+    lines_out = 0;
     r = read_file(file);
-    if !r.ok { return; }
+    if !r.ok { return 0; }
     fdir = Path::dir(file);
     if fdir.len == 0 { fdir = "."; }
     start = 0;
@@ -352,10 +353,12 @@ pub fn collect_lines(ref String file, ref Deps deps, ref mut Seen seen, ref mut 
                 dst.push_str(line);
                 dst.push('\n');
             }
+            lines_out = lines_out + 1;
             start = i + 1;
         }
         i = i + 1;
     }
+    return lines_out;
 }
 
 /// 自举 prelude 路径（String 方法补全）：按候选顺序找存在的文件
@@ -371,20 +374,77 @@ fn prelude_path(ref String mdir) -> String {
     return "";
 }
 
+/// 合并源行映射：每个追加文件的 (路径, 起始行, 行数)，用于诊断回映原文件坐标
+pub struct SrcMap {
+    [String] files
+    [int] start
+    [int] count
+    int n
+    int cur_line
+}
+
+pub namespace SrcMap {
+    #[alloc]
+    pub fn new() -> SrcMap {
+        return SrcMap { files = [String; 256], start = [int; 256], count = [int; 256], n = 0, cur_line = 0 };
+    }
+}
+
+impl SrcMap {
+    #[alloc]
+    #[state]
+    fn add(ref mut self, ref String f, int st, int cnt) {
+        if self.n >= 256 { return; }
+        self.files[self.n] = f.copy();
+        self.start[self.n] = st;
+        self.count[self.n] = cnt;
+        self.n = self.n + 1;
+    }
+
+    /// 合并行 -> 原文件；原行写入 cur_line（无命中返回空串）
+    #[alloc]
+    #[state]
+    pub fn resolve(ref mut self, int line) -> String {
+        i = 0;
+        while i < self.n {
+            if line >= self.start[i] && line < self.start[i] + self.count[i] {
+                self.cur_line = line - self.start[i] + 1;
+                return self.files[i].copy();
+            }
+            i = i + 1;
+        }
+        self.cur_line = line;
+        return "";
+    }
+}
+
 /// 入口：返回合并后的源码（解析失败时返回单文件内容）
 #[alloc]
 #[state]
 pub fn merge_source(ref String file) -> String {
+    m = SrcMap::new();
+    return merge_source_map(file, m);
+}
+
+/// 同 merge_source，同时填充行映射（诊断回映原文件坐标）
+#[alloc]
+#[state]
+pub fn merge_source_map(ref String file, ref mut SrcMap map) -> String {
     mdir = find_manifest_dir(file);
     deps = load_deps(mdir);
     seen = Seen::new();
     dst = StringBuf::new();
     // 两段式：根文件正文在前（行号与原始一致），模块按队列追加在后
     seen.add(file);
-    collect_lines(file, deps, seen, dst, mdir);
+    ln0 = collect_lines(file, deps, seen, dst, mdir);
+    map.add(file, 1, ln0);
+    cur = ln0 + 1;
     qi = 1;
     while qi < seen.count {
-        collect_lines(seen.files[qi], deps, seen, dst, mdir);
+        f2 = seen.files[qi].copy();
+        ln2 = collect_lines(f2, deps, seen, dst, mdir);
+        map.add(f2, cur, ln2);
+        cur = cur + ln2;
         qi = qi + 1;
     }
     // 自举 prelude：最后追加（缺失时静默跳过）
@@ -392,7 +452,9 @@ pub fn merge_source(ref String file) -> String {
     if pp.len > 0 {
         if !seen.has(pp) {
             seen.add(pp);
-            collect_lines(pp, deps, seen, dst, mdir);
+            ln3 = collect_lines(pp, deps, seen, dst, mdir);
+            map.add(pp, cur, ln3);
+            cur = cur + ln3;
         }
     }
     return dst.to_string();

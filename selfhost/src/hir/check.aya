@@ -3,6 +3,7 @@ import "aya_sb";
 import "aya_ast";
 import "aya_log";
 import "aya_sys";
+import "aya_imports";
 
 // M4b：HIR 子集类型检查（名称解析 + 表达式/语句类型检查）
 // 诊断格式与 rust 版 `ayanami check` 对齐：error: msg + file:line:col
@@ -12,6 +13,9 @@ import "aya_sys";
 pub struct Checker {
     int errors
     String file
+    // 合并源行映射（诊断回映原文件坐标）
+    SrcMap smap
+    int smap_line
     // 函数表
     [String] fn_names
     [String] fn_rets
@@ -86,10 +90,12 @@ pub struct Checker {
 pub namespace Checker {
     #[alloc]
     #[state]
-    pub fn new(ref String file) -> Checker {
+    pub fn new(ref String file, SrcMap smap0) -> Checker {
         c = Checker {
             errors = 0,
             file = file.copy(),
+            smap = smap0,
+            smap_line = 0,
             fn_names = [String; 8192],
             fn_rets = [String; 8192],
             fn_nparams = [int; 8192],
@@ -591,11 +597,29 @@ fn is_int_ty(ref String t) -> bool {
 }
 
 impl Checker {
+    /// 合并行 -> 原文件（原行写入 self.smap_line）
+    #[alloc]
+    #[state]
+    fn map_pos(ref mut self, int line) -> String {
+        f = self.smap.resolve(line);
+        self.smap_line = self.smap.cur_line;
+        if f.len > 0 { return f; }
+        return self.file.copy();
+    }
+
     #[alloc]
     #[state]
     fn err(ref mut self, ref String msg, int line, int col) {
         self.errors = self.errors + 1;
-        error_at(self.file, line, col, msg);
+        mf = self.map_pos(line);
+        error_at(mf, self.smap_line, col, msg);
+    }
+
+    #[alloc]
+    #[state]
+    fn warn(ref mut self, ref String msg, int line, int col) {
+        mf_w = self.map_pos(line);
+        warn_at(mf_w, self.smap_line, col, msg);
     }
 
     #[alloc]
@@ -738,14 +762,14 @@ impl Checker {
                         w.push_str("function `");
                         w.push_str(self.fx_names[i]);
                         w.push_str("` may have effect `alloc`; consider adding #[alloc]");
-                        warn_at(self.file, self.fx_line[i], self.fx_col[i], w.to_string());
+                        self.warn(w.to_string(), self.fx_line[i], self.fx_col[i]);
                     }
                     if self.fx_state[i] == 1 && (self.fx_mask[i] / 512) % 2 == 0 {
                         w2 = StringBuf::new();
                         w2.push_str("function `");
                         w2.push_str(self.fx_names[i]);
                         w2.push_str("` may have effect `state`; consider adding #[state]");
-                        warn_at(self.file, self.fx_line[i], self.fx_col[i], w2.to_string());
+                        self.warn(w2.to_string(), self.fx_line[i], self.fx_col[i]);
                     }
                 }
             }
@@ -1554,7 +1578,8 @@ impl Checker {
                     b.push_str("` 没有字段 `");
                     b.push_str(ast.texts[id]);
                     b.push_str("`");
-                    inline_error(b.to_string(), ast.lines[id], ast.cols[id]);
+                    mf_i = self.map_pos(ast.lines[id]);
+                    inline_error(b.to_string(), self.smap_line, ast.cols[id]);
                     self.errors = self.errors + 1;
                 }
             }
@@ -1931,7 +1956,8 @@ impl Checker {
                     b.push_str("` 没有字段 `");
                     b.push_str(ast.texts[id]);
                     b.push_str("`");
-                    inline_error(b.to_string(), ast.lines[id], ast.cols[id]);
+                    mf_i = self.map_pos(ast.lines[id]);
+                    inline_error(b.to_string(), self.smap_line, ast.cols[id]);
                     self.errors = self.errors + 1;
                     return "";
                 }
@@ -2059,8 +2085,8 @@ impl Checker {
 /// 入口：收集 + 检查，返回错误数（诊断已输出）
 #[alloc]
 #[state]
-pub fn check_program(ref Ast ast, int prog, ref String file) -> int {
-    c = Checker::new(file);
+pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int {
+    c = Checker::new(file, smap);
     c.seed_std();
     c.collect(ast, prog);
     c.collect_globals(ast, prog);
