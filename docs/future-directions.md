@@ -4,8 +4,16 @@
 > 也不将本文示例语法（`Ref<T, U>`、`#[env::alloc]` 等）视为已经确定的语言规范。
 > 实现原则见文末「四、规划阶段的实现原则」。已启动方向的专题文档见
 > [`docs/knowledge-graph.md`](knowledge-graph.md) 的文档地图。
+>
+> **正式设计提案（2026-10-18）**：引用关系 → [`docs/reference-model.md`](reference-model.md)
+> （纯接口、无标注；R1–R4）；环境注入 → [`docs/env-injection.md`](env-injection.md)
+> （`env::` 可扩展体系；泛型需求 + 自动推导；E1–E4）；异步 → [`docs/async.md`](async.md)
+> （最小 `Future` 协议 + `#[async]` 标注；tag 枚举状态机；运行时可换）。
+> 本文保留为原始规划记录。
 
 ## 一、统一引用关系模型（Extensible Reference Model）
+
+> 正式设计提案见 [`docs/reference-model.md`](reference-model.md)（纯接口无标注；R1–R4 阶段与验收）。
 
 ### 1. 设计目标
 
@@ -88,6 +96,8 @@
 5. 允许编译器根据已知条件将抽象引用优化为直接内存访问或其他更高效的实现。
 
 ## 二、统一环境注入模型（Environment Injection）
+
+> 正式设计提案见 [`docs/env-injection.md`](env-injection.md)（`env::` 可扩展体系；泛型需求 + 自动推导；E1–E4 阶段与验收）。
 
 ### 1. 设计目标
 
