@@ -1,6 +1,6 @@
 # Phase 6：宏系统升级（文本 → AST/HIR）设计
 
-> 状态：**mcl.1 部分实现**（TokenStream 编解码 + 宏分类 + 编译器侧桥已落地；std API / 分组 token / 表达式宏待做）（2026-10-18）。关联：bd `Ayanami-language-mcl`（epic）与
+> 状态：**mcl.1 / mcl.2 部分实现**（TokenStream 编解码 + token 宏 + hygiene 原语 + 诊断通道已落地；std API / 分组 token / span 归属待做）（2026-10-18）。关联：bd `Ayanami-language-mcl`（epic）与
 > `mcl.1`（TokenStream/Span/Diagnostic）/ `mcl.2`（hygiene 与错误定位）/ `mcl.3`（展开调试与 IDE）；
 > GitHub #43 / #42 / #45 / #62。现状（A5 已落地部分）见 `docs/annotations.md` §A5。
 
@@ -39,22 +39,25 @@
 - 输出：同构 token 序列（编译器重新解析为 AST 后按既有流程降级）；
 - 编译器侧复用 `lexer`（token 化）与 `parser`（重解析）；宏侧 API 契约见 §4。
 
-### 3.2 Span 与 hygiene（务实模型）
+### 3.2 Span 与 hygiene（务实模型；mcl.2 已实现原语）
 
-- 宏输出的 token 带两类 span 来源：
-  - **调用点 span**：透传的输入 token（含实参）保持原 span；
-  - **宏定义 span**：宏内新写的 token 标记宏定义位置；
-- 名字解析规则：宏内**新定义**的名字按「宏定义归属」加后缀（`name#<macro-id>`，仅对定义
-  生效），→ 不捕获调用点名字、不泄漏给调用点；
-- 调用点名字（输入 token）保持原 span → 宏不 shadow 用户名字；
-- 不追求 Rust 级完整 hygiene；边界（如跨宏递归的定义共享）在文档明示，不做隐式魔法。
+- **实现（opt-in 原语）**：插件 shim 提供 `__ayanami_macro_hygienic(name) -> name__m<id>`
+  （宏 id = 插件符号短哈希，确定性）；宏内**定义名**显式经此加后缀 →
+  不捕获调用点同名函数、不泄漏给调用点；调用点名字（输入 token/实参）保持原样；
+- 宏库可直接 `extern "C" fn __ayanami_macro_hygienic(String) -> String;` 声明使用
+  （std 侧按 §4 契约包装为 `hygienic_ident` 等 API）；编译器对 `__ayanami_macro_*`
+  声明发射 `extern_weak`（宏库作为模块编入可执行文件时允许未定义——调用只存在于插件路径）；
+- 待做（mcl.2 剩余）：token 级 span 归属（透传 vs 宏内新写）与自动改名；
+- 不追求 Rust 级完整 hygiene；边界在文档明示，不做隐式魔法。
 
-### 3.3 Diagnostic 通道
+### 3.3 Diagnostic 通道（mcl.2 已实现基础）
 
-- 宏侧接口（契约）：`diag_error(String msg, Span span)` / `diag_warn(...)`；
-- 编译器把 Diagnostic 映射到源码位置：span 为空 → 指向调用点；否则指向 span 所指位置
-  （若指向宏内部 → 标注「在宏展开中」并附调用点）；
-- 与 `#[check]` 现有 warn/error 通道统一（同一渲染路径，含位置化格式）。
+- **实现**：shim 提供 `__ayanami_macro_diag(level, msg)`（1=warn，2=error；收集上限 32）；
+  编译器在插件调用后读取（`__ayanami_macro_diag_count/level/msg`）：
+  warn → stderr `warning: <msg> (in macro `<symbol>`)`；error → 编译失败并附宏名；
+- 宏库可直接 `extern "C" fn __ayanami_macro_diag(int, String) -> void;` 声明使用；
+- 待做：span 参数（错误指向调用点/宏内位置的区分，随 span 归属一起做）、
+  与 `#[check]` warn/error 渲染路径统一。
 
 ### 3.4 与现有 A5 的关系
 
@@ -89,7 +92,7 @@ pub fn diag_warn(String msg, Span span)
 | 阶段 | 内容 | 验收 |
 |---|---|---|
 | **mcl.1**（部分 ✓） | ABI v6：TokenStream 编解码（`token_stream.rs`：`[kind:u8][file/line/col:u32×3][len:u32][bytes]`，v1 扁平）+ 编译器侧桥（`plugin.rs` 字节通道）+ 宏分类（`#[macro(tokens)]`） | 正例：`example/test_macro_tokens.aya`（item 往返 `tok_keep` + 语句级拼接 `tok_twice`）；回归全绿（文本宏不回退）；**待做**：std `TokenStream` API、分组 token、表达式宏 tokens |
-| **mcl.2** | hygiene 务实模型（span 归属 + 定义后缀）+ Diagnostic 通道 | 正例：宏内定义名不捕获调用点、错误指向调用点；负例：冲突/重复定义诊断 |
+| **mcl.2**（部分 ✓） | hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ Diagnostic 通道（warn/error + 宏名） | 正例：`example/test_macro_hygiene.aya`（生成名不捕获用户同名函数 + warn 输出）；负例：`tests/compile_fail/macro_diag_error.aya`；**待做**：token span 归属/自动改名、诊断位置化 |
 | **mcl.3** | 展开记录导出（`--dump-macros` 或 IDE 视图） | 展开前后 span 映射可查（含递归展开链） |
 | 远期 | 其它语言插件 / WASM 沙箱 / 插件清单与权限 | — |
 

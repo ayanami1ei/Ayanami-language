@@ -63,3 +63,29 @@ pub fn tok_keep(String input) -> String { return input }
 // 语句级：输入 token 流重复两遍（`v = v + 1;` → 两条语句）
 #[macro(tokens)]
 pub fn tok_twice(String input) -> String { return input + input }
+
+// mcl.2：hygiene —— 生成名加宏 id 后缀（不捕获调用点同名函数、不泄漏）
+// 编译器 shim 提供（宏内可直接声明 extern 使用）：
+extern "C" fn __ayanami_macro_hygienic(String name) -> String;
+extern "C" fn __ayanami_macro_diag(int level, String msg) -> void;
+
+#[alloc]
+#[state]
+#[macro]
+pub fn hygienic_fn(String input, String name) -> String {
+    h = __ayanami_macro_hygienic(name)
+    return "fn " + h + "() -> int { return 9 }\nfn hygienic_call() -> int { return " + h + "() }"
+}
+
+// mcl.2：诊断通道（1=warn 编译继续；2=error 编译失败）
+#[macro]
+pub fn warn_me(String input) -> String {
+    __ayanami_macro_diag(1, "warn_me: demo warning")
+    return input
+}
+
+#[macro]
+pub fn err_me(String input) -> String {
+    __ayanami_macro_diag(2, "err_me: demo error")
+    return input
+}

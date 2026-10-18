@@ -140,6 +140,12 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
         }
     }
     let param_types = if param_types.is_empty() { "void".to_string() } else { param_types.join(", ") };
+    // mcl.2：宏 id（hygiene 后缀；确定性短哈希）
+    let macro_id = {
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        symbol.hash(&mut h);
+        format!("__m{:08x}", std::hash::Hasher::finish(&h))
+    };
     let shim = format!(
         "#include <stdlib.h>\n#include <string.h>\n\
          typedef struct {{ char* data; long len; }} AyaBuf;\n\
@@ -151,6 +157,29 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
              if (r.data) {{ memcpy(r.data, b.data, (size_t)b.len); r.data[b.len] = 0; }}\n\
              return r;\n\
          }}\n\
+         /* mcl.2：hygiene —— 宏内定义名加后缀（不捕获/不泄漏调用点名字） */\n\
+         AyaBuf __ayanami_macro_hygienic(AyaBuf name) {{\n\
+             static const char* id = \"{macro_id}\";\n\
+             long il = (long)strlen(id);\n\
+             AyaBuf r; r.len = name.len + il;\n\
+             r.data = (char*)malloc((size_t)r.len + 1);\n\
+             if (r.data) {{ memcpy(r.data, name.data, (size_t)name.len); memcpy(r.data + name.len, id, (size_t)il); r.data[r.len] = 0; }}\n\
+             return r;\n\
+         }}\n\
+         /* mcl.2：诊断通道（level: 1=warn, 2=error；编译器在调用后读取） */\n\
+         #define DIAG_MAX 32\n\
+         static long diag_count = 0;\n\
+         static long diag_levels[DIAG_MAX];\n\
+         static AyaBuf diag_msgs[DIAG_MAX];\n\
+         void __ayanami_macro_diag(long level, AyaBuf msg) {{\n\
+             if (diag_count >= DIAG_MAX) return;\n\
+             diag_levels[diag_count] = level;\n\
+             diag_msgs[diag_count] = dup_buf(msg);\n\
+             diag_count++;\n\
+         }}\n\
+         long __ayanami_macro_diag_count(void) {{ return diag_count; }}\n\
+         long __ayanami_macro_diag_level(long i) {{ return (i >= 0 && i < diag_count) ? diag_levels[i] : 0; }}\n\
+         AyaBuf __ayanami_macro_diag_msg(long i) {{ AyaBuf e; e.data = 0; e.len = 0; return (i >= 0 && i < diag_count) ? dup_buf(diag_msgs[i]) : e; }}\n\
          AyaBuf __ayanami_macro_expand(AyaBuf input, AyaBufList args, long line, long col, AyaBuf file) {{\n\
              (void)args; (void)line; (void)col; (void)file;\n\
          {locals}\
@@ -160,7 +189,8 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
         symbol = symbol,
         param_types = param_types,
         locals = locals,
-        call_args = call_args
+        call_args = call_args,
+        macro_id = macro_id
     );
     std::fs::write(&shim_path, shim).map_err(|e| Error::Compile(format!("macro shim write: {}", e)))?;
 
@@ -226,7 +256,39 @@ fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Vec<u8>], lin
             let free: FreeFn = std::mem::transmute(free_ptr);
             free(out);
         }
+        // mcl.2：读取宏诊断（warn/error）
+        let mut diags: Vec<(i64, String)> = Vec::new();
+        let cnt_ptr = dl::dlsym(handle, CString::new("__ayanami_macro_diag_count").unwrap().as_ptr());
+        if !cnt_ptr.is_null() {
+            let count_fn: unsafe extern "C" fn() -> i64 = std::mem::transmute(cnt_ptr);
+            let level_ptr = dl::dlsym(handle, CString::new("__ayanami_macro_diag_level").unwrap().as_ptr());
+            let msg_ptr = dl::dlsym(handle, CString::new("__ayanami_macro_diag_msg").unwrap().as_ptr());
+            let level_fn: Option<unsafe extern "C" fn(i64) -> i64> = (!level_ptr.is_null()).then(|| std::mem::transmute(level_ptr));
+            let msg_fn: Option<unsafe extern "C" fn(i64) -> AyaBuf> = (!msg_ptr.is_null()).then(|| std::mem::transmute(msg_ptr));
+            let n = count_fn();
+            for i in 0..n {
+                let level = level_fn.map(|f| f(i)).unwrap_or(0);
+                let msg = msg_fn.map(|f| f(i)).unwrap_or(AyaBuf { data: std::ptr::null_mut(), len: 0 });
+                let text = if msg.data.is_null() {
+                    String::new()
+                } else {
+                    let t = String::from_utf8_lossy(std::slice::from_raw_parts(msg.data, msg.len)).into_owned();
+                    if !free_ptr.is_null() {
+                        let free: FreeFn = std::mem::transmute(free_ptr);
+                        free(msg);
+                    }
+                    t
+                };
+                diags.push((level, text));
+            }
+        }
         dl::dlclose(handle);
+        for (level, msg) in &diags {
+            if *level >= 2 {
+                return Err(Error::Compile(format!("{} (in macro `{}`)", msg, symbol)));
+            }
+            eprintln!("warning: {} (in macro `{}`)", msg, symbol);
+        }
         Ok(bytes)
     }
 }

@@ -163,7 +163,10 @@ impl<'a> Emitter<'a> {
             } else {
                 ""
             };
-            self.wln_fmt(format_args!("declare {}{} @{}({}){}", ret_attr, ret, d.name, params.join(", "), suffix));
+            // mcl.2：宏 ABI 助手（hygiene/诊断）由插件 shim 提供——宏库作为模块编入
+            // 可执行文件时允许未定义（extern_weak），避免链接失败（调用仅存在于插件路径）
+            let weak = if d.name.starts_with("__ayanami_macro_") { "extern_weak " } else { "" };
+            self.wln_fmt(format_args!("declare {}{}{} @{}({}){}", weak, ret_attr, ret, d.name, params.join(", "), suffix));
         }
         if !self.prog.extern_decls.is_empty() {
             self.wln("");

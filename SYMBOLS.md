@@ -195,11 +195,15 @@ src/compiler/macro_expand/pass_plugin.rs:227: fn call_pass(so_path: &Path, symbo
 src/compiler/macro_expand/plugin.rs:17: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String], tokens: bool) -> Result<String>
 src/compiler/macro_expand/plugin.rs:43: pub(crate) fn invoke_macro_expr(
 src/compiler/macro_expand/plugin.rs:63: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
-src/compiler/macro_expand/plugin.rs:148: static AyaBuf dup_buf(AyaBuf b) {{\n\
-src/compiler/macro_expand/plugin.rs:185: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
-src/compiler/macro_expand/plugin.rs:186: type FreeFn = unsafe extern "C" fn(AyaBuf);
-src/compiler/macro_expand/plugin.rs:188: fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Vec<u8>], line: i64, col: i64, file: &[u8]) -> Result<Vec<u8>>
-src/compiler/macro_expand/plugin_abi.rs:11: pub(crate) const ABI_VERSION: u32 = 6;
+src/compiler/macro_expand/plugin.rs:154: static AyaBuf dup_buf(AyaBuf b) {{\n\
+src/compiler/macro_expand/plugin.rs:162: static const char* id = \"{macro_id}\";\n\
+src/compiler/macro_expand/plugin.rs:171: static long diag_count = 0;\n\
+src/compiler/macro_expand/plugin.rs:172: static long diag_levels[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:173: static AyaBuf diag_msgs[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:215: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
+src/compiler/macro_expand/plugin.rs:216: type FreeFn = unsafe extern "C" fn(AyaBuf);
+src/compiler/macro_expand/plugin.rs:218: fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Vec<u8>], line: i64, col: i64, file: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/plugin_abi.rs:11: pub(crate) const ABI_VERSION: u32 = 7;
 src/compiler/macro_expand/plugin_abi.rs:15: pub(crate) enum ParamKind
 src/compiler/macro_expand/plugin_abi.rs:26: pub(crate) mod dl
 src/compiler/macro_expand/plugin_abi.rs:30: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
@@ -1295,10 +1299,10 @@ src/lir/emit/mod.rs:49: fn finish(self) -> String
 src/lir/emit/mod.rs:53: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:69: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:78: fn emit(&mut self)
-src/lir/emit/mod.rs:180: mod consts;
-src/lir/emit/mod.rs:181: mod functions;
-src/lir/emit/mod.rs:182: mod types;
-src/lir/emit/mod.rs:183: mod vtable;
+src/lir/emit/mod.rs:183: mod consts;
+src/lir/emit/mod.rs:184: mod functions;
+src/lir/emit/mod.rs:185: mod types;
+src/lir/emit/mod.rs:186: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
@@ -2535,6 +2539,9 @@ example/macro_lib.aya:48: pub fn my_line(String input, int __line, int __col) ->
 example/macro_lib.aya:54: pub fn block_len(String input, String block) -> String
 example/macro_lib.aya:61: pub fn tok_keep(String input) -> String { return input }
 example/macro_lib.aya:65: pub fn tok_twice(String input) -> String { return input + input }
+example/macro_lib.aya:75: pub fn hygienic_fn(String input, String name) -> String
+example/macro_lib.aya:82: pub fn warn_me(String input) -> String
+example/macro_lib.aya:88: pub fn err_me(String input) -> String
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/pass_lib.aya:5: pub fn auto_pure(ref mut MirFunction f)
 example/test.aya:1: fn main()->int
@@ -2862,6 +2869,10 @@ example/test_macro_args.aya:11: fn shown_placeholder() -> int { return 0 }
 example/test_macro_args.aya:13: fn main() -> int
 example/test_macro_block.aya:4: fn main() -> int
 example/test_macro_fn.aya:3: fn main() -> int
+example/test_macro_hygiene.aya:5: fn helper() -> int { return 1 }
+example/test_macro_hygiene.aya:8: fn hygienic_demo() -> int { return 0 }
+example/test_macro_hygiene.aya:11: fn warned() -> int { return 5 }
+example/test_macro_hygiene.aya:13: fn main() -> int
 example/test_macro_import.aya:4: fn main() -> int
 example/test_macro_stmt.aya:4: fn helper() -> int
 example/test_macro_stmt.aya:11: fn main() -> int

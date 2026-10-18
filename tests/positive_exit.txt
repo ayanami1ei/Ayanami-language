@@ -141,3 +141,4 @@ test_arena.aya 0
 test_sizeof.aya 0
 test_static_assert.aya 0
 test_macro_tokens.aya 0
+test_macro_hygiene.aya 0

@@ -464,7 +464,8 @@ struct Holder {
 ### A5（设计，待拍板）
 
 > Phase 6 升级（文本 → AST/HIR：TokenStream/Span/Diagnostic，ABI v6）设计见 `docs/macros.md`；
-> mcl.1 部分实现：`#[macro(tokens)]` token 宏（编解码 + 字节通道），示例 `example/test_macro_tokens.aya`。
+> mcl.1/mcl.2 部分实现：`#[macro(tokens)]` token 宏（编解码 + 字节通道，`example/test_macro_tokens.aya`）；
+> hygiene 原语（`__ayanami_macro_hygienic`）与诊断通道（`__ayanami_macro_diag`，`example/test_macro_hygiene.aya`）。
 
 - [x] A5a 标注名路径化（`pkg::macro`）+ provider 解析 + `core::` 别名 + import 短名列表
 - [x] A5b-1 `#[macro]` 声明 + `.lcl` 宏表（`macro="name"`）+ `pkg::macro`/import 短名解析与存在性诊断
