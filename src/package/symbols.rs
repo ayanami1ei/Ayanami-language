@@ -229,13 +229,16 @@ impl Package {
                     }
                 }
             }
-            Stmt::StructDef { vis, name, fields, .. } => {
+            Stmt::StructDef { vis, name, fields, attrs, .. } => {
                 if vis.is_public() {
                     let fields_str: Vec<String> = fields.iter()
                         .map(|(fn_name, fty)| format!("{}:{}", fn_name, type_to_string(fty)))
                         .collect();
+                    // dld：`#[copy]` 结构体标记随包导出（导入侧登记注册表）
+                    let copy = attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "copy");
                     self.symbols.push(PackageSymbol::Struct {
                         name: format!("{}({})", name, fields_str.join(",")),
+                        copy,
                     });
                 }
             }

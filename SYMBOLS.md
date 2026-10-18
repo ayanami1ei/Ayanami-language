@@ -58,7 +58,7 @@ src/cli/update_fetch.rs:98: pub(super) fn download(src: &str, dest: &Path, limit
 src/cli/update_fetch.rs:126: pub(super) fn tar_listing(tar: &Path) -> Result<String>
 src/cli/update_fetch.rs:136: pub(super) fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
 src/compiler/build/compile.rs:6: pub fn compile_file(
-src/compiler/build/compile.rs:147: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
+src/compiler/build/compile.rs:151: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:129: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:146: pub(super) fn merge_symbols(
@@ -754,6 +754,8 @@ src/hir/lower/body/vtables.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/vtables.rs:6: pub(crate) fn build_vtables(&mut self) -> Result<()>
 src/hir/lower/body/vtables.rs:78: pub(crate) fn try_match_interface(
 src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
+src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
+src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
 src/hir/lower/ctx.rs:100: impl Ctx
 src/hir/lower/ctx.rs:102: pub fn new() -> Self
@@ -902,19 +904,20 @@ src/hir/lower/helpers/wrap.rs:142: pub(crate) fn wrap_for_unique_param(expr: Hir
 src/hir/lower/helpers/wrap.rs:153: pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str>
 src/hir/lower/helpers/wrap.rs:177: pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str>
 src/hir/lower/mod.rs:1: pub mod body;
-src/hir/lower/mod.rs:2: pub mod helpers;
-src/hir/lower/mod.rs:3: pub mod to_mir;
-src/hir/lower/mod.rs:16: pub(super) fn variant_struct_name(enum_name: &Symbol, variant: &Symbol) -> Symbol
-src/hir/lower/mod.rs:26: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
-src/hir/lower/mod.rs:42: pub(crate) struct FnSig
-src/hir/lower/mod.rs:67: pub(crate) struct InterfaceReg
-src/hir/lower/mod.rs:74: mod ctx;
-src/hir/lower/mod.rs:75: mod ctx_mono;
-src/hir/lower/mod.rs:76: mod ctx_fields;
-src/hir/lower/mod.rs:93: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-src/hir/lower/mod.rs:95: pub fn set_source_path(path: &std::path::Path)
-src/hir/lower/mod.rs:99: pub(crate) fn source_path() -> String
-src/hir/lower/mod.rs:103: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:2: mod collect_copy;
+src/hir/lower/mod.rs:3: pub mod helpers;
+src/hir/lower/mod.rs:4: pub mod to_mir;
+src/hir/lower/mod.rs:17: pub(super) fn variant_struct_name(enum_name: &Symbol, variant: &Symbol) -> Symbol
+src/hir/lower/mod.rs:27: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
+src/hir/lower/mod.rs:43: pub(crate) struct FnSig
+src/hir/lower/mod.rs:68: pub(crate) struct InterfaceReg
+src/hir/lower/mod.rs:75: mod ctx;
+src/hir/lower/mod.rs:76: mod ctx_mono;
+src/hir/lower/mod.rs:77: mod ctx_fields;
+src/hir/lower/mod.rs:94: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+src/hir/lower/mod.rs:96: pub fn set_source_path(path: &std::path::Path)
+src/hir/lower/mod.rs:100: pub(crate) fn source_path() -> String
+src/hir/lower/mod.rs:104: pub fn lower_program(program: &Program) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)>
@@ -1194,7 +1197,11 @@ src/hir/ty.rs:9: pub struct FnId(pub usize);
 src/hir/ty.rs:19: pub enum HirType
 src/hir/ty.rs:52: impl HirType
 src/hir/ty.rs:54: pub fn is_copy(&self) -> bool
-src/hir/ty.rs:74: pub enum HirLiteral
+src/hir/ty.rs:76: pub enum HirLiteral
+src/hir/ty.rs:91: static COPY_STRUCTS: std::sync::RwLock<Option<std::collections::HashSet<Symbol>>> =
+src/hir/ty.rs:95: pub fn reset_copy_structs()
+src/hir/ty.rs:102: pub fn register_copy_struct(n: Symbol)
+src/hir/ty.rs:109: pub fn is_copy_struct(n: &Symbol) -> bool
 src/intern/interner.rs:3: pub(crate) struct Interner
 src/intern/interner.rs:8: impl Interner
 src/intern/interner.rs:9: pub(crate) fn new() -> Self
@@ -2294,7 +2301,7 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:98: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:102: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:17: impl ProjectConfig
 src/package/config.rs:18: pub fn load(toml_content: &str) -> Self
@@ -2307,10 +2314,10 @@ src/package/const_codec.rs:75: pub fn lit_from_str(ty: &HirType, s: &str) -> Opt
 src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:128: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:139: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:173: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:203: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:133: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:144: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:178: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:208: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod bytes;
 src/package/mod.rs:7: pub(crate) mod const_codec;
@@ -2333,7 +2340,7 @@ src/package/target.rs:11: pub fn as_str(&self) -> &'static str
 src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:19: pub enum PackageSymbol
-src/package/types.rs:70: pub enum ImportedSymbol
+src/package/types.rs:71: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block
@@ -2658,6 +2665,10 @@ example/test_conv.aya:7: struct P
 example/test_conv.aya:12: impl P
 example/test_conv.aya:13: fn bump(ref mut self, int v) -> int
 example/test_conv.aya:19: fn main() -> int
+example/test_copy_attr.aya:5: struct Idx
+example/test_copy_attr.aya:10: struct Pair2
+example/test_copy_attr.aya:15: fn take(Idx i) -> usize { return i.v }
+example/test_copy_attr.aya:17: fn main() -> int
 example/test_early_return_move.aya:4: fn build(bool c) -> ArrayList[int]
 example/test_early_return_move.aya:14: fn pick(bool c) -> [int]
 example/test_early_return_move.aya:23: fn main() -> int

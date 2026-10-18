@@ -62,7 +62,12 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
                 }
             } else if let Some(rest) = line.strip_prefix("struct=") {
                 let val = parse_ini_value(rest);
-                symbols.push(ImportedSymbol::Struct { name: val });
+                // dld：`name(..),copy` 后缀（旧格式缺省非 Copy）
+                let (name, copy) = match val.rsplit_once(',') {
+                    Some((n, "copy")) => (n.to_string(), true),
+                    _ => (val, false),
+                };
+                symbols.push(ImportedSymbol::Struct { name, copy });
             } else if let Some(rest) = line.strip_prefix("namespace=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Namespace { name: val });

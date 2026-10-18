@@ -1,4 +1,5 @@
 pub mod body;
+mod collect_copy;
 pub mod helpers;
 pub mod to_mir;
 pub(crate) use helpers::*;
@@ -105,6 +106,8 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
     crate::hir::attrs::validate_program(program)?;
     // A2b：#[cfg(...)] 编译期裁剪
     let program = crate::hir::cfg::filter_program(program)?;
+    // dld：`#[copy]` 结构体登记（校验 + 注册表；is_copy 供移动/拷贝分析）
+    collect_copy::register_copy_structs(&program.stmts)?;
     let mut ctx = Ctx::new();
     ctx.collect_fns(&program.stmts)?;
     // A5b：导入加载完成后校验宏引用

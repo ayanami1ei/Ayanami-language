@@ -86,6 +86,7 @@ graph TD
 | ref 自动解引用 | `hir/mod.rs::SDeref`、`hir/stmt.rs::DerefAssign` | 值上下文自动 load；`ref mut` 赋值穿透 store（LIR 复用 index-0 指针解引用） |
 | 两阶段借用 | `mir/borrow/loans.rs` | 接收者位置可变借用先 reserved（`s.add(s.v)`） |
 | 接口胖指针 | `hir/ty.rs::FatPtr`、`lir/ir/nodes_b.rs::MakeFatPtr` | `ref Shape` 借用 / `Shape` 拥有 |
+| `#[copy]` 结构体 | `hir/ty.rs`（注册表 + `is_copy`）、`hir/lower/collect_copy.rs`（校验/登记）、`.lcl` `struct=…,copy` | trivial Copy（句柄类类型自由复制；opt-in，不影响普通结构体移动语义） |
 | 赋值/字段覆盖旧值 drop | `mir/lower/assign.rs` | RHS 先求值到临时量，旧值 drop 后置；仅确有 drop 时建临时量 |
 | 借用临时量提升 | `mir/lower/temps.rs` | `f(ref "x")` 等拥有临时量提升为局部变量，语句后 drop |
 | match/if 表达式结果 | `hir/item.rs::HirLocal::result`、`match_lower.rs`/`if_expr.rs` | 条件赋值结果变量不参与覆盖/块末 drop，链后移出到最终临时量 |

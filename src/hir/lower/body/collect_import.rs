@@ -233,7 +233,12 @@ impl crate::hir::lower::Ctx {
                             self.statics.entry(qualified).or_insert_with(|| mk(bare));
                         }
                     }
-                    crate::package::ImportedSymbol::Struct { name } => {
+                    crate::package::ImportedSymbol::Struct { name, copy } => {
+                        // dld：导入的 `#[copy]` 结构体登记（名字取 `name(fields)` 前缀）
+                        if *copy {
+                            let base = name.split('(').next().unwrap_or(name);
+                            crate::hir::ty::register_copy_struct(Symbol::intern(base));
+                        }
                         // Parse "Name(field1:type1,field2:type2)" format
                         let (struct_name, fields_str) = if let Some(paren) = name.find('(') {
                             let n = &name[..paren];

@@ -160,8 +160,8 @@ pub(super) fn merge_symbols(
                             flags,
                         }
                     }
-                    crate::package::ImportedSymbol::Struct { name } => {
-                        PackageSymbol::Struct { name }
+                    crate::package::ImportedSymbol::Struct { name, copy } => {
+                        PackageSymbol::Struct { name, copy }
                     }
                     crate::package::ImportedSymbol::Namespace { name } => {
                         PackageSymbol::Namespace { name }

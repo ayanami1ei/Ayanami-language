@@ -149,6 +149,8 @@ fn main() -> int {
 
 布局查询：`size_of[T]()` / `align_of[T]()` / `offset_of[T](field)` 为编译期常量（自然对齐，与结构体布局一致；见 `example/test_sizeof.aya`）。
 
+句柄类型：`#[copy] struct Idx { usize v }` 为 trivial Copy（自由复制、传参不移动；字段须为基元/引用/指针/已登记的 `#[copy]` 结构体）。
+
 ## 标准库
 
 ```ayanami

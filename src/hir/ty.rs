@@ -52,21 +52,23 @@ pub enum HirType {
 impl HirType {
     /// Copy 类型：赋值/传参时不移动（仅基元、函数指针、静态闭包与借用）。
     pub fn is_copy(&self) -> bool {
-        matches!(
-            self,
+        match self {
             HirType::Int
-                | HirType::Float
-                | HirType::F32
-                | HirType::Char
-                | HirType::Bool
-                | HirType::Void
-                | HirType::Never
-                | HirType::FnPtr(..)
-                | HirType::Closure(_, _, false, _)
-                | HirType::Ref(..)
-                | HirType::IntN { .. }
-                | HirType::RawPtr(..)
-        )
+            | HirType::Float
+            | HirType::F32
+            | HirType::Char
+            | HirType::Bool
+            | HirType::Void
+            | HirType::Never
+            | HirType::FnPtr(..)
+            | HirType::Closure(_, _, false, _)
+            | HirType::Ref(..)
+            | HirType::IntN { .. }
+            | HirType::RawPtr(..) => true,
+            // `#[copy]` 结构体（trivial Copy；注册表见下）——句柄类类型
+            HirType::Named(n) => is_copy_struct(n),
+            _ => false,
+        }
     }
 }
 
@@ -81,4 +83,29 @@ pub enum HirLiteral {
     Array(Vec<HirLiteral>),
     /// M6.2c：结构体常量（按声明顺序的字段值）
     Struct(Vec<HirLiteral>),
+}
+
+// ── `#[copy]` 结构体注册表（dld）──
+// trivial Copy 语义按名字登记（`is_copy` 无 defs 上下文）；编译入口（compile_file
+// 根调用）清空，注册在 HIR 降级前按源码顺序完成（前向引用不支持，报错提示）。
+static COPY_STRUCTS: std::sync::RwLock<Option<std::collections::HashSet<Symbol>>> =
+    std::sync::RwLock::new(None);
+
+/// 清空注册表（编译入口调用）。
+pub fn reset_copy_structs() {
+    if let Ok(mut g) = COPY_STRUCTS.write() {
+        *g = Some(std::collections::HashSet::new());
+    }
+}
+
+/// 登记 `#[copy]` 结构体（校验后）。
+pub fn register_copy_struct(n: Symbol) {
+    if let Ok(mut g) = COPY_STRUCTS.write() {
+        g.get_or_insert_with(std::collections::HashSet::new).insert(n);
+    }
+}
+
+/// 该名字是否为已登记的 `#[copy]` 结构体。
+pub fn is_copy_struct(n: &Symbol) -> bool {
+    COPY_STRUCTS.read().map(|g| g.as_ref().map_or(false, |s| s.contains(n))).unwrap_or(false)
 }

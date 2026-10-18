@@ -14,6 +14,10 @@ pub fn compile_file(
 ) -> Result<CompiledFile> {
     // M8：feature flags（ayanami.toml `features` + AYANAMI_FEATURES；首次生效）
     crate::hir::cfg::configure_features_from(src_path);
+    // dld：根编译清空 `#[copy]` 注册表（依赖递归不重复清）
+    if compiling.is_empty() {
+        crate::hir::ty::reset_copy_structs();
+    }
 
     let canonical = src_path
         .canonicalize()

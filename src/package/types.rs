@@ -25,6 +25,7 @@ pub enum PackageSymbol {
     },
     Struct {
         name: String,
+        copy: bool,
     },
     Namespace {
         name: String,
@@ -75,6 +76,7 @@ pub enum ImportedSymbol {
     },
     Struct {
         name: String,
+        copy: bool,
     },
     Namespace {
         name: String,

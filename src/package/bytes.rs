@@ -33,8 +33,12 @@ impl Package {
                         // 格式：name,flags,signature（flags 为 '+' 连接 tokens，无逗号）
                         body.push_str(&format!("fn=\"{},{},{}\"\n", name, flags.join("+"), signature));
                     }
-                    PackageSymbol::Struct { name } => {
-                        body.push_str(&format!("struct=\"{}\"\n", name));
+                    PackageSymbol::Struct { name, copy } => {
+                        if *copy {
+                            body.push_str(&format!("struct=\"{},copy\"\n", name));
+                        } else {
+                            body.push_str(&format!("struct=\"{}\"\n", name));
+                        }
                     }
                     PackageSymbol::Namespace { name } => {
                         body.push_str(&format!("namespace=\"{}\"\n", name));

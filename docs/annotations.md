@@ -69,6 +69,7 @@ fn read_config(ref String path) -> Config { ... }
 | `#[nonnull]` | 指针参数（ref/[T]/fn） | `nonnull` | 参数非空（已实现，A1b） |
 | `#[export]` | 函数（非泛型，需函数体） | 导出 C 符号 | 定义并导出（等价 `extern "C"` 定义；已实现） |
 | `#[extern]` | 函数（非泛型） | C ABI | 等价 `extern "C"`：无体 = 导入声明，有体 = 定义并导出（已实现；旧语法 `extern "C" fn` 仍可解析，fmt 迁移为标注） |
+| `#[copy]` | 结构体（非泛型） | trivial Copy | 句柄类类型自由复制（字段须 Copy；按源码顺序登记，`example/test_copy_attr.aya`） |
 
 **跨语言优化**：以上标注用在 `extern "C"` 声明上时，属性进入
 `declare` 行，LLVM 即可跨越 FFI 调用做优化。例：
