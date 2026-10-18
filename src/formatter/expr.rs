@@ -220,7 +220,7 @@ fn asm_constraint(c: &str) -> String {
 
 /// 字符串转义（与源码字符串字面量一致）：fmt 不得展开转义（#197 asm 模板换行）。
 /// 仅控制字符用 `\xNN`；非 ASCII 按 UTF-8 原样（`\x` 只吃两位十六进制）。
-pub(super) fn escape_string(s: &str) -> String {
+pub(crate) fn escape_string(s: &str) -> String {
     let mut out = String::new();
     for c in s.chars() {
         match c {

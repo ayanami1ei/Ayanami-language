@@ -116,7 +116,7 @@ impl crate::hir::lower::Ctx {
             }
             for sym in &imported_syms {
                 match sym {
-                    crate::package::ImportedSymbol::Macro { name } => {
+                    crate::package::ImportedSymbol::Macro { name, .. } => {
                         let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
                         self.imported_macros.entry(stem).or_default().push(Symbol::intern(name));
                         // A5c-2：函数宏 `#name(args)` 解析用（裸名 + 全限定 pkg.name）

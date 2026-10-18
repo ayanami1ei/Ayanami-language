@@ -42,8 +42,13 @@ impl Package {
                     PackageSymbol::Interface { name } => {
                         body.push_str(&format!("interface=\"{}\"\n", name));
                     }
-                    PackageSymbol::Macro { name } => {
-                        body.push_str(&format!("macro=\"{}\"\n", name));
+                    PackageSymbol::Macro { name, tokens } => {
+                        // mcl.1：token 宏标记（旧读取端缺省为文本宏）
+                        if *tokens {
+                            body.push_str(&format!("macro=\"{},tokens\"\n", name));
+                        } else {
+                            body.push_str(&format!("macro=\"{}\"\n", name));
+                        }
                     }
                     PackageSymbol::Pass { name } => {
                         body.push_str(&format!("pass=\"{}\"\n", name));

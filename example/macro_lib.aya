@@ -54,3 +54,12 @@ pub fn my_line(String input, int __line, int __col) -> String { return "" + __li
 pub fn block_len(String input, String block) -> String {
     return (block.len() as int).to_string()
 }
+
+// mcl.1：token 宏（`#[macro(tokens)]`）——输入/输出为 TokenStream 编码字节
+// （String 承载，二进制安全；宏侧可直接拼接/切片）
+#[macro(tokens)]
+pub fn tok_keep(String input) -> String { return input }
+
+// 语句级：输入 token 流重复两遍（`v = v + 1;` → 两条语句）
+#[macro(tokens)]
+pub fn tok_twice(String input) -> String { return input + input }

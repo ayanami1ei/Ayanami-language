@@ -71,7 +71,12 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
                 symbols.push(ImportedSymbol::Interface { name: val });
             } else if let Some(rest) = line.strip_prefix("macro=") {
                 let val = parse_ini_value(rest);
-                symbols.push(ImportedSymbol::Macro { name: val });
+                // mcl.1：`name,tokens`（旧格式无后缀 → 文本宏）
+                let (name, tokens) = match val.rsplit_once(',') {
+                    Some((n, "tokens")) => (n.to_string(), true),
+                    _ => (val, false),
+                };
+                symbols.push(ImportedSymbol::Macro { name, tokens });
             } else if let Some(rest) = line.strip_prefix("pass=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Pass { name: val });

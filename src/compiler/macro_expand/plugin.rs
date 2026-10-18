@@ -14,7 +14,7 @@ use super::plugin_abi::{load_macro_fn, plan_params};
 //  插件构建与调用
 // ═══════════════════════════════════════════════════════════════════
 
-pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String]) -> Result<String> {
+pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String], tokens: bool) -> Result<String> {
     let (f, lir) = load_macro_fn(lcl_path, macro_name)?;
     // attribute 宏：全部 String 形参（input + args），不支持保留参数
     let mapping = plan_params(&f, args.len(), false)?;
@@ -23,7 +23,20 @@ pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args:
         .ok_or_else(|| Error::Compile(format!("macro `{}` has no symbol", macro_name)))?
         .clone();
     let so_path = build_plugin(&lir, &symbol, &mapping, &dep_lcls)?;
-    call_plugin(&so_path, &symbol, input, args, 0, 0, "")
+    // mcl.1：token 宏 —— 输入/实参编码为 token 流字节；输出解码回源码
+    let (in_bytes, arg_bytes): (Vec<u8>, Vec<Vec<u8>>) = if tokens {
+        let enc = |t: &str| super::token_stream::encode(&super::token_stream::lex_to_tokens(t));
+        (enc(input), args.iter().map(|a| enc(a)).collect())
+    } else {
+        (input.as_bytes().to_vec(), args.iter().map(|a| a.as_bytes().to_vec()).collect())
+    };
+    let out = call_plugin(&so_path, &symbol, &in_bytes, &arg_bytes, 0, 0, b"")?;
+    if tokens {
+        let toks = super::token_stream::decode(&out)?;
+        Ok(super::token_stream::to_source(&toks))
+    } else {
+        String::from_utf8(out).map_err(|e| Error::Compile(format!("macro output not UTF-8: {}", e)))
+    }
 }
 
 /// A5c-2：函数宏展开（`#name(args)`），携带调用点信息
@@ -42,7 +55,9 @@ pub(crate) fn invoke_macro_expr(
         .ok_or_else(|| Error::Compile(format!("macro `{}` has no symbol", macro_name)))?
         .clone();
     let so_path = build_plugin(&lir, &symbol, &mapping, &dep_lcls)?;
-    call_plugin(&so_path, &symbol, "", args, line as i64, col as i64, file)
+    let arg_bytes: Vec<Vec<u8>> = args.iter().map(|a| a.as_bytes().to_vec()).collect();
+    let out = call_plugin(&so_path, &symbol, b"", &arg_bytes, line as i64, col as i64, file.as_bytes())?;
+    String::from_utf8(out).map_err(|e| Error::Compile(format!("macro output not UTF-8: {}", e)))
 }
 
 fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf> {
@@ -170,7 +185,7 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
 type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
 type FreeFn = unsafe extern "C" fn(AyaBuf);
 
-fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String], line: i64, col: i64, file: &str) -> Result<String> {
+fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Vec<u8>], line: i64, col: i64, file: &[u8]) -> Result<Vec<u8>> {
     let c_path = CString::new(so_path.to_string_lossy().as_bytes())
         .map_err(|_| Error::Compile("macro path contains NUL".into()))?;
     let arg_bufs: Vec<AyaBuf> = args.iter()
@@ -212,6 +227,6 @@ fn call_plugin(so_path: &Path, symbol: &str, input: &str, args: &[String], line:
             free(out);
         }
         dl::dlclose(handle);
-        String::from_utf8(bytes).map_err(|e| Error::Compile(format!("macro output not UTF-8: {}", e)))
+        Ok(bytes)
     }
 }

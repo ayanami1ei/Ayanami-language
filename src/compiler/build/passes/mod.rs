@@ -63,7 +63,7 @@ pub(super) fn apply_passes(
         let mut passes: Vec<(Attr, String, String)> = Vec::new();
         let mut checks: Vec<(Attr, String, String)> = Vec::new();
         for a in attrs {
-            let Some((pkg, name, kind)) = tables.resolve(&a)? else {
+            let Some((pkg, name, kind, _tokens)) = tables.resolve(&a)? else {
                 return Err(Error::Compile(format!(
                     "unknown annotation #[{}] at {}:{}", a.path_str(), a.span.start_line, a.span.start_col
                 )));

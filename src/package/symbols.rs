@@ -81,14 +81,20 @@ impl Package {
                     return;
                 }
                 // A5b：宏单独入宏表，不作为普通函数导出
-                if attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "macro") {
+                if let Some(macro_attr) = attrs.iter().find(|a| a.is_builtin() && a.name.as_str() == "macro") {
                     if all || vis.is_public() {
                         let full_name = if ns_prefix.is_empty() {
                             name.as_str().to_string()
                         } else {
                             format!("{}.{}", ns_prefix, name)
                         };
-                        self.symbols.push(PackageSymbol::Macro { name: full_name });
+                        // mcl.1：`#[macro(tokens)]` → token 宏（输入/输出为 TokenStream 编码）
+                        let tokens = macro_attr.args.iter().any(|arg| matches!(
+                            arg,
+                            crate::parser::ast::AttrArg::Expr(e)
+                                if matches!(&**e, crate::parser::ast::Expr::Ident(s, _) if s.as_str() == "tokens")
+                        ));
+                        self.symbols.push(PackageSymbol::Macro { name: full_name, tokens });
                     }
                     return;
                 }

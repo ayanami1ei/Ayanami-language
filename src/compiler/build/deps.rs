@@ -169,8 +169,8 @@ pub(super) fn merge_symbols(
                     crate::package::ImportedSymbol::Interface { name } => {
                         PackageSymbol::Interface { name }
                     }
-                    crate::package::ImportedSymbol::Macro { name } => {
-                        PackageSymbol::Macro { name }
+                    crate::package::ImportedSymbol::Macro { name, tokens } => {
+                        PackageSymbol::Macro { name, tokens }
                     }
                     crate::package::ImportedSymbol::Pass { name } => {
                         PackageSymbol::Pass { name }

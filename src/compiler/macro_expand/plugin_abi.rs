@@ -8,7 +8,7 @@ use std::process::Command;
 use crate::error::{Error, Result};
 
 /// 插件 ABI 版本：签名变化时必须递增（参与 .so 缓存键，避免复用旧 shim）。
-pub(crate) const ABI_VERSION: u32 = 5;
+pub(crate) const ABI_VERSION: u32 = 6;
 
 /// A5c-2：宏形参 → 调用值映射
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

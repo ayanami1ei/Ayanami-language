@@ -1,6 +1,6 @@
 # Phase 6：宏系统升级（文本 → AST/HIR）设计
 
-> 状态：**设计（未实现）**（2026-10-18）。关联：bd `Ayanami-language-mcl`（epic）与
+> 状态：**mcl.1 部分实现**（TokenStream 编解码 + 宏分类 + 编译器侧桥已落地；std API / 分组 token / 表达式宏待做）（2026-10-18）。关联：bd `Ayanami-language-mcl`（epic）与
 > `mcl.1`（TokenStream/Span/Diagnostic）/ `mcl.2`（hygiene 与错误定位）/ `mcl.3`（展开调试与 IDE）；
 > GitHub #43 / #42 / #45 / #62。现状（A5 已落地部分）见 `docs/annotations.md` §A5。
 
@@ -58,8 +58,9 @@
 
 ### 3.4 与现有 A5 的关系
 
-- 宏分类：`#[macro]` 按签名自动分类——`String -> String`（文本，现有）/ `TokenStream ->
-  TokenStream`（结构化，v6）；同一包可混合；
+- 宏分类（实现取用显式标记）：`#[macro]` = 文本宏（现有）；`#[macro(tokens)]` = token 宏
+  （ABI v6，输入/输出为 TokenStream 编码字节，经 `String`（AyaBuf）承载——二进制安全）；
+  同一包可混合；`.lcl` 宏表写 `macro="name,tokens"`（旧格式缺省为文本宏，向后兼容）；
 - `.lcl` 宏表新增 `kind=`（text/tokens）字段；旧包缺省为 text（向后兼容读取）；
 - MIR pass / check 不变（A5d）；文本宏不废弃（迁移期保留，后续按需引导）。
 
@@ -87,7 +88,7 @@ pub fn diag_warn(String msg, Span span)
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| **mcl.1** | ABI v6：TokenStream 编解码 + 编译器侧桥 + 宏分类（text/tokens） | 正例：结构化宏改写 item（如按 token 改名/加字段）；负例：非法编码位置化报错；回归全绿（文本宏不回退） |
+| **mcl.1**（部分 ✓） | ABI v6：TokenStream 编解码（`token_stream.rs`：`[kind:u8][file/line/col:u32×3][len:u32][bytes]`，v1 扁平）+ 编译器侧桥（`plugin.rs` 字节通道）+ 宏分类（`#[macro(tokens)]`） | 正例：`example/test_macro_tokens.aya`（item 往返 `tok_keep` + 语句级拼接 `tok_twice`）；回归全绿（文本宏不回退）；**待做**：std `TokenStream` API、分组 token、表达式宏 tokens |
 | **mcl.2** | hygiene 务实模型（span 归属 + 定义后缀）+ Diagnostic 通道 | 正例：宏内定义名不捕获调用点、错误指向调用点；负例：冲突/重复定义诊断 |
 | **mcl.3** | 展开记录导出（`--dump-macros` 或 IDE 视图） | 展开前后 span 映射可查（含递归展开链） |
 | 远期 | 其它语言插件 / WASM 沙箱 / 插件清单与权限 | — |
