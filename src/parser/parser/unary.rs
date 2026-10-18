@@ -273,7 +273,18 @@ fn is_type_like_arg(t: &Type) -> bool {
         | Type::Never(_) | Type::Ref(..) | Type::RawPtr(..) | Type::Array(..)
         | Type::ArraySized(..) | Type::FnPtr(..) | Type::Closure(..) | Type::Unique(..)
         | Type::Generic(..) | Type::Self_(..) => true,
-        Type::Named(s, _) => s.as_str().chars().next().map(|c| c.is_uppercase()).unwrap_or(false),
+        Type::Named(s, _) => {
+            let name = s.as_str();
+            name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
+                || is_lowercase_type_name(&name)
+        }
         Type::Default => false,
     }
+}
+
+/// 小写类型名（定宽整数 / 浮点别名）——「像类型」判定补充
+/// （`int`/`float`/`char`/`bool` 为关键字，不在此列）。
+fn is_lowercase_type_name(n: &str) -> bool {
+    matches!(n, "f32" | "f64" | "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+        | "u8" | "u16" | "u32" | "u64" | "u128" | "usize")
 }

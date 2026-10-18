@@ -32,6 +32,12 @@ impl crate::hir::lower::Ctx {
             return self.lower_reinterpret_builtin(&mut hir_args, explicit, span);
         }
 
+        // Phase 7：`size_of[T]()` / `align_of[T]()` 编译期常量（仅显式类型实参形态，
+        // 见 expr_layout.rs）
+        if explicit.is_some() && (name.as_str() == "size_of" || name.as_str() == "align_of") {
+            return self.lower_layout_builtin(name, explicit, &mut hir_args, span);
+        }
+
         // Step 2: extract arg types（引用实参另存解引用类型，用于回退解析）
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();

@@ -1,0 +1,39 @@
+// Phase 7：size_of[T]() / align_of[T]() 编译期常量（自然对齐，与 %struct 布局一致）
+import "io"
+import "option"
+
+struct Point {
+    int x
+    int y
+}
+
+struct Mix {
+    bool b
+    int n
+}
+
+struct Small {
+    char a
+    bool b
+}
+
+fn main() -> int {
+    if size_of[int]() != 8 { return 1 }
+    if align_of[int]() != 8 { return 2 }
+    if size_of[bool]() != 1 { return 3 }
+    if size_of[u8]() != 1 { return 4 }
+    if size_of[i16]() != 2 { return 5 }
+    if size_of[u32]() != 4 { return 6 }
+    if size_of[f32]() != 4 { return 7 }
+    if size_of[Point]() != 16 { return 8 }
+    if align_of[Point]() != 8 { return 9 }
+    if size_of[Mix]() != 16 { return 10 }
+    if align_of[Mix]() != 8 { return 11 }
+    if size_of[Small]() != 2 { return 12 }
+    if align_of[Small]() != 1 { return 13 }
+    if size_of[Option[int]]() != 16 { return 14 }
+    if size_of[Ptr[Point]]() != 8 { return 15 }
+    if size_of[[int]]() != 8 { return 16 }
+    if align_of[ref int]() != 8 { return 17 }
+    return 0
+}

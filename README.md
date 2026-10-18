@@ -147,6 +147,8 @@ fn main() -> int {
 | 裸指针 | `*int` / `*char`                  | `Ptr[T].as_ptr()` / `as *T`；解引用与指针算术需 `unsafe` |
 | ref    | `ref int` / `ref mut int`         | 借用，不拥有、不可逃逸                          |
 
+布局查询：`size_of[T]()` / `align_of[T]()` 为编译期常量（自然对齐，与结构体布局一致；见 `example/test_sizeof.aya`）。
+
 ## 标准库
 
 ```ayanami

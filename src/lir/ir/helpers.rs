@@ -80,53 +80,8 @@ pub(crate) fn elem_layout_size(
     ty: &HirType,
     struct_defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>,
 ) -> u64 {
-    fn layout(ty: &HirType, defs: &std::collections::HashMap<Symbol, Vec<(Symbol, HirType)>>) -> (u64, u64) {
-        match ty {
-            HirType::Void | HirType::Never => (0, 1),
-            HirType::Char | HirType::Bool => (1, 1),
-            HirType::Int | HirType::Float | HirType::Ref(_, _) | HirType::FnPtr(..) | HirType::RawPtr(_) => (8, 8),
-            HirType::F32 => (4, 4),
-            HirType::IntN { bits, .. } => { let sz = (*bits / 8) as u64; (sz, sz.min(16)) }
-            HirType::FatPtr { .. } | HirType::Closure(..) => (16, 8),
-            HirType::Array(_) | HirType::ArraySized(_, _) => (8, 8),
-            HirType::Unique(inner) => match &**inner {
-                HirType::Named(_) | HirType::FatPtr { .. }
-                | HirType::Array(_) | HirType::ArraySized(_, _) => (8, 8),
-                _ => layout(inner, defs),
-            },
-            HirType::Named(name) => {
-                let fields = defs.get(name).or_else(|| {
-                    let n = name.as_str();
-                    n.find('<').map(|pos| Symbol::intern(&n[..pos])).and_then(|b| defs.get(&b))
-                });
-                match fields {
-                    Some(fs) => {
-                        // P3b：union —— 字段共享存储：size/align 取各字段最大
-                        if fs.first().map(|(n, _)| n.as_str() == "__union").unwrap_or(false) {
-                            let mut size = 0u64;
-                            let mut align = 1u64;
-                            for (_, ft) in fs {
-                                let (sz, a) = layout(ft, defs);
-                                size = size.max(sz);
-                                align = align.max(a);
-                            }
-                            return ((size + align - 1) / align * align, align);
-                        }
-                        let mut off = 0u64;
-                        let mut align = 1u64;
-                        for (_, ft) in fs {
-                            let (sz, a) = layout(ft, defs);
-                            off = (off + a - 1) / a * a + sz;
-                            align = align.max(a);
-                        }
-                        ((off + align - 1) / align * align, align)
-                    }
-                    None => (16, 8), // 未知结构保守回退
-                }
-            }
-        }
-    }
-    layout(ty, struct_defs).0
+    // 统一布局实现（hir/layout.rs；HIR 内置 size_of/align_of 共用）
+    crate::hir::layout::type_layout(ty, struct_defs).0
 }
 
 
