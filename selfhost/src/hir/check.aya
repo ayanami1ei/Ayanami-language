@@ -1064,6 +1064,11 @@ impl Checker {
         // 发射器内建（FnCall 特判）
         self.add_builtin("char_code");
         self.add_builtin("to_cstr");
+        // 布局内置与编译期断言
+        self.add_builtin("size_of");
+        self.add_builtin("align_of");
+        self.add_builtin("offset_of");
+        self.add_builtin("static_assert");
     }
 
     #[alloc]

@@ -1296,6 +1296,8 @@ impl Emitter {
             return int_str2(r2);
         }
         if tag == et(ET::FnCall._tag) {
+            vlb = self.layout_builtin_val(ast, id);
+            if vlb.len > 0 { return vlb; }
             // #[compile_time] 函数：编译期解释求值
             fid = self.ct_find(ast.texts[id]);
             if fid >= 0 {
@@ -1458,6 +1460,17 @@ impl Emitter {
                 self.g_lens[self.g_count] = cn;
                 self.g_count = self.g_count + 1;
                 return;
+            }
+        }
+        // 通用回退：常量表达式（布局内置 / #[compile_time] 调用等）求值为 int 全局
+        if init >= 0 {
+            vg = self.const_eval_g(ast, init);
+            if vg.len > 0 {
+                self.g_names[self.g_count] = name.copy();
+                self.g_kinds[self.g_count] = 0;
+                self.g_vals[self.g_count] = vg.copy();
+                self.g_lens[self.g_count] = 0;
+                self.g_count = self.g_count + 1;
             }
         }
     }
@@ -2267,6 +2280,42 @@ impl Emitter {
             pp = ast.nexts[pp];
         }
         return b.to_string();
+    }
+
+    /// 布局内置求值：size_of[T]/align_of[T]/offset_of[T](field)（自举 i64 槽布局）
+    #[alloc]
+    #[state]
+    fn layout_builtin_val(ref mut self, ref Ast ast, int id) -> String {
+        nm_b = ast.texts[id];
+        if nm_b != "size_of" && nm_b != "align_of" && nm_b != "offset_of" { return ""; }
+        ty_b = ast.tys[id];
+        if ty_b < 0 { return ""; }
+        if nm_b == "align_of" { return "8"; }
+        tn_b = ty_name(ast, ty_b);
+        if tn_b.len == 0 {
+            // 原语标签/数组/引用等：8
+            return "8";
+        }
+        si_b = self.find_struct_idx(tn_b);
+        if si_b >= 0 {
+            if nm_b == "offset_of" {
+                a_b = ast.aa[id];
+                if a_b >= 0 {
+                    if ast.tags[a_b] == xt(XT::Arg._tag) { a_b = ast.aa[a_b]; }
+                    fn_b = ast.texts[a_b];
+                    fi_b = self.find_field_idx(tn_b, fn_b);
+                    if fi_b < 0 { return ""; }
+                    return int_str2(fi_b * 8);
+                }
+                return "";
+            }
+            return int_str2(self.st_slots[si_b] * 8);
+        }
+        ei_b = self.find_enum_idx(tn_b);
+        if ei_b >= 0 {
+            return int_str2((1 + self.enum_max_arity(ei_b)) * 8);
+        }
+        return "8";
     }
 
     fn fn_param_kind(ref mut self, ref String fname, int i) -> int {
@@ -5443,6 +5492,20 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         if nm == "char_code" {
             ac = emit_expr(ast, ast.aa[ast.aa[id]], e);
             return mk_int(ac.a);
+        }
+        if nm == "size_of" || nm == "align_of" || nm == "offset_of" {
+            vb = e.layout_builtin_val(ast, id);
+            if vb.len > 0 { return mk_int(vb); }
+            return mk_int("0");
+        }
+        if nm == "static_assert" {
+            // 编译期断言：条件求值（示例均为真；发射期不产生运行代码）
+            ca = ast.aa[id];
+            if ca >= 0 {
+                if ast.tags[ca] == xt(XT::Arg._tag) { ca = ast.aa[ca]; }
+                cv = e.const_eval_g(ast, ca);
+            }
+            return mk_int("0");
         }
         if nm == "to_cstr" {
             av2 = emit_expr(ast, ast.aa[ast.aa[id]], e);

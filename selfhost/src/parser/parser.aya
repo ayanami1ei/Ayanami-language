@@ -1386,6 +1386,21 @@ impl Parser {
             } elif self.check_delim(D::LBracket._tag) {
                 line = self.cur.line;
                 col = self.cur.col;
+                // 布局内置：name[Type](...) 按泛型调用解析（类型实参存 tys）
+                if self.ast.tags[e] == et(ET::Ident._tag) {
+                    nm_b = self.ast.texts[e];
+                    if nm_b == "size_of" || nm_b == "align_of" || nm_b == "offset_of" {
+                        self.advance();
+                        ty_b = self.parse_type();
+                        self.expect_delim(D::RBracket._tag, "expected ] after type");
+                        args_b = -1;
+                        if self.check_delim(D::LParen._tag) {
+                            args_b = self.parse_args();
+                        }
+                        e = self.ast.push(et(ET::FnCall._tag), nm_b, ty_b, args_b, -1, -1, -1, line, col);
+                        continue;
+                    }
+                }
                 self.advance();
                 idx = self.parse_expr();
                 self.expect_delim(D::RBracket._tag, "expected ] after index");
