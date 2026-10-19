@@ -1,5 +1,6 @@
 pub mod body;
 mod collect_copy;
+mod ctx_niche;
 pub mod helpers;
 pub mod to_mir;
 pub(crate) use helpers::*;

@@ -4,7 +4,7 @@ use super::*;
 impl crate::hir::lower::Ctx {
     /// 常量二元运算（算术/比较/位运算/逻辑；类型不匹配/溢出 → 位置化报错）。
     pub(super) fn eval_const_binary(
-        &self,
+        &mut self,
         op: &BinaryOp,
         lhs: &Expr,
         rhs: &Expr,

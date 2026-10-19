@@ -47,39 +47,49 @@ impl crate::hir::lower::Ctx {
         };
         let subst = self.build_generic_subst(&name, &base);
         let suffix = &s[pos..]; // "<int,int>"
+        // 变体结构体（`Base_Variant<args>`）字段沿用同一 subst（枚举参数）；
+        // **先于**枚举字段表创建：N1 niche 判定需要变体字段数与载荷类型。
+        // 从**基枚举**取变体（niche 改写后仍需空变体结构体供构造使用）；
+        // 嵌套泛型类型（如字段类型 `Box<int>`）走自身实例化（自建 subst，#123）
+        let variant_prefix = format!("{}_", base.as_str());
+        for bf in &base_fields {
+            let HirType::Named(vn_base) = &bf.ty else { continue };
+            if !vn_base.as_str().starts_with(variant_prefix.as_str()) {
+                continue;
+            }
+            let vn = Symbol::intern(&format!("{}{}", vn_base, suffix));
+            if !self.struct_defs.contains_key(&vn) {
+                if let Some(vfields) = self.struct_defs.get(vn_base).cloned() {
+                    let substituted: Vec<HirStructField> = vfields.iter()
+                        .map(|f| HirStructField { name: f.name, ty: substitute_hir_type(&f.ty, &subst) })
+                        .collect();
+                    self.struct_defs.insert(vn, substituted.clone());
+                    self.generic_struct_params.insert(vn, Vec::new());
+                    // 变体字段中的嵌套泛型类型（如 `Opt[Opt[int]]` 的载荷 `Opt<int>`）递归实例化
+                    for f in &substituted {
+                        self.instantiate_type(&f.ty)?;
+                    }
+                }
+            }
+        }
         let mut new_fields: Vec<(Symbol, HirType)> = Vec::new();
         for f in &base_fields {
             let rewritten = rewrite_variant_name(&f.ty, base, suffix);
             new_fields.push((f.name, substitute_hir_type(&rewritten, &subst)));
         }
+        // N1：具体载荷可 niche → 单指针槽表示（去掉 `_tag`；docs/enum-layout.md §3.1）
+        let new_fields: Vec<(Symbol, HirType)> = self.apply_niche_rewrite(
+            new_fields.into_iter()
+                .map(|(n, t)| HirStructField { name: n, ty: t })
+                .collect())
+            .into_iter()
+            .map(|f| (f.name, f.ty))
+            .collect();
         self.struct_defs.insert(name, new_fields.iter()
             .map(|(n, t)| HirStructField { name: *n, ty: t.clone() })
             .collect());
         self.generic_struct_params.insert(name, Vec::new());
-
-        // 变体结构体（`Base_Variant<args>`）字段沿用同一 subst（枚举参数）；
-        // 嵌套泛型类型（如字段类型 `Box<int>`）走自身实例化（自建 subst，#123）
-        let variant_prefix = format!("{}_", base.as_str());
         for (_, fty) in &new_fields {
-            if let HirType::Named(vn) = fty {
-                let vn = *vn;
-                let base_vn = strip_generic_name(&vn);
-                if !self.struct_defs.contains_key(&vn)
-                    && base_vn.as_str().starts_with(variant_prefix.as_str())
-                {
-                    if let Some(vfields) = self.struct_defs.get(&base_vn).cloned() {
-                        let substituted: Vec<HirStructField> = vfields.iter()
-                            .map(|f| HirStructField { name: f.name, ty: substitute_hir_type(&f.ty, &subst) })
-                            .collect();
-                        self.struct_defs.insert(vn, substituted.clone());
-                        self.generic_struct_params.insert(vn, Vec::new());
-                        // 变体字段中的嵌套泛型类型（如 `Opt[Opt[int]]` 的载荷 `Opt<int>`）递归实例化
-                        for f in &substituted {
-                            self.instantiate_type(&f.ty)?;
-                        }
-                    }
-                }
-            }
             self.instantiate_type(fty)?;
         }
         Ok(())
@@ -118,8 +128,14 @@ impl crate::hir::lower::Ctx {
         }
         st.type_name = *ename;
         st.ty = expected.clone();
+        // N1：期望类型为 niche 形态时丢弃基枚举的 `_tag` 字段（字段表已无该槽）
+        self.instantiate_type(expected)?;
+        let niche = self.is_niche_enum(ename);
         let mut new_fields = Vec::new();
         for (fname, fval) in st.fields {
+            if niche && fname.as_str() == "_tag" {
+                continue;
+            }
             let fty = self.find_field_type(expected, &fname, &Span::default()).ok();
             let nv: HirNodeBox = match (&fty, fval.as_struct_cloned()) {
                 // 字段是（枚举/结构体）构造：按字段类型递归实例化

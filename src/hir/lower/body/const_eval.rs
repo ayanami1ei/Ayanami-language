@@ -53,7 +53,7 @@ impl crate::hir::lower::Ctx {
 
     /// 常量表达式求值（M6.1 字面量/引用/一元/二元；M6.3 追加 const fn 调用与 if 表达式）
     pub(crate) fn eval_const_expr(
-        &self,
+        &mut self,
         expr: &Expr,
         env: &HashMap<Symbol, (HirType, HirLiteral)>,
         depth: usize,

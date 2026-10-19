@@ -31,6 +31,7 @@ mod expr_static_assert;
 mod const_eval_binary;
 mod expr_struct;
 mod match_coverage;
+mod match_variant;
 mod match_lower;
 mod match_pattern;
 mod match_setup;

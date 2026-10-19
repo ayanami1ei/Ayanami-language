@@ -1,6 +1,6 @@
 # Phase 7 剩余：枚举布局优化（niche / boxed variant / indirect payload）设计
 
-> 状态：**设计（未实现）**（2026-10-18）。关联：bd `Ayanami-language-2ru.2`（task）/
+> 状态：**N1 已实现**（2026-10-19）；N2/N3 未实现（2026-10-18 设计）。关联：bd `Ayanami-language-2ru.2`（task）/
 > `2ru`（Phase 7 epic）；GitHub #40（Phase 7）/ #61（niche / boxed variant / indirect payload）。
 > 相关：`docs/optimization.md`（M-opt 语义优化）、`docs/knowledge-graph.md` §2（枚举布局现状）。
 
@@ -35,23 +35,42 @@ struct_defs[E_Vi]   = 变体字段（tuple → _0/_1/...；named → 原字段�
 
 ## 3. 方案评估
 
-### 3.1 niche（推荐先行；N1 限定形态）
+### 3.1 niche（N1 已实现）
 
-- **识别（N1）**：恰好 2 个变体、其中一个**无字段**、另一个**恰有 1 个字段且该字段为
-  “可 niche 类型”**（`Ptr[T]` / `ref T` / `*T` / `FnPtr` / `Closure(静态)`）；
-- **表示**：该枚举 = 单字段值（指针）；空变体 = `null`；非空变体 = 指针值本身；
-- **影响面**（必须逐项处理）：
-  1. 布局：`hir/layout.rs::type_layout`（niche 枚举 = 字段尺寸 ✓）；`lir/emit` 的
-     `%struct.E` 不再发射（或发射为单字段 ✓）；
-  2. 构造：`E::Some(p)` → 直接存 p；`E::None` → null；
-  3. 匹配：`_tag` 读取 → `is null` 判断；`_data_V._i` 字段地址 → **返回枚举值本身的地址**
-     （指针槽 ✓）——需要“字段访问特殊化”；
-  4. drop：只 drop 指针槽（pointee 归 `Ptr` 自己 ✓）；
-  5. `.lcl`/跨模块：同一编译器一致 ✓；**C ABI 边界回退**：`#[extern]`/`#[export]` 签名中的
-     此类枚举**不使用 niche**（保持 tag 表示，保证与 C 的布局预期一致——或文档化为不保证 ✓）；
-  6. 泛型：`Option[T]` 的单态化按具体 T 判定（`Option[Ptr[X]]` niche、`Option[int]` 不 ✓）。
-- **实现位置（建议）**：`hir/lower/collect_enum.rs` 增加 `niche` 判定与标记
-  （enum 元数据：`NicheKind`）；`match_pattern.rs`/`place.rs`/`lir` 按标记走特殊化路径。
+**表示（实现口径）**：niche 枚举 = **去掉 `_tag` 字段**的单指针槽：
+
+```
+struct_defs[E] = [_data_Some: Named(E_Some), _data_None: Named(E_None)]
+```
+
+- 布局 = 载荷变体结构体（8 字节）+ 空变体结构体（0 字节）→ **8 字节**（16 → 8，-50%）；
+- 判别由载荷槽空值承载：Some = 指针值本身；None = 载荷槽零值（`zeroinitializer` = null）；
+- `_data_*` 字段序即 tag 序——形态自描述、跨模块一致，无索引重映射（`_tag` 槽消失，
+  其余字段位置与 tag 形态相同）；
+- `_tag` 读取特殊化：`(reinterpret<ptr→int>(v._data_P._0) == 0) as int`（载荷 tag 为 0 时；
+  否则 `!= 0`）——沿用“比较保留操作数类型 + `SBoolToNum`”的既有转换口径；
+- drop：既有“按字段递归 + 非活跃变体零初始化 + null 释放安全”机制直接适用（无需改动）。
+
+**可 niche 载荷**：`Ptr[T]`（`Unique(具名/胖指针/数组/8 字节基元)`）、`ref T`、`fn(..)`。
+**不含 `*T`**——null 是合法裸指针值，`Some(null)` 会塌缩为 `None`（与 Rust 口径一致；
+本文档早前版本列为可 niche，实现时修正）。
+
+**判定时机**：声明（`collect_enum` / `lower_items`）与泛型实例化（`instantiate_named` /
+构造侧单态化）——只看类型结构 + 具体载荷类型（确定性）；`Option[T]` 按单态化后的 T 判定
+（`Option[Ptr[X]]` niche、`Option[int]` 不）。
+
+**影响面（实现位置）**：
+1. 布局 / 发射：单指针槽的 `struct_defs` → `type_layout` / `emit_struct_defs` / 结构体字面量 /
+   字段访问**自动正确**（无需特殊化）；
+2. 构造：`expr_enum`（跳过 `_tag` 写入；非活跃变体保持零值）+ 适配路径
+   （`instantiate_enum_value` 与结构体字面量字段丢弃基枚举 `_tag`）；
+3. 匹配：`match_pattern`（tag 条件 → 空值判定；载荷绑定下标按实际字段表）；
+4. `_tag` 读取：`expr_access`（含 `?` 算子路径）→ `ctx_niche::build_niche_tag_expr`；
+5. 枚举判定/派发：`is_enum_type`、`variant_tag`、变体方法派发（`expr_method`）、
+   穷尽性计数（`enum_variant_count`）niche 感知；
+6. **C ABI 边界**：extern 签名中的 niche 枚举按新表示（8 字节）——与 C 的 tag 布局不一致；
+   跨 FFI 的布局契约属非目标（§5），需 `#[repr]`-类机制另行设计（文档早前“边界回退旧表示”
+   验收项据此修订）。
 
 ### 3.2 boxed variant / indirect payload（N2/N3）
 
@@ -64,7 +83,7 @@ struct_defs[E_Vi]   = 变体字段（tuple → _0/_1/...；named → 原字段�
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| **N1** | niche：`Option[Ptr/ref/*T/fn]` 单指针表示 | 正例：`size_of[Option[Ptr[T]]]() == 8`、构造/匹配/字段访问/递归 drop 无泄漏（含 `None`/`Some` 全路径）；回归全绿；C ABI 边界保持旧表示 |
+| **N1**（完成 ✓） | niche：`Option[Ptr/ref/fn]` 单指针表示 | 正例 `example/test_niche_option.aya`：`size_of[Option[Ptr[T]]]() == 8`（ref 同）、构造/匹配/字段访问/递归 drop 无泄漏（`None`/`Some` 全路径，live_allocs == 0）；回归全绿；C ABI 边界见 §3.1-6 |
 | **N2** | boxed variant（阈值或标注） | 正例：大载荷枚举尺寸下降；匹配/drop 正确；负例：阈值边界 |
 | **N3** | indirect payload 策略收敛 + 文档 | 布局稳定性说明（不承诺跨版本布局 ✓） |
 
@@ -80,3 +99,20 @@ struct_defs[E_Vi]   = 变体字段（tuple → _0/_1/...；named → 原字段�
   匹配、字段地址、嵌套 `ref`）；
 - **跨模块/ABI 不一致** → niche 判定只看类型结构（同一编译器确定性 ✓）+ C ABI 边界回退；
 - **回归面大** → 分阶段（N1 限定形态先行），每阶段跑全量回归 + IR 快照 + std 套件。
+
+## 7. 实现状态
+
+- [x] **N1（2026-10-19）**：niche 枚举（`Option[Ptr[T]]` / `Option[ref T]` / `Option[fn]` → 8 字节）
+      - 判定与改写：`src/hir/niche.rs`（纯形态判定）+ `src/hir/lower/ctx_niche.rs`（Ctx 侧改写与
+        `_tag` 特殊化）；
+      - 接线：`collect_enum` / `lower_items`（声明）、`ctx_mono`（实例化 + 适配）、`expr_enum`（构造）、
+        `expr_access` / `expr_ops1`（`_tag`）、`match_pattern` / `match_lower` / `expr_method`（匹配与派发）；
+      - 连带修复（潜伏不一致）：
+        1. `sig_str_to_hir` 现解析 `Ptr<T>` → `Unique`（此前泛型实参回解析退化为 `Named("Ptr<..>")`：
+           尺寸按 16 计、丢所有权语义）；
+        2. `type_to_string_generic` 的 `ref` 拼写补空格（`refNode` → `ref Node`，与解析器/显示一致）；
+        3. `size_of` / `align_of` / `offset_of` 求值前先实例化类型（此前落回基枚举的泛型布局，
+           `Option[Ptr[X]]` 报 24）；
+      - 验收：`example/test_niche_option.aya`（8/8/16 尺寸 + 构造/匹配/字段访问 + 泄漏 0）；
+        `test_ptr_tree` / `test_arena` / `test_ref_*` 等既有指针用例回归通过；std 套件重建后全绿。
+- [ ] N2（boxed variant）、N3（indirect payload 策略收敛 + 文档）

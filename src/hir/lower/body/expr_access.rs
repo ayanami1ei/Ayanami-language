@@ -6,6 +6,14 @@ impl crate::hir::lower::Ctx {
         let mut object_ty = hir_object.expr_type();
         // M4：先确保泛型实例（如 Option<Ptr[Tree]>）已单态化，字段查找才能取到特化类型
         self.instantiate_type(&object_ty)?;
+        // N1：niche 枚举 `_tag` → 空值判定（无 `_tag` 字段；docs/enum-layout.md §3.1）
+        if field.as_str() == "_tag" {
+            if let HirType::Named(n) = strip_ownership_ref(&object_ty) {
+                if self.is_niche_enum(&n) {
+                    return self.build_niche_tag_expr(hir_object, &object_ty, expr_span);
+                }
+            }
+        }
         // R1：协议回退——接收者本身上无此字段时，`get()` 解引用后重试
         // （docs/reference-model.md §2.1：任意含 get/get_mut 的类型自动解引用）
         if self.find_field_index(&object_ty, field, expr_span).is_err() {

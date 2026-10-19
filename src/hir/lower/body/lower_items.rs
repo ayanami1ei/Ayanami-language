@@ -57,30 +57,8 @@ impl crate::hir::lower::Ctx {
                     items.push(HirItem::StructDef(HirStructDef { name: *name, fields: hir_fields }));
                 }
                 Stmt::EnumDef { name, variants, .. } => {
-                    for variant in variants {
-                        let var_struct_name = Symbol::intern(&format!("{}_{}", name, variant.name));
-                        let hir_fields: Vec<HirStructField> = match &variant.fields {
-                            crate::parser::ast::stmt::EnumFields::Named(fields) => {
-                                fields.iter()
-                                    .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
-                                    .collect()
-                            }
-                            crate::parser::ast::stmt::EnumFields::Tuple(tys) => {
-                                tys.iter().enumerate()
-                                    .map(|(i, t)| HirStructField { name: Symbol::intern(&format!("_{}", i)), ty: ast_type_to_hir(t, &self.interfaces) })
-                                    .collect()
-                            }
-                            crate::parser::ast::stmt::EnumFields::None => vec![],
-                        };
-                        items.push(HirItem::StructDef(HirStructDef { name: var_struct_name, fields: hir_fields }));
-                    }
-                    // Emit enum struct
-                    let mut enum_fields = vec![HirStructField { name: Symbol::intern("_tag"), ty: HirType::Int }];
-                    for variant in variants {
-                        let vsn = Symbol::intern(&format!("{}_{}", name, variant.name));
-                        enum_fields.push(HirStructField { name: Symbol::intern(&format!("_data_{}", variant.name)), ty: HirType::Named(vsn) });
-                    }
-                    items.push(HirItem::StructDef(HirStructDef { name: *name, fields: enum_fields }));
+                    let enum_items = self.build_enum_items(name, variants);
+                    items.extend(enum_items);
                 }
                 Stmt::Import { .. } => {} // already handled in collect_fns
                 Stmt::ConstDecl { .. } => {} // M6.1：常量在 collect_ns 求值，无运行时项

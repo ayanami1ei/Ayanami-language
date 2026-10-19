@@ -107,9 +107,12 @@ impl crate::hir::lower::Ctx {
             }
             // 字段类型转换：接口字段装箱（#161）+ 隐式数值转换
             if let Some(field_ty) = field_tys.get(&name) {
-                hir_val = match self.coerce_iface_value(hir_val.clone(), field_ty, &sp)? {
+                let field_ty = field_ty.clone();
+                // 单态化：枚举构造按字段类型实例化（N1 niche 字段表适配——丢弃基枚举 `_tag`）
+                hir_val = self.instantiate_enum_value(hir_val, &field_ty)?;
+                hir_val = match self.coerce_iface_value(hir_val.clone(), &field_ty, &sp)? {
                     Some(converted) => converted,
-                    None => coerce_expr(hir_val, field_ty, &sp)?,
+                    None => coerce_expr(hir_val, &field_ty, &sp)?,
                 };
             }
             hir_fields.push((name, implicit_move(hir_val)));

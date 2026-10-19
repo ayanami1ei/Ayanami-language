@@ -215,8 +215,10 @@ impl Ctx {
     }
 
     pub fn is_enum_type(&self, type_name: &Symbol) -> bool {
-        self.struct_defs.get(type_name).and_then(|f| f.first())
-            .map(|f| f.name.as_str() == "_tag").unwrap_or(false)
+        // N1：niche 形态（无 `_tag` 的单指针槽表示）同样视为枚举
+        self.is_niche_enum(type_name)
+            || self.struct_defs.get(type_name).and_then(|f| f.first())
+                .map(|f| f.name.as_str() == "_tag").unwrap_or(false)
     }
 
     /// P3b：union 类型（首字段为保留名 `__union`；其后为真实字段列表）
