@@ -5493,6 +5493,39 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             ac = emit_expr(ast, ast.aa[ast.aa[id]], e);
             return mk_int(ac.a);
         }
+        if nm == "bits.reinterpret" || nm == "reinterpret" {
+            // 位重解释：按目标类型 bitcast（f32 视作 f64，与自举一致）
+            ty_r = ast.tys[id];
+            tn_r = ty_name(ast, ty_r);
+            to_f = 0;
+            if tn_r == "float" || tn_r == "f32" || tn_r == "f64" { to_f = 1; }
+            ar = ast.aa[id];
+            if ar >= 0 {
+                if ast.tags[ar] == xt(XT::Arg._tag) { ar = ast.aa[ar]; }
+            }
+            vr = mk_int("0");
+            if ar >= 0 { vr = emit_expr(ast, ar, e); }
+            if to_f == 1 {
+                if vr.kind == 6 { return vr; }
+                fb = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(fb);
+                e.buf.push_str(" = bitcast i64 ");
+                e.buf.push_str(vr.a);
+                e.buf.push_str(" to double\n");
+                return mk_float(fb);
+            }
+            if vr.kind == 6 {
+                fb2 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(fb2);
+                e.buf.push_str(" = bitcast double ");
+                e.buf.push_str(vr.a);
+                e.buf.push_str(" to i64\n");
+                return mk_int(fb2);
+            }
+            return vr;
+        }
         if nm == "size_of" || nm == "align_of" || nm == "offset_of" {
             vb = e.layout_builtin_val(ast, id);
             if vb.len > 0 { return mk_int(vb); }

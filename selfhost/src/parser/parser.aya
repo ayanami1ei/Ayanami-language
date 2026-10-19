@@ -1342,12 +1342,18 @@ impl Parser {
                 full = self.ast.texts[e].copy();
                 full = full + ".";
                 full = full + variant;
-                if self.check_delim(D::LBracket._tag) { self.skip_brackets(); }
+                ty_g = -1;
+                if self.check_delim(D::LBracket._tag) {
+                    // 保留类型实参（bits::reinterpret[T] 等内建需要）
+                    self.advance();
+                    ty_g = self.parse_type();
+                    self.expect_delim(D::RBracket._tag, "expected ] after type args");
+                }
                 targs = -1;
                 nargs = -1;
                 if self.check_delim(D::LParen._tag) {
                     targs = self.parse_args();
-                    e = self.ast.push(et(ET::FnCall._tag), full, -1, targs, -1, -1, -1, line, col);
+                    e = self.ast.push(et(ET::FnCall._tag), full, ty_g, targs, -1, -1, -1, line, col);
                     continue;
                 } elif !self.check_delim(D::LBrace._tag) {
                     // 裸路径（math::PI2）当作 Ident

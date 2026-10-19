@@ -1069,6 +1069,8 @@ impl Checker {
         self.add_builtin("align_of");
         self.add_builtin("offset_of");
         self.add_builtin("static_assert");
+        self.add_builtin("bits.reinterpret");
+        self.add_builtin("reinterpret");
     }
 
     #[alloc]
