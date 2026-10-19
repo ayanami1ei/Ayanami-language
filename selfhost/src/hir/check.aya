@@ -1611,6 +1611,9 @@ impl Checker {
             self.check_expr(ast, ast.aa[id]);
             self.check_expr(ast, ast.bb[id]);
             self.check_expr(ast, ast.cc[id]);
+        } elif tag == st(ST::DerefAssign._tag) {
+            self.check_expr(ast, ast.aa[id]);
+            self.check_expr(ast, ast.bb[id]);
         } elif tag == st(ST::Match._tag) {
             self.check_match(ast, id);
         } elif tag == st(ST::Block._tag) {

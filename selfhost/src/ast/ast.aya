@@ -37,6 +37,7 @@ pub enum ST {
     StaticDecl,
     ForIn,
     Unsafe,
+    DerefAssign,
 }
 
 // 表达式标签
@@ -89,6 +90,7 @@ pub enum TT {
     Never,
     ArraySized,
     Closure,
+    RawPtr,
 }
 
 // 辅助节点标签（参数/字段/实参/elif/匹配臂/泛型实参）
@@ -139,6 +141,7 @@ pub enum UnOp {
     Neg,
     Not,
     BitNot,
+    Deref,
 }
 
 // 各 enum 的 _tag 从 0 开始，数值空间互相重叠；入 arena 前统一加族偏移，

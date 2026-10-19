@@ -123,6 +123,8 @@ pub struct Parser {
     // 声明属性位掩码（alloc=1 state=2 io=4 pure=8 no_error=16 throws=32）与 pub 标志
     int attr_mask
     int last_pub
+    // ref 操作数内禁用 as 后缀（ref mut a as *int = (ref mut a) as *int）
+    int no_cast
 }
 
 pub namespace Parser {
@@ -133,7 +135,7 @@ pub namespace Parser {
         t1 = lx.next_token();
         t2 = lx.next_token();
         t3 = lx.next_token();
-        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, last_pub = 0 };
+        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, last_pub = 0, no_cast = 0 };
         return p;
     }
 }
@@ -425,6 +427,12 @@ impl Parser {
         if self.eat_kw(Kw::Unique._tag) {
             inner = self.parse_type();
             return self.ast.push(tt(TT::Unique._tag), "", -1, inner, -1, -1, -1, self.cur.line, self.cur.col);
+        }
+        if self.check_op("*") {
+            // 裸指针类型 *T
+            self.advance();
+            inner = self.parse_type();
+            return self.ast.push(tt(TT::RawPtr._tag), "", -1, inner, -1, -1, -1, self.cur.line, self.cur.col);
         }
         if self.check_delim(D::LBracket._tag) {
             self.advance();
@@ -1157,6 +1165,10 @@ impl Parser {
             if etag == et(ET::Index._tag) {
                 return self.ast.push(st(ST::IndexAssign._tag), "", -1, self.ast.aa[e], self.ast.bb[e], val, -1, line, col);
             }
+            if etag == et(ET::Unary._tag) && self.ast.tys[e] == uo(UnOp::Deref._tag) {
+                // *p = v：裸指针写入
+                return self.ast.push(st(ST::DerefAssign._tag), "", -1, self.ast.aa[e], val, -1, -1, line, col);
+            }
             self.error("invalid assignment target");
             return -1;
         }
@@ -1298,12 +1310,23 @@ impl Parser {
             e = self.ast.push(et(ET::Unary._tag), "", uo(UnOp::BitNot._tag), arg, -1, -1, -1, line, col);
             return self.apply_cast(e, line, col);
         }
+        if self.check_op("*") {
+            // 裸指针解引用 *p
+            self.advance();
+            arg = self.parse_unary();
+            e = self.ast.push(et(ET::Unary._tag), "", uo(UnOp::Deref._tag), arg, -1, -1, -1, line, col);
+            return self.apply_cast(e, line, col);
+        }
         if self.check_kw(Kw::Ref._tag) {
             self.advance();
             mutable = 0;
             if self.eat_kw(Kw::Mut._tag) { mutable = 1; }
-            arg = self.parse_unary();
-            return self.ast.push(et(ET::Ref._tag), "", -1, arg, mutable, -1, -1, line, col);
+            // 操作数取后缀表达式（as 绑定比 ref 松：ref mut a as *int = (ref mut a) as *int）
+            self.no_cast = 1;
+            arg = self.parse_postfix();
+            self.no_cast = 0;
+            e = self.ast.push(et(ET::Ref._tag), "", -1, arg, mutable, -1, -1, line, col);
+            return self.apply_cast(e, line, col);
         }
         if self.check_kw(Kw::Move._tag) {
             self.advance();
@@ -1416,7 +1439,7 @@ impl Parser {
                 col = self.cur.col;
                 self.advance();
                 e = self.ast.push(et(ET::TryOp._tag), "", -1, e, -1, -1, -1, line, col);
-            } elif self.check_kw(Kw::As._tag) {
+            } elif self.check_kw(Kw::As._tag) && self.no_cast == 0 {
                 line = self.cur.line;
                 col = self.cur.col;
                 self.advance();
