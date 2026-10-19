@@ -650,7 +650,8 @@ impl Checker {
         dd = ast.dd[id];
         pubf = 0;
         if recv.len > 0 { pubf = 1; }
-        if dd >= 16384 { pubf = 1; }
+        // pub 位 = bit 14（dd 高位的 compile_time(bit17) 等不算）
+        if (dd / 16384) % 2 == 1 { pubf = 1; }
         nmf = ast.texts[id].copy();
         has_self = 0;
         p = ast.aa[id];
