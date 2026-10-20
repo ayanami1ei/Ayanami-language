@@ -6,7 +6,7 @@ test_array_param.aya 60
 test_arraylist.aya 0
 test_array_elem_field.aya 0
 test_bool_var.aya 0
-test_asm.aya 10
+test_asm.aya 0
 test_assume.aya 0
 test_attrs.aya 3
 test_bitwise.aya 0
@@ -148,3 +148,4 @@ test_ref_protocol.aya 0
 test_ref_registry.aya 0
 test_ref_graph.aya 0
 test_niche_option.aya 0
+test_closure_unsafe.aya 0

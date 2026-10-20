@@ -164,7 +164,7 @@ s_mir!(SMirDeref { expr: MirNodeBox, ty: HirType });
 // M6.2：全局变量地址（ty 为 pointee；expr_type = Ref(ty, mutable)）
 s_mir!(SMirGlobal { name: Symbol, ty: HirType, mutable: bool });
 s_mir!(SMirIndex { object: MirNodeBox, index: MirNodeBox, ty: HirType });
-s_mir!(SMirAsm { template: String, outputs: Vec<(String, MirNodeBox)>, inputs: Vec<(String, MirNodeBox)>, ty: HirType });
+s_mir!(SMirAsm { template: String, outputs: Vec<(String, MirNodeBox)>, inputs: Vec<(String, MirNodeBox)>, clobbers: Vec<Symbol>, ty: HirType });
 
 // 13 SMir*Stmt structs
 s_mstmt!(SMirAssignStmt { target: MirNodeBox, value: MirNodeBox, span: Span });

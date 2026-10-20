@@ -30,7 +30,7 @@ pub(crate) fn is_nicheable(ty: &HirType) -> bool {
     match ty {
         HirType::Ref(..) | HirType::FnPtr(..) => true,
         HirType::Unique(inner) => match inner.as_ref() {
-            HirType::Named(_) | HirType::FatPtr { .. }
+            HirType::Named(_) | HirType::FatPtr { .. } | HirType::Closure(..)
             | HirType::Array(_) | HirType::ArraySized(_, _) => true,
             // 8 字节基元：`Ptr[基元]` 仍为堆指针（`ToUnique` 装箱），布局恰为 8；
             // 4/1 字节基元（F32/Bool/Char）按值存储，排除

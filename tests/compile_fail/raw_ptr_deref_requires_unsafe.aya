@@ -1,6 +1,5 @@
 fn main() -> int {
     x = 7;
-    r = 0;
     unsafe {
         r = ref mut x as *int
     }

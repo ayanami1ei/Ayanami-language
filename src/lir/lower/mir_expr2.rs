@@ -242,7 +242,7 @@ impl MirNode for SMirAsm {
         let output_constraints: Vec<String> = self.outputs.iter().map(|(c, _)| c.clone()).collect();
         let input_constraints: Vec<String> = input_vals.iter().map(|(_, (c, _))| c.clone()).collect();
         let input_operands: Vec<(LirValue, HirType)> = input_vals.into_iter().map(|(v, (_, t))| (v, t)).collect();
-        ctx.emit(SLirAsm { dest, template: self.template.clone(), output_constraints, output_operands, input_operands, input_constraints, ret_ty: self.ty.clone() }.into());
+        ctx.emit(SLirAsm { dest, template: self.template.clone(), output_constraints, output_operands, input_operands, input_constraints, clobbers: self.clobbers.clone(), ret_ty: self.ty.clone() }.into());
         if is_void { LirValue::Literal(HirLiteral::Int(0), HirType::Void) }
         else { LirValue::Tmp(dest.unwrap()) }
     }

@@ -91,7 +91,9 @@ impl LirEmitCtx<'_> {
                 "i8*".into()
             }
             HirType::Unique(inner) => {
-                if matches!(inner.as_ref(), HirType::Named(_) | HirType::FatPtr { .. }) {
+                // 拥有堆值：结构体/胖指针/闭包/数组 → 指针（与 emit/types.rs 保持一致）
+                if matches!(inner.as_ref(), HirType::Named(_) | HirType::FatPtr { .. }
+                    | HirType::Closure(..) | HirType::Array(_) | HirType::ArraySized(_, _)) {
                     "ptr".into()
                 } else {
                     self.llvm_type(inner)

@@ -1,0 +1,15 @@
+// #204 + #202：unsafe 块内局部变量（裸指针）被闭包捕获；Ptr::new 装箱捕获闭包（16 字节聚合值）
+fn main() -> int {
+    unsafe {
+        x = 40
+        p = ref x as *int
+        // #204：p 在 unsafe 块内声明，闭包捕获需纳入自由变量分析
+        g = () -> int { return *p + 1 }
+        if g() != 41 { return 1 }
+        // #202：捕获闭包是 {env, fn} 胖值，Ptr::new 走“栈槽 + memcpy”装箱
+        q = Ptr::new(g)
+        r = q.get()
+        if r() != 41 { return 2 }
+    }
+    return 0
+}

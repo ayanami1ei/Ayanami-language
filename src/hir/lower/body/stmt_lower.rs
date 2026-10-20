@@ -59,7 +59,11 @@ impl crate::hir::lower::Ctx {
                 let hir_value = match self.lookup_var(name) {
                     Some((_, var_ty, _)) => {
                         let v = self.instantiate_enum_value(hir_value, &var_ty)?;
-                        coerce_expr(v, &var_ty, span)?
+                        let v = coerce_expr(v, &var_ty, span)?;
+                        // #201：不兼容组合（如结构体赋给 int）→ 明确报错，而非非法 IR
+                        ensure_assignable(&v, &var_ty, span,
+                            &format!("`{}`", hir_type_display(&var_ty)))?;
+                        v
                     }
                     None => hir_value,
                 };
@@ -91,6 +95,9 @@ impl crate::hir::lower::Ctx {
                 let hir_value = self.lower_expr(value)?;
                 // 字段类型隐式数值转换
                 let hir_value = coerce_expr(hir_value, &field_ty, stmt_span)?;
+                // #201：字段写入类型兼容检查
+                ensure_assignable(&hir_value, &field_ty, stmt_span,
+                    &format!("field `{}` of `{}`", field.as_str(), hir_type_display(&object_ty)))?;
                 let hir_value = implicit_move(hir_value);
                 // A4b-2：引用字段允许存储（非引用字段仍拒绝）
                 if matches!(expr_type(&hir_value), HirType::Ref(..))
@@ -144,6 +151,9 @@ impl crate::hir::lower::Ctx {
                 };
                 let hir_value = self.lower_expr(value)?;
                 let hir_value = coerce_expr(hir_value, &pointee, span)?;
+                // #201：解引用写入类型兼容检查
+                ensure_assignable(&hir_value, &pointee, span,
+                    &format!("`{}`", hir_type_display(&target_ty)))?;
                 let hir_value = implicit_move(hir_value);
                 Ok(HirStmt::DerefAssign { target: hir_target, value: hir_value, span: *span })
             }
