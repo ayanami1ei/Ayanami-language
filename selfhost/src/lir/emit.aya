@@ -70,6 +70,8 @@ pub struct Emitter {
     int cur_rtype
     // 当前发射的定义在同名候选中的序数（重载符号后缀）
     int cur_ord
+    // 当前 impl 的类型名（方法签名中的 Self 替换）
+    String cur_self_ty
     [int] m_rtype
     // 已发射的 extern 声明（去重）
     [String] decl_names
@@ -162,7 +164,7 @@ pub namespace Emitter {
             en_ptype = [int; 4096], en_pvstart = [int; 1024], en_ptotal = 0, en_vslots = [int; 1024],
             fn_names = [String; 8192], fn_extern = [int; 8192], fn_pstart = [int; 8192], fn_pcount = [int; 8192],
             fn_pkinds = [int; 65536], fn_ptotal = 0, fn_count = 0,
-            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, m_rtype = [int; 8192],
+            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", m_rtype = [int; 8192],
             decl_names = [String; 2048], decl_count = 0,
             lambda_buf = StringBuf::new(),
             lam_ids = [int; 256], lam_names = [String; 256], lam_count = 0,
@@ -886,6 +888,7 @@ impl Emitter {
             return 0;
         }
         tn = ast.texts[pt];
+        if tn == "Self" { tn = self.cur_self_ty.copy(); }
         if tn == "f32" || tn == "f64" { return 31; }
         if tn == "String" { return 1; }
         ei = self.find_enum_idx(tn);
@@ -915,6 +918,7 @@ impl Emitter {
         if rtg == tt(TT::Generic._tag) { rtg = tt(TT::Named._tag); }
         if rtg != tt(TT::Named._tag) { return 0; }
         tn = ast.texts[rty];
+        if tn == "Self" { tn = self.cur_self_ty.copy(); }
         if tn == "f32" || tn == "f64" { return 5; }
         if tn == "String" { return 1; }
         if self.find_struct_idx(tn) >= 0 { return 2; }
@@ -935,6 +939,7 @@ impl Emitter {
         if rtg == tt(TT::Generic._tag) { rtg = tt(TT::Named._tag); }
         if rtg != tt(TT::Named._tag) { return -1; }
         tn = ast.texts[rty];
+        if tn == "Self" { tn = self.cur_self_ty.copy(); }
         si = self.find_struct_idx(tn);
         if si >= 0 { return si; }
         ei_r = self.find_enum_idx(tn);
@@ -1126,6 +1131,7 @@ impl Emitter {
             return 0;
         }
         tn = ast.texts[pt];
+        if tn == "Self" { tn = self.cur_self_ty.copy(); }
         if tn == "f32" || tn == "f64" { return 31; }
         if tn == "String" { return 1; }
         ei = self.find_enum_idx(tn);
@@ -2739,8 +2745,10 @@ fn emit_ufcs_call(ref Ast ast, int id, ref Val obj, ref String name, ref mut Emi
             b.push_str(", double ");
             b.push_str(float_operand(at3, e));
         } elif pk3 == 30 {
+            a_r4 = ast.aa[a3];
+            if ast.tags[a_r4] == xt(XT::Arg._tag) { a_r4 = ast.aa[a_r4]; }
             b.push_str(", ptr ");
-            b.push_str(addr_of_arg(ast, ast.aa[a3], e));
+            b.push_str(addr_of_arg(ast, a_r4, e));
         } elif pk3 == 0 {
             b.push_str(", i64 ");
             b.push_str(at3.a);
@@ -3054,8 +3062,10 @@ fn emit_iface_dispatch(ref Ast ast, int args_head, ref Val obj, int ii, int mi, 
             b.push_str(", double ");
             b.push_str(float_operand(at3, e));
         } elif pk4 == 30 {
+            a_r5 = ast.aa[a3];
+            if ast.tags[a_r5] == xt(XT::Arg._tag) { a_r5 = ast.aa[a_r5]; }
             b.push_str(", ptr ");
-            b.push_str(addr_of_arg(ast, ast.aa[a3], e));
+            b.push_str(addr_of_arg(ast, a_r5, e));
         } elif pk4 == 0 {
             b.push_str(", i64 ");
             b.push_str(at3.a);
@@ -5353,7 +5363,8 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             return Val { kind = 21, a = t21, b = n21, ty = -1 };
         }
         if kd >= 2 {
-            e.declare_local(nm, 2);
+            // 保留原 kind（100+si），不归一化为 2（否则丢失结构体索引，
+            // addr_of_arg / 字段访问等按名查 epoch 的场景失败）
             t = e.fresh();
             e.buf.push_str("  ");
             e.buf.push_str(t);
@@ -5853,8 +5864,10 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 b.push_str("double ");
                 b.push_str(float_operand(at2, e));
             } elif pk2 == 30 {
+                a_r2 = ast.aa[a2];
+                if ast.tags[a_r2] == xt(XT::Arg._tag) { a_r2 = ast.aa[a_r2]; }
                 b.push_str("ptr ");
-                b.push_str(addr_of_arg(ast, ast.aa[a2], e));
+                b.push_str(addr_of_arg(ast, a_r2, e));
             } elif pk2 == 0 {
                 b.push_str("i64 ");
                 b.push_str(at2.a);
@@ -6836,8 +6849,10 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     b3.push_str(", double ");
                     b3.push_str(float_operand(at3, e));
                 } elif pk3 == 30 {
+                    a_r3 = ast.aa[a3];
+                    if ast.tags[a_r3] == xt(XT::Arg._tag) { a_r3 = ast.aa[a_r3]; }
                     b3.push_str(", ptr ");
-                    b3.push_str(addr_of_arg(ast, ast.aa[a3], e));
+                    b3.push_str(addr_of_arg(ast, a_r3, e));
                 } elif pk3 == 0 {
                     b3.push_str(", i64 ");
                     b3.push_str(at3.a);
@@ -8377,6 +8392,7 @@ fn emit_decl(ref Ast ast, int id, ref mut Emitter e) {
 fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
     e.tmp = 0;
     e.lv_count = 0;
+    e.cur_self_ty = prefix.copy();
     // 上一函数以 ret 结束会残留 terminated；新函数体必须复位，否则整段被跳过
     e.terminated = 0;
     name = ast.texts[id];

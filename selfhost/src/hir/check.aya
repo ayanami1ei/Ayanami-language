@@ -1873,6 +1873,22 @@ impl Checker {
                         if ifi >= 0 {
                             if self.has_if_method(ifi, mname) { okm = 1; }
                         }
+                        // 多约束：逐个接口查
+                        ib = 0;
+                        while ib < self.if_count {
+                            if bound.contains(self.if_names[ib]) {
+                                if self.has_if_method(ib, mname) { okm = 1; }
+                            }
+                            ib = ib + 1;
+                        }
+                        // 右操作数具体类型有该方法时放行（如 T != int 走 int.ne）
+                        if okm == 0 {
+                            if self.find_method(base_type(rt), mname) >= 0 { okm = 1; }
+                        }
+                        // 右操作数为原语时走内置运算（T != 11 等）
+                        if okm == 0 {
+                            if is_prim_type(base_type(rt)) { okm = 1; }
+                        }
                         if okm == 0 {
                             b = StringBuf::new();
                             b.push_str("operator `");
