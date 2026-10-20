@@ -125,6 +125,11 @@ pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode)
         return lower_field_addr_of(ctx, &**inner);
     }
     if let Some((obj, idx)) = node.as_field_access() {
+        // N2：指针型字段（boxed 变体槽）——字段值（load 出的指针）即地址，
+        // 不能再取字段地址（否则把指针槽地址当作指针使用）
+        if matches!(node.expr_type(), HirType::Ref(..) | HirType::Unique(_) | HirType::RawPtr(_)) {
+            return Some(node.lower_to_lir(ctx));
+        }
         let base = lower_field_addr_of(ctx, &**obj)?;
         let dest = ctx.next_tmp();
         ctx.emit(SLirFieldAddr { dest, obj: base, field_index: idx, struct_ty: obj.expr_type() }.into());

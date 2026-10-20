@@ -13,6 +13,47 @@ impl Ctx {
         self.niche_info(name).is_some()
     }
 
+    /// N2（docs/enum-layout.md §3.2）：载荷结构 > 16 字节的变体 → 字段改为 `Unique(E_V)`
+    /// （堆装箱；构造分配 / 匹配经指针字段访问 / drop 自动释放）。
+    pub(crate) fn apply_boxing_rewrite(
+        &mut self,
+        fields: Vec<HirStructField>,
+        generic: bool,
+    ) -> Vec<HirStructField> {
+        // 声明期泛型枚举：载荷为未实例化类型，布局无意义（具体实例化时再装箱）
+        if generic || fields.first().map(|f| f.name.as_str() != "_tag").unwrap_or(true) {
+            return fields;
+        }
+        let defs: crate::hir::layout::StructDefs = self.struct_defs.iter()
+            .map(|(k, fs)| (*k, fs.iter().map(|f| (f.name, f.ty.clone())).collect()))
+            .collect();
+        fields.into_iter().map(|f| {
+            if !f.name.as_str().starts_with("_data_") {
+                return f;
+            }
+            let HirType::Named(vn) = &f.ty else { return f; };
+            if !self.struct_defs.contains_key(vn) {
+                return f;
+            }
+            // 保守：变体载荷引用“未实例化的泛型基类型”（推断期临时实例化，如 Opt<Opt>）
+            // 时跳过装箱——其布局与真实实例化不一致，装箱会破坏 ABI 一致性。
+            if let Some(vfields) = self.struct_defs.get(vn) {
+                let spurious = vfields.iter().any(|vf| match &vf.ty {
+                    HirType::Named(n) => self.generic_struct_params.get(n)
+                        .map(|g| !g.is_empty()).unwrap_or(false),
+                    _ => false,
+                });
+                if spurious { return f; }
+            }
+            let (size, _) = crate::hir::layout::type_layout(&f.ty, &defs);
+            if size > 16 {
+                HirStructField { name: f.name, ty: HirType::Unique(Box::new(HirType::Named(*vn))) }
+            } else {
+                f
+            }
+        }).collect()
+    }
+
     /// 声明/实例化时应用 niche 改写：tag 形态且载荷可 niche → 去掉 `_tag` 字段
     /// （字段序保持：`_data_*` 的下标即 tag；空变体 = 载荷槽零值 = null）。
     pub(crate) fn apply_niche_rewrite(&mut self, fields: Vec<HirStructField>) -> Vec<HirStructField> {
@@ -50,14 +91,19 @@ impl Ctx {
             object,
             field: info.payload_field,
             field_index: data_index,
-            ty: data_ty,
+            ty: data_ty.clone(),
         }.into();
-        let ptr_expr: HirNodeBox = SField {
-            object: inner,
-            field: Symbol::intern("_0"),
-            field_index: 0,
-            ty: ptr_ty,
-        }.into();
+        // N1：变体结构体内的 `_0` 即指针；N2：boxed 变体的字段本身即指针
+        let ptr_expr: HirNodeBox = if matches!(&data_ty, HirType::Named(_)) {
+            SField {
+                object: inner,
+                field: Symbol::intern("_0"),
+                field_index: 0,
+                ty: ptr_ty,
+            }.into()
+        } else {
+            inner
+        };
         let bits: HirNodeBox = SReinterpret { expr: ptr_expr, ty: HirType::Int }.into();
         let op = if info.payload_tag == 0 {
             crate::parser::ast::BinaryOp::Eq

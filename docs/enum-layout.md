@@ -1,6 +1,6 @@
 # Phase 7 剩余：枚举布局优化（niche / boxed variant / indirect payload）设计
 
-> 状态：**N1 已实现**（2026-10-19）；N2/N3 未实现（2026-10-18 设计）。关联：bd `Ayanami-language-2ru.2`（task）/
+> 状态：**N1/N2/N3 已实现**（2026-10-20；N2/N3 采用统一 16 字节阈值装箱策略）。关联：bd `Ayanami-language-2ru.2`（task）/
 > `2ru`（Phase 7 epic）；GitHub #40（Phase 7）/ #61（niche / boxed variant / indirect payload）。
 > 相关：`docs/optimization.md`（M-opt 语义优化）、`docs/knowledge-graph.md` §2（枚举布局现状）。
 
@@ -72,20 +72,29 @@ struct_defs[E] = [_data_Some: Named(E_Some), _data_None: Named(E_None)]
    跨 FFI 的布局契约属非目标（§5），需 `#[repr]`-类机制另行设计（文档早前“边界回退旧表示”
    验收项据此修订）。
 
-### 3.2 boxed variant / indirect payload（N2/N3）
+### 3.2 boxed variant / indirect payload（N2/N3 已实现）
 
-- **boxed variant**：变体载荷超过阈值（或变体标注 `#[boxed]`）→ 载荷结构改为
-  `Ptr[E_Vi]`（构造时分配、匹配时解引用、drop 释放 ✓）；
-- **indirect payload**：统一按尺寸阈值装箱（与 boxed 同机制，触发条件不同）；
-- 影响面与 3.1 类似但更局部（载荷字段类型替换 ✓——字段访问模型保留 ✓，只是多一层指针 ✓）。
+- **boxed variant / indirect payload**：变体载荷结构 **> 16 字节** → 枚举字段类型改为
+  `Unique(E_Vi)`（堆装箱；构造时分配、匹配经指针字段访问、drop 释放）；
+- **N3 策略收敛**：N2 与 N3 采用**同一机制**、唯一触发条件 = 16 字节阈值（不做 `#[boxed]`
+  逐变体标注；布局不承诺跨版本稳定，见 §5 非目标）；
+- 实现要点：`apply_boxing_rewrite`（声明/实例化两处，先于 niche 判定）；
+  构造字面量对 boxed 槽用 `ToUnique` 装箱；非活跃 boxed 槽为零值（null，drop 安全）；
+- **保守边界**：**声明期泛型枚举不装箱**（载荷为未实例化类型，布局无意义；具体实例化时再装箱）；
+  载荷引用“未实例化的泛型基类型”（推断期临时实例化，如 `Opt<Opt>`）时同样跳过——
+  其布局与真实实例化不一致，装箱会破坏 ABI 一致性（此前 `Opt<Opt>` 与 `Opt<Opt<int>>`
+  同为 24 字节的巧合依赖）；
+- 与 N1 组合：boxed 槽本身即指针 → 2 变体（1 空）枚举仍可 niche
+  （`enum OptBig { Big(Big), None }` → 8 字节）；`_tag` 表达式直接读槽（不再取 `_0`）；
+- 匹配绑定：move 路径的 `lower_field_addr_of` 对指针型字段返回字段值（指针）而非字段地址。
 
 ## 4. 阶段与验收
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
 | **N1**（完成 ✓） | niche：`Option[Ptr/ref/fn]` 单指针表示 | 正例 `example/test_niche_option.aya`：`size_of[Option[Ptr[T]]]() == 8`（ref 同）、构造/匹配/字段访问/递归 drop 无泄漏（`None`/`Some` 全路径，live_allocs == 0）；回归全绿；C ABI 边界见 §3.1-6 |
-| **N2** | boxed variant（阈值或标注） | 正例：大载荷枚举尺寸下降；匹配/drop 正确；负例：阈值边界 |
-| **N3** | indirect payload 策略收敛 + 文档 | 布局稳定性说明（不承诺跨版本布局 ✓） |
+| **N2**（完成 ✓） | boxed variant（16 字节阈值） | 正例 `example/test_enum_boxed.aya`：`E` 40 → 24 字节、`OptBig`（N1 组合）8 字节；构造/匹配/字段访问/递归 drop 无泄漏；阈值边界（≤16 不装箱） |
+| **N3**（完成 ✓） | indirect payload 策略收敛 + 文档 | 统一 16 字节阈值（与 N2 同机制）；布局稳定性说明见 §5（不承诺跨版本布局） |
 
 ## 5. 非目标
 
@@ -115,4 +124,9 @@ struct_defs[E] = [_data_Some: Named(E_Some), _data_None: Named(E_None)]
            `Option[Ptr[X]]` 报 24）；
       - 验收：`example/test_niche_option.aya`（8/8/16 尺寸 + 构造/匹配/字段访问 + 泄漏 0）；
         `test_ptr_tree` / `test_arena` / `test_ref_*` 等既有指针用例回归通过；std 套件重建后全绿。
-- [ ] N2（boxed variant）、N3（indirect payload 策略收敛 + 文档）
+- [x] **N2/N3（2026-10-20）**：boxed variant / indirect payload（统一 16 字节阈值）
+      - 声明/实例化时 `apply_boxing_rewrite`：载荷结构 > 16 字节 → 枚举字段 `Unique(E_V)`；
+        构造 `ToUnique` 装箱、非活跃槽 null、匹配经指针字段访问、drop 自动释放
+      - 与 N1 组合：boxed 槽即指针 → niche 仍生效（`OptBig` 8 字节）；`_tag` 表达式直读槽
+      - 匹配 move 路径修复：`lower_field_addr_of` 对指针型字段返回字段值（而非地址）
+      - 验收：`example/test_enum_boxed.aya`（尺寸 24 / 8、全路径、泄漏 0）

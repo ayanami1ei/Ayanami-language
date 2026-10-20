@@ -36,7 +36,8 @@ impl crate::hir::lower::Ctx {
             let vsn = Symbol::intern(&format!("{}_{}", name, variant.name));
             enum_fields.push(HirStructField { name: Symbol::intern(&format!("_data_{}", variant.name)), ty: HirType::Named(vsn) });
         }
-        // N1：载荷可 niche → 单指针槽表示（去掉 `_tag`；docs/enum-layout.md §3.1）
+        // N1/N2：声明期改写（泛型枚举不装箱——载荷类型尚未实例化）
+        let enum_fields = self.apply_boxing_rewrite(enum_fields, !generic_params.is_empty());
         let enum_fields = self.apply_niche_rewrite(enum_fields);
         self.struct_defs.insert(*name, enum_fields);
         if !generic_params.is_empty() {
@@ -66,6 +67,8 @@ impl crate::hir::lower::Ctx {
             let vsn = Symbol::intern(&format!("{}_{}", name, variant.name));
             enum_fields.push(HirStructField { name: Symbol::intern(&format!("_data_{}", variant.name)), ty: HirType::Named(vsn) });
         }
+        let is_generic = self.generic_struct_params.get(name).map(|g| !g.is_empty()).unwrap_or(false);
+        let enum_fields = self.apply_boxing_rewrite(enum_fields, is_generic);
         let enum_fields = self.apply_niche_rewrite(enum_fields);
         items.push(HirItem::StructDef(HirStructDef { name: *name, fields: enum_fields }));
         items

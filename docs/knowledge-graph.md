@@ -30,7 +30,7 @@
 | `docs/refs-storage.md` | 引用存储（M4：阶段 1 `Ptr[T]` 已落地；阶段 2 Arena 语言能力 + 示例完成，std 移植待做） |
 | `docs/unsafe.md` | unsafe / FFI 安全边界（M5：P1/P2/P3 已落地；P4 extern 调用迁移待做） |
 | `docs/runtime-safety.md` | 运行时安全行为权威清单（UB/panic；`tests/runtime_safety/` 覆盖） |
-| `docs/enum-layout.md` | 枚举布局优化（N1 niche 已实现；N2/N3 未实现） |
+| `docs/enum-layout.md` | 枚举布局优化（N1 niche + N2/N3 16 字节阈值装箱，均已实现） |
 | `docs/async.md` | 异步设计提案（最小 Future 协议 + `#[async]` 标注；tag 枚举状态机；运行时可换；未实现） |
 | `docs/reference-model.md` | 统一引用关系模型设计提案（纯接口无标注；`get`/`resolve` 协议形态；R1–R4；未实现） |
 | `docs/env-injection.md` | 环境注入设计提案（`env::` 可扩展；泛型需求 + 自动推导；E1–E4；未实现） |
@@ -87,6 +87,7 @@ graph TD
 | 拥有堆值（内部 `HirType::Unique`） | `mir/mem/drop.rs`、`lir/ir/helpers.rs` | `[T]`/`[T; n]` 与拥有胖指针；递归释放；Copy 类型零开销（用户语法无 `unique`） |
 | 数组元素布局 | `lir/ir/helpers.rs::elem_layout_size` | 分配大小按 LLVM 布局递归计算（结构体/枚举含对齐填充） |
 | niche 枚举布局 | `hir/niche.rs` / `hir/lower/ctx_niche.rs` | N1：`Option[Ptr/ref/fn]` 去 `_tag` 单指针槽（8 字节）；判别=载荷槽空值 |
+| 枚举大载荷装箱 | `hir/lower/ctx_niche.rs::apply_boxing_rewrite` | N2/N3：载荷 > 16 字节 → 字段 `Unique(E_V)`（构造装箱/匹配经指针/drop 释放） |
 | `ref` / `ref mut` | `mir/borrow/` | NLL：最后一次使用后失效；可存局部变量、可返回（单引用参数省略） |
 | ref 自动解引用 | `hir/mod.rs::SDeref`、`hir/stmt.rs::DerefAssign` | 值上下文自动 load；`ref mut` 赋值穿透 store（LIR 复用 index-0 指针解引用） |
 | 两阶段借用 | `mir/borrow/loans.rs` | 接收者位置可变借用先 reserved（`s.add(s.v)`） |

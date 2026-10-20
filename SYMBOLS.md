@@ -486,7 +486,7 @@ src/hir/lower/body/block_lower.rs:8: pub(crate) fn lower_block(&mut self, block:
 src/hir/lower/body/block_lower.rs:14: pub(crate) fn lower_block_impl(&mut self, block: &Block, tail_as_value: bool) -> Result<(HirBlock, Option<HirNodeBox>)>
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
-src/hir/lower/body/collect_enum.rs:49: pub(crate) fn build_enum_items(&mut self, name: &Symbol, variants: &Vec<EnumVariant>) -> Vec<HirItem>
+src/hir/lower/body/collect_enum.rs:50: pub(crate) fn build_enum_items(&mut self, name: &Symbol, variants: &Vec<EnumVariant>) -> Vec<HirItem>
 src/hir/lower/body/collect_fns.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_fns.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
 src/hir/lower/body/collect_fns.rs:15: fn collect_const_fns(&mut self, stmts: &[Stmt], prefix: &str) -> Result<()>
@@ -545,7 +545,7 @@ src/hir/lower/body/expr_cast.rs:5: pub(crate) fn lower_cast(&mut self, inner: &B
 src/hir/lower/body/expr_cast.rs:60: fn is_array_like(t: &HirType) -> bool
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_enum.rs:85: fn monomorphize_enum_construct(
+src/hir/lower/body/expr_enum.rs:92: fn monomorphize_enum_construct(
 src/hir/lower/body/expr_layout.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_layout.rs:10: pub(crate) fn eval_layout_builtin_call(
 src/hir/lower/body/expr_layout.rs:63: pub(crate) fn lower_layout_builtin(
@@ -660,9 +660,9 @@ src/hir/lower/body/match_lower.rs:203: pub(crate) fn lower_match_expr(&mut self,
 src/hir/lower/body/match_pattern.rs:6: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_pattern.rs:8: pub(super) fn pattern_match(
 src/hir/lower/body/match_pattern.rs:19: fn pattern_match_in(
-src/hir/lower/body/match_pattern.rs:247: fn cmp_const(
-src/hir/lower/body/match_pattern.rs:263: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:267: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:249: fn cmp_const(
+src/hir/lower/body/match_pattern.rs:265: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:269: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
 src/hir/lower/body/match_setup.rs:5: fn is_match_place(node: &HirNodeBox) -> bool
 src/hir/lower/body/match_setup.rs:12: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_setup.rs:14: pub(super) fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -804,15 +804,16 @@ src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol,
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
 src/hir/lower/ctx_mono.rs:35: pub fn instantiate_named(&mut self, name: Symbol) -> Result<()>
-src/hir/lower/ctx_mono.rs:99: pub fn adapt_enum_args(
-src/hir/lower/ctx_mono.rs:119: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
-src/hir/lower/ctx_mono.rs:157: pub fn refine_enum_result_type(&self, ty: HirType) -> HirType
-src/hir/lower/ctx_mono.rs:172: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx_mono.rs:100: pub fn adapt_enum_args(
+src/hir/lower/ctx_mono.rs:120: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
+src/hir/lower/ctx_mono.rs:158: pub fn refine_enum_result_type(&self, ty: HirType) -> HirType
+src/hir/lower/ctx_mono.rs:173: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
 src/hir/lower/ctx_niche.rs:4: impl Ctx
 src/hir/lower/ctx_niche.rs:6: pub(crate) fn niche_info(&self, name: &Symbol) -> Option<crate::hir::niche::NicheInfo>
 src/hir/lower/ctx_niche.rs:12: pub(crate) fn is_niche_enum(&self, name: &Symbol) -> bool
-src/hir/lower/ctx_niche.rs:18: pub(crate) fn apply_niche_rewrite(&mut self, fields: Vec<HirStructField>) -> Vec<HirStructField>
-src/hir/lower/ctx_niche.rs:30: pub(crate) fn build_niche_tag_expr(
+src/hir/lower/ctx_niche.rs:18: pub(crate) fn apply_boxing_rewrite(
+src/hir/lower/ctx_niche.rs:59: pub(crate) fn apply_niche_rewrite(&mut self, fields: Vec<HirStructField>) -> Vec<HirStructField>
+src/hir/lower/ctx_niche.rs:71: pub(crate) fn build_niche_tag_expr(
 src/hir/lower/helpers/bounds.rs:10: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/bounds.rs:12: pub(crate) fn ensure_bounds_helper(&mut self) -> FnId
 src/hir/lower/helpers/bounds.rs:62: pub(crate) fn check_array_index(&mut self, object: &HirNodeBox, index: HirNodeBox, span: &Span, is_write: bool) -> HirNodeBox
@@ -1182,7 +1183,7 @@ src/hir/mod.rs:32: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
-src/hir/niche.rs:83: pub(crate) fn niche_shape(
+src/hir/niche.rs:81: pub(crate) fn niche_shape(
 src/hir/node.rs:9: pub trait HirNode: std::fmt::Debug
 src/hir/node.rs:10: fn clone_node(&self) -> Box<dyn HirNode>;
 src/hir/node.rs:11: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
@@ -2001,15 +2002,15 @@ src/lir/lower/mir_ref.rs:105: fn display_stmt(&self, level: usize, w: &mut dyn s
 src/lir/lower/mir_ref.rs:113: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.target); f(&*self.value); }
 src/lir/lower/mir_ref.rs:114: fn deref_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.target, &self.value)) }
 src/lir/lower/mir_ref.rs:118: pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode) -> Option<LirValue>
-src/lir/lower/mir_ref.rs:149: impl MirNode for SMirMove
-src/lir/lower/mir_ref.rs:150: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
-src/lir/lower/mir_ref.rs:151: fn move_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
-src/lir/lower/mir_ref.rs:152: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_ref.rs:153: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_ref.rs:200: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_ref.rs:205: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_ref.rs:206: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-src/lir/lower/mir_ref.rs:210: pub(super) fn as_ptr_tmp(ctx: &mut dyn LirLowerCtx, val: LirValue, ty: &HirType) -> u64
+src/lir/lower/mir_ref.rs:154: impl MirNode for SMirMove
+src/lir/lower/mir_ref.rs:155: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
+src/lir/lower/mir_ref.rs:156: fn move_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
+src/lir/lower/mir_ref.rs:157: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_ref.rs:158: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_ref.rs:205: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_ref.rs:210: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_ref.rs:211: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+src/lir/lower/mir_ref.rs:215: pub(super) fn as_ptr_tmp(ctx: &mut dyn LirLowerCtx, val: LirValue, ty: &HirType) -> u64
 src/lir/lower/mir_stmts.rs:6: impl MirStmtNode for SMirAssignStmt { fn span(&self) -> crate::span::Span { self.span }
 src/lir/lower/mir_stmts.rs:7: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.target); f(&mut self.value); }
 src/lir/lower/mir_stmts.rs:8: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
@@ -2728,6 +2729,12 @@ example/test_ensures.aya:3: fn abs2(int x) -> int
 example/test_ensures.aya:9: fn inc(int n) -> int { return n + 1 }
 example/test_ensures.aya:12: fn fallthrough() -> int { }
 example/test_ensures.aya:14: fn main() -> int
+example/test_enum_boxed.aya:5: struct Big
+example/test_enum_boxed.aya:11: enum E
+example/test_enum_boxed.aya:16: enum OptBig
+example/test_enum_boxed.aya:23: fn sum(Big x) -> int
+example/test_enum_boxed.aya:27: fn run() -> int
+example/test_enum_boxed.aya:52: fn main() -> int
 example/test_extern_out_param.aya:4: fn main() -> int
 example/test_f32.aya:2: fn addf(f32 a, f32 b) -> f32 { return a + b }
 example/test_f32.aya:3: fn take32(f32 x) -> f32 { return x }

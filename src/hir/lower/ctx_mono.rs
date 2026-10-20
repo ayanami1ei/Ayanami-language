@@ -78,10 +78,11 @@ impl crate::hir::lower::Ctx {
             new_fields.push((f.name, substitute_hir_type(&rewritten, &subst)));
         }
         // N1：具体载荷可 niche → 单指针槽表示（去掉 `_tag`；docs/enum-layout.md §3.1）
-        let new_fields: Vec<(Symbol, HirType)> = self.apply_niche_rewrite(
+        let new_fields: Vec<HirStructField> = self.apply_boxing_rewrite(
             new_fields.into_iter()
                 .map(|(n, t)| HirStructField { name: n, ty: t })
-                .collect())
+                .collect(), false);
+        let new_fields: Vec<(Symbol, HirType)> = self.apply_niche_rewrite(new_fields)
             .into_iter()
             .map(|f| (f.name, f.ty))
             .collect();

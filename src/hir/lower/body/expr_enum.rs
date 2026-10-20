@@ -67,7 +67,14 @@ impl crate::hir::lower::Ctx {
                 all_fields[0] = (Symbol::intern("_tag"), SConst { val: HirLiteral::Int(tag), ty: HirType::Int }.into());
             }
             if let Some(pos) = enum_fields.iter().position(|f| f.name == data_field) {
-                all_fields[pos] = (data_field, var_literal);
+                // N2：boxed 变体——载荷结构堆分配（字段类型为 Unique(E_V)）
+                let field_ty = enum_fields[pos].ty.clone();
+                let value = if matches!(field_ty, HirType::Unique(_)) {
+                    SToUnique { expr: var_literal, ty: field_ty }.into()
+                } else {
+                    var_literal
+                };
+                all_fields[pos] = (data_field, value);
             }
             all_fields
         } else {
@@ -143,6 +150,7 @@ impl crate::hir::lower::Ctx {
                     HirStructField { name: f.name, ty }
                 }).collect();
                 // N1：具体载荷可 niche → 单指针槽表示
+                let cfields = self.apply_boxing_rewrite(cfields, false);
                 let cfields = self.apply_niche_rewrite(cfields);
                 self.struct_defs.insert(concrete_enum, cfields);
             }

@@ -129,11 +129,13 @@ impl crate::hir::lower::Ctx {
                     let fty = self.find_field_type(&HirType::Named(var_struct), &payload_field, span)?;
                     // N1：niche 形态无 `_tag`，下标按实际字段表取（tag 形态 = tag + 1）
                     let data_index = self.find_field_index(&HirType::Named(*en), &data_field, span)?;
+                    // N2：boxed 变体的字段类型为 Unique(E_V)（后续 `_0` 访问经指针）
+                    let data_ty = self.find_field_type(&HirType::Named(*en), &data_field, span)?;
                     let inner_acc: HirNodeBox = SField {
                         object: expr.clone(),
                         field: data_field,
                         field_index: data_index,
-                        ty: HirType::Named(var_struct),
+                        ty: data_ty,
                     }.into();
                     let fval: HirNodeBox = SField {
                         object: inner_acc,

@@ -49,28 +49,26 @@ pub(crate) fn niche_info_of(
     if fields.first().map(|f| f.name.as_str() == "_tag").unwrap_or(true) {
         return None;
     }
-    let data: Vec<(i64, Symbol, Symbol)> = fields.iter().enumerate()
+    let data: Vec<(i64, Symbol)> = fields.iter().enumerate()
         .filter(|(_, f)| f.name.as_str().starts_with("_data_"))
-        .filter_map(|(i, f)| match &f.ty {
-            HirType::Named(vn) => Some((i as i64, f.name, *vn)),
-            _ => None,
-        })
+        .map(|(i, f)| (i as i64, f.name))
         .collect();
     if data.len() != 2 || data.len() != fields.len() {
         return None;
     }
     let mut payload = None;
     let mut empty = None;
-    for (tag, name, vn) in &data {
-        match defs.get(vn).map(|v| v.len()) {
-            Some(1) => {
-                if !is_nicheable(&defs.get(vn)?[0].ty) {
-                    return None;
-                }
-                payload = Some((*tag, *name));
-            }
-            Some(0) => empty = Some((*tag, *name)),
-            _ => return None,
+    for (tag, name) in &data {
+        let fty = fields.iter().find(|f| f.name == *name).map(|f| f.ty.clone())?;
+        let arity = match &fty {
+            // N2：boxed 变体（字段本身为指针）视为非空载荷
+            HirType::Named(vn) => defs.get(vn).map(|v| v.len())?,
+            _ => 1,
+        };
+        if arity == 0 {
+            empty = Some((*tag, *name));
+        } else {
+            payload = Some((*tag, *name));
         }
     }
     let (payload_tag, payload_field) = payload?;
@@ -87,27 +85,30 @@ pub(crate) fn niche_shape(
     if fields.first().map(|f| f.name.as_str() != "_tag").unwrap_or(true) {
         return None;
     }
-    let data: Vec<(Symbol, Symbol)> = fields.iter()
+    let data: Vec<Symbol> = fields.iter()
         .filter(|f| f.name.as_str().starts_with("_data_"))
-        .filter_map(|f| match &f.ty {
-            HirType::Named(vn) => Some((f.name, *vn)),
-            _ => None,
-        })
+        .map(|f| f.name)
         .collect();
     if data.len() != 2 {
         return None;
     }
     let mut payload = None;
     let mut empty = None;
-    for (name, vn) in &data {
+    for f in fields.iter().filter(|f| f.name.as_str().starts_with("_data_")) {
+        // N2：boxed 变体——字段本身即指针
+        if is_nicheable(&f.ty) {
+            payload = Some(f.name);
+            continue;
+        }
+        let HirType::Named(vn) = &f.ty else { return None };
         match defs.get(vn).map(|v| v.len()) {
             Some(1) => {
                 if !is_nicheable(&defs.get(vn)?[0].ty) {
                     return None;
                 }
-                payload = Some(*name);
+                payload = Some(f.name);
             }
-            Some(0) => empty = Some(*name),
+            Some(0) => empty = Some(f.name),
             _ => return None,
         }
     }
