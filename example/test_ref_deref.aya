@@ -1,0 +1,21 @@
+// #205：ref / ref mut 解引用是安全操作（借用检查覆盖）；仅裸指针 *T 需 unsafe
+fn get(ref int r) -> int {
+    return *r
+}
+
+fn set(ref mut int r, int v) -> void {
+    *r = v
+}
+
+fn main() -> int {
+    a = 1
+    if get(ref a) != 1 { return 1 }
+    mut b = 2
+    set(ref mut b, 5)
+    if b != 5 { return 2 }
+    mut c = 3
+    r = ref mut c
+    *r = 7
+    if c != 7 { return 3 }
+    return 0
+}

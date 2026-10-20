@@ -270,14 +270,16 @@ fn state_marker() -> CallInfo {
     CallInfo { fn_id: crate::hir::ty::FnId(usize::MAX), try_unwrap: false, err_construct: None, effects: ["state".to_string()].into_iter().collect() }
 }
 
-fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool {
-    matches!(object.expr_type(), crate::hir::HirType::Ref(..) | crate::hir::HirType::Unique(..))
-}
+use super::infer_obs::is_observable_target;
 
 fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>) {
     let mut info: Option<CallInfo> = None;
     if let Some(id) = e.as_call() {
         info = Some(CallInfo { fn_id: id, try_unwrap: false, err_construct: None, effects: BTreeSet::new() });
+    }
+    // #206：内联汇编可能读写任意内存（futex/syscall 等）→ 计 state，避免 memory(none) 误标
+    if e.is_asm() {
+        calls.push(state_marker());
     }
     if e.is_alloc() {
         let i = info.get_or_insert_with(|| CallInfo { fn_id: crate::hir::ty::FnId(usize::MAX), try_unwrap: false, err_construct: None, effects: BTreeSet::new() });

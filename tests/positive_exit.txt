@@ -149,3 +149,6 @@ test_ref_registry.aya 0
 test_ref_graph.aya 0
 test_niche_option.aya 0
 test_closure_unsafe.aya 0
+test_ref_deref.aya 0
+test_void_generic.aya 0
+test_rawptr_effects.aya 0

@@ -202,6 +202,7 @@ mod helpers_clone;
 mod helpers_drop;
 mod nodes;
 mod nodes_a;
+mod nodes_load;
 mod nodes_b;
 mod nodes_conv;
 mod nodes_c;

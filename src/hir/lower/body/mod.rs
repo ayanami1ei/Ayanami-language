@@ -21,6 +21,7 @@ mod generic_specialize;
 mod generic_types;
 mod lower_items;
 mod stmt_lower;
+mod stmt_deref;
 mod stmt_loops;
 mod ref_assign;
 mod ref_protocol;

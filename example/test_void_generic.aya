@@ -1,0 +1,13 @@
+// #207：泛型参数实例化为 void（void 回调）——void 局部不分配栈槽、不读写
+fn call[U](Fn() -> U f) -> U {
+    r = f();
+    return r
+}
+
+fn main() -> int {
+    call(() -> void { })
+    x = 1
+    g = () -> int { return x + 41 }
+    if call(g) != 42 { return 1 }
+    return 0
+}

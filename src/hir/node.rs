@@ -47,6 +47,8 @@ pub trait HirNode: std::fmt::Debug {
     fn as_call(&self) -> Option<crate::hir::ty::FnId> { None }
     /// A3：是否为堆分配构造（unique/数组/字符串字面量）。
     fn is_alloc(&self) -> bool { false }
+    /// 内联汇编（副作用不可分析 → 计 state 效应）
+    fn is_asm(&self) -> bool { false }
     /// A3：枚举构造的变体名（仅 SEnumC）。
     fn enum_variant(&self) -> Option<Symbol> { None }
     /// 泛型单态化：结构体字面量的可克隆视图（仅 SStruct）。
