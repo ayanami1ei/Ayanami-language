@@ -1105,6 +1105,9 @@ impl Checker {
             } elif tag == st(ST::StructDef._tag) {
                 self.add_struct(ast, s);
                 self.check_dup_generics(ast, ast.bb[s], ast.lines[s], ast.cols[s]);
+            } elif tag == st(ST::UnionDef._tag) {
+                self.add_struct(ast, s);
+                self.check_dup_generics(ast, ast.bb[s], ast.lines[s], ast.cols[s]);
             } elif tag == st(ST::EnumDef._tag) {
                 self.add_enum(ast, s);
             } elif tag == st(ST::InterfaceDef._tag) {

@@ -1860,6 +1860,72 @@ impl Emitter {
         self.st_count = si + 1;
     }
 
+    /// union 字段布局：所有字段共享槽 0，slots = max 字段大小（字符串按 2 槽）
+    #[alloc]
+    #[state]
+    fn fill_union(ref mut self, ref Ast ast, int id) {
+        si = self.find_struct_idx(ast.texts[id]);
+        if si < 0 { return; }
+        self.st_fstart[si] = self.st_ftotal;
+        n = 0;
+        mx = 0;
+        f = ast.aa[id];
+        while f >= 0 {
+            if self.st_ftotal < 1024 {
+                self.st_fields[self.st_ftotal] = ast.texts[f].copy();
+                fk = 0;
+                finfo = -1;
+                fty = ast.tys[f];
+                if fty >= 0 {
+                    ftag = ast.tags[fty];
+                    if ftag == tt(TT::Float._tag) {
+                        fk = 5;
+                    } elif ftag == tt(TT::Array._tag) || ftag == tt(TT::ArraySized._tag) {
+                        fk = 3;
+                        finfo = ast.aa[fty];
+                    } elif ftag == tt(TT::Named._tag) || ftag == tt(TT::Generic._tag) {
+                        tn = ast.texts[fty];
+                        if tn == "f32" || tn == "f64" {
+                            fk = 5;
+                        } elif tn == "String" {
+                            fk = 1;
+                        } else {
+                            ii2 = self.find_iface_idx(tn);
+                            si2 = self.find_struct_idx(tn);
+                            if ii2 >= 0 {
+                                fk = 6;
+                                finfo = ii2;
+                            } elif si2 >= 0 {
+                                fk = 2;
+                                finfo = si2;
+                            } else {
+                                ei2 = self.find_enum_idx(tn);
+                                if ei2 >= 0 {
+                                    fk = 4;
+                                    finfo = ei2;
+                                }
+                            }
+                        }
+                    }
+                }
+                self.st_fkind[self.st_ftotal] = fk;
+                self.st_finfo[self.st_ftotal] = finfo;
+                self.st_fslot[self.st_ftotal] = 0;
+                self.st_ftype[self.st_ftotal] = fty;
+                if fk == 1 {
+                    if mx < 2 { mx = 2; }
+                } else {
+                    if mx < 1 { mx = 1; }
+                }
+                self.st_ftotal = self.st_ftotal + 1;
+                n = n + 1;
+            }
+            f = ast.nexts[f];
+        }
+        self.st_fcount[si] = n;
+        self.st_slots[si] = mx;
+    }
+
     #[alloc]
     #[state]
     fn fill_struct(ref mut self, ref Ast ast, int id) {
@@ -2350,6 +2416,8 @@ impl Emitter {
         while s >= 0 {
             if ast.tags[s] == st(ST::StructDef._tag) {
                 self.reg_struct(ast, s);
+            } elif ast.tags[s] == st(ST::UnionDef._tag) {
+                self.reg_struct(ast, s);
             } elif ast.tags[s] == st(ST::EnumDef._tag) {
                 self.add_enum(ast, s);
             } elif ast.tags[s] == st(ST::InterfaceDef._tag) {
@@ -2372,11 +2440,15 @@ impl Emitter {
         while s >= 0 {
             if ast.tags[s] == st(ST::StructDef._tag) {
                 self.fill_struct(ast, s);
+            } elif ast.tags[s] == st(ST::UnionDef._tag) {
+                self.fill_union(ast, s);
             } elif ast.tags[s] == st(ST::Namespace._tag) {
                 m2 = ast.aa[s];
                 while m2 >= 0 {
                     if ast.tags[m2] == st(ST::StructDef._tag) {
                         self.fill_struct(ast, m2);
+                    } elif ast.tags[m2] == st(ST::UnionDef._tag) {
+                        self.fill_union(ast, m2);
                     }
                     m2 = ast.nexts[m2];
                 }

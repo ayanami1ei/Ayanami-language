@@ -38,6 +38,7 @@ pub enum ST {
     ForIn,
     Unsafe,
     DerefAssign,
+    UnionDef,
 }
 
 // 表达式标签

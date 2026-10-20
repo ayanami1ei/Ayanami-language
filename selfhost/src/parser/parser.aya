@@ -631,6 +631,9 @@ impl Parser {
         if self.check_kw(Kw::Struct._tag) {
             return self.parse_struct();
         }
+        if self.cur.kind == Tk::Ident._tag && self.cur.text == "union" && self.la1_is_ident() && self.la2_is_delim(D::LBrace._tag) {
+            return self.parse_union();
+        }
         if self.check_kw(Kw::Namespace._tag) {
             return self.parse_namespace();
         }
@@ -673,6 +676,30 @@ impl Parser {
 
     #[alloc]
     #[state]
+    /// union：字段共享存储（安全读写走 union 语义，读取需 unsafe 由检查器/文档约束）
+    #[alloc]
+    #[state]
+    fn parse_union(ref mut self) -> int {
+        kline = self.cur.line;
+        kcol = self.cur.col;
+        self.advance();
+        name = self.expect_ident("expected union name");
+        generics = self.parse_generics();
+        self.expect_delim(D::LBrace._tag, "expected { in union");
+        head = -1;
+        while true {
+            if self.check_delim(D::RBrace._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
+            ty = self.parse_type();
+            fname = self.expect_member_name("expected field name");
+            fn_node = self.ast.push(xt(XT::StructField._tag), fname, ty, -1, -1, -1, -1, self.cur.line, self.cur.col);
+            head = self.ast.push_tail(head, fn_node);
+        }
+        self.expect_delim(D::RBrace._tag, "expected } after union");
+        return self.ast.push(st(ST::UnionDef._tag), name, -1, head, generics, -1, -1, kline, kcol);
+    }
+
     fn parse_struct(ref mut self) -> int {
         kline = self.cur.line;
         kcol = self.cur.col;
