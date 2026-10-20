@@ -3492,193 +3492,198 @@ selfhost/src/lexer/token.aya:181: pub fn d_name(int k) -> String
 selfhost/src/lexer/token.aya:200: pub fn token_display(ref Token t) -> String
 selfhost/src/lir/emit.aya:8: pub struct Val
 selfhost/src/lir/emit.aya:15: pub struct Emitter
-selfhost/src/lir/emit.aya:147: pub namespace Emitter
-selfhost/src/lir/emit.aya:149: pub fn new() -> Emitter
-selfhost/src/lir/emit.aya:193: fn ty_name(ref Ast ast, int t) -> String
-selfhost/src/lir/emit.aya:209: fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String
-selfhost/src/lir/emit.aya:249: fn fmin_text(ref String tn) -> String
-selfhost/src/lir/emit.aya:261: fn fmax_text(ref String tn) -> String
-selfhost/src/lir/emit.aya:272: fn int_ty_llvm(ref String tn) -> String
-selfhost/src/lir/emit.aya:280: fn int_ty_signed(ref String tn) -> int
-selfhost/src/lir/emit.aya:286: fn const_int(ref Ast ast, int id) -> String
-selfhost/src/lir/emit.aya:341: fn int_text_ok(ref String t) -> String
-selfhost/src/lir/emit.aya:348: fn str_to_int_ok(ref String t) -> int
-selfhost/src/lir/emit.aya:393: fn ptr_operand(ref String a) -> String
-selfhost/src/lir/emit.aya:398: fn int_str2(int v) -> String
-selfhost/src/lir/emit.aya:404: fn mk_int(ref String t) -> Val
-selfhost/src/lir/emit.aya:409: fn mk_arr(ref String ptr, int ety) -> Val
-selfhost/src/lir/emit.aya:413: fn mk_str(ref String ptr, int len) -> Val
-selfhost/src/lir/emit.aya:420: fn fn_type_params(ref Ast ast, int fty) -> int
-selfhost/src/lir/emit.aya:430: fn fn_type_ret(ref Ast ast, int fty) -> int
-selfhost/src/lir/emit.aya:440: fn float_operand(ref Val v, ref mut Emitter e) -> String
-selfhost/src/lir/emit.aya:452: fn fcmp_op(int op) -> String
-selfhost/src/lir/emit.aya:463: fn mk_float(ref String a) -> Val
-selfhost/src/lir/emit.aya:468: fn float_text(ref String t) -> String
-selfhost/src/lir/emit.aya:504: fn mk_str_tmp(ref String ptr, ref String len_tmp) -> Val
-selfhost/src/lir/emit.aya:509: fn emit_not(ref Val v, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:526: fn emit_str_eq(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:584: fn str_of_val(ref Val v, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:640: fn emit_str_concat(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:679: fn emit_str_slice(ref Val sv, ref String start, ref String end, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:709: impl Emitter
-selfhost/src/lir/emit.aya:712: fn fresh(ref mut self) -> String
-selfhost/src/lir/emit.aya:720: fn local_kind(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:730: fn find_elem(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:741: fn declare_array_local(ref mut self, ref String name, int ety)
-selfhost/src/lir/emit.aya:754: fn record_etype(ref mut self, ref String name, int ety)
-selfhost/src/lir/emit.aya:765: fn elem_of_local(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:770: fn etype_of_local(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:784: fn declare_local(ref mut self, ref String name, int kind)
-selfhost/src/lir/emit.aya:818: fn emit_local_storage(ref mut self, ref String name, int form)
-selfhost/src/lir/emit.aya:849: fn struct_of_local(ref mut self, ref String name) -> String
-selfhost/src/lir/emit.aya:866: fn param_kind(ref mut self, ref Ast ast, int p) -> int
-selfhost/src/lir/emit.aya:906: fn ret_kind(ref mut self, ref Ast ast, int rty) -> int
-selfhost/src/lir/emit.aya:933: fn ret_info(ref mut self, ref Ast ast, int rty) -> int
-selfhost/src/lir/emit.aya:953: fn ret_llvm_code(ref mut self, ref Ast ast, int rty) -> int
-selfhost/src/lir/emit.aya:964: fn record_ftype(ref mut self, ref String name, int fty)
-selfhost/src/lir/emit.aya:975: fn ftype_of_local(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:987: fn global_idx(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:997: fn decl_has(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1007: fn lam_index_of(ref mut self, int id) -> int
-selfhost/src/lir/emit.aya:1019: fn cap_add(ref mut self, int li, ref String name, int kind, int ety, int cid)
-selfhost/src/lir/emit.aya:1040: fn add_env_global(ref mut self, ref String prefix, ref String code_name) -> String
-selfhost/src/lir/emit.aya:1062: fn record_assign_ftype(ref mut self, ref Ast ast, ref String nm, int rhs)
-selfhost/src/lir/emit.aya:1116: fn pk_of_ty(ref mut self, ref Ast ast, int pt) -> int
-selfhost/src/lir/emit.aya:1148: fn closure_param_kind(ref mut self, ref Ast ast, int fty, int i) -> int
-selfhost/src/lir/emit.aya:1162: fn fn_first_id(ref mut self, ref String fname) -> int
-selfhost/src/lir/emit.aya:1171: fn fn_ret_llvm(ref mut self, ref String fname) -> int
-selfhost/src/lir/emit.aya:1183: fn fn_ret_type(ref mut self, ref String fname) -> int
-selfhost/src/lir/emit.aya:1195: fn method_ret_type(ref mut self, ref String ty, ref String name) -> int
-selfhost/src/lir/emit.aya:1211: fn lam_param_of(ref mut self, ref Ast ast, int li, ref String name) -> int
-selfhost/src/lir/emit.aya:1223: fn collect_lambdas(ref mut self, ref Ast ast)
-selfhost/src/lir/emit.aya:1240: fn collect_globals(ref mut self, ref Ast ast, int prog)
-selfhost/src/lir/emit.aya:1256: fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix)
-selfhost/src/lir/emit.aya:1276: fn const_eval_g(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/lir/emit.aya:1330: fn ct_set(ref mut self, ref String name, int v)
-selfhost/src/lir/emit.aya:1347: fn ct_get(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1356: fn ct_find(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1367: fn add_global(ref mut self, ref Ast ast, ref String name, int id)
-selfhost/src/lir/emit.aya:1502: fn global_kind(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1513: fn global_val(ref mut self, ref String name) -> String
-selfhost/src/lir/emit.aya:1522: fn find_struct_idx(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1531: fn find_field_idx(ref mut self, ref String stname, ref String fname) -> int
-selfhost/src/lir/emit.aya:1544: fn fkind_at(ref mut self, int si, int idx) -> int
-selfhost/src/lir/emit.aya:1549: fn finfo_at(ref mut self, int si, int idx) -> int
-selfhost/src/lir/emit.aya:1554: fn fslot_at(ref mut self, int si, int idx) -> int
-selfhost/src/lir/emit.aya:1559: fn ftype_at(ref mut self, int si, int idx) -> int
-selfhost/src/lir/emit.aya:1564: fn find_method_id(ref mut self, ref String ty, ref String name) -> int
-selfhost/src/lir/emit.aya:1580: fn reg_iface(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:1603: fn iface_method_idx(ref mut self, int ii, ref String name) -> int
-selfhost/src/lir/emit.aya:1616: fn iface_method_node_at(ref mut self, int ii, int mi) -> int
-selfhost/src/lir/emit.aya:1625: fn iface_param_kind(ref mut self, ref Ast ast, int mnode, int i) -> int
-selfhost/src/lir/emit.aya:1639: fn iface_param_name(ref mut self, ref Ast ast, int mnode, int i) -> String
-selfhost/src/lir/emit.aya:1652: fn fn_piface_of(ref mut self, ref String fname, int i) -> int
-selfhost/src/lir/emit.aya:1666: fn type_impls_iface(ref mut self, ref String ty, int ii) -> int
-selfhost/src/lir/emit.aya:1682: fn concrete_impl_name(ref mut self, ref Val v, ref String iface) -> String
-selfhost/src/lir/emit.aya:1713: fn emit_box(ref mut self, ref Val v, ref String iface) -> String
-selfhost/src/lir/emit.aya:1789: fn reg_vtable(ref mut self, ref String ty, ref String iface)
-selfhost/src/lir/emit.aya:1806: fn emit_vtables(ref mut self)
-selfhost/src/lir/emit.aya:1844: fn find_iface_idx(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1855: fn method_ty_of(ref mut self, int mid) -> String
-selfhost/src/lir/emit.aya:1866: fn find_method_any(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1875: fn reg_struct(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:1890: fn fill_union(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:1955: fn fill_struct(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:2016: fn add_method(ref mut self, ref Ast ast, ref String ty, int fid)
-selfhost/src/lir/emit.aya:2027: fn find_enum_idx(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:2036: fn find_variant_idx(ref mut self, int ei, ref String vname) -> int
-selfhost/src/lir/emit.aya:2047: fn enum_max_arity(ref mut self, int ei) -> int
-selfhost/src/lir/emit.aya:2060: fn variant_ptype(ref mut self, int ei, int vi, int k) -> int
-selfhost/src/lir/emit.aya:2069: fn payload_slot(ref mut self, ref Ast ast, int ei, int vi, int k) -> int
-selfhost/src/lir/emit.aya:2087: fn add_enum(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:2131: fn add_fn_sig(ref mut self, ref Ast ast, int id, ref String prefix)
-selfhost/src/lir/emit.aya:2179: fn fn_sym(ref mut self, ref String fname) -> String
-selfhost/src/lir/emit.aya:2194: fn elem_llvm_m(ref mut self, ref Ast ast, int ety) -> String
-selfhost/src/lir/emit.aya:2216: fn fn_pick_by_kind(ref mut self, ref String fname, int k0) -> int
-selfhost/src/lir/emit.aya:2238: fn fn_pick_by_tyname(ref mut self, ref Ast ast, ref String fname, ref String tname) -> int
-selfhost/src/lir/emit.aya:2263: fn fn_ord_at(ref mut self, int fi) -> int
-selfhost/src/lir/emit.aya:2276: fn fn_pk_at(ref mut self, int fi, int k) -> int
-selfhost/src/lir/emit.aya:2283: fn fn_rt_at(ref mut self, int fi) -> int
-selfhost/src/lir/emit.aya:2289: fn fn_count_name(ref mut self, ref String fname) -> int
-selfhost/src/lir/emit.aya:2300: fn fn_idx_of_node(ref mut self, ref String fname, int node) -> int
-selfhost/src/lir/emit.aya:2313: fn fn_sym_ord(ref mut self, ref String fname, int idx) -> String
-selfhost/src/lir/emit.aya:2326: fn fn_ord_of_node(ref mut self, ref String fname, int node) -> int
-selfhost/src/lir/emit.aya:2342: fn implicit_args_m(ref mut self, ref Ast ast, int id, int fnode, int start, int first) -> String
-selfhost/src/lir/emit.aya:2377: fn pointee_size(ref mut self, ref String tn) -> int
-selfhost/src/lir/emit.aya:2388: fn layout_builtin_val(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/lir/emit.aya:2421: fn fn_param_kind(ref mut self, ref String fname, int i) -> int
-selfhost/src/lir/emit.aya:2437: fn collect_decls(ref mut self, ref Ast ast, int prog)
-selfhost/src/lir/emit.aya:2513: fn add_str(ref mut self, ref String text) -> int
-selfhost/src/lir/emit.aya:2524: fn escape_ir(ref String s) -> String
-selfhost/src/lir/emit.aya:2553: fn hex_digit(int v) -> char
-selfhost/src/lir/emit.aya:2558: fn bin_llvm_op(int op) -> String
-selfhost/src/lir/emit.aya:2573: fn op_method_name(int op) -> String
-selfhost/src/lir/emit.aya:2595: fn emit_op_method_call(ref Ast ast, int id, ref Val lt, ref String mn, int mid, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:2680: fn find_fn_by_recv(ref mut Emitter e, ref Ast ast, ref String name, ref String recv_ty) -> int
-selfhost/src/lir/emit.aya:2701: fn emit_ufcs_call(ref Ast ast, int id, ref Val obj, ref String name, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:2846: fn emit_forin_next(ref Ast ast, ref String it_nm, int it_kind, ref String it_ty, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:2935: fn emit_variant_payload(ref Ast ast, ref String opt_a, ref String en_name, ref String variant, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:3009: fn emit_iface_dispatch(ref Ast ast, int args_head, ref Val obj, int ii, int mi, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:3158: fn cmp_llvm_op(int op) -> String
-selfhost/src/lir/emit.aya:3168: fn is_cmp(int op) -> bool
-selfhost/src/lir/emit.aya:3180: fn elem_slot(ref Ast ast, int ty) -> String
-selfhost/src/lir/emit.aya:3202: fn elem_llvm(ref Ast ast, int ty) -> String
-selfhost/src/lir/emit.aya:3207: fn elem_bytes(ref Ast ast, int ty) -> int
-selfhost/src/lir/emit.aya:3216: fn elem_stride(ref Ast ast, int ety) -> int
-selfhost/src/lir/emit.aya:3226: fn elem_addr(ref mut Emitter e, int stride, ref String base, ref String idx) -> String
-selfhost/src/lir/emit.aya:3247: fn elem_is_string(ref Ast ast, int ty) -> bool
-selfhost/src/lir/emit.aya:3259: fn elem_type_of(ref Ast ast, int id) -> int
-selfhost/src/lir/emit.aya:3274: impl Emitter
-selfhost/src/lir/emit.aya:3277: fn elem_type_of_m(ref mut self, ref Ast ast, int id) -> int
-selfhost/src/lir/emit.aya:3305: fn pat_name(ref String p) -> String
-selfhost/src/lir/emit.aya:3317: fn pat_binds(ref String p) -> String
-selfhost/src/lir/emit.aya:3329: fn pat_short(ref String p) -> String
-selfhost/src/lir/emit.aya:3343: fn pat_enum(ref String p) -> String
-selfhost/src/lir/emit.aya:3356: fn contains_dot2(ref String s) -> bool
-selfhost/src/lir/emit.aya:3365: fn label(ref mut Emitter e, ref String prefix) -> String
-selfhost/src/lir/emit.aya:3374: fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:3480: fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:3645: fn emit_pat_inner_check(ref Ast ast, int arm, ref Val sc, ref String nxt, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:3710: fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e)
-selfhost/src/lir/emit.aya:4030: fn tail_is_float(ref Ast ast, int blk) -> int
-selfhost/src/lir/emit.aya:4047: fn emit_if_branch(ref Ast ast, int blk, ref String res, int want_float, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:4095: fn store_match_val(ref Val tv, ref String res, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:4148: fn unpack_str_res(ref String slot_i64, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:4174: fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:4276: fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val
-selfhost/src/lir/emit.aya:4443: fn emit_indirect_call(ref Ast ast, ref String fval, int fty, int args, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:4525: fn emit_lambda_value(ref Ast ast, int id, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:4650: fn cap_scan_list(ref Ast ast, int id, int li, ref mut Emitter e)
-selfhost/src/lir/emit.aya:4658: fn bb_is_child(int tag) -> int
-selfhost/src/lir/emit.aya:4667: fn ccdd_is_child(int tag) -> int
-selfhost/src/lir/emit.aya:4676: fn cap_scan_node(ref Ast ast, int id, int li, ref mut Emitter e)
-selfhost/src/lir/emit.aya:4713: fn emit_prelude_int1(ref String fname, ref String arg, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:4727: fn emit_prelude_str(ref String fname, ref Val s, ref Val arg, int has_arg, int rk, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:4770: fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:4869: fn emit_globals_init(ref Ast ast, ref mut Emitter e)
-selfhost/src/lir/emit.aya:4922: fn dec_val_e(ref String s) -> int
-selfhost/src/lir/emit.aya:4938: fn ct_binop(int op, int a, int b) -> int
-selfhost/src/lir/emit.aya:4961: fn ct_block(ref Ast ast, int stmts, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:4972: fn ct_if_value(ref Ast ast, int id, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:4994: fn ct_branch_value(ref Ast ast, int blk, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:5009: fn ct_stmt(ref Ast ast, int id, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:5072: fn ct_expr(ref Ast ast, int id, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:5128: fn ct_call(ref Ast ast, int fn_id, int nargs, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:5155: fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:7315: fn emit_block_all(ref Ast ast, int blk, ref mut Emitter e)
-selfhost/src/lir/emit.aya:7326: fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e)
-selfhost/src/lir/emit.aya:7336: fn elem_is_leaf(ref String lty) -> bool
-selfhost/src/lir/emit.aya:7344: fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val)
-selfhost/src/lir/emit.aya:7399: fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v)
-selfhost/src/lir/emit.aya:7434: fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v)
-selfhost/src/lir/emit.aya:7488: fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:7523: fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:7630: fn emit_stmt(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:8323: fn emit_lambda(ref Ast ast, int lam_id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:8347: fn emit_fn(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:8352: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:8392: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
-selfhost/src/lir/emit.aya:8795: pub fn emit_program(ref Ast ast, int prog, ref String file) -> String
+selfhost/src/lir/emit.aya:153: pub namespace Emitter
+selfhost/src/lir/emit.aya:155: pub fn new() -> Emitter
+selfhost/src/lir/emit.aya:199: fn ty_name(ref Ast ast, int t) -> String
+selfhost/src/lir/emit.aya:215: fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String
+selfhost/src/lir/emit.aya:255: fn fmin_text(ref String tn) -> String
+selfhost/src/lir/emit.aya:267: fn fmax_text(ref String tn) -> String
+selfhost/src/lir/emit.aya:278: fn int_ty_llvm(ref String tn) -> String
+selfhost/src/lir/emit.aya:286: fn int_ty_signed(ref String tn) -> int
+selfhost/src/lir/emit.aya:292: fn const_int(ref Ast ast, int id) -> String
+selfhost/src/lir/emit.aya:347: fn int_text_ok(ref String t) -> String
+selfhost/src/lir/emit.aya:354: fn str_to_int_ok(ref String t) -> int
+selfhost/src/lir/emit.aya:399: fn ptr_operand(ref String a) -> String
+selfhost/src/lir/emit.aya:404: fn int_str2(int v) -> String
+selfhost/src/lir/emit.aya:410: fn mk_int(ref String t) -> Val
+selfhost/src/lir/emit.aya:415: fn mk_arr(ref String ptr, int ety) -> Val
+selfhost/src/lir/emit.aya:419: fn mk_str(ref String ptr, int len) -> Val
+selfhost/src/lir/emit.aya:426: fn fn_type_params(ref Ast ast, int fty) -> int
+selfhost/src/lir/emit.aya:436: fn fn_type_ret(ref Ast ast, int fty) -> int
+selfhost/src/lir/emit.aya:446: fn float_operand(ref Val v, ref mut Emitter e) -> String
+selfhost/src/lir/emit.aya:458: fn fcmp_op(int op) -> String
+selfhost/src/lir/emit.aya:469: fn mk_float(ref String a) -> Val
+selfhost/src/lir/emit.aya:474: fn float_text(ref String t) -> String
+selfhost/src/lir/emit.aya:510: fn mk_str_tmp(ref String ptr, ref String len_tmp) -> Val
+selfhost/src/lir/emit.aya:515: fn emit_not(ref Val v, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:532: fn emit_str_eq(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:590: fn str_of_val(ref Val v, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:646: fn emit_str_concat(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:685: fn emit_str_slice(ref Val sv, ref String start, ref String end, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:715: impl Emitter
+selfhost/src/lir/emit.aya:718: fn fresh(ref mut self) -> String
+selfhost/src/lir/emit.aya:726: fn local_kind(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:736: fn find_elem(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:747: fn declare_array_local(ref mut self, ref String name, int ety)
+selfhost/src/lir/emit.aya:760: fn record_etype(ref mut self, ref String name, int ety)
+selfhost/src/lir/emit.aya:771: fn elem_of_local(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:776: fn etype_of_local(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:790: fn declare_local(ref mut self, ref String name, int kind)
+selfhost/src/lir/emit.aya:824: fn emit_local_storage(ref mut self, ref String name, int form)
+selfhost/src/lir/emit.aya:855: fn struct_of_local(ref mut self, ref String name) -> String
+selfhost/src/lir/emit.aya:872: fn param_kind(ref mut self, ref Ast ast, int p) -> int
+selfhost/src/lir/emit.aya:912: fn ret_kind(ref mut self, ref Ast ast, int rty) -> int
+selfhost/src/lir/emit.aya:939: fn ret_info(ref mut self, ref Ast ast, int rty) -> int
+selfhost/src/lir/emit.aya:959: fn ret_llvm_code(ref mut self, ref Ast ast, int rty) -> int
+selfhost/src/lir/emit.aya:970: fn record_ftype(ref mut self, ref String name, int fty)
+selfhost/src/lir/emit.aya:981: fn ftype_of_local(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:993: fn global_idx(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1003: fn decl_has(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1013: fn lam_index_of(ref mut self, int id) -> int
+selfhost/src/lir/emit.aya:1025: fn cap_add(ref mut self, int li, ref String name, int kind, int ety, int cid)
+selfhost/src/lir/emit.aya:1046: fn add_env_global(ref mut self, ref String prefix, ref String code_name) -> String
+selfhost/src/lir/emit.aya:1068: fn record_assign_ftype(ref mut self, ref Ast ast, ref String nm, int rhs)
+selfhost/src/lir/emit.aya:1122: fn pk_of_ty(ref mut self, ref Ast ast, int pt) -> int
+selfhost/src/lir/emit.aya:1154: fn closure_param_kind(ref mut self, ref Ast ast, int fty, int i) -> int
+selfhost/src/lir/emit.aya:1168: fn fn_first_id(ref mut self, ref String fname) -> int
+selfhost/src/lir/emit.aya:1177: fn fn_ret_llvm(ref mut self, ref String fname) -> int
+selfhost/src/lir/emit.aya:1189: fn fn_ret_type(ref mut self, ref String fname) -> int
+selfhost/src/lir/emit.aya:1201: fn method_ret_type(ref mut self, ref String ty, ref String name) -> int
+selfhost/src/lir/emit.aya:1217: fn lam_param_of(ref mut self, ref Ast ast, int li, ref String name) -> int
+selfhost/src/lir/emit.aya:1229: fn collect_lambdas(ref mut self, ref Ast ast)
+selfhost/src/lir/emit.aya:1246: fn collect_globals(ref mut self, ref Ast ast, int prog)
+selfhost/src/lir/emit.aya:1262: fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix)
+selfhost/src/lir/emit.aya:1282: fn const_eval_g(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/lir/emit.aya:1336: fn ct_set(ref mut self, ref String name, int v)
+selfhost/src/lir/emit.aya:1353: fn ct_get(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1362: fn ct_find(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1373: fn add_global(ref mut self, ref Ast ast, ref String name, int id)
+selfhost/src/lir/emit.aya:1508: fn global_kind(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1519: fn global_val(ref mut self, ref String name) -> String
+selfhost/src/lir/emit.aya:1528: fn find_struct_idx(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1537: fn find_field_idx(ref mut self, ref String stname, ref String fname) -> int
+selfhost/src/lir/emit.aya:1550: fn fkind_at(ref mut self, int si, int idx) -> int
+selfhost/src/lir/emit.aya:1555: fn finfo_at(ref mut self, int si, int idx) -> int
+selfhost/src/lir/emit.aya:1560: fn fslot_at(ref mut self, int si, int idx) -> int
+selfhost/src/lir/emit.aya:1565: fn ftype_at(ref mut self, int si, int idx) -> int
+selfhost/src/lir/emit.aya:1570: fn find_method_id(ref mut self, ref String ty, ref String name) -> int
+selfhost/src/lir/emit.aya:1586: fn reg_iface(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:1609: fn iface_method_idx(ref mut self, int ii, ref String name) -> int
+selfhost/src/lir/emit.aya:1622: fn iface_method_node_at(ref mut self, int ii, int mi) -> int
+selfhost/src/lir/emit.aya:1631: fn iface_param_kind(ref mut self, ref Ast ast, int mnode, int i) -> int
+selfhost/src/lir/emit.aya:1645: fn iface_param_name(ref mut self, ref Ast ast, int mnode, int i) -> String
+selfhost/src/lir/emit.aya:1658: fn fn_piface_of(ref mut self, ref String fname, int i) -> int
+selfhost/src/lir/emit.aya:1672: fn type_impls_iface(ref mut self, ref String ty, int ii) -> int
+selfhost/src/lir/emit.aya:1688: fn concrete_impl_name(ref mut self, ref Val v, ref String iface) -> String
+selfhost/src/lir/emit.aya:1719: fn emit_box(ref mut self, ref Val v, ref String iface) -> String
+selfhost/src/lir/emit.aya:1795: fn reg_vtable(ref mut self, ref String ty, ref String iface)
+selfhost/src/lir/emit.aya:1812: fn emit_vtables(ref mut self)
+selfhost/src/lir/emit.aya:1850: fn find_iface_idx(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1861: fn method_ty_of(ref mut self, int mid) -> String
+selfhost/src/lir/emit.aya:1872: fn find_method_any(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1881: fn reg_struct(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:1896: fn fill_union(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:1961: fn fill_struct(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:2022: fn add_method(ref mut self, ref Ast ast, ref String ty, int fid)
+selfhost/src/lir/emit.aya:2033: fn find_enum_idx(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:2042: fn find_variant_idx(ref mut self, int ei, ref String vname) -> int
+selfhost/src/lir/emit.aya:2053: fn enum_max_arity(ref mut self, int ei) -> int
+selfhost/src/lir/emit.aya:2066: fn variant_ptype(ref mut self, int ei, int vi, int k) -> int
+selfhost/src/lir/emit.aya:2075: fn payload_slot(ref mut self, ref Ast ast, int ei, int vi, int k) -> int
+selfhost/src/lir/emit.aya:2093: fn add_enum(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:2137: fn add_fn_sig(ref mut self, ref Ast ast, int id, ref String prefix)
+selfhost/src/lir/emit.aya:2185: fn fn_sym(ref mut self, ref String fname) -> String
+selfhost/src/lir/emit.aya:2200: fn elem_llvm_m(ref mut self, ref Ast ast, int ety) -> String
+selfhost/src/lir/emit.aya:2222: fn fn_pick_by_kind(ref mut self, ref String fname, int k0) -> int
+selfhost/src/lir/emit.aya:2244: fn fn_pick_by_tyname(ref mut self, ref Ast ast, ref String fname, ref String tname) -> int
+selfhost/src/lir/emit.aya:2269: fn fn_ord_at(ref mut self, int fi) -> int
+selfhost/src/lir/emit.aya:2282: fn fn_pk_at(ref mut self, int fi, int k) -> int
+selfhost/src/lir/emit.aya:2289: fn fn_rt_at(ref mut self, int fi) -> int
+selfhost/src/lir/emit.aya:2295: fn fn_count_name(ref mut self, ref String fname) -> int
+selfhost/src/lir/emit.aya:2306: fn fn_idx_of_node(ref mut self, ref String fname, int node) -> int
+selfhost/src/lir/emit.aya:2319: fn fn_sym_ord(ref mut self, ref String fname, int idx) -> String
+selfhost/src/lir/emit.aya:2332: fn fn_ord_of_node(ref mut self, ref String fname, int node) -> int
+selfhost/src/lir/emit.aya:2348: fn implicit_args_m(ref mut self, ref Ast ast, int id, int fnode, int start, int first) -> String
+selfhost/src/lir/emit.aya:2383: fn pointee_size(ref mut self, ref String tn) -> int
+selfhost/src/lir/emit.aya:2394: fn layout_builtin_val(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/lir/emit.aya:2427: fn fn_param_kind(ref mut self, ref String fname, int i) -> int
+selfhost/src/lir/emit.aya:2443: fn collect_decls(ref mut self, ref Ast ast, int prog)
+selfhost/src/lir/emit.aya:2518: fn is_gparam(ref mut self, ref String name) -> bool
+selfhost/src/lir/emit.aya:2530: fn add_inst(ref mut self, ref String key)
+selfhost/src/lir/emit.aya:2545: fn type_arg_name(ref mut self, ref Ast ast, int arg) -> String
+selfhost/src/lir/emit.aya:2562: fn note_type_inst(ref mut self, ref Ast ast, int ty)
+selfhost/src/lir/emit.aya:2584: fn collect_instances(ref mut self, ref Ast ast)
+selfhost/src/lir/emit.aya:2632: fn add_str(ref mut self, ref String text) -> int
+selfhost/src/lir/emit.aya:2643: fn escape_ir(ref String s) -> String
+selfhost/src/lir/emit.aya:2672: fn hex_digit(int v) -> char
+selfhost/src/lir/emit.aya:2677: fn bin_llvm_op(int op) -> String
+selfhost/src/lir/emit.aya:2692: fn op_method_name(int op) -> String
+selfhost/src/lir/emit.aya:2714: fn emit_op_method_call(ref Ast ast, int id, ref Val lt, ref String mn, int mid, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:2799: fn find_fn_by_recv(ref mut Emitter e, ref Ast ast, ref String name, ref String recv_ty) -> int
+selfhost/src/lir/emit.aya:2820: fn emit_ufcs_call(ref Ast ast, int id, ref Val obj, ref String name, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:2965: fn emit_forin_next(ref Ast ast, ref String it_nm, int it_kind, ref String it_ty, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:3054: fn emit_variant_payload(ref Ast ast, ref String opt_a, ref String en_name, ref String variant, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:3128: fn emit_iface_dispatch(ref Ast ast, int args_head, ref Val obj, int ii, int mi, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:3277: fn cmp_llvm_op(int op) -> String
+selfhost/src/lir/emit.aya:3287: fn is_cmp(int op) -> bool
+selfhost/src/lir/emit.aya:3299: fn elem_slot(ref Ast ast, int ty) -> String
+selfhost/src/lir/emit.aya:3321: fn elem_llvm(ref Ast ast, int ty) -> String
+selfhost/src/lir/emit.aya:3326: fn elem_bytes(ref Ast ast, int ty) -> int
+selfhost/src/lir/emit.aya:3335: fn elem_stride(ref Ast ast, int ety) -> int
+selfhost/src/lir/emit.aya:3345: fn elem_addr(ref mut Emitter e, int stride, ref String base, ref String idx) -> String
+selfhost/src/lir/emit.aya:3366: fn elem_is_string(ref Ast ast, int ty) -> bool
+selfhost/src/lir/emit.aya:3378: fn elem_type_of(ref Ast ast, int id) -> int
+selfhost/src/lir/emit.aya:3393: impl Emitter
+selfhost/src/lir/emit.aya:3396: fn elem_type_of_m(ref mut self, ref Ast ast, int id) -> int
+selfhost/src/lir/emit.aya:3424: fn pat_name(ref String p) -> String
+selfhost/src/lir/emit.aya:3436: fn pat_binds(ref String p) -> String
+selfhost/src/lir/emit.aya:3448: fn pat_short(ref String p) -> String
+selfhost/src/lir/emit.aya:3462: fn pat_enum(ref String p) -> String
+selfhost/src/lir/emit.aya:3475: fn contains_dot2(ref String s) -> bool
+selfhost/src/lir/emit.aya:3484: fn label(ref mut Emitter e, ref String prefix) -> String
+selfhost/src/lir/emit.aya:3493: fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:3599: fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:3764: fn emit_pat_inner_check(ref Ast ast, int arm, ref Val sc, ref String nxt, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:3829: fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e)
+selfhost/src/lir/emit.aya:4149: fn tail_is_float(ref Ast ast, int blk) -> int
+selfhost/src/lir/emit.aya:4166: fn emit_if_branch(ref Ast ast, int blk, ref String res, int want_float, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:4214: fn store_match_val(ref Val tv, ref String res, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:4267: fn unpack_str_res(ref String slot_i64, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:4293: fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:4395: fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val
+selfhost/src/lir/emit.aya:4562: fn emit_indirect_call(ref Ast ast, ref String fval, int fty, int args, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:4644: fn emit_lambda_value(ref Ast ast, int id, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:4769: fn cap_scan_list(ref Ast ast, int id, int li, ref mut Emitter e)
+selfhost/src/lir/emit.aya:4777: fn bb_is_child(int tag) -> int
+selfhost/src/lir/emit.aya:4786: fn ccdd_is_child(int tag) -> int
+selfhost/src/lir/emit.aya:4795: fn cap_scan_node(ref Ast ast, int id, int li, ref mut Emitter e)
+selfhost/src/lir/emit.aya:4832: fn emit_prelude_int1(ref String fname, ref String arg, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:4846: fn emit_prelude_str(ref String fname, ref Val s, ref Val arg, int has_arg, int rk, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:4889: fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:4988: fn emit_globals_init(ref Ast ast, ref mut Emitter e)
+selfhost/src/lir/emit.aya:5041: fn dec_val_e(ref String s) -> int
+selfhost/src/lir/emit.aya:5057: fn ct_binop(int op, int a, int b) -> int
+selfhost/src/lir/emit.aya:5080: fn ct_block(ref Ast ast, int stmts, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:5091: fn ct_if_value(ref Ast ast, int id, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:5113: fn ct_branch_value(ref Ast ast, int blk, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:5128: fn ct_stmt(ref Ast ast, int id, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:5191: fn ct_expr(ref Ast ast, int id, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:5247: fn ct_call(ref Ast ast, int fn_id, int nargs, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:5274: fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:7434: fn emit_block_all(ref Ast ast, int blk, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7445: fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7455: fn elem_is_leaf(ref String lty) -> bool
+selfhost/src/lir/emit.aya:7463: fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val)
+selfhost/src/lir/emit.aya:7518: fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v)
+selfhost/src/lir/emit.aya:7553: fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v)
+selfhost/src/lir/emit.aya:7607: fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7642: fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:7749: fn emit_stmt(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:8442: fn emit_lambda(ref Ast ast, int lam_id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:8466: fn emit_fn(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:8471: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:8511: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
+selfhost/src/lir/emit.aya:8914: pub fn emit_program(ref Ast ast, int prog, ref String file) -> String
 selfhost/src/main.aya:8: fn usage_ok(ref Cli c) -> int
 selfhost/src/main.aya:13: fn usage_unknown(ref Cli c) -> int
 selfhost/src/main.aya:20: fn dispatch(ref Cli c) -> int

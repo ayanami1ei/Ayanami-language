@@ -72,6 +72,12 @@ pub struct Emitter {
     int cur_ord
     // 当前 impl 的类型名（方法签名中的 Self 替换）
     String cur_self_ty
+    // 3tq 阶段 1：泛型实例键（"Name[Arg]"；只收集，供后续特化使用）
+    [String] inst_keys
+    int inst_count
+    // 全部泛型参数名（跳过以类型参数为实参的"实例"）
+    [String] gp_names
+    int gp_names_count
     [int] m_rtype
     // 已发射的 extern 声明（去重）
     [String] decl_names
@@ -164,7 +170,7 @@ pub namespace Emitter {
             en_ptype = [int; 4096], en_pvstart = [int; 1024], en_ptotal = 0, en_vslots = [int; 1024],
             fn_names = [String; 8192], fn_extern = [int; 8192], fn_pstart = [int; 8192], fn_pcount = [int; 8192],
             fn_pkinds = [int; 65536], fn_ptotal = 0, fn_count = 0,
-            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", m_rtype = [int; 8192],
+            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, m_rtype = [int; 8192],
             decl_names = [String; 2048], decl_count = 0,
             lambda_buf = StringBuf::new(),
             lam_ids = [int; 256], lam_names = [String; 256], lam_count = 0,
@@ -2504,6 +2510,119 @@ impl Emitter {
                 }
             }
             s = ast.nexts[s];
+        }
+    }
+
+    /// 名称是否为泛型参数
+    #[alloc]
+    fn is_gparam(ref mut self, ref String name) -> bool {
+        i = 0;
+        while i < self.gp_names_count {
+            if self.gp_names[i] == name { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    /// 3tq 阶段 1：登记一个泛型实例键（去重，顺序稳定）
+    #[alloc]
+    #[state]
+    fn add_inst(ref mut self, ref String key) {
+        if key.len == 0 { return; }
+        i = 0;
+        while i < self.inst_count {
+            if self.inst_keys[i] == key { return; }
+            i = i + 1;
+        }
+        if self.inst_count < 512 {
+            self.inst_keys[self.inst_count] = key.copy();
+            self.inst_count = self.inst_count + 1;
+        }
+    }
+
+    /// 类型实参名（Named/Generic 取文本；原语/数组/裸指针用标签名）
+    #[alloc]
+    fn type_arg_name(ref mut self, ref Ast ast, int arg) -> String {
+        an = ty_name(ast, arg);
+        if an.len > 0 { return an; }
+        if arg < 0 { return ""; }
+        atg = ast.tags[arg];
+        if atg == tt(TT::Array._tag) || atg == tt(TT::ArraySized._tag) { return "array"; }
+        if atg == tt(TT::RawPtr._tag) { return "rawptr"; }
+        if atg == tt(TT::Float._tag) { return "float"; }
+        if atg == tt(TT::Int._tag) { return "int"; }
+        if atg == tt(TT::Bool._tag) { return "bool"; }
+        if atg == tt(TT::Char._tag) { return "char"; }
+        return "";
+    }
+
+    /// 3tq 阶段 1：类型节点中的泛型实例（Name[Arg]，含 ref/数组内层）
+    #[alloc]
+    #[state]
+    fn note_type_inst(ref mut self, ref Ast ast, int ty) {
+        if ty < 0 { return; }
+        tg = ast.tags[ty];
+        if tg == tt(TT::Generic._tag) {
+            nm = ast.texts[ty].copy();
+            arg = ast.aa[ty];
+            if arg >= 0 {
+                an = self.type_arg_name(ast, arg);
+                if an.len > 0 && !self.is_gparam(an) {
+                    self.add_inst(nm + "[" + an + "]");
+                }
+            }
+        } elif tg == tt(TT::Ref._tag) {
+            self.note_type_inst(ast, ast.aa[ty]);
+        } elif tg == tt(TT::Array._tag) || tg == tt(TT::ArraySized._tag) {
+            self.note_type_inst(ast, ast.aa[ty]);
+        }
+    }
+
+    /// 3tq 阶段 1：实例收集（类型标注 + 显式泛型调用；不改发射）
+    #[alloc]
+    #[state]
+    fn collect_instances(ref mut self, ref Ast ast) {
+        // 先收集全部泛型参数名（跳过以类型参数为实参的"实例"）
+        i = 0;
+        while i < ast.len {
+            if ast.tags[i] == xt(XT::GenericParam._tag) {
+                nmg = ast.texts[i];
+                k = 0;
+                dup = 0;
+                while k < self.gp_names_count {
+                    if self.gp_names[k] == nmg { dup = 1; break; }
+                    k = k + 1;
+                }
+                if dup == 0 && self.gp_names_count < 256 {
+                    self.gp_names[self.gp_names_count] = nmg.copy();
+                    self.gp_names_count = self.gp_names_count + 1;
+                }
+            }
+            i = i + 1;
+        }
+        // 仅声明类节点：其 tys 字段是类型节点（表达式节点的 tys 存操作符/模式标签）
+        i = 0;
+        while i < ast.len {
+            tg0 = ast.tags[i];
+            if tg0 == st(ST::FnDecl._tag) || tg0 == st(ST::ConstDecl._tag) || tg0 == st(ST::StaticDecl._tag) || tg0 == xt(XT::Param._tag) || tg0 == xt(XT::StructField._tag) || tg0 == xt(XT::GenericParam._tag) {
+                ty0 = ast.tys[i];
+                if ty0 >= 0 { self.note_type_inst(ast, ty0); }
+            }
+            i = i + 1;
+        }
+        // 显式泛型调用：FnCall.tys 保存类型实参（size_of[T]/reinterpret[T]/Ns::f[T]）
+        i = 0;
+        while i < ast.len {
+            if ast.tags[i] == et(ET::FnCall._tag) {
+                ty1 = ast.tys[i];
+                if ty1 >= 0 {
+                    an1 = self.type_arg_name(ast, ty1);
+                    if an1.len > 0 && !self.is_gparam(an1) {
+                        self.add_inst(ast.texts[i] + "[" + an1 + "]");
+                    }
+                }
+            }
+            i = i + 1;
         }
     }
 
@@ -8796,6 +8915,7 @@ pub fn emit_program(ref Ast ast, int prog, ref String file) -> String {
     e = Emitter::new();
     e.src_file = file.copy();
     e.collect_decls(ast, prog);
+    e.collect_instances(ast);
     e.collect_globals(ast, prog);
     e.collect_lambdas(ast);
     // 结构体类型定义
