@@ -3749,4 +3749,4 @@ selfhost/src/parser/parser.aya:1524: fn parse_number_literal(ref mut self, int n
 selfhost/src/parser/parser.aya:1546: fn parse_primary(ref mut self) -> int
 selfhost/src/parser/parser.aya:1714: fn try_parse_lambda(ref mut self, int line, int col) -> int
 selfhost/src/parser/parser.aya:1746: fn parse_match_arms(ref mut self) -> int
-selfhost/src/parser/parser.aya:1954: fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int
+selfhost/src/parser/parser.aya:1962: fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int

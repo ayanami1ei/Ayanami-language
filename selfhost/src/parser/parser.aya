@@ -1794,6 +1794,14 @@ impl Parser {
                                         if eq_pending == 1 {
                                             take = 1;
                                             eq_pending = 0;
+                                        } elif self.la1_is_op("::") {
+                                            // 限定内层变体（Option::Some(v)）：取变体名，不作绑定
+                                            self.advance();
+                                            self.advance();
+                                            if self.cur.kind == Tk::Ident._tag {
+                                                nested_struct = self.cur.text.copy();
+                                            }
+                                            take = 0;
                                         } elif self.la1_is_delim(D::LParen._tag) {
                                             // 嵌套变体名（Some(Some(v)) 的内层 Some）
                                             nested_struct = bn.copy();
