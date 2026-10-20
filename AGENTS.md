@@ -130,6 +130,7 @@ cargo test
 
 - 知识图谱：`docs/knowledge-graph.md`（概念→代码地图）、`docs/module-graph.md`（生成物）。
 - 标注系统设计（标注式编程 A0–A5）：`docs/annotations.md`。
+- 泛型值表示与单态化设计（selfhost）：`docs/generic-values.md`（bd `3tq`）。
 - 语言语法、类型系统、所有权（默认移动 + `ref`/`ref mut`）、泛型、枚举布局、操作符重载：见 `README.md`。
 - 标准库 API：[Ayanami-std](https://github.com/ayanami1ei/Ayanami-std) 子仓的 `README.md` 与 `std/**/*.aya`。
 - VSCode 插件：`vscode-ayanami/README.md`。
