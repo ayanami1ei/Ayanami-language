@@ -223,8 +223,16 @@ impl Parser {
             bound = -1;
             if self.eat_delim(D::Colon._tag) {
                 bound = self.parse_type();
-                while self.eat_op("+") {
-                    self.parse_type();
+                if bound >= 0 {
+                    bn = self.ast.texts[bound].copy();
+                    while self.eat_op("+") {
+                        b2 = self.parse_type();
+                        if b2 >= 0 {
+                            bn = bn + " + ";
+                            bn = bn + self.ast.texts[b2];
+                        }
+                    }
+                    self.ast.texts[bound] = bn;
                 }
             }
             gn = self.ast.push(xt(XT::GenericParam._tag), gname, bound, -1, -1, -1, -1, self.cur.line, self.cur.col);

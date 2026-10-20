@@ -214,6 +214,13 @@ fn base_type(ref String t) -> String {
     return u.copy();
 }
 
+/// fx 名匹配：完全相同，或全名以 "." + 短名结尾（方法限定名，如 int.to_string 配 to_string）
+fn fx_name_suffix(ref String full, ref String short) -> bool {
+    if full.len <= short.len { return false; }
+    if !full.ends_with(short) { return false; }
+    return full.index((full.len - short.len - 1) as usize) == '.';
+}
+
 /// 运算符 -> 方法名
 fn op_method_name(int op) -> String {
     if op == bo(BinOp::Eq._tag) { return "eq"; }
@@ -734,7 +741,7 @@ impl Checker {
                 from = self.fx_call_from[c];
                 ti = 0;
                 while ti < self.fx_count {
-                    if self.fx_names[ti] == to {
+                    if self.fx_names[ti] == to || fx_name_suffix(self.fx_names[ti], to) {
                         if self.fx_alloc[ti] == 1 && self.fx_alloc[from] == 0 {
                             self.fx_alloc[from] = 1;
                             changed = 1;
@@ -2034,10 +2041,18 @@ impl Checker {
             } elif self.is_gp(ot) {
                 bound = base_type(self.gp_bound(ot));
                 if bound.len > 0 {
-                    ifi = self.find_interface(bound);
                     okm = 0;
+                    ifi = self.find_interface(bound);
                     if ifi >= 0 {
                         if self.has_if_method(ifi, ast.texts[id]) { okm = 1; }
+                    }
+                    // 多约束：bound 形如 "A + B"，逐个接口查方法
+                    ib = 0;
+                    while ib < self.if_count {
+                        if bound.contains(self.if_names[ib]) {
+                            if self.has_if_method(ib, ast.texts[id]) { okm = 1; }
+                        }
+                        ib = ib + 1;
                     }
                     if okm == 0 {
                         nargs = 0;
