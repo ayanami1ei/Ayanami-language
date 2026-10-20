@@ -1462,6 +1462,24 @@ impl Emitter {
                 return;
             }
         }
+        // #[compile_time] 调用返回数组：堆数组全局（启动期初始化）
+        if init >= 0 {
+            if ast.tags[init] == et(ET::FnCall._tag) {
+                rty_g = self.fn_ret_type(ast.texts[init]);
+                if rty_g >= 0 {
+                    if self.ret_kind(ast, rty_g) == 3 {
+                        self.g_names[self.g_count] = name.copy();
+                        self.g_kinds[self.g_count] = 5;
+                        self.g_init_ids[self.g_count] = init;
+                        self.g_vals[self.g_count] = "";
+                        self.g_lens[self.g_count] = 0;
+                        self.g_count = self.g_count + 1;
+                        self.need_ginit = 1;
+                        return;
+                    }
+                }
+            }
+        }
         // 通用回退：常量表达式（布局内置 / #[compile_time] 调用等）求值为 int 全局
         if init >= 0 {
             vg = self.const_eval_g(ast, init);
@@ -4868,6 +4886,14 @@ fn emit_globals_init(ref Ast ast, ref mut Emitter e) {
             e.buf.push_str(", ptr @");
             e.buf.push_str(e.g_names[i_g]);
             e.buf.push_str("\n");
+        } elif e.g_kinds[i_g] == 5 {
+            // 堆数组全局：启动期调用 compile_time 函数取数据指针
+            v_ga = emit_expr(ast, e.g_init_ids[i_g], e);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(v_ga.a);
+            e.buf.push_str(", ptr @");
+            e.buf.push_str(e.g_names[i_g]);
+            e.buf.push_str("\n");
         }
         i_g = i_g + 1;
     }
@@ -5180,6 +5206,15 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(nm);
             e.buf.push_str("\n");
             return mk_float(fdg);
+        }
+        if gk == 5 {
+            t_g5 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(t_g5);
+            e.buf.push_str(" = load ptr, ptr @");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return mk_arr(t_g5, -1);
         }
         if gk == 4 {
             // 结构体全局：装载堆指针
@@ -8852,6 +8887,8 @@ pub fn emit_program(ref Ast ast, int prog, ref String file) -> String {
             e.buf.push_str("\n");
         } elif e.g_kinds[gi] == 4 {
             e.buf.push_str(" = global i64 0\n");
+        } elif e.g_kinds[gi] == 5 {
+            e.buf.push_str(" = global ptr null\n");
         } else {
             e.buf.push_str(" = global [");
             e.buf.push_int(e.g_lens[gi]);
