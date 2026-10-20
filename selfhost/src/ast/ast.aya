@@ -105,6 +105,7 @@ pub enum XT {
     MatchArm,
     EnumVariant,
     GenericParam,
+    AsmOperand,
 }
 
 // 字面量种类（Literal 的 tys 编码）

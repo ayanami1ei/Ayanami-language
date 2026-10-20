@@ -7098,6 +7098,91 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         }
         return mk_int("0");
     }
+    if tag == et(ET::Asm._tag) {
+        // 内联汇编：%r = call <ty> asm "tpl", "=r,...,r,..."(inputs)
+        outs = ast.aa[id];
+        ins = ast.bb[id];
+        n_out = 0;
+        o0 = outs;
+        while o0 >= 0 {
+            n_out = n_out + 1;
+            o0 = ast.nexts[o0];
+        }
+        rty_a = StringBuf::new();
+        if n_out <= 1 {
+            rty_a.push_str("i64");
+        } else {
+            rty_a.push_str("{ ");
+            k0 = 0;
+            while k0 < n_out {
+                if k0 > 0 { rty_a.push_str(", "); }
+                rty_a.push_str("i64");
+                k0 = k0 + 1;
+            }
+            rty_a.push_str(" }");
+        }
+        cons = StringBuf::new();
+        k1 = 0;
+        while k1 < n_out {
+            if k1 > 0 { cons.push(','); }
+            cons.push_str("=r");
+            k1 = k1 + 1;
+        }
+        argtxt = StringBuf::new();
+        i1 = ins;
+        while i1 >= 0 {
+            av = emit_expr(ast, ast.aa[i1], e);
+            if cons.len as int > 0 { cons.push(','); }
+            cons.push('r');
+            argtxt.push_str("i64 ");
+            argtxt.push_str(av.a);
+            argtxt.push_str(", ");
+            i1 = ast.nexts[i1];
+        }
+        at_str = argtxt.to_string();
+        if at_str.len >= 2 { at_str = at_str.substring(0 as usize, at_str.len - 2); }
+        t = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(t);
+        e.buf.push_str(" = call ");
+        e.buf.push_str(rty_a.to_string());
+        e.buf.push_str(" asm \"");
+        e.buf.push_str(escape_ir(ast.texts[id]));
+        e.buf.push_str("\", \"");
+        e.buf.push_str(cons.to_string());
+        e.buf.push_str("\"(");
+        e.buf.push_str(at_str);
+        e.buf.push_str(")\n");
+        k2 = 0;
+        o2 = outs;
+        while o2 >= 0 {
+            if n_out == 1 {
+                e.buf.push_str("  store i64 ");
+                e.buf.push_str(t);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(ast.texts[ast.aa[o2]]);
+                e.buf.push_str("\n");
+            } else {
+                ex2 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(ex2);
+                e.buf.push_str(" = extractvalue ");
+                e.buf.push_str(rty_a.to_string());
+                e.buf.push_str(" ");
+                e.buf.push_str(t);
+                e.buf.push_str(", ");
+                e.buf.push_int(k2);
+                e.buf.push_str("\n  store i64 ");
+                e.buf.push_str(ex2);
+                e.buf.push_str(", ptr %v_");
+                e.buf.push_str(ast.texts[ast.aa[o2]]);
+                e.buf.push_str("\n");
+            }
+            k2 = k2 + 1;
+            o2 = ast.nexts[o2];
+        }
+        return mk_int(t);
+    }
     if tag == et(ET::Lambda._tag) {
         return emit_lambda_value(ast, id, e);
     }

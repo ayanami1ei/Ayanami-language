@@ -1312,6 +1312,50 @@ impl Parser {
 
     #[alloc]
     #[state]
+    /// 内联汇编：asm("tpl", in(reg) x, out(reg) y, ...)
+    #[alloc]
+    #[state]
+    fn parse_asm(ref mut self) -> int {
+        line = self.cur.line;
+        col = self.cur.col;
+        self.advance();
+        self.expect_delim(D::LParen._tag, "expected ( after asm");
+        tpl = "";
+        if self.cur.kind == Tk::StrLit._tag {
+            tpl = self.cur.text.copy();
+            self.advance();
+        }
+        outs = -1;
+        ins = -1;
+        while true {
+            if self.check_delim(D::RParen._tag) { break; }
+            if self.at_end() { break; }
+            if self.failed == 1 { break; }
+            if !self.eat_delim(D::Comma._tag) { break; }
+            if self.check_kw(Kw::Out._tag) {
+                self.advance();
+                self.expect_delim(D::LParen._tag, "expected ( in asm out");
+                if self.check_kw(Kw::Reg._tag) { self.advance(); }
+                self.expect_delim(D::RParen._tag, "expected ) in asm out");
+                ex = self.parse_expr();
+                op = self.ast.push(xt(XT::AsmOperand._tag), "out", -1, ex, -1, -1, -1, self.cur.line, self.cur.col);
+                outs = self.ast.push_tail(outs, op);
+            } elif self.check_kw(Kw::In._tag) {
+                self.advance();
+                self.expect_delim(D::LParen._tag, "expected ( in asm in");
+                if self.check_kw(Kw::Reg._tag) { self.advance(); }
+                self.expect_delim(D::RParen._tag, "expected ) in asm in");
+                ex2 = self.parse_expr();
+                op2 = self.ast.push(xt(XT::AsmOperand._tag), "in", -1, ex2, -1, -1, -1, self.cur.line, self.cur.col);
+                ins = self.ast.push_tail(ins, op2);
+            } else {
+                break;
+            }
+        }
+        self.expect_delim(D::RParen._tag, "expected ) after asm");
+        return self.ast.push(et(ET::Asm._tag), tpl, -1, outs, ins, -1, -1, line, col);
+    }
+
     fn parse_unary(ref mut self) -> int {
         line = self.cur.line;
         col = self.cur.col;
@@ -1351,6 +1395,9 @@ impl Parser {
             arg = self.parse_unary();
             e = self.ast.push(et(ET::Unary._tag), "", uo(UnOp::Deref._tag), arg, -1, -1, -1, line, col);
             return self.apply_cast(e, line, col);
+        }
+        if self.check_kw(Kw::Asm._tag) {
+            return self.parse_asm();
         }
         if self.check_kw(Kw::Ref._tag) {
             self.advance();
