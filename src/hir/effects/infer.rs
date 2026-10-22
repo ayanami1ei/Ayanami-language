@@ -277,8 +277,8 @@ fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>) {
     if let Some(id) = e.as_call() {
         info = Some(CallInfo { fn_id: id, try_unwrap: false, err_construct: None, effects: BTreeSet::new() });
     }
-    // #206：内联汇编可能读写任意内存（futex/syscall 等）→ 计 state，避免 memory(none) 误标
-    if e.is_asm() {
+    // #208：asm 按模板判定——纯寄存器算术无效应（`#[pure]` 包装成立），访存/特权指令计 state
+    if e.asm_template().map(super::infer_asm::asm_may_touch_memory).unwrap_or(false) {
         calls.push(state_marker());
     }
     if e.is_alloc() {

@@ -23,6 +23,7 @@ pub(crate) const IO_NAMES: &[&str] = &[
 
 pub mod diag;
 pub mod infer;
+mod infer_asm;
 mod infer_obs;
 pub mod scan;
 

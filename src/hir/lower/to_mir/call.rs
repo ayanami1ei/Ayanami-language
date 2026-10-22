@@ -1,7 +1,7 @@
 use super::*;
 
 impl HirNode for SAsm {
-    fn is_asm(&self) -> bool { true }
+    fn asm_template(&self) -> Option<&str> { Some(&self.template) }
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirAsm {

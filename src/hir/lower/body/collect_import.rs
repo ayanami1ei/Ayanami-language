@@ -60,7 +60,11 @@ impl crate::hir::lower::Ctx {
                 parser.allow_legacy_fn_types();
                 let parsed = match parser.parse_program() {
                     Ok(p) => p,
-                    Err(_) => { continue; }
+                    // #209：包内泛型源码解析失败时不能静默丢弃（否则导入侧方法全部消失）
+                    Err(e) => {
+                        eprintln!("warning: failed to re-parse package source for '{}': {}", path, e);
+                        continue;
+                    }
                 };
                     for stmt in &parsed.stmts {
                         match stmt {

@@ -153,3 +153,6 @@ test_ref_deref.aya 0
 test_void_generic.aya 0
 test_rawptr_effects.aya 0
 test_enum_boxed.aya 0
+test_return_in_while.aya 0
+test_asm_effects.aya 0
+test_match_dot_variant.aya 0

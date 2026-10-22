@@ -121,7 +121,7 @@ src/compiler/build/target.rs:30: pub fn build_source_with_target(
 src/compiler/build/target.rs:157: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
-src/compiler/check.rs:72: fn has_return_in_stmt(s: &HirStmt) -> bool
+src/compiler/check.rs:42: fn has_return_in_stmt(s: &HirStmt) -> bool
 src/compiler/debug/expr.rs:5: pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write)
 src/compiler/debug/format.rs:3: pub(super) fn pad(n: usize) -> String
 src/compiler/debug/format.rs:7: pub(super) fn format_type(ty: &Type) -> String
@@ -432,31 +432,35 @@ src/hir/effects/infer.rs:209: struct CallInfo
 src/hir/effects/infer.rs:216: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
 src/hir/effects/infer.rs:269: fn state_marker() -> CallInfo
 src/hir/effects/infer.rs:275: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
+src/hir/effects/infer_asm.rs:4: pub(super) fn asm_may_touch_memory(template: &str) -> bool
+src/hir/effects/infer_asm.rs:5: const STATE_INSN: &[&str] = &[
+src/hir/effects/infer_asm.rs:16: const PURE_INSN: &[&str] = &[
 src/hir/effects/infer_obs.rs:5: pub(super) fn is_observable_target(object: &HirNodeBox) -> bool
 src/hir/effects/mod.rs:15: pub const BUILTIN_EFFECTS: &[&str] = &["io", "state", "alloc"];
 src/hir/effects/mod.rs:18: pub(crate) const IO_NAMES: &[&str] = &[
 src/hir/effects/mod.rs:24: pub mod diag;
 src/hir/effects/mod.rs:25: pub mod infer;
-src/hir/effects/mod.rs:26: mod infer_obs;
-src/hir/effects/mod.rs:27: pub mod scan;
-src/hir/effects/mod.rs:32: static EXTRA_EFFECTS: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
-src/hir/effects/mod.rs:34: pub fn register_effect(name: &str)
-src/hir/effects/mod.rs:42: pub fn is_effect(name: &str) -> bool
-src/hir/effects/mod.rs:48: pub enum ThrowsDecl
-src/hir/effects/mod.rs:59: pub struct EffectDecl
-src/hir/effects/mod.rs:70: impl EffectDecl
-src/hir/effects/mod.rs:71: pub fn has_effect(&self, name: &str) -> bool
-src/hir/effects/mod.rs:76: pub fn no_effects(&self) -> bool
-src/hir/effects/mod.rs:81: pub fn no_throws(&self) -> bool
-src/hir/effects/mod.rs:88: pub struct EffectSummary
-src/hir/effects/mod.rs:93: impl EffectSummary
-src/hir/effects/mod.rs:95: pub fn tokens(&self) -> Vec<String>
-src/hir/effects/mod.rs:128: pub fn from_tokens(tokens: &[String]) -> Self
-src/hir/effects/mod.rs:163: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
-src/hir/effects/mod.rs:184: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
-src/hir/effects/mod.rs:205: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
-src/hir/effects/mod.rs:222: fn bad_throws(a: &Attr) -> Error
-src/hir/effects/mod.rs:231: pub(crate) fn is_synth_helper(name: &str) -> bool
+src/hir/effects/mod.rs:26: mod infer_asm;
+src/hir/effects/mod.rs:27: mod infer_obs;
+src/hir/effects/mod.rs:28: pub mod scan;
+src/hir/effects/mod.rs:33: static EXTRA_EFFECTS: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
+src/hir/effects/mod.rs:35: pub fn register_effect(name: &str)
+src/hir/effects/mod.rs:43: pub fn is_effect(name: &str) -> bool
+src/hir/effects/mod.rs:49: pub enum ThrowsDecl
+src/hir/effects/mod.rs:60: pub struct EffectDecl
+src/hir/effects/mod.rs:71: impl EffectDecl
+src/hir/effects/mod.rs:72: pub fn has_effect(&self, name: &str) -> bool
+src/hir/effects/mod.rs:77: pub fn no_effects(&self) -> bool
+src/hir/effects/mod.rs:82: pub fn no_throws(&self) -> bool
+src/hir/effects/mod.rs:89: pub struct EffectSummary
+src/hir/effects/mod.rs:94: impl EffectSummary
+src/hir/effects/mod.rs:96: pub fn tokens(&self) -> Vec<String>
+src/hir/effects/mod.rs:129: pub fn from_tokens(tokens: &[String]) -> Self
+src/hir/effects/mod.rs:164: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
+src/hir/effects/mod.rs:185: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
+src/hir/effects/mod.rs:206: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
+src/hir/effects/mod.rs:223: fn bad_throws(a: &Attr) -> Error
+src/hir/effects/mod.rs:232: pub(crate) fn is_synth_helper(name: &str) -> bool
 src/hir/effects/scan.rs:8: pub(super) enum Obs
 src/hir/effects/scan.rs:15: impl Obs
 src/hir/effects/scan.rs:17: pub(super) fn site_of(&self, kind: &str) -> Option<(usize, usize)>
@@ -1096,7 +1100,7 @@ src/hir/lower/to_mir/basic.rs:270: fn expr_type(&self) -> HirType { self.ty.clon
 src/hir/lower/to_mir/basic.rs:271: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
 src/hir/lower/to_mir/basic.rs:274: fn record_moves(&self, moved: &mut HashSet<VarId>)
 src/hir/lower/to_mir/call.rs:3: impl HirNode for SAsm
-src/hir/lower/to_mir/call.rs:4: fn is_asm(&self) -> bool { true }
+src/hir/lower/to_mir/call.rs:4: fn asm_template(&self) -> Option<&str> { Some(&self.template) }
 src/hir/lower/to_mir/call.rs:5: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/call.rs:6: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
 src/hir/lower/to_mir/call.rs:15: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
@@ -1206,7 +1210,7 @@ src/hir/node.rs:43: fn as_ref_expr(&self) -> Option<&HirNodeBox> { None }
 src/hir/node.rs:45: fn is_comparison(&self) -> bool { false }
 src/hir/node.rs:47: fn as_call(&self) -> Option<crate::hir::ty::FnId> { None }
 src/hir/node.rs:49: fn is_alloc(&self) -> bool { false }
-src/hir/node.rs:51: fn is_asm(&self) -> bool { false }
+src/hir/node.rs:51: fn asm_template(&self) -> Option<&str> { None }
 src/hir/node.rs:53: fn enum_variant(&self) -> Option<Symbol> { None }
 src/hir/node.rs:55: fn as_struct_cloned(&self) -> Option<crate::hir::SStruct> { None }
 src/hir/node.rs:57: fn with_type(&self, _ty: HirType) -> Option<HirNodeBox> { None }
@@ -2538,8 +2542,8 @@ src/parser/parser/pattern.rs:6: impl Parser
 src/parser/parser/pattern.rs:8: pub(super) fn parse_pattern(&mut self) -> Result<Pattern>
 src/parser/parser/pattern.rs:18: fn parse_pattern_literal(&mut self) -> Result<crate::parser::ast::literal::Literal>
 src/parser/parser/pattern.rs:41: fn parse_pattern_atom(&mut self) -> Result<Pattern>
-src/parser/parser/pattern.rs:121: impl Parser
-src/parser/parser/pattern.rs:123: pub(super) fn parse_match_arm_body(&mut self) -> Result<crate::parser::ast::stmt::MatchBody>
+src/parser/parser/pattern.rs:129: impl Parser
+src/parser/parser/pattern.rs:131: pub(super) fn parse_match_arm_body(&mut self) -> Result<crate::parser::ast::stmt::MatchBody>
 src/parser/parser/self_type.rs:4: pub(super) fn subst_self_in_type(ty: &Type, self_ty: &Type) -> Type
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
@@ -2631,6 +2635,9 @@ example/test_array_param.aya:1: fn sum([int] arr) -> int
 example/test_array_param.aya:5: fn main() -> int
 example/test_arraylist.aya:3: fn main() -> int
 example/test_asm.aya:2: fn main() -> int
+example/test_asm_effects.aya:3: pub fn wrapping_add(int a, int b) -> int
+example/test_asm_effects.aya:11: fn store_mem(*int p, int v) -> void
+example/test_asm_effects.aya:17: fn main() -> int
 example/test_assume.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_assume.aya:7: fn id(int x) -> int { return x }
 example/test_assume.aya:9: fn main() -> int
@@ -2960,6 +2967,8 @@ example/test_match_destructure.aya:26: fn destr_rename(Point p) -> int
 example/test_match_destructure.aya:32: fn ranged(int n) -> int
 example/test_match_destructure.aya:41: fn nested_struct(Opt[Point] o) -> int
 example/test_match_destructure.aya:48: fn main() -> int
+example/test_match_dot_variant.aya:4: fn pick(Option[int] o) -> int
+example/test_match_dot_variant.aya:11: fn main() -> int
 example/test_match_expr.aya:5: enum TokenType
 example/test_match_expr.aya:11: impl TokenType
 example/test_match_expr.aya:12: fn to_string(ref self) -> String
@@ -3170,6 +3179,8 @@ example/test_release_opt.aya:38: fn main() -> int
 example/test_requires.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_requires.aya:7: fn clamp100(int x) -> int { return x }
 example/test_requires.aya:9: fn main() -> int
+example/test_return_in_while.aya:2: fn recv(bool ready) -> int
+example/test_return_in_while.aya:10: fn main() -> int
 example/test_self.aya:1: fn main() -> int
 example/test_self_type.aya:2: interface Maker
 example/test_self_type.aya:3: fn make(ref self) -> Self;
