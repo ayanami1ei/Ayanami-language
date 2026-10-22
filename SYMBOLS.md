@@ -3694,65 +3694,66 @@ selfhost/src/parser/parser.aya:20: fn digit_val_p(int c) -> int
 selfhost/src/parser/parser.aya:28: fn parse_int_text(ref String s) -> int
 selfhost/src/parser/parser.aya:52: fn num_len(ref String s) -> int
 selfhost/src/parser/parser.aya:103: pub struct Parser
-selfhost/src/parser/parser.aya:130: pub namespace Parser
-selfhost/src/parser/parser.aya:133: pub fn new(ref String src) -> Parser
-selfhost/src/parser/parser.aya:144: impl Parser
-selfhost/src/parser/parser.aya:147: fn advance(ref mut self)
-selfhost/src/parser/parser.aya:153: fn la1_is_kw(ref mut self, int kw) -> bool
-selfhost/src/parser/parser.aya:158: fn la2_is_kw(ref mut self, int kw) -> bool
-selfhost/src/parser/parser.aya:167: fn mark(ref mut self)
-selfhost/src/parser/parser.aya:174: fn restore(ref mut self)
-selfhost/src/parser/parser.aya:191: fn la1_is_op(ref mut self, ref String op) -> bool
-selfhost/src/parser/parser.aya:196: fn la1_is_delim(ref mut self, int d) -> bool
-selfhost/src/parser/parser.aya:201: fn la2_is_delim(ref mut self, int d) -> bool
-selfhost/src/parser/parser.aya:206: fn la1_is_ident(ref mut self) -> bool
-selfhost/src/parser/parser.aya:214: fn parse_generics(ref mut self) -> int
-selfhost/src/parser/parser.aya:249: fn skip_brackets(ref mut self)
-selfhost/src/parser/parser.aya:265: fn scan_attr_args(ref mut self)
-selfhost/src/parser/parser.aya:282: fn skip_attrs(ref mut self)
-selfhost/src/parser/parser.aya:305: fn error_at(ref mut self, ref String msg, int line, int col)
-selfhost/src/parser/parser.aya:316: fn error(ref mut self, ref String msg)
-selfhost/src/parser/parser.aya:325: fn check_kw(ref mut self, int kw) -> bool
-selfhost/src/parser/parser.aya:330: fn check_delim(ref mut self, int d) -> bool
-selfhost/src/parser/parser.aya:335: fn check_op(ref mut self, ref String op) -> bool
-selfhost/src/parser/parser.aya:342: fn eat_kw(ref mut self, int kw) -> bool
-selfhost/src/parser/parser.aya:352: fn eat_delim(ref mut self, int d) -> bool
-selfhost/src/parser/parser.aya:362: fn eat_op(ref mut self, ref String op) -> bool
-selfhost/src/parser/parser.aya:372: fn expect_kw(ref mut self, int kw, ref String what)
-selfhost/src/parser/parser.aya:380: fn expect_delim(ref mut self, int d, ref String what)
-selfhost/src/parser/parser.aya:389: fn is_member_name(ref mut self) -> bool
-selfhost/src/parser/parser.aya:395: fn expect_member_name(ref mut self, ref String what) -> String
-selfhost/src/parser/parser.aya:405: fn expect_ident(ref mut self, ref String what) -> String
-selfhost/src/parser/parser.aya:415: fn at_end(ref mut self) -> bool
-selfhost/src/parser/parser.aya:423: fn parse_type(ref mut self) -> int
-selfhost/src/parser/parser.aya:581: pub fn parse_program(ref mut self) -> int
-selfhost/src/parser/parser.aya:598: fn parse_item(ref mut self) -> int
-selfhost/src/parser/parser.aya:690: fn parse_union(ref mut self) -> int
-selfhost/src/parser/parser.aya:711: fn parse_struct(ref mut self) -> int
-selfhost/src/parser/parser.aya:735: fn parse_namespace(ref mut self) -> int
-selfhost/src/parser/parser.aya:753: fn parse_impl(ref mut self) -> int
-selfhost/src/parser/parser.aya:804: fn parse_fn(ref mut self) -> int
-selfhost/src/parser/parser.aya:810: fn parse_fn_body(ref mut self, int with_body) -> int
-selfhost/src/parser/parser.aya:876: fn parse_enum(ref mut self) -> int
-selfhost/src/parser/parser.aya:933: fn parse_interface(ref mut self) -> int
-selfhost/src/parser/parser.aya:959: fn parse_const(ref mut self) -> int
-selfhost/src/parser/parser.aya:975: fn parse_block(ref mut self) -> int
-selfhost/src/parser/parser.aya:1038: fn if_stmt_has_tail(ref mut self, int id) -> bool
-selfhost/src/parser/parser.aya:1060: fn collect_attrs(ref mut self) -> int
-selfhost/src/parser/parser.aya:1086: fn parse_stmt(ref mut self) -> int
-selfhost/src/parser/parser.aya:1100: fn parse_stmt_inner(ref mut self) -> int
-selfhost/src/parser/parser.aya:1215: fn parse_if_stmt(ref mut self) -> int
-selfhost/src/parser/parser.aya:1241: fn bin_tag(ref mut self, ref String op) -> int
-selfhost/src/parser/parser.aya:1264: fn op_level(ref mut self, ref String op) -> int
-selfhost/src/parser/parser.aya:1280: fn parse_expr(ref mut self) -> int
-selfhost/src/parser/parser.aya:1286: fn parse_bin(ref mut self, int min_level) -> int
-selfhost/src/parser/parser.aya:1304: fn apply_cast(ref mut self, int e, int line, int col) -> int
-selfhost/src/parser/parser.aya:1318: fn parse_asm(ref mut self) -> int
-selfhost/src/parser/parser.aya:1359: fn parse_unary(ref mut self) -> int
-selfhost/src/parser/parser.aya:1428: fn parse_postfix(ref mut self) -> int
-selfhost/src/parser/parser.aya:1539: fn parse_args(ref mut self) -> int
-selfhost/src/parser/parser.aya:1571: fn parse_number_literal(ref mut self, int neg, int line, int col) -> int
-selfhost/src/parser/parser.aya:1593: fn parse_primary(ref mut self) -> int
-selfhost/src/parser/parser.aya:1761: fn try_parse_lambda(ref mut self, int line, int col) -> int
-selfhost/src/parser/parser.aya:1793: fn parse_match_arms(ref mut self) -> int
-selfhost/src/parser/parser.aya:2009: fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int
+selfhost/src/parser/parser.aya:132: pub namespace Parser
+selfhost/src/parser/parser.aya:135: pub fn new(ref String src) -> Parser
+selfhost/src/parser/parser.aya:147: impl Parser
+selfhost/src/parser/parser.aya:150: fn advance(ref mut self)
+selfhost/src/parser/parser.aya:157: fn la1_is_kw(ref mut self, int kw) -> bool
+selfhost/src/parser/parser.aya:162: fn la2_is_kw(ref mut self, int kw) -> bool
+selfhost/src/parser/parser.aya:171: fn mark(ref mut self)
+selfhost/src/parser/parser.aya:178: fn restore(ref mut self)
+selfhost/src/parser/parser.aya:196: fn la1_is_op(ref mut self, ref String op) -> bool
+selfhost/src/parser/parser.aya:201: fn la1_is_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:206: fn la3_is_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:211: fn la2_is_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:216: fn la1_is_ident(ref mut self) -> bool
+selfhost/src/parser/parser.aya:224: fn parse_generics(ref mut self) -> int
+selfhost/src/parser/parser.aya:259: fn skip_brackets(ref mut self)
+selfhost/src/parser/parser.aya:275: fn scan_attr_args(ref mut self)
+selfhost/src/parser/parser.aya:292: fn skip_attrs(ref mut self)
+selfhost/src/parser/parser.aya:315: fn error_at(ref mut self, ref String msg, int line, int col)
+selfhost/src/parser/parser.aya:326: fn error(ref mut self, ref String msg)
+selfhost/src/parser/parser.aya:335: fn check_kw(ref mut self, int kw) -> bool
+selfhost/src/parser/parser.aya:340: fn check_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:345: fn check_op(ref mut self, ref String op) -> bool
+selfhost/src/parser/parser.aya:352: fn eat_kw(ref mut self, int kw) -> bool
+selfhost/src/parser/parser.aya:362: fn eat_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:372: fn eat_op(ref mut self, ref String op) -> bool
+selfhost/src/parser/parser.aya:382: fn expect_kw(ref mut self, int kw, ref String what)
+selfhost/src/parser/parser.aya:390: fn expect_delim(ref mut self, int d, ref String what)
+selfhost/src/parser/parser.aya:399: fn is_member_name(ref mut self) -> bool
+selfhost/src/parser/parser.aya:405: fn expect_member_name(ref mut self, ref String what) -> String
+selfhost/src/parser/parser.aya:415: fn expect_ident(ref mut self, ref String what) -> String
+selfhost/src/parser/parser.aya:425: fn at_end(ref mut self) -> bool
+selfhost/src/parser/parser.aya:433: fn parse_type(ref mut self) -> int
+selfhost/src/parser/parser.aya:591: pub fn parse_program(ref mut self) -> int
+selfhost/src/parser/parser.aya:608: fn parse_item(ref mut self) -> int
+selfhost/src/parser/parser.aya:700: fn parse_union(ref mut self) -> int
+selfhost/src/parser/parser.aya:721: fn parse_struct(ref mut self) -> int
+selfhost/src/parser/parser.aya:745: fn parse_namespace(ref mut self) -> int
+selfhost/src/parser/parser.aya:763: fn parse_impl(ref mut self) -> int
+selfhost/src/parser/parser.aya:814: fn parse_fn(ref mut self) -> int
+selfhost/src/parser/parser.aya:820: fn parse_fn_body(ref mut self, int with_body) -> int
+selfhost/src/parser/parser.aya:886: fn parse_enum(ref mut self) -> int
+selfhost/src/parser/parser.aya:943: fn parse_interface(ref mut self) -> int
+selfhost/src/parser/parser.aya:969: fn parse_const(ref mut self) -> int
+selfhost/src/parser/parser.aya:985: fn parse_block(ref mut self) -> int
+selfhost/src/parser/parser.aya:1048: fn if_stmt_has_tail(ref mut self, int id) -> bool
+selfhost/src/parser/parser.aya:1070: fn collect_attrs(ref mut self) -> int
+selfhost/src/parser/parser.aya:1096: fn parse_stmt(ref mut self) -> int
+selfhost/src/parser/parser.aya:1110: fn parse_stmt_inner(ref mut self) -> int
+selfhost/src/parser/parser.aya:1225: fn parse_if_stmt(ref mut self) -> int
+selfhost/src/parser/parser.aya:1251: fn bin_tag(ref mut self, ref String op) -> int
+selfhost/src/parser/parser.aya:1274: fn op_level(ref mut self, ref String op) -> int
+selfhost/src/parser/parser.aya:1290: fn parse_expr(ref mut self) -> int
+selfhost/src/parser/parser.aya:1296: fn parse_bin(ref mut self, int min_level) -> int
+selfhost/src/parser/parser.aya:1314: fn apply_cast(ref mut self, int e, int line, int col) -> int
+selfhost/src/parser/parser.aya:1328: fn parse_asm(ref mut self) -> int
+selfhost/src/parser/parser.aya:1369: fn parse_unary(ref mut self) -> int
+selfhost/src/parser/parser.aya:1438: fn parse_postfix(ref mut self) -> int
+selfhost/src/parser/parser.aya:1567: fn parse_args(ref mut self) -> int
+selfhost/src/parser/parser.aya:1599: fn parse_number_literal(ref mut self, int neg, int line, int col) -> int
+selfhost/src/parser/parser.aya:1621: fn parse_primary(ref mut self) -> int
+selfhost/src/parser/parser.aya:1789: fn try_parse_lambda(ref mut self, int line, int col) -> int
+selfhost/src/parser/parser.aya:1821: fn parse_match_arms(ref mut self) -> int
+selfhost/src/parser/parser.aya:2037: fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int
