@@ -3454,14 +3454,14 @@ selfhost/src/hir/check.aya:1200: fn add_interface(ref mut self, ref Ast ast, int
 selfhost/src/hir/check.aya:1221: fn add_enum(ref mut self, ref Ast ast, int id)
 selfhost/src/hir/check.aya:1250: fn check_fn(ref mut self, ref Ast ast, int id)
 selfhost/src/hir/check.aya:1292: fn check_match(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:1442: fn arms_cover_variant(ref mut self, ref Ast ast, int arms, ref String vname) -> bool
-selfhost/src/hir/check.aya:1455: fn check_block(ref mut self, ref Ast ast, int blk)
-selfhost/src/hir/check.aya:1469: fn check_stmt(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1638: fn convert_err(ref mut self, ref String from, ref String to, int line, int col)
-selfhost/src/hir/check.aya:1651: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
-selfhost/src/hir/check.aya:1673: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
-selfhost/src/hir/check.aya:1703: fn check_expr(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:2169: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
+selfhost/src/hir/check.aya:1491: fn arms_cover_variant(ref mut self, ref Ast ast, int arms, ref String vname) -> bool
+selfhost/src/hir/check.aya:1504: fn check_block(ref mut self, ref Ast ast, int blk)
+selfhost/src/hir/check.aya:1518: fn check_stmt(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1687: fn convert_err(ref mut self, ref String from, ref String to, int line, int col)
+selfhost/src/hir/check.aya:1700: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
+selfhost/src/hir/check.aya:1722: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
+selfhost/src/hir/check.aya:1752: fn check_expr(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/hir/check.aya:2233: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
 selfhost/src/lexer/lexer.aya:8: pub struct Lexer
 selfhost/src/lexer/lexer.aya:17: pub namespace Lexer
 selfhost/src/lexer/lexer.aya:20: pub fn new(ref String src) -> Lexer

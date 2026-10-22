@@ -1391,6 +1391,55 @@ impl Checker {
             } elif pk == 4 {
                 struct_destr = 1;
             }
+            // 模式绑定注册（取模式文本最后一个 '|' 之后的逗号分隔名）
+            ptext_b = ast.texts[a];
+            lb_b = -1;
+            qb = 0;
+            while qb < ptext_b.len as int {
+                if ptext_b.index(qb as usize) == '|' { lb_b = qb; }
+                qb = qb + 1;
+            }
+            if lb_b >= 0 {
+                binds_b = ptext_b.substring((lb_b + 1) as usize, ptext_b.len);
+                st_b = 0;
+                qb2 = 0;
+                while qb2 <= binds_b.len as int {
+                    at_end_b = 0;
+                    if qb2 == binds_b.len as int { at_end_b = 1; }
+                    isc_b = 0;
+                    if at_end_b == 0 {
+                        if binds_b.index(qb2 as usize) == ',' { isc_b = 1; }
+                    }
+                    if at_end_b == 1 || isc_b == 1 {
+                        if qb2 > st_b {
+                            bnm = binds_b.substring(st_b as usize, qb2 as usize);
+                            eq_b = -1;
+                            qe = 0;
+                            while qe < bnm.len as int {
+                                if bnm.index(qe as usize) == '=' { eq_b = qe; break; }
+                                qe = qe + 1;
+                            }
+                            if eq_b >= 0 { bnm = bnm.substring((eq_b + 1) as usize, bnm.len); }
+                            if !self.has_local(bnm) { self.set_local(bnm, ""); }
+                        }
+                        st_b = qb2 + 1;
+                    }
+                    qb2 = qb2 + 1;
+                }
+            }
+            // 臂体检查（effect 观察等；绑定已在作用域）
+            if ast.aa[a] >= 0 {
+                blk_m = ast.aa[a];
+                if ast.tags[blk_m] == st(ST::Block._tag) {
+                    self.check_block(ast, blk_m);
+                } elif ast.tags[blk_m] == st(ST::ExprStmt._tag) {
+                    self.check_expr(ast, ast.aa[blk_m]);
+                } elif ast.tags[blk_m] == st(ST::Return._tag) {
+                    self.check_expr(ast, ast.aa[blk_m]);
+                } else {
+                    self.check_block(ast, blk_m);
+                }
+            }
             a = ast.nexts[a];
         }
         rt = "";
@@ -1953,6 +2002,21 @@ impl Checker {
                         self.convert_err(rt, lt, ast.lines[id], ast.cols[id]);
                     }
                     return "";
+                }
+            }
+            if op == bo(BinOp::Add._tag) {
+                if lt == "String" && rt != "String" {
+                    if base_type(rt).len > 0 {
+                        self.fx_note_call(base_type(rt) + ".to_string");
+                    } else {
+                        self.fx_note_call("to_string");
+                    }
+                } elif rt == "String" && lt != "String" {
+                    if base_type(lt).len > 0 {
+                        self.fx_note_call(base_type(lt) + ".to_string");
+                    } else {
+                        self.fx_note_call("to_string");
+                    }
                 }
             }
             if lt == "String" && rt == "String" {
