@@ -156,3 +156,4 @@ test_enum_boxed.aya 0
 test_return_in_while.aya 0
 test_asm_effects.aya 0
 test_match_dot_variant.aya 0
+test_match_ref_binding.aya 0

@@ -94,6 +94,7 @@ graph TD
 | 接口胖指针 | `hir/ty.rs::FatPtr`、`lir/ir/nodes_b.rs::MakeFatPtr` | `ref Shape` 借用 / `Shape` 拥有 |
 | `#[copy]` 结构体 | `hir/ty.rs`（注册表 + `is_copy`）、`hir/lower/collect_copy.rs`（校验/登记）、`.lcl` `struct=…,copy` | trivial Copy（句柄类类型自由复制；opt-in，不影响普通结构体移动语义） |
 | 赋值/字段覆盖旧值 drop | `mir/lower/assign.rs` | RHS 先求值到临时量，旧值 drop 后置；仅确有 drop 时建临时量 |
+| 模式绑定语义 | `hir/lower/body/match_pattern.rs` | 可克隆载荷 copy/clone（不破坏源，i90）；不可克隆载荷 move + 源置零（**ref 目标上等价 `mem::take`，ebf 已文档化：无 UB/双释放，但借用源被置零**）；不采用 match ergonomics（需独立设计） |
 | 借用临时量提升 | `mir/lower/temps.rs` | `f(ref "x")` 等拥有临时量提升为局部变量，语句后 drop |
 | match/if 表达式结果 | `hir/item.rs::HirLocal::result`、`match_lower.rs`/`if_expr.rs` | 条件赋值结果变量不参与覆盖/块末 drop，链后移出到最终临时量 |
 | 实参移动门控 | `helpers/wrap.rs::type_needs_drop`、`expr_call.rs` | 拥有堆数据的命名类型按值传参移动；extern 借用、POD 复制 |

@@ -1,0 +1,30 @@
+// ebf/i90：共享引用上的模式绑定——可克隆载荷走 clone（不改写借用源）；
+// 不可克隆载荷移动 → 编译错误（见 compile_fail/move_from_shared_ref）。
+import "io"
+import "option"
+
+fn take_str(ref Option[String] o) -> int {
+    match o {
+        Some(s) => { return s.len() as int }
+        None => { return 0 }
+    }
+}
+
+fn take_local(Option[String] o) -> int {
+    match o {
+        Some(s) => { return s.len() as int }
+        None => { return 0 }
+    }
+}
+
+fn main() -> int {
+    o = Option::Some("hello")
+    if take_str(ref o) != 5 { return 1 }
+    // 借用源未被改写（clone 而非 move）
+    if o._tag != 0 { return 2 }
+    s = o._data_Some._0
+    if s.len() != 5usize { return 3 }
+    // 局部值上的移动语义保持
+    if take_local(Option::Some("abc")) != 3 { return 4 }
+    return 0
+}

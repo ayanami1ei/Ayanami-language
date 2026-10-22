@@ -27,6 +27,9 @@ impl crate::hir::lower::Ctx {
         }
         let field_index = self.find_field_index(&object_ty, field, expr_span)?;
         let field_ty = self.find_field_type(&object_ty, field, expr_span)?;
+        // 字段类型本身可能是泛型实例（如 struct 字段 `Option[Wrap]`）：先实例化，
+        // 后续匹配/字段访问需要具体变体结构体（否则 variant_tag 查不到，ebf 复现时发现）
+        self.instantiate_type(&field_ty)?;
         // P3b：union 字段读取需 unsafe（初始化/写入按 Rust 语义无需）
         if let HirType::Named(n) = strip_ownership_ref(&object_ty) {
             if self.is_union_type(n) {
