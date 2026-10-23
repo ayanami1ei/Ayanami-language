@@ -78,6 +78,13 @@ pub struct Emitter {
     // 全部泛型参数名（跳过以类型参数为实参的"实例"）
     [String] gp_names
     int gp_names_count
+    // 3tq 阶段 2：结构体实例（特化布局）：实例名 / 源结构体下标 / 类型实参节点
+    [String] inst_st_names
+    [int] inst_st_src
+    [int] inst_st_argty
+    int inst_st_count
+    // 实例对应的类型实参节点（与 inst_keys 平行）
+    [int] inst_arg_tys
     [int] m_rtype
     // 已发射的 extern 声明（去重）
     [String] decl_names
@@ -170,7 +177,7 @@ pub namespace Emitter {
             en_ptype = [int; 4096], en_pvstart = [int; 1024], en_ptotal = 0, en_vslots = [int; 1024],
             fn_names = [String; 8192], fn_extern = [int; 8192], fn_pstart = [int; 8192], fn_pcount = [int; 8192],
             fn_pkinds = [int; 65536], fn_ptotal = 0, fn_count = 0,
-            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, m_rtype = [int; 8192],
+            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, inst_st_names = [String; 128], inst_st_src = [int; 128], inst_st_argty = [int; 128], inst_st_count = 0, inst_arg_tys = [int; 512], m_rtype = [int; 8192],
             decl_names = [String; 2048], decl_count = 0,
             lambda_buf = StringBuf::new(),
             lam_ids = [int; 256], lam_names = [String; 256], lam_count = 0,
@@ -2527,7 +2534,7 @@ impl Emitter {
     /// 3tq 阶段 1：登记一个泛型实例键（去重，顺序稳定）
     #[alloc]
     #[state]
-    fn add_inst(ref mut self, ref String key) {
+    fn add_inst(ref mut self, ref String key, int arg_ty) {
         if key.len == 0 { return; }
         i = 0;
         while i < self.inst_count {
@@ -2536,6 +2543,7 @@ impl Emitter {
         }
         if self.inst_count < 512 {
             self.inst_keys[self.inst_count] = key.copy();
+            self.inst_arg_tys[self.inst_count] = arg_ty;
             self.inst_count = self.inst_count + 1;
         }
     }
@@ -2568,7 +2576,7 @@ impl Emitter {
             if arg >= 0 {
                 an = self.type_arg_name(ast, arg);
                 if an.len > 0 && !self.is_gparam(an) {
-                    self.add_inst(nm + "[" + an + "]");
+                    self.add_inst(nm + "[" + an + "]", arg);
                 }
             }
         } elif tg == tt(TT::Ref._tag) {
@@ -2618,12 +2626,159 @@ impl Emitter {
                 if ty1 >= 0 {
                     an1 = self.type_arg_name(ast, ty1);
                     if an1.len > 0 && !self.is_gparam(an1) {
-                        self.add_inst(ast.texts[i] + "[" + an1 + "]");
+                        self.add_inst(ast.texts[i] + "[" + an1 + "]", ty1);
+                        // 返回类型中的泛型结构体：Name[T] -> Name[实参]（结构体实例）
+                        fid_r = self.fn_first_id(ast.texts[i]);
+                        if fid_r >= 0 {
+                            rty_n = ast.tys[fid_r];
+                            if rty_n >= 0 {
+                                if ast.tags[rty_n] == tt(TT::Generic._tag) {
+                                    rn2 = ast.texts[rty_n].copy();
+                                    self.add_inst(rn2 + "[" + an1 + "]", ty1);
+                                }
+                            }
+                        }
                     }
                 }
             }
             i = i + 1;
         }
+        // 3tq 阶段 2（建表阶段）：为结构体实例生成特化字段布局
+        i = 0;
+        while i < self.inst_count {
+            key = self.inst_keys[i];
+            lb = -1;
+            rb = -1;
+            q = 0;
+            while q < key.len as int {
+                if key.index(q as usize) == '[' {
+                    if lb < 0 { lb = q; }
+                }
+                if key.index(q as usize) == ']' { rb = q; }
+                q = q + 1;
+            }
+            if lb > 0 && rb > lb {
+                nm_i = key.substring(0 as usize, lb as usize);
+                si_src = self.find_struct_idx(nm_i);
+                if si_src >= 0 {
+                    self.fill_struct_inst(ast, si_src, self.inst_arg_tys[i]);
+                }
+            }
+            i = i + 1;
+        }
+    }
+
+    /// 3tq 阶段 2：结构体实例的特化字段布局（源结构体的类型参数替换为实参类型）
+    #[alloc]
+    #[state]
+    fn fill_struct_inst(ref mut self, ref Ast ast, int si_src, int arg_ty) {
+        if si_src < 0 || si_src >= self.st_count { return; }
+        src_name = self.st_names[si_src].copy();
+        // 源结构体定义节点（按名扫描）
+        sdef = -1;
+        i = 0;
+        while i < ast.len {
+            if ast.tags[i] == st(ST::StructDef._tag) {
+                if ast.texts[i] == src_name { sdef = i; break; }
+            }
+            i = i + 1;
+        }
+        if sdef < 0 { return; }
+        // 第一个类型参数名
+        gpname = "";
+        g = ast.bb[sdef];
+        if g >= 0 { gpname = ast.texts[g].copy(); }
+        if gpname.len == 0 { return; }
+        if self.st_count >= 128 { return; }
+        si_new = self.st_count;
+        iname = src_name + "__m";
+        iname = iname + int_str2(si_new);
+        self.st_names[si_new] = iname.copy();
+        self.st_fstart[si_new] = self.st_ftotal;
+        cnt_n = 0;
+        slot = 0;
+        f = ast.aa[sdef];
+        while f >= 0 {
+            if self.st_ftotal < 1024 {
+                self.st_fields[self.st_ftotal] = ast.texts[f].copy();
+                fk = 0;
+                finfo = -1;
+                fty = ast.tys[f];
+                tn_f = ty_name(ast, fty);
+                if tn_f.len > 0 && tn_f == gpname { fty = arg_ty; }
+                if fty >= 0 {
+                    ftag = ast.tags[fty];
+                    if ftag == tt(TT::Float._tag) {
+                        fk = 5;
+                    } elif ftag == tt(TT::Array._tag) || ftag == tt(TT::ArraySized._tag) {
+                        fk = 3;
+                        finfo = ast.aa[fty];
+                        ety_f = ast.aa[fty];
+                        if ety_f >= 0 {
+                            if ty_name(ast, ety_f) == gpname { finfo = arg_ty; }
+                        }
+                    } elif ftag == tt(TT::Named._tag) || ftag == tt(TT::Generic._tag) {
+                        tn2 = ast.texts[fty];
+                        if tn2 == gpname {
+                            if arg_ty >= 0 {
+                                atg2 = ast.tags[arg_ty];
+                                if atg2 == tt(TT::Float._tag) {
+                                    fk = 5;
+                                } elif atg2 == tt(TT::Named._tag) || atg2 == tt(TT::Generic._tag) {
+                                    an2 = ast.texts[arg_ty];
+                                    if an2 == "String" {
+                                        fk = 1;
+                                    } else {
+                                        si3 = self.find_struct_idx(an2);
+                                        if si3 >= 0 {
+                                            fk = 2;
+                                            finfo = si3;
+                                        } else {
+                                            ei3 = self.find_enum_idx(an2);
+                                            if ei3 >= 0 {
+                                                fk = 4;
+                                                finfo = ei3;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } elif tn2 == "f32" || tn2 == "f64" {
+                            fk = 5;
+                        } elif tn2 == "String" {
+                            fk = 1;
+                        } else {
+                            ii2 = self.find_iface_idx(tn2);
+                            si2 = self.find_struct_idx(tn2);
+                            if ii2 >= 0 {
+                                fk = 6;
+                                finfo = ii2;
+                            } elif si2 >= 0 {
+                                fk = 2;
+                                finfo = si2;
+                            } else {
+                                ei2 = self.find_enum_idx(tn2);
+                                if ei2 >= 0 {
+                                    fk = 4;
+                                    finfo = ei2;
+                                }
+                            }
+                        }
+                    }
+                }
+                self.st_fkind[self.st_ftotal] = fk;
+                self.st_finfo[self.st_ftotal] = finfo;
+                self.st_fslot[self.st_ftotal] = slot;
+                self.st_ftype[self.st_ftotal] = fty;
+                if fk == 1 { slot = slot + 2; } else { slot = slot + 1; }
+                self.st_ftotal = self.st_ftotal + 1;
+                cnt_n = cnt_n + 1;
+            }
+            f = ast.nexts[f];
+        }
+        self.st_fcount[si_new] = cnt_n;
+        self.st_slots[si_new] = slot;
+        self.st_count = si_new + 1;
     }
 
     /// 注册字符串字面量，返回全局名与长度（存入 strs）
