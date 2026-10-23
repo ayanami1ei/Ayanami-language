@@ -1761,7 +1761,7 @@ impl Checker {
         if self.cur_fx >= 0 {
             if tag == et(ET::Literal._tag) {
                 if ast.bb[id] == lk(LK::Str._tag) { self.fx_alloc[self.cur_fx] = 1; }
-            } elif tag == et(ET::ArrayLiteral._tag) || tag == et(ET::ArraySized._tag) || tag == et(ET::ToUnique._tag) {
+            } elif tag == et(ET::ArrayLiteral._tag) || tag == et(ET::ArraySized._tag) || tag == et(ET::ArrayRepeat._tag) || tag == et(ET::ToUnique._tag) {
                 self.fx_alloc[self.cur_fx] = 1;
             } elif tag == et(ET::Binary._tag) {
                 if ast.tys[id] == bo(BinOp::Add._tag) {
