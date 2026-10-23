@@ -149,5 +149,9 @@ vtable，但 `"str" + x`、`x.field` 等静态语义无法还原）；且改变�
   `fill_struct_inst`：字段类型按类型参数→实参替换，数组元素同理；从显式泛型调用的返回类型
   派生结构体实例，如 `ArrayList[String]`；实例名 `Name__m<k>`）。发射侧接入（局部实例类型、
   字段访问、方法特化）待做
-- [ ] 阶段 3：函数特化
+- [~] 阶段 3：函数特化——**显式泛型调用已接入**（
+  `spec_register` worklist（按 (FnDecl, 实参类型) 去重）+ `emit_specializations` 动态发射；
+  实例符号 `aya.<full>.__i<k>`；`param_kind`/`ret_kind`/`ret_info` 按替换上下文取实参类型；
+  调用点返回类型/实参 ABI 同步替换。校验：`id[T]` + `id[int](7)` 生成 `aya.id.__i0` 并与 stage-0 一致）。
+  余下：方法特化（接收者实例）、结构体字面量实例化、`[T; n]` 元素类型
 - [ ] 阶段 4：Ptr[T] 与容器方法
