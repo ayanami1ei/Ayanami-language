@@ -25,6 +25,10 @@ pub(super) fn parse_source(code: &str) -> Result<Program> {
 }
 
 pub(super) fn is_compiler_attr(a: &Attr) -> bool {
+    // E1a/E2：环境提供标注为编译器内置命名空间
+    if a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env" {
+        return true;
+    }
     let name = a.name.as_str();
     if crate::hir::effects::is_effect(&name) {
         return true;

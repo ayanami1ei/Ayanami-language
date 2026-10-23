@@ -156,8 +156,8 @@ src/compiler/macro_expand/check_plugin.rs:43: fn call_check(so_path: &Path, symb
 src/compiler/macro_expand/expand_util.rs:6: pub(super) fn trace_expansion(macro_name: &str, input: &str, output: &str)
 src/compiler/macro_expand/expand_util.rs:17: pub(super) fn parse_source(code: &str) -> Result<Program>
 src/compiler/macro_expand/expand_util.rs:27: pub(super) fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/expand_util.rs:38: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/expand_util.rs:49: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:42: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:53: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
 src/compiler/macro_expand/mod.rs:18: const MAX_DEPTH: usize = 32;
 src/compiler/macro_expand/mod.rs:20: mod annotations;
 src/compiler/macro_expand/mod.rs:21: mod expand_util;
@@ -783,24 +783,26 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:106: impl Ctx
-src/hir/lower/ctx.rs:108: pub fn new() -> Self
-src/hir/lower/ctx.rs:167: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:170: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:173: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:178: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:187: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:192: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:200: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:210: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:223: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:231: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:237: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:108: impl Ctx
+src/hir/lower/ctx.rs:110: pub fn new() -> Self
+src/hir/lower/ctx.rs:170: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:173: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:176: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:181: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:190: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:195: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:203: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:213: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:226: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:234: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:240: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_env.rs:4: impl Ctx
 src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
-src/hir/lower/ctx_env.rs:35: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
-src/hir/lower/ctx_env.rs:57: impl Ctx
-src/hir/lower/ctx_env.rs:60: pub(crate) fn inject_env_params(
+src/hir/lower/ctx_env.rs:36: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
+src/hir/lower/ctx_env.rs:58: impl Ctx
+src/hir/lower/ctx_env.rs:61: pub(crate) fn inject_env_params(
+src/hir/lower/ctx_env.rs:83: impl Ctx
+src/hir/lower/ctx_env.rs:85: pub(crate) fn env_caps_from_attrs(
 src/hir/lower/ctx_fields.rs:5: impl Ctx
 src/hir/lower/ctx_fields.rs:7: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
 src/hir/lower/ctx_fields.rs:20: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
@@ -2750,6 +2752,13 @@ example/test_enum_boxed.aya:27: fn run() -> int
 example/test_enum_boxed.aya:52: fn main() -> int
 example/test_env_allocator.aya:6: fn run() -> int
 example/test_env_allocator.aya:14: fn main() -> int
+example/test_env_block.aya:5: struct FailAlloc { }
+example/test_env_block.aya:7: impl FailAlloc
+example/test_env_block.aya:8: fn alloc(ref self, usize n) -> usize
+example/test_env_block.aya:11: fn free(ref self, usize addr)
+example/test_env_block.aya:15: fn inner[E: Allocator](usize n) -> usize
+example/test_env_block.aya:23: fn run() -> int
+example/test_env_block.aya:35: fn main() -> int
 example/test_env_chain.aya:6: fn inner[E: Allocator](usize n) -> usize
 example/test_env_chain.aya:13: fn middle[E: Allocator](usize n) -> usize
 example/test_env_chain.aya:18: fn run() -> int

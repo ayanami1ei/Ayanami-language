@@ -245,6 +245,14 @@ impl crate::hir::lower::Ctx {
                     Stmt::ForIn { iterator, iterable, body, span } => {
                         self.lower_for_in(*iterator, iterable, body, &invs, span)
                     }
+                    // E2：块作用域环境覆盖 `#[env::<cap>(v)] { ... }`（最近者胜）
+                    Stmt::Block(_) if attrs.iter().any(|a| a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env") => {
+                        let caps = self.env_caps_from_attrs(attrs)?;
+                        self.env_blocks.push(caps);
+                        let r = self.lower_stmt(inner);
+                        self.env_blocks.pop();
+                        r
+                    }
                     _ => self.lower_stmt(inner),
                 }
             }

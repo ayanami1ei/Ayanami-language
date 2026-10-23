@@ -160,3 +160,4 @@ test_match_ref_binding.aya 0
 test_env_allocator.aya 0
 test_env_generic.aya 0
 test_env_chain.aya 0
+test_env_block.aya 0

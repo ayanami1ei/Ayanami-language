@@ -7,6 +7,7 @@ impl Ctx {
         // 可用能力键 = 本函数提供者注解键 ∪ 本函数环境值参数（`__env_<cap>`）——后者使
         // 泛型函数能把环境继续传给下层（E2 传播：显式 bound 链）。
         let mut avail: std::collections::HashSet<Symbol> = std::collections::HashSet::new();
+        for m in &self.env_blocks { avail.extend(m.keys().copied()); }
         if let Some(mine) = self.env_providers.get(&self.current_fn) {
             avail.extend(mine.keys().copied());
         }
@@ -33,9 +34,9 @@ impl Ctx {
     /// 当前函数作用域内某能力 cap 的提供值：`#[env::cap(v)]`（最近/本函数）优先；
     /// 其次本函数的环境值参数 `__env_<cap>`（泛型传播用）。
     pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)> {
-        if let Some((expr, _)) = self.env_providers.get(&self.current_fn)
-            .and_then(|m| m.get(cap)).cloned()
-        {
+        let entry = self.env_blocks.iter().rev().find_map(|m| m.get(cap)).cloned()
+            .or_else(|| self.env_providers.get(&self.current_fn).and_then(|m| m.get(cap)).cloned());
+        if let Some((expr, _)) = entry {
             let val = self.lower_expr(&expr)?;
             let ty = strip_ownership_ref(&val.expr_type()).clone();
             let node: HirNodeBox = SRef { expr: val, mutable: true, ty: HirType::Ref(Box::new(ty.clone()), true) }.into();
@@ -76,5 +77,27 @@ impl Ctx {
         for (i, p) in env_ps.into_iter().enumerate() {
             new_params.insert(at + i, p);
         }
+    }
+}
+
+impl Ctx {
+    /// E2：从标注列表提取环境提供者（`#[env::<cap>(v)]`）；无则空表。
+    pub(crate) fn env_caps_from_attrs(
+        &self,
+        attrs: &[crate::parser::ast::Attr],
+    ) -> Result<HashMap<Symbol, (crate::parser::ast::Expr, Span)>> {
+        let mut caps = HashMap::new();
+        for a in attrs {
+            if a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env" {
+                let Some(crate::parser::ast::AttrArg::Expr(e)) = a.args.first() else {
+                    return Err(Error::Hir(format!(
+                        "#[env::{}] expects a value argument (at {}:{})",
+                        a.name.as_str(), a.span.start_line, a.span.start_col
+                    )));
+                };
+                caps.insert(a.name, ((**e).clone(), a.span));
+            }
+        }
+        Ok(caps)
     }
 }

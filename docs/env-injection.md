@@ -156,4 +156,5 @@ std 契约已就绪：`std/src/system/alloc.aya` 的 `interface Allocator`
         环境继续传给下层（`middle[E]` → `inner[E]` 链路自动传递）
       - 显式泛型实参优先于环境提供（`inner[DefaultAllocator](...)` 仍自动传值）
       - 用例 `example/test_env_chain.aya`
-      - 待做：块作用域覆盖（`#[env::cap(v)] { ... }` 最近者胜）、跨包能力键、歧义诊断
+      - 块作用域覆盖（`#[env::cap(v)] { ... }`）：`env_blocks` 栈，最近者胜；用例 `example/test_env_block.aya`
+      - 待做：跨包能力键、歧义诊断

@@ -1,0 +1,37 @@
+// E2：块作用域环境覆盖——`#[env::allocator(v)] { ... }` 最近者胜
+import "io"
+import "alloc"
+
+struct FailAlloc { }
+
+impl FailAlloc {
+    fn alloc(ref self, usize n) -> usize {
+        return 0usize
+    }
+    fn free(ref self, usize addr) {
+    }
+}
+
+fn inner[E: Allocator](usize n) -> usize {
+    p = env::allocator.alloc(n)
+    if p == 0usize { return 0usize }
+    env::allocator.free(p)
+    return 1usize
+}
+
+#[env::allocator(a)]
+fn run() -> int {
+    a = DefaultAllocator { }
+    if inner(8usize) != 1usize { return 1 }
+    #[env::allocator(f)]
+    {
+        f = FailAlloc { }
+        if inner(8usize) != 0usize { return 2 }
+    }
+    if inner(8usize) != 1usize { return 3 }
+    return 0
+}
+
+fn main() -> int {
+    return run()
+}
