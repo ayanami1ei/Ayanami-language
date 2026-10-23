@@ -3741,19 +3741,19 @@ selfhost/src/parser/parser.aya:985: fn parse_block(ref mut self) -> int
 selfhost/src/parser/parser.aya:1048: fn if_stmt_has_tail(ref mut self, int id) -> bool
 selfhost/src/parser/parser.aya:1070: fn collect_attrs(ref mut self) -> int
 selfhost/src/parser/parser.aya:1096: fn parse_stmt(ref mut self) -> int
-selfhost/src/parser/parser.aya:1110: fn parse_stmt_inner(ref mut self) -> int
-selfhost/src/parser/parser.aya:1225: fn parse_if_stmt(ref mut self) -> int
-selfhost/src/parser/parser.aya:1251: fn bin_tag(ref mut self, ref String op) -> int
-selfhost/src/parser/parser.aya:1274: fn op_level(ref mut self, ref String op) -> int
-selfhost/src/parser/parser.aya:1290: fn parse_expr(ref mut self) -> int
-selfhost/src/parser/parser.aya:1296: fn parse_bin(ref mut self, int min_level) -> int
-selfhost/src/parser/parser.aya:1314: fn apply_cast(ref mut self, int e, int line, int col) -> int
-selfhost/src/parser/parser.aya:1328: fn parse_asm(ref mut self) -> int
-selfhost/src/parser/parser.aya:1369: fn parse_unary(ref mut self) -> int
-selfhost/src/parser/parser.aya:1438: fn parse_postfix(ref mut self) -> int
-selfhost/src/parser/parser.aya:1567: fn parse_args(ref mut self) -> int
-selfhost/src/parser/parser.aya:1599: fn parse_number_literal(ref mut self, int neg, int line, int col) -> int
-selfhost/src/parser/parser.aya:1621: fn parse_primary(ref mut self) -> int
-selfhost/src/parser/parser.aya:1789: fn try_parse_lambda(ref mut self, int line, int col) -> int
-selfhost/src/parser/parser.aya:1821: fn parse_match_arms(ref mut self) -> int
-selfhost/src/parser/parser.aya:2037: fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int
+selfhost/src/parser/parser.aya:1112: fn parse_stmt_inner(ref mut self) -> int
+selfhost/src/parser/parser.aya:1227: fn parse_if_stmt(ref mut self) -> int
+selfhost/src/parser/parser.aya:1253: fn bin_tag(ref mut self, ref String op) -> int
+selfhost/src/parser/parser.aya:1276: fn op_level(ref mut self, ref String op) -> int
+selfhost/src/parser/parser.aya:1292: fn parse_expr(ref mut self) -> int
+selfhost/src/parser/parser.aya:1298: fn parse_bin(ref mut self, int min_level) -> int
+selfhost/src/parser/parser.aya:1316: fn apply_cast(ref mut self, int e, int line, int col) -> int
+selfhost/src/parser/parser.aya:1330: fn parse_asm(ref mut self) -> int
+selfhost/src/parser/parser.aya:1371: fn parse_unary(ref mut self) -> int
+selfhost/src/parser/parser.aya:1440: fn parse_postfix(ref mut self) -> int
+selfhost/src/parser/parser.aya:1569: fn parse_args(ref mut self) -> int
+selfhost/src/parser/parser.aya:1601: fn parse_number_literal(ref mut self, int neg, int line, int col) -> int
+selfhost/src/parser/parser.aya:1623: fn parse_primary(ref mut self) -> int
+selfhost/src/parser/parser.aya:1791: fn try_parse_lambda(ref mut self, int line, int col) -> int
+selfhost/src/parser/parser.aya:1823: fn parse_match_arms(ref mut self) -> int
+selfhost/src/parser/parser.aya:2039: fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int

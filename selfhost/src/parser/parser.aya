@@ -1095,6 +1095,8 @@ impl Parser {
     #[state]
     fn parse_stmt(ref mut self) -> int {
         self.attr_mask = 0;
+        // mut 局部声明前缀（局部默认可变，mut 仅作标注，跳过）
+        self.eat_kw(Kw::Mut._tag);
         nattrs = self.collect_attrs();
         s = self.parse_stmt_inner();
         if nattrs > 0 {
