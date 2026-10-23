@@ -3448,20 +3448,20 @@ selfhost/src/hir/check.aya:1062: fn seed_std(ref mut self)
 selfhost/src/hir/check.aya:1085: fn add_builtin(ref mut self, ref String name)
 selfhost/src/hir/check.aya:1098: fn collect(ref mut self, ref Ast ast, int prog)
 selfhost/src/hir/check.aya:1104: fn collect_recv(ref mut self, ref Ast ast, int prog, ref String recv)
-selfhost/src/hir/check.aya:1134: fn add_fn(ref mut self, ref Ast ast, int id, ref String recv)
-selfhost/src/hir/check.aya:1178: fn add_struct(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1200: fn add_interface(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1221: fn add_enum(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1250: fn check_fn(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1292: fn check_match(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:1491: fn arms_cover_variant(ref mut self, ref Ast ast, int arms, ref String vname) -> bool
-selfhost/src/hir/check.aya:1504: fn check_block(ref mut self, ref Ast ast, int blk)
-selfhost/src/hir/check.aya:1518: fn check_stmt(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1687: fn convert_err(ref mut self, ref String from, ref String to, int line, int col)
-selfhost/src/hir/check.aya:1700: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
-selfhost/src/hir/check.aya:1722: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
-selfhost/src/hir/check.aya:1752: fn check_expr(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:2233: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
+selfhost/src/hir/check.aya:1139: fn add_fn(ref mut self, ref Ast ast, int id, ref String recv)
+selfhost/src/hir/check.aya:1183: fn add_struct(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1205: fn add_interface(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1226: fn add_enum(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1255: fn check_fn(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1297: fn check_match(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/hir/check.aya:1496: fn arms_cover_variant(ref mut self, ref Ast ast, int arms, ref String vname) -> bool
+selfhost/src/hir/check.aya:1509: fn check_block(ref mut self, ref Ast ast, int blk)
+selfhost/src/hir/check.aya:1523: fn check_stmt(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1692: fn convert_err(ref mut self, ref String from, ref String to, int line, int col)
+selfhost/src/hir/check.aya:1705: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
+selfhost/src/hir/check.aya:1727: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
+selfhost/src/hir/check.aya:1757: fn check_expr(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/hir/check.aya:2238: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
 selfhost/src/lexer/lexer.aya:8: pub struct Lexer
 selfhost/src/lexer/lexer.aya:17: pub namespace Lexer
 selfhost/src/lexer/lexer.aya:20: pub fn new(ref String src) -> Lexer

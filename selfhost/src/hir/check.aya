@@ -1123,7 +1123,12 @@ impl Checker {
                 self.check_dup_generics(ast, ast.bb[s], ast.lines[s], ast.cols[s]);
                 self.collect_recv(ast, s, ast.texts[s]);
             } elif tag == st(ST::Namespace._tag) {
-                self.collect_recv(ast, s, recv);
+                ns_r = ast.texts[s].copy();
+                if recv.len > 0 {
+                    ns_r = recv + ".";
+                    ns_r = ns_r + ast.texts[s];
+                }
+                self.collect_recv(ast, s, ns_r);
             }
             s = ast.nexts[s];
         }
