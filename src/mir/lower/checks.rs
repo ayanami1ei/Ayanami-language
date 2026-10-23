@@ -43,11 +43,14 @@ impl Ctx {
             HirStmt::Assume { cond, .. } | HirStmt::Contract { cond, .. } => {
                 self.walk_stmt_moves(&**cond, sp);
             }
+            // #211：条件表达式不是语句，其（按值方法接收者等）移动必须在此记录；
+            // then/else 分支的语句由各自 lower_stmt 检查（路径敏感性另行设计）。
+            HirStmt::If { cond, .. } | HirStmt::While { cond, .. } => {
+                self.walk_stmt_moves(&**cond, sp);
+            }
             HirStmt::Return { value: None, .. }
             | HirStmt::Break { .. }
             | HirStmt::Continue { .. }
-            | HirStmt::If { .. }
-            | HirStmt::While { .. }
             | HirStmt::Block { .. } => {}
         }
     }

@@ -2287,7 +2287,7 @@ src/mir/lower/assign_field.rs:130: fn count_field_idx(
 src/mir/lower/checks.rs:5: impl Ctx
 src/mir/lower/checks.rs:9: pub(super) fn block_diverges(&self, stmts: &[HirStmt]) -> bool
 src/mir/lower/checks.rs:27: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
-src/mir/lower/checks.rs:55: fn walk_stmt_moves(&mut self, expr: &dyn HirNode, sp: Span)
+src/mir/lower/checks.rs:58: fn walk_stmt_moves(&mut self, expr: &dyn HirNode, sp: Span)
 src/mir/lower/control.rs:5: impl Ctx
 src/mir/lower/control.rs:6: pub(super) fn lower_if(
 src/mir/lower/control.rs:124: pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>
