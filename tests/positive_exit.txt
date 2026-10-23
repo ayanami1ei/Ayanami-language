@@ -158,3 +158,4 @@ test_asm_effects.aya 0
 test_match_dot_variant.aya 0
 test_match_ref_binding.aya 0
 test_env_allocator.aya 0
+test_env_generic.aya 0

@@ -598,7 +598,7 @@ src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_cal
 src/hir/lower/body/generic_specialize.rs:11: pub(crate) fn specialize_generic_method_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/generic_specialize.rs:17: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
 src/hir/lower/body/generic_specialize.rs:39: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span, prefer_method: bool) -> Result<FnId>
-src/hir/lower/body/generic_specialize.rs:268: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
+src/hir/lower/body/generic_specialize.rs:282: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/generic_types.rs:10: pub(crate) enum GType
 src/hir/lower/body/generic_types.rs:19: pub(super) fn ast_is_concrete_primitive(ty: &Type) -> bool
 src/hir/lower/body/generic_types.rs:28: pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool
@@ -783,19 +783,24 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:104: impl Ctx
-src/hir/lower/ctx.rs:106: pub fn new() -> Self
-src/hir/lower/ctx.rs:164: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:167: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:170: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:175: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:184: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:189: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:197: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:207: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:220: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:228: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:234: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:106: impl Ctx
+src/hir/lower/ctx.rs:108: pub fn new() -> Self
+src/hir/lower/ctx.rs:167: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:170: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:173: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:178: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:187: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:192: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:200: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:210: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:223: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:231: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:237: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx_env.rs:4: impl Ctx
+src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
+src/hir/lower/ctx_env.rs:22: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
+src/hir/lower/ctx_env.rs:44: impl Ctx
+src/hir/lower/ctx_env.rs:47: pub(crate) fn inject_env_params(
 src/hir/lower/ctx_fields.rs:5: impl Ctx
 src/hir/lower/ctx_fields.rs:7: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
 src/hir/lower/ctx_fields.rs:20: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
@@ -940,19 +945,20 @@ src/hir/lower/helpers/wrap.rs:177: pub(crate) fn unary_op_to_fn_name(op: &UnaryO
 src/hir/lower/mod.rs:1: pub mod body;
 src/hir/lower/mod.rs:2: mod collect_copy;
 src/hir/lower/mod.rs:3: mod ctx_niche;
-src/hir/lower/mod.rs:4: pub mod helpers;
-src/hir/lower/mod.rs:5: pub mod to_mir;
-src/hir/lower/mod.rs:18: pub(super) fn variant_struct_name(enum_name: &Symbol, variant: &Symbol) -> Symbol
-src/hir/lower/mod.rs:28: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
-src/hir/lower/mod.rs:44: pub(crate) struct FnSig
-src/hir/lower/mod.rs:69: pub(crate) struct InterfaceReg
-src/hir/lower/mod.rs:76: mod ctx;
-src/hir/lower/mod.rs:77: mod ctx_mono;
-src/hir/lower/mod.rs:78: mod ctx_fields;
-src/hir/lower/mod.rs:95: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-src/hir/lower/mod.rs:97: pub fn set_source_path(path: &std::path::Path)
-src/hir/lower/mod.rs:101: pub(crate) fn source_path() -> String
-src/hir/lower/mod.rs:105: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:4: mod ctx_env;
+src/hir/lower/mod.rs:5: pub mod helpers;
+src/hir/lower/mod.rs:6: pub mod to_mir;
+src/hir/lower/mod.rs:19: pub(super) fn variant_struct_name(enum_name: &Symbol, variant: &Symbol) -> Symbol
+src/hir/lower/mod.rs:29: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
+src/hir/lower/mod.rs:45: pub(crate) struct FnSig
+src/hir/lower/mod.rs:70: pub(crate) struct InterfaceReg
+src/hir/lower/mod.rs:77: mod ctx;
+src/hir/lower/mod.rs:78: mod ctx_mono;
+src/hir/lower/mod.rs:79: mod ctx_fields;
+src/hir/lower/mod.rs:96: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+src/hir/lower/mod.rs:98: pub fn set_source_path(path: &std::path::Path)
+src/hir/lower/mod.rs:102: pub(crate) fn source_path() -> String
+src/hir/lower/mod.rs:106: pub fn lower_program(program: &Program) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)>
@@ -2744,6 +2750,9 @@ example/test_enum_boxed.aya:27: fn run() -> int
 example/test_enum_boxed.aya:52: fn main() -> int
 example/test_env_allocator.aya:6: fn run() -> int
 example/test_env_allocator.aya:14: fn main() -> int
+example/test_env_generic.aya:6: fn alloc_free[E: Allocator](usize n) -> usize
+example/test_env_generic.aya:14: fn run() -> int
+example/test_env_generic.aya:21: fn main() -> int
 example/test_extern_out_param.aya:4: fn main() -> int
 example/test_f32.aya:2: fn addf(f32 a, f32 b) -> f32 { return a + b }
 example/test_f32.aya:3: fn take32(f32 x) -> f32 { return x }

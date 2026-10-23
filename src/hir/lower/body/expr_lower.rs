@@ -12,6 +12,11 @@ impl crate::hir::lower::Ctx {
                     let entry = self.env_providers.get(&self.current_fn)
                         .and_then(|m| m.get(&cap_sym)).cloned();
                     let Some((expr, _)) = entry else {
+                        // E1a 第 2 步：泛型环境值参数（隐式注入）
+                        let pname = Symbol::intern(&format!("__env_{}", cap));
+                        if let Some((id, ty, _)) = self.lookup_var(&pname) {
+                            return Ok(SVar { var: id, ty }.into());
+                        }
                         return Err(Error::Hir(format!(
                             "environment accessor `env::{}` used outside a `#[env::{}(...)]` function (at {}:{})",
                             cap, cap, span.start_line, span.start_col

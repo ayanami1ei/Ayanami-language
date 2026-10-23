@@ -138,5 +138,15 @@ std 契约已就绪：`std/src/system/alloc.aya` 的 `interface Allocator`
       - `env::<cap>` 访问器在 `lower_expr` 解析为提供值（位置表达式，访问时重新求值）；
       - 用例 `example/test_env_allocator.aya`（`DefaultAllocator` 分配/释放）、
         负例 `tests/compile_fail/env_accessor_outside.aya`；
-- [ ] 第 2 步（待做）：泛型 bound 驱动的环境需求 `[E: Allocator]` + 调用点自动填充
-      （隐式值参数/特化绑定/缺失诊断）；当前访问器按提供值的具体类型工作，不绑定泛型 `E`。
+- [x] **第 2 步（2026-10-23）**：泛型 bound 驱动的环境需求 + 调用点自动填充
+      - 需求判定：泛型 bound 基名小写命中「**调用方作用域提供者键**」→ 该泛型参数由环境提供
+        （实现口径：能力键取自当前函数可见的提供者，避免要求全程序预扫描；无提供者时
+        bound 不自动视为需求，体访问器会给出明确错误）
+      - 调用点：取当前函数作用域的提供值（`#[env::cap(v)]` 或本函数环境值参数），记入
+        `pending_env_args` 供特化绑定 `E`；并以隐含实参 `ref mut E` 插在可见实参之后、
+        位置隐藏实参之前；缺失 → `no environment provider` 错误
+      - 特化：`inject_env_params` 将 `__env_<cap>: ref mut <E 具体类型>` 注入形参表
+        （体降级的局部注册随之成立）；访问器优先注解、其次环境值参数
+      - 修复既有缺陷：特化**失败路径**未恢复 `current_fn`/locals/scopes（泄漏到调用方，
+        导致后续调用环境作用域错误）
+      - 用例 `example/test_env_generic.aya`（`fn alloc_free[E: Allocator]` 由调用方提供者自动填充）

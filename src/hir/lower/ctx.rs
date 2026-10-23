@@ -21,6 +21,8 @@ use super::*;
 pub(crate) struct Ctx {
     /// E1a：函数级环境提供者（fn_id → cap → (提供值表达式, 位置)）
     pub env_providers: HashMap<FnId, HashMap<Symbol, (crate::parser::ast::Expr, Span)>>,
+    /// E1a：本次调用收集的环境实参类型（供泛型特化绑定 E；调用结束清空）
+    pub pending_env_args: Vec<(Symbol, HirType)>,
     /// 所有已注册的函数（按 FnId 索引）
     pub fns: Vec<FnSig>,
     /// 函数名到 FnId 列表的映射（支持重载同名函数）
@@ -153,6 +155,7 @@ impl Ctx {
             lambda_ret_pending: false,
             pending_ret_checks: Vec::new(),
             env_providers: HashMap::new(),
+            pending_env_args: Vec::new(),
         }
     }
 
