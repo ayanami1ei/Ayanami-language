@@ -150,3 +150,10 @@ std 契约已就绪：`std/src/system/alloc.aya` 的 `interface Allocator`
       - 修复既有缺陷：特化**失败路径**未恢复 `current_fn`/locals/scopes（泄漏到调用方，
         导致后续调用环境作用域错误）
       - 用例 `example/test_env_generic.aya`（`fn alloc_free[E: Allocator]` 由调用方提供者自动填充）
+
+- [x] **E2（部分，2026-10-23）**：传播（显式 bound 链）
+      - 可用能力键 = 本函数提供者注解键 ∪ 本函数环境值参数（`__env_<cap>`）→ 泛型函数可把
+        环境继续传给下层（`middle[E]` → `inner[E]` 链路自动传递）
+      - 显式泛型实参优先于环境提供（`inner[DefaultAllocator](...)` 仍自动传值）
+      - 用例 `example/test_env_chain.aya`
+      - 待做：块作用域覆盖（`#[env::cap(v)] { ... }` 最近者胜）、跨包能力键、歧义诊断

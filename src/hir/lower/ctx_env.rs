@@ -4,12 +4,25 @@ use super::*;
 impl Ctx {
     /// 被调泛型函数的环境需求：泛型 bound 基名小写命中「当前函数提供者键」的 cap。
     pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)> {
-        let Some(mine) = self.env_providers.get(&self.current_fn) else { return Vec::new() };
+        // 可用能力键 = 本函数提供者注解键 ∪ 本函数环境值参数（`__env_<cap>`）——后者使
+        // 泛型函数能把环境继续传给下层（E2 传播：显式 bound 链）。
+        let mut avail: std::collections::HashSet<Symbol> = std::collections::HashSet::new();
+        if let Some(mine) = self.env_providers.get(&self.current_fn) {
+            avail.extend(mine.keys().copied());
+        }
+        if let Some(sig) = self.fns.get(self.current_fn.0) {
+            for (n, _) in &sig.params {
+                if let Some(cap) = n.as_str().strip_prefix("__env_") {
+                    avail.insert(Symbol::intern(cap));
+                }
+            }
+        }
+        if avail.is_empty() { return Vec::new(); }
         let mut out: Vec<(Symbol, Symbol)> = Vec::new();
         for (gp, bounds) in gf_params {
             for b in bounds {
                 let key = Symbol::intern(&b.as_str().to_lowercase());
-                if mine.contains_key(&key) && !out.iter().any(|(c, _)| *c == key) {
+                if avail.contains(&key) && !out.iter().any(|(c, _)| *c == key) {
                     out.push((key, *gp));
                 }
             }

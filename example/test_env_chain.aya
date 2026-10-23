@@ -1,0 +1,27 @@
+// E2 部分：环境沿显式 bound 传播（中间泛型函数把环境值参数继续下传）
+// 以及显式泛型实参优先于环境提供。
+import "io"
+import "alloc"
+
+fn inner[E: Allocator](usize n) -> usize {
+    p = env::allocator.alloc(n)
+    if p == 0usize { return 0usize }
+    env::allocator.free(p)
+    return 1usize
+}
+
+fn middle[E: Allocator](usize n) -> usize {
+    return inner(n)
+}
+
+#[env::allocator(a)]
+fn run() -> int {
+    a = DefaultAllocator { }
+    if middle(8usize) != 1usize { return 1 }
+    if inner[DefaultAllocator](8usize) != 1usize { return 2 }
+    return 0
+}
+
+fn main() -> int {
+    return run()
+}

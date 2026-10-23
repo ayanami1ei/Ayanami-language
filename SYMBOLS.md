@@ -798,9 +798,9 @@ src/hir/lower/ctx.rs:231: pub fn is_union_type(&self, type_name: &Symbol) -> boo
 src/hir/lower/ctx.rs:237: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_env.rs:4: impl Ctx
 src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
-src/hir/lower/ctx_env.rs:22: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
-src/hir/lower/ctx_env.rs:44: impl Ctx
-src/hir/lower/ctx_env.rs:47: pub(crate) fn inject_env_params(
+src/hir/lower/ctx_env.rs:35: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
+src/hir/lower/ctx_env.rs:57: impl Ctx
+src/hir/lower/ctx_env.rs:60: pub(crate) fn inject_env_params(
 src/hir/lower/ctx_fields.rs:5: impl Ctx
 src/hir/lower/ctx_fields.rs:7: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
 src/hir/lower/ctx_fields.rs:20: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
@@ -2750,6 +2750,10 @@ example/test_enum_boxed.aya:27: fn run() -> int
 example/test_enum_boxed.aya:52: fn main() -> int
 example/test_env_allocator.aya:6: fn run() -> int
 example/test_env_allocator.aya:14: fn main() -> int
+example/test_env_chain.aya:6: fn inner[E: Allocator](usize n) -> usize
+example/test_env_chain.aya:13: fn middle[E: Allocator](usize n) -> usize
+example/test_env_chain.aya:18: fn run() -> int
+example/test_env_chain.aya:25: fn main() -> int
 example/test_env_generic.aya:6: fn alloc_free[E: Allocator](usize n) -> usize
 example/test_env_generic.aya:14: fn run() -> int
 example/test_env_generic.aya:21: fn main() -> int
