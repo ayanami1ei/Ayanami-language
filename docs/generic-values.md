@@ -93,6 +93,23 @@ vtable，但 `"str" + x`、`x.field` 等静态语义无法还原）；且改变�
 - `Ptr[T]`：`new`（分配单元存值）、`get/get_mut`（按替换后的 T 装载）、`as_ptr`；
 - 泛型容器的 `push/index/pop` 等方法经特化获得正确元素步长。
 
+### 阶段 2/3 实施细则（2026-10-23 定稿，供下轮实施）
+
+1. **特化 worklist**：`spec_nodes/prefixes/params/args/names`；调用点登记（去重按 `(node, arg_ty)`），
+   主发射循环后按序发射，循环条件用动态 `spec_count`（处理传递闭包）。
+2. **实例符号**：`fn_sym_ord(full, ord)` + `.__i<k>`（k = worklist 下标）；定义端与调用端同式，
+   定义端以 `cur_inst_ord` 参与。
+3. **替换上下文**：`cur_inst_param`（类型参数名）/`cur_inst_arg_ty`（实参类型节点）/
+   `cur_inst_name`（实例名）/`cur_inst_src`（源结构体下标）。`param_kind`/`ret_kind`/`ret_info`
+   遇到参数名时改用实参类型。
+4. **接收者实例**：局部 etype = 实例下标（构造调用返回值 → `inst_struct_name(src, arg)` 查实例名）；
+   `struct_of_local`/`obj.b` 得到实例名；方法查找剥离 `__m<k>` 得源类型，`find_method_id(src, name)`。
+5. **结构体字面量**：特化上下文中 `texts == 源结构体名` 时改用实例（字段表/槽位）。
+6. **`self` 的 etype**：impl prologue 在特化上下文里记录实例下标而非源下标。
+7. **验收顺序**：test_constructors（ArrayList/LinkedList 存 String）→ test_usage_infer /
+   test_collection_any / test_aggregate_array → 泛型返回（test_generic_nested 等）。
+8. **每步门槛**：`selfcompile` + 全量 diff + `check_all`；任一失败即回退该步。
+
 ## 5. ABI 与命名约定
 
 | 项 | 约定 |
