@@ -1,6 +1,6 @@
 # 统一环境注入（Environment Injection）设计提案
 
-> 状态：**设计提案（Proposed，未实现；语法与约定在实现开工时冻结）**（2026-10-18）。
+> 状态：**E1a 约定已冻结（2026-10-23）**；实现未开工（多阶段）。
 > 关联：bd `Ayanami-language-3c0`；原始规划记录：`docs/future-directions.md` §二。
 > 联动：异步（`docs/async.md`——运行时经 `env::runtime` ✓）、引用模型（解析器/注册表可经环境提供 ✓）、
 > 效应 A3、std 侧前置（`Alloc` 接口——std main 暂无，见 §4）。
@@ -105,3 +105,27 @@ interface Alloc {
 3. 单态化零成本；运行时环境仅显式引用；
 4. std 侧前置：`Alloc` 接口 + 默认提供者（std main 暂无——由 std 侧按本文契约实现）；
 5. 测试口径同仓库（正/负例 + `runtime_safety` + IR 快照 + std 套件）。
+
+## 8. E1a 冻结约定（2026-10-23，实现开工第一步）
+
+std 契约已就绪：`std/src/system/alloc.aya` 的 `interface Allocator`
+（`alloc(ref self, usize) -> usize` / `free(ref self, usize)`）+ `pub struct DefaultAllocator {}`。
+
+| 概念 | 冻结形态 |
+|---|---|
+| 能力接口 | `Allocator`（std）；能力键 = 接口基名小写：`env::allocator` |
+| 环境需求 | 泛型参数 + 接口 bound：`fn load[E: Allocator](...)` |
+| 环境提供 | `#[env::allocator(v)]` 标注在**函数**上（作用域值，最近者优先）；`v` 为产生实现值的**位置表达式**（局部/字段/构造） |
+| 体内访问 | 具名访问器 `env::allocator`（类型为 `E`）——值级注入，不做“无名字魔法” |
+| 调用点 | 直接调用带环境 bound 的泛型函数时，用当前作用域提供者填 `E` 与隐式值参数；缺失 → 编译错误并提示标注 |
+| 传播（E1a 不做） | 中间函数**不继承**：要么声明同样的 bound，要么在各自入口标注（E2 再做继承） |
+| 显式优先 | 显式泛型实参 / 显式传值优先于环境提供 |
+
+**实现面（预估，改动点）**：
+1. 标注解析/校验（`hir/attrs*`）：`env::<cap>(expr)` → 能力键 + 提供值；
+2. `Ctx` 环境栈（函数作用域 push/pop）+ `env::<cap>` 访问器解析（`lower_expr` 的限定名路径）；
+3. 泛型 fn 的**隐式值参数**（`FnSig` 增加 env 参数，类似 `hidden` 但值来自提供者而非合成）；
+4. 调用点填充（值 + 类型进特化参数表）与缺失诊断；
+5. 示例：`[E: Allocator]` 库函数在 `DefaultAllocator` 与自定义分配器两种提供下工作；IR 零额外开销（静态派发/单态化）。
+
+**非目标（E1a）**：不做类型级能力（无值构造路径 ✗）、不做继承传播、不做运行时全局环境栈（§6 非目标）。
