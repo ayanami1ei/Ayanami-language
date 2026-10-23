@@ -3401,6 +3401,10 @@ impl Emitter {
             if si >= 0 { return -1000 - si; }
             return -1;
         }
+        if tg == et(ET::Lambda._tag) {
+            // lambda 元素：节点本身即 Fn 类型（fn_type_params/ret 直接读 aa/tys）
+            return id;
+        }
         if tg == et(ET::EnumConstruct._tag) {
             en = pat_name(ast.texts[id]);
             ei = self.find_enum_idx(en);
@@ -6495,6 +6499,20 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         callee = ast.aa[id];
         cargs = ast.bb[id];
         if callee >= 0 {
+            if ast.tags[callee] == et(ET::Index._tag) {
+                // a[i](x)：数组元素闭包（元素为 Lambda 或 Closure 类型）
+                arr_ce = ast.aa[callee];
+                if arr_ce >= 0 && ast.tags[arr_ce] == et(ET::Ident._tag) {
+                    an_ce = ast.texts[arr_ce];
+                    ety_ce = e.elem_of_local(an_ce);
+                    if ety_ce >= 0 {
+                        if ast.tags[ety_ce] == et(ET::Lambda._tag) || ast.tags[ety_ce] == tt(TT::Closure._tag) {
+                            av_ce = emit_expr(ast, callee, e);
+                            return emit_indirect_call(ast, av_ce.a, ety_ce, cargs, e);
+                        }
+                    }
+                }
+            }
             if ast.tags[callee] == et(ET::FieldAccess._tag) {
                 obj = emit_expr(ast, ast.aa[callee], e);
                 if obj.kind == 2 {
