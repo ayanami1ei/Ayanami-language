@@ -6,6 +6,19 @@ impl crate::hir::lower::Ctx {
             Expr::Literal(lit) => self.lower_literal(lit),
             Expr::Suffixed { lit, suffix, span } => self.lower_suffixed(lit, suffix, span),
             Expr::Ident(name, span) => {
+                // E1a：内置环境访问器 `env::<cap>` → 当前函数 `#[env::<cap>(v)]` 的提供值
+                if let Some(cap) = name.as_str().strip_prefix("env.") {
+                    let cap_sym = Symbol::intern(cap);
+                    let entry = self.env_providers.get(&self.current_fn)
+                        .and_then(|m| m.get(&cap_sym)).cloned();
+                    let Some((expr, _)) = entry else {
+                        return Err(Error::Hir(format!(
+                            "environment accessor `env::{}` used outside a `#[env::{}(...)]` function (at {}:{})",
+                            cap, cap, span.start_line, span.start_col
+                        )));
+                    };
+                    return self.lower_expr(&expr);
+                }
                 // `Enum::Variant`（无参数）被解析器合并为 `Enum.Variant`
                 if let Some((enum_name, variant_name)) = name.as_str().split_once('.') {
                     let enum_sym = Symbol::intern(enum_name);

@@ -115,7 +115,7 @@ src/compiler/build/passes/mod.rs:15: mod apply;
 src/compiler/build/passes/mod.rs:16: mod flat;
 src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<FnId, bool>
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
-src/compiler/build/passes/mod.rs:46: pub(super) fn apply_passes(
+src/compiler/build/passes/mod.rs:50: pub(super) fn apply_passes(
 src/compiler/build/target.rs:6: fn scan_source_deps(src_path: &Path) -> bool
 src/compiler/build/target.rs:30: pub fn build_source_with_target(
 src/compiler/build/target.rs:157: pub fn run_executable(exe_name: &str) -> Result<i32>
@@ -362,8 +362,8 @@ src/hir/attrs.rs:50: pub fn collect(program: &Program) -> Self
 src/hir/attrs.rs:58: fn collect_stmt(&mut self, stmt: &Stmt)
 src/hir/attrs.rs:81: pub fn pkg_stem(path: &str) -> String
 src/hir/attrs.rs:91: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:96: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:104: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:95: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:103: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
 src/hir/attrs.rs:139: fn validate_follow_with(a: &Attr) -> Result<()>
 src/hir/attrs.rs:159: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
 src/hir/attrs.rs:166: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
@@ -376,11 +376,11 @@ src/hir/attrs_export.rs:28: pub(super) fn validate_compile_time(attrs: &[Attr], 
 src/hir/attrs_export.rs:41: pub(super) fn reject_compile_time(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_export.rs:52: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_macro.rs:16: fn is_compiler_attr(a: &Attr) -> bool
-src/hir/attrs_macro.rs:28: pub fn validate_macros(
-src/hir/attrs_macro.rs:43: enum AnnKind { Macro, Pass, Check }
-src/hir/attrs_macro.rs:47: fn lookup_annotation(
-src/hir/attrs_macro.rs:102: fn validate_macros_stmt(
-src/hir/attrs_macro.rs:177: fn validate_block(
+src/hir/attrs_macro.rs:32: pub fn validate_macros(
+src/hir/attrs_macro.rs:47: enum AnnKind { Macro, Pass, Check }
+src/hir/attrs_macro.rs:51: fn lookup_annotation(
+src/hir/attrs_macro.rs:106: fn validate_macros_stmt(
+src/hir/attrs_macro.rs:181: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -783,19 +783,19 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:102: impl Ctx
-src/hir/lower/ctx.rs:104: pub fn new() -> Self
-src/hir/lower/ctx.rs:161: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:164: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:167: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:172: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:181: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:186: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:194: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:204: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:217: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:225: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:231: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:104: impl Ctx
+src/hir/lower/ctx.rs:106: pub fn new() -> Self
+src/hir/lower/ctx.rs:164: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:167: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:170: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:175: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:184: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:189: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:197: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:207: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:220: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:228: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:234: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_fields.rs:5: impl Ctx
 src/hir/lower/ctx_fields.rs:7: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
 src/hir/lower/ctx_fields.rs:20: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
@@ -2742,6 +2742,8 @@ example/test_enum_boxed.aya:16: enum OptBig
 example/test_enum_boxed.aya:23: fn sum(Big x) -> int
 example/test_enum_boxed.aya:27: fn run() -> int
 example/test_enum_boxed.aya:52: fn main() -> int
+example/test_env_allocator.aya:6: fn run() -> int
+example/test_env_allocator.aya:14: fn main() -> int
 example/test_extern_out_param.aya:4: fn main() -> int
 example/test_f32.aya:2: fn addf(f32 a, f32 b) -> f32 { return a + b }
 example/test_f32.aya:3: fn take32(f32 x) -> f32 { return x }

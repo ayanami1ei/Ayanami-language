@@ -129,3 +129,14 @@ std 契约已就绪：`std/src/system/alloc.aya` 的 `interface Allocator`
 5. 示例：`[E: Allocator]` 库函数在 `DefaultAllocator` 与自定义分配器两种提供下工作；IR 零额外开销（静态派发/单态化）。
 
 **非目标（E1a）**：不做类型级能力（无值构造路径 ✗）、不做继承传播、不做运行时全局环境栈（§6 非目标）。
+
+**实现状态**：
+- [x] **第 1 步（2026-10-23）**：函数级提供者 + 内置访问器
+      - `#[env::<cap>(v)]`（编译器内置 `env` 命名空间，属性校验三处放行：`attrs::resolve` /
+        `attrs_macro::is_compiler_attr` / `passes::is_builtin_attr`）；
+      - `Ctx::env_providers`（fn_id → cap → 表达式）在 `lower_fn` 登记；
+      - `env::<cap>` 访问器在 `lower_expr` 解析为提供值（位置表达式，访问时重新求值）；
+      - 用例 `example/test_env_allocator.aya`（`DefaultAllocator` 分配/释放）、
+        负例 `tests/compile_fail/env_accessor_outside.aya`；
+- [ ] 第 2 步（待做）：泛型 bound 驱动的环境需求 `[E: Allocator]` + 调用点自动填充
+      （隐式值参数/特化绑定/缺失诊断）；当前访问器按提供值的具体类型工作，不绑定泛型 `E`。

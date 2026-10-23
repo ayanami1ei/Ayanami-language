@@ -21,6 +21,10 @@ fn is_compiler_attr(a: &Attr) -> bool {
     if a.qualifier.is_empty() || (a.qualifier.len() == 1 && a.qualifier[0].as_str() == "core") {
         return ALLOWED.contains(&name.as_str());
     }
+    // E1a：环境提供标注（编译器内置命名空间）
+    if a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env" {
+        return true;
+    }
     false
 }
 
