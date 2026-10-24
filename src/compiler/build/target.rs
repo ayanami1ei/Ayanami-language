@@ -35,7 +35,7 @@ pub fn build_source_with_target(
     target: Option<&str>,
 ) -> Result<()> {
     // 默认关闭：std 测试脚本每次重装 .lcl，需按安装目录内容建键后再默认开启
-    let cacheable = target == Some("executable") && std::env::var("AYANAMI_INCREMENTAL").is_ok();
+    let cacheable = target == Some("executable") && std::env::var("AYANAMI_NO_INCREMENTAL").is_err();
     let stem = std::path::Path::new(src_path).file_stem()
         .map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
     let exe = std::path::Path::new(out_dir).join(&stem);

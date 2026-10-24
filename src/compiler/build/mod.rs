@@ -44,25 +44,39 @@ pub(crate) fn cache_key(src_path: &str, code: &str) -> String {
         std::env::var(k).unwrap_or_default().hash(&mut h);
     }
     std::env::current_dir().ok().map(|p| p.to_string_lossy().into_owned()).hash(&mut h);
-    let mut max_mtime = 0u128;
-    let start = std::path::Path::new(src_path).parent()
+    // 安装目录 std/*.lcl 的内容纳入 key（std 测试脚本每次重装但内容可能不变）
+    if let Some(std_dir) = crate::compiler::import::find_std_dir() {
+        let mut files: Vec<_> = std::fs::read_dir(&std_dir).ok().into_iter().flatten().flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().map_or(false, |x| x == "lcl"))
+            .collect();
+        files.sort();
+        for p in files {
+            p.to_string_lossy().hash(&mut h);
+            if let Ok(data) = std::fs::read(&p) { data.hash(&mut h); }
+        }
+    }
+    // 源祖先目录中的 .aya/.lcl/.c 按内容纳入（mtime 会因 std 重装而变，内容不变应命中）
+    let start_dir = std::path::Path::new(src_path).parent()
         .unwrap_or(std::path::Path::new("."));
-    let mut dir = Some(start.to_path_buf());
+    let mut dir = Some(start_dir.to_path_buf());
+    let mut first_dir = true;
     while let Some(d) = dir {
         if let Ok(rd) = std::fs::read_dir(&d) {
-            for e in rd.flatten() {
-                let p = e.path();
+            let mut entries: Vec<_> = rd.flatten().map(|e| e.path()).collect();
+            entries.sort();
+            for p in entries {
                 let ext = p.extension().and_then(|x| x.to_str()).unwrap_or("");
-                if ext == "lcl" || ext == "aya" || ext == "c" {
-                    if let Ok(m) = e.metadata().and_then(|m| m.modified()) {
-                        if let Ok(t) = m.duration_since(std::time::UNIX_EPOCH) {
-                            max_mtime = max_mtime.max(t.as_nanos());
-                        }
-                    }
+                // 祖先目录的 .lcl 可能是 std 源树重建产物（非确定性字节/未实际使用），
+                // 只对源目录本地的 .lcl 计内容；安装目录 std/*.lcl 已单独计哈希
+                if ext == "aya" || ext == "c" || (ext == "lcl" && first_dir) {
+                    p.to_string_lossy().hash(&mut h);
+                    if let Ok(data) = std::fs::read(&p) { data.hash(&mut h); }
                 }
             }
         }
+        first_dir = false;
         dir = d.parent().map(|p| p.to_path_buf());
     }
-    format!("{:x}:{}", h.finish(), max_mtime)
+    format!("{:x}", h.finish())
 }
