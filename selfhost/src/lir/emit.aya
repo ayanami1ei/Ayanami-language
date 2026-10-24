@@ -2905,15 +2905,22 @@ impl Emitter {
         return "";
     }
 
-    /// 按 (源枚举, 实参标记基名) 查找枚举实例（返回 en 下标）
+    /// 实参表示（标记或类型节点）的基名
     #[alloc]
-    fn find_enum_inst(ref mut self, int ei_src, int arg) -> int {
-        ab = self.marker_base(arg);
+    fn arg_name_of(ref mut self, ref Ast ast, int arg) -> String {
+        if arg < 0 { return self.marker_base(arg); }
+        return self.type_arg_name(ast, arg);
+    }
+
+    /// 按 (源枚举, 实参基名) 查找枚举实例（返回 en 下标）
+    #[alloc]
+    fn find_enum_inst(ref mut self, ref Ast ast, int ei_src, int arg) -> int {
+        ab = self.arg_name_of(ast, arg);
         if ab.len == 0 { return -1; }
         i = 0;
         while i < self.ei_count {
             if self.ei_srcs[i] == ei_src {
-                if self.marker_base(self.ei_args[i]) == ab { return self.ei_ens[i]; }
+                if self.arg_name_of(ast, self.ei_args[i]) == ab { return self.ei_ens[i]; }
             }
             i = i + 1;
         }
@@ -2925,7 +2932,7 @@ impl Emitter {
     #[state]
     fn fill_enum_inst(ref mut self, ref Ast ast, int ei_src, int arg) -> int {
         if ei_src < 0 || ei_src >= self.en_count || arg == -1 { return -1; }
-        old_ei = self.find_enum_inst(ei_src, arg);
+        old_ei = self.find_enum_inst(ast, ei_src, arg);
         if old_ei >= 0 { return old_ei; }
         if self.en_count >= 128 || self.ei_count >= 128 { return -1; }
         gp = self.enum_gparam(ast, ei_src);
@@ -2949,7 +2956,7 @@ impl Emitter {
             sl_n = 0;
             j = 0;
             while j < ar {
-                pty = self.en_ptype[pv + j];
+                pty = unwrap_ty(ast, self.en_ptype[pv + j]);
                 pn = ty_name(ast, pty);
                 if pn.len > 0 && pn == gp { pty = arg; }
                 if self.en_ptotal < 4096 {
@@ -4871,7 +4878,7 @@ fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> 
                     m_ce = e.infer_expr_ty(ast, ax_ce);
                     if m_ce == -1 { m_ce = e.infer_ctor_arg(ast, ax_ce); }
                     if m_ce != -1 {
-                        ei_u = e.find_enum_inst(ei, m_ce);
+                        ei_u = e.find_enum_inst(ast, ei, m_ce);
                         if ei_u >= 0 {
                             ei = ei_u;
                             ename = e.en_names[ei_u].copy();
@@ -5359,6 +5366,18 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                         e.buf.push_str(gf);
                         e.buf.push_str("\n");
                         e.declare_local(bnd, 0);
+                        si_d = e.find_struct_idx(sname);
+                        if si_d >= 0 {
+                            fty_d = unwrap_ty(ast, e.ftype_at(si_d, fi2));
+                            if fty_d >= 0 && ty_name(ast, fty_d) == "Ptr" {
+                                in_d = ast.aa[fty_d];
+                                if in_d >= 0 { in_d = unwrap_ty(ast, in_d); }
+                                if in_d >= 0 {
+                                    si_di = e.find_struct_idx(ty_name(ast, in_d));
+                                    if si_di >= 0 { e.record_etype(bnd, 10001 + si_di); }
+                                }
+                            }
+                        }
                         e.buf.push_str("  store i64 ");
                         e.buf.push_str(vf);
                         e.buf.push_str(", ptr %v_");
@@ -5421,6 +5440,7 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                                 if tn_k == "Ptr" {
                                     // Ptr[T] 载荷：按指向结构体自动解引用
                                     in_p = ast.aa[pty_k];
+                                    if in_p >= 0 { in_p = unwrap_ty(ast, in_p); }
                                     if in_p >= 0 {
                                         si_p = e.find_struct_idx(ty_name(ast, in_p));
                                         if si_p >= 0 {
@@ -5798,6 +5818,7 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
     a = arms;
     while a >= 0 { cnt = cnt + 1; a = ast.nexts[a]; }
     if cnt == 0 { return mk_int("0"); }
+    mtag_s = int_str2(e.tmp);
     end_l = label(e, "match.end.");
     res = "";
     sf_m = 0;
@@ -5807,24 +5828,24 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
         e.buf.push_str(res);
         e.buf.push_str(" = alloca i64\n");
     }
-    e.buf.push_str("  br label %match.arm.0\n");
+    e.buf.push_str("  br label %match.arm." + mtag_s + "_0\n");
     i = 0;
     a = arms;
     prev_body = -1;
     while a >= 0 {
-        lbl = "match.arm.";
+        lbl = "match.arm." + mtag_s + "_";
         b1 = StringBuf::new();
         b1.push_str(lbl);
         b1.push_int(i);
         nxt = end_l.copy();
         if i + 1 < cnt {
             n2 = StringBuf::new();
-            n2.push_str("match.arm.");
+            n2.push_str("match.arm." + mtag_s + "_");
             n2.push_int(i + 1);
             nxt = n2.to_string();
         }
         bl = StringBuf::new();
-        bl.push_str("match.body.");
+        bl.push_str("match.body." + mtag_s + "_");
         bl.push_int(i);
         body_l = bl.to_string();
         e.buf.push_str(b1.to_string());
@@ -5885,7 +5906,7 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
             gv = emit_expr(ast, gd, e);
             gc = e.fresh();
             b2l = StringBuf::new();
-            b2l.push_str("match.guard.");
+            b2l.push_str("match.guard." + mtag_s + "_");
             b2l.push_int(i);
             e.buf.push_str("  ");
             e.buf.push_str(gc);
@@ -7183,6 +7204,10 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     e.buf.push_str(vp.a);
                     e.buf.push_str(" to i64\n");
                     return Val { kind = 0, a = pip, b = vp.b.copy(), ty = 10001 + sip };
+                }
+                if vp.kind == 4 {
+                    // 枚举已是堆装箱值：Ptr 直接复用
+                    return vp;
                 }
                 if vp.kind == 1 {
                     bx = e.fresh();
@@ -10431,6 +10456,20 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             if pk == 20 {
                 ptn = ty_name(ast, ast.tys[p2]);
                 ei_p = e.find_enum_idx(ptn);
+                // 泛型枚举形参：按类型实参解析实例（载荷类型已替换）
+                pty20 = unwrap_ty(ast, ast.tys[p2]);
+                if ei_p >= 0 && pty20 >= 0 {
+                    if ast.tags[pty20] == tt(TT::Generic._tag) {
+                        in20 = ast.aa[pty20];
+                        if in20 >= 0 {
+                            in20u = unwrap_ty(ast, in20);
+                            if !e.type_has_gparam(ast, in20u) {
+                                ei20 = e.find_enum_inst(ast, ei_p, in20u);
+                                if ei20 >= 0 { ei_p = ei20; }
+                            }
+                        }
+                    }
+                }
             } elif pk >= 100 {
                 ei_p = pk - 100;
             } elif pk == 21 {
