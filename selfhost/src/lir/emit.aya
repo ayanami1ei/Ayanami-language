@@ -10589,6 +10589,27 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
                 }
             } elif pk >= 100 {
                 ei_p = pk - 100;
+                // 形参类型是具体泛型（Box[Box[int]] 等）：按实参基名改用实例布局
+                pty_s = unwrap_ty(ast, ast.tys[p2]);
+                if pty_s >= 0 && ast.tags[pty_s] == tt(TT::Generic._tag) {
+                    in_s = ast.aa[pty_s];
+                    if in_s >= 0 {
+                        in_nm = ty_name(ast, unwrap_ty(ast, in_s));
+                        if in_nm.len > 0 {
+                            k_s = 0;
+                            while k_s < e.inst_st_count {
+                                if e.inst_st_src[k_s] == ei_p {
+                                    if e.type_arg_name(ast, e.inst_st_argty[k_s]) == in_nm {
+                                        si_ps = e.find_struct_idx(e.inst_st_names[k_s]);
+                                        if si_ps >= 0 { ei_p = si_ps; }
+                                        break;
+                                    }
+                                }
+                                k_s = k_s + 1;
+                            }
+                        }
+                    }
+                }
             } elif pk == 21 {
                 ptn21 = ty_name(ast, ast.tys[p2]);
                 ei_p = e.find_iface_idx(ptn21);
