@@ -5020,10 +5020,22 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                                 pkind_k = 100 + si_k;
                                 psi_k = si_k;
                             } else {
-                                ei_k = e.find_enum_idx(tn_k);
-                                if ei_k >= 0 {
-                                    pkind_k = 20;
-                                    psi_k = ei_k;
+                                if tn_k == "Ptr" {
+                                    // Ptr[T] 载荷：按指向结构体自动解引用
+                                    in_p = ast.aa[pty_k];
+                                    if in_p >= 0 {
+                                        si_p = e.find_struct_idx(ty_name(ast, in_p));
+                                        if si_p >= 0 {
+                                            pkind_k = 100 + si_p;
+                                            psi_k = si_p;
+                                        }
+                                    }
+                                } else {
+                                    ei_k = e.find_enum_idx(tn_k);
+                                    if ei_k >= 0 {
+                                        pkind_k = 20;
+                                        psi_k = ei_k;
+                                    }
                                 }
                             }
                         }
