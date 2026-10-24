@@ -29,6 +29,18 @@ fn exclaim() -> String {
     return s + "!"
 }
 
+#[async]
+fn add2(int x) -> int {
+    return x + 2
+}
+
+#[async]
+fn chain(int x) -> int {
+    a = await inc(x)
+    b = await add2(x)
+    return a + b
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -64,5 +76,7 @@ fn main() -> int {
     if block_on(ref mut g) != 6 { return 2 }
     h = exclaim()
     if block_on_s(ref mut h) != "hi!" { return 3 }
+    k = chain(1)
+    if block_on(ref mut k) != 5 { return 4 }
     return 0
 }

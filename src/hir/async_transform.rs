@@ -87,9 +87,10 @@ fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>)
     if matches!(return_type, Type::Void(_) | Type::Default) {
         return Err(fail("a non-void return type is required (v1)".into()));
     }
-    // A1b-2：单挂起点（await 必须是第一条语句，目标为同程序 #[async] 函数的直接调用）
-    if let Some((y, g, gargs)) = first_await(body, span)? {
-        return expand_await(stmt, y, g, &gargs, returns, out);
+    // A1b-2：直线 await 前缀（0..N 个连续 `x = await g(args)`，目标为同程序 #[async] 直接调用）
+    let awaits = await_prefix(body, span)?;
+    if !awaits.is_empty() {
+        return expand_await(stmt, &awaits, returns, out);
     }
     let ret = ty_src(return_type).ok_or_else(|| fail("unsupported return type (v1)".into()))?;
     let mut ptypes = Vec::with_capacity(params.len());
@@ -141,43 +142,40 @@ fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>)
     out.push(runner);
     Ok(())
 }
-
-/// 识别首条语句 `y = await g(args)`；非直接调用报错。
-fn first_await(body: &Block, span: &crate::span::Span) -> Result<Option<(Symbol, Symbol, Vec<Expr>)>> {
-    let Some(Stmt::Assign { name, value, .. }) = body.stmts.first() else { return Ok(None) };
-    let Expr::FnCall { name: an, args, .. } = value else { return Ok(None) };
-    if an.as_str() != "__await" { return Ok(None); }
-    let Some(Expr::FnCall { name: g, args: gargs, .. }) = args.first() else {
-        return Err(Error::Hir(format!(
-            "#[async] v1: `await` target must be a direct function call (at {}:{})",
-            span.start_line, span.start_col
-        )));
-    };
-    Ok(Some((*name, *g, gargs.clone())))
+/// 识别函数体开头的连续 `x = await g(args)` 前缀。
+fn await_prefix(body: &Block, span: &crate::span::Span) -> Result<Vec<(Symbol, Symbol, Vec<Expr>)>> {
+    let mut out = Vec::new();
+    for st in &body.stmts {
+        let Stmt::Assign { name, value, .. } = st else { break };
+        let Expr::FnCall { name: an, args, .. } = value else { break };
+        if an.as_str() != "__await" { break; }
+        let Some(Expr::FnCall { name: g, args: gargs, .. }) = args.first() else {
+            return Err(Error::Hir(format!(
+                "#[async] v1: `await` target must be a direct function call (at {}:{})",
+                span.start_line, span.start_col
+            )));
+        };
+        out.push((*name, *g, gargs.clone()));
+    }
+    for st in body.stmts.iter().skip(out.len()) {
+        if stmt_has_direct_await(st) {
+            return Err(Error::Hir(format!(
+                "#[async] v1: `await` must form a prefix of consecutive assignments (at {}:{})",
+                span.start_line, span.start_col
+            )));
+        }
+    }
+    Ok(out)
 }
 
-/// 单 await 状态机：构造器立即建内层 future，poll 首次轮询内层，Ready 后执行后置 helper。
+/// N 个直线挂起点的状态机：构造器立即建全部内层 future，poll 依次轮询。
 fn expand_await(
-    stmt: &Stmt, y: Symbol, g: Symbol, gargs: &[Expr],
+    stmt: &Stmt, awaits: &[(Symbol, Symbol, Vec<Expr>)],
     returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>,
 ) -> Result<()> {
     let Stmt::FnDecl { vis, name, params, return_type, body, .. } = stmt else { unreachable!() };
     let fail = |m: String| Error::Hir(format!("#[async] `{}`: {}", name.as_str(), m));
-    let g_ret = returns.get(&g)
-        .ok_or_else(|| fail(format!("await target `{}` is not an #[async] function (v1)", g.as_str())))?;
-    let (y_ty, y_init) = await_default(g_ret)
-        .ok_or_else(|| fail(format!("unsupported await value type `{}` (v1)", type_name(g_ret))))?;
     let ret = ty_src(return_type).ok_or_else(|| fail("unsupported return type (v1)".into()))?;
-    let mut arg_names = Vec::with_capacity(gargs.len());
-    for a in gargs {
-        let Expr::Ident(n, _) = a else {
-            return Err(fail("await call arguments must be parameters (v1)".into()));
-        };
-        if !params.iter().any(|(p, _)| p == n) {
-            return Err(fail(format!("await call argument `{}` must be a parameter (v1)", n.as_str())));
-        }
-        arg_names.push(n.as_str().to_string());
-    }
     let fut = format!("__{}_Fut", name.as_str());
     let after = format!("__async_after_{}", name.as_str());
     let vis_s = if vis.is_public() { "pub " } else { "" };
@@ -193,27 +191,49 @@ fn expand_await(
         inits.push(format!("{} = {}", n.as_str(), n.as_str()));
         self_args.push(format!("self.{}", n.as_str()));
     }
-    let field_body = format!(
-        "{}\n    __{}_Fut __w\n    {} y\n    int _state",
-        fields.join("\n    "), g.as_str(), y_ty
-    );
-    let init_body = format!(
-        "{}{}__w = {}({}){}y = {}, _state = 0",
-        inits.join(", "), if inits.is_empty() { "" } else { ", " },
-        g.as_str(), arg_names.join(", "), ", ", y_init
-    );
-    self_args.push("self.y".to_string());
+    let mut await_y: Vec<(Symbol, Type)> = Vec::new();
+    let mut polls = String::new();
+    for (i, (y, g, gargs)) in awaits.iter().enumerate() {
+        let g_ret = returns.get(g).ok_or_else(|| fail(format!(
+            "await target `{}` is not an #[async] function (v1)", g.as_str())))?;
+        let (y_ty, y_init) = await_default(g_ret).ok_or_else(|| fail(format!(
+            "unsupported await value type `{}` (v1)", type_name(g_ret))))?;
+        let mut arg_names = Vec::with_capacity(gargs.len());
+        for a in gargs {
+            let Expr::Ident(n, _) = a else {
+                return Err(fail("await call arguments must be parameters (v1)".into()));
+            };
+            if !params.iter().any(|(p, _)| p == n) {
+                return Err(fail(format!(
+                    "await call argument `{}` must be a parameter (v1)", n.as_str())));
+            }
+            arg_names.push(n.as_str().to_string());
+        }
+        fields.push(format!("__{}_Fut __w{}", g.as_str(), i));
+        fields.push(format!("{} {}", y_ty, y.as_str()));
+        inits.push(format!("__w{} = {}({})", i, g.as_str(), arg_names.join(", ")));
+        inits.push(format!("{} = {}", y.as_str(), y_init));
+        self_args.push(format!("self.{}", y.as_str()));
+        await_y.push((*y, g_ret.clone()));
+        let next = i + 1;
+        polls.push_str(&format!(
+            "        if self._state == {i} {{\n\
+             \x20           p{i} = self.__w{i}.poll(ref cx)\n\
+             \x20           match p{i} {{\n\
+             \x20               Ready(v) => {{ self.{y} = v; self._state = {next} }}\n\
+             \x20               Pending => {{ return Poll::Pending() }}\n\
+             \x20           }}\n\
+             \x20       }}\n",
+            y = y.as_str()
+        ));
+    }
+    let field_body = fields.join("\n    ");
+    let init_body = inits.join(", ") + ", _state = 0";
     let src = format!(
-        "{vis_s}struct {fut} {{\n    {field_body}\n}}\n\
+        "{vis_s}struct {fut} {{\n    {field_body}\n    int _state\n}}\n\
          {vis_s}fn {name}({plist}) -> {fut} {{\n    return {fut} {{ {init_body} }}\n}}\n\
          impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-         \x20       if self._state == 0 {{\n\
-         \x20           p0 = self.__w.poll(ref cx)\n\
-         \x20           match p0 {{\n\
-         \x20               Ready(v) => {{ self.y = v; self._state = 1 }}\n\
-         \x20               Pending => {{ return Poll::Pending() }}\n\
-         \x20           }}\n\
-         \x20       }}\n\
+         {polls}\
          \x20       return Poll::Ready({after}({args}))\n    }}\n}}\n",
         plist = plist.join(", "), args = self_args.join(", "),
         name = name.as_str(), ret = ret,
@@ -221,15 +241,16 @@ fn expand_await(
     let generated = crate::parser::parse_source(&src)
         .map_err(|e| fail(format!("produced invalid code: {}", e)))?;
     out.extend(generated.stmts);
-    // 后置语句抽成 helper（参数名保持不变，避免重写函数体）
     let mut helper = stmt.clone();
     if let Stmt::FnDecl { attrs, name: hn, params: hp, body: hb, vis: hv, .. } = &mut helper {
         attrs.clear();
         *hn = Symbol::intern(&after);
         *hv = Visibility::Private;
-        hp.push((y, g_ret.clone()));
+        for (y, ty) in &await_y {
+            hp.push((*y, ty.clone()));
+        }
         let mut post = hb.clone();
-        post.stmts = body.stmts[1..].to_vec();
+        post.stmts = body.stmts[awaits.len()..].to_vec();
         *hb = post;
     }
     let hsrc = crate::formatter::format_program(&Program::new(vec![helper]));
@@ -261,7 +282,6 @@ fn type_name(ty: &Type) -> String {
         _ => "?".into(),
     }
 }
-
 /// 生成源码用的类型串（仅 v1 允许的类型）。
 fn ty_src(ty: &Type) -> Option<String> {
     match ty {
