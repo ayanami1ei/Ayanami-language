@@ -13,6 +13,7 @@ import "aya_parser";
 import "aya_check";
 import "aya_lir";
 import "aya_imports";
+import "aya_macro";
 
 /// driver 选项（--std / --runtime / --release）
 pub struct Opts {
@@ -131,6 +132,18 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
         raw_error("parse error: " + p.err);
         return 1;
     }
+    // 宏展开（M1：item 级；无注解站点时零开销）
+    mo = maybe_expand(src, p.ast, p, smap.entry_lines());
+    if mo.changed == 1 {
+        if env("AYANAMI_MACRO_DUMP") == "1" { raw_error("===MACRO===\n" + mo.text); }
+        smap.shift_imports(mo.delta);
+        p = Parser::new(mo.text);
+        prog = p.parse_program();
+        if p.failed == 1 {
+            raw_error("parse error (macro): " + p.err);
+            return 1;
+        }
+    }
     n = check_program(p.ast, prog, file, smap);
     if n > 0 {
         // 自举期：checker 尚不完整（缺 std 符号表/部分重载规则），降级为警告继续发射。
@@ -180,6 +193,8 @@ fn is_mir_plugin_lib(ref String file) -> bool {
     r = read_file(file);
     if !r.ok { return false; }
     if r.data.index_of("import \"mir\"") >= 0 { return true; }
+    // 宏库（#[macro]）在 stage-0 里也构建插件：错误消息带 link failed 包装
+    if r.data.index_of("#[macro") >= 0 { return true; }
     return false;
 }
 

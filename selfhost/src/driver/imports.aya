@@ -424,6 +424,24 @@ impl SrcMap {
         self.n = self.n + 1;
     }
 
+    /// 入口文件行数（宏展开用于限定站点范围）
+    pub fn entry_lines(ref self) -> int {
+        if self.n > 0 { return self.count[0]; }
+        return 0;
+    }
+
+    /// 入口文件行数变化后平移导入区起点
+    #[state]
+    pub fn shift_imports(ref mut self, int delta) {
+        if delta == 0 || self.n == 0 { return; }
+        i = 1;
+        while i < self.n {
+            self.start[i] = self.start[i] + delta;
+            i = i + 1;
+        }
+        self.count[0] = self.count[0] + delta;
+    }
+
     /// 合并行 -> 原文件；原行写入 cur_line（无命中返回空串）
     #[alloc]
     #[state]

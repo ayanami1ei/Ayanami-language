@@ -2017,6 +2017,11 @@ impl Checker {
                 }
             }
             if op == bo(BinOp::Add._tag) {
+                // 字符串拼接：alloc + state（与 stage-0 的 String.add/int.to_string 效果一致）
+                if base_type(lt) == "String" || base_type(rt) == "String" {
+                    self.fx_alloc[self.cur_fx] = 1;
+                    self.fx_state[self.cur_fx] = 1;
+                }
                 if lt == "String" && rt != "String" {
                     if base_type(rt).len > 0 {
                         self.fx_note_call(base_type(rt) + ".to_string");

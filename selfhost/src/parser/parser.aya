@@ -124,6 +124,11 @@ pub struct Parser {
     int lambda_count
     // 声明属性位掩码（alloc=1 state=2 io=4 pure=8 no_error=16 throws=32）与 pub 标志
     int attr_mask
+    // 注解原文（宏展开用）：#[...] 的源文本 / 起始行 / 结束行
+    [String] attrs_text
+    [int] attrs_line
+    [int] attrs_eline
+    int attrs_count
     int last_pub
     // ref 操作数内禁用 as 后缀（ref mut a as *int = (ref mut a) as *int）
     int no_cast
@@ -138,7 +143,8 @@ pub namespace Parser {
         t2 = lx.next_token();
         t3 = lx.next_token();
         t4 = lx.next_token();
-        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, la3 = t4, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, last_pub = 0, no_cast = 0 };
+        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, la3 = t4, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, last_pub = 0, no_cast = 0,
+            attrs_text = [String; 256], attrs_line = [int; 256], attrs_eline = [int; 256], attrs_count = 0 };
         return p;
     }
 }
@@ -293,6 +299,8 @@ impl Parser {
         while true {
             if !self.check_op("#") { break; }
             if !self.la1_is_delim(D::LBracket._tag) { break; }
+            a_start = self.cur.start;
+            a_line = self.cur.line;
             self.advance();
             self.advance();
             if self.cur.kind == Tk::Ident._tag {
@@ -304,10 +312,25 @@ impl Parser {
                 elif an == "no_error" { self.attr_mask = self.attr_mask | 4096; }
                 elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
                 elif an == "compile_time" { self.attr_mask = self.attr_mask | 131072; }
+                elif an == "macro" { self.attr_mask = self.attr_mask | 262144; }
                 self.advance();
             }
             self.scan_attr_args();
+            self.record_attr(a_start, a_line);
         }
+    }
+
+    /// 记录注解原文（宏展开）
+    #[alloc]
+    fn record_attr(ref mut self, int a_start, int a_line) {
+        if self.attrs_count >= 256 { return; }
+        a_end = self.cur.start;
+        if a_end < a_start { a_end = a_start; }
+        atx = self.lex.src.substring(a_start as usize, a_end as usize);
+        self.attrs_text[self.attrs_count] = atx;
+        self.attrs_line[self.attrs_count] = a_line;
+        self.attrs_eline[self.attrs_count] = self.cur.line;
+        self.attrs_count = self.attrs_count + 1;
     }
 
     #[alloc]
@@ -1072,6 +1095,8 @@ impl Parser {
         while true {
             if !self.check_op("#") { break; }
             if !self.la1_is_delim(D::LBracket._tag) { break; }
+            a_start = self.cur.start;
+            a_line = self.cur.line;
             self.advance();
             self.advance();
             if self.cur.kind == Tk::Ident._tag {
@@ -1083,9 +1108,11 @@ impl Parser {
                 elif an == "no_error" { self.attr_mask = self.attr_mask | 4096; }
                 elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
                 elif an == "compile_time" { self.attr_mask = self.attr_mask | 131072; }
+                elif an == "macro" { self.attr_mask = self.attr_mask | 262144; }
                 self.advance();
             }
             self.scan_attr_args();
+            self.record_attr(a_start, a_line);
             n = n + 1;
         }
         return n;

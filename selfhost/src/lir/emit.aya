@@ -2268,6 +2268,7 @@ impl Emitter {
     #[state]
     fn add_fn_sig(ref mut self, ref Ast ast, int id, ref String prefix) {
         if self.fn_count >= 4096 { return; }
+        if (ast.dd[id] / 262144) % 2 == 1 { return; }
         fi = self.fn_count;
         name = ast.texts[id].copy();
         if prefix.len > 0 {
@@ -10964,7 +10965,9 @@ pub fn emit_program(ref Ast ast, int prog, ref String file) -> String {
     s = ast.aa[prog];
     while s >= 0 {
         if ast.tags[s] == st(ST::FnDecl._tag) {
-            if ast.dd[s] == 1 {
+            if (ast.dd[s] / 262144) % 2 == 1 {
+                // 宏函数：不参与代码生成
+            } elif ast.dd[s] == 1 {
                 emit_decl(ast, s, e);
             } else {
                 e.cur_ord = e.fn_idx_of_node(ast.texts[s], s);
