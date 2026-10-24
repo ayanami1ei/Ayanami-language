@@ -114,3 +114,15 @@ enum __Async_fetch {
 3. 零成本优先：poll 无分配；执行器开销在协议外、可见；
 4. 与泛型/弱链接/`.lcl` 重实例化一致（复用现有特化路径）；
 5. 测试口径：正/负例 + `runtime_safety` + IR 快照 + std 套件（同仓库约定）。
+
+## 7. 实现路线（2026-10-24 更新）
+
+- **A1a**：协议（`Future`/`Poll`/`Waker`/`Context`）+ 单线程 executor + **手写**状态机正例；
+  零编译器改动，先验证协议形状与执行器语义。
+- **A1b**：`#[async]`/`await` 作为 **A5e 结构化变换注解**（HIR 程序 → HIR 程序）内建实现：
+  编译器生成普通枚举 + `impl Future`/`poll`，产物只用既有构造；协议按**方法形状**识别
+  （`poll(ref mut self, ref Context) -> Poll[T]`），零名字耦合。
+- **A1c**：受限子集先落地——v1 禁止 `ref` 跨 await（自引用需堆钉住，后置）、禁止 `#[sync]` 内 await；
+  循环与提前 `return` 必须支持（状态机拆入口/恢复）。
+- **开放**：A5e 接口稳定后再按 A5d 模式对第三方 `.lcl` 开放 `#[transform]`，async 为参考实现。
+- 详见 `docs/annotations.md` §8.6（A5e 设计）与 ADR-19。

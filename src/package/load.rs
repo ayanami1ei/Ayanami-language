@@ -127,7 +127,29 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
         }
     }
 
+    validate_annotation_symbols(&symbols, path)?;
     Ok((symbols, sources, lir_binary, target_types))
+}
+
+/// A5d：加载侧校验——同包注解名跨类别唯一（拦截旧版本打出的重复包）。
+fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()> {
+    let mut seen: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
+    for s in symbols {
+        let (name, kind) = match s {
+            ImportedSymbol::Macro { name, .. } => (name.as_str(), "macro"),
+            ImportedSymbol::Pass { name } => (name.as_str(), "pass"),
+            ImportedSymbol::Check { name } => (name.as_str(), "check"),
+            _ => continue,
+        };
+        if let Some(prev) = seen.insert(name, kind) {
+            return Err(Error::Package(format!(
+                "package `{}` exports annotation `{}` twice ({} / {}); \
+                 annotation names must be unique within a package",
+                path, name, prev, kind
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn parse_ini_value(s: &str) -> String {

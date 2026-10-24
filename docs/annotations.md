@@ -381,6 +381,36 @@ struct Holder {
   `pkg::name` 消歧、重名报错；声明侧校验 `fn(MirFunction) -> MirFunction`。
 - **信任**：原生插件 = 编译期执行代码，信任级同宏；版本校验与沙箱后置。
 
+### 8.6 结构化变换注解（A5e，设计，2026-10-24）
+
+`#[pass]` 只能在**单函数体内**做表达式级编辑（禁改签名、不能新增类型/函数），
+无法表达「函数 → 状态机」「块 → 临界区」这类**跨签名/跨项**的变换。A5e 为此增设第四类：
+
+| 类别 | 标记 | 接口 | 阶段 |
+|---|---|---|---|
+| 结构化变换 | `#[transform]` | HIR 程序 → HIR 程序 | HIR 降级后 / MIR 前 |
+
+- **能力**：新增类型与函数、改签名、改调用点、重写控制流；产物只用语言既有构造
+  （枚举 + impl + match），不引入新的 IR 节点；
+- **顺序**：在类型检查完成后、MIR 降级前；变换后重跑结构/借用/效应检查（与 A5d 一致）；
+- **首个客户**：`#[async]` + `await`（CPS 状态机）与 `#[sync]` 块（出口解锁），见
+  `docs/async.md`、`docs/sync-blocks.md`；
+- **开放策略**：v1 **只内建**（编译器内部 `StructuralPass` 接口），不对第三方 `.lcl` 开放；
+  待 HIR schema 稳定后再按 A5d 的插件模式开放，届时 async 作为参考实现与验收；
+- **命名与解析**：与宏/pass/check 共用一张注解表（`src/annotation_table.rs`），
+  同一包内注解名跨类别唯一；跨包同名允许，裸名歧义须全限定。
+
+### 8.7 注解身份与解析（统一规则，2026-10-24）
+
+- **身份** = `(包, 名字)`；**同包跨类别唯一**（macro / transform / pass / check），
+  打包与加载两处校验（`package::symbols::validate_annotation_names` /
+  `package::load::validate_annotation_symbols`）；
+- **跨包同名允许**：裸名解析命中多个包 → `ambiguous annotation` 错误并提示 `pkg::name`；
+  全限定始终可用；
+- **单一实现**：宏展开（`AnnotationTables::collect`）与 HIR 校验
+  （`AnnotationTables::from_kind_maps`）共用 `resolve`，避免历史上「宏展开静默遮蔽 /
+  HIR 报歧义」的漂移。
+
 ## 9. 实现接口（跨包与工具）
 
 | 层 | 载体 |
@@ -412,6 +442,8 @@ struct Holder {
 | ADR-15 | `state` 只算可观察修改（全局/堆/ref mut），局部变量暂不算 | 先保守可用，需要再加 |
 | ADR-16 | 注解按类别分层（原语/宏/pass/check），不用单一 `#[attr]` 标记 | 各类接口、阶段、信任级不同，单一标记无法表达 |
 | ADR-17 | MIR 插件可改效应、禁改签名，执行后重跑结构/借用/效应检查 | 保留优化自由度，同时守住内存安全与 ABI 稳定 |
+| ADR-18 | 注解身份 `(包, 名字)`；同包跨类别唯一，跨包同名允许（裸名歧义须全限定） | 同包同名会让两套解析器依赖顺序；跨包同名用 `pkg::name` 可明确消歧 |
+| ADR-19 | 结构化变换（A5e）先内建、后开放插件；接口为 HIR 程序 → HIR 程序 | async/sync 需要新增类型/函数与改签名，A5d 的函数内编辑面无法表达；先内建可保证核心特性不依赖外部包 |
 
 ## 11. 实现状态
 
@@ -498,6 +530,16 @@ struct Holder {
 - [x] A5c-2 函数级 track_caller：保留参数 `__line/__col/__file` 调用点自动填充（含 .lcl `caller` 标记），
       std 越界/空表 panic 指向用户调用行
 - [ ] A5c-2 后续：其它语言插件 / WASM 沙箱 / 插件清单与权限（远期）
+
+### A5e（前置修复已完成，2026-10-24）
+
+- [x] 注解表统一：`src/annotation_table.rs` 成为宏展开与 HIR 校验的唯一解析实现
+      （`collect` 从 `.lcl` 收集；`from_kind_maps` 供 HIR；`resolve`/`resolve_kind` 共用）
+- [x] 同包注解名跨类别唯一：打包侧 `Package::validate_annotation_names` +
+      加载侧 `validate_annotation_symbols`（拦截旧包），单测覆盖
+- [x] 修复解析漂移：同包同名不再出现「宏展开静默取宏 / HIR 报歧义」
+- [ ] `#[transform]` 类别与 `StructuralPass` 接口（设计见 §8.6）
+- [ ] `#[async]`/`await`、`#[sync]` 块作为首批内建客户
 
 ### 已知问题
 

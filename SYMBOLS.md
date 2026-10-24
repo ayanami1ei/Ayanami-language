@@ -5,6 +5,17 @@
 > 标准库（std/）符号由 [Ayanami-std](https://github.com/ayanami1ei/Ayanami-std) 子仓自行维护，见其 SYMBOLS.md。
 
 ## Rust
+src/annotation_table.rs:20: pub(crate) enum AnnKind
+src/annotation_table.rs:28: pub(crate) struct PkgAnnotations
+src/annotation_table.rs:38: pub(crate) struct AnnotationTables
+src/annotation_table.rs:42: impl AnnotationTables
+src/annotation_table.rs:43: pub fn is_empty(&self) -> bool
+src/annotation_table.rs:47: pub fn collect(stmts: &[Stmt]) -> Result<Self>
+src/annotation_table.rs:54: pub(crate) fn from_kind_maps(
+src/annotation_table.rs:81: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()>
+src/annotation_table.rs:117: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
+src/annotation_table.rs:163: pub(crate) fn resolve_kind(&self, a: &Attr) -> Result<Option<AnnKind>>
+src/annotation_table.rs:167: pub fn lcl_path(&self, pkg: &str) -> Option<String>
 src/cli/build.rs:3: pub(crate) fn cmd_build(args: &[String])
 src/cli/build.rs:28: pub(crate) fn cmd_run(args: &[String])
 src/cli/check.rs:3: fn do_check(path: &Path) -> ayanami::error::Result<()>
@@ -73,9 +84,9 @@ src/compiler/build/mod.rs:19: mod target;
 src/compiler/build/mod.rs:26: pub fn build_source(src_path: &str, code: &str) -> Result<()>
 src/compiler/build/mod.rs:31: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
-src/compiler/build/package.rs:26: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:79: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
-src/compiler/build/package.rs:89: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:27: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
+src/compiler/build/package.rs:81: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
+src/compiler/build/package.rs:91: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/passes/apply.rs:18: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
 src/compiler/build/passes/apply.rs:35: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
 src/compiler/build/passes/apply.rs:42: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
@@ -137,15 +148,6 @@ src/compiler/debug/stmt.rs:13: pub(super) fn write_stmt(stmt: &Stmt, level: usiz
 src/compiler/import.rs:2: pub fn find_std_dir() -> Option<std::path::PathBuf>
 src/compiler/import.rs:20: pub fn resolve_import_path(
 src/compiler/import.rs:84: pub fn load_config_for_file(file_path: &std::path::Path, _out_dir: &std::path::Path) -> Option<String>
-src/compiler/macro_expand/annotations.rs:14: pub(super) struct PkgAnnotations
-src/compiler/macro_expand/annotations.rs:24: pub(crate) enum AnnKind
-src/compiler/macro_expand/annotations.rs:32: pub(crate) struct AnnotationTables
-src/compiler/macro_expand/annotations.rs:36: impl AnnotationTables
-src/compiler/macro_expand/annotations.rs:37: pub fn is_empty(&self) -> bool
-src/compiler/macro_expand/annotations.rs:41: pub fn collect(stmts: &[Stmt]) -> Result<Self>
-src/compiler/macro_expand/annotations.rs:47: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()>
-src/compiler/macro_expand/annotations.rs:83: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
-src/compiler/macro_expand/annotations.rs:127: pub fn lcl_path(&self, pkg: &str) -> Option<String>
 src/compiler/macro_expand/check_plugin.rs:13: type RunFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
 src/compiler/macro_expand/check_plugin.rs:14: type TakeFn = unsafe extern "C" fn() -> AyaBuf;
 src/compiler/macro_expand/check_plugin.rs:15: type FreeFn = unsafe extern "C" fn(AyaBuf);
@@ -159,26 +161,25 @@ src/compiler/macro_expand/expand_util.rs:27: pub(super) fn is_compiler_attr(a: &
 src/compiler/macro_expand/expand_util.rs:42: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
 src/compiler/macro_expand/expand_util.rs:53: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
 src/compiler/macro_expand/mod.rs:18: const MAX_DEPTH: usize = 32;
-src/compiler/macro_expand/mod.rs:20: mod annotations;
-src/compiler/macro_expand/mod.rs:21: mod expand_util;
-src/compiler/macro_expand/mod.rs:22: mod plugin_call;
-src/compiler/macro_expand/mod.rs:23: mod token_stream;
-src/compiler/macro_expand/mod.rs:26: mod check_plugin;
-src/compiler/macro_expand/mod.rs:27: mod pass_plugin;
-src/compiler/macro_expand/mod.rs:28: mod plugin;
-src/compiler/macro_expand/mod.rs:29: mod plugin_abi;
-src/compiler/macro_expand/mod.rs:32: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
-src/compiler/macro_expand/mod.rs:42: pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables>
-src/compiler/macro_expand/mod.rs:47: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
-src/compiler/macro_expand/mod.rs:52: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
-src/compiler/macro_expand/mod.rs:56: struct MacroCtx
-src/compiler/macro_expand/mod.rs:61: impl MacroCtx
-src/compiler/macro_expand/mod.rs:62: fn collect(program: &Program, src_path: &Path) -> Result<Self>
-src/compiler/macro_expand/mod.rs:70: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
-src/compiler/macro_expand/mod.rs:76: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:93: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
-src/compiler/macro_expand/mod.rs:207: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
-src/compiler/macro_expand/mod.rs:228: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:20: mod expand_util;
+src/compiler/macro_expand/mod.rs:21: mod plugin_call;
+src/compiler/macro_expand/mod.rs:22: mod token_stream;
+src/compiler/macro_expand/mod.rs:25: mod check_plugin;
+src/compiler/macro_expand/mod.rs:26: mod pass_plugin;
+src/compiler/macro_expand/mod.rs:27: mod plugin;
+src/compiler/macro_expand/mod.rs:28: mod plugin_abi;
+src/compiler/macro_expand/mod.rs:31: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
+src/compiler/macro_expand/mod.rs:41: pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables>
+src/compiler/macro_expand/mod.rs:46: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/mod.rs:51: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
+src/compiler/macro_expand/mod.rs:55: struct MacroCtx
+src/compiler/macro_expand/mod.rs:60: impl MacroCtx
+src/compiler/macro_expand/mod.rs:61: fn collect(program: &Program, src_path: &Path) -> Result<Self>
+src/compiler/macro_expand/mod.rs:69: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
+src/compiler/macro_expand/mod.rs:75: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:92: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
+src/compiler/macro_expand/mod.rs:206: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
+src/compiler/macro_expand/mod.rs:227: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 3;
 src/compiler/macro_expand/pass_plugin.rs:21: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
 src/compiler/macro_expand/pass_plugin.rs:47: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
@@ -375,12 +376,10 @@ src/hir/attrs_export.rs:15: pub(super) fn validate_fn_export(attrs: &[Attr], has
 src/hir/attrs_export.rs:28: pub(super) fn validate_compile_time(attrs: &[Attr], has_generics: bool) -> Result<()>
 src/hir/attrs_export.rs:41: pub(super) fn reject_compile_time(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_export.rs:52: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
-src/hir/attrs_macro.rs:16: fn is_compiler_attr(a: &Attr) -> bool
-src/hir/attrs_macro.rs:32: pub fn validate_macros(
-src/hir/attrs_macro.rs:47: enum AnnKind { Macro, Pass, Check }
-src/hir/attrs_macro.rs:51: fn lookup_annotation(
-src/hir/attrs_macro.rs:106: fn validate_macros_stmt(
-src/hir/attrs_macro.rs:181: fn validate_block(
+src/hir/attrs_macro.rs:18: fn is_compiler_attr(a: &Attr) -> bool
+src/hir/attrs_macro.rs:34: pub fn validate_macros(
+src/hir/attrs_macro.rs:49: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
+src/hir/attrs_macro.rs:118: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -1314,21 +1313,22 @@ src/lexer/token.rs:45: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 src/lexer/token_kind.rs:7: pub enum TokenKind
 src/lexer/token_kind.rs:19: impl fmt::Display for TokenKind
 src/lexer/token_kind.rs:20: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-src/lib.rs:17: pub mod compiler;
-src/lib.rs:18: pub mod diagnostics;
-src/lib.rs:19: pub mod driver;
-src/lib.rs:20: pub mod error;
-src/lib.rs:21: pub mod formatter;
-src/lib.rs:22: pub mod hir;
-src/lib.rs:23: pub mod intern;
-src/lib.rs:24: pub mod lexer;
-src/lib.rs:25: pub mod lir;
-src/lib.rs:26: pub mod mir;
-src/lib.rs:27: pub mod package;
-src/lib.rs:28: pub mod parser;
-src/lib.rs:29: pub mod span;
-src/lib.rs:32: mod test_parse
-src/lib.rs:34: fn test_struct_literal_parse()
+src/lib.rs:17: mod annotation_table;
+src/lib.rs:18: pub mod compiler;
+src/lib.rs:19: pub mod diagnostics;
+src/lib.rs:20: pub mod driver;
+src/lib.rs:21: pub mod error;
+src/lib.rs:22: pub mod formatter;
+src/lib.rs:23: pub mod hir;
+src/lib.rs:24: pub mod intern;
+src/lib.rs:25: pub mod lexer;
+src/lib.rs:26: pub mod lir;
+src/lib.rs:27: pub mod mir;
+src/lib.rs:28: pub mod package;
+src/lib.rs:29: pub mod parser;
+src/lib.rs:30: pub mod span;
+src/lib.rs:33: mod test_parse
+src/lib.rs:35: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
@@ -2350,6 +2350,11 @@ src/mir/mod.rs:8: pub mod lower;
 src/mir/mod.rs:9: pub mod display;
 src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
+src/package/annotate.rs:5: impl Package
+src/package/annotate.rs:8: pub fn validate_annotation_names(&self) -> Result<()>
+src/package/annotate.rs:30: mod tests
+src/package/annotate.rs:34: fn duplicate_annotation_names_across_kinds_rejected()
+src/package/annotate.rs:46: fn distinct_annotation_names_accepted()
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
 src/package/bytes.rs:102: pub fn write_to_file(&self, path: &str) -> Result<()>
@@ -2365,20 +2370,22 @@ src/package/const_codec.rs:75: pub fn lit_from_str(ty: &HirType, s: &str) -> Opt
 src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:133: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:145: pub fn load_version(path: &str) -> Option<String>
-src/package/load.rs:158: pub fn warn_version_drift(path: &str, stem: &str)
-src/package/load.rs:160: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
-src/package/load.rs:178: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:212: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:242: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:135: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
+src/package/load.rs:155: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:167: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:180: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:182: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:200: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:234: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:264: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
-src/package/mod.rs:6: mod bytes;
-src/package/mod.rs:7: pub(crate) mod const_codec;
-src/package/mod.rs:8: mod load;
-src/package/mod.rs:9: mod symbols;
-src/package/mod.rs:10: mod target;
-src/package/mod.rs:11: mod types;
+src/package/mod.rs:6: mod annotate;
+src/package/mod.rs:7: mod bytes;
+src/package/mod.rs:8: pub(crate) mod const_codec;
+src/package/mod.rs:9: mod load;
+src/package/mod.rs:10: mod symbols;
+src/package/mod.rs:11: mod target;
+src/package/mod.rs:12: mod types;
 src/package/symbols.rs:4: impl Package
 src/package/symbols.rs:5: pub fn new(name: String, version: String) -> Self
 src/package/symbols.rs:21: pub fn set_effect_summaries(

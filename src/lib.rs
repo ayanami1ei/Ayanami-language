@@ -14,6 +14,7 @@
 // 11. span       → 源代码位置跟踪
 // ============================================================
 
+mod annotation_table;
 pub mod compiler;
 pub mod diagnostics;
 pub mod driver;

@@ -5,6 +5,7 @@
 
 ```mermaid
 graph LR
+    annotation_table
     cli
     compiler
     diagnostics
@@ -19,18 +20,23 @@ graph LR
     package
     parser
     span
-    compiler -->|13| error
+    annotation_table --> error
+    annotation_table --> intern
+    annotation_table --> parser
+    compiler --> annotation_table
+    compiler -->|12| error
     compiler -->|4| hir
     compiler --> intern
     compiler --> lexer
     compiler --> lir
     compiler -->|3| mir
     compiler --> package
-    compiler -->|10| parser
+    compiler -->|9| parser
     driver -->|2| error
     formatter --> intern
     formatter --> lexer
     formatter -->|2| parser
+    hir --> annotation_table
     hir -->|14| error
     hir -->|13| intern
     hir -->|2| mir
@@ -48,7 +54,7 @@ graph LR
     mir --> lir
     mir --> parser
     mir -->|2| span
-    package --> error
+    package -->|2| error
     package --> hir
     package --> intern
     package --> parser
@@ -64,9 +70,9 @@ graph LR
 | --- | --- | ---: |
 | `hir` | `parser` | 21 |
 | `hir` | `error` | 14 |
-| `compiler` | `error` | 13 |
 | `hir` | `intern` | 13 |
-| `compiler` | `parser` | 10 |
+| `compiler` | `error` | 12 |
+| `compiler` | `parser` | 9 |
 | `mir` | `hir` | 8 |
 | `parser` | `span` | 6 |
 | `hir` | `span` | 5 |
@@ -83,21 +89,26 @@ graph LR
 | `formatter` | `parser` | 2 |
 | `hir` | `mir` | 2 |
 | `mir` | `span` | 2 |
+| `package` | `error` | 2 |
 | `parser` | `error` | 2 |
+| `annotation_table` | `error` | 1 |
+| `annotation_table` | `intern` | 1 |
+| `annotation_table` | `parser` | 1 |
+| `compiler` | `annotation_table` | 1 |
 | `compiler` | `intern` | 1 |
 | `compiler` | `lexer` | 1 |
 | `compiler` | `lir` | 1 |
 | `compiler` | `package` | 1 |
 | `formatter` | `intern` | 1 |
 | `formatter` | `lexer` | 1 |
+| `hir` | `annotation_table` | 1 |
 | `lexer` | `span` | 1 |
 | `lir` | `error` | 1 |
 | `mir` | `lir` | 1 |
 | `mir` | `parser` | 1 |
-| `package` | `error` | 1 |
 | `package` | `hir` | 1 |
 | `package` | `intern` | 1 |
 | `package` | `parser` | 1 |
 | `parser` | `lexer` | 1 |
 
-共 15 个顶层模块、37 条依赖边。
+共 16 个顶层模块、42 条依赖边。
