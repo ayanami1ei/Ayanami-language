@@ -48,6 +48,15 @@ fn dep(int x) -> int {
     return b
 }
 
+#[async]
+fn maybe(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+    }
+    return y + 10
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -87,5 +96,9 @@ fn main() -> int {
     if block_on(ref mut k) != 5 { return 4 }
     d = dep(1)
     if block_on(ref mut d) != 4 { return 5 }
+    e = maybe(1)
+    if block_on(ref mut e) != 12 { return 6 }
+    z = maybe(0)
+    if block_on(ref mut z) != 10 { return 7 }
     return 0
 }
