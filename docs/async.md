@@ -117,8 +117,11 @@ enum __Async_fetch {
 
 ## 7. 实现路线（2026-10-24 更新）
 
-- **A1a**：协议（`Future`/`Poll`/`Waker`/`Context`）+ 单线程 executor + **手写**状态机正例；
-  零编译器改动，先验证协议形状与执行器语义。
+- **A1a（已完成 2026-10-24）**：协议（`Future`/`Poll`/`Waker`/`Context`）+ 单线程 executor +
+  **手写**状态机正例：`example/test_async_manual.aya`（`block_on[F: Future[int]]` 泛型执行器，
+  `Countdown` 手写状态机，前两次 Pending 后 Ready(42)）；零编译器改动。
+  发现：`poll` 修改 `ref mut self` 会触发 `state` 效应告警 → 用 `#[state]` 显式声明（示例已加）；
+  协议类型仍位于示例本地（std 侧由用户仓维护，后续按方法形状识别接入）。
 - **A1b**：`#[async]`/`await` 作为 **A5e 结构化变换注解**（HIR 程序 → HIR 程序）内建实现：
   编译器生成普通枚举 + `impl Future`/`poll`，产物只用既有构造；协议按**方法形状**识别
   （`poll(ref mut self, ref Context) -> Poll[T]`），零名字耦合。

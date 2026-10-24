@@ -2667,6 +2667,18 @@ example/test_asm_effects.aya:17: fn main() -> int
 example/test_assume.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_assume.aya:7: fn id(int x) -> int { return x }
 example/test_assume.aya:9: fn main() -> int
+example/test_async_manual.aya:4: enum Poll[T]
+example/test_async_manual.aya:9: struct Waker
+example/test_async_manual.aya:13: impl Waker
+example/test_async_manual.aya:15: fn wake(ref self)
+example/test_async_manual.aya:19: struct Context
+example/test_async_manual.aya:24: interface Future[T]
+example/test_async_manual.aya:25: fn poll(ref mut self, ref Context cx) -> Poll[T];
+example/test_async_manual.aya:29: struct Countdown
+example/test_async_manual.aya:33: impl Countdown
+example/test_async_manual.aya:35: fn poll(ref mut self, ref Context cx) -> Poll[int]
+example/test_async_manual.aya:46: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_manual.aya:62: fn main() -> int
 example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }
 example/test_attrs.aya:9: fn main() -> int
 example/test_bitwise.aya:2: fn shl_u8(u8 a, u8 b) -> u8 { return a << b }
