@@ -17,7 +17,7 @@ if [[ ! -f std/ayanami.toml ]]; then
 fi
 std_ver=$(sed -n 's/^version = "\(.*\)"/\1/p' std/ayanami.toml | head -1)
 ext_ver=$(sed -n 's/.*"version": "\(.*\)".*/\1/p' vscode-ayanami/package.json | head -1)
-selfhost_ver=$(sed -n 's/.*return "\(.*\)".*/\1/p' selfhost/src/base/log.aya | head -1)
+selfhost_ver=$(sed -n '/ayanami_version/,/^}/ s/.*return "\(.*\)".*/\1/p' selfhost/src/base/log.aya | head -1)
 tag_ver=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null | sed 's/^v//' || true)
 
 if [[ -z "$cargo_ver" ]]; then

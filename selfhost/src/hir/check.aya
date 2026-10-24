@@ -1918,6 +1918,9 @@ impl Checker {
             lt = self.check_expr(ast, ast.aa[id]);
             rt = self.check_expr(ast, ast.bb[id]);
             op = ast.tys[id];
+            // 值上下文自动解引用：ref 操作数按基础类型参与运算/拼接
+            if str_starts_with(lt, "ref ") { lt = base_type(lt); }
+            if str_starts_with(rt, "ref ") { rt = base_type(rt); }
             if self.is_gp(lt) {
                 // 仅当左操作数是泛型参数时做 bound 方法检查（rust 按接收者解析：
                 // String + T 这类左操作数具体的情形走左类型的方法，不查 bound）
