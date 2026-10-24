@@ -23,6 +23,13 @@ pub struct MEnv {
     [String] ss
     [int] ns
     int count
+    String mac_name
+    String mac_sig
+    int mac_line
+    int mac_col
+    [String] diags
+    int diag_count
+    String mac_file
 }
 
 /// 行表
@@ -42,6 +49,8 @@ pub struct MacroOut {
     String text
     int changed
     int delta
+    [String] diags
+    int diag_count
 }
 
 #[alloc]
@@ -227,6 +236,68 @@ pub fn m_eval(ref Ast ast, int id, ref MEnv env) -> MVal {
         return MVal { kind = 1, s = "", n = m_parse_int(ast.texts[id]) };
     }
     if tg == et(ET::Ident._tag) { return m_lookup(env, ast.texts[id]); }
+    if tg == et(ET::MethodCall._tag) {
+        recv = m_eval(ast, ast.aa[id], env);
+        mn = ast.texts[id];
+        if mn == "len" { return MVal { kind = 1, s = "", n = recv.s.len as int }; }
+        if mn == "add" {
+            aa = ast.bb[id];
+            if aa >= 0 {
+                if ast.tags[aa] == xt(XT::Arg._tag) { aa = ast.aa[aa]; }
+                ar = m_eval(ast, aa, env);
+                rs = ar.s;
+                if ar.kind == 1 { rs = m_int_str(ar.n); }
+                return MVal { kind = 0, s = recv.s + rs, n = 0 };
+            }
+        }
+        if mn == "to_string" {
+            if recv.kind == 1 { return MVal { kind = 0, s = m_int_str(recv.n), n = 0 }; }
+            return MVal { kind = 0, s = recv.s.copy(), n = 0 };
+        }
+        return MVal { kind = 0, s = "", n = 0 };
+    }
+    if tg == et(ET::Cast._tag) {
+        return m_eval(ast, ast.aa[id], env);
+    }
+    if tg == et(ET::FnCall._tag) {
+        fn_nm = ast.texts[id];
+        if fn_nm == "__ayanami_macro_hygienic" {
+            a0h = ast.aa[id];
+            if a0h >= 0 {
+                if ast.tags[a0h] == xt(XT::Arg._tag) { a0h = ast.aa[a0h]; }
+                vh = m_eval(ast, a0h, env);
+                return MVal { kind = 0, s = vh.s + "__hm", n = 0 };
+            }
+            return MVal { kind = 0, s = "", n = 0 };
+        }
+        if fn_nm == "__ayanami_macro_diag" {
+            a0d = ast.aa[id];
+            lvl = 0;
+            msgd = "";
+            if a0d >= 0 {
+                ax = a0d;
+                if ast.tags[ax] == xt(XT::Arg._tag) { ax = ast.aa[ax]; }
+                vd = m_eval(ast, ax, env);
+                if vd.kind == 1 { lvl = vd.n; } else { msgd = vd.s; }
+                a0d = ast.nexts[a0d];
+            }
+            if a0d >= 0 {
+                ax2 = a0d;
+                if ast.tags[ax2] == xt(XT::Arg._tag) { ax2 = ast.aa[ax2]; }
+                vd2 = m_eval(ast, ax2, env);
+                msgd = vd2.s;
+            }
+            full = msgd + " (in macro `__ayanami_macro_" + env.mac_name + "_" + env.mac_sig + "` at " + m_int_str(env.mac_line) + ":" + m_int_str(env.mac_col) + ")";
+            if lvl == 2 { raw_error(full); } else {
+                if env.diag_count < 16 {
+                    env.diags[env.diag_count] = full;
+                    env.diag_count = env.diag_count + 1;
+                }
+            }
+            return MVal { kind = 0, s = "", n = 0 };
+        }
+        return MVal { kind = 0, s = "", n = 0 };
+    }
     if tg == et(ET::Binary._tag) {
         if ast.tys[id] != bo(BinOp::Add._tag) { return MVal { kind = 0, s = "", n = 0 }; }
         l = m_eval(ast, ast.aa[id], env);
@@ -251,7 +322,34 @@ pub fn m_eval_fn(ref Ast ast, int fn_node, ref MEnv env) -> String {
         if ast.tags[node] == st(ST::Attributed._tag) {
             if ast.aa[node] >= 0 { node = ast.aa[node]; }
         }
-        if ast.tags[node] == st(ST::Return._tag) {
+        if ast.tags[node] == st(ST::Assign._tag) {
+            // 宏内局部赋值：h = __ayanami_macro_hygienic(name)
+            vn = m_eval(ast, ast.aa[node], env);
+            nm_a = ast.texts[node];
+            // 同名赋值：更新已有绑定（否则 l_lookup 命中旧值）
+            kk = 0;
+            hit = 0;
+            while kk < env.count {
+                if env.names[kk] == nm_a {
+                    env.kinds[kk] = vn.kind;
+                    env.ss[kk] = vn.s.copy();
+                    env.ns[kk] = vn.n;
+                    hit = 1;
+                    break;
+                }
+                kk = kk + 1;
+            }
+            if hit == 0 && env.count < 16 {
+                env.names[env.count] = nm_a.copy();
+                env.kinds[env.count] = vn.kind;
+                env.ss[env.count] = vn.s.copy();
+                env.ns[env.count] = vn.n;
+                env.count = env.count + 1;
+            }
+        } elif ast.tags[node] == st(ST::ExprStmt._tag) {
+            // 表达式语句：宏内诊断调用等（副作用）
+            if ast.aa[node] >= 0 { v_e = m_eval(ast, ast.aa[node], env); }
+        } elif ast.tags[node] == st(ST::Return._tag) {
             if ast.aa[node] >= 0 {
                 v = m_eval(ast, ast.aa[node], env);
                 if v.kind == 1 { return m_int_str(v.n); }
@@ -264,13 +362,65 @@ pub fn m_eval_fn(ref Ast ast, int fn_node, ref MEnv env) -> String {
     return "";
 }
 
+/// 构造宏环境并求值（input=item/语句源码；args=实参源码；表达式宏 input=""）
+#[alloc]
+#[state]
+pub fn m_run_macro(ref Ast ast, int fn_node, ref String input, ref MArgs args, int line, int col, ref String file, ref mut MacroOut mo) -> String {
+    env = MEnv { names = [String; 16], kinds = [int; 16], ss = [String; 16], ns = [int; 16], count = 0,
+                 mac_name = ast.texts[fn_node].copy(), mac_sig = m_param_sig(ast, fn_node),
+                 mac_line = line, mac_col = col, diags = [String; 16], diag_count = 0,
+                 mac_file = file.copy() };
+    nparam = m_param_count(ast, fn_node);
+    pi = 0;
+    ai2 = 0;
+    while pi < nparam {
+        pn = m_param_name(ast, fn_node, pi);
+        pk = m_param_kind(ast, fn_node, pi);
+        env.names[env.count] = pn.copy();
+        env.kinds[env.count] = pk;
+        if pi == 0 {
+            env.ss[env.count] = input.copy();
+        } elif pn == "__line" {
+            env.kinds[env.count] = 1;
+            env.ns[env.count] = line;
+        } elif pn == "__col" {
+            env.kinds[env.count] = 1;
+            env.ns[env.count] = col;
+        } elif pn == "__file" {
+            env.ss[env.count] = env.mac_file.copy();
+        } else {
+            if ai2 < args.count {
+                env.ss[env.count] = args.items[ai2].copy();
+                ai2 = ai2 + 1;
+            } else {
+                env.ss[env.count] = "";
+            }
+        }
+        env.count = env.count + 1;
+        pi = pi + 1;
+    }
+    res = m_eval_fn(ast, fn_node, env);
+    i_dg = 0;
+    while i_dg < env.diag_count {
+        if mo.diag_count < 32 {
+            mo.diags[mo.diag_count] = env.diags[i_dg].copy();
+            mo.diag_count = mo.diag_count + 1;
+        }
+        i_dg = i_dg + 1;
+    }
+    return res;
+}
+
 /// 按名字查宏函数节点
 #[alloc]
 pub fn m_find_fn(ref Ast ast, ref String nm) -> int {
     i = 0;
     while i < ast.len {
         if ast.tags[i] == st(ST::FnDecl._tag) {
-            if ast.texts[i] == nm { return i; }
+            // 仅 #[macro] 函数（bit18）；#panic 等编译器内建不是宏
+            if (ast.dd[i] / 262144) % 2 == 1 {
+                if ast.texts[i] == nm { return i; }
+            }
         }
         i = i + 1;
     }
@@ -317,6 +467,21 @@ fn m_param_name(ref Ast ast, int fn_node, int pi) -> String {
     }
     if p < 0 { return ""; }
     return ast.texts[p].copy();
+}
+
+/// 宏形参类型签名（用于诊断里的宏符号名）
+#[alloc]
+fn m_param_sig(ref Ast ast, int fn_node) -> String {
+    p = ast.aa[fn_node];
+    b = StringBuf::new();
+    first = 1;
+    while p >= 0 {
+        if first == 0 { b.push('_'); }
+        b.push_str(m_ty_name(ast, ast.tys[p]));
+        first = 0;
+        p = ast.nexts[p];
+    }
+    return b.to_string();
 }
 
 /// 宏形参个数
@@ -382,13 +547,135 @@ fn m_join_lines(ref MLines ls) -> String {
     return b.to_string();
 }
 
+/// 位置所在行号（1 基）
+#[alloc]
+fn m_line_of(ref String src, int pos) -> int {
+    ln = 1;
+    i = 0;
+    while i < pos {
+        if char_code(src.index(i as usize)) == 10 { ln = ln + 1; }
+        i = i + 1;
+    }
+    return ln;
+}
+
+/// 位置所在列号（1 基）
+#[alloc]
+fn m_col_of(ref String src, int pos) -> int {
+    c = 1;
+    i = pos - 1;
+    while i >= 0 {
+        if char_code(src.index(i as usize)) == 10 { break; }
+        c = c + 1;
+        i = i - 1;
+    }
+    return c;
+}
+
+/// 展开表达式宏 #name(args)（自右向左，内层优先）
+#[alloc]
+#[state]
+fn m_expand_hashes(ref String src0, ref Ast ast, int entry_lines, ref String file) -> MacroOut {
+    ob = MacroOut { text = src0.copy(), changed = 0, delta = 0, diags = [String; 32], diag_count = 0 };
+    nl = 0;
+    endp = src0.len as int;
+    i = 0;
+    while i < src0.len as int {
+        if char_code(src0.index(i as usize)) == 10 {
+            nl = nl + 1;
+            if nl == entry_lines { endp = i; }
+        }
+        i = i + 1;
+    }
+    step = 0;
+    while step < 64 {
+        src = ob.text;
+        if endp > src.len as int { endp = src.len as int; }
+        pos = endp - 1;
+        found = -1;
+        fname = "";
+        fclose = -1;
+        while pos >= 0 {
+            if src.index(pos as usize) == '#' {
+                if pos + 1 < src.len as int {
+                    if src.index((pos + 1) as usize) != '[' {
+                        lp = -1;
+                        q = pos + 1;
+                        while q < endp {
+                            c = src.index(q as usize);
+                            if c == '(' { lp = q; break; }
+                            if c == ' ' || c == '\n' || c == ')' || c == '\t' { break; }
+                            q = q + 1;
+                        }
+                        if lp > pos + 1 {
+                            nm = m_last_seg(m_trim(src.substring((pos + 1) as usize, lp as usize)));
+                            fn_h = m_find_fn(ast, nm);
+                            if fn_h >= 0 {
+                                d = 0;
+                                r = lp;
+                                while r < endp {
+                                    c2 = src.index(r as usize);
+                                    if c2 == '(' { d = d + 1; }
+                                    if c2 == ')' { d = d - 1; if d == 0 { break; } }
+                                    r = r + 1;
+                                }
+                                if d == 0 {
+                                    found = pos;
+                                    fname = nm;
+                                    fclose = r;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            pos = pos - 1;
+        }
+        if found < 0 { break; }
+        fn_x = m_find_fn(ast, fname);
+        args = m_split_args(src.substring((found + (fname.len as int) + 2) as usize, fclose as usize));
+        res = m_run_macro(ast, fn_x, "", args, m_line_of(src, found), m_col_of(src, found), file, ob);
+        b = StringBuf::new();
+        b.push_str(src.substring(0 as usize, found as usize));
+        b.push_str(res);
+        b.push_str(src.substring((fclose + 1) as usize, src.len as usize));
+        ob.text = b.to_string();
+        ob.changed = 1;
+        nl2 = 0;
+        i2 = 0;
+        while i2 < res.len as int {
+            if char_code(res.index(i2 as usize)) == 10 { nl2 = nl2 + 1; }
+            i2 = i2 + 1;
+        }
+        ob.delta = ob.delta + nl2;
+        step = step + 1;
+    }
+    return ob;
+}
+
 /// 展开入口：返回新源码（无站点时 changed=0）
 #[alloc]
 #[state]
-pub fn maybe_expand(ref String src, ref Ast ast, ref Parser p, int entry_lines) -> MacroOut {
-    ob = MacroOut { text = src.copy(), changed = 0, delta = 0 };
+pub fn maybe_expand(ref String src, ref Ast ast, ref Parser p, int entry_lines, ref String file) -> MacroOut {
+    ob = MacroOut { text = src.copy(), changed = 0, delta = 0, diags = [String; 32], diag_count = 0 };
+    // 表达式宏 #name(...)（行内替换；无注解时也可能存在）
+    hs = m_expand_hashes(src, ast, entry_lines, file);
+    if hs.changed == 1 {
+        ob.text = hs.text.copy();
+        ob.changed = 1;
+        ob.delta = ob.delta + hs.delta;
+    }
+    i_hd = 0;
+    while i_hd < hs.diag_count {
+        if ob.diag_count < 32 {
+            ob.diags[ob.diag_count] = hs.diags[i_hd].copy();
+            ob.diag_count = ob.diag_count + 1;
+        }
+        i_hd = i_hd + 1;
+    }
     if p.attrs_count == 0 { return ob; }
-    ls = m_split_lines(src);
+    ls = m_split_lines(ob.text);
     // 站点：注解名最后一段可解析到宏函数、且位于入口文件、且顶层（item 级）
     s_attr = [int; 64];
     s_fn = [int; 64];
@@ -512,37 +799,9 @@ pub fn maybe_expand(ref String src, ref Ast ast, ref Parser p, int entry_lines) 
             ln_i = ln_i + 1;
         }
         input = ib.to_string();
-        // 形参绑定
-        env = MEnv { names = [String; 16], kinds = [int; 16], ss = [String; 16], ns = [int; 16], count = 0 };
-        nparam = m_param_count(ast, fn_node);
+        // 形参绑定（调用点 = 注解行，诊断格式与 stage-0 一致）
         args = m_split_args(m_attr_args(p.attrs_text[ai]));
-        pi = 0;
-        ai2 = 0;
-        while pi < nparam {
-            pn = m_param_name(ast, fn_node, pi);
-            pk = m_param_kind(ast, fn_node, pi);
-            env.names[env.count] = pn.copy();
-            env.kinds[env.count] = pk;
-            if pi == 0 {
-                env.ss[env.count] = input.copy();
-            } elif pn == "__line" {
-                env.kinds[env.count] = 1;
-                env.ns[env.count] = item_line;
-            } elif pn == "__col" {
-                env.kinds[env.count] = 1;
-                env.ns[env.count] = 1;
-            } else {
-                if ai2 < args.count {
-                    env.ss[env.count] = args.items[ai2].copy();
-                    ai2 = ai2 + 1;
-                } else {
-                    env.ss[env.count] = "";
-                }
-            }
-            env.count = env.count + 1;
-            pi = pi + 1;
-        }
-        res = m_eval_fn(ast, fn_node, env);
+        res = m_run_macro(ast, fn_node, input, args, a_line, 1, file, ob);
         // 替换 [a_line .. item_end] 行
         repl = m_split_lines(res);
         ns0 = ls.count;

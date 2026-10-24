@@ -133,9 +133,8 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
         return 1;
     }
     // 宏展开（M1：item 级；无注解站点时零开销）
-    mo = maybe_expand(src, p.ast, p, smap.entry_lines());
+    mo = maybe_expand(src, p.ast, p, smap.entry_lines(), file);
     if mo.changed == 1 {
-        if env("AYANAMI_MACRO_DUMP") == "1" { raw_error("===MACRO===\n" + mo.text); }
         smap.shift_imports(mo.delta);
         p = Parser::new(mo.text);
         prog = p.parse_program();
@@ -145,6 +144,12 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
         }
     }
     n = check_program(p.ast, prog, file, smap);
+    // 宏诊断（stage-0 在效果警告之后输出）
+    i_dg = 0;
+    while i_dg < mo.diag_count {
+        raw_warn(mo.diags[i_dg]);
+        i_dg = i_dg + 1;
+    }
     if n > 0 {
         // 自举期：checker 尚不完整（缺 std 符号表/部分重载规则），降级为警告继续发射。
         // 计数行默认不打印（对齐 stage-0 输出），调试用 AYANAMI_SELFHOST_DEBUG=1
