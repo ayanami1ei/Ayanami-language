@@ -171,6 +171,21 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     `return` 处再 `sitofp i64 <double>` → 非法 IR。`[float]`/`LinkedList[float]`/`ArrayList[float]` 读取
     一律 kind 6；元素类型判断要覆盖 -4001..-4006 标记。
 
+46. **语句级 `elif` 条件必须设 `no_struct`（2026-10-24，已修）**：`parse_if_stmt` 的 elif 条件
+    未置 `no_struct=1`，条件以标识符结尾时（如 `elif x == y { ... }`）会被结构体字面量启发式
+    误判为 `y { ... }`，报 `expected } after struct literal`。表达式 if 的分支本来就有该设置；
+    语句级已补齐。新增类似条件语法时注意。
+
+47. **GenericArg 包装：类型在 `tys` 不在 `aa`（2026-10-24）**：`Name[T]` 的类型实参链是
+    `XT::GenericArg` 包装（`aa=-1`，实际类型在 `tys`，`nexts` 指向下一个实参）。`ty_name`/
+    `unwrap_ty` 会解开包装；直接读 `ast.aa` 会拿到 -1（实例推断/布局替换全部失效）。
+
+48. **多类型参数实例按首个实参匹配（2026-10-24）**：实例表记录 arg1/arg2（`inst_arg2_tys`/
+    `inst_st_argty2`），`fill_struct_inst` 按 StructDef 泛型链替换 gp1/gp2；键与查找仍以
+    `Name[arg1]` 为准（多实参的同源结构体在测试集内唯一）。具体泛型返回类型
+    （`Wrap[Box[int]]`、`T=Box[int]`）按类型自身实参解析实例；字段类型为具体泛型时（fk==2）
+    访问改用实参实例名，否则链式嵌套（`A[B[C[int]]]`）会按源布局解析。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash

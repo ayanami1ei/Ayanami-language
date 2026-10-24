@@ -165,6 +165,11 @@ vtable，但 `"str" + x`、`x.field` 等静态语义无法还原）；且改变�
     由后续 `push` 推断），并用 `ic_nodes/ic_tys` 在调用点取回推断结果
   - 合成标记：-4001 int / -4002 bool / -4003 String / -4004 float / -4005 char / -4006 fn，
     贯通 pk_of_ty/ret_kind/ret_info/type_arg_name/layout/fill_struct_inst/元素读写
-  - 余下：多类型参数（`TakeIt[T,I]`、`Holder[T,U]`）、嵌套实例（`Option[ArrayList[String]]`、
-    `Box[Box[int]]`）、枚举实例（`Option[T]` 的方法特化）、结构体字面量字段推断
+  - 多类型参数结构体实例：实例表记录 arg1/arg2，`fill_struct_inst` 替换 gp1/gp2；
+    具体泛型返回类型（`Wrap[Box[int]]`、`T=Box[int]`）按类型自身实参解析实例；
+    具体泛型字段（fk==2）按字段类型实例解析 → `A[B[C[int]]]` 链式嵌套转正
+  - 多实参结构体字面量保留首个类型实参（解析器），实例按首个实参匹配
+  - 余下：枚举实例（`Option[T]` 载荷替换/方法特化，bd auq）、多类型参数**函数**推断
+    （`TakeIt[T,I]`、`Holder[T,U]` 显式多实参仍受解析器单实参限制）、结构体字面量字段推断
+    （`Box { v = 42 }`）、`Box[T]` 形参的实例布局（`deep()` 的 b.v 链）
 - [ ] 阶段 6：`ref String` 形参按指针 ABI（连续双槽临时 + 调用后回写）；见 docs/selfhost.md 坑 38
