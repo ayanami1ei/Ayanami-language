@@ -189,3 +189,17 @@ impl __add_Fut {
 
 验收：`#[async] fn f() -> int { x = await g(); return x + 1 }` + `block_on(f())`；
 负例：两个 await / await 在循环内 / ref 跨 await → 明确错误。
+
+### 7.3 A1b-2 第一切片（已完成，2026-10-24）
+
+已落地最小直线 `await`（AST 层，语法糖 `await expr` → 内部 `__await(expr)`）：
+
+- 限制：`y = await g(args)` 必须是函数体**第一条语句**；`g` 为同程序 `#[async]` 函数；
+  `args` 只能是本函数参数；await 值类型限 `int`；全程序一个挂起点。
+- 展开：构造 `__f_Fut`（参数 + `__g_Fut __w` + `y` + `_state`）；构造器立即创建内层 future；
+  `poll` 首次轮询内层，`Pending` 直接返回，`Ready(v)` 写 `y` 后调用 `__async_after_f(<params>, y)`
+  执行后置语句（参数名不变，无需重写函数体）。
+- 诊断：`await` 在 `#[async]` 外 → 明确报错；目标非 async → 明确报错。
+- 用例 `example/test_async_await.aya`（`twice` = `await inc` + 1）；负例 `await_outside_async`、
+  `await_not_async`。
+- 后续：任意 await 位置（非首条/循环/多挂起点）→ 状态枚举 + CFG 拆分；非 int 载荷。

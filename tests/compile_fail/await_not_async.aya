@@ -1,0 +1,10 @@
+import "io"
+enum Poll[T] { Ready(T), Pending }
+struct Context { int x }
+fn plain(int x) -> int { return x }
+#[async]
+fn bad(int x) -> int {
+    y = await plain(x)
+    return y
+}
+fn main() -> int { return 0 }

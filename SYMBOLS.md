@@ -357,12 +357,16 @@ src/formatter/stmt.rs:7: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt,
 src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
-src/hir/async_transform.rs:17: pub fn expand(program: &Program) -> Result<Program>
-src/hir/async_transform.rs:33: fn is_async(a: &crate::parser::ast::Attr) -> bool
-src/hir/async_transform.rs:37: fn contains_async(stmt: &Stmt) -> bool
-src/hir/async_transform.rs:47: fn expand_one(stmt: &Stmt, out: &mut Vec<Stmt>) -> Result<()>
-src/hir/async_transform.rs:87: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_transform.rs:113: fn ty_src(ty: &Type) -> Option<String>
+src/hir/async_transform.rs:19: pub fn expand(program: &Program) -> Result<Program>
+src/hir/async_transform.rs:51: fn is_async(a: &crate::parser::ast::Attr) -> bool
+src/hir/async_transform.rs:56: fn stmt_has_direct_await(st: &Stmt) -> bool
+src/hir/async_transform.rs:66: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:76: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()>
+src/hir/async_transform.rs:120: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:146: fn first_await(body: &Block, span: &crate::span::Span) -> Result<Option<(Symbol, Symbol, Vec<Expr>)>>
+src/hir/async_transform.rs:160: fn expand_await(
+src/hir/async_transform.rs:210: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:244: fn ty_src(ty: &Type) -> Option<String>
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
 src/hir/attrs.rs:39: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
 src/hir/attrs.rs:43: pub struct Imports
@@ -2592,11 +2596,11 @@ src/parser/parser/types.rs:30: pub(super) fn parse_base_type(&mut self) -> Resul
 src/parser/parser/types.rs:155: pub(super) fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()>
 src/parser/parser/unary.rs:3: impl Parser
 src/parser/parser/unary.rs:4: pub(super) fn parse_unary(&mut self) -> Result<Expr>
-src/parser/parser/unary.rs:77: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
-src/parser/parser/unary.rs:213: impl Parser
-src/parser/parser/unary.rs:219: pub(super) fn try_parse_generic_call_args(
-src/parser/parser/unary.rs:270: fn is_type_like_arg(t: &Type) -> bool
-src/parser/parser/unary.rs:287: fn is_lowercase_type_name(n: &str) -> bool
+src/parser/parser/unary.rs:87: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
+src/parser/parser/unary.rs:223: impl Parser
+src/parser/parser/unary.rs:229: pub(super) fn try_parse_generic_call_args(
+src/parser/parser/unary.rs:280: fn is_type_like_arg(t: &Type) -> bool
+src/parser/parser/unary.rs:297: fn is_lowercase_type_name(n: &str) -> bool
 src/span.rs:5: pub struct Span
 src/span.rs:14: impl Span
 src/span.rs:15: pub fn new(
@@ -2677,6 +2681,15 @@ example/test_asm_effects.aya:17: fn main() -> int
 example/test_assume.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_assume.aya:7: fn id(int x) -> int { return x }
 example/test_assume.aya:9: fn main() -> int
+example/test_async_await.aya:4: enum Poll[T] { Ready(T), Pending }
+example/test_async_await.aya:5: struct Waker { int id }
+example/test_async_await.aya:6: impl Waker { fn wake(ref self) { } }
+example/test_async_await.aya:7: struct Context { Waker waker }
+example/test_async_await.aya:8: interface Future[T] { fn poll(ref mut self, ref Context cx) -> Poll[T]; }
+example/test_async_await.aya:11: fn inc(int x) -> int
+example/test_async_await.aya:16: fn twice(int x) -> int
+example/test_async_await.aya:22: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:35: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker
