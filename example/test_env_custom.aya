@@ -1,0 +1,55 @@
+// E4：扩展能力——用户自定义能力键（env::logger）+ 与内建能力（env::allocator）并存
+import "io"
+import "alloc"
+
+/// 用户自定义能力接口（能力键 = bound 基名小写 = "logger"）
+interface Logger {
+    fn log(ref self, int code) -> int;
+}
+
+struct StdLogger { }
+
+impl StdLogger {
+    fn log(ref self, int code) -> int {
+        return code
+    }
+}
+
+struct MuteLogger { }
+
+impl MuteLogger {
+    fn log(ref self, int code) -> int {
+        return 0
+    }
+}
+
+/// 两个能力同时注入：分配器（std 接口）+ 日志（用户自定义）
+fn alloc_and_log[E: Allocator, L: Logger](usize n, int code) -> int {
+    p = env::allocator.alloc(n)
+    r = env::logger.log(code)
+    if p == 0usize {
+        return 1
+    }
+    env::allocator.free(p)
+    return r
+}
+
+#[env::allocator(a)]
+#[env::logger(l)]
+fn run() -> int {
+    a = DefaultAllocator { }
+    l = StdLogger { }
+    if alloc_and_log(8usize, 3) != 3 { return 1 }
+    // 块内覆盖 logger（最近者胜），allocator 仍继承外层
+    #[env::logger(s)]
+    {
+        s = MuteLogger { }
+        if alloc_and_log(8usize, 5) != 0 { return 2 }
+    }
+    if alloc_and_log(8usize, 7) != 7 { return 3 }
+    return 0
+}
+
+fn main() -> int {
+    return run()
+}

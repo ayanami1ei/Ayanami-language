@@ -91,6 +91,16 @@ interface Alloc {
 | **E3** | 覆盖（作用域最近者）+ 资源绑定（泛型字段） | 内层覆盖生效；容器持有分配器（扩容/销毁使用原分配器）用例 |
 | **E4** | 扩展能力：`env::Runtime`（联动 async ✓）、日志 / IO、用户自定义 `env::xxx` | 各能力一个正例；自定义能力的文档化流程 |
 
+### 5.1 自定义能力流程
+
+1. 定义能力接口：普通 `interface`（方法可用 `ref self` / `ref mut self`，返回值类型自定）；
+2. 提供：在函数上标注 `#[env::<cap>(值表达式)]`，可多条标注使多个能力并存；
+3. 需求：泛型 bound `[X: 接口名]`，能力键 = 接口名小写；也可在已有提供者的函数内直接用
+   `env::<cap>.<method>(...)`；
+4. 传播：上层函数只要可见该能力（注解或自身环境值参数），bound 链自动继续填充；
+5. 覆盖：`#[env::<cap>(v)] { ... }` 块，最近者胜，出块恢复。
+   （验收正例：`example/test_env_custom.aya`）
+
 ## 6. 非目标
 
 - 运行时全局环境栈 / 父对象查找（除策略明确要求）；
@@ -161,4 +171,10 @@ std 契约已就绪：`std/src/system/alloc.aya` 的 `interface Allocator`
       - 容器以泛型字段显式持有分配器：`struct Pool[E: Allocator] { E e }`，
         `impl[E: Allocator] Pool[E]` 方法经 `self.e.alloc/free` 使用原分配器，无需环境注入
       - 用例 `example/test_env_pool.aya`（`DefaultAllocator` 池分配非零并释放；`FailAlloc` 池返回 0）
-      - 待做：跨包能力键、歧义诊断、E4 扩展能力（`env::Runtime`）
+- [x] **E4（2026-10-24）**：扩展能力（用户自定义能力键）
+      - 能力键无需编译器内置名单：泛型 bound `[X: Interface]` 按「接口名小写 == `#[env::<cap>]` 键」匹配
+      - 用例 `example/test_env_custom.aya`：自定义 `Logger` + 内建 `Allocator` 并存于一个函数；
+        块内覆盖 `Logger`（`MuteLogger` 返回 0）而 `Allocator` 继续继承外层
+      - `env::Runtime`（联动 async）：机制同一规则，待 async A1 调度器接口落地后补正例
+      - 自定义能力流程见 §5.1
+      - 待做：跨包能力键、歧义诊断

@@ -2763,6 +2763,17 @@ example/test_env_chain.aya:6: fn inner[E: Allocator](usize n) -> usize
 example/test_env_chain.aya:13: fn middle[E: Allocator](usize n) -> usize
 example/test_env_chain.aya:18: fn run() -> int
 example/test_env_chain.aya:25: fn main() -> int
+example/test_env_custom.aya:6: interface Logger
+example/test_env_custom.aya:7: fn log(ref self, int code) -> int;
+example/test_env_custom.aya:10: struct StdLogger { }
+example/test_env_custom.aya:12: impl StdLogger
+example/test_env_custom.aya:13: fn log(ref self, int code) -> int
+example/test_env_custom.aya:18: struct MuteLogger { }
+example/test_env_custom.aya:20: impl MuteLogger
+example/test_env_custom.aya:21: fn log(ref self, int code) -> int
+example/test_env_custom.aya:27: fn alloc_and_log[E: Allocator, L: Logger](usize n, int code) -> int
+example/test_env_custom.aya:39: fn run() -> int
+example/test_env_custom.aya:53: fn main() -> int
 example/test_env_generic.aya:6: fn alloc_free[E: Allocator](usize n) -> usize
 example/test_env_generic.aya:14: fn run() -> int
 example/test_env_generic.aya:21: fn main() -> int
