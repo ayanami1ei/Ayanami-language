@@ -1,105 +1,62 @@
-# Phase 6：宏系统升级（文本 → AST/HIR）设计
+# 自举宏引擎设计（selfhost）
 
-> 状态：**mcl.1 / mcl.2 / mcl.3 部分实现**（TokenStream 编解码（含分组）+ token 宏（item/语句/表达式）+ hygiene 原语 + 诊断通道（含调用点）+ `dump expanded` / 展开追踪 / 错误包装；std API / span 归属与自动改名待做）（2026-10-18）。关联：bd `Ayanami-language-mcl`（epic）与
-> `mcl.1`（TokenStream/Span/Diagnostic）/ `mcl.2`（hygiene 与错误定位）/ `mcl.3`（展开调试与 IDE）；
-> GitHub #43 / #42 / #45 / #62。现状（A5 已落地部分）见 `docs/annotations.md` §A5。
+> 状态（2026-10-24）：**未实现**。本文档为下一阶段实现的设计稿。
+> stage-0 参考实现：`rust/src/compiler/macro_expand/`（M3 插件 ABI v3，编译宏库为 `.so` 后 dlopen）。
 
-## 1. 现状（2026-10）
+## 1. 目标
 
-| 能力 | 位置 | 形态 |
+让自举编译器支持 `example/macro_lib.aya` 定义的宏（11 个用例）：
+
+| 形态 | 示例 | 语义 |
 |---|---|---|
-| 文本宏 `#[macro] fn f(String input, String ...args) -> String` | `compiler/macro_expand/plugin.rs`（ABI v5） | item / 语句 / 表达式级；**源码文本**进出；插件 `.so`（宏库 LIR → llc(PIC) + C shim + runtime） |
-| MIR pass `#[pass]` | `pass_plugin.rs`（schema v0/v3） | MIR blob 进出（`fn(ref mut MirFunction) -> void`）；API 见 `std/mir.aya` |
-| 只读检查 `#[check]` | `check_plugin.rs` | `warn`/`error` 诊断通道；只读强制（blob 不变） |
-| 调用点定位 | `__line/__col/__file` 保留参数 | 调用点自动填充（含 `.lcl` `caller` 标记）；std 越界 panic 指向用户行 |
+| item 宏 | `#[answer] fn placeholder()` | 宏返回源码替换整个 item |
+| item 宏（库限定） | `#[macro_lib::emit_const(meaning, 42)]` | 第一个参数是 item 源码，其后是实参源码文本 |
+| 语句宏 | `#[twice] y = y + 1` | 返回源码替换该语句（可多条） |
+| 表达式宏 | `x = #double(3)` | 返回源码作为表达式 |
+| 块实参 | `#block_len({ y = 12345 })` | 实参为块源码文本 |
+| token 宏 | `#[macro(tokens)]` / `#tok_expr(...)` | 输入/输出是 token 流编码（String 承载） |
+| 诊断/卫生 | `__ayanami_macro_diag` / `__ayanami_macro_hygienic` | 编译期告警、生成名加宏 id 后缀 |
 
-限制（升级动机）：
+## 2. 总体方案（自举：解释执行，不建 .so）
 
-- **文本进出**：宏内无法结构化分析（缺 TokenStream）、转义/拼接易错、无法安全复用编译器解析能力；
-- **无 Span/Diagnostic**：展开后的错误指向宏输出而非调用点；宏无法主动报位置化诊断；
-- **无 hygiene**：宏内定义的名字会泄漏到调用点、也可能捕获调用点的名字（静默错绑定）；
-- 插件 `.so` 较重（简单宏也走 native 编译；`/tmp/ayanami-macros` 缓存缓解）。
+自举编译器不 dlopen，改为**编译期解释执行宏函数**：
 
-## 2. 目标
+1. **收集宏表**：扫描合并后的 AST，`#[macro]`/`#[macro(tokens)]` 标注的 FnDecl →
+   `(名字, tokens?, 形参表, 函数体节点)`。
+2. **展开时机**：在 `merge_source_map` 之后、`check_program` 之前，对**每个源文件**分别展开
+   （保持 SrcMap 行区间稳定；新生成的代码计入该文件的行数，或接受位置漂移）。
+   展开是递归的（深度上限 32）。
+3. **解释器**（新增 `selfhost/src/macro/eval.aya`）：
+   - 值域：`String`（源码文本）/ `int`；
+   - 表达式：字面量、形参、`+` 拼接、`(expr)`、`x.len()`、`int.to_string()`、
+     extern shim 调用（`__ayanami_macro_hygienic` → 生成名；`__ayanami_macro_diag` → 诊断）；
+   - 语句：`x = expr`、`return expr`（后续可加 `if`/`while`）；
+   - 输入约定：`input` = 被标注 item/语句的源码文本；其后依次是实参源码文本；
+     表达式宏 `#f(a, b)` → `(input="", a 源码, b 源码)`；
+     `__line`/`__col`/`__file` 由调用点注入。
+4. **拼接**：把返回的源码文本用**现有解析器**解析成 item/语句/表达式，替换原节点；
+   解析失败即宏生成非法代码（错误带宏名与调用点）。
+5. **token 编码**：与 stage-0 `token_stream.rs` 对齐（长度前缀的 token 列表），
+   使 `input + input` 这类拼接在 token 宏下依然合法。
 
-1. **结构化接口**：`TokenStream`（token 序列 + Span）替代字符串进出；
-2. **诊断**：宏可产生带调用点定位的 error/warn（Diagnostic 通道）；
-3. **hygiene（务实版）**：宏内定义的名字不泄漏、不捕获调用点名字；
-4. **兼容**：文本宏保留（迁移期）；结构化宏为新 kind（ABI v6）；
-5. **IDE 友好**：展开记录（span 映射）可导出（mcl.3）。
+## 3. 分期
 
-## 3. 设计
+- **M1（item/语句/表达式 + 字符串拼接）**：test_macro、test_macro_args、test_macro_stmt、
+  test_macro_fn、test_annotation_scope
+- **M2（块实参 + 长度/行号）**：test_macro_block、`my_line`
+- **M3（token 流）**：test_macro_tokens
+- **M4（卫生/诊断）**：test_macro_hygiene
+- **M5（MIR 插件）**：test_check（`#[check]`，与宏引擎分开，参考 `macro_expand/check_plugin.rs`）
 
-### 3.1 TokenStream 表示（ABI v6）
+## 4. 验收
 
-- 编码（小端）：`[kind:u8][file:u32][line:u32][col:u32][len:u32][bytes...]` 序列；
-  **分组**：`(...)`/`[...]`/`{...}` 折叠为 GROUP token，负载 = 开符码 + 递归编码的子流；
-- kind：标识符 / 字面量（int/float/char/bool/string）/ 标点（含多字符）/ 关键字 /
-  **分组**（`(...)` `[...]` `{...}`，递归承载子流）；
-- 输入：调用点 item / 语句 / 表达式的 token 序列（**含调用点 span**）；
-- 输出：同构 token 序列（编译器重新解析为 AST 后按既有流程降级）；
-- 编译器侧复用 `lexer`（token 化）与 `parser`（重解析）；宏侧 API 契约见 §4。
+- 上述用例与 stage-0 输出/退出码一致（`./scripts/selfhost.sh diff`）；
+- 固定点保持（`./scripts/selfhost.sh selfcompile`），每次改动跑 `check_all.sh`；
+- 宏展开不在 `src/lir`/`src/hir` 之外引入新的 String 热路径（自举发射器无堆释放，注意内存上限）。
 
-### 3.2 Span 与 hygiene（务实模型；mcl.2 已实现原语）
+## 5. 已知风险
 
-- **实现（opt-in 原语）**：插件 shim 提供 `__ayanami_macro_hygienic(name) -> name__m<id>`
-  （宏 id = 插件符号短哈希，确定性）；宏内**定义名**显式经此加后缀 →
-  不捕获调用点同名函数、不泄漏给调用点；调用点名字（输入 token/实参）保持原样；
-- 宏库可直接 `extern "C" fn __ayanami_macro_hygienic(String) -> String;` 声明使用
-  （std 侧按 §4 契约包装为 `hygienic_ident` 等 API）；编译器对 `__ayanami_macro_*`
-  声明发射 `extern_weak`（宏库作为模块编入可执行文件时允许未定义——调用只存在于插件路径）；
-- 待做（mcl.2 剩余）：token 级 span 归属（透传 vs 宏内新写）与自动改名；
-- 不追求 Rust 级完整 hygiene；边界在文档明示，不做隐式魔法。
-
-### 3.3 Diagnostic 通道（mcl.2 已实现基础）
-
-- **实现**：shim 提供 `__ayanami_macro_diag(level, msg)`（1=warn，2=error；收集上限 32）；
-  编译器在插件调用后读取（`__ayanami_macro_diag_count/level/msg`）：
-  warn → stderr `warning: <msg> (in macro `<symbol>`)`；error → 编译失败并附宏名；
-- 宏库可直接 `extern "C" fn __ayanami_macro_diag(int, String) -> void;` 声明使用；
-- 生成代码错误包装：宏输出解析失败 → `in macro `<name>` expansion: … (at 调用点)`；
-- 位置：`__ayanami_macro_diag` 产生的 warn/error 附带调用点（`at l:c`，编译器在调用时注入）；
-- 待做：span 参数（错误指向宏内位置的区分，随 span 归属一起做）、与 `#[check]` 渲染路径统一。
-
-### 3.4 与现有 A5 的关系
-
-- 宏分类（实现取用显式标记）：`#[macro]` = 文本宏（现有）；`#[macro(tokens)]` = token 宏
-  （ABI v6，输入/输出为 TokenStream 编码字节，经 `String`（AyaBuf）承载——二进制安全）；
-  同一包可混合；`.lcl` 宏表写 `macro="name,tokens"`（旧格式缺省为文本宏，向后兼容）；
-- `.lcl` 宏表新增 `kind=`（text/tokens）字段；旧包缺省为 text（向后兼容读取）；
-- MIR pass / check 不变（A5d）；文本宏不废弃（迁移期保留，后续按需引导）。
-
-## 4. std 侧 API 契约（供 std 子仓实现）
-
-```ayanami
-// std/macros.aya（示意；契约稳定后由 std 实现，编译器提供 shim/ABI）
-pub struct Span { ... }                  // file/line/col（与诊断一致）
-pub struct TokenStream { ... }           // 不透明；编译器 ABI 编解码
-pub struct Token { ... }                 // kind + span + 文本
-
-pub namespace TokenStream {
-    pub fn iter(ref self) -> TokenIter     // 含分组递归展开
-    pub fn to_source(ref self) -> String   // 调试/文本宏桥接
-    pub fn from_source(String) -> TokenStream
-    pub fn push_ident(Symbol/String)
-    pub fn push_punct(char)
-}
-
-pub fn diag_error(String msg, Span span)
-pub fn diag_warn(String msg, Span span)
-```
-
-## 5. 阶段与验收
-
-| 阶段 | 内容 | 验收 |
-|---|---|---|
-| **mcl.1**（部分 ✓） | ABI v6/v7：TokenStream 编解码（分组 token 已支持）+ 编译器侧桥（字节通道）+ 宏分类（`#[macro(tokens)]`；item/语句/表达式三形态） | 正例：`example/test_macro_tokens.aya`（`tok_keep` 往返 / `tok_twice` 拼接 / `#tok_expr` 表达式）+ 编解码单测 ×3；回归全绿；**待做**：std `TokenStream` API |
-| **mcl.2**（部分 ✓） | hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ Diagnostic 通道（warn/error + 宏名 + 调用点 `at l:c`） | 正例：`example/test_macro_hygiene.aya`（生成名不捕获用户同名函数 + warn 带位置）；负例：`macro_diag_error.aya`；**待做**：token span 归属/自动改名、`#[check]` 渲染统一 |
-| **mcl.3**（部分 ✓） | `ayanami dump expanded <file>`（展开后源码）+ `AYANAMI_MACRO_TRACE=1` 追踪 | `dump expanded` 输出展开后源码（宏替换可见）；**待做**：span 映射链（IDE 视图） |
-| 远期 | 其它语言插件 / WASM 沙箱 / 插件清单与权限 | — |
-
-## 6. 非目标
-
-- Rust 级完整 hygiene、声明宏 `macro_rules!` 式语法糖；
-- 插件沙箱与权限模型（远期，见 A5c-2 后续）；
-- 递归上限调整（保持 32）与文本宏废弃。
+- 自举解析器/字符串处理对新增代码较敏感（历史坑 38/41/46），展开代码应尽量集中在
+  `selfhost/src/macro/`，避免改动 `emit.aya`；
+- 行号/SrcMap：展开后生成代码的位置诊断会偏移，诊断 golden 可能变化；
+- 递归宏深度与内存上限（`selfhost.sh` 当前 4GB）。
