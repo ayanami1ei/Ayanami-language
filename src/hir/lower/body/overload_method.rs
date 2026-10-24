@@ -55,7 +55,8 @@ impl crate::hir::lower::Ctx {
             return Some(matches[0]);
         }
         if matches.len() > 1 {
-            return None;
+            // d5c：本地函数优先于同名同签名的导入重载（导入签名 span 为默认 0）
+            return matches.iter().copied().find(|id| self.fns[id.0].span.start_line > 0);
         }
         // 隐式数值转换回退（char→int / int→float / char→float）：
         // 仅在无精确匹配时参与，避免与精确重载竞争
