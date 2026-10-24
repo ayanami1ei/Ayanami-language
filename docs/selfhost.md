@@ -261,10 +261,13 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
       `fill_struct_inst`/`fill_enum_inst` 在 body 阶段补 `%struct`/`%enum` 定义；
     - 枚举构造改为**先求值载荷**再按 Val 推断实例（`val_marker`），支持闭包调用结果作载荷；
     - 返回 `Option[U]` 的方法调用点按替换后的实参补建枚举实例。
-    **问题**：stage-2 自编译峰值从 3.6GB 涨到 **7.7GB**（`selfhost.sh` 4GB 上限下 stage-3 崩溃），
-    固定点无法通过。回退该批次（stash 保留）。下一步：定位 stage-1 编译产物中的额外分配
-    （重点怀疑枚举构造的 `[Val; 16]` 与每方法调用都执行的 `impl_gparam`），或把该批拆成
-    「仅 spec2」/「仅 type_buf」分别测内存。
+    **问题**：stage-2 自编译峰值从 **3.58GB 涨到 7.64GB**（`selfhost.sh` 4GB 上限下 stage-3 崩溃），
+    固定点无法通过。回退该批次（stash `multiparam-wip2` 保留，含下述优化）。
+    已排除：枚举构造的 `[Val; 16]` 数组（改为 8 个局部值后峰值仍 7.64GB）。
+    下一步二分：`impl_gparam` 从 `inst_m2` 内移到每次方法调用（O(ast.len) 扫描）、`type_buf`、
+    `spec_*` 第二实参数组；或改为不预求值载荷的实例推断（把 Option[String] 在 collect_instances
+    预建，避免发射期类型定义）。测量方法：`build/main build selfhost/src/main.aya` 后用轮询
+    `/proc/<pid>` 的 RSS 峰值（基线 3.58GB）。
 
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
