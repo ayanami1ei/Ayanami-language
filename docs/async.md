@@ -170,3 +170,22 @@ impl __add_Fut {
 `expand_util::is_compiler_attr` 放行）。踩坑：示例最初用 `fn add`，与 std `io` 导入的
 `add(int,int)` 重载同名，签名查找命中导入版本（返回 int）→ 构造函数体报
 `return type mismatch`；**用户函数与导入重载同名时需换名**（既有解析行为，非本特性引入）。
+
+### 7.2 A1b-2（直线 `await`）实现约束（2026-10-24 更新）
+
+**结论：`await` 状态机必须在 HIR（类型检查后）做，AST 层不可行。**
+第一切片之所以能在 AST 层完成，是因为无挂起点、参数类型可直接抄写；一旦出现 `await`，
+状态结构体需要保存**被等待 future 的类型**与跨挂起点存活的局部变量类型，AST 层拿不到
+（宏/展开期也拿不到）。因此：
+
+1. `#[async]` 语法仍由 AST 变换识别并**标记**（保留函数体，不生成机器）；
+2. 新增 HIR 级变换（`lower_items` 之后、MIR 之前）：此时 `HirFn` 已带参数/局部/HIR 类型，
+   可生成 `enum __f_State` + 字段（被测 future、跨 await 局部）+ `poll`；
+3. `await e` 的降级：
+   - `e` 求值得到 future `f`（类型已知），存入状态字段；
+   - `match f.poll(cx) { Ready(v) => 绑定并继续, Pending => 置状态并 return Pending }`；
+   - 恢复入口按状态字段跳转（循环/if 需先做 CFG 拆分）。
+4. v1 限制：单挂起点、直线代码（无 await 跨循环/分支）；`ref` 跨 await 禁用。
+
+验收：`#[async] fn f() -> int { x = await g(); return x + 1 }` + `block_on(f())`；
+负例：两个 await / await 在循环内 / ref 跨 await → 明确错误。
