@@ -18,6 +18,31 @@ fn twice(int x) -> int {
     return y + 1
 }
 
+#[async]
+fn greet() -> String {
+    return "hi"
+}
+
+#[async]
+fn exclaim() -> String {
+    s = await greet()
+    return s + "!"
+}
+
+#[state]
+fn block_on_s[F: Future[String]](ref mut F f) -> String {
+    w = Waker { id = 1 }
+    cx = Context { waker = w }
+    while true {
+        p = f.poll(ref cx)
+        match p {
+            Ready(v) => { return v }
+            Pending => { }
+        }
+    }
+    return ""
+}
+
 #[state]
 fn block_on[F: Future[int]](ref mut F f) -> int {
     w = Waker { id = 1 }
@@ -37,5 +62,7 @@ fn main() -> int {
     if block_on(ref mut f) != 3 { return 1 }
     g = inc(5)
     if block_on(ref mut g) != 6 { return 2 }
+    h = exclaim()
+    if block_on_s(ref mut h) != "hi!" { return 3 }
     return 0
 }

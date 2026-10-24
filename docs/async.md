@@ -195,7 +195,7 @@ impl __add_Fut {
 已落地最小直线 `await`（AST 层，语法糖 `await expr` → 内部 `__await(expr)`）：
 
 - 限制：`y = await g(args)` 必须是函数体**第一条语句**；`g` 为同程序 `#[async]` 函数；
-  `args` 只能是本函数参数；await 值类型限 `int`；全程序一个挂起点。
+  `args` 只能是本函数参数；await 载荷支持 `int`/`float`/`bool`/`String`（默认值初始化）；全程序一个挂起点。
 - 展开：构造 `__f_Fut`（参数 + `__g_Fut __w` + `y` + `_state`）；构造器立即创建内层 future；
   `poll` 首次轮询内层，`Pending` 直接返回，`Ready(v)` 写 `y` 后调用 `__async_after_f(<params>, y)`
   执行后置语句（参数名不变，无需重写函数体）。

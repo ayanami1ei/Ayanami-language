@@ -365,8 +365,10 @@ src/hir/async_transform.rs:76: fn expand_one(stmt: &Stmt, returns: &HashMap<Symb
 src/hir/async_transform.rs:120: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform.rs:146: fn first_await(body: &Block, span: &crate::span::Span) -> Result<Option<(Symbol, Symbol, Vec<Expr>)>>
 src/hir/async_transform.rs:160: fn expand_await(
-src/hir/async_transform.rs:210: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_transform.rs:244: fn ty_src(ty: &Type) -> Option<String>
+src/hir/async_transform.rs:209: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:243: fn await_default(ty: &Type) -> Option<(&'static str, &'static str)>
+src/hir/async_transform.rs:253: fn type_name(ty: &Type) -> String
+src/hir/async_transform.rs:266: fn ty_src(ty: &Type) -> Option<String>
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
 src/hir/attrs.rs:39: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
 src/hir/attrs.rs:43: pub struct Imports
@@ -2688,8 +2690,11 @@ example/test_async_await.aya:7: struct Context { Waker waker }
 example/test_async_await.aya:8: interface Future[T] { fn poll(ref mut self, ref Context cx) -> Poll[T]; }
 example/test_async_await.aya:11: fn inc(int x) -> int
 example/test_async_await.aya:16: fn twice(int x) -> int
-example/test_async_await.aya:22: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_await.aya:35: fn main() -> int
+example/test_async_await.aya:22: fn greet() -> String
+example/test_async_await.aya:27: fn exclaim() -> String
+example/test_async_await.aya:33: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:47: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:60: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker

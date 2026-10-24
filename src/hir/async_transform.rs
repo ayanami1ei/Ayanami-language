@@ -161,13 +161,12 @@ fn expand_await(
     stmt: &Stmt, y: Symbol, g: Symbol, gargs: &[Expr],
     returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>,
 ) -> Result<()> {
-    let Stmt::FnDecl { vis, name, params, return_type, body, span, .. } = stmt else { unreachable!() };
+    let Stmt::FnDecl { vis, name, params, return_type, body, .. } = stmt else { unreachable!() };
     let fail = |m: String| Error::Hir(format!("#[async] `{}`: {}", name.as_str(), m));
     let g_ret = returns.get(&g)
         .ok_or_else(|| fail(format!("await target `{}` is not an #[async] function (v1)", g.as_str())))?;
-    if !matches!(g_ret, Type::Int(_)) {
-        return Err(fail("await value type must be int (v1)".into()));
-    }
+    let (y_ty, y_init) = await_default(g_ret)
+        .ok_or_else(|| fail(format!("unsupported await value type `{}` (v1)", type_name(g_ret))))?;
     let ret = ty_src(return_type).ok_or_else(|| fail("unsupported return type (v1)".into()))?;
     let mut arg_names = Vec::with_capacity(gargs.len());
     for a in gargs {
@@ -195,13 +194,13 @@ fn expand_await(
         self_args.push(format!("self.{}", n.as_str()));
     }
     let field_body = format!(
-        "{}\n    __{}_Fut __w\n    int y\n    int _state",
-        fields.join("\n    "), g.as_str()
+        "{}\n    __{}_Fut __w\n    {} y\n    int _state",
+        fields.join("\n    "), g.as_str(), y_ty
     );
     let init_body = format!(
-        "{}{}__w = {}({}){}y = 0{}_state = 0",
+        "{}{}__w = {}({}){}y = {}, _state = 0",
         inits.join(", "), if inits.is_empty() { "" } else { ", " },
-        g.as_str(), arg_names.join(", "), ", ", ", "
+        g.as_str(), arg_names.join(", "), ", ", y_init
     );
     self_args.push("self.y".to_string());
     let src = format!(
@@ -228,7 +227,7 @@ fn expand_await(
         attrs.clear();
         *hn = Symbol::intern(&after);
         *hv = Visibility::Private;
-        hp.push((y, Type::Int(*span)));
+        hp.push((y, g_ret.clone()));
         let mut post = hb.clone();
         post.stmts = body.stmts[1..].to_vec();
         *hb = post;
@@ -238,6 +237,29 @@ fn expand_await(
         .map_err(|e| fail(format!("helper format failed: {}", e)))?;
     out.extend(h.stmts);
     Ok(())
+}
+
+/// await 载荷类型 → (字段类型串, 默认值字面量)；v1 仅基础类型/String。
+fn await_default(ty: &Type) -> Option<(&'static str, &'static str)> {
+    match ty {
+        Type::Int(_) => Some(("int", "0")),
+        Type::Float(_) => Some(("float", "0.0")),
+        Type::Bool(_) => Some(("bool", "false")),
+        Type::Named(s, _) if s.as_str() == "String" => Some(("String", "\"\"")),
+        _ => None,
+    }
+}
+
+fn type_name(ty: &Type) -> String {
+    match ty {
+        Type::Int(_) => "int".into(),
+        Type::Float(_) => "float".into(),
+        Type::Bool(_) => "bool".into(),
+        Type::Char(_) => "char".into(),
+        Type::Named(s, _) => s.as_str().to_string(),
+        Type::Generic(n, _, _) => format!("{}[...]", n.as_str()),
+        _ => "?".into(),
+    }
 }
 
 /// 生成源码用的类型串（仅 v1 允许的类型）。
