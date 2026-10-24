@@ -55,6 +55,15 @@ pub struct Emitter {
     [int] en_pvstart
     int en_ptotal
     [int] en_vslots
+    // 枚举实例：en 下标 / 源枚举下标 / 类型实参标记
+    [int] ei_ens
+    [int] ei_srcs
+    [int] ei_args
+    int ei_count
+    // 容器局部 -> 源结构体名（枚举载荷推断用）
+    [String] ln_names
+    [String] ln_srcs
+    int ln_count
     // 函数签名表（参数种类：0=int, 20=enum, 100+si=struct）
     [String] fn_names
     // 是否 extern（C 符号，不加修饰）
@@ -198,6 +207,8 @@ pub namespace Emitter {
             en_names = [String; 128], en_vstart = [int; 128], en_vcount = [int; 128],
             en_variants = [String; 1024], en_arity = [int; 1024], en_vtotal = 0, en_count = 0,
             en_ptype = [int; 4096], en_pvstart = [int; 1024], en_ptotal = 0, en_vslots = [int; 1024],
+            ei_ens = [int; 128], ei_srcs = [int; 128], ei_args = [int; 128], ei_count = 0,
+            ln_names = [String; 256], ln_srcs = [String; 256], ln_count = 0,
             fn_names = [String; 8192], fn_extern = [int; 8192], fn_pstart = [int; 8192], fn_pcount = [int; 8192],
             fn_pkinds = [int; 65536], fn_ptotal = 0, fn_count = 0,
             fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, inst_st_names = [String; 128], inst_st_src = [int; 128], inst_st_argty = [int; 128], inst_st_argty2 = [int; 128], inst_st_count = 0, inst_arg_tys = [int; 512], inst_arg2_tys = [int; 512], spec_nodes = [int; 256], spec_prefixes = [String; 256], spec_params = [String; 256], spec_args = [int; 256], spec_selfs = [String; 256], spec_count = 0, cb_tmps = [String; 32], cb_names = [String; 32], cb_count = 0, ic_nodes = [int; 256], ic_tys = [int; 256], ic_count = 0, cur_inst_param = "", cur_inst_arg_ty = -1, cur_inst_ord = -1, cur_inst_struct = "", m_rtype = [int; 8192],
@@ -2179,6 +2190,10 @@ impl Emitter {
         return mx;
     }
 
+    fn variant_arity(ref mut self, int ei, int vi) -> int {
+        return self.en_arity[self.en_vstart[ei] + vi];
+    }
+
     /// 变体第 k 个载荷的类型节点 id（-1 未知）
     fn variant_ptype(ref mut self, int ei, int vi, int k) -> int {
         idx = self.en_vstart[ei] + vi;
@@ -2823,6 +2838,139 @@ impl Emitter {
 
     /// 名称是否为泛型参数
     #[alloc]
+    /// 标记 -> 名字（原语/结构体/枚举）
+    #[alloc]
+    fn marker_name(ref mut self, int m) -> String {
+        if m == -4001 { return "int"; }
+        if m == -4002 { return "bool"; }
+        if m == -4003 { return "String"; }
+        if m == -4004 { return "float"; }
+        if m == -4005 { return "char"; }
+        if m == -4006 { return "fn"; }
+        if m <= -1000 && m > -1128 { return self.st_names[0 - 1000 - m].copy(); }
+        if m <= -2000 && m > -2128 { return self.en_names[0 - 2000 - m].copy(); }
+        return "";
+    }
+
+    /// 标记基名（实例名去掉 __m<k>）
+    #[alloc]
+    fn marker_base(ref mut self, int m) -> String {
+        nm = self.marker_name(m);
+        p = nm.index_of("__m");
+        if p > 0 { return nm.substring(0 as usize, p as usize); }
+        return nm;
+    }
+
+    /// 名字 -> 标记
+    #[alloc]
+    fn marker_of_name(ref mut self, ref String nm) -> int {
+        if nm == "String" { return -4003; }
+        if nm == "int" || nm == "usize" || nm == "i32" || nm == "i64" || nm == "u32" || nm == "u64" || nm == "i8" || nm == "u8" || nm == "i16" || nm == "u16" { return -4001; }
+        if nm == "float" || nm == "f64" || nm == "f32" { return -4004; }
+        if nm == "char" { return -4005; }
+        if nm == "bool" { return -4002; }
+        if nm == "fn" { return -4006; }
+        si = self.find_struct_idx(nm);
+        if si >= 0 { return -1000 - si; }
+        ei = self.find_enum_idx(nm);
+        if ei >= 0 { return -2000 - ei; }
+        return -1;
+    }
+
+    /// 记录容器局部 -> 源结构体名
+    #[state]
+    fn note_local_src(ref mut self, ref String nm, ref String src) {
+        if nm.len == 0 || src.len == 0 { return; }
+        i = 0;
+        while i < self.ln_count {
+            if self.ln_names[i] == nm {
+                if self.ln_srcs[i].len == 0 { self.ln_srcs[i] = src.copy(); }
+                return;
+            }
+            i = i + 1;
+        }
+        if self.ln_count < 256 {
+            self.ln_names[self.ln_count] = nm.copy();
+            self.ln_srcs[self.ln_count] = src.copy();
+            self.ln_count = self.ln_count + 1;
+        }
+    }
+
+    fn local_src_of(ref mut self, ref String nm) -> String {
+        i = 0;
+        while i < self.ln_count {
+            if self.ln_names[i] == nm { return self.ln_srcs[i].copy(); }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    /// 按 (源枚举, 实参标记基名) 查找枚举实例（返回 en 下标）
+    #[alloc]
+    fn find_enum_inst(ref mut self, int ei_src, int arg) -> int {
+        ab = self.marker_base(arg);
+        if ab.len == 0 { return -1; }
+        i = 0;
+        while i < self.ei_count {
+            if self.ei_srcs[i] == ei_src {
+                if self.marker_base(self.ei_args[i]) == ab { return self.ei_ens[i]; }
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    /// 生成/查找泛型枚举实例（变体与载荷类型按首个类型参数替换）
+    #[alloc]
+    #[state]
+    fn fill_enum_inst(ref mut self, ref Ast ast, int ei_src, int arg) -> int {
+        if ei_src < 0 || ei_src >= self.en_count || arg == -1 { return -1; }
+        old_ei = self.find_enum_inst(ei_src, arg);
+        if old_ei >= 0 { return old_ei; }
+        if self.en_count >= 128 || self.ei_count >= 128 { return -1; }
+        gp = self.enum_gparam(ast, ei_src);
+        if gp.len == 0 { return -1; }
+        src_name = self.en_names[ei_src].copy();
+        ei_new = self.en_count;
+        self.en_names[ei_new] = src_name + "__m" + int_str2(ei_new);
+        self.en_vstart[ei_new] = self.en_vtotal;
+        self.en_vcount[ei_new] = self.en_vcount[ei_src];
+        vs = self.en_vstart[ei_src];
+        nv = self.en_vcount[ei_src];
+        k = 0;
+        while k < nv {
+            idx_s = vs + k;
+            if self.en_vtotal >= 1024 { break; }
+            self.en_variants[self.en_vtotal] = self.en_variants[idx_s].copy();
+            ar = self.en_arity[idx_s];
+            self.en_arity[self.en_vtotal] = ar;
+            self.en_pvstart[self.en_vtotal] = self.en_ptotal;
+            pv = self.en_pvstart[idx_s];
+            sl_n = 0;
+            j = 0;
+            while j < ar {
+                pty = self.en_ptype[pv + j];
+                pn = ty_name(ast, pty);
+                if pn.len > 0 && pn == gp { pty = arg; }
+                if self.en_ptotal < 4096 {
+                    self.en_ptype[self.en_ptotal] = pty;
+                    self.en_ptotal = self.en_ptotal + 1;
+                }
+                if elem_is_string(ast, pty) { sl_n = sl_n + 2; } else { sl_n = sl_n + 1; }
+                j = j + 1;
+            }
+            self.en_vslots[self.en_vtotal] = sl_n;
+            self.en_vtotal = self.en_vtotal + 1;
+            k = k + 1;
+        }
+        self.en_count = ei_new + 1;
+        self.ei_ens[self.ei_count] = ei_new;
+        self.ei_srcs[self.ei_count] = ei_src;
+        self.ei_args[self.ei_count] = arg;
+        self.ei_count = self.ei_count + 1;
+        return ei_new;
+    }
+
     /// 类型节点内是否仍含类型参数（含嵌套泛型实参，如 Box[T]）
     #[alloc]
     fn type_has_gparam(ref mut self, ref Ast ast, int ty) -> bool {
@@ -2960,6 +3108,10 @@ impl Emitter {
                 if nx_a >= 0 { a2_u = unwrap_ty(ast, nx_a); }
                 if an.len > 0 && !self.type_is_gparam(ast, arg) && !self.type_has_gparam(ast, arg) {
                     self.add_inst2(nm + "[" + an + "]", a1_u, a2_u);
+                    ei_nt = self.find_enum_idx(nm);
+                    if ei_nt >= 0 {
+                        self.fill_enum_inst(ast, ei_nt, a1_u);
+                    }
                 }
             }
         } elif tg == tt(TT::Ref._tag) {
@@ -3019,6 +3171,69 @@ impl Emitter {
                                     rn2 = ast.texts[rty_n].copy();
                                     self.add_inst(rn2 + "[" + an1 + "]", ty1);
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+            i = i + 1;
+        }
+        // 局部源结构体名：x = X::new(...) / Type.fn(...)（枚举载荷推断用）
+        i = 0;
+        while i < ast.len {
+            if ast.tags[i] == st(ST::Assign._tag) {
+                rhs_l = ast.aa[i];
+                if rhs_l >= 0 && ast.tags[rhs_l] == et(ET::FnCall._tag) {
+                    cn_l = ast.texts[rhs_l];
+                    ld_l = -1;
+                    q_l = 0;
+                    while q_l < cn_l.len as int {
+                        if cn_l.index(q_l as usize) == '.' { ld_l = q_l; }
+                        q_l = q_l + 1;
+                    }
+                    if ld_l > 0 {
+                        base_l = cn_l.substring(0 as usize, ld_l as usize);
+                        if self.find_struct_idx(base_l) >= 0 {
+                            self.note_local_src(ast.texts[i], base_l);
+                        }
+                    }
+                }
+            }
+            i = i + 1;
+        }
+        // 泛型枚举实例：Option::Some(x) 等（按载荷值推断类型实参）
+        i = 0;
+        while i < ast.len {
+            if ast.tags[i] == et(ET::FnCall._tag) {
+                en_ec = pat_enum(ast.texts[i]);
+                ei_ec = self.find_enum_idx(en_ec);
+                if ei_ec >= 0 {
+                    vn_ec = pat_short(ast.texts[i]);
+                    vi_ec = self.find_variant_idx(ei_ec, vn_ec);
+                    if vi_ec >= 0 {
+                        gp_ec = self.enum_gparam(ast, ei_ec);
+                        if gp_ec.len > 0 {
+                            ar_ec = self.variant_arity(ei_ec, vi_ec);
+                            k_ec = 0;
+                            while k_ec < ar_ec {
+                                if ty_name(ast, self.variant_ptype(ei_ec, vi_ec, k_ec)) == gp_ec {
+                                    // 第 k 个构造实参
+                                    a_ec = ast.aa[i];
+                                    j_ec = 0;
+                                    while a_ec >= 0 && j_ec < k_ec {
+                                        a_ec = ast.nexts[a_ec];
+                                        j_ec = j_ec + 1;
+                                    }
+                                    if a_ec >= 0 {
+                                        ax_ec = a_ec;
+                                        if ast.tags[ax_ec] == xt(XT::Arg._tag) { ax_ec = ast.aa[ax_ec]; }
+                                        m_ec = self.infer_ctor_arg(ast, ax_ec);
+                                        if m_ec != -1 {
+                                            self.fill_enum_inst(ast, ei_ec, m_ec);
+                                        }
+                                    }
+                                }
+                                k_ec = k_ec + 1;
                             }
                         }
                     }
@@ -3521,6 +3736,21 @@ impl Emitter {
                 return -4001;
             }
             return -1;
+        }
+        return -1;
+    }
+
+    /// 枚举构造载荷的类型标记（静态推断 + 局部源结构体名兜底）
+    #[alloc]
+    #[state]
+    fn infer_ctor_arg(ref mut self, ref Ast ast, int id) -> int {
+        if id < 0 { return -1; }
+        if ast.tags[id] == et(ET::Ref._tag) { return self.infer_ctor_arg(ast, ast.aa[id]); }
+        m = self.infer_static_ty(ast, id);
+        if m != -1 { return m; }
+        if ast.tags[id] == et(ET::Ident._tag) {
+            src = self.local_src_of(ast.texts[id]);
+            if src.len > 0 { return self.marker_of_name(src); }
         }
         return -1;
     }
@@ -4622,6 +4852,38 @@ fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> 
     if ei < 0 { return mk_int("0"); }
     vi = e.find_variant_idx(ei, vname);
     if vi < 0 { return mk_int("0"); }
+    // 泛型枚举：按载荷实参推断类型实参，改用实例（实例必须在 collect_instances 预建）
+    gp_ce = e.enum_gparam(ast, ei);
+    if gp_ce.len > 0 {
+        ar_ce = e.variant_arity(ei, vi);
+        k_ce = 0;
+        while k_ce < ar_ce {
+            if ty_name(ast, e.variant_ptype(ei, vi, k_ce)) == gp_ce {
+                a_ce = args;
+                j_ce = 0;
+                while a_ce >= 0 && j_ce < k_ce {
+                    a_ce = ast.nexts[a_ce];
+                    j_ce = j_ce + 1;
+                }
+                if a_ce >= 0 {
+                    ax_ce = a_ce;
+                    if ast.tags[ax_ce] == xt(XT::Arg._tag) { ax_ce = ast.aa[ax_ce]; }
+                    m_ce = e.infer_expr_ty(ast, ax_ce);
+                    if m_ce == -1 { m_ce = e.infer_ctor_arg(ast, ax_ce); }
+                    if m_ce != -1 {
+                        ei_u = e.find_enum_inst(ei, m_ce);
+                        if ei_u >= 0 {
+                            ei = ei_u;
+                            ename = e.en_names[ei_u].copy();
+                            vi = e.find_variant_idx(ei, vname);
+                            if vi < 0 { return mk_int("0"); }
+                        }
+                    }
+                }
+            }
+            k_ce = k_ce + 1;
+        }
+    }
     nbytes = 8;
     if ei >= 0 { nbytes = (e.enum_max_arity(ei) + 1) * 8; }
     nb2 = StringBuf::new();
@@ -8180,11 +8442,11 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 return mk_int("0");
             }
         }
-        // 结构体实例接收者：剥离 __m<k> 得源类型，方法按实例特化
+        // 泛型实例接收者（结构体/枚举）：剥离 __m<k> 得源类型，方法按实例特化
         inst_m = -1;
         recv_src_ty = obj.b.copy();
         recv_arg_ty = -1;
-        if obj.kind == 2 {
+        if obj.kind == 2 || obj.kind == 4 {
             us_pos = obj.b.index_of("__m");
             if us_pos > 0 {
                 recv_src_ty = obj.b.substring(0 as usize, us_pos as usize);
@@ -8197,11 +8459,21 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     }
                     k_inst = k_inst + 1;
                 }
+                if recv_arg_ty == -1 {
+                    ke = 0;
+                    while ke < e.ei_count {
+                        if e.en_names[e.ei_ens[ke]] == obj.b {
+                            recv_arg_ty = e.ei_args[ke];
+                            break;
+                        }
+                        ke = ke + 1;
+                    }
+                }
             }
         }
         mid = -1;
         recv_ty = obj.b.copy();
-        if obj.kind == 2 && recv_arg_ty != -1 {
+        if (obj.kind == 2 || obj.kind == 4) && recv_arg_ty != -1 {
             // 实例接收者：方法按源类型查找，特化到该实例
             recv_ty = recv_src_ty.copy();
         }
@@ -8283,7 +8555,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             t5 = e.fresh();
             mrty = e.method_ret_type(recv_ty, ast.texts[id]);
             inst_m2 = -1;
-            if obj.kind == 2 && recv_arg_ty != -1 {
+            if (obj.kind == 2 || obj.kind == 4) && recv_arg_ty != -1 {
                 inst_m2 = e.spec_register(ast, mid, recv_ty, recv_arg_ty, obj.b);
             }
             rk_m = e.ret_kind(ast, mrty);
