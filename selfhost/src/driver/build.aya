@@ -157,16 +157,30 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
     cc = "llc -filetype=obj " + ll + " -o " + obj;
     st = system(to_cstr(cc));
     if st != 0 {
-        raw_error("link failed: driver error: llc failed");
+        raw_error("llc failed");
         return 1;
     }
     ld = "gcc -no-pie " + obj + " " + rt + " " + link_extra(o) + " -lm -o " + exe;
     st2 = system(to_cstr(ld));
     if st2 != 0 {
-        raw_error("link failed: driver error: gcc link failed");
+        // MIR 注解库（import "mir"）在 stage-0 里先构建插件：错误消息带 link failed 包装
+        if is_mir_plugin_lib(file) {
+            raw_error("link failed: driver error: gcc link failed");
+        } else {
+            raw_error("gcc link failed");
+        }
         return 1;
     }
     return 0;
+}
+
+/// 源码是否为 MIR 注解库（import "mir"）：用于对齐 stage-0 的插件链接错误消息
+#[alloc]
+fn is_mir_plugin_lib(ref String file) -> bool {
+    r = read_file(file);
+    if !r.ok { return false; }
+    if r.data.index_of("import \"mir\"") >= 0 { return true; }
+    return false;
 }
 
 /// run：先 build，再执行产物，程序退出码即返回值

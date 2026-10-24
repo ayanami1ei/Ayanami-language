@@ -17,6 +17,7 @@ if [[ ! -f std/ayanami.toml ]]; then
 fi
 std_ver=$(sed -n 's/^version = "\(.*\)"/\1/p' std/ayanami.toml | head -1)
 ext_ver=$(sed -n 's/.*"version": "\(.*\)".*/\1/p' vscode-ayanami/package.json | head -1)
+selfhost_ver=$(sed -n 's/.*return "\(.*\)".*/\1/p' selfhost/src/base/log.aya | head -1)
 tag_ver=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null | sed 's/^v//' || true)
 
 if [[ -z "$cargo_ver" ]]; then
@@ -34,6 +35,7 @@ check() { # 描述 实际值 期望值
 
 check "std/ayanami.toml" "$std_ver" "$cargo_ver"
 check "vscode-ayanami/package.json" "$ext_ver" "$cargo_ver"
+check "selfhost/src/base/log.aya" "$selfhost_ver" "$cargo_ver"
 
 if [[ -n "$tag_ver" ]]; then
     newest=$(printf '%s\n%s\n' "$cargo_ver" "$tag_ver" | sort -V | tail -1)
