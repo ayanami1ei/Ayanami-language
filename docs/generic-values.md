@@ -158,6 +158,13 @@ vtable，但 `"str" + x`、`x.field` 等静态语义无法还原）；且改变�
   `test_aggregate_array`、`test_closure_collections`（`Fn` 类型实参）
 - [x] 阶段 4：`Ptr[T]` 内建——`new`（按值种类装箱）、`get/get_mut`（结构体按 ptr 装载）、
   `as_ptr`；裸指针 `*T` 解引用/读写/`as` 转换；`ref` 表达式转裸指针
-- [ ] 阶段 5：无显式类型实参的推断（`ArrayList::new()` 由后续用法推断、`use_into(f)` 自由函数推断、
-  多参数实例 `Holder[T,U]`、嵌套实例 `Box[Box[int]]`）——当前未特化时退回擦除 ABI，部分用例 llc 失败
+- [~] 阶段 5：无显式类型实参的推断——**自由函数单类型参数 + 容器用法已接入**：
+  - `infer_expr_ty`（字面量/结构体/枚举/局部/调用返回/枚举构造 `E.A(...)`）与 `infer_call_arg`
+    （形参类型恰为 T 的位置）→ 调用点自动特化；`use_into(f)`、`bump(p)` 等转正
+  - `collect_instances` 前置扫描 `x = X::new()` + `x.method(arg)` → 容器实例（`ArrayList::new()`
+    由后续 `push` 推断），并用 `ic_nodes/ic_tys` 在调用点取回推断结果
+  - 合成标记：-4001 int / -4002 bool / -4003 String / -4004 float / -4005 char / -4006 fn，
+    贯通 pk_of_ty/ret_kind/ret_info/type_arg_name/layout/fill_struct_inst/元素读写
+  - 余下：多类型参数（`TakeIt[T,I]`、`Holder[T,U]`）、嵌套实例（`Option[ArrayList[String]]`、
+    `Box[Box[int]]`）、枚举实例（`Option[T]` 的方法特化）、结构体字面量字段推断
 - [ ] 阶段 6：`ref String` 形参按指针 ABI（连续双槽临时 + 调用后回写）；见 docs/selfhost.md 坑 38

@@ -152,6 +152,25 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     （即使未被调用）会让 stage-3 构建崩溃/固定点失败（字符串处理路径的隐藏不稳定）。
     `test_import.aya` 因此仍 DIFF（stage-0 打印 0.6.5→0.6.6 的过期包告警）。
 
+42. **实例表按名字查，`st` 索引 ≠ 实例索引（2026-10-24）**：实例名 `Name__m<k>` 的 k 是 `st_count`，
+    但 `find_struct_idx(实例名)` 返回的是 `st` 表下标；直接用 `inst_st_argty[st_idx]` 会取到**另一个实例**
+    的实参（多实例时 ABI/布局错乱，如 `ArrayList[int]` 的 push 用了 float 实例）。统一按
+    `inst_st_names[i] == obj.b` 扫描。
+
+43. **类型节点层的合成标记必须用负值（2026-10-24）**：合并 std 后真实 AST 节点 id 会达到 2000+，
+    在 `ret_kind`/`ret_info`/`layout_enc` 里按精确值 2000-2002 判定会把真实 `String` 类型节点（如 id 2002）
+    误判成 char/哨兵（`fmt_g` 返回类型被发成 i64，llc: `ret i64 @.str`）。类型节点层只用负标记
+    （-4001 int / -4002 bool / -4003 String / -4004 float / -4005 char / -4006 fn / -1000-si / -2000-ei）；
+    2000-2002 仅限 `elem_*` 元素类型上下文。
+
+44. **负标记贯通所有替换判定（2026-10-24）**：`ret_kind_with`/`param_kind`/`ret_kind`/`ret_info`/
+    `find_struct_inst_name`/`fill_struct_inst`/`layout_*` 里判断“是否有类型实参”要用 `!= -1`，
+    不能写 `>= 0`，否则负标记被当成“无实参”，返回类型/形参 ABI 退回擦除版本。
+
+45. **浮点元素读取返回 `mk_float`（2026-10-24）**：`emit_index_read` 对 double 元素曾返回 kind 0，
+    `return` 处再 `sitofp i64 <double>` → 非法 IR。`[float]`/`LinkedList[float]`/`ArrayList[float]` 读取
+    一律 kind 6；元素类型判断要覆盖 -4001..-4006 标记。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash
