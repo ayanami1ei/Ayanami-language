@@ -53,6 +53,16 @@ fn cont_out(ref mut Mutex[int] m) -> int {
     return 0
 }
 
+fn guarded(ref mut Mutex[int] m) -> int {
+    #[sync(m, guard = d)]
+    {
+        if d != 5 { return 1 }
+        d = 9
+    }
+    if m.payload != 9 { return 2 }
+    return 0
+}
+
 fn main() -> int {
     m = Mutex[int] { state = 0, payload = 5 }
     if normal(ref mut m) != 0 { return 1 }
@@ -63,5 +73,7 @@ fn main() -> int {
     if m.state != 0 { return 6 }
     if cont_out(ref mut m) != 0 { return 7 }
     if m.state != 0 { return 8 }
+    if guarded(ref mut m) != 0 { return 9 }
+    if m.state != 0 { return 10 }
     return 0
 }

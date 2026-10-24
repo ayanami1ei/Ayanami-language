@@ -7,12 +7,40 @@ impl Ctx {
     /// `#[sync(obj)] { ... }`：进入前 lock、正常出口 unlock；提前出口由
     /// `Return` / `Break` / `Continue` 降级补解锁。
     pub(crate) fn lower_sync_block(&mut self, attr: &Attr, block: &Block) -> Result<HirStmt> {
-        let Some(AttrArg::Expr(e)) = attr.args.first() else {
+        let Some(e) = attr.args.iter().find_map(|a| match a {
+            AttrArg::Expr(e) => Some(e),
+            _ => None,
+        }) else {
             return Err(Error::Hir(format!(
                 "#[sync(...)] expects an object expression (at {}:{})",
                 attr.span.start_line, attr.span.start_col
             )));
         };
+        // `guard = d` → 锁内 `d = obj.data()`（载荷引用绑定）
+        let mut guard: Option<(Symbol, Span)> = None;
+        for a in &attr.args {
+            if let AttrArg::KeyValue(k, v) = a {
+                if k.as_str() != "guard" {
+                    return Err(Error::Hir(format!(
+                        "#[sync(...)] unknown option `{}` (at {}:{})",
+                        k.as_str(), attr.span.start_line, attr.span.start_col
+                    )));
+                }
+                let AttrArg::Expr(inner) = v.as_ref() else {
+                    return Err(Error::Hir(format!(
+                        "#[sync(..., guard = <name>)] expects an identifier (at {}:{})",
+                        attr.span.start_line, attr.span.start_col
+                    )));
+                };
+                let Expr::Ident(gname, gspan) = inner.as_ref() else {
+                    return Err(Error::Hir(format!(
+                        "#[sync(..., guard = <name>)] expects an identifier (at {}:{})",
+                        attr.span.start_line, attr.span.start_col
+                    )));
+                };
+                guard = Some((*gname, *gspan));
+            }
+        }
         if !is_place_expr(e) {
             return Err(Error::Hir(format!(
                 "#[sync(...)] object must be an identifier or field access (at {}:{})",
@@ -21,13 +49,28 @@ impl Ctx {
         }
         let obj = (**e).clone();
         let lock = self.sync_call_stmt(&obj, "lock", attr.span)?;
+        // guard 必须在体降级前降级，局部绑定才能被块内引用
+        let guard_stmt = match guard {
+            Some((gname, gspan)) => {
+                let data_call = Expr::MethodCall {
+                    object: Box::new(obj.clone()),
+                    method: Symbol::intern("data"),
+                    args: Vec::new(),
+                    span: gspan,
+                };
+                let assign = Stmt::Assign { name: gname, is_mut: false, value: data_call, span: gspan };
+                Some(self.lower_stmt(&assign)?)
+            }
+            None => None,
+        };
         self.sync_locks.push(SyncLock { obj: obj.clone() });
         let body = self.lower_block(block);
         self.sync_locks.pop();
         let body = body?;
         let unlock = self.sync_call_stmt(&obj, "unlock", block.span)?;
-        let mut stmts = Vec::with_capacity(body.stmts.len() + 2);
+        let mut stmts = Vec::with_capacity(body.stmts.len() + 3);
         stmts.push(lock);
+        if let Some(g) = guard_stmt { stmts.push(g); }
         stmts.extend(body.stmts);
         stmts.push(unlock);
         Ok(HirStmt::Block { stmts, span: block.span })

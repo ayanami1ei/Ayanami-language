@@ -779,13 +779,13 @@ src/hir/lower/body/stmt_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/stmt_lower.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
 src/hir/lower/body/stmt_sync.rs:6: impl Ctx
 src/hir/lower/body/stmt_sync.rs:9: pub(crate) fn lower_sync_block(&mut self, attr: &Attr, block: &Block) -> Result<HirStmt>
-src/hir/lower/body/stmt_sync.rs:37: pub(crate) fn try_lower_sync(&mut self, attrs: &[Attr], inner: &Stmt) -> Option<Result<HirStmt>>
-src/hir/lower/body/stmt_sync.rs:49: pub(crate) fn sync_return_stmt(&mut self, hir_value: Option<HirNodeBox>, span: Span) -> Result<HirStmt>
-src/hir/lower/body/stmt_sync.rs:72: pub(crate) fn sync_unlock_stmts(&mut self, from: usize, span: Span) -> Result<Vec<HirStmt>>
-src/hir/lower/body/stmt_sync.rs:82: pub(crate) fn lower_loop_exit(&mut self, exit: HirStmt, span: Span) -> Result<HirStmt>
-src/hir/lower/body/stmt_sync.rs:93: pub(crate) fn lower_loop_body(&mut self, body: &Block) -> Result<HirBlock>
-src/hir/lower/body/stmt_sync.rs:100: fn sync_call_stmt(&mut self, obj: &Expr, method: &str, span: Span) -> Result<HirStmt>
-src/hir/lower/body/stmt_sync.rs:113: fn is_place_expr(e: &Expr) -> bool
+src/hir/lower/body/stmt_sync.rs:80: pub(crate) fn try_lower_sync(&mut self, attrs: &[Attr], inner: &Stmt) -> Option<Result<HirStmt>>
+src/hir/lower/body/stmt_sync.rs:92: pub(crate) fn sync_return_stmt(&mut self, hir_value: Option<HirNodeBox>, span: Span) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:115: pub(crate) fn sync_unlock_stmts(&mut self, from: usize, span: Span) -> Result<Vec<HirStmt>>
+src/hir/lower/body/stmt_sync.rs:125: pub(crate) fn lower_loop_exit(&mut self, exit: HirStmt, span: Span) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:136: pub(crate) fn lower_loop_body(&mut self, body: &Block) -> Result<HirBlock>
+src/hir/lower/body/stmt_sync.rs:143: fn sync_call_stmt(&mut self, obj: &Expr, method: &str, span: Span) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:156: fn is_place_expr(e: &Expr) -> bool
 src/hir/lower/body/usage_infer.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/usage_infer.rs:10: pub(crate) fn collect_usage_hints(&self, stmts: &[Stmt]) -> HashMap<Symbol, Vec<Type>>
 src/hir/lower/body/usage_infer.rs:26: fn find_elem_usage_stmts(&self, var: &Symbol, stmts: &[Stmt]) -> Option<Type>
@@ -3346,7 +3346,8 @@ example/test_sync_block.aya:5: fn normal(ref mut Mutex[int] m) -> int
 example/test_sync_block.aya:15: fn early(ref mut Mutex[int] m) -> int
 example/test_sync_block.aya:24: fn break_out(ref mut Mutex[int] m) -> int
 example/test_sync_block.aya:39: fn cont_out(ref mut Mutex[int] m) -> int
-example/test_sync_block.aya:56: fn main() -> int
+example/test_sync_block.aya:56: fn guarded(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:66: fn main() -> int
 example/test_tail_expr.aya:2: enum E { A(int), B }
 example/test_tail_expr.aya:4: fn add(int a, int b) -> int
 example/test_tail_expr.aya:8: fn pick(int x) -> int

@@ -16,7 +16,7 @@
 
 - 对象 `m` 必须是**位置表达式**（标识符或字段访问链）；它在进入块时求值一次，
   出口复用同一位置（位置表达式无副作用，重复求值安全）；
-- 暂不支持 `guard = d` 绑定（`d = m.data()` 显式写）；后续可加；
+- 可选 `guard = d`：锁内绑定载荷（编译器插入 `d = obj.data()`，`d: ref mut T`）；
 - `#[sync]` 只允许用于**块语句**；用于函数/其它语句报错。
 
 ## 2. 语义
@@ -59,6 +59,8 @@ std `Mutex[T]` 已满足（`std/src/system/sync.aya`）。
 | 文档 | 本文件；`docs/annotations.md` §8.6（A5e） |
 
 ## 6. 实现备注（2026-10-24）
+
+- `guard = d`：`#[sync(m, guard = d)]` → `d = m.data()`（锁内、体前降级，局部绑定可用）；
 
 - 出口清理：`Return` 先落 `__sync_ret_<n>` 临时局部再解锁；`Break`/`Continue`
   用 `loop_sync_marks` 只解到循环入口；正常出口在块尾补 unlock；
