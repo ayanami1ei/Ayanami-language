@@ -1,0 +1,10 @@
+import "sync"
+
+fn main() -> int {
+    a = 1
+    b = 2
+    #[sync(a + b)]
+    {
+    }
+    return 0
+}

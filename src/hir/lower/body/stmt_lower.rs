@@ -203,7 +203,11 @@ impl crate::hir::lower::Ctx {
                     }
                     None => None,
                 };
-                Ok(HirStmt::Return { value: hir_value, span: *span })
+                if self.sync_locks.is_empty() {
+                    return Ok(HirStmt::Return { value: hir_value, span: *span });
+                }
+                // A5e：返回值仍在锁内求值，落临时局部后解锁再返回
+                self.sync_return_stmt(hir_value, *span)
             }
             Stmt::If { cond, then_block, elifs, else_block, span } => {
                 let hir_cond = auto_deref(self.lower_expr(cond)?);
@@ -237,6 +241,7 @@ impl crate::hir::lower::Ctx {
             Stmt::Attributed { attrs, stmt: inner, .. } => {
                 // cfg 已在 hir::cfg::filter_program 中过滤，这里只剩 invariant
                 let invs = crate::hir::contracts::invariant_conditions(attrs);
+                if let Some(r) = self.try_lower_sync(attrs, inner) { return r; }
                 match inner.as_ref() {
                     Stmt::While { cond, body, .. } => self.lower_while(cond, body, &invs),
                     Stmt::For { iterator, start, end, step, body, .. } => {
@@ -270,8 +275,8 @@ impl crate::hir::lower::Ctx {
                 let hb = hb?;
                 Ok(HirStmt::Block { stmts: hb.stmts, span: block.span })
             }
-            Stmt::Break { span } => Ok(HirStmt::Break { span: *span }),
-            Stmt::Continue { span } => Ok(HirStmt::Continue { span: *span }),
+            Stmt::Break { span } => self.lower_loop_exit(HirStmt::Break { span: *span }, *span),
+            Stmt::Continue { span } => self.lower_loop_exit(HirStmt::Continue { span: *span }, *span),
             Stmt::ExprStmt { expr, span } => {
                 let hir_expr = self.lower_expr(expr)?;
                 Ok(HirStmt::Expr { expr: hir_expr, span: *span })

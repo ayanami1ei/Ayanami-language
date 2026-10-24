@@ -13,6 +13,7 @@ pub const ALLOWED: &[&str] = &[
     "macro",
     "pass",
     "check",
+    "sync",
     "follow_with",
     "throws",
     "no_error",
@@ -162,7 +163,6 @@ fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()> {
     }
     Ok(())
 }
-
 fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()> {
     for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "follow_with") {
         return Err(Error::Hir(format!(

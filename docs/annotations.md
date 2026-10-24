@@ -539,7 +539,8 @@ struct Holder {
       加载侧 `validate_annotation_symbols`（拦截旧包），单测覆盖
 - [x] 修复解析漂移：同包同名不再出现「宏展开静默取宏 / HIR 报歧义」
 - [ ] `#[transform]` 类别与 `StructuralPass` 接口（设计见 §8.6）
-- [ ] `#[async]`/`await`、`#[sync]` 块作为首批内建客户
+- [x] `#[sync(obj)] { ... }` 同步块（首个内建结构化变换，2026-10-24；见 `docs/sync-blocks.md`）
+- [ ] `#[async]`/`await`（A5e 第二个客户）
 
 ### 已知问题
 

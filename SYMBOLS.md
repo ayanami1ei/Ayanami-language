@@ -356,17 +356,17 @@ src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, lev
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:38: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:42: pub struct Imports
-src/hir/attrs.rs:49: impl Imports
-src/hir/attrs.rs:50: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:58: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:81: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:91: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:95: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:103: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:139: fn validate_follow_with(a: &Attr) -> Result<()>
-src/hir/attrs.rs:159: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/attrs.rs:39: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:43: pub struct Imports
+src/hir/attrs.rs:50: impl Imports
+src/hir/attrs.rs:51: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:59: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:82: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:92: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:96: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:104: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:140: fn validate_follow_with(a: &Attr) -> Result<()>
+src/hir/attrs.rs:160: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
 src/hir/attrs.rs:166: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs.rs:178: pub fn validate_program(program: &Program) -> Result<()>
 src/hir/attrs.rs:186: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
@@ -691,51 +691,52 @@ src/hir/lower/body/mod.rs:20: mod generic_specialize;
 src/hir/lower/body/mod.rs:21: mod generic_types;
 src/hir/lower/body/mod.rs:22: mod lower_items;
 src/hir/lower/body/mod.rs:23: mod stmt_lower;
-src/hir/lower/body/mod.rs:24: mod stmt_deref;
-src/hir/lower/body/mod.rs:25: mod stmt_loops;
-src/hir/lower/body/mod.rs:26: mod ref_assign;
-src/hir/lower/body/mod.rs:27: mod ref_protocol;
-src/hir/lower/body/mod.rs:28: mod expr_method;
-src/hir/lower/body/mod.rs:29: mod expr_method_ptr;
-src/hir/lower/body/mod.rs:30: mod expr_layout;
-src/hir/lower/body/mod.rs:31: mod expr_static_assert;
-src/hir/lower/body/mod.rs:32: mod const_eval_binary;
-src/hir/lower/body/mod.rs:33: mod expr_struct;
-src/hir/lower/body/mod.rs:34: mod match_coverage;
-src/hir/lower/body/mod.rs:35: mod match_variant;
-src/hir/lower/body/mod.rs:36: mod match_lower;
-src/hir/lower/body/mod.rs:37: mod match_pattern;
-src/hir/lower/body/mod.rs:38: mod match_setup;
-src/hir/lower/body/mod.rs:39: mod match_util;
-src/hir/lower/body/mod.rs:40: mod usage_infer;
-src/hir/lower/body/mod.rs:41: mod macro_call;
-src/hir/lower/body/mod.rs:42: mod expr_logic;
-src/hir/lower/body/mod.rs:43: mod expr_lower;
-src/hir/lower/body/mod.rs:44: mod if_expr;
-src/hir/lower/body/mod.rs:45: mod ensure;
-src/hir/lower/body/mod.rs:46: mod literal;
-src/hir/lower/body/mod.rs:47: mod collect_enum;
-src/hir/lower/body/mod.rs:48: mod const_coerce;
-src/hir/lower/body/mod.rs:49: mod const_array;
-src/hir/lower/body/mod.rs:50: mod const_struct;
-src/hir/lower/body/mod.rs:51: mod const_eval;
-src/hir/lower/body/mod.rs:52: mod const_fn;
-src/hir/lower/body/mod.rs:53: mod collect_import;
-src/hir/lower/body/mod.rs:54: mod collect_import_path;
-src/hir/lower/body/mod.rs:55: mod expr_access;
-src/hir/lower/body/mod.rs:56: mod expr_call;
-src/hir/lower/body/mod.rs:57: mod expr_call_builtins;
-src/hir/lower/body/mod.rs:58: mod expr_call_args;
-src/hir/lower/body/mod.rs:59: mod expr_call_extra;
-src/hir/lower/body/mod.rs:60: mod block_lower;
-src/hir/lower/body/mod.rs:61: mod expr_cast;
-src/hir/lower/body/mod.rs:62: mod expr_enum;
-src/hir/lower/body/mod.rs:63: mod expr_misc;
-src/hir/lower/body/mod.rs:64: mod expr_ops1;
-src/hir/lower/body/mod.rs:65: mod expr_unary;
-src/hir/lower/body/mod.rs:66: mod expr_method_arrays;
-src/hir/lower/body/mod.rs:67: mod return_check;
-src/hir/lower/body/mod.rs:68: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:24: mod stmt_sync;
+src/hir/lower/body/mod.rs:25: mod stmt_deref;
+src/hir/lower/body/mod.rs:26: mod stmt_loops;
+src/hir/lower/body/mod.rs:27: mod ref_assign;
+src/hir/lower/body/mod.rs:28: mod ref_protocol;
+src/hir/lower/body/mod.rs:29: mod expr_method;
+src/hir/lower/body/mod.rs:30: mod expr_method_ptr;
+src/hir/lower/body/mod.rs:31: mod expr_layout;
+src/hir/lower/body/mod.rs:32: mod expr_static_assert;
+src/hir/lower/body/mod.rs:33: mod const_eval_binary;
+src/hir/lower/body/mod.rs:34: mod expr_struct;
+src/hir/lower/body/mod.rs:35: mod match_coverage;
+src/hir/lower/body/mod.rs:36: mod match_variant;
+src/hir/lower/body/mod.rs:37: mod match_lower;
+src/hir/lower/body/mod.rs:38: mod match_pattern;
+src/hir/lower/body/mod.rs:39: mod match_setup;
+src/hir/lower/body/mod.rs:40: mod match_util;
+src/hir/lower/body/mod.rs:41: mod usage_infer;
+src/hir/lower/body/mod.rs:42: mod macro_call;
+src/hir/lower/body/mod.rs:43: mod expr_logic;
+src/hir/lower/body/mod.rs:44: mod expr_lower;
+src/hir/lower/body/mod.rs:45: mod if_expr;
+src/hir/lower/body/mod.rs:46: mod ensure;
+src/hir/lower/body/mod.rs:47: mod literal;
+src/hir/lower/body/mod.rs:48: mod collect_enum;
+src/hir/lower/body/mod.rs:49: mod const_coerce;
+src/hir/lower/body/mod.rs:50: mod const_array;
+src/hir/lower/body/mod.rs:51: mod const_struct;
+src/hir/lower/body/mod.rs:52: mod const_eval;
+src/hir/lower/body/mod.rs:53: mod const_fn;
+src/hir/lower/body/mod.rs:54: mod collect_import;
+src/hir/lower/body/mod.rs:55: mod collect_import_path;
+src/hir/lower/body/mod.rs:56: mod expr_access;
+src/hir/lower/body/mod.rs:57: mod expr_call;
+src/hir/lower/body/mod.rs:58: mod expr_call_builtins;
+src/hir/lower/body/mod.rs:59: mod expr_call_args;
+src/hir/lower/body/mod.rs:60: mod expr_call_extra;
+src/hir/lower/body/mod.rs:61: mod block_lower;
+src/hir/lower/body/mod.rs:62: mod expr_cast;
+src/hir/lower/body/mod.rs:63: mod expr_enum;
+src/hir/lower/body/mod.rs:64: mod expr_misc;
+src/hir/lower/body/mod.rs:65: mod expr_ops1;
+src/hir/lower/body/mod.rs:66: mod expr_unary;
+src/hir/lower/body/mod.rs:67: mod expr_method_arrays;
+src/hir/lower/body/mod.rs:68: mod return_check;
+src/hir/lower/body/mod.rs:69: mod expr_reinterpret;
 src/hir/lower/body/overload_method.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_method.rs:9: pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
 src/hir/lower/body/overload_method.rs:28: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
@@ -770,6 +771,15 @@ src/hir/lower/body/stmt_loops.rs:193: fn for_bound_type(start: &HirNodeBox, end:
 src/hir/lower/body/stmt_loops.rs:222: fn coerce_for_bound(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/stmt_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/stmt_lower.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:6: impl Ctx
+src/hir/lower/body/stmt_sync.rs:9: pub(crate) fn lower_sync_block(&mut self, attr: &Attr, block: &Block) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:37: pub(crate) fn try_lower_sync(&mut self, attrs: &[Attr], inner: &Stmt) -> Option<Result<HirStmt>>
+src/hir/lower/body/stmt_sync.rs:49: pub(crate) fn sync_return_stmt(&mut self, hir_value: Option<HirNodeBox>, span: Span) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:72: pub(crate) fn sync_unlock_stmts(&mut self, from: usize, span: Span) -> Result<Vec<HirStmt>>
+src/hir/lower/body/stmt_sync.rs:82: pub(crate) fn lower_loop_exit(&mut self, exit: HirStmt, span: Span) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:93: pub(crate) fn lower_loop_body(&mut self, body: &Block) -> Result<HirBlock>
+src/hir/lower/body/stmt_sync.rs:100: fn sync_call_stmt(&mut self, obj: &Expr, method: &str, span: Span) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:113: fn is_place_expr(e: &Expr) -> bool
 src/hir/lower/body/usage_infer.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/usage_infer.rs:10: pub(crate) fn collect_usage_hints(&self, stmts: &[Stmt]) -> HashMap<Symbol, Vec<Type>>
 src/hir/lower/body/usage_infer.rs:26: fn find_elem_usage_stmts(&self, var: &Symbol, stmts: &[Stmt]) -> Option<Type>
@@ -782,19 +792,20 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:108: impl Ctx
-src/hir/lower/ctx.rs:110: pub fn new() -> Self
-src/hir/lower/ctx.rs:170: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:173: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:176: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:181: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:190: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:195: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:203: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:213: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:226: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:234: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:240: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:114: pub struct SyncLock
+src/hir/lower/ctx.rs:118: impl Ctx
+src/hir/lower/ctx.rs:120: pub fn new() -> Self
+src/hir/lower/ctx.rs:182: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:185: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:188: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:193: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:202: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:207: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:215: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:225: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:238: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:246: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:252: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_env.rs:4: impl Ctx
 src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
 src/hir/lower/ctx_env.rs:36: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -3294,6 +3305,11 @@ example/test_struct_impl.aya:1: struct Point
 example/test_struct_impl.aya:6: impl Point
 example/test_struct_impl.aya:7: fn get_x(self) -> int
 example/test_struct_impl.aya:12: fn main() -> int
+example/test_sync_block.aya:5: fn normal(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:15: fn early(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:24: fn break_out(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:39: fn cont_out(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:56: fn main() -> int
 example/test_tail_expr.aya:2: enum E { A(int), B }
 example/test_tail_expr.aya:4: fn add(int a, int b) -> int
 example/test_tail_expr.aya:8: fn pick(int x) -> int

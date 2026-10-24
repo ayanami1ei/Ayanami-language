@@ -25,6 +25,10 @@ pub(crate) struct Ctx {
     pub pending_env_args: Vec<(Symbol, HirType)>,
     /// E2：块作用域环境提供者栈（最近者胜）
     pub env_blocks: Vec<HashMap<Symbol, (crate::parser::ast::Expr, Span)>>,
+    /// A5e：`#[sync(obj)]` 块的活动锁（出口/提前返回补 unlock）
+    pub sync_locks: Vec<SyncLock>,
+    /// A5e：循环入口处的 `sync_locks.len()` 标记（break/continue 只解到该位置）
+    pub loop_sync_marks: Vec<usize>,
     /// 所有已注册的函数（按 FnId 索引）
     pub fns: Vec<FnSig>,
     /// 函数名到 FnId 列表的映射（支持重载同名函数）
@@ -105,6 +109,12 @@ pub(crate) struct Ctx {
     pub pending_ret_checks: Vec<(Span, HirType)>,
 }
 
+/// A5e：`#[sync(obj)]` 块的活动锁（位置表达式 + 标注位置）。
+#[derive(Clone)]
+pub struct SyncLock {
+    pub obj: crate::parser::ast::Expr,
+}
+
 impl Ctx {
     /// 创建新的降级上下文
     pub fn new() -> Self {
@@ -159,6 +169,8 @@ impl Ctx {
             env_providers: HashMap::new(),
             pending_env_args: Vec::new(),
             env_blocks: Vec::new(),
+            sync_locks: Vec::new(),
+            loop_sync_marks: Vec::new(),
         }
     }
 

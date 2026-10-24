@@ -232,14 +232,16 @@ impl crate::hir::lower::Ctx {
         });
         self.fn_map.entry(*name).or_default().push(fid);
         self.specialized_ids.insert(fid);
-
         // Step 5: Lower the specialized function body
         let saved_current_fn = self.current_fn;
         let saved_locals = std::mem::take(&mut self.locals);
         let saved_scopes = std::mem::take(&mut self.scopes);
+        // A5e：特化体不得继承调用方的同步块状态（否则 return 会误发 unlock）
+        let saved_sync = (std::mem::take(&mut self.sync_locks), std::mem::take(&mut self.loop_sync_marks));
 
         // A3a：泛型实例继承定义上的标注（含效应；此前 A1 标注在此丢失）
         let lowered = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, *is_unsafe, Span::default(), attrs.clone(), param_attrs.clone(), vis.is_public());
+        (self.sync_locks, self.loop_sync_marks) = saved_sync;
         let mut hir_fn = match lowered {
             Ok(f) => f,
             Err(e) => {
@@ -261,11 +263,9 @@ impl crate::hir::lower::Ctx {
             }
         };
         hir_fn.is_specialized = true;
-
         self.current_fn = saved_current_fn;
         self.locals = saved_locals;
         self.scopes = saved_scopes;
-
         self.specialized_fns.push(hir_fn);
 
         Ok(fid)
