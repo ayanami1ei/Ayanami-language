@@ -34,15 +34,6 @@ impl crate::hir::lower::Ctx {
     }
 
     pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId> {
-        if name.as_str() == "is_none" {
-            eprintln!("DBG resolve_fn_call is_none args={:?} cands={:?}",
-                arg_types.iter().map(hir_type_display).collect::<Vec<_>>(),
-                self.fn_map.get(name).map(|v| v.iter().map(|id| {
-                    let sig = &self.fns[id.0];
-                    let vis = sig.params.len().saturating_sub(sig.hidden);
-                    format!("{}:{:?}", id.0, sig.params.iter().take(vis).map(|(_, t)| hir_type_display(t)).collect::<Vec<_>>())
-                }).collect::<Vec<_>>()));
-        }
         let candidates = self.fn_map.get(name);
         let candidates = match candidates {
             Some(c) => c,
