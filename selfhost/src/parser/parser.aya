@@ -1236,7 +1236,9 @@ impl Parser {
         else_b = -1;
         while self.check_kw(Kw::Elif._tag) {
             self.advance();
+            self.no_struct = 1;
             ec = self.parse_expr();
+            self.no_struct = 0;
             eb = self.parse_block();
             en = self.ast.push(xt(XT::Elif._tag), "", -1, ec, eb, -1, -1, self.cur.line, self.cur.col);
             elifs = self.ast.push_tail(elifs, en);
@@ -1776,6 +1778,18 @@ impl Parser {
                     self.restore();
                     self.advance();
                     tyg_s = self.parse_type();
+                    if self.check_delim(D::Comma._tag) {
+                        // 多实参：保留第一个类型实参，按括号深度跳过其余（实例按首个实参匹配）
+                        depth_s = 1;
+                        while !self.at_end() {
+                            if self.check_delim(D::LBracket._tag) { depth_s = depth_s + 1; }
+                            if self.check_delim(D::RBracket._tag) {
+                                depth_s = depth_s - 1;
+                                if depth_s == 0 { break; }
+                            }
+                            self.advance();
+                        }
+                    }
                     if self.check_delim(D::RBracket._tag) {
                         self.advance();
                         return self.parse_struct_literal(name, line, col, tyg_s);

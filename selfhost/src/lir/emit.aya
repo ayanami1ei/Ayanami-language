@@ -82,9 +82,11 @@ pub struct Emitter {
     [String] inst_st_names
     [int] inst_st_src
     [int] inst_st_argty
+    [int] inst_st_argty2
     int inst_st_count
     // 实例对应的类型实参节点（与 inst_keys 平行）
     [int] inst_arg_tys
+    [int] inst_arg2_tys
     // 3tq 阶段 2/3：特化 worklist（FnDecl 节点、前缀、类型参数名、实参类型节点）
     [int] spec_nodes
     [String] spec_prefixes
@@ -198,7 +200,7 @@ pub namespace Emitter {
             en_ptype = [int; 4096], en_pvstart = [int; 1024], en_ptotal = 0, en_vslots = [int; 1024],
             fn_names = [String; 8192], fn_extern = [int; 8192], fn_pstart = [int; 8192], fn_pcount = [int; 8192],
             fn_pkinds = [int; 65536], fn_ptotal = 0, fn_count = 0,
-            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, inst_st_names = [String; 128], inst_st_src = [int; 128], inst_st_argty = [int; 128], inst_st_count = 0, inst_arg_tys = [int; 512], spec_nodes = [int; 256], spec_prefixes = [String; 256], spec_params = [String; 256], spec_args = [int; 256], spec_selfs = [String; 256], spec_count = 0, cb_tmps = [String; 32], cb_names = [String; 32], cb_count = 0, ic_nodes = [int; 256], ic_tys = [int; 256], ic_count = 0, cur_inst_param = "", cur_inst_arg_ty = -1, cur_inst_ord = -1, cur_inst_struct = "", m_rtype = [int; 8192],
+            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, inst_st_names = [String; 128], inst_st_src = [int; 128], inst_st_argty = [int; 128], inst_st_argty2 = [int; 128], inst_st_count = 0, inst_arg_tys = [int; 512], inst_arg2_tys = [int; 512], spec_nodes = [int; 256], spec_prefixes = [String; 256], spec_params = [String; 256], spec_args = [int; 256], spec_selfs = [String; 256], spec_count = 0, cb_tmps = [String; 32], cb_names = [String; 32], cb_count = 0, ic_nodes = [int; 256], ic_tys = [int; 256], ic_count = 0, cur_inst_param = "", cur_inst_arg_ty = -1, cur_inst_ord = -1, cur_inst_struct = "", m_rtype = [int; 8192],
             decl_names = [String; 2048], decl_count = 0,
             lambda_buf = StringBuf::new(),
             lam_ids = [int; 256], lam_names = [String; 256], lam_count = 0,
@@ -233,6 +235,12 @@ fn ty_name(ref Ast ast, int t) -> String {
     if t == -4006 { return "fn"; }
     while t >= 0 {
         tg = ast.tags[t];
+        if tg == xt(XT::GenericArg._tag) {
+            nx_g = ast.aa[t];
+            if nx_g < 0 { nx_g = ast.tys[t]; }
+            t = nx_g;
+            continue;
+        }
         if tg == tt(TT::Ref._tag) {
             t = ast.aa[t];
             continue;
@@ -243,6 +251,19 @@ fn ty_name(ref Ast ast, int t) -> String {
         return "";
     }
     return "";
+}
+
+/// 解包 Ref 与 GenericArg 包装（泛型实参的包装把类型放在 tys）
+fn unwrap_ty(ref Ast ast, int ty) -> int {
+    if ty < 0 { return ty; }
+    tg = ast.tags[ty];
+    if tg == xt(XT::GenericArg._tag) {
+        nx = ast.aa[ty];
+        if nx < 0 { nx = ast.tys[ty]; }
+        return unwrap_ty(ast, nx);
+    }
+    if tg == tt(TT::Ref._tag) { return unwrap_ty(ast, ast.aa[ty]); }
+    return ty;
 }
 
 /// 取实参地址（ref 原语形参）：变量/全局直接取址，其余落到临时槽
@@ -2802,6 +2823,33 @@ impl Emitter {
 
     /// 名称是否为泛型参数
     #[alloc]
+    /// 类型节点内是否仍含类型参数（含嵌套泛型实参，如 Box[T]）
+    #[alloc]
+    fn type_has_gparam(ref mut self, ref Ast ast, int ty) -> bool {
+        t = unwrap_ty(ast, ty);
+        if t < 0 { return false; }
+        tg = ast.tags[t];
+        if tg == tt(TT::Named._tag) || tg == tt(TT::Generic._tag) {
+            nm = ast.texts[t];
+            if self.is_gparam(nm) {
+                if self.find_struct_idx(nm) < 0 {
+                    if self.find_enum_idx(nm) < 0 {
+                        if self.find_iface_idx(nm) < 0 { return true; }
+                    }
+                }
+            }
+            if tg == tt(TT::Generic._tag) {
+                a = ast.aa[t];
+                if a >= 0 { return self.type_has_gparam(ast, a); }
+            }
+            return false;
+        }
+        if tg == tt(TT::Array._tag) || tg == tt(TT::ArraySized._tag) {
+            return self.type_has_gparam(ast, ast.aa[t]);
+        }
+        return false;
+    }
+
     /// 类型节点是否为类型参数（先排除已声明的结构体/枚举/接口名）
     #[alloc]
     fn type_is_gparam(ref mut self, ref Ast ast, int arg) -> bool {
@@ -2838,6 +2886,30 @@ impl Emitter {
         if self.inst_count < 512 {
             self.inst_keys[self.inst_count] = key.copy();
             self.inst_arg_tys[self.inst_count] = arg_ty;
+            self.inst_arg2_tys[self.inst_count] = -1;
+            self.inst_count = self.inst_count + 1;
+        }
+    }
+
+    /// 登记实例（含第二个类型实参；同名时补齐缺失的第二实参）
+    #[alloc]
+    #[state]
+    fn add_inst2(ref mut self, ref String key, int arg_ty, int arg_ty2) {
+        if key.len == 0 { return; }
+        i = 0;
+        while i < self.inst_count {
+            if self.inst_keys[i] == key {
+                if self.inst_arg2_tys[i] == -1 && arg_ty2 != -1 {
+                    self.inst_arg2_tys[i] = arg_ty2;
+                }
+                return;
+            }
+            i = i + 1;
+        }
+        if self.inst_count < 512 {
+            self.inst_keys[self.inst_count] = key.copy();
+            self.inst_arg_tys[self.inst_count] = arg_ty;
+            self.inst_arg2_tys[self.inst_count] = arg_ty2;
             self.inst_count = self.inst_count + 1;
         }
     }
@@ -2882,8 +2954,12 @@ impl Emitter {
             arg = ast.aa[ty];
             if arg >= 0 {
                 an = self.type_arg_name(ast, arg);
-                if an.len > 0 && !self.type_is_gparam(ast, arg) {
-                    self.add_inst(nm + "[" + an + "]", arg);
+                a1_u = unwrap_ty(ast, arg);
+                a2_u = -1;
+                nx_a = ast.nexts[arg];
+                if nx_a >= 0 { a2_u = unwrap_ty(ast, nx_a); }
+                if an.len > 0 && !self.type_is_gparam(ast, arg) && !self.type_has_gparam(ast, arg) {
+                    self.add_inst2(nm + "[" + an + "]", a1_u, a2_u);
                 }
             }
         } elif tg == tt(TT::Ref._tag) {
@@ -2932,8 +3008,8 @@ impl Emitter {
                 ty1 = ast.tys[i];
                 if ty1 >= 0 {
                     an1 = self.type_arg_name(ast, ty1);
-                    if an1.len > 0 && !self.type_is_gparam(ast, ty1) {
-                        self.add_inst(ast.texts[i] + "[" + an1 + "]", ty1);
+                    if an1.len > 0 && !self.type_is_gparam(ast, ty1) && !self.type_has_gparam(ast, ty1) {
+                        self.add_inst(ast.texts[i] + "[" + an1 + "]", unwrap_ty(ast, ty1));
                         // 返回类型中的泛型结构体：Name[T] -> Name[实参]（结构体实例）
                         fid_r = self.fn_first_id(ast.texts[i]);
                         if fid_r >= 0 {
@@ -3014,8 +3090,8 @@ impl Emitter {
                 tyg_l = ast.tys[i];
                 if tyg_l >= 0 {
                     an_l = self.type_arg_name(ast, tyg_l);
-                    if an_l.len > 0 && !self.type_is_gparam(ast, tyg_l) {
-                        self.add_inst(ast.texts[i] + "[" + an_l + "]", tyg_l);
+                    if an_l.len > 0 && !self.type_is_gparam(ast, tyg_l) && !self.type_has_gparam(ast, tyg_l) {
+                        self.add_inst(ast.texts[i] + "[" + an_l + "]", unwrap_ty(ast, tyg_l));
                     }
                 }
             }
@@ -3039,7 +3115,7 @@ impl Emitter {
                 nm_i = key.substring(0 as usize, lb as usize);
                 si_src = self.find_struct_idx(nm_i);
                 if si_src >= 0 {
-                    self.fill_struct_inst(ast, si_src, self.inst_arg_tys[i]);
+                    self.fill_struct_inst(ast, si_src, self.inst_arg_tys[i], self.inst_arg2_tys[i]);
                 }
             }
             i = i + 1;
@@ -3049,7 +3125,7 @@ impl Emitter {
     /// 3tq 阶段 2：结构体实例的特化字段布局（源结构体的类型参数替换为实参类型）
     #[alloc]
     #[state]
-    fn fill_struct_inst(ref mut self, ref Ast ast, int si_src, int arg_ty) {
+    fn fill_struct_inst(ref mut self, ref Ast ast, int si_src, int arg_ty, int arg_ty2) {
         if si_src < 0 || si_src >= self.st_count { return; }
         src_name = self.st_names[si_src].copy();
         // 源结构体定义节点（按名扫描）
@@ -3064,8 +3140,13 @@ impl Emitter {
         if sdef < 0 { return; }
         // 第一个类型参数名
         gpname = "";
+        gpname2 = "";
         g = ast.bb[sdef];
-        if g >= 0 { gpname = ast.texts[g].copy(); }
+        if g >= 0 {
+            gpname = ast.texts[g].copy();
+            g2 = ast.nexts[g];
+            if g2 >= 0 { gpname2 = ast.texts[g2].copy(); }
+        }
         if gpname.len == 0 { return; }
         if self.st_count >= 128 { return; }
         si_new = self.st_count;
@@ -3083,7 +3164,12 @@ impl Emitter {
                 finfo = -1;
                 fty = ast.tys[f];
                 tn_f = ty_name(ast, fty);
-                if tn_f.len > 0 && tn_f == gpname { fty = arg_ty; }
+                subst = -1;
+                if tn_f.len > 0 {
+                    if tn_f == gpname { subst = arg_ty; }
+                    elif gpname2.len > 0 && tn_f == gpname2 { subst = arg_ty2; }
+                }
+                if subst != -1 { fty = subst; }
                 if fty >= 0 {
                     ftag = ast.tags[fty];
                     if ftag == tt(TT::Float._tag) {
@@ -3093,7 +3179,11 @@ impl Emitter {
                         finfo = ast.aa[fty];
                         ety_f = ast.aa[fty];
                         if ety_f >= 0 {
-                            if ty_name(ast, ety_f) == gpname { finfo = arg_ty; }
+                            en_f = ty_name(ast, ety_f);
+                            if en_f.len > 0 {
+                                if en_f == gpname { finfo = arg_ty; }
+                                elif gpname2.len > 0 && en_f == gpname2 { finfo = arg_ty2; }
+                            }
                         }
                     } elif ftag == tt(TT::Named._tag) || ftag == tt(TT::Generic._tag) {
                         tn2 = ast.texts[fty];
@@ -3175,6 +3265,7 @@ impl Emitter {
             self.inst_st_names[self.inst_st_count] = iname.copy();
             self.inst_st_src[self.inst_st_count] = si_src;
             self.inst_st_argty[self.inst_st_count] = arg_ty;
+            self.inst_st_argty2[self.inst_st_count] = arg_ty2;
             self.inst_st_count = self.inst_st_count + 1;
         }
     }
@@ -3434,7 +3525,46 @@ impl Emitter {
         return -1;
     }
 
-    /// 无显式类型实参时推断首个类型参数（仅单类型参数、形参类型恰为 T）
+    /// 按形参类型结构推断 T：Box[T] 对 Box 实例取其实参节点；Box[Box[T]] 递归下沉
+    #[alloc]
+    #[state]
+    fn infer_through(ref mut self, ref Ast ast, int pty0, int arg, ref String gp) -> int {
+        pty = unwrap_ty(ast, pty0);
+        if pty < 0 || arg == -1 { return -1; }
+        ptn = ty_name(ast, pty);
+        if ptn == gp { return arg; }
+        ptag = ast.tags[pty];
+        if arg >= 0 {
+            // 实参为类型节点：解包后基名一致则按参数递归
+            an = unwrap_ty(ast, arg);
+            if an != arg { return self.infer_through(ast, pty, an, gp); }
+            if ptag == tt(TT::Generic._tag) || ptag == tt(TT::Named._tag) {
+                if ty_name(ast, an) == ptn {
+                    return self.infer_through(ast, ast.aa[pty], ast.aa[an], gp);
+                }
+            }
+            return -1;
+        }
+        if arg <= -1000 && arg > -1128 {
+            // 实参为结构体值：由实例表取它的类型实参节点，匹配 pty 的参数部分
+            si_a = 0 - 1000 - arg;
+            nm_a = self.st_names[si_a].copy();
+            k_a = 0;
+            while k_a < self.inst_st_count {
+                if self.inst_st_names[k_a] == nm_a {
+                    if ptag == tt(TT::Generic._tag) {
+                        return self.infer_through(ast, ast.aa[pty], self.inst_st_argty[k_a], gp);
+                    }
+                    return -1;
+                }
+                k_a = k_a + 1;
+            }
+            return -1;
+        }
+        return -1;
+    }
+
+    /// 无显式类型实参时推断首个类型参数（单类型参数；支持 Box[T]/Box[Box[T]] 结构匹配）
     #[alloc]
     #[state]
     fn infer_call_arg(ref mut self, ref Ast ast, int fnode, int args) -> int {
@@ -3446,11 +3576,17 @@ impl Emitter {
         p = ast.aa[fnode];
         a = args;
         while p >= 0 && a >= 0 {
-            if ty_name(ast, ast.tys[p]) == gp {
+            pty = ast.tys[p];
+            if pty >= 0 {
                 ax = a;
                 if ast.tags[ax] == xt(XT::Arg._tag) { ax = ast.aa[ax]; }
-                r = self.infer_expr_ty(ast, ax);
-                if r != -1 { return r; }
+                m_arg = self.infer_expr_ty(ast, ax);
+                r = -1;
+                if m_arg != -1 {
+                    r = self.infer_through(ast, pty, m_arg, gp);
+                    if r != -1 { return r; }
+                }
+
             }
             p = ast.nexts[p];
             a = ast.nexts[a];
@@ -7161,9 +7297,22 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             rinfo = e.ret_info(ast, rty_sel);
             rnm = "";
             if rinfo >= 0 { rnm = e.st_names[rinfo].copy(); }
-            if inst_call >= 0 {
-                rnm_i = e.find_struct_inst_name(ast, rinfo, ty_call);
-                if rnm_i.len > 0 { rnm = rnm_i; }
+            done_i = 0;
+            // 返回类型本身是具体泛型（Wrap[Box[int]] / T 被替换为 Box[int]）：按该类型自身实参找实例
+            rty_u = unwrap_ty(ast, rty_sel);
+            if rty_u >= 0 && ast.tags[rty_u] == tt(TT::Generic._tag) {
+                in_q = ast.aa[rty_u];
+                if in_q >= 0 {
+                    in_u = unwrap_ty(ast, in_q);
+                    if !e.type_has_gparam(ast, in_u) {
+                        rnm_i = e.find_struct_inst_name(ast, rinfo, in_u);
+                        if rnm_i.len > 0 { rnm = rnm_i; done_i = 1; }
+                    }
+                }
+            }
+            if done_i == 0 && inst_call >= 0 {
+                rnm_i2 = e.find_struct_inst_name(ast, rinfo, ty_call);
+                if rnm_i2.len > 0 { rnm = rnm_i2; }
             }
             pi2 = e.fresh();
             e.buf.push_str("  ");
@@ -7574,6 +7723,19 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     e.buf.push_str(g2);
                     e.buf.push_str("\n");
                     fnm = e.st_names[e.finfo_at(si_f, idx)].copy();
+                    // 字段类型是具体泛型（如 B[C[int]]）：改用其实例名，保证后续字段布局正确
+                    ftn = unwrap_ty(ast, e.ftype_at(si_f, idx));
+                    if ftn >= 0 && ast.tags[ftn] == tt(TT::Generic._tag) {
+                        in_f = ast.aa[ftn];
+                        if in_f >= 0 {
+                            in_fu = unwrap_ty(ast, in_f);
+                            if !e.type_has_gparam(ast, in_fu) {
+                                si_b = e.find_struct_idx(ty_name(ast, ftn));
+                                nm_ii = e.find_struct_inst_name(ast, si_b, in_fu);
+                                if nm_ii.len > 0 { fnm = nm_ii; }
+                            }
+                        }
+                    }
                     return Val { kind = 2, a = vp2, b = fnm, ty = -1 };
                 }
                 if fk == 3 {
