@@ -129,3 +129,39 @@ enum __Async_fetch {
   循环与提前 `return` 必须支持（状态机拆入口/恢复）。
 - **开放**：A5e 接口稳定后再按 A5d 模式对第三方 `.lcl` 开放 `#[transform]`，async 为参考实现。
 - 详见 `docs/annotations.md` §8.6（A5e 设计）与 ADR-19。
+
+### 7.1 A1b 第一切片（`#[async]` 无 await，2026-10-24 设计）
+
+先不引入 `await` 语法，只做**协议接线**，把变换跑通：
+
+```ayanami
+#[async]
+fn add(int a, int b) -> int { return a + b }
+```
+
+编译器在 **AST 层**（HIR 之前）生成普通构造：
+
+```ayanami
+struct __add_Fut { int a, int b, int _done }
+fn add(int a, int b) -> __add_Fut { return __add_Fut { a = a, b = b, _done = 0 } }
+fn __async_run_add(int a, int b) -> int { return a + b }   // 原函数体原样搬移
+
+impl __add_Fut {
+    fn poll(ref mut self, ref Context cx) -> Poll[int] {
+        if self._done == 1 { return Poll::Pending() }
+        self._done = 1
+        return Poll::Ready(__async_run_add(self.a, self.b))
+    }
+}
+```
+
+- **约束（v1）**：仅顶层自由函数；非泛型；参数均为 Copy（字段拷贝）；暂不支持 `await`
+  （后续切片再引入挂起点）；`Poll`/`Context` 需在调用方作用域可见（先由示例/std 提供，
+  编译器不绑定名字，按方法形状与类型名解析）。
+- **为什么先拆 runner**：原函数体原样保留（含嵌套 `return`/循环），避免第一切片就做
+  变量提升与返回值改写；后续 `await` 切片再把 runner 内联进 `poll` 并引入状态枚举。
+- **管线位置**：解析后、HIR 降级前（与 `cfg` 过滤同层）；产物只使用既有 AST 构造。
+- **验收**：`example/test_async_sugar.aya`：`block_on(add(1, 2)) == 3`；
+  `#[async]` 用于泛型/方法/非 Copy 参数 → 明确报错；IR 快照无新增节点种类。
+
+后续切片：A1b-2 直线 `await`（单挂起点）→ A1b-3 循环/if 与 `ref` 跨 await 禁用 → A1b-4 高阶组合。
