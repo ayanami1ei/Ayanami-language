@@ -3379,15 +3379,15 @@ selfhost/src/driver/imports.aya:176: pub fn load_deps(ref String manifest_dir) -
 selfhost/src/driver/imports.aya:237: fn std_src_enabled() -> int
 selfhost/src/driver/imports.aya:246: fn std_src_path(ref String start_dir, ref String stem) -> String
 selfhost/src/driver/imports.aya:292: pub fn collect_lines(ref String file, ref Deps deps, ref mut Seen seen, ref mut StringBuf dst, ref String mdir) -> int
-selfhost/src/driver/imports.aya:365: fn prelude_path(ref String mdir) -> String
-selfhost/src/driver/imports.aya:378: pub struct SrcMap
-selfhost/src/driver/imports.aya:386: pub namespace SrcMap
-selfhost/src/driver/imports.aya:388: pub fn new() -> SrcMap
-selfhost/src/driver/imports.aya:393: impl SrcMap
-selfhost/src/driver/imports.aya:396: fn add(ref mut self, ref String f, int st, int cnt)
-selfhost/src/driver/imports.aya:407: pub fn resolve(ref mut self, int line) -> String
-selfhost/src/driver/imports.aya:424: pub fn merge_source(ref String file) -> String
-selfhost/src/driver/imports.aya:432: pub fn merge_source_map(ref String file, ref mut SrcMap map) -> String
+selfhost/src/driver/imports.aya:388: fn prelude_path(ref String mdir) -> String
+selfhost/src/driver/imports.aya:401: pub struct SrcMap
+selfhost/src/driver/imports.aya:409: pub namespace SrcMap
+selfhost/src/driver/imports.aya:411: pub fn new() -> SrcMap
+selfhost/src/driver/imports.aya:416: impl SrcMap
+selfhost/src/driver/imports.aya:419: fn add(ref mut self, ref String f, int st, int cnt)
+selfhost/src/driver/imports.aya:430: pub fn resolve(ref mut self, int line) -> String
+selfhost/src/driver/imports.aya:447: pub fn merge_source(ref String file) -> String
+selfhost/src/driver/imports.aya:455: pub fn merge_source_map(ref String file, ref mut SrcMap map) -> String
 selfhost/src/hir/check.aya:13: pub struct Checker
 selfhost/src/hir/check.aya:90: pub namespace Checker
 selfhost/src/hir/check.aya:93: pub fn new(ref String file, SrcMap smap0) -> Checker
@@ -3711,20 +3711,20 @@ selfhost/src/lir/emit.aya:6662: fn ct_stmt(ref Ast ast, int id, ref mut Emitter 
 selfhost/src/lir/emit.aya:6725: fn ct_expr(ref Ast ast, int id, ref mut Emitter e) -> int
 selfhost/src/lir/emit.aya:6781: fn ct_call(ref Ast ast, int fn_id, int nargs, ref mut Emitter e) -> int
 selfhost/src/lir/emit.aya:6808: fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:9357: fn emit_block_all(ref Ast ast, int blk, ref mut Emitter e)
-selfhost/src/lir/emit.aya:9368: fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e)
-selfhost/src/lir/emit.aya:9378: fn elem_is_leaf(ref String lty) -> bool
-selfhost/src/lir/emit.aya:9386: fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val)
-selfhost/src/lir/emit.aya:9441: fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v)
-selfhost/src/lir/emit.aya:9476: fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v)
-selfhost/src/lir/emit.aya:9530: fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:9565: fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:9676: fn emit_stmt(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:10379: fn emit_lambda(ref Ast ast, int lam_id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:10403: fn emit_fn(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:10408: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:10448: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
-selfhost/src/lir/emit.aya:10895: pub fn emit_program(ref Ast ast, int prog, ref String file) -> String
+selfhost/src/lir/emit.aya:9387: fn emit_block_all(ref Ast ast, int blk, ref mut Emitter e)
+selfhost/src/lir/emit.aya:9398: fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e)
+selfhost/src/lir/emit.aya:9408: fn elem_is_leaf(ref String lty) -> bool
+selfhost/src/lir/emit.aya:9416: fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val)
+selfhost/src/lir/emit.aya:9471: fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v)
+selfhost/src/lir/emit.aya:9506: fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v)
+selfhost/src/lir/emit.aya:9560: fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:9595: fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:9706: fn emit_stmt(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:10409: fn emit_lambda(ref Ast ast, int lam_id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:10433: fn emit_fn(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:10438: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:10478: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
+selfhost/src/lir/emit.aya:10925: pub fn emit_program(ref Ast ast, int prog, ref String file) -> String
 selfhost/src/main.aya:8: fn usage_ok(ref Cli c) -> int
 selfhost/src/main.aya:13: fn usage_unknown(ref Cli c) -> int
 selfhost/src/main.aya:20: fn dispatch(ref Cli c) -> int

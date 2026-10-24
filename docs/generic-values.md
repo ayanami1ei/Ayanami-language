@@ -174,4 +174,6 @@ vtable，但 `"str" + x`、`x.field` 等静态语义无法还原）；且改变�
   - 余下：多类型参数**函数**推断/特化（`TakeIt[T,I]` 的 `new`、`Holder[T,U]` 的方法、
     `Option[U]` 返回类型）——`spec_*` 目前只记录一个类型实参；枚举实例已可用（`Option[T]`
     载荷替换/方法特化/构造推断）
+  - 结论：泛型簇除多类型参数**函数**特化（test_iter_infer/test_closure_field_call）外全部转正；
+    枚举字段/Ptr 载荷/结构体形参实例均已接入（test_ptr_tree 仅差 ref 字段地址语义）
 - [ ] 阶段 6：`ref String` 形参按指针 ABI（连续双槽临时 + 调用后回写）；见 docs/selfhost.md 坑 38
