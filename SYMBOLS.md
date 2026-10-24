@@ -357,15 +357,16 @@ src/formatter/stmt.rs:7: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt,
 src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
-src/hir/async_transform.rs:20: pub fn expand(program: &Program) -> Result<Program>
-src/hir/async_transform.rs:52: fn is_async(a: &crate::parser::ast::Attr) -> bool
-src/hir/async_transform.rs:57: fn stmt_has_direct_await(st: &Stmt) -> bool
-src/hir/async_transform.rs:67: fn contains_async(stmt: &Stmt) -> bool
-src/hir/async_transform.rs:77: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()>
-src/hir/async_transform.rs:122: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_transform.rs:147: fn await_prefix(body: &Block, span: &crate::span::Span) -> Result<Vec<(Symbol, Symbol, Vec<Expr>)>>
-src/hir/async_transform.rs:173: fn expand_await(
-src/hir/async_transform.rs:260: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:19: pub fn expand(program: &Program) -> Result<Program>
+src/hir/async_transform.rs:51: fn is_async(a: &crate::parser::ast::Attr) -> bool
+src/hir/async_transform.rs:56: fn stmt_has_direct_await(st: &Stmt) -> bool
+src/hir/async_transform.rs:66: fn stmt_has_nested_await(st: &Stmt) -> bool
+src/hir/async_transform.rs:81: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:91: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()>
+src/hir/async_transform.rs:136: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:161: fn await_prefix(body: &Block, span: &crate::span::Span) -> Result<Vec<(Symbol, Symbol, Vec<Expr>)>>
+src/hir/async_transform.rs:187: fn expand_await(
+src/hir/async_transform.rs:274: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform_util.rs:5: pub(crate) fn ty_src(ty: &Type) -> Option<String>
 src/hir/async_transform_util.rs:22: pub(crate) fn await_default(ty: &Type) -> Option<(&'static str, &'static str)>
 src/hir/async_transform_util.rs:32: pub(crate) fn type_name(ty: &Type) -> String

@@ -15,7 +15,6 @@ use crate::intern::Symbol;
 use crate::parser::ast::vis::Visibility;
 use crate::parser::ast::{Block, Expr, Program, Stmt, Type};
 use crate::hir::async_transform_util::{await_default, type_name, ty_src};
-
 /// 展开程序中的 `#[async]` 函数（cfg 过滤之后、HIR 降级之前）。
 pub fn expand(program: &Program) -> Result<Program> {
     // await 目标函数的返回类型表（仅同程序 #[async] 函数）
@@ -61,6 +60,21 @@ fn stmt_has_direct_await(st: &Stmt) -> bool {
         Stmt::ExprStmt { expr, .. } => is_await(expr),
         Stmt::Return { value: Some(e), .. } => is_await(e),
         _ => false,
+    }
+}
+/// 递归检查循环/分支/块内的 await（v1 不支持）。
+fn stmt_has_nested_await(st: &Stmt) -> bool {
+    let any = |b: &Block| b.stmts.iter().any(stmt_has_nested_await);
+    match st {
+        Stmt::If { then_block, elifs, else_block, .. } => {
+            any(then_block)
+                || elifs.iter().any(|(_, b)| any(b))
+                || else_block.as_ref().map_or(false, any)
+        }
+        Stmt::While { body, .. } | Stmt::For { body, .. } | Stmt::ForIn { body, .. } => any(body),
+        Stmt::Block(b) => any(b),
+        Stmt::Attributed { stmt, .. } => stmt_has_nested_await(stmt),
+        _ => stmt_has_direct_await(st),
     }
 }
 
@@ -159,9 +173,9 @@ fn await_prefix(body: &Block, span: &crate::span::Span) -> Result<Vec<(Symbol, S
         out.push((*name, *g, gargs.clone()));
     }
     for st in body.stmts.iter().skip(out.len()) {
-        if stmt_has_direct_await(st) {
+        if stmt_has_nested_await(st) {
             return Err(Error::Hir(format!(
-                "#[async] v1: `await` must form a prefix of consecutive assignments (at {}:{})",
+                "#[async] v1: `await` must be a straight-line prefix; awaits inside loops/branches are not supported (at {}:{})",
                 span.start_line, span.start_col
             )));
         }

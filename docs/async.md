@@ -199,7 +199,7 @@ impl __add_Fut {
 - 展开：构造 `__f_Fut`（参数 + `__g_Fut __w` + `y` + `_state`）；构造器立即创建内层 future；
   `poll` 首次轮询内层，`Pending` 直接返回，`Ready(v)` 写 `y` 后调用 `__async_after_f(<params>, y)`
   执行后置语句（参数名不变，无需重写函数体）。
-- 诊断：`await` 在 `#[async]` 外 → 明确报错；目标非 async → 明确报错。
+- 诊断：`await` 在 `#[async]` 外 / 目标非 async / 循环或分支内 await → 明确报错（`await_in_loop`）。
 - 用例 `example/test_async_await.aya`（`twice` = `await inc` + 1）；负例 `await_outside_async`、
   `await_not_async`。
 - 后续：任意 await 位置（循环/分支内）→ 状态枚举 + CFG 拆分。

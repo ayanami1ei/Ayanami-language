@@ -1,0 +1,14 @@
+import "io"
+enum Poll[T] { Ready(T), Pending }
+struct Context { int x }
+#[async]
+fn g() -> int { return 1 }
+#[async]
+fn bad() -> int {
+    while true {
+        y = await g()
+        return y
+    }
+    return 0
+}
+fn main() -> int { return 0 }
