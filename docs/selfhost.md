@@ -245,6 +245,12 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     因此这两个用例仍 DIFF。属于 stage-0 诊断管线的路径差异（疑为依赖构建/二遍分析），
     非语言特性差异；如需对齐要复刻其重复与无位置行为（bd w9p）。
 
+60. **Ptr[Struct] 的自动解引用（2026-10-24）**：`fn leaf() -> Ptr[Tree]` 的**返回值**必须带
+    解引用标记（`10001+si`），否则局部是裸 i64，`t.left = ...` / `t.contains(x)` 无接收者类型。
+    FieldAssign 与 MethodCall 的 Ptr[Struct] 接收者要 `inttoptr` 成结构体再走正常路径；
+    `ref <Ptr 值>`（如枚举载荷字段 `_data_Some._0`）按裸指针值存储（读语义等价，
+    写穿/字段地址语义仍缺，通用方案见 bd izr）。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash
