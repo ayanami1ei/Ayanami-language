@@ -202,4 +202,6 @@ impl __add_Fut {
 - 诊断：`await` 在 `#[async]` 外 / 目标非 async / 循环或分支内 await → 明确报错（`await_in_loop`）。
 - 用例 `example/test_async_await.aya`（`twice` = `await inc` + 1）；负例 `await_outside_async`、
   `await_not_async`。
-- 后续：任意 await 位置（循环/分支内）→ 状态枚举 + CFG 拆分。
+- 分支内 await（第一切片）：`y = <默认>; if cond { y = await g(<参数>) }; <post>`
+  支持（take helper 求值条件；state0 分支 → state1 轮询 → state2 后置）；条件/实参限参数。
+- 后续：while 循环内 await（回边）与一般 CFG（PC/状态枚举）。
