@@ -2692,6 +2692,20 @@ impl Emitter {
             }
             i = i + 1;
         }
+        // 泛型结构体字面量：Name[T] { ... }
+        i = 0;
+        while i < ast.len {
+            if ast.tags[i] == et(ET::StructLiteral._tag) {
+                tyg_l = ast.tys[i];
+                if tyg_l >= 0 {
+                    an_l = self.type_arg_name(ast, tyg_l);
+                    if an_l.len > 0 && !self.type_is_gparam(ast, tyg_l) {
+                        self.add_inst(ast.texts[i] + "[" + an_l + "]", tyg_l);
+                    }
+                }
+            }
+            i = i + 1;
+        }
         // 3tq 阶段 2（建表阶段）：为结构体实例生成特化字段布局
         i = 0;
         while i < self.inst_count {
@@ -3297,10 +3311,36 @@ fn emit_forin_next(ref Ast ast, ref String it_nm, int it_kind, ref String it_ty,
         obj = Val { kind = 21, a = rv, b = it_ty.copy(), ty = -1 };
         return emit_iface_dispatch(ast, -1, obj, ii, mi, e);
     }
-    mid = e.find_method_id(it_ty, "next");
+    // 结构体实例接收者：剥离 __m<k>，按源类型找 next 并特化
+    it_src = it_ty.copy();
+    inst_arg_f = -1;
+    usp_f = it_src.index_of("__m");
+    if usp_f > 0 {
+        it_src = it_src.substring(0 as usize, usp_f as usize);
+        kf = 0;
+        while kf < e.inst_st_count {
+            if e.inst_st_names[kf] == it_ty {
+                inst_arg_f = e.inst_st_argty[kf];
+                break;
+            }
+            kf = kf + 1;
+        }
+    }
+    mid = e.find_method_id(it_src, "next");
     if mid < 0 { return mk_int("0"); }
-    mrty = e.method_ret_type(it_ty, "next");
+    mrty = e.method_ret_type(it_src, "next");
+    spec_f = -1;
+    if inst_arg_f >= 0 {
+        spec_f = e.spec_register(ast, mid, it_src, inst_arg_f, it_ty.copy());
+    }
     rk = e.ret_kind(ast, mrty);
+    if spec_f >= 0 {
+        gpf = e.impl_gparam(ast, it_src);
+        if gpf.len > 0 {
+            rk = e.ret_kind_with(ast, mrty, gpf, inst_arg_f);
+            if ty_name(ast, mrty) == gpf { mrty = inst_arg_f; }
+        }
+    }
     rv0 = e.fresh();
     e.buf.push_str("  ");
     e.buf.push_str(rv0);
@@ -3317,8 +3357,12 @@ fn emit_forin_next(ref Ast ast, ref String it_nm, int it_kind, ref String it_ty,
     } else {
         e.buf.push_str(" = call i64 @");
     }
-    full = it_ty + ".next";
+    full = it_src + ".next";
     e.buf.push_str(e.fn_sym_ord(full, e.fn_idx_of_node(full, e.fn_first_id(full))));
+    if spec_f >= 0 {
+        e.buf.push_str(".__i");
+        e.buf.push_int(spec_f);
+    }
     e.buf.push_str("(ptr ");
     e.buf.push_str(rv0);
     e.buf.push_str(")\n");
@@ -5215,7 +5259,7 @@ fn emit_prelude_str(ref String fname, ref Val s, ref Val arg, int has_arg, int r
 fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e) -> Val {
         ety3 = base3.ty;
         lty4 = "i64";
-        if ety3 >= 0 {
+        if ety3 >= 0 || (ety3 <= -1000 && ety3 > -2128) {
             lty4 = e.elem_llvm_m(ast, ety3);
         }
         g4 = elem_addr(e, elem_stride(ast, ety3), base3.a, idx);
@@ -6462,6 +6506,14 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
     }
     if tag == et(ET::StructLiteral._tag) {
         nm = ast.texts[id];
+        tyg_e = ast.tys[id];
+        if tyg_e >= 0 {
+            si_e = e.find_struct_idx(nm);
+            if si_e >= 0 {
+                nm_ie = e.find_struct_inst_name(ast, si_e, tyg_e);
+                if nm_ie.len > 0 { nm = nm_ie; }
+            }
+        }
         if e.cur_inst_ord >= 0 && e.cur_inst_struct.len > 0 && nm == e.cur_self_ty {
             // 特化上下文：源结构体字面量改用实例布局
             nm = e.cur_inst_struct.copy();

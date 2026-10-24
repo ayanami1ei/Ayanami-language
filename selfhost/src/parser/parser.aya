@@ -1772,12 +1772,22 @@ impl Parser {
                 self.mark();
                 self.skip_brackets();
                 if self.check_delim(D::LBrace._tag) {
-                    return self.parse_struct_literal(name, line, col);
+                    // 回退到 '[' 按类型语法解析第一个类型实参（多实参暂不记录）
+                    self.restore();
+                    self.advance();
+                    tyg_s = self.parse_type();
+                    if self.check_delim(D::RBracket._tag) {
+                        self.advance();
+                        return self.parse_struct_literal(name, line, col, tyg_s);
+                    }
+                    self.restore();
+                    self.skip_brackets();
+                    return self.parse_struct_literal(name, line, col, -1);
                 }
                 self.restore();
             }
             if self.check_delim(D::LBrace._tag) && self.no_struct == 0 {
-                return self.parse_struct_literal(name, line, col);
+                return self.parse_struct_literal(name, line, col, -1);
             }
             return self.ast.push(et(ET::Ident._tag), name, -1, -1, -1, -1, -1, line, col);
         }
@@ -2036,7 +2046,7 @@ impl Parser {
 
     #[alloc]
     #[state]
-    fn parse_struct_literal(ref mut self, ref String name, int line, int col) -> int {
+    fn parse_struct_literal(ref mut self, ref String name, int line, int col, int tyg) -> int {
         bline = self.cur.line;
         bcol = self.cur.col;
         self.expect_delim(D::LBrace._tag, "expected { in struct literal");
@@ -2057,6 +2067,6 @@ impl Parser {
             if !self.eat_delim(D::Comma._tag) { break; }
         }
         self.expect_delim(D::RBrace._tag, "expected } after struct literal");
-        return self.ast.push(et(ET::StructLiteral._tag), name, -1, head, -1, -1, -1, line, col);
+        return self.ast.push(et(ET::StructLiteral._tag), name, tyg, head, -1, -1, -1, line, col);
     }
 }
