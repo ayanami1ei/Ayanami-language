@@ -2818,6 +2818,10 @@ impl Emitter {
     /// 类型实参名（Named/Generic 取文本；原语/数组/裸指针用标签名）
     #[alloc]
     fn type_arg_name(ref mut self, ref Ast ast, int arg) -> String {
+        if arg >= 0 {
+            atg0 = ast.tags[arg];
+            if atg0 == tt(TT::FnPtr._tag) || atg0 == tt(TT::Closure._tag) { return "fn"; }
+        }
         an = ty_name(ast, arg);
         if an.len > 0 { return an; }
         if arg < 0 { return ""; }
@@ -3980,8 +3984,8 @@ fn elem_slot(ref Ast ast, int ty) -> String {
     if t == tt(TT::ArraySized._tag) { return "ptr"; }
     if t == tt(TT::Unique._tag) { return "ptr"; }
     if t == tt(TT::Ref._tag) { return "ptr"; }
-    if t == tt(TT::FnPtr._tag) { return "ptr"; }
-    if t == tt(TT::Closure._tag) { return "ptr"; }
+    if t == tt(TT::FnPtr._tag) { return "i64"; }
+    if t == tt(TT::Closure._tag) { return "i64"; }
     return "i64";
 }
 
@@ -7975,6 +7979,12 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 e.buf.push_str(" to ptr\n");
                 return Val { kind = 21, a = pi6b, b = rnm6, ty = -1 };
             }
+            if mrty >= 0 {
+                mt_m = ast.tags[mrty];
+                if mt_m == tt(TT::FnPtr._tag) || mt_m == tt(TT::Closure._tag) {
+                    return Val { kind = 0, a = t5, b = "", ty = -3000 - mrty };
+                }
+            }
             if rk_m == 3 {
                 pi7 = e.fresh();
                 e.buf.push_str("  ");
@@ -8835,6 +8845,16 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             return;
         }
         v = emit_expr(ast, rhs_id, e);
+        if v.ty <= -3000 && v.ty > -4000 {
+            e.declare_local(nm, 0);
+            e.record_ftype(nm, 0 - 3000 - v.ty);
+            e.buf.push_str("  store i64 ");
+            e.buf.push_str(v.a);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str("\n");
+            return;
+        }
         if v.kind == 3 {
             e.declare_array_local(nm, v.ty);
             e.buf.push_str("  store ptr ");
