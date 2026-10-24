@@ -222,6 +222,23 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     仍缺：`ref <枚举载荷字段>` 的**字段地址**语义（test_ptr_tree 的 `r = ref self.left._data_Some._0`
     当前拿到的是值临时，写不回/链式 get 取不到目标）。
 
+56. **宏引擎（源码级解释执行，2026-10-24）**：`selfhost/src/macro/expand.aya`。
+    解析器记录注解原文（`attrs_text/line/eline`），`#[macro]` 打 dd 位 18（262144）；
+    展开在 driver 首次解析后：表达式宏 `#name(...)` 自右向左（内层优先）就地替换，
+    item/语句注解按行范围替换（item 结束 = 下一个 item/注解行 - 1；语句按括号平衡）；
+    `input` = 被标注源码（item 含末尾换行），其后为实参源码；`__line/__col/__file` 注入；
+    宏内局部**同名赋值必须更新绑定**（否则 m_lookup 首次命中旧值，panic 宏会截断）；
+    仅 bit18 的函数参与宏解析（`#panic` 也是 std 宏，但普通函数不是宏）；
+    宏诊断先入缓冲，`check_program` 之后输出（对齐 stage-0 的顺序与格式）。
+    宏展开后重新解析并平移 SrcMap 导入区。
+
+57. **字符串拼接的效果（2026-10-24）**：任一操作数（base_type）为 String 时，
+    推断为 `alloc + state`（对齐 stage-0 的 `String.add`/`int.to_string`）。
+    此前只按字面量判 alloc，导致宏库 `my_line/tok_twice` 的 state 缺失。
+
+58. **宏库的链接错误消息（2026-10-24）**：含 `#[macro]` 的库在 stage-0 会先构建插件，
+    失败消息带 `link failed: driver error:` 包装（与 import "mir" 的插件库一致）。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash

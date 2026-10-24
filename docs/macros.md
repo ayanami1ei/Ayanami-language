@@ -1,6 +1,8 @@
 # 自举宏引擎设计（selfhost）
 
-> 状态（2026-10-24）：**未实现**。本文档为下一阶段实现的设计稿。
+> 状态（2026-10-24）：**M1–M4 已实现**（源码级解释执行，见 `selfhost/src/macro/expand.aya`）。
+> 实现方式与下文的「解释执行」一致：不建 .so；注解/宏调用先展开源码再重新解析。
+> 剩余 M5：`#[check]`/`#[pass]` MIR 插件（test_check），需要 MIR 序列化与插件调用。
 > stage-0 参考实现：`rust/src/compiler/macro_expand/`（M3 插件 ABI v3，编译宏库为 `.so` 后 dlopen）。
 
 ## 1. 目标
@@ -41,12 +43,12 @@
 
 ## 3. 分期
 
-- **M1（item/语句/表达式 + 字符串拼接）**：test_macro、test_macro_args、test_macro_stmt、
+- [x] **M1（item/语句/表达式 + 字符串拼接）**：test_macro、test_macro_args、test_macro_stmt、
   test_macro_fn、test_annotation_scope
-- **M2（块实参 + 长度/行号）**：test_macro_block、`my_line`
-- **M3（token 流）**：test_macro_tokens
-- **M4（卫生/诊断）**：test_macro_hygiene
-- **M5（MIR 插件）**：test_check（`#[check]`，与宏引擎分开，参考 `macro_expand/check_plugin.rs`）
+- [x] **M2（块实参 + 长度/行号）**：test_macro_block、`my_line`（`.len()`/`to_string` 已支持）
+- [x] **M3（token 流）**：test_macro_tokens（源文本语义对这批宏等价：仅拼接/恒等）
+- [x] **M4（卫生/诊断）**：test_macro_hygiene（`__ayanami_macro_hygienic/_diag` shim）
+- [ ] **M5（MIR 插件）**：test_check（`#[check]`，与宏引擎分开，参考 `macro_expand/check_plugin.rs`）
 
 ## 4. 验收
 
