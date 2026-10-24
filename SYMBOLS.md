@@ -158,8 +158,8 @@ src/compiler/macro_expand/check_plugin.rs:43: fn call_check(so_path: &Path, symb
 src/compiler/macro_expand/expand_util.rs:6: pub(super) fn trace_expansion(macro_name: &str, input: &str, output: &str)
 src/compiler/macro_expand/expand_util.rs:17: pub(super) fn parse_source(code: &str) -> Result<Program>
 src/compiler/macro_expand/expand_util.rs:27: pub(super) fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/expand_util.rs:42: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/expand_util.rs:53: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:46: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:57: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
 src/compiler/macro_expand/mod.rs:18: const MAX_DEPTH: usize = 32;
 src/compiler/macro_expand/mod.rs:20: mod expand_util;
 src/compiler/macro_expand/mod.rs:21: mod plugin_call;
@@ -355,6 +355,12 @@ src/formatter/stmt.rs:7: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt,
 src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
+src/hir/async_transform.rs:17: pub fn expand(program: &Program) -> Result<Program>
+src/hir/async_transform.rs:33: fn is_async(a: &crate::parser::ast::Attr) -> bool
+src/hir/async_transform.rs:37: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:47: fn expand_one(stmt: &Stmt, out: &mut Vec<Stmt>) -> Result<()>
+src/hir/async_transform.rs:87: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:113: fn ty_src(ty: &Type) -> Option<String>
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
 src/hir/attrs.rs:39: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
 src/hir/attrs.rs:43: pub struct Imports
@@ -1187,21 +1193,22 @@ src/hir/lower/to_mir/ptr_ops.rs:65: fn expr_type(&self) -> HirType { self.ty.clo
 src/hir/lower/to_mir/ptr_ops.rs:66: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
 src/hir/lower/to_mir/ptr_ops.rs:70: fn record_moves(&self, moved: &mut HashSet<VarId>)
 src/hir/mod.rs:1: pub mod attrs;
-src/hir/mod.rs:2: pub mod attrs_export;
-src/hir/mod.rs:3: pub mod attrs_macro;
-src/hir/mod.rs:4: pub mod cfg;
-src/hir/mod.rs:5: pub mod contracts;
-src/hir/mod.rs:6: pub mod effects;
-src/hir/mod.rs:7: pub mod ir;
-src/hir/mod.rs:8: pub mod layout;
-src/hir/mod.rs:9: pub(crate) mod niche;
-src/hir/mod.rs:10: pub mod ty;
-src/hir/mod.rs:11: pub mod node;
-src/hir/mod.rs:12: pub mod stmt;
-src/hir/mod.rs:13: pub mod item;
-src/hir/mod.rs:14: pub mod lower;
-src/hir/mod.rs:15: pub mod display;
-src/hir/mod.rs:32: pub struct $name
+src/hir/mod.rs:2: pub(crate) mod async_transform;
+src/hir/mod.rs:3: pub mod attrs_export;
+src/hir/mod.rs:4: pub mod attrs_macro;
+src/hir/mod.rs:5: pub mod cfg;
+src/hir/mod.rs:6: pub mod contracts;
+src/hir/mod.rs:7: pub mod effects;
+src/hir/mod.rs:8: pub mod ir;
+src/hir/mod.rs:9: pub mod layout;
+src/hir/mod.rs:10: pub(crate) mod niche;
+src/hir/mod.rs:11: pub mod ty;
+src/hir/mod.rs:12: pub mod node;
+src/hir/mod.rs:13: pub mod stmt;
+src/hir/mod.rs:14: pub mod item;
+src/hir/mod.rs:15: pub mod lower;
+src/hir/mod.rs:16: pub mod display;
+src/hir/mod.rs:33: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
@@ -2679,6 +2686,17 @@ example/test_async_manual.aya:33: impl Countdown
 example/test_async_manual.aya:35: fn poll(ref mut self, ref Context cx) -> Poll[int]
 example/test_async_manual.aya:46: fn block_on[F: Future[int]](ref mut F f) -> int
 example/test_async_manual.aya:62: fn main() -> int
+example/test_async_sugar.aya:4: enum Poll[T]
+example/test_async_sugar.aya:9: struct Waker
+example/test_async_sugar.aya:13: impl Waker
+example/test_async_sugar.aya:14: fn wake(ref self)
+example/test_async_sugar.aya:18: struct Context
+example/test_async_sugar.aya:22: interface Future[T]
+example/test_async_sugar.aya:23: fn poll(ref mut self, ref Context cx) -> Poll[T];
+example/test_async_sugar.aya:27: fn sum2(int a, int b) -> int
+example/test_async_sugar.aya:32: fn pick(int a, int b, int c) -> int
+example/test_async_sugar.aya:40: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_sugar.aya:53: fn main() -> int
 example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }
 example/test_attrs.aya:9: fn main() -> int
 example/test_bitwise.aya:2: fn shl_u8(u8 a, u8 b) -> u8 { return a << b }

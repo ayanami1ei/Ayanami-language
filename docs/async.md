@@ -130,7 +130,7 @@ enum __Async_fetch {
 - **开放**：A5e 接口稳定后再按 A5d 模式对第三方 `.lcl` 开放 `#[transform]`，async 为参考实现。
 - 详见 `docs/annotations.md` §8.6（A5e 设计）与 ADR-19。
 
-### 7.1 A1b 第一切片（`#[async]` 无 await，2026-10-24 设计）
+### 7.1 A1b 第一切片（`#[async]` 无 await，2026-10-24 已完成）
 
 先不引入 `await` 语法，只做**协议接线**，把变换跑通：
 
@@ -165,3 +165,8 @@ impl __add_Fut {
   `#[async]` 用于泛型/方法/非 Copy 参数 → 明确报错；IR 快照无新增节点种类。
 
 后续切片：A1b-2 直线 `await`（单挂起点）→ A1b-3 循环/if 与 `ref` 跨 await 禁用 → A1b-4 高阶组合。
+
+**实现备注**：`src/hir/async_transform.rs`；`#[async]` 在 HIR 前消费（宏展开期由
+`expand_util::is_compiler_attr` 放行）。踩坑：示例最初用 `fn add`，与 std `io` 导入的
+`add(int,int)` 重载同名，签名查找命中导入版本（返回 int）→ 构造函数体报
+`return type mismatch`；**用户函数与导入重载同名时需换名**（既有解析行为，非本特性引入）。
