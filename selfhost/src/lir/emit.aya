@@ -3305,6 +3305,60 @@ impl Emitter {
             }
             i = i + 1;
         }
+        // 无类型实参的泛型结构体字面量：按字段值推断（Box { v = 42 } / Pair { ... }）
+        i = 0;
+        while i < ast.len {
+            if ast.tags[i] == et(ET::StructLiteral._tag) {
+                if ast.tys[i] < 0 {
+                    nm_li = ast.texts[i];
+                    si_li = self.find_struct_idx(nm_li);
+                    if si_li >= 0 {
+                        gp1_li = self.struct_gparam(ast, nm_li);
+                        if gp1_li.len > 0 {
+                            gp2_li = "";
+                            sd_li = -1;
+                            q_li = 0;
+                            while q_li < ast.len {
+                                if ast.tags[q_li] == st(ST::StructDef._tag) && ast.texts[q_li] == nm_li { sd_li = q_li; break; }
+                                q_li = q_li + 1;
+                            }
+                            if sd_li >= 0 {
+                                g2_li = ast.bb[sd_li];
+                                if g2_li >= 0 {
+                                    g2_li = ast.nexts[g2_li];
+                                    if g2_li >= 0 { gp2_li = ast.texts[g2_li].copy(); }
+                                }
+                            }
+                            a1_li = -1;
+                            a2_li = -1;
+                            f_li = ast.aa[i];
+                            while f_li >= 0 {
+                                idx_li = self.find_field_idx(nm_li, ast.texts[f_li]);
+                                if idx_li >= 0 {
+                                    fty_li = self.ftype_at(si_li, idx_li);
+                                    tn_li = ty_name(ast, fty_li);
+                                    if tn_li.len > 0 && tn_li == gp1_li {
+                                        m_li = self.infer_ctor_arg(ast, ast.aa[f_li]);
+                                        if m_li != -1 { a1_li = m_li; }
+                                    } elif gp2_li.len > 0 && tn_li == gp2_li {
+                                        m2_li = self.infer_ctor_arg(ast, ast.aa[f_li]);
+                                        if m2_li != -1 { a2_li = m2_li; }
+                                    }
+                                }
+                                f_li = ast.nexts[f_li];
+                            }
+                            if a1_li != -1 {
+                                an_li = self.type_arg_name(ast, a1_li);
+                                if an_li.len > 0 {
+                                    self.add_inst2(nm_li + "[" + an_li + "]", a1_li, a2_li);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            i = i + 1;
+        }
         // 泛型结构体字面量：Name[T] { ... }
         i = 0;
         while i < ast.len {
@@ -3392,7 +3446,20 @@ impl Emitter {
                     elif gpname2.len > 0 && tn_f == gpname2 { subst = arg_ty2; }
                 }
                 if subst != -1 { fty = subst; }
-                if fty >= 0 {
+                if fty < 0 {
+                    // 合成类型标记作为字段类型
+                    if fty == -4003 {
+                        fk = 1;
+                    } elif fty == -4004 {
+                        fk = 5;
+                    } elif fty <= -1000 && fty > -1128 {
+                        fk = 2;
+                        finfo = 0 - 1000 - fty;
+                    } elif fty <= -2000 && fty > -2128 {
+                        fk = 4;
+                        finfo = 0 - 2000 - fty;
+                    }
+                } elif fty >= 0 {
                     ftag = ast.tags[fty];
                     if ftag == tt(TT::Float._tag) {
                         fk = 5;
@@ -3745,6 +3812,53 @@ impl Emitter {
             return -1;
         }
         return -1;
+    }
+
+    /// 无类型实参的结构体字面量：按字段值推断类型参数并查实例名
+    #[alloc]
+    #[state]
+    fn infer_literal_inst(ref mut self, ref Ast ast, int id) -> String {
+        nm = ast.texts[id];
+        si = self.find_struct_idx(nm);
+        if si < 0 { return ""; }
+        gp1 = self.struct_gparam(ast, nm);
+        if gp1.len == 0 { return ""; }
+        gp2 = "";
+        sdef = -1;
+        i2 = 0;
+        while i2 < ast.len {
+            if ast.tags[i2] == st(ST::StructDef._tag) && ast.texts[i2] == nm { sdef = i2; break; }
+            i2 = i2 + 1;
+        }
+        if sdef >= 0 {
+            g2 = ast.bb[sdef];
+            if g2 >= 0 {
+                g2 = ast.nexts[g2];
+                if g2 >= 0 { gp2 = ast.texts[g2].copy(); }
+            }
+        }
+        a1 = -1;
+        a2 = -1;
+        f = ast.aa[id];
+        while f >= 0 {
+            idx = self.find_field_idx(nm, ast.texts[f]);
+            if idx >= 0 {
+                fty = self.ftype_at(si, idx);
+                tn = ty_name(ast, fty);
+                if tn.len > 0 && tn == gp1 {
+                    m = self.infer_expr_ty(ast, ast.aa[f]);
+                    if m == -1 { m = self.infer_ctor_arg(ast, ast.aa[f]); }
+                    if m != -1 { a1 = m; }
+                } elif gp2.len > 0 && tn == gp2 {
+                    m2 = self.infer_expr_ty(ast, ast.aa[f]);
+                    if m2 == -1 { m2 = self.infer_ctor_arg(ast, ast.aa[f]); }
+                    if m2 != -1 { a2 = m2; }
+                }
+            }
+            f = ast.nexts[f];
+        }
+        if a1 == -1 { return ""; }
+        return self.find_struct_inst_name(ast, si, a1);
     }
 
     /// 枚举构造载荷的类型标记（静态推断 + 局部源结构体名兜底）
@@ -7666,6 +7780,9 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 nm_ie = e.find_struct_inst_name(ast, si_e, tyg_e);
                 if nm_ie.len > 0 { nm = nm_ie; }
             }
+        } else {
+            nm_il = e.infer_literal_inst(ast, id);
+            if nm_il.len > 0 { nm = nm_il; }
         }
         if e.cur_inst_ord >= 0 && e.cur_inst_struct.len > 0 && nm == e.cur_self_ty {
             // 特化上下文：源结构体字面量改用实例布局
