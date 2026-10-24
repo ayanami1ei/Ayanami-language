@@ -239,6 +239,12 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 58. **宏库的链接错误消息（2026-10-24）**：含 `#[macro]` 的库在 stage-0 会先构建插件，
     失败消息带 `link failed: driver error:` 包装（与 import "mir" 的插件库一致）。
 
+59. **stage-0 在 part 用例上输出「无位置 + 重复」的效果警告（2026-10-24）**：
+    `test_arena`/`test_multi_constraint` 的 stage-0 输出是**纯消息**（无 `-->` 位置块）且部分警告
+    重复两遍（如 get_mut/with_capacity/alloc），自举目前按正常 `warn_at`（带位置、单次）输出，
+    因此这两个用例仍 DIFF。属于 stage-0 诊断管线的路径差异（疑为依赖构建/二遍分析），
+    非语言特性差异；如需对齐要复刻其重复与无位置行为（bd w9p）。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash
