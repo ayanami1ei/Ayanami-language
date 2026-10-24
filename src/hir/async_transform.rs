@@ -14,6 +14,7 @@ use crate::error::{Error, Result};
 use crate::intern::Symbol;
 use crate::parser::ast::vis::Visibility;
 use crate::parser::ast::{Block, Expr, Program, Stmt, Type};
+use crate::hir::async_transform_util::{await_default, type_name, ty_src};
 
 /// 展开程序中的 `#[async]` 函数（cfg 过滤之后、HIR 降级之前）。
 pub fn expand(program: &Program) -> Result<Program> {
@@ -192,6 +193,7 @@ fn expand_await(
         self_args.push(format!("self.{}", n.as_str()));
     }
     let mut await_y: Vec<(Symbol, Type)> = Vec::new();
+    let mut y_defaults: Vec<&'static str> = Vec::new();
     let mut polls = String::new();
     for (i, (y, g, gargs)) in awaits.iter().enumerate() {
         let g_ret = returns.get(g).ok_or_else(|| fail(format!(
@@ -201,13 +203,18 @@ fn expand_await(
         let mut arg_names = Vec::with_capacity(gargs.len());
         for a in gargs {
             let Expr::Ident(n, _) = a else {
-                return Err(fail("await call arguments must be parameters (v1)".into()));
+                return Err(fail("await call arguments must be identifiers (v1)".into()));
             };
-            if !params.iter().any(|(p, _)| p == n) {
+            if params.iter().any(|(p, _)| p == n) {
+                arg_names.push(n.as_str().to_string());
+            } else if let Some(pos) = await_y.iter().position(|(v, _)| v == n) {
+                // 占位：构造器用该 await 变量的默认值，真实值在进入本状态时重建 future
+                arg_names.push(y_defaults[pos].to_string());
+            } else {
                 return Err(fail(format!(
-                    "await call argument `{}` must be a parameter (v1)", n.as_str())));
+                    "await call argument `{}` must be a parameter or an earlier await value (v1)",
+                    n.as_str())));
             }
-            arg_names.push(n.as_str().to_string());
         }
         fields.push(format!("__{}_Fut __w{}", g.as_str(), i));
         fields.push(format!("{} {}", y_ty, y.as_str()));
@@ -215,12 +222,30 @@ fn expand_await(
         inits.push(format!("{} = {}", y.as_str(), y_init));
         self_args.push(format!("self.{}", y.as_str()));
         await_y.push((*y, g_ret.clone()));
+        y_defaults.push(y_init);
         let next = i + 1;
+        let mut enter = String::new();
+        if let Some((_, gnext, argsnext)) = awaits.get(next) {
+            let mut real = Vec::with_capacity(argsnext.len());
+            for a in argsnext {
+                let Expr::Ident(n, _) = a else {
+                    return Err(fail("await call arguments must be identifiers (v1)".into()));
+                };
+                if params.iter().any(|(p, _)| p == n) || await_y.iter().any(|(v, _)| v == n) {
+                    real.push(format!("self.{}", n.as_str()));
+                } else {
+                    return Err(fail(format!(
+                        "await call argument `{}` must be a parameter or earlier await value (v1)",
+                        n.as_str())));
+                }
+            }
+            enter = format!("; self.__w{} = {}({})", next, gnext.as_str(), real.join(", "));
+        }
         polls.push_str(&format!(
             "        if self._state == {i} {{\n\
              \x20           p{i} = self.__w{i}.poll(ref cx)\n\
              \x20           match p{i} {{\n\
-             \x20               Ready(v) => {{ self.{y} = v; self._state = {next} }}\n\
+             \x20               Ready(v) => {{ self.{y} = v{enter}; self._state = {next} }}\n\
              \x20               Pending => {{ return Poll::Pending() }}\n\
              \x20           }}\n\
              \x20       }}\n",
@@ -258,43 +283,4 @@ fn expand_await(
         .map_err(|e| fail(format!("helper format failed: {}", e)))?;
     out.extend(h.stmts);
     Ok(())
-}
-
-/// await 载荷类型 → (字段类型串, 默认值字面量)；v1 仅基础类型/String。
-fn await_default(ty: &Type) -> Option<(&'static str, &'static str)> {
-    match ty {
-        Type::Int(_) => Some(("int", "0")),
-        Type::Float(_) => Some(("float", "0.0")),
-        Type::Bool(_) => Some(("bool", "false")),
-        Type::Named(s, _) if s.as_str() == "String" => Some(("String", "\"\"")),
-        _ => None,
-    }
-}
-
-fn type_name(ty: &Type) -> String {
-    match ty {
-        Type::Int(_) => "int".into(),
-        Type::Float(_) => "float".into(),
-        Type::Bool(_) => "bool".into(),
-        Type::Char(_) => "char".into(),
-        Type::Named(s, _) => s.as_str().to_string(),
-        Type::Generic(n, _, _) => format!("{}[...]", n.as_str()),
-        _ => "?".into(),
-    }
-}
-/// 生成源码用的类型串（仅 v1 允许的类型）。
-fn ty_src(ty: &Type) -> Option<String> {
-    match ty {
-        Type::Int(_) => Some("int".into()),
-        Type::Float(_) => Some("float".into()),
-        Type::Char(_) => Some("char".into()),
-        Type::Bool(_) => Some("bool".into()),
-        Type::Named(s, _) => Some(s.as_str().to_string()),
-        Type::Generic(n, args, _) => {
-            let mut out = Vec::with_capacity(args.len());
-            for a in args { out.push(ty_src(a)?); }
-            Some(format!("{}[{}]", n.as_str(), out.join(", ")))
-        }
-        _ => None,
-    }
 }

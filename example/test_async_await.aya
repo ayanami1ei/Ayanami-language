@@ -41,6 +41,13 @@ fn chain(int x) -> int {
     return a + b
 }
 
+#[async]
+fn dep(int x) -> int {
+    a = await inc(x)
+    b = await add2(a)
+    return b
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -78,5 +85,7 @@ fn main() -> int {
     if block_on_s(ref mut h) != "hi!" { return 3 }
     k = chain(1)
     if block_on(ref mut k) != 5 { return 4 }
+    d = dep(1)
+    if block_on(ref mut d) != 4 { return 5 }
     return 0
 }
