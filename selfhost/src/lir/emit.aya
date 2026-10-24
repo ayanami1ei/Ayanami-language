@@ -8003,6 +8003,24 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                                         }
                                         pn4 = ty_name(ast, pty4);
                                         if pn4.len > 0 {
+                                            if pn4 == "Ptr" {
+                                                // Ptr[Inner] 载荷：记录解引用标记（Ptr 值是 i64 指针）
+                                                in4 = ast.aa[pty4];
+                                                if in4 < 0 { in4 = ast.tys[pty4]; }
+                                                in4 = unwrap_ty(ast, in4);
+                                                in4n = ty_name(ast, in4);
+                                                si4 = e.find_struct_idx(in4n);
+                                                i4q = e.fresh();
+                                                e.buf.push_str("  ");
+                                                e.buf.push_str(i4q);
+                                                e.buf.push_str(" = load i64, ptr ");
+                                                e.buf.push_str(g4p);
+                                                e.buf.push_str("\n");
+                                                if si4 >= 0 {
+                                                    return Val { kind = 0, a = i4q, b = in4n, ty = 10001 + si4 };
+                                                }
+                                                return mk_int(i4q);
+                                            }
                                             if e.find_struct_idx(pn4) >= 0 || e.find_enum_idx(pn4) >= 0 {
                                                 i4p = e.fresh();
                                                 e.buf.push_str("  ");
@@ -8170,6 +8188,18 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     enm4 = "";
                     ei4 = e.finfo_at(si_f, idx);
                     if ei4 >= 0 { enm4 = e.en_names[ei4].copy(); }
+                    // 字段类型是具体泛型枚举（如 Option[Ptr[Tree]]）：改用其实例名
+                    ftn4 = unwrap_ty(ast, e.ftype_at(si_f, idx));
+                    if ei4 >= 0 && ftn4 >= 0 && ast.tags[ftn4] == tt(TT::Generic._tag) {
+                        in4f = ast.aa[ftn4];
+                        if in4f >= 0 {
+                            in4fu = unwrap_ty(ast, in4f);
+                            if !e.type_has_gparam(ast, in4fu) {
+                                ei_i4 = e.find_enum_inst(ast, ei4, in4fu);
+                                if ei_i4 >= 0 { enm4 = e.en_names[ei_i4].copy(); }
+                            }
+                        }
+                    }
                     return Val { kind = 4, a = vp4, b = enm4, ty = -1 };
                 }
                 if fk == 6 {
