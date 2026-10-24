@@ -157,4 +157,8 @@ std 契约已就绪：`std/src/system/alloc.aya` 的 `interface Allocator`
       - 显式泛型实参优先于环境提供（`inner[DefaultAllocator](...)` 仍自动传值）
       - 用例 `example/test_env_chain.aya`
       - 块作用域覆盖（`#[env::cap(v)] { ... }`）：`env_blocks` 栈，最近者胜；用例 `example/test_env_block.aya`
-      - 待做：跨包能力键、歧义诊断
+- [x] **E3（2026-10-23）**：资源绑定（泛型字段）
+      - 容器以泛型字段显式持有分配器：`struct Pool[E: Allocator] { E e }`，
+        `impl[E: Allocator] Pool[E]` 方法经 `self.e.alloc/free` 使用原分配器，无需环境注入
+      - 用例 `example/test_env_pool.aya`（`DefaultAllocator` 池分配非零并释放；`FailAlloc` 池返回 0）
+      - 待做：跨包能力键、歧义诊断、E4 扩展能力（`env::Runtime`）

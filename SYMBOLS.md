@@ -2766,6 +2766,15 @@ example/test_env_chain.aya:25: fn main() -> int
 example/test_env_generic.aya:6: fn alloc_free[E: Allocator](usize n) -> usize
 example/test_env_generic.aya:14: fn run() -> int
 example/test_env_generic.aya:21: fn main() -> int
+example/test_env_pool.aya:5: struct FailAlloc { }
+example/test_env_pool.aya:7: impl FailAlloc
+example/test_env_pool.aya:8: fn alloc(ref self, usize n) -> usize
+example/test_env_pool.aya:11: fn free(ref self, usize addr)
+example/test_env_pool.aya:15: struct Pool[E: Allocator]
+example/test_env_pool.aya:19: impl[E: Allocator] Pool[E]
+example/test_env_pool.aya:20: fn alloc(ref self, usize n) -> usize
+example/test_env_pool.aya:23: fn free(ref self, usize addr)
+example/test_env_pool.aya:28: fn main() -> int
 example/test_extern_out_param.aya:4: fn main() -> int
 example/test_f32.aya:2: fn addf(f32 a, f32 b) -> f32 { return a + b }
 example/test_f32.aya:3: fn take32(f32 x) -> f32 { return x }
