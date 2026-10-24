@@ -186,6 +186,28 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     （`Wrap[Box[int]]`、`T=Box[int]`）按类型自身实参解析实例；字段类型为具体泛型时（fk==2）
     访问改用实参实例名，否则链式嵌套（`A[B[C[int]]]`）会按源布局解析。
 
+49. **泛型枚举实例（2026-10-24）**：`Option[T]` 等泛型枚举的载荷类型 `T` 不替换会导致
+    `Some(p)` 绑定成 i64、`p.v` 无法解引用。实现：枚举实例表（`ei_ens/ei_srcs/ei_args`），
+    `fill_enum_inst` 复制变体并按首个类型参数替换载荷（slots 按替换后载荷重算，String 双槽），
+    实例名追加到 `en_names`（`%enum.Option__mK`）。**必须在 `collect_instances` 预建**：
+    `%enum` 类型定义在函数前统一发射，发射期新增实例会得到未定义类型。
+    枚举构造按载荷值推断实参（静态推断 + 局部源结构体名 `ln_*` 兜底）；方法接收者为枚举实例时
+    剥离 `__m<k>` 按源枚举特化；形参 `pk==20` 时按类型实参解析实例，match 绑定才能看到替换后的载荷。
+
+50. **match 标签必须带 match 唯一标记（2026-10-24，已修）**：`emit_match` 的
+    `match.arm.<i>`/`match.body.<i>`/`match.guard.<i>` 此前只按臂序号命名，**同一函数多个 match**
+    会重名（llc: Terminator found in the middle of a basic block / dominance）。改为
+    `match.arm.<mtag>_<i>`（mtag = 生成 end 标签前的 `e.tmp`）。
+
+51. **无类型实参的结构体字面量按字段推断（2026-10-24）**：`Box { v = 42 }`、
+    `Pair { first = 1, second = "s" }` 在 `collect_instances` 预建实例（按 StructDef 字段类型
+    gp1/gp2 从字段值推断），发射端 `infer_literal_inst` 复算同一实例名。负标记作字段类型时
+    要单独设置 fk（String 双槽/浮点/结构体/枚举），不能走 `fty>=0` 分支。
+
+52. **结构体形参的具体泛型类型用实例布局（2026-10-24）**：`fn deep[T](ref Box[Box[T]] b)` 的
+    `b.v` 若用源 `Box` 布局（字段 T 视为 i64）会丢掉嵌套实例链。形参序言 `pk>=100` 时，
+    若形参类型是 Generic 且实例表存在同源、实参基名相同的实例，局部 etype 改用该实例。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash
