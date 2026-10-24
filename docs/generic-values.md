@@ -145,13 +145,19 @@ vtable，但 `"str" + x`、`x.field` 等静态语义无法还原）；且改变�
 - [x] 阶段 0：类型实参保留（`FnCall.tys`）
 - [x] 阶段 1：实例收集（`collect_instances`：声明类节点的 `tys` 类型标注 + `FnCall.tys` 显式泛型调用；
   泛型参数实参跳过；`inst_keys` 去重表。注：表达式节点的 `tys` 存操作符/模式标签，不可扫描）
-- [~] 阶段 2：结构体特化——**实例布局建表已实现**（
-  `fill_struct_inst`：字段类型按类型参数→实参替换，数组元素同理；从显式泛型调用的返回类型
-  派生结构体实例，如 `ArrayList[String]`；实例名 `Name__m<k>`）。发射侧接入（局部实例类型、
-  字段访问、方法特化）待做
-- [~] 阶段 3：函数特化——**显式泛型调用已接入**（
+- [x] 阶段 2：结构体特化——实例布局建表（
+  `fill_struct_inst`：字段类型按类型参数→实参替换，数组元素同理；实例名 `Name__m<k>`；
+  实例表 `inst_st_*` 供按名/按节点反查）。发射侧已接入：局部实例类型（调用结果返回实例名）、
+  显式类型实参的结构体字面量 `Name[T] { ... }`、字段访问/数组元素（`[T; n]` 元素类型按实参替换）
+- [x] 阶段 3：函数特化——显式泛型调用 + 方法特化（
   `spec_register` worklist（按 (FnDecl, 实参类型) 去重）+ `emit_specializations` 动态发射；
   实例符号 `aya.<full>.__i<k>`；`param_kind`/`ret_kind`/`ret_info` 按替换上下文取实参类型；
-  调用点返回类型/实参 ABI 同步替换。校验：`id[T]` + `id[int](7)` 生成 `aya.id.__i0` 并与 stage-0 一致）。
-  余下：方法特化（接收者实例）、结构体字面量实例化、`[T; n]` 元素类型
-- [ ] 阶段 4：Ptr[T] 与容器方法
+  调用点返回类型/实参 ABI 同步替换；impl 方法类型参数取 ImplBlock；接收者为实例时剥离
+  `__m<k>` 找源方法并登记特化，记录 `spec_selfs`；ForIn 迭代器 `next()` 同样特化）。
+  校验：`test_constructors`（ArrayList/LinkedList 存 String）、`test_collection_any`、
+  `test_aggregate_array`、`test_closure_collections`（`Fn` 类型实参）
+- [x] 阶段 4：`Ptr[T]` 内建——`new`（按值种类装箱）、`get/get_mut`（结构体按 ptr 装载）、
+  `as_ptr`；裸指针 `*T` 解引用/读写/`as` 转换；`ref` 表达式转裸指针
+- [ ] 阶段 5：无显式类型实参的推断（`ArrayList::new()` 由后续用法推断、`use_into(f)` 自由函数推断、
+  多参数实例 `Holder[T,U]`、嵌套实例 `Box[Box[int]]`）——当前未特化时退回擦除 ABI，部分用例 llc 失败
+- [ ] 阶段 6：`ref String` 形参按指针 ABI（连续双槽临时 + 调用后回写）；见 docs/selfhost.md 坑 38

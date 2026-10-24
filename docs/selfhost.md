@@ -119,6 +119,39 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     `map_pos` 把合并行解析回原文件/原行，`err`/`warn`/`inline_error` 全部走映射——
     test_pass 等与 stage-0 逐字一致（含原源码行与脱字符）。
 
+34. **`[char]` 字面量元素必须是 i8（2026-10-24）**：`elem_type_of` 对 `LK::Char` 曾返回 -1 →
+    默认 i64/stride 8，`String::new(buf, n)` 直接接管缓冲区后按 i8 读 → `s.index(1) != 'b'`。
+    修复：char 字面量返回合成 id `2002`（elem_slot/strides/bytes 均为 1 字节）。
+
+35. **实例接收者的方法查找要先剥离 `__m<k>`（2026-10-24）**：局部 `etype` 记录的是结构体实例名
+    （如 `ArrayList__m3`），`find_method_id`/`method_ret_type` 必须用**源类型**（`ArrayList`）查找，
+    再用实例实参做方法特化；ForIn 的 `next()` 同理（`emit_forin_next`）。
+
+36. **实例查名要节点 id 优先、类型名兜底（2026-10-24）**：同一泛型实参在 AST 里可能有多个类型节点
+    （调用点 `[E]` 与声明处标注各一个）；只按节点 id 匹配会漏（局部退回源类型 → push 不走特化）。
+    `find_struct_inst_name(ast, si, argty)` 先比 id，再比 `type_arg_name`。
+
+37. **impl 方法的类型参数在 ImplBlock 上（2026-10-24）**：`FnDecl.cc` 对方法为空，`spec_register`
+    需扫描同名 ImplBlock 的 `bb` 取第一个类型参数名（`impl_gparam`）。
+
+38. **`ref String` 形参按指针传的 ABI 会破坏固定点（2026-10-24，未合入）**：把 `ref String` 的
+    pk 从 1（双槽传值）改成 30（指针）后，stage-2 在同源上产生伪诊断（`pn` 被视为不可变引用、
+    `mk_str_tmp` 第二参类型为空），固定点失败；回退后恢复。需要连同调用点写回（连续双槽临时 +
+    调用后回写）一起做，且注意 String 局部的 `.ptr`/`.len` 是两个独立 alloca（不连续）。
+    现状：`set_hi(ref mut String)` 写不回调用方（test_ref_auto 卡在 check 8）。
+
+39. **伪诊断只影响输出、不阻断发射（2026-10-24）**：自举源上 checker 会报 1 条
+    `mk_str_tmp` 重载错误（MethodCall 返回类型恒为 ""，局部类型未知）——`cmd_build` 把 check
+    计数当警告继续发射。修复 Binary 的 ref 自动解引用后 `pn` 伪诊断消失；MethodCall 返回类型
+    仍待补（补全会引入新的转换诊断，需同步 check golden）。
+
+40. **AST 容量 131072 且 push 无越界检查**：自编译合并源约 9.5 万节点（2026-10-24 实测
+    `NODES 94858`），余量约 36%；再增大自举源/宏展开时要先提容量。
+
+41. **`.lcl` 版本告警暂缓（2026-10-24）**：在 import 合并路径读取 `.lcl` 头提取 version 的代码
+    （即使未被调用）会让 stage-3 构建崩溃/固定点失败（字符串处理路径的隐藏不稳定）。
+    `test_import.aya` 因此仍 DIFF（stage-0 打印 0.6.5→0.6.6 的过期包告警）。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash
