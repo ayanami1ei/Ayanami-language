@@ -1368,9 +1368,9 @@ src/lir/emit/functions.rs:87: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:88: pub(super) fn emit_struct_defs(&mut self)
 src/lir/emit/functions.rs:117: pub(super) fn emit_string_globals(&mut self)
 src/lir/emit/functions.rs:137: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:240: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:257: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:271: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:245: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:262: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:276: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -1379,10 +1379,10 @@ src/lir/emit/mod.rs:49: fn finish(self) -> String
 src/lir/emit/mod.rs:53: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:69: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:78: fn emit(&mut self)
-src/lir/emit/mod.rs:183: mod consts;
-src/lir/emit/mod.rs:184: mod functions;
-src/lir/emit/mod.rs:185: mod types;
-src/lir/emit/mod.rs:186: mod vtable;
+src/lir/emit/mod.rs:188: mod consts;
+src/lir/emit/mod.rs:189: mod functions;
+src/lir/emit/mod.rs:190: mod types;
+src/lir/emit/mod.rs:191: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
@@ -2862,6 +2862,8 @@ example/test_fn_once.aya:9: fn make(int base) -> FnOnce() -> int
 example/test_fn_once.aya:14: fn apply(FnOnce() -> int f) -> int
 example/test_fn_once.aya:18: fn run() -> int
 example/test_fn_once.aya:32: fn main() -> int
+example/test_fn_shadow.aya:4: fn add(int a, int b) -> int
+example/test_fn_shadow.aya:8: fn main() -> int
 example/test_fn_value.aya:2: fn seven() -> int
 example/test_fn_value.aya:6: fn call0(Fn() -> int f) -> int
 example/test_fn_value.aya:10: fn main() -> int
