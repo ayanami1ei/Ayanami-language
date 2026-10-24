@@ -251,6 +251,21 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     `ref <Ptr 值>`（如枚举载荷字段 `_data_Some._0`）按裸指针值存储（读语义等价，
     写穿/字段地址语义仍缺，通用方案见 bd izr）。
 
+61. **多类型参数函数特化 + 发射期类型定义（WIP，2026-10-24 暂缓）**：
+    已实现并验证 `test_closure_field_call` 可达 rc=0（stash `multiparam-wip`）：
+    - 结构体字面量多类型实参保留为 GenericArg 链（解析器）；
+    - `spec_register2`/`spec_params2`/`spec_args2` + `cur_inst_param2/arg2`，替换点覆盖
+      param_kind/ret_kind/ret_info/pk_of_ty/layout/数组元素；
+    - 方法接收者取 `inst_st_argty2`，调用点按 T/U 双替换；
+    - 发射期类型定义缓冲 `type_buf`（`emit_program` 返回 `type_buf + buf`），
+      `fill_struct_inst`/`fill_enum_inst` 在 body 阶段补 `%struct`/`%enum` 定义；
+    - 枚举构造改为**先求值载荷**再按 Val 推断实例（`val_marker`），支持闭包调用结果作载荷；
+    - 返回 `Option[U]` 的方法调用点按替换后的实参补建枚举实例。
+    **问题**：stage-2 自编译峰值从 3.6GB 涨到 **7.7GB**（`selfhost.sh` 4GB 上限下 stage-3 崩溃），
+    固定点无法通过。回退该批次（stash 保留）。下一步：定位 stage-1 编译产物中的额外分配
+    （重点怀疑枚举构造的 `[Val; 16]` 与每方法调用都执行的 `impl_gparam`），或把该批拆成
+    「仅 spec2」/「仅 type_buf」分别测内存。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash
