@@ -1835,6 +1835,10 @@ impl Checker {
                 self.err_name("undefined function `", nm, ast.lines[id], ast.cols[id]);
                 return "";
             }
+            if nm == "size_of" || nm == "align_of" || nm == "offset_of" {
+                // 布局内置：实参是类型/字段名（offset_of 的裸标识符不是变量）
+                return "";
+            }
             if self.fn_nparams[fi] < 0 {
                 // builtin：检查实参内部表达式（Arg 节点需下钻，否则字面量观察不到）
                 a0 = ast.aa[id];

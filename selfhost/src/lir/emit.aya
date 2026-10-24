@@ -2430,7 +2430,7 @@ impl Emitter {
         return 8;
     }
 
-    /// 布局内置求值：size_of[T]/align_of[T]/offset_of[T](field)（自举 i64 槽布局）
+    /// 布局内置求值：size_of[T]/align_of[T]/offset_of[T](field)（自然对齐，与 stage-0 一致）
     #[alloc]
     #[state]
     fn layout_builtin_val(ref mut self, ref Ast ast, int id) -> String {
@@ -2438,32 +2438,220 @@ impl Emitter {
         if nm_b != "size_of" && nm_b != "align_of" && nm_b != "offset_of" { return ""; }
         ty_b = ast.tys[id];
         if ty_b < 0 { return ""; }
-        if nm_b == "align_of" { return "8"; }
-        tn_b = ty_name(ast, ty_b);
-        if tn_b.len == 0 {
-            // 原语标签/数组/引用等：8
-            return "8";
+        // 特化上下文：类型参数按实参类型求布局
+        if self.cur_inst_param.len > 0 && self.cur_inst_arg_ty >= 0 {
+            if ty_name(ast, ty_b) == self.cur_inst_param { ty_b = self.cur_inst_arg_ty; }
         }
+        enc = self.layout_enc(ast, ty_b);
+        sz_b = enc / 16;
+        al_b = enc - sz_b * 16;
+        if nm_b == "align_of" { return int_str2(al_b); }
+        if nm_b == "size_of" { return int_str2(sz_b); }
+        // offset_of：字段名 + 自然对齐偏移
+        tn_b = ty_name(ast, ty_b);
         si_b = self.find_struct_idx(tn_b);
-        if si_b >= 0 {
-            if nm_b == "offset_of" {
-                a_b = ast.aa[id];
-                if a_b >= 0 {
-                    if ast.tags[a_b] == xt(XT::Arg._tag) { a_b = ast.aa[a_b]; }
-                    fn_b = ast.texts[a_b];
-                    fi_b = self.find_field_idx(tn_b, fn_b);
-                    if fi_b < 0 { return ""; }
-                    return int_str2(fi_b * 8);
-                }
+        if si_b < 0 { return "0"; }
+        a_b = ast.aa[id];
+        if a_b < 0 { return ""; }
+        if ast.tags[a_b] == xt(XT::Arg._tag) { a_b = ast.aa[a_b]; }
+        fn_b = ast.texts[a_b];
+        is_u = 0;
+        nm_s2 = self.st_names[si_b].copy();
+        if self.is_union_name(ast, nm_s2) { is_u = 1; }
+        start = self.st_fstart[si_b];
+        n = self.st_fcount[si_b];
+        off = 0;
+        i = 0;
+        while i < n {
+            enc_i = self.layout_enc(ast, self.st_ftype[start + i]);
+            sz_i = enc_i / 16;
+            a_i = enc_i - sz_i * 16;
+            if a_i < 1 { a_i = 1; }
+            if is_u == 0 { off = align_up(off, a_i); }
+            if self.st_fields[start + i] == fn_b { return int_str2(off); }
+            if is_u == 0 { off = off + sz_i; }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    /// 声明处的首个类型参数名（结构体）
+    #[alloc]
+    fn struct_gparam(ref mut self, ref Ast ast, ref String nm) -> String {
+        i = 0;
+        while i < ast.len {
+            if ast.tags[i] == st(ST::StructDef._tag) && ast.texts[i] == nm {
+                g = ast.bb[i];
+                if g >= 0 { return ast.texts[g].copy(); }
                 return "";
             }
-            return int_str2(self.st_slots[si_b] * 8);
+            i = i + 1;
         }
-        ei_b = self.find_enum_idx(tn_b);
-        if ei_b >= 0 {
-            return int_str2((1 + self.enum_max_arity(ei_b)) * 8);
+        return "";
+    }
+
+    /// 枚举的首个类型参数名（从变体载荷推断）
+    fn enum_gparam(ref mut self, ref Ast ast, int ei) -> String {
+        vs = self.en_vstart[ei];
+        n = self.en_vcount[ei];
+        i = 0;
+        while i < n {
+            idx = vs + i;
+            ar = self.en_arity[idx];
+            pv = self.en_pvstart[idx];
+            k = 0;
+            while k < ar {
+                nm = ty_name(ast, self.en_ptype[pv + k]);
+                if nm.len > 0 && self.is_gparam(nm) {
+                    if self.find_struct_idx(nm) < 0 {
+                        if self.find_enum_idx(nm) < 0 {
+                            if self.find_iface_idx(nm) < 0 { return nm.copy(); }
+                        }
+                    }
+                }
+                k = k + 1;
+            }
+            i = i + 1;
         }
-        return "8";
+        return "";
+    }
+
+    /// 是否 union 定义
+    #[alloc]
+    fn is_union_name(ref mut self, ref Ast ast, ref String nm) -> bool {
+        i = 0;
+        while i < ast.len {
+            if ast.tags[i] == st(ST::UnionDef._tag) && ast.texts[i] == nm { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    /// 布局编码：size * 16 + align（自然对齐规则）
+    #[alloc]
+    #[state]
+    fn layout_enc(ref mut self, ref Ast ast, int ty) -> int {
+        return self.layout_enc_s(ast, ty, "", -1);
+    }
+
+    #[alloc]
+    #[state]
+    fn layout_enc_s(ref mut self, ref Ast ast, int ty, ref String pn, int pa) -> int {
+        if ty == 2000 { return 264; }
+        if ty == 2001 { return 136; }
+        if ty == 2002 { return 17; }
+        if ty <= -1000 && ty > -1128 { return self.layout_struct_s(ast, 0 - 1000 - ty, "", -1); }
+        if ty <= -2000 && ty > -2128 { return self.layout_enum_s(ast, 0 - 2000 - ty, "", -1); }
+        if ty < 0 { return 0; }
+        tg = ast.tags[ty];
+        tn = "";
+        if tg == tt(TT::Named._tag) || tg == tt(TT::Generic._tag) { tn = ast.texts[ty].copy(); }
+        if pn.len > 0 && pa >= 0 && tn == pn { return self.layout_enc_s(ast, pa, "", -1); }
+        if tg == tt(TT::Char._tag) || tg == tt(TT::Bool._tag) { return 17; }
+        if tg == tt(TT::Float._tag) { return 136; }
+        if tg == tt(TT::Array._tag) || tg == tt(TT::ArraySized._tag) { return 136; }
+        if tg == tt(TT::Ref._tag) || tg == tt(TT::RawPtr._tag) || tg == tt(TT::FnPtr._tag) { return 136; }
+        if tg == tt(TT::Closure._tag) { return 264; }
+        if tg == tt(TT::Unique._tag) {
+            in_u = ast.aa[ty];
+            if in_u < 0 { return 136; }
+            itg = ast.tags[in_u];
+            if itg == tt(TT::Named._tag) || itg == tt(TT::Generic._tag) || itg == tt(TT::Closure._tag) || itg == tt(TT::Array._tag) || itg == tt(TT::ArraySized._tag) { return 136; }
+            return self.layout_enc_s(ast, in_u, pn, pa);
+        }
+        if tn.len == 0 { return 136; }
+        if tn == "String" { return 264; }
+        if tn == "int" || tn == "i64" || tn == "u64" || tn == "usize" || tn == "float" || tn == "f64" { return 136; }
+        if tn == "i32" || tn == "u32" || tn == "f32" { return 68; }
+        if tn == "i16" || tn == "u16" { return 34; }
+        if tn == "i8" || tn == "u8" || tn == "char" || tn == "bool" { return 17; }
+        if tn == "Ptr" { return 136; }
+        si = self.find_struct_idx(tn);
+        if si >= 0 {
+            arg_s = -1;
+            gp_s = "";
+            if tg == tt(TT::Generic._tag) {
+                arg_s = ast.aa[ty];
+                gp_s = self.struct_gparam(ast, tn);
+            }
+            return self.layout_struct_s(ast, si, gp_s, arg_s);
+        }
+        ei = self.find_enum_idx(tn);
+        if ei >= 0 {
+            arg_e = -1;
+            gp_e = "";
+            if tg == tt(TT::Generic._tag) {
+                arg_e = ast.aa[ty];
+                gp_e = self.enum_gparam(ast, ei);
+            }
+            return self.layout_enum_s(ast, ei, gp_e, arg_e);
+        }
+        return 264;
+    }
+
+    /// 结构体/联合体布局编码
+    #[alloc]
+    #[state]
+    fn layout_struct_s(ref mut self, ref Ast ast, int si, ref String pn, int pa) -> int {
+        if si < 0 || si >= self.st_count { return 264; }
+        is_u = 0;
+        nm_s = self.st_names[si].copy();
+        if self.is_union_name(ast, nm_s) { is_u = 1; }
+        start = self.st_fstart[si];
+        n = self.st_fcount[si];
+        off = 0;
+        al = 1;
+        i = 0;
+        while i < n {
+            enc = self.layout_enc_s(ast, self.st_ftype[start + i], pn, pa);
+            sz_i = enc / 16;
+            a_i = enc - sz_i * 16;
+            if a_i < 1 { a_i = 1; }
+            if is_u == 1 {
+                if sz_i > off { off = sz_i; }
+            } else {
+                off = align_up(off, a_i) + sz_i;
+            }
+            if a_i > al { al = a_i; }
+            i = i + 1;
+        }
+        off = align_up(off, al);
+        return off * 16 + al;
+    }
+
+    /// 枚举布局编码（tag + 各变体载荷结构依次排列）
+    #[alloc]
+    #[state]
+    fn layout_enum_s(ref mut self, ref Ast ast, int ei, ref String pn, int pa) -> int {
+        if ei < 0 || ei >= self.en_count { return 264; }
+        off = 8;
+        al = 8;
+        vs = self.en_vstart[ei];
+        n = self.en_vcount[ei];
+        vi = 0;
+        while vi < n {
+            idx = vs + vi;
+            ar = self.en_arity[idx];
+            pv = self.en_pvstart[idx];
+            poff = 0;
+            pal = 1;
+            k = 0;
+            while k < ar {
+                enc = self.layout_enc_s(ast, self.en_ptype[pv + k], pn, pa);
+                sz_p = enc / 16;
+                a_p = enc - sz_p * 16;
+                if a_p < 1 { a_p = 1; }
+                poff = align_up(poff, a_p) + sz_p;
+                if a_p > pal { pal = a_p; }
+                k = k + 1;
+            }
+            poff = align_up(poff, pal);
+            off = align_up(off, pal) + poff;
+            if pal > al { al = pal; }
+            vi = vi + 1;
+        }
+        off = align_up(off, al);
+        return off * 16 + al;
     }
 
     fn fn_param_kind(ref mut self, ref String fname, int i) -> int {
@@ -3704,6 +3892,12 @@ fn elem_stride(ref Ast ast, int ety) -> int {
         if elem_slot(ast, ety) == "i8" { return 1; }
     }
     return 8;
+}
+
+/// 向上对齐（a 为 2 的幂或一般正整数）
+fn align_up(int x, int a) -> int {
+    if a <= 1 { return x; }
+    return (x + a - 1) / a * a;
 }
 
 /// 元素地址（字节偏移 GEP）：off = idx * stride
