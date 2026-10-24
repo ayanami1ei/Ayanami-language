@@ -92,6 +92,10 @@ pub struct Emitter {
     [int] spec_args
     [String] spec_selfs
     int spec_count
+    // ref String 实参临时与回写
+    [String] cb_tmps
+    [String] cb_names
+    int cb_count
     // 当前特化上下文
     String cur_inst_param
     int cur_inst_arg_ty
@@ -190,7 +194,7 @@ pub namespace Emitter {
             en_ptype = [int; 4096], en_pvstart = [int; 1024], en_ptotal = 0, en_vslots = [int; 1024],
             fn_names = [String; 8192], fn_extern = [int; 8192], fn_pstart = [int; 8192], fn_pcount = [int; 8192],
             fn_pkinds = [int; 65536], fn_ptotal = 0, fn_count = 0,
-            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, inst_st_names = [String; 128], inst_st_src = [int; 128], inst_st_argty = [int; 128], inst_st_count = 0, inst_arg_tys = [int; 512], spec_nodes = [int; 256], spec_prefixes = [String; 256], spec_params = [String; 256], spec_args = [int; 256], spec_selfs = [String; 256], spec_count = 0, cur_inst_param = "", cur_inst_arg_ty = -1, cur_inst_ord = -1, cur_inst_struct = "", m_rtype = [int; 8192],
+            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, inst_st_names = [String; 128], inst_st_src = [int; 128], inst_st_argty = [int; 128], inst_st_count = 0, inst_arg_tys = [int; 512], spec_nodes = [int; 256], spec_prefixes = [String; 256], spec_params = [String; 256], spec_args = [int; 256], spec_selfs = [String; 256], spec_count = 0, cb_tmps = [String; 32], cb_names = [String; 32], cb_count = 0, cur_inst_param = "", cur_inst_arg_ty = -1, cur_inst_ord = -1, cur_inst_struct = "", m_rtype = [int; 8192],
             decl_names = [String; 2048], decl_count = 0,
             lambda_buf = StringBuf::new(),
             lam_ids = [int; 256], lam_names = [String; 256], lam_count = 0,
@@ -260,6 +264,32 @@ fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String {
         }
     }
     v = emit_expr(ast, id, e);
+    if v.kind == 1 {
+        // String 临时（字面量/表达式）→ 双槽临时，供 ref String 形参
+        tp1 = e.fresh();
+        e.buf.push_str("  ");
+        e.buf.push_str(tp1);
+        e.buf.push_str(" = alloca { ptr, i64 }\n  ");
+        g1s = e.fresh();
+        e.buf.push_str(g1s);
+        e.buf.push_str(" = getelementptr { ptr, i64 }, ptr ");
+        e.buf.push_str(tp1);
+        e.buf.push_str(", i32 0, i32 0\n  store ptr ");
+        e.buf.push_str(ptr_operand(v.a));
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(g1s);
+        e.buf.push_str("\n  ");
+        g2s = e.fresh();
+        e.buf.push_str(g2s);
+        e.buf.push_str(" = getelementptr { ptr, i64 }, ptr ");
+        e.buf.push_str(tp1);
+        e.buf.push_str(", i32 0, i32 1\n  store i64 ");
+        e.buf.push_str(v.b);
+        e.buf.push_str(", ptr ");
+        e.buf.push_str(g2s);
+        e.buf.push_str("\n");
+        return tp1;
+    }
     tp = e.fresh();
     e.buf.push_str("  ");
     e.buf.push_str(tp);
@@ -3037,6 +3067,91 @@ impl Emitter {
             self.inst_st_argty[self.inst_st_count] = arg_ty;
             self.inst_st_count = self.inst_st_count + 1;
         }
+    }
+
+    /// ref String 实参：构造连续双槽临时，登记调用后回写
+    #[alloc]
+    #[state]
+    fn string_ref_temp(ref mut self, ref String nm) -> String {
+        tmp = self.fresh();
+        self.buf.push_str("  ");
+        self.buf.push_str(tmp);
+        self.buf.push_str(" = alloca { ptr, i64 }\n  ");
+        gp1 = self.fresh();
+        self.buf.push_str(gp1);
+        self.buf.push_str(" = getelementptr { ptr, i64 }, ptr ");
+        self.buf.push_str(tmp);
+        self.buf.push_str(", i32 0, i32 0\n  ");
+        v1 = self.fresh();
+        self.buf.push_str(v1);
+        self.buf.push_str(" = load ptr, ptr %v_");
+        self.buf.push_str(nm);
+        self.buf.push_str(".ptr\n  store ptr ");
+        self.buf.push_str(v1);
+        self.buf.push_str(", ptr ");
+        self.buf.push_str(gp1);
+        self.buf.push_str("\n  ");
+        gp2 = self.fresh();
+        self.buf.push_str(gp2);
+        self.buf.push_str(" = getelementptr { ptr, i64 }, ptr ");
+        self.buf.push_str(tmp);
+        self.buf.push_str(", i32 0, i32 1\n  ");
+        v2 = self.fresh();
+        self.buf.push_str(v2);
+        self.buf.push_str(" = load i64, ptr %v_");
+        self.buf.push_str(nm);
+        self.buf.push_str(".len\n  store i64 ");
+        self.buf.push_str(v2);
+        self.buf.push_str(", ptr ");
+        self.buf.push_str(gp2);
+        self.buf.push_str("\n");
+        if self.cb_count < 32 {
+            self.cb_tmps[self.cb_count] = tmp.copy();
+            self.cb_names[self.cb_count] = nm.copy();
+            self.cb_count = self.cb_count + 1;
+        }
+        return tmp;
+    }
+
+    /// 调用后回写 ref String 实参
+    #[state]
+    fn flush_string_refs(ref mut self) {
+        i = 0;
+        while i < self.cb_count {
+            tmp = self.cb_tmps[i].copy();
+            nm = self.cb_names[i].copy();
+            gp3 = self.fresh();
+            self.buf.push_str("  ");
+            self.buf.push_str(gp3);
+            self.buf.push_str(" = getelementptr { ptr, i64 }, ptr ");
+            self.buf.push_str(tmp);
+            self.buf.push_str(", i32 0, i32 0\n  ");
+            v3 = self.fresh();
+            self.buf.push_str(v3);
+            self.buf.push_str(" = load ptr, ptr ");
+            self.buf.push_str(gp3);
+            self.buf.push_str("\n  store ptr ");
+            self.buf.push_str(v3);
+            self.buf.push_str(", ptr %v_");
+            self.buf.push_str(nm);
+            self.buf.push_str(".ptr\n  ");
+            gp4 = self.fresh();
+            self.buf.push_str(gp4);
+            self.buf.push_str(" = getelementptr { ptr, i64 }, ptr ");
+            self.buf.push_str(tmp);
+            self.buf.push_str(", i32 0, i32 1\n  ");
+            v4 = self.fresh();
+            self.buf.push_str(v4);
+            self.buf.push_str(" = load i64, ptr ");
+            self.buf.push_str(gp4);
+            self.buf.push_str("\n  store i64 ");
+            self.buf.push_str(v4);
+            self.buf.push_str(", ptr %v_");
+            self.buf.push_str(nm);
+            self.buf.push_str(".len\n");
+            i = i + 1;
+        }
+        self.cb_count = 0;
     }
 
     /// impl 块的类型参数名（方法的泛型参数在 ImplBlock 上）
@@ -6334,6 +6449,75 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         if nm == "String.empty" {
             return mk_str("null", 0);
         }
+        if nm == "Ptr.new" || nm == "Ptr::new" {
+            ap = ast.aa[id];
+            if ap >= 0 {
+                if ast.tags[ap] == xt(XT::Arg._tag) { ap = ast.aa[ap]; }
+                vp = emit_expr(ast, ap, e);
+                if vp.kind == 2 {
+                    sip = e.find_struct_idx(vp.b);
+                    pip = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(pip);
+                    e.buf.push_str(" = ptrtoint ptr ");
+                    e.buf.push_str(vp.a);
+                    e.buf.push_str(" to i64\n");
+                    return Val { kind = 0, a = pip, b = vp.b.copy(), ty = 10001 + sip };
+                }
+                if vp.kind == 1 {
+                    bx = e.fresh();
+                    e.buf.push_str("  ");
+                    e.buf.push_str(bx);
+                    e.buf.push_str(" = call ptr @malloc(i64 16)\n  ");
+                    gb = e.fresh();
+                    e.buf.push_str(gb);
+                    e.buf.push_str(" = getelementptr i8, ptr ");
+                    e.buf.push_str(bx);
+                    e.buf.push_str(", i64 0\n  store ptr ");
+                    e.buf.push_str(ptr_operand(vp.a));
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(gb);
+                    e.buf.push_str("\n  ");
+                    gb2 = e.fresh();
+                    e.buf.push_str(gb2);
+                    e.buf.push_str(" = getelementptr i8, ptr ");
+                    e.buf.push_str(bx);
+                    e.buf.push_str(", i64 8\n  store i64 ");
+                    e.buf.push_str(vp.b);
+                    e.buf.push_str(", ptr ");
+                    e.buf.push_str(gb2);
+                    e.buf.push_str("\n  ");
+                    qb = e.fresh();
+                    e.buf.push_str(qb);
+                    e.buf.push_str(" = ptrtoint ptr ");
+                    e.buf.push_str(bx);
+                    e.buf.push_str(" to i64\n");
+                    return Val { kind = 0, a = qb, b = "", ty = 10000 };
+                }
+                bx2 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(bx2);
+                e.buf.push_str(" = call ptr @malloc(i64 8)\n  ");
+                if vp.kind == 6 {
+                    e.buf.push_str("store double ");
+                    e.buf.push_str(vp.a);
+                    e.buf.push_str(", ptr ");
+                } else {
+                    e.buf.push_str("store i64 ");
+                    e.buf.push_str(vp.a);
+                    e.buf.push_str(", ptr ");
+                }
+                e.buf.push_str(bx2);
+                e.buf.push_str("\n  ");
+                qb2 = e.fresh();
+                e.buf.push_str(qb2);
+                e.buf.push_str(" = ptrtoint ptr ");
+                e.buf.push_str(bx2);
+                e.buf.push_str(" to i64\n");
+                return Val { kind = 0, a = qb2, b = "", ty = 10000 };
+            }
+            return mk_int("0");
+        }
         if contains_dot2(nm) {
             if e.fn_ret_type(nm) < 0 && nm != "bits.reinterpret" && nm != "reinterpret" {
                 return emit_enum_ctor(ast, nm, ast.aa[id], e);
@@ -6587,7 +6771,16 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 a_r2 = ast.aa[a2];
                 if ast.tags[a_r2] == xt(XT::Arg._tag) { a_r2 = ast.aa[a_r2]; }
                 b.push_str("ptr ");
-                b.push_str(addr_of_arg(ast, a_r2, e));
+                nm_sr = "";
+                if ast.tags[a_r2] == et(ET::Ident._tag) {
+                    nm_sr = ast.texts[a_r2].copy();
+                    if e.local_kind(nm_sr) != 1 { nm_sr = ""; }
+                }
+                if nm_sr.len > 0 {
+                    b.push_str(e.string_ref_temp(nm_sr));
+                } else {
+                    b.push_str(addr_of_arg(ast, a_r2, e));
+                }
             } elif pk2 == 0 {
                 b.push_str("i64 ");
                 b.push_str(at2.a);
@@ -6617,6 +6810,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         b.push_str(e.implicit_args_m(ast, id, e.fn_first_id(nm), ak, first));
         b.push_str(")\n");
         e.buf.push_str(b.to_string());
+        e.flush_string_refs();
         if rk_c == 5 {
             return mk_float(t4);
         }
@@ -7397,6 +7591,32 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         }
         if obj.ty >= 10000 && obj.ty < 10129 {
             mn_pp = ast.texts[id];
+            if mn_pp == "as_ptr" {
+                return Val { kind = 0, a = obj.a, b = obj.b.copy(), ty = obj.ty };
+            }
+            if mn_pp == "get" || mn_pp == "get_mut" {
+                pg = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(pg);
+                e.buf.push_str(" = inttoptr i64 ");
+                e.buf.push_str(obj.a);
+                e.buf.push_str(" to ptr\n");
+                sn_g = "";
+                if obj.ty >= 10001 { sn_g = e.st_names[obj.ty - 10001].copy(); }
+                if sn_g.len == 0 && obj.b.len > 0 {
+                    if e.find_struct_idx(obj.b) >= 0 { sn_g = obj.b.copy(); }
+                }
+                if sn_g.len > 0 {
+                    return Val { kind = 2, a = pg, b = sn_g, ty = -1 };
+                }
+                ig = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(ig);
+                e.buf.push_str(" = load i64, ptr ");
+                e.buf.push_str(pg);
+                e.buf.push_str("\n");
+                return mk_int(ig);
+            }
             if mn_pp == "offset" {
                 av = mk_int("0");
                 a_pp = ast.bb[id];
@@ -7657,7 +7877,16 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     a_r3 = ast.aa[a3];
                     if ast.tags[a_r3] == xt(XT::Arg._tag) { a_r3 = ast.aa[a_r3]; }
                     b3.push_str(", ptr ");
-                    b3.push_str(addr_of_arg(ast, a_r3, e));
+                    nm_sr3 = "";
+                    if ast.tags[a_r3] == et(ET::Ident._tag) {
+                        nm_sr3 = ast.texts[a_r3].copy();
+                        if e.local_kind(nm_sr3) != 1 { nm_sr3 = ""; }
+                    }
+                    if nm_sr3.len > 0 {
+                        b3.push_str(e.string_ref_temp(nm_sr3));
+                    } else {
+                        b3.push_str(addr_of_arg(ast, a_r3, e));
+                    }
                 } elif pk3 == 0 {
                     b3.push_str(", i64 ");
                     b3.push_str(at3.a);
@@ -7688,6 +7917,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             b3.push_str(e.implicit_args_m(ast, id, e.fn_first_id(mfull_ia), ak3, 0));
             b3.push_str(")\n");
             e.buf.push_str(b3.to_string());
+            e.flush_string_refs();
             if rk_m == 5 {
                 return mk_float(t5);
             }
@@ -7893,7 +8123,19 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             si_r = e.find_struct_idx(pn_r);
             if si_r >= 0 { mark_r = 10001 + si_r; }
             ra = v.a.copy();
-            if v.kind == 2 || v.kind == 3 || v.kind == 4 || v.kind == 10 {
+            src_ref_c = 0;
+            if ast.aa[id] >= 0 {
+                if ast.tags[ast.aa[id]] == et(ET::Ref._tag) { src_ref_c = 1; }
+            }
+            if src_ref_c == 1 && v.kind == 0 {
+                pi_r = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(pi_r);
+                e.buf.push_str(" = ptrtoint ptr ");
+                e.buf.push_str(v.a);
+                e.buf.push_str(" to i64\n");
+                ra = pi_r.copy();
+            } elif v.kind == 2 || v.kind == 3 || v.kind == 4 || v.kind == 10 {
                 pi_r = e.fresh();
                 e.buf.push_str("  ");
                 e.buf.push_str(pi_r);
