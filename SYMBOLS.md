@@ -83,6 +83,7 @@ src/compiler/build/mod.rs:18: mod passes;
 src/compiler/build/mod.rs:19: mod target;
 src/compiler/build/mod.rs:26: pub fn build_source(src_path: &str, code: &str) -> Result<()>
 src/compiler/build/mod.rs:31: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
+src/compiler/build/mod.rs:36: pub(crate) fn cache_key(src_path: &str, code: &str) -> String
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
 src/compiler/build/package.rs:27: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
 src/compiler/build/package.rs:81: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
@@ -128,8 +129,9 @@ src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
 src/compiler/build/passes/mod.rs:50: pub(super) fn apply_passes(
 src/compiler/build/target.rs:6: fn scan_source_deps(src_path: &Path) -> bool
-src/compiler/build/target.rs:30: pub fn build_source_with_target(
-src/compiler/build/target.rs:157: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:31: pub fn build_source_with_target(
+src/compiler/build/target.rs:54: fn build_source_with_target_inner(
+src/compiler/build/target.rs:181: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:42: fn has_return_in_stmt(s: &HirStmt) -> bool
