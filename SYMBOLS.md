@@ -954,12 +954,13 @@ src/hir/lower/helpers/unify.rs:8: pub(crate) fn unify(expected: &HirType, actual
 src/hir/lower/helpers/unify.rs:44: fn unify_named(name: &Symbol, actual: &HirType, subst: &mut HashMap<Symbol, HirType>) -> bool
 src/hir/lower/helpers/wrap.rs:3: pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:14: fn wrap_arg_conversions(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:105: pub(crate) fn type_needs_drop(
-src/hir/lower/helpers/wrap.rs:122: pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:131: pub(crate) fn wrap_arg_borrowed(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:142: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:153: pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str>
-src/hir/lower/helpers/wrap.rs:177: pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str>
+src/hir/lower/helpers/wrap.rs:108: pub(crate) fn type_needs_drop(
+src/hir/lower/helpers/wrap.rs:125: pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
+src/hir/lower/helpers/wrap.rs:134: pub(crate) fn wrap_arg_borrowed(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
+src/hir/lower/helpers/wrap.rs:145: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
+src/hir/lower/helpers/wrap.rs:156: pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str>
+src/hir/lower/helpers/wrap.rs:180: pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str>
+src/hir/lower/helpers/wrap.rs:191: fn generic_spelling_eq(a: &HirType, b: &HirType) -> bool
 src/hir/lower/mod.rs:1: pub mod body;
 src/hir/lower/mod.rs:2: mod collect_copy;
 src/hir/lower/mod.rs:3: mod ctx_niche;
@@ -3265,6 +3266,12 @@ example/test_ref_self.aya:7: fn get(ref self) -> int
 example/test_ref_self.aya:11: fn inc(ref mut self)
 example/test_ref_self.aya:14: fn into(self) -> int
 example/test_ref_self.aya:19: fn main() -> int
+example/test_ref_self_enum.aya:2: enum Opt2[T]
+example/test_ref_self_enum.aya:7: impl[T] Opt2[T]
+example/test_ref_self_enum.aya:8: fn is_none(ref self) -> bool
+example/test_ref_self_enum.aya:13: fn some(usize x) -> Opt2[usize]
+example/test_ref_self_enum.aya:17: fn none(usize x) -> Opt2[usize]
+example/test_ref_self_enum.aya:22: fn main() -> int
 example/test_release_opt.aya:2: fn sum_squares(int n) -> int
 example/test_release_opt.aya:12: fn bump(ref mut int x) -> int
 example/test_release_opt.aya:18: fn sum_ref(ref [int] a, int n) -> int

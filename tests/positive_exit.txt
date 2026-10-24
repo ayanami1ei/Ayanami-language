@@ -166,3 +166,4 @@ test_env_custom.aya 0
 test_sync_block.aya 0
 test_async_manual.aya 0
 test_async_sugar.aya 0
+test_ref_self_enum.aya 0
