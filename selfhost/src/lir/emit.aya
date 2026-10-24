@@ -7724,6 +7724,18 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(" to ptr\n");
             return Val { kind = 2, a = pi2, b = rnm, ty = -1 };
         }
+        // 返回 Ptr[结构体]：值带解引用标记（字段访问/方法调用自动解引用）
+        rty_p = unwrap_ty(ast, rty_sel);
+        if rty_p >= 0 && ty_name(ast, rty_p) == "Ptr" {
+            in_p = ast.aa[rty_p];
+            if in_p < 0 { in_p = ast.tys[rty_p]; }
+            in_pu = unwrap_ty(ast, in_p);
+            np_p = ty_name(ast, in_pu);
+            si_p = e.find_struct_idx(np_p);
+            if si_p >= 0 {
+                return Val { kind = 0, a = t4, b = np_p, ty = 10001 + si_p };
+            }
+        }
         if rk_c == 4 {
             rinfo2 = e.ret_info(ast, rty_sel);
             rnm2 = "";
@@ -8643,6 +8655,16 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     }
                 }
             }
+        }
+        if obj.ty >= 10000 && obj.ty < 10129 && obj.b.len > 0 {
+            // Ptr[结构体] 接收者的普通方法：自动解引用
+            pv_mc = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(pv_mc);
+            e.buf.push_str(" = inttoptr i64 ");
+            e.buf.push_str(obj.a);
+            e.buf.push_str(" to ptr\n");
+            obj = Val { kind = 2, a = pv_mc, b = obj.b.copy(), ty = -1 };
         }
         mid = -1;
         recv_ty = obj.b.copy();
@@ -9729,6 +9751,21 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             return;
         }
         if ast.tags[rhs_id] == et(ET::Ref._tag) {
+            // ref 到 Ptr[..] 值（如枚举载荷字段）：按裸指针值存储（读语义等价）
+            inr = ast.aa[rhs_id];
+            if inr >= 0 && ast.tags[inr] != et(ET::Ident._tag) {
+                vinr = emit_expr(ast, inr, e);
+                if vinr.ty >= 10000 && vinr.ty < 10129 {
+                    e.declare_local(nm, 0);
+                    e.record_etype(nm, vinr.ty);
+                    e.buf.push_str("  store i64 ");
+                    e.buf.push_str(vinr.a);
+                    e.buf.push_str(", ptr %v_");
+                    e.buf.push_str(nm);
+                    e.buf.push_str("\n");
+                    return;
+                }
+            }
             // r = ref mut X：局部存引用（kind 30）
             ad = addr_of_arg(ast, ast.aa[rhs_id], e);
             e.declare_local(nm, 30);
@@ -9998,6 +10035,15 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         }
     } elif tag == st(ST::FieldAssign._tag) {
         obj = emit_expr(ast, ast.aa[id], e);
+        if obj.ty >= 10000 && obj.ty < 10129 && obj.b.len > 0 {
+            pv_fa = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(pv_fa);
+            e.buf.push_str(" = inttoptr i64 ");
+            e.buf.push_str(obj.a);
+            e.buf.push_str(" to ptr\n");
+            obj = Val { kind = 2, a = pv_fa, b = obj.b.copy(), ty = -1 };
+        }
         if obj.kind == 2 {
             idx = e.find_field_idx(obj.b, ast.texts[id]);
             if idx >= 0 {
