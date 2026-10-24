@@ -331,7 +331,30 @@ pub fn collect_lines(ref String file, ref Deps deps, ref mut Seen seen, ref mut 
                             }
                         }
                     } elif al.ends_with(".lcl") {
-                        // 预编译包（自举读不了 .lcl）：回退到同目录 .aya 源码
+                        // 预编译包版本检查（自举不消费 .lcl 内容）：回退到同目录 .aya 源码
+                        lp0 = Path::join(fdir, al);
+                        rr0 = read_file(lp0);
+                        if rr0.ok {
+                            dat0 = rr0.data;
+                            pat0 = "version=\"";
+                            pp0 = dat0.index_of(pat0);
+                            if pp0 >= 0 {
+                                st0 = pp0 + (pat0.len as int);
+                                en0 = -1;
+                                q0 = st0;
+                                while q0 < dat0.len as int {
+                                    if char_code(dat0.index(q0 as usize)) == 34 { en0 = q0; break; }
+                                    q0 = q0 + 1;
+                                }
+                                if en0 > st0 {
+                                    pv0 = dat0.substring(st0 as usize, en0 as usize);
+                                    nm0 = Path::stem(Path::file_name(al));
+                                    if pv0 != ayanami_version() {
+                                        raw_warn("package '" + nm0 + "' was built with ayanami " + pv0 + ", current " + ayanami_version() + "; rebuild it (at " + lp0 + ")");
+                                    }
+                                }
+                            }
+                        }
                         al2 = Path::stem(al) + ".aya";
                         rp2 = Path::join(fdir, al2);
                         if file_exists(rp2) {
