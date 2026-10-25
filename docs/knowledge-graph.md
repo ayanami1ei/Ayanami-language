@@ -36,6 +36,7 @@
 | `docs/env-injection.md` | 环境注入设计提案（`env::` 可扩展；泛型需求 + 自动推导；E1–E4；未实现） |
 | `docs/macros.md` | Phase 6 宏系统升级（TokenStream/Span/Diagnostic，ABI v6；mcl.1 部分实现） |
 | `docs/check-plugins.md` | 自举侧 `#[check]` 只读检查插件（AST MirFunction 视图 + PIC `.so` + C driver） |
+| `docs/rust-selfhost-diff.md` | Rust 主线 ↔ 自举分支差异快照与对齐路线（2026-10-25） |
 | `docs/future-directions.md` | 未来规划（探索，未实现）：统一引用关系模型 + 环境注入 |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |

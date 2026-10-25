@@ -2,7 +2,8 @@
 
 > 状态（2026-10-24）：**M1–M4 已实现**（源码级解释执行，见 `selfhost/src/macro/expand.aya`）。
 > 实现方式与下文的「解释执行」一致：不建 .so；注解/宏调用先展开源码再重新解析。
-> 剩余 M5：`#[check]`/`#[pass]` MIR 插件（test_check），需要 MIR 序列化与插件调用。
+> M5：`#[check]` 只读插件已完成（自举用 AST 聚合视图 + PIC `.so`，见 `docs/check-plugins.md`）；
+> 剩余 `#[pass]` 写回（需要 MIR 或 HIR 编辑面）。
 > stage-0 参考实现：`rust/src/compiler/macro_expand/`（M3 插件 ABI v3，编译宏库为 `.so` 后 dlopen）。
 
 ## 1. 目标
@@ -48,7 +49,8 @@
 - [x] **M2（块实参 + 长度/行号）**：test_macro_block、`my_line`（`.len()`/`to_string` 已支持）
 - [x] **M3（token 流）**：test_macro_tokens（源文本语义对这批宏等价：仅拼接/恒等）
 - [x] **M4（卫生/诊断）**：test_macro_hygiene（`__ayanami_macro_hygienic/_diag` shim）
-- [ ] **M5（MIR 插件）**：test_check（`#[check]`，与宏引擎分开，参考 `macro_expand/check_plugin.rs`）
+- [x] **M5（MIR 插件）`#[check]`**：test_check 已对齐（自举原生 MirFunction 视图，见 `docs/check-plugins.md`）；
+      `#[pass]` 写回仍待做
 
 ## 4. 验收
 
