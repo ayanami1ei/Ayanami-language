@@ -35,6 +35,7 @@
 | `docs/reference-model.md` | 统一引用关系模型设计提案（纯接口无标注；`get`/`resolve` 协议形态；R1–R4；未实现） |
 | `docs/env-injection.md` | 环境注入设计提案（`env::` 可扩展；泛型需求 + 自动推导；E1–E4；未实现） |
 | `docs/macros.md` | Phase 6 宏系统升级（TokenStream/Span/Diagnostic，ABI v6；mcl.1 部分实现） |
+| `docs/check-plugins.md` | 自举侧 `#[check]` 只读检查插件（AST MirFunction 视图 + PIC `.so` + C driver） |
 | `docs/future-directions.md` | 未来规划（探索，未实现）：统一引用关系模型 + 环境注入 |
 | `README.md` | 语言与 CLI 用户手册 |
 | `SYMBOLS.md` | 生成物：符号地图（路径:行号:签名） |
@@ -138,6 +139,7 @@ graph LR
 | cfg 条件裁剪 | `hir/cfg.rs`、`package/symbols.rs` | A2b 已完成（A2f 起含语句级）；M8：`feature = "x"` 键 + `features`/`AYANAMI_FEATURES` 配置 |
 | 契约标注（assume/requires/ensures/invariant） | `hir/contracts.rs`、`hir/lower/body/ensure.rs`、`HirStmt::{Assume,Contract}` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d/A2e/A2f 已完成 |
 | 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs*.rs`（Imports/注解校验）、`.lcl` 宏/pass/依赖表、`compiler/macro_expand/{mod,plugin,pass_plugin}.rs`（.so + dlopen）、`compiler/build/passes.rs` + `std/mir.aya`（MIR pass，A5d-2） | A5a–A5d-2 已完成（MVP）；mcl.1：`#[macro(tokens)]` token 宏（`token_stream.rs` 编解码 + `plugin.rs` 字节通道，ABI v7）；mcl.2：hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ 诊断通道（`__ayanami_macro_diag`；`extern_weak` 发射）；mcl.3 部分：`dump expanded` + `AYANAMI_MACRO_TRACE` 追踪 + 生成代码错误包装 |
+| 自举 `#[check]` 插件 | `selfhost/src/driver/check_plugin.aya`（注解扫描/`CheckSpecs`/AST 标志/PIC `.so`/C driver）、`selfhost/src/driver/build.aya`（check 前 prepare、link 后 run）、`std/src/meta/mir.aya`（`MirFunction`/`scan_effects`/`warn`） | A5d-3b 自举实现完成（154/154）；无 MIR：函数级 MirFunction 聚合视图 + 原生结构体布局，不编解码 schema v3 blob；只读检查，编辑接口未接回自举 IR；详见 `docs/check-plugins.md` |
 | 效应系统 | `hir/effects/{mod,infer,diag,scan}.rs`（注册表/推断/诊断）、`LirEffects` 自动属性、`.lcl` 效应 tokens（声明+推断+承诺） | A3 重构完成（Stage 1–3） |
 | 错误传播 `?` | `hir/lower/body/expr_ops1.rs`（pending 语句内联 + 早退）、`ctx.{variant_payload_type,instantiate_*}` | A3d 已完成（含泛型 Result 最小单态化） |
 | 生命周期 `#[follow_with]` | 计划：字段属性文法 + `mir/borrow/` 来源标记 | A4 设计（docs/lifetimes.md） |

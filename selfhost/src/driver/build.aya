@@ -14,6 +14,7 @@ import "aya_check";
 import "aya_lir";
 import "aya_imports";
 import "aya_macro";
+import "aya_check_plugin";
 
 /// driver 选项（--std / --runtime / --release）
 pub struct Opts {
@@ -144,6 +145,8 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
             return 1;
         }
     }
+    cs = CheckSpecs { count = 0, anns = [String; 64], pfns = [String; 64], libs = [String; 64], lines = [int; 64], flags = [int; 64] };
+    prepare_check_plugins(p, p.ast, smap, cs);
     cout = CheckOut { gwcount = 0, gwids = [int; 2048], gwmsgs = [String; 2048] };
     n = check_program(p.ast, prog, file, smap, cout, 1);
     if n > 0 {
@@ -204,6 +207,8 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
         }
         return 1;
     }
+    // #[check] 插件诊断（stage-0 在效果警告之后、程序运行之前）
+    run_check_plugins(cs, ll, rt, link_extra(o), ir, w, stem);
     return 0;
 }
 

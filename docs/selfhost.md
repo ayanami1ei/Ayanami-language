@@ -146,9 +146,9 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     - **关键坑**：临时对若在函数体/循环内 `alloca`，编译器自身热路径（`find_method_id`/
       `find_struct_idx` 常量名调用）会持续涨栈，stage-2 在 3.08GB 处段错误；改为入口块
       按调用点预分配后固定点恢复。
-    现状：`set_hi(ref mut String)` 写回正常，test_ref_auto 通过；全量 diff 153/154；
-    固定点 md5=2c34e390（ref String 里程碑 a511d7b7 → 数组/Ptr/诊断对齐 857a37b1 →
-    单态化警告回放 2c34e390）。
+    现状：`set_hi(ref mut String)` 写回正常，test_ref_auto 通过；全量 diff 154/154；
+    固定点 md5=cb284821（ref String 里程碑 a511d7b7 → 数组/Ptr/诊断对齐 857a37b1 →
+    单态化警告回放 2c34e390 → #[check] 插件 cb284821）。
 
 39. **伪诊断只影响输出、不阻断发射（2026-10-24）**：自举源上 checker 会报 1 条
     `mk_str_tmp` 重载错误（MethodCall 返回类型恒为 ""，局部类型未知）——`cmd_build` 把 check
@@ -321,6 +321,15 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
       Arena.get 段错误）。
     - 自举脚本内存上限 4GB→6GB：ref String + 效果诊断后 stage-2 VmPeak ~4.13GB
       （RSS 仍 ~3.6GB），4GB 会误杀（表现为 stage-3 段错误）。
+
+65. **`#[check]` 只读检查插件（2026-10-25，自举实现）**：stage-0 的 A5d-3b 走
+    MIR schema v3 blob + PIC `.so` + dlopen；自举没有 MIR，改为「合并 AST 的函数级
+    MirFunction 聚合视图 + 从已发射合并 IR 构建 PIC `.so` + C driver/shim 调用」，
+    原生结构体布局、无需 blob 编解码。注解识别用 parser 的 `attrs_*`（`#[check]` 插件
+    定义 + `#[lib::fn]` 调用点），SrcMap 映射必须在 check **之前**做完（`smap` 会被
+    check 移动）。插件诊断经 `__ayanami_diag_emit` 回调加
+    `(check #[lib::fn] at line:col)` 后缀。实现位置与限制见 `docs/check-plugins.md`；
+    test_check 转正（154/154）。
 
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 

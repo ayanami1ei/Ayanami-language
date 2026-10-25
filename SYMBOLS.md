@@ -3344,20 +3344,31 @@ selfhost/src/base/sys.aya:40: pub fn get(ref self, int i) -> String { return sel
 selfhost/src/base/sys.aya:46: pub fn env(ref String key) -> String
 selfhost/src/base/sys.aya:64: fn entry_matches(ref String data, int start, int end, ref String key) -> bool
 selfhost/src/base/sys.aya:75: pub fn run(ref String cmd) -> int
-selfhost/src/driver/build.aya:19: pub struct Opts
-selfhost/src/driver/build.aya:25: pub namespace Opts
-selfhost/src/driver/build.aya:26: pub fn defaults() -> Opts
-selfhost/src/driver/build.aya:34: pub fn exit_code(int st) -> int
-selfhost/src/driver/build.aya:41: fn work_dir() -> String
-selfhost/src/driver/build.aya:47: fn out_dir() -> String
-selfhost/src/driver/build.aya:56: pub fn std_dir(ref Opts o) -> String
-selfhost/src/driver/build.aya:66: fn link_extra(ref Opts o) -> String
-selfhost/src/driver/build.aya:79: pub fn runtime_c(ref Opts o) -> String
-selfhost/src/driver/build.aya:91: pub fn cmd_check(ref String file) -> int
-selfhost/src/driver/build.aya:114: fn int_str3(int v) -> String
-selfhost/src/driver/build.aya:123: pub fn cmd_build(ref String file, ref Opts o) -> int
-selfhost/src/driver/build.aya:212: fn is_mir_plugin_lib(ref String file) -> bool
-selfhost/src/driver/build.aya:224: pub fn cmd_run(ref String file, ref Opts o) -> int
+selfhost/src/driver/build.aya:20: pub struct Opts
+selfhost/src/driver/build.aya:26: pub namespace Opts
+selfhost/src/driver/build.aya:27: pub fn defaults() -> Opts
+selfhost/src/driver/build.aya:35: pub fn exit_code(int st) -> int
+selfhost/src/driver/build.aya:42: fn work_dir() -> String
+selfhost/src/driver/build.aya:48: fn out_dir() -> String
+selfhost/src/driver/build.aya:57: pub fn std_dir(ref Opts o) -> String
+selfhost/src/driver/build.aya:67: fn link_extra(ref Opts o) -> String
+selfhost/src/driver/build.aya:80: pub fn runtime_c(ref Opts o) -> String
+selfhost/src/driver/build.aya:92: pub fn cmd_check(ref String file) -> int
+selfhost/src/driver/build.aya:115: fn int_str3(int v) -> String
+selfhost/src/driver/build.aya:124: pub fn cmd_build(ref String file, ref Opts o) -> int
+selfhost/src/driver/build.aya:217: fn is_mir_plugin_lib(ref String file) -> bool
+selfhost/src/driver/build.aya:229: pub fn cmd_run(ref String file, ref Opts o) -> int
+selfhost/src/driver/check_plugin.aya:21: fn cp_istr(int v) -> String
+selfhost/src/driver/check_plugin.aya:28: fn cp_fn_after(ref Ast ast, int line) -> int
+selfhost/src/driver/check_plugin.aya:45: fn cp_is_item(int tg) -> bool
+selfhost/src/driver/check_plugin.aya:59: fn cp_item_end(ref Ast ast, int line) -> int
+selfhost/src/driver/check_plugin.aya:73: fn cp_scan_flags(ref Ast ast, int fid) -> int
+selfhost/src/driver/check_plugin.aya:101: fn cp_c_shim() -> String
+selfhost/src/driver/check_plugin.aya:115: fn cp_c_head() -> String
+selfhost/src/driver/check_plugin.aya:135: fn cp_c_tail() -> String
+selfhost/src/driver/check_plugin.aya:169: pub struct CheckSpecs
+selfhost/src/driver/check_plugin.aya:181: pub fn prepare_check_plugins(ref Parser p, ref Ast ast, ref mut SrcMap smap, ref mut CheckSpecs cs)
+selfhost/src/driver/check_plugin.aya:241: pub fn run_check_plugins(ref CheckSpecs cs, ref String ll, ref String rt, ref String extra, ref String ir, ref String w, ref String stem) -> int
 selfhost/src/driver/imports.aya:12: pub struct Deps
 selfhost/src/driver/imports.aya:18: pub struct Seen
 selfhost/src/driver/imports.aya:23: pub namespace Deps

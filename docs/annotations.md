@@ -487,6 +487,7 @@ struct Holder {
       应用后重跑借用检查；demo `#[const_fold]`（`1 + 2 + 3` → `6`，`2*3 + 4*5` → `26`）
 - [x] A5d-3b `#[check]` 只读检查注解：`fn(ref MirFunction) -> void` + `warn`/`error` 诊断通道 +
       只读强制（blob 必须不变）；demo `check_lib`/`test_check`
+      （自举侧实现：合并 AST 的 MirFunction 聚合视图 + PIC `.so` + C driver，见 `docs/check-plugins.md`）
 - [x] A5d-3c-1 字面量编辑扩展到 float/bool/char + pass 不动点（源码顺序、8 轮上限、
       不收敛报错）；demo 常量折叠改为单轮 + 比较折叠（`br i1 1`/`br i1 0`）
 - [x] A5d-3c-2 通用编辑面：克隆替换（同类型节点复用）+ 语句删除 + `stmt_kinds`/`var_ids` 元数据；

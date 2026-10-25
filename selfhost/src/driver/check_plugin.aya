@@ -1,0 +1,323 @@
+// A5d：MIR 只读检查注解（#[check]）的自举实现。
+//
+// stage-0 通过 .so 插件 + MirFunction schema v3 blob 调用检查函数；自举侧没有 MIR，
+// 这里用合并 AST 生成一个等价的只读 MirFunction 视图（保守聚合：参数/赋值=store、
+// 调用=非 pure call、数组/结构体/枚举构造=alloc），编译成 .so 后用 C driver 加载调用。
+//
+// 产物全部放在 work 目录：<stem>_check.pic.o / <stem>_check.so / check_shim.c /
+// check_driver.c / check_driver。插件诊断经 shim 的 __ayanami_diag_emit 回到 C driver，
+// 由 driver 加上 `(check #[lib::fn] at line:col)` 后缀写到 stderr（与 stage-0 一致）。
+import "string";
+import "aya_sb";
+import "aya_ast";
+import "aya_parser";
+import "aya_imports";
+import "aya_macro";
+import "aya_file";
+import "aya_sys";
+import "aya_path";
+import "aya_log";
+
+fn cp_istr(int v) -> String {
+    b = StringBuf::new();
+    b.push_int(v);
+    return b.to_string();
+}
+
+/// 注解结束行之后的第一个 FnDecl（合并行号）；无 -> -1
+fn cp_fn_after(ref Ast ast, int line) -> int {
+    best = -1;
+    bl = 999999999;
+    i = 0;
+    while i < ast.len {
+        if ast.tags[i] == st(ST::FnDecl._tag) && ast.lines[i] >= line {
+            if ast.lines[i] < bl {
+                bl = ast.lines[i];
+                best = i;
+            }
+        }
+        i = i + 1;
+    }
+    return best;
+}
+
+/// 顶层 item 标签
+fn cp_is_item(int tg) -> bool {
+    if tg == st(ST::FnDecl._tag) { return true; }
+    if tg == st(ST::ImplBlock._tag) { return true; }
+    if tg == st(ST::Namespace._tag) { return true; }
+    if tg == st(ST::StructDef._tag) { return true; }
+    if tg == st(ST::UnionDef._tag) { return true; }
+    if tg == st(ST::EnumDef._tag) { return true; }
+    if tg == st(ST::InterfaceDef._tag) { return true; }
+    if tg == st(ST::ConstDecl._tag) { return true; }
+    if tg == st(ST::StaticDecl._tag) { return true; }
+    return false;
+}
+
+/// 函数体之后的下一个顶层 item 行（无 -> 大数）
+fn cp_item_end(ref Ast ast, int line) -> int {
+    best = 999999999;
+    i = 0;
+    while i < ast.len {
+        if ast.lines[i] > line && cp_is_item(ast.tags[i]) {
+            if ast.lines[i] < best { best = ast.lines[i]; }
+        }
+        i = i + 1;
+    }
+    return best;
+}
+
+/// 读取函数体范围内的效果标志（聚合到一个节点）
+/// bit0=非空, bit1=store, bit2=alloc, bit3=call, bit4=asm
+fn cp_scan_flags(ref Ast ast, int fid) -> int {
+    fl = 0;
+    if ast.aa[fid] >= 0 { fl = fl | 2; }
+    if ast.bb[fid] >= 0 { fl = fl | 1; }
+    fnline = ast.lines[fid];
+    end = cp_item_end(ast, fnline);
+    i = 0;
+    while i < ast.len {
+        ln = ast.lines[i];
+        if ln >= fnline && ln < end {
+            tg = ast.tags[i];
+            if tg == st(ST::Assign._tag) || tg == st(ST::FieldAssign._tag) || tg == st(ST::IndexAssign._tag) || tg == st(ST::DerefAssign._tag) {
+                fl = fl | 2;
+            } elif tg == st(ST::Unsafe._tag) {
+                fl = fl | 16;
+            } elif tg == et(ET::ArrayLiteral._tag) || tg == et(ET::ArraySized._tag) || tg == et(ET::ArrayRepeat._tag) || tg == et(ET::StructLiteral._tag) || tg == et(ET::EnumConstruct._tag) || tg == et(ET::ToUnique._tag) {
+                fl = fl | 4;
+            } elif tg == et(ET::FnCall._tag) || tg == et(ET::MethodCall._tag) {
+                fl = fl | 8;
+            }
+        }
+        i = i + 1;
+    }
+    return fl;
+}
+
+/// 插件 shim：__ayanami_diag_emit -> 回调（C driver 注入）
+#[alloc]
+fn cp_c_shim() -> String {
+    b = StringBuf::new();
+    b.push_str("typedef void (*DiagCb)(long long, const char *, long long);\n");
+    b.push_str("static DiagCb g_cb = 0;\n");
+    b.push_str("void __aya_set_diag_cb(DiagCb cb) { g_cb = cb; }\n");
+    b.push_str("long long __ayanami_diag_emit(long long level, const char *p, long long len) {\n");
+    b.push_str("  if (g_cb) g_cb(level, p, len);\n");
+    b.push_str("  return 0;\n");
+    b.push_str("}\n");
+    return b.to_string();
+}
+
+/// C driver 头部（结构体/回调/诊断）
+#[alloc]
+fn cp_c_head() -> String {
+    b = StringBuf::new();
+    b.push_str("#include <stdio.h>\n");
+    b.push_str("#include <stdlib.h>\n");
+    b.push_str("#include <string.h>\n");
+    b.push_str("#include <dlfcn.h>\n");
+    b.push_str("typedef struct { long long pure, no_error, node_count; const long long *kinds, *is_call, *callee_pure, *is_alloc, *is_asm, *is_store, *child_counts, *ops, *lit_kinds, *lit_i64, *lit_f64, *stmt_kinds, *var_ids, *edit_kind, *edit_i64; } MirFunction;\n");
+    b.push_str("typedef long long (*RunFn)(MirFunction*);\n");
+    b.push_str("typedef void (*DiagCb)(long long, const char*, long long);\n");
+    b.push_str("typedef void (*SetCb)(DiagCb);\n");
+    b.push_str("typedef struct { const char *ann; const char *sym; long long line, col, count, st, al, ca, as; } Spec;\n");
+    b.push_str("static const char *g_ann = \"\"; static long long g_line = 0, g_col = 0;\n");
+    b.push_str("static void diag_cb(long long level, const char *p, long long len) {\n");
+    b.push_str("  fprintf(stderr, \"%s: %.*s (check #[%s] at %lld:%lld)\\n\", level == 2 ? \"error\" : \"warning\", (int)len, p, g_ann, g_line, g_col);\n");
+    b.push_str("}\n");
+    return b.to_string();
+}
+
+/// C driver 尾部（加载 .so、逐函数构造 MirFunction 并调用）
+#[alloc]
+fn cp_c_tail() -> String {
+    b = StringBuf::new();
+    b.push_str("int main(int argc, char **argv) {\n");
+    b.push_str("  if (argc < 2) return 2;\n");
+    b.push_str("  void *h = dlopen(argv[1], RTLD_NOW);\n");
+    b.push_str("  if (!h) { fprintf(stderr, \"check dlopen failed: %s\\n\", dlerror()); return 2; }\n");
+    b.push_str("  SetCb setcb = (SetCb)dlsym(h, \"__aya_set_diag_cb\");\n");
+    b.push_str("  if (setcb) setcb(diag_cb);\n");
+    b.push_str("  long long si;\n");
+    b.push_str("  for (si = 0; si < (long long)(sizeof(specs) / sizeof(specs[0])); si++) {\n");
+    b.push_str("    RunFn fn = (RunFn)dlsym(h, specs[si].sym);\n");
+    b.push_str("    if (!fn) { fprintf(stderr, \"check %s: missing plugin entry\\n\", specs[si].sym); continue; }\n");
+    b.push_str("    long long n = specs[si].count; if (n < 1) n = 1;\n");
+    b.push_str("    long long *arr[15]; long long k;\n");
+    b.push_str("    for (k = 0; k < 15; k++) arr[k] = (long long*)calloc((size_t)n, sizeof(long long));\n");
+    b.push_str("    if (specs[si].st) arr[5][0] = 1;\n");
+    b.push_str("    if (specs[si].al) arr[3][0] = 1;\n");
+    b.push_str("    if (specs[si].ca) arr[1][0] = 1;\n");
+    b.push_str("    if (specs[si].as) arr[4][0] = 1;\n");
+    b.push_str("    MirFunction mf; memset(&mf, 0, sizeof(mf));\n");
+    b.push_str("    mf.node_count = specs[si].count;\n");
+    b.push_str("    mf.kinds = arr[0]; mf.is_call = arr[1]; mf.callee_pure = arr[2]; mf.is_alloc = arr[3]; mf.is_asm = arr[4]; mf.is_store = arr[5];\n");
+    b.push_str("    mf.child_counts = arr[6]; mf.ops = arr[7]; mf.lit_kinds = arr[8]; mf.lit_i64 = arr[9]; mf.lit_f64 = arr[10]; mf.stmt_kinds = arr[11]; mf.var_ids = arr[12]; mf.edit_kind = arr[13]; mf.edit_i64 = arr[14];\n");
+    b.push_str("    g_ann = specs[si].ann; g_line = specs[si].line; g_col = specs[si].col;\n");
+    b.push_str("    fn(&mf);\n");
+    b.push_str("    for (k = 0; k < 15; k++) free(arr[k]);\n");
+    b.push_str("  }\n");
+    b.push_str("  dlclose(h);\n");
+    b.push_str("  return 0;\n");
+    b.push_str("}\n");
+    return b.to_string();
+}
+
+/// 预收集的 #[check] 调用点（在 check 之前做 SrcMap 映射，避免 smap 被移动后不可用）
+pub struct CheckSpecs {
+    int count
+    [String] anns
+    [String] pfns
+    [String] libs
+    [int] lines
+    [int] flags
+}
+
+/// check 之前：扫描注解、解析插件函数并把调用点写入 cs
+#[alloc]
+#[state]
+pub fn prepare_check_plugins(ref Parser p, ref Ast ast, ref mut SrcMap smap, ref mut CheckSpecs cs) {
+    if p.attrs_count == 0 { return; }
+    pn = [String; 64];
+    pf = [int; 64];
+    pn_count = 0;
+    ci = 0;
+    while ci < p.attrs_count {
+        an0 = m_attr_name(p.attrs_text[ci]);
+        if an0 == "check" {
+            nf = cp_fn_after(ast, p.attrs_eline[ci]);
+            if nf >= 0 && pn_count < 64 {
+                pn[pn_count] = ast.texts[nf].copy();
+                pf[pn_count] = nf;
+                pn_count = pn_count + 1;
+            }
+        }
+        ci = ci + 1;
+    }
+    if pn_count == 0 { return; }
+    ci = 0;
+    while ci < p.attrs_count {
+        an = m_attr_name(p.attrs_text[ci]);
+        aix = an.index_of("::");
+        if aix > 0 {
+            lib = an.substring(0 as usize, aix as usize);
+            pfn = an.substring((aix + 2) as usize, an.len as usize);
+            pi = 0;
+            ok = 0;
+            while pi < pn_count {
+                if pn[pi] == pfn {
+                    mfp = smap.resolve(ast.lines[pf[pi]]);
+                    pstem = Path::stem(Path::file_name(mfp));
+                    if pstem == lib {
+                        ok = 1;
+                        break;
+                    }
+                }
+                pi = pi + 1;
+            }
+            if ok == 1 && cs.count < 64 {
+                fid = cp_fn_after(ast, p.attrs_eline[ci]);
+                if fid >= 0 {
+                    smap.resolve(p.attrs_line[ci]);
+                    ln = smap.cur_line;
+                    cs.anns[cs.count] = an.copy();
+                    cs.pfns[cs.count] = pfn.copy();
+                    cs.libs[cs.count] = lib.copy();
+                    cs.lines[cs.count] = ln;
+                    cs.flags[cs.count] = cp_scan_flags(ast, fid);
+                    cs.count = cs.count + 1;
+                }
+            }
+        }
+        ci = ci + 1;
+    }
+}
+
+/// emit/link 之后：构建 .so + C driver 并运行（诊断直接写 stderr）
+#[alloc]
+#[state]
+pub fn run_check_plugins(ref CheckSpecs cs, ref String ll, ref String rt, ref String extra, ref String ir, ref String w, ref String stem) -> int {
+    if cs.count == 0 { return 0; }
+    ss = [String; 64];
+    si = 0;
+    while si < cs.count {
+        sym = "aya." + cs.pfns[si];
+        if ir.index_of("@" + sym + "(") < 0 {
+            sym = "aya." + cs.libs[si] + "." + cs.pfns[si];
+        }
+        ss[si] = sym;
+        si = si + 1;
+    }
+    shim_c = Path::join(w, "check_shim.c");
+    if !write_file(shim_c, cp_c_shim()) {
+        raw_warn("check plugin: cannot write shim");
+        return 0;
+    }
+    db = StringBuf::new();
+    db.push_str(cp_c_head());
+    db.push_str("static Spec specs[] = {\n");
+    si = 0;
+    while si < cs.count {
+        fl = cs.flags[si];
+        db.push_str("  {\"");
+        db.push_str(cs.anns[si]);
+        db.push_str("\", \"");
+        db.push_str(ss[si]);
+        db.push_str("\", ");
+        db.push_str(cp_istr(cs.lines[si]));
+        db.push_str(", 1, ");
+        db.push_str(cp_istr(fl % 2));
+        db.push_str(", ");
+        db.push_str(cp_istr((fl / 2) % 2));
+        db.push_str(", ");
+        db.push_str(cp_istr((fl / 4) % 2));
+        db.push_str(", ");
+        db.push_str(cp_istr((fl / 8) % 2));
+        db.push_str(", ");
+        db.push_str(cp_istr((fl / 16) % 2));
+        db.push_str("},\n");
+        si = si + 1;
+    }
+    db.push_str("};\n");
+    db.push_str(cp_c_tail());
+    drv_c = Path::join(w, "check_driver.c");
+    if !write_file(drv_c, db.to_string()) {
+        raw_warn("check plugin: cannot write driver");
+        return 0;
+    }
+    pic = Path::join(w, stem + "_check.pic.o");
+    rtp = Path::join(w, "check_rt.pic.o");
+    shp = Path::join(w, "check_shim.o");
+    so = Path::join(w, stem + "_check.so");
+    drv = Path::join(w, "check_driver");
+    c1 = "llc -relocation-model=pic -filetype=obj " + ll + " -o " + pic;
+    if system(to_cstr(c1)) != 0 {
+        raw_warn("check plugin: llc pic failed");
+        return 0;
+    }
+    c2 = "gcc -c -fPIC " + rt + " -o " + rtp;
+    if system(to_cstr(c2)) != 0 {
+        raw_warn("check plugin: runtime pic failed");
+        return 0;
+    }
+    c3 = "gcc -c -fPIC " + shim_c + " -o " + shp;
+    if system(to_cstr(c3)) != 0 {
+        raw_warn("check plugin: shim compile failed");
+        return 0;
+    }
+    c4 = "gcc -shared " + pic + " " + rtp + " " + shp + " " + extra + " -lm -o " + so;
+    if system(to_cstr(c4)) != 0 {
+        raw_warn("check plugin: link failed");
+        return 0;
+    }
+    c5 = "gcc " + drv_c + " -ldl -o " + drv;
+    if system(to_cstr(c5)) != 0 {
+        raw_warn("check plugin: driver compile failed");
+        return 0;
+    }
+    c6 = drv + " " + so;
+    system(to_cstr(c6));
+    return 0;
+}
