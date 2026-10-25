@@ -7848,6 +7848,12 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             return mk_int(t3);
         }
         if op == uo(UnOp::Deref._tag) {
+            // ref/ref mut 解引用（#205）：操作数读取已解引用，直接返回值
+            if ast.tags[ast.aa[id]] == et(ET::Ident._tag) {
+                dnm = ast.texts[ast.aa[id]];
+                dkd = e.local_kind(dnm);
+                if dkd == 30 || dkd == 32 { return at; }
+            }
             // 裸指针解引用：inttoptr 后按指向类型装载
             pv_d = e.fresh();
             e.buf.push_str("  ");
@@ -9849,8 +9855,28 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             argtxt.push_str(", ");
             i1 = ast.nexts[i1];
         }
+        // #200：clobbers(rax) → LLVM 约束串追加 ~{rax}
+        cl1 = ast.cc[id];
+        while cl1 >= 0 {
+            if cons.len as int > 0 { cons.push(','); }
+            cons.push_str("~{");
+            cons.push_str(ast.texts[cl1]);
+            cons.push('}');
+            cl1 = ast.nexts[cl1];
+        }
         at_str = argtxt.to_string();
         if at_str.len >= 2 { at_str = at_str.substring(0 as usize, at_str.len - 2); }
+        if n_out == 0 {
+            // 无输出 asm：call void asm sideeffect（否则 llc 拒绝无输出约束的 i64 asm）
+            e.buf.push_str("  call void asm sideeffect \"");
+            e.buf.push_str(escape_ir(ast.texts[id]));
+            e.buf.push_str("\", \"");
+            e.buf.push_str(cons.to_string());
+            e.buf.push_str("\"(");
+            e.buf.push_str(at_str);
+            e.buf.push_str(")\n");
+            return mk_int("0");
+        }
         t = e.fresh();
         e.buf.push_str("  ");
         e.buf.push_str(t);
@@ -10862,15 +10888,28 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
     } elif tag == st(ST::Match._tag) {
         emit_match(ast, id, e, 0);
     } elif tag == st(ST::DerefAssign._tag) {
-        pv_a = emit_expr(ast, ast.aa[id], e);
         v_a = emit_expr(ast, ast.bb[id], e);
-        pp_a = e.fresh();
-        e.buf.push_str("  ");
-        e.buf.push_str(pp_a);
-        e.buf.push_str(" = inttoptr i64 ");
-        e.buf.push_str(pv_a.a);
-        e.buf.push_str(" to ptr\n");
-        tn_a = pv_a.b.copy();
+        is_ref_da = 0;
+        if ast.tags[ast.aa[id]] == et(ET::Ident._tag) {
+            danm = ast.texts[ast.aa[id]];
+            dakd = e.local_kind(danm);
+            if dakd == 30 || dakd == 32 { is_ref_da = 1; }
+        }
+        pp_a = "";
+        tn_a = "";
+        if is_ref_da == 1 {
+            // *r = v（r: ref/ref mut）：写入 r 指向的槽
+            pp_a = addr_of_arg(ast, ast.aa[id], e);
+        } else {
+            pv_a = emit_expr(ast, ast.aa[id], e);
+            pp_a = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(pp_a);
+            e.buf.push_str(" = inttoptr i64 ");
+            e.buf.push_str(pv_a.a);
+            e.buf.push_str(" to ptr\n");
+            tn_a = pv_a.b.copy();
+        }
         if tn_a == "float" || tn_a == "f32" || tn_a == "f64" {
             e.buf.push_str("  store double ");
             e.buf.push_str(float_operand(v_a, e));
@@ -11614,6 +11653,16 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
                 e.buf.push_str(pname);
                 e.buf.push_str(".p\n");
                 idx2 = idx2 + 1;
+            }
+            // 裸指针形参：记录 struct pointee 标记，供 *p 字段访问解析
+            pty_r = ast.tys[p2];
+            if pty_r >= 0 && ast.tags[pty_r] == tt(TT::RawPtr._tag) {
+                inr = ast.aa[pty_r];
+                if inr >= 0 {
+                    inm = ty_name(ast, inr);
+                    si_r = e.find_struct_idx(inm);
+                    if si_r >= 0 { e.record_etype(pname, 10001 + si_r); }
+                }
             }
             pty2 = ast.tys[p2];
             if pty2 >= 0 {
