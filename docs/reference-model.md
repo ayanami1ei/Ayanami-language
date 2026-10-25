@@ -110,6 +110,9 @@ LIR 内联后消除（零开销路径不残留标记）。
         `ref_protocol_immutable_write`（负例）
       - 已知边界（沿既有模型）：rvalue 引用（如 `p.get_mut().x = 2` 的调用结果）不登记 loan
         ——`Ptr` 原生路径同形亦然（借用检查为变量级）；如需收紧另立设计。
+      - **自举侧（2026-10-25）**：stage-1 同步实现（checker 放行 + emitter 协议解引用 +
+        `Ptr[T]` 字段标记与字面量推断），`test_ref_protocol` 在 `selfhost.sh diff` 中转正；
+        实现要点见 `docs/selfhost.md` 坑 62。
 - [x] **R2（2026-10-18）**：句柄型（arena + `Idx`）有效性语义 + 解析成本验证
       - 示例与运行时用例补**有效性检查**：越界句柄 / 容量越界 → `panic_at`（101，与数组越界一致）；
         回归 `tests/runtime_safety/arena_oob.aya`（101）、`arena_linked_list`（含检查，release 亦通过）
