@@ -125,6 +125,7 @@ pub struct Emitter {
     int inf_arg2
     int inf_arg3
     int inf_arg4
+    int ref_temp_n
     // 当前特化上下文
     String cur_inst_param
     int cur_inst_arg_ty
@@ -231,7 +232,7 @@ pub namespace Emitter {
             ln_names = [String; 256], ln_srcs = [String; 256], ln_count = 0,
             fn_names = [String; 8192], fn_extern = [int; 8192], fn_pstart = [int; 8192], fn_pcount = [int; 8192],
             fn_pkinds = [int; 65536], fn_ptotal = 0, fn_count = 0,
-            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, inst_st_names = [String; 128], inst_st_src = [int; 128], inst_st_argty = [int; 128], inst_st_argty2 = [int; 128], inst_st_count = 0, inst_arg_tys = [int; 512], inst_arg2_tys = [int; 512], spec_nodes = [int; 256], spec_prefixes = [String; 256], spec_params = [String; 256], spec_args = [int; 256], spec_params2 = [String; 256], spec_args2 = [int; 256], spec_params3 = [String; 256], spec_args3 = [int; 256], spec_params4 = [String; 256], spec_args4 = [int; 256], spec_selfs = [String; 256], spec_count = 0, cb_tmps = [String; 32], cb_names = [String; 32], cb_count = 0, ic_nodes = [int; 256], ic_tys = [int; 256], ic_count = 0, inf_arg1 = -1, inf_arg2 = -1, inf_arg3 = -1, inf_arg4 = -1, cur_inst_param = "", cur_inst_arg_ty = -1, cur_inst_param2 = "", cur_inst_arg_ty2 = -1, cur_inst_param3 = "", cur_inst_arg_ty3 = -1, cur_inst_param4 = "", cur_inst_arg_ty4 = -1, cur_inst_ord = -1, cur_inst_struct = "", m_rtype = [int; 8192],
+            fn_rtype = [int; 8192], fn_rllvm = [int; 8192], fn_first = [int; 8192], cur_rtype = -1, cur_ord = 0, cur_self_ty = "", inst_keys = [String; 512], inst_count = 0, gp_names = [String; 256], gp_names_count = 0, inst_st_names = [String; 128], inst_st_src = [int; 128], inst_st_argty = [int; 128], inst_st_argty2 = [int; 128], inst_st_count = 0, inst_arg_tys = [int; 512], inst_arg2_tys = [int; 512], spec_nodes = [int; 256], spec_prefixes = [String; 256], spec_params = [String; 256], spec_args = [int; 256], spec_params2 = [String; 256], spec_args2 = [int; 256], spec_params3 = [String; 256], spec_args3 = [int; 256], spec_params4 = [String; 256], spec_args4 = [int; 256], spec_selfs = [String; 256], spec_count = 0, cb_tmps = [String; 32], cb_names = [String; 32], cb_count = 0, ic_nodes = [int; 256], ic_tys = [int; 256], ic_count = 0, inf_arg1 = -1, inf_arg2 = -1, inf_arg3 = -1, inf_arg4 = -1, ref_temp_n = 0, cur_inst_param = "", cur_inst_arg_ty = -1, cur_inst_param2 = "", cur_inst_arg_ty2 = -1, cur_inst_param3 = "", cur_inst_arg_ty3 = -1, cur_inst_param4 = "", cur_inst_arg_ty4 = -1, cur_inst_ord = -1, cur_inst_struct = "", m_rtype = [int; 8192],
             decl_names = [String; 2048], decl_count = 0,
             lambda_buf = StringBuf::new(),
             lam_ids = [int; 256], lam_names = [String; 256], lam_count = 0,
@@ -323,34 +324,23 @@ fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String {
                 e.buf.push_str(".p\n");
                 return rp30;
             }
+            if kd == 32 {
+                // ref String：传递保存的 {ptr,len} 对地址
+                rp32 = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(rp32);
+                e.buf.push_str(" = load ptr, ptr %v_");
+                e.buf.push_str(nm);
+                e.buf.push_str(".p\n");
+                return rp32;
+            }
+            if kd == 1 { return "%v_" + nm + ".ptr"; }
         }
     }
     v = emit_expr(ast, id, e);
     if v.kind == 1 {
-        // String 临时（字面量/表达式）→ 双槽临时，供 ref String 形参
-        tp1 = e.fresh();
-        e.buf.push_str("  ");
-        e.buf.push_str(tp1);
-        e.buf.push_str(" = alloca { ptr, i64 }\n  ");
-        g1s = e.fresh();
-        e.buf.push_str(g1s);
-        e.buf.push_str(" = getelementptr { ptr, i64 }, ptr ");
-        e.buf.push_str(tp1);
-        e.buf.push_str(", i32 0, i32 0\n  store ptr ");
-        e.buf.push_str(ptr_operand(v.a));
-        e.buf.push_str(", ptr ");
-        e.buf.push_str(g1s);
-        e.buf.push_str("\n  ");
-        g2s = e.fresh();
-        e.buf.push_str(g2s);
-        e.buf.push_str(" = getelementptr { ptr, i64 }, ptr ");
-        e.buf.push_str(tp1);
-        e.buf.push_str(", i32 0, i32 1\n  store i64 ");
-        e.buf.push_str(v.b);
-        e.buf.push_str(", ptr ");
-        e.buf.push_str(g2s);
-        e.buf.push_str("\n");
-        return tp1;
+        // String 临时（字面量/表达式）→ 入口块预分配的连续双槽（避免循环内 alloca 涨栈）
+        return e.ref_string_temp(v);
     }
     tp = e.fresh();
     e.buf.push_str("  ");
@@ -871,7 +861,39 @@ impl Emitter {
         }
     }
 
-    /// 元素类型替换：类型参数名 → 实参类型（特化上下文）
+    /// ref String 临时对：入口块按调用点预分配 %v_rtmp<k>.ptr（{ptr,len}），写入当前值
+    #[alloc]
+    #[state]
+    fn ref_string_temp(ref mut self, ref Val v) -> String {
+        nm_t = "rtmp" + int_str2(self.ref_temp_n);
+        self.ref_temp_n = self.ref_temp_n + 1;
+        if self.pre_active == 1 {
+            self.pre_buf.push_str("  %v_");
+            self.pre_buf.push_str(nm_t);
+            self.pre_buf.push_str(".ptr = alloca [2 x i64]\n");
+        } else {
+            self.buf.push_str("  %v_");
+            self.buf.push_str(nm_t);
+            self.buf.push_str(".ptr = alloca [2 x i64]\n");
+        }
+        self.buf.push_str("  store ptr ");
+        self.buf.push_str(ptr_operand(v.a));
+        self.buf.push_str(", ptr %v_");
+        self.buf.push_str(nm_t);
+        self.buf.push_str(".ptr\n  ");
+        p8 = self.fresh();
+        self.buf.push_str(p8);
+        self.buf.push_str(" = getelementptr i8, ptr %v_");
+        self.buf.push_str(nm_t);
+        self.buf.push_str(".ptr, i64 8\n  store i64 ");
+        self.buf.push_str(v.b);
+        self.buf.push_str(", ptr ");
+        self.buf.push_str(p8);
+        self.buf.push_str("\n");
+        return "%v_" + nm_t + ".ptr";
+    }
+
+/// 元素类型替换：类型参数名 → 实参类型（特化上下文）
     #[alloc]
     fn subst_elem_ty(ref mut self, int ety) -> int {
         if ety < 0 || self.cur_inst_arg_ty < 0 || self.cur_inst_param.len == 0 { return ety; }
@@ -946,11 +968,14 @@ impl Emitter {
     fn emit_local_storage(ref mut self, ref String name, int form) {
         tmp2 = StringBuf::new();
         if form == 1 {
+            // {ptr, len} 连续 16 字节（ref String 形参指向该对）
             tmp2.push_str("  %v_");
             tmp2.push_str(name);
-            tmp2.push_str(".ptr = alloca ptr\n  %v_");
+            tmp2.push_str(".ptr = alloca [2 x i64]\n  %v_");
             tmp2.push_str(name);
-            tmp2.push_str(".len = alloca i64\n");
+            tmp2.push_str(".len = getelementptr i8, ptr %v_");
+            tmp2.push_str(name);
+            tmp2.push_str(".ptr, i64 8\n");
         } elif form == 3 {
             tmp2.push_str("  %v_");
             tmp2.push_str(name);
@@ -1032,7 +1057,10 @@ impl Emitter {
             return self.pk_of_ty(ast, self.cur_inst_arg_ty4);
         }
         if tn == "f32" || tn == "f64" { return 31; }
-        if tn == "String" { return 1; }
+        if tn == "String" {
+            if is_ref == 1 { return 32; }
+            return 1;
+        }
         ei = self.find_enum_idx(tn);
         if ei >= 0 { return 20; }
         si = self.find_struct_idx(tn);
@@ -4737,6 +4765,15 @@ fn emit_ufcs_call(ref Ast ast, int id, ref Val obj, ref String name, ref mut Emi
     } elif pkc == 31 {
         b.push_str("(double ");
         b.push_str(float_operand(obj, e));
+    } elif pkc == 32 {
+        // ref String 接收者：Ident 直接取地址；其余用已求值的 obj 生成临时对
+        b.push_str("(ptr ");
+        rx32 = ast.aa[id];
+        if rx32 >= 0 && (ast.tags[rx32] == et(ET::Ident._tag) || ast.tags[rx32] == et(ET::Ref._tag)) {
+            b.push_str(addr_of_arg(ast, rx32, e));
+        } else {
+            b.push_str(e.ref_string_temp(obj));
+        }
     } else {
         b.push_str("(ptr ");
         b.push_str(obj.a);
@@ -4746,7 +4783,16 @@ fn emit_ufcs_call(ref Ast ast, int id, ref Val obj, ref String name, ref mut Emi
     while a3 >= 0 {
         at3 = emit_expr(ast, ast.aa[a3], e);
         pk3 = e.fn_param_kind(full, ak3);
-        if pk3 == 31 {
+        if pk3 == 32 {
+            ax32c = ast.aa[a3];
+            if ast.tags[ax32c] == xt(XT::Arg._tag) { ax32c = ast.aa[ax32c]; }
+            b.push_str(", ptr ");
+            if ast.tags[ax32c] == et(ET::Ident._tag) || ast.tags[ax32c] == et(ET::Ref._tag) {
+                b.push_str(addr_of_arg(ast, ax32c, e));
+            } else {
+                b.push_str(e.ref_string_temp(at3));
+            }
+        } elif pk3 == 31 {
             b.push_str(", double ");
             b.push_str(float_operand(at3, e));
         } elif pk3 == 30 {
@@ -7459,6 +7505,31 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str("\n");
             return mk_arr(t9, e.find_elem(nm));
         }
+        if kd == 32 {
+            // ref String：从 {ptr,len} 对装载
+            sp32 = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(sp32);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str(".p\n  ");
+            p32 = e.fresh();
+            e.buf.push_str(p32);
+            e.buf.push_str(" = load ptr, ptr ");
+            e.buf.push_str(sp32);
+            e.buf.push_str("\n  ");
+            l32a = e.fresh();
+            e.buf.push_str(l32a);
+            e.buf.push_str(" = getelementptr i8, ptr ");
+            e.buf.push_str(sp32);
+            e.buf.push_str(", i64 8\n  ");
+            l32b = e.fresh();
+            e.buf.push_str(l32b);
+            e.buf.push_str(" = load i64, ptr ");
+            e.buf.push_str(l32a);
+            e.buf.push_str("\n");
+            return mk_str_tmp(p32, l32b);
+        }
         if kd == 40 {
             df = e.fresh();
             e.buf.push_str("  ");
@@ -8181,7 +8252,16 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     pk2 = 0;
                 }
             }
-            if pk2 == 31 {
+            if pk2 == 32 {
+                ax32 = ast.aa[a2];
+                if ast.tags[ax32] == xt(XT::Arg._tag) { ax32 = ast.aa[ax32]; }
+                b.push_str("ptr ");
+                if ast.tags[ax32] == et(ET::Ident._tag) || ast.tags[ax32] == et(ET::Ref._tag) {
+                    b.push_str(addr_of_arg(ast, ax32, e));
+                } else {
+                    b.push_str(e.ref_string_temp(at2));
+                }
+            } elif pk2 == 31 {
                 b.push_str("double ");
                 b.push_str(float_operand(at2, e));
             } elif pk2 == 30 {
@@ -9525,7 +9605,16 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                         pk3 = 0;
                     }
                 }
-                if pk3 == 31 {
+                if pk3 == 32 {
+                    ax32b = ast.aa[a3];
+                    if ast.tags[ax32b] == xt(XT::Arg._tag) { ax32b = ast.aa[ax32b]; }
+                    b3.push_str(", ptr ");
+                    if ast.tags[ax32b] == et(ET::Ident._tag) || ast.tags[ax32b] == et(ET::Ref._tag) {
+                        b3.push_str(addr_of_arg(ast, ax32b, e));
+                    } else {
+                        b3.push_str(e.ref_string_temp(at3));
+                    }
+                } elif pk3 == 31 {
                     b3.push_str(", double ");
                     b3.push_str(float_operand(at3, e));
                 } elif pk3 == 30 {
@@ -10510,6 +10599,29 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(", ptr %v_");
             e.buf.push_str(nm);
             e.buf.push_str(".p");
+            e.buf.push_str("\n");
+            return;
+        }
+        if e.local_kind(nm) == 32 {
+            v = emit_expr(ast, rhs_id, e);
+            sp32b = e.fresh();
+            e.buf.push_str("  ");
+            e.buf.push_str(sp32b);
+            e.buf.push_str(" = load ptr, ptr %v_");
+            e.buf.push_str(nm);
+            e.buf.push_str(".p\n  store ptr ");
+            e.buf.push_str(ptr_operand(v.a));
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(sp32b);
+            e.buf.push_str("\n  ");
+            sp32c = e.fresh();
+            e.buf.push_str(sp32c);
+            e.buf.push_str(" = getelementptr i8, ptr ");
+            e.buf.push_str(sp32b);
+            e.buf.push_str(", i64 8\n  store i64 ");
+            e.buf.push_str(v.b);
+            e.buf.push_str(", ptr ");
+            e.buf.push_str(sp32c);
             e.buf.push_str("\n");
             return;
         }

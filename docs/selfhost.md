@@ -134,15 +134,20 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 37. **impl 方法的类型参数在 ImplBlock 上（2026-10-24）**：`FnDecl.cc` 对方法为空，`spec_register`
     需扫描同名 ImplBlock 的 `bb` 取第一个类型参数名（`impl_gparam`）。
 
-38. **`ref String` 形参按指针传的 ABI 会破坏固定点（2026-10-24/25，未合入）**：把 `ref String` 的
-    pk 从 1（双槽传值）改成 30（指针）后，stage-2 在同源上产生伪诊断（`pn` 被视为不可变引用、
-    `mk_str_tmp` 第二参类型为空），固定点失败；回退后恢复。需要连同调用点写回（连续双槽临时 +
-    调用后回写）一起做，且注意 String 局部的 `.ptr`/`.len` 是两个独立 alloca（不连续）。
-    现状：`set_hi(ref mut String)` 写不回调用方（test_ref_auto 卡在 check 8）。
-    2026-10-25 复测：把 stash `ref-string-wip` 应用到当前主线（解决 3 处 ABI 分发冲突，
-    ref 形参保留 pk 32、不再被特化 kind 覆盖），**test_ref_auto 可达 rc=0**；但 stage-2
-    自编译在 **3.08GB 处段错误**（非 4GB 上限），固定点失败，已回退。剩余问题在实现本身
-    （String 双槽的连续/临时槽/写回路径），而非上层 ABI 分发。
+38. **`ref String` 形参指针 ABI = pk 32（2026-10-25 已合入）**：`ref String` 传指向连续
+    `{ptr, len}` 对的指针。实现要点：
+    - String 局部 `.ptr`/`.len` 合并为 `alloca [2 x i64]` + `getelementptr +8`（原先两个独立
+      alloca 不连续，写 +8 会踩到相邻槽）；
+    - 调用点：局部/ref 实参直接取对地址；字面量/字段/调用结果用**入口块预分配**的临时对
+      （`ref_string_temp`），且**只求值一次**（先 `emit_expr` 再 `addr_of_arg` 会把同一字面量
+      注册两遍，自举源超过 8192 字符串槽后 llc 报 `@.str.8192` 未定义）；
+    - 读/写：Ident kd32 装载双槽；赋值穿透写回；特化 kind 覆盖（`ty_call`/`inst_m2`）不得把
+      32 改成 1；UFCS 接收者（`pkc==32`）同样要处理；
+    - **关键坑**：临时对若在函数体/循环内 `alloca`，编译器自身热路径（`find_method_id`/
+      `find_struct_idx` 常量名调用）会持续涨栈，stage-2 在 3.08GB 处段错误；改为入口块
+      按调用点预分配后固定点恢复。
+    现状：`set_hi(ref mut String)` 写回正常，test_ref_auto 通过；全量 diff 151/154；
+    固定点 md5=a511d7b7。
 
 39. **伪诊断只影响输出、不阻断发射（2026-10-24）**：自举源上 checker 会报 1 条
     `mk_str_tmp` 重载错误（MethodCall 返回类型恒为 ""，局部类型未知）——`cmd_build` 把 check
