@@ -1659,6 +1659,10 @@ impl Checker {
             st = self.find_struct(ot);
             if st >= 0 {
                 fi = self.find_field(st, ast.texts[id]);
+                if fi < 0 && self.find_method(ot, "get_mut") >= 0 {
+                    // r1 引用协议：写入经 get_mut 解引用
+                    return;
+                }
                 if fi < 0 {
                     b = StringBuf::new();
                     b.push_str("结构体 `");
@@ -2101,6 +2105,10 @@ impl Checker {
             if st >= 0 {
                 fi = self.find_field(st, ast.texts[id]);
                 if fi < 0 {
+                    if self.find_method(ot, "get") >= 0 {
+                        // r1 引用协议：读取经 get 解引用
+                        return "";
+                    }
                     b = StringBuf::new();
                     b.push_str("结构体 `");
                     b.push_str(ot);
@@ -2122,7 +2130,9 @@ impl Checker {
             base = base_type(ot);
             if self.find_struct(base) >= 0 {
                 mi = self.find_method(base, ast.texts[id]);
-                if mi < 0 {
+                if mi < 0 && self.find_method(base, "get") >= 0 {
+                    // r1 引用协议：方法经 get 解引用后调用
+                } elif mi < 0 {
                     // UFCS 回退：同名自由函数、接收者作首参
                     if self.find_free_fn_recv(ast.texts[id], base) < 0 {
                         b = StringBuf::new();

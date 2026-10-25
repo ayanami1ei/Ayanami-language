@@ -3399,6 +3399,16 @@ impl Emitter {
                                     } elif gp2_li.len > 0 && tn_li == gp2_li {
                                         m2_li = self.infer_ctor_arg(ast, ast.aa[f_li]);
                                         if m2_li != -1 { a2_li = m2_li; }
+                                    } elif tn_li == "Ptr" {
+                                        mpt_li = self.infer_ptr_elem(ast, ast.aa[f_li]);
+                                        if mpt_li != -1 {
+                                            fpt_li = self.ftype_at(si_li, idx_li);
+                                            inpt_li = ast.aa[fpt_li];
+                                            if inpt_li < 0 { inpt_li = ast.tys[fpt_li]; }
+                                            inptn_li = ty_name(ast, unwrap_ty(ast, inpt_li));
+                                            if inptn_li.len > 0 && inptn_li == gp1_li { a1_li = mpt_li; }
+                                            elif gp2_li.len > 0 && inptn_li == gp2_li { a2_li = mpt_li; }
+                                        }
                                     }
                                 }
                                 f_li = ast.nexts[f_li];
@@ -3888,6 +3898,27 @@ impl Emitter {
         return -1;
     }
 
+    /// 字段值 Ptr[T] 的元素类型标记（Ptr.new(X) → X 的类型）
+    #[alloc]
+    #[state]
+    fn infer_ptr_elem(ref mut self, ref Ast ast, int expr) -> int {
+        if expr < 0 { return -1; }
+        if ast.tags[expr] == et(ET::Ref._tag) { return self.infer_ptr_elem(ast, ast.aa[expr]); }
+        if ast.tags[expr] == et(ET::FnCall._tag) {
+            nm_pe = ast.texts[expr];
+            if nm_pe == "Ptr.new" || nm_pe == "Ptr::new" {
+                a0_pe = ast.aa[expr];
+                if a0_pe >= 0 {
+                    if ast.tags[a0_pe] == xt(XT::Arg._tag) { a0_pe = ast.aa[a0_pe]; }
+                    m_pe = self.infer_expr_ty(ast, a0_pe);
+                    if m_pe == -1 { m_pe = self.infer_ctor_arg(ast, a0_pe); }
+                    return m_pe;
+                }
+            }
+        }
+        return -1;
+    }
+
     /// 无类型实参的结构体字面量：按字段值推断类型参数并查实例名
     #[alloc]
     #[state]
@@ -3927,6 +3958,17 @@ impl Emitter {
                     m2 = self.infer_expr_ty(ast, ast.aa[f]);
                     if m2 == -1 { m2 = self.infer_ctor_arg(ast, ast.aa[f]); }
                     if m2 != -1 { a2 = m2; }
+                } elif tn == "Ptr" {
+                    // Ptr[T] 字段：从 Ptr.new(X) 推断 T
+                    mpt = self.infer_ptr_elem(ast, ast.aa[f]);
+                    if mpt != -1 {
+                        fpt = self.ftype_at(si, idx);
+                        inpt = ast.aa[fpt];
+                        if inpt < 0 { inpt = ast.tys[fpt]; }
+                        inptn = ty_name(ast, unwrap_ty(ast, inpt));
+                        if inptn.len > 0 && inptn == gp1 { a1 = mpt; }
+                        elif gp2.len > 0 && inptn == gp2 { a2 = mpt; }
+                    }
                 }
             }
             f = ast.nexts[f];
@@ -5094,6 +5136,65 @@ fn label(ref mut Emitter e, ref String prefix) -> String {
     b.push_int(e.tmp);
     e.tmp = e.tmp + 1;
     return b.to_string();
+}
+
+/// r1 引用协议解引用：调用 get()/get_mut() 得到 ref 指针
+#[alloc]
+#[state]
+fn emit_protocol_deref(ref Ast ast, ref Val obj, ref String mn, ref mut Emitter e) -> Val {
+    if obj.kind != 2 || obj.b.len == 0 { return mk_int("0"); }
+    src = obj.b.copy();
+    pa = -1;
+    pa2 = -1;
+    us = src.index_of("__m");
+    if us > 0 {
+        src = src.substring(0 as usize, us as usize);
+        k = 0;
+        while k < e.inst_st_count {
+            if e.inst_st_names[k] == obj.b {
+                pa = e.inst_st_argty[k];
+                pa2 = e.inst_st_argty2[k];
+                break;
+            }
+            k = k + 1;
+        }
+    }
+    mid = e.find_method_id(src, mn);
+    if mid < 0 { return mk_int("0"); }
+    mrty = e.method_ret_type(src, mn);
+    spec = -1;
+    if pa != -1 { spec = e.spec_register2(ast, mid, src, pa, pa2, obj.b); }
+    rk = e.ret_kind(ast, mrty);
+    if spec >= 0 {
+        g1 = e.impl_gparam(ast, src);
+        g2 = "";
+        if pa2 != -1 { g2 = e.impl_gparam2(ast, src); }
+        if g1.len > 0 {
+            rk = e.ret_kind_with2(ast, mrty, g1, pa, g2, pa2);
+            if ty_name(ast, mrty) == g1 { mrty = pa; } elif g2.len > 0 && ty_name(ast, mrty) == g2 { mrty = pa2; }
+        }
+    }
+    full_p = src + ".";
+    full_p = full_p + mn;
+    t = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(t);
+    e.buf.push_str(" = call i64 @");
+    e.buf.push_str(e.fn_sym_ord(full_p, e.fn_idx_of_node(full_p, e.fn_first_id(full_p))));
+    if spec >= 0 { e.buf.push_str(".__i"); e.buf.push_int(spec); }
+    e.buf.push_str("(ptr ");
+    e.buf.push_str(obj.a);
+    e.buf.push_str(")\n");
+    rinfo = e.ret_info(ast, mrty);
+    rnm = "";
+    if rinfo >= 0 { rnm = e.st_names[rinfo].copy(); }
+    pv = e.fresh();
+    e.buf.push_str("  ");
+    e.buf.push_str(pv);
+    e.buf.push_str(" = inttoptr i64 ");
+    e.buf.push_str(t);
+    e.buf.push_str(" to ptr\n");
+    return Val { kind = 2, a = pv, b = rnm, ty = -1 };
 }
 
 /// 枚举构造：full = "E.A"（裸变体或带实参）
@@ -8248,6 +8349,16 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         }
         if obj.kind == 2 {
             idx = e.find_field_idx(obj.b, ast.texts[id]);
+            if idx < 0 {
+                // r1 引用协议：类型无该字段且有 get() → 自动解引用（接收者可能是实例名）
+                src_r1 = obj.b.copy();
+                us_r1 = src_r1.index_of("__m");
+                if us_r1 > 0 { src_r1 = src_r1.substring(0 as usize, us_r1 as usize); }
+                if e.find_method_id(src_r1, "get") >= 0 {
+                    obj = emit_protocol_deref(ast, obj, "get", e);
+                    idx = e.find_field_idx(obj.b, ast.texts[id]);
+                }
+            }
             if idx >= 0 {
                 si_f = e.find_struct_idx(obj.b);
                 sl = e.fslot_at(si_f, idx);
@@ -8372,6 +8483,22 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 e.buf.push_str(" = load i64, ptr ");
                 e.buf.push_str(g2);
                 e.buf.push_str("\n");
+                // 字段类型 Ptr[Inner]：返回解引用标记（.get()/协议链）
+                ftp = unwrap_ty(ast, e.ftype_at(si_f, idx));
+                if ftp >= 0 && ty_name(ast, ftp) == "Ptr" {
+                    inp = ast.aa[ftp];
+                    if inp < 0 { inp = ast.tys[ftp]; }
+                    inpu = unwrap_ty(ast, inp);
+                    inpn = ty_name(ast, inpu);
+                    if e.cur_inst_param.len > 0 && inpn == e.cur_inst_param { inpu = e.cur_inst_arg_ty; }
+                    elif e.cur_inst_param2.len > 0 && inpn == e.cur_inst_param2 { inpu = e.cur_inst_arg_ty2; }
+                    sip = -1;
+                    if inpu <= -1000 && inpu > -1128 { sip = 0 - 1000 - inpu; }
+                    elif inpu >= 0 { sip = e.find_struct_idx(ty_name(ast, inpu)); }
+                    if sip >= 0 {
+                        return Val { kind = 0, a = v2, b = e.st_names[sip].copy(), ty = 10001 + sip };
+                    }
+                }
                 return mk_int(v2);
             }
         }
@@ -8763,6 +8890,17 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 e.buf.push_str(pv_w);
                 e.buf.push_str("\n");
                 return mk_int("0");
+            }
+        }
+        // r1 引用协议：类型无该方法且有 get() → 先解引用（接收者可能是实例名）
+        if obj.kind == 2 {
+            src_r1m = obj.b.copy();
+            us_r1m = src_r1m.index_of("__m");
+            if us_r1m > 0 { src_r1m = src_r1m.substring(0 as usize, us_r1m as usize); }
+            if e.find_method_id(src_r1m, ast.texts[id]) < 0 {
+                if e.find_method_id(src_r1m, "get") >= 0 {
+                    obj = emit_protocol_deref(ast, obj, "get", e);
+                }
             }
         }
         // 泛型实例接收者（结构体/枚举）：剥离 __m<k> 得源类型，方法按实例特化
@@ -10211,6 +10349,16 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         }
         if obj.kind == 2 {
             idx = e.find_field_idx(obj.b, ast.texts[id]);
+            if idx < 0 {
+                // r1 引用协议（写）：get_mut() 解引用（接收者可能是实例名）
+                src_r1w = obj.b.copy();
+                us_r1w = src_r1w.index_of("__m");
+                if us_r1w > 0 { src_r1w = src_r1w.substring(0 as usize, us_r1w as usize); }
+                if e.find_method_id(src_r1w, "get_mut") >= 0 {
+                    obj = emit_protocol_deref(ast, obj, "get_mut", e);
+                    idx = e.find_field_idx(obj.b, ast.texts[id]);
+                }
+            }
             if idx >= 0 {
                 v = emit_expr(ast, ast.bb[id], e);
                 si_a = e.find_struct_idx(obj.b);
