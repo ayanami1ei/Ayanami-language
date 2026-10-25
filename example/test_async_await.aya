@@ -101,6 +101,36 @@ fn pick3(int x) -> int {
 }
 
 #[async]
+fn pick_multi(int x) -> int {
+    y = 0
+    if x > 10 {
+        y = await inc(x)
+        y = await inc(y)
+    } elif x > 0 {
+        y = await dbl(x)
+        y = await inc(y)
+    } else {
+        y = await dec(x)
+        y = await dec(y)
+    }
+    return y
+}
+
+#[async]
+fn pick_mix(int x) -> int {
+    y = 0
+    if x > 10 {
+        y = await inc(x)
+    } elif x > 0 {
+        y = await dbl(x)
+        y = await inc(y)
+    } else {
+        y = await dec(x)
+    }
+    return y
+}
+
+#[async]
 fn choose_double(int x) -> int {
     y = 0
     if x > 0 {
@@ -296,5 +326,17 @@ fn main() -> int {
     if block_on(ref mut t3) != 20 { return 28 }
     t4 = choose_asym(-1)
     if block_on(ref mut t4) != -30 { return 29 }
+    u1 = pick_multi(20)
+    if block_on(ref mut u1) != 22 { return 30 }
+    u2 = pick_multi(5)
+    if block_on(ref mut u2) != 11 { return 31 }
+    u3 = pick_multi(-2)
+    if block_on(ref mut u3) != -4 { return 32 }
+    u4 = pick_mix(20)
+    if block_on(ref mut u4) != 21 { return 33 }
+    u5 = pick_mix(5)
+    if block_on(ref mut u5) != 11 { return 34 }
+    u6 = pick_mix(-2)
+    if block_on(ref mut u6) != -3 { return 35 }
     return 0
 }

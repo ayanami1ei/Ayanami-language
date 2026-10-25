@@ -224,4 +224,8 @@ impl __add_Fut {
   else 用 `__we*` 各自状态链，最后汇合到统一的 `return Poll::Ready(__async_after(...))`。
   条件限参数，实参限参数或分支变量 `y`；所有分支 await 结果类型须一致。用例 `choose_double` /
   `choose_asym`；负例 `await_if_else_mixed_stmt` / `await_if_else_mixed_type`。
-- 后续：一般 CFG（任意语句、elif 多 await、PC/状态枚举、嵌套控制流）。
+- if/elif/else 分支内连续多个 await（2026-10-25）：至少一个分支 ≥2 走 `async_elif_multi`；每个分支
+  的每个 await 一个 `__w{分支}_{序号}` future 字段，状态区间按分支顺序分配；条件分支各生成一个
+  `__async_take_<f>_<j>`。条件限参数，实参限参数或分支变量 `y`；所有分支结果类型须一致。
+  用例 `pick_multi` / `pick_mix`；负例 `await_elif_mixed_stmt` / `await_elif_mixed_type`。
+- 后续：一般 CFG（任意语句、PC/状态枚举、嵌套控制流）。

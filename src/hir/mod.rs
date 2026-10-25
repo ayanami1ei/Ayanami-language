@@ -2,6 +2,7 @@ pub mod attrs;
 pub(crate) mod async_transform;
 pub(crate) mod async_transform_util;
 pub(crate) mod async_elif;
+pub(crate) mod async_elif_multi;
 pub(crate) mod async_if;
 pub(crate) mod async_if_multi;
 pub(crate) mod async_if_else_multi;

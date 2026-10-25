@@ -1,0 +1,22 @@
+import "io"
+enum Poll[T] { Ready(T), Pending }
+struct Context { int x }
+#[async]
+fn gi(int x) -> int { return x + 1 }
+#[async]
+fn gs(int x) -> String { return "x" }
+#[async]
+fn bad(int x) -> int {
+    y = 0
+    if x > 10 {
+        y = await gi(x)
+        y = await gi(y)
+    } elif x > 0 {
+        y = await gs(x)
+        y = await gs(y)
+    } else {
+        y = await gi(x)
+    }
+    return y
+}
+fn main() -> int { return 0 }
