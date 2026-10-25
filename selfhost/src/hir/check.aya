@@ -72,6 +72,7 @@ pub struct Checker {
     [int] fx_alloc
     [int] fx_state
     [int] fx_pub
+    [int] fx_gen
     [int] fx_mask
     [int] fx_line
     [int] fx_col
@@ -142,6 +143,7 @@ pub namespace Checker {
             fx_alloc = [int; 4096],
             fx_state = [int; 4096],
             fx_pub = [int; 4096],
+            fx_gen = [int; 4096],
             fx_mask = [int; 4096],
             fx_line = [int; 4096],
             fx_col = [int; 4096],
@@ -183,6 +185,41 @@ fn is_std_alloc_name(ref String name) -> int {
     // 指针/唯一所有权构造（编译器合成 alloc）
     if name == "Ptr.new" { return 1; }
     if name == "Box.new" { return 1; }
+    return 0;
+}
+
+fn is_std_src_path(ref String p) -> bool {
+    if p.len == 0 { return false; }
+    if str_starts_with(p, "std/") { return true; }
+    // 绝对路径中的 "/std/"：逐字符匹配（避免 ref String 接收者的 String 方法调用）
+    i = 0;
+    n = p.len as int;
+    while i + 5 <= n {
+        if p.index(i as usize) == '/' {
+            if p.index((i + 1) as usize) == 's' {
+                if p.index((i + 2) as usize) == 't' {
+                    if p.index((i + 3) as usize) == 'd' {
+                        if p.index((i + 4) as usize) == '/' { return true; }
+                    }
+                }
+            }
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// 上述 std 分配名中实现带 #[state] 的子集（String 缓冲构造；Ptr/Box.new 仅 alloc）
+fn is_std_state_name(ref String name) -> int {
+    if name == "String.add" { return 1; }
+    if name == "String.substring" { return 1; }
+    if name == "String.to_upper" { return 1; }
+    if name == "String.to_lower" { return 1; }
+    if name == "String.repeat" { return 1; }
+    if name == "String.trim" { return 1; }
+    if name == "String.trim_start" { return 1; }
+    if name == "String.trim_end" { return 1; }
+    if name == "to_string" { return 1; }
     return 0;
 }
 
@@ -669,6 +706,20 @@ impl Checker {
         if recv.len > 0 && has_self == 0 {
             nmf = recv + "." + ast.texts[id];
         }
+        // 泛型上下文（自身类型参数或泛型 impl）：stage-0 的单态化实例 span=0 → 警告无位置
+        gen = 0;
+        if ast.cc[id] >= 0 { gen = 1; }
+        if recv.len > 0 {
+            k_g = 0;
+            while k_g < ast.len {
+                if ast.tags[k_g] == st(ST::ImplBlock._tag) && ast.texts[k_g] == recv {
+                    if ast.bb[k_g] >= 0 { gen = 1; }
+                    break;
+                }
+                k_g = k_g + 1;
+            }
+        }
+        self.fx_gen[i] = gen;
         self.fx_names[i] = nmf;
         self.fx_pub[i] = pubf;
         self.fx_mask[i] = dd % 16384;
@@ -687,6 +738,7 @@ impl Checker {
         if self.cur_fx < 0 { return; }
         if is_std_alloc_name(name) == 1 {
             self.fx_alloc[self.cur_fx] = 1;
+            if is_std_state_name(name) == 1 { self.fx_state[self.cur_fx] = 1; }
             return;
         }
         if self.fx_call_count < 16384 {
@@ -763,21 +815,32 @@ impl Checker {
         i = 0;
         while i < self.fx_count {
             if self.fx_pub[i] == 1 {
-                if (self.fx_mask[i] / 2048) % 2 == 0 {
+                // std 源（本仓 std/ 子仓）在 stage-0 是预编译 .lcl，不参与效果诊断
+                mfs = self.map_pos(self.fx_line[i]);
+                std_src = is_std_src_path(mfs);
+                if std_src == false && (self.fx_mask[i] / 2048) % 2 == 0 {
                     // 非 pure：检查缺失声明
                     if self.fx_alloc[i] == 1 && (self.fx_mask[i] / 256) % 2 == 0 {
                         w = StringBuf::new();
                         w.push_str("function `");
                         w.push_str(self.fx_names[i]);
                         w.push_str("` may have effect `alloc`; consider adding #[alloc]");
-                        self.warn(w.to_string(), self.fx_line[i], self.fx_col[i]);
+                        if self.fx_gen[i] == 1 {
+                            raw_warn(w.to_string());
+                        } else {
+                            self.warn(w.to_string(), self.fx_line[i], self.fx_col[i]);
+                        }
                     }
                     if self.fx_state[i] == 1 && (self.fx_mask[i] / 512) % 2 == 0 {
                         w2 = StringBuf::new();
                         w2.push_str("function `");
                         w2.push_str(self.fx_names[i]);
                         w2.push_str("` may have effect `state`; consider adding #[state]");
-                        self.warn(w2.to_string(), self.fx_line[i], self.fx_col[i]);
+                        if self.fx_gen[i] == 1 {
+                            raw_warn(w2.to_string());
+                        } else {
+                            self.warn(w2.to_string(), self.fx_line[i], self.fx_col[i]);
+                        }
                     }
                 }
             }

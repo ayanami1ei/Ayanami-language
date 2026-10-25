@@ -1752,22 +1752,33 @@ impl Parser {
             return e;
         }
         if self.check_delim(D::LBracket._tag) {
-            sized = 0;
-            // 定长数组类型 [T; n]：元素类型后必须跟 ';'
-            if self.la2_is_delim(D::Semicolon._tag) {
-                if self.la1_is_kw(Kw::Int._tag) || self.la1_is_kw(Kw::Float._tag) || self.la1_is_kw(Kw::Char._tag) || self.la1_is_kw(Kw::Bool._tag) || self.la1_is_kw(Kw::Self_._tag) || self.la1_is_kw(Kw::Ref._tag) || self.la1_is_kw(Kw::Unique._tag) || self.la1_is_kw(Kw::Fn._tag) {
-                    sized = 1;
+            // [T; n] 定长数组：对齐 stage-0 —— 关键字类型 / 大写开头标识符 / 紧跟 ';'
+            // 的标识符先试“类型 + ;”，失败回溯到表达式路径（支持 [Ptr[T]; n] 等复合元素类型）
+            type_like = 0;
+            if self.la1.kind == Tk::Keyword._tag {
+                if self.la1_is_kw(Kw::Int._tag) || self.la1_is_kw(Kw::Float._tag) || self.la1_is_kw(Kw::Char._tag) || self.la1_is_kw(Kw::Bool._tag) || self.la1_is_kw(Kw::Unique._tag) {
+                    type_like = 1;
                 }
-                if self.la1_is_ident() { sized = 1; }
+            } elif self.la1.kind == Tk::Ident._tag {
+                if self.la1.text.len > 0 {
+                    c0a = char_code(self.la1.text.index(0));
+                    if c0a >= 65 && c0a <= 90 { type_like = 1; }
+                }
+                if self.la2_is_delim(D::Semicolon._tag) { type_like = 1; }
+            }
+            if type_like == 1 {
+                self.mark();
+                self.advance();
+                ety_t = self.parse_type();
+                if ety_t >= 0 && self.check_delim(D::Semicolon._tag) {
+                    self.advance();
+                    cnt = self.parse_expr();
+                    self.expect_delim(D::RBracket._tag, "expected ] in array expr");
+                    return self.ast.push(et(ET::ArraySized._tag), "", ety_t, cnt, -1, -1, -1, line, col);
+                }
+                self.restore();
             }
             self.advance();
-            if sized == 1 {
-                ety = self.parse_type();
-                self.expect_delim(D::Semicolon._tag, "expected ; in array type");
-                cnt = self.parse_expr();
-                self.expect_delim(D::RBracket._tag, "expected ] in array expr");
-                return self.ast.push(et(ET::ArraySized._tag), "", ety, cnt, -1, -1, -1, line, col);
-            }
             head = -1;
             first = -1;
             while true {

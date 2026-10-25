@@ -28,7 +28,8 @@ RUNTIME_C="$ROOT/src/runtime.c"
 # 说明：自举发射器暂不发射堆释放（无 __drop_String），内存随总分配量增长；
 # stage-2 自编译实测峰值约 2.2GB（2026-10-24），故上限取 4GB。
 run_limited() {
-    ( ulimit -v 4194304 2>/dev/null; timeout 60 "$@" )
+    # ref String ABI + 效果诊断后 stage-2 自编译 VmPeak ~4.13GB；4GB 上限会误杀
+    ( ulimit -v 6291456 2>/dev/null; timeout 60 "$@" )
 }
 
 # 本机 stage-0 沙盒：`./scripts/selfhost-stage0.sh init`（安装版布局转发到仓库 src/runtime.c）

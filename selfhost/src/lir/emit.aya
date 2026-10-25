@@ -7085,6 +7085,31 @@ fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e
         if lty4 == "double" {
             return mk_float(t6);
         }
+        // Ptr[Struct] 元素：保留解引用标记（a[i].get() / ref a[i] 链）
+        etn6 = ty_name(ast, ety3);
+        if etn6 == "Ptr" {
+            in6 = ast.aa[ety3];
+            if in6 < 0 { in6 = ast.tys[ety3]; }
+            in6u = unwrap_ty(ast, in6);
+            if in6u >= 0 {
+                in6n = ty_name(ast, in6u);
+                // 特化上下文：Ptr[T] 的元素参数按实参替换
+                if in6n.len > 0 && in6n == e.cur_inst_param && e.cur_inst_arg_ty != -1 {
+                    in6u = e.cur_inst_arg_ty;
+                } elif in6n.len > 0 && in6n == e.cur_inst_param2 && e.cur_inst_arg_ty2 != -1 {
+                    in6u = e.cur_inst_arg_ty2;
+                } elif in6n.len > 0 && in6n == e.cur_inst_param3 && e.cur_inst_arg_ty3 != -1 {
+                    in6u = e.cur_inst_arg_ty3;
+                } elif in6n.len > 0 && in6n == e.cur_inst_param4 && e.cur_inst_arg_ty4 != -1 {
+                    in6u = e.cur_inst_arg_ty4;
+                }
+                in6n2 = ty_name(ast, unwrap_ty(ast, in6u));
+                si6 = e.find_struct_idx(in6n2);
+                if si6 >= 0 {
+                    return Val { kind = 0, a = t6, b = in6n2.copy(), ty = 10001 + si6 };
+                }
+            }
+        }
         return mk_int(t6);
     }
 

@@ -146,8 +146,8 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     - **关键坑**：临时对若在函数体/循环内 `alloca`，编译器自身热路径（`find_method_id`/
       `find_struct_idx` 常量名调用）会持续涨栈，stage-2 在 3.08GB 处段错误；改为入口块
       按调用点预分配后固定点恢复。
-    现状：`set_hi(ref mut String)` 写回正常，test_ref_auto 通过；全量 diff 151/154；
-    固定点 md5=a511d7b7。
+    现状：`set_hi(ref mut String)` 写回正常，test_ref_auto 通过；全量 diff 152/154；
+    固定点 md5=857a37b1（ref String 里程碑为 a511d7b7，其后加入数组/Ptr/诊断对齐）。
 
 39. **伪诊断只影响输出、不阻断发射（2026-10-24）**：自举源上 checker 会报 1 条
     `mk_str_tmp` 重载错误（MethodCall 返回类型恒为 ""，局部类型未知）——`cmd_build` 把 check
@@ -248,11 +248,15 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 58. **宏库的链接错误消息（2026-10-24）**：含 `#[macro]` 的库在 stage-0 会先构建插件，
     失败消息带 `link failed: driver error:` 包装（与 import "mir" 的插件库一致）。
 
-59. **stage-0 在 part 用例上输出「无位置 + 重复」的效果警告（2026-10-24）**：
-    `test_arena`/`test_multi_constraint` 的 stage-0 输出是**纯消息**（无 `-->` 位置块）且部分警告
-    重复两遍（如 get_mut/with_capacity/alloc），自举目前按正常 `warn_at`（带位置、单次）输出，
-    因此这两个用例仍 DIFF。属于 stage-0 诊断管线的路径差异（疑为依赖构建/二遍分析），
-    非语言特性差异；如需对齐要复刻其重复与无位置行为（bd w9p）。
+59. **stage-0 效果诊断的「无位置 + 按实例重复」（2026-10-25，部分对齐）**：
+    - stage-0 的 std 以预编译 `.lcl` 提供，**不对 std 源跑效果诊断**；自举默认合并 std 源，
+      必须按 SrcMap 路径跳过 `std/`（`is_std_src_path`），否则 `println` 等 std 函数会多出
+      state 警告（test_std 等 11 例回归）。
+    - 泛型单态化实例的 span=0 → 效果警告**无位置**（`raw_warn`）；`test_multi_constraint` 转正。
+    - `String.add/to_string/substring/...` 的实现带 `#[alloc] #[state]`，调用点要同时标记
+      alloc+state（`is_std_state_name`）；`Ptr.new`/`Box.new` 仅 alloc。
+    - 剩余：stage-0 按**单态化实例数**重复警告（test_arena 9 条 vs 自举 5 条，顺序也不同），
+      自举在 HIR 检查期每源函数只报一次。完全对齐需把效果告警移到实例化 worklist（bd w9p）。
 
 60. **Ptr[Struct] 的自动解引用（2026-10-24）**：`fn leaf() -> Ptr[Tree]` 的**返回值**必须带
     解引用标记（`10001+si`），否则局部是裸 i64，`t.left = ...` / `t.contains(x)` 无接收者类型。
@@ -300,6 +304,17 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     `pk_of_ty` 按**名字**替换会 `T→T` 无限递归（栈溢出段错误，test_arraylist 等 13 例）。
     修复：`resolve_inf_arg` 先把调用者特化上下文的 T/U/I/J 替换为具体实参，再用
     `type_is_gparam` 拒绝未解析参数。`test_iter_infer` 转正（全量 diff 150/154）。
+
+64. **`[Ptr[T]; n]` 定长数组与 Ptr 元素标记（2026-10-25）**：
+    - 解析器原先只认 `la2 == ';'` 的 `[T; n]`，`[Ptr[T]; n]` 被解析成下标表达式重复
+      （`%v_Ptr`/`%v_T` 未初始化，llc 报 i64/ptr 类型错）。对齐 stage-0：关键字类型 /
+      大写开头标识符 / 紧跟 `;` 的标识符先试 `parse_type`，后跟 `;` 才判定 ArraySized，
+      否则 `mark/restore` 回溯到表达式路径。
+    - `emit_index_read` 的 `Ptr[Struct]` 元素要返回解引用标记 `10001+si`（并按 cur_inst
+      替换 `Ptr[T]` 的 T），否则 `ref a[i]` 后 `.get()` 退化为返回 0（test_arena 的
+      Arena.get 段错误）。
+    - 自举脚本内存上限 4GB→6GB：ref String + 效果诊断后 stage-2 VmPeak ~4.13GB
+      （RSS 仍 ~3.6GB），4GB 会误杀（表现为 stage-3 段错误）。
 
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
