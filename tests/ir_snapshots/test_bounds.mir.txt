@@ -357,7 +357,7 @@ MIR Program
         Block {
           Expr
             Call(fn(N), ty: Void)
-              Literal(Int(30))
+              Literal(Int(36))
               Literal(Int(25))
               Literal(String("example/test_bounds.aya"))
               Local(v5 : Int)
