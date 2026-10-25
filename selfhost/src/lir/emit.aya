@@ -2361,7 +2361,7 @@ impl Emitter {
         }
         self.fn_names[fi] = name.copy();
         self.fn_extern[fi] = 0;
-        if ast.dd[id] == 1 { self.fn_extern[fi] = 1; }
+        if ast.dd[id] % 2 == 1 { self.fn_extern[fi] = 1; }
         self.fn_first[fi] = id;
         if (ast.dd[id] / 131072) % 2 == 1 {
             if self.ct_count < 256 {
@@ -2391,7 +2391,7 @@ impl Emitter {
         self.fn_rtype[fi] = ast.tys[id];
         // 只有 extern 声明才按声明宽度调用（普通函数定义统一 i64）
         self.fn_rllvm[fi] = 0;
-        if ast.dd[id] == 1 {
+        if ast.dd[id] % 2 == 1 {
             self.fn_rllvm[fi] = self.ret_llvm_code(ast, ast.tys[id]);
         }
         self.fn_count = fi + 1;
@@ -11895,7 +11895,7 @@ pub fn emit_program_full(ref Ast ast, int prog, ref String file, ref mut SpecOut
         if ast.tags[s] == st(ST::FnDecl._tag) {
             if (ast.dd[s] / 262144) % 2 == 1 {
                 // 宏函数：不参与代码生成
-            } elif ast.dd[s] == 1 {
+            } elif ast.dd[s] % 2 == 1 {
                 emit_decl(ast, s, e);
             } else {
                 e.cur_ord = e.fn_idx_of_node(ast.texts[s], s);

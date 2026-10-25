@@ -313,6 +313,11 @@ impl Parser {
                 elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
                 elif an == "compile_time" { self.attr_mask = self.attr_mask | 131072; }
                 elif an == "macro" { self.attr_mask = self.attr_mask | 262144; }
+                elif an == "extern" { self.attr_mask = self.attr_mask | 1; }
+                self.advance();
+            } elif self.cur.kind == Tk::Keyword._tag && self.cur.sub == Kw::Extern._tag {
+                // extern 是关键字：#[extern] 等价 extern "C"
+                self.attr_mask = self.attr_mask | 1;
                 self.advance();
             }
             self.scan_attr_args();
@@ -898,7 +903,13 @@ impl Parser {
         }
         body = -1;
         if with_body == 1 {
-            body = self.parse_block();
+            if (fn_mask0 % 2) == 1 && self.check_delim(D::Semicolon._tag) {
+                // #[extern] fn ...;：C 链接声明（等价 extern "C"）
+                self.advance();
+                body = self.ast.push(st(ST::Block._tag), "", -1, -1, -1, -1, -1, kline, kcol);
+            } else {
+                body = self.parse_block();
+            }
         }
         node = self.ast.push(st(ST::FnDecl._tag), name, ret, head, body, generics, fn_mask0 + fn_pub0 * 16384, kline, kcol);
         return node;
