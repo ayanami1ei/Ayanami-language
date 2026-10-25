@@ -134,11 +134,15 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
 37. **impl 方法的类型参数在 ImplBlock 上（2026-10-24）**：`FnDecl.cc` 对方法为空，`spec_register`
     需扫描同名 ImplBlock 的 `bb` 取第一个类型参数名（`impl_gparam`）。
 
-38. **`ref String` 形参按指针传的 ABI 会破坏固定点（2026-10-24，未合入）**：把 `ref String` 的
+38. **`ref String` 形参按指针传的 ABI 会破坏固定点（2026-10-24/25，未合入）**：把 `ref String` 的
     pk 从 1（双槽传值）改成 30（指针）后，stage-2 在同源上产生伪诊断（`pn` 被视为不可变引用、
     `mk_str_tmp` 第二参类型为空），固定点失败；回退后恢复。需要连同调用点写回（连续双槽临时 +
     调用后回写）一起做，且注意 String 局部的 `.ptr`/`.len` 是两个独立 alloca（不连续）。
     现状：`set_hi(ref mut String)` 写不回调用方（test_ref_auto 卡在 check 8）。
+    2026-10-25 复测：把 stash `ref-string-wip` 应用到当前主线（解决 3 处 ABI 分发冲突，
+    ref 形参保留 pk 32、不再被特化 kind 覆盖），**test_ref_auto 可达 rc=0**；但 stage-2
+    自编译在 **3.08GB 处段错误**（非 4GB 上限），固定点失败，已回退。剩余问题在实现本身
+    （String 双槽的连续/临时槽/写回路径），而非上层 ABI 分发。
 
 39. **伪诊断只影响输出、不阻断发射（2026-10-24）**：自举源上 checker 会报 1 条
     `mk_str_tmp` 重载错误（MethodCall 返回类型恒为 ""，局部类型未知）——`cmd_build` 把 check
