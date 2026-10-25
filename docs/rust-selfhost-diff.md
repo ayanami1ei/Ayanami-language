@@ -126,3 +126,15 @@
 - 固定点：stage-2 == stage-3，md5 `1cda55de`
 - golden：tokens 154/154、AST 5/5、errs 8/8、check 29/29、e2e 19/19
 - 自举源 effect 告警：0；`check_all` 全过
+
+## 8. 同步实验分支（2026-10-25）
+
+`selfhost-rust-sync`（worktree `selfhost-sync`，已推送到 origin）已完成：
+merge rust `133a5e4` + std `ad1e6db`；旧 154/154 保持、新快照 **164/178**；
+自举 golden 全绿（tokens 178/178、AST 5/5、errs 8/8、check 29/29、e2e 19/19）；
+固定点 stage-2 == stage-3，md5 `ba98d258`。
+主要修复：`#[extern]`、asm clobbers/无输出 asm、点限定变体、换行缩进规则、
+`ref` 的 `*r` 读写、裸指针形参 pointee 标记。
+剩余 14：async×3、env×5、closure_unsafe、enum_boxed、niche_option、
+ref_graph、ref_registry、sync_block。详见该分支的 `docs/rust-selfhost-diff.md`。
+主 `selfhost` 分支未合并本实验分支（仍 154/154）。
