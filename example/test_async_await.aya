@@ -100,6 +100,37 @@ fn pick3(int x) -> int {
     return y
 }
 
+#[async]
+fn find(int limit) -> int {
+    y = 0
+    while y < 10 {
+        if y == limit { break }
+        y = await inc(y)
+    }
+    return y * 10
+}
+
+#[async]
+fn find_after(int limit) -> int {
+    y = 0
+    while y < 10 {
+        y = await inc(y)
+        if y == limit { break }
+    }
+    return y * 10
+}
+
+#[async]
+fn find_ctl(int limit) -> int {
+    y = 0
+    while y < 10 {
+        y = await inc(y)
+        if y == 2 { continue }
+        if y == limit { break }
+    }
+    return y * 10
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -155,5 +186,15 @@ fn main() -> int {
     if block_on(ref mut q2) != 10 { return 12 }
     q3 = pick3(-3)
     if block_on(ref mut q3) != -4 { return 13 }
+    r1 = find(3)
+    if block_on(ref mut r1) != 30 { return 14 }
+    r2 = find(0)
+    if block_on(ref mut r2) != 0 { return 15 }
+    r3 = find_after(3)
+    if block_on(ref mut r3) != 30 { return 16 }
+    r4 = find_ctl(4)
+    if block_on(ref mut r4) != 40 { return 17 }
+    r5 = find_ctl(2)
+    if block_on(ref mut r5) != 100 { return 18 }
     return 0
 }
