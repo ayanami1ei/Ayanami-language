@@ -25,6 +25,8 @@ pub(crate) struct Ctx {
     pub pending_env_args: Vec<(Symbol, HirType)>,
     /// E2：块作用域环境提供者栈（最近者胜）
     pub env_blocks: Vec<HashMap<Symbol, (crate::parser::ast::Expr, Span)>>,
+    /// match ergonomics：引用 scrutinee 下按引用绑定（None = 按值移动）
+    pub pattern_by_ref: Option<bool>,
     /// A5e：`#[sync(obj)]` 块的活动锁（出口/提前返回补 unlock）
     pub sync_locks: Vec<SyncLock>,
     /// A5e：循环入口处的 `sync_locks.len()` 标记（break/continue 只解到该位置）
@@ -169,6 +171,7 @@ impl Ctx {
             env_providers: HashMap::new(),
             pending_env_args: Vec::new(),
             env_blocks: Vec::new(),
+            pattern_by_ref: None,
             sync_locks: Vec::new(),
             loop_sync_marks: Vec::new(),
         }

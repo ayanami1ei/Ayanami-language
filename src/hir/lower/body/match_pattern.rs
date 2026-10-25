@@ -12,7 +12,15 @@ impl crate::hir::lower::Ctx {
         ty: &HirType,
         span: &Span,
     ) -> Result<(Option<HirNodeBox>, Vec<HirStmt>)> {
-        self.pattern_match_in(pat, expr, ty, span, false)
+        let mode = match strip_ownership(ty.clone()) {
+            HirType::Ref(_, mutable) => Some(mutable),
+            _ => None,
+        };
+        let saved = self.pattern_by_ref;
+        self.pattern_by_ref = mode;
+        let r = self.pattern_match_in(pat, expr, ty, span, false);
+        self.pattern_by_ref = saved;
+        r
     }
 
     /// `nested`：位于枚举载荷/结构体字段内（允许绑定拥有类型字段，随 scrutinee 移动）
@@ -54,6 +62,29 @@ impl crate::hir::lower::Ctx {
                             n.as_str(), en.as_str(), span.start_line, span.start_col
                         )));
                     }
+                }
+                // match ergonomics：引用 scrutinee 下按引用绑定（Rust 默认绑定模式）；
+                // scrutinee 可能已被 auto-deref，按位置的根局部是否为 ref 兜底判断。
+                let via_root = super::match_util::place_root_hir(&**expr).and_then(|id| {
+                    match self.locals.get(id.0).map(|l| l.ty.clone()) {
+                        Some(HirType::Ref(_, m)) => Some(m),
+                        _ => None,
+                    }
+                });
+                if let Some(mutable) = self.pattern_by_ref.or(via_root) {
+                    let (bind_ty, value): (HirType, HirNodeBox) = if nested {
+                        let inner = strip_ownership(ty.clone());
+                        let rt = HirType::Ref(Box::new(inner), mutable);
+                        (rt.clone(), SRef { expr: expr.clone(), mutable, ty: rt }.into())
+                    } else {
+                        (ty.clone(), expr.clone())
+                    };
+                    let (bid, _, _) = self.register_or_lookup(*n, bind_ty.clone());
+                    return Ok((None, vec![HirStmt::Assign {
+                        target: SVar { var: bid, ty: bind_ty }.into(),
+                        value,
+                        span: *span,
+                    }]));
                 }
                 // 绑定变量保留源类型：`Ptr[T]`（`Unique`）是拥有指针值，
                 // 不能剥成 pointee——否则 `Some(p)` / `Struct { p }` 的载荷绑定类型错误
@@ -261,11 +292,9 @@ impl crate::hir::lower::Ctx {
         }.into()
     }
 }
-
 fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox {
     SBin { op: crate::parser::ast::BinaryOp::And, lhs: a, rhs: b, ty: HirType::Bool }.into()
 }
-
 fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox {
     SBin { op: crate::parser::ast::BinaryOp::Or, lhs: a, rhs: b, ty: HirType::Bool }.into()
 }

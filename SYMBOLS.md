@@ -677,10 +677,10 @@ src/hir/lower/body/match_lower.rs:186: pub(crate) fn lower_match_stmt(&mut self,
 src/hir/lower/body/match_lower.rs:203: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_pattern.rs:6: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_pattern.rs:8: pub(super) fn pattern_match(
-src/hir/lower/body/match_pattern.rs:19: fn pattern_match_in(
-src/hir/lower/body/match_pattern.rs:249: fn cmp_const(
-src/hir/lower/body/match_pattern.rs:265: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:269: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:27: fn pattern_match_in(
+src/hir/lower/body/match_pattern.rs:280: fn cmp_const(
+src/hir/lower/body/match_pattern.rs:295: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:298: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
 src/hir/lower/body/match_setup.rs:5: fn is_match_place(node: &HirNodeBox) -> bool
 src/hir/lower/body/match_setup.rs:12: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_setup.rs:14: pub(super) fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -688,6 +688,7 @@ src/hir/lower/body/match_util.rs:5: pub(super) fn check_scalar_pattern(base: &Hi
 src/hir/lower/body/match_util.rs:25: pub(super) fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral
 src/hir/lower/body/match_util.rs:37: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
 src/hir/lower/body/match_util.rs:53: pub(super) fn block_diverges(b: &HirBlock) -> bool
+src/hir/lower/body/match_util.rs:62: pub(super) fn place_root_hir(e: &dyn HirNode) -> Option<VarId>
 src/hir/lower/body/match_variant.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_variant.rs:6: pub(super) fn variant_tag(&self, enum_name: &Symbol, variant: &Symbol) -> Option<i64>
 src/hir/lower/body/match_variant.rs:22: pub(super) fn bare_variant_name(&self, scrutinee: &HirType, name: &Symbol) -> Symbol
@@ -807,20 +808,20 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:114: pub struct SyncLock
-src/hir/lower/ctx.rs:118: impl Ctx
-src/hir/lower/ctx.rs:120: pub fn new() -> Self
-src/hir/lower/ctx.rs:182: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:185: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:188: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:193: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:202: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:207: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:215: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:225: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:238: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:246: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:252: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:116: pub struct SyncLock
+src/hir/lower/ctx.rs:120: impl Ctx
+src/hir/lower/ctx.rs:122: pub fn new() -> Self
+src/hir/lower/ctx.rs:185: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:188: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:191: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:196: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:205: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:210: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:218: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:228: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:241: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:249: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:255: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_env.rs:4: impl Ctx
 src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
 src/hir/lower/ctx_env.rs:36: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -2325,6 +2326,10 @@ src/mir/lower/checks.rs:5: impl Ctx
 src/mir/lower/checks.rs:9: pub(super) fn block_diverges(&self, stmts: &[HirStmt]) -> bool
 src/mir/lower/checks.rs:27: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
 src/mir/lower/checks.rs:58: fn walk_stmt_moves(&mut self, expr: &dyn HirNode, sp: Span)
+src/mir/lower/checks.rs:92: fn place_root(e: &dyn HirNode) -> Option<VarId>
+src/mir/lower/checks.rs:100: fn type_maybe_generic(t: &HirType) -> bool
+src/mir/lower/checks.rs:111: impl Ctx
+src/mir/lower/checks.rs:112: fn check_move_from_borrow(&mut self, inner: &HirNodeBox, sp: Span)
 src/mir/lower/control.rs:5: impl Ctx
 src/mir/lower/control.rs:6: pub(super) fn lower_if(
 src/mir/lower/control.rs:124: pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>

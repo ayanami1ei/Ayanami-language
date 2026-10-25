@@ -74,13 +74,51 @@ impl Ctx {
             if !inner.expr_type().is_copy() {
                 if let Some(id) = inner.as_local() {
                     self.moved.insert(id);
+                } else {
+                    self.check_move_from_borrow(inner, sp);
                 }
             }
         }
         if let Some(inner) = expr.as_to_unique() {
             if let Some(id) = inner.as_local() {
                 self.moved.insert(id);
+            } else {
+                self.check_move_from_borrow(inner, sp);
             }
+        }
+    }
+}
+
+fn place_root(e: &dyn HirNode) -> Option<VarId> {
+    if let Some(id) = e.as_local() { return Some(id); }
+    if let Some((obj, _, _)) = e.as_field_access() { return place_root(&**obj); }
+    if let Some((obj, _)) = e.as_index() { return place_root(&**obj); }
+    if let Some(inner) = e.as_deref() { return place_root(&**inner); }
+    None
+}
+
+fn type_maybe_generic(t: &HirType) -> bool {
+    let mentions = |s: &str| s.split(|c: char| !c.is_alphanumeric() && c != '_')
+        .any(|p| p.len() == 1 && p.chars().next().map_or(false, |c| c.is_ascii_uppercase()));
+    match t {
+        HirType::Named(n) => mentions(&n.as_str()),
+        HirType::Unique(i) | HirType::Ref(i, _) | HirType::RawPtr(i) => type_maybe_generic(i),
+        HirType::Array(i) | HirType::ArraySized(i, _) => type_maybe_generic(i),
+        _ => false,
+    }
+}
+
+impl Ctx {
+    fn check_move_from_borrow(&mut self, inner: &HirNodeBox, sp: Span) {
+        if inner.expr_type().is_copy() { return; }
+        if type_maybe_generic(&inner.expr_type()) { return; }
+        let Some(root) = place_root(&**inner) else { return };
+        let Some(local) = self.mir_locals.get(root.0) else { return };
+        if matches!(local.ty, HirType::Ref(..)) {
+            self.errors.push(Error::Hir(format!(
+                "cannot move out of borrowed content `{}` (non-Copy value behind a `ref`; use `ref` or clone) (at {}:{})",
+                local.name.as_str(), sp.start_line, sp.start_col
+            )));
         }
     }
 }
