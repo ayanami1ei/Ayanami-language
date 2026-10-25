@@ -138,6 +138,7 @@ while.end5:
     t78 = struct_lit String (2 fields)
     t82 = call fn(N) (Tmp(75):IntN { bits: 64, signed: false }, Literal(Int(2), IntN { bits: 64, signed: false }):IntN { bits: 64, signed: false }, Literal(Int(14), Int):Int, Literal(Int(47), Int):Int, Tmp(78):Named(Symbol(N))) : IntN { bits: 64, signed: false }
     t73 = field_store field=2 : IntN { bits: 64, signed: false }
+    drop v1 : Unique(Array(Int))
     br %ifcont2
 ifcont2:
     ret void

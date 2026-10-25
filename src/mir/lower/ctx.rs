@@ -30,6 +30,7 @@ impl Ctx {
             var_types,
             alive,
             moved: HashSet::new(),
+            nonzero: HashSet::new(),
             result_vars,
             struct_defs: struct_defs.clone(),
             errors: Vec::new(),
@@ -146,7 +147,7 @@ impl Ctx {
 
         let alive_snapshot: Vec<VarId> = self.alive.iter().copied().collect();
         for var in &alive_snapshot {
-            if self.moved.contains(var) { continue; }
+            if self.nonzero.contains(var) { continue; }
             let ty = self.var_types[var].clone();
             let strategy = strategy_for(&ty, &self.struct_defs);
             for action in strategy.on_scope_end(*var, &ty) {

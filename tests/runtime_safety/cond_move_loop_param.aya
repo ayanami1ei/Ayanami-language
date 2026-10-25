@@ -1,0 +1,28 @@
+// #216：循环内条件 move 的参数/局部，未移动路径不得在分支末尾重复 drop。
+import "io"
+import "string"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn consume(String s) -> int {
+    return s.len as int
+}
+
+fn run(bool move_it) -> int {
+    a = "hello"
+    i = 0
+    while i < 3 {
+        if move_it && i == 0 {
+            x = consume(a)
+        }
+        i = i + 1
+    }
+    return 0
+}
+
+fn main() -> int {
+    if run(true) != 0 { return 1 }
+    if run(false) != 0 { return 2 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 3 }
+    return 0
+}

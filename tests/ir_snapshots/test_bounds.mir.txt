@@ -227,6 +227,7 @@ MIR Program
               Literal(Int(14))
               Literal(Int(47))
               Literal(String("example/test_bounds.aya"))
+          Drop(v1 : unique [Int])
         }
 │ │ }
 │ Fn push (self: ref mut Named(ArrayList<int>), val: Int) -> Void [locals: 4]

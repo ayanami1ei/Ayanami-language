@@ -55,7 +55,7 @@ fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) ->
     let mut cleanup = Vec::new();
     let alive_snapshot: Vec<VarId> = ctx.alive.iter().copied().collect();
     for var in &alive_snapshot {
-        if ctx.moved.contains(var) { continue; }
+        if ctx.nonzero.contains(var) { continue; }
         let ty = ctx.var_types[var].clone();
         let strategy = strategy_for(&ty, struct_defs);
         for action in strategy.on_scope_end(*var, &ty) {

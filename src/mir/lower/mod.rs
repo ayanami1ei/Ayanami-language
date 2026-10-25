@@ -49,6 +49,8 @@ struct Ctx {
     var_types: HashMap<VarId, HirType>,
     alive: HashSet<VarId>,
     moved: HashSet<VarId>,
+    /// 非清零转移（ToUnique）：源局部仍持有位副本，作用域末不得再 drop
+    nonzero: HashSet<VarId>,
     /// match/if 表达式结果变量：条件赋值，覆盖/块末不 drop
     result_vars: HashSet<VarId>,
     struct_defs: HashMap<Symbol, Vec<(Symbol, HirType)>>,

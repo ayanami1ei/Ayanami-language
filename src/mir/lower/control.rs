@@ -75,8 +75,8 @@ impl Ctx {
                 }
                 bm
             });
-        // #184：分支级条件 drop —— 某分支移动、本路径未移动的拥有型局部在路径末尾补 drop。
-        // 否则（如循环内 `if c { y = x }`）未移动路径的 x 泄漏（块末 drop 因「可能移动」被跳过）。
+        // #184：分支级条件 drop —— 仅 ToUnique 等非清零转移需要在未移动路径补 drop；
+        // 普通 SMove 已清零源槽，块末可无条件 drop（不再按 moved 跳过）。
         {
             // 仅限 if 入口已存活的局部（分支内新声明的变量在其它分支不存在，drop 会读垃圾）
             let mut union: Vec<VarId> = then_delta.iter().copied()
@@ -89,6 +89,7 @@ impl Ctx {
             union.dedup();
             let drops_for = |delta: &[VarId], this: &Self| -> Vec<MirStmtBox> {
                 union.iter()
+                    .filter(|v| this.nonzero.contains(v))
                     .filter(|v| !delta.contains(v))
                     .filter_map(|v| {
                         let ty = this.var_types.get(v)?.clone();
@@ -149,7 +150,7 @@ impl Ctx {
             scoped.sort_by_key(|v| v.0);
             for var in scoped {
                 self.alive.remove(&var);
-                if self.moved.contains(&var) || self.result_vars.contains(&var) {
+                if self.nonzero.contains(&var) || self.result_vars.contains(&var) {
                     continue;
                 }
                 let ty = self.var_types[&var].clone();

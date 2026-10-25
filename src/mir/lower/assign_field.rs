@@ -16,7 +16,7 @@ impl Ctx {
         let mut post = Vec::new();
         // 旧字段需要释放时，RHS 先求值到临时变量（drop 必须晚于 RHS 求值）
         let drop_old = object.as_local()
-            .map(|v| needs_drop(field_ty, &self.struct_defs) && !self.moved.contains(&v))
+            .map(|v| needs_drop(field_ty, &self.struct_defs) && !self.nonzero.contains(&v))
             .unwrap_or(false);
         let tmp = if !drop_old || matches!(value.expr_type(), HirType::Never) {
             None

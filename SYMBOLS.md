@@ -2367,21 +2367,21 @@ src/mir/lower/checks.rs:5: impl Ctx
 src/mir/lower/checks.rs:9: pub(super) fn block_diverges(&self, stmts: &[HirStmt]) -> bool
 src/mir/lower/checks.rs:27: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
 src/mir/lower/checks.rs:58: fn walk_stmt_moves(&mut self, expr: &dyn HirNode, sp: Span)
-src/mir/lower/checks.rs:92: fn place_root(e: &dyn HirNode) -> Option<VarId>
-src/mir/lower/checks.rs:100: fn type_maybe_generic(t: &HirType) -> bool
-src/mir/lower/checks.rs:111: impl Ctx
-src/mir/lower/checks.rs:112: fn check_move_from_borrow(&mut self, inner: &HirNodeBox, sp: Span)
+src/mir/lower/checks.rs:94: fn place_root(e: &dyn HirNode) -> Option<VarId>
+src/mir/lower/checks.rs:102: fn type_maybe_generic(t: &HirType) -> bool
+src/mir/lower/checks.rs:113: impl Ctx
+src/mir/lower/checks.rs:114: fn check_move_from_borrow(&mut self, inner: &HirNodeBox, sp: Span)
 src/mir/lower/control.rs:5: impl Ctx
 src/mir/lower/control.rs:6: pub(super) fn lower_if(
-src/mir/lower/control.rs:124: pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>
-src/mir/lower/control.rs:136: pub(super) fn lower_block(&mut self, stmts: &[HirStmt]) -> Vec<MirStmtBox>
-src/mir/lower/control.rs:165: pub(super) fn mark_alive(&mut self, var: VarId)
+src/mir/lower/control.rs:125: pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>
+src/mir/lower/control.rs:137: pub(super) fn lower_block(&mut self, stmts: &[HirStmt]) -> Vec<MirStmtBox>
+src/mir/lower/control.rs:166: pub(super) fn mark_alive(&mut self, var: VarId)
 src/mir/lower/ctx.rs:4: impl Ctx
 src/mir/lower/ctx.rs:5: pub(super) fn new(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Self
-src/mir/lower/ctx.rs:40: pub(super) fn lower_stmt(&mut self, stmt: &HirStmt) -> Vec<MirStmtBox>
-src/mir/lower/ctx.rs:83: fn track_stmt_moves(&mut self, stmt: &HirStmt)
-src/mir/lower/ctx.rs:108: fn lower_return(&mut self, value: &Option<HirNodeBox>, span: crate::span::Span) -> Vec<MirStmtBox>
-src/mir/lower/ctx.rs:169: pub(super) fn new_temp(&mut self, ty: HirType) -> VarId
+src/mir/lower/ctx.rs:41: pub(super) fn lower_stmt(&mut self, stmt: &HirStmt) -> Vec<MirStmtBox>
+src/mir/lower/ctx.rs:84: fn track_stmt_moves(&mut self, stmt: &HirStmt)
+src/mir/lower/ctx.rs:109: fn lower_return(&mut self, value: &Option<HirNodeBox>, span: crate::span::Span) -> Vec<MirStmtBox>
+src/mir/lower/ctx.rs:170: pub(super) fn new_temp(&mut self, ty: HirType) -> VarId
 src/mir/lower/functions.rs:5: pub(super) fn lower_item(item: &HirItem, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Result<Vec<MirItem>>
 src/mir/lower/functions.rs:23: fn lower_fn(f: &HirFn, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> Result<MirFn>
 src/mir/lower/mem.rs:6: pub(super) fn needs_drop(ty: &HirType, struct_defs: &HashMap<Symbol, Vec<(Symbol, HirType)>>) -> bool

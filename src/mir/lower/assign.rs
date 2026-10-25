@@ -5,7 +5,7 @@ use super::mem::{action_to_stmt, needs_drop, strategy_for};
 impl Ctx {
     pub(super) fn emit_assign_cleanup(&self, var: &VarId) -> Vec<MirStmtBox> {
         let mut stmts = Vec::new();
-        if self.alive.contains(var) && !self.moved.contains(var) && !self.result_vars.contains(var) {
+        if self.alive.contains(var) && !self.nonzero.contains(var) && !self.result_vars.contains(var) {
             let ty = &self.var_types[var];
             let strategy = strategy_for(ty, &self.struct_defs);
             for action in strategy.on_assign_overwrite(*var, ty) {

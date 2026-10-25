@@ -82,6 +82,8 @@ impl Ctx {
         if let Some(inner) = expr.as_to_unique() {
             if let Some(id) = inner.as_local() {
                 self.moved.insert(id);
+                // ToUnique 只做位拷贝，源槽未清零 → 作用域末不能再 drop
+                self.nonzero.insert(id);
             } else {
                 self.check_move_from_borrow(inner, sp);
             }
