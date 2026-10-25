@@ -107,12 +107,25 @@ impl MirNode for SMirFieldAccess {
     fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let obj_val = self.object.lower_to_lir(ctx);
-        let obj_tmp = match obj_val {
-            LirValue::Tmp(t) => t,
-            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&obj_val), ty: self.object.expr_type() }.into()); t }
+        let obj_ty = self.object.expr_type();
+        let (src, final_ty, through_ptr) = chase_ptr_layers(ctx, obj_val, &obj_ty);
+        // 值形式（结构体字面量/局部值）先确保在临时量里再 extractvalue；
+        // 指针形式已追到最终实体，用单层 Ref 作为“指针”信号（emitter 剥一层取结构名）。
+        let (src, struct_ty) = if through_ptr {
+            (src, HirType::Ref(Box::new(final_ty), false))
+        } else {
+            let src = match src {
+                LirValue::Tmp(t) => LirValue::Tmp(t),
+                other => {
+                    let t = ctx.next_tmp();
+                    ctx.emit(SLirLoad { dest: t, src: extract_var(&other), ty: obj_ty }.into());
+                    LirValue::Tmp(t)
+                }
+            };
+            (src, final_ty)
         };
         let dest = ctx.next_tmp(); let gep_tmp = ctx.next_tmp();
-        ctx.emit(SLirFieldAccess { dest, gep_tmp, src: LirValue::Tmp(obj_tmp), field_index: self.field_index, field_ty: self.ty.clone(), struct_ty: self.object.expr_type() }.into());
+        ctx.emit(SLirFieldAccess { dest, gep_tmp, src, field_index: self.field_index, field_ty: self.ty.clone(), struct_ty }.into());
         LirValue::Tmp(dest)
     }
     fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {

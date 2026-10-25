@@ -73,8 +73,8 @@ impl crate::hir::lower::Ctx {
                 });
                 if let Some(mutable) = self.pattern_by_ref.or(via_root) {
                     let (bind_ty, value): (HirType, HirNodeBox) = if nested {
-                        let inner = strip_ownership(ty.clone());
-                        let rt = HirType::Ref(Box::new(inner), mutable);
+                        // Rust match ergonomics：绑定 `ref Ptr[T]`（不能剥掉 Unique 层）
+                        let rt = HirType::Ref(Box::new(ty.clone()), mutable);
                         (rt.clone(), SRef { expr: expr.clone(), mutable, ty: rt }.into())
                     } else {
                         (ty.clone(), expr.clone())

@@ -114,11 +114,16 @@ impl Ctx {
         if type_maybe_generic(&inner.expr_type()) { return; }
         let Some(root) = place_root(&**inner) else { return };
         let Some(local) = self.mir_locals.get(root.0) else { return };
-        if matches!(local.ty, HirType::Ref(..)) {
-            self.errors.push(Error::Hir(format!(
-                "cannot move out of borrowed content `{}` (non-Copy value behind a `ref`; use `ref` or clone) (at {}:{})",
-                local.name.as_str(), sp.start_line, sp.start_col
-            )));
+        let HirType::Ref(..) = &local.ty else { return };
+        // 数组元素/字段读取在 LIR 中按 clone（可深拷贝元素）或 take + 源槽清零实现：
+        // 两条路径都转移唯一所有权给结果（clone 为独立副本；take 后源槽清零、源 drop
+        // 跳过），不会双重释放。std 泛型容器扩容/取值依赖此语义（issue #218）。
+        if inner.as_index().is_some() || inner.as_field_access().is_some() {
+            return;
         }
+        self.errors.push(Error::Hir(format!(
+            "cannot move out of borrowed content `{}` (non-Copy value behind a `ref`; use `ref` or clone) (at {}:{})",
+            local.name.as_str(), sp.start_line, sp.start_col
+        )));
     }
 }

@@ -70,8 +70,14 @@ pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<
         } else {
             place_ptr(obj, ctx)?
         };
+        let (obj_ptr, final_ty, through_ptr) = chase_ptr_layers(ctx, obj_ptr, &obj.expr_type());
+        let struct_ty = if through_ptr {
+            HirType::Ref(Box::new(final_ty), false)
+        } else {
+            final_ty
+        };
         let dest = ctx.next_tmp();
-        ctx.emit(SLirFieldAddr { dest, obj: obj_ptr, field_index, struct_ty: obj.expr_type() }.into());
+        ctx.emit(SLirFieldAddr { dest, obj: obj_ptr, field_index, struct_ty }.into());
         return Some(LirValue::Tmp(dest));
     }
     None
