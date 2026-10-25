@@ -13,6 +13,8 @@ pub(crate) fn try_expand(
     returns: &HashMap<Symbol, Type>,
     out: &mut Vec<Stmt>,
 ) -> Result<bool> {
+    // 先尝试同一分支内多个连续 await（2..N）；单个继续走本模块
+    if crate::hir::async_if_multi::try_expand(stmt, returns, out)? { return Ok(true); }
     let Stmt::FnDecl { name, params, body, .. } = stmt else { return Ok(false) };
     if let Some(shape) = detect_else(body) {
         return expand_else(stmt, shape, returns, out);

@@ -216,4 +216,8 @@ impl __add_Fut {
   每个 await 一个 future 字段，Ready 后立即用更新后的 `y` 重建下一个 future（状态链），
   最后一个 Ready 后执行 post 控制并回 state0。用例 `double_inc` / `triple_inc` / `double_find`。
   负例：`await_loop_mixed_stmt`（await 之间夹杂普通语句）、`await_loop_mixed_type`（结果类型不一致）。
+- if 分支内连续多个 await（2026-10-25）：`y = 默认; if cond { y = await g0(args); ... }`（N≥2 走
+  `async_if_multi`，单个仍走 `async_if`）。每个 await 一个 future 字段，Ready 后写 `y` 并用更新后的
+  `y` 重建下一个；条件限参数，实参限参数或分支变量 `y`。用例 `if_double` / `if_triple`；
+  负例 `await_if_mixed_stmt` / `await_if_mixed_type`。
 - 后续：一般 CFG（任意语句、PC/状态枚举、嵌套控制流）。

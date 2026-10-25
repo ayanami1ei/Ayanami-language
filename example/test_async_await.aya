@@ -101,6 +101,27 @@ fn pick3(int x) -> int {
 }
 
 #[async]
+fn if_double(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+        y = await inc(y)
+    }
+    return y * 10
+}
+
+#[async]
+fn if_triple(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+        y = await inc(y)
+        y = await inc(y)
+    }
+    return y
+}
+
+#[async]
 fn find(int limit) -> int {
     y = 0
     while y < 10 {
@@ -236,5 +257,11 @@ fn main() -> int {
     if block_on(ref mut r8) != 6 { return 21 }
     r9 = double_find(4)
     if block_on(ref mut r9) != 4 { return 22 }
+    s1 = if_double(1)
+    if block_on(ref mut s1) != 30 { return 23 }
+    s2 = if_double(0)
+    if block_on(ref mut s2) != 0 { return 24 }
+    s3 = if_triple(1)
+    if block_on(ref mut s3) != 4 { return 25 }
     return 0
 }
