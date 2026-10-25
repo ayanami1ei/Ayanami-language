@@ -29,6 +29,21 @@ fn pick(bool b) -> String {
     return r
 }
 
+struct Big {
+    String a
+    String b
+}
+
+// >16 字节载荷走装箱变体（N2：_data_Some 为 Unique），同样必须正确移出。
+fn boxed_move() -> int {
+    b = Big { a = "hello", b = "world" }
+    h = Holder::Some(b)
+    r = h.take(Big { a = "x", b = "y" })
+    if r.a != "hello" { return 1 }
+    if r.b != "world" { return 2 }
+    return 0
+}
+
 fn main() -> int {
     a = Holder::Some("hello")
     s = a.take("x")
@@ -42,6 +57,7 @@ fn main() -> int {
     p = pick(true)
     if p != "hello" { return 4 }
     q = pick(false)
-    if q != "x" { return 5 }
+    if q != "x" { return 6 }
+    if boxed_move() != 0 { return 7 }
     return s.len as int
 }
