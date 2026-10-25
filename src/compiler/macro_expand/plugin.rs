@@ -61,7 +61,14 @@ pub(crate) fn invoke_macro_expr(
     } else {
         args.iter().map(|a| a.as_bytes().to_vec()).collect()
     };
-    let out = super::plugin_call::call_plugin(&so_path, &symbol, b"", &arg_bytes, line as i64, col as i64, file.as_bytes())?;
+    // #217：函数宏的 input = 实参原文（逗号连接），供宏自行解析变参
+    let input_src = args.join(", ");
+    let in_bytes: Vec<u8> = if tokens {
+        super::token_stream::encode(&super::token_stream::lex_to_tokens(&input_src))
+    } else {
+        input_src.into_bytes()
+    };
+    let out = super::plugin_call::call_plugin(&so_path, &symbol, &in_bytes, &arg_bytes, line as i64, col as i64, file.as_bytes())?;
     if tokens {
         Ok(super::token_stream::to_source(&super::token_stream::decode(&out)?))
     } else {

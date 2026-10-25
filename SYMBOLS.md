@@ -200,12 +200,12 @@ src/compiler/macro_expand/pass_plugin.rs:225: type FreeFn = unsafe extern "C" fn
 src/compiler/macro_expand/pass_plugin.rs:227: fn call_pass(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<Vec<u8>>
 src/compiler/macro_expand/plugin.rs:16: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String], tokens: bool, line: usize, col: usize) -> Result<String>
 src/compiler/macro_expand/plugin.rs:42: pub(crate) fn invoke_macro_expr(
-src/compiler/macro_expand/plugin.rs:72: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
-src/compiler/macro_expand/plugin.rs:163: static AyaBuf dup_buf(AyaBuf b) {{\n\
-src/compiler/macro_expand/plugin.rs:171: static const char* id = \"{macro_id}\";\n\
-src/compiler/macro_expand/plugin.rs:180: static long diag_count = 0;\n\
-src/compiler/macro_expand/plugin.rs:181: static long diag_levels[DIAG_MAX];\n\
-src/compiler/macro_expand/plugin.rs:182: static AyaBuf diag_msgs[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:79: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
+src/compiler/macro_expand/plugin.rs:170: static AyaBuf dup_buf(AyaBuf b) {{\n\
+src/compiler/macro_expand/plugin.rs:178: static const char* id = \"{macro_id}\";\n\
+src/compiler/macro_expand/plugin.rs:187: static long diag_count = 0;\n\
+src/compiler/macro_expand/plugin.rs:188: static long diag_levels[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:189: static AyaBuf diag_msgs[DIAG_MAX];\n\
 src/compiler/macro_expand/plugin_abi.rs:11: pub(crate) const ABI_VERSION: u32 = 7;
 src/compiler/macro_expand/plugin_abi.rs:15: pub(crate) enum ParamKind
 src/compiler/macro_expand/plugin_abi.rs:26: pub(crate) mod dl
