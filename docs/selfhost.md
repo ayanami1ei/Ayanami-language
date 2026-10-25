@@ -272,6 +272,18 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     返回值复制在 stage-1 编译产物中会放大内存/时间）。
     剩余：`TakeIt[T,I]` 这类从参数化约束（`I: It[T]`）反推 T 的推断未做。
 
+62. **r1 用户引用协议（get/get_mut，2026-10-25）**：结构体 `R` 若无字段/方法，但实现了
+    `get(ref self) -> ref T`（读）或 `get_mut(ref mut self) -> ref mut T`（写），则
+    `r.field` / `r.field = v` / `r.method()` 自动解引用：
+    - checker：FieldAccess/FieldAssign/MethodCall 成员缺失时若类型有 `get`/`get_mut` 则放行；
+    - emitter：成员缺失 → `emit_protocol_deref` 调用协议方法（按接收者实例实参特化，
+      `ref T` 的 ret_kind/ret_info 按 T 替换）→ 对解引用结果重试；
+    - 接收者可能是实例名 `R__m<k>`：协议方法查找前先剥离 `__m<k>`；
+    - 结构体字段类型 `Ptr[Inner]` 读取要返回解引用标记（并支持 `cur_inst_param` 替换），
+      否则 `self.inner.get()` 链断；
+    - 无类型实参字面量：`Ptr[T]` 字段从值 `Ptr.new(X)` 推断 T
+      （`MyPtr { inner = Ptr::new(Point{..}) }` → `MyPtr[Point]`）。
+
 ### 2.2 本机 stage-0 与 golden 环路（可复现）
 
 ```bash
