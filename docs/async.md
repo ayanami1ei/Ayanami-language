@@ -229,3 +229,129 @@ impl __add_Fut {
   `__async_take_<f>_<j>`。条件限参数，实参限参数或分支变量 `y`；所有分支结果类型须一致。
   用例 `pick_multi` / `pick_mix`；负例 `await_elif_mixed_stmt` / `await_elif_mixed_type`。
 - 后续：一般 CFG（任意语句、PC/状态枚举、嵌套控制流）。
+
+### 7.4 A1b-3 一般 CFG（HIR 级状态机）设计（2026-10-25）
+
+前几片都是在 **AST 层**按形状展开（直线 / if / if-else / elif / while），优点是落地快，
+缺点是拿不到局部变量类型、只能支持“签名里已知类型”的变量，且形状组合会指数膨胀。
+一般 CFG 必须在 **HIR 层**（`lower_items` 之后、MIR 之前）生成状态机。本节为设计稿，
+实现状态：**未开始编码**；现有 AST 展开在迁移完成前继续工作。
+
+#### 目标与非目标
+
+- 目标：`x = await f(args)` 与任意同步语句交错；支持 `if/elif/else`、`while`、`break/continue`、
+  提前 `return`、嵌套组合；跨 await 的局部/参数提升为状态字段；每个 await 一个挂起点。
+- 非目标（v1）：泛型/方法上的 `#[async]`；`ref` 跨 await；表达式内部 await（先只支持赋值形式）；
+  自定义 Executor/多线程调度（仍由单线程 `block_on` 驱动）。
+
+#### 前端标记与节点
+
+1. AST 仍识别 `#[async]` 与 `await`（解析期降为 `__await(e)`），但**不再做形状展开**；
+   或先让 AST 展开对 `AYANAMI_ASYNC_HIR` 下的函数跳过，保留 `__await`。
+2. HIR 降级新增 `SAwait { future, ty }`（或 `HirStmt::Await`）：`lower_expr` 遇到 `__await` 时
+   正常降级内层表达式并包成 Await；类型检查要求目标返回 Future。
+3. `lower_items` 完成后调用 `async_hir::expand(program)`；成功后移除 `#[async]`，后续 pass 无感知。
+   失败时给出明确诊断（await 在非 async 中、ref 跨 await、非默认可初始化结果等）。
+
+#### 局部提升与重写
+
+- 收集函数体所有局部（含参数、`__match_res`/`__if_res` 等编译器临时量）。
+  **v1 简化：全部提升**为 `__f_Fut` 字段（后续按 liveness 裁剪，仅跨挂起点存活的提升）。
+- 字段名 `__v_<n>`（避免与用户字段冲突）；类型取 `HirLocal.ty` / 参数类型。
+- 重写 `SVar(v)` → `SField { object: self, field: __v_n, field_index, ty }`；
+  对字段/索引/方法接收者的访问自然复用现有 HIR 构造。
+- 参数在构造器里写入字段；局部默认初始化（`await_default` 同款默认值），保证任何路径读取安全。
+- `ref`/`ref mut` 局部不提升（v1 禁止跨 await；纯同步段可保留为 poll 内局部）。
+
+#### CFG 拆分
+
+把 HIR 语句序列拆成基本块（块内不含 await）：
+
+- `x = await f(args)`：当前块尾部放置“求值 future + 存字段 + PC=resume + return Pending”；
+  新建 resume 块：poll 字段，`Ready(v)` 写 x 后继续，`Pending` 返回。
+- `if/elif/else`：条件块 + 各分支块 + merge 块；分支的移动/赋值统一写到提升字段（天然 phi）。
+- `while`：cond 块、body 块、exit 块；`break`→exit，`continue`→cond。
+- `return e`：`return Poll::Ready(e)`（e 先按现有 move/clone 规则降级）。
+- 纯同步语句（赋值、调用、循环体内的普通 if 等）留在块内直接执行，不产生状态。
+- 每个 await 一个 resume 状态；entry 状态 0；其余跳转用 `self._state = n; continue;`。
+  状态用 `int` PC 起步（v1），稳定后可换成真正的 `enum __f_State`（调试友好、越界检查）。
+
+#### poll 形态
+
+```ayanami
+#[state]
+fn poll(ref mut self, ref Context cx) -> Poll[R] {
+    loop {
+        if self._state == 0 {
+            // 同步基本块 + 跳转
+            self.__v_1 = f(self.__v_0); self._state = 1; continue
+        }
+        if self._state == 1 {
+            p = self.__fut_0.poll(ref cx)
+            match p {
+                Ready(v) => { self.__v_1 = v; self._state = 2; continue }
+                Pending => { return Poll::Pending() }
+            }
+        }
+        if self._state == 2 { return Poll::Ready(...) }
+    }
+    return Poll::Pending()
+}
+```
+
+- 分支/循环里没有 await 的部分不会产生状态，直接按普通语句执行。
+- 字段承担 phi：各分支写同一个提升字段；未走到的路径由构造器默认值兜底。
+- future 字段在 await 进入时构造；Ready 后可立即 drop 或留到 Fut drop（需在状态机 drop 中处理未完成 future）。
+
+#### drop / 所有权
+
+- 提升字段在 `Ready` 返回前按现有作用域规则 drop；挂起时字段保持存活。
+- 状态机析构：未完成的内层 future 字段需要 drop（生成 `Drop` impl 或复用现有 drop glue）。
+- move 遵循现有 A 检查 + “move 清零源槽”语义；字段移出用 `SLirFieldTake`。
+- `ref` 跨 await 仍明确报错（自引用需要钉住，后置）。
+
+#### 分阶段与验收
+
+- **A1b-3a**：HIR Await 节点 + 提升/重写 + 直线 await（任意同步语句交错），与现有直线用例等价。
+- **A1b-3b**：if/elif/else + merge（无 await 的纯同步分支也覆盖），phi 字段。
+- **A1b-3c**：while + break/continue；await 在循环体/条件。
+- **A1b-3d**：嵌套组合（if 内 loop、loop 内 if）、表达式内 await、ref 跨 await（后置）。
+- 每阶段验收：现有 `example/test_async_await.aya` 全绿 + 新正例/负例 + IR 快照 + std 266/266。
+
+新增用例（设计目标）：
+
+```ayanami
+#[async]
+fn mixed(int x) -> int {
+    a = await inc(x)
+    b = a + 1                 // 任意同步语句
+    if b > 10 {
+        c = await inc(b)      // if 内 await
+    } else {
+        c = await dec(b)
+    }
+    while c < 20 {            // 循环内 await + break
+        c = await inc(c)
+        if c == 15 { break }
+    }
+    return c
+}
+```
+
+负例：`ref` 跨 await、await 目标非 async、挂起点上有未支持的表达式内 await。
+
+#### 迁移策略
+
+- 新 HIR pass 先在 `AYANAMI_ASYNC_HIR=1` 下启用，与 AST 形状展开并存；
+- 逐形状切换（直线 → if → while → elif），每次切换跑全量回归 + std；
+- 全部等价后删除 `async_if.rs` / `async_if_multi.rs` / `async_if_else_multi.rs` /
+  `async_elif.rs` / `async_elif_multi.rs` / `async_while.rs`，只保留 HIR 状态机。
+- 在迁移完成前，AST 展开对 HIR pass 已支持的形状应跳过（避免二次展开）。
+
+#### 已知风险
+
+- 提升所有局部会增大 Fut 体积；后续用 liveness（跨挂起点使用）裁剪。
+- 编译器临时量（match/if 结果、借用临时）也要提升或保证不跨 await。
+- 状态机 drop 与现有 move 清零/drop 插入的交互需要专门回归（参考 #184/#216）。
+- HIR 重写会改变 IR 快照，需要逐阶段更新并人工核对。
+

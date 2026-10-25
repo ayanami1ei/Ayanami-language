@@ -31,7 +31,7 @@
 | `docs/unsafe.md` | unsafe / FFI 安全边界（M5：P1/P2/P3 已落地；P4 extern 调用迁移待做） |
 | `docs/runtime-safety.md` | 运行时安全行为权威清单（UB/panic；`tests/runtime_safety/` 覆盖） |
 | `docs/enum-layout.md` | 枚举布局优化（N1 niche + N2/N3 16 字节阈值装箱，均已实现） |
-| `docs/async.md` | 异步设计提案（最小 Future 协议 + `#[async]` 标注；tag 枚举状态机；运行时可换；未实现） |
+| `docs/async.md` | 异步：A1b-2 AST 形状状态机（直线 / if / if-else / elif / while + break/continue + 分支多 await）已落地；§7.4 为 HIR 级一般 CFG 设计（未实现） |
 | `docs/reference-model.md` | 统一引用关系模型设计提案（纯接口无标注；`get`/`resolve` 协议形态；R1–R4；未实现） |
 | `docs/env-injection.md` | 环境注入设计提案（`env::` 可扩展；泛型需求 + 自动推导；E1–E4；未实现） |
 | `docs/macros.md` | Phase 6 宏系统升级（TokenStream/Span/Diagnostic，ABI v6；mcl.1 部分实现） |
