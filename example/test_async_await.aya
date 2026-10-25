@@ -66,6 +66,22 @@ fn loop3(int x) -> int {
     return y * 10
 }
 
+#[async]
+fn dec(int x) -> int {
+    return x - 1
+}
+
+#[async]
+fn choose(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+    } else {
+        y = await dec(x)
+    }
+    return y * 10
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -111,5 +127,9 @@ fn main() -> int {
     if block_on(ref mut z) != 10 { return 7 }
     l = loop3(0)
     if block_on(ref mut l) != 30 { return 8 }
+    p1 = choose(2)
+    if block_on(ref mut p1) != 30 { return 9 }
+    p2 = choose(-2)
+    if block_on(ref mut p2) != -30 { return 10 }
     return 0
 }
