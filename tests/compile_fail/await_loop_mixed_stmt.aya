@@ -8,6 +8,7 @@ fn bad(int x) -> int {
     y = 0
     while y < 2 {
         y = await g(y)
+        z = 1
         y = await g(y)
     }
     return y

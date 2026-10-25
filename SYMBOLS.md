@@ -383,14 +383,14 @@ src/hir/async_transform.rs:274: impl {fut} {{\n    #[state]\n    fn poll(ref mut
 src/hir/async_transform_util.rs:5: pub(crate) fn ty_src(ty: &Type) -> Option<String>
 src/hir/async_transform_util.rs:22: pub(crate) fn await_default(ty: &Type) -> Option<(&'static str, &'static str)>
 src/hir/async_transform_util.rs:32: pub(crate) fn type_name(ty: &Type) -> String
-src/hir/async_while.rs:12: enum Ctrl
-src/hir/async_while.rs:17: struct Shape
-src/hir/async_while.rs:27: pub(crate) fn try_expand(
-src/hir/async_while.rs:109: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_while.rs:174: fn ctrl_helper(
-src/hir/async_while.rs:220: fn detect(body: &Block) -> Option<Shape>
-src/hir/async_while.rs:256: fn is_await(e: &Expr) -> bool
-src/hir/async_while.rs:260: fn ctrl_of(st: &Stmt) -> Option<(Expr, Ctrl)>
+src/hir/async_while.rs:12: struct Shape
+src/hir/async_while.rs:22: pub(crate) fn try_expand(
+src/hir/async_while.rs:145: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_while.rs:195: fn detect(body: &Block) -> Option<Shape>
+src/hir/async_while.rs:235: fn awaited_assignment(st: &Stmt) -> Option<(Symbol, Symbol, Vec<Expr>)>
+src/hir/async_while.rs:243: fn ctrl_of(st: &Stmt) -> Option<(Expr, Ctrl)>
+src/hir/async_while_util.rs:7: pub(super) enum Ctrl
+src/hir/async_while_util.rs:13: pub(super) fn ctrl_helper(
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
 src/hir/attrs.rs:39: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
 src/hir/attrs.rs:43: pub struct Imports
@@ -1230,21 +1230,22 @@ src/hir/mod.rs:3: pub(crate) mod async_transform_util;
 src/hir/mod.rs:4: pub(crate) mod async_elif;
 src/hir/mod.rs:5: pub(crate) mod async_if;
 src/hir/mod.rs:6: pub(crate) mod async_while;
-src/hir/mod.rs:7: pub mod attrs_export;
-src/hir/mod.rs:8: pub mod attrs_macro;
-src/hir/mod.rs:9: pub mod cfg;
-src/hir/mod.rs:10: pub mod contracts;
-src/hir/mod.rs:11: pub mod effects;
-src/hir/mod.rs:12: pub mod ir;
-src/hir/mod.rs:13: pub mod layout;
-src/hir/mod.rs:14: pub(crate) mod niche;
-src/hir/mod.rs:15: pub mod ty;
-src/hir/mod.rs:16: pub mod node;
-src/hir/mod.rs:17: pub mod stmt;
-src/hir/mod.rs:18: pub mod item;
-src/hir/mod.rs:19: pub mod lower;
-src/hir/mod.rs:20: pub mod display;
-src/hir/mod.rs:37: pub struct $name
+src/hir/mod.rs:7: pub(crate) mod async_while_util;
+src/hir/mod.rs:8: pub mod attrs_export;
+src/hir/mod.rs:9: pub mod attrs_macro;
+src/hir/mod.rs:10: pub mod cfg;
+src/hir/mod.rs:11: pub mod contracts;
+src/hir/mod.rs:12: pub mod effects;
+src/hir/mod.rs:13: pub mod ir;
+src/hir/mod.rs:14: pub mod layout;
+src/hir/mod.rs:15: pub(crate) mod niche;
+src/hir/mod.rs:16: pub mod ty;
+src/hir/mod.rs:17: pub mod node;
+src/hir/mod.rs:18: pub mod stmt;
+src/hir/mod.rs:19: pub mod item;
+src/hir/mod.rs:20: pub mod lower;
+src/hir/mod.rs:21: pub mod display;
+src/hir/mod.rs:38: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
@@ -2736,9 +2737,12 @@ example/test_async_await.aya:91: fn pick3(int x) -> int
 example/test_async_await.aya:104: fn find(int limit) -> int
 example/test_async_await.aya:114: fn find_after(int limit) -> int
 example/test_async_await.aya:124: fn find_ctl(int limit) -> int
-example/test_async_await.aya:135: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_await.aya:149: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_await.aya:162: fn main() -> int
+example/test_async_await.aya:135: fn double_inc(int limit) -> int
+example/test_async_await.aya:145: fn triple_inc(int limit) -> int
+example/test_async_await.aya:156: fn double_find(int limit) -> int
+example/test_async_await.aya:167: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:181: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:194: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker

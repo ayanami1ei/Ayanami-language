@@ -208,8 +208,12 @@ impl __add_Fut {
   支持（poll 内 `while true` 状态循环；state0 重估条件并重建 future，Ready 后回 state0）。
 - if/elif/else 多分支 await（每个分支一个 await，汇合到 merge 状态；条件/实参限参数）：两分支的 await 都写入同一变量并汇合到 state3；两个内层 future
   各占一个字段（类型可不同，载荷类型须一致）。
-- 循环内 break/continue（单个 await，2026-10-25）：`while cond { [if c { break/continue }] y = await g(args) [if c { break/continue }] }`；
+- 循环内 break/continue（2026-10-25）：`while cond { [if c { break/continue }] y = await g(args) [if c { break/continue }] }`；
   await 前的控制条件生成 `__async_pre_<f>`（返回 1=break→state2、2=continue→回 state0），
   await 后的控制条件生成 `__async_post_<f>`（Ready 后求值；continue 跳过后续控制）。
   条件/实参限参数或循环变量 `y`。用例 `find` / `find_after` / `find_ctl`。
-- 后续：一般 CFG（多 await 混合、任意语句、PC/状态枚举）。
+- 循环体内连续多个 await（2026-10-25）：同一循环变量的连续 `y = await g(args)`（1..N 个）支持；
+  每个 await 一个 future 字段，Ready 后立即用更新后的 `y` 重建下一个 future（状态链），
+  最后一个 Ready 后执行 post 控制并回 state0。用例 `double_inc` / `triple_inc` / `double_find`。
+  负例：`await_loop_mixed_stmt`（await 之间夹杂普通语句）、`await_loop_mixed_type`（结果类型不一致）。
+- 后续：一般 CFG（任意语句、PC/状态枚举、嵌套控制流）。

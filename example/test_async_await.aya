@@ -131,6 +131,38 @@ fn find_ctl(int limit) -> int {
     return y * 10
 }
 
+#[async]
+fn double_inc(int limit) -> int {
+    y = 0
+    while y < limit {
+        y = await inc(y)
+        y = await inc(y)
+    }
+    return y
+}
+
+#[async]
+fn triple_inc(int limit) -> int {
+    y = 0
+    while y < limit {
+        y = await inc(y)
+        y = await inc(y)
+        y = await inc(y)
+    }
+    return y
+}
+
+#[async]
+fn double_find(int limit) -> int {
+    y = 0
+    while y < 10 {
+        y = await inc(y)
+        y = await inc(y)
+        if y == limit { break }
+    }
+    return y
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -196,5 +228,13 @@ fn main() -> int {
     if block_on(ref mut r4) != 40 { return 17 }
     r5 = find_ctl(2)
     if block_on(ref mut r5) != 100 { return 18 }
+    r6 = double_inc(5)
+    if block_on(ref mut r6) != 6 { return 19 }
+    r7 = double_inc(8)
+    if block_on(ref mut r7) != 8 { return 20 }
+    r8 = triple_inc(4)
+    if block_on(ref mut r8) != 6 { return 21 }
+    r9 = double_find(4)
+    if block_on(ref mut r9) != 4 { return 22 }
     return 0
 }

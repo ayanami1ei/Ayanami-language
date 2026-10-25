@@ -4,6 +4,7 @@ pub(crate) mod async_transform_util;
 pub(crate) mod async_elif;
 pub(crate) mod async_if;
 pub(crate) mod async_while;
+pub(crate) mod async_while_util;
 pub mod attrs_export;
 pub mod attrs_macro;
 pub mod cfg;
