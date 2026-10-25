@@ -357,6 +357,12 @@ src/formatter/stmt.rs:7: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt,
 src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
+src/hir/async_elif.rs:10: struct Branch
+src/hir/async_elif.rs:16: pub(crate) fn try_expand(
+src/hir/async_elif.rs:120: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_elif.rs:149: fn detect(body: &Block) -> Option<(Symbol, Vec<Branch>)>
+src/hir/async_elif.rs:165: fn branch_var(b: &Block) -> Option<Symbol>
+src/hir/async_elif.rs:170: fn branch_await(b: &Block) -> Option<(Symbol, Vec<Expr>)>
 src/hir/async_if.rs:11: pub(crate) fn try_expand(
 src/hir/async_if.rs:63: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_if.rs:114: fn detect(body: &Block) -> Option<(Symbol, Symbol, Vec<Expr>, Expr)>
@@ -366,10 +372,10 @@ src/hir/async_if.rs:149: fn expand_else(
 src/hir/async_if.rs:208: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform.rs:19: pub fn expand(program: &Program) -> Result<Program>
 src/hir/async_transform.rs:50: fn is_async(a: &crate::parser::ast::Attr) -> bool
-src/hir/async_transform.rs:55: fn stmt_has_direct_await(st: &Stmt) -> bool
-src/hir/async_transform.rs:65: fn stmt_has_nested_await(st: &Stmt) -> bool
-src/hir/async_transform.rs:79: fn contains_async(stmt: &Stmt) -> bool
-src/hir/async_transform.rs:89: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()>
+src/hir/async_transform.rs:54: fn stmt_has_direct_await(st: &Stmt) -> bool
+src/hir/async_transform.rs:64: fn stmt_has_nested_await(st: &Stmt) -> bool
+src/hir/async_transform.rs:78: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:88: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()>
 src/hir/async_transform.rs:136: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform.rs:161: fn await_prefix(body: &Block, span: &crate::span::Span) -> Result<Vec<(Symbol, Symbol, Vec<Expr>)>>
 src/hir/async_transform.rs:187: fn expand_await(
@@ -1216,23 +1222,24 @@ src/hir/lower/to_mir/ptr_ops.rs:70: fn record_moves(&self, moved: &mut HashSet<V
 src/hir/mod.rs:1: pub mod attrs;
 src/hir/mod.rs:2: pub(crate) mod async_transform;
 src/hir/mod.rs:3: pub(crate) mod async_transform_util;
-src/hir/mod.rs:4: pub(crate) mod async_if;
-src/hir/mod.rs:5: pub(crate) mod async_while;
-src/hir/mod.rs:6: pub mod attrs_export;
-src/hir/mod.rs:7: pub mod attrs_macro;
-src/hir/mod.rs:8: pub mod cfg;
-src/hir/mod.rs:9: pub mod contracts;
-src/hir/mod.rs:10: pub mod effects;
-src/hir/mod.rs:11: pub mod ir;
-src/hir/mod.rs:12: pub mod layout;
-src/hir/mod.rs:13: pub(crate) mod niche;
-src/hir/mod.rs:14: pub mod ty;
-src/hir/mod.rs:15: pub mod node;
-src/hir/mod.rs:16: pub mod stmt;
-src/hir/mod.rs:17: pub mod item;
-src/hir/mod.rs:18: pub mod lower;
-src/hir/mod.rs:19: pub mod display;
-src/hir/mod.rs:36: pub struct $name
+src/hir/mod.rs:4: pub(crate) mod async_elif;
+src/hir/mod.rs:5: pub(crate) mod async_if;
+src/hir/mod.rs:6: pub(crate) mod async_while;
+src/hir/mod.rs:7: pub mod attrs_export;
+src/hir/mod.rs:8: pub mod attrs_macro;
+src/hir/mod.rs:9: pub mod cfg;
+src/hir/mod.rs:10: pub mod contracts;
+src/hir/mod.rs:11: pub mod effects;
+src/hir/mod.rs:12: pub mod ir;
+src/hir/mod.rs:13: pub mod layout;
+src/hir/mod.rs:14: pub(crate) mod niche;
+src/hir/mod.rs:15: pub mod ty;
+src/hir/mod.rs:16: pub mod node;
+src/hir/mod.rs:17: pub mod stmt;
+src/hir/mod.rs:18: pub mod item;
+src/hir/mod.rs:19: pub mod lower;
+src/hir/mod.rs:20: pub mod display;
+src/hir/mod.rs:37: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
@@ -2719,9 +2726,11 @@ example/test_async_await.aya:52: fn maybe(int x) -> int
 example/test_async_await.aya:61: fn loop3(int x) -> int
 example/test_async_await.aya:70: fn dec(int x) -> int
 example/test_async_await.aya:75: fn choose(int x) -> int
-example/test_async_await.aya:86: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_await.aya:100: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_await.aya:113: fn main() -> int
+example/test_async_await.aya:86: fn dbl(int x) -> int
+example/test_async_await.aya:91: fn pick3(int x) -> int
+example/test_async_await.aya:104: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:118: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:131: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker

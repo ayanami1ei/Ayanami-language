@@ -1,6 +1,7 @@
 pub mod attrs;
 pub(crate) mod async_transform;
 pub(crate) mod async_transform_util;
+pub(crate) mod async_elif;
 pub(crate) mod async_if;
 pub(crate) mod async_while;
 pub mod attrs_export;

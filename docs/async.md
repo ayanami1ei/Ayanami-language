@@ -206,6 +206,6 @@ impl __add_Fut {
   支持（take helper 求值条件；state0 分支 → state1 轮询 → state2 后置）；条件/实参限参数。
 - 循环内 await：`y = <默认>; while cond { y = await g(<参数或 y>) }; <post>`
   支持（poll 内 `while true` 状态循环；state0 重估条件并重建 future，Ready 后回 state0）。
-- if/else 双分支 await：两分支的 await 都写入同一变量并汇合到 state3；两个内层 future
+- if/elif/else 多分支 await（各分支一个 await，汇合到 merge 状态；条件/实参限参数）：两分支的 await 都写入同一变量并汇合到 state3；两个内层 future
   各占一个字段（类型可不同，载荷类型须一致）；条件/实参限参数。
 - 后续：一般 CFG（多 await 混合、elif/else、break/continue、PC/状态枚举）。
