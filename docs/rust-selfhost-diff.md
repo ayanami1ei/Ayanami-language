@@ -126,3 +126,20 @@
 - 固定点：stage-2 == stage-3，md5 `1cda55de`
 - golden：tokens 154/154、AST 5/5、errs 8/8、check 29/29、e2e 19/19
 - 自举源 effect 告警：0；`check_all` 全过
+
+## 8. 同步实验分支结果（2026-10-25）
+
+分支 `selfhost-rust-sync`（worktree `selfhost-sync`）：
+
+- merge `origin/rust` `133a5e4`；merge 曾丢 5 个 async 源文件，已用 `9b09394` 恢复
+- std `ad1e6db`、example **178**
+- **旧 154/154 保持；新快照 164/178（92.1%）**
+- 自举 golden：test、tokens **178/178**、AST 5/5、errs 8/8、check 29/29、e2e 19/19
+- 固定点：stage-2 == stage-3，md5 `ba98d25803bac821a4cb026c4f51b29b`
+- 已完成修复：`#[extern]`（关键字属性 + 无体声明 + emitter bit0）、asm `clobbers(rax)`/无输出 asm、
+  点限定变体模式、换行缩进规则、`ref`/`ref mut` 的 `*r` 读写、裸指针形参 pointee 标记
+- 剩余 14：async×3、env×5、closure_unsafe、enum_boxed、niche_option、
+  ref_graph、ref_registry、sync_block
+- 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
+  （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
+- 主 `selfhost` 分支仍为 154/154，本实验分支未合并
