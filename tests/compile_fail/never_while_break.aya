@@ -1,0 +1,7 @@
+fn bad() -> ! {
+    while true {
+        break
+    }
+}
+
+fn main() -> int { return 0 }

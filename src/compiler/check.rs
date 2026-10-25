@@ -11,6 +11,10 @@ pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()> {
             if matches!(f.return_type, crate::hir::ir::HirType::Void) {
                 continue;
             }
+            // `-> !` 函数由发散性检查负责（while true / 全分支发散无需显式 return）
+            if matches!(f.return_type, crate::hir::ir::HirType::Never) {
+                continue;
+            }
             if f.name.as_str() == "main" {
                 continue;
             }

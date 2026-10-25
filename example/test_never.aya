@@ -16,6 +16,30 @@ fn die2() -> void {
     }
 }
 
+// `while true`（无 break）视为发散
+fn spin() -> ! {
+    while true {
+    }
+}
+
+// 内层循环的 break 不影响外层发散
+fn spin_nested() -> ! {
+    while true {
+        while true { break }
+    }
+}
+
+// 所有分支（含 else）都发散
+fn spin_if(bool c) -> ! {
+    if c {
+        while true {
+        }
+    } else {
+        while true {
+        }
+    }
+}
+
 fn pick(bool c) -> int {
     return if c { 1 } else { die() }
 }

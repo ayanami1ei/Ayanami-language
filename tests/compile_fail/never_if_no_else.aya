@@ -1,0 +1,8 @@
+fn bad(bool c) -> ! {
+    if c {
+        while true {
+        }
+    }
+}
+
+fn main() -> int { return 0 }

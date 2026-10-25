@@ -133,8 +133,8 @@ src/compiler/build/target.rs:31: pub fn build_source_with_target(
 src/compiler/build/target.rs:54: fn build_source_with_target_inner(
 src/compiler/build/target.rs:181: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
-src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
-src/compiler/check.rs:42: fn has_return_in_stmt(s: &HirStmt) -> bool
+src/compiler/check.rs:37: fn has_return_in_item(item: &HirItem) -> bool
+src/compiler/check.rs:46: fn has_return_in_stmt(s: &HirStmt) -> bool
 src/compiler/debug/expr.rs:5: pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write)
 src/compiler/debug/format.rs:3: pub(super) fn pad(n: usize) -> String
 src/compiler/debug/format.rs:7: pub(super) fn format_type(ty: &Type) -> String
@@ -556,6 +556,9 @@ src/hir/lower/body/const_fn.rs:66: fn exec_const_stmts(&mut self, stmts: &[Stmt]
 src/hir/lower/body/const_fn.rs:76: fn exec_const_stmt(&mut self, stmt: &Stmt, env: &mut HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<Flow>
 src/hir/lower/body/const_struct.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/const_struct.rs:5: pub(crate) fn eval_const_struct(
+src/hir/lower/body/divergence.rs:5: pub(super) fn block_diverges(stmts: &[HirStmt]) -> bool
+src/hir/lower/body/divergence.rs:9: fn stmt_diverges(stmt: &HirStmt) -> bool
+src/hir/lower/body/divergence.rs:31: fn has_break(stmts: &[HirStmt]) -> bool
 src/hir/lower/body/ensure.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/ensure.rs:10: pub(crate) fn inject_ensures(
 src/hir/lower/body/ensure.rs:60: impl crate::hir::lower::Ctx
@@ -773,7 +776,8 @@ src/hir/lower/body/mod.rs:65: mod expr_ops1;
 src/hir/lower/body/mod.rs:66: mod expr_unary;
 src/hir/lower/body/mod.rs:67: mod expr_method_arrays;
 src/hir/lower/body/mod.rs:68: mod return_check;
-src/hir/lower/body/mod.rs:69: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:69: mod divergence;
+src/hir/lower/body/mod.rs:70: mod expr_reinterpret;
 src/hir/lower/body/overload_method.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_method.rs:9: pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
 src/hir/lower/body/overload_method.rs:28: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
@@ -3186,12 +3190,15 @@ example/test_nested_ref_mut.aya:22: fn main() -> int
 example/test_never.aya:2: enum Opt[T]
 example/test_never.aya:8: fn die() -> !
 example/test_never.aya:14: fn die2() -> void
-example/test_never.aya:19: fn pick(bool c) -> int
-example/test_never.aya:23: fn ret_never(bool c) -> int
-example/test_never.aya:28: fn match_never(Opt[int] o) -> int
-example/test_never.aya:35: fn all_div(bool c) -> int
-example/test_never.aya:39: fn assign_never(bool c) -> int
-example/test_never.aya:44: fn main() -> int
+example/test_never.aya:20: fn spin() -> !
+example/test_never.aya:26: fn spin_nested() -> !
+example/test_never.aya:33: fn spin_if(bool c) -> !
+example/test_never.aya:43: fn pick(bool c) -> int
+example/test_never.aya:47: fn ret_never(bool c) -> int
+example/test_never.aya:52: fn match_never(Opt[int] o) -> int
+example/test_never.aya:59: fn all_div(bool c) -> int
+example/test_never.aya:63: fn assign_never(bool c) -> int
+example/test_never.aya:68: fn main() -> int
 example/test_niche_option.aya:7: struct Node
 example/test_niche_option.aya:13: fn take_none(Option[Ptr[Node]] o) -> int
 example/test_niche_option.aya:18: fn find(ref Node n, bool ok) -> Option[ref Node]
