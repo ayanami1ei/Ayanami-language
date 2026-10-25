@@ -1613,6 +1613,11 @@ impl Checker {
     #[state]
     fn check_stmt(ref mut self, ref Ast ast, int id) {
         tag = ast.tags[id];
+        if tag == st(ST::Attributed._tag) {
+            if (ast.cc[id] / 32768) % 2 == 1 { return; }
+            self.check_stmt(ast, ast.aa[id]);
+            return;
+        }
         // effect 观察（A3）
         if self.cur_fx >= 0 {
             if tag == st(ST::FieldAssign._tag) {

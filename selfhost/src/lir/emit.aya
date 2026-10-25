@@ -6098,6 +6098,7 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                 psl_k = k + 1;
                 pkind_k = 0;
                 psi_k = -1;
+                f_ptr_si = -1;
                 if pk == 1 {
                     ei_b = e.find_enum_idx(sc.b);
                     vn_b = pat_short(pat_name(ptext));
@@ -6164,6 +6165,20 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                     }
                     idx = e.find_field_idx(sc.b, fname2);
                     if idx < 0 { return; }
+                    // struct 解构的 Ptr[T] 字段：绑定保留解引用标记（.v 自动解引用）
+                    si_s = e.find_struct_idx(sc.b);
+                    if si_s >= 0 {
+                        fty_s = unwrap_ty(ast, e.ftype_at(si_s, idx));
+                        if fty_s >= 0 && ty_name(ast, fty_s) == "Ptr" {
+                            in_s = ast.aa[fty_s];
+                            if in_s < 0 { in_s = ast.tys[fty_s]; }
+                            in_s = unwrap_ty(ast, in_s);
+                            if in_s >= 0 {
+                                si_ps = e.find_struct_idx(ty_name(ast, in_s));
+                                if si_ps >= 0 { f_ptr_si = 10001 + si_ps; }
+                            }
+                        }
+                    }
                     e.buf.push_str(" = getelementptr %struct.");
                     e.buf.push_str(sc.b);
                     e.buf.push_str(", ptr ");
@@ -6234,6 +6249,7 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                     e.buf.push_str("\n");
                     e.declare_local(bname2, 0);
                     if pkind_k == 7000 { e.record_etype(bname2, 7000); }
+                    elif f_ptr_si >= 10000 { e.record_etype(bname2, f_ptr_si); }
                     e.buf.push_str("  store i64 ");
                     e.buf.push_str(v);
                     e.buf.push_str(", ptr %v_");
@@ -10594,6 +10610,11 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         mask_a = ast.cc[id];
         if (mask_a / 32768) % 2 == 1 { return; }
         emit_stmt(ast, ast.aa[id], e);
+        return;
+    }
+    if tag == st(ST::Block._tag) {
+        // 裸块语句（含 env 块作用域覆盖）
+        emit_block_all(ast, id, e);
         return;
     }
     if tag == st(ST::IndexAssign._tag) {

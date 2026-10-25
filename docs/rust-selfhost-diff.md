@@ -75,11 +75,13 @@
 
 ## 5. 对齐阻塞（已验证/可判定）
 
-1. **`#[extern]` 语法**：std `core/string.aya`/`panic.aya`、`meta/macros.aya`/
-   `mir.aya` 已迁移为 `#[extern] fn ...;`；自举 parser 只有 `extern "C" fn`
-   （`parser.aya`），没有该属性的链接语义 → 合并 std 后无法通过解析/发射。
+1. **`#[extern]` 语法**：**已修复（2026-10-25）**。std `core/string.aya`/`panic.aya`、
+   `meta/macros.aya`/`mir.aya` 已迁移为 `#[extern] fn ...;`；自举 parser 支持关键字属性
+   `#[extern]`（无体声明），emitter 用 bit0 保留 pure/noreturn 位。
 2. **新 example 语法**：`#[async]`/`await`（lexer 无 `Await` token）、
-   `#[sync(...)] { ... }`、`env::<cap>`；自举 parser/checker 未实现。
+   `#[sync(...)] { ... }`；自举 parser/checker 未实现。
+   **env 已实现（2026-10-25）**：`#[env::<cap>(provider)]` 函数/块作用域、
+   `env::<cap>` 访问器、隐藏 env 形参 + 调用点注入、泛型 bound 推断。
 3. **布局 N1/N2/N3**：niche 枚举 8 字节、>16B 载荷装箱；自举 emitter 仍是
    tag+载荷槽。会影响 `size_of`/`align_of`/`static_assert` 与 ABI 相关用例。
 4. **内存/借用模型**：A（禁止从借用移出）+ match ergonomics、#211 条件移动检查、
@@ -89,8 +91,9 @@
 6. **增量 #35**：Rust 主线整程序缓存；自举没有（不影响输出对齐，但影响工具链）。
 7. **MIR 缺失**：`#[pass]` 写回、async 状态机（HIR 层）、逐节点 MIR 视图；
    自举的 `#[check]` 是函数级聚合只读视图（`docs/check-plugins.md`）。
-8. **并发/asm/allocator std**：自举需支持 futex/atomic/内联汇编/分配器接口的新
-   std；当前 std 停在 `0bd1bfd` 的旧形态。
+8. **并发/asm/allocator std**：分配器接口与 `src/runtime.c → std/runtime.c` 已可用
+   （`test_env_*` 走通）；futex/thread/channel 的 std 汇编 runtime 尚未接入自举链接，
+   `sync_block` 的 `#[sync]` 去糖也未实现。
 
 ## 6. 对齐路线
 
@@ -100,7 +103,7 @@
 
 1. **Phase 0**：`#[extern]` 属性（parse + 链接）+ 新 std 可编译；自举 CLI 能构建。
 2. **Phase 1**：原 154 example 回归（新 stage-0/布局/借用变化）；更新 IR 快照。
-3. **Phase 2**：A5e `#[sync]`、env 能力、niche/装箱枚举。
+3. **Phase 2**：env 能力（已实现）；A5e `#[sync]`、niche/装箱枚举待做。
 4. **Phase 3**：async A1a/A1b（HIR 状态机）。
 5. **Phase 4**：并发/asm/TokenStream/allocator std；目标 178/178。
 
@@ -133,13 +136,21 @@
 
 - merge `origin/rust` `133a5e4`；merge 曾丢 5 个 async 源文件，已用 `9b09394` 恢复
 - std `ad1e6db`、example **178**
-- **旧 154/154 保持；新快照 164/178（92.1%）**
+- **旧 154/154 保持；新快照 170/178（95.5%）**
 - 自举 golden：test、tokens **178/178**、AST 5/5、errs 8/8、check 29/29、e2e 19/19
-- 固定点：stage-2 == stage-3，md5 `ba98d25803bac821a4cb026c4f51b29b`
+- 固定点：stage-2 == stage-3，md5 `0b55d4041401e6abf39d63910dc5792e`
 - 已完成修复：`#[extern]`（关键字属性 + 无体声明 + emitter bit0）、asm `clobbers(rax)`/无输出 asm、
-  点限定变体模式、换行缩进规则、`ref`/`ref mut` 的 `*r` 读写、裸指针形参 pointee 标记
-- 剩余 14：async×3、env×5、closure_unsafe、enum_boxed、niche_option、
+  点限定变体模式、换行缩进规则、`ref`/`ref mut` 的 `*r` 读写、裸指针形参 pointee 标记、
+  **env E1/E2**（函数/块 provider 作用域、`env::<cap>`、隐藏 env 形参、调用点注入、
+  bound 驱动的泛型推断）、**裸块语句 + Attributed checker/emitter**、
+  **语句 match 的 Block 臂体发射**（此前被跳过；同时修复 struct 解构 `Ptr[T]` 绑定的
+  解引用标记，`test_ptr_match` 转正）
+- 因此转正：env×5（allocator/block/chain/custom/generic）、async_manual（块臂体发射）、
+  ptr_match（struct 绑定修复）
+- 剩余 8：async_await、async_sugar、closure_unsafe、enum_boxed、niche_option、
   ref_graph、ref_registry、sync_block
+- 下一步：sync_block（`#[sync]` 去糖 + std futex/asm runtime 接入）、async A1a/A1b、
+  niche/boxed 布局、R3/R4 引用图、closure_unsafe
 - 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
   （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
 - 主 `selfhost` 分支仍为 154/154，本实验分支未合并
