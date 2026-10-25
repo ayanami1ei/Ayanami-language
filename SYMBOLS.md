@@ -673,8 +673,8 @@ src/hir/lower/body/match_lower.rs:69: fn lower_match_arms(
 src/hir/lower/body/match_lower.rs:94: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
 src/hir/lower/body/match_lower.rs:115: fn enum_variant_count(&self, name: &Symbol) -> usize
 src/hir/lower/body/match_lower.rs:122: fn build_match_stmts(
-src/hir/lower/body/match_lower.rs:186: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
-src/hir/lower/body/match_lower.rs:203: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/match_lower.rs:192: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
+src/hir/lower/body/match_lower.rs:209: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_pattern.rs:6: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_pattern.rs:8: pub(super) fn pattern_match(
 src/hir/lower/body/match_pattern.rs:27: fn pattern_match_in(

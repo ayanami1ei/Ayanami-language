@@ -1,0 +1,47 @@
+import "string";
+
+// 分支表达式（match/if）的臂结果赋值必须移出绑定局部量（清零绑定，避免作用域末尾
+// drop 已交给结果变量的堆数据 → 调用方 double free / 悬空指针）。
+enum Holder[T] {
+    Some(T),
+    None,
+}
+
+impl[T] Holder[T] {
+    fn take(self, T fallback) -> T {
+        match self {
+            Holder::Some(v) => v,
+            Holder::None => fallback,
+        }
+    }
+}
+
+fn take_free[T](Holder[T] h, T fallback) -> T {
+    match h {
+        Holder::Some(v) => v,
+        Holder::None => fallback,
+    }
+}
+
+fn pick(bool b) -> String {
+    s = "hello"
+    r = if b { s } else { "x" }
+    return r
+}
+
+fn main() -> int {
+    a = Holder::Some("hello")
+    s = a.take("x")
+    if s != "hello" { return 1 }
+    b = Holder::Some("world")
+    t = take_free(b, "y")
+    if t != "world" { return 2 }
+    c = Holder::Some("!")
+    u = c.take("z")
+    if u != "!" { return 3 }
+    p = pick(true)
+    if p != "hello" { return 4 }
+    q = pick(false)
+    if q != "x" { return 5 }
+    return s.len as int
+}
