@@ -103,7 +103,7 @@ pub fn cmd_check(ref String file) -> int {
         return 1;
     }
     cout = CheckOut { gwcount = 0, gwids = [int; 2048], gwmsgs = [String; 2048] };
-    n = check_program(p.ast, prog, file, smap, cout, 0);
+    n = check_program_full(p.ast, prog, file, smap, cout, 0);
     if n > 0 {
         raw_error("check failed: " + file);
         return 1;
@@ -148,7 +148,7 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
     cs = CheckSpecs { count = 0, anns = [String; 64], pfns = [String; 64], libs = [String; 64], lines = [int; 64], flags = [int; 64] };
     prepare_check_plugins(p, p.ast, smap, cs);
     cout = CheckOut { gwcount = 0, gwids = [int; 2048], gwmsgs = [String; 2048] };
-    n = check_program(p.ast, prog, file, smap, cout, 1);
+    n = check_program_full(p.ast, prog, file, smap, cout, 1);
     if n > 0 {
         // 自举期：checker 尚不完整（缺 std 符号表/部分重载规则），降级为警告继续发射。
         // 计数行默认不打印（对齐 stage-0 输出），调试用 AYANAMI_SELFHOST_DEBUG=1
@@ -163,7 +163,7 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
     }
     stem = Path::stem(Path::file_name(file));
     so = SpecOut { count = 0, nodes = [int; 256] };
-    ir = emit_program(p.ast, prog, file, so);
+    ir = emit_program_full(p.ast, prog, file, so);
     // 泛型效果警告按特化实例顺序回放（stage-0 单态化诊断行为）
     gi = 0;
     while gi < so.count {

@@ -3480,7 +3480,8 @@ selfhost/src/hir/check.aya:1787: fn convert_err(ref mut self, ref String from, r
 selfhost/src/hir/check.aya:1800: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
 selfhost/src/hir/check.aya:1822: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
 selfhost/src/hir/check.aya:1852: fn check_expr(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:2351: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap, ref mut CheckOut co, int defer_gen) -> int
+selfhost/src/hir/check.aya:2351: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
+selfhost/src/hir/check.aya:2359: pub fn check_program_full(ref Ast ast, int prog, ref String file, SrcMap smap, ref mut CheckOut co, int defer_gen) -> int
 selfhost/src/lexer/lexer.aya:8: pub struct Lexer
 selfhost/src/lexer/lexer.aya:17: pub namespace Lexer
 selfhost/src/lexer/lexer.aya:20: pub fn new(ref String src) -> Lexer
@@ -3756,7 +3757,8 @@ selfhost/src/lir/emit.aya:11347: fn emit_fn(ref Ast ast, int id, ref mut Emitter
 selfhost/src/lir/emit.aya:11352: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
 selfhost/src/lir/emit.aya:11392: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
 selfhost/src/lir/emit.aya:11838: pub struct SpecOut
-selfhost/src/lir/emit.aya:11845: pub fn emit_program(ref Ast ast, int prog, ref String file, ref mut SpecOut so) -> String
+selfhost/src/lir/emit.aya:11846: pub fn emit_program(ref Ast ast, int prog, ref String file) -> String
+selfhost/src/lir/emit.aya:11853: pub fn emit_program_full(ref Ast ast, int prog, ref String file, ref mut SpecOut so) -> String
 selfhost/src/macro/expand.aya:13: pub struct MVal
 selfhost/src/macro/expand.aya:20: pub struct MEnv
 selfhost/src/macro/expand.aya:36: pub struct MLines

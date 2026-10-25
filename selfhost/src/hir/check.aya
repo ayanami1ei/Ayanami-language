@@ -2345,10 +2345,18 @@ impl Checker {
     }
 }
 
+/// 兼容入口（测试 harness / 旧调用）：不延迟泛型警告，丢弃 CheckOut
+#[alloc]
+#[state]
+pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int {
+    co = CheckOut { gwcount = 0, gwids = [int; 2048], gwmsgs = [String; 2048] };
+    return check_program_full(ast, prog, file, smap, co, 0);
+}
+
 /// 入口：收集 + 检查，返回错误数（诊断已输出）
 #[alloc]
 #[state]
-pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap, ref mut CheckOut co, int defer_gen) -> int {
+pub fn check_program_full(ref Ast ast, int prog, ref String file, SrcMap smap, ref mut CheckOut co, int defer_gen) -> int {
     c = Checker::new(file, smap);
     c.defer_gen = defer_gen;
     c.seed_std();

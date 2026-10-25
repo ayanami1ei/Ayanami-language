@@ -11840,9 +11840,17 @@ pub struct SpecOut {
     [int] nodes
 }
 
+/// 兼容入口（测试 harness）：丢弃特化顺序
 #[alloc]
 #[state]
-pub fn emit_program(ref Ast ast, int prog, ref String file, ref mut SpecOut so) -> String {
+pub fn emit_program(ref Ast ast, int prog, ref String file) -> String {
+    so = SpecOut { count = 0, nodes = [int; 256] };
+    return emit_program_full(ast, prog, file, so);
+}
+
+#[alloc]
+#[state]
+pub fn emit_program_full(ref Ast ast, int prog, ref String file, ref mut SpecOut so) -> String {
     e = Emitter::new();
     e.src_file = file.copy();
     e.collect_decls(ast, prog);
