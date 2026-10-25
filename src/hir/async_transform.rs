@@ -47,11 +47,9 @@ pub fn expand(program: &Program) -> Result<Program> {
     }
     Ok(Program::new(out))
 }
-
 fn is_async(a: &crate::parser::ast::Attr) -> bool {
     a.qualifier.is_empty() && a.name.as_str() == "async"
 }
-
 /// 语句里是否直接出现 `__await(...)`（await 语法糖在解析期降级为该调用）。
 fn stmt_has_direct_await(st: &Stmt) -> bool {
     let is_await = |e: &Expr| matches!(e, Expr::FnCall { name, .. } if name.as_str() == "__await");
@@ -77,7 +75,6 @@ fn stmt_has_nested_await(st: &Stmt) -> bool {
         _ => stmt_has_direct_await(st),
     }
 }
-
 fn contains_async(stmt: &Stmt) -> bool {
     match stmt {
         Stmt::FnDecl { attrs, .. } => attrs.iter().any(is_async),
@@ -103,6 +100,9 @@ fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>)
         return Err(fail("a non-void return type is required (v1)".into()));
     }
     // A1b-2：直线 await 前缀（0..N 个连续 `x = await g(args)`，目标为同程序 #[async] 直接调用）
+    if crate::hir::async_elif::try_expand(stmt, returns, out)? { return Ok(()); }
+    if crate::hir::async_if::try_expand(stmt, returns, out)? { return Ok(()); }
+    if crate::hir::async_while::try_expand(stmt, returns, out)? { return Ok(()); }
     let awaits = await_prefix(body, span)?;
     if !awaits.is_empty() {
         return expand_await(stmt, &awaits, returns, out);
