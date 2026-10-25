@@ -204,4 +204,6 @@ impl __add_Fut {
   `await_not_async`。
 - 分支内 await（第一切片）：`y = <默认>; if cond { y = await g(<参数>) }; <post>`
   支持（take helper 求值条件；state0 分支 → state1 轮询 → state2 后置）；条件/实参限参数。
-- 后续：while 循环内 await（回边）与一般 CFG（PC/状态枚举）。
+- 循环内 await：`y = <默认>; while cond { y = await g(<参数或 y>) }; <post>`
+  支持（poll 内 `while true` 状态循环；state0 重估条件并重建 future，Ready 后回 state0）。
+- 后续：一般 CFG（多 await 混合、elif/else、break/continue、PC/状态枚举）。

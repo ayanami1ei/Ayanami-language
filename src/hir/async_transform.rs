@@ -102,6 +102,7 @@ fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>)
     }
     // A1b-2：直线 await 前缀（0..N 个连续 `x = await g(args)`，目标为同程序 #[async] 直接调用）
     if crate::hir::async_if::try_expand(stmt, returns, out)? { return Ok(()); }
+    if crate::hir::async_while::try_expand(stmt, returns, out)? { return Ok(()); }
     let awaits = await_prefix(body, span)?;
     if !awaits.is_empty() {
         return expand_await(stmt, &awaits, returns, out);

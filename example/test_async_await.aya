@@ -57,6 +57,15 @@ fn maybe(int x) -> int {
     return y + 10
 }
 
+#[async]
+fn loop3(int x) -> int {
+    y = 0
+    while y < 3 {
+        y = await inc(y)
+    }
+    return y * 10
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -100,5 +109,7 @@ fn main() -> int {
     if block_on(ref mut e) != 12 { return 6 }
     z = maybe(0)
     if block_on(ref mut z) != 10 { return 7 }
+    l = loop3(0)
+    if block_on(ref mut l) != 30 { return 8 }
     return 0
 }
