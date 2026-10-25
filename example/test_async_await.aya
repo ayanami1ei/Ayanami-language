@@ -239,6 +239,29 @@ fn double_find(int limit) -> int {
     return y
 }
 
+#[async]
+fn mixed(int x) -> int {
+    a = await inc(x)
+    b = a + 1
+    c = await inc(b)
+    return c
+}
+
+#[async]
+fn pre_sync(int x) -> int {
+    p = x + 1
+    a = await inc(p)
+    return a * 10
+}
+
+#[async]
+fn str_mixed() -> int {
+    s = await exclaim()
+    n = s.len as int
+    t = await exclaim()
+    return n + t.len as int
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -338,5 +361,11 @@ fn main() -> int {
     if block_on(ref mut u5) != 11 { return 34 }
     u6 = pick_mix(-2)
     if block_on(ref mut u6) != -3 { return 35 }
+    v1 = mixed(1)
+    if block_on(ref mut v1) != 4 { return 36 }
+    v2 = pre_sync(1)
+    if block_on(ref mut v2) != 30 { return 37 }
+    v3 = str_mixed()
+    if block_on(ref mut v3) != 6 { return 38 }
     return 0
 }

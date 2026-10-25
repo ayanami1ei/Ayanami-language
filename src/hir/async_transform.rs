@@ -9,7 +9,6 @@
 //! `#[async]` 在 HIR 之前被本 pass 消费，因此不进入 HIR 注解校验；
 //! 宏展开期由 macro_expand::expand_util::is_compiler_attr 放行。
 use std::collections::HashMap;
-
 use crate::error::{Error, Result};
 use crate::intern::Symbol;
 use crate::parser::ast::vis::Visibility;
@@ -103,6 +102,7 @@ fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>)
     if crate::hir::async_elif::try_expand(stmt, returns, out)? { return Ok(()); }
     if crate::hir::async_if::try_expand(stmt, returns, out)? { return Ok(()); }
     if crate::hir::async_while::try_expand(stmt, returns, out)? { return Ok(()); }
+    if crate::hir::async_mixed::try_expand(stmt, returns, out)? { return Ok(()); }
     let awaits = await_prefix(body, span)?;
     if !awaits.is_empty() {
         return expand_await(stmt, &awaits, returns, out);

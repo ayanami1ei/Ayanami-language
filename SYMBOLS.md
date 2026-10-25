@@ -385,12 +385,25 @@ src/hir/async_if_multi.rs:11: struct Shape
 src/hir/async_if_multi.rs:18: pub(crate) fn try_expand(
 src/hir/async_if_multi.rs:116: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_if_multi.rs:157: fn detect(body: &Block) -> Option<Shape>
-src/hir/async_transform.rs:19: pub fn expand(program: &Program) -> Result<Program>
-src/hir/async_transform.rs:50: fn is_async(a: &crate::parser::ast::Attr) -> bool
-src/hir/async_transform.rs:54: fn stmt_has_direct_await(st: &Stmt) -> bool
-src/hir/async_transform.rs:64: fn stmt_has_nested_await(st: &Stmt) -> bool
-src/hir/async_transform.rs:78: fn contains_async(stmt: &Stmt) -> bool
-src/hir/async_transform.rs:88: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()>
+src/hir/async_mixed.rs:12: struct Await
+src/hir/async_mixed.rs:19: pub(crate) fn try_expand(
+src/hir/async_mixed.rs:157: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_mixed.rs:168: fn await_parts(value: &Expr) -> Option<(Symbol, &[Expr], Span)>
+src/hir/async_mixed.rs:175: fn infer(e: &Expr, env: &HashMap<Symbol, Type>, span: Span) -> Option<Type>
+src/hir/async_mixed.rs:204: fn literal_type(l: &Literal, span: Span) -> Option<Type>
+src/hir/async_mixed.rs:214: fn is_int(t: &Type) -> bool
+src/hir/async_mixed.rs:221: fn is_float(t: &Type) -> bool
+src/hir/async_mixed.rs:226: fn same_type(a: &Type, b: &Type) -> bool
+src/hir/async_mixed.rs:233: fn type_default(t: &Type) -> Option<&'static str>
+src/hir/async_mixed.rs:245: fn render_sync(st: &Stmt, promoted: &HashSet<Symbol>, final_seg: bool) -> Option<String>
+src/hir/async_mixed.rs:259: fn render_expr(e: &Expr, promoted: &HashSet<Symbol>) -> Option<String>
+src/hir/async_mixed.rs:263: fn rewrite(e: &Expr, promoted: &HashSet<Symbol>) -> Option<Expr>
+src/hir/async_transform.rs:18: pub fn expand(program: &Program) -> Result<Program>
+src/hir/async_transform.rs:49: fn is_async(a: &crate::parser::ast::Attr) -> bool
+src/hir/async_transform.rs:53: fn stmt_has_direct_await(st: &Stmt) -> bool
+src/hir/async_transform.rs:63: fn stmt_has_nested_await(st: &Stmt) -> bool
+src/hir/async_transform.rs:77: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:87: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()>
 src/hir/async_transform.rs:136: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform.rs:161: fn await_prefix(body: &Block, span: &crate::span::Span) -> Result<Vec<(Symbol, Symbol, Vec<Expr>)>>
 src/hir/async_transform.rs:187: fn expand_await(
@@ -1245,29 +1258,30 @@ src/hir/lower/to_mir/ptr_ops.rs:66: fn for_each_child(&self, f: &mut dyn FnMut(&
 src/hir/lower/to_mir/ptr_ops.rs:70: fn record_moves(&self, moved: &mut HashSet<VarId>)
 src/hir/mod.rs:1: pub mod attrs;
 src/hir/mod.rs:2: pub(crate) mod async_transform;
-src/hir/mod.rs:3: pub(crate) mod async_transform_util;
-src/hir/mod.rs:4: pub(crate) mod async_elif;
-src/hir/mod.rs:5: pub(crate) mod async_elif_multi;
-src/hir/mod.rs:6: pub(crate) mod async_if;
-src/hir/mod.rs:7: pub(crate) mod async_if_multi;
-src/hir/mod.rs:8: pub(crate) mod async_if_else_multi;
-src/hir/mod.rs:9: pub(crate) mod async_while;
-src/hir/mod.rs:10: pub(crate) mod async_while_util;
-src/hir/mod.rs:11: pub mod attrs_export;
-src/hir/mod.rs:12: pub mod attrs_macro;
-src/hir/mod.rs:13: pub mod cfg;
-src/hir/mod.rs:14: pub mod contracts;
-src/hir/mod.rs:15: pub mod effects;
-src/hir/mod.rs:16: pub mod ir;
-src/hir/mod.rs:17: pub mod layout;
-src/hir/mod.rs:18: pub(crate) mod niche;
-src/hir/mod.rs:19: pub mod ty;
-src/hir/mod.rs:20: pub mod node;
-src/hir/mod.rs:21: pub mod stmt;
-src/hir/mod.rs:22: pub mod item;
-src/hir/mod.rs:23: pub mod lower;
-src/hir/mod.rs:24: pub mod display;
-src/hir/mod.rs:41: pub struct $name
+src/hir/mod.rs:3: pub(crate) mod async_mixed;
+src/hir/mod.rs:4: pub(crate) mod async_transform_util;
+src/hir/mod.rs:5: pub(crate) mod async_elif;
+src/hir/mod.rs:6: pub(crate) mod async_elif_multi;
+src/hir/mod.rs:7: pub(crate) mod async_if;
+src/hir/mod.rs:8: pub(crate) mod async_if_multi;
+src/hir/mod.rs:9: pub(crate) mod async_if_else_multi;
+src/hir/mod.rs:10: pub(crate) mod async_while;
+src/hir/mod.rs:11: pub(crate) mod async_while_util;
+src/hir/mod.rs:12: pub mod attrs_export;
+src/hir/mod.rs:13: pub mod attrs_macro;
+src/hir/mod.rs:14: pub mod cfg;
+src/hir/mod.rs:15: pub mod contracts;
+src/hir/mod.rs:16: pub mod effects;
+src/hir/mod.rs:17: pub mod ir;
+src/hir/mod.rs:18: pub mod layout;
+src/hir/mod.rs:19: pub(crate) mod niche;
+src/hir/mod.rs:20: pub mod ty;
+src/hir/mod.rs:21: pub mod node;
+src/hir/mod.rs:22: pub mod stmt;
+src/hir/mod.rs:23: pub mod item;
+src/hir/mod.rs:24: pub mod lower;
+src/hir/mod.rs:25: pub mod display;
+src/hir/mod.rs:42: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
@@ -2768,9 +2782,12 @@ example/test_async_await.aya:200: fn find_ctl(int limit) -> int
 example/test_async_await.aya:211: fn double_inc(int limit) -> int
 example/test_async_await.aya:221: fn triple_inc(int limit) -> int
 example/test_async_await.aya:232: fn double_find(int limit) -> int
-example/test_async_await.aya:243: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_await.aya:257: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_await.aya:270: fn main() -> int
+example/test_async_await.aya:243: fn mixed(int x) -> int
+example/test_async_await.aya:251: fn pre_sync(int x) -> int
+example/test_async_await.aya:258: fn str_mixed() -> int
+example/test_async_await.aya:266: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:280: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:293: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker
