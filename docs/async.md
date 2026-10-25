@@ -220,4 +220,8 @@ impl __add_Fut {
   `async_if_multi`，单个仍走 `async_if`）。每个 await 一个 future 字段，Ready 后写 `y` 并用更新后的
   `y` 重建下一个；条件限参数，实参限参数或分支变量 `y`。用例 `if_double` / `if_triple`；
   负例 `await_if_mixed_stmt` / `await_if_mixed_type`。
-- 后续：一般 CFG（任意语句、PC/状态枚举、嵌套控制流）。
+- if/else 分支内连续多个 await（2026-10-25）：任一侧 ≥2 走 `async_if_else_multi`；then 用 `__wt*`、
+  else 用 `__we*` 各自状态链，最后汇合到统一的 `return Poll::Ready(__async_after(...))`。
+  条件限参数，实参限参数或分支变量 `y`；所有分支 await 结果类型须一致。用例 `choose_double` /
+  `choose_asym`；负例 `await_if_else_mixed_stmt` / `await_if_else_mixed_type`。
+- 后续：一般 CFG（任意语句、elif 多 await、PC/状态枚举、嵌套控制流）。

@@ -364,12 +364,17 @@ src/hir/async_elif.rs:149: fn detect(body: &Block) -> Option<(Symbol, Vec<Branch
 src/hir/async_elif.rs:165: fn branch_var(b: &Block) -> Option<Symbol>
 src/hir/async_elif.rs:170: fn branch_await(b: &Block) -> Option<(Symbol, Vec<Expr>)>
 src/hir/async_if.rs:11: pub(crate) fn try_expand(
-src/hir/async_if.rs:65: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_if.rs:116: fn detect(body: &Block) -> Option<(Symbol, Symbol, Vec<Expr>, Expr)>
-src/hir/async_if.rs:130: fn detect_else(body: &Block) -> Option<(Symbol, Symbol, Vec<Expr>, Symbol, Vec<Expr>, Expr)>
-src/hir/async_if.rs:143: fn awaited(e: &Expr) -> Option<(Symbol, Vec<Expr>)>
-src/hir/async_if.rs:151: fn expand_else(
-src/hir/async_if.rs:210: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_if.rs:66: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_if.rs:117: fn detect(body: &Block) -> Option<(Symbol, Symbol, Vec<Expr>, Expr)>
+src/hir/async_if.rs:131: fn detect_else(body: &Block) -> Option<(Symbol, Symbol, Vec<Expr>, Symbol, Vec<Expr>, Expr)>
+src/hir/async_if.rs:144: fn awaited(e: &Expr) -> Option<(Symbol, Vec<Expr>)>
+src/hir/async_if.rs:152: fn expand_else(
+src/hir/async_if.rs:211: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_if_else_multi.rs:10: struct Shape
+src/hir/async_if_else_multi.rs:18: pub(crate) fn try_expand(
+src/hir/async_if_else_multi.rs:142: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_if_else_multi.rs:181: fn detect(body: &Block) -> Option<Shape>
+src/hir/async_if_else_multi.rs:192: fn await_chain(stmts: &[Stmt], y: &Symbol) -> Option<Vec<(Symbol, Vec<Expr>)>>
 src/hir/async_if_multi.rs:11: struct Shape
 src/hir/async_if_multi.rs:18: pub(crate) fn try_expand(
 src/hir/async_if_multi.rs:116: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
@@ -1238,23 +1243,24 @@ src/hir/mod.rs:3: pub(crate) mod async_transform_util;
 src/hir/mod.rs:4: pub(crate) mod async_elif;
 src/hir/mod.rs:5: pub(crate) mod async_if;
 src/hir/mod.rs:6: pub(crate) mod async_if_multi;
-src/hir/mod.rs:7: pub(crate) mod async_while;
-src/hir/mod.rs:8: pub(crate) mod async_while_util;
-src/hir/mod.rs:9: pub mod attrs_export;
-src/hir/mod.rs:10: pub mod attrs_macro;
-src/hir/mod.rs:11: pub mod cfg;
-src/hir/mod.rs:12: pub mod contracts;
-src/hir/mod.rs:13: pub mod effects;
-src/hir/mod.rs:14: pub mod ir;
-src/hir/mod.rs:15: pub mod layout;
-src/hir/mod.rs:16: pub(crate) mod niche;
-src/hir/mod.rs:17: pub mod ty;
-src/hir/mod.rs:18: pub mod node;
-src/hir/mod.rs:19: pub mod stmt;
-src/hir/mod.rs:20: pub mod item;
-src/hir/mod.rs:21: pub mod lower;
-src/hir/mod.rs:22: pub mod display;
-src/hir/mod.rs:39: pub struct $name
+src/hir/mod.rs:7: pub(crate) mod async_if_else_multi;
+src/hir/mod.rs:8: pub(crate) mod async_while;
+src/hir/mod.rs:9: pub(crate) mod async_while_util;
+src/hir/mod.rs:10: pub mod attrs_export;
+src/hir/mod.rs:11: pub mod attrs_macro;
+src/hir/mod.rs:12: pub mod cfg;
+src/hir/mod.rs:13: pub mod contracts;
+src/hir/mod.rs:14: pub mod effects;
+src/hir/mod.rs:15: pub mod ir;
+src/hir/mod.rs:16: pub mod layout;
+src/hir/mod.rs:17: pub(crate) mod niche;
+src/hir/mod.rs:18: pub mod ty;
+src/hir/mod.rs:19: pub mod node;
+src/hir/mod.rs:20: pub mod stmt;
+src/hir/mod.rs:21: pub mod item;
+src/hir/mod.rs:22: pub mod lower;
+src/hir/mod.rs:23: pub mod display;
+src/hir/mod.rs:40: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
@@ -2743,17 +2749,19 @@ example/test_async_await.aya:70: fn dec(int x) -> int
 example/test_async_await.aya:75: fn choose(int x) -> int
 example/test_async_await.aya:86: fn dbl(int x) -> int
 example/test_async_await.aya:91: fn pick3(int x) -> int
-example/test_async_await.aya:104: fn if_double(int x) -> int
-example/test_async_await.aya:114: fn if_triple(int x) -> int
-example/test_async_await.aya:125: fn find(int limit) -> int
-example/test_async_await.aya:135: fn find_after(int limit) -> int
-example/test_async_await.aya:145: fn find_ctl(int limit) -> int
-example/test_async_await.aya:156: fn double_inc(int limit) -> int
-example/test_async_await.aya:166: fn triple_inc(int limit) -> int
-example/test_async_await.aya:177: fn double_find(int limit) -> int
-example/test_async_await.aya:188: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_await.aya:202: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_await.aya:215: fn main() -> int
+example/test_async_await.aya:104: fn choose_double(int x) -> int
+example/test_async_await.aya:117: fn choose_asym(int x) -> int
+example/test_async_await.aya:129: fn if_double(int x) -> int
+example/test_async_await.aya:139: fn if_triple(int x) -> int
+example/test_async_await.aya:150: fn find(int limit) -> int
+example/test_async_await.aya:160: fn find_after(int limit) -> int
+example/test_async_await.aya:170: fn find_ctl(int limit) -> int
+example/test_async_await.aya:181: fn double_inc(int limit) -> int
+example/test_async_await.aya:191: fn triple_inc(int limit) -> int
+example/test_async_await.aya:202: fn double_find(int limit) -> int
+example/test_async_await.aya:213: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:227: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:240: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker
