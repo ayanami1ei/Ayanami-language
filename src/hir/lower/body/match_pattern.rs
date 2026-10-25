@@ -4,42 +4,6 @@ use super::*;
 use crate::parser::ast::pattern::Pattern;
 
 impl crate::hir::lower::Ctx {
-    /// 变体在枚举中的 tag 序号（`_data_<name>` 字段位置 - 1）
-    pub(super) fn variant_tag(&self, enum_name: &Symbol, variant: &Symbol) -> Option<i64> {
-        let target = format!("_data_{}", variant);
-        self.struct_defs.get(enum_name).and_then(|fields| {
-            fields.iter().position(|f| f.name.as_str() == target).map(|i| i as i64 - 1)
-        })
-    }
-
-    /// 限定名变体（`Option::Some`/`Option.Some`）→ 裸变体名；
-    /// 仅当前缀等于 scrutinee 枚举基名且该变体存在时归一化（否则原样返回，走未知变体诊断）。
-    pub(super) fn bare_variant_name(&self, scrutinee: &HirType, name: &Symbol) -> Symbol {
-        let HirType::Named(en) = strip_ownership_ref(scrutinee) else { return *name };
-        let base_name = crate::hir::lower::strip_generic_name(en);
-        let Some(pos) = name.as_str().rfind('.') else { return *name };
-        let (prefix, bare) = (&name.as_str()[..pos], &name.as_str()[pos + 1..]);
-        let bare_sym = Symbol::intern(bare);
-        if prefix == base_name.as_str() && self.variant_tag(&base_name, &bare_sym).is_some() {
-            return bare_sym;
-        }
-        *name
-    }
-
-    pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox {
-        SBin {
-            op: crate::parser::ast::BinaryOp::Eq,
-            lhs: SField {
-                object: val_node.clone(),
-                field: Symbol::intern("_tag"),
-                field_index: 0,
-                ty: HirType::Int,
-            }.into(),
-            rhs: SConst { val: HirLiteral::Int(tag as i64), ty: HirType::Int }.into(),
-            ty: HirType::Int,
-        }.into()
-    }
-
     /// 统一模式匹配：返回 (条件, 绑定赋值)；条件 None = 不可反驳。
     pub(super) fn pattern_match(
         &mut self,
@@ -48,7 +12,15 @@ impl crate::hir::lower::Ctx {
         ty: &HirType,
         span: &Span,
     ) -> Result<(Option<HirNodeBox>, Vec<HirStmt>)> {
-        self.pattern_match_in(pat, expr, ty, span, false)
+        let mode = match strip_ownership(ty.clone()) {
+            HirType::Ref(_, mutable) => Some(mutable),
+            _ => None,
+        };
+        let saved = self.pattern_by_ref;
+        self.pattern_by_ref = mode;
+        let r = self.pattern_match_in(pat, expr, ty, span, false);
+        self.pattern_by_ref = saved;
+        r
     }
 
     /// `nested`：位于枚举载荷/结构体字段内（允许绑定拥有类型字段，随 scrutinee 移动）
@@ -90,6 +62,29 @@ impl crate::hir::lower::Ctx {
                             n.as_str(), en.as_str(), span.start_line, span.start_col
                         )));
                     }
+                }
+                // match ergonomics：引用 scrutinee 下按引用绑定（Rust 默认绑定模式）；
+                // scrutinee 可能已被 auto-deref，按位置的根局部是否为 ref 兜底判断。
+                let via_root = super::match_util::place_root_hir(&**expr).and_then(|id| {
+                    match self.locals.get(id.0).map(|l| l.ty.clone()) {
+                        Some(HirType::Ref(_, m)) => Some(m),
+                        _ => None,
+                    }
+                });
+                if let Some(mutable) = self.pattern_by_ref.or(via_root) {
+                    let (bind_ty, value): (HirType, HirNodeBox) = if nested {
+                        // Rust match ergonomics：绑定 `ref Ptr[T]`（不能剥掉 Unique 层）
+                        let rt = HirType::Ref(Box::new(ty.clone()), mutable);
+                        (rt.clone(), SRef { expr: expr.clone(), mutable, ty: rt }.into())
+                    } else {
+                        (ty.clone(), expr.clone())
+                    };
+                    let (bid, _, _) = self.register_or_lookup(*n, bind_ty.clone());
+                    return Ok((None, vec![HirStmt::Assign {
+                        target: SVar { var: bid, ty: bind_ty }.into(),
+                        value,
+                        span: *span,
+                    }]));
                 }
                 // 绑定变量保留源类型：`Ptr[T]`（`Unique`）是拥有指针值，
                 // 不能剥成 pointee——否则 `Some(p)` / `Struct { p }` 的载荷绑定类型错误
@@ -134,7 +129,19 @@ impl crate::hir::lower::Ctx {
                     "unknown variant `{}` of enum `{}` (at {}:{})",
                     name.as_str().replace('.', "::"), en.as_str(), span.start_line, span.start_col
                 )))?;
-                let mut cond = Self::tag_cond(expr, tag as usize);
+                // N1：niche 形态 → 空值判定（tag 表达式 == tag）
+                let mut cond = if self.is_niche_enum(en) {
+                    let tag_expr = self.build_niche_tag_expr(
+                        expr.clone(), &HirType::Named(*en), span)?;
+                    SBin {
+                        op: crate::parser::ast::BinaryOp::Eq,
+                        lhs: tag_expr,
+                        rhs: SConst { val: HirLiteral::Int(tag), ty: HirType::Int }.into(),
+                        ty: HirType::Int,
+                    }.into()
+                } else {
+                    Self::tag_cond(expr, tag as usize)
+                };
                 let mut binds = Vec::new();
                 let var_struct = crate::hir::lower::variant_struct_name(en, name);
                 // #150 后续：变体载荷个数必须与子模式个数一致（`A =>` 不能忽略载荷）
@@ -151,11 +158,15 @@ impl crate::hir::lower::Ctx {
                     if matches!(sub, Pattern::Wildcard) { continue; }
                     let payload_field = Symbol::intern(&format!("_{}", j));
                     let fty = self.find_field_type(&HirType::Named(var_struct), &payload_field, span)?;
+                    // N1：niche 形态无 `_tag`，下标按实际字段表取（tag 形态 = tag + 1）
+                    let data_index = self.find_field_index(&HirType::Named(*en), &data_field, span)?;
+                    // N2：boxed 变体的字段类型为 Unique(E_V)（后续 `_0` 访问经指针）
+                    let data_ty = self.find_field_type(&HirType::Named(*en), &data_field, span)?;
                     let inner_acc: HirNodeBox = SField {
                         object: expr.clone(),
                         field: data_field,
-                        field_index: tag as usize + 1,
-                        ty: HirType::Named(var_struct),
+                        field_index: data_index,
+                        ty: data_ty,
                     }.into();
                     let fval: HirNodeBox = SField {
                         object: inner_acc,
@@ -281,11 +292,9 @@ impl crate::hir::lower::Ctx {
         }.into()
     }
 }
-
 fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox {
     SBin { op: crate::parser::ast::BinaryOp::And, lhs: a, rhs: b, ty: HirType::Bool }.into()
 }
-
 fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox {
     SBin { op: crate::parser::ast::BinaryOp::Or, lhs: a, rhs: b, ty: HirType::Bool }.into()
 }

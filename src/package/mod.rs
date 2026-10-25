@@ -3,6 +3,7 @@ pub mod config;
 use crate::error::{Error, Result};
 use crate::parser::ast::{Stmt, Type};
 
+mod annotate;
 mod bytes;
 pub(crate) mod const_codec;
 mod load;

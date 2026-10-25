@@ -72,6 +72,14 @@ impl Parser {
                 let mut name = Symbol::intern(&name_str);
                 self.advance();
                 self.handle_path_sep(&mut name_str, &mut name)?;
+                // #209：模式中的点限定变体（formatter 输出 `Option.Some`/`Option.None`；
+                // 模式里 `.` 无字段访问语义，仅此一处需要接受点路径）
+                while matches!(self.peek().map(|t| &t.kind), Some(TokenKind::Delimiter(Delimiter::Dot))) {
+                    self.advance();
+                    let next = self.expect_identifier()?;
+                    name_str = format!("{}.{}", name_str, next);
+                    name = Symbol::intern(&name_str);
+                }
                 if self.peek().map(|t| &t.kind) == Some(&TokenKind::Delimiter(Delimiter::LParen)) {
                     self.advance();
                     let mut args = Vec::new();

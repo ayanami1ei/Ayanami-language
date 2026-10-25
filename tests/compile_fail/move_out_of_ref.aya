@@ -1,0 +1,12 @@
+// 整体解引用移出仍非法（只放行元素/字段读取：clone 或 take+源槽清零）
+import "string"
+
+fn steal(ref String s) -> String {
+    return *s
+}
+
+fn main() -> int {
+    x = "hi"
+    y = steal(ref x)
+    return y.len() as int
+}

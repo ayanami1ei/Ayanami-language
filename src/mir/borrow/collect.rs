@@ -93,7 +93,7 @@ pub(super) fn collect(
                     ) + &at));
                 }
                 loans.insert(r, Loan { var, mutable, origin: r, extra: Vec::new() });
-            } else if let Some((var, mutable)) = deref_root_var(&value) {
+            } else if let Some((var, mutable)) = deref_root_var(&**value) {
                 // M4：`Ptr[T].get()` 等对堆 pointee 的借用 —— loan 绑定持有指针/引用的变量
                 if loans.contains_key(&r) {
                     return Err(Error::Borrow(format!(
@@ -184,6 +184,17 @@ pub(super) fn collect(
                             } else if let Some(&(_, mutable)) = ref_params.iter().find(|(v, _)| *v == src) {
                                 found = Some(Loan { var: src, mutable, origin: src, extra: Vec::new() });
                             }
+                        } else if let Some((var, mutable)) = deref_root_var(c) {
+                            // R3：字段接收者（`self.arena.get(i)`）等经字段链回溯到根变量；
+                            // origin 取根变量或其借用来源（同返回检查口径）
+                            let origin = if ref_params.iter().any(|(p, _)| *p == var) {
+                                var
+                            } else if let Some(l) = loans.get(&var) {
+                                l.origin
+                            } else {
+                                var
+                            };
+                            found = Some(Loan { var, mutable, origin, extra: Vec::new() });
                         }
                     }
                 });
@@ -226,7 +237,7 @@ pub(super) fn collect(
 }
 
 /// M4：借用表达式经 Deref/字段链回溯到根变量（`ref *p` → p；`ref obj.field` → obj）。
-fn deref_root_var(value: &MirNodeBox) -> Option<(VarId, bool)> {
+fn deref_root_var(value: &dyn MirNode) -> Option<(VarId, bool)> {
     let mut node = value.ref_expr()?;
     loop {
         if let Some(var) = node.as_local() {

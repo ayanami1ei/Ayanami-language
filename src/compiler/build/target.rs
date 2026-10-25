@@ -27,7 +27,31 @@ fn scan_source_deps(src_path: &Path) -> bool {
     false
 }
 
+/// #35 粗粒度增量：可执行目标且 build/<stem> 与 stamp 匹配时直接复用。
 pub fn build_source_with_target(
+    src_path: &str,
+    code: &str,
+    out_dir: &str,
+    target: Option<&str>,
+) -> Result<()> {
+    // 默认关闭：std 测试脚本每次重装 .lcl，需按安装目录内容建键后再默认开启
+    let cacheable = target == Some("executable") && std::env::var("AYANAMI_NO_INCREMENTAL").is_err();
+    let stem = std::path::Path::new(src_path).file_stem()
+        .map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    let exe = std::path::Path::new(out_dir).join(&stem);
+    let stamp = std::path::Path::new(out_dir).join(format!("{}.stamp", stem));
+    let key = crate::compiler::build::cache_key(src_path, code);
+    if cacheable && exe.exists()
+        && std::fs::read_to_string(&stamp).ok().as_deref() == Some(key.as_str())
+    {
+        return Ok(());
+    }
+    let r = build_source_with_target_inner(src_path, code, out_dir, target);
+    if r.is_ok() && cacheable { let _ = std::fs::write(&stamp, &key); }
+    r
+}
+
+fn build_source_with_target_inner(
     src_path: &str,
     _code: &str,
     out_dir: &str,

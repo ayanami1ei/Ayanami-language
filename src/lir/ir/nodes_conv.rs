@@ -8,7 +8,9 @@ impl LirNode for SLirConv {
         let scalar = matches!(&self.src_ty,
             HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
         let named = matches!(&self.src_ty, HirType::Named(s) if ctx.prog.struct_defs.contains_key(s));
-        if scalar || named {
+        // #202：闭包/胖指针同为聚合值（16 字节），需要栈槽中转
+        let aggregate = matches!(&self.src_ty, HirType::Closure(..) | HirType::FatPtr { .. });
+        if scalar || named || aggregate {
             let src_llvm = ctx.llvm_type(&self.src_ty);
             vec![format!("%t{} = alloca {}, align 8", self.alloca_tmp, src_llvm)]
         } else {
@@ -37,7 +39,9 @@ impl LirNode for SLirConv {
                 lines.push(format!("%z{} = getelementptr {}, ptr null, i32 1\n%z{} = ptrtoint ptr %z{} to i64", sz_gep, inner_llvm, sz_tmp, sz_gep));
                 let scalar = matches!(&self.src_ty, HirType::Int | HirType::Float | HirType::F32 | HirType::Char | HirType::Bool | HirType::IntN { .. });
                 let named = matches!(&self.src_ty, HirType::Named(s) if ctx.prog.struct_defs.contains_key(s));
-                let src_ptr = if scalar || named {
+                // #202：闭包/胖指针为 16 字节聚合值，必须走“栈槽 + memcpy”装箱路径
+                let aggregate = matches!(&self.src_ty, HirType::Closure(..) | HirType::FatPtr { .. });
+                let src_ptr = if scalar || named || aggregate {
                     let src_llvm = ctx.llvm_type(&self.src_ty);
                     let alloca = format!("%t{}", self.alloca_tmp);
                     lines.push(format!("store {} {}, ptr {}", src_llvm, src_val, alloca));

@@ -3,7 +3,7 @@ use super::*;
 impl crate::hir::lower::Ctx {
     /// M6.2c：数组常量求值（字面量 `[a, b, ...]` / 重复 `[v; n]`；元素为标量）
     pub(crate) fn eval_const_array(
-        &self,
+        &mut self,
         expr: &Expr,
         env: &HashMap<Symbol, (HirType, HirLiteral)>,
         depth: usize,

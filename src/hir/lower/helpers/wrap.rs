@@ -89,7 +89,10 @@ fn wrap_arg_conversions(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox {
             // ref 参数：已是借用直接传；否则对同类型左值自动取引用
             if matches!(&arg_ty, HirType::Ref(..)) {
                 arg
-            } else if arg_ty == **pt {
+            } else if arg_ty == **pt || generic_spelling_eq(&arg_ty, pt) {
+                // #212：`Opt<usize>` 与特化体里的 `Opt<u64>` 是同一布局（usize 归一化
+                // 成 IntN 后回写 u64），类型串不等但必须自动取引用，否则按值传 →
+                // 定义期望 ptr → 段错误。
                 SRef { expr: arg, mutable: *mutable, ty: param_ty.clone() }.into()
             } else {
                 arg
@@ -182,4 +185,14 @@ pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str> {
         // M5 P2：解引用无运算符重载
         UnaryOp::Deref => None,
     }
+}
+
+/// 泛型实例名仅 usize/isize 与 u64/i64 的拼写差异时视为同一类型（布局一致）。
+fn generic_spelling_eq(a: &HirType, b: &HirType) -> bool {
+    let (HirType::Named(x), HirType::Named(y)) = (a, b) else { return false };
+    let xs = x.as_str();
+    let ys = y.as_str();
+    let nx = xs.replace("usize", "u64").replace("isize", "i64");
+    let ny = ys.replace("usize", "u64").replace("isize", "i64");
+    xs.contains('<') && nx == ny
 }

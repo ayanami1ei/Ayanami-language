@@ -87,6 +87,23 @@ impl Parser {
             )
     }
 
+    /// #203：行首 `*` 且形如 `* ident =`（解引用赋值语句）时，不把它当作乘号
+    /// 延续上一行的表达式（`p = ref x as *int` 后一行 `*p = v` 的常见写法）。
+    /// 其余行首运算符（`+`/`-`/`*` 乘号等）仍按既有语义延续。 
+    pub(super) fn line_leading_deref_assign(&self) -> bool {
+        let Some(tok) = self.peek() else { return false };
+        if self.pos == 0 || tok.line == self.tokens[self.pos - 1].line {
+            return false;
+        }
+        if tok.kind != TokenKind::Operator("*".to_string()) {
+            return false;
+        }
+        let a = self.tokens.get(self.pos + 1).map(|t| &t.kind);
+        let b = self.tokens.get(self.pos + 2).map(|t| &t.kind);
+        matches!(a, Some(TokenKind::Identifier(_)))
+            && matches!(b, Some(TokenKind::Operator(s)) if s == "=")
+    }
+
     /// Consume `;` if present; otherwise, succeed if the next token
     /// starts a new statement or ends the current scope.
     pub(super) fn try_semicolon(&mut self) -> Result<()> {

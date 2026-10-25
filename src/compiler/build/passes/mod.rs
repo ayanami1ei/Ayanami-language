@@ -37,6 +37,10 @@ fn purity_map(hir: &HirProgram) -> HashMap<FnId, bool> {
 }
 
 fn is_builtin_attr(a: &Attr) -> bool {
+    // E1a：环境提供标注为编译器内置命名空间
+    if a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env" {
+        return true;
+    }
     let name = a.name.as_str();
     (a.is_builtin() || (a.qualifier.len() == 1 && a.qualifier[0].as_str() == "core"))
         && (crate::hir::attrs::ALLOWED.contains(&name.as_str()) || crate::hir::effects::is_effect(&name))

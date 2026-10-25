@@ -7,12 +7,12 @@ const MAX_CONST_ITERS: u64 = 1_000_000;
 pub(crate) enum Flow { Normal, Break, Continue, Return(HirType, HirLiteral) }
 
 impl crate::hir::lower::Ctx {
-    pub(crate) fn eval_const_fn(&self, name: Symbol, args: Vec<(HirType, HirLiteral)>, depth: usize) -> Result<(HirType, HirLiteral)> {
+    pub(crate) fn eval_const_fn(&mut self, name: Symbol, args: Vec<(HirType, HirLiteral)>, depth: usize) -> Result<(HirType, HirLiteral)> {
         if depth > MAX_CONST_DEPTH {
             return Err(Error::Hir(format!("#[compile_time] recursion limit exceeded at `{}`", name.as_str())));
         }
-        let decl = self.const_fns.get(&name).ok_or_else(|| Error::Hir(format!("`{}` is not a #[compile_time] function", name.as_str())))?;
-        let Stmt::FnDecl { params, return_type, body, span, .. } = decl else {
+        let decl = self.const_fns.get(&name).cloned().ok_or_else(|| Error::Hir(format!("`{}` is not a #[compile_time] function", name.as_str())))?;
+        let Stmt::FnDecl { params, return_type, body, span, .. } = &decl else {
             return Err(Error::Hir(format!("`{}` is not a #[compile_time] function", name.as_str())));
         };
         if args.len() != params.len() {
@@ -48,7 +48,7 @@ impl crate::hir::lower::Ctx {
         }
     }
 
-    pub(crate) fn eval_const_block_value(&self, block: &Block, env: &HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<(HirType, HirLiteral)> {
+    pub(crate) fn eval_const_block_value(&mut self, block: &Block, env: &HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<(HirType, HirLiteral)> {
         let mut env2 = env.clone();
         match self.exec_const_stmts(&block.stmts, &mut env2, depth)? {
             Flow::Return(t, v) => Ok((t, v)),
@@ -63,7 +63,7 @@ impl crate::hir::lower::Ctx {
         }
     }
 
-    fn exec_const_stmts(&self, stmts: &[Stmt], env: &mut HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<Flow> {
+    fn exec_const_stmts(&mut self, stmts: &[Stmt], env: &mut HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<Flow> {
         for stmt in stmts {
             let flow = self.exec_const_stmt(stmt, env, depth)?;
             if !matches!(flow, Flow::Normal) {
@@ -73,7 +73,7 @@ impl crate::hir::lower::Ctx {
         Ok(Flow::Normal)
     }
 
-    fn exec_const_stmt(&self, stmt: &Stmt, env: &mut HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<Flow> {
+    fn exec_const_stmt(&mut self, stmt: &Stmt, env: &mut HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<Flow> {
         match stmt {
             Stmt::Assign { name, value, .. } => {
                 let (t, v) = self.eval_const_expr(value, env, depth)?;

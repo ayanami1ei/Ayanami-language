@@ -197,6 +197,8 @@ impl Parser {
     pub(super) fn parse_product(&mut self) -> Result<Expr> {
         let mut left = self.parse_cast()?;
         while let Some(tok) = self.peek() {
+            // #203：行首 `*p = v`（解引用赋值）不按乘号处理
+            if self.line_leading_deref_assign() { break; }
             let op_span = tok.span();
             let op = match &tok.kind {
                 TokenKind::Operator(s) => match s.as_str() {

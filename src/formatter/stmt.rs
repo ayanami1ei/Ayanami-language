@@ -181,12 +181,9 @@ fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize) {
             };
             let _ = writeln!(out, "{}impl{} {} {{", i, gp_str, type_str);
             for m in methods {
-                // impl 方法默认公开（解析器标为 Public）；格式化不显式写 pub
-                let mut m2 = m.clone();
-                if let FnDecl { vis, .. } = &mut m2 {
-                    *vis = Visibility::Private;
-                }
-                write_stmt(out, &m2, level + 1);
+                // #209：保留方法的可见性（此前强制 Private，导致包内泛型源码 round-trip 丢 `pub`，
+                // 导入侧方法全部不可见）；解析器对 impl 方法与普通项同样记录显式 `pub`。
+                write_stmt(out, m, level + 1);
             }
             let _ = writeln!(out, "{}}}", i);
         }

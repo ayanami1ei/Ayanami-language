@@ -1,0 +1,6 @@
+import "io"
+fn f() -> int { return 1 }
+fn main() -> int {
+    x = await f()
+    return x
+}

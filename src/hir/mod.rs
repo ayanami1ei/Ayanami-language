@@ -1,4 +1,6 @@
 pub mod attrs;
+pub(crate) mod async_transform;
+pub(crate) mod async_transform_util;
 pub mod attrs_export;
 pub mod attrs_macro;
 pub mod cfg;
@@ -6,6 +8,7 @@ pub mod contracts;
 pub mod effects;
 pub mod ir;
 pub mod layout;
+pub(crate) mod niche;
 pub mod ty;
 pub mod node;
 pub mod stmt;
@@ -58,7 +61,7 @@ s_hir!(SField { object: HirNodeBox, field: Symbol, field_index: usize, ty: HirTy
 s_hir!(SStruct { type_name: Symbol, fields: Vec<(Symbol, HirNodeBox)>, ty: HirType });
 s_hir!(SArrLit { elems: Vec<HirNodeBox>, ty: HirType });
 s_hir!(SArrSz { count: HirNodeBox, elem_ty: HirType, ty: HirType });
-s_hir!(SAsm { template: String, outputs: Vec<(String, HirNodeBox)>, inputs: Vec<(String, HirNodeBox)>, ty: HirType });
+s_hir!(SAsm { template: String, outputs: Vec<(String, HirNodeBox)>, inputs: Vec<(String, HirNodeBox)>, clobbers: Vec<Symbol>, ty: HirType });
 s_hir!(SRef { expr: HirNodeBox, mutable: bool, ty: HirType });
 s_hir!(SDeref { expr: HirNodeBox, ty: HirType });
 s_hir!(SIdx { object: HirNodeBox, index: HirNodeBox, ty: HirType });

@@ -140,7 +140,13 @@ impl crate::hir::lower::Ctx {
             let mut block_stmts = arm.bindings.clone();
             let mut done = vec![
                 match assign {
-                    Some((res, _)) => HirStmt::Assign { target: res.clone(), value: arm.body.clone(), span: *span },
+                    // 臂结果赋给 `__match_res` 同普通赋值：非 Copy 值必须移出（清零绑定局部，
+                    // 否则作用域末尾 drop 绑定会释放已交给结果变量的堆数据，返回悬空指针）。
+                    Some((res, _)) => HirStmt::Assign {
+                        target: res.clone(),
+                        value: implicit_move(arm.body.clone()),
+                        span: *span,
+                    },
                     None => HirStmt::Expr { expr: arm.body.clone(), span: *span },
                 },
                 HirStmt::Assign { target: mnode.clone(), value: bool_const(true), span: *span },

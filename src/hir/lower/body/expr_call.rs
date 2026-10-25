@@ -50,6 +50,20 @@ impl crate::hir::lower::Ctx {
 
         // Step 2: extract arg types（引用实参另存解引用类型，用于回退解析）
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
+        // E1a：被调泛型自由函数的环境需求 → 当前函数作用域的提供值（类型供特化绑定 E）
+        let mut env_nodes: Vec<HirNodeBox> = Vec::new();
+        self.pending_env_args.clear();
+        if let Some((_, gps, decl, is_method)) = self.generic_fns.iter()
+            .find(|(n, ..)| n == name).cloned()
+        {
+            if !is_method && matches!(decl, Stmt::FnDecl { .. }) {
+                for (cap, _) in self.env_need_caps(&gps) {
+                    let (node, ty) = self.env_provider_node(&cap, span)?;
+                    self.pending_env_args.push((cap, ty));
+                    env_nodes.push(node);
+                }
+            }
+        }
         let deref_arg_types: Vec<HirType> = arg_types.iter().map(deref_type).collect();
 
         // Step 3：显式泛型实参优先（零参构造函数特化后参数表相同，
@@ -172,6 +186,7 @@ impl crate::hir::lower::Ctx {
             }
         } };
 
+        self.pending_env_args.clear();
         // M5：调用 unsafe fn 需 unsafe 上下文
         if self.fns[fn_id.0].is_unsafe && self.unsafe_depth == 0 && !self.cur_fn_unsafe {
             return Err(Error::Hir(format!(
@@ -224,6 +239,10 @@ impl crate::hir::lower::Ctx {
         hir_args = self.wrap_call_args(hir_args, &param_tys, extern_call);
 
         let mut hir_args = self.adapt_enum_args(hir_args, &param_tys)?;
+        // E1a：环境值实参（在可见实参之后、位置隐藏实参之前）
+        if !env_nodes.is_empty() {
+            hir_args.extend(env_nodes);
+        }
         // 函数级 track_caller：调用点信息作为隐藏实参追加
         let hidden = self.fns[fn_id.0].hidden;
         if hidden > 0 {

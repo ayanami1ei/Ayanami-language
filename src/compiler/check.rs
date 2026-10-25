@@ -32,38 +32,8 @@ pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()> {
 
 fn has_return_in_item(item: &HirItem) -> bool {
     match item {
-        HirItem::Fn(f) => f.body.stmts.iter().any(|s| {
-            if matches!(s, HirStmt::Return { .. }) {
-                return true;
-            }
-            if let HirStmt::If {
-                then_block,
-                elifs,
-                else_block,
-                ..
-            } = s
-            {
-                if then_block.stmts.iter().any(|s2| has_return_in_stmt(s2)) {
-                    return true;
-                }
-                for (_, b) in elifs {
-                    if b.stmts.iter().any(|s2| has_return_in_stmt(s2)) {
-                        return true;
-                    }
-                }
-                if let Some(b) = else_block {
-                    if b.stmts.iter().any(|s2| has_return_in_stmt(s2)) {
-                        return true;
-                    }
-                }
-            }
-            if let HirStmt::Block { stmts, .. } = s {
-                if stmts.iter().any(|s2| has_return_in_stmt(s2)) {
-                    return true;
-                }
-            }
-            false
-        }),
+        // #210：统一用语句级扫描（含 While / For / ForIn / Match / Block）
+        HirItem::Fn(f) => f.body.stmts.iter().any(|s| has_return_in_stmt(s)),
         HirItem::StructDef(_) | HirItem::InterfaceDef { .. } => true,
         HirItem::Namespace { items, .. } => items.iter().all(|i| has_return_in_item(i)),
     }

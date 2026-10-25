@@ -52,3 +52,9 @@ extern_attr.aya 0 1
 asm_early_clobber.aya 0 12
 arena_linked_list.aya 0
 arena_oob.aya 101 invalid Idx
+ref_registry_missing.aya 101 unknown id
+ref_graph_bad_id.aya 101 unknown link id
+expr_branch_move.aya 5
+issue218_arraylist_move.aya 0
+ref_nested_field_move.aya 0
+ref_ptr_field_write.aya 0

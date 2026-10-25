@@ -1,0 +1,193 @@
+// R4：引用字段的序列化表示（ID / 句柄）与对象图重建（文件往返）
+// - 序列化：引用字段只写“目标身份”（节点 ID），不写地址；每节点 4 行（id / v / prev_id / next_id，-1 = None）
+// - 重建：先把文本解析为整数序列，再两趟建图——先分配并建立 id→Idx 映射，再连边（支持循环与前向引用）
+// - 覆盖：循环（双向链回指）、多对一（共享目标）、失效链接 ID（连边时检查 → panic 101）
+import "io"
+import "option"
+import "panic"
+import "fs"
+import "convert"
+import "hashmap"
+import "arraylist"
+
+extern "C" fn __ayanami_live_allocs() -> int;
+
+#[copy]
+struct Idx {
+    usize v
+}
+
+struct Arena[T] {
+    [Ptr[T]] data
+    usize len
+    usize cap
+}
+
+pub namespace Arena {
+    pub fn with_capacity[T](usize cap) -> Arena[T] {
+        return Arena[T] { data = [Ptr[T]; cap], len = 0usize, cap = cap }
+    }
+}
+
+impl[T] Arena[T] {
+    pub fn alloc(ref mut self, T v) -> Idx {
+        if self.len >= self.cap {
+            panic_at(0, 0, "arena", "arena capacity exceeded")
+        }
+        self.data[self.len] = Ptr::new(v)
+        self.len = self.len + 1usize
+        return Idx { v = self.len - 1usize }
+    }
+    pub fn get(ref self, Idx i) -> ref T {
+        if i.v >= self.len {
+            panic_at(0, 0, "arena", "invalid Idx (arena)")
+        }
+        p = ref self.data[i.v]
+        return p.get()
+    }
+    pub fn get_mut(ref mut self, Idx i) -> ref mut T {
+        if i.v >= self.len {
+            panic_at(0, 0, "arena", "invalid Idx (arena)")
+        }
+        p = ref mut self.data[i.v]
+        return p.get_mut()
+    }
+    pub fn len(ref self) -> usize {
+        return self.len
+    }
+}
+
+struct Node {
+    int id
+    int v
+    Option[Idx] prev
+    Option[Idx] next
+}
+
+// 重建结果：arena + 外部 ID → 句柄 映射
+struct Graph {
+    Arena[Node] arena
+    HashMap[int, Idx] ids
+}
+
+// 引用字段 → 表示：Some(Idx) → 目标节点 ID；None → -1
+fn link_id(ref Arena[Node] a, ref Option[Idx] o) -> int {
+    if o._tag != 0 {
+        return -1
+    }
+    h = o._data_Some._0
+    n = a.get(h)
+    return n.id
+}
+
+// 序列化：引用字段只写 ID（每节点 4 行）
+fn serialize(ref Arena[Node] a) -> String {
+    mut s = ""
+    i = 0usize
+    while i < a.len() {
+        h = Idx { v = i }
+        n = a.get(h)
+        s = s + n.id.to_string() + "\n"
+        s = s + n.v.to_string() + "\n"
+        s = s + link_id(a, n.prev).to_string() + "\n"
+        s = s + link_id(a, n.next).to_string() + "\n"
+        i = i + 1usize
+    }
+    return s
+}
+
+// 重建：解析整数序列 → 两趟（分配建映射 → 连边）
+fn rebuild(ArrayList[String] lines) -> Graph {
+    mut vals = ArrayList::new[int]()
+    i = 0usize
+    while i < lines.len() {
+        vals.push(parse_int_or(lines.index(i), -1))
+        i = i + 1usize
+    }
+    count = vals.len() / 4usize
+    mut arena = Arena::with_capacity[Node](16usize)
+    mut ids = HashMap::new[int, Idx]()
+    i = 0usize
+    while i < count {
+        id = vals.index(i * 4usize)
+        v = vals.index(i * 4usize + 1usize)
+        h = arena.alloc(Node { id = id, v = v, prev = Option::None(), next = Option::None() })
+        ids.insert(id, h)
+        i = i + 1usize
+    }
+    i = 0usize
+    while i < count {
+        id = vals.index(i * 4usize)
+        prev_id = vals.index(i * 4usize + 2usize)
+        next_id = vals.index(i * 4usize + 3usize)
+        h = ids.get(id)._data_Some._0
+        n = arena.get_mut(h)
+        if prev_id >= 0 {
+            if !ids.contains_key(prev_id) {
+                panic_at(0, 0, "graph", "unknown link id (graph)")
+            }
+            n.prev = Option::Some(ids.get(prev_id)._data_Some._0)
+        }
+        if next_id >= 0 {
+            if !ids.contains_key(next_id) {
+                panic_at(0, 0, "graph", "unknown link id (graph)")
+            }
+            n.next = Option::Some(ids.get(next_id)._data_Some._0)
+        }
+        i = i + 1usize
+    }
+    return Graph { arena = arena, ids = ids }
+}
+
+// 构建 → 序列化 → 重建 → 往返校验（局部变量全部随本函数释放，便于泄漏检查）
+fn roundtrip() -> int {
+    // 图（ID 语义）：100→200→300 双向链（回指=循环）+ 400 共享指向 200（多对一）
+    mut a = Arena::with_capacity[Node](8usize)
+    i0 = a.alloc(Node { id = 100, v = 1, prev = Option::None(), next = Option::None() })
+    i1 = a.alloc(Node { id = 200, v = 2, prev = Option::None(), next = Option::None() })
+    i2 = a.alloc(Node { id = 300, v = 3, prev = Option::None(), next = Option::None() })
+    i3 = a.alloc(Node { id = 400, v = 4, prev = Option::None(), next = Option::None() })
+    n0 = a.get_mut(i0)
+    n0.next = Option::Some(i1)
+    n1 = a.get_mut(i1)
+    n1.prev = Option::Some(i0)
+    n1.next = Option::Some(i2)
+    n2 = a.get_mut(i2)
+    n2.prev = Option::Some(i1)
+    n3 = a.get_mut(i3)
+    n3.next = Option::Some(i1)
+    // 序列化写盘（引用字段 → ID 文本）
+    s = serialize(ref a)
+    if !write_file("/tmp/ayanami_ref_graph.txt", s) { return 1 }
+    // 读回 → 重建（新 arena；分配 + 连边两趟）
+    lines_opt = read_lines("/tmp/ayanami_ref_graph.txt")
+    if lines_opt._tag != 0 { return 2 }
+    lines = lines_opt._data_Some._0
+    g = rebuild(lines)
+    if g.arena.len() != 4usize { return 3 }
+    // 往返校验：按外部 ID 解析
+    h100 = g.ids.get(100)._data_Some._0
+    n100 = g.arena.get(h100)
+    if n100.v != 1 { return 4 }
+    if link_id(g.arena, n100.next) != 200 { return 5 }
+    h200 = g.ids.get(200)._data_Some._0
+    n200 = g.arena.get(h200)
+    if link_id(g.arena, n200.prev) != 100 { return 6 }
+    if link_id(g.arena, n200.next) != 300 { return 7 }
+    h300 = g.ids.get(300)._data_Some._0
+    n300 = g.arena.get(h300)
+    if link_id(g.arena, n300.prev) != 200 { return 8 }
+    h400 = g.ids.get(400)._data_Some._0
+    n400 = g.arena.get(h400)
+    if link_id(g.arena, n400.next) != 200 { return 9 }
+    return 0
+}
+
+fn main() -> int {
+    rc = roundtrip()
+    if rc != 0 { return rc }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 10 }
+    println("ref graph roundtrip ok")
+    return 0
+}

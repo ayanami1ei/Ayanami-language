@@ -262,7 +262,7 @@ then3:
     t24 = struct_lit String (2 fields)
     t28 = load v5 : Int
     t29 = load v6 : Int
-    _ = call fn(N) (Literal(Int(30), Int):Int, Literal(Int(25), Int):Int, Tmp(24):Named(Symbol(N)), Tmp(28):Int, Tmp(29):Int) : Void
+    _ = call fn(N) (Literal(Int(36), Int):Int, Literal(Int(25), Int):Int, Tmp(24):Named(Symbol(N)), Tmp(28):Int, Tmp(29):Int) : Void
     br %ifcont5
 else4:
     br %ifcont5

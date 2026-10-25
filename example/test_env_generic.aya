@@ -1,0 +1,23 @@
+// E1a 第 2 步：泛型 bound 驱动的环境需求 + 调用点自动填充
+// `alloc_free[E: Allocator]` 不显式接收分配器；调用点按作用域提供者填 E 与隐含值参数。
+import "io"
+import "alloc"
+
+fn alloc_free[E: Allocator](usize n) -> usize {
+    p = env::allocator.alloc(n)
+    if p == 0usize { return 0usize }
+    env::allocator.free(p)
+    return 1usize
+}
+
+#[env::allocator(a)]
+fn run() -> int {
+    a = DefaultAllocator { }
+    if alloc_free(8usize) != 1usize { return 1 }
+    if alloc_free(16usize) != 1usize { return 2 }
+    return 0
+}
+
+fn main() -> int {
+    return run()
+}

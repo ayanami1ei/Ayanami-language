@@ -1,0 +1,121 @@
+// R4：对象图重建——失效链接 ID → panic（101；连边阶段检查；文件为手工构造的坏数据）
+// - 输入格式同示例：每节点 4 行（id / v / prev_id / next_id，-1 = None）；本用例 next 指向未注册 ID 999
+// - 重建：先把文本解析为整数序列，再两趟建图（分配建 id→Idx 映射 → 连边）
+// - 连边阶段对每个链接 ID 做 contains 检查，未注册 → panic（退出码 101）
+import "option"
+import "panic"
+import "fs"
+import "convert"
+import "hashmap"
+import "arraylist"
+
+#[copy]
+struct Idx {
+    usize v
+}
+
+struct Arena[T] {
+    [Ptr[T]] data
+    usize len
+    usize cap
+}
+
+pub namespace Arena {
+    pub fn with_capacity[T](usize cap) -> Arena[T] {
+        return Arena[T] { data = [Ptr[T]; cap], len = 0usize, cap = cap }
+    }
+}
+
+impl[T] Arena[T] {
+    pub fn alloc(ref mut self, T v) -> Idx {
+        if self.len >= self.cap {
+            panic_at(0, 0, "arena", "arena capacity exceeded")
+        }
+        self.data[self.len] = Ptr::new(v)
+        self.len = self.len + 1usize
+        return Idx { v = self.len - 1usize }
+    }
+    pub fn get(ref self, Idx i) -> ref T {
+        if i.v >= self.len {
+            panic_at(0, 0, "arena", "invalid Idx (arena)")
+        }
+        p = ref self.data[i.v]
+        return p.get()
+    }
+    pub fn get_mut(ref mut self, Idx i) -> ref mut T {
+        if i.v >= self.len {
+            panic_at(0, 0, "arena", "invalid Idx (arena)")
+        }
+        p = ref mut self.data[i.v]
+        return p.get_mut()
+    }
+    pub fn len(ref self) -> usize {
+        return self.len
+    }
+}
+
+struct Node {
+    int id
+    int v
+    Option[Idx] prev
+    Option[Idx] next
+}
+
+// 重建结果：arena + 外部 ID → 句柄 映射
+struct Graph {
+    Arena[Node] arena
+    HashMap[int, Idx] ids
+}
+
+// 重建：解析整数序列 → 两趟（分配建映射 → 连边）
+fn rebuild(ArrayList[String] lines) -> Graph {
+    mut vals = ArrayList::new[int]()
+    i = 0usize
+    while i < lines.len() {
+        vals.push(parse_int_or(lines.index(i), -1))
+        i = i + 1usize
+    }
+    count = vals.len() / 4usize
+    mut arena = Arena::with_capacity[Node](16usize)
+    mut ids = HashMap::new[int, Idx]()
+    i = 0usize
+    while i < count {
+        id = vals.index(i * 4usize)
+        v = vals.index(i * 4usize + 1usize)
+        h = arena.alloc(Node { id = id, v = v, prev = Option::None(), next = Option::None() })
+        ids.insert(id, h)
+        i = i + 1usize
+    }
+    i = 0usize
+    while i < count {
+        id = vals.index(i * 4usize)
+        prev_id = vals.index(i * 4usize + 2usize)
+        next_id = vals.index(i * 4usize + 3usize)
+        h = ids.get(id)._data_Some._0
+        n = arena.get_mut(h)
+        if prev_id >= 0 {
+            if !ids.contains_key(prev_id) {
+                panic_at(0, 0, "graph", "unknown link id (graph)")
+            }
+            n.prev = Option::Some(ids.get(prev_id)._data_Some._0)
+        }
+        if next_id >= 0 {
+            if !ids.contains_key(next_id) {
+                panic_at(0, 0, "graph", "unknown link id (graph)")
+            }
+            n.next = Option::Some(ids.get(next_id)._data_Some._0)
+        }
+        i = i + 1usize
+    }
+    return Graph { arena = arena, ids = ids }
+}
+
+fn main() -> int {
+    // 单节点：id=100 v=1 prev=-1 next=999（无效链接 ID → 连边阶段检查 → panic）
+    if !write_file("/tmp/ayanami_ref_graph_bad.txt", "100\n1\n-1\n999\n") { return 1 }
+    lines_opt = read_lines("/tmp/ayanami_ref_graph_bad.txt")
+    if lines_opt._tag != 0 { return 2 }
+    lines = lines_opt._data_Some._0
+    g = rebuild(lines)
+    return 0
+}

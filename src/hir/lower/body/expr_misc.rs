@@ -1,7 +1,7 @@
 use super::*;
 
 impl crate::hir::lower::Ctx {
-    pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>, span: &Span) -> Result<HirNodeBox> {
+    pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>, clobbers: &Vec<Symbol>, span: &Span) -> Result<HirNodeBox> {
         // M5：asm 需要 unsafe 上下文
         if self.unsafe_depth == 0 && !self.cur_fn_unsafe {
             return Err(Error::Hir(format!(
@@ -24,6 +24,7 @@ impl crate::hir::lower::Ctx {
             template: template.clone(),
             outputs: lowered_outputs,
             inputs: lowered_inputs,
+            clobbers: clobbers.clone(),
             ty,
         }.into())
     }

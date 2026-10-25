@@ -1,0 +1,26 @@
+// #208：asm 效应按模板判定——纯寄存器算术可声明 #[pure]；访存 asm 计 state
+#[pure]
+pub fn wrapping_add(int a, int b) -> int {
+    r = 0;
+    unsafe {
+        asm("leaq ($1,$2), $0", out(reg) r, in(reg) a, in(reg) b)
+    }
+    return r
+}
+
+fn store_mem(*int p, int v) -> void {
+    unsafe {
+        asm("movq $1, ($0)", in(reg) p, in(reg) v)
+    }
+}
+
+fn main() -> int {
+    if wrapping_add(2, 3) != 5 { return 1 }
+    x = 0
+    unsafe {
+        p = ref mut x as *int
+        store_mem(p, 9)
+    }
+    if x != 9 { return 2 }
+    return 0
+}

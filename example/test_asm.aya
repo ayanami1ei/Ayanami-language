@@ -1,9 +1,16 @@
-// M5：inline asm 需要 unsafe 上下文
+// M5：inline asm 需要 unsafe 上下文；#200：clobbers 声明被模板破坏的寄存器
 fn main() -> int {
     a = 10
     result = 0
     unsafe {
         asm("mov $1, $0", in(reg) a, out(reg) result)
     }
-    return result
+    if result != 10 { return 1 }
+    b = 0
+    unsafe {
+        // rax 被模板破坏；clobber → LLVM 约束串追加 ~{rax}，分配器不再复用该寄存器
+        asm("movq $$7, %rax\n movq $1, $0", in(reg) a, out(reg) b, clobbers(rax))
+    }
+    if b != 10 { return 2 }
+    return 0
 }

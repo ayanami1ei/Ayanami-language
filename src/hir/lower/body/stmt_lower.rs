@@ -59,7 +59,11 @@ impl crate::hir::lower::Ctx {
                 let hir_value = match self.lookup_var(name) {
                     Some((_, var_ty, _)) => {
                         let v = self.instantiate_enum_value(hir_value, &var_ty)?;
-                        coerce_expr(v, &var_ty, span)?
+                        let v = coerce_expr(v, &var_ty, span)?;
+                        // #201：不兼容组合（如结构体赋给 int）→ 明确报错，而非非法 IR
+                        ensure_assignable(&v, &var_ty, span,
+                            &format!("`{}`", hir_type_display(&var_ty)))?;
+                        v
                     }
                     None => hir_value,
                 };
@@ -91,6 +95,9 @@ impl crate::hir::lower::Ctx {
                 let hir_value = self.lower_expr(value)?;
                 // 字段类型隐式数值转换
                 let hir_value = coerce_expr(hir_value, &field_ty, stmt_span)?;
+                // #201：字段写入类型兼容检查
+                ensure_assignable(&hir_value, &field_ty, stmt_span,
+                    &format!("field `{}` of `{}`", field.as_str(), hir_type_display(&object_ty)))?;
                 let hir_value = implicit_move(hir_value);
                 // A4b-2：引用字段允许存储（非引用字段仍拒绝）
                 if matches!(expr_type(&hir_value), HirType::Ref(..))
@@ -130,23 +137,9 @@ impl crate::hir::lower::Ctx {
                     span: *span,
                 })
             }
-            // M5 P2：`*p = v` —— 裸指针解引用写（需 unsafe）
-            Stmt::DerefAssign { target, value, span } => {
-                self.require_unsafe("write through a raw pointer", span)?;
-                let hir_target = self.lower_expr(target)?;
-                let target_ty = expr_type(&hir_target);
-                let pointee = match strip_ownership_ref(&target_ty) {
-                    HirType::RawPtr(inner) => inner.as_ref().clone(),
-                    other => return Err(Error::Hir(format!(
-                        "cannot write through `{}`: expected a raw pointer `*T` (at {}:{})",
-                        hir_type_display(other), span.start_line, span.start_col
-                    ))),
-                };
-                let hir_value = self.lower_expr(value)?;
-                let hir_value = coerce_expr(hir_value, &pointee, span)?;
-                let hir_value = implicit_move(hir_value);
-                Ok(HirStmt::DerefAssign { target: hir_target, value: hir_value, span: *span })
-            }
+            // M5 P2：`*p = v` —— 裸指针/`ref mut` 解引用写（实现在 stmt_deref.rs）
+            Stmt::DerefAssign { target, value, span } =>
+                return self.lower_deref_assign(target, value, span),
             Stmt::Return { value, span } => {
                 if value.is_none() {
                     let ret_ty = self.fns[self.current_fn.0].return_type.clone();
@@ -210,7 +203,11 @@ impl crate::hir::lower::Ctx {
                     }
                     None => None,
                 };
-                Ok(HirStmt::Return { value: hir_value, span: *span })
+                if self.sync_locks.is_empty() {
+                    return Ok(HirStmt::Return { value: hir_value, span: *span });
+                }
+                // A5e：返回值仍在锁内求值，落临时局部后解锁再返回
+                self.sync_return_stmt(hir_value, *span)
             }
             Stmt::If { cond, then_block, elifs, else_block, span } => {
                 let hir_cond = auto_deref(self.lower_expr(cond)?);
@@ -244,6 +241,7 @@ impl crate::hir::lower::Ctx {
             Stmt::Attributed { attrs, stmt: inner, .. } => {
                 // cfg 已在 hir::cfg::filter_program 中过滤，这里只剩 invariant
                 let invs = crate::hir::contracts::invariant_conditions(attrs);
+                if let Some(r) = self.try_lower_sync(attrs, inner) { return r; }
                 match inner.as_ref() {
                     Stmt::While { cond, body, .. } => self.lower_while(cond, body, &invs),
                     Stmt::For { iterator, start, end, step, body, .. } => {
@@ -251,6 +249,14 @@ impl crate::hir::lower::Ctx {
                     }
                     Stmt::ForIn { iterator, iterable, body, span } => {
                         self.lower_for_in(*iterator, iterable, body, &invs, span)
+                    }
+                    // E2：块作用域环境覆盖 `#[env::<cap>(v)] { ... }`（最近者胜）
+                    Stmt::Block(_) if attrs.iter().any(|a| a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env") => {
+                        let caps = self.env_caps_from_attrs(attrs)?;
+                        self.env_blocks.push(caps);
+                        let r = self.lower_stmt(inner);
+                        self.env_blocks.pop();
+                        r
                     }
                     _ => self.lower_stmt(inner),
                 }
@@ -269,8 +275,8 @@ impl crate::hir::lower::Ctx {
                 let hb = hb?;
                 Ok(HirStmt::Block { stmts: hb.stmts, span: block.span })
             }
-            Stmt::Break { span } => Ok(HirStmt::Break { span: *span }),
-            Stmt::Continue { span } => Ok(HirStmt::Continue { span: *span }),
+            Stmt::Break { span } => self.lower_loop_exit(HirStmt::Break { span: *span }, *span),
+            Stmt::Continue { span } => self.lower_loop_exit(HirStmt::Continue { span: *span }, *span),
             Stmt::ExprStmt { expr, span } => {
                 let hir_expr = self.lower_expr(expr)?;
                 Ok(HirStmt::Expr { expr: hir_expr, span: *span })

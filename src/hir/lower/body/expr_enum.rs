@@ -8,7 +8,10 @@ impl crate::hir::lower::Ctx {
         // #150：未知变体必须报错（此前静默回退 tag 0）
         let tag = self.struct_defs.get(enum_name).and_then(|fields| {
             let target = format!("_data_{}", variant_name);
-            fields.iter().position(|f| f.name.as_str() == target).map(|i| (i - 1) as i64)
+            // N1：niche 形态无 `_tag`，`_data_*` 下标即 tag
+            let has_tag = fields.first().map(|f| f.name.as_str() == "_tag").unwrap_or(false);
+            fields.iter().position(|f| f.name.as_str() == target)
+                .map(|i| if has_tag { i as i64 - 1 } else { i as i64 })
         });
         let Some(tag) = tag else {
             return Err(Error::Hir(format!(
@@ -59,9 +62,19 @@ impl crate::hir::lower::Ctx {
             let mut all_fields: Vec<(Symbol, HirNodeBox)> = enum_fields.iter()
                 .map(|f| (f.name, SConst { val: HirLiteral::Int(0), ty: f.ty.clone() }.into()))
                 .collect();
-            all_fields[0] = (Symbol::intern("_tag"), SConst { val: HirLiteral::Int(tag), ty: HirType::Int }.into());
+            // N1：niche 形态无 `_tag` 字段（判别由载荷槽空值承载；非活跃变体保持零值）
+            if enum_fields.first().map(|f| f.name.as_str() == "_tag").unwrap_or(false) {
+                all_fields[0] = (Symbol::intern("_tag"), SConst { val: HirLiteral::Int(tag), ty: HirType::Int }.into());
+            }
             if let Some(pos) = enum_fields.iter().position(|f| f.name == data_field) {
-                all_fields[pos] = (data_field, var_literal);
+                // N2：boxed 变体——载荷结构堆分配（字段类型为 Unique(E_V)）
+                let field_ty = enum_fields[pos].ty.clone();
+                let value = if matches!(field_ty, HirType::Unique(_)) {
+                    SToUnique { expr: var_literal, ty: field_ty }.into()
+                } else {
+                    var_literal
+                };
+                all_fields[pos] = (data_field, value);
             }
             all_fields
         } else {
@@ -136,6 +149,9 @@ impl crate::hir::lower::Ctx {
                     };
                     HirStructField { name: f.name, ty }
                 }).collect();
+                // N1：具体载荷可 niche → 单指针槽表示
+                let cfields = self.apply_boxing_rewrite(cfields, false);
+                let cfields = self.apply_niche_rewrite(cfields);
                 self.struct_defs.insert(concrete_enum, cfields);
             }
         }

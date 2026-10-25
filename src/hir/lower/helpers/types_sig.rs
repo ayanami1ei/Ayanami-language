@@ -34,6 +34,11 @@ pub(crate) fn sig_str_to_hir(s: &str) -> HirType {
             }
         }
     }
+    // `Ptr<T>`（AST 泛型写法，type_to_string_generic 输出）→ 拥有指针
+    // （与 ast_type_to_hir 的 Ptr 特例一致；否则退化为 Named("Ptr<..>") 丢所有权/尺寸）
+    if let Some(inner) = s.strip_prefix("Ptr<").and_then(|r| r.strip_suffix('>')) {
+        return HirType::Unique(Box::new(sig_str_to_hir(inner)));
+    }
     if let Some(inner) = s.strip_prefix("ref mut ") {
         HirType::Ref(Box::new(sig_str_to_hir(inner)), true)
     } else if let Some(inner) = s.strip_prefix("ref ") {

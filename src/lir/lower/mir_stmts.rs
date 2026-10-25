@@ -48,13 +48,26 @@ impl MirStmtNode for SMirFieldAssignStmt { fn span(&self) -> crate::span::Span {
             }
         }
         let obj_val = self.object.lower_to_lir(ctx);
-        let obj_tmp = match obj_val {
-            LirValue::Tmp(t) => t,
-            _ => { let t = ctx.next_tmp(); ctx.emit(SLirLoad { dest: t, src: extract_var(&obj_val), ty: self.object.expr_type() }.into()); t }
+        let (obj_ptr, final_ty, through_ptr) = chase_ptr_layers(ctx, obj_val, &obj_ty);
+        let (obj_tmp, struct_ty) = {
+            let t = match obj_ptr {
+                LirValue::Tmp(t) => t,
+                other => {
+                    let t = ctx.next_tmp();
+                    ctx.emit(SLirLoad { dest: t, src: extract_var(&other), ty: obj_ty.clone() }.into());
+                    t
+                }
+            };
+            let st = if through_ptr {
+                HirType::Ref(Box::new(final_ty), false)
+            } else {
+                final_ty
+            };
+            (t, st)
         };
         let src_val = self.value.lower_to_lir(ctx);
         let gep_tmp = ctx.next_tmp(); let iv_tmp = ctx.next_tmp();
-        ctx.emit(SLirFieldStore { dest: obj_tmp, var_id, gep_tmp, iv_tmp, src: src_val, field_index: self.field_index, field_ty: self.field_ty.clone(), struct_ty: obj_ty }.into());
+        ctx.emit(SLirFieldStore { dest: obj_tmp, var_id, gep_tmp, iv_tmp, src: src_val, field_index: self.field_index, field_ty: self.field_ty.clone(), struct_ty }.into());
     }
     fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result {
         writeln!(w, "{:width$}FieldAssign field={} index={} ty={}", "", self.field, self.field_index, display_hir_type(&self.field_ty), width = level * 2)?;

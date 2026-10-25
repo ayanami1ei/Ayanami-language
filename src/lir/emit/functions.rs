@@ -180,9 +180,14 @@ impl<'a> Emitter<'a> {
             || fn_name.starts_with("__closure_drop_")
             || fn_name.starts_with("__closure_noop_drop")
             || fn_name.starts_with("__fnptr_tramp_");
+        // d5c/nsr：本地符号与导入声明同名（如 std add[T] 的 add_int_int）时，
+        // 该函数必须 internal，避免链接期重复定义；其余保持 debug 外部链接（M-opt.2）。
+        let collides_with_import = self.prog.extern_decls.iter()
+            .any(|d| d.name.as_str() == fn_name.as_str());
         let linkage = if self.prog.specialized_fns.contains(&f.fn_id) || f.is_inline {
             "linkonce_odr "
         } else if is_synth
+            || (collides_with_import && !f.is_pub && !f.extern_c && fn_name != "main")
             || (!f.is_pub
                 && !f.extern_c
                 && fn_name != "main"
