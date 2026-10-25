@@ -171,9 +171,9 @@ vtable，但 `"str" + x`、`x.field` 等静态语义无法还原）；且改变�
   - 多实参结构体字面量保留首个类型实参（解析器），实例按首个实参匹配
   - 无类型实参结构体字面量的字段推断（`Box { v = 42 }`、`Pair { first, second }`），
     负标记字段种类补齐；结构体形参的具体泛型类型改用实例布局（`Box[Box[T]]` 形参）
-  - 余下：多类型参数**函数**推断/特化（`TakeIt[T,I]` 的 `new`、`Holder[T,U]` 的方法、
-    `Option[U]` 返回类型）——`spec_*` 目前只记录一个类型实参；枚举实例已可用（`Option[T]`
-    载荷替换/方法特化/构造推断）
+  - 多类型参数特化已接入（`spec_register2` 双实参、`type_buf` 发射期类型定义、
+    枚举构造按 Val 推断实例、`Option[U]` 返回实例补建）——`Holder[T,U]` 方法/字面量转正
+  - 余下：`TakeIt[T,I]` 这类从参数化约束（`I: It[T]`）反推 T 的推断（需要 impl 匹配）
   - 结论：泛型簇除多类型参数**函数**特化（test_iter_infer/test_closure_field_call）外全部转正；
     枚举字段/Ptr 载荷/结构体形参实例均已接入（test_ptr_tree 仅差 ref 字段地址语义）
 - [ ] 阶段 6：`ref String` 形参按指针 ABI（连续双槽临时 + 调用后回写）；见 docs/selfhost.md 坑 38
