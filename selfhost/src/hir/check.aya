@@ -10,6 +10,13 @@ import "aya_imports";
 // 类型用显示名字符串表示（"int"/"float"/"bool"/"char"/"void"/"String"/结构体名…），
 // "" 表示未知（跳过检查）。
 
+/// 泛型效果警告（按 FnDecl node 记录，供 driver 按特化实例顺序回放）
+pub struct CheckOut {
+    int gwcount
+    [int] gwids
+    [String] gwmsgs
+}
+
 pub struct Checker {
     int errors
     String file
@@ -86,6 +93,11 @@ pub struct Checker {
     int fx_self_ref
     [String] fx_refs
     int fx_ref_count
+    // 泛型效果警告（defer_gen=1 时不在检查期打印，留给 driver 按 spec 顺序回放）
+    [int] gw_ids
+    [String] gw_msgs
+    int gw_count
+    int defer_gen
 }
 
 pub namespace Checker {
@@ -156,7 +168,11 @@ pub namespace Checker {
             cur_fx = -1,
             fx_self_ref = 0,
             fx_refs = [String; 512],
-            fx_ref_count = 0
+            fx_ref_count = 0,
+            gw_ids = [int; 2048],
+            gw_msgs = [String; 2048],
+            gw_count = 0,
+            defer_gen = 0
 };
         return c;
     }
@@ -826,7 +842,13 @@ impl Checker {
                         w.push_str(self.fx_names[i]);
                         w.push_str("` may have effect `alloc`; consider adding #[alloc]");
                         if self.fx_gen[i] == 1 {
-                            raw_warn(w.to_string());
+                            msg_g = w.to_string();
+                            if self.gw_count < 2048 {
+                                self.gw_ids[self.gw_count] = self.fx_id[i];
+                                self.gw_msgs[self.gw_count] = msg_g.copy();
+                                self.gw_count = self.gw_count + 1;
+                            }
+                            if self.defer_gen == 0 { raw_warn(msg_g); }
                         } else {
                             self.warn(w.to_string(), self.fx_line[i], self.fx_col[i]);
                         }
@@ -837,7 +859,13 @@ impl Checker {
                         w2.push_str(self.fx_names[i]);
                         w2.push_str("` may have effect `state`; consider adding #[state]");
                         if self.fx_gen[i] == 1 {
-                            raw_warn(w2.to_string());
+                            msg_g2 = w2.to_string();
+                            if self.gw_count < 2048 {
+                                self.gw_ids[self.gw_count] = self.fx_id[i];
+                                self.gw_msgs[self.gw_count] = msg_g2.copy();
+                                self.gw_count = self.gw_count + 1;
+                            }
+                            if self.defer_gen == 0 { raw_warn(msg_g2); }
                         } else {
                             self.warn(w2.to_string(), self.fx_line[i], self.fx_col[i]);
                         }
@@ -2320,8 +2348,9 @@ impl Checker {
 /// 入口：收集 + 检查，返回错误数（诊断已输出）
 #[alloc]
 #[state]
-pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int {
+pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap, ref mut CheckOut co, int defer_gen) -> int {
     c = Checker::new(file, smap);
+    c.defer_gen = defer_gen;
     c.seed_std();
     c.collect(ast, prog);
     c.collect_globals(ast, prog);
@@ -2344,5 +2373,12 @@ pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
         s = ast.nexts[s];
     }
     c.fx_infer(ast);
+    k_o = 0;
+    while k_o < c.gw_count {
+        co.gwids[k_o] = c.gw_ids[k_o];
+        co.gwmsgs[k_o] = c.gw_msgs[k_o].copy();
+        k_o = k_o + 1;
+    }
+    co.gwcount = c.gw_count;
     return c.errors;
 }

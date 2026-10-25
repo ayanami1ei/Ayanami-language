@@ -11834,9 +11834,15 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
     e.cur_rtype = -1;
 }
 
+/// 特化 worklist 的 FnDecl 顺序（供 driver 按实例回放效果警告）
+pub struct SpecOut {
+    int count
+    [int] nodes
+}
+
 #[alloc]
 #[state]
-pub fn emit_program(ref Ast ast, int prog, ref String file) -> String {
+pub fn emit_program(ref Ast ast, int prog, ref String file, ref mut SpecOut so) -> String {
     e = Emitter::new();
     e.src_file = file.copy();
     e.collect_decls(ast, prog);
@@ -11914,6 +11920,12 @@ pub fn emit_program(ref Ast ast, int prog, ref String file) -> String {
     }
     // 3tq：泛型特化（worklist，主循环后发射）
     e.emit_specializations(ast);
+    so.count = e.spec_count;
+    k_so = 0;
+    while k_so < e.spec_count && k_so < 256 {
+        so.nodes[k_so] = e.spec_nodes[k_so];
+        k_so = k_so + 1;
+    }
     if e.decl_has("__ayanami_print_int") == 0 { e.buf.push_str("declare void @__ayanami_print_int(i64)\n"); }
     if e.decl_has("__ayanami_print_ln") == 0 { e.buf.push_str("declare void @__ayanami_print_ln()\n"); }
     if e.decl_has("__ayanami_print_str") == 0 { e.buf.push_str("declare void @__ayanami_print_str(ptr, i64)\n"); }

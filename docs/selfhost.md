@@ -146,8 +146,9 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     - **关键坑**：临时对若在函数体/循环内 `alloca`，编译器自身热路径（`find_method_id`/
       `find_struct_idx` 常量名调用）会持续涨栈，stage-2 在 3.08GB 处段错误；改为入口块
       按调用点预分配后固定点恢复。
-    现状：`set_hi(ref mut String)` 写回正常，test_ref_auto 通过；全量 diff 152/154；
-    固定点 md5=857a37b1（ref String 里程碑为 a511d7b7，其后加入数组/Ptr/诊断对齐）。
+    现状：`set_hi(ref mut String)` 写回正常，test_ref_auto 通过；全量 diff 153/154；
+    固定点 md5=2c34e390（ref String 里程碑 a511d7b7 → 数组/Ptr/诊断对齐 857a37b1 →
+    单态化警告回放 2c34e390）。
 
 39. **伪诊断只影响输出、不阻断发射（2026-10-24）**：自举源上 checker 会报 1 条
     `mk_str_tmp` 重载错误（MethodCall 返回类型恒为 ""，局部类型未知）——`cmd_build` 把 check
@@ -255,12 +256,13 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     - 泛型单态化实例的 span=0 → 效果警告**无位置**（`raw_warn`）；`test_multi_constraint` 转正。
     - `String.add/to_string/substring/...` 的实现带 `#[alloc] #[state]`，调用点要同时标记
       alloc+state（`is_std_state_name`）；`Ptr.new`/`Box.new` 仅 alloc。
-    - 剩余：stage-0 按**单态化实例数**重复警告（test_arena 9 条 vs 自举 5 条），自举在 HIR 检查期
-      每源函数只报一次。**已确认自举 spec worklist 顺序与 stage-0 完全一致**：
-      `__i0..i3` = get_mut/with_capacity/alloc/len（len 无效果）→ batch1；
-      `__i4..i8` = get_mut/get/with_capacity/alloc/len → batch2。对齐方案：checker 按 FnDecl
-      node 记录泛型 pub 警告，`emit_specializations` 后按 `spec_nodes` 顺序回放（每 spec 一组，
-      alloc 先于 state），需 driver 跨阶段传表（bd w9p）。
+    - stage-0 按**单态化实例数**重复警告，自举已对齐（2026-10-25）：
+      checker 的 `CheckOut` 按 FnDecl node 记录泛型 pub 警告（defer 模式下不打印）；
+      emitter 的 `SpecOut` 暴露 `spec_nodes` 顺序；driver 在 `emit_program` 后按 spec 顺序回放
+      （每个 spec 一组，alloc 先于 state），宏诊断移到回放之后。
+      已确认 spec 顺序与 stage-0 完全一致：`__i0..i3` = get_mut/with_capacity/alloc/len
+      （len 无效果）→ batch1；`__i4..i8` = get_mut/get/with_capacity/alloc/len → batch2。
+      test_arena 的 9 条警告逐条一致。
 
 60. **Ptr[Struct] 的自动解引用（2026-10-24）**：`fn leaf() -> Ptr[Tree]` 的**返回值**必须带
     解引用标记（`10001+si`），否则局部是裸 i64，`t.left = ...` / `t.contains(x)` 无接收者类型。

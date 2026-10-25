@@ -101,7 +101,8 @@ pub fn cmd_check(ref String file) -> int {
         raw_error("parse error: " + p.err);
         return 1;
     }
-    n = check_program(p.ast, prog, file, smap);
+    cout = CheckOut { gwcount = 0, gwids = [int; 2048], gwmsgs = [String; 2048] };
+    n = check_program(p.ast, prog, file, smap, cout, 0);
     if n > 0 {
         raw_error("check failed: " + file);
         return 1;
@@ -143,13 +144,8 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
             return 1;
         }
     }
-    n = check_program(p.ast, prog, file, smap);
-    // 宏诊断（stage-0 在效果警告之后输出）
-    i_dg = 0;
-    while i_dg < mo.diag_count {
-        raw_warn(mo.diags[i_dg]);
-        i_dg = i_dg + 1;
-    }
+    cout = CheckOut { gwcount = 0, gwids = [int; 2048], gwmsgs = [String; 2048] };
+    n = check_program(p.ast, prog, file, smap, cout, 1);
     if n > 0 {
         // 自举期：checker 尚不完整（缺 std 符号表/部分重载规则），降级为警告继续发射。
         // 计数行默认不打印（对齐 stage-0 输出），调试用 AYANAMI_SELFHOST_DEBUG=1
@@ -163,7 +159,26 @@ pub fn cmd_build(ref String file, ref Opts o) -> int {
         return 1;
     }
     stem = Path::stem(Path::file_name(file));
-    ir = emit_program(p.ast, prog, file);
+    so = SpecOut { count = 0, nodes = [int; 256] };
+    ir = emit_program(p.ast, prog, file, so);
+    // 泛型效果警告按特化实例顺序回放（stage-0 单态化诊断行为）
+    gi = 0;
+    while gi < so.count {
+        wi = 0;
+        while wi < cout.gwcount {
+            if cout.gwids[wi] == so.nodes[gi] {
+                raw_warn(cout.gwmsgs[wi]);
+            }
+            wi = wi + 1;
+        }
+        gi = gi + 1;
+    }
+    // 宏诊断（stage-0 在效果警告之后输出）
+    i_dg = 0;
+    while i_dg < mo.diag_count {
+        raw_warn(mo.diags[i_dg]);
+        i_dg = i_dg + 1;
+    }
     w = work_dir();
     ll = Path::join(w, stem + ".ll");
     obj = Path::join(w, stem + ".o");
