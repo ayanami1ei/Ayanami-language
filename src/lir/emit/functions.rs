@@ -198,9 +198,10 @@ impl<'a> Emitter<'a> {
         } else {
             ""
         };
+        let dso = if crate::target::static_codegen() && linkage.is_empty() { "dso_local " } else { "" };
         self.wln_fmt(format_args!(
-            "define {}{}{} @{}({}){} {{",
-            linkage, ret_attr, ret_ty, fn_name, param_list, inline_attr
+            "define {}{}{}{} @{}({}){} {{",
+            linkage, dso, ret_attr, ret_ty, fn_name, param_list, inline_attr
         ));
         self.indent += 1;
 

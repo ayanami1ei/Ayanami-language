@@ -27,7 +27,7 @@ pub(crate) fn cmd_new(args: &[String]) {
     });
     let toml = dir.join("ayanami.toml");
     fs::write(&toml, format!(
-        "[package]\nname = \"{}\"\nversion = \"{}\"\n\n[build]\ntarget = \"executable\"\n\n[build.targets]\n# \"src/utils.aya\" = \"static-lib\"\n# \"src/plugin.aya\" = \"dynamic-lib\"\n",
+        "[package]\nname = \"{}\"\nversion = \"{}\"\n\n[build]\ntarget = \"executable\"\n# arch = \"aarch64-none-elf\"\n# freestanding = true\n\n[build.targets]\n# \"src/utils.aya\" = \"static-lib\"\n# \"src/plugin.aya\" = \"dynamic-lib\"\n",
         name,
         env!("CARGO_PKG_VERSION")
     )).unwrap_or_else(|e| {

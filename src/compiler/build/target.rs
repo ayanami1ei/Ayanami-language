@@ -34,6 +34,10 @@ pub fn build_source_with_target(
     out_dir: &str,
     target: Option<&str>,
 ) -> Result<()> {
+    if crate::target::freestanding() && target == Some("executable") {
+        return Err(Error::Compile(
+            "freestanding mode only supports object artifacts; use [build] target = \"object\"".into()));
+    }
     // 默认关闭：std 测试脚本每次重装 .lcl，需按安装目录内容建键后再默认开启
     let cacheable = target == Some("executable") && std::env::var("AYANAMI_NO_INCREMENTAL").is_err();
     let stem = std::path::Path::new(src_path).file_stem()
@@ -111,6 +115,7 @@ fn build_source_with_target_inner(
     }
 
     let _output_path = match target {
+        "object" => compiled.own_obj.clone(),
         "executable" => {
             let exe_path = out_path.join(&*name);
             crate::driver::objects_to_exe_with_runtime(
@@ -152,27 +157,29 @@ fn build_source_with_target_inner(
     };
 
 
-    let lcl_path = out_path.join(format!("{}.lcl", name));
-    let mut pkg = crate::package::Package::new(name.to_string(), env!("CARGO_PKG_VERSION").into());
-    pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);
-    pkg.collect_symbols(&compiled.program.stmts);
-    pkg.set_consts(&compiled.consts);
-    pkg.set_statics(&compiled.statics, false);
-    merge_symbols(&mut pkg, &compiled.dep_lcl_paths);
+    if target != "object" {
+        let lcl_path = out_path.join(format!("{}.lcl", name));
+        let mut pkg = crate::package::Package::new(name.to_string(), env!("CARGO_PKG_VERSION").into());
+        pkg.lir_data = crate::lir::serialize::program_to_bytes(&compiled.lir_program);
+        pkg.collect_symbols(&compiled.program.stmts);
+        pkg.set_consts(&compiled.consts);
+        pkg.set_statics(&compiled.statics, false);
+        merge_symbols(&mut pkg, &compiled.dep_lcl_paths);
 
-    let has_main = compiled.program.stmts.iter().any(|s| {
-        matches!(s, crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main")
-    });
-    pkg.target_types = if has_main {
-        vec![crate::package::TargetType::Executable]
-    } else {
-        vec![
-            crate::package::TargetType::StaticLib,
-            crate::package::TargetType::DynamicLib,
-        ]
-    };
-    pkg.write_to_file(&lcl_path.to_string_lossy())
-        .map_err(|e| Error::Compile(format!("package write failed: {}", e)))?;
+        let has_main = compiled.program.stmts.iter().any(|s| {
+            matches!(s, crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main")
+        });
+        pkg.target_types = if has_main {
+            vec![crate::package::TargetType::Executable]
+        } else {
+            vec![
+                crate::package::TargetType::StaticLib,
+                crate::package::TargetType::DynamicLib,
+            ]
+        };
+        pkg.write_to_file(&lcl_path.to_string_lossy())
+            .map_err(|e| Error::Compile(format!("package write failed: {}", e)))?;
+    }
 
     Ok(())
 }

@@ -78,8 +78,13 @@ impl<'a> Emitter<'a> {
     fn emit(&mut self) {
         // Header
         self.wln("; ModuleID = 'ayanami'");
-        self.wln("target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"");
-        self.wln("target triple = \"x86_64-unknown-linux-gnu\"");
+        if let Some(t) = crate::target::target_triple() {
+            // 交叉目标：只写 triple，datalayout 由 llc 的目标默认提供
+            self.wln(&format!("target triple = \"{}\"", t));
+        } else {
+            self.wln("target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"");
+            self.wln("target triple = \"x86_64-unknown-linux-gnu\"");
+        }
         self.wln("");
 
         // String globals

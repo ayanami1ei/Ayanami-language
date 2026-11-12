@@ -18,6 +18,7 @@ mod annotation_table;
 pub mod compiler;
 pub mod diagnostics;
 pub mod driver;
+pub mod target;
 pub mod error;
 pub mod formatter;
 pub mod hir;

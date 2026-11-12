@@ -16,8 +16,9 @@ src/annotation_table.rs:81: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Resul
 src/annotation_table.rs:117: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
 src/annotation_table.rs:163: pub(crate) fn resolve_kind(&self, a: &Attr) -> Result<Option<AnnKind>>
 src/annotation_table.rs:167: pub fn lcl_path(&self, pkg: &str) -> Option<String>
-src/cli/build.rs:3: pub(crate) fn cmd_build(args: &[String])
-src/cli/build.rs:28: pub(crate) fn cmd_run(args: &[String])
+src/cli/build.rs:4: fn project_config_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig>
+src/cli/build.rs:15: pub(crate) fn cmd_build(args: &[String])
+src/cli/build.rs:46: pub(crate) fn cmd_run(args: &[String])
 src/cli/check.rs:3: fn do_check(path: &Path) -> ayanami::error::Result<()>
 src/cli/check.rs:14: pub(crate) fn cmd_check(args: &[String])
 src/cli/check.rs:36: fn watch_file(path: &Path)
@@ -69,7 +70,7 @@ src/cli/update_fetch.rs:98: pub(super) fn download(src: &str, dest: &Path, limit
 src/cli/update_fetch.rs:126: pub(super) fn tar_listing(tar: &Path) -> Result<String>
 src/cli/update_fetch.rs:136: pub(super) fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
 src/compiler/build/compile.rs:6: pub fn compile_file(
-src/compiler/build/compile.rs:151: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
+src/compiler/build/compile.rs:153: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
 src/compiler/build/deps.rs:129: pub(super) fn merge_dep_struct_defs(
 src/compiler/build/deps.rs:146: pub(super) fn merge_symbols(
@@ -130,8 +131,8 @@ src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
 src/compiler/build/passes/mod.rs:50: pub(super) fn apply_passes(
 src/compiler/build/target.rs:6: fn scan_source_deps(src_path: &Path) -> bool
 src/compiler/build/target.rs:31: pub fn build_source_with_target(
-src/compiler/build/target.rs:54: fn build_source_with_target_inner(
-src/compiler/build/target.rs:181: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:58: fn build_source_with_target_inner(
+src/compiler/build/target.rs:188: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:37: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:46: fn has_return_in_stmt(s: &HirStmt) -> bool
@@ -288,28 +289,29 @@ src/diagnostics.rs:101: fn parse_error(raw: &str) -> (Option<String>, usize, usi
 src/diagnostics.rs:153: fn parse_lc(s: &str) -> Option<(usize, usize)>
 src/diagnostics.rs:158: fn clean_error_message(msg: &str) -> String
 src/diagnostics.rs:190: pub fn report_error(default_file: &Path, raw: &str)
+src/driver/link.rs:5: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/link.rs:10: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/link.rs:18: pub fn objects_to_exe_with_runtime(
+src/driver/link.rs:45: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/link.rs:51: pub(crate) fn find_runtime_c() -> Result<String>
+src/driver/link.rs:94: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/link.rs:109: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/link.rs:120: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
 src/driver/lto.rs:6: static LTO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 src/driver/lto.rs:7: pub fn set_lto(v: bool) { LTO.store(v, std::sync::atomic::Ordering::Relaxed); }
 src/driver/lto.rs:8: pub fn is_lto() -> bool { LTO.load(std::sync::atomic::Ordering::Relaxed) }
 src/driver/lto.rs:11: fn find_tool(name: &str, local_only: bool) -> Option<(PathBuf, PathBuf)>
 src/driver/lto.rs:29: pub fn link_modules_lto(modules: &[PathBuf], out_obj: &Path) -> Result<()>
-src/driver/mod.rs:10: mod lto;
-src/driver/mod.rs:11: mod runtime;
-src/driver/mod.rs:16: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
-src/driver/mod.rs:36: pub(super) fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
-src/driver/mod.rs:56: pub fn build_mode_key() -> String
-src/driver/mod.rs:67: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:127: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:132: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:140: pub fn objects_to_exe_with_runtime(
-src/driver/mod.rs:167: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:173: pub(crate) fn find_runtime_c() -> Result<String>
-src/driver/mod.rs:216: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:231: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:242: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:259: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
-src/driver/mod.rs:279: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:284: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:10: mod link;
+src/driver/mod.rs:11: mod lto;
+src/driver/mod.rs:12: mod runtime;
+src/driver/mod.rs:20: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
+src/driver/mod.rs:40: pub(super) fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
+src/driver/mod.rs:60: pub fn build_mode_key() -> String
+src/driver/mod.rs:71: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:148: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
+src/driver/mod.rs:168: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:173: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
 src/driver/runtime.rs:12: pub(crate) fn resolve_runtime(src_path: &Path) -> Result<Option<PathBuf>>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
@@ -1417,18 +1419,19 @@ src/lib.rs:17: mod annotation_table;
 src/lib.rs:18: pub mod compiler;
 src/lib.rs:19: pub mod diagnostics;
 src/lib.rs:20: pub mod driver;
-src/lib.rs:21: pub mod error;
-src/lib.rs:22: pub mod formatter;
-src/lib.rs:23: pub mod hir;
-src/lib.rs:24: pub mod intern;
-src/lib.rs:25: pub mod lexer;
-src/lib.rs:26: pub mod lir;
-src/lib.rs:27: pub mod mir;
-src/lib.rs:28: pub mod package;
-src/lib.rs:29: pub mod parser;
-src/lib.rs:30: pub mod span;
-src/lib.rs:33: mod test_parse
-src/lib.rs:35: fn test_struct_literal_parse()
+src/lib.rs:21: pub mod target;
+src/lib.rs:22: pub mod error;
+src/lib.rs:23: pub mod formatter;
+src/lib.rs:24: pub mod hir;
+src/lib.rs:25: pub mod intern;
+src/lib.rs:26: pub mod lexer;
+src/lib.rs:27: pub mod lir;
+src/lib.rs:28: pub mod mir;
+src/lib.rs:29: pub mod package;
+src/lib.rs:30: pub mod parser;
+src/lib.rs:31: pub mod span;
+src/lib.rs:34: mod test_parse
+src/lib.rs:36: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
@@ -1436,8 +1439,8 @@ src/lir/emit/consts.rs:5: fn strip_unique(ty: &HirType) -> &HirType
 src/lir/emit/consts.rs:12: fn path_key(path: &[usize]) -> String
 src/lir/emit/consts.rs:16: impl<'a> Emitter<'a>
 src/lir/emit/consts.rs:21: pub(super) fn emit_global_defs(&mut self)
-src/lir/emit/consts.rs:58: fn collect_array_fields(
-src/lir/emit/consts.rs:90: fn const_value_at(
+src/lir/emit/consts.rs:59: fn collect_array_fields(
+src/lir/emit/consts.rs:91: fn const_value_at(
 src/lir/emit/functions.rs:4: pub(super) fn is_ptr_like(t: &HirType) -> bool
 src/lir/emit/functions.rs:14: pub(super) fn llvm_attr_suffix(
 src/lir/emit/functions.rs:56: pub(super) fn infer_param_attrs(t: &HirType) -> &'static str
@@ -1447,9 +1450,9 @@ src/lir/emit/functions.rs:87: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:88: pub(super) fn emit_struct_defs(&mut self)
 src/lir/emit/functions.rs:117: pub(super) fn emit_string_globals(&mut self)
 src/lir/emit/functions.rs:137: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:245: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:262: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:276: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:246: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:263: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:277: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -1458,10 +1461,10 @@ src/lir/emit/mod.rs:49: fn finish(self) -> String
 src/lir/emit/mod.rs:53: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:69: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:78: fn emit(&mut self)
-src/lir/emit/mod.rs:188: mod consts;
-src/lir/emit/mod.rs:189: mod functions;
-src/lir/emit/mod.rs:190: mod types;
-src/lir/emit/mod.rs:191: mod vtable;
+src/lir/emit/mod.rs:193: mod consts;
+src/lir/emit/mod.rs:194: mod functions;
+src/lir/emit/mod.rs:195: mod types;
+src/lir/emit/mod.rs:196: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
@@ -2464,10 +2467,12 @@ src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
 src/package/bytes.rs:102: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
-src/package/config.rs:17: impl ProjectConfig
-src/package/config.rs:18: pub fn load(toml_content: &str) -> Self
-src/package/config.rs:75: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
-src/package/config.rs:92: pub fn resolve_target(&self, file_path: &Path) -> &str
+src/package/config.rs:21: impl ProjectConfig
+src/package/config.rs:22: pub fn load(toml_content: &str) -> Self
+src/package/config.rs:83: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
+src/package/config.rs:100: pub fn resolve_target(&self, file_path: &Path) -> &str
+src/package/config.rs:114: mod tests
+src/package/config.rs:118: fn parses_target_arch()
 src/package/const_codec.rs:9: pub fn type_str(ty: &HirType) -> Option<String>
 src/package/const_codec.rs:30: pub fn type_from_str(s: &str) -> Option<HirType>
 src/package/const_codec.rs:64: pub fn lit_str(lit: &HirLiteral) -> Option<String>
@@ -2690,6 +2695,15 @@ src/span.rs:56: impl Default for Span
 src/span.rs:57: fn default() -> Self
 src/span.rs:62: impl std::fmt::Display for Span
 src/span.rs:63: fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+src/target.rs:8: static TARGET_TRIPLE: Mutex<Option<String>> = Mutex::new(None);
+src/target.rs:9: static FREESTANDING: AtomicBool = AtomicBool::new(false);
+src/target.rs:11: pub fn set_target_triple(triple: Option<&str>)
+src/target.rs:15: pub fn target_triple() -> Option<String>
+src/target.rs:19: pub fn set_freestanding(on: bool)
+src/target.rs:23: pub fn freestanding() -> bool
+src/target.rs:28: pub fn static_codegen() -> bool
+src/target.rs:33: pub fn is_bare_metal_triple(triple: &str) -> bool
+src/target.rs:38: pub fn is_cross_target(triple: &str) -> bool
 
 ## Ayanami (.aya)
 example/check_lib.aya:5: pub fn warn_side_effects(ref MirFunction f)

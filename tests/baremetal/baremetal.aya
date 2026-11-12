@@ -1,0 +1,11 @@
+// freestanding aarch64：无 import / 无宿主 runtime / 仅产出 .o
+// 静态全局用于检查非 PIE（无 GOT 重定位）。
+static COUNTER: int = 1
+
+fn entry() -> int {
+    return COUNTER
+}
+
+fn main() -> int {
+    return entry() - 1
+}

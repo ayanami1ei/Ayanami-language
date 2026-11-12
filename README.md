@@ -105,7 +105,9 @@ name = "my_project"
 version = "0.6.6"
 
 [build]
-target = "executable"
+target = "executable"          # executable | static-lib | dynamic-lib | object
+# arch = "aarch64-none-elf"    # 可选：LLVM target triple（交叉/裸机）
+# freestanding = true          # 可选：只产出 .o；不链接 runtime.c/libc；静态重定位（非 PIE）
 
 [build.targets]
 "src/lib.aya" = "dynamic-lib"
@@ -115,6 +117,23 @@ target = "executable"
 [runtime]
 path = "custom_runtime.c"
 ```
+
+### 裸机 / freestanding
+
+```toml
+[build]
+target = "object"
+arch = "aarch64-none-elf"
+freestanding = true
+```
+
+- `freestanding = true` 强制 `target = "object"`，只生成 `build/<stem>.o`；不链接
+  内置 `runtime.c`/宿主 libc，不生成可执行文件或 PIE（llc `-relocation-model=static`）。
+- `arch` 是 LLVM target triple；`aarch64-none-elf` 生成 AArch64 ELF 可重定位对象。
+- 不 import std 时无需任何机器码标准库；导入的 std 会按目标重新编译 LIR，
+  未解析的 runtime 符号（分配器、panic 等）由内核/启动代码提供。
+- `ayanami run` 拒绝 freestanding/交叉目标；请用自己的 linker script / loader 链接 `.o`。
+- 也可用 `target = "static-lib"` + `arch` 生成跨架构 `.a`（不链接 runtime）。
 
 ## Hello World
 

@@ -90,15 +90,17 @@ pub fn compile_file(
         runtime,
     )?;
 
-    emit_lcl_package(
-        &program,
-        &lir_program,
-        &hir_consts,
-        &hir_statics,
-        &lcl_path,
-        &dep_lcl_paths,
-        stem,
-    )?;
+    if target_override != Some("object") {
+        emit_lcl_package(
+            &program,
+            &lir_program,
+            &hir_consts,
+            &hir_statics,
+            &lcl_path,
+            &dep_lcl_paths,
+            stem,
+        )?;
+    }
 
     let mut all_objs = vec![own_obj.clone()];
     all_objs.extend(dep_obj_paths);

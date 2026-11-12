@@ -20,6 +20,7 @@ graph LR
     package
     parser
     span
+    target
     annotation_table --> error
     annotation_table --> intern
     annotation_table --> parser
@@ -33,6 +34,7 @@ graph LR
     compiler --> package
     compiler -->|9| parser
     driver -->|2| error
+    driver --> target
     formatter --> intern
     formatter --> lexer
     formatter -->|2| parser
@@ -99,6 +101,7 @@ graph LR
 | `compiler` | `lexer` | 1 |
 | `compiler` | `lir` | 1 |
 | `compiler` | `package` | 1 |
+| `driver` | `target` | 1 |
 | `formatter` | `intern` | 1 |
 | `formatter` | `lexer` | 1 |
 | `hir` | `annotation_table` | 1 |
@@ -111,4 +114,4 @@ graph LR
 | `package` | `parser` | 1 |
 | `parser` | `lexer` | 1 |
 
-共 16 个顶层模块、42 条依赖边。
+共 17 个顶层模块、43 条依赖边。

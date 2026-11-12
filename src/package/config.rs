@@ -6,6 +6,10 @@ pub struct ProjectConfig {
     pub name: String,
     pub version: String,
     pub default_target: Option<String>,
+    /// 交叉/裸机目标三元组（`[build] arch`，如 aarch64-none-elf）
+    pub arch: Option<String>,
+    /// freestanding：只产出 .o，不链接 runtime.c/libc，不生成 PIE
+    pub freestanding: bool,
     pub file_targets: HashMap<String, String>,
     pub dependencies: HashMap<String, String>,
     /// #84 ②：`[runtime] path`——自定义 runtime（.c/.a/.o），相对项目根
@@ -19,6 +23,8 @@ impl ProjectConfig {
         let mut name = String::new();
         let mut version = String::new();
         let mut default_target: Option<String> = None;
+        let mut arch: Option<String> = None;
+        let mut freestanding = false;
         let mut file_targets = HashMap::new();
         let mut in_build = false;
         let mut in_targets = false;
@@ -50,6 +56,8 @@ impl ProjectConfig {
                 } else if in_build {
                     match k {
                         "target" => default_target = Some(v.to_string()),
+                        "arch" => arch = Some(v.to_string()),
+                        "freestanding" => freestanding = v == "true" || v == "1",
                         _ => {}
                     }
                 } else {
@@ -66,7 +74,7 @@ impl ProjectConfig {
                 }
             }
         }
-        ProjectConfig { name, version, default_target, file_targets, dependencies, runtime, features }
+        ProjectConfig { name, version, default_target, arch, freestanding, file_targets, dependencies, runtime, features }
     }
 
     /// Resolve an import path using the [dependencies] aliases.
@@ -99,5 +107,18 @@ impl ProjectConfig {
         }
         // Heuristic
         if file_str.ends_with("main.aya") { "executable" } else { "static-lib" }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ProjectConfig;
+
+    #[test]
+    fn parses_target_arch() {
+        let cfg = ProjectConfig::load("[package]\nname = \"p\"\n[build]\ntarget = \"object\"\narch = \"aarch64-none-elf\"\nfreestanding = true\n");
+        assert_eq!(cfg.default_target.as_deref(), Some("object"));
+        assert_eq!(cfg.arch.as_deref(), Some("aarch64-none-elf"));
+        assert!(cfg.freestanding);
     }
 }

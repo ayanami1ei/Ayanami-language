@@ -71,6 +71,30 @@ while read -r name code pat; do
     fi
 done < tests/runtime_safety/manifest.txt
 
+# 交叉/裸机：freestanding 只产出 aarch64 .o（不链接 runtime/libc/PIE）
+if [ -f tests/baremetal/ayanami.toml ]; then
+    rm -f build/baremetal.o build/baremetal.ll build/baremetal.lcl build/baremetal
+    "$BIN" build tests/baremetal/baremetal.aya >/dev/null 2>&1
+    got=$?
+    if [ "$got" != 0 ]; then
+        echo "FAIL tests/baremetal: freestanding build failed"
+        fail=$((fail + 1))
+    elif [ ! -f build/baremetal.o ]; then
+        echo "FAIL tests/baremetal: missing build/baremetal.o"
+        fail=$((fail + 1))
+    elif [ -e build/baremetal ] || [ -e build/baremetal.lcl ] || [ -e build/baremetal.ll ]; then
+        echo "FAIL tests/baremetal: freestanding produced non-object artifact"
+        fail=$((fail + 1))
+    elif ! LC_ALL=C readelf -h build/baremetal.o 2>/dev/null | grep -q "AArch64"; then
+        echo "FAIL tests/baremetal: build/baremetal.o is not AArch64"
+        fail=$((fail + 1))
+    elif LC_ALL=C readelf -r build/baremetal.o 2>/dev/null | grep -q "GOT"; then
+        echo "FAIL tests/baremetal: GOT/PIE relocation present"
+        fail=$((fail + 1))
+    fi
+    rm -f build/baremetal.o build/baremetal.ll build/baremetal.lcl
+fi
+
 # #106：零参函数不得发射裸符号（避免与 libc 冲突）
 if [ -f build/test_zero_arg_fn ]; then
     if nm build/test_zero_arg_fn 2>/dev/null | grep -qE ' T time$'; then

@@ -40,10 +40,19 @@ pub(super) fn build_target_artifact(
     stem: &std::ffi::OsStr,
     runtime: Option<&Path>,
 ) -> Result<()> {
+    let target = target_override.unwrap_or("static-lib");
+    if target == "executable" {
+        if let Some(t) = crate::target::target_triple() {
+            if crate::target::is_bare_metal_triple(&t) {
+                return Err(Error::Compile(format!(
+                    "target `{}` is bare-metal: hosted executable linking is not supported; set [build] target = \"object\" or \"static-lib\" and link with your own linker script", t)));
+            }
+        }
+    }
     if dep_obj_paths.is_empty() && dep_link_flags.is_empty() {
-        let target = target_override.unwrap_or("static-lib");
         let stem_str = stem.to_string_lossy();
         match target {
+            "object" => {}
             "executable" => {
                 let exe_path = out_dir.join(&*stem_str);
                 crate::driver::objects_to_exe_with_runtime(

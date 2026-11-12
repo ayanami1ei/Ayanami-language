@@ -22,6 +22,7 @@ impl<'a> Emitter<'a> {
         use crate::hir::ir::HirLiteral;
         for g in &self.prog.globals {
             let linkage = if (crate::hir::contracts::is_release() || crate::hir::contracts::is_multi_module()) && !g.is_pub { "internal " } else { "" };
+            let dso = if crate::target::static_codegen() && linkage.is_empty() { "dso_local " } else { "" };
             if let HirLiteral::Struct(_) = &g.value {
                 let mut arrays: std::collections::HashMap<Vec<usize>, String> = std::collections::HashMap::new();
                 let mut path = Vec::new();
@@ -29,21 +30,21 @@ impl<'a> Emitter<'a> {
                 let mut path = Vec::new();
                 let lit = self.const_value_at(&g.value, &g.ty, &mut path, &arrays);
                 let ty = self.llvm_type(&g.ty);
-                self.wln_fmt(format_args!("@{} = {}global {} {}", g.name.as_str(), linkage, ty, lit));
+                self.wln_fmt(format_args!("@{} = {}{}global {} {}", g.name.as_str(), linkage, dso, ty, lit));
                 continue;
             }
             if let HirLiteral::Array(_) = &g.value {
                 let data = self.const_value_at(&g.value, strip_unique(&g.ty), &mut Vec::new(), &Default::default());
                 self.wln_fmt(format_args!("@__ayanami_gdata_{} = private global {}", g.name.as_str(), data));
                 self.wln_fmt(format_args!(
-                    "@{} = {}global ptr @__ayanami_gdata_{}",
-                    g.name.as_str(), linkage, g.name.as_str()
+                    "@{} = {}{}global ptr @__ayanami_gdata_{}",
+                    g.name.as_str(), linkage, dso, g.name.as_str()
                 ));
                 continue;
             }
             let ty = self.llvm_type(&g.ty);
             let lit = lit_to_string(&g.value, &g.ty);
-            self.wln_fmt(format_args!("@{} = {}global {} {}", g.name.as_str(), linkage, ty, lit));
+            self.wln_fmt(format_args!("@{} = {}{}global {} {}", g.name.as_str(), linkage, dso, ty, lit));
         }
         for (name, ty) in &self.prog.extern_globals {
             let ty = self.llvm_type(ty);
