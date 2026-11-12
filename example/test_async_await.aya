@@ -286,6 +286,30 @@ fn call_arg(int x) -> int {
     return b
 }
 
+#[async]
+fn branch_sync(int x) -> int {
+    a = await inc(x)
+    if a > 5 {
+        a = 10
+    } else {
+        a = a + 1
+    }
+    b = await inc(a)
+    return b
+}
+
+#[async]
+fn loop_sync(int x) -> int {
+    a = await inc(x)
+    i = 0
+    while i < a {
+        i = i + 1
+        if i == 2 { continue }
+    }
+    b = await inc(i)
+    return b
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -397,5 +421,11 @@ fn main() -> int {
     if block_on(ref mut w1) != 5 { return 40 }
     w2 = call_arg(1)
     if block_on(ref mut w2) != 4 { return 41 }
+    x1 = branch_sync(1)
+    if block_on(ref mut x1) != 4 { return 42 }
+    x2 = branch_sync(10)
+    if block_on(ref mut x2) != 11 { return 43 }
+    x3 = loop_sync(1)
+    if block_on(ref mut x3) != 3 { return 44 }
     return 0
 }

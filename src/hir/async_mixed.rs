@@ -6,10 +6,11 @@
 use std::collections::{HashMap, HashSet};
 use crate::error::{Error, Result};
 use crate::hir::async_mixed_expr::{render_default, render_expr, render_sync};
+use crate::hir::async_mixed_types::{hir_to_ast, infer, same_type, type_default};
 use crate::hir::async_transform_util::ty_src;
 use crate::intern::Symbol;
 use crate::hir::ir::HirType;
-use crate::parser::ast::{Expr, Literal, Stmt, Type};
+use crate::parser::ast::{Expr, Stmt, Type};
 use crate::span::Span;
 struct Await {
     target: Symbol,
@@ -71,6 +72,10 @@ pub(crate) fn try_expand(
                 segments.last_mut().unwrap().push(st.clone());
             }
             Stmt::ExprStmt { .. } => segments.last_mut().unwrap().push(st.clone()),
+            Stmt::If { .. } | Stmt::While { .. } | Stmt::Block(_) => {
+                if !sync_ctrl_ok(st, &env) { return Ok(false); }
+                segments.last_mut().unwrap().push(st.clone());
+            }
             Stmt::Return { value: Some(_), .. } => {
                 // 只允许函数体最后一条 return
                 let is_last = std::ptr::eq(st, body.stmts.last().unwrap());
@@ -128,7 +133,7 @@ pub(crate) fn try_expand(
         let poll_state = 2 * i + 1;
         let mut body = String::new();
         for st in &segments[i] {
-            body.push_str(&render_sync(st, &promoted, false).ok_or_else(|| fail(
+            body.push_str(&render_sync(st, &promoted).ok_or_else(|| fail(
                 "unsupported statement between awaits (v1)".into()))?);
             body.push('\n');
         }
@@ -148,7 +153,7 @@ pub(crate) fn try_expand(
     let final_state = 2 * awaits.len();
     let mut final_body = String::new();
     for st in segments.last().unwrap() {
-        final_body.push_str(&render_sync(st, &promoted, true).ok_or_else(|| fail(
+        final_body.push_str(&render_sync(st, &promoted).ok_or_else(|| fail(
             "unsupported final statement (v1)".into()))?);
         final_body.push('\n');
     }
@@ -180,85 +185,20 @@ fn await_parts(value: &Expr) -> Option<(Symbol, &[Expr], Span)> {
     Some((*g, gargs, *span))
 }
 
-fn infer(e: &Expr, env: &HashMap<Symbol, Type>, span: Span) -> Option<Type> {
-    match e {
-        Expr::Ident(n, _) => env.get(n).cloned(),
-        Expr::Literal(l) => literal_type(l, span),
-        Expr::Cast { ty, .. } => Some(ty.clone()),
-        Expr::Binary { op, lhs, rhs, .. } => {
-            use crate::parser::ast::BinaryOp::*;
-            let lt = infer(lhs, env, span)?;
-            let rt = infer(rhs, env, span)?;
-            match op {
-                Add | Sub | Mul | Div | Mod | BitAnd | BitOr | BitXor | Shl | Shr => {
-                    if is_float(&lt) || is_float(&rt) { Some(Type::Float(span)) }
-                    else if is_int(&lt) && is_int(&rt) { Some(Type::Int(span)) }
-                    else { None }
-                }
-                Eq | Neq | Lt | Gt | Le | Ge | And | Or => Some(Type::Bool(span)),
-            }
+/// 纯同步控制语句：不含 await，且只写已提升/已有局部（不声明新局部）。
+fn sync_ctrl_ok(st: &Stmt, env: &HashMap<Symbol, Type>) -> bool {
+    match st {
+        Stmt::Assign { name, value, .. } => await_parts(value).is_none() && env.contains_key(name),
+        Stmt::ExprStmt { .. } => true,
+        Stmt::Return { value: Some(_), .. } => true,
+        Stmt::If { then_block, elifs, else_block, .. } => {
+            then_block.stmts.iter().all(|s| sync_ctrl_ok(s, env))
+                && elifs.iter().all(|(_, b)| b.stmts.iter().all(|s| sync_ctrl_ok(s, env)))
+                && else_block.as_ref().map_or(true, |b| b.stmts.iter().all(|s| sync_ctrl_ok(s, env)))
         }
-        Expr::Unary { op, arg, .. } => match op {
-            crate::parser::ast::UnaryOp::Neg => infer(arg, env, span),
-            crate::parser::ast::UnaryOp::Not => Some(Type::Bool(span)),
-            crate::parser::ast::UnaryOp::BitNot => infer(arg, env, span),
-            crate::parser::ast::UnaryOp::Deref => None,
-        },
-        Expr::Move(inner, _) | Expr::Clone(inner, _) => infer(inner, env, span),
-        _ => None,
-    }
-}
-
-fn literal_type(l: &Literal, span: Span) -> Option<Type> {
-    Some(match l {
-        Literal::Int(..) => Type::Int(span),
-        Literal::Float(..) => Type::Float(span),
-        Literal::Bool(..) => Type::Bool(span),
-        Literal::String(..) => Type::Named(Symbol::intern("String"), span),
-        Literal::Char(..) => Type::Char(span),
-    })
-}
-
-fn is_int(t: &Type) -> bool {
-    if matches!(t, Type::Int(_)) { return true; }
-    let Type::Named(n, _) = t else { return false };
-    let s = n.as_str();
-    matches!(s.as_str(), "i8"|"i16"|"i32"|"i64"|"i128"|"u8"|"u16"|"u32"|"u64"|"u128"|"usize"|"isize")
-}
-
-fn is_float(t: &Type) -> bool {
-    matches!(t, Type::Float(_))
-        || matches!(t, Type::Named(n, _) if n.as_str() == "f32" || n.as_str() == "f64")
-}
-
-fn same_type(a: &Type, b: &Type) -> bool {
-    match (ty_src(a), ty_src(b)) {
-        (Some(x), Some(y)) => x == y,
+        Stmt::While { body, .. } => body.stmts.iter().all(|s| sync_ctrl_ok(s, env)),
+        Stmt::Block(b) => b.stmts.iter().all(|s| sync_ctrl_ok(s, env)),
+        Stmt::Break { .. } | Stmt::Continue { .. } => true,
         _ => false,
     }
-}
-
-fn type_default(t: &Type) -> Option<&'static str> {
-    match t {
-        Type::Int(_) => Some("0"),
-        Type::Float(_) => Some("0.0"),
-        Type::Bool(_) => Some("false"),
-        Type::Named(n, _) if n.as_str() == "String" => Some("\"\""),
-        Type::Named(n, _) if is_int(t) => Some("0"),
-        Type::Named(n, _) if n.as_str() == "f32" || n.as_str() == "f64" => Some("0.0"),
-        _ => None,
-    }
-}
-
-fn hir_to_ast(t: &HirType, span: Span) -> Option<Type> {
-    Some(match t {
-        HirType::Int => Type::Int(span),
-        HirType::Float => Type::Float(span),
-        HirType::F32 => Type::Named(Symbol::intern("f32"), span),
-        HirType::Bool => Type::Bool(span),
-        HirType::IntN { bits, signed } => Type::Named(
-            Symbol::intern(&format!("{}{}", if *signed { "i" } else { "u" }, bits)), span),
-        HirType::Named(n) if n.as_str() == "String" => Type::Named(*n, span),
-        _ => return None,
-    })
 }

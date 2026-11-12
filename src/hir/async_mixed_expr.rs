@@ -5,18 +5,43 @@ use crate::intern::Symbol;
 use crate::parser::ast::{Expr, Literal, Stmt, Type};
 use crate::span::Span;
 
-pub(super) fn render_sync(st: &Stmt, promoted: &HashSet<Symbol>, final_seg: bool) -> Option<String> {
+pub(super) fn render_sync(st: &Stmt, promoted: &HashSet<Symbol>) -> Option<String> {
     match st {
         Stmt::Assign { name, value, .. } => {
             let r = render_expr(value, promoted)?;
             Some(format!("self.__v_{} = {};", name.as_str(), r))
         }
         Stmt::ExprStmt { expr, .. } => Some(format!("{};", render_expr(expr, promoted)?)),
-        Stmt::Return { value: Some(e), .. } if final_seg => {
+        Stmt::Return { value: Some(e), .. } => {
             Some(format!("return Poll::Ready({});", render_expr(e, promoted)?))
         }
+        Stmt::If { cond, then_block, elifs, else_block, .. } => {
+            let mut s = format!("if {} {{\n{}\n}}",
+                render_expr(cond, promoted)?, render_block(&then_block.stmts, promoted)?);
+            for (c, b) in elifs {
+                s.push_str(&format!(" elif {} {{\n{}\n}}",
+                    render_expr(c, promoted)?, render_block(&b.stmts, promoted)?));
+            }
+            if let Some(b) = else_block {
+                s.push_str(&format!(" else {{\n{}\n}}", render_block(&b.stmts, promoted)?));
+            }
+            Some(s)
+        }
+        Stmt::While { cond, body, .. } => Some(format!("while {} {{\n{}\n}}",
+            render_expr(cond, promoted)?, render_block(&body.stmts, promoted)?)),
+        Stmt::Break { .. } => Some("break;".into()),
+        Stmt::Continue { .. } => Some("continue;".into()),
+        Stmt::Block(b) => render_block(&b.stmts, promoted),
         _ => None,
     }
+}
+
+fn render_block(stmts: &[Stmt], promoted: &HashSet<Symbol>) -> Option<String> {
+    let mut out = Vec::new();
+    for st in stmts {
+        out.push(render_sync(st, promoted)?);
+    }
+    Some(out.join("\n"))
 }
 
 pub(super) fn render_expr(e: &Expr, promoted: &HashSet<Symbol>) -> Option<String> {
