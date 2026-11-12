@@ -160,6 +160,9 @@ pub struct Parser {
     [String] pend_blk_caps
     [String] pend_blk_provs
     int pend_blk_count
+    // 语句级 #[sync(obj, guard=g)] 待绑定状态
+    int sync_obj
+    String sync_guard
     // 注解原文（宏展开用）：#[...] 的源文本 / 起始行 / 结束行
     [String] attrs_text
     [int] attrs_line
@@ -186,7 +189,8 @@ pub namespace Parser {
             fn_bound_caps = [String; 16], fn_bound_gps = [String; 16], fn_bound_count = 0,
             cur_env_caps = [String; 16], cur_env_gps = [String; 16], cur_env_cap_count = 0,
             fenv_fn = [String; 64], fenv_caps = [String; 64], fenv_count = 0,
-            pend_blk_caps = [String; 16], pend_blk_provs = [String; 16], pend_blk_count = 0 };
+            pend_blk_caps = [String; 16], pend_blk_provs = [String; 16], pend_blk_count = 0,
+            sync_obj = -1, sync_guard = String::empty() };
         return p;
     }
 }
@@ -1311,6 +1315,24 @@ impl Parser {
                     } else {
                         self.scan_attr_args();
                     }
+                } elif an == "sync" {
+                    // A5e：#[sync(obj)] / #[sync(obj, guard = d)]
+                    self.advance();
+                    if self.check_delim(D::LParen._tag) {
+                        self.advance();
+                        self.sync_obj = self.parse_expr();
+                        self.sync_guard = "";
+                        if self.eat_delim(D::Comma._tag) {
+                            gk_e = self.expect_ident("expected guard");
+                            if gk_e != "guard" { self.error("expected guard = <name> in sync attr"); }
+                            if !self.eat_op("=") { self.error("expected = after guard"); }
+                            self.sync_guard = self.expect_ident("expected guard binding name");
+                        }
+                        self.expect_delim(D::RParen._tag, "expected ) in sync attr");
+                        self.scan_attr_args();
+                    } else {
+                        self.scan_attr_args();
+                    }
                 } else {
                     if an == "alloc" { self.attr_mask = self.attr_mask | 256; }
                     elif an == "state" { self.attr_mask = self.attr_mask | 512; }
@@ -1337,10 +1359,18 @@ impl Parser {
     fn parse_stmt(ref mut self) -> int {
         self.attr_mask = 0;
         self.pend_blk_count = 0;
+        self.sync_obj = -1;
+        self.sync_guard = "";
         // mut 局部声明前缀（局部默认可变，mut 仅作标注，跳过）
         self.eat_kw(Kw::Mut._tag);
         nattrs = self.collect_attrs();
         s = self.parse_stmt_inner();
+        if self.sync_obj >= 0 {
+            // #[sync] 只允许用于块语句
+            self.error("#[sync] is only allowed on block statements");
+            self.sync_obj = -1;
+            self.sync_guard = "";
+        }
         if nattrs > 0 {
             if s >= 0 {
                 return self.ast.push(st(ST::Attributed._tag), "", -1, s, nattrs, self.attr_mask, -1, self.cur.line, self.cur.col);
@@ -1364,8 +1394,27 @@ impl Parser {
                 bk_e = bk_e + 1;
             }
             self.pend_blk_count = 0;
+            // 先捕获 sync 待绑定状态：块内语句的 parse_stmt 会重置 sync_obj
+            so_e = self.sync_obj;
+            sg_e = self.sync_guard.copy();
+            self.sync_obj = -1;
+            self.sync_guard = "";
             blk_e = self.parse_block();
             self.env_count = bmark_e;
+            if so_e >= 0 {
+                bl_e = self.ast.lines[blk_e];
+                bc_e = self.ast.cols[blk_e];
+                lk_m = self.ast.push(et(ET::MethodCall._tag), "lock", -1, so_e, -1, -1, -1, bl_e, bc_e);
+                lk_s = self.ast.push(st(ST::ExprStmt._tag), "", -1, lk_m, -1, -1, -1, bl_e, bc_e);
+                ul_m = self.ast.push(et(ET::MethodCall._tag), "unlock", -1, so_e, -1, -1, -1, bl_e, bc_e);
+                ul_s = self.ast.push(st(ST::ExprStmt._tag), "", -1, ul_m, -1, -1, -1, bl_e, bc_e);
+                ga_s = -1;
+                if sg_e.len > 0 {
+                    pf_e = self.ast.push(et(ET::FieldAccess._tag), "payload", -1, so_e, -1, -1, -1, bl_e, bc_e);
+                    ga_s = self.ast.push(st(ST::Assign._tag), sg_e, -1, pf_e, -1, -1, -1, bl_e, bc_e);
+                }
+                return self.ast.push(st(ST::Sync._tag), sg_e, -1, lk_s, ga_s, blk_e, ul_s, bl_e, bc_e);
+            }
             return blk_e;
         }
         if self.cur.kind == Tk::Ident._tag {
@@ -1610,10 +1659,18 @@ impl Parser {
             if self.check_kw(Kw::Out._tag) {
                 self.advance();
                 self.expect_delim(D::LParen._tag, "expected ( in asm out");
-                if self.check_kw(Kw::Reg._tag) { self.advance(); }
+                optxt = "out";
+                if self.check_kw(Kw::Reg._tag) {
+                    self.advance();
+                } elif self.cur.kind == Tk::Ident._tag && self.cur.text == "early" {
+                    // #198：early-clobber 输出（LLVM 约束 =&r）
+                    self.advance();
+                    self.expect_kw(Kw::Reg._tag, "expected reg after early in asm out");
+                    optxt = "out_early";
+                }
                 self.expect_delim(D::RParen._tag, "expected ) in asm out");
                 ex = self.parse_expr();
-                op = self.ast.push(xt(XT::AsmOperand._tag), "out", -1, ex, -1, -1, -1, self.cur.line, self.cur.col);
+                op = self.ast.push(xt(XT::AsmOperand._tag), optxt, -1, ex, -1, -1, -1, self.cur.line, self.cur.col);
                 outs = self.ast.push_tail(outs, op);
             } elif self.check_kw(Kw::In._tag) {
                 self.advance();

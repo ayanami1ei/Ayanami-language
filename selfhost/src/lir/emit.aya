@@ -207,6 +207,10 @@ pub struct Emitter {
     [String] loop_ends
     [String] loop_conds
     int loop_depth
+    // A5e sync 块：活动解锁语句栈 + 循环入口处的栈深标记
+    [int] sync_unlocks
+    int sync_count
+    [int] sync_loop_marks
     int terminated
 }
 
@@ -251,6 +255,7 @@ pub namespace Emitter {
             ct_args = [int; 16], ct_ret = 0, ct_depth = 0, ct_frame = 0, src_file = String::empty(),
             pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
             loop_ends = [String; 64], loop_conds = [String; 64], loop_depth = 0,
+            sync_unlocks = [int; 64], sync_count = 0, sync_loop_marks = [int; 64],
             terminated = 0
         };
         return e;
@@ -304,6 +309,31 @@ fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String {
         if ast.tags[id] == et(ET::Ref._tag) {
             // ref x：取 x 的地址（避免落到临时槽存成 i64 符号）
             return addr_of_arg(ast, ast.aa[id], e);
+        }
+        if ast.tags[id] == et(ET::FieldAccess._tag) {
+            // 结构体字段取址（ref mut self.payload / guard 绑定）
+            obf = ast.aa[id];
+            ofv = emit_expr(ast, obf, e);
+            if ofv.kind == 2 {
+                idxf = e.find_field_idx(ofv.b, ast.texts[id]);
+                if idxf >= 0 {
+                    sif = e.find_struct_idx(ofv.b);
+                    if sif >= 0 {
+                        slf = e.fslot_at(sif, idxf);
+                        gf = e.fresh();
+                        e.buf.push_str("  ");
+                        e.buf.push_str(gf);
+                        e.buf.push_str(" = getelementptr %struct.");
+                        e.buf.push_str(ofv.b);
+                        e.buf.push_str(", ptr ");
+                        e.buf.push_str(ofv.a);
+                        e.buf.push_str(", i32 0, i32 ");
+                        e.buf.push_int(slf);
+                        e.buf.push_str("\n");
+                        return gf;
+                    }
+                }
+            }
         }
         if ast.tags[id] == et(ET::Ident._tag) {
             nm = ast.texts[id];
@@ -6627,6 +6657,7 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
         if body < 0 { body = prev_body; }
         if body >= 0 {
             prev_body = body;
+            e.terminated = 0;
             btag = ast.tags[body];
             if want_value == 1 {
                 if btag == st(ST::Return._tag) {
@@ -6655,14 +6686,17 @@ fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val {
                 emit_stmt(ast, body, e);
             }
         }
-        e.buf.push_str("  br label %");
-        e.buf.push_str(end_l);
-        e.buf.push_str("\n");
+        if e.terminated == 0 {
+            e.buf.push_str("  br label %");
+            e.buf.push_str(end_l);
+            e.buf.push_str("\n");
+        }
         i = i + 1;
         a = ast.nexts[a];
     }
     e.buf.push_str(end_l);
     e.buf.push_str(":\n");
+    e.terminated = 0;
     if want_value == 1 {
         rv = e.fresh();
         e.buf.push_str("  ");
@@ -6713,7 +6747,14 @@ fn emit_indirect_call(ref Ast ast, ref String fval, int fty, int args, ref mut E
     a0f = args;
     fk_i = 0;
     while a0f >= 0 {
-        at0 = emit_expr(ast, ast.aa[a0f], e);
+        at0 = Val { kind = 0, a = "", b = "", ty = -1 };
+        ae0 = ast.aa[a0f];
+        if ast.tags[ae0] == et(ET::Ref._tag) {
+            ar0 = addr_of_arg(ast, ae0, e);
+            at0 = Val { kind = 0, a = ar0, b = "", ty = -1 };
+        } else {
+            at0 = emit_expr(ast, ae0, e);
+        }
         if first0 == 0 { b.push_str(", "); }
         pk0 = e.closure_param_kind(ast, fty, fk_i);
         if pk0 == 1 {
@@ -9854,20 +9895,49 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             rty_a.push_str(" }");
         }
         cons = StringBuf::new();
+        o1 = outs;
         k1 = 0;
-        while k1 < n_out {
+        while o1 >= 0 {
             if k1 > 0 { cons.push(','); }
-            cons.push_str("=r");
+            // early-clobber 输出：=&r（#198）
+            if ast.texts[o1] == "out_early" {
+                cons.push_str("=&r");
+            } else {
+                cons.push_str("=r");
+            }
             k1 = k1 + 1;
+            o1 = ast.nexts[o1];
         }
         argtxt = StringBuf::new();
         i1 = ins;
         while i1 >= 0 {
-            av = emit_expr(ast, ast.aa[i1], e);
+            ae_i = ast.aa[i1];
+            use_addr_i = 0;
+            if ast.tags[ae_i] == et(ET::Ref._tag) {
+                use_addr_i = 1;
+            } elif ast.tags[ae_i] == et(ET::Ident._tag) {
+                kd_i = e.local_kind(ast.texts[ae_i]);
+                if kd_i == 30 || kd_i == 32 { use_addr_i = 1; }
+            }
+            argval_i = "";
+            if use_addr_i == 1 {
+                // asm 的 ref 操作数传地址本身（如 atomic_compare_exchange 的 ref int p）
+                paddr_i = addr_of_arg(ast, ae_i, e);
+                pi_i = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(pi_i);
+                e.buf.push_str(" = ptrtoint ptr ");
+                e.buf.push_str(paddr_i);
+                e.buf.push_str(" to i64\n");
+                argval_i = pi_i.copy();
+            } else {
+                av = emit_expr(ast, ae_i, e);
+                argval_i = av.a.copy();
+            }
             if cons.len as int > 0 { cons.push(','); }
             cons.push('r');
             argtxt.push_str("i64 ");
-            argtxt.push_str(av.a);
+            argtxt.push_str(argval_i);
             argtxt.push_str(", ");
             i1 = ast.nexts[i1];
         }
@@ -9956,10 +10026,26 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             if si_r >= 0 { mark_r = 10001 + si_r; }
             ra = v.a.copy();
             src_ref_c = 0;
+            src_ref_fld = 0;
+            rin_c = -1;
             if ast.aa[id] >= 0 {
-                if ast.tags[ast.aa[id]] == et(ET::Ref._tag) { src_ref_c = 1; }
+                if ast.tags[ast.aa[id]] == et(ET::Ref._tag) {
+                    src_ref_c = 1;
+                    rin_c = ast.aa[ast.aa[id]];
+                    if rin_c >= 0 && ast.tags[rin_c] == et(ET::FieldAccess._tag) { src_ref_fld = 1; }
+                }
             }
-            if src_ref_c == 1 && v.kind == 0 {
+            if src_ref_fld == 1 {
+                // 字段 ref as *T：取字段位置地址（ref self.state as *int）
+                ar_c = addr_of_arg(ast, ast.aa[id], e);
+                pi_r = e.fresh();
+                e.buf.push_str("  ");
+                e.buf.push_str(pi_r);
+                e.buf.push_str(" = ptrtoint ptr ");
+                e.buf.push_str(ar_c);
+                e.buf.push_str(" to i64\n");
+                ra = pi_r.copy();
+            } elif src_ref_c == 1 && v.kind == 0 {
                 pi_r = e.fresh();
                 e.buf.push_str("  ");
                 e.buf.push_str(pi_r);
@@ -10602,6 +10688,15 @@ fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitte
     return mk_arr(raw, ety);
 }
 
+/// 逆序发射活动 sync 块的 unlock（from 为保留的栈底；return 用 0）
+fn emit_sync_unlocks(ref Ast ast, ref mut Emitter e, int from) {
+    k = e.sync_count - 1;
+    while k >= from {
+        emit_stmt(ast, e.sync_unlocks[k], e);
+        k = k - 1;
+    }
+}
+
 fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
     tag = ast.tags[id];
     if tag == st(ST::Attributed._tag) {
@@ -10802,6 +10897,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         rk_ret = e.ret_kind(ast, e.cur_rtype);
         if ast.aa[id] >= 0 {
             v2 = emit_expr(ast, ast.aa[id], e);
+            emit_sync_unlocks(ast, e, 0);
             if rk_ret == 5 {
                 if v2.kind == 6 {
                     e.buf.push_str("  ret double ");
@@ -10882,16 +10978,44 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
                 e.buf.push_str("\n");
             }
         } else {
+            emit_sync_unlocks(ast, e, 0);
             if rk_ret == 1 {
                 e.buf.push_str("  ret { ptr, i64 } { ptr null, i64 0 }\n");
             } else {
                 e.buf.push_str("  ret i64 0\n");
             }
         }
+        e.terminated = 1;
     } elif tag == st(ST::Unsafe._tag) {
         emit_block_all(ast, ast.aa[id], e);
+    } elif tag == st(ST::Sync._tag) {
+        // lock → (guard ref 本地) → 块体 → unlock；提前出口由 Return/Break/Continue 补 unlock
+        emit_stmt(ast, ast.aa[id], e);
+        if ast.bb[id] >= 0 {
+            gnm_e = ast.texts[id].copy();
+            gx_e = ast.aa[ast.bb[id]];
+            gp_e = addr_of_arg(ast, gx_e, e);
+            e.declare_local(gnm_e, 30);
+            e.buf.push_str("  store ptr ");
+            e.buf.push_str(gp_e);
+            e.buf.push_str(", ptr %v_");
+            e.buf.push_str(gnm_e);
+            e.buf.push_str(".p\n");
+        }
+        if e.sync_count < 64 {
+            e.sync_unlocks[e.sync_count] = ast.dd[id];
+            e.sync_count = e.sync_count + 1;
+        }
+        emit_block_all(ast, ast.cc[id], e);
+        if e.sync_count > 0 { e.sync_count = e.sync_count - 1; }
+        if e.terminated == 0 {
+            emit_stmt(ast, ast.dd[id], e);
+        }
     } elif tag == st(ST::Break._tag) {
         if e.loop_depth > 0 {
+            if e.sync_count > 0 {
+                emit_sync_unlocks(ast, e, e.sync_loop_marks[e.loop_depth - 1]);
+            }
             e.buf.push_str("  br label %");
             e.buf.push_str(e.loop_ends[e.loop_depth - 1]);
             e.buf.push_str("\n");
@@ -10899,6 +11023,9 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         }
     } elif tag == st(ST::Continue._tag) {
         if e.loop_depth > 0 {
+            if e.sync_count > 0 {
+                emit_sync_unlocks(ast, e, e.sync_loop_marks[e.loop_depth - 1]);
+            }
             e.buf.push_str("  br label %");
             e.buf.push_str(e.loop_conds[e.loop_depth - 1]);
             e.buf.push_str("\n");
@@ -11109,6 +11236,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         if e.loop_depth < 64 {
             e.loop_ends[e.loop_depth] = end_l.copy();
             e.loop_conds[e.loop_depth] = cond_l.copy();
+            e.sync_loop_marks[e.loop_depth] = e.sync_count;
             e.loop_depth = e.loop_depth + 1;
         }
         e.buf.push_str("  br label %");
@@ -11194,6 +11322,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         if e.loop_depth < 64 {
             e.loop_ends[e.loop_depth] = end_l2.copy();
             e.loop_conds[e.loop_depth] = cond_l2.copy();
+            e.sync_loop_marks[e.loop_depth] = e.sync_count;
             e.loop_depth = e.loop_depth + 1;
         }
         e.buf.push_str("  br label %");
@@ -11313,6 +11442,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         if e.loop_depth < 64 {
             e.loop_ends[e.loop_depth] = end_l.copy();
             e.loop_conds[e.loop_depth] = cond_l.copy();
+            e.sync_loop_marks[e.loop_depth] = e.sync_count;
             e.loop_depth = e.loop_depth + 1;
         }
         e.buf.push_str("  br label %");

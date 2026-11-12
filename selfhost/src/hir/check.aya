@@ -1618,6 +1618,18 @@ impl Checker {
             self.check_stmt(ast, ast.aa[id]);
             return;
         }
+        if tag == st(ST::Sync._tag) {
+            // guard 绑定：d 为 payload 的 ref（checker 侧按值类型登记，发射器按 ref 本地处理）
+            if ast.texts[id].len > 0 {
+                gty_e = "int";
+                if ast.bb[id] >= 0 {
+                    gty_e = self.check_expr(ast, ast.aa[ast.bb[id]]);
+                }
+                self.set_local(ast.texts[id], gty_e);
+            }
+            if ast.cc[id] >= 0 { self.check_stmt(ast, ast.cc[id]); }
+            return;
+        }
         // effect 观察（A3）
         if self.cur_fx >= 0 {
             if tag == st(ST::FieldAssign._tag) {

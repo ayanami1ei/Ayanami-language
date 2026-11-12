@@ -39,6 +39,7 @@ pub enum ST {
     Unsafe,
     DerefAssign,
     UnionDef,
+    Sync,
 }
 
 // 表达式标签
