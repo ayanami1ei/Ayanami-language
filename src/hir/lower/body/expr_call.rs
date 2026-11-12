@@ -3,6 +3,14 @@ use super::*;
 impl crate::hir::lower::Ctx {
     /// `explicit`：显式泛型实参（`ns.fn[T](...)`，普通调用为 None）
     pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, explicit: Option<&Vec<Type>>, span: &Span) -> Result<HirNodeBox> {
+        // A1b-3a 类型探针：`__await(e)` 按 e 的类型降级（e 为 async 函数的普通调用）
+        if self.async_probe && name.as_str() == "__await" {
+            let Some(inner) = args.first() else {
+                return Err(Error::Hir(format!(
+                    "`await` requires an expression (at {}:{})", span.start_line, span.start_col)));
+            };
+            return self.lower_expr(inner);
+        }
         // `Enum::Variant(args)` 被解析器合并为 `Enum.Variant`，按前缀类型分流
         if let Some((enum_name, variant_name)) = name.as_str().split_once('.') {
             let enum_sym = Symbol::intern(enum_name);

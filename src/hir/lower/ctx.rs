@@ -27,6 +27,8 @@ pub(crate) struct Ctx {
     pub env_blocks: Vec<HashMap<Symbol, (crate::parser::ast::Expr, Span)>>,
     /// match ergonomics：引用 scrutinee 下按引用绑定（None = 按值移动）
     pub pattern_by_ref: Option<bool>,
+    /// A1b-3a：类型探针模式——`__await(e)` 直接降级为 e（不计状态机）
+    pub async_probe: bool,
     /// A5e：`#[sync(obj)]` 块的活动锁（出口/提前返回补 unlock）
     pub sync_locks: Vec<SyncLock>,
     /// A5e：循环入口处的 `sync_locks.len()` 标记（break/continue 只解到该位置）
@@ -172,6 +174,7 @@ impl Ctx {
             pending_env_args: Vec::new(),
             env_blocks: Vec::new(),
             pattern_by_ref: None,
+            async_probe: false,
             sync_locks: Vec::new(),
             loop_sync_marks: Vec::new(),
         }

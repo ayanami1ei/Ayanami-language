@@ -385,25 +385,26 @@ src/hir/async_if_multi.rs:11: struct Shape
 src/hir/async_if_multi.rs:18: pub(crate) fn try_expand(
 src/hir/async_if_multi.rs:116: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_if_multi.rs:157: fn detect(body: &Block) -> Option<Shape>
-src/hir/async_mixed.rs:12: struct Await
-src/hir/async_mixed.rs:19: pub(crate) fn try_expand(
-src/hir/async_mixed.rs:157: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_mixed.rs:168: fn await_parts(value: &Expr) -> Option<(Symbol, &[Expr], Span)>
-src/hir/async_mixed.rs:175: fn infer(e: &Expr, env: &HashMap<Symbol, Type>, span: Span) -> Option<Type>
-src/hir/async_mixed.rs:204: fn literal_type(l: &Literal, span: Span) -> Option<Type>
-src/hir/async_mixed.rs:214: fn is_int(t: &Type) -> bool
-src/hir/async_mixed.rs:221: fn is_float(t: &Type) -> bool
-src/hir/async_mixed.rs:226: fn same_type(a: &Type, b: &Type) -> bool
-src/hir/async_mixed.rs:233: fn type_default(t: &Type) -> Option<&'static str>
-src/hir/async_mixed.rs:245: fn render_sync(st: &Stmt, promoted: &HashSet<Symbol>, final_seg: bool) -> Option<String>
-src/hir/async_mixed.rs:259: fn render_expr(e: &Expr, promoted: &HashSet<Symbol>) -> Option<String>
-src/hir/async_mixed.rs:263: fn rewrite(e: &Expr, promoted: &HashSet<Symbol>) -> Option<Expr>
-src/hir/async_transform.rs:18: pub fn expand(program: &Program) -> Result<Program>
+src/hir/async_mixed.rs:14: struct Await
+src/hir/async_mixed.rs:21: pub(crate) fn try_expand(
+src/hir/async_mixed.rs:163: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_mixed.rs:174: fn await_parts(value: &Expr) -> Option<(Symbol, &[Expr], Span)>
+src/hir/async_mixed.rs:181: fn infer(e: &Expr, env: &HashMap<Symbol, Type>, span: Span) -> Option<Type>
+src/hir/async_mixed.rs:210: fn literal_type(l: &Literal, span: Span) -> Option<Type>
+src/hir/async_mixed.rs:220: fn is_int(t: &Type) -> bool
+src/hir/async_mixed.rs:227: fn is_float(t: &Type) -> bool
+src/hir/async_mixed.rs:232: fn same_type(a: &Type, b: &Type) -> bool
+src/hir/async_mixed.rs:239: fn type_default(t: &Type) -> Option<&'static str>
+src/hir/async_mixed.rs:251: fn hir_to_ast(t: &HirType, span: Span) -> Option<Type>
+src/hir/async_mixed_expr.rs:7: pub(super) fn render_sync(st: &Stmt, promoted: &HashSet<Symbol>, final_seg: bool) -> Option<String>
+src/hir/async_mixed_expr.rs:21: pub(super) fn render_expr(e: &Expr, promoted: &HashSet<Symbol>) -> Option<String>
+src/hir/async_mixed_expr.rs:25: fn rewrite(e: &Expr, promoted: &HashSet<Symbol>) -> Option<Expr>
+src/hir/async_transform.rs:18: pub fn expand(program: &Program, types: Option<&crate::hir::lower::AsyncLocalTypes>) -> Result<Program>
 src/hir/async_transform.rs:49: fn is_async(a: &crate::parser::ast::Attr) -> bool
 src/hir/async_transform.rs:53: fn stmt_has_direct_await(st: &Stmt) -> bool
 src/hir/async_transform.rs:63: fn stmt_has_nested_await(st: &Stmt) -> bool
 src/hir/async_transform.rs:77: fn contains_async(stmt: &Stmt) -> bool
-src/hir/async_transform.rs:87: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()>
+src/hir/async_transform.rs:87: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>, types: Option<&crate::hir::lower::AsyncLocalTypes>) -> Result<()>
 src/hir/async_transform.rs:136: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform.rs:161: fn await_prefix(body: &Block, span: &crate::span::Span) -> Result<Vec<(Symbol, Symbol, Vec<Expr>)>>
 src/hir/async_transform.rs:187: fn expand_await(
@@ -861,20 +862,20 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:116: pub struct SyncLock
-src/hir/lower/ctx.rs:120: impl Ctx
-src/hir/lower/ctx.rs:122: pub fn new() -> Self
-src/hir/lower/ctx.rs:185: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:188: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:191: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:196: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:205: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:210: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:218: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:228: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:241: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:249: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:255: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:118: pub struct SyncLock
+src/hir/lower/ctx.rs:122: impl Ctx
+src/hir/lower/ctx.rs:124: pub fn new() -> Self
+src/hir/lower/ctx.rs:188: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:191: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:194: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:199: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:208: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:213: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:221: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:231: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:244: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:252: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:258: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_env.rs:4: impl Ctx
 src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
 src/hir/lower/ctx_env.rs:36: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -1040,7 +1041,11 @@ src/hir/lower/mod.rs:79: mod ctx_fields;
 src/hir/lower/mod.rs:96: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 src/hir/lower/mod.rs:98: pub fn set_source_path(path: &std::path::Path)
 src/hir/lower/mod.rs:102: pub(crate) fn source_path() -> String
-src/hir/lower/mod.rs:106: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:107: pub(crate) type AsyncLocalTypes = HashMap<Symbol, HashMap<Symbol, HirType>>;
+src/hir/lower/mod.rs:109: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:122: fn probe_async_local_types(program: &Program) -> Result<AsyncLocalTypes>
+src/hir/lower/mod.rs:142: fn has_async_fn(program: &Program) -> bool
+src/hir/lower/mod.rs:147: fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)>
@@ -1259,29 +1264,30 @@ src/hir/lower/to_mir/ptr_ops.rs:70: fn record_moves(&self, moved: &mut HashSet<V
 src/hir/mod.rs:1: pub mod attrs;
 src/hir/mod.rs:2: pub(crate) mod async_transform;
 src/hir/mod.rs:3: pub(crate) mod async_mixed;
-src/hir/mod.rs:4: pub(crate) mod async_transform_util;
-src/hir/mod.rs:5: pub(crate) mod async_elif;
-src/hir/mod.rs:6: pub(crate) mod async_elif_multi;
-src/hir/mod.rs:7: pub(crate) mod async_if;
-src/hir/mod.rs:8: pub(crate) mod async_if_multi;
-src/hir/mod.rs:9: pub(crate) mod async_if_else_multi;
-src/hir/mod.rs:10: pub(crate) mod async_while;
-src/hir/mod.rs:11: pub(crate) mod async_while_util;
-src/hir/mod.rs:12: pub mod attrs_export;
-src/hir/mod.rs:13: pub mod attrs_macro;
-src/hir/mod.rs:14: pub mod cfg;
-src/hir/mod.rs:15: pub mod contracts;
-src/hir/mod.rs:16: pub mod effects;
-src/hir/mod.rs:17: pub mod ir;
-src/hir/mod.rs:18: pub mod layout;
-src/hir/mod.rs:19: pub(crate) mod niche;
-src/hir/mod.rs:20: pub mod ty;
-src/hir/mod.rs:21: pub mod node;
-src/hir/mod.rs:22: pub mod stmt;
-src/hir/mod.rs:23: pub mod item;
-src/hir/mod.rs:24: pub mod lower;
-src/hir/mod.rs:25: pub mod display;
-src/hir/mod.rs:42: pub struct $name
+src/hir/mod.rs:4: pub(crate) mod async_mixed_expr;
+src/hir/mod.rs:5: pub(crate) mod async_transform_util;
+src/hir/mod.rs:6: pub(crate) mod async_elif;
+src/hir/mod.rs:7: pub(crate) mod async_elif_multi;
+src/hir/mod.rs:8: pub(crate) mod async_if;
+src/hir/mod.rs:9: pub(crate) mod async_if_multi;
+src/hir/mod.rs:10: pub(crate) mod async_if_else_multi;
+src/hir/mod.rs:11: pub(crate) mod async_while;
+src/hir/mod.rs:12: pub(crate) mod async_while_util;
+src/hir/mod.rs:13: pub mod attrs_export;
+src/hir/mod.rs:14: pub mod attrs_macro;
+src/hir/mod.rs:15: pub mod cfg;
+src/hir/mod.rs:16: pub mod contracts;
+src/hir/mod.rs:17: pub mod effects;
+src/hir/mod.rs:18: pub mod ir;
+src/hir/mod.rs:19: pub mod layout;
+src/hir/mod.rs:20: pub(crate) mod niche;
+src/hir/mod.rs:21: pub mod ty;
+src/hir/mod.rs:22: pub mod node;
+src/hir/mod.rs:23: pub mod stmt;
+src/hir/mod.rs:24: pub mod item;
+src/hir/mod.rs:25: pub mod lower;
+src/hir/mod.rs:26: pub mod display;
+src/hir/mod.rs:43: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
@@ -2785,9 +2791,10 @@ example/test_async_await.aya:232: fn double_find(int limit) -> int
 example/test_async_await.aya:243: fn mixed(int x) -> int
 example/test_async_await.aya:251: fn pre_sync(int x) -> int
 example/test_async_await.aya:258: fn str_mixed() -> int
-example/test_async_await.aya:266: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_await.aya:280: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_await.aya:293: fn main() -> int
+example/test_async_await.aya:266: fn str_call(int x) -> int
+example/test_async_await.aya:274: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:288: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:301: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker

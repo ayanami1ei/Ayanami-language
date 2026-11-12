@@ -2,11 +2,13 @@
 //!
 //! 支持 `x = await g(args)` 与普通赋值/表达式语句混排（无 if/while/match），
 //! 参数与局部提升为 `__v_*` 字段；每个 await 一个 future 字段与两段状态。
-//! 类型由 AST 侧轻量推断（参数、await 结果、字面量/算术/比较），不支持的类型回退。
+//! 类型优先 AST 侧轻量推断；失败时用 HIR 探针补充（方法调用/字段读取结果），再失败则回退。
 use std::collections::{HashMap, HashSet};
 use crate::error::{Error, Result};
+use crate::hir::async_mixed_expr::{render_expr, render_sync};
 use crate::hir::async_transform_util::ty_src;
 use crate::intern::Symbol;
+use crate::hir::ir::HirType;
 use crate::parser::ast::{Expr, Literal, Stmt, Type};
 use crate::span::Span;
 struct Await {
@@ -20,6 +22,7 @@ pub(crate) fn try_expand(
     stmt: &Stmt,
     returns: &HashMap<Symbol, Type>,
     out: &mut Vec<Stmt>,
+    hir_locals: Option<&HashMap<Symbol, HirType>>,
 ) -> Result<bool> {
     let Stmt::FnDecl { name, params, body, .. } = stmt else { return Ok(false) };
     let fail = |m: String| Error::Hir(format!("#[async] `{}`: {}", name.as_str(), m));
@@ -53,7 +56,10 @@ pub(crate) fn try_expand(
         }
         match st {
             Stmt::Assign { name: target, value, span, .. } => {
-                let Some(ty) = infer(value, &env, *span) else { return Ok(false) };
+                let ty = infer(value, &env, *span).or_else(|| {
+                    hir_locals.and_then(|m| m.get(target)).and_then(|t| hir_to_ast(t, *span))
+                });
+                let Some(ty) = ty else { return Ok(false) };
                 if let Some(old) = env.get(target) {
                     if !same_type(old, &ty) { return Ok(false); }
                 } else {
@@ -242,59 +248,15 @@ fn type_default(t: &Type) -> Option<&'static str> {
     }
 }
 
-fn render_sync(st: &Stmt, promoted: &HashSet<Symbol>, final_seg: bool) -> Option<String> {
-    match st {
-        Stmt::Assign { name, value, .. } => {
-            let r = render_expr(value, promoted)?;
-            Some(format!("self.__v_{} = {};", name.as_str(), r))
-        }
-        Stmt::ExprStmt { expr, .. } => Some(format!("{};", render_expr(expr, promoted)?)),
-        Stmt::Return { value: Some(e), .. } if final_seg => {
-            Some(format!("return Poll::Ready({});", render_expr(e, promoted)?))
-        }
-        _ => None,
-    }
-}
-
-fn render_expr(e: &Expr, promoted: &HashSet<Symbol>) -> Option<String> {
-    Some(crate::formatter::format_expr(&rewrite(e, promoted)?))
-}
-
-fn rewrite(e: &Expr, promoted: &HashSet<Symbol>) -> Option<Expr> {
-    Some(match e {
-        Expr::Ident(n, span) if promoted.contains(n) => Expr::FieldAccess {
-            object: Box::new(Expr::Ident(Symbol::intern("self"), *span)),
-            field: Symbol::intern(&format!("__v_{}", n.as_str())),
-            span: *span,
-        },
-        Expr::Ident(..) | Expr::Literal(..) | Expr::Null(..) | Expr::Suffixed { .. } => e.clone(),
-        Expr::Binary { op, lhs, rhs, span } => Expr::Binary {
-            op: *op, lhs: Box::new(rewrite(lhs, promoted)?),
-            rhs: Box::new(rewrite(rhs, promoted)?), span: *span,
-        },
-        Expr::Unary { op, arg, span } => Expr::Unary {
-            op: *op, arg: Box::new(rewrite(arg, promoted)?), span: *span,
-        },
-        Expr::Cast { expr, ty, span } => Expr::Cast {
-            expr: Box::new(rewrite(expr, promoted)?), ty: ty.clone(), span: *span,
-        },
-        Expr::Move(inner, span) => Expr::Move(Box::new(rewrite(inner, promoted)?), *span),
-        Expr::Clone(inner, span) => Expr::Clone(Box::new(rewrite(inner, promoted)?), *span),
-        Expr::FnCall { name, args, generic_args, span } => Expr::FnCall {
-            name: *name, args: args.iter().map(|a| rewrite(a, promoted)).collect::<Option<Vec<_>>>()?,
-            generic_args: generic_args.clone(), span: *span,
-        },
-        Expr::MethodCall { object, method, args, span } => Expr::MethodCall {
-            object: Box::new(rewrite(object, promoted)?), method: *method,
-            args: args.iter().map(|a| rewrite(a, promoted)).collect::<Option<Vec<_>>>()?, span: *span,
-        },
-        Expr::FieldAccess { object, field, span } => Expr::FieldAccess {
-            object: Box::new(rewrite(object, promoted)?), field: *field, span: *span,
-        },
-        Expr::Index { object, index, span } => Expr::Index {
-            object: Box::new(rewrite(object, promoted)?), index: Box::new(rewrite(index, promoted)?), span: *span,
-        },
-        Expr::Ref(inner, mutable, span) => Expr::Ref(Box::new(rewrite(inner, promoted)?), *mutable, *span),
+fn hir_to_ast(t: &HirType, span: Span) -> Option<Type> {
+    Some(match t {
+        HirType::Int => Type::Int(span),
+        HirType::Float => Type::Float(span),
+        HirType::F32 => Type::Named(Symbol::intern("f32"), span),
+        HirType::Bool => Type::Bool(span),
+        HirType::IntN { bits, signed } => Type::Named(
+            Symbol::intern(&format!("{}{}", if *signed { "i" } else { "u" }, bits)), span),
+        HirType::Named(n) if n.as_str() == "String" => Type::Named(*n, span),
         _ => return None,
     })
 }

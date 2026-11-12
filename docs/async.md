@@ -229,9 +229,10 @@ impl __add_Fut {
   `__async_take_<f>_<j>`。条件限参数，实参限参数或分支变量 `y`；所有分支结果类型须一致。
   用例 `pick_multi` / `pick_mix`；负例 `await_elif_mixed_stmt` / `await_elif_mixed_type`。
 - 直线 mixed await（A1b-3a 过渡桥，2026-10-25）：await 与同步赋值/表达式混排（无 if/while/match）；
-  参数与局部提升为 `__v_*` 字段，每个 await 两段状态。类型由 AST 轻量推断（参数、await 结果、
-  字面量、算术/比较、`as` 转换）；方法调用/字段读取直接赋值的局部暂不支持。用例 `mixed` /
-  `pre_sync` / `str_mixed`；负例 `await_mixed_unsupported`。HIR 级一般 CFG（§7.4）完成后替换本桥。
+  参数与局部提升为 `__v_*` 字段，每个 await 两段状态。类型优先 AST 轻量推断（参数、await 结果、
+  字面量、算术/比较、`as`），推断失败时用一次**无 async 展开的 HIR 探针**补充方法调用/字段读取
+  结果类型（探针排除 `main`，失败则回退）。用例 `mixed` / `pre_sync` / `str_mixed` / `str_call`；
+  负例 `await_mixed_unsupported`（结构体局部无默认初始化）。HIR 级一般 CFG（§7.4）完成后替换本桥。
 - 后续：一般 CFG（任意语句、PC/状态枚举、嵌套控制流）。
 
 ### 7.4 A1b-3 一般 CFG（HIR 级状态机）设计（2026-10-25）
@@ -239,7 +240,7 @@ impl __add_Fut {
 前几片都是在 **AST 层**按形状展开（直线 / if / if-else / elif / while），优点是落地快，
 缺点是拿不到局部变量类型、只能支持“签名里已知类型”的变量，且形状组合会指数膨胀。
 一般 CFG 必须在 **HIR 层**（`lower_items` 之后、MIR 之前）生成状态机。本节为设计稿，
-实现状态：**A1b-3a 的 AST 过渡桥已落地**（`src/hir/async_mixed.rs`）；HIR pass 未开始，现有 AST 展开继续工作。
+实现状态：**A1b-3a 的 AST 过渡桥 + HIR 类型探针已落地**（`src/hir/async_mixed.rs`、`lower_program` 探针）；HIR pass 未开始。
 
 #### 目标与非目标
 

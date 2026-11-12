@@ -1,6 +1,7 @@
 pub mod attrs;
 pub(crate) mod async_transform;
 pub(crate) mod async_mixed;
+pub(crate) mod async_mixed_expr;
 pub(crate) mod async_transform_util;
 pub(crate) mod async_elif;
 pub(crate) mod async_elif_multi;

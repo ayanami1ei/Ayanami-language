@@ -15,7 +15,7 @@ use crate::parser::ast::vis::Visibility;
 use crate::parser::ast::{Block, Expr, Program, Stmt, Type};
 use crate::hir::async_transform_util::{await_default, type_name, ty_src};
 /// 展开程序中的 `#[async]` 函数（cfg 过滤之后、HIR 降级之前）。
-pub fn expand(program: &Program) -> Result<Program> {
+pub fn expand(program: &Program, types: Option<&crate::hir::lower::AsyncLocalTypes>) -> Result<Program> {
     // await 目标函数的返回类型表（仅同程序 #[async] 函数）
     let mut returns: HashMap<Symbol, Type> = HashMap::new();
     for stmt in &program.stmts {
@@ -28,7 +28,7 @@ pub fn expand(program: &Program) -> Result<Program> {
     let mut out = Vec::with_capacity(program.stmts.len());
     for stmt in &program.stmts {
         match stmt {
-            Stmt::FnDecl { attrs, .. } if attrs.iter().any(is_async) => expand_one(stmt, &returns, &mut out)?,
+            Stmt::FnDecl { attrs, .. } if attrs.iter().any(is_async) => expand_one(stmt, &returns, &mut out, types)?,
             Stmt::FnDecl { attrs, body, .. }
                 if !attrs.iter().any(is_async) && body.stmts.iter().any(stmt_has_direct_await) =>
             {
@@ -84,7 +84,7 @@ fn contains_async(stmt: &Stmt) -> bool {
     }
 }
 
-fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()> {
+fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>, types: Option<&crate::hir::lower::AsyncLocalTypes>) -> Result<()> {
     let Stmt::FnDecl {
         vis, name, generic_params, params, return_type, extern_c, is_unsafe, body, span, ..
     } = stmt else { unreachable!() };
@@ -102,7 +102,7 @@ fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>)
     if crate::hir::async_elif::try_expand(stmt, returns, out)? { return Ok(()); }
     if crate::hir::async_if::try_expand(stmt, returns, out)? { return Ok(()); }
     if crate::hir::async_while::try_expand(stmt, returns, out)? { return Ok(()); }
-    if crate::hir::async_mixed::try_expand(stmt, returns, out)? { return Ok(()); }
+    if crate::hir::async_mixed::try_expand(stmt, returns, out, types.and_then(|m| m.get(name)))? { return Ok(()); }
     let awaits = await_prefix(body, span)?;
     if !awaits.is_empty() {
         return expand_await(stmt, &awaits, returns, out);

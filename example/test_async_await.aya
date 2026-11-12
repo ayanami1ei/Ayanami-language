@@ -262,6 +262,14 @@ fn str_mixed() -> int {
     return n + t.len as int
 }
 
+#[async]
+fn str_call(int x) -> int {
+    a = await inc(x)
+    s = a.to_string()
+    b = await inc(a)
+    return s.len as int + b
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -367,5 +375,7 @@ fn main() -> int {
     if block_on(ref mut v2) != 30 { return 37 }
     v3 = str_mixed()
     if block_on(ref mut v3) != 6 { return 38 }
+    v4 = str_call(1)
+    if block_on(ref mut v4) != 4 { return 39 }
     return 0
 }

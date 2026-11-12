@@ -103,15 +103,52 @@ pub(crate) fn source_path() -> String {
     SOURCE_PATH.get().cloned().unwrap_or_default()
 }
 
+/// A1b-3a：async 局部类型表：函数名 → (局部名 → HIR 类型)
+pub(crate) type AsyncLocalTypes = HashMap<Symbol, HashMap<Symbol, HirType>>;
+
 pub fn lower_program(program: &Program) -> Result<HirProgram> {
-    // A0：先做属性白名单校验（未知属性报错）
     crate::hir::attrs::validate_program(program)?;
-    // A2b：#[cfg(...)] 编译期裁剪
     let program = crate::hir::cfg::filter_program(program)?;
-    let program = crate::hir::async_transform::expand(&program)?;
+    let types = if has_async_fn(&program) {
+        probe_async_local_types(&program).ok()
+    } else {
+        None
+    };
+    let program = crate::hir::async_transform::expand(&program, types.as_ref())?;
+    lower_program_after(&program, false)
+}
+
+/// 用一次“无 async 展开”的 HIR 降级收集局部类型（只读探针）。
+fn probe_async_local_types(program: &Program) -> Result<AsyncLocalTypes> {
+    let mut probe = Program::new(program.stmts.clone());
+    // 探针只关心 async 域局部类型：排除 main，避免未展开的 Future 构造在 executor 调用处误报
+    probe.stmts.retain(|st| !matches!(st, Stmt::FnDecl { name, .. } if name.as_str() == "main"));
+    for st in &mut probe.stmts {
+        if let Stmt::FnDecl { attrs, .. } = st {
+            attrs.retain(|a| a.name.as_str() != "async");
+        }
+    }
+    let hir = lower_program_after(&probe, true)?;
+    let mut map = HashMap::new();
+    for item in &hir.items {
+        if let HirItem::Fn(f) = item {
+            let locals = f.locals.iter().map(|l| (l.name, l.ty.clone())).collect();
+            map.insert(f.name, locals);
+        }
+    }
+    Ok(map)
+}
+
+fn has_async_fn(program: &Program) -> bool {
+    program.stmts.iter().any(|st| matches!(st, Stmt::FnDecl { attrs, .. }
+        if attrs.iter().any(|a| a.name.as_str() == "async")))
+}
+
+fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgram> {
     // dld：`#[copy]` 结构体登记（校验 + 注册表；is_copy 供移动/拷贝分析）
     collect_copy::register_copy_structs(&program.stmts)?;
     let mut ctx = Ctx::new();
+    ctx.async_probe = async_probe;
     ctx.collect_fns(&program.stmts)?;
     // A5b：导入加载完成后校验宏引用
     crate::hir::attrs::validate_macros(&program, &ctx.imported_macros, &ctx.imported_passes, &ctx.imported_checks)?;
