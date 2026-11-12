@@ -53,10 +53,11 @@ if [[ "$check_mode" == true ]]; then
         echo "Error: SYMBOLS.md does not exist." >&2
         exit 1
     fi
-    # 判定用 cmp（本机 PATH 中的 diff 可能是玩具版：不支持选项且永远 exit 0）
+    # 判定用 cmp；文本展示固定走 /usr/bin/diff：SDK toolchains 里的 diff 是鸿蒙升级包工具，
+    # 不支持 -q/-u 且永远 exit 0，一旦进入 PATH 会导致校验空转。
     if ! cmp -s "SYMBOLS.md" "$tmpfile"; then
         echo "Error: SYMBOLS.md is out of date (run ./scripts/gen_symbols.sh)." >&2
-        diff -u "SYMBOLS.md" "$tmpfile" >&2 || true
+        /usr/bin/diff -u "SYMBOLS.md" "$tmpfile" >&2 || true
         exit 1
     fi
     echo "SYMBOLS.md is up to date"
