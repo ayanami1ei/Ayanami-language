@@ -5,7 +5,7 @@
 //! 类型优先 AST 侧轻量推断；失败时用 HIR 探针补充（方法调用/字段读取结果），再失败则回退。
 use std::collections::{HashMap, HashSet};
 use crate::error::{Error, Result};
-use crate::hir::async_mixed_expr::{render_expr, render_sync};
+use crate::hir::async_mixed_expr::{render_default, render_expr, render_sync};
 use crate::hir::async_transform_util::ty_src;
 use crate::intern::Symbol;
 use crate::hir::ir::HirType;
@@ -40,14 +40,16 @@ pub(crate) fn try_expand(
                     env.insert(*target, g_ret);
                     local_order.push(*target);
                 }
+                let cur: HashSet<Symbol> = env.keys().copied().collect();
                 let mut placeholders = Vec::new();
                 let mut reals = Vec::new();
                 for a in gargs {
-                    let Expr::Ident(n, _) = a else { return Ok(false) };
-                    let Some(t) = env.get(n) else { return Ok(false) };
-                    let Some(d) = type_default(t) else { return Ok(false) };
-                    placeholders.push(d.to_string());
-                    reals.push(format!("self.__v_{}", n.as_str()));
+                    let ph = render_default(a, &env).ok_or_else(|| fail(
+                        "unsupported await argument (v1)".into()))?;
+                    let real = render_expr(a, &cur).ok_or_else(|| fail(
+                        "unsupported await argument (v1)".into()))?;
+                    placeholders.push(ph);
+                    reals.push(real);
                 }
                 awaits.push(Await { target: *target, g, placeholders, reals });
                 segments.push(Vec::new());

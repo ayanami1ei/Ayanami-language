@@ -231,7 +231,8 @@ impl __add_Fut {
 - 直线 mixed await（A1b-3a 过渡桥，2026-10-25）：await 与同步赋值/表达式混排（无 if/while/match）；
   参数与局部提升为 `__v_*` 字段，每个 await 两段状态。类型优先 AST 轻量推断（参数、await 结果、
   字面量、算术/比较、`as`），推断失败时用一次**无 async 展开的 HIR 探针**补充方法调用/字段读取
-  结果类型（探针排除 `main`，失败则回退）。用例 `mixed` / `pre_sync` / `str_mixed` / `str_call`；
+  结果类型（探针排除 `main`，失败则回退）。await 实参支持任意表达式（构造器占位用局部类型默认值）。
+  用例 `mixed` / `pre_sync` / `str_mixed` / `str_call` / `expr_arg` / `call_arg`；
   负例 `await_mixed_unsupported`（结构体局部无默认初始化）。HIR 级一般 CFG（§7.4）完成后替换本桥。
 - 后续：一般 CFG（任意语句、PC/状态枚举、嵌套控制流）。
 

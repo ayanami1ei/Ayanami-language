@@ -270,6 +270,22 @@ fn str_call(int x) -> int {
     return s.len as int + b
 }
 
+#[async]
+fn expr_arg(int x) -> int {
+    a = await inc(x)
+    n = a + 1
+    c = await inc(n + 1)
+    return c
+}
+
+#[async]
+fn call_arg(int x) -> int {
+    a = await inc(x)
+    s = a.to_string()
+    b = await inc(a + s.len as int)
+    return b
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -377,5 +393,9 @@ fn main() -> int {
     if block_on(ref mut v3) != 6 { return 38 }
     v4 = str_call(1)
     if block_on(ref mut v4) != 4 { return 39 }
+    w1 = expr_arg(1)
+    if block_on(ref mut w1) != 5 { return 40 }
+    w2 = call_arg(1)
+    if block_on(ref mut w2) != 4 { return 41 }
     return 0
 }

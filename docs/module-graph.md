@@ -41,7 +41,7 @@ graph LR
     hir -->|23| intern
     hir -->|2| mir
     hir -->|33| parser
-    hir -->|6| span
+    hir -->|7| span
     lexer --> span
     lir --> error
     lir -->|5| hir
@@ -74,7 +74,7 @@ graph LR
 | `compiler` | `error` | 12 |
 | `compiler` | `parser` | 9 |
 | `mir` | `hir` | 8 |
-| `hir` | `span` | 6 |
+| `hir` | `span` | 7 |
 | `parser` | `span` | 6 |
 | `lir` | `hir` | 5 |
 | `parser` | `intern` | 5 |
