@@ -343,7 +343,7 @@ case "${1:-package}" in
     package)   shift || true; cmd_package "${1:-}";;
     upload)    shift || true; cmd_upload;;
     verify)    shift || true; cmd_verify;;
-    machines)  shift || true; cmd_machines "${1:-}";;
+    machines)  shift || true; cmd_machines "${1:-}" "${2:-}";;
     all)       shift || true; cmd_package "${1:-}"; cmd_upload; cmd_verify;;
     help|-h|--help) usage;;
     *)         cmd_package "$@";;   # 兼容旧用法（如 --no-vsix）
