@@ -12,6 +12,7 @@ pub(super) struct Anf<'a> {
     pub(super) probe: Option<&'a HashMap<Symbol, crate::hir::ir::HirType>>,
     pub(super) types: HashMap<Symbol, Type>,
     pub(super) next: usize,
+    pub(super) for_next: usize,
 }
 
 impl<'a> Anf<'a> {
@@ -24,6 +25,7 @@ impl<'a> Anf<'a> {
             probe,
             types: HashMap::new(),
             next: 0,
+            for_next: 0,
         }
     }
 

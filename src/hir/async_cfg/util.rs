@@ -1,6 +1,7 @@
 //! async CFG 的局部/类型辅助。
 use std::collections::HashSet;
 
+use crate::hir::async_mixed_types::type_default;
 use crate::hir::async_transform_util::ty_src;
 use crate::intern::Symbol;
 use crate::parser::ast::{Stmt, Type};
@@ -40,6 +41,15 @@ pub(super) fn field_name(n: Symbol) -> Symbol {
 pub(super) fn bad_local_name(n: Symbol) -> bool {
     let s = n.as_str();
     s == "self" || s.starts_with("__async_")
+}
+
+pub(super) fn local_default(t: &Type) -> Option<String> {
+    if let Type::Generic(n, _, _) = t {
+        if n.as_str() == "Option" {
+            return Some("Option::None".into());
+        }
+    }
+    type_default(t).map(|s| s.to_string())
 }
 
 pub(super) fn source_ty(t: &Type) -> Option<String> {

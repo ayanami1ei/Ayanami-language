@@ -1,5 +1,7 @@
 //! ANF 语句重写：if/while/for 与 await 子表达式提升。
-use crate::parser::ast::{Block, Expr, Literal, Stmt};
+use crate::hir::async_mixed_types::hir_to_ast;
+use crate::intern::Symbol;
+use crate::parser::ast::{BinaryOp, Block, Expr, Literal, Stmt, Type};
 
 use super::anf::{Anf, expr_has_await, stmt_has_await_local};
 
@@ -138,13 +140,84 @@ impl Anf<'_> {
                 body,
                 span,
             } => {
-                if expr_has_await(iterable) || body.stmts.iter().any(stmt_has_await_local) {
+                if expr_has_await(iterable) {
                     return None;
                 }
-                Stmt::ForIn {
-                    iterator: *iterator,
-                    iterable: iterable.clone(),
-                    body: body.clone(),
+                let body_await = body.stmts.iter().any(stmt_has_await_local);
+                if !body_await {
+                    return Some(Stmt::ForIn {
+                        iterator: *iterator,
+                        iterable: iterable.clone(),
+                        body: body.clone(),
+                        span: *span,
+                    });
+                }
+                // 只支持 `for v in ident { ... }`；表达式 iterable 需要额外的迭代器字段类型。
+                let Expr::Ident(it, it_span) = iterable else {
+                    return None;
+                };
+                if body.tail.is_some() {
+                    return None;
+                }
+                let elem_ty = self
+                    .probe
+                    .and_then(|m| m.get(iterator))
+                    .and_then(|t| hir_to_ast(t, *span))?;
+                let body = self.block(body)?;
+                let next = Symbol::intern(&format!("__async_next{}", self.for_next));
+                self.for_next += 1;
+                self.types.insert(
+                    next,
+                    Type::Generic(Symbol::intern("Option"), vec![elem_ty], *span),
+                );
+                let assign_next = Stmt::Assign {
+                    name: next,
+                    is_mut: false,
+                    value: Expr::MethodCall {
+                        object: Box::new(Expr::Ident(*it, *it_span)),
+                        method: Symbol::intern("next"),
+                        args: Vec::new(),
+                        span: *span,
+                    },
+                    span: *span,
+                };
+                let cond = Expr::Binary {
+                    op: BinaryOp::Eq,
+                    lhs: Box::new(Expr::FieldAccess {
+                        object: Box::new(Expr::Ident(next, *span)),
+                        field: Symbol::intern("_tag"),
+                        span: *span,
+                    }),
+                    rhs: Box::new(Expr::Literal(Literal::Int(0, *span))),
+                    span: *span,
+                };
+                let elem = Expr::FieldAccess {
+                    object: Box::new(Expr::FieldAccess {
+                        object: Box::new(Expr::Ident(next, *span)),
+                        field: Symbol::intern("_data_Some"),
+                        span: *span,
+                    }),
+                    field: Symbol::intern("_0"),
+                    span: *span,
+                };
+                let bind = Stmt::Assign {
+                    name: *iterator,
+                    is_mut: false,
+                    value: elem,
+                    span: *span,
+                };
+                let mut then_stmts = vec![bind];
+                then_stmts.extend(body.stmts);
+                let if_stmt = Stmt::If {
+                    cond,
+                    then_block: Block::new(then_stmts, *span),
+                    elifs: Vec::new(),
+                    else_block: Some(Block::new(vec![Stmt::Break { span: *span }], *span)),
+                    span: *span,
+                };
+                Stmt::While {
+                    cond: Expr::Literal(Literal::Bool(true, *span)),
+                    body: Block::new(vec![assign_next, if_stmt], *span),
                     span: *span,
                 }
             }

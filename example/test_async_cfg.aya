@@ -1,11 +1,27 @@
 // A1b-3：通用 async CFG（嵌套 if/while/break/continue + 任意同步语句 + String 局部）。
 import "io"
+import "option"
 
 enum Poll[T] { Ready(T), Pending }
 struct Waker { int id }
 impl Waker { fn wake(ref self) { } }
 struct Context { Waker waker }
 interface Future[T] { fn poll(ref mut self, ref Context cx) -> Poll[T]; }
+
+struct RangeIter {
+    int cur
+    int end
+}
+
+impl RangeIter {
+    #[state]
+    fn next(ref mut self) -> Option[int] {
+        if self.cur >= self.end { return Option::None }
+        v = self.cur
+        self.cur = self.cur + 1
+        return Option::Some(v)
+    }
+}
 
 #[state]
 fn block_on[F: Future[int]](ref mut F f) -> int {
@@ -229,6 +245,15 @@ fn for_usize(usize n) -> int {
 }
 
 #[async]
+fn for_in(RangeIter it) -> int {
+    s = 0
+    for v in it {
+        s = s + (await inc(v))
+    }
+    return s
+}
+
+#[async]
 fn expr_elif(int x) -> int {
     y = 0
     if x > 10 {
@@ -386,5 +411,8 @@ fn main() -> int {
     if block_on(ref mut f32) != 6 { return 36 }
     f33 = for_continue(0)
     if block_on(ref mut f33) != 8 { return 37 }
+    it = RangeIter { cur = 0, end = 3 }
+    f34 = for_in(it)
+    if block_on(ref mut f34) != 6 { return 38 }
     return 0
 }

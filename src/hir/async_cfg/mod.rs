@@ -6,15 +6,15 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::error::{Error, Result};
-use crate::hir::async_mixed_types::{hir_to_ast, type_default};
+use crate::hir::async_mixed_types::hir_to_ast;
 use crate::hir::ir::HirType;
 use crate::intern::Symbol;
 use crate::parser::ast::{Expr, Stmt, Type};
 
 mod anf;
 mod anf_expr;
-mod anf_stmt;
 mod anf_for;
+mod anf_stmt;
 mod compiler;
 mod compiler_await;
 mod scan;
@@ -23,7 +23,7 @@ use anf::Anf;
 use compiler::Cfg;
 pub(crate) use scan::stmt_has_await;
 use scan::{body_has_await, check_supported};
-use util::{ast_copy, bad_local_name, collect_assigned, field_name, source_ty};
+use util::{ast_copy, bad_local_name, collect_assigned, field_name, local_default, source_ty};
 
 pub(super) struct Local {
     pub name: Symbol,
@@ -124,14 +124,14 @@ pub(crate) fn try_expand(
         let Some(ty) = source_ty(&ast_ty) else {
             return Ok(false);
         };
-        let Some(init) = type_default(&ast_ty) else {
+        let Some(init) = local_default(&ast_ty) else {
             return Ok(false);
         };
         locals.push(Local {
             name: n,
             field: field_name(n),
             ty_src: ty,
-            init: init.to_string(),
+            init,
             is_param: false,
             is_copy,
         });

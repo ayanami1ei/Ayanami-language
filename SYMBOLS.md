@@ -361,21 +361,21 @@ src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, lev
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
 src/hir/async_cfg/anf.rs:10: pub(super) struct Anf<'a>
-src/hir/async_cfg/anf.rs:17: impl<'a> Anf<'a>
-src/hir/async_cfg/anf.rs:18: pub(super) fn new(
-src/hir/async_cfg/anf.rs:30: pub(super) fn into_types(self) -> HashMap<Symbol, Type>
-src/hir/async_cfg/anf.rs:35: pub(super) fn normalize_body(&mut self, body: &Block) -> Option<(Vec<Stmt>, Option<Expr>)>
-src/hir/async_cfg/anf.rs:54: pub(super) fn block(&mut self, b: &Block) -> Option<Block>
-src/hir/async_cfg/anf.rs:73: pub(super) fn stmt_has_await_local(st: &Stmt) -> bool
-src/hir/async_cfg/anf.rs:77: pub(super) fn expr_has_await(e: &Expr) -> bool
+src/hir/async_cfg/anf.rs:18: impl<'a> Anf<'a>
+src/hir/async_cfg/anf.rs:19: pub(super) fn new(
+src/hir/async_cfg/anf.rs:32: pub(super) fn into_types(self) -> HashMap<Symbol, Type>
+src/hir/async_cfg/anf.rs:37: pub(super) fn normalize_body(&mut self, body: &Block) -> Option<(Vec<Stmt>, Option<Expr>)>
+src/hir/async_cfg/anf.rs:56: pub(super) fn block(&mut self, b: &Block) -> Option<Block>
+src/hir/async_cfg/anf.rs:75: pub(super) fn stmt_has_await_local(st: &Stmt) -> bool
+src/hir/async_cfg/anf.rs:79: pub(super) fn expr_has_await(e: &Expr) -> bool
 src/hir/async_cfg/anf_expr.rs:8: impl Anf<'_>
 src/hir/async_cfg/anf_expr.rs:9: pub(super) fn expr(&mut self, e: &Expr, pre: &mut Vec<Stmt>) -> Option<Expr>
 src/hir/async_cfg/anf_for.rs:7: impl Anf<'_>
 src/hir/async_cfg/anf_for.rs:8: pub(super) fn for_stmt(
 src/hir/async_cfg/anf_for.rs:79: fn patch_continues(stmts: &mut [Stmt], step: &Stmt)
-src/hir/async_cfg/anf_stmt.rs:6: impl Anf<'_>
-src/hir/async_cfg/anf_stmt.rs:7: pub(super) fn stmt(&mut self, st: &Stmt, pre: &mut Vec<Stmt>) -> Option<Stmt>
-src/hir/async_cfg/anf_stmt.rs:174: pub(super) fn else_chain(
+src/hir/async_cfg/anf_stmt.rs:8: impl Anf<'_>
+src/hir/async_cfg/anf_stmt.rs:9: pub(super) fn stmt(&mut self, st: &Stmt, pre: &mut Vec<Stmt>) -> Option<Stmt>
+src/hir/async_cfg/anf_stmt.rs:247: pub(super) fn else_chain(
 src/hir/async_cfg/compiler.rs:11: pub(super) struct Cfg
 src/hir/async_cfg/compiler.rs:20: impl Cfg
 src/hir/async_cfg/compiler.rs:21: pub(super) fn new(locals: Vec<Local>, async_fns: HashMap<Symbol, Vec<(Symbol, Type)>>) -> Self
@@ -401,8 +401,8 @@ src/hir/async_cfg/compiler_await.rs:9: impl Cfg
 src/hir/async_cfg/compiler_await.rs:10: pub(super) fn compile_await(
 src/hir/async_cfg/mod.rs:14: mod anf;
 src/hir/async_cfg/mod.rs:15: mod anf_expr;
-src/hir/async_cfg/mod.rs:16: mod anf_stmt;
-src/hir/async_cfg/mod.rs:17: mod anf_for;
+src/hir/async_cfg/mod.rs:16: mod anf_for;
+src/hir/async_cfg/mod.rs:17: mod anf_stmt;
 src/hir/async_cfg/mod.rs:18: mod compiler;
 src/hir/async_cfg/mod.rs:19: mod compiler_await;
 src/hir/async_cfg/mod.rs:20: mod scan;
@@ -420,11 +420,12 @@ src/hir/async_cfg/scan.rs:18: pub(crate) fn stmt_has_await(st: &Stmt) -> bool
 src/hir/async_cfg/scan.rs:77: pub(super) fn expr_has_await(e: &Expr) -> bool
 src/hir/async_cfg/scan.rs:149: fn has_break_continue(st: &Stmt) -> bool
 src/hir/async_cfg/scan.rs:182: pub(super) fn check_supported(
-src/hir/async_cfg/util.rs:8: pub(super) fn ast_copy(t: &Type) -> bool
-src/hir/async_cfg/util.rs:36: pub(super) fn field_name(n: Symbol) -> Symbol
-src/hir/async_cfg/util.rs:40: pub(super) fn bad_local_name(n: Symbol) -> bool
-src/hir/async_cfg/util.rs:45: pub(super) fn source_ty(t: &Type) -> Option<String>
-src/hir/async_cfg/util.rs:50: pub(super) fn collect_assigned(stmts: &[Stmt], out: &mut HashSet<Symbol>)
+src/hir/async_cfg/util.rs:9: pub(super) fn ast_copy(t: &Type) -> bool
+src/hir/async_cfg/util.rs:37: pub(super) fn field_name(n: Symbol) -> Symbol
+src/hir/async_cfg/util.rs:41: pub(super) fn bad_local_name(n: Symbol) -> bool
+src/hir/async_cfg/util.rs:46: pub(super) fn local_default(t: &Type) -> Option<String>
+src/hir/async_cfg/util.rs:55: pub(super) fn source_ty(t: &Type) -> Option<String>
+src/hir/async_cfg/util.rs:60: pub(super) fn collect_assigned(stmts: &[Stmt], out: &mut HashSet<Symbol>)
 src/hir/async_elif.rs:10: struct Branch
 src/hir/async_elif.rs:16: pub(crate) fn try_expand(
 src/hir/async_elif.rs:124: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
@@ -2998,46 +2999,50 @@ example/test_async_await.aya:539: fn pick_multi_post_expr(int x) -> int
 example/test_async_await.aya:556: fn block_on_s[F: Future[String]](ref mut F f) -> String
 example/test_async_await.aya:570: fn block_on[F: Future[int]](ref mut F f) -> int
 example/test_async_await.aya:583: fn main() -> int
-example/test_async_cfg.aya:4: enum Poll[T] { Ready(T), Pending }
-example/test_async_cfg.aya:5: struct Waker { int id }
-example/test_async_cfg.aya:6: impl Waker { fn wake(ref self) { } }
-example/test_async_cfg.aya:7: struct Context { Waker waker }
-example/test_async_cfg.aya:8: interface Future[T] { fn poll(ref mut self, ref Context cx) -> Poll[T]; }
-example/test_async_cfg.aya:11: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_cfg.aya:23: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_cfg.aya:35: fn inc(int x) -> int { return x + 1 }
-example/test_async_cfg.aya:38: fn dec(int x) -> int { return x - 1 }
-example/test_async_cfg.aya:41: fn dbl(int x) -> int { return x * 2 }
-example/test_async_cfg.aya:44: fn greet() -> String { return "hi" }
-example/test_async_cfg.aya:47: fn mixed(int x) -> int
-example/test_async_cfg.aya:64: fn nested(int x) -> int
-example/test_async_cfg.aya:79: fn pick(int x) -> int
-example/test_async_cfg.aya:92: fn outer(int x) -> int
-example/test_async_cfg.aya:104: fn noelse(int x) -> int
-example/test_async_cfg.aya:114: fn nested_loops(int x) -> int
-example/test_async_cfg.aya:129: fn cont(int x) -> int
-example/test_async_cfg.aya:140: fn syncmix(int x) -> int
-example/test_async_cfg.aya:152: fn plus1(int x) -> int { return x + 1 }
-example/test_async_cfg.aya:155: fn expr_sum(int x) -> int
-example/test_async_cfg.aya:161: fn expr_ret(int x) -> int
-example/test_async_cfg.aya:166: fn expr_arg(int x) -> int
-example/test_async_cfg.aya:172: fn expr_product(int x) -> int
-example/test_async_cfg.aya:177: fn expr_call(int x) -> int
-example/test_async_cfg.aya:183: fn expr_if_cond(int x) -> int
-example/test_async_cfg.aya:194: fn for_body(int x) -> int
-example/test_async_cfg.aya:203: fn for_break(int x) -> int
-example/test_async_cfg.aya:213: fn for_continue(int x) -> int
-example/test_async_cfg.aya:223: fn for_usize(usize n) -> int
-example/test_async_cfg.aya:232: fn expr_elif(int x) -> int
-example/test_async_cfg.aya:245: fn while_cond(int x) -> int
-example/test_async_cfg.aya:254: fn while_cond_continue(int x) -> int
-example/test_async_cfg.aya:265: fn loop_expr(int x) -> int
-example/test_async_cfg.aya:274: fn expr_string(int x) -> String
-example/test_async_cfg.aya:280: fn echo(String s) -> String { return s }
-example/test_async_cfg.aya:283: fn pass(int x, String s) -> String
-example/test_async_cfg.aya:290: fn choose_sync(int x) -> int
-example/test_async_cfg.aya:301: fn join(int x) -> String
-example/test_async_cfg.aya:314: fn main() -> int
+example/test_async_cfg.aya:5: enum Poll[T] { Ready(T), Pending }
+example/test_async_cfg.aya:6: struct Waker { int id }
+example/test_async_cfg.aya:7: impl Waker { fn wake(ref self) { } }
+example/test_async_cfg.aya:8: struct Context { Waker waker }
+example/test_async_cfg.aya:9: interface Future[T] { fn poll(ref mut self, ref Context cx) -> Poll[T]; }
+example/test_async_cfg.aya:11: struct RangeIter
+example/test_async_cfg.aya:16: impl RangeIter
+example/test_async_cfg.aya:18: fn next(ref mut self) -> Option[int]
+example/test_async_cfg.aya:27: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_cfg.aya:39: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_cfg.aya:51: fn inc(int x) -> int { return x + 1 }
+example/test_async_cfg.aya:54: fn dec(int x) -> int { return x - 1 }
+example/test_async_cfg.aya:57: fn dbl(int x) -> int { return x * 2 }
+example/test_async_cfg.aya:60: fn greet() -> String { return "hi" }
+example/test_async_cfg.aya:63: fn mixed(int x) -> int
+example/test_async_cfg.aya:80: fn nested(int x) -> int
+example/test_async_cfg.aya:95: fn pick(int x) -> int
+example/test_async_cfg.aya:108: fn outer(int x) -> int
+example/test_async_cfg.aya:120: fn noelse(int x) -> int
+example/test_async_cfg.aya:130: fn nested_loops(int x) -> int
+example/test_async_cfg.aya:145: fn cont(int x) -> int
+example/test_async_cfg.aya:156: fn syncmix(int x) -> int
+example/test_async_cfg.aya:168: fn plus1(int x) -> int { return x + 1 }
+example/test_async_cfg.aya:171: fn expr_sum(int x) -> int
+example/test_async_cfg.aya:177: fn expr_ret(int x) -> int
+example/test_async_cfg.aya:182: fn expr_arg(int x) -> int
+example/test_async_cfg.aya:188: fn expr_product(int x) -> int
+example/test_async_cfg.aya:193: fn expr_call(int x) -> int
+example/test_async_cfg.aya:199: fn expr_if_cond(int x) -> int
+example/test_async_cfg.aya:210: fn for_body(int x) -> int
+example/test_async_cfg.aya:219: fn for_break(int x) -> int
+example/test_async_cfg.aya:229: fn for_continue(int x) -> int
+example/test_async_cfg.aya:239: fn for_usize(usize n) -> int
+example/test_async_cfg.aya:248: fn for_in(RangeIter it) -> int
+example/test_async_cfg.aya:257: fn expr_elif(int x) -> int
+example/test_async_cfg.aya:270: fn while_cond(int x) -> int
+example/test_async_cfg.aya:279: fn while_cond_continue(int x) -> int
+example/test_async_cfg.aya:290: fn loop_expr(int x) -> int
+example/test_async_cfg.aya:299: fn expr_string(int x) -> String
+example/test_async_cfg.aya:305: fn echo(String s) -> String { return s }
+example/test_async_cfg.aya:308: fn pass(int x, String s) -> String
+example/test_async_cfg.aya:315: fn choose_sync(int x) -> int
+example/test_async_cfg.aya:326: fn join(int x) -> String
+example/test_async_cfg.aya:339: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker
