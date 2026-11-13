@@ -13,6 +13,7 @@ pub(crate) mod async_if_multi_post;
 pub(crate) mod async_if_post;
 pub(crate) mod async_if_else_post;
 pub(crate) mod async_if_else_multi;
+pub(crate) mod async_if_else_multi_post;
 pub(crate) mod async_while;
 pub(crate) mod async_while_util;
 pub mod attrs_export;

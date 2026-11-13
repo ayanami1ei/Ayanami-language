@@ -18,6 +18,8 @@ pub(crate) fn try_expand(
     // 先尝试 if 单分支 + 后续连续 await；其余分支形态继续走本模块
     if crate::hir::async_if_post::try_expand(stmt, returns, out)? { return Ok(true); }
     if crate::hir::async_if_else_post::try_expand(stmt, returns, out)? { return Ok(true); }
+    // if/else 多 await 分支 + post
+    if crate::hir::async_if_else_multi_post::try_expand(stmt, returns, out)? { return Ok(true); }
     // 多 await 分支（if/else 任一侧 ≥2，或单分支 ≥2）；单个继续走本模块
     if crate::hir::async_if_else_multi::try_expand(stmt, returns, out)? { return Ok(true); }
     if crate::hir::async_if_multi::try_expand(stmt, returns, out)? { return Ok(true); }
