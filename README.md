@@ -6,7 +6,7 @@ Ayanami 是一个自带 LLVM 后端、不需要系统预装 LLVM 的编译型语
 
 ```bash
 # 1. 下载并解压
-tar xzf ayanami-0.6.7-linux-x86_64.tar.gz
+tar xzf ayanami-0.6.8-linux-x86_64.tar.gz
 cd install
 
 # 2. 运行
@@ -73,10 +73,10 @@ install/
 
 ## VSCode 插件
 
-`ayanami-0.6.7.vsix` 位于项目根目录：
+`ayanami-0.6.8.vsix` 位于项目根目录：
 
 ```bash
-code --install-extension ayanami-0.6.7.vsix
+code --install-extension ayanami-0.6.8.vsix
 ```
 
 功能：语法高亮、代码补全（结构体字段、方法、变量类型推断）、保存/打开时错误检查、hover 文档、Run CodeLens。
@@ -102,7 +102,7 @@ ayanami clean              清除 build/ 目录
 ```toml
 [package]
 name = "my_project"
-version = "0.6.7"
+version = "0.6.8"
 
 [build]
 target = "executable"          # executable | static-lib | dynamic-lib | object
