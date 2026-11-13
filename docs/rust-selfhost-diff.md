@@ -138,9 +138,9 @@
 
 - merge `origin/rust` `133a5e4`；merge 曾丢 5 个 async 源文件，已用 `9b09394` 恢复
 - std `ad1e6db`、example **178**
-- **旧 154/154 保持；新快照 176/178（98.9%）**
+- **旧 154/154 保持；新快照 177/178（99.4%）**
 - 自举 golden：test、tokens **178/178**、AST 5/5、errs 8/8、check 29/29、e2e 19/19
-- 固定点：stage-2 == stage-3，md5 `a326a74c4d5dd3a9e33a917cf11288b4`
+- 固定点：stage-2 == stage-3，md5 `2a313cf0010f296303f5bafc191fdcfb`
 - 已完成修复：`#[extern]`（关键字属性 + 无体声明 + emitter bit0）、asm `clobbers(rax)`/无输出 asm、
   点限定变体模式、换行缩进规则、`ref`/`ref mut` 的 `*r` 读写、裸指针形参 pointee 标记、
   **env E1/E2**（函数/块 provider 作用域、`env::<cap>`、隐藏 env 形参、调用点注入、
@@ -168,11 +168,12 @@
 - 因此转正：env×5（allocator/block/chain/custom/generic）、async_manual、
   ptr_match、sync_block、async_sugar、async_await、closure_unsafe、enum_boxed、
   niche_option
-- R3/R4 功能已落地：`test_ref_registry` 编译/运行/退出码与 stage-0 一致（exit 0）；
-  `test_ref_graph` 的图构建、序列化、往返重建也正确，但最终 `__ayanami_live_allocs()`
-  因自举发射器不发堆释放而为 1（exit 10）。diff 仍按“完整输出一致”计为 DIFF。
-  `test_ref_registry` 的 effect 警告集合与 stage-0 完全相同，仅泛型函数的警告**顺序**不同；
-  `test_ref_graph` 还多一条 `Arena.with_capacity` 重复警告。
+- R3/R4 功能已落地：`test_ref_registry` **SAME**（编译/运行/effect 警告顺序/退出码全部一致）；
+  `test_ref_graph` 的图构建、序列化、往返重建与 effect 警告均与 stage-0 一致，但最终
+  `__ayanami_live_allocs()` 因自举发射器不发堆释放而为 1（exit 10）。diff 仍按“完整输出一致”
+  计为 DIFF，故唯一剩余项是 ref_graph 的 live 检查。
+- 泛型 effect 警告按“被调特化先于调用特化”的后序回放，并按类型语义归并同类型的不同 AST
+  节点（保留 Arena[Node]/Arena[GNode] 等不同实例的重复警告），与 stage-0 的单态化诊断顺序一致。
 - niche_option 已对齐：size_of 8/8/16；`Ptr[Struct]` 载荷按 Ptr 值实例化
   （`val_marker` 保留 Ptr 标记、ctor 实例复用显式 `Option[Ptr[T]]`），
   `match Some(x)` 绑定 Ptr 值，`_data_V._i` 支持负标记载荷（Ptr/ref/struct/enum），
@@ -181,8 +182,8 @@
   async 警告 parity 采用生成 span 的 v1 复刻；堆释放/drop 尚未发射（引用图用例的 live 检查失败）
 - 环境备注：`scripts/selfhost.sh` 开发构建优先 `/usr/bin/llc`（安装包 bundled LLVM 可能与
   系统 libLLVM 版本不匹配，M68k 符号缺失时 llc 启动失败）
-- 当前定点：stage-2 == stage-3（md5 `a326a74c4d5dd3a9e33a917cf11288b4`）
-- 下一步：泛型 effect 警告顺序 parity、堆释放/drop（ref_graph 的 live 检查）
+- 当前定点：stage-2 == stage-3（md5 `2a313cf0010f296303f5bafc191fdcfb`）
+- 下一步：堆释放/drop（ref_graph 的 live 检查）；其余 177 例已与 stage-0 逐字节一致
 - 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
   （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
 - 主 `selfhost` 分支仍为 154/154，本实验分支未合并
