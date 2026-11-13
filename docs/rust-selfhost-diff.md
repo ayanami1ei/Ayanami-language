@@ -43,7 +43,7 @@
 | 宏 | `3fb8e68`/`bf9a2fe` | #215 仅声明 String input 的宏视为可变参数；#217 函数宏 input 传实参原文；std TokenStream API |
 | 增量 #35 | `201bfa4`/`6fad201` | 整程序增量缓存（默认开）、编译器指纹、std 内容入 key |
 | 缺陷修复 | `600585e`→`7c2ac77` | #200–#217（asm 效应/clobber、赋值类型、闭包装箱、裸指针写、unsafe 闭包捕获、void 泛型、ref self 泛型 enum、本地函数重名等） |
-| std | `ad1e6db` | 并发、allocator、TokenStream、asm 后端、`#[extern]` 语法迁移 |
+| std | `ad1e6db` + `selfhost-rust-sync` `72bf514` | 并发、allocator、TokenStream、asm 后端、`#[extern]` 语法迁移；计数释放幂等 + `fs.read_lines` 显式释放读缓冲 + Option 判定改 ref self |
 
 ## 3. std / example / test 差异
 
@@ -62,6 +62,7 @@
   - 既有 `test_asm.aya` 修改。
 - **tests**：`runtime_safety` 新增分支结果移出/ref graph/registry 等；
   `compile_fail` 新增 use-after-move 条件；`positive_exit.txt` +25 行。
+  - 本分支在 `ad1e6db` 上追加 std 分支 `selfhost-rust-sync`（`72bf514`）：计数释放幂等、`fs.read_lines` 释放读缓冲、Option 判定 ref self；未把 origin/main 上尚未同步的并发/path 等 13 个提交带入 178 快照。
 
 ## 4. 自举侧新增（Rust 分支没有）
 
@@ -137,10 +138,12 @@
 分支 `selfhost-rust-sync`（worktree `selfhost-sync`）：
 
 - merge `origin/rust` `133a5e4`；merge 曾丢 5 个 async 源文件，已用 `9b09394` 恢复
-- std `ad1e6db`、example **178**
-- **旧 154/154 保持；新快照 177/178（99.4%）**
+- std `ad1e6db` + 同步分支 `72bf514`、example **178**
+- **旧 154/154 保持；新快照 178/178（100%）**
 - 自举 golden：test、tokens **178/178**、AST 5/5、errs 8/8、check 29/29、e2e 19/19
-- 固定点：stage-2 == stage-3，md5 `2a313cf0010f296303f5bafc191fdcfb`
+- 固定点：stage-2 == stage-3，md5 `84d6ee812952e62684f67aa228b92a0e`
+- 交叉校验：Rust 主线回归 positive=171 / negative=102 / runtime=59，failures=0；
+  std 单测 golden 244/244，零告警（32 模块）
 - 已完成修复：`#[extern]`（关键字属性 + 无体声明 + emitter bit0）、asm `clobbers(rax)`/无输出 asm、
   点限定变体模式、换行缩进规则、`ref`/`ref mut` 的 `*r` 读写、裸指针形参 pointee 标记、
   **env E1/E2**（函数/块 provider 作用域、`env::<cap>`、隐藏 env 形参、调用点注入、
@@ -168,10 +171,10 @@
 - 因此转正：env×5（allocator/block/chain/custom/generic）、async_manual、
   ptr_match、sync_block、async_sugar、async_await、closure_unsafe、enum_boxed、
   niche_option
-- R3/R4 功能已落地：`test_ref_registry` **SAME**（编译/运行/effect 警告顺序/退出码全部一致）；
-  `test_ref_graph` 的图构建、序列化、往返重建与 effect 警告均与 stage-0 一致，但最终
-  `__ayanami_live_allocs()` 因自举发射器不发堆释放而为 1（exit 10）。diff 仍按“完整输出一致”
-  计为 DIFF，故唯一剩余项是 ref_graph 的 live 检查。
+- R3/R4 功能已落地：`test_ref_registry` 与 `test_ref_graph` 均 **SAME**（编译/运行/effect 警告/
+  退出码/输出全部一致）。`read_lines` 在 `lines()` 深拷贝完成后显式移出 fs 读缓冲并释放，
+  再把 String.data 置空；运行时把计数分配登记为集合，`__ayanami_unique_free` 对已释放指针
+  幂等，因此 stage-0 的自动 drop 与显式释放可以安全共存，`live_allocs` 收敛为 0。
 - 泛型 effect 警告按“被调特化先于调用特化”的后序回放，并按类型语义归并同类型的不同 AST
   节点（保留 Arena[Node]/Arena[GNode] 等不同实例的重复警告），与 stage-0 的单态化诊断顺序一致。
 - niche_option 已对齐：size_of 8/8/16；`Ptr[Struct]` 载荷按 Ptr 值实例化
@@ -179,11 +182,13 @@
   `match Some(x)` 绑定 Ptr 值，`_data_V._i` 支持负标记载荷（Ptr/ref/struct/enum），
   `ref` 载荷不拥有对象
 - 已知限制：自举 async 为 **eager 展开**（await 目标立即就绪；完整 Pending/状态机挂起待后续）；
-  async 警告 parity 采用生成 span 的 v1 复刻；堆释放/drop 尚未发射（引用图用例的 live 检查失败）
+  async 警告 parity 采用生成 span 的 v1 复刻；自举仍未普遍发射堆释放/drop——本轮只对
+  `fs.read_lines` 的读缓冲做了显式所有权释放（其余自举 `@malloc` 分配仍依赖进程退出回收，
+  但不计入 live_allocs）
 - 环境备注：`scripts/selfhost.sh` 开发构建优先 `/usr/bin/llc`（安装包 bundled LLVM 可能与
   系统 libLLVM 版本不匹配，M68k 符号缺失时 llc 启动失败）
-- 当前定点：stage-2 == stage-3（md5 `2a313cf0010f296303f5bafc191fdcfb`）
-- 下一步：堆释放/drop（ref_graph 的 live 检查）；其余 177 例已与 stage-0 逐字节一致
+- 当前定点：stage-2 == stage-3（md5 `84d6ee812952e62684f67aa228b92a0e`）
+- 下一步：合并 `selfhost-rust-sync` 回主 `selfhost`，跑 `check_all`/发布；通用堆释放/drop 作为后续优化
 - 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
   （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
 - 主 `selfhost` 分支仍为 154/154，本实验分支未合并
