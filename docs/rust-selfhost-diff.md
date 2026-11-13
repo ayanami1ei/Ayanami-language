@@ -138,9 +138,9 @@
 
 - merge `origin/rust` `133a5e4`；merge 曾丢 5 个 async 源文件，已用 `9b09394` 恢复
 - std `ad1e6db`、example **178**
-- **旧 154/154 保持；新快照 175/178（98.3%）**
+- **旧 154/154 保持；新快照 176/178（98.9%）**
 - 自举 golden：test、tokens **178/178**、AST 5/5、errs 8/8、check 29/29、e2e 19/19
-- 固定点：stage-2 == stage-3，md5 `c8f99165ae8965dfe17d88e53f3721d3`
+- 固定点：stage-2 == stage-3，md5 `a326a74c4d5dd3a9e33a917cf11288b4`
 - 已完成修复：`#[extern]`（关键字属性 + 无体声明 + emitter bit0）、asm `clobbers(rax)`/无输出 asm、
   点限定变体模式、换行缩进规则、`ref`/`ref mut` 的 `*r` 读写、裸指针形参 pointee 标记、
   **env E1/E2**（函数/块 provider 作用域、`env::<cap>`、隐藏 env 形参、调用点注入、
@@ -158,21 +158,31 @@
   `Ptr.new(g)`/`q.get()` 的闭包 ftype 跨 Ptr 传播，`r()` 正确走间接调用）、
   **枚举布局 size_of**（N1 niche 8B / N2 >16B 装箱 / 顺序载荷：Option[Ptr/ref] 8、
   Option[int] 16、E 24、OptBig 8；`test_enum_boxed` 转正）与 **declare_local form 位掩码**
-  （同名 match 绑定跨 form 复用存储，修复重复 alloca）
+  （同名 match 绑定跨 form 复用存储，修复重复 alloca）、
+  **多类型实参调用**（`HashMap::new[K, V]`：解析器把第 2/3 个类型实参存入 FnCall.cc/dd，
+  发射器按 4 实参特化）、**嵌套泛型字段替换**（`Registry[T] { Arena[T] arena }`：
+  实例字段按父实参替换并预建嵌套实例；字段表改为局部暂存后连续追加，避免递归建实例时
+  覆盖父实例布局）、**String ref self**（`impl String` 的 self 一律按 `{ptr,len}` 引用传递，
+  长度不再丢失）、**String 字典序比较**（`< > <= >=` 走 memcmp + 长度）、
+  **数组/结构体指针与 null 比较**（比较前 ptrtoint）
 - 因此转正：env×5（allocator/block/chain/custom/generic）、async_manual、
   ptr_match、sync_block、async_sugar、async_await、closure_unsafe、enum_boxed、
   niche_option
-- 剩余 2：ref_graph、ref_registry（R3 引用字段 ID/对象图、R4 注册表/自定义解析器）
+- R3/R4 功能已落地：`test_ref_registry` 编译/运行/退出码与 stage-0 一致（exit 0）；
+  `test_ref_graph` 的图构建、序列化、往返重建也正确，但最终 `__ayanami_live_allocs()`
+  因自举发射器不发堆释放而为 1（exit 10）。diff 仍按“完整输出一致”计为 DIFF。
+  `test_ref_registry` 的 effect 警告集合与 stage-0 完全相同，仅泛型函数的警告**顺序**不同；
+  `test_ref_graph` 还多一条 `Arena.with_capacity` 重复警告。
 - niche_option 已对齐：size_of 8/8/16；`Ptr[Struct]` 载荷按 Ptr 值实例化
   （`val_marker` 保留 Ptr 标记、ctor 实例复用显式 `Option[Ptr[T]]`），
   `match Some(x)` 绑定 Ptr 值，`_data_V._i` 支持负标记载荷（Ptr/ref/struct/enum），
   `ref` 载荷不拥有对象
 - 已知限制：自举 async 为 **eager 展开**（await 目标立即就绪；完整 Pending/状态机挂起待后续）；
-  async 警告 parity 采用生成 span 的 v1 复刻
+  async 警告 parity 采用生成 span 的 v1 复刻；堆释放/drop 尚未发射（引用图用例的 live 检查失败）
 - 环境备注：`scripts/selfhost.sh` 开发构建优先 `/usr/bin/llc`（安装包 bundled LLVM 可能与
   系统 libLLVM 版本不匹配，M68k 符号缺失时 llc 启动失败）
-- 当前定点：stage-2 == stage-3（md5 `05625ff58ef19ed9ecdf8c82e50ff684`）
-- 下一步：R3/R4 引用图/注册表
+- 当前定点：stage-2 == stage-3（md5 `a326a74c4d5dd3a9e33a917cf11288b4`）
+- 下一步：泛型 effect 警告顺序 parity、堆释放/drop（ref_graph 的 live 检查）
 - 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
   （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
 - 主 `selfhost` 分支仍为 154/154，本实验分支未合并

@@ -1923,17 +1923,23 @@ impl Parser {
                 full = full + ".";
                 full = full + variant;
                 ty_g = -1;
+                ty_gx = -1;
+                ty_gx2 = -1;
                 if self.check_delim(D::LBracket._tag) {
-                    // 保留类型实参（bits::reinterpret[T] 等内建需要）
+                    // 保留类型实参（bits::reinterpret[T] 等内建需要；支持多实参 HashMap::new[K, V]）
                     self.advance();
                     ty_g = self.parse_type();
+                    while self.eat_delim(D::Comma._tag) {
+                        t_gt = self.parse_type();
+                        if ty_gx < 0 { ty_gx = t_gt; } elif ty_gx2 < 0 { ty_gx2 = t_gt; }
+                    }
                     self.expect_delim(D::RBracket._tag, "expected ] after type args");
                 }
                 targs = -1;
                 nargs = -1;
                 if self.check_delim(D::LParen._tag) {
                     targs = self.parse_args();
-                    e = self.ast.push(et(ET::FnCall._tag), full, ty_g, targs, -1, -1, -1, line, col);
+                    e = self.ast.push(et(ET::FnCall._tag), full, ty_g, targs, ty_gx, ty_gx2, -1, line, col);
                     continue;
                 } elif !self.check_delim(D::LBrace._tag) {
                     // 裸路径（math::PI2）当作 Ident
