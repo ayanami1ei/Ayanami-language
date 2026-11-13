@@ -109,23 +109,7 @@ impl Anf<'_> {
                 }
             }
             Stmt::Block(b) => Stmt::Block(self.block(b)?),
-            Stmt::Match { value, arms, .. } => {
-                if expr_has_await(value)
-                    || arms.iter().any(|a| {
-                        a.guard.as_ref().is_some_and(expr_has_await)
-                            || match &a.body {
-                                crate::parser::ast::stmt::MatchBody::Expr(e) => expr_has_await(e),
-                                crate::parser::ast::stmt::MatchBody::Block(b) => {
-                                    b.stmts.iter().any(stmt_has_await_local)
-                                        || b.tail.as_ref().is_some_and(|e| expr_has_await(e))
-                                }
-                            }
-                    })
-                {
-                    return None;
-                }
-                st.clone()
-            }
+            Stmt::Match { value, arms, span } => self.match_stmt(value, arms, *span)?,
             Stmt::For {
                 iterator,
                 start,

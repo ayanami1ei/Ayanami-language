@@ -44,10 +44,16 @@ pub(super) fn bad_local_name(n: Symbol) -> bool {
 }
 
 pub(super) fn local_default(t: &Type) -> Option<String> {
-    if let Type::Generic(n, _, _) = t {
-        if n.as_str() == "Option" {
+    match t {
+        Type::Generic(n, _, _) if n.as_str() == "Option" => {
             return Some("Option::None".into());
         }
+        Type::Named(n, _)
+            if n.as_str().starts_with("Option<") || n.as_str().starts_with("Option[") =>
+        {
+            return Some("Option::None".into());
+        }
+        _ => {}
     }
     type_default(t).map(|s| s.to_string())
 }

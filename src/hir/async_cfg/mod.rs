@@ -14,6 +14,7 @@ use crate::parser::ast::{Expr, Stmt, Type};
 mod anf;
 mod anf_expr;
 mod anf_for;
+mod anf_match;
 mod anf_stmt;
 mod compiler;
 mod compiler_await;
@@ -74,10 +75,12 @@ pub(crate) fn try_expand(
     }
     let fail = |m: String| Error::Hir(format!("#[async] `{}`: {}", name.as_str(), m));
     let span = body.span;
-    let mut anf = Anf::new(returns, types);
+    let mut anf = Anf::new(returns, types, *name);
     let Some((stmts, tail)) = anf.normalize_body(body) else {
         return Ok(false);
     };
+    let forced = anf.forced_fields();
+    let helpers = anf.take_helpers();
     let anf_types = anf.into_types();
 
     let mut locals: Vec<Local> = Vec::new();
@@ -110,7 +113,7 @@ pub(crate) fn try_expand(
             continue;
         }
         let (ast_ty, is_copy) = if let Some(t) = anf_types.get(&n) {
-            (t.clone(), ast_copy(t))
+            (t.clone(), !forced.contains(&n) && ast_copy(t))
         } else {
             let Some(hir_ty) = types.and_then(|m| m.get(&n)) else {
                 return Ok(false);
@@ -136,10 +139,32 @@ pub(crate) fn try_expand(
             is_copy,
         });
     }
-    if locals
+    let mut extras: Vec<(Symbol, Type)> = anf_types
         .iter()
-        .any(|l| !anf_types.contains_key(&l.name) && bad_local_name(l.name))
-    {
+        .filter(|(n, _)| !locals.iter().any(|l| l.name == **n))
+        .map(|(n, t)| (*n, t.clone()))
+        .collect();
+    extras.sort_by_key(|(n, _)| n.as_str().to_string());
+    for (n, ast_ty) in extras {
+        let Some(ty) = source_ty(&ast_ty) else {
+            return Ok(false);
+        };
+        let Some(init) = local_default(&ast_ty) else {
+            return Ok(false);
+        };
+        let is_copy = !forced.contains(&n) && ast_copy(&ast_ty);
+        locals.push(Local {
+            name: n,
+            field: field_name(n),
+            ty_src: ty,
+            init,
+            is_param: false,
+            is_copy,
+        });
+    }
+    if locals.iter().any(|l| {
+        bad_local_name(l.name) && (!anf_types.contains_key(&l.name) || forced.contains(&l.name))
+    }) {
         return Ok(false);
     }
     if locals.len() != locals.iter().map(|l| l.field).collect::<HashSet<_>>().len() {
@@ -225,6 +250,11 @@ pub(crate) fn try_expand(
         name = name.as_str(),
         ret = ret,
     );
+    for helper in &helpers {
+        let parsed = crate::parser::parse_source(helper)
+            .map_err(|e| fail(format!("produced invalid match helper: {}", e)))?;
+        out.extend(parsed.stmts);
+    }
     let generated = crate::parser::parse_source(&src)
         .map_err(|e| fail(format!("produced invalid code: {}", e)))?;
     out.extend(generated.stmts);

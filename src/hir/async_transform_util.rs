@@ -9,6 +9,11 @@ pub(crate) fn ty_src(ty: &Type) -> Option<String> {
         Type::Char(_) => Some("char".into()),
         Type::Bool(_) => Some("bool".into()),
         Type::Named(s, _) => Some(s.as_str().to_string()),
+        Type::Ref(inner, mutable, _) => Some(format!(
+            "ref{} {}",
+            if *mutable { " mut" } else { "" },
+            ty_src(inner)?
+        )),
         Type::Generic(n, args, _) => {
             let mut out = Vec::with_capacity(args.len());
             for a in args { out.push(ty_src(a)?); }

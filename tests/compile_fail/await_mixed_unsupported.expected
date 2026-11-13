@@ -1,1 +1,2 @@
 awaits inside loops/branches are not supported
+local `b` has no default initializer

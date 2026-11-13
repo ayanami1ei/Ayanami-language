@@ -8,6 +8,9 @@ impl Waker { fn wake(ref self) { } }
 struct Context { Waker waker }
 interface Future[T] { fn poll(ref mut self, ref Context cx) -> Poll[T]; }
 
+enum MatchE { A(int), B(int) }
+enum MatchS { A(String), B }
+
 struct RangeIter {
     int cur
     int end
@@ -245,6 +248,81 @@ fn for_usize(usize n) -> int {
 }
 
 #[async]
+fn match_arm(Option[int] v) -> int {
+    y = 0
+    match v {
+        Option::Some(n) => { y = await inc(n) }
+        Option::None => { y = 7 }
+    }
+    return y
+}
+
+#[async]
+fn match_ret(Option[int] v) -> int {
+    match v {
+        Option::Some(n) => { return await inc(n) }
+        Option::None => { return 7 }
+    }
+    return 0
+}
+
+#[async]
+fn match_enum(MatchE v) -> int {
+    y = 0
+    match v {
+        MatchE::A(n) => { y = await inc(n) }
+        MatchE::B(n) => { y = await dec(n) }
+    }
+    return y
+}
+
+#[async]
+fn match_string(MatchS v) -> String {
+    s = ""
+    match v {
+        MatchS::A(x) => { s = await echo(x) }
+        MatchS::B => { s = "b" }
+    }
+    return s
+}
+
+#[async]
+fn match_lit(int y) -> int {
+    while y < 3 {
+        match y {
+            0 => { break }
+            _ => { }
+        }
+        y = await inc(y)
+    }
+    return y
+}
+
+#[async]
+fn match_break(Option[int] v) -> int {
+    y = 0
+    while true {
+        match v {
+            Option::Some(n) => { y = await inc(n); break }
+            Option::None => { break }
+        }
+        y = y
+    }
+    return y
+}
+
+#[async]
+fn match_local(int x) -> int {
+    v = Option::Some(x)
+    y = 0
+    match v {
+        Option::Some(n) => { y = await inc(n) }
+        Option::None => { y = 7 }
+    }
+    return y
+}
+
+#[async]
 fn for_in(RangeIter it) -> int {
     s = 0
     for v in it {
@@ -414,5 +492,29 @@ fn main() -> int {
     it = RangeIter { cur = 0, end = 3 }
     f34 = for_in(it)
     if block_on(ref mut f34) != 6 { return 38 }
+    f35 = match_arm(Option::Some(2))
+    if block_on(ref mut f35) != 3 { return 39 }
+    f36 = match_arm(Option::None)
+    if block_on(ref mut f36) != 7 { return 40 }
+    f37 = match_ret(Option::Some(2))
+    if block_on(ref mut f37) != 3 { return 41 }
+    f38 = match_ret(Option::None)
+    if block_on(ref mut f38) != 7 { return 42 }
+    f39 = match_enum(MatchE::A(1))
+    if block_on(ref mut f39) != 2 { return 43 }
+    f40 = match_enum(MatchE::B(1))
+    if block_on(ref mut f40) != 0 { return 44 }
+    f41 = match_break(Option::Some(2))
+    if block_on(ref mut f41) != 3 { return 45 }
+    f42 = match_break(Option::None)
+    if block_on(ref mut f42) != 0 { return 46 }
+    f43 = match_local(2)
+    if block_on(ref mut f43) != 3 { return 47 }
+    s5 = match_string(MatchS::A("hi"))
+    if block_on_s(ref mut s5) != "hi" { return 48 }
+    s6 = match_string(MatchS::B)
+    if block_on_s(ref mut s6) != "b" { return 49 }
+    f44 = match_lit(0)
+    if block_on(ref mut f44) != 0 { return 50 }
     return 0
 }

@@ -2,7 +2,7 @@
 //!
 //! v1 支持赋值/返回/实参/字段或索引写值/if/elif/while 条件与数值 for 体内的 await；
 //! 拒绝 match、for-in、unsafe 与表达式级 if/match/lambda 内的 await。
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::intern::Symbol;
 use crate::parser::ast::{Block, Expr, Stmt, Type};
@@ -10,27 +10,44 @@ use crate::parser::ast::{Block, Expr, Stmt, Type};
 pub(super) struct Anf<'a> {
     pub(super) returns: &'a HashMap<Symbol, Type>,
     pub(super) probe: Option<&'a HashMap<Symbol, crate::hir::ir::HirType>>,
+    pub(super) owner: Symbol,
     pub(super) types: HashMap<Symbol, Type>,
     pub(super) next: usize,
     pub(super) for_next: usize,
+    pub(super) match_next: usize,
+    pub(super) helpers: Vec<String>,
+    pub(super) forced: HashSet<Symbol>,
 }
 
 impl<'a> Anf<'a> {
     pub(super) fn new(
         returns: &'a HashMap<Symbol, Type>,
         probe: Option<&'a HashMap<Symbol, crate::hir::ir::HirType>>,
+        owner: Symbol,
     ) -> Self {
         Self {
             returns,
             probe,
+            owner,
             types: HashMap::new(),
             next: 0,
             for_next: 0,
+            match_next: 0,
+            helpers: Vec::new(),
+            forced: HashSet::new(),
         }
     }
 
     pub(super) fn into_types(self) -> HashMap<Symbol, Type> {
         self.types
+    }
+
+    pub(super) fn forced_fields(&self) -> HashSet<Symbol> {
+        self.forced.clone()
+    }
+
+    pub(super) fn take_helpers(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.helpers)
     }
 
     /// 归一化整个函数体；返回 (语句, 尾表达式)。

@@ -87,7 +87,7 @@ pub(super) fn hir_to_ast(t: &HirType, span: Span) -> Option<Type> {
         HirType::Char => Type::Char(span),
         HirType::IntN { bits, signed } => Type::Named(
             Symbol::intern(&format!("{}{}", if *signed { "i" } else { "u" }, bits)), span),
-        HirType::Named(n) if n.as_str() == "String" => Type::Named(*n, span),
+        HirType::Named(n) => Type::Named(*n, span),
         _ => return None,
     })
 }

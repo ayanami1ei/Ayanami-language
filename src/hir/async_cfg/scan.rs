@@ -146,7 +146,7 @@ pub(super) fn expr_has_await(e: &Expr) -> bool {
     }
 }
 
-fn has_break_continue(st: &Stmt) -> bool {
+pub(super) fn has_break_continue(st: &Stmt) -> bool {
     match st {
         Stmt::Break { .. } | Stmt::Continue { .. } => true,
         Stmt::If {
