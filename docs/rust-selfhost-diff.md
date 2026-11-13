@@ -84,8 +84,8 @@
    **env 已实现（2026-10-25）**：`#[env::<cap>(provider)]` 函数/块作用域、
    `env::<cap>` 访问器、隐藏 env 形参 + 调用点注入、泛型 bound 推断。
 3. **布局 N1/N2/N3**：`size_of` 已按 Rust 布局（niche 8B / >16B 装箱 / 顺序载荷）计算，
-   `test_enum_boxed` 转正；自举实际枚举表示仍为 tag+载荷槽（`test_niche_option` 的
-   Ptr/ref 载荷 get/实例语义待补）。
+   `test_enum_boxed`/`test_niche_option` 均转正（Ptr/ref 载荷按 Ptr 值实例化与 match 绑定）；
+   自举实际枚举表示仍为 tag+载荷槽（仅 `size_of` 报告 Rust 布局）。
 4. **内存/借用模型**：A（禁止从借用移出）+ match ergonomics、#211 条件移动检查、
    分支结果移出；自举 checker/borrow 是另一套实现，接受/拒绝集合不同。
 5. **TokenStream 宏**：std `meta/macros` 用 ABI v6 TokenStream；自举宏引擎是
@@ -160,15 +160,19 @@
   Option[int] 16、E 24、OptBig 8；`test_enum_boxed` 转正）与 **declare_local form 位掩码**
   （同名 match 绑定跨 form 复用存储，修复重复 alloca）
 - 因此转正：env×5（allocator/block/chain/custom/generic）、async_manual、
-  ptr_match、sync_block、async_sugar、async_await、closure_unsafe、enum_boxed
-- 剩余 3：niche_option、ref_graph、ref_registry
-- niche_option 进展：size_of 8/8/16 已通过；剩余 Ptr/ref 载荷的 get/实例语义
-  （自举 Ptr.new 不装箱，`p.get().v` 与 match 绑定需按 Ptr 值处理）
+  ptr_match、sync_block、async_sugar、async_await、closure_unsafe、enum_boxed、
+  niche_option
+- 剩余 2：ref_graph、ref_registry（R3 引用字段 ID/对象图、R4 注册表/自定义解析器）
+- niche_option 已对齐：size_of 8/8/16；`Ptr[Struct]` 载荷按 Ptr 值实例化
+  （`val_marker` 保留 Ptr 标记、ctor 实例复用显式 `Option[Ptr[T]]`），
+  `match Some(x)` 绑定 Ptr 值，`_data_V._i` 支持负标记载荷（Ptr/ref/struct/enum），
+  `ref` 载荷不拥有对象
 - 已知限制：自举 async 为 **eager 展开**（await 目标立即就绪；完整 Pending/状态机挂起待后续）；
   async 警告 parity 采用生成 span 的 v1 复刻
 - 环境备注：`scripts/selfhost.sh` 开发构建优先 `/usr/bin/llc`（安装包 bundled LLVM 可能与
   系统 libLLVM 版本不匹配，M68k 符号缺失时 llc 启动失败）
-- 下一步：niche 的 Ptr/ref 载荷语义、R3/R4 引用图/注册表
+- 当前定点：stage-2 == stage-3（md5 `05625ff58ef19ed9ecdf8c82e50ff684`）
+- 下一步：R3/R4 引用图/注册表
 - 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
   （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
 - 主 `selfhost` 分支仍为 154/154，本实验分支未合并

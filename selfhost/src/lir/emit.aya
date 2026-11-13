@@ -335,6 +335,32 @@ fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String {
                     }
                 }
             }
+            if ofv.kind == 0 && ofv.ty >= 10001 && ofv.ty < 10129 {
+                sn_fp = e.st_names[ofv.ty - 10001].copy();
+                idxfp = e.find_field_idx(sn_fp, ast.texts[id]);
+                if idxfp >= 0 {
+                    sifp = e.find_struct_idx(sn_fp);
+                    if sifp >= 0 {
+                        slfp = e.fslot_at(sifp, idxfp);
+                        pgfp = e.fresh();
+                        e.buf.push_str("  ");
+                        e.buf.push_str(pgfp);
+                        e.buf.push_str(" = inttoptr i64 ");
+                        e.buf.push_str(ofv.a);
+                        e.buf.push_str(" to ptr\n  ");
+                        gfp = e.fresh();
+                        e.buf.push_str(gfp);
+                        e.buf.push_str(" = getelementptr %struct.");
+                        e.buf.push_str(sn_fp);
+                        e.buf.push_str(", ptr ");
+                        e.buf.push_str(pgfp);
+                        e.buf.push_str(", i32 0, i32 ");
+                        e.buf.push_int(slfp);
+                        e.buf.push_str("\n");
+                        return gfp;
+                    }
+                }
+            }
         }
         if ast.tags[id] == et(ET::Ident._tag) {
             nm = ast.texts[id];
@@ -1421,6 +1447,8 @@ impl Emitter {
         if pt == -4001 || pt == -4002 || pt == -4005 || pt == -4006 { return 0; }
         if pt <= -1000 && pt > -1128 { return 100 + (0 - 1000 - pt); }
         if pt <= -2000 && pt > -2128 { return 20; }
+        if pt <= -5000 && pt > -5128 { return 136; }
+        if pt <= -6000 && pt > -6128 { return 30; }
         if pt < 0 { return 0; }
         is_ref2 = 0;
         while pt >= 0 {
@@ -2708,6 +2736,8 @@ impl Emitter {
 
     /// 可 niche 的指针型载荷：Ptr[T]/ref/fn/unique（*T 除外）
     fn type_is_ptr_like(ref mut self, ref Ast ast, int ty) -> int {
+        if ty <= -5000 && ty > -5128 { return 1; }
+        if ty <= -6000 && ty > -6128 { return 1; }
         if ty < 0 { return 0; }
         tg_pl = ast.tags[ty];
         if tg_pl == tt(TT::Ref._tag) || tg_pl == tt(TT::FnPtr._tag) || tg_pl == tt(TT::Closure._tag) || tg_pl == tt(TT::Unique._tag) { return 1; }
@@ -2719,7 +2749,7 @@ impl Emitter {
     #[alloc]
     #[state]
     fn type_size_rust(ref mut self, ref Ast ast, int ty) -> int {
-        if ty < 0 { return 0; }
+        if ty < 0 { return self.layout_enc(ast, ty) / 16; }
         tn_rs = ty_name(ast, ty);
         if self.find_enum_idx(tn_rs) >= 0 { return self.enum_rust_size(ast, ty); }
         enc_rs = self.layout_enc(ast, ty);
@@ -2916,6 +2946,8 @@ impl Emitter {
         if ty == -4006 { return 136; }
         if ty <= -1000 && ty > -1128 { return self.layout_struct_s(ast, 0 - 1000 - ty, "", -1); }
         if ty <= -2000 && ty > -2128 { return self.layout_enum_s(ast, 0 - 2000 - ty, "", -1); }
+        if ty <= -5000 && ty > -5128 { return 136; }
+        if ty <= -6000 && ty > -6128 { return 136; }
         if ty < 0 { return 0; }
         tg = ast.tags[ty];
         tn = "";
@@ -3130,6 +3162,11 @@ impl Emitter {
         if m == -4006 { return "fn"; }
         if m <= -1000 && m > -1128 { return self.st_names[0 - 1000 - m].copy(); }
         if m <= -2000 && m > -2128 { return self.en_names[0 - 2000 - m].copy(); }
+        if m <= -5000 && m > -5128 { return "Ptr"; }
+        if m <= -6000 && m > -6128 {
+            si_mr = 0 - 6000 - m;
+            return "ref " + self.st_names[si_mr];
+        }
         return "";
     }
 
@@ -3175,7 +3212,7 @@ impl Emitter {
         }
         if v.ty == 7000 { return -4005; }
         if v.ty == 9000 { return -4002; }
-        if v.ty >= 10001 && v.ty < 10129 { return -1000 - (v.ty - 10001); }
+        if v.ty >= 10001 && v.ty < 10129 { return -5000 - (v.ty - 10001); }
         return -4001;
     }
 
@@ -3394,10 +3431,19 @@ impl Emitter {
         if arg == -4006 { return "fn"; }
         if arg <= -1000 && arg > -1128 { return self.st_names[0 - 1000 - arg].copy(); }
         if arg <= -2000 && arg > -2128 { return self.en_names[0 - 2000 - arg].copy(); }
+        if arg <= -5000 && arg > -5128 { return self.marker_base(arg); }
+        if arg <= -6000 && arg > -6128 { return self.marker_base(arg); }
         if arg < 0 { return ""; }
         if arg >= 0 {
             atg0 = ast.tags[arg];
             if atg0 == tt(TT::FnPtr._tag) || atg0 == tt(TT::Closure._tag) { return "fn"; }
+            if atg0 == tt(TT::Ref._tag) {
+                inr = ast.aa[arg];
+                if inr >= 0 {
+                    if ast.bb[arg] == 1 { return "ref mut " + self.type_arg_name(ast, inr); }
+                    return "ref " + self.type_arg_name(ast, inr);
+                }
+            }
         }
         an = ty_name(ast, arg);
         if an.len > 0 { return an; }
@@ -3422,12 +3468,17 @@ impl Emitter {
             nm = ast.texts[ty].copy();
             arg = ast.aa[ty];
             if arg >= 0 {
-                an = self.type_arg_name(ast, arg);
-                a1_u = unwrap_ty(ast, arg);
+                at1 = ast.tys[arg];
+                if at1 < 0 { at1 = arg; }
+                an = self.type_arg_name(ast, at1);
+                a1_u = at1;
                 a2_u = -1;
                 nx_a = ast.nexts[arg];
-                if nx_a >= 0 { a2_u = unwrap_ty(ast, nx_a); }
-                if an.len > 0 && !self.type_is_gparam(ast, arg) && !self.type_has_gparam(ast, arg) {
+                if nx_a >= 0 {
+                    at2 = ast.tys[nx_a];
+                    if at2 >= 0 { a2_u = at2; }
+                }
+                if an.len > 0 && !self.type_is_gparam(ast, at1) && !self.type_has_gparam(ast, at1) {
                     self.add_inst2(nm + "[" + an + "]", a1_u, a2_u);
                     ei_nt = self.find_enum_idx(nm);
                     if ei_nt >= 0 {
@@ -6317,8 +6368,9 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                                     if in_p >= 0 {
                                         si_p = e.find_struct_idx(ty_name(ast, in_p));
                                         if si_p >= 0 {
-                                            pkind_k = 100 + si_p;
-                                            psi_k = si_p;
+                                            // 绑定保留 Ptr 值（etype=pointee），.v/.get 均可用
+                                            pkind_k = 0;
+                                            psi_k = 10001 + si_p;
                                         }
                                     }
                                 } else {
@@ -6437,6 +6489,7 @@ fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) {
                     e.declare_local(bname2, 0);
                     if pkind_k == 7000 { e.record_etype(bname2, 7000); }
                     elif f_ptr_si >= 10000 { e.record_etype(bname2, f_ptr_si); }
+                    elif psi_k >= 10000 { e.record_etype(bname2, psi_k); }
                     e.buf.push_str("  store i64 ");
                     e.buf.push_str(v);
                     e.buf.push_str(", ptr %v_");
@@ -8975,6 +9028,49 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                                     e.buf.push_int(sl4);
                                     e.buf.push_str("\n");
                                     pty4 = e.variant_ptype(ei4, vi4, k4);
+                                    if pty4 <= -5000 && pty4 > -5128 {
+                                        // Ptr[Inner] 标记载荷：值是 i64 指针，交回 Ptr 值（保留 ty）
+                                        si_m4 = 0 - 5000 - pty4;
+                                        im4 = e.fresh();
+                                        e.buf.push_str("  ");
+                                        e.buf.push_str(im4);
+                                        e.buf.push_str(" = load i64, ptr ");
+                                        e.buf.push_str(g4p);
+                                        e.buf.push_str("\n");
+                                        return Val { kind = 0, a = im4, b = e.st_names[si_m4].copy(), ty = 10001 + si_m4 };
+                                    }
+                                    if pty4 <= -6000 && pty4 > -6128 {
+                                        // ref 标记载荷：值是被引用结构体指针
+                                        si_r4 = 0 - 6000 - pty4;
+                                        ir4 = e.fresh();
+                                        e.buf.push_str("  ");
+                                        e.buf.push_str(ir4);
+                                        e.buf.push_str(" = load i64, ptr ");
+                                        e.buf.push_str(g4p);
+                                        e.buf.push_str("\n  ");
+                                        qr4 = e.fresh();
+                                        e.buf.push_str(qr4);
+                                        e.buf.push_str(" = inttoptr i64 ");
+                                        e.buf.push_str(ir4);
+                                        e.buf.push_str(" to ptr\n");
+                                        return Val { kind = 2, a = qr4, b = e.st_names[si_r4].copy(), ty = -1 };
+                                    }
+                                    if pty4 <= -1000 && pty4 > -1128 {
+                                        // 结构体标记载荷：值是指针
+                                        si_s4 = 0 - 1000 - pty4;
+                                        is4 = e.fresh();
+                                        e.buf.push_str("  ");
+                                        e.buf.push_str(is4);
+                                        e.buf.push_str(" = load i64, ptr ");
+                                        e.buf.push_str(g4p);
+                                        e.buf.push_str("\n  ");
+                                        qs4 = e.fresh();
+                                        e.buf.push_str(qs4);
+                                        e.buf.push_str(" = inttoptr i64 ");
+                                        e.buf.push_str(is4);
+                                        e.buf.push_str(" to ptr\n");
+                                        return Val { kind = 2, a = qs4, b = e.st_names[si_s4].copy(), ty = -1 };
+                                    }
                                     if pty4 >= 0 {
                                         if ty_name(ast, pty4) == "String" {
                                             p4s = e.fresh();
