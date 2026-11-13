@@ -416,6 +416,29 @@ fn elif_post2(int x) -> int {
     return b * 10
 }
 
+#[async]
+fn if_multi_post(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+        y = await inc(y)
+    }
+    z = await inc(y)
+    return z * 10
+}
+
+#[async]
+fn if_multi_post2(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+        y = await inc(y)
+    }
+    a = await inc(y)
+    b = await inc(a)
+    return b * 10
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -567,5 +590,13 @@ fn main() -> int {
     if block_on(ref mut x19) != 120 { return 60 }
     x20 = elif_post2(-2)
     if block_on(ref mut x20) != -10 { return 61 }
+    x21 = if_multi_post(1)
+    if block_on(ref mut x21) != 40 { return 62 }
+    x22 = if_multi_post(0)
+    if block_on(ref mut x22) != 10 { return 63 }
+    x23 = if_multi_post2(1)
+    if block_on(ref mut x23) != 50 { return 64 }
+    x24 = if_multi_post2(0)
+    if block_on(ref mut x24) != 20 { return 65 }
     return 0
 }

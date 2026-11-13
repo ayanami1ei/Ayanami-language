@@ -9,6 +9,7 @@ pub(crate) mod async_elif_multi;
 pub(crate) mod async_elif_post;
 pub(crate) mod async_if;
 pub(crate) mod async_if_multi;
+pub(crate) mod async_if_multi_post;
 pub(crate) mod async_if_post;
 pub(crate) mod async_if_else_post;
 pub(crate) mod async_if_else_multi;

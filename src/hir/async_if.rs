@@ -13,6 +13,8 @@ pub(crate) fn try_expand(
     returns: &HashMap<Symbol, Type>,
     out: &mut Vec<Stmt>,
 ) -> Result<bool> {
+    // 多 await 分支后的 post await（无 else）
+    if crate::hir::async_if_multi_post::try_expand(stmt, returns, out)? { return Ok(true); }
     // 先尝试 if 单分支 + 后续连续 await；其余分支形态继续走本模块
     if crate::hir::async_if_post::try_expand(stmt, returns, out)? { return Ok(true); }
     if crate::hir::async_if_else_post::try_expand(stmt, returns, out)? { return Ok(true); }
