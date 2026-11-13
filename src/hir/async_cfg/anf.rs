@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use crate::intern::Symbol;
-use crate::parser::ast::{Block, Expr, Stmt, Type};
+use crate::parser::ast::{Block, Expr, Literal, Stmt, Type};
 
 pub(super) struct Anf<'a> {
     pub(super) returns: &'a HashMap<Symbol, Type>,
@@ -128,35 +128,42 @@ impl<'a> Anf<'a> {
             } => {
                 let cond = self.expr(cond, pre)?;
                 let then_block = self.block(then_block)?;
-                let mut new_elifs = Vec::with_capacity(elifs.len());
-                for (c, b) in elifs {
-                    // elif 条件只在前面分支不成立时求值，不能提前到 If 前。
-                    if expr_has_await(c) {
-                        return None;
-                    }
-                    new_elifs.push((c.clone(), self.block(b)?));
-                }
-                let else_block = match else_block {
-                    Some(b) => Some(self.block(b)?),
-                    None => None,
-                };
+                let else_block = self.else_chain(elifs, else_block.as_ref(), *span)?;
                 Stmt::If {
                     cond,
                     then_block,
-                    elifs: new_elifs,
+                    elifs: Vec::new(),
                     else_block,
                     span: *span,
                 }
             }
             Stmt::While { cond, body, span } => {
-                // while 条件每轮求值；提前提升会改变语义。
-                if expr_has_await(cond) {
-                    return None;
-                }
-                Stmt::While {
-                    cond: cond.clone(),
-                    body: self.block(body)?,
-                    span: *span,
+                // 条件每轮求值：把 cond 的 await 提升留在循环体内，
+                // 变换为 `while true { <cond_pre>; if cond { body } else { break } }`。
+                let mut cond_pre = Vec::new();
+                let cond = self.expr(cond, &mut cond_pre)?;
+                let body = self.block(body)?;
+                if cond_pre.is_empty() {
+                    Stmt::While {
+                        cond,
+                        body,
+                        span: *span,
+                    }
+                } else {
+                    let else_block = Block::new(vec![Stmt::Break { span: *span }], *span);
+                    let if_stmt = Stmt::If {
+                        cond,
+                        then_block: body,
+                        elifs: Vec::new(),
+                        else_block: Some(else_block),
+                        span: *span,
+                    };
+                    cond_pre.push(if_stmt);
+                    Stmt::While {
+                        cond: Expr::Literal(Literal::Bool(true, *span)),
+                        body: Block::new(cond_pre, *span),
+                        span: *span,
+                    }
                 }
             }
             Stmt::Block(b) => Stmt::Block(self.block(b)?),
@@ -238,6 +245,34 @@ impl<'a> Anf<'a> {
             }
             _ => st.clone(),
         })
+    }
+
+    fn else_chain(
+        &mut self,
+        elifs: &[(Expr, Block)],
+        else_block: Option<&Block>,
+        span: crate::span::Span,
+    ) -> Option<Option<Block>> {
+        if elifs.is_empty() {
+            return Some(match else_block {
+                Some(b) => Some(self.block(b)?),
+                None => None,
+            });
+        }
+        let (cond, then_block) = &elifs[0];
+        let mut pre = Vec::new();
+        let cond = self.expr(cond, &mut pre)?;
+        let then_block = self.block(then_block)?;
+        let rest = self.else_chain(&elifs[1..], else_block, span)?;
+        let nested = Stmt::If {
+            cond,
+            then_block,
+            elifs: Vec::new(),
+            else_block: rest,
+            span,
+        };
+        pre.push(nested);
+        Some(Some(Block::new(pre, span)))
     }
 }
 

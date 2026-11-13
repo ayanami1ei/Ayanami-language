@@ -191,6 +191,39 @@ fn expr_if_cond(int x) -> int {
 }
 
 #[async]
+fn expr_elif(int x) -> int {
+    y = 0
+    if x > 10 {
+        y = 1
+    } elif (await inc(x)) > 1 {
+        y = 2
+    } else {
+        y = 3
+    }
+    return y
+}
+
+#[async]
+fn while_cond(int x) -> int {
+    y = 0
+    while (await inc(y)) < 3 {
+        y = y + 1
+    }
+    return y
+}
+
+#[async]
+fn while_cond_continue(int x) -> int {
+    y = 0
+    while (await inc(y)) < 5 {
+        y = y + 1
+        if y == 2 { continue }
+        if y == 4 { break }
+    }
+    return y
+}
+
+#[async]
 fn loop_expr(int x) -> int {
     y = 0
     while y < 3 {
@@ -297,5 +330,15 @@ fn main() -> int {
     if block_on(ref mut f23) != 0 { return 27 }
     f24 = loop_expr(0)
     if block_on(ref mut f24) != 4 { return 28 }
+    f25 = while_cond(0)
+    if block_on(ref mut f25) != 2 { return 29 }
+    f26 = while_cond_continue(0)
+    if block_on(ref mut f26) != 4 { return 30 }
+    f27 = expr_elif(20)
+    if block_on(ref mut f27) != 1 { return 31 }
+    f28 = expr_elif(1)
+    if block_on(ref mut f28) != 2 { return 32 }
+    f29 = expr_elif(-2)
+    if block_on(ref mut f29) != 3 { return 33 }
     return 0
 }
