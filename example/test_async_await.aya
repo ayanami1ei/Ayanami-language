@@ -362,6 +362,31 @@ fn if_post2(int x) -> int {
     return b * 10
 }
 
+#[async]
+fn choose_post(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+    } else {
+        y = await dec(x)
+    }
+    z = await inc(y)
+    return z * 10
+}
+
+#[async]
+fn choose_post2(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+    } else {
+        y = await dec(x)
+    }
+    a = await inc(y)
+    b = await inc(a)
+    return b * 10
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -493,5 +518,13 @@ fn main() -> int {
     if block_on(ref mut x9) != 40 { return 50 }
     x10 = if_post2(0)
     if block_on(ref mut x10) != 20 { return 51 }
+    x11 = choose_post(1)
+    if block_on(ref mut x11) != 30 { return 52 }
+    x12 = choose_post(-2)
+    if block_on(ref mut x12) != -20 { return 53 }
+    x13 = choose_post2(1)
+    if block_on(ref mut x13) != 40 { return 54 }
+    x14 = choose_post2(-2)
+    if block_on(ref mut x14) != -10 { return 55 }
     return 0
 }
