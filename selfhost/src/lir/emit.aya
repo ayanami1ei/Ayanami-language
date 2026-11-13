@@ -1329,11 +1329,58 @@ impl Emitter {
         }
         if tg_r == et(ET::FnCall._tag) {
             rn_r2 = ast.texts[rhs];
+            if rn_r2 == "Ptr.new" || rn_r2 == "Ptr::new" {
+                // Ptr[闭包]：元素类型沿用闭包值的 ftype
+                a_pn = ast.aa[rhs];
+                if a_pn >= 0 {
+                    if ast.tags[a_pn] == xt(XT::Arg._tag) { a_pn = ast.aa[a_pn]; }
+                    if a_pn >= 0 {
+                        if ast.tags[a_pn] == et(ET::Lambda._tag) {
+                            self.record_ftype(nm, a_pn);
+                            return;
+                        }
+                        if ast.tags[a_pn] == et(ET::Ident._tag) {
+                            ft_pn = self.ftype_of_local(ast.texts[a_pn]);
+                            if ft_pn >= 0 {
+                                self.record_ftype(nm, ft_pn);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
             rt_r = self.fn_ret_type(rn_r2);
             if rt_r >= 0 {
                 if ast.tags[rt_r] == tt(TT::Closure._tag) {
                     self.record_ftype(nm, rt_r);
                 }
+            }
+            return;
+        }
+        if tg_r == et(ET::MethodCall._tag) {
+            // q.get()（Ptr[闭包]）等：结果沿用接收者的闭包 ftype
+            ob_m = ast.aa[rhs];
+            if ob_m >= 0 && ast.tags[ob_m] == et(ET::Ident._tag) {
+                if ast.texts[ob_m] == "Ptr" && ast.texts[rhs] == "new" {
+                    // Ptr.new(g)：Ptr[闭包] 的元素 ftype 来自参数
+                    a_pm = ast.bb[rhs];
+                    if a_pm >= 0 { a_pm = ast.aa[a_pm]; }
+                    if a_pm >= 0 {
+                        if ast.tags[a_pm] == et(ET::Lambda._tag) {
+                            self.record_ftype(nm, a_pm);
+                            return;
+                        }
+                        if ast.tags[a_pm] == et(ET::Ident._tag) {
+                            ft_pm = self.ftype_of_local(ast.texts[a_pm]);
+                            if ft_pm >= 0 {
+                                self.record_ftype(nm, ft_pm);
+                                return;
+                            }
+                        }
+                    }
+                }
+                ft_m = self.ftype_of_local(ast.texts[ob_m]);
+                if ft_m >= 0 { self.record_ftype(nm, ft_m); }
             }
             return;
         }
@@ -10854,6 +10901,8 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             e.buf.push_str(", ptr %v_");
             e.buf.push_str(nm);
             e.buf.push_str("\n");
+            // Ptr[闭包]：保留元素闭包 ftype，供 q.get() 结果传播
+            e.record_assign_ftype(ast, nm, rhs_id);
             return;
         }
         if v.kind == 6 {
@@ -11854,19 +11903,42 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
                 cey = e.cap_etypes[start_pr + i_pr];
                 off_pr = (i_pr + 1) * 8;
                 if ckd == 0 {
-                    e.declare_local(cnm, 30);
-                    tp_pr = e.fresh();
-                    e.buf.push_str("  ");
-                    e.buf.push_str(tp_pr);
-                    e.buf.push_str(" = getelementptr i8, ptr %a");
-                    e.buf.push_int(env_slot);
-                    e.buf.push_str(", i64 ");
-                    e.buf.push_int(off_pr);
-                    e.buf.push_str("\n  store ptr ");
-                    e.buf.push_str(tp_pr);
-                    e.buf.push_str(", ptr %v_");
-                    e.buf.push_str(cnm);
-                    e.buf.push_str(".p\n");
+                    if cey >= 10000 && cey < 10129 {
+                        // 裸指针捕获：按值保存（保留 pointee 标记，*p 仍是原始解引用）
+                        e.declare_local(cnm, 0);
+                        e.record_etype(cnm, cey);
+                        tp_rp = e.fresh();
+                        e.buf.push_str("  ");
+                        e.buf.push_str(tp_rp);
+                        e.buf.push_str(" = getelementptr i8, ptr %a");
+                        e.buf.push_int(env_slot);
+                        e.buf.push_str(", i64 ");
+                        e.buf.push_int(off_pr);
+                        e.buf.push_str("\n  ");
+                        vp_rp = e.fresh();
+                        e.buf.push_str(vp_rp);
+                        e.buf.push_str(" = load i64, ptr ");
+                        e.buf.push_str(tp_rp);
+                        e.buf.push_str("\n  store i64 ");
+                        e.buf.push_str(vp_rp);
+                        e.buf.push_str(", ptr %v_");
+                        e.buf.push_str(cnm);
+                        e.buf.push_str("\n");
+                    } else {
+                        e.declare_local(cnm, 30);
+                        tp_pr = e.fresh();
+                        e.buf.push_str("  ");
+                        e.buf.push_str(tp_pr);
+                        e.buf.push_str(" = getelementptr i8, ptr %a");
+                        e.buf.push_int(env_slot);
+                        e.buf.push_str(", i64 ");
+                        e.buf.push_int(off_pr);
+                        e.buf.push_str("\n  store ptr ");
+                        e.buf.push_str(tp_pr);
+                        e.buf.push_str(", ptr %v_");
+                        e.buf.push_str(cnm);
+                        e.buf.push_str(".p\n");
+                    }
                 } elif ckd == 30 {
                     e.declare_local(cnm, 30);
                     tp30 = e.fresh();
