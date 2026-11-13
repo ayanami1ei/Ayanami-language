@@ -169,3 +169,12 @@ test_async_sugar.aya 0
 test_ref_self_enum.aya 0
 test_fn_shadow.aya 0
 test_async_await.aya 0
+await_elif_mixed_stmt.aya 0
+await_if_else_mixed_stmt.aya 0
+await_if_mixed_stmt.aya 0
+await_in_loop.aya 0
+await_loop_mixed_stmt.aya 0
+await_mixed_nested_await.aya 0
+await_mixed_sync_newlocal.aya 0
+await_while_post_two.aya 0
+test_async_cfg.aya 0

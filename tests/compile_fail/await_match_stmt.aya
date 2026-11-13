@@ -1,0 +1,19 @@
+enum Poll[T] { Ready(T), Pending }
+struct Context { int x }
+enum E { A, B }
+
+#[async]
+fn inc(int x) -> int { return x + 1 }
+
+#[async]
+fn bad(int x) -> int {
+    y = 0
+    v = E::A
+    match v {
+        E.A => { y = await inc(x) }
+        E.B => { y = 1 }
+    }
+    return y
+}
+
+fn main() -> int { return 0 }

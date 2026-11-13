@@ -39,10 +39,11 @@ graph LR
     formatter --> lexer
     formatter -->|2| parser
     hir --> annotation_table
-    hir -->|28| error
-    hir -->|31| intern
+    hir -->|32| error
+    hir --> formatter
+    hir -->|36| intern
     hir -->|2| mir
-    hir -->|41| parser
+    hir -->|46| parser
     hir -->|8| span
     lexer --> span
     lir --> error
@@ -70,9 +71,9 @@ graph LR
 
 | 来源 | 目标 | 引用数 |
 | --- | --- | ---: |
-| `hir` | `parser` | 41 |
-| `hir` | `intern` | 31 |
-| `hir` | `error` | 28 |
+| `hir` | `parser` | 46 |
+| `hir` | `intern` | 36 |
+| `hir` | `error` | 32 |
 | `compiler` | `error` | 12 |
 | `compiler` | `parser` | 9 |
 | `hir` | `span` | 8 |
@@ -105,6 +106,7 @@ graph LR
 | `formatter` | `intern` | 1 |
 | `formatter` | `lexer` | 1 |
 | `hir` | `annotation_table` | 1 |
+| `hir` | `formatter` | 1 |
 | `lexer` | `span` | 1 |
 | `lir` | `error` | 1 |
 | `mir` | `lir` | 1 |
@@ -114,4 +116,4 @@ graph LR
 | `package` | `parser` | 1 |
 | `parser` | `lexer` | 1 |
 
-共 17 个顶层模块、43 条依赖边。
+共 17 个顶层模块、44 条依赖边。

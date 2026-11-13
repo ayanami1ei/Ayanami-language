@@ -40,7 +40,7 @@ pub(crate) fn cache_key(src_path: &str, code: &str) -> String {
     env!("AYANAMI_COMPILER_FP").hash(&mut h);
     crate::driver::build_mode_key().hash(&mut h);
     // 影响代码生成的编译期环境/工作目录（cfg feature、自定义 runtime 等）
-    for k in ["AYANAMI_FEATURES", "AYANAMI_RUNTIME", "AYANAMI_CHECKS", "AYANAMI_LTO", "AYANAMI_BUILD_ID"] {
+    for k in ["AYANAMI_FEATURES", "AYANAMI_RUNTIME", "AYANAMI_CHECKS", "AYANAMI_LTO", "AYANAMI_BUILD_ID", "AYANAMI_ASYNC_CFG"] {
         std::env::var(k).unwrap_or_default().hash(&mut h);
     }
     std::env::current_dir().ok().map(|p| p.to_string_lossy().into_owned()).hash(&mut h);

@@ -70,6 +70,7 @@ pub(super) fn type_default(t: &Type) -> Option<&'static str> {
         Type::Int(_) => Some("0"),
         Type::Float(_) => Some("0.0"),
         Type::Bool(_) => Some("false"),
+        Type::Char(_) => Some("'\\0'"),
         Type::Named(n, _) if n.as_str() == "String" => Some("\"\""),
         Type::Named(n, _) if is_int(t) => Some("0"),
         Type::Named(n, _) if n.as_str() == "f32" || n.as_str() == "f64" => Some("0.0"),
@@ -83,6 +84,7 @@ pub(super) fn hir_to_ast(t: &HirType, span: Span) -> Option<Type> {
         HirType::Float => Type::Float(span),
         HirType::F32 => Type::Named(Symbol::intern("f32"), span),
         HirType::Bool => Type::Bool(span),
+        HirType::Char => Type::Char(span),
         HirType::IntN { bits, signed } => Type::Named(
             Symbol::intern(&format!("{}{}", if *signed { "i" } else { "u" }, bits)), span),
         HirType::Named(n) if n.as_str() == "String" => Type::Named(*n, span),

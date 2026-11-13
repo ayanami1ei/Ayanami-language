@@ -35,6 +35,13 @@ pub(crate) fn format_attr_arg(arg: &AttrArg) -> String {
     helpers::write_attr_arg(arg)
 }
 
+/// 单条语句 → 源码文本（async CFG 状态块复用；不含顶层分隔符）。
+pub(crate) fn format_stmt(stmt: &Stmt) -> String {
+    let mut out = String::new();
+    write_stmt(&mut out, stmt, 0);
+    out.trim_end().to_string()
+}
+
 use helpers::write_stmt_separator;
 use stmt::write_stmt;
 

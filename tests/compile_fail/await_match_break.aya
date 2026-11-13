@@ -1,0 +1,20 @@
+enum Poll[T] { Ready(T), Pending }
+struct Context { int x }
+
+#[async]
+fn inc(int x) -> int { return x + 1 }
+
+#[async]
+fn bad(int x) -> int {
+    y = 0
+    while y < 3 {
+        match y {
+            0 => { break }
+            _ => { }
+        }
+        y = await inc(y)
+    }
+    return y
+}
+
+fn main() -> int { return 0 }

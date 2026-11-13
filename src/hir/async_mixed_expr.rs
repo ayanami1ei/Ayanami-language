@@ -9,26 +9,49 @@ pub(super) fn render_sync(st: &Stmt, promoted: &HashSet<Symbol>) -> Option<Strin
     match st {
         Stmt::Assign { name, value, .. } => {
             let r = render_expr(value, promoted)?;
-            Some(format!("self.__v_{} = {};", name.as_str(), r))
+            if promoted.contains(name) {
+                Some(format!("self.__v_{} = {};", name.as_str(), r))
+            } else {
+                Some(format!("{} = {};", name.as_str(), r))
+            }
         }
         Stmt::ExprStmt { expr, .. } => Some(format!("{};", render_expr(expr, promoted)?)),
-        Stmt::Return { value: Some(e), .. } => {
-            Some(format!("return Poll::Ready({});", render_expr(e, promoted)?))
-        }
-        Stmt::If { cond, then_block, elifs, else_block, .. } => {
-            let mut s = format!("if {} {{\n{}\n}}",
-                render_expr(cond, promoted)?, render_block(&then_block.stmts, promoted)?);
+        Stmt::Return { value: Some(e), .. } => Some(format!(
+            "return Poll::Ready({});",
+            render_expr(e, promoted)?
+        )),
+        Stmt::If {
+            cond,
+            then_block,
+            elifs,
+            else_block,
+            ..
+        } => {
+            let mut s = format!(
+                "if {} {{\n{}\n}}",
+                render_expr(cond, promoted)?,
+                render_block(&then_block.stmts, promoted)?
+            );
             for (c, b) in elifs {
-                s.push_str(&format!(" elif {} {{\n{}\n}}",
-                    render_expr(c, promoted)?, render_block(&b.stmts, promoted)?));
+                s.push_str(&format!(
+                    " elif {} {{\n{}\n}}",
+                    render_expr(c, promoted)?,
+                    render_block(&b.stmts, promoted)?
+                ));
             }
             if let Some(b) = else_block {
-                s.push_str(&format!(" else {{\n{}\n}}", render_block(&b.stmts, promoted)?));
+                s.push_str(&format!(
+                    " else {{\n{}\n}}",
+                    render_block(&b.stmts, promoted)?
+                ));
             }
             Some(s)
         }
-        Stmt::While { cond, body, .. } => Some(format!("while {} {{\n{}\n}}",
-            render_expr(cond, promoted)?, render_block(&body.stmts, promoted)?)),
+        Stmt::While { cond, body, .. } => Some(format!(
+            "while {} {{\n{}\n}}",
+            render_expr(cond, promoted)?,
+            render_block(&body.stmts, promoted)?
+        )),
         Stmt::Break { .. } => Some("break;".into()),
         Stmt::Continue { .. } => Some("continue;".into()),
         Stmt::Block(b) => render_block(&b.stmts, promoted),
@@ -63,8 +86,20 @@ fn default_expr(t: &Type, span: Span) -> Option<Expr> {
             let s = n.as_str();
             if s == "String" {
                 Expr::Literal(Literal::String(String::new(), span))
-            } else if matches!(s.as_str(),
-                "i8"|"i16"|"i32"|"i64"|"i128"|"u8"|"u16"|"u32"|"u64"|"u128"|"usize"|"isize") {
+            } else if matches!(
+                s.as_str(),
+                "i8" | "i16"
+                    | "i32"
+                    | "i64"
+                    | "i128"
+                    | "u8"
+                    | "u16"
+                    | "u32"
+                    | "u64"
+                    | "u128"
+                    | "usize"
+                    | "isize"
+            ) {
                 Expr::Literal(Literal::Int(0, span))
             } else if s == "f32" || s == "f64" {
                 Expr::Literal(Literal::Float(0.0, span))
@@ -95,32 +130,72 @@ fn rewrite_with(e: &Expr, subst: &mut dyn FnMut(&Symbol, Span) -> Option<Expr>) 
         Expr::Ident(n, span) => subst(n, *span).unwrap_or_else(|| e.clone()),
         Expr::Literal(..) | Expr::Null(..) | Expr::Suffixed { .. } => e.clone(),
         Expr::Binary { op, lhs, rhs, span } => Expr::Binary {
-            op: *op, lhs: Box::new(rewrite_with(lhs, subst)?),
-            rhs: Box::new(rewrite_with(rhs, subst)?), span: *span,
+            op: *op,
+            lhs: Box::new(rewrite_with(lhs, subst)?),
+            rhs: Box::new(rewrite_with(rhs, subst)?),
+            span: *span,
         },
         Expr::Unary { op, arg, span } => Expr::Unary {
-            op: *op, arg: Box::new(rewrite_with(arg, subst)?), span: *span,
+            op: *op,
+            arg: Box::new(rewrite_with(arg, subst)?),
+            span: *span,
         },
         Expr::Cast { expr, ty, span } => Expr::Cast {
-            expr: Box::new(rewrite_with(expr, subst)?), ty: ty.clone(), span: *span,
+            expr: Box::new(rewrite_with(expr, subst)?),
+            ty: ty.clone(),
+            span: *span,
         },
         Expr::Move(inner, span) => Expr::Move(Box::new(rewrite_with(inner, subst)?), *span),
         Expr::Clone(inner, span) => Expr::Clone(Box::new(rewrite_with(inner, subst)?), *span),
-        Expr::FnCall { name, args, generic_args, span } => Expr::FnCall {
-            name: *name, args: args.iter().map(|a| rewrite_with(a, subst)).collect::<Option<Vec<_>>>()?,
-            generic_args: generic_args.clone(), span: *span,
+        Expr::FnCall {
+            name,
+            args,
+            generic_args,
+            span,
+        } => Expr::FnCall {
+            name: *name,
+            args: args
+                .iter()
+                .map(|a| rewrite_with(a, subst))
+                .collect::<Option<Vec<_>>>()?,
+            generic_args: generic_args.clone(),
+            span: *span,
         },
-        Expr::MethodCall { object, method, args, span } => Expr::MethodCall {
-            object: Box::new(rewrite_with(object, subst)?), method: *method,
-            args: args.iter().map(|a| rewrite_with(a, subst)).collect::<Option<Vec<_>>>()?, span: *span,
+        Expr::MethodCall {
+            object,
+            method,
+            args,
+            span,
+        } => Expr::MethodCall {
+            object: Box::new(rewrite_with(object, subst)?),
+            method: *method,
+            args: args
+                .iter()
+                .map(|a| rewrite_with(a, subst))
+                .collect::<Option<Vec<_>>>()?,
+            span: *span,
         },
-        Expr::FieldAccess { object, field, span } => Expr::FieldAccess {
-            object: Box::new(rewrite_with(object, subst)?), field: *field, span: *span,
+        Expr::FieldAccess {
+            object,
+            field,
+            span,
+        } => Expr::FieldAccess {
+            object: Box::new(rewrite_with(object, subst)?),
+            field: *field,
+            span: *span,
         },
-        Expr::Index { object, index, span } => Expr::Index {
-            object: Box::new(rewrite_with(object, subst)?), index: Box::new(rewrite_with(index, subst)?), span: *span,
+        Expr::Index {
+            object,
+            index,
+            span,
+        } => Expr::Index {
+            object: Box::new(rewrite_with(object, subst)?),
+            index: Box::new(rewrite_with(index, subst)?),
+            span: *span,
         },
-        Expr::Ref(inner, mutable, span) => Expr::Ref(Box::new(rewrite_with(inner, subst)?), *mutable, *span),
+        Expr::Ref(inner, mutable, span) => {
+            Expr::Ref(Box::new(rewrite_with(inner, subst)?), *mutable, *span)
+        }
         _ => return None,
     })
 }

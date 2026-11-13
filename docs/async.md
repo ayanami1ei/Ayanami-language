@@ -252,7 +252,10 @@ impl __add_Fut {
   用例 `mixed` / `pre_sync` / `str_mixed` / `str_call` / `expr_arg` / `call_arg` / `branch_sync` / `loop_sync`；
   负例 `await_mixed_unsupported`（结构体局部无默认初始化）、`await_mixed_sync_newlocal`（同步分支新局部）、
   `await_mixed_nested_await`（同步分支内 await）。HIR 级一般 CFG（§7.4）完成后替换本桥。
-- 后续：一般 CFG（任意语句、PC/状态枚举、嵌套控制流）。
+- 通用 CFG（2026-11-13，A1b-3b/3c）：任意同步语句 + if/elif/else + while 嵌套、break/continue、
+  提前 return；参数与局部提升为字段，显式 `_state` 基本块。实现为「AST 状态机 + HIR 类型探针」，
+  默认启用（`AYANAMI_ASYNC_CFG=0` 回退形状模块）。用例 `test_async_cfg`；原 8 个“形状不支持”
+  负例已转为正例。
 
 #### A1b-2/3 支持矩阵（2026-11-13）
 
@@ -264,18 +267,46 @@ impl __add_Fut {
 | if/else | 每分支 1..N + post await | `choose_post` / `choose_post2` / `choose_multi_post` / `choose_multi_post2` |
 | if/elif/else | 每分支 1 个或任一侧 2+，均可接 post await | `pick_multi` / `elif_post` / `pick_multi_post` |
 | while | 1..N 个体内 await、break/continue、N 个 post await | `double_inc` / `find` / `while_post` / `while_post2` |
+| 通用 CFG | 任意同步语句、任意嵌套 if/elif/else/while、break/continue、提前 return；参数/局部全提升 | `test_async_cfg` / 8 个原负例 |
 
-- 条件表达式限参数；post await 实参支持任意可渲染表达式（参数/分支变量/更早 post 结果）。
-- await 不能嵌在 `match`/`for`/同步 `if`/同步 `while` 内部（mixed 桥的纯同步控制流例外）。
-- 表达式级 await、`ref` 跨 await、`match`/`for` 内 await、泛型/方法上的 `#[async]` 仍未支持。
-- 下一阶段：§7.4 HIR 级一般 CFG（PC/状态枚举、局部提升、任意嵌套），完成后替换 AST 形状模块。
+- 通用 CFG 默认启用；不支持时自动回退形状模块（`AYANAMI_ASYNC_CFG=0` 可强制回退）。
+- 表达式级 await、`ref` 跨 await、`match`/`for`/`unsafe` 内 await、非默认初始化局部、
+  泛型/方法上的 `#[async]` 仍未支持；这些位置会给出明确错误或回退。
+- 下一阶段：HIR 原生 pass（字段裁剪/liveness、状态枚举、drop 语义），并删除已覆盖的形状模块。
 
-### 7.4 A1b-3 一般 CFG（HIR 级状态机）设计（2026-10-25）
+### 7.4 A1b-3 一般 CFG（设计 2026-10-25；AST 实现已落地 2026-11-13）
 
 前几片都是在 **AST 层**按形状展开（直线 / if / if-else / elif / while），优点是落地快，
 缺点是拿不到局部变量类型、只能支持“签名里已知类型”的变量，且形状组合会指数膨胀。
-一般 CFG 必须在 **HIR 层**（`lower_items` 之后、MIR 之前）生成状态机。本节为设计稿，
-实现状态：**A1b-3a 的 AST 过渡桥 + HIR 类型探针 + 纯同步控制流已落地**（`src/hir/async_mixed*.rs`、`lower_program` 探针）；HIR pass 未开始。
+原计划在 **HIR 层**（`lower_items` 之后、MIR 之前）生成状态机；迁移期先以
+**「AST 状态机 + HIR 类型探针」** 实现同等能力（`src/hir/async_cfg/`），
+局部类型仍来自 HIR 探针，因而不再受“签名已知类型”限制。HIR 原生 pass 留作下一阶段。
+
+实现状态：**A1b-3b/3c 通用 CFG 已落地并默认启用**；A1b-3a 的 mixed 桥与
+形状模块保留为不支持场景的回退路径。
+
+#### 当前实现（2026-11-13）
+
+- 入口：`async_transform::expand_one` 先尝试 `async_cfg::try_expand`；失败/不支持再走形状模块。
+- 提升：参数 + 函数体内所有赋值局部提升为 `__v_<name>` 字段；类型来自 `probe_async_local_types`
+  的 HIR 局部表（基础类型/String/整数宽度），构造器用类型默认值初始化。
+- 编译：从函数体末尾向前编译基本块；`x = await g(args)` 生成“构造 future 并设 PC”与“poll 并
+  Ready 写回/ Pending 返回”两个状态；if/elif/else、while、break/continue 生成显式 PC 跳转。
+- 同步块：原样格式化进状态块；Copy 局部进入时读入、离开时写回，非 Copy 局部（String 等）
+  直接以 `self.__v_*` 访问，避免“移出后写回”破坏所有权。
+- future 字段：每个 await 一个 `__wN`，构造器用目标 async 函数的参数默认值构造占位 future；
+  进入 await 时用真实实参重建。
+- 状态：`int _state` + `while true { if self._state == n { ... } }`；入口 PC 由构造器写入。
+- 验证：`example/test_async_cfg.aya` 17 项断言覆盖嵌套 if/while/break/continue、提前 return、
+  String 局部/参数/await 实参；原 8 个“形态不支持”负例转为正例；回归 positive=180 negative=111。
+
+#### 已知限制（v1）
+
+- await 仍只支持赋值形式 `x = await g(args)`；表达式内 await、`match`/`for`/`unsafe` 内 await 报错。
+- 所有局部全量提升，无 liveness 裁剪；Copy 局部全量 load/store，代码体积偏大。
+- 非默认初始化类型（结构体/数组/引用）局部暂不提升，回退形状模块/报错；`ref` 跨 await 禁止。
+- 每个 await 的占位 future 在构造器急切构造；未来改为惰性槽/状态枚举后消除。
+- 状态仍是 `int` PC；drop 与 move 清零的边界（参考 #184/#216）需专门回归。
 
 #### 目标与非目标
 

@@ -1,0 +1,212 @@
+// A1b-3：通用 async CFG（嵌套 if/while/break/continue + 任意同步语句 + String 局部）。
+import "io"
+
+enum Poll[T] { Ready(T), Pending }
+struct Waker { int id }
+impl Waker { fn wake(ref self) { } }
+struct Context { Waker waker }
+interface Future[T] { fn poll(ref mut self, ref Context cx) -> Poll[T]; }
+
+#[state]
+fn block_on[F: Future[int]](ref mut F f) -> int {
+    cx = Context { waker = Waker { id = 0 } }
+    while true {
+        match f.poll(ref cx) {
+            Ready(v) => { return v }
+            Pending => { }
+        }
+    }
+    return -1
+}
+
+#[state]
+fn block_on_s[F: Future[String]](ref mut F f) -> String {
+    cx = Context { waker = Waker { id = 0 } }
+    while true {
+        match f.poll(ref cx) {
+            Ready(v) => { return v }
+            Pending => { }
+        }
+    }
+    return ""
+}
+
+#[async]
+fn inc(int x) -> int { return x + 1 }
+
+#[async]
+fn dec(int x) -> int { return x - 1 }
+
+#[async]
+fn dbl(int x) -> int { return x * 2 }
+
+#[async]
+fn greet() -> String { return "hi" }
+
+#[async]
+fn mixed(int x) -> int {
+    a = await inc(x)
+    b = a + 1
+    c = 0
+    if b > 10 {
+        c = await inc(b)
+    } else {
+        c = await dec(b)
+    }
+    while c < 20 {
+        c = await inc(c)
+        if c == 15 { break }
+    }
+    return c
+}
+
+#[async]
+fn nested(int x) -> int {
+    y = 0
+    while y < 3 {
+        if y == 1 {
+            y = await inc(y)
+        } else {
+            y = await inc(y)
+        }
+        if y == 2 { continue }
+        if y == 3 { break }
+    }
+    return y
+}
+
+#[async]
+fn pick(int x) -> int {
+    y = 0
+    if x > 10 {
+        y = await inc(x)
+    } elif x > 0 {
+        y = await dbl(x)
+    } else {
+        y = await dec(x)
+    }
+    return y
+}
+
+#[async]
+fn outer(int x) -> int {
+    y = x
+    while y < 5 {
+        if y == 2 { break }
+        y = await inc(y)
+        if y == 4 { continue }
+        if y == 3 { y = await inc(y) }
+    }
+    return y
+}
+
+#[async]
+fn noelse(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+    }
+    z = await inc(y)
+    return z
+}
+
+#[async]
+fn nested_loops(int x) -> int {
+    y = 0
+    z = 0
+    while y < 2 {
+        z = 0
+        while z < 2 {
+            z = await inc(z)
+            if z == 2 { break }
+        }
+        y = await inc(y)
+    }
+    return y * 10 + z
+}
+
+#[async]
+fn cont(int x) -> int {
+    y = 0
+    while y < 4 {
+        y = await inc(y)
+        if y == 2 { continue }
+        if y == 4 { break }
+    }
+    return y
+}
+
+#[async]
+fn syncmix(int x) -> int {
+    y = await inc(x)
+    z = 0
+    while z < 3 { z = z + 1 }
+    if z == 3 {
+        y = await inc(y)
+    } else {
+        y = await dec(y)
+    }
+    return y
+}
+
+#[async]
+fn echo(String s) -> String { return s }
+
+#[async]
+fn pass(int x, String s) -> String {
+    t = await echo(s)
+    u = await echo(t)
+    return u
+}
+
+#[async]
+fn join(int x) -> String {
+    s = "a"
+    t = await greet()
+    s = s + t
+    if x > 0 {
+        s = s + "!"
+    } else {
+        s = s + "?"
+    }
+    u = await greet()
+    return s + u
+}
+
+fn main() -> int {
+    f1 = mixed(5)
+    if block_on(ref mut f1) != 15 { return 1 }
+    f2 = mixed(20)
+    if block_on(ref mut f2) != 23 { return 2 }
+    f3 = nested(0)
+    if block_on(ref mut f3) != 3 { return 3 }
+    f4 = pick(20)
+    if block_on(ref mut f4) != 21 { return 4 }
+    f5 = pick(5)
+    if block_on(ref mut f5) != 10 { return 5 }
+    f6 = pick(-2)
+    if block_on(ref mut f6) != -3 { return 6 }
+    f7 = outer(0)
+    if block_on(ref mut f7) != 2 { return 7 }
+    f8 = outer(9)
+    if block_on(ref mut f8) != 9 { return 8 }
+    f9 = noelse(2)
+    if block_on(ref mut f9) != 4 { return 9 }
+    f10 = noelse(0)
+    if block_on(ref mut f10) != 1 { return 10 }
+    f11 = nested_loops(0)
+    if block_on(ref mut f11) != 22 { return 11 }
+    f12 = cont(0)
+    if block_on(ref mut f12) != 4 { return 12 }
+    f13 = syncmix(1)
+    if block_on(ref mut f13) != 3 { return 13 }
+    f14 = syncmix(0)
+    if block_on(ref mut f14) != 2 { return 14 }
+    s1 = join(1)
+    if block_on_s(ref mut s1) != "ahi!hi" { return 15 }
+    s2 = join(0)
+    if block_on_s(ref mut s2) != "ahi?hi" { return 16 }
+    s3 = pass(1, "yo")
+    if block_on_s(ref mut s3) != "yo" { return 17 }
+    return 0
+}
