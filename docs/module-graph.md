@@ -43,7 +43,7 @@ graph LR
     hir --> formatter
     hir -->|39| intern
     hir -->|2| mir
-    hir -->|49| parser
+    hir -->|51| parser
     hir -->|8| span
     lexer --> span
     lir --> error
@@ -71,7 +71,7 @@ graph LR
 
 | 来源 | 目标 | 引用数 |
 | --- | --- | ---: |
-| `hir` | `parser` | 49 |
+| `hir` | `parser` | 51 |
 | `hir` | `intern` | 39 |
 | `hir` | `error` | 32 |
 | `compiler` | `error` | 12 |

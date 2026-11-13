@@ -180,3 +180,4 @@ await_while_post_two.aya 0
 test_async_cfg.aya 0
 await_expr_position.aya 0
 await_while_cond.aya 0
+await_for_body.aya 0

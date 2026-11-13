@@ -191,6 +191,44 @@ fn expr_if_cond(int x) -> int {
 }
 
 #[async]
+fn for_body(int x) -> int {
+    s = 0
+    for i in (0, 3) {
+        s = s + (await inc(i))
+    }
+    return s
+}
+
+#[async]
+fn for_break(int x) -> int {
+    s = 0
+    for i in (0, 10) {
+        s = s + (await inc(i))
+        if i == 2 { break }
+    }
+    return s
+}
+
+#[async]
+fn for_continue(int x) -> int {
+    s = 0
+    for i in (0, 4) {
+        if i == 1 { continue }
+        s = s + (await inc(i))
+    }
+    return s
+}
+
+#[async]
+fn for_usize(usize n) -> int {
+    s = 0
+    for i in (0, n) {
+        s = s + (await inc(i as int))
+    }
+    return s
+}
+
+#[async]
 fn expr_elif(int x) -> int {
     y = 0
     if x > 10 {
@@ -340,5 +378,13 @@ fn main() -> int {
     if block_on(ref mut f28) != 2 { return 32 }
     f29 = expr_elif(-2)
     if block_on(ref mut f29) != 3 { return 33 }
+    f30 = for_body(0)
+    if block_on(ref mut f30) != 6 { return 34 }
+    f31 = for_break(0)
+    if block_on(ref mut f31) != 6 { return 35 }
+    f32 = for_usize(3usize)
+    if block_on(ref mut f32) != 6 { return 36 }
+    f33 = for_continue(0)
+    if block_on(ref mut f33) != 8 { return 37 }
     return 0
 }

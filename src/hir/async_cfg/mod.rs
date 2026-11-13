@@ -13,6 +13,8 @@ use crate::parser::ast::{Expr, Stmt, Type};
 
 mod anf;
 mod anf_expr;
+mod anf_stmt;
+mod anf_for;
 mod compiler;
 mod compiler_await;
 mod scan;
@@ -72,7 +74,7 @@ pub(crate) fn try_expand(
     }
     let fail = |m: String| Error::Hir(format!("#[async] `{}`: {}", name.as_str(), m));
     let span = body.span;
-    let mut anf = Anf::new(returns);
+    let mut anf = Anf::new(returns, types);
     let Some((stmts, tail)) = anf.normalize_body(body) else {
         return Ok(false);
     };

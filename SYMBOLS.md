@@ -361,17 +361,21 @@ src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, lev
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
 src/hir/async_cfg/anf.rs:10: pub(super) struct Anf<'a>
-src/hir/async_cfg/anf.rs:16: impl<'a> Anf<'a>
-src/hir/async_cfg/anf.rs:17: pub(super) fn new(returns: &'a HashMap<Symbol, Type>) -> Self
-src/hir/async_cfg/anf.rs:25: pub(super) fn into_types(self) -> HashMap<Symbol, Type>
-src/hir/async_cfg/anf.rs:30: pub(super) fn normalize_body(&mut self, body: &Block) -> Option<(Vec<Stmt>, Option<Expr>)>
-src/hir/async_cfg/anf.rs:49: fn block(&mut self, b: &Block) -> Option<Block>
-src/hir/async_cfg/anf.rs:67: fn stmt(&mut self, st: &Stmt, pre: &mut Vec<Stmt>) -> Option<Stmt>
-src/hir/async_cfg/anf.rs:250: fn else_chain(
-src/hir/async_cfg/anf.rs:279: fn stmt_has_await_local(st: &Stmt) -> bool
-src/hir/async_cfg/anf.rs:283: fn expr_has_await(e: &Expr) -> bool
+src/hir/async_cfg/anf.rs:17: impl<'a> Anf<'a>
+src/hir/async_cfg/anf.rs:18: pub(super) fn new(
+src/hir/async_cfg/anf.rs:30: pub(super) fn into_types(self) -> HashMap<Symbol, Type>
+src/hir/async_cfg/anf.rs:35: pub(super) fn normalize_body(&mut self, body: &Block) -> Option<(Vec<Stmt>, Option<Expr>)>
+src/hir/async_cfg/anf.rs:54: pub(super) fn block(&mut self, b: &Block) -> Option<Block>
+src/hir/async_cfg/anf.rs:73: pub(super) fn stmt_has_await_local(st: &Stmt) -> bool
+src/hir/async_cfg/anf.rs:77: pub(super) fn expr_has_await(e: &Expr) -> bool
 src/hir/async_cfg/anf_expr.rs:8: impl Anf<'_>
 src/hir/async_cfg/anf_expr.rs:9: pub(super) fn expr(&mut self, e: &Expr, pre: &mut Vec<Stmt>) -> Option<Expr>
+src/hir/async_cfg/anf_for.rs:7: impl Anf<'_>
+src/hir/async_cfg/anf_for.rs:8: pub(super) fn for_stmt(
+src/hir/async_cfg/anf_for.rs:79: fn patch_continues(stmts: &mut [Stmt], step: &Stmt)
+src/hir/async_cfg/anf_stmt.rs:6: impl Anf<'_>
+src/hir/async_cfg/anf_stmt.rs:7: pub(super) fn stmt(&mut self, st: &Stmt, pre: &mut Vec<Stmt>) -> Option<Stmt>
+src/hir/async_cfg/anf_stmt.rs:174: pub(super) fn else_chain(
 src/hir/async_cfg/compiler.rs:11: pub(super) struct Cfg
 src/hir/async_cfg/compiler.rs:20: impl Cfg
 src/hir/async_cfg/compiler.rs:21: pub(super) fn new(locals: Vec<Local>, async_fns: HashMap<Symbol, Vec<(Symbol, Type)>>) -> Self
@@ -397,17 +401,19 @@ src/hir/async_cfg/compiler_await.rs:9: impl Cfg
 src/hir/async_cfg/compiler_await.rs:10: pub(super) fn compile_await(
 src/hir/async_cfg/mod.rs:14: mod anf;
 src/hir/async_cfg/mod.rs:15: mod anf_expr;
-src/hir/async_cfg/mod.rs:16: mod compiler;
-src/hir/async_cfg/mod.rs:17: mod compiler_await;
-src/hir/async_cfg/mod.rs:18: mod scan;
-src/hir/async_cfg/mod.rs:19: mod util;
-src/hir/async_cfg/mod.rs:26: pub(super) struct Local
-src/hir/async_cfg/mod.rs:35: pub(super) struct FutureField
-src/hir/async_cfg/mod.rs:42: fn enabled() -> bool
-src/hir/async_cfg/mod.rs:49: pub(crate) fn try_expand(
-src/hir/async_cfg/mod.rs:217: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context __async_cx) -> Poll[{ret}] {{\n\
-src/hir/async_cfg/mod.rs:232: pub(crate) fn expr_has_await_pub(e: &Expr) -> bool
-src/hir/async_cfg/mod.rs:236: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, Vec<Expr>)>
+src/hir/async_cfg/mod.rs:16: mod anf_stmt;
+src/hir/async_cfg/mod.rs:17: mod anf_for;
+src/hir/async_cfg/mod.rs:18: mod compiler;
+src/hir/async_cfg/mod.rs:19: mod compiler_await;
+src/hir/async_cfg/mod.rs:20: mod scan;
+src/hir/async_cfg/mod.rs:21: mod util;
+src/hir/async_cfg/mod.rs:28: pub(super) struct Local
+src/hir/async_cfg/mod.rs:37: pub(super) struct FutureField
+src/hir/async_cfg/mod.rs:44: fn enabled() -> bool
+src/hir/async_cfg/mod.rs:51: pub(crate) fn try_expand(
+src/hir/async_cfg/mod.rs:219: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context __async_cx) -> Poll[{ret}] {{\n\
+src/hir/async_cfg/mod.rs:234: pub(crate) fn expr_has_await_pub(e: &Expr) -> bool
+src/hir/async_cfg/mod.rs:238: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, Vec<Expr>)>
 src/hir/async_cfg/scan.rs:10: pub(super) fn body_has_await(body: &Block) -> bool
 src/hir/async_cfg/scan.rs:14: fn block_has_await(b: &Block) -> bool
 src/hir/async_cfg/scan.rs:18: pub(crate) fn stmt_has_await(st: &Stmt) -> bool
@@ -2818,6 +2824,11 @@ example/await_expr_position.aya:2: struct Context { int x }
 example/await_expr_position.aya:5: fn inc(int x) -> int { return x + 1 }
 example/await_expr_position.aya:8: fn bad(int x) -> int
 example/await_expr_position.aya:14: fn main() -> int { return 0 }
+example/await_for_body.aya:1: enum Poll[T] { Ready(T), Pending }
+example/await_for_body.aya:2: struct Context { int x }
+example/await_for_body.aya:5: fn inc(int x) -> int { return x + 1 }
+example/await_for_body.aya:8: fn bad(int x) -> int
+example/await_for_body.aya:16: fn main() -> int { return 0 }
 example/await_if_else_mixed_stmt.aya:2: enum Poll[T] { Ready(T), Pending }
 example/await_if_else_mixed_stmt.aya:3: struct Context { int x }
 example/await_if_else_mixed_stmt.aya:5: fn g(int x) -> int { return x + 1 }
@@ -3013,16 +3024,20 @@ example/test_async_cfg.aya:166: fn expr_arg(int x) -> int
 example/test_async_cfg.aya:172: fn expr_product(int x) -> int
 example/test_async_cfg.aya:177: fn expr_call(int x) -> int
 example/test_async_cfg.aya:183: fn expr_if_cond(int x) -> int
-example/test_async_cfg.aya:194: fn expr_elif(int x) -> int
-example/test_async_cfg.aya:207: fn while_cond(int x) -> int
-example/test_async_cfg.aya:216: fn while_cond_continue(int x) -> int
-example/test_async_cfg.aya:227: fn loop_expr(int x) -> int
-example/test_async_cfg.aya:236: fn expr_string(int x) -> String
-example/test_async_cfg.aya:242: fn echo(String s) -> String { return s }
-example/test_async_cfg.aya:245: fn pass(int x, String s) -> String
-example/test_async_cfg.aya:252: fn choose_sync(int x) -> int
-example/test_async_cfg.aya:263: fn join(int x) -> String
-example/test_async_cfg.aya:276: fn main() -> int
+example/test_async_cfg.aya:194: fn for_body(int x) -> int
+example/test_async_cfg.aya:203: fn for_break(int x) -> int
+example/test_async_cfg.aya:213: fn for_continue(int x) -> int
+example/test_async_cfg.aya:223: fn for_usize(usize n) -> int
+example/test_async_cfg.aya:232: fn expr_elif(int x) -> int
+example/test_async_cfg.aya:245: fn while_cond(int x) -> int
+example/test_async_cfg.aya:254: fn while_cond_continue(int x) -> int
+example/test_async_cfg.aya:265: fn loop_expr(int x) -> int
+example/test_async_cfg.aya:274: fn expr_string(int x) -> String
+example/test_async_cfg.aya:280: fn echo(String s) -> String { return s }
+example/test_async_cfg.aya:283: fn pass(int x, String s) -> String
+example/test_async_cfg.aya:290: fn choose_sync(int x) -> int
+example/test_async_cfg.aya:301: fn join(int x) -> String
+example/test_async_cfg.aya:314: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker
