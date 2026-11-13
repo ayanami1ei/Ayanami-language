@@ -361,16 +361,21 @@ src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
 src/hir/async_elif.rs:10: struct Branch
 src/hir/async_elif.rs:16: pub(crate) fn try_expand(
-src/hir/async_elif.rs:123: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_elif.rs:152: fn detect(body: &Block) -> Option<(Symbol, Vec<Branch>)>
-src/hir/async_elif.rs:168: fn branch_var(b: &Block) -> Option<Symbol>
-src/hir/async_elif.rs:173: fn branch_await(b: &Block) -> Option<(Symbol, Vec<Expr>)>
+src/hir/async_elif.rs:124: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_elif.rs:153: fn detect(body: &Block) -> Option<(Symbol, Vec<Branch>)>
+src/hir/async_elif.rs:169: fn branch_var(b: &Block) -> Option<Symbol>
+src/hir/async_elif.rs:174: fn branch_await(b: &Block) -> Option<(Symbol, Vec<Expr>)>
 src/hir/async_elif_multi.rs:10: struct Branch
 src/hir/async_elif_multi.rs:16: pub(crate) fn try_expand(
 src/hir/async_elif_multi.rs:155: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_elif_multi.rs:185: fn detect(body: &Block) -> Option<(Symbol, Vec<Branch>)>
-src/hir/async_elif_multi.rs:202: fn first_target(b: &Block) -> Option<Symbol>
-src/hir/async_elif_multi.rs:208: fn chain(b: &Block, y: &Symbol) -> Option<Vec<(Symbol, Vec<Expr>)>>
+src/hir/async_elif_multi.rs:202: pub(super) fn first_target(b: &Block) -> Option<Symbol>
+src/hir/async_elif_multi.rs:208: pub(super) fn chain(b: &Block, y: &Symbol) -> Option<Vec<(Symbol, Vec<Expr>)>>
+src/hir/async_elif_multi_post.rs:11: struct Branch
+src/hir/async_elif_multi_post.rs:16: struct Post
+src/hir/async_elif_multi_post.rs:27: pub(crate) fn try_expand(
+src/hir/async_elif_multi_post.rs:227: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_elif_multi_post.rs:260: fn detect(body: &Block) -> Option<(Symbol, Vec<Branch>, Vec<(Symbol, Symbol, Vec<Expr>)>, Vec<Stmt>)>
 src/hir/async_elif_post.rs:11: struct Branch
 src/hir/async_elif_post.rs:17: struct Post
 src/hir/async_elif_post.rs:28: pub(crate) fn try_expand(
@@ -1301,31 +1306,32 @@ src/hir/mod.rs:5: pub(crate) mod async_mixed_expr;
 src/hir/mod.rs:6: pub(crate) mod async_transform_util;
 src/hir/mod.rs:7: pub(crate) mod async_elif;
 src/hir/mod.rs:8: pub(crate) mod async_elif_multi;
-src/hir/mod.rs:9: pub(crate) mod async_elif_post;
-src/hir/mod.rs:10: pub(crate) mod async_if;
-src/hir/mod.rs:11: pub(crate) mod async_if_multi;
-src/hir/mod.rs:12: pub(crate) mod async_if_multi_post;
-src/hir/mod.rs:13: pub(crate) mod async_if_post;
-src/hir/mod.rs:14: pub(crate) mod async_if_else_post;
-src/hir/mod.rs:15: pub(crate) mod async_if_else_multi;
-src/hir/mod.rs:16: pub(crate) mod async_if_else_multi_post;
-src/hir/mod.rs:17: pub(crate) mod async_while;
-src/hir/mod.rs:18: pub(crate) mod async_while_util;
-src/hir/mod.rs:19: pub mod attrs_export;
-src/hir/mod.rs:20: pub mod attrs_macro;
-src/hir/mod.rs:21: pub mod cfg;
-src/hir/mod.rs:22: pub mod contracts;
-src/hir/mod.rs:23: pub mod effects;
-src/hir/mod.rs:24: pub mod ir;
-src/hir/mod.rs:25: pub mod layout;
-src/hir/mod.rs:26: pub(crate) mod niche;
-src/hir/mod.rs:27: pub mod ty;
-src/hir/mod.rs:28: pub mod node;
-src/hir/mod.rs:29: pub mod stmt;
-src/hir/mod.rs:30: pub mod item;
-src/hir/mod.rs:31: pub mod lower;
-src/hir/mod.rs:32: pub mod display;
-src/hir/mod.rs:49: pub struct $name
+src/hir/mod.rs:9: pub(crate) mod async_elif_multi_post;
+src/hir/mod.rs:10: pub(crate) mod async_elif_post;
+src/hir/mod.rs:11: pub(crate) mod async_if;
+src/hir/mod.rs:12: pub(crate) mod async_if_multi;
+src/hir/mod.rs:13: pub(crate) mod async_if_multi_post;
+src/hir/mod.rs:14: pub(crate) mod async_if_post;
+src/hir/mod.rs:15: pub(crate) mod async_if_else_post;
+src/hir/mod.rs:16: pub(crate) mod async_if_else_multi;
+src/hir/mod.rs:17: pub(crate) mod async_if_else_multi_post;
+src/hir/mod.rs:18: pub(crate) mod async_while;
+src/hir/mod.rs:19: pub(crate) mod async_while_util;
+src/hir/mod.rs:20: pub mod attrs_export;
+src/hir/mod.rs:21: pub mod attrs_macro;
+src/hir/mod.rs:22: pub mod cfg;
+src/hir/mod.rs:23: pub mod contracts;
+src/hir/mod.rs:24: pub mod effects;
+src/hir/mod.rs:25: pub mod ir;
+src/hir/mod.rs:26: pub mod layout;
+src/hir/mod.rs:27: pub(crate) mod niche;
+src/hir/mod.rs:28: pub mod ty;
+src/hir/mod.rs:29: pub mod node;
+src/hir/mod.rs:30: pub mod stmt;
+src/hir/mod.rs:31: pub mod item;
+src/hir/mod.rs:32: pub mod lower;
+src/hir/mod.rs:33: pub mod display;
+src/hir/mod.rs:50: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
@@ -2859,9 +2865,11 @@ example/test_async_await.aya:420: fn if_multi_post(int x) -> int
 example/test_async_await.aya:431: fn if_multi_post2(int x) -> int
 example/test_async_await.aya:443: fn choose_multi_post(int x) -> int
 example/test_async_await.aya:457: fn choose_multi_post2(int x) -> int
-example/test_async_await.aya:472: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_await.aya:486: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_await.aya:499: fn main() -> int
+example/test_async_await.aya:472: fn pick_multi_post(int x) -> int
+example/test_async_await.aya:489: fn pick_multi_post2(int x) -> int
+example/test_async_await.aya:507: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:521: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:534: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker

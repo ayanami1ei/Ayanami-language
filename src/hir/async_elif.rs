@@ -18,7 +18,8 @@ pub(crate) fn try_expand(
     returns: &HashMap<Symbol, Type>,
     out: &mut Vec<Stmt>,
 ) -> Result<bool> {
-    // 先尝试分支后 post await；再试多 await 分支；单 await 继续走本模块
+    // 多 await 分支后 post；再试单 await 分支后 post；单 await 继续走本模块
+    if crate::hir::async_elif_multi_post::try_expand(stmt, returns, out)? { return Ok(true); }
     if crate::hir::async_elif_post::try_expand(stmt, returns, out)? { return Ok(true); }
     if crate::hir::async_elif_multi::try_expand(stmt, returns, out)? { return Ok(true); }
     let Stmt::FnDecl { name, params, body, .. } = stmt else { return Ok(false) };

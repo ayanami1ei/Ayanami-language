@@ -199,13 +199,13 @@ fn detect(body: &Block) -> Option<(Symbol, Vec<Branch>)> {
     Some((y, branches))
 }
 
-fn first_target(b: &Block) -> Option<Symbol> {
+pub(super) fn first_target(b: &Block) -> Option<Symbol> {
     let st = b.stmts.first()?;
     let Stmt::Assign { name, .. } = st else { return None };
     Some(*name)
 }
 
-fn chain(b: &Block, y: &Symbol) -> Option<Vec<(Symbol, Vec<Expr>)>> {
+pub(super) fn chain(b: &Block, y: &Symbol) -> Option<Vec<(Symbol, Vec<Expr>)>> {
     let mut out = Vec::new();
     for st in &b.stmts {
         let Stmt::Assign { name, value, .. } = st else { return None };

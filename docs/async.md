@@ -241,7 +241,9 @@ impl __add_Fut {
 - if 单分支多 await 后的连续 post await（2026-11-13）：`if c { y=await g0; y=await g1; ... }` 后接
   post await；用例 `if_multi_post` / `if_multi_post2`。
 - if/else 多 await 分支后的 post await（2026-11-13）：任一侧 ≥2 + 连续 post；用例
-  `choose_multi_post` / `choose_multi_post2`。elif 多 await 分支 + post 仍留给后续。
+  `choose_multi_post` / `choose_multi_post2`。
+- if/elif/else 多 await 分支后的 post await（2026-11-13）：至少一个分支 ≥2 + 连续 post；
+  条件限参数，post 实参可链式引用。用例 `pick_multi_post` / `pick_multi_post2`。
 - 直线 mixed await（A1b-3a 过渡桥，2026-10-25）：await 与同步赋值/表达式混排（无 if/while/match）；
   参数与局部提升为 `__v_*` 字段，每个 await 两段状态。类型优先 AST 轻量推断（参数、await 结果、
   字面量、算术/比较、`as`），推断失败时用一次**无 async 展开的 HIR 探针**补充方法调用/字段读取
