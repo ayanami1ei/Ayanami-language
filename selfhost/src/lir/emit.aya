@@ -1155,7 +1155,24 @@ impl Emitter {
         if rtg == tt(TT::Array._tag) || rtg == tt(TT::ArraySized._tag) {
             return ast.aa[rty];
         }
-        if rtg == tt(TT::Generic._tag) { rtg = tt(TT::Named._tag); }
+        if rtg == tt(TT::Generic._tag) {
+            // 具体泛型枚举（Poll[String]）→ 实例枚举索引，match/载荷按实例类型
+            en_g = self.find_enum_idx(ast.texts[rty]);
+            if en_g >= 0 {
+                args_g = ast.aa[rty];
+                if args_g >= 0 {
+                    at_g = ast.tys[args_g];
+                    if at_g >= 0 {
+                        if self.type_has_gparam(ast, at_g) == false {
+                            in_g = self.find_enum_inst(ast, en_g, at_g);
+                            if in_g < 0 { in_g = self.fill_enum_inst(ast, en_g, at_g); }
+                            if in_g >= 0 { return in_g; }
+                        }
+                    }
+                }
+            }
+            rtg = tt(TT::Named._tag);
+        }
         if rtg != tt(TT::Named._tag) { return -1; }
         tn = ast.texts[rty];
         if tn == "Self" { tn = self.cur_self_ty.copy(); }

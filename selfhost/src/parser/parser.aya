@@ -163,6 +163,13 @@ pub struct Parser {
     // 语句级 #[sync(obj, guard=g)] 待绑定状态
     int sync_obj
     String sync_guard
+    // #[async] 展开：同程序 async 函数表 + 生成的 Fut/run/impl 额外项
+    [String] async_fns
+    int async_fn_count
+    [int] async_extra
+    int async_extra_count
+    int async_ctor_body
+    int async_ctor_ret
     // 注解原文（宏展开用）：#[...] 的源文本 / 起始行 / 结束行
     [String] attrs_text
     [int] attrs_line
@@ -190,7 +197,10 @@ pub namespace Parser {
             cur_env_caps = [String; 16], cur_env_gps = [String; 16], cur_env_cap_count = 0,
             fenv_fn = [String; 64], fenv_caps = [String; 64], fenv_count = 0,
             pend_blk_caps = [String; 16], pend_blk_provs = [String; 16], pend_blk_count = 0,
-            sync_obj = -1, sync_guard = String::empty() };
+            sync_obj = -1, sync_guard = String::empty(),
+            async_fns = [String; 64], async_fn_count = 0,
+            async_extra = [int; 256], async_extra_count = 0,
+            async_ctor_body = -1, async_ctor_ret = -1 };
         return p;
     }
 }
@@ -422,6 +432,7 @@ impl Parser {
                 elif an == "compile_time" { self.attr_mask = self.attr_mask | 131072; }
                 elif an == "macro" { self.attr_mask = self.attr_mask | 262144; }
                 elif an == "extern" { self.attr_mask = self.attr_mask | 1; }
+                elif an == "async" { self.attr_mask = self.attr_mask | 524288; }
                 if an == "env" {
                     // E1a：#[env::<cap>(<provider>)] —— 记录到下一个 fn 的作用域
                     self.advance();
@@ -764,6 +775,11 @@ impl Parser {
                 head = self.ast.push_tail(head, item);
             }
         }
+        k_e = 0;
+        while k_e < self.async_extra_count {
+            head = self.ast.push_tail(head, self.async_extra[k_e]);
+            k_e = k_e + 1;
+        }
         self.ast.aa[prog] = head;
         return prog;
     }
@@ -1064,6 +1080,14 @@ impl Parser {
             ek = ek + 1;
         }
         self.pend_env_count = 0;
+        asy_e = 0;
+        if (fn_mask0 / 524288) % 2 == 1 { asy_e = 1; }
+        if asy_e == 1 && with_body == 1 && self.cur_impl.len == 0 {
+            if self.async_fn_count < 64 {
+                self.async_fns[self.async_fn_count] = name.copy();
+                self.async_fn_count = self.async_fn_count + 1;
+            }
+        }
         body = -1;
         if with_body == 1 {
             if (fn_mask0 % 2) == 1 && self.check_delim(D::Semicolon._tag) {
@@ -1075,6 +1099,11 @@ impl Parser {
             }
         }
         self.env_count = env_mark;
+        if asy_e == 1 && with_body == 1 && self.cur_impl.len == 0 {
+            self.trans_async(name, head, ret, body, kline, kcol);
+            body = self.async_ctor_body;
+            ret = self.async_ctor_ret;
+        }
         // 本函数的环境值隐藏形参：__env_<cap>: E（E 为匹配的泛型参数）
         hk_e = 0;
         while hk_e < self.cur_env_cap_count {
@@ -1092,6 +1121,94 @@ impl Parser {
         }
         node = self.ast.push(st(ST::FnDecl._tag), name, ret, head, body, generics, fn_mask0 + fn_pub0 * 16384, kline, kcol);
         return node;
+    }
+
+    fn async_add_extra(ref mut self, int nd) {
+        if self.async_extra_count < 256 {
+            self.async_extra[self.async_extra_count] = nd;
+            self.async_extra_count = self.async_extra_count + 1;
+        }
+    }
+
+    fn is_async_fn(ref mut self, ref String nm) -> int {
+        k = 0;
+        while k < self.async_fn_count {
+            if self.async_fns[k] == nm { return 1; }
+            k = k + 1;
+        }
+        return 0;
+    }
+
+    /// #[async] 展开：
+    ///   struct __f_Fut { <params>, int _done }
+    ///   fn f(params) -> __f_Fut { return __f_Fut { <params>, _done = 0 } }
+    ///   fn __async_run_f(params) -> R { <原体> }
+    ///   impl __f_Fut { fn poll(ref mut self, ref Context cx) -> Poll[R] {
+    ///       return Poll::Ready(__async_run_f(self.<params>)) } }
+    fn trans_async(ref mut self, ref String name, int head, int ret, int body, int line, int col) {
+        fut_name = "__" + name + "_Fut";
+        run_name = "__async_run_" + name;
+        fut_ty = self.ast.push(tt(TT::Named._tag), fut_name, -1, -1, -1, -1, -1, line, col);
+        poll_arg = self.ast.push(xt(XT::GenericArg._tag), "", ret, -1, -1, -1, -1, line, col);
+        poll_ty = self.ast.push(tt(TT::Generic._tag), "Poll", -1, poll_arg, -1, -1, -1, line, col);
+        cx_in = self.ast.push(tt(TT::Named._tag), "Context", -1, -1, -1, -1, -1, line, col);
+        cx_ty = self.ast.push(tt(TT::Ref._tag), "", -1, cx_in, 0, -1, -1, line, col);
+        self_ty = self.ast.push(tt(TT::Ref._tag), "", -1, fut_ty, 1, -1, -1, line, col);
+        // Fut 字段
+        fields = -1;
+        p = head;
+        while p >= 0 {
+            fld = self.ast.push(xt(XT::StructField._tag), self.ast.texts[p], self.ast.tys[p], -1, -1, -1, -1, line, col);
+            fields = self.ast.push_tail(fields, fld);
+            p = self.ast.nexts[p];
+        }
+        done_ty = self.ast.push(tt(TT::Int._tag), "", -1, -1, -1, -1, -1, line, col);
+        done_fld = self.ast.push(xt(XT::StructField._tag), "_done", done_ty, -1, -1, -1, -1, line, col);
+        fields = self.ast.push_tail(fields, done_fld);
+        fut_def = self.ast.push(st(ST::StructDef._tag), fut_name, -1, fields, -1, -1, -1, line, col);
+        // run 函数（原体；await 已改写为 run 调用）
+        run_fn = self.ast.push(st(ST::FnDecl._tag), run_name, ret, head, body, -1, 524288, line, col);
+        // 构造函数体
+        lit_fields = -1;
+        p = head;
+        while p >= 0 {
+            pid = self.ast.push(et(ET::Ident._tag), self.ast.texts[p], -1, -1, -1, -1, -1, line, col);
+            fl = self.ast.push(xt(XT::StructLitField._tag), self.ast.texts[p], -1, pid, -1, -1, -1, line, col);
+            lit_fields = self.ast.push_tail(lit_fields, fl);
+            p = self.ast.nexts[p];
+        }
+        zero = self.ast.push(et(ET::Literal._tag), "0", -1, -1, lk(LK::Int._tag), -1, -1, line, col);
+        dl = self.ast.push(xt(XT::StructLitField._tag), "_done", -1, zero, -1, -1, -1, line, col);
+        lit_fields = self.ast.push_tail(lit_fields, dl);
+        lit = self.ast.push(et(ET::StructLiteral._tag), fut_name, -1, lit_fields, -1, -1, -1, line, col);
+        cret = self.ast.push(st(ST::Return._tag), "", -1, lit, -1, -1, -1, line, col);
+        ctor_body = self.ast.push(st(ST::Block._tag), "", -1, cret, -1, -1, -1, line, col);
+        // poll 体
+        self_id = self.ast.push(et(ET::Ident._tag), "self", -1, -1, -1, -1, -1, line, col);
+        run_args = -1;
+        p = head;
+        while p >= 0 {
+            fa = self.ast.push(et(ET::FieldAccess._tag), self.ast.texts[p], -1, self_id, -1, -1, -1, line, col);
+            ag = self.ast.push(xt(XT::Arg._tag), "", -1, fa, -1, -1, -1, line, col);
+            run_args = self.ast.push_tail(run_args, ag);
+            p = self.ast.nexts[p];
+        }
+        run_call = self.ast.push(et(ET::FnCall._tag), run_name, -1, run_args, -1, -1, -1, line, col);
+        ra = self.ast.push(xt(XT::Arg._tag), "", -1, run_call, -1, -1, -1, line, col);
+        // call 形态的枚举构造是 FnCall（"Poll.Ready"），EnumConstruct 仅用于 struct 形态
+        ready = self.ast.push(et(ET::FnCall._tag), "Poll.Ready", -1, ra, -1, -1, -1, line, col);
+        pret = self.ast.push(st(ST::Return._tag), "", -1, ready, -1, -1, -1, line, col);
+        poll_body = self.ast.push(st(ST::Block._tag), "", -1, pret, -1, -1, -1, line, col);
+        self_p = self.ast.push(xt(XT::Param._tag), "self", self_ty, -1, -1, -1, -1, line, col);
+        cx_p = self.ast.push(xt(XT::Param._tag), "cx", cx_ty, -1, -1, -1, -1, line, col);
+        poll_params = self.ast.push_tail(self_p, cx_p);
+        poll_fn = self.ast.push(st(ST::FnDecl._tag), "poll", poll_ty, poll_params, poll_body, -1, 524288, line, col);
+        impl_n = self.ast.push(st(ST::ImplBlock._tag), fut_name, -1, poll_fn, -1, -1, -1, line, col);
+        self.async_ctor_body = ctor_body;
+        self.async_ctor_ret = fut_ty;
+        self.async_add_extra(fut_def);
+        self.async_add_extra(run_fn);
+        self.async_add_extra(impl_n);
     }
 
     #[alloc]
@@ -1703,6 +1820,18 @@ impl Parser {
     fn parse_unary(ref mut self) -> int {
         line = self.cur.line;
         col = self.cur.col;
+        if self.cur.kind == Tk::Ident._tag && self.cur.text == "await" {
+            // A1b eager 展开：await g(args) -> __async_run_g(args)
+            self.advance();
+            e = self.parse_unary();
+            if e >= 0 && self.ast.tags[e] == et(ET::FnCall._tag) {
+                nm_e = self.ast.texts[e].copy();
+                if self.is_async_fn(nm_e) == 1 {
+                    self.ast.texts[e] = "__async_run_" + nm_e;
+                }
+            }
+            return e;
+        }
         if self.check_op("-") {
             self.advance();
             if self.cur.kind == Tk::IntLit._tag || self.cur.kind == Tk::FloatLit._tag {
