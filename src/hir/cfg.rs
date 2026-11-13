@@ -1,4 +1,4 @@
-//! A2b：`#[cfg(...)]` 编译期条件裁剪（宿主目标）。
+//! A2b：`#[cfg(...)]` 编译期条件裁剪（目标三元组；未设置时宿主）。
 //!
 //! 支持谓词：
 //! - `target = "linux"` / `arch = "x86_64"`（键值形式）
@@ -159,8 +159,8 @@ fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool> {
                 _ => return Err(unsupported(span)),
             };
             match key.as_str().as_str() {
-                "target" => Ok(value == std::env::consts::OS),
-                "arch" => Ok(value == std::env::consts::ARCH),
+                "target" => Ok(value == crate::target::target_os()),
+                "arch" => Ok(value == crate::target::target_arch()),
                 "feature" => Ok(feature_enabled(&value)),
                 other => Err(Error::Hir(format!(
                     "unknown cfg key `{}` (supported: target, arch, feature) (at {}:{})",
@@ -174,12 +174,13 @@ fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool> {
 fn eval_bare(e: &Expr, span: crate::span::Span) -> Result<bool> {
     match e {
         Expr::Ident(name, _) => match name.as_str().as_str() {
-            "unix" => Ok(cfg!(unix)),
-            "windows" => Ok(cfg!(windows)),
-            "linux" => Ok(std::env::consts::OS == "linux"),
-            "macos" => Ok(std::env::consts::OS == "macos"),
-            "x86_64" => Ok(std::env::consts::ARCH == "x86_64"),
-            "aarch64" => Ok(std::env::consts::ARCH == "aarch64"),
+            "unix" => Ok(crate::target::target_is_unix()),
+            "windows" => Ok(crate::target::target_os() == "windows"),
+            "linux" => Ok(crate::target::target_os() == "linux"),
+            "macos" => Ok(crate::target::target_os() == "macos"),
+            "none" => Ok(crate::target::target_os() == "none"),
+            "x86_64" => Ok(crate::target::target_arch() == "x86_64"),
+            "aarch64" => Ok(crate::target::target_arch() == "aarch64"),
             other => Err(Error::Hir(format!(
                 "unknown cfg predicate `{}` (at {}:{})", other, span.start_line, span.start_col))),
         },

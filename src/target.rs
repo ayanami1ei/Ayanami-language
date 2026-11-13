@@ -34,6 +34,52 @@ pub fn is_bare_metal_triple(triple: &str) -> bool {
     triple.contains("-none-") || triple.ends_with("-none") || triple.contains("none-elf")
 }
 
+/// 解析目标三元组的第一段；未设置时用宿主架构。
+/// 兼容常见 LLVM 别名（amd64/arm64），thumb/arm 归并为 arm，i386 系归并为 x86。
+pub fn target_arch() -> String {
+    let Some(triple) = target_triple() else {
+        return std::env::consts::ARCH.to_string();
+    };
+    let arch = triple.split('-').next().unwrap_or("");
+    if arch == "amd64" {
+        "x86_64".into()
+    } else if arch == "arm64" {
+        "aarch64".into()
+    } else if matches!(arch, "i386" | "i486" | "i586" | "i686") {
+        "x86".into()
+    } else if arch.starts_with("thumb") || arch.starts_with("arm") {
+        "arm".into()
+    } else {
+        arch.to_string()
+    }
+}
+
+/// 解析目标三元组的 OS 段；未设置时用宿主 OS。
+/// `aarch64-none-elf` → none；`x86_64-unknown-linux-gnu` → linux；
+/// `x86_64-apple-darwin` → macos。
+pub fn target_os() -> String {
+    let Some(triple) = target_triple() else {
+        return std::env::consts::OS.to_string();
+    };
+    for part in triple.split('-').skip(1) {
+        match part {
+            "linux" | "windows" | "macos" | "none" | "unknown" | "freebsd"
+            | "android" | "ios" => return part.to_string(),
+            "darwin" => return "macos".into(),
+            _ => {}
+        }
+    }
+    "unknown".into()
+}
+
+/// 目标是否属于 Unix 系（裸机/unknown 不算）。
+pub fn target_is_unix() -> bool {
+    matches!(
+        target_os().as_str(),
+        "linux" | "macos" | "freebsd" | "android" | "ios"
+    )
+}
+
 /// 目标架构与当前宿主不同（`run` 应拒绝）。
 pub fn is_cross_target(triple: &str) -> bool {
     let arch = triple.split('-').next().unwrap_or("");

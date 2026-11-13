@@ -9,6 +9,7 @@ pub(crate) fn cmd_dump(args: &[String]) {
     }
     let stage = args[0].as_str();
     let path = resolve_path(Some(args[1].as_str()));
+    let _ = configure_target_for(&path);
     let _code = match fs::read_to_string(&path) {
         Ok(c) => c,
         Err(e) => { eprintln!("error: failed to read '{}': {}", path.display(), e); std::process::exit(1); }

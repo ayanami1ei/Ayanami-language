@@ -131,8 +131,9 @@ extern "C" fn strlen([char] s) -> int;
 - 求值点：HIR 降低前 `hir/cfg.rs::filter_program`，递归过滤顶层 /
   namespace / impl / interface 方法；`validate_program` 先行，未知谓词报错（ADR-2）。
 - 谓词：`target = "linux"`、`arch = "x86_64"`、`feature = "x"`、裸标识符
-  （`unix`/`windows`/`linux`/`macos`/`x86_64`/`aarch64`）、`!` 取反；
-  多个谓词/多个 `#[cfg]` 之间为「与」。
+  （`unix`/`windows`/`linux`/`macos`/`none`/`x86_64`/`aarch64`）、`!` 取反；
+  多个谓词/多个 `#[cfg]` 之间为「与」。`arch`/`target` 按 `ayanami.toml [build] arch`
+  目标三元组求值（`check`/`dump`/`build`/`run` 一致；未设置时按宿主）。
 - M8 feature flags：启用集合 = `ayanami.toml` 顶层 `features = ["a", "b"]`
   与 `AYANAMI_FEATURES=a,b`（逗号分隔，叠加）之并；仅首次配置生效
   （`hir/cfg.rs::configure_features_from`，`compile_file` 入口调用）。
@@ -475,7 +476,7 @@ struct Holder {
 ### A2（已完成，2026-10）
 
 - [x] A2a 标注实参结构化（`AttrArg`：`key = value` / 表达式），formatter 保真
-- [x] A2b `#[cfg(...)]` 编译期 item 裁剪（宿主 target/arch/裸名/取反；包导出一致；M8 追加 feature 键）
+- [x] A2b `#[cfg(...)]` 编译期 item 裁剪（目标 target/arch/裸名/取反；包导出一致；M8 追加 feature 键）
 - [x] A2c `#[assume(cond)]` → `llvm.assume`
 - [x] A2d `#[requires]` 运行检查
 - [x] A2e `#[ensures(result)]` 后置条件（契约链路统一为 ContractKind）

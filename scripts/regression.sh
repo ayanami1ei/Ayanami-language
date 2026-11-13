@@ -95,6 +95,14 @@ if [ -f tests/baremetal/ayanami.toml ]; then
     rm -f build/baremetal.o build/baremetal.ll build/baremetal.lcl
 fi
 
+# 交叉 cfg：check 必须按 ayanami.toml [build] arch 解析 arch/target
+if [ -d tests/cfg_arch ]; then
+    if ! "$BIN" check tests/cfg_arch >/dev/null 2>&1; then
+        echo "FAIL tests/cfg_arch: check did not apply [build] arch/target to cfg"
+        fail=$((fail + 1))
+    fi
+fi
+
 # #106：零参函数不得发射裸符号（避免与 libc 冲突）
 if [ -f build/test_zero_arg_fn ]; then
     if nm build/test_zero_arg_fn 2>/dev/null | grep -qE ' T time$'; then

@@ -1,0 +1,6 @@
+[package]
+name = "cfg_arch"
+version = "0.1.0"
+
+[build]
+arch = "aarch64-none-elf"

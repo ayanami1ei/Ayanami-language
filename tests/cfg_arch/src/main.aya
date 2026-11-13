@@ -1,0 +1,16 @@
+#[cfg(arch = "aarch64")]
+#[cfg(target = "none")]
+fn selected() -> int { return 0 }
+
+#[cfg(arch = "x86_64")]
+fn selected() -> int { return missing_x86() }
+
+#[cfg(target = "linux")]
+fn platform_bad() -> int { return missing_linux() }
+
+#[cfg(!unix)]
+fn platform_ok() -> int { return 0 }
+
+fn main() -> int {
+    return selected() + platform_ok()
+}

@@ -16,12 +16,11 @@ src/annotation_table.rs:81: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Resul
 src/annotation_table.rs:117: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
 src/annotation_table.rs:163: pub(crate) fn resolve_kind(&self, a: &Attr) -> Result<Option<AnnKind>>
 src/annotation_table.rs:167: pub fn lcl_path(&self, pkg: &str) -> Option<String>
-src/cli/build.rs:4: fn project_config_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig>
-src/cli/build.rs:15: pub(crate) fn cmd_build(args: &[String])
-src/cli/build.rs:46: pub(crate) fn cmd_run(args: &[String])
+src/cli/build.rs:3: pub(crate) fn cmd_build(args: &[String])
+src/cli/build.rs:31: pub(crate) fn cmd_run(args: &[String])
 src/cli/check.rs:3: fn do_check(path: &Path) -> ayanami::error::Result<()>
 src/cli/check.rs:14: pub(crate) fn cmd_check(args: &[String])
-src/cli/check.rs:36: fn watch_file(path: &Path)
+src/cli/check.rs:37: fn watch_file(path: &Path)
 src/cli/clean.rs:3: pub(crate) fn cmd_clean()
 src/cli/defs.rs:3: pub(crate) fn cmd_defs(args: &[String])
 src/cli/defs.rs:43: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
@@ -38,10 +37,12 @@ src/cli/mod.rs:14: pub(crate) mod types;
 src/cli/mod.rs:15: pub(crate) mod update;
 src/cli/mod.rs:16: pub(crate) mod update_fetch;
 src/cli/mod.rs:17: pub(crate) mod package_install;
-src/cli/mod.rs:31: pub(crate) struct CliFlags
-src/cli/mod.rs:39: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
-src/cli/mod.rs:54: pub(crate) fn apply_mode(flags: &CliFlags)
-src/cli/mod.rs:64: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
+src/cli/mod.rs:31: pub(crate) fn project_config_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig>
+src/cli/mod.rs:43: pub(crate) fn configure_target_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig>
+src/cli/mod.rs:53: pub(crate) struct CliFlags
+src/cli/mod.rs:61: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
+src/cli/mod.rs:76: pub(crate) fn apply_mode(flags: &CliFlags)
+src/cli/mod.rs:86: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
@@ -571,7 +572,7 @@ src/hir/cfg.rs:118: pub fn feature_enabled(name: &str) -> bool
 src/hir/cfg.rs:124: pub fn configure_features_from(src: &std::path::Path)
 src/hir/cfg.rs:150: fn eval_predicate(arg: &AttrArg, span: crate::span::Span) -> Result<bool>
 src/hir/cfg.rs:174: fn eval_bare(e: &Expr, span: crate::span::Span) -> Result<bool>
-src/hir/cfg.rs:191: fn unsupported(span: crate::span::Span) -> Error
+src/hir/cfg.rs:192: fn unsupported(span: crate::span::Span) -> Error
 src/hir/contracts.rs:7: pub fn validate_fn_attrs(attrs: &[Attr]) -> Result<()>
 src/hir/contracts.rs:21: pub fn ensure_bool_condition(cond: &crate::hir::HirNodeBox, kind: &str, line: usize, col: usize) -> Result<()>
 src/hir/contracts.rs:31: static RELEASE_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -2823,7 +2824,10 @@ src/target.rs:19: pub fn set_freestanding(on: bool)
 src/target.rs:23: pub fn freestanding() -> bool
 src/target.rs:28: pub fn static_codegen() -> bool
 src/target.rs:33: pub fn is_bare_metal_triple(triple: &str) -> bool
-src/target.rs:38: pub fn is_cross_target(triple: &str) -> bool
+src/target.rs:39: pub fn target_arch() -> String
+src/target.rs:60: pub fn target_os() -> String
+src/target.rs:76: pub fn target_is_unix() -> bool
+src/target.rs:84: pub fn is_cross_target(triple: &str) -> bool
 
 ## Ayanami (.aya)
 example/await_elif_mixed_stmt.aya:2: enum Poll[T] { Ready(T), Pending }

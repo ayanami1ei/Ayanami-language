@@ -130,6 +130,8 @@ freestanding = true
 - `freestanding = true` 强制 `target = "object"`，只生成 `build/<stem>.o`；不链接
   内置 `runtime.c`/宿主 libc，不生成可执行文件或 PIE（llc `-relocation-model=static`）。
 - `arch` 是 LLVM target triple；`aarch64-none-elf` 生成 AArch64 ELF 可重定位对象。
+- `ayanami check` / `dump` 同样读取项目 `arch`/`freestanding`；`#[cfg(arch = "...")]` /
+  `#[cfg(target = "...")]` 按**目标三元组**求值（未设置时按宿主）。
 - 不 import std 时无需任何机器码标准库；导入的 std 会按目标重新编译 LIR，
   未解析的 runtime 符号（分配器、panic 等）由内核/启动代码提供。
 - `ayanami run` 拒绝 freestanding/交叉目标；请用自己的 linker script / loader 链接 `.o`。

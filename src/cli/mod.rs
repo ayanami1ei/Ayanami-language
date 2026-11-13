@@ -27,6 +27,28 @@ pub(crate) use types::cmd_types;
 pub(crate) use update::{cmd_update, cmd_version};
 pub(crate) use package_install::{cmd_install, cmd_package};
 
+/// 从源文件向上找 ayanami.toml（优先于 cwd），用于 arch/freestanding 等构建参数。
+pub(crate) fn project_config_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig> {
+    let mut d = path.parent();
+    while let Some(cur) = d {
+        if let Ok(s) = fs::read_to_string(cur.join("ayanami.toml")) {
+            return Some(ayanami::package::config::ProjectConfig::load(&s));
+        }
+        d = cur.parent();
+    }
+    load_config().map(|(_, c)| c)
+}
+
+/// 应用项目目标配置到进程级 target 状态，并返回配置。
+pub(crate) fn configure_target_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig> {
+    let cfg = project_config_for(path);
+    let arch = cfg.as_ref().and_then(|c| c.arch.clone());
+    let freestanding = cfg.as_ref().map_or(false, |c| c.freestanding);
+    ayanami::target::set_target_triple(arch.as_deref());
+    ayanami::target::set_freestanding(freestanding);
+    cfg
+}
+
 /// 编译器 CLI 标志。
 pub(crate) struct CliFlags {
     pub release: bool,
