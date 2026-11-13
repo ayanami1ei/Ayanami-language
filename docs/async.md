@@ -270,8 +270,9 @@ impl __add_Fut {
 | 通用 CFG | 任意同步语句、任意嵌套 if/elif/else/while、break/continue、提前 return；参数/局部全提升 | `test_async_cfg` / 8 个原负例 |
 
 - 通用 CFG 默认启用；不支持时自动回退形状模块（`AYANAMI_ASYNC_CFG=0` 可强制回退）。
-- 表达式级 await、`ref` 跨 await、`match`/`for`/`unsafe` 内 await、非默认初始化局部、
-  泛型/方法上的 `#[async]` 仍未支持；这些位置会给出明确错误或回退。
+- 表达式级 await 已支持赋值/返回/实参/字段或索引写值中的子表达式（ANF 提升）；
+  `ref` 跨 await、`match`/`for`/`unsafe` 内 await、while 条件/表达式级 if/match/lambda 内 await、
+  非默认初始化局部、泛型/方法上的 `#[async]` 仍未支持。
 - 下一阶段：HIR 原生 pass（字段裁剪/liveness、状态枚举、drop 语义），并删除已覆盖的形状模块。
 
 ### 7.4 A1b-3 一般 CFG（设计 2026-10-25；AST 实现已落地 2026-11-13）
@@ -290,19 +291,22 @@ impl __add_Fut {
 - 入口：`async_transform::expand_one` 先尝试 `async_cfg::try_expand`；失败/不支持再走形状模块。
 - 提升：参数 + 函数体内所有赋值局部提升为 `__v_<name>` 字段；类型来自 `probe_async_local_types`
   的 HIR 局部表（基础类型/String/整数宽度），构造器用类型默认值初始化。
-- 编译：从函数体末尾向前编译基本块；`x = await g(args)` 生成“构造 future 并设 PC”与“poll 并
-  Ready 写回/ Pending 返回”两个状态；if/elif/else、while、break/continue 生成显式 PC 跳转。
+- 编译：先做表达式 ANF（内层 await → `__async_tN` 临时赋值），再从函数体末尾向前编译基本块；
+  `x = await g(args)` 生成“构造 future 并设 PC”与“poll 并 Ready 写回/ Pending 返回”两个状态；
+  if/elif/else、while、break/continue 生成显式 PC 跳转。
 - 同步块：原样格式化进状态块；Copy 局部进入时读入、离开时写回，非 Copy 局部（String 等）
   直接以 `self.__v_*` 访问，避免“移出后写回”破坏所有权。
 - future 字段：每个 await 一个 `__wN`，构造器用目标 async 函数的参数默认值构造占位 future；
   进入 await 时用真实实参重建。
 - 状态：`int _state` + `while true { if self._state == n { ... } }`；入口 PC 由构造器写入。
-- 验证：`example/test_async_cfg.aya` 19 项断言覆盖嵌套 if/while/break/continue、提前 return、
-  同步 match 赋值、String 局部/参数/await 实参；原 8 个“形态不支持”负例转为正例；回归 positive=180 negative=111。
+- 验证：`example/test_async_cfg.aya` 28 项断言覆盖嵌套 if/while/break/continue、提前 return、
+  同步 match 赋值、表达式级 await、String 局部/参数/await 实参；原 8 个“形态不支持”负例转为正例；
+  回归 positive=181 negative=111。
 
 #### 已知限制（v1）
 
-- await 仍只支持赋值形式 `x = await g(args)`；表达式内 await、`match`/`for`/`unsafe` 内 await 报错。
+- 表达式 await 已支持赋值/返回/实参/字段或索引写值的子表达式；while 条件、`match`/`for`/`unsafe`
+  以及表达式级 if/match/lambda 内的 await 仍报错。
 - 所有局部全量提升，无 liveness 裁剪；Copy 局部全量 load/store，代码体积偏大。
 - 非默认初始化类型（结构体/数组/引用）局部暂不提升，回退形状模块/报错；`ref` 跨 await 禁止。
 - 每个 await 的占位 future 在构造器急切构造；未来改为惰性槽/状态枚举后消除。
@@ -312,7 +316,7 @@ impl __add_Fut {
 
 - 目标：`x = await f(args)` 与任意同步语句交错；支持 `if/elif/else`、`while`、`break/continue`、
   提前 `return`、嵌套组合；跨 await 的局部/参数提升为状态字段；每个 await 一个挂起点。
-- 非目标（v1）：泛型/方法上的 `#[async]`；`ref` 跨 await；表达式内部 await（先只支持赋值形式）；
+- 非目标（v1）：泛型/方法上的 `#[async]`；`ref` 跨 await；while 条件/控制流表达式内部 await；
   自定义 Executor/多线程调度（仍由单线程 `block_on` 驱动）。
 
 #### 前端标记与节点

@@ -149,6 +149,62 @@ fn syncmix(int x) -> int {
     return y
 }
 
+fn plus1(int x) -> int { return x + 1 }
+
+#[async]
+fn expr_sum(int x) -> int {
+    y = (await inc(x)) + 1
+    return y * 2
+}
+
+#[async]
+fn expr_ret(int x) -> int {
+    return (await inc(x)) + (await inc(x + 1))
+}
+
+#[async]
+fn expr_arg(int x) -> int {
+    y = await inc((await inc(x)) + 1)
+    return y
+}
+
+#[async]
+fn expr_product(int x) -> int {
+    return (await inc(x)) * (await inc(x))
+}
+
+#[async]
+fn expr_call(int x) -> int {
+    y = plus1(await inc(x))
+    return y
+}
+
+#[async]
+fn expr_if_cond(int x) -> int {
+    y = 0
+    if (await inc(x)) > 1 {
+        y = await inc(x)
+    } else {
+        y = 0
+    }
+    return y
+}
+
+#[async]
+fn loop_expr(int x) -> int {
+    y = 0
+    while y < 3 {
+        y = (await inc(y)) + 1
+    }
+    return y
+}
+
+#[async]
+fn expr_string(int x) -> String {
+    s = (await greet()) + "!"
+    return s
+}
+
 #[async]
 fn echo(String s) -> String { return s }
 
@@ -223,5 +279,23 @@ fn main() -> int {
     if block_on(ref mut f15) != 2 { return 18 }
     f16 = choose_sync(9)
     if block_on(ref mut f16) != 3 { return 19 }
+    f17 = expr_sum(1)
+    if block_on(ref mut f17) != 6 { return 20 }
+    f18 = expr_ret(1)
+    if block_on(ref mut f18) != 5 { return 21 }
+    f19 = expr_arg(1)
+    if block_on(ref mut f19) != 4 { return 22 }
+    f20 = expr_product(2)
+    if block_on(ref mut f20) != 9 { return 23 }
+    f21 = expr_call(1)
+    if block_on(ref mut f21) != 3 { return 24 }
+    s4 = expr_string(1)
+    if block_on_s(ref mut s4) != "hi!" { return 25 }
+    f22 = expr_if_cond(1)
+    if block_on(ref mut f22) != 2 { return 26 }
+    f23 = expr_if_cond(-1)
+    if block_on(ref mut f23) != 0 { return 27 }
+    f24 = loop_expr(0)
+    if block_on(ref mut f24) != 4 { return 28 }
     return 0
 }

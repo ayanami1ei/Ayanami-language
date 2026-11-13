@@ -8,20 +8,30 @@
 //!
 //! `#[async]` 在 HIR 之前被本 pass 消费，因此不进入 HIR 注解校验；
 //! 宏展开期由 macro_expand::expand_util::is_compiler_attr 放行。
-use std::collections::HashMap;
+use super::async_transform_await::{await_prefix, expand_await};
 use crate::error::{Error, Result};
+use crate::hir::async_transform_util::ty_src;
 use crate::intern::Symbol;
 use crate::parser::ast::vis::Visibility;
 use crate::parser::ast::{Program, Stmt, Type};
-use crate::hir::async_transform_util::ty_src;
-use super::async_transform_await::{await_prefix, expand_await};
+use std::collections::HashMap;
 /// 展开程序中的 `#[async]` 函数（cfg 过滤之后、HIR 降级之前）。
-pub fn expand(program: &Program, types: Option<&crate::hir::lower::AsyncLocalTypes>) -> Result<Program> {
+pub fn expand(
+    program: &Program,
+    types: Option<&crate::hir::lower::AsyncLocalTypes>,
+) -> Result<Program> {
     // await 目标函数的返回类型表（仅同程序 #[async] 函数）
     let mut returns: HashMap<Symbol, Type> = HashMap::new();
     let mut async_fns: HashMap<Symbol, Vec<(Symbol, Type)>> = HashMap::new();
     for stmt in &program.stmts {
-        if let Stmt::FnDecl { attrs, name, return_type, params, .. } = stmt {
+        if let Stmt::FnDecl {
+            attrs,
+            name,
+            return_type,
+            params,
+            ..
+        } = stmt
+        {
             if attrs.iter().any(is_async) {
                 returns.insert(*name, return_type.clone());
                 async_fns.insert(*name, params.clone());
@@ -31,11 +41,16 @@ pub fn expand(program: &Program, types: Option<&crate::hir::lower::AsyncLocalTyp
     let mut out = Vec::with_capacity(program.stmts.len());
     for stmt in &program.stmts {
         match stmt {
-            Stmt::FnDecl { attrs, .. } if attrs.iter().any(is_async) => expand_one(stmt, &returns, &async_fns, &mut out, types)?,
+            Stmt::FnDecl { attrs, .. } if attrs.iter().any(is_async) => {
+                expand_one(stmt, &returns, &async_fns, &mut out, types)?
+            }
             Stmt::FnDecl { attrs, body, .. }
                 if !attrs.iter().any(is_async)
                     && (body.stmts.iter().any(crate::hir::async_cfg::stmt_has_await)
-                        || body.tail.as_ref().is_some_and(|e| crate::hir::async_cfg::expr_has_await_pub(e))) =>
+                        || body
+                            .tail
+                            .as_ref()
+                            .is_some_and(|e| crate::hir::async_cfg::expr_has_await_pub(e))) =>
             {
                 return Err(Error::Hir(
                     "`await` is only allowed inside #[async] functions".into(),
@@ -64,57 +79,111 @@ fn contains_async(stmt: &Stmt) -> bool {
     }
 }
 
-fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, async_fns: &HashMap<Symbol, Vec<(Symbol, Type)>>, out: &mut Vec<Stmt>, types: Option<&crate::hir::lower::AsyncLocalTypes>) -> Result<()> {
+fn expand_one(
+    stmt: &Stmt,
+    returns: &HashMap<Symbol, Type>,
+    async_fns: &HashMap<Symbol, Vec<(Symbol, Type)>>,
+    out: &mut Vec<Stmt>,
+    types: Option<&crate::hir::lower::AsyncLocalTypes>,
+) -> Result<()> {
     let Stmt::FnDecl {
-        vis, name, generic_params, params, return_type, extern_c, is_unsafe, body, span, ..
-    } = stmt else { unreachable!() };
+        vis,
+        name,
+        generic_params,
+        params,
+        return_type,
+        extern_c,
+        is_unsafe,
+        body,
+        span,
+        ..
+    } = stmt
+    else {
+        unreachable!()
+    };
     let fail = |msg: String| Error::Hir(format!("#[async] `{}`: {}", name.as_str(), msg));
     if !generic_params.is_empty() {
         return Err(fail("generic functions are not supported (v1)".into()));
     }
     if *extern_c || *is_unsafe {
-        return Err(fail("extern/unsafe functions are not supported (v1)".into()));
+        return Err(fail(
+            "extern/unsafe functions are not supported (v1)".into(),
+        ));
     }
     if matches!(return_type, Type::Void(_) | Type::Default) {
         return Err(fail("a non-void return type is required (v1)".into()));
     }
     // A1b-3：通用 CFG（HIR 类型探针 + AST 状态机）；不支持时回退形状模块。
-    if crate::hir::async_cfg::try_expand(stmt, async_fns, out, types.and_then(|m| m.get(name)))? { return Ok(()); }
+    if crate::hir::async_cfg::try_expand(
+        stmt,
+        returns,
+        async_fns,
+        out,
+        types.and_then(|m| m.get(name)),
+    )? {
+        return Ok(());
+    }
     // A1b-2：直线 await 前缀（0..N 个连续 `x = await g(args)`，目标为同程序 #[async] 直接调用）
-    if crate::hir::async_elif::try_expand(stmt, returns, out)? { return Ok(()); }
-    if crate::hir::async_if::try_expand(stmt, returns, out)? { return Ok(()); }
-    if crate::hir::async_while::try_expand(stmt, returns, out)? { return Ok(()); }
-    if crate::hir::async_mixed::try_expand(stmt, returns, out, types.and_then(|m| m.get(name)))? { return Ok(()); }
+    if crate::hir::async_elif::try_expand(stmt, returns, out)? {
+        return Ok(());
+    }
+    if crate::hir::async_if::try_expand(stmt, returns, out)? {
+        return Ok(());
+    }
+    if crate::hir::async_while::try_expand(stmt, returns, out)? {
+        return Ok(());
+    }
+    if crate::hir::async_mixed::try_expand(stmt, returns, out, types.and_then(|m| m.get(name)))? {
+        return Ok(());
+    }
     let awaits = await_prefix(body, span)?;
     if !awaits.is_empty() {
         return expand_await(stmt, &awaits, returns, out);
     }
     if body.stmts.iter().any(crate::hir::async_cfg::stmt_has_await)
-        || body.tail.as_ref().map_or(false, |e| crate::hir::async_cfg::expr_has_await_pub(e))
+        || body
+            .tail
+            .as_ref()
+            .map_or(false, |e| crate::hir::async_cfg::expr_has_await_pub(e))
     {
         return Err(fail(
             "awaits inside loops/branches are not supported here \
-             (v1: assignment await in if/while/block)".into(),
+             (v1: assignment await in if/while/block)"
+                .into(),
         ));
     }
     let ret = ty_src(return_type).ok_or_else(|| fail("unsupported return type (v1)".into()))?;
     let mut ptypes = Vec::with_capacity(params.len());
     for (pn, pt) in params {
-        let t = ty_src(pt)
-            .ok_or_else(|| fail(format!("unsupported parameter type for `{}` (v1)", pn.as_str())))?;
+        let t = ty_src(pt).ok_or_else(|| {
+            fail(format!(
+                "unsupported parameter type for `{}` (v1)",
+                pn.as_str()
+            ))
+        })?;
         ptypes.push(t);
     }
     let fut = format!("__{}_Fut", name.as_str());
     let run = format!("__async_run_{}", name.as_str());
     let vis_s = if vis.is_public() { "pub " } else { "" };
-    let plist: Vec<String> = params.iter().zip(&ptypes)
-        .map(|((n, _), t)| format!("{} {}", t, n.as_str())).collect();
-    let fields: Vec<String> = params.iter().zip(&ptypes)
-        .map(|((n, _), t)| format!("{} {}", t, n.as_str())).collect();
-    let inits: Vec<String> = params.iter()
-        .map(|(n, _)| format!("{} = {}", n.as_str(), n.as_str())).collect();
-    let args: Vec<String> = params.iter()
-        .map(|(n, _)| format!("self.{}", n.as_str())).collect();
+    let plist: Vec<String> = params
+        .iter()
+        .zip(&ptypes)
+        .map(|((n, _), t)| format!("{} {}", t, n.as_str()))
+        .collect();
+    let fields: Vec<String> = params
+        .iter()
+        .zip(&ptypes)
+        .map(|((n, _), t)| format!("{} {}", t, n.as_str()))
+        .collect();
+    let inits: Vec<String> = params
+        .iter()
+        .map(|(n, _)| format!("{} = {}", n.as_str(), n.as_str()))
+        .collect();
+    let args: Vec<String> = params
+        .iter()
+        .map(|(n, _)| format!("self.{}", n.as_str()))
+        .collect();
     let field_decl = if fields.is_empty() {
         "int _done".to_string()
     } else {
@@ -135,11 +204,21 @@ fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, async_fns: &HashMap<
         ret = ret,
     );
     let generated = crate::parser::parse_source(&src).map_err(|e| {
-        Error::Hir(format!("#[async] expansion for `{}` produced invalid code: {}", name.as_str(), e))
+        Error::Hir(format!(
+            "#[async] expansion for `{}` produced invalid code: {}",
+            name.as_str(),
+            e
+        ))
     })?;
     out.extend(generated.stmts);
     let mut runner = stmt.clone();
-    if let Stmt::FnDecl { attrs, name: rn, vis: rv, .. } = &mut runner {
+    if let Stmt::FnDecl {
+        attrs,
+        name: rn,
+        vis: rv,
+        ..
+    } = &mut runner
+    {
         attrs.clear();
         *rn = Symbol::intern(&run);
         *rv = Visibility::Private;

@@ -178,3 +178,4 @@ await_mixed_nested_await.aya 0
 await_mixed_sync_newlocal.aya 0
 await_while_post_two.aya 0
 test_async_cfg.aya 0
+await_expr_position.aya 0

@@ -41,9 +41,9 @@ graph LR
     hir --> annotation_table
     hir -->|32| error
     hir --> formatter
-    hir -->|36| intern
+    hir -->|39| intern
     hir -->|2| mir
-    hir -->|46| parser
+    hir -->|49| parser
     hir -->|8| span
     lexer --> span
     lir --> error
@@ -71,8 +71,8 @@ graph LR
 
 | 来源 | 目标 | 引用数 |
 | --- | --- | ---: |
-| `hir` | `parser` | 46 |
-| `hir` | `intern` | 36 |
+| `hir` | `parser` | 49 |
+| `hir` | `intern` | 39 |
 | `hir` | `error` | 32 |
 | `compiler` | `error` | 12 |
 | `compiler` | `parser` | 9 |

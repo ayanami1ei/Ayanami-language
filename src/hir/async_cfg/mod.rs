@@ -7,17 +7,21 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::{Error, Result};
 use crate::hir::async_mixed_types::{hir_to_ast, type_default};
-use crate::hir::async_transform_util::ty_src;
 use crate::hir::ir::HirType;
 use crate::intern::Symbol;
 use crate::parser::ast::{Expr, Stmt, Type};
 
+mod anf;
+mod anf_expr;
 mod compiler;
 mod compiler_await;
 mod scan;
+mod util;
+use anf::Anf;
 use compiler::Cfg;
 pub(crate) use scan::stmt_has_await;
 use scan::{body_has_await, check_supported};
+use util::{ast_copy, bad_local_name, collect_assigned, field_name, source_ty};
 
 pub(super) struct Local {
     pub name: Symbol,
@@ -44,6 +48,7 @@ fn enabled() -> bool {
 /// 尝试用通用 CFG 展开一个 `#[async]` 函数；不支持时返回 false 交给形状模块。
 pub(crate) fn try_expand(
     stmt: &Stmt,
+    returns: &HashMap<Symbol, Type>,
     async_fns: &HashMap<Symbol, Vec<(Symbol, Type)>>,
     out: &mut Vec<Stmt>,
     types: Option<&HashMap<Symbol, HirType>>,
@@ -67,6 +72,11 @@ pub(crate) fn try_expand(
     }
     let fail = |m: String| Error::Hir(format!("#[async] `{}`: {}", name.as_str(), m));
     let span = body.span;
+    let mut anf = Anf::new(returns);
+    let Some((stmts, tail)) = anf.normalize_body(body) else {
+        return Ok(false);
+    };
+    let anf_types = anf.into_types();
 
     let mut locals: Vec<Local> = Vec::new();
     for (n, t) in params {
@@ -90,18 +100,24 @@ pub(crate) fn try_expand(
         });
     }
     let mut assigned = HashSet::new();
-    collect_assigned(&body.stmts, &mut assigned);
+    collect_assigned(&stmts, &mut assigned);
     let mut assigned: Vec<Symbol> = assigned.into_iter().collect();
     assigned.sort_by_key(|n| n.as_str().to_string());
     for n in assigned {
         if params.iter().any(|(p, _)| *p == n) {
             continue;
         }
-        let Some(hir_ty) = types.and_then(|m| m.get(&n)) else {
-            return Ok(false);
-        };
-        let Some(ast_ty) = hir_to_ast(hir_ty, span) else {
-            return Ok(false);
+        let (ast_ty, is_copy) = if let Some(t) = anf_types.get(&n) {
+            (t.clone(), ast_copy(t))
+        } else {
+            let Some(hir_ty) = types.and_then(|m| m.get(&n)) else {
+                return Ok(false);
+            };
+            let Some(ast_ty) = hir_to_ast(hir_ty, span) else {
+                return Ok(false);
+            };
+            let is_copy = hir_ty.is_copy();
+            (ast_ty, is_copy)
         };
         let Some(ty) = source_ty(&ast_ty) else {
             return Ok(false);
@@ -109,7 +125,6 @@ pub(crate) fn try_expand(
         let Some(init) = type_default(&ast_ty) else {
             return Ok(false);
         };
-        let is_copy = hir_ty.is_copy();
         locals.push(Local {
             name: n,
             field: field_name(n),
@@ -119,19 +134,21 @@ pub(crate) fn try_expand(
             is_copy,
         });
     }
-    if locals.iter().any(|l| bad_local_name(l.name)) {
+    if locals
+        .iter()
+        .any(|l| !anf_types.contains_key(&l.name) && bad_local_name(l.name))
+    {
         return Ok(false);
     }
     if locals.len() != locals.iter().map(|l| l.field).collect::<HashSet<_>>().len() {
         return Ok(false);
     }
 
-    let tail = body.tail.as_ref().map(|t| (**t).clone());
-    let terminal = tail.is_some() || matches!(body.stmts.last(), Some(Stmt::Return { .. }));
+    let terminal = tail.is_some() || matches!(stmts.last(), Some(Stmt::Return { .. }));
     if !terminal {
         return Ok(false);
     }
-    let mut stmts = body.stmts.clone();
+    let mut stmts = stmts;
     if let Some(t) = tail {
         stmts.push(Stmt::Return {
             value: Some(t),
@@ -210,67 +227,6 @@ pub(crate) fn try_expand(
         .map_err(|e| fail(format!("produced invalid code: {}", e)))?;
     out.extend(generated.stmts);
     Ok(true)
-}
-
-fn field_name(n: Symbol) -> Symbol {
-    Symbol::intern(&format!("__v_{}", n.as_str()))
-}
-
-fn bad_local_name(n: Symbol) -> bool {
-    let s = n.as_str();
-    s == "self" || s.starts_with("__async_")
-}
-
-fn source_ty(t: &Type) -> Option<String> {
-    let s = ty_src(t)?;
-    Some(s.replace('<', "[").replace('>', "]"))
-}
-
-fn collect_assigned(stmts: &[Stmt], out: &mut HashSet<Symbol>) {
-    for st in stmts {
-        match st {
-            Stmt::Assign { name, .. } => {
-                out.insert(*name);
-            }
-            Stmt::If {
-                then_block,
-                elifs,
-                else_block,
-                ..
-            } => {
-                collect_assigned(&then_block.stmts, out);
-                for (_, b) in elifs {
-                    collect_assigned(&b.stmts, out);
-                }
-                if let Some(b) = else_block {
-                    collect_assigned(&b.stmts, out);
-                }
-            }
-            Stmt::While { body, .. } | Stmt::Block(body) => {
-                collect_assigned(&body.stmts, out);
-            }
-            Stmt::For { iterator, body, .. } => {
-                out.insert(*iterator);
-                collect_assigned(&body.stmts, out);
-            }
-            Stmt::ForIn { iterator, body, .. } => {
-                out.insert(*iterator);
-                collect_assigned(&body.stmts, out);
-            }
-            Stmt::Unsafe { block, .. } => collect_assigned(&block.stmts, out),
-            Stmt::Match { arms, .. } => {
-                for arm in arms {
-                    if let crate::parser::ast::stmt::MatchBody::Block(b) = &arm.body {
-                        collect_assigned(&b.stmts, out);
-                    }
-                }
-            }
-            Stmt::Attributed { stmt, .. } => {
-                collect_assigned(std::slice::from_ref(stmt.as_ref()), out)
-            }
-            _ => {}
-        }
-    }
 }
 
 pub(crate) fn expr_has_await_pub(e: &Expr) -> bool {
