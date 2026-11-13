@@ -330,6 +330,17 @@ fn while_post_str(int x) -> int {
     return s.len as int + y
 }
 
+#[async]
+fn while_post2(int x) -> int {
+    y = 0
+    while y < 2 {
+        y = await inc(y)
+    }
+    a = await inc(y)
+    b = await inc(a)
+    return b * 10
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -451,5 +462,7 @@ fn main() -> int {
     if block_on(ref mut x4) != 40 { return 45 }
     x5 = while_post_str(0)
     if block_on(ref mut x5) != 5 { return 46 }
+    x6 = while_post2(0)
+    if block_on(ref mut x6) != 40 { return 47 }
     return 0
 }

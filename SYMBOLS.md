@@ -421,7 +421,7 @@ src/hir/async_transform_util.rs:22: pub(crate) fn await_default(ty: &Type) -> Op
 src/hir/async_transform_util.rs:32: pub(crate) fn type_name(ty: &Type) -> String
 src/hir/async_while.rs:12: struct PostAwait
 src/hir/async_while.rs:23: pub(crate) fn try_expand(
-src/hir/async_while.rs:211: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_while.rs:231: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_while_util.rs:7: pub(super) enum Ctrl
 src/hir/async_while_util.rs:13: pub(super) fn ctrl_helper(
 src/hir/async_while_util.rs:58: pub(super) struct Shape
@@ -2820,9 +2820,10 @@ example/test_async_await.aya:290: fn branch_sync(int x) -> int
 example/test_async_await.aya:302: fn loop_sync(int x) -> int
 example/test_async_await.aya:314: fn while_post(int x) -> int
 example/test_async_await.aya:324: fn while_post_str(int x) -> int
-example/test_async_await.aya:334: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_await.aya:348: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_await.aya:361: fn main() -> int
+example/test_async_await.aya:334: fn while_post2(int x) -> int
+example/test_async_await.aya:345: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:359: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:372: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker

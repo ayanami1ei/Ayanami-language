@@ -80,51 +80,59 @@ pub(crate) fn try_expand(
         inits.push(format!("__w{} = {}({})", i, g.as_str(), placeholder.join(", ")));
         real_args.push(real.join(", "));
     }
-    // 循环后的单个 await：z = await h(args)；tail 为其余同步语句
+    // 循环后的连续 await：z_i = await h_i(args)；args 可引用参数/y/更早的 post 结果
     let rest = &body.stmts[2..];
-    let mut tail: Vec<Stmt> = rest.to_vec();
-    let mut post_await: Option<PostAwait> = None;
-    if let Some(Stmt::Assign { name: z, value, .. }) = rest.first() {
-        if let Some((h, hargs)) = await_parts(value) {
-            let Some(h_ret) = returns.get(&h).cloned() else { return Ok(false) };
-            let Some((z_ts, z_init)) = await_default(&h_ret) else { return Ok(false) };
-            if *z == y || params.iter().any(|(p, _)| p == z) { return Ok(false); }
-            let mut placeholders = Vec::new();
-            let mut reals = Vec::new();
-            for a in hargs {
-                let Expr::Ident(n, _) = a else { return Ok(false) };
-                if params.iter().any(|(p, _)| p == n) {
-                    placeholders.push(n.as_str().to_string());
-                    reals.push(format!("self.{}", n.as_str()));
-                } else if *n == y {
-                    placeholders.push(y_init.to_string());
-                    reals.push("self.y".to_string());
-                } else {
-                    return Ok(false);
-                }
+    let mut posts: Vec<PostAwait> = Vec::new();
+    let mut idx = 0;
+    while idx < rest.len() {
+        let Stmt::Assign { name: z, value, .. } = &rest[idx] else { break };
+        let Some((h, hargs)) = await_parts(value) else { break };
+        let Some(h_ret) = returns.get(&h).cloned() else { return Ok(false) };
+        let Some((z_ts, z_init)) = await_default(&h_ret) else { return Ok(false) };
+        if *z == y || params.iter().any(|(p, _)| p == z) || posts.iter().any(|p| p.target == *z) {
+            return Ok(false);
+        }
+        let mut placeholders = Vec::new();
+        let mut reals = Vec::new();
+        for a in hargs {
+            let Expr::Ident(n, _) = a else { return Ok(false) };
+            if params.iter().any(|(p, _)| p == n) {
+                placeholders.push(n.as_str().to_string());
+                reals.push(format!("self.{}", n.as_str()));
+            } else if *n == y {
+                placeholders.push(y_init.to_string());
+                reals.push("self.y".to_string());
+            } else if let Some(prev) = posts.iter().find(|p| p.target == *n) {
+                placeholders.push(prev.init.clone());
+                reals.push(format!("self.{}", n.as_str()));
+            } else {
+                return Ok(false);
             }
-            tail = rest[1..].to_vec();
-            if tail.is_empty() { return Ok(false); }
-            for st in &tail {
-                if let Stmt::Assign { value, .. } = st {
-                    if await_parts(value).is_some() { return Ok(false); }
-                }
+        }
+        posts.push(PostAwait {
+            target: *z,
+            g: h,
+            placeholders,
+            reals,
+            ret: h_ret,
+            ty: z_ts.to_string(),
+            init: z_init.to_string(),
+        });
+        idx += 1;
+    }
+    let tail: Vec<Stmt> = rest[idx..].to_vec();
+    if !posts.is_empty() {
+        if tail.is_empty() { return Ok(false); }
+        for st in &tail {
+            if let Stmt::Assign { value, .. } = st {
+                if await_parts(value).is_some() { return Ok(false); }
             }
-            post_await = Some(PostAwait {
-                target: *z,
-                g: h,
-                placeholders,
-                reals,
-                ret: h_ret,
-                ty: z_ts.to_string(),
-                init: z_init.to_string(),
-            });
         }
     }
-    if let Some(pa) = &post_await {
-        fields.push(format!("__{}_Fut __p", pa.g.as_str()));
+    for (i, pa) in posts.iter().enumerate() {
+        fields.push(format!("__{}_Fut __p{}", pa.g.as_str(), i));
         fields.push(format!("{} {}", pa.ty, pa.target.as_str()));
-        inits.push(format!("__p = {}({})", pa.g.as_str(), pa.placeholders.join(", ")));
+        inits.push(format!("__p{} = {}({})", i, pa.g.as_str(), pa.placeholders.join(", ")));
         inits.push(format!("{} = {}", pa.target.as_str(), pa.init));
     }
     fields.push(format!("{} y", y_ty));
@@ -184,25 +192,37 @@ pub(crate) fn try_expand(
              \x20       }}\n\
              \x20   }}\n"));
     }
-    let after_args = if let Some(pa) = &post_await {
-        format!("{}, self.{}", helper_args, pa.target.as_str())
-    } else {
-        helper_args.clone()
-    };
-    if let Some(pa) = &post_await {
-        let poll_state = exit + 1;
-        let final_state = exit + 2;
-        poll.push_str(&format!(
-            "    if self._state == {exit} {{ self.__p = {}({}); self._state = {poll_state} }}\n\
-             \x20   if self._state == {poll_state} {{\n\
-             \x20       pp = self.__p.poll(ref cx)\n\
-             \x20       match pp {{ Ready(v) => {{ self.{} = v; self._state = {final_state} }} Pending => {{ return Poll::Pending() }} }}\n\
-             \x20   }}\n\
-             \x20   if self._state == {final_state} {{ return Poll::Ready({after}({after_args})) }}\n",
-            pa.g.as_str(), pa.reals.join(", "), pa.target.as_str()));
-    } else {
+    let mut after_args = helper_args.clone();
+    for pa in &posts {
+        after_args.push_str(&format!(", self.{}", pa.target.as_str()));
+    }
+    if posts.is_empty() {
         poll.push_str(&format!(
             "    if self._state == {exit} {{ return Poll::Ready({after}({after_args})) }}\n"));
+    } else {
+        let first_post = &posts[0];
+        poll.push_str(&format!(
+            "    if self._state == {exit} {{ self.__p0 = {}({}); self._state = {} }}\n",
+            first_post.g.as_str(), first_post.reals.join(", "), exit + 1));
+        let final_state = exit + posts.len() + 1;
+        for (i, pa) in posts.iter().enumerate() {
+            let poll_state = exit + 1 + i;
+            let ready = if i + 1 < posts.len() {
+                let next = &posts[i + 1];
+                format!("self.__p{} = {}({}); self._state = {}",
+                    i + 1, next.g.as_str(), next.reals.join(", "), poll_state + 1)
+            } else {
+                format!("self._state = {}", final_state)
+            };
+            poll.push_str(&format!(
+                "    if self._state == {poll_state} {{\n\
+                 \x20       pp{i} = self.__p{i}.poll(ref cx)\n\
+                 \x20       match pp{i} {{ Ready(v) => {{ self.{} = v; {ready} }} Pending => {{ return Poll::Pending() }} }}\n\
+                 \x20   }}\n",
+                pa.target.as_str()));
+        }
+        poll.push_str(&format!(
+            "    if self._state == {final_state} {{ return Poll::Ready({after}({after_args})) }}\n"));
     }
     poll.push_str("}\nreturn Poll::Pending()\n");
     let src = format!(
@@ -242,7 +262,7 @@ pub(crate) fn try_expand(
         *an = Symbol::intern(&after);
         *av = Visibility::Private;
         ap.push((y, (*first).clone()));
-        if let Some(pa) = &post_await {
+        for pa in &posts {
             ap.push((pa.target, pa.ret.clone()));
         }
         let mut b = ab.clone();

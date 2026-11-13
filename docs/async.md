@@ -216,9 +216,10 @@ impl __add_Fut {
   每个 await 一个 future 字段，Ready 后立即用更新后的 `y` 重建下一个 future（状态链），
   最后一个 Ready 后执行 post 控制并回 state0。用例 `double_inc` / `triple_inc` / `double_find`。
   负例：`await_loop_mixed_stmt`（await 之间夹杂普通语句）、`await_loop_mixed_type`（结果类型不一致）。
-- 循环后单个 await（2026-11-13）：`while cond { ... }; z = await h(args); <tail>` 支持（args 限参数或
-  循环变量；tail 不含 await）。循环汇合后进入 post 状态，Ready 写 `z` 后执行 tail。用例 `while_post`
-  / `while_post_str`；负例 `await_while_post_two`（tail 中还有 await）。多个 post await 留给后续。
+- 循环后连续多个 await（2026-11-13）：`while cond { ... }; z0 = await h0(args); z1 = await h1(args); <tail>`
+  支持；args 限参数、循环变量或更早的 post 结果；tail 不含 await。每个 post await 一个 future 字段与
+  状态，Ready 后写对应 `z_i` 再继续。用例 `while_post` / `while_post_str` / `while_post2`；
+  负例 `await_while_post_two`（同步语句后还有 await）。
 - if 分支内连续多个 await（2026-10-25）：`y = 默认; if cond { y = await g0(args); ... }`（N≥2 走
   `async_if_multi`，单个仍走 `async_if`）。每个 await 一个 future 字段，Ready 后写 `y` 并用更新后的
   `y` 重建下一个；条件限参数，实参限参数或分支变量 `y`。用例 `if_double` / `if_triple`；
