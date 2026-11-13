@@ -310,6 +310,26 @@ fn loop_sync(int x) -> int {
     return b
 }
 
+#[async]
+fn while_post(int x) -> int {
+    y = 0
+    while y < 3 {
+        y = await inc(y)
+    }
+    z = await inc(y)
+    return z * 10
+}
+
+#[async]
+fn while_post_str(int x) -> int {
+    y = 0
+    while y < 2 {
+        y = await inc(y)
+    }
+    s = await exclaim()
+    return s.len as int + y
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -427,5 +447,9 @@ fn main() -> int {
     if block_on(ref mut x2) != 11 { return 43 }
     x3 = loop_sync(1)
     if block_on(ref mut x3) != 3 { return 44 }
+    x4 = while_post(0)
+    if block_on(ref mut x4) != 40 { return 45 }
+    x5 = while_post_str(0)
+    if block_on(ref mut x5) != 5 { return 46 }
     return 0
 }

@@ -27,7 +27,16 @@ pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)> {
             }
         }
     }
-    // Fall back to system PATH
+    // Fall back to PATH：解析真实路径，连同目录一起返回，便于加载同目录 libLLVM
+    if let Some(paths) = std::env::var_os("PATH") {
+        for dir in std::env::split_paths(&paths) {
+            let cand = dir.join("llc");
+            if cand.is_file() {
+                let d = cand.parent().unwrap_or(Path::new(".")).to_path_buf();
+                return Ok((cand, d));
+            }
+        }
+    }
     Ok((PathBuf::from("llc"), PathBuf::new()))
 }
 

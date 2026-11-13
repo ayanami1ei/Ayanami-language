@@ -306,12 +306,12 @@ src/driver/mod.rs:10: mod link;
 src/driver/mod.rs:11: mod lto;
 src/driver/mod.rs:12: mod runtime;
 src/driver/mod.rs:20: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
-src/driver/mod.rs:40: pub(super) fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
-src/driver/mod.rs:60: pub fn build_mode_key() -> String
-src/driver/mod.rs:71: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:148: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
-src/driver/mod.rs:168: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:173: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:49: pub(super) fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
+src/driver/mod.rs:69: pub fn build_mode_key() -> String
+src/driver/mod.rs:80: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:157: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
+src/driver/mod.rs:177: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:182: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
 src/driver/runtime.rs:12: pub(crate) fn resolve_runtime(src_path: &Path) -> Result<Option<PathBuf>>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
@@ -419,14 +419,16 @@ src/hir/async_transform.rs:274: impl {fut} {{\n    #[state]\n    fn poll(ref mut
 src/hir/async_transform_util.rs:5: pub(crate) fn ty_src(ty: &Type) -> Option<String>
 src/hir/async_transform_util.rs:22: pub(crate) fn await_default(ty: &Type) -> Option<(&'static str, &'static str)>
 src/hir/async_transform_util.rs:32: pub(crate) fn type_name(ty: &Type) -> String
-src/hir/async_while.rs:12: struct Shape
-src/hir/async_while.rs:22: pub(crate) fn try_expand(
-src/hir/async_while.rs:145: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_while.rs:195: fn detect(body: &Block) -> Option<Shape>
-src/hir/async_while.rs:235: fn awaited_assignment(st: &Stmt) -> Option<(Symbol, Symbol, Vec<Expr>)>
-src/hir/async_while.rs:243: fn ctrl_of(st: &Stmt) -> Option<(Expr, Ctrl)>
+src/hir/async_while.rs:12: struct PostAwait
+src/hir/async_while.rs:23: pub(crate) fn try_expand(
+src/hir/async_while.rs:211: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_while_util.rs:7: pub(super) enum Ctrl
 src/hir/async_while_util.rs:13: pub(super) fn ctrl_helper(
+src/hir/async_while_util.rs:58: pub(super) struct Shape
+src/hir/async_while_util.rs:69: pub(super) fn detect(body: &Block) -> Option<Shape>
+src/hir/async_while_util.rs:109: pub(super) fn awaited_assignment(st: &Stmt) -> Option<(Symbol, Symbol, Vec<Expr>)>
+src/hir/async_while_util.rs:117: fn ctrl_of(st: &Stmt) -> Option<(Expr, Ctrl)>
+src/hir/async_while_util.rs:128: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, &[Expr])>
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
 src/hir/attrs.rs:39: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
 src/hir/attrs.rs:43: pub struct Imports
@@ -2816,9 +2818,11 @@ example/test_async_await.aya:274: fn expr_arg(int x) -> int
 example/test_async_await.aya:282: fn call_arg(int x) -> int
 example/test_async_await.aya:290: fn branch_sync(int x) -> int
 example/test_async_await.aya:302: fn loop_sync(int x) -> int
-example/test_async_await.aya:314: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_await.aya:328: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_await.aya:341: fn main() -> int
+example/test_async_await.aya:314: fn while_post(int x) -> int
+example/test_async_await.aya:324: fn while_post_str(int x) -> int
+example/test_async_await.aya:334: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:348: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:361: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker

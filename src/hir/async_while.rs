@@ -4,18 +4,19 @@ use std::collections::HashMap;
 
 use crate::error::{Error, Result};
 use crate::hir::async_transform_util::{await_default, ty_src};
-use crate::hir::async_while_util::{ctrl_helper, Ctrl};
+use crate::hir::async_while_util::{await_parts, ctrl_helper, detect, Shape};
 use crate::intern::Symbol;
 use crate::parser::ast::vis::Visibility;
-use crate::parser::ast::{Block, Expr, Program, Stmt, Type};
+use crate::parser::ast::{Expr, Program, Stmt, Type};
 
-struct Shape {
-    y: Symbol,
-    /// 连续的 (async 函数, 实参) 序列，全部赋值给 `y`。
-    awaits: Vec<(Symbol, Vec<Expr>)>,
-    cond: Expr,
-    pre: Vec<(Expr, Ctrl)>,
-    post: Vec<(Expr, Ctrl)>,
+struct PostAwait {
+    target: Symbol,
+    g: Symbol,
+    placeholders: Vec<String>,
+    reals: Vec<String>,
+    ret: Type,
+    ty: String,
+    init: String,
 }
 
 /// 尝试展开 while 内 await；不匹配返回 false。
@@ -79,6 +80,53 @@ pub(crate) fn try_expand(
         inits.push(format!("__w{} = {}({})", i, g.as_str(), placeholder.join(", ")));
         real_args.push(real.join(", "));
     }
+    // 循环后的单个 await：z = await h(args)；tail 为其余同步语句
+    let rest = &body.stmts[2..];
+    let mut tail: Vec<Stmt> = rest.to_vec();
+    let mut post_await: Option<PostAwait> = None;
+    if let Some(Stmt::Assign { name: z, value, .. }) = rest.first() {
+        if let Some((h, hargs)) = await_parts(value) {
+            let Some(h_ret) = returns.get(&h).cloned() else { return Ok(false) };
+            let Some((z_ts, z_init)) = await_default(&h_ret) else { return Ok(false) };
+            if *z == y || params.iter().any(|(p, _)| p == z) { return Ok(false); }
+            let mut placeholders = Vec::new();
+            let mut reals = Vec::new();
+            for a in hargs {
+                let Expr::Ident(n, _) = a else { return Ok(false) };
+                if params.iter().any(|(p, _)| p == n) {
+                    placeholders.push(n.as_str().to_string());
+                    reals.push(format!("self.{}", n.as_str()));
+                } else if *n == y {
+                    placeholders.push(y_init.to_string());
+                    reals.push("self.y".to_string());
+                } else {
+                    return Ok(false);
+                }
+            }
+            tail = rest[1..].to_vec();
+            if tail.is_empty() { return Ok(false); }
+            for st in &tail {
+                if let Stmt::Assign { value, .. } = st {
+                    if await_parts(value).is_some() { return Ok(false); }
+                }
+            }
+            post_await = Some(PostAwait {
+                target: *z,
+                g: h,
+                placeholders,
+                reals,
+                ret: h_ret,
+                ty: z_ts.to_string(),
+                init: z_init.to_string(),
+            });
+        }
+    }
+    if let Some(pa) = &post_await {
+        fields.push(format!("__{}_Fut __p", pa.g.as_str()));
+        fields.push(format!("{} {}", pa.ty, pa.target.as_str()));
+        inits.push(format!("__p = {}({})", pa.g.as_str(), pa.placeholders.join(", ")));
+        inits.push(format!("{} = {}", pa.target.as_str(), pa.init));
+    }
     fields.push(format!("{} y", y_ty));
     fields.push("int _state".to_string());
     inits.push(format!("y = {}", y_init));
@@ -136,9 +184,27 @@ pub(crate) fn try_expand(
              \x20       }}\n\
              \x20   }}\n"));
     }
-    poll.push_str(&format!(
-        "    if self._state == {exit} {{ return Poll::Ready({after}({helper_args})) }}\n}}\n\
-         return Poll::Pending()\n"));
+    let after_args = if let Some(pa) = &post_await {
+        format!("{}, self.{}", helper_args, pa.target.as_str())
+    } else {
+        helper_args.clone()
+    };
+    if let Some(pa) = &post_await {
+        let poll_state = exit + 1;
+        let final_state = exit + 2;
+        poll.push_str(&format!(
+            "    if self._state == {exit} {{ self.__p = {}({}); self._state = {poll_state} }}\n\
+             \x20   if self._state == {poll_state} {{\n\
+             \x20       pp = self.__p.poll(ref cx)\n\
+             \x20       match pp {{ Ready(v) => {{ self.{} = v; self._state = {final_state} }} Pending => {{ return Poll::Pending() }} }}\n\
+             \x20   }}\n\
+             \x20   if self._state == {final_state} {{ return Poll::Ready({after}({after_args})) }}\n",
+            pa.g.as_str(), pa.reals.join(", "), pa.target.as_str()));
+    } else {
+        poll.push_str(&format!(
+            "    if self._state == {exit} {{ return Poll::Ready({after}({after_args})) }}\n"));
+    }
+    poll.push_str("}\nreturn Poll::Pending()\n");
     let src = format!(
         "{vis_s}struct {fut} {{\n    {fields}\n}}\n\
          {vis_s}fn {name}({plist}) -> {fut} {{\n    return {fut} {{ {inits} }}\n}}\n\
@@ -176,8 +242,11 @@ pub(crate) fn try_expand(
         *an = Symbol::intern(&after);
         *av = Visibility::Private;
         ap.push((y, (*first).clone()));
+        if let Some(pa) = &post_await {
+            ap.push((pa.target, pa.ret.clone()));
+        }
         let mut b = ab.clone();
-        b.stmts = body.stmts[2..].to_vec();
+        b.stmts = tail;
         *ab = b;
     }
     helpers.push(after_fn);
@@ -189,63 +258,4 @@ pub(crate) fn try_expand(
         out.extend(h.stmts);
     }
     Ok(true)
-}
-
-/// 匹配 `y = <默认>; while cond { [if c { break/continue }] (y = await g(args))+ [if c { break/continue }] }; ...`。
-fn detect(body: &Block) -> Option<Shape> {
-    let [Stmt::Assign { name: pre, .. }, Stmt::While { cond, body: wbody, .. }, ..] =
-        body.stmts.as_slice() else { return None };
-    let mut phase = 0u8; // 0=await 前，1=await 序列，2=await 后
-    let mut start = None;
-    let mut end = 0;
-    let mut awaits = Vec::new();
-    for (i, st) in wbody.stmts.iter().enumerate() {
-        if let Some((name, g, gargs)) = awaited_assignment(st) {
-            if phase == 2 { return None; }
-            if start.is_none() {
-                if pre != &name { return None; }
-                start = Some(i);
-            }
-            if name != *pre { return None; }
-            awaits.push((g, gargs));
-            end = i + 1;
-            phase = 1;
-        } else if phase == 1 {
-            phase = 2;
-        }
-    }
-    let start = start?;
-    let mut pre_ctrl = Vec::new();
-    for st in &wbody.stmts[..start] {
-        pre_ctrl.push(ctrl_of(st)?);
-    }
-    let mut post_ctrl = Vec::new();
-    for st in &wbody.stmts[end..] {
-        post_ctrl.push(ctrl_of(st)?);
-    }
-    Some(Shape {
-        y: *pre,
-        awaits,
-        cond: cond.clone(),
-        pre: pre_ctrl,
-        post: post_ctrl,
-    })
-}
-
-fn awaited_assignment(st: &Stmt) -> Option<(Symbol, Symbol, Vec<Expr>)> {
-    let Stmt::Assign { name, value, .. } = st else { return None };
-    let Expr::FnCall { name: an, args, .. } = value else { return None };
-    if an.as_str() != "__await" { return None; }
-    let Expr::FnCall { name: g, args: gargs, .. } = args.first()? else { return None };
-    Some((*name, *g, gargs.clone()))
-}
-
-fn ctrl_of(st: &Stmt) -> Option<(Expr, Ctrl)> {
-    let Stmt::If { cond, then_block, elifs, else_block: None, .. } = st else { return None };
-    if !elifs.is_empty() { return None; }
-    match then_block.stmts.as_slice() {
-        [Stmt::Break { .. }] => Some((cond.clone(), Ctrl::Break)),
-        [Stmt::Continue { .. }] => Some((cond.clone(), Ctrl::Continue)),
-        _ => None,
-    }
 }
