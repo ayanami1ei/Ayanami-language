@@ -1,0 +1,12 @@
+// #220：浮点 != 必须是 unordered-not-equal（NaN != NaN 为 true）。
+import "math"
+
+fn main() -> int {
+    a = sqrt(0.0 - 1.0)
+    if !(a != a) { return 1 }
+    if a == a { return 2 }
+    if !(a != 1.0) { return 3 }
+    if 1.0 != 1.0 { return 4 }
+    if !(1.0 != 2.0) { return 5 }
+    return 0
+}

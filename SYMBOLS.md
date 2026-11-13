@@ -752,7 +752,7 @@ src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: 
 src/hir/lower/body/expr_misc.rs:32: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Block) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_ops1.rs:180: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_ops1.rs:189: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_reinterpret.rs:7: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_reinterpret.rs:9: pub(crate) fn lower_reinterpret_builtin(
 src/hir/lower/body/expr_reinterpret.rs:48: fn reinterpret_size(ty: &HirType) -> Option<u64>
@@ -3102,6 +3102,9 @@ example/test_bitwise.aya:12: fn bit_and32(self, i32 other) -> i32 { return self 
 example/test_bitwise.aya:15: fn main() -> int
 example/test_bool.aya:1: fn main() -> int
 example/test_bool2.aya:1: fn main() -> int
+example/test_bool_cmp.aya:2: fn neq(int a, int b) -> bool
+example/test_bool_cmp.aya:6: fn eq(int a, int b) -> bool
+example/test_bool_cmp.aya:10: fn main() -> int
 example/test_bool_to_int.aya:4: struct H { int v }
 example/test_bool_to_int.aya:6: fn main() -> int
 example/test_bool_var.aya:2: fn main() -> int
@@ -3242,6 +3245,7 @@ example/test_ffi_attrs.aya:32: fn main() -> int
 example/test_field_move.aya:4: struct S { [int] data }
 example/test_field_move.aya:6: fn run() -> int
 example/test_field_move.aya:12: fn main() -> int
+example/test_float_nan_cmp.aya:4: fn main() -> int
 example/test_fn_fold.aya:5: fn fold_str(String acc, String item, Fn(String, String) -> String f) -> String
 example/test_fn_fold.aya:15: fn main() -> int
 example/test_fn_once.aya:5: struct Holder

@@ -161,8 +161,17 @@ impl crate::hir::lower::Ctx {
             return Ok(self.lower_ovf_call(op_name, &inner_ty, hir_lhs, hir_rhs, span));
         }
         // 注意：比较运算的 ty 保持操作数类型；结果类型（Bool）由 MIR→LIR 降级决定。
+        // 但两个比较结果（或比较与 bool）之间再做 ==/!= 时，操作数在 LIR 是 i1，
+        // 必须把本节点的操作数类型收敛为 Bool，否则会发射 icmp i64 on i1。
+        let l_boolish = hir_lhs.is_comparison()
+            || matches!(strip_ownership(lhs_ty.clone()), HirType::Bool);
+        let r_boolish = hir_rhs.is_comparison()
+            || matches!(strip_ownership(rhs_ty.clone()), HirType::Bool);
+        let bool_eq = matches!(op, BinaryOp::Eq | BinaryOp::Neq) && l_boolish && r_boolish;
         // 逻辑与/或的结果是 bool，直接给 Bool 类型。
         let binop_ty = if matches!(op, BinaryOp::And | BinaryOp::Or) {
+            HirType::Bool
+        } else if bool_eq {
             HirType::Bool
         } else if is_null_ptr_cmp {
             if lhs_is_null { rhs_ty.clone() } else { lhs_ty.clone() }

@@ -182,3 +182,5 @@ await_expr_position.aya 0
 await_while_cond.aya 0
 await_for_body.aya 0
 test_match_guard_block.aya 0
+test_bool_cmp.aya 0
+test_float_nan_cmp.aya 0

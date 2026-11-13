@@ -57,7 +57,7 @@ pub(crate) fn float_binop(op: BinaryOp, ty: &HirType, dest: u64, l: &str, r: &st
 pub(crate) fn float_cmp(op: BinaryOp, ty: &HirType, dest: u64, l: &str, r: &str) -> String {
     let t = if matches!(ty, HirType::F32) { "float" } else { "double" };
     let pred = match op {
-        BinaryOp::Eq => "oeq", BinaryOp::Neq => "one", BinaryOp::Lt => "olt",
+        BinaryOp::Eq => "oeq", BinaryOp::Neq => "une", BinaryOp::Lt => "olt",
         BinaryOp::Gt => "ogt", BinaryOp::Le => "ole", _ => "oge",
     };
     format!("%t{} = fcmp {} {} {}, {}", dest, pred, t, l, r)

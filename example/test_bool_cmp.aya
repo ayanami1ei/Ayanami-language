@@ -1,0 +1,16 @@
+// #219：两个比较结果之间再做 ==/!= 必须按 i1 比较。
+fn neq(int a, int b) -> bool {
+    return (a < 0) != (b < 0)
+}
+
+fn eq(int a, int b) -> bool {
+    return (a < 0) == (b < 0)
+}
+
+fn main() -> int {
+    if neq(-1, -2) { return 1 }
+    if !neq(-1, 2) { return 2 }
+    if !eq(-1, -2) { return 3 }
+    if eq(-1, 2) { return 4 }
+    return 0
+}
