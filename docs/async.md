@@ -236,7 +236,9 @@ impl __add_Fut {
   支持（args 限参数/y/更早 post 结果；tail 不含 await）。用例 `if_post` / `if_post2`。
 - if/else 分支后的连续 await（2026-11-13）：`y=默认; if c { y=await g1 } else { y=await g2 }; z_i=await h_i; tail`
   支持（各分支一个 await；post 实参可链式引用）。用例 `choose_post` / `choose_post2`。
-  多 await 分支（if/elif 任一侧 ≥2）后的 post await 仍留给后续。
+- if/elif/else 分支后的连续 await（2026-11-13）：每分支一个 await，post await 连续；条件限参数，
+  post 实参可引用参数/分支变量/更早 post 结果。用例 `elif_post` / `elif_post2`。
+  多 await 分支（任一侧 ≥2）后的 post await 仍留给后续。
 - 直线 mixed await（A1b-3a 过渡桥，2026-10-25）：await 与同步赋值/表达式混排（无 if/while/match）；
   参数与局部提升为 `__v_*` 字段，每个 await 两段状态。类型优先 AST 轻量推断（参数、await 结果、
   字面量、算术/比较、`as`），推断失败时用一次**无 async 展开的 HIR 探针**补充方法调用/字段读取

@@ -6,6 +6,7 @@ pub(crate) mod async_mixed_expr;
 pub(crate) mod async_transform_util;
 pub(crate) mod async_elif;
 pub(crate) mod async_elif_multi;
+pub(crate) mod async_elif_post;
 pub(crate) mod async_if;
 pub(crate) mod async_if_multi;
 pub(crate) mod async_if_post;
