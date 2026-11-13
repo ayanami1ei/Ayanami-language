@@ -297,8 +297,8 @@ impl __add_Fut {
 - future 字段：每个 await 一个 `__wN`，构造器用目标 async 函数的参数默认值构造占位 future；
   进入 await 时用真实实参重建。
 - 状态：`int _state` + `while true { if self._state == n { ... } }`；入口 PC 由构造器写入。
-- 验证：`example/test_async_cfg.aya` 17 项断言覆盖嵌套 if/while/break/continue、提前 return、
-  String 局部/参数/await 实参；原 8 个“形态不支持”负例转为正例；回归 positive=180 negative=111。
+- 验证：`example/test_async_cfg.aya` 19 项断言覆盖嵌套 if/while/break/continue、提前 return、
+  同步 match 赋值、String 局部/参数/await 实参；原 8 个“形态不支持”负例转为正例；回归 positive=180 negative=111。
 
 #### 已知限制（v1）
 

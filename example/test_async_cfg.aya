@@ -160,6 +160,17 @@ fn pass(int x, String s) -> String {
 }
 
 #[async]
+fn choose_sync(int x) -> int {
+    y = 0
+    match x {
+        0 => { y = 1 }
+        _ => { y = 2 }
+    }
+    z = await inc(y)
+    return z
+}
+
+#[async]
 fn join(int x) -> String {
     s = "a"
     t = await greet()
@@ -208,5 +219,9 @@ fn main() -> int {
     if block_on_s(ref mut s2) != "ahi?hi" { return 16 }
     s3 = pass(1, "yo")
     if block_on_s(ref mut s3) != "yo" { return 17 }
+    f15 = choose_sync(0)
+    if block_on(ref mut f15) != 2 { return 18 }
+    f16 = choose_sync(9)
+    if block_on(ref mut f16) != 3 { return 19 }
     return 0
 }

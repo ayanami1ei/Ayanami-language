@@ -395,8 +395,8 @@ src/hir/async_cfg/mod.rs:215: fn field_name(n: Symbol) -> Symbol
 src/hir/async_cfg/mod.rs:219: fn bad_local_name(n: Symbol) -> bool
 src/hir/async_cfg/mod.rs:224: fn source_ty(t: &Type) -> Option<String>
 src/hir/async_cfg/mod.rs:229: fn collect_assigned(stmts: &[Stmt], out: &mut HashSet<Symbol>)
-src/hir/async_cfg/mod.rs:269: pub(crate) fn expr_has_await_pub(e: &Expr) -> bool
-src/hir/async_cfg/mod.rs:273: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, Vec<Expr>)>
+src/hir/async_cfg/mod.rs:276: pub(crate) fn expr_has_await_pub(e: &Expr) -> bool
+src/hir/async_cfg/mod.rs:280: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, Vec<Expr>)>
 src/hir/async_cfg/scan.rs:10: pub(super) fn body_has_await(body: &Block) -> bool
 src/hir/async_cfg/scan.rs:14: fn block_has_await(b: &Block) -> bool
 src/hir/async_cfg/scan.rs:18: pub(crate) fn stmt_has_await(st: &Stmt) -> bool
@@ -2982,8 +2982,9 @@ example/test_async_cfg.aya:129: fn cont(int x) -> int
 example/test_async_cfg.aya:140: fn syncmix(int x) -> int
 example/test_async_cfg.aya:153: fn echo(String s) -> String { return s }
 example/test_async_cfg.aya:156: fn pass(int x, String s) -> String
-example/test_async_cfg.aya:163: fn join(int x) -> String
-example/test_async_cfg.aya:176: fn main() -> int
+example/test_async_cfg.aya:163: fn choose_sync(int x) -> int
+example/test_async_cfg.aya:174: fn join(int x) -> String
+example/test_async_cfg.aya:187: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker

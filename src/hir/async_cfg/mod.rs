@@ -258,6 +258,13 @@ fn collect_assigned(stmts: &[Stmt], out: &mut HashSet<Symbol>) {
                 collect_assigned(&body.stmts, out);
             }
             Stmt::Unsafe { block, .. } => collect_assigned(&block.stmts, out),
+            Stmt::Match { arms, .. } => {
+                for arm in arms {
+                    if let crate::parser::ast::stmt::MatchBody::Block(b) = &arm.body {
+                        collect_assigned(&b.stmts, out);
+                    }
+                }
+            }
             Stmt::Attributed { stmt, .. } => {
                 collect_assigned(std::slice::from_ref(stmt.as_ref()), out)
             }
