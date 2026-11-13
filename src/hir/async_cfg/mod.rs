@@ -14,6 +14,7 @@ use crate::parser::ast::{Expr, Stmt, Type};
 mod anf;
 mod anf_expr;
 mod anf_for;
+mod anf_guard;
 mod anf_match;
 mod anf_stmt;
 mod compiler;

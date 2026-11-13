@@ -1,0 +1,18 @@
+// match guard + 块状 arm：body 必须在 guard 成功后才执行。
+import "io"
+
+fn pick(int v) -> int {
+    match v {
+        n if n < 0 => { return 30 }
+        n if n < 10 => { return n * 10 }
+        _ => { return 99 }
+    }
+    return 0
+}
+
+fn main() -> int {
+    if pick(-5) != 30 { return 1 }
+    if pick(7) != 70 { return 2 }
+    if pick(20) != 99 { return 3 }
+    return 0
+}

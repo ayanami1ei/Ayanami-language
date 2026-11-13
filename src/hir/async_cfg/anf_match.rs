@@ -1,5 +1,5 @@
 //! match 内 await：同步辅助函数做模式分派，绑定写入 ref mut 状态字段。
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::formatter::format_program;
 use crate::hir::async_mixed_types::hir_to_ast;
@@ -10,6 +10,7 @@ use crate::parser::ast::{Block, Expr, Literal, Pattern, Program, Stmt, Type};
 use crate::span::Span;
 
 use super::anf::{Anf, expr_has_await, stmt_has_await_local};
+use super::anf_guard::guard_ok;
 use super::scan::has_break_continue;
 use super::util::{field_name, source_ty};
 
@@ -55,8 +56,7 @@ impl Anf<'_> {
         let mut out: Vec<Arm> = Vec::with_capacity(arms.len());
         let mut bind_ty: HashMap<Symbol, Type> = HashMap::new();
         for arm in arms {
-            // helper 是顶层函数，看不到外层的 guard 自由变量；v1 直接拒绝带 guard 的 match。
-            if arm.guard.is_some() || pattern_has_or(&arm.pattern) {
+            if pattern_has_or(&arm.pattern) {
                 return None;
             }
             let mut bindings = Vec::new();
@@ -100,6 +100,12 @@ impl Anf<'_> {
                     Block::new(pre, span)
                 }
             };
+            if let Some(g) = &arm.guard {
+                let bound: HashSet<Symbol> = bindings.iter().copied().collect();
+                if expr_has_await(g) || !guard_ok(g, &bound) {
+                    return None;
+                }
+            }
             out.push(Arm {
                 pattern: arm.pattern.clone(),
                 guard: arm.guard.clone(),

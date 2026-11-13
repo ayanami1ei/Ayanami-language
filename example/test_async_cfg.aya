@@ -299,6 +299,17 @@ fn match_lit(int y) -> int {
 }
 
 #[async]
+fn match_guard(Option[int] v) -> int {
+    y = 0
+    match v {
+        Option::Some(n) if n > 0 => { y = await inc(n) }
+        Option::Some(n) => { y = 100 + n }
+        Option::None => { y = 7 }
+    }
+    return y
+}
+
+#[async]
 fn match_break(Option[int] v) -> int {
     y = 0
     while true {
@@ -516,5 +527,11 @@ fn main() -> int {
     if block_on_s(ref mut s6) != "b" { return 49 }
     f44 = match_lit(0)
     if block_on(ref mut f44) != 0 { return 50 }
+    f45 = match_guard(Option::Some(2))
+    if block_on(ref mut f45) != 3 { return 51 }
+    f46 = match_guard(Option::Some(-1))
+    if block_on(ref mut f46) != 99 { return 52 }
+    f47 = match_guard(Option::None)
+    if block_on(ref mut f47) != 7 { return 53 }
     return 0
 }

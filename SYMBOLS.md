@@ -375,12 +375,13 @@ src/hir/async_cfg/anf_expr.rs:9: pub(super) fn expr(&mut self, e: &Expr, pre: &m
 src/hir/async_cfg/anf_for.rs:7: impl Anf<'_>
 src/hir/async_cfg/anf_for.rs:8: pub(super) fn for_stmt(
 src/hir/async_cfg/anf_for.rs:79: fn patch_continues(stmts: &mut [Stmt], step: &Stmt)
-src/hir/async_cfg/anf_match.rs:16: struct Arm
-src/hir/async_cfg/anf_match.rs:23: impl Anf<'_>
-src/hir/async_cfg/anf_match.rs:24: pub(super) fn match_stmt(
-src/hir/async_cfg/anf_match.rs:270: fn probe_type(&self, n: Symbol, span: Span) -> Option<(Type, String)>
-src/hir/async_cfg/anf_match.rs:278: fn src_type(src: &str, span: Span) -> Type
-src/hir/async_cfg/anf_match.rs:282: fn pattern_has_or(p: &Pattern) -> bool
+src/hir/async_cfg/anf_guard.rs:7: pub(super) fn guard_ok(e: &Expr, binds: &HashSet<Symbol>) -> bool
+src/hir/async_cfg/anf_match.rs:17: struct Arm
+src/hir/async_cfg/anf_match.rs:24: impl Anf<'_>
+src/hir/async_cfg/anf_match.rs:25: pub(super) fn match_stmt(
+src/hir/async_cfg/anf_match.rs:276: fn probe_type(&self, n: Symbol, span: Span) -> Option<(Type, String)>
+src/hir/async_cfg/anf_match.rs:284: fn src_type(src: &str, span: Span) -> Type
+src/hir/async_cfg/anf_match.rs:288: fn pattern_has_or(p: &Pattern) -> bool
 src/hir/async_cfg/anf_stmt.rs:8: impl Anf<'_>
 src/hir/async_cfg/anf_stmt.rs:9: pub(super) fn stmt(&mut self, st: &Stmt, pre: &mut Vec<Stmt>) -> Option<Stmt>
 src/hir/async_cfg/anf_stmt.rs:231: pub(super) fn else_chain(
@@ -410,19 +411,20 @@ src/hir/async_cfg/compiler_await.rs:10: pub(super) fn compile_await(
 src/hir/async_cfg/mod.rs:14: mod anf;
 src/hir/async_cfg/mod.rs:15: mod anf_expr;
 src/hir/async_cfg/mod.rs:16: mod anf_for;
-src/hir/async_cfg/mod.rs:17: mod anf_match;
-src/hir/async_cfg/mod.rs:18: mod anf_stmt;
-src/hir/async_cfg/mod.rs:19: mod compiler;
-src/hir/async_cfg/mod.rs:20: mod compiler_await;
-src/hir/async_cfg/mod.rs:21: mod scan;
-src/hir/async_cfg/mod.rs:22: mod util;
-src/hir/async_cfg/mod.rs:29: pub(super) struct Local
-src/hir/async_cfg/mod.rs:38: pub(super) struct FutureField
-src/hir/async_cfg/mod.rs:45: fn enabled() -> bool
-src/hir/async_cfg/mod.rs:52: pub(crate) fn try_expand(
-src/hir/async_cfg/mod.rs:244: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context __async_cx) -> Poll[{ret}] {{\n\
-src/hir/async_cfg/mod.rs:264: pub(crate) fn expr_has_await_pub(e: &Expr) -> bool
-src/hir/async_cfg/mod.rs:268: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, Vec<Expr>)>
+src/hir/async_cfg/mod.rs:17: mod anf_guard;
+src/hir/async_cfg/mod.rs:18: mod anf_match;
+src/hir/async_cfg/mod.rs:19: mod anf_stmt;
+src/hir/async_cfg/mod.rs:20: mod compiler;
+src/hir/async_cfg/mod.rs:21: mod compiler_await;
+src/hir/async_cfg/mod.rs:22: mod scan;
+src/hir/async_cfg/mod.rs:23: mod util;
+src/hir/async_cfg/mod.rs:30: pub(super) struct Local
+src/hir/async_cfg/mod.rs:39: pub(super) struct FutureField
+src/hir/async_cfg/mod.rs:46: fn enabled() -> bool
+src/hir/async_cfg/mod.rs:53: pub(crate) fn try_expand(
+src/hir/async_cfg/mod.rs:245: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context __async_cx) -> Poll[{ret}] {{\n\
+src/hir/async_cfg/mod.rs:265: pub(crate) fn expr_has_await_pub(e: &Expr) -> bool
+src/hir/async_cfg/mod.rs:269: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, Vec<Expr>)>
 src/hir/async_cfg/scan.rs:10: pub(super) fn body_has_await(body: &Block) -> bool
 src/hir/async_cfg/scan.rs:14: fn block_has_await(b: &Block) -> bool
 src/hir/async_cfg/scan.rs:18: pub(crate) fn stmt_has_await(st: &Stmt) -> bool
@@ -832,10 +834,10 @@ src/hir/lower/body/match_coverage.rs:83: fn collect_variants(p: &Pattern, out: &
 src/hir/lower/body/match_coverage.rs:91: fn collect_bools(p: &Pattern, t: &mut bool, f: &mut bool)
 src/hir/lower/body/match_coverage.rs:100: pub(super) fn check_or_bindings(
 src/hir/lower/body/match_lower.rs:7: struct LoweredArm
-src/hir/lower/body/match_lower.rs:14: impl crate::hir::lower::Ctx
-src/hir/lower/body/match_lower.rs:17: fn normalize_pattern(&self, p: &Pattern, val_ty: &HirType) -> Pattern
-src/hir/lower/body/match_lower.rs:38: fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)>
-src/hir/lower/body/match_lower.rs:69: fn lower_match_arms(
+src/hir/lower/body/match_lower.rs:15: impl crate::hir::lower::Ctx
+src/hir/lower/body/match_lower.rs:18: fn normalize_pattern(&self, p: &Pattern, val_ty: &HirType) -> Pattern
+src/hir/lower/body/match_lower.rs:39: fn lower_arm_body(&mut self, arm: &MatchArm) -> Result<(Vec<HirStmt>, HirNodeBox)>
+src/hir/lower/body/match_lower.rs:70: fn lower_match_arms(
 src/hir/lower/body/match_lower.rs:94: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
 src/hir/lower/body/match_lower.rs:115: fn enum_variant_count(&self, name: &Symbol) -> usize
 src/hir/lower/body/match_lower.rs:122: fn build_match_stmts(
@@ -3048,19 +3050,20 @@ example/test_async_cfg.aya:261: fn match_ret(Option[int] v) -> int
 example/test_async_cfg.aya:270: fn match_enum(MatchE v) -> int
 example/test_async_cfg.aya:280: fn match_string(MatchS v) -> String
 example/test_async_cfg.aya:290: fn match_lit(int y) -> int
-example/test_async_cfg.aya:302: fn match_break(Option[int] v) -> int
-example/test_async_cfg.aya:315: fn match_local(int x) -> int
-example/test_async_cfg.aya:326: fn for_in(RangeIter it) -> int
-example/test_async_cfg.aya:335: fn expr_elif(int x) -> int
-example/test_async_cfg.aya:348: fn while_cond(int x) -> int
-example/test_async_cfg.aya:357: fn while_cond_continue(int x) -> int
-example/test_async_cfg.aya:368: fn loop_expr(int x) -> int
-example/test_async_cfg.aya:377: fn expr_string(int x) -> String
-example/test_async_cfg.aya:383: fn echo(String s) -> String { return s }
-example/test_async_cfg.aya:386: fn pass(int x, String s) -> String
-example/test_async_cfg.aya:393: fn choose_sync(int x) -> int
-example/test_async_cfg.aya:404: fn join(int x) -> String
-example/test_async_cfg.aya:417: fn main() -> int
+example/test_async_cfg.aya:302: fn match_guard(Option[int] v) -> int
+example/test_async_cfg.aya:313: fn match_break(Option[int] v) -> int
+example/test_async_cfg.aya:326: fn match_local(int x) -> int
+example/test_async_cfg.aya:337: fn for_in(RangeIter it) -> int
+example/test_async_cfg.aya:346: fn expr_elif(int x) -> int
+example/test_async_cfg.aya:359: fn while_cond(int x) -> int
+example/test_async_cfg.aya:368: fn while_cond_continue(int x) -> int
+example/test_async_cfg.aya:379: fn loop_expr(int x) -> int
+example/test_async_cfg.aya:388: fn expr_string(int x) -> String
+example/test_async_cfg.aya:394: fn echo(String s) -> String { return s }
+example/test_async_cfg.aya:397: fn pass(int x, String s) -> String
+example/test_async_cfg.aya:404: fn choose_sync(int x) -> int
+example/test_async_cfg.aya:415: fn join(int x) -> String
+example/test_async_cfg.aya:428: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker
@@ -3454,6 +3457,8 @@ example/test_match_expr.aya:5: enum TokenType
 example/test_match_expr.aya:11: impl TokenType
 example/test_match_expr.aya:12: fn to_string(ref self) -> String
 example/test_match_expr.aya:21: fn main() -> int
+example/test_match_guard_block.aya:4: fn pick(int v) -> int
+example/test_match_guard_block.aya:13: fn main() -> int
 example/test_match_literals.aya:2: enum Color
 example/test_match_literals.aya:8: enum Opt[T]
 example/test_match_literals.aya:13: fn name(int x) -> int

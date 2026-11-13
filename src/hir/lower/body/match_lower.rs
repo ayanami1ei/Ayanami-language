@@ -7,6 +7,7 @@ use crate::parser::ast::stmt::MatchArm;
 struct LoweredArm {
     cond: Option<HirNodeBox>,
     bindings: Vec<HirStmt>,
+    body_stmts: Vec<HirStmt>,
     guard: Option<HirNodeBox>,
     body: HirNodeBox,
 }
@@ -77,15 +78,14 @@ impl crate::hir::lower::Ctx {
         for arm in arms {
             let pat = self.normalize_pattern(&arm.pattern, val_ty);
             self.push_scope();
-            let (cond, mut bindings) = self.pattern_match(&pat, val, val_ty, span)?;
+            let (cond, bindings) = self.pattern_match(&pat, val, val_ty, span)?;
             let guard = match &arm.guard {
                 Some(g) => Some(auto_deref(self.lower_expr(g)?)),
                 None => None,
             };
-            let (mut pending, body) = self.lower_arm_body(arm)?;
+            let (body_stmts, body) = self.lower_arm_body(arm)?;
             self.pop_scope();
-            bindings.append(&mut pending);
-            out.push(LoweredArm { cond, bindings, guard, body });
+            out.push(LoweredArm { cond, bindings, body_stmts, guard, body });
         }
         Ok(out)
     }
@@ -138,21 +138,21 @@ impl crate::hir::lower::Ctx {
         stmts.push(HirStmt::Assign { target: mnode.clone(), value: bool_const(false), span: *span });
         for arm in arms {
             let mut block_stmts = arm.bindings.clone();
-            let mut done = vec![
-                match assign {
-                    // 臂结果赋给 `__match_res` 同普通赋值：非 Copy 值必须移出（清零绑定局部，
-                    // 否则作用域末尾 drop 绑定会释放已交给结果变量的堆数据，返回悬空指针）。
-                    Some((res, _)) => HirStmt::Assign {
-                        target: res.clone(),
-                        value: implicit_move(arm.body.clone()),
-                        span: *span,
-                    },
-                    None => HirStmt::Expr { expr: arm.body.clone(), span: *span },
+            let mut done = arm.body_stmts.clone();
+            done.push(match assign {
+                // 臂结果赋给 `__match_res` 同普通赋值：非 Copy 值必须移出（清零绑定局部，
+                // 否则作用域末尾 drop 绑定会释放已交给结果变量的堆数据，返回悬空指针）。
+                Some((res, _)) => HirStmt::Assign {
+                    target: res.clone(),
+                    value: implicit_move(arm.body.clone()),
+                    span: *span,
                 },
-                HirStmt::Assign { target: mnode.clone(), value: bool_const(true), span: *span },
-            ];
+                None => HirStmt::Expr { expr: arm.body.clone(), span: *span },
+            });
+            done.push(HirStmt::Assign { target: mnode.clone(), value: bool_const(true), span: *span });
             if let Some(g) = &arm.guard {
-                // guard 失败 → matched 保持 false，后续臂继续匹配（fallthrough）
+                // guard 失败 → body 不执行、matched 保持 false，后续臂继续匹配（fallthrough）。
+                // body_stmts 必须放进 then，不能放在 guard 之前。
                 block_stmts.push(HirStmt::If {
                     cond: g.clone(),
                     then_block: HirBlock::new(done),
