@@ -21,6 +21,7 @@ pub struct Emitter {
     [String] locals
     [int] local_kinds
     [int] local_forms
+    [int] local_fmask
     [int] local_ftypes
     int lv_count
     // 数组局部变量的元素类型（AST 类型节点 id；-1 表示非数组）
@@ -219,7 +220,7 @@ pub namespace Emitter {
     pub fn new() -> Emitter {
         e = Emitter {
             buf = StringBuf::new(), type_buf = StringBuf::new(), body_phase = 0, tmp = 0,
-            locals = [String; 512], local_kinds = [int; 512], local_forms = [int; 512],
+            locals = [String; 512], local_kinds = [int; 512], local_forms = [int; 512], local_fmask = [int; 512],
             local_ftypes = [int; 512], lv_count = 0,
             local_etypes = [int; 512],
             strs = [String; 8192], str_count = 0,
@@ -973,12 +974,17 @@ impl Emitter {
         }
         form = 0;
         if kind == 1 { form = 1; } elif kind == 40 { form = 3; } elif kind >= 2 { form = 2; }
+        fbit = 1;
+        if form == 1 { fbit = 2; } elif form == 2 { fbit = 4; } elif form == 3 { fbit = 8; }
         if idx_l >= 0 {
             self.local_kinds[idx_l] = kind;
-            have = self.local_forms[idx_l];
-            if have == form { return; }
             self.local_forms[idx_l] = form;
-            self.emit_local_storage(name, form);
+            // 同名局部可能先后以不同 form 出现（match 绑定 x: Big/int/Big）；
+            // 每种 form 的存储只分配一次，复用已有 alloca。
+            if (self.local_fmask[idx_l] / fbit) % 2 == 0 {
+                self.local_fmask[idx_l] = self.local_fmask[idx_l] + fbit;
+                self.emit_local_storage(name, form);
+            }
             return;
         }
         if self.lv_count < 512 {
@@ -986,6 +992,7 @@ impl Emitter {
             self.local_kinds[self.lv_count] = kind;
             self.local_etypes[self.lv_count] = -1;
             self.local_forms[self.lv_count] = form;
+            self.local_fmask[self.lv_count] = fbit;
             self.local_ftypes[self.lv_count] = -1;
             self.lv_count = self.lv_count + 1;
         }
@@ -2699,6 +2706,86 @@ impl Emitter {
         return 8;
     }
 
+    /// 可 niche 的指针型载荷：Ptr[T]/ref/fn/unique（*T 除外）
+    fn type_is_ptr_like(ref mut self, ref Ast ast, int ty) -> int {
+        if ty < 0 { return 0; }
+        tg_pl = ast.tags[ty];
+        if tg_pl == tt(TT::Ref._tag) || tg_pl == tt(TT::FnPtr._tag) || tg_pl == tt(TT::Closure._tag) || tg_pl == tt(TT::Unique._tag) { return 1; }
+        if ty_name(ast, ty) == "Ptr" { return 1; }
+        return 0;
+    }
+
+    /// 类型尺寸（Rust 口径）：枚举走 niche/装箱布局，其余沿用 layout_enc
+    #[alloc]
+    #[state]
+    fn type_size_rust(ref mut self, ref Ast ast, int ty) -> int {
+        if ty < 0 { return 0; }
+        tn_rs = ty_name(ast, ty);
+        if self.find_enum_idx(tn_rs) >= 0 { return self.enum_rust_size(ast, ty); }
+        enc_rs = self.layout_enc(ast, ty);
+        return enc_rs / 16;
+    }
+
+    /// 枚举 Rust 布局：tag + 各变体载荷顺序；>16B 装箱；2 变体（1 空 + 单指针/装箱载荷）→ niche 8
+    #[alloc]
+    #[state]
+    fn enum_rust_size(ref mut self, ref Ast ast, int ty) -> int {
+        ei_er = self.ret_info(ast, ty);
+        if ei_er < 0 { ei_er = self.find_enum_idx(ty_name(ast, ty)); }
+        if ei_er < 0 { return 0; }
+        nv_er = self.en_vcount[ei_er];
+        total_er = 8;
+        empty_er = -1;
+        one_er = -1;
+        one_boxed_er = 0;
+        one_pty_er = -1;
+        one_psz_er = 0;
+        i_er = 0;
+        while i_er < nv_er {
+            idx_er = self.en_vstart[ei_er] + i_er;
+            ar_er = self.en_arity[idx_er];
+            psz_er = 0;
+            k_er = 0;
+            while k_er < ar_er {
+                pty_er = self.en_ptype[self.en_pvstart[idx_er] + k_er];
+                psz_er = psz_er + self.type_size_rust(ast, pty_er);
+                k_er = k_er + 1;
+            }
+            boxed_er = 0;
+            if psz_er > 16 { boxed_er = 1; }
+            eff_er = psz_er;
+            if boxed_er == 1 { eff_er = 8; }
+            total_er = total_er + eff_er;
+            if ar_er <= 0 { empty_er = i_er; }
+            if ar_er == 1 {
+                one_er = i_er;
+                one_boxed_er = boxed_er;
+                one_pty_er = self.en_ptype[self.en_pvstart[idx_er]];
+                one_psz_er = psz_er;
+            }
+            i_er = i_er + 1;
+        }
+        if nv_er == 2 && empty_er >= 0 && one_er >= 0 {
+            // 具体泛型实参（Option[Ptr]/Option[ref]）优先按实参类型判定
+            if ast.tags[ty] == tt(TT::Generic._tag) {
+                gargs_er = ast.aa[ty];
+                if gargs_er >= 0 {
+                    at_er = ast.tys[gargs_er];
+                    if at_er >= 0 {
+                        psz_g = self.type_size_rust(ast, at_er);
+                        if psz_g > 16 { return 8; }
+                        if self.type_is_ptr_like(ast, at_er) == 1 && psz_g == 8 { return 8; }
+                    }
+                }
+            }
+            if one_boxed_er == 1 { return 8; }
+            if one_pty_er >= 0 {
+                if self.type_is_ptr_like(ast, one_pty_er) == 1 && one_psz_er == 8 { return 8; }
+            }
+        }
+        return total_er;
+    }
+
     /// 布局内置求值：size_of[T]/align_of[T]/offset_of[T](field)（自然对齐，与 stage-0 一致）
     #[alloc]
     #[state]
@@ -2724,7 +2811,13 @@ impl Emitter {
         sz_b = enc / 16;
         al_b = enc - sz_b * 16;
         if nm_b == "align_of" { return int_str2(al_b); }
-        if nm_b == "size_of" { return int_str2(sz_b); }
+        if nm_b == "size_of" {
+            // 枚举按 Rust 主线布局（N1 niche 8B / N2 >16B 装箱 / 顺序载荷）
+            if self.find_enum_idx(ty_name(ast, ty_b)) >= 0 {
+                return int_str2(self.enum_rust_size(ast, ty_b));
+            }
+            return int_str2(sz_b);
+        }
         // offset_of：字段名 + 自然对齐偏移
         tn_b = ty_name(ast, ty_b);
         si_b = self.find_struct_idx(tn_b);

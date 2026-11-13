@@ -83,8 +83,9 @@
    stage-0 的 async 警告已复刻）。`#[sync(...)]` 已实现（2026-11-12）。
    **env 已实现（2026-10-25）**：`#[env::<cap>(provider)]` 函数/块作用域、
    `env::<cap>` 访问器、隐藏 env 形参 + 调用点注入、泛型 bound 推断。
-3. **布局 N1/N2/N3**：niche 枚举 8 字节、>16B 载荷装箱；自举 emitter 仍是
-   tag+载荷槽。会影响 `size_of`/`align_of`/`static_assert` 与 ABI 相关用例。
+3. **布局 N1/N2/N3**：`size_of` 已按 Rust 布局（niche 8B / >16B 装箱 / 顺序载荷）计算，
+   `test_enum_boxed` 转正；自举实际枚举表示仍为 tag+载荷槽（`test_niche_option` 的
+   Ptr/ref 载荷 get/实例语义待补）。
 4. **内存/借用模型**：A（禁止从借用移出）+ match ergonomics、#211 条件移动检查、
    分支结果移出；自举 checker/borrow 是另一套实现，接受/拒绝集合不同。
 5. **TokenStream 宏**：std `meta/macros` 用 ABI v6 TokenStream；自举宏引擎是
@@ -137,9 +138,9 @@
 
 - merge `origin/rust` `133a5e4`；merge 曾丢 5 个 async 源文件，已用 `9b09394` 恢复
 - std `ad1e6db`、example **178**
-- **旧 154/154 保持；新快照 174/178（97.8%）**
+- **旧 154/154 保持；新快照 175/178（98.3%）**
 - 自举 golden：test、tokens **178/178**、AST 5/5、errs 8/8、check 29/29、e2e 19/19
-- 固定点：stage-2 == stage-3，md5 `0ed3a48911835ad5f017afd231cbad05`
+- 固定点：stage-2 == stage-3，md5 `c8f99165ae8965dfe17d88e53f3721d3`
 - 已完成修复：`#[extern]`（关键字属性 + 无体声明 + emitter bit0）、asm `clobbers(rax)`/无输出 asm、
   点限定变体模式、换行缩进规则、`ref`/`ref mut` 的 `*r` 读写、裸指针形参 pointee 标记、
   **env E1/E2**（函数/块 provider 作用域、`env::<cap>`、隐藏 env 形参、调用点注入、
@@ -154,15 +155,20 @@
   stage-0 的 async 警告（接口/首个 async fn 的 alloc，生成 span）已复刻）、
   **泛型枚举返回实例追踪**（`Poll[String]` 的 String 载荷 match）、**`fx_mask` 保留 async 位**、
   **closure_unsafe**（unsafe 块内裸指针闭包捕获：raw pointer 按值捕获并保留 pointee 标记；
-  `Ptr.new(g)`/`q.get()` 的闭包 ftype 跨 Ptr 传播，`r()` 正确走间接调用）
+  `Ptr.new(g)`/`q.get()` 的闭包 ftype 跨 Ptr 传播，`r()` 正确走间接调用）、
+  **枚举布局 size_of**（N1 niche 8B / N2 >16B 装箱 / 顺序载荷：Option[Ptr/ref] 8、
+  Option[int] 16、E 24、OptBig 8；`test_enum_boxed` 转正）与 **declare_local form 位掩码**
+  （同名 match 绑定跨 form 复用存储，修复重复 alloca）
 - 因此转正：env×5（allocator/block/chain/custom/generic）、async_manual、
-  ptr_match、sync_block、async_sugar、async_await、closure_unsafe
-- 剩余 4：enum_boxed、niche_option、ref_graph、ref_registry
+  ptr_match、sync_block、async_sugar、async_await、closure_unsafe、enum_boxed
+- 剩余 3：niche_option、ref_graph、ref_registry
+- niche_option 进展：size_of 8/8/16 已通过；剩余 Ptr/ref 载荷的 get/实例语义
+  （自举 Ptr.new 不装箱，`p.get().v` 与 match 绑定需按 Ptr 值处理）
 - 已知限制：自举 async 为 **eager 展开**（await 目标立即就绪；完整 Pending/状态机挂起待后续）；
   async 警告 parity 采用生成 span 的 v1 复刻
 - 环境备注：`scripts/selfhost.sh` 开发构建优先 `/usr/bin/llc`（安装包 bundled LLVM 可能与
   系统 libLLVM 版本不匹配，M68k 符号缺失时 llc 启动失败）
-- 下一步：niche/boxed 布局、R3/R4 引用图/注册表
+- 下一步：niche 的 Ptr/ref 载荷语义、R3/R4 引用图/注册表
 - 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
   （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
 - 主 `selfhost` 分支仍为 154/154，本实验分支未合并
