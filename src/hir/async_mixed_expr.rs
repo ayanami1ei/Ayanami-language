@@ -124,3 +124,19 @@ fn rewrite_with(e: &Expr, subst: &mut dyn FnMut(&Symbol, Span) -> Option<Expr>) 
         _ => return None,
     })
 }
+
+/// 渲染表达式，把 `fields` 中的局部替换为 `self.<name>`（形状模块的字段命名）。
+pub(super) fn render_field_expr(e: &Expr, fields: &HashSet<Symbol>) -> Option<String> {
+    let r = rewrite_with(e, &mut |n, span| {
+        if fields.contains(n) {
+            Some(Expr::FieldAccess {
+                object: Box::new(Expr::Ident(Symbol::intern("self"), span)),
+                field: *n,
+                span,
+            })
+        } else {
+            None
+        }
+    })?;
+    Some(crate::formatter::format_expr(&r))
+}

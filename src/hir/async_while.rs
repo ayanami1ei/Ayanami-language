@@ -92,23 +92,10 @@ pub(crate) fn try_expand(
         if *z == y || params.iter().any(|(p, _)| p == z) || posts.iter().any(|p| p.target == *z) {
             return Ok(false);
         }
-        let mut placeholders = Vec::new();
-        let mut reals = Vec::new();
-        for a in hargs {
-            let Expr::Ident(n, _) = a else { return Ok(false) };
-            if params.iter().any(|(p, _)| p == n) {
-                placeholders.push(n.as_str().to_string());
-                reals.push(format!("self.{}", n.as_str()));
-            } else if *n == y {
-                placeholders.push(y_init.to_string());
-                reals.push("self.y".to_string());
-            } else if let Some(prev) = posts.iter().find(|p| p.target == *n) {
-                placeholders.push(prev.init.clone());
-                reals.push(format!("self.{}", n.as_str()));
-            } else {
-                return Ok(false);
-            }
-        }
+        let prior: Vec<(Symbol, Type)> = posts.iter().map(|p| (p.target, p.ret.clone())).collect();
+        let (placeholders, reals) = crate::hir::async_post_args::build_post_args(
+            &hargs[..], params, y, first, &prior,
+        ).ok_or_else(|| fail("unsupported post await argument (v1)".into()))?;
         posts.push(PostAwait {
             target: *z,
             g: h,

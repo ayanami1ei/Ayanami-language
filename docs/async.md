@@ -265,7 +265,7 @@ impl __add_Fut {
 | if/elif/else | 每分支 1 个或任一侧 2+，均可接 post await | `pick_multi` / `elif_post` / `pick_multi_post` |
 | while | 1..N 个体内 await、break/continue、N 个 post await | `double_inc` / `find` / `while_post` / `while_post2` |
 
-- 条件表达式限参数；post await 实参目前限标识符（mixed 直线桥支持表达式）。
+- 条件表达式限参数；post await 实参支持任意可渲染表达式（参数/分支变量/更早 post 结果）。
 - await 不能嵌在 `match`/`for`/同步 `if`/同步 `while` 内部（mixed 桥的纯同步控制流例外）。
 - 表达式级 await、`ref` 跨 await、`match`/`for` 内 await、泛型/方法上的 `#[async]` 仍未支持。
 - 下一阶段：§7.4 HIR 级一般 CFG（PC/状态枚举、局部提升、任意嵌套），完成后替换 AST 形状模块。

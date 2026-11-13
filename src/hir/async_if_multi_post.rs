@@ -85,24 +85,10 @@ pub(crate) fn try_expand(
         if z == y || params.iter().any(|(p, _)| p == &z) || posts.iter().any(|p: &Post| p.target == z) {
             return Err(fail(format!("post await target `{}` collides (v1)", z.as_str())));
         }
-        let mut placeholders = Vec::new();
-        let mut reals = Vec::new();
-        for a in &hargs {
-            let Expr::Ident(n, _) = a else { return Err(fail("await arguments must be identifiers (v1)".into())) };
-            if params.iter().any(|(p, _)| p == n) {
-                placeholders.push(n.as_str().to_string());
-                reals.push(format!("self.{}", n.as_str()));
-            } else if *n == y {
-                placeholders.push(y_init.to_string());
-                reals.push("self.y".to_string());
-            } else if let Some(prev) = posts.iter().find(|p: &&Post| p.target == *n) {
-                placeholders.push(prev.init.clone());
-                reals.push(format!("self.{}", n.as_str()));
-            } else {
-                return Err(fail(format!(
-                    "await argument `{}` must be a parameter/branch variable/earlier post result (v1)", n.as_str())));
-            }
-        }
+        let prior: Vec<(Symbol, Type)> = posts.iter().map(|p| (p.target, p.ret.clone())).collect();
+        let (placeholders, reals) = crate::hir::async_post_args::build_post_args(
+            &hargs[..], params, y, first, &prior,
+        ).ok_or_else(|| fail("unsupported post await argument (v1)".into()))?;
         posts.push(Post { target: z, g: h, placeholders, reals, ret: h_ret, ty: z_ts.to_string(), init: z_init.to_string() });
     }
     for (i, p) in posts.iter().enumerate() {

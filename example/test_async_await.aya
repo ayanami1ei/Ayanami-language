@@ -503,6 +503,55 @@ fn pick_multi_post2(int x) -> int {
     return b * 10
 }
 
+#[async]
+fn while_post_expr(int x) -> int {
+    y = 0
+    while y < 2 {
+        y = await inc(y)
+    }
+    z = await inc(y + 1)
+    return z * 10
+}
+
+#[async]
+fn if_post_expr(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+    }
+    z = await inc(y + 1)
+    return z * 10
+}
+
+#[async]
+fn choose_post_expr(int x) -> int {
+    y = 0
+    if x > 0 {
+        y = await inc(x)
+    } else {
+        y = await dec(x)
+    }
+    z = await inc(y + 1)
+    return z * 10
+}
+
+#[async]
+fn pick_multi_post_expr(int x) -> int {
+    y = 0
+    if x > 10 {
+        y = await inc(x)
+        y = await inc(y)
+    } elif x > 0 {
+        y = await dbl(x)
+        y = await inc(y)
+    } else {
+        y = await dec(x)
+        y = await dec(y)
+    }
+    z = await inc(y + 1)
+    return z * 10
+}
+
 #[state]
 fn block_on_s[F: Future[String]](ref mut F f) -> String {
     w = Waker { id = 1 }
@@ -682,5 +731,21 @@ fn main() -> int {
     if block_on(ref mut x33) != 130 { return 74 }
     x34 = pick_multi_post2(-2)
     if block_on(ref mut x34) != -20 { return 75 }
+    x35 = while_post_expr(0)
+    if block_on(ref mut x35) != 40 { return 76 }
+    x36 = if_post_expr(1)
+    if block_on(ref mut x36) != 40 { return 77 }
+    x37 = if_post_expr(0)
+    if block_on(ref mut x37) != 20 { return 78 }
+    x38 = choose_post_expr(1)
+    if block_on(ref mut x38) != 40 { return 79 }
+    x39 = choose_post_expr(-2)
+    if block_on(ref mut x39) != -10 { return 80 }
+    x40 = pick_multi_post_expr(20)
+    if block_on(ref mut x40) != 240 { return 81 }
+    x41 = pick_multi_post_expr(5)
+    if block_on(ref mut x41) != 130 { return 82 }
+    x42 = pick_multi_post_expr(-2)
+    if block_on(ref mut x42) != -20 { return 83 }
     return 0
 }
