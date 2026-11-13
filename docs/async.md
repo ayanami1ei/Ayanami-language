@@ -254,6 +254,22 @@ impl __add_Fut {
   `await_mixed_nested_await`（同步分支内 await）。HIR 级一般 CFG（§7.4）完成后替换本桥。
 - 后续：一般 CFG（任意语句、PC/状态枚举、嵌套控制流）。
 
+#### A1b-2/3 支持矩阵（2026-11-13）
+
+| 形状 | 能力 | 用例 |
+|---|---|---|
+| 直线 await | 0..N 前缀 + 同步 tail | `twice` / `dep` / `chain` |
+| mixed 直线 | await 之间任意同步赋值/表达式/if/while/break/continue；await 实参表达式；HIR 类型探针 | `mixed` / `pre_sync` / `str_call` / `expr_arg` / `call_arg` / `branch_sync` / `loop_sync` |
+| if 单分支 | 1..N 个分支 await + N 个 post await | `if_post` / `if_post2` / `if_multi_post` / `if_multi_post2` |
+| if/else | 每分支 1..N + post await | `choose_post` / `choose_post2` / `choose_multi_post` / `choose_multi_post2` |
+| if/elif/else | 每分支 1 个或任一侧 2+，均可接 post await | `pick_multi` / `elif_post` / `pick_multi_post` |
+| while | 1..N 个体内 await、break/continue、N 个 post await | `double_inc` / `find` / `while_post` / `while_post2` |
+
+- 条件表达式限参数；post await 实参目前限标识符（mixed 直线桥支持表达式）。
+- await 不能嵌在 `match`/`for`/同步 `if`/同步 `while` 内部（mixed 桥的纯同步控制流例外）。
+- 表达式级 await、`ref` 跨 await、`match`/`for` 内 await、泛型/方法上的 `#[async]` 仍未支持。
+- 下一阶段：§7.4 HIR 级一般 CFG（PC/状态枚举、局部提升、任意嵌套），完成后替换 AST 形状模块。
+
 ### 7.4 A1b-3 一般 CFG（HIR 级状态机）设计（2026-10-25）
 
 前几片都是在 **AST 层**按形状展开（直线 / if / if-else / elif / while），优点是落地快，
