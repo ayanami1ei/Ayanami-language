@@ -8,7 +8,8 @@ use std::process::Command;
 use crate::error::{Error, Result};
 
 /// 插件 ABI 版本：签名变化时必须递增（参与本机动态库缓存键，避免复用旧 shim）。
-pub(crate) const ABI_VERSION: u32 = 8;
+/// A5j-1：常量单一来源在 `package::plugin`，清单校验与缓存键共用。
+pub(crate) use crate::package::PLUGIN_ABI_VERSION as ABI_VERSION;
 
 /// 本机插件动态库扩展名（交付物仍是平台无关的 `.lcl`）。
 pub(super) fn plugin_ext() -> &'static str {

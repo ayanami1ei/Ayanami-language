@@ -166,6 +166,9 @@ elif ! "$BIN" plugin package "$pdir" >/dev/null 2>&1; then
 elif [ ! -f "$pdir/src/lib.lcl" ]; then
     echo "FAIL A5h: plugin package did not produce src/lib.lcl"
     fail=$((fail + 1))
+elif ! grep -aq '^\[plugin\]' "$pdir/src/lib.lcl"; then
+    echo "FAIL A5j-1: plugin package did not write [plugin] manifest"
+    fail=$((fail + 1))
 elif ! "$BIN" new "$cproj" >/dev/null 2>&1; then
     echo "FAIL A5h: consumer project creation failed"
     fail=$((fail + 1))
@@ -176,6 +179,12 @@ elif [ ! -f "$cproj/plugins/demo.lcl" ]; then
     echo "FAIL A5h: plugin install did not place plugins/demo.lcl"
     fail=$((fail + 1))
 else
+    # A5j-1：不兼容 ABI 必须在 install 阶段被拒绝
+    { head -c 512 "$pdir/src/lib.lcl" | sed 's/abi=8/abi=999/'; tail -c +513 "$pdir/src/lib.lcl"; } > "$pbase/bad_abi.lcl"
+    if (cd "$cproj" && "$bin_abs" plugin install "$pbase/bad_abi.lcl" bad >/dev/null 2>&1); then
+        echo "FAIL A5j-1: incompatible plugin ABI was installed"
+        fail=$((fail + 1))
+    fi
     cat > "$cproj/src/main.aya" <<'EOF'
 import "demo"
 

@@ -25,6 +25,15 @@ pub(super) fn emit_lcl_package(
 }
 
 pub fn package_source(src_path: &str, _code: &str) -> Result<()> {
+    package_source_with_manifest(src_path, _code, None)
+}
+
+/// A5j-1：插件打包入口；`manifest` 存在时写入 `.lcl` 的 `[plugin]` 段。
+pub fn package_source_with_manifest(
+    src_path: &str,
+    _code: &str,
+    plugin_manifest: Option<crate::package::PluginManifest>,
+) -> Result<()> {
     let path = std::path::Path::new(src_path);
     let base_dir = path.parent().unwrap_or(std::path::Path::new("."));
     let tmp_dir = std::env::temp_dir().join(format!("ayanami_pkg_{}", std::process::id()));
@@ -47,7 +56,11 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<()> {
         matches!(s, crate::parser::ast::Stmt::FnDecl { name, .. } if name.as_str() == "main")
     });
 
-    let mut pkg = crate::package::Package::new(exe_name, env!("CARGO_PKG_VERSION").into());
+    let pkg_name = plugin_manifest.as_ref()
+        .map(|m| m.name.clone())
+        .unwrap_or_else(|| exe_name.clone());
+    let mut pkg = crate::package::Package::new(pkg_name, env!("CARGO_PKG_VERSION").into());
+    pkg.plugin_manifest = plugin_manifest;
     pkg.target_types = if has_main {
         vec![
             crate::package::TargetType::Executable,

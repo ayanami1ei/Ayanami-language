@@ -9,7 +9,7 @@ use crate::error::{Error, Result};
 
 pub use build::{
     build_source, build_source_to, build_source_with_target, compile_file,
-    install_package, package_source, run_executable,
+    install_package, package_source, package_source_with_manifest, run_executable,
 };
 pub use check::check_hir_returns;
 pub use debug::format_program;

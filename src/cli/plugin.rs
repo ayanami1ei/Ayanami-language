@@ -37,9 +37,8 @@ fn plugin_new(args: &[String]) {
         std::process::exit(1);
     });
     let toml = format!(
-        "[package]\nname = \"{}\"\nversion = \"{}\"\n\n[build]\ntarget = \"static-lib\"\n",
-        pkg_name,
-        env!("CARGO_PKG_VERSION")
+        "[package]\nname = \"{}\"\nversion = \"0.1.0\"\n\n[build]\ntarget = \"static-lib\"\n",
+        pkg_name
     );
     fs::write(dir.join("ayanami.toml"), toml).unwrap_or_else(|e| {
         eprintln!("error: failed to write ayanami.toml: {}", e);
@@ -87,7 +86,27 @@ fn plugin_package(args: &[String]) {
         std::process::exit(1);
     }
     let path_s = path.to_string_lossy().into_owned();
-    if let Err(e) = ayanami::compiler::package_source(&path_s, &code) {
+    let (pkg_name, pkg_version) = crate::find_project(&path)
+        .map(|(_, toml)| ayanami::package::config::ProjectConfig::load(&toml))
+        .map(|cfg| {
+            let name = if cfg.name.is_empty() {
+                path.file_stem().unwrap_or_default().to_string_lossy().into_owned()
+            } else {
+                cfg.name
+            };
+            let version = if cfg.version.is_empty() { "0.1.0".to_string() } else { cfg.version };
+            (name, version)
+        })
+        .unwrap_or_else(|| {
+            (path.file_stem().unwrap_or_default().to_string_lossy().into_owned(), "0.1.0".to_string())
+        });
+    let manifest = ayanami::package::PluginManifest::new(
+        pkg_name,
+        pkg_version,
+        env!("CARGO_PKG_VERSION").to_string(),
+        env!("CARGO_PKG_VERSION").to_string(),
+    );
+    if let Err(e) = ayanami::compiler::package_source_with_manifest(&path_s, &code, Some(manifest)) {
         eprintln!("error: plugin package failed: {}", e);
         std::process::exit(1);
     }
@@ -104,6 +123,15 @@ fn plugin_install(args: &[String]) {
     if src.extension().and_then(|e| e.to_str()) != Some("lcl") || !src.is_file() {
         eprintln!("error: plugin install requires an existing .lcl file");
         std::process::exit(1);
+    }
+    let src_s = src.to_string_lossy();
+    match ayanami::package::load_checked_manifest(&src_s) {
+        Ok(Some(m)) => println!("plugin: {} {} (abi {}, min compiler {})", m.name, m.version, m.abi, m.min_compiler),
+        Ok(None) => {}
+        Err(e) => {
+            eprintln!("error: incompatible plugin: {}", e);
+            std::process::exit(1);
+        }
     }
     let cwd = std::env::current_dir().unwrap_or_default();
     let Some((project, _)) = crate::find_project(&cwd) else {

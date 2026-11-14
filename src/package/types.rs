@@ -11,6 +11,8 @@ pub struct Package {
     pub lir_data: Vec<u8>,
     /// A5b-3：依赖包 stem 列表（构建宏插件 .so 时递归链接）
     pub deps: Vec<String>,
+    /// A5j-1：插件清单（普通 .lcl 为 None）
+    pub plugin_manifest: Option<super::plugin::PluginManifest>,
     /// A3c：HIR 推断摘要（仅内存；打包时用于生成 effects tokens）
     pub effect_summaries: std::collections::HashMap<String, crate::hir::effects::EffectSummary>,
 }
@@ -117,4 +119,35 @@ pub enum ImportedSymbol {
         ty: String,
         is_mut: bool,
     },
+}
+
+pub(super) fn type_to_string(ty: &Type) -> String {
+    match ty {
+        Type::Default | Type::FnPtr(..) => "???".into(),
+        // M2：闭包签名（与 sig_str_to_hir 的 `Fn(...)->R` 格式对应）
+        Type::Closure(ps, ret, _, once) => format!("{}({})->{}",
+            if *once { "FnOnce" } else { "Fn" },
+            ps.iter().map(|p| type_to_string(p)).collect::<Vec<_>>().join(","),
+            type_to_string(ret)),
+        Type::Int(_) => "int".into(),
+        Type::Float(_) => "float".into(),
+        Type::Char(_) => "char".into(),
+        Type::Bool(_) => "bool".into(),
+        Type::Void(_) => "void".into(),
+        Type::Never(_) => "!".into(),
+        Type::Named(s, _) => s.as_str().to_string(),
+        Type::Array(inner, _) => format!("[{}]", type_to_string(inner)),
+        Type::ArraySized(inner, n, _) => format!("[{}; {}]", type_to_string(inner), n),
+        Type::Unique(inner, _) => format!("unique {}", type_to_string(inner)),
+        Type::RawPtr(inner, _) => format!("*{}", type_to_string(inner)),
+        Type::Generic(name, args, _) => format!("{}[{}]", name, args.iter().map(|a| type_to_string(a)).collect::<Vec<_>>().join(",")),
+        Type::Ref(inner, mutable, _) => {
+            if *mutable {
+                format!("ref mut {}", type_to_string(inner))
+            } else {
+                format!("ref {}", type_to_string(inner))
+            }
+        }
+        Type::Self_(_) => "Self".into(),
+    }
 }

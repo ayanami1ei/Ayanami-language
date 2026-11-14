@@ -1,5 +1,5 @@
 use super::*;
-use super::load::type_to_string;
+use super::types::type_to_string;
 
 impl Package {
     pub fn new(name: String, version: String) -> Self {
@@ -11,6 +11,7 @@ impl Package {
             generic_sources: Vec::new(),
             lir_data: Vec::new(),
             deps: Vec::new(),
+            plugin_manifest: None,
             effect_summaries: std::collections::HashMap::new(),
         }
     }

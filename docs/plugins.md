@@ -56,6 +56,7 @@ ayanami plugin install path/to/my_plugin/src/lib.lcl my_plugin
 # installed plugin: <project>/plugins/my_plugin.lcl
 ```
 
+安装前会校验 `.lcl` 的插件清单（ABI、最低编译器版本）；不兼容时直接拒绝。
 命令会把插件复制到项目的 `plugins/`，并自动在 `ayanami.toml` 写入：
 
 ```toml
@@ -80,6 +81,28 @@ my_plugin = "plugins/my_plugin.lcl"
 - 原生插件仍需要消费方有 C 工具链。当前 `runtime.c` 以 Linux 为主；macOS/Windows 的
   动态库命名、链接参数与加载器已就绪，但 runtime 端口（POSIX/Win32）仍属编译器整体
   平台化工作，尚未验证。
+
+## 插件清单与兼容性
+
+`ayanami plugin package` 会在 `.lcl` 里写入 `[plugin]` 清单：
+
+```ini
+[plugin]
+manifest=1
+name="my_plugin"
+version="0.1.0"
+abi=8
+min-compiler="0.6.8"
+built-with="0.6.8"
+```
+
+- `abi` 必须与消费方编译器的插件 ABI 完全一致；不一致会给出“重建或安装兼容版本”
+  的错误。
+- `min-compiler` 使用简单 semver 比较；低于要求会拒绝加载/安装。
+- 旧版 `.lcl` 没有清单时仍可加载，但每个包只提示一次重建。
+- `ayanami plugin install` 在复制前执行同样校验；`import`/编译阶段也会再校验一次。
+
+详见 [`docs/plugin-manifest.md`](plugin-manifest.md)。
 
 ## 四类插件
 
@@ -124,13 +147,14 @@ version = "0.1.0"
 target = "static-lib"
 ```
 
-`plugin package` 会校验源码至少包含一个插件声明，再调用正常打包流程。
-产物与消费方编译器版本/ABI 需兼容；跨平台插件不随包分发 `.so`。
+`plugin package` 会校验源码至少包含一个插件声明，再调用正常打包流程；
+插件名/版本来自 `[package]`（缺失时回退到入口 stem / `0.1.0`）。
+产物与消费方编译器版本/ABI 通过 `[plugin]` 清单校验；跨平台插件不随包分发 `.so`。
 
 ## 信任与限制
 
 - 原生插件在编译期执行，信任级等同 proc-macro；不要运行不可信插件。
-- WASM 沙箱、插件清单/权限模型为后续工作。
+- 插件清单与 ABI/最低编译器校验已实现（A5j-1）；WASM 沙箱、权限模型为后续工作。
 - 第三方 `#[transform]`（HIR 程序级变换）尚未开放；当前 `#[async]`/`#[sync]`
   是内建结构化变换。
 - 属性插件当前仅 item 级；语句/字段/表达式/token 属性为后续。

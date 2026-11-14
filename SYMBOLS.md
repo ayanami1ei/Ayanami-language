@@ -60,16 +60,16 @@ src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
 src/cli/plugin.rs:8: pub(crate) fn cmd_plugin(args: &[String])
 src/cli/plugin.rs:23: fn plugin_new(args: &[String])
-src/cli/plugin.rs:51: pub fn identity(String input) -> String
-src/cli/plugin.rs:73: fn plugin_package(args: &[String])
-src/cli/plugin.rs:98: fn plugin_install(args: &[String])
-src/cli/plugin.rs:160: fn add_dependency(toml: &str, alias: &str, path: &str) -> Result<String, String>
-src/cli/plugin.rs:209: fn has_plugin_annotation(code: &str) -> bool
-src/cli/plugin.rs:214: fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool
-src/cli/plugin.rs:228: mod tests
-src/cli/plugin.rs:232: fn adds_dependency_section()
-src/cli/plugin.rs:238: fn inserts_into_existing_section()
-src/cli/plugin.rs:245: fn keeps_identical_and_rejects_conflict()
+src/cli/plugin.rs:50: pub fn identity(String input) -> String
+src/cli/plugin.rs:72: fn plugin_package(args: &[String])
+src/cli/plugin.rs:117: fn plugin_install(args: &[String])
+src/cli/plugin.rs:188: fn add_dependency(toml: &str, alias: &str, path: &str) -> Result<String, String>
+src/cli/plugin.rs:237: fn has_plugin_annotation(code: &str) -> bool
+src/cli/plugin.rs:242: fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool
+src/cli/plugin.rs:256: mod tests
+src/cli/plugin.rs:260: fn adds_dependency_section()
+src/cli/plugin.rs:266: fn inserts_into_existing_section()
+src/cli/plugin.rs:273: fn keeps_identical_and_rejects_conflict()
 src/cli/types.rs:9: pub(crate) fn cmd_types(args: &[String])
 src/cli/types.rs:62: fn collect_items(items: &[HirItem], out: &mut Vec<(String, String, usize, usize)>)
 src/cli/types.rs:72: fn collect_fn(f: &HirFn, out: &mut Vec<(String, String, usize, usize)>)
@@ -114,8 +114,9 @@ src/compiler/build/mod.rs:54: fn hash_import_closure(
 src/compiler/build/mod.rs:82: pub(crate) fn cache_key(src_path: &str, code: &str, target: &str) -> String
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
 src/compiler/build/package.rs:27: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:81: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
-src/compiler/build/package.rs:91: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:32: pub fn package_source_with_manifest(
+src/compiler/build/package.rs:94: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
+src/compiler/build/package.rs:104: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/passes/apply.rs:18: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
 src/compiler/build/passes/apply.rs:35: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
 src/compiler/build/passes/apply.rs:42: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
@@ -234,39 +235,38 @@ src/compiler/macro_expand/plugin.rs:179: static const char* id = \"{macro_id}\";
 src/compiler/macro_expand/plugin.rs:188: static long long diag_count = 0;\n\
 src/compiler/macro_expand/plugin.rs:189: static long long diag_levels[DIAG_MAX];\n\
 src/compiler/macro_expand/plugin.rs:190: static AyaBuf diag_msgs[DIAG_MAX];\n\
-src/compiler/macro_expand/plugin_abi.rs:11: pub(crate) const ABI_VERSION: u32 = 8;
-src/compiler/macro_expand/plugin_abi.rs:14: pub(super) fn plugin_ext() -> &'static str
-src/compiler/macro_expand/plugin_abi.rs:25: pub(super) fn plugin_path(dir: &Path, prefix: &str, stem: &str, hash: u64) -> PathBuf
-src/compiler/macro_expand/plugin_abi.rs:30: pub(super) fn shared_lib_command() -> Command
-src/compiler/macro_expand/plugin_abi.rs:47: pub(super) fn done_path(so: &Path) -> PathBuf
-src/compiler/macro_expand/plugin_abi.rs:52: pub(super) fn so_cached(so: &Path) -> bool
-src/compiler/macro_expand/plugin_abi.rs:57: pub(super) fn unique_tag() -> String
-src/compiler/macro_expand/plugin_abi.rs:66: pub(super) fn publish_so(tmp: &Path, so: &Path) -> Result<()>
-src/compiler/macro_expand/plugin_abi.rs:75: pub(crate) enum ParamKind
-src/compiler/macro_expand/plugin_abi.rs:86: pub(crate) mod dl
-src/compiler/macro_expand/plugin_abi.rs:92: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:93: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:94: pub fn dlclose(handle: *mut c_void) -> c_int;
-src/compiler/macro_expand/plugin_abi.rs:95: pub fn dlerror() -> *mut c_char;
-src/compiler/macro_expand/plugin_abi.rs:100: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:101: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:102: pub fn dlclose(handle: *mut c_void) -> c_int;
-src/compiler/macro_expand/plugin_abi.rs:103: pub fn dlerror() -> *mut c_char;
-src/compiler/macro_expand/plugin_abi.rs:109: fn LoadLibraryW(name: *const u16) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:110: fn GetProcAddress(handle: *mut c_void, name: *const u8) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:111: fn FreeLibrary(handle: *mut c_void) -> c_int;
-src/compiler/macro_expand/plugin_abi.rs:115: pub unsafe fn dlopen(filename: *const c_char, _flag: c_int) -> *mut c_void
-src/compiler/macro_expand/plugin_abi.rs:125: pub unsafe fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void
-src/compiler/macro_expand/plugin_abi.rs:130: pub unsafe fn dlclose(handle: *mut c_void) -> c_int
-src/compiler/macro_expand/plugin_abi.rs:135: pub unsafe fn dlerror() -> *mut c_char
-src/compiler/macro_expand/plugin_abi.rs:140: pub(crate) const RTLD_NOW: c_int = 2;
-src/compiler/macro_expand/plugin_abi.rs:144: pub(crate) struct AyaBuf
-src/compiler/macro_expand/plugin_abi.rs:151: pub(crate) struct AyaBufList
-src/compiler/macro_expand/plugin_abi.rs:157: pub(crate) fn load_macro_fn(lcl_path: &str, macro_name: &str) -> Result<(crate::lir::ir::LirFn, crate::lir::ir::LirProgram)>
-src/compiler/macro_expand/plugin_abi.rs:169: pub(crate) fn plan_params(f: &crate::lir::ir::LirFn, args_len: usize, allow_reserved: bool) -> Result<Vec<ParamKind>>
-src/compiler/macro_expand/plugin_abi.rs:218: pub(crate) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
-src/compiler/macro_expand/plugin_abi.rs:234: pub(crate) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
-src/compiler/macro_expand/plugin_abi.rs:256: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
+src/compiler/macro_expand/plugin_abi.rs:15: pub(super) fn plugin_ext() -> &'static str
+src/compiler/macro_expand/plugin_abi.rs:26: pub(super) fn plugin_path(dir: &Path, prefix: &str, stem: &str, hash: u64) -> PathBuf
+src/compiler/macro_expand/plugin_abi.rs:31: pub(super) fn shared_lib_command() -> Command
+src/compiler/macro_expand/plugin_abi.rs:48: pub(super) fn done_path(so: &Path) -> PathBuf
+src/compiler/macro_expand/plugin_abi.rs:53: pub(super) fn so_cached(so: &Path) -> bool
+src/compiler/macro_expand/plugin_abi.rs:58: pub(super) fn unique_tag() -> String
+src/compiler/macro_expand/plugin_abi.rs:67: pub(super) fn publish_so(tmp: &Path, so: &Path) -> Result<()>
+src/compiler/macro_expand/plugin_abi.rs:76: pub(crate) enum ParamKind
+src/compiler/macro_expand/plugin_abi.rs:87: pub(crate) mod dl
+src/compiler/macro_expand/plugin_abi.rs:93: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:94: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:95: pub fn dlclose(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin_abi.rs:96: pub fn dlerror() -> *mut c_char;
+src/compiler/macro_expand/plugin_abi.rs:101: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:102: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:103: pub fn dlclose(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin_abi.rs:104: pub fn dlerror() -> *mut c_char;
+src/compiler/macro_expand/plugin_abi.rs:110: fn LoadLibraryW(name: *const u16) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:111: fn GetProcAddress(handle: *mut c_void, name: *const u8) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:112: fn FreeLibrary(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin_abi.rs:116: pub unsafe fn dlopen(filename: *const c_char, _flag: c_int) -> *mut c_void
+src/compiler/macro_expand/plugin_abi.rs:126: pub unsafe fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void
+src/compiler/macro_expand/plugin_abi.rs:131: pub unsafe fn dlclose(handle: *mut c_void) -> c_int
+src/compiler/macro_expand/plugin_abi.rs:136: pub unsafe fn dlerror() -> *mut c_char
+src/compiler/macro_expand/plugin_abi.rs:141: pub(crate) const RTLD_NOW: c_int = 2;
+src/compiler/macro_expand/plugin_abi.rs:145: pub(crate) struct AyaBuf
+src/compiler/macro_expand/plugin_abi.rs:152: pub(crate) struct AyaBufList
+src/compiler/macro_expand/plugin_abi.rs:158: pub(crate) fn load_macro_fn(lcl_path: &str, macro_name: &str) -> Result<(crate::lir::ir::LirFn, crate::lir::ir::LirProgram)>
+src/compiler/macro_expand/plugin_abi.rs:170: pub(crate) fn plan_params(f: &crate::lir::ir::LirFn, args_len: usize, allow_reserved: bool) -> Result<Vec<ParamKind>>
+src/compiler/macro_expand/plugin_abi.rs:219: pub(crate) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
+src/compiler/macro_expand/plugin_abi.rs:235: pub(crate) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
+src/compiler/macro_expand/plugin_abi.rs:257: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
 src/compiler/macro_expand/plugin_call.rs:7: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
 src/compiler/macro_expand/plugin_call.rs:8: type FreeFn = unsafe extern "C" fn(AyaBuf);
 src/compiler/macro_expand/plugin_call.rs:10: pub(super) fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Vec<u8>], line: i64, col: i64, file: &[u8]) -> Result<Vec<u8>>
@@ -2634,7 +2634,7 @@ src/package/annotate.rs:47: fn attr_collides_with_other_annotation_kinds()
 src/package/annotate.rs:55: fn distinct_annotation_names_accepted()
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:105: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:117: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:21: impl ProjectConfig
 src/package/config.rs:22: pub fn load(toml_content: &str) -> Self
@@ -2648,39 +2648,63 @@ src/package/const_codec.rs:64: pub fn lit_str(lit: &HirLiteral) -> Option<String
 src/package/const_codec.rs:75: pub fn lit_from_str(ty: &HirType, s: &str) -> Option<HirLiteral>
 src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
-src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:138: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
-src/package/load.rs:159: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:171: pub fn load_version(path: &str) -> Option<String>
-src/package/load.rs:184: pub fn warn_version_drift(path: &str, stem: &str)
-src/package/load.rs:186: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
-src/package/load.rs:204: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:238: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:268: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:4: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
+src/package/load.rs:149: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
+src/package/load.rs:170: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:182: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:195: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:197: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:215: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:249: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod annotate;
 src/package/mod.rs:7: mod bytes;
 src/package/mod.rs:8: pub(crate) mod const_codec;
 src/package/mod.rs:9: mod load;
-src/package/mod.rs:10: mod symbols;
-src/package/mod.rs:11: mod target;
-src/package/mod.rs:12: mod types;
+src/package/mod.rs:10: mod plugin;
+src/package/mod.rs:13: mod symbols;
+src/package/mod.rs:14: mod target;
+src/package/mod.rs:15: mod types;
+src/package/plugin/tests.rs:4: fn test_parse_valid_manifest()
+src/package/plugin/tests.rs:24: fn test_no_plugin_section()
+src/package/plugin/tests.rs:33: fn test_missing_abi()
+src/package/plugin/tests.rs:46: fn test_validate_wrong_abi()
+src/package/plugin/tests.rs:59: fn test_validate_too_new_min_compiler()
+src/package/plugin/tests.rs:72: fn test_validate_invalid_min_compiler()
+src/package/plugin/tests.rs:85: fn test_version_at_least()
+src/package/plugin/tests.rs:92: fn test_plugin_section_before_later_sections()
+src/package/plugin/tests.rs:110: fn test_parse_manifest_ignores_symbols()
+src/package/plugin.rs:8: pub(crate) const PLUGIN_ABI_VERSION: u32 = 8;
+src/package/plugin.rs:9: pub(crate) const PLUGIN_MANIFEST_SCHEMA: u32 = 1;
+src/package/plugin.rs:12: pub struct PluginManifest
+src/package/plugin.rs:21: impl PluginManifest
+src/package/plugin.rs:22: pub fn new(name: String, version: String, min_compiler: String, built_with: String) -> Self
+src/package/plugin.rs:34: fn parse_version(s: &str) -> Option<(u64, u64, u64)>
+src/package/plugin.rs:47: fn version_at_least(current: &str, required: &str) -> bool
+src/package/plugin.rs:53: pub(crate) fn parse_manifest(body: &str, path: &str) -> Result<Option<PluginManifest>>
+src/package/plugin.rs:129: pub(crate) fn load_manifest(path: &str) -> Result<Option<PluginManifest>>
+src/package/plugin.rs:146: pub(crate) fn validate_manifest(manifest: &PluginManifest, path: &str) -> Result<()>
+src/package/plugin.rs:185: pub fn load_checked_manifest(path: &str) -> Result<Option<PluginManifest>>
+src/package/plugin.rs:193: static WARNED_PATHS: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+src/package/plugin.rs:195: pub(crate) fn warn_missing_manifest(path: &str)
+src/package/plugin.rs:208: mod tests;
 src/package/symbols.rs:4: impl Package
 src/package/symbols.rs:5: pub fn new(name: String, version: String) -> Self
-src/package/symbols.rs:21: pub fn set_effect_summaries(
-src/package/symbols.rs:29: pub fn set_consts(&mut self, consts: &[(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)])
-src/package/symbols.rs:42: pub fn set_statics(&mut self, statics: &[crate::hir::HirStatic], all: bool)
-src/package/symbols.rs:55: pub fn collect_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:60: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:64: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
-src/package/symbols.rs:71: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
+src/package/symbols.rs:22: pub fn set_effect_summaries(
+src/package/symbols.rs:30: pub fn set_consts(&mut self, consts: &[(crate::intern::Symbol, crate::hir::ir::HirType, crate::hir::ir::HirLiteral)])
+src/package/symbols.rs:43: pub fn set_statics(&mut self, statics: &[crate::hir::HirStatic], all: bool)
+src/package/symbols.rs:56: pub fn collect_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:61: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
+src/package/symbols.rs:65: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
+src/package/symbols.rs:72: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
 src/package/target.rs:4: pub enum TargetType
 src/package/target.rs:10: impl TargetType
 src/package/target.rs:11: pub fn as_str(&self) -> &'static str
 src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
-src/package/types.rs:19: pub enum PackageSymbol
-src/package/types.rs:75: pub enum ImportedSymbol
+src/package/types.rs:21: pub enum PackageSymbol
+src/package/types.rs:77: pub enum ImportedSymbol
+src/package/types.rs:124: pub(super) fn type_to_string(ty: &Type) -> String
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block

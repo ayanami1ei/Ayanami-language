@@ -18,7 +18,7 @@ mod passes;
 mod target;
 
 pub use compile::compile_file;
-pub use package::{install_package, package_source};
+pub use package::{install_package, package_source, package_source_with_manifest};
 pub use target::build_source_with_target;
 pub use target::run_executable;
 

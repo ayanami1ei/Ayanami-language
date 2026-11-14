@@ -33,7 +33,7 @@ graph LR
     compiler --> lexer
     compiler --> lir
     compiler -->|3| mir
-    compiler --> package
+    compiler -->|2| package
     compiler -->|9| parser
     driver -->|2| error
     driver --> target
@@ -59,7 +59,7 @@ graph LR
     mir --> lir
     mir --> parser
     mir -->|2| span
-    package -->|2| error
+    package -->|3| error
     package --> hir
     package --> intern
     package --> parser
@@ -90,12 +90,13 @@ graph LR
 | `lir` | `mir` | 3 |
 | `lir` | `parser` | 3 |
 | `mir` | `intern` | 3 |
+| `package` | `error` | 3 |
+| `compiler` | `package` | 2 |
 | `driver` | `error` | 2 |
 | `formatter` | `parser` | 2 |
 | `hir` | `formatter` | 2 |
 | `hir` | `mir` | 2 |
 | `mir` | `span` | 2 |
-| `package` | `error` | 2 |
 | `parser` | `error` | 2 |
 | `annotation_registry` | `parser` | 1 |
 | `annotation_table` | `error` | 1 |
@@ -105,7 +106,6 @@ graph LR
 | `compiler` | `intern` | 1 |
 | `compiler` | `lexer` | 1 |
 | `compiler` | `lir` | 1 |
-| `compiler` | `package` | 1 |
 | `driver` | `target` | 1 |
 | `formatter` | `intern` | 1 |
 | `formatter` | `lexer` | 1 |

@@ -17,6 +17,18 @@ impl Package {
         body.push_str(&format!("version=\"{}\"\n", self.version));
         body.push_str("\n");
 
+        // A5j-1：插件清单（普通 .lcl 不写该段）
+        if let Some(m) = &self.plugin_manifest {
+            body.push_str("[plugin]\n");
+            body.push_str(&format!("manifest={}\n", m.schema));
+            body.push_str(&format!("name=\"{}\"\n", m.name));
+            body.push_str(&format!("version=\"{}\"\n", m.version));
+            body.push_str(&format!("abi={}\n", m.abi));
+            body.push_str(&format!("min-compiler=\"{}\"\n", m.min_compiler));
+            body.push_str(&format!("built-with=\"{}\"\n", m.built_with));
+            body.push_str("\n");
+        }
+
         if !self.target_types.is_empty() {
             body.push_str("[target]\n");
             for tt in &self.target_types {

@@ -1,4 +1,5 @@
 use super::*;
+use super::plugin::{parse_manifest, validate_manifest, warn_missing_manifest};
 
 pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)> {
     let data = std::fs::read(path)
@@ -17,6 +18,7 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
     // Decode INI portion as UTF-8
     let body_str = std::str::from_utf8(ini_bytes)
         .map_err(|e| Error::Package(format!("invalid UTF-8 in package INI: {}", e)))?;
+    let manifest = parse_manifest(body_str, path)?;
 
     let mut symbols = Vec::new();
     let mut sources = Vec::new();
@@ -130,6 +132,15 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
         }
     }
 
+    let has_plugin_symbols = symbols.iter().any(|s| {
+        matches!(s, ImportedSymbol::Macro { .. } | ImportedSymbol::Pass { .. }
+            | ImportedSymbol::Check { .. } | ImportedSymbol::Attr { .. })
+    });
+    match manifest {
+        Some(ref m) => validate_manifest(m, path)?,
+        None if has_plugin_symbols => warn_missing_manifest(path),
+        None => {}
+    }
     validate_annotation_symbols(&symbols, path)?;
     Ok((symbols, sources, lir_binary, target_types))
 }
@@ -263,35 +274,4 @@ pub fn load_package_deps(path: &str) -> Result<Vec<String>> {
         }
     }
     Ok(deps)
-}
-
-pub(super) fn type_to_string(ty: &Type) -> String {
-    match ty {
-        Type::Default | Type::FnPtr(..) => "???".into(),
-        // M2：闭包签名（与 sig_str_to_hir 的 `Fn(...)->R` 格式对应）
-        Type::Closure(ps, ret, _, once) => format!("{}({})->{}",
-            if *once { "FnOnce" } else { "Fn" },
-            ps.iter().map(|p| type_to_string(p)).collect::<Vec<_>>().join(","),
-            type_to_string(ret)),
-        Type::Int(_) => "int".into(),
-        Type::Float(_) => "float".into(),
-        Type::Char(_) => "char".into(),
-        Type::Bool(_) => "bool".into(),
-        Type::Void(_) => "void".into(),
-        Type::Never(_) => "!".into(),
-        Type::Named(s, _) => s.as_str().to_string(),
-        Type::Array(inner, _) => format!("[{}]", type_to_string(inner)),
-        Type::ArraySized(inner, n, _) => format!("[{}; {}]", type_to_string(inner), n),
-        Type::Unique(inner, _) => format!("unique {}", type_to_string(inner)),
-        Type::RawPtr(inner, _) => format!("*{}", type_to_string(inner)),
-        Type::Generic(name, args, _) => format!("{}[{}]", name, args.iter().map(|a| type_to_string(a)).collect::<Vec<_>>().join(",")),
-        Type::Ref(inner, mutable, _) => {
-            if *mutable {
-                format!("ref mut {}", type_to_string(inner))
-            } else {
-                format!("ref {}", type_to_string(inner))
-            }
-        }
-        Type::Self_(_) => "Self".into(),
-    }
 }

@@ -311,7 +311,7 @@ struct Holder {
 - 展开：对带库宏标注的 item 依次调用 → 结果重新解析 → 内置标注校验 → 拼回 AST → 正常 HIR；
   递归展开设上限并检测循环，错误带宏名 + 调用点。
 - 缓存 `target/macros/<hash>.so`；信任模型同 Rust proc-macro（编译期执行，文档明示）；
-  WASM 沙箱与插件清单/权限为远期（A5c）。
+  WASM 沙箱与权限模型为远期（A5c）；插件清单 A5j-1 已实现。
 
 ### 8.3 展开时机与卫生性
 
@@ -326,7 +326,7 @@ struct Holder {
   输出源码重新解析为语句序列并递归展开后原位拼接；允许展开为多条语句。
 - 遍历：函数体、`if`/`elif`/`else`、`for`/`while` 块内均展开；仅含编译器标注的
   `Attributed` 原样保留（`cfg` 过滤仍在其后执行）。
-- 表达式级宏（函数宏）见 8.5；其他语言插件、WASM 沙箱、插件清单与权限为远期。
+- 表达式级宏（函数宏）见 8.5；其他语言插件、WASM 沙箱、权限模型为远期；插件清单 A5j-1 已实现。
 
 ### 8.5 函数宏（A5c-2，表达式级）
 
@@ -473,6 +473,17 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - macOS/Windows 原生插件还需 runtime.c 的 POSIX/Win32 端口，属于编译器整体平台化
   工作；`.lcl` 本身不携带平台相关产物。
 
+### 8.12 插件清单与兼容性（A5j-1，2026-11-14）
+
+- `.lcl` 新增 `[plugin]`：`manifest=1`、`name`、`version`、`abi`、`min-compiler`、
+  `built-with`；详见 `docs/plugin-manifest.md`。
+- 加载/安装时校验清单 schema、插件 ABI（必须精确匹配）和最低编译器版本；
+  错误包含插件名/版本/要求与实际版本。
+- 插件版本来自项目 `[package] version`，`plugin package` 自动写清单；
+  `[pakage-info] version` 仍记录打包编译器版本，避免破坏 version drift 告警。
+- 旧 `.lcl` 无清单时保持兼容，但导出插件注解的包会打印一次重建 warning。
+- 设计/验收：`docs/plugin-manifest.md`；bd：`Ayanami-language-jwp5.1`。
+
 ## 9. 实现接口（跨包与工具）
 
 | 层 | 载体 |
@@ -591,7 +602,7 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
       `#panic`（运行时 panic + 源码定位 + 退出码 101）+ 标准库越界检查
 - [x] A5c-2 函数级 track_caller：保留参数 `__line/__col/__file` 调用点自动填充（含 .lcl `caller` 标记），
       std 越界/空表 panic 指向用户调用行
-- [ ] A5c-2 后续：其它语言插件 / WASM 沙箱 / 插件清单与权限（远期）
+- [ ] A5c-2 后续：其它语言插件 / WASM 沙箱 / 权限模型（远期）；插件清单见 A5j-1
 
 ### A5e（前置修复已完成，2026-10-24）
 
@@ -628,6 +639,13 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] 交付物固定 `.lcl`；本机缓存按 Linux/macOS/Windows 选择扩展名与加载方式
 - [x] `$CC` 链接器覆盖；macOS `-dynamiclib`、Windows `--export-all-symbols`
 - [ ] macOS/Windows runtime.c 端口与验证；插件注册表与版本约束
+
+### A5j-1（2026-11-14）
+
+- [x] `.lcl` `[plugin]` 清单（schema/name/version/abi/min-compiler/built-with）
+- [x] `plugin package` 自动写清单；加载/安装校验 ABI 与最低编译器版本
+- [x] 旧插件无清单兼容 + 一次性重建 warning；单测/回归
+- [ ] A5j-2 registry/lockfile；A5j-3 沙箱；A5j-4 跨平台 runtime
 
 ### 已知问题
 
