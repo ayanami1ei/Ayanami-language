@@ -6,18 +6,22 @@
 use super::*;
 
 mod install;
+mod publish;
 use install::{plugin_install, plugin_verify};
+use publish::plugin_publish;
 
 pub(crate) fn cmd_plugin(args: &[String]) {
     match args.first().map(|s| s.as_str()) {
         Some("new") => plugin_new(&args[1..]),
         Some("package") => plugin_package(&args[1..]),
         Some("install") => plugin_install(&args[1..]),
+        Some("publish") => plugin_publish(&args[1..]),
         Some("verify") => plugin_verify(&args[1..]),
         _ => {
-            eprintln!("usage: ayanami plugin <new|package|install|verify> ...");
+            eprintln!("usage: ayanami plugin <new|package|publish|install|verify> ...");
             eprintln!("  new <name>        创建第三方插件项目");
             eprintln!("  package <project> 校验注解声明并打包 .lcl");
+            eprintln!("  publish <lcl> [--registry <dir>] [--force] 发布到本地 registry");
             eprintln!("  install <lcl|name[@version]> [alias] [--update] 安装并写依赖");
             eprintln!("  verify            校验 ayanami.lock 中插件的 SHA-256");
             std::process::exit(1);

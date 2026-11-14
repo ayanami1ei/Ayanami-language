@@ -100,6 +100,20 @@ fn absolute_path_rejected() {
 }
 
 #[test]
+fn insert_save_roundtrip() {
+    let root = temp_dir("save");
+    touch_lcl(&root, "demo-0.1.0.lcl");
+    let mut index = RegistryIndex::default();
+    index.insert("demo", "0.1.0", "demo-0.1.0.lcl", false).unwrap();
+    index.save(&root).unwrap();
+    let loaded = RegistryIndex::load(&root).unwrap();
+    assert_eq!(loaded.resolve(&root, "demo", Some("0.1.0")).unwrap().version, "0.1.0");
+    index.insert("demo", "0.1", "other.lcl", false).unwrap_err();
+    index.insert("demo", "0.1", "other.lcl", true).unwrap();
+    assert_eq!(index.entries["demo"][0].file, "other.lcl");
+}
+
+#[test]
 fn missing_target_file_error() {
     let root = temp_dir("missing_file");
     fs::write(root.join("index.toml"), "[demo]\n1.0.0 = \"missing.lcl\"\n").unwrap();

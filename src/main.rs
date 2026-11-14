@@ -31,7 +31,7 @@ fn main() {
     eprintln!("  dump <stage> <file> 输出 IR 阶段文本（ast|hir|mir|lir|llvm）");
         eprintln!("  run [--release] [--verify-effects] [file/proj] 构建并运行");
         eprintln!("  clean              清除 build/ 目录");
-        eprintln!("  plugin new|package|install|verify  第三方插件脚手架/打包/安装/校验");
+        eprintln!("  plugin new|package|publish|install|verify  第三方插件脚手架/发布/安装/校验");
         eprintln!("  update [--check] [--std-only] [--dir <path>]  联网更新编译器与 std（GitHub Release）");
         eprintln!("  --version          打印版本");
         std::process::exit(1);

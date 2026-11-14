@@ -19,7 +19,7 @@ ayanami plugin install my_plugin          # 选择 registry 中最高版本
 - 远程 HTTP registry、账号/发布权限；
 - 完整 semver 范围求解（`^`/`~`/多依赖约束）；
 - 私有 registry 认证、签名、TUF/供应链安全；
-- 自动发布 `plugin publish`（registry 索引可手工维护，后续再加）。
+- 远程发布、推送权限；本地 `plugin publish` 已支持。
 
 对应后续：A5j-2 后续切片、A5j-3 沙箱、A5j-4 跨平台 runtime。
 
@@ -111,6 +111,10 @@ sha256="<64 hex>"
 ## 命令
 
 ```bash
+# 作者发布到本地 registry（自动建目录/更新 index）
+ayanami plugin publish path/to/lib.lcl --registry vendor/registry
+ayanami plugin publish path/to/lib.lcl --registry vendor/registry --force
+
 # registry 安装（alias 省略时使用插件名）
 ayanami plugin install my_plugin@0.2.0
 ayanami plugin install my_plugin@0.2.0 my_plugin
@@ -156,4 +160,6 @@ ayanami plugin install path/to/plugin.lcl my_plugin
 
 - A5j-2 本地 MVP 已实现（2026-11-14）：`index.toml`、按名/版本安装、最高版本选择、
   `ayanami.lock`、SHA-256 校验、离线 cache、`plugin verify`。
-- 远程 registry、完整 semver 范围/冲突求解、`plugin publish` 仍未实现。
+- `ayanami plugin publish` 已实现（A5j-2b）：校验清单、复制 `.lcl`、更新 `index.toml`，
+  同版本同文件幂等，不同文件需 `--force`。
+- 远程 registry、完整 semver 范围/冲突求解仍未实现。

@@ -145,6 +145,54 @@ impl RegistryIndex {
         Err(Error::Package(format!("plugin '{}' has no version matching '{}' (available: {})", name, requested_version, available)))
     }
     
+    /// 发布/更新一个版本；同版本同文件幂等，冲突默认拒绝，`force` 覆盖。
+    pub fn insert(&mut self, name: &str, version: &str, file: &str, force: bool) -> Result<()> {
+        validate_name(name)?;
+        validate_file(file)?;
+        let version_tuple = parse_version(version)
+            .ok_or_else(|| Error::Package(format!("invalid registry version '{}'", version)))?;
+        let versions = self.entries.entry(name.to_string()).or_default();
+        if let Some(existing) = versions.iter_mut().find(|v| {
+            parse_version(&v.version).map_or(false, |t| t == version_tuple)
+        }) {
+            if existing.version == version && existing.file == file {
+                return Ok(());
+            }
+            if !force {
+                return Err(Error::Package(format!(
+                    "plugin '{}' version '{}' already exists as '{}' (use --force)",
+                    name, existing.version, existing.file
+                )));
+            }
+            existing.version = version.to_string();
+            existing.file = file.to_string();
+            return Ok(());
+        }
+        versions.push(RegistryVersion { version: version.to_string(), file: file.to_string() });
+        Ok(())
+    }
+
+    /// 将 index 写回 `<root>/index.toml`（规范化、按名字/版本排序）。
+    pub fn save(&self, root: &Path) -> Result<()> {
+        fs::create_dir_all(root)
+            .map_err(|e| Error::Package(format!("failed to create registry '{}': {}", root.display(), e)))?;
+        let mut content = String::new();
+        for (name, versions) in &self.entries {
+            validate_name(name)?;
+            content.push_str(&format!("[{}]\n", name));
+            let mut sorted = versions.clone();
+            sorted.sort_by_key(|v| parse_version(&v.version).unwrap_or((0, 0, 0)));
+            for entry in sorted {
+                validate_file(&entry.file)?;
+                content.push_str(&format!("{} = \"{}\"\n", entry.version, entry.file));
+            }
+            content.push('\n');
+        }
+        let index_path = root.join("index.toml");
+        fs::write(&index_path, content)
+            .map_err(|e| Error::Package(format!("failed to write registry '{}': {}", index_path.display(), e)))
+    }
+
     pub fn versions(&self, name: &str) -> Vec<&str> {
         if let Some(entries) = self.entries.get(name) {
             let mut versions: Vec<_> = entries.iter()
@@ -160,6 +208,26 @@ impl RegistryIndex {
             Vec::new()
         }
     }
+}
+
+fn validate_name(name: &str) -> Result<()> {
+    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+        return Err(Error::Package(format!("invalid registry plugin name '{}'", name)));
+    }
+    Ok(())
+}
+
+fn validate_file(file: &str) -> Result<()> {
+    if !file.ends_with(".lcl")
+        || Path::new(file).is_absolute()
+        || file.starts_with('/')
+        || file.starts_with('\\')
+        || file.contains(':')
+        || file.contains("..")
+    {
+        return Err(Error::Package(format!("invalid registry file '{}'", file)));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

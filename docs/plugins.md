@@ -73,7 +73,10 @@ my_plugin = "plugins/my_plugin.lcl"
 除了传 `.lcl` 路径，也可以按名字/版本安装：
 
 ```bash
-# registry 目录里有 index.toml + .lcl
+# 作者发布到本地 registry（自动写 index.toml）
+ayanami plugin publish my_plugin/src/lib.lcl --registry vendor/registry
+
+# 消费方
 AYANAMI_PLUGIN_REGISTRY=vendor/registry ayanami plugin install my_plugin@0.1.0
 ayanami plugin install my_plugin        # 选择 registry 最高版本
 ayanami plugin verify                   # 校验 ayanami.lock 的 SHA-256

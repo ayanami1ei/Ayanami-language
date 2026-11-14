@@ -486,8 +486,8 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 
 ### 8.13 本地插件 registry 与 lockfile（A5j-2，2026-11-14）
 
-- 本地目录 registry：`index.toml` + `.lcl`；按 `name` / `name@version` 安装，
-  支持精确版本与最高版本（远程 registry 暂不做）。
+- 本地目录 registry：`index.toml` + `.lcl`；`plugin publish` 发布，
+  按 `name` / `name@version` 安装，支持精确版本与最高版本（远程 registry 暂不做）。
 - 项目 `ayanami.lock` 固定 `version/path/sha256`；`plugin verify` 校验完整性；
   锁定版本变化需显式 `--update`。
 - 安装顺序：项目锁定文件 → `$AYANAMI_PLUGIN_HOME/cache` → registry；
@@ -661,7 +661,8 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 
 - [x] 本地 registry `index.toml` + 精确/最高版本选择
 - [x] `ayanami.lock` / SHA-256 / 离线 cache / `plugin verify`
-- [ ] 远程 registry、semver 范围求解、`plugin publish`（暂不做远程）
+- [x] `ayanami plugin publish`（本地 registry，幂等/`--force`）
+- [ ] 远程 registry、semver 范围求解（暂不做远程）
 - [ ] A5j-3 沙箱；A5j-4 跨平台 runtime
 
 ### 已知问题

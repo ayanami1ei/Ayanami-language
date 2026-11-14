@@ -208,17 +208,21 @@ EOF
     v2="$pbase/demo_plugin_v2"
     rproj="$pbase/registry_consumer"
     phome="$pbase/plugin-home"
-    mkdir -p "$reg"
-    cp "$pdir/src/lib.lcl" "$reg/demo_plugin-0.1.0.lcl"
     cp -r "$pdir" "$v2"
     sed -i 's/version = "0.1.0"/version = "0.2.0"/' "$v2/ayanami.toml"
     "$BIN" plugin package "$v2" >/dev/null 2>&1 || true
-    cp "$v2/src/lib.lcl" "$reg/demo_plugin-0.2.0.lcl"
-    cat > "$reg/index.toml" <<'EOF'
-[demo_plugin]
-0.2.0 = "demo_plugin-0.2.0.lcl"
-0.1.0 = "demo_plugin-0.1.0.lcl"
-EOF
+    if ! "$BIN" plugin publish "$pdir/src/lib.lcl" --registry "$reg" >/dev/null 2>&1; then
+        echo "FAIL A5j-2b: plugin publish 0.1.0 failed"
+        fail=$((fail + 1))
+    fi
+    if ! "$BIN" plugin publish "$v2/src/lib.lcl" --registry "$reg" >/dev/null 2>&1; then
+        echo "FAIL A5j-2b: plugin publish 0.2.0 failed"
+        fail=$((fail + 1))
+    fi
+    if ! grep -q '0.2.0 = "demo_plugin-0.2.0.lcl"' "$reg/index.toml"; then
+        echo "FAIL A5j-2b: registry index missing published version"
+        fail=$((fail + 1))
+    fi
     if ! "$BIN" new "$rproj" >/dev/null 2>&1; then
         echo "FAIL A5j-2: registry consumer creation failed"
         fail=$((fail + 1))
