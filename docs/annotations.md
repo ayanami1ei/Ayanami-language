@@ -630,7 +630,8 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] B1：transform 插件 ABI identity（`transform=` 表 + `fn(String)->String`）
 - [x] B2 MVP：HIR JSON 修改 + `std/hir.aya` 读取/替换函数体已跑通
 - [x] B2c：clone/append 函数 + FnId/VarId/struct/vtable 引用校验
-- [ ] B2 后续：改调用点/借用效应/泛型边界完整校验
+- [x] B2d：`function_id` + `replace_call_targets` 调用点重定向
+- [ ] B2 后续：借用效应/泛型边界完整校验
 - [x] `#[sync(obj)] { ... }` 同步块（首个内建结构化变换，2026-10-24；见 `docs/sync-blocks.md`）
 - [ ] `#[async]`/`await`（A5e 第二个客户）
 

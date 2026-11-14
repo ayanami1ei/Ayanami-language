@@ -307,6 +307,43 @@ EOF
                         fail=$((fail + 1))
                     fi
                 fi
+                # B2d：改调用点 add2 → sub2
+                cat > "$tdir/src/lib.aya" <<'EOF'
+import "hir"
+
+#[transform]
+#[alloc]
+#[state]
+pub fn redirect(String input) -> String {
+    doc = parse_hir(ref input).unwrap()
+    from = function_id(ref doc, ref "add2").unwrap()
+    to = function_id(ref doc, ref "sub2").unwrap()
+    result = replace_call_targets(ref doc, from, to)
+    return render_hir(ref result)
+}
+EOF
+                if ! "$BIN" plugin package "$tdir" >/dev/null 2>&1; then
+                    echo "FAIL A5e/B2d: redirect transform package failed"
+                    fail=$((fail + 1))
+                else
+                    cat > "$tconsumer" <<EOF
+import "$tdir/src/lib.lcl"
+
+#[lib::redirect]
+fn main() -> int {
+    return add2(4, 2)
+}
+
+fn add2(int a, int b) -> int { return a + b }
+fn sub2(int a, int b) -> int { return a - b }
+EOF
+                    "$BIN" run "$tconsumer" >/dev/null 2>&1
+                    got=$?
+                    if [ "$got" != 2 ]; then
+                        echo "FAIL A5e/B2d: redirect call exit $got, want 2"
+                        fail=$((fail + 1))
+                    fi
+                fi
             fi
         fi
     fi
