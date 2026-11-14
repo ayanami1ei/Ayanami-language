@@ -48,3 +48,48 @@ fn unsupported_schema_version_is_rejected() {
     let json = json.replace("\"schema\":1", "\"schema\":2");
     assert!(from_json(&json).is_err());
 }
+
+fn find_mut<'a>(value: &'a mut serde_json::Value, kind: &str) -> Option<&'a mut serde_json::Value> {
+    if value.get("kind").and_then(serde_json::Value::as_str) == Some(kind) {
+        return Some(value);
+    }
+    match value {
+        serde_json::Value::Array(items) => {
+            for item in items {
+                if let Some(found) = find_mut(item, kind) {
+                    return Some(found);
+                }
+            }
+            None
+        }
+        serde_json::Value::Object(map) => {
+            for child in map.values_mut() {
+                if let Some(found) = find_mut(child, kind) {
+                    return Some(found);
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+#[test]
+fn invalid_fn_id_is_rejected_before_decode() {
+    let source = "fn add(int a, int b) -> int { return a + b }\nfn main() -> int { return add(1, 2) }";
+    let hir = hir_for(source);
+    let mut value: serde_json::Value = serde_json::from_str(&to_json(&hir).unwrap()).unwrap();
+    let call = find_mut(&mut value, "call").expect("call node");
+    call.as_object_mut().unwrap().insert("fn_id".into(), serde_json::json!(999999));
+    assert!(from_json(&value.to_string()).is_err());
+}
+
+#[test]
+fn invalid_var_id_is_rejected_before_decode() {
+    let source = "fn add(int a, int b) -> int { return a + b }\nfn main() -> int { return add(1, 2) }";
+    let hir = hir_for(source);
+    let mut value: serde_json::Value = serde_json::from_str(&to_json(&hir).unwrap()).unwrap();
+    let var = find_mut(&mut value, "var").expect("var node");
+    var.as_object_mut().unwrap().insert("var".into(), serde_json::json!(999999));
+    assert!(from_json(&value.to_string()).is_err());
+}

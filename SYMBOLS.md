@@ -1618,11 +1618,12 @@ src/hir/schema/mod.rs:12: mod program;
 src/hir/schema/mod.rs:13: mod stmt;
 src/hir/schema/mod.rs:14: mod syntax;
 src/hir/schema/mod.rs:15: mod types;
-src/hir/schema/mod.rs:24: pub const HIR_SCHEMA_VERSION: u32 = 1;
-src/hir/schema/mod.rs:27: pub fn to_json(program: &HirProgram) -> Result<String>
-src/hir/schema/mod.rs:33: pub fn from_json(text: &str) -> Result<HirProgram>
-src/hir/schema/mod.rs:40: pub fn roundtrip(program: &HirProgram) -> Result<HirProgram>
-src/hir/schema/mod.rs:53: mod tests;
+src/hir/schema/mod.rs:16: mod validate;
+src/hir/schema/mod.rs:25: pub const HIR_SCHEMA_VERSION: u32 = 1;
+src/hir/schema/mod.rs:28: pub fn to_json(program: &HirProgram) -> Result<String>
+src/hir/schema/mod.rs:34: pub fn from_json(text: &str) -> Result<HirProgram>
+src/hir/schema/mod.rs:42: pub fn roundtrip(program: &HirProgram) -> Result<HirProgram>
+src/hir/schema/mod.rs:55: mod tests;
 src/hir/schema/nodes.rs:13: impl HirSchemaNode for $ty
 src/hir/schema/nodes.rs:14: fn schema_json(&self) -> Value
 src/hir/schema/nodes.rs:55: impl ToJson for HirNodeBox
@@ -1694,6 +1695,9 @@ src/hir/schema/tests.rs:23: enum Maybe { Yes(int), No }
 src/hir/schema/tests.rs:25: fn add(int a, int b) -> int { return a + b }
 src/hir/schema/tests.rs:26: fn main() -> int
 src/hir/schema/tests.rs:45: fn unsupported_schema_version_is_rejected()
+src/hir/schema/tests.rs:52: fn find_mut<'a>(value: &'a mut serde_json::Value, kind: &str) -> Option<&'a mut serde_json::Value>
+src/hir/schema/tests.rs:78: fn invalid_fn_id_is_rejected_before_decode()
+src/hir/schema/tests.rs:88: fn invalid_var_id_is_rejected_before_decode()
 src/hir/schema/types.rs:9: impl ToJson for HirType
 src/hir/schema/types.rs:10: fn to_json(&self) -> Value
 src/hir/schema/types.rs:35: impl FromJson for HirType
@@ -1702,6 +1706,14 @@ src/hir/schema/types.rs:80: impl ToJson for HirLiteral
 src/hir/schema/types.rs:81: fn to_json(&self) -> Value
 src/hir/schema/types.rs:93: impl FromJson for HirLiteral
 src/hir/schema/types.rs:94: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/validate.rs:11: pub(crate) fn validate(root: &Value) -> Result<()>
+src/hir/schema/validate.rs:28: fn collect_program(
+src/hir/schema/validate.rs:53: fn collect_items(
+src/hir/schema/validate.rs:84: fn validate_vtables(root: &Value, fn_ids: &HashSet<u64>) -> Result<()>
+src/hir/schema/validate.rs:102: fn validate_items(
+src/hir/schema/validate.rs:112: fn validate_item_list(
+src/hir/schema/validate.rs:138: fn walk_nodes(
+src/hir/schema/validate.rs:206: fn err(message: impl std::fmt::Display) -> Error
 src/hir/stmt.rs:6: pub enum ContractKind
 src/hir/stmt.rs:12: impl ContractKind
 src/hir/stmt.rs:13: pub fn label(&self) -> &'static str

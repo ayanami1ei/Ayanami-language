@@ -272,6 +272,41 @@ EOF
                     echo "FAIL A5e/B2: mutated HIR exit $got, want 8"
                     fail=$((fail + 1))
                 fi
+                # B2c：clone + append 一个真实函数 item，验证 FnId/结构校验
+                cat > "$tdir/src/lib.aya" <<'EOF'
+import "hir"
+
+#[transform]
+#[alloc]
+#[state]
+pub fn clone_main(String input) -> String {
+    doc = parse_hir(ref input).unwrap()
+    item = find_function(ref doc, ref "main").unwrap()
+    next = max_fn_id(ref doc) + 1
+    extra = clone_function(ref item, ref "unused", next).unwrap()
+    result = append_item(ref doc, extra)
+    return render_hir(ref result)
+}
+EOF
+                if ! "$BIN" plugin package "$tdir" >/dev/null 2>&1; then
+                    echo "FAIL A5e/B2c: clone transform package failed"
+                    fail=$((fail + 1))
+                else
+                    cat > "$tconsumer" <<EOF
+import "$tdir/src/lib.lcl"
+
+#[lib::clone_main]
+fn main() -> int {
+    return 7
+}
+EOF
+                    "$BIN" run "$tconsumer" >/dev/null 2>&1
+                    got=$?
+                    if [ "$got" != 7 ]; then
+                        echo "FAIL A5e/B2c: appended function exit $got, want 7"
+                        fail=$((fail + 1))
+                    fi
+                fi
             fi
         fi
     fi

@@ -13,6 +13,7 @@ mod program;
 mod stmt;
 mod syntax;
 mod types;
+mod validate;
 
 pub use core::{FromJson, ToJson};
 pub use program::{decode_program, encode_program};
@@ -33,6 +34,7 @@ pub fn to_json(program: &HirProgram) -> Result<String> {
 pub fn from_json(text: &str) -> Result<HirProgram> {
     let value: serde_json::Value = serde_json::from_str(text)
         .map_err(|e| Error::Hir(format!("HIR schema decode: invalid JSON: {}", e)))?;
+    validate::validate(&value)?;
     decode_program(&value)
 }
 

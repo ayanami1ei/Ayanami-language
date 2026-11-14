@@ -78,7 +78,7 @@ pub fn bump(String input) -> String {
 
 `hir`（`std/src/meta/hir.aya`）提供 `parse_hir` / `render_hir` /
 `find_function` / `replace_function_body` / `append_item` / `clone_function` /
-`make_int` / `make_return` / `single_body`。
+`max_fn_id` / `make_int` / `make_return` / `single_body`。
 
 消费方：
 
@@ -93,6 +93,18 @@ fn main() -> int {
 
 这证明插件可以修改 HIR 并影响后续 MIR/LIR。v1 不提供 typed JSON helper，
 因此复杂变换仍容易写错；B2 的下一小步是 `std/hir.aya` 访问器/构造器。
+
+## 返回结果校验
+
+`from_json` 在重建 HIR 前检查：
+
+- `FnId`（调用/函数指针/vtable）必须存在；
+- `VarId` 必须在当前函数的 locals 范围内；
+- struct / enum construct 引用的类型必须存在；
+- vtable 的 `-1` 只作为析构槽哨兵放行。
+
+非法引用会变成 transform 诊断，而不是后续 MIR 阶段 panic。clone + append
+函数的回归见 `scripts/regression.sh`。
 
 ## Identity 调试开关
 
@@ -131,8 +143,8 @@ schema 覆盖：
 
 - **B1（已完成 2026-11-14）**：`.lcl` `transform=` 表、`#[transform]` 声明、
   `fn(String json) -> String` 插件 ABI、identity 插件；
-- **B2（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 访问/替换函数体已跑通；
-  更完整的插入函数/改调用点/引用校验仍在后续，
+- **B2/B2c（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
+  clone/append 函数、FnId/VarId/struct/vtable 校验已跑通；更完整的调用点重写仍在后续，
   变换后 FnId/VarId/类型/借用/效应校验；
 - **B3**：泛型、enum niche、vtable、async/sync 内建变换统一接口。
 
