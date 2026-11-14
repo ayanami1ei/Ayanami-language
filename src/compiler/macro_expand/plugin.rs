@@ -2,12 +2,11 @@
 
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
-use std::process::Command;
 
 use crate::error::{Error, Result};
 
 pub(crate) use super::plugin_abi::{ABI_VERSION, AyaBuf, AyaBufList, ParamKind, RTLD_NOW, compile_pic, dl, resolve_dep_lcls};
-use super::plugin_abi::{load_macro_fn, plan_params, publish_so, so_cached, unique_tag};
+use super::plugin_abi::{load_macro_fn, plan_params, plugin_path, publish_so, shared_lib_command, so_cached, unique_tag};
 
 // ═══════════════════════════════════════════════════════════════════
 //  插件构建与调用
@@ -92,6 +91,8 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
     let runtime_src = std::fs::read_to_string(&runtime).unwrap_or_default();
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     ABI_VERSION.hash(&mut hasher);
+    std::env::consts::OS.hash(&mut hasher);
+    std::env::consts::ARCH.hash(&mut hasher);
     symbol.hash(&mut hasher);
     format!("{:?}", mapping).hash(&mut hasher);
     ir.hash(&mut hasher);
@@ -102,7 +103,7 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
     let dir = std::env::temp_dir().join("ayanami-macros");
     std::fs::create_dir_all(&dir).ok();
     let stem = symbol.replace(|c: char| !c.is_alphanumeric() && c != '_', "_");
-    let so_path = dir.join(format!("mac_{}_{:x}.so", stem, hash));
+    let so_path = plugin_path(&dir, "mac", &stem, hash);
     if so_cached(&so_path) {
         return Ok(so_path);
     }
@@ -129,7 +130,7 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
         link_objs.push(dep_obj);
     }
 
-    // C shim：C ABI ↔ Ayanami String（{char*, long}）；ABI v5 带调用点（line/col/file）
+    // C shim：C ABI ↔ Ayanami String（{char*, size_t}）；ABI v5 带调用点（line/col/file）
     let mut locals = String::new();
     let mut call_args = String::new();
     let mut param_types: Vec<&str> = Vec::new();
@@ -146,8 +147,8 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
                 call_args.push_str(&format!("a{n}"));
                 param_types.push("AyaBuf");
             }
-            ParamKind::Line => { call_args.push_str("line"); param_types.push("long"); }
-            ParamKind::Col => { call_args.push_str("col"); param_types.push("long"); }
+            ParamKind::Line => { call_args.push_str("line"); param_types.push("long long"); }
+            ParamKind::Col => { call_args.push_str("col"); param_types.push("long long"); }
             ParamKind::File => {
                 locals.push_str("    AyaBuf f = dup_buf(file);\n");
                 call_args.push_str("f");
@@ -164,8 +165,8 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
     };
     let shim = format!(
         "#include <stdlib.h>\n#include <string.h>\n\
-         typedef struct {{ char* data; long len; }} AyaBuf;\n\
-         typedef struct {{ const AyaBuf* items; long count; }} AyaBufList;\n\
+         typedef struct {{ char* data; size_t len; }} AyaBuf;\n\
+         typedef struct {{ const AyaBuf* items; size_t count; }} AyaBufList;\n\
          extern AyaBuf {symbol}({param_types});\n\
          static AyaBuf dup_buf(AyaBuf b) {{\n\
              AyaBuf r; r.len = b.len;\n\
@@ -176,7 +177,7 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
          /* mcl.2：hygiene —— 宏内定义名加后缀（不捕获/不泄漏调用点名字） */\n\
          AyaBuf __ayanami_macro_hygienic(AyaBuf name) {{\n\
              static const char* id = \"{macro_id}\";\n\
-             long il = (long)strlen(id);\n\
+             size_t il = strlen(id);\n\
              AyaBuf r; r.len = name.len + il;\n\
              r.data = (char*)malloc((size_t)r.len + 1);\n\
              if (r.data) {{ memcpy(r.data, name.data, (size_t)name.len); memcpy(r.data + name.len, id, (size_t)il); r.data[r.len] = 0; }}\n\
@@ -184,19 +185,19 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
          }}\n\
          /* mcl.2：诊断通道（level: 1=warn, 2=error；编译器在调用后读取） */\n\
          #define DIAG_MAX 32\n\
-         static long diag_count = 0;\n\
-         static long diag_levels[DIAG_MAX];\n\
+         static long long diag_count = 0;\n\
+         static long long diag_levels[DIAG_MAX];\n\
          static AyaBuf diag_msgs[DIAG_MAX];\n\
-         void __ayanami_macro_diag(long level, AyaBuf msg) {{\n\
+         void __ayanami_macro_diag(long long level, AyaBuf msg) {{\n\
              if (diag_count >= DIAG_MAX) return;\n\
              diag_levels[diag_count] = level;\n\
              diag_msgs[diag_count] = dup_buf(msg);\n\
              diag_count++;\n\
          }}\n\
-         long __ayanami_macro_diag_count(void) {{ return diag_count; }}\n\
-         long __ayanami_macro_diag_level(long i) {{ return (i >= 0 && i < diag_count) ? diag_levels[i] : 0; }}\n\
-         AyaBuf __ayanami_macro_diag_msg(long i) {{ AyaBuf e; e.data = 0; e.len = 0; return (i >= 0 && i < diag_count) ? dup_buf(diag_msgs[i]) : e; }}\n\
-         AyaBuf __ayanami_macro_expand(AyaBuf input, AyaBufList args, long line, long col, AyaBuf file) {{\n\
+         long long __ayanami_macro_diag_count(void) {{ return diag_count; }}\n\
+         long long __ayanami_macro_diag_level(long long i) {{ return (i >= 0 && i < diag_count) ? diag_levels[i] : 0; }}\n\
+         AyaBuf __ayanami_macro_diag_msg(long long i) {{ AyaBuf e; e.data = 0; e.len = 0; return (i >= 0 && i < diag_count) ? dup_buf(diag_msgs[i]) : e; }}\n\
+         AyaBuf __ayanami_macro_expand(AyaBuf input, AyaBufList args, long long line, long long col, AyaBuf file) {{\n\
              (void)args; (void)line; (void)col; (void)file;\n\
          {locals}\
              return {symbol}({call_args});\n\
@@ -210,8 +211,7 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
     );
     std::fs::write(&shim_path, shim).map_err(|e| Error::Compile(format!("macro shim write: {}", e)))?;
 
-    let mut gcc = Command::new("gcc");
-    gcc.arg("-shared").arg("-fPIC");
+    let mut gcc = shared_lib_command();
     for o in &link_objs {
         gcc.arg(o);
     }

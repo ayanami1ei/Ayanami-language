@@ -148,16 +148,25 @@ cd my_plugin
 ayanami plugin package .        # -> src/lib.lcl
 ```
 
-消费方：
+消费方安装（`.lcl` 是跨平台交付物，动态库只在本机编译缓存）：
+
+```bash
+cd my_project
+ayanami plugin install ../my_plugin/src/lib.lcl my_plugin
+# 复制到 plugins/ 并自动写入 [dependencies]
+```
 
 ```ayanami
-import "path/to/my_plugin/src/lib.lcl"
+import "my_plugin"
 
-#[lib::identity]
+#[my_plugin::identity]
 fn marked() -> int { return 7 }
 ```
 
-插件在消费方编译期构建 `.so` 并执行（信任级同 proc-macro）。完整作者指南见
+也可以手动复制 `.lcl` 并写 `[dependencies] my_plugin = "plugins/my_plugin.lcl"`。
+插件在消费方编译期构建本机动态库并执行（信任级同 proc-macro）；Linux 用 `.so`，
+macOS 用 `.dylib`，Windows 用 `.dll`。当前 runtime 仍以 Linux 为主，其他平台的
+runtime 端口属于编译器整体平台化工作。完整作者/安装/跨平台指南见
 [`docs/plugins.md`](docs/plugins.md)；宏/MIR pass/check/属性插件接口见
 [`docs/annotations.md`](docs/annotations.md) §8。
 

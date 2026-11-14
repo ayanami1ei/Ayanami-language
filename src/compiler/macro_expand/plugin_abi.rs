@@ -7,15 +7,48 @@ use std::process::Command;
 
 use crate::error::{Error, Result};
 
-/// 插件 ABI 版本：签名变化时必须递增（参与 .so 缓存键，避免复用旧 shim）。
-pub(crate) const ABI_VERSION: u32 = 7;
+/// 插件 ABI 版本：签名变化时必须递增（参与本机动态库缓存键，避免复用旧 shim）。
+pub(crate) const ABI_VERSION: u32 = 8;
 
-/// 插件 .so 的完成标记路径；只有 .so 与标记都存在才算缓存命中。
+/// 本机插件动态库扩展名（交付物仍是平台无关的 `.lcl`）。
+pub(super) fn plugin_ext() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "dll"
+    } else if cfg!(target_os = "macos") {
+        "dylib"
+    } else {
+        "so"
+    }
+}
+
+/// 本机插件缓存路径：`<prefix>_<stem>_<hash>.<so|dylib|dll>`。
+pub(super) fn plugin_path(dir: &Path, prefix: &str, stem: &str, hash: u64) -> PathBuf {
+    dir.join(format!("{}_{}_{:x}.{}", prefix, stem, hash, plugin_ext()))
+}
+
+/// 平台共享库链接命令（优先 `$CC`，默认 gcc/clang）。
+pub(super) fn shared_lib_command() -> Command {
+    let cc = std::env::var("CC").unwrap_or_else(|_| "gcc".into());
+    let mut cmd = Command::new(cc);
+    if cfg!(target_os = "macos") {
+        cmd.arg("-dynamiclib");
+    } else {
+        cmd.arg("-shared");
+    }
+    if !cfg!(target_os = "windows") {
+        cmd.arg("-fPIC");
+    } else {
+        cmd.arg("-Wl,--export-all-symbols");
+    }
+    cmd
+}
+
+/// 插件动态库的完成标记路径；只有库与标记都存在才算缓存命中。
 pub(super) fn done_path(so: &Path) -> PathBuf {
     PathBuf::from(format!("{}.ok", so.display()))
 }
 
-/// 缓存命中：最终 .so 与完成标记均存在。
+/// 缓存命中：最终动态库与完成标记均存在。
 pub(super) fn so_cached(so: &Path) -> bool {
     so.is_file() && done_path(so).is_file()
 }
@@ -52,6 +85,8 @@ pub(crate) enum ParamKind {
 
 pub(crate) mod dl {
     use super::*;
+
+    #[cfg(all(unix, not(target_os = "macos")))]
     #[link(name = "dl")]
     unsafe extern "C" {
         pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
@@ -59,7 +94,49 @@ pub(crate) mod dl {
         pub fn dlclose(handle: *mut c_void) -> c_int;
         pub fn dlerror() -> *mut c_char;
     }
+
+    #[cfg(target_os = "macos")]
+    unsafe extern "C" {
+        pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+        pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+        pub fn dlclose(handle: *mut c_void) -> c_int;
+        pub fn dlerror() -> *mut c_char;
+    }
+
+    #[cfg(windows)]
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn LoadLibraryW(name: *const u16) -> *mut c_void;
+        fn GetProcAddress(handle: *mut c_void, name: *const u8) -> *mut c_void;
+        fn FreeLibrary(handle: *mut c_void) -> c_int;
+    }
+
+    #[cfg(windows)]
+    pub unsafe fn dlopen(filename: *const c_char, _flag: c_int) -> *mut c_void {
+        let bytes = unsafe { std::ffi::CStr::from_ptr(filename) }.to_bytes();
+        let wide: Vec<u16> = String::from_utf8_lossy(bytes)
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
+        unsafe { LoadLibraryW(wide.as_ptr()) }
+    }
+
+    #[cfg(windows)]
+    pub unsafe fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void {
+        unsafe { GetProcAddress(handle, symbol as *const u8) }
+    }
+
+    #[cfg(windows)]
+    pub unsafe fn dlclose(handle: *mut c_void) -> c_int {
+        unsafe { FreeLibrary(handle) }
+    }
+
+    #[cfg(windows)]
+    pub unsafe fn dlerror() -> *mut c_char {
+        std::ptr::null_mut()
+    }
 }
+
 pub(crate) const RTLD_NOW: c_int = 2;
 
 /// ABI v3：文本缓冲（与 Ayanami String 布局一致，减少裸指针参数）

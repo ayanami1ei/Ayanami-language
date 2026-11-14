@@ -42,7 +42,44 @@ fn main() -> int {
 
 - 包名取 `.lcl` 文件 stem（`lib.lcl` → `lib`）；裸名注解也可在 import 后使用。
 - 同一包内注解名跨 `macro/pass/check/attr` 唯一；跨包同名须全限定 `pkg::name`。
-- `.lcl` 只携带 LIR 与注解表；`.so` 由消费方编译器按目标平台现场构建并缓存。
+- `.lcl` 只携带 LIR 与注解表；本机动态库由消费方编译器按目标平台现场构建并缓存。
+
+## 安装与分发
+
+**发布 `.lcl`，不要发布 `.so`。** `.lcl` 是平台无关的交付物；`.so` / `.dylib` / `.dll`
+只是消费方编译期的本机缓存，换平台后重新生成。
+
+推荐在消费方项目根目录执行：
+
+```bash
+ayanami plugin install path/to/my_plugin/src/lib.lcl my_plugin
+# installed plugin: <project>/plugins/my_plugin.lcl
+```
+
+命令会把插件复制到项目的 `plugins/`，并自动在 `ayanami.toml` 写入：
+
+```toml
+[dependencies]
+my_plugin = "plugins/my_plugin.lcl"
+```
+
+之后即可 `import "my_plugin"` 并使用 `#[my_plugin::identity]`。也支持手动把 `.lcl`
+放到任意位置并在 `[dependencies]` 写相对/绝对路径；`import` 使用依赖别名即可。
+同名依赖已存在但路径不同时，安装会报错而不是覆盖。
+
+## 跨平台
+
+| 宿主 | 本机缓存 | 构建与加载 |
+|---|---|---|
+| Linux | `.so` | `gcc -shared -fPIC`；`dlopen`（libdl） |
+| macOS | `.dylib` | `gcc`/`clang -dynamiclib -fPIC`；`dlopen`（libSystem） |
+| Windows | `.dll` | MinGW `gcc -shared -Wl,--export-all-symbols`；`LoadLibraryW` |
+
+- 链接器优先使用环境变量 `CC`，默认 `gcc`（macOS 上通常是 clang 的别名）。
+- 插件作者只需发布 `.lcl`；不要按平台分别打包动态库。
+- 原生插件仍需要消费方有 C 工具链。当前 `runtime.c` 以 Linux 为主；macOS/Windows 的
+  动态库命名、链接参数与加载器已就绪，但 runtime 端口（POSIX/Win32）仍属编译器整体
+  平台化工作，尚未验证。
 
 ## 四类插件
 

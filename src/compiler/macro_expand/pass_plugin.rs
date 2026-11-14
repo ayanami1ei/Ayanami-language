@@ -7,10 +7,9 @@ use std::collections::hash_map::DefaultHasher;
 use std::ffi::CString;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use super::plugin::{compile_pic, dl, resolve_dep_lcls, AyaBuf, AyaBufList, ABI_VERSION, RTLD_NOW};
-use super::plugin_abi::{publish_so, so_cached, unique_tag};
+use super::plugin_abi::{plugin_path, publish_so, shared_lib_command, so_cached, unique_tag};
 use crate::error::{Error, Result};
 use crate::intern::Symbol;
 
@@ -66,6 +65,8 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
     let runtime_src = std::fs::read_to_string(&runtime).unwrap_or_default();
     let mut hasher = DefaultHasher::new();
     ABI_VERSION.hash(&mut hasher);
+    std::env::consts::OS.hash(&mut hasher);
+    std::env::consts::ARCH.hash(&mut hasher);
     SCHEMA_VERSION.hash(&mut hasher);
     symbol.hash(&mut hasher);
     ir.hash(&mut hasher);
@@ -76,7 +77,7 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
     let dir = std::env::temp_dir().join("ayanami-macros");
     std::fs::create_dir_all(&dir).ok();
     let stem = symbol.replace(|c: char| !c.is_alphanumeric() && c != '_', "_");
-    let so_path = dir.join(format!("pass_{}_{:x}.so", stem, hash));
+    let so_path = plugin_path(&dir, "pass", &stem, hash);
     if so_cached(&so_path) {
         return Ok(so_path);
     }
@@ -104,8 +105,7 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
     std::fs::write(&shim_path, pass_shim(symbol))
         .map_err(|e| Error::Compile(format!("pass shim write: {}", e)))?;
 
-    let mut gcc = Command::new("gcc");
-    gcc.arg("-shared").arg("-fPIC");
+    let mut gcc = shared_lib_command();
     for o in &link_objs { gcc.arg(o); }
     let status = gcc
         .arg(&shim_path).arg(&runtime).arg("-lm")
@@ -131,8 +131,8 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
 fn pass_shim(symbol: &str) -> String {
     format!(
         "#include <stdlib.h>\n#include <string.h>\n\
-         typedef struct {{ char* data; long len; }} AyaBuf;\n\
-         typedef struct {{ const AyaBuf* items; long count; }} AyaBufList;\n\
+         typedef struct {{ char* data; size_t len; }} AyaBuf;\n\
+         typedef struct {{ const AyaBuf* items; size_t count; }} AyaBufList;\n\
          typedef struct {{\n\
              long long pure, no_error, node_count;\n\
              const long long *kinds, *is_call, *callee_pure, *is_alloc, *is_asm, *is_store, *child_counts,\n\
@@ -145,7 +145,7 @@ fn pass_shim(symbol: &str) -> String {
              for (i = 7; i >= 0; i--) v = (v << 8) | (unsigned char)p[i];\n\
              return v;\n\
          }}\n\
-         static long long* rd_arr(const char* p, long* pos, long long n) {{\n\
+         static long long* rd_arr(const char* p, size_t* pos, long long n) {{\n\
              long long* a = (long long*)malloc((size_t)n * sizeof(long long));\n\
              long long i;\n\
              for (i = 0; i < n; i++) {{ a[i] = rd64(p + *pos); *pos += 8; }}\n\
@@ -156,7 +156,7 @@ fn pass_shim(symbol: &str) -> String {
              for (i = 0; i < 8; i++) {{ p[i] = (char)(v & 0xff); v >>= 8; }}\n\
          }}\n\
          static char* g_diag = 0;\n\
-         static long g_diag_len = 0;\n\
+         static size_t g_diag_len = 0;\n\
          void __ayanami_diag_emit(long long level, AyaBuf msg) {{\n\
              char* nb = (char*)realloc(g_diag, (size_t)(g_diag_len + 16 + msg.len));\n\
              if (!nb) return;\n\
@@ -170,8 +170,8 @@ fn pass_shim(symbol: &str) -> String {
              g_diag = 0; g_diag_len = 0;\n\
              return b;\n\
          }}\n\
-         static MirFunction mir_decode(const char* p, long len) {{\n\
-             MirFunction f; long pos = 0; long long n; (void)len;\n\
+         static MirFunction mir_decode(const char* p, size_t len) {{\n\
+             MirFunction f; size_t pos = 0; long long n; (void)len;\n\
              rd64(p + pos); pos += 8;\n\
              f.pure = rd64(p + pos); pos += 8;\n\
              f.no_error = rd64(p + pos); pos += 8;\n\
@@ -196,7 +196,7 @@ fn pass_shim(symbol: &str) -> String {
          }}\n\
          static AyaBuf mir_encode(MirFunction f) {{\n\
              long long n = f.node_count; long long i;\n\
-             long total = 4*8 + n*15*8; long pos = 0;\n\
+             size_t total = 4*8 + (size_t)n*15*8; size_t pos = 0;\n\
              char* out = (char*)malloc((size_t)total + 1);\n\
              wr64(out+pos, {ver}); pos += 8;\n\
              wr64(out+pos, f.pure); pos += 8;\n\

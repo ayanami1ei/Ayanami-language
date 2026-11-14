@@ -152,9 +152,11 @@ if [ -f example/test_macro_fn.aya ]; then
     rm -rf "$mrace"
 fi
 
-# A5h：第三方插件作者流程（plugin new → package → consumer）
+# A5h：第三方插件作者流程（plugin new → package → install → consumer）
 pbase=$(mktemp -d)
 pdir="$pbase/demo_plugin"
+cproj="$pbase/consumer"
+bin_abs=$(cd "$(dirname "$BIN")" && pwd)/$(basename "$BIN")
 if ! "$BIN" plugin new "$pdir" >/dev/null 2>&1; then
     echo "FAIL A5h: plugin new failed"
     fail=$((fail + 1))
@@ -164,12 +166,20 @@ elif ! "$BIN" plugin package "$pdir" >/dev/null 2>&1; then
 elif [ ! -f "$pdir/src/lib.lcl" ]; then
     echo "FAIL A5h: plugin package did not produce src/lib.lcl"
     fail=$((fail + 1))
+elif ! "$BIN" new "$cproj" >/dev/null 2>&1; then
+    echo "FAIL A5h: consumer project creation failed"
+    fail=$((fail + 1))
+elif ! (cd "$cproj" && "$bin_abs" plugin install "$pdir/src/lib.lcl" demo >/dev/null 2>&1); then
+    echo "FAIL A5h: plugin install failed"
+    fail=$((fail + 1))
+elif [ ! -f "$cproj/plugins/demo.lcl" ]; then
+    echo "FAIL A5h: plugin install did not place plugins/demo.lcl"
+    fail=$((fail + 1))
 else
-    consumer="$pbase/consumer.aya"
-    cat > "$consumer" <<EOF
-import "$pdir/src/lib.lcl"
+    cat > "$cproj/src/main.aya" <<'EOF'
+import "demo"
 
-#[lib::identity]
+#[demo::identity]
 fn marked() -> int {
     return 7
 }
@@ -179,8 +189,8 @@ fn main() -> int {
     return 0
 }
 EOF
-    if ! "$BIN" run "$consumer" >/dev/null 2>&1; then
-        echo "FAIL A5h: consumer could not run third-party plugin"
+    if ! "$BIN" run "$cproj" >/dev/null 2>&1; then
+        echo "FAIL A5h: consumer could not run installed third-party plugin"
         fail=$((fail + 1))
     fi
 fi

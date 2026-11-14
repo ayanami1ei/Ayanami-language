@@ -457,10 +457,21 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
   项目无 `src/main.aya` 时，`check`/`build`/`package` 回退到 `src/lib.aya`。
 - `ayanami plugin package <project>`：校验至少一个 `#[macro]` / `#[pass]` / `#[check]` /
   `#[attr]` 声明，再打包 `.lcl`（内含插件表/LIR；不随包分发 `.so`）。
-- 消费方 `import "plugin/src/lib.lcl"` 后使用 `#[pkg::annotation]`；插件 `.so`
+- 消费方 `import "plugin/src/lib.lcl"` 后使用 `#[pkg::annotation]`；本机动态库
   由消费方编译器按目标平台构建并缓存。
 - 作者指南：`docs/plugins.md`；示例：`example/attr_lib.aya` / `example/test_attr.aya`。
 - 回归：`scripts/regression.sh` 用临时插件项目 + consumer 验证完整流程。
+
+### 8.11 插件安装与跨平台（A5i，2026-11-14）
+
+- 交付格式固定为 `.lcl`（LIR + 注解表），平台无关；不发布 `.so`/`.dylib`/`.dll`。
+- `ayanami plugin install <lcl> [alias]`：复制到项目 `plugins/<alias>.lcl` 并自动写入
+  `[dependencies]`；消费方以依赖别名 `import`。
+- 本机缓存按宿主选择扩展名与构建/加载方式：Linux `.so` + `dlopen`，macOS `.dylib` +
+  `-dynamiclib` + `dlopen`，Windows `.dll` + `LoadLibraryW`/`GetProcAddress`；
+  链接器优先 `$CC`。
+- macOS/Windows 原生插件还需 runtime.c 的 POSIX/Win32 端口，属于编译器整体平台化
+  工作；`.lcl` 本身不携带平台相关产物。
 
 ## 9. 实现接口（跨包与工具）
 
@@ -470,7 +481,7 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 | HIR | `HirFn.attrs`、`HirStructField.attrs` 等，供各 pass 读取 |
 | 包 | `.lcl` 的 `generic_sources`（formatter 输出包含标注）+ `defs` JSON；A5b 已实现宏表（`macro=`）与依赖表（`[deps]`） |
 | 工具 | `defs` JSON 带属性字段；LSP/VSCode 插件、未来的代码设计平台消费 |
-| 宏 | 已实现：`AttrPath` 解析 → 宏表（`.lcl`）→ 插件 `.so`（`/tmp/ayanami-macros`，ABI v2） |
+| 宏 | 已实现：`AttrPath` 解析 → 宏表（`.lcl`）→ 本机动态库（`/tmp/ayanami-macros`，ABI v8；Linux `.so`/macOS `.dylib`/Windows `.dll`） |
 
 ## 10. 决策记录（ADR）
 
@@ -610,6 +621,13 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] `ayanami plugin new` 第三方插件脚手架（`src/lib.aya` 入口）
 - [x] `ayanami plugin package` 注解声明校验 + `.lcl` 打包
 - [x] `docs/plugins.md` 作者指南；临时插件 + consumer 回归
+
+### A5i（2026-11-14）
+
+- [x] `ayanami plugin install <lcl> [alias]` 安装到项目 `plugins/`
+- [x] 交付物固定 `.lcl`；本机缓存按 Linux/macOS/Windows 选择扩展名与加载方式
+- [x] `$CC` 链接器覆盖；macOS `-dynamiclib`、Windows `--export-all-symbols`
+- [ ] macOS/Windows runtime.c 端口与验证；插件注册表与版本约束
 
 ### 已知问题
 
