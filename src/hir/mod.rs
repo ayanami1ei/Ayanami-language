@@ -32,6 +32,7 @@ pub mod ty;
 pub mod node;
 pub mod stmt;
 pub mod item;
+pub mod schema;
 pub mod lower;
 pub mod display;
 

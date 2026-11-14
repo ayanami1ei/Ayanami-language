@@ -31,3 +31,13 @@ pub fn parse_expression(source: &str) -> Result<crate::parser::ast::expr::Expr> 
     p.parse_expr_entry()
 }
 
+
+/// A5e/B0：解析一段独立的属性文本（`#[x]` / `#[x(...)]`），供 HIR schema 重建 attrs。
+pub fn parse_attr_list(source: &str) -> Result<Vec<crate::parser::ast::Attr>> {
+    let mut lexer = crate::lexer::Lexer::new(source);
+    let tokens: Vec<_> = lexer.tokenize_all().into_iter()
+        .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
+        .collect();
+    let mut p = crate::parser::Parser::new(tokens);
+    p.parse_attr_list()
+}

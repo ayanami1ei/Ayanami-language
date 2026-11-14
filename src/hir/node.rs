@@ -6,7 +6,12 @@ use std::collections::HashSet;
 use crate::hir::ty::{VarId, HirType, HirLiteral};
 use crate::intern::Symbol;
 
-pub trait HirNode: std::fmt::Debug {
+/// A5e/B0：节点 → 稳定 JSON；由 `hir::schema::nodes` 实现。
+pub trait HirSchemaNode {
+    fn schema_json(&self) -> serde_json::Value;
+}
+
+pub trait HirNode: std::fmt::Debug + HirSchemaNode {
     fn clone_node(&self) -> Box<dyn HirNode>;
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
     fn display(&self, level: usize, w: &mut dyn FmtWrite) -> std::fmt::Result;

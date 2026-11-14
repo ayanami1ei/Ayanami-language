@@ -1224,9 +1224,9 @@ src/hir/lower/mod.rs:98: pub fn set_source_path(path: &std::path::Path)
 src/hir/lower/mod.rs:102: pub(crate) fn source_path() -> String
 src/hir/lower/mod.rs:107: pub(crate) type AsyncLocalTypes = HashMap<Symbol, HashMap<Symbol, HirType>>;
 src/hir/lower/mod.rs:109: pub fn lower_program(program: &Program) -> Result<HirProgram>
-src/hir/lower/mod.rs:122: fn probe_async_local_types(program: &Program) -> Result<AsyncLocalTypes>
-src/hir/lower/mod.rs:142: fn has_async_fn(program: &Program) -> bool
-src/hir/lower/mod.rs:147: fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgram>
+src/hir/lower/mod.rs:126: fn probe_async_local_types(program: &Program) -> Result<AsyncLocalTypes>
+src/hir/lower/mod.rs:146: fn has_async_fn(program: &Program) -> bool
+src/hir/lower/mod.rs:151: fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)>
@@ -1476,49 +1476,230 @@ src/hir/mod.rs:31: pub mod ty;
 src/hir/mod.rs:32: pub mod node;
 src/hir/mod.rs:33: pub mod stmt;
 src/hir/mod.rs:34: pub mod item;
-src/hir/mod.rs:35: pub mod lower;
-src/hir/mod.rs:36: pub mod display;
-src/hir/mod.rs:53: pub struct $name
+src/hir/mod.rs:35: pub mod schema;
+src/hir/mod.rs:36: pub mod lower;
+src/hir/mod.rs:37: pub mod display;
+src/hir/mod.rs:54: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
 src/hir/niche.rs:81: pub(crate) fn niche_shape(
-src/hir/node.rs:9: pub trait HirNode: std::fmt::Debug
-src/hir/node.rs:10: fn clone_node(&self) -> Box<dyn HirNode>;
-src/hir/node.rs:11: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
-src/hir/node.rs:12: fn display(&self, level: usize, w: &mut dyn FmtWrite) -> std::fmt::Result;
-src/hir/node.rs:13: fn expr_type(&self) -> HirType;
-src/hir/node.rs:16: fn as_local(&self) -> Option<VarId> { None }
-src/hir/node.rs:17: fn is_move_or_clone(&self) -> bool { false }
-src/hir/node.rs:19: fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode)) {}
-src/hir/node.rs:21: fn collect_var_ids(&self, vars: &mut HashSet<VarId>)
-src/hir/node.rs:25: fn record_moves(&self, moved: &mut HashSet<VarId>)
-src/hir/node.rs:28: fn as_const(&self) -> Option<&HirLiteral> { None }
-src/hir/node.rs:30: fn as_neg_int_literal(&self) -> Option<i64> { None }
-src/hir/node.rs:32: fn as_neg_float_literal(&self) -> Option<f64> { None }
-src/hir/node.rs:33: fn as_move(&self) -> Option<&HirNodeBox> { None }
-src/hir/node.rs:35: fn as_to_unique(&self) -> Option<&HirNodeBox> { None }
-src/hir/node.rs:37: fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)> { None }
-src/hir/node.rs:39: fn as_index(&self) -> Option<(&HirNodeBox, &HirNodeBox)> { None }
-src/hir/node.rs:41: fn as_deref(&self) -> Option<&HirNodeBox> { None }
-src/hir/node.rs:43: fn as_ref_expr(&self) -> Option<&HirNodeBox> { None }
-src/hir/node.rs:45: fn is_comparison(&self) -> bool { false }
-src/hir/node.rs:47: fn as_call(&self) -> Option<crate::hir::ty::FnId> { None }
-src/hir/node.rs:49: fn is_alloc(&self) -> bool { false }
-src/hir/node.rs:51: fn asm_template(&self) -> Option<&str> { None }
-src/hir/node.rs:53: fn enum_variant(&self) -> Option<Symbol> { None }
-src/hir/node.rs:55: fn as_struct_cloned(&self) -> Option<crate::hir::SStruct> { None }
-src/hir/node.rs:57: fn with_type(&self, _ty: HirType) -> Option<HirNodeBox> { None }
-src/hir/node.rs:58: fn as_clone(&self) -> Option<&HirNodeBox> { None }
-src/hir/node.rs:63: pub struct HirNodeBox(pub Box<dyn HirNode>);
-src/hir/node.rs:64: impl Clone for HirNodeBox
-src/hir/node.rs:65: fn clone(&self) -> Self { HirNodeBox(self.0.clone_node()) }
-src/hir/node.rs:67: impl std::ops::Deref for HirNodeBox
-src/hir/node.rs:68: type Target = dyn HirNode;
-src/hir/node.rs:69: fn deref(&self) -> &Self::Target { &*self.0 }
-src/hir/node.rs:71: impl From<HirNodeBox> for Box<dyn HirNode>
-src/hir/node.rs:72: fn from(b: HirNodeBox) -> Self { b.0 }
-src/hir/node.rs:81: fn from(v: $ty) -> Self { HirNodeBox(Box::new(v) as Box<dyn HirNode>) }
+src/hir/node.rs:10: pub trait HirSchemaNode
+src/hir/node.rs:11: fn schema_json(&self) -> serde_json::Value;
+src/hir/node.rs:14: pub trait HirNode: std::fmt::Debug + HirSchemaNode
+src/hir/node.rs:15: fn clone_node(&self) -> Box<dyn HirNode>;
+src/hir/node.rs:16: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
+src/hir/node.rs:17: fn display(&self, level: usize, w: &mut dyn FmtWrite) -> std::fmt::Result;
+src/hir/node.rs:18: fn expr_type(&self) -> HirType;
+src/hir/node.rs:21: fn as_local(&self) -> Option<VarId> { None }
+src/hir/node.rs:22: fn is_move_or_clone(&self) -> bool { false }
+src/hir/node.rs:24: fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode)) {}
+src/hir/node.rs:26: fn collect_var_ids(&self, vars: &mut HashSet<VarId>)
+src/hir/node.rs:30: fn record_moves(&self, moved: &mut HashSet<VarId>)
+src/hir/node.rs:33: fn as_const(&self) -> Option<&HirLiteral> { None }
+src/hir/node.rs:35: fn as_neg_int_literal(&self) -> Option<i64> { None }
+src/hir/node.rs:37: fn as_neg_float_literal(&self) -> Option<f64> { None }
+src/hir/node.rs:38: fn as_move(&self) -> Option<&HirNodeBox> { None }
+src/hir/node.rs:40: fn as_to_unique(&self) -> Option<&HirNodeBox> { None }
+src/hir/node.rs:42: fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)> { None }
+src/hir/node.rs:44: fn as_index(&self) -> Option<(&HirNodeBox, &HirNodeBox)> { None }
+src/hir/node.rs:46: fn as_deref(&self) -> Option<&HirNodeBox> { None }
+src/hir/node.rs:48: fn as_ref_expr(&self) -> Option<&HirNodeBox> { None }
+src/hir/node.rs:50: fn is_comparison(&self) -> bool { false }
+src/hir/node.rs:52: fn as_call(&self) -> Option<crate::hir::ty::FnId> { None }
+src/hir/node.rs:54: fn is_alloc(&self) -> bool { false }
+src/hir/node.rs:56: fn asm_template(&self) -> Option<&str> { None }
+src/hir/node.rs:58: fn enum_variant(&self) -> Option<Symbol> { None }
+src/hir/node.rs:60: fn as_struct_cloned(&self) -> Option<crate::hir::SStruct> { None }
+src/hir/node.rs:62: fn with_type(&self, _ty: HirType) -> Option<HirNodeBox> { None }
+src/hir/node.rs:63: fn as_clone(&self) -> Option<&HirNodeBox> { None }
+src/hir/node.rs:68: pub struct HirNodeBox(pub Box<dyn HirNode>);
+src/hir/node.rs:69: impl Clone for HirNodeBox
+src/hir/node.rs:70: fn clone(&self) -> Self { HirNodeBox(self.0.clone_node()) }
+src/hir/node.rs:72: impl std::ops::Deref for HirNodeBox
+src/hir/node.rs:73: type Target = dyn HirNode;
+src/hir/node.rs:74: fn deref(&self) -> &Self::Target { &*self.0 }
+src/hir/node.rs:76: impl From<HirNodeBox> for Box<dyn HirNode>
+src/hir/node.rs:77: fn from(b: HirNodeBox) -> Self { b.0 }
+src/hir/node.rs:86: fn from(v: $ty) -> Self { HirNodeBox(Box::new(v) as Box<dyn HirNode>) }
+src/hir/schema/core.rs:10: pub trait ToJson
+src/hir/schema/core.rs:11: fn to_json(&self) -> Value;
+src/hir/schema/core.rs:14: pub trait FromJson: Sized
+src/hir/schema/core.rs:15: fn from_json(value: &Value) -> Result<Self>;
+src/hir/schema/core.rs:18: pub(crate) fn err(message: impl std::fmt::Display) -> Error
+src/hir/schema/core.rs:22: pub(crate) fn object<'a>(value: &'a Value, ctx: &str) -> Result<&'a Map<String, Value>>
+src/hir/schema/core.rs:26: pub(crate) fn field<'a>(value: &'a Value, key: &str) -> Result<&'a Value>
+src/hir/schema/core.rs:32: pub(crate) fn str_field<'a>(value: &'a Value, key: &str) -> Result<&'a str>
+src/hir/schema/core.rs:38: pub(crate) fn u64_field(value: &Value, key: &str) -> Result<u64>
+src/hir/schema/core.rs:42: pub(crate) fn bool_field(value: &Value, key: &str) -> Result<bool>
+src/hir/schema/core.rs:46: pub(crate) fn array<'a>(value: &'a Value, ctx: &str) -> Result<&'a Vec<Value>>
+src/hir/schema/core.rs:50: impl ToJson for bool
+src/hir/schema/core.rs:51: fn to_json(&self) -> Value { json!(self) }
+src/hir/schema/core.rs:53: impl ToJson for usize
+src/hir/schema/core.rs:54: fn to_json(&self) -> Value { json!(self) }
+src/hir/schema/core.rs:56: impl ToJson for u64
+src/hir/schema/core.rs:57: fn to_json(&self) -> Value { json!(self) }
+src/hir/schema/core.rs:59: impl ToJson for i64
+src/hir/schema/core.rs:60: fn to_json(&self) -> Value { json!(self) }
+src/hir/schema/core.rs:62: impl ToJson for String
+src/hir/schema/core.rs:63: fn to_json(&self) -> Value { json!(self) }
+src/hir/schema/core.rs:65: impl ToJson for str
+src/hir/schema/core.rs:66: fn to_json(&self) -> Value { json!(self) }
+src/hir/schema/core.rs:68: impl<T: ToJson + ?Sized> ToJson for &T
+src/hir/schema/core.rs:69: fn to_json(&self) -> Value { (*self).to_json() }
+src/hir/schema/core.rs:71: impl ToJson for u32
+src/hir/schema/core.rs:72: fn to_json(&self) -> Value { json!(self) }
+src/hir/schema/core.rs:74: impl ToJson for i32
+src/hir/schema/core.rs:75: fn to_json(&self) -> Value { json!(self) }
+src/hir/schema/core.rs:77: impl ToJson for f64
+src/hir/schema/core.rs:78: fn to_json(&self) -> Value { json!(self) }
+src/hir/schema/core.rs:80: impl ToJson for Value
+src/hir/schema/core.rs:81: fn to_json(&self) -> Value { self.clone() }
+src/hir/schema/core.rs:83: impl<T: ToJson> ToJson for Vec<T>
+src/hir/schema/core.rs:84: fn to_json(&self) -> Value
+src/hir/schema/core.rs:88: impl<T: ToJson> ToJson for Option<T>
+src/hir/schema/core.rs:89: fn to_json(&self) -> Value
+src/hir/schema/core.rs:93: impl<A: ToJson, B: ToJson> ToJson for (A, B)
+src/hir/schema/core.rs:94: fn to_json(&self) -> Value { Value::Array(vec![self.0.to_json(), self.1.to_json()]) }
+src/hir/schema/core.rs:96: impl<A: ToJson, B: ToJson, C: ToJson> ToJson for (A, B, C)
+src/hir/schema/core.rs:97: fn to_json(&self) -> Value
+src/hir/schema/core.rs:102: impl FromJson for bool
+src/hir/schema/core.rs:103: fn from_json(v: &Value) -> Result<Self> { v.as_bool().ok_or_else(|| err("expected bool")) }
+src/hir/schema/core.rs:105: impl FromJson for usize
+src/hir/schema/core.rs:106: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/core.rs:110: impl FromJson for u64
+src/hir/schema/core.rs:111: fn from_json(v: &Value) -> Result<Self> { v.as_u64().ok_or_else(|| err("expected u64")) }
+src/hir/schema/core.rs:113: impl FromJson for i64
+src/hir/schema/core.rs:114: fn from_json(v: &Value) -> Result<Self> { v.as_i64().ok_or_else(|| err("expected i64")) }
+src/hir/schema/core.rs:116: impl FromJson for String
+src/hir/schema/core.rs:117: fn from_json(v: &Value) -> Result<Self> { v.as_str().map(str::to_string).ok_or_else(|| err("expected string")) }
+src/hir/schema/core.rs:119: impl<T: FromJson> FromJson for Vec<T>
+src/hir/schema/core.rs:120: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/core.rs:124: impl<T: FromJson> FromJson for Option<T>
+src/hir/schema/core.rs:125: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/core.rs:129: impl<A: FromJson, B: FromJson> FromJson for (A, B)
+src/hir/schema/core.rs:130: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/core.rs:136: impl<A: FromJson, B: FromJson, C: FromJson> FromJson for (A, B, C)
+src/hir/schema/core.rs:137: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/core.rs:144: impl ToJson for Symbol
+src/hir/schema/core.rs:145: fn to_json(&self) -> Value { json!(self.as_str()) }
+src/hir/schema/core.rs:147: impl FromJson for Symbol
+src/hir/schema/core.rs:148: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/core.rs:152: impl ToJson for FnId
+src/hir/schema/core.rs:153: fn to_json(&self) -> Value { json!(self.0) }
+src/hir/schema/core.rs:155: impl FromJson for FnId
+src/hir/schema/core.rs:156: fn from_json(v: &Value) -> Result<Self> { Ok(FnId(usize::from_json(v)?)) }
+src/hir/schema/core.rs:158: impl ToJson for VarId
+src/hir/schema/core.rs:159: fn to_json(&self) -> Value { json!(self.0) }
+src/hir/schema/core.rs:161: impl FromJson for VarId
+src/hir/schema/core.rs:162: fn from_json(v: &Value) -> Result<Self> { Ok(VarId(usize::from_json(v)?)) }
+src/hir/schema/core.rs:165: impl ToJson for Span
+src/hir/schema/core.rs:166: fn to_json(&self) -> Value
+src/hir/schema/core.rs:177: impl FromJson for Span
+src/hir/schema/core.rs:178: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/effects.rs:10: impl ToJson for EffectDecl
+src/hir/schema/effects.rs:11: fn to_json(&self) -> Value
+src/hir/schema/effects.rs:20: impl FromJson for EffectDecl
+src/hir/schema/effects.rs:21: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/effects.rs:30: impl ToJson for ThrowsDecl
+src/hir/schema/effects.rs:31: fn to_json(&self) -> Value
+src/hir/schema/effects.rs:39: impl FromJson for ThrowsDecl
+src/hir/schema/effects.rs:40: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/effects.rs:49: impl ToJson for EffectSet
+src/hir/schema/effects.rs:50: fn to_json(&self) -> Value
+src/hir/schema/effects.rs:59: impl FromJson for EffectSet
+src/hir/schema/effects.rs:60: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/mod.rs:9: mod core;
+src/hir/schema/mod.rs:10: mod effects;
+src/hir/schema/mod.rs:11: mod nodes;
+src/hir/schema/mod.rs:12: mod program;
+src/hir/schema/mod.rs:13: mod stmt;
+src/hir/schema/mod.rs:14: mod syntax;
+src/hir/schema/mod.rs:15: mod types;
+src/hir/schema/mod.rs:24: pub const HIR_SCHEMA_VERSION: u32 = 1;
+src/hir/schema/mod.rs:27: pub fn to_json(program: &HirProgram) -> Result<String>
+src/hir/schema/mod.rs:33: pub fn from_json(text: &str) -> Result<HirProgram>
+src/hir/schema/mod.rs:40: pub fn roundtrip(program: &HirProgram) -> Result<HirProgram>
+src/hir/schema/mod.rs:53: mod tests;
+src/hir/schema/nodes.rs:13: impl HirSchemaNode for $ty
+src/hir/schema/nodes.rs:14: fn schema_json(&self) -> Value
+src/hir/schema/nodes.rs:55: impl ToJson for HirNodeBox
+src/hir/schema/nodes.rs:56: fn to_json(&self) -> Value { self.0.schema_json() }
+src/hir/schema/nodes.rs:59: impl FromJson for HirNodeBox
+src/hir/schema/nodes.rs:60: fn from_json(value: &Value) -> Result<Self>
+src/hir/schema/program.rs:19: impl ToJson for HirLocal
+src/hir/schema/program.rs:20: fn to_json(&self) -> Value
+src/hir/schema/program.rs:24: impl FromJson for HirLocal
+src/hir/schema/program.rs:25: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:35: impl ToJson for HirStructField
+src/hir/schema/program.rs:36: fn to_json(&self) -> Value { jobj!({"name": self.name.to_json(), "ty": self.ty.to_json()}) }
+src/hir/schema/program.rs:38: impl FromJson for HirStructField
+src/hir/schema/program.rs:39: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:47: impl ToJson for HirStructDef
+src/hir/schema/program.rs:48: fn to_json(&self) -> Value { jobj!({"name": self.name.to_json(), "fields": self.fields.to_json()}) }
+src/hir/schema/program.rs:50: impl FromJson for HirStructDef
+src/hir/schema/program.rs:51: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:59: impl ToJson for HirInterfaceMethod
+src/hir/schema/program.rs:60: fn to_json(&self) -> Value
+src/hir/schema/program.rs:64: impl FromJson for HirInterfaceMethod
+src/hir/schema/program.rs:65: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:75: impl ToJson for VtableEntry
+src/hir/schema/program.rs:76: fn to_json(&self) -> Value
+src/hir/schema/program.rs:80: impl FromJson for VtableEntry
+src/hir/schema/program.rs:81: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:90: impl ToJson for ImportedFnSig
+src/hir/schema/program.rs:91: fn to_json(&self) -> Value
+src/hir/schema/program.rs:99: impl FromJson for ImportedFnSig
+src/hir/schema/program.rs:100: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:114: impl ToJson for HirStatic
+src/hir/schema/program.rs:115: fn to_json(&self) -> Value
+src/hir/schema/program.rs:122: impl FromJson for HirStatic
+src/hir/schema/program.rs:123: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:135: impl ToJson for HirFn
+src/hir/schema/program.rs:136: fn to_json(&self) -> Value
+src/hir/schema/program.rs:148: impl FromJson for HirFn
+src/hir/schema/program.rs:149: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:172: impl ToJson for HirItem
+src/hir/schema/program.rs:173: fn to_json(&self) -> Value
+src/hir/schema/program.rs:184: impl FromJson for HirItem
+src/hir/schema/program.rs:185: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:203: pub fn encode_program(program: &HirProgram) -> Value
+src/hir/schema/program.rs:222: pub fn decode_program(value: &Value) -> Result<HirProgram>
+src/hir/schema/stmt.rs:18: impl ToJson for HirBlock
+src/hir/schema/stmt.rs:19: fn to_json(&self) -> Value { self.stmts.to_json() }
+src/hir/schema/stmt.rs:21: impl FromJson for HirBlock
+src/hir/schema/stmt.rs:22: fn from_json(v: &Value) -> Result<Self> { Ok(HirBlock { stmts: Vec::from_json(v)? }) }
+src/hir/schema/stmt.rs:25: impl ToJson for HirStmt
+src/hir/schema/stmt.rs:26: fn to_json(&self) -> Value
+src/hir/schema/stmt.rs:56: impl FromJson for HirStmt
+src/hir/schema/stmt.rs:57: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/syntax.rs:9: impl ToJson for BinaryOp
+src/hir/schema/syntax.rs:10: fn to_json(&self) -> Value
+src/hir/schema/syntax.rs:21: impl FromJson for BinaryOp
+src/hir/schema/syntax.rs:22: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/syntax.rs:35: impl ToJson for UnaryOp
+src/hir/schema/syntax.rs:36: fn to_json(&self) -> Value
+src/hir/schema/syntax.rs:43: impl FromJson for UnaryOp
+src/hir/schema/syntax.rs:44: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/syntax.rs:53: impl ToJson for crate::parser::ast::Attr
+src/hir/schema/syntax.rs:54: fn to_json(&self) -> Value
+src/hir/schema/syntax.rs:67: impl FromJson for crate::parser::ast::Attr
+src/hir/schema/syntax.rs:68: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/tests.rs:4: fn hir_for(source: &str) -> crate::hir::HirProgram
+src/hir/schema/tests.rs:17: fn identity_roundtrip_basic_program()
+src/hir/schema/tests.rs:19: struct Point
+src/hir/schema/tests.rs:23: enum Maybe { Yes(int), No }
+src/hir/schema/tests.rs:25: fn add(int a, int b) -> int { return a + b }
+src/hir/schema/tests.rs:26: fn main() -> int
+src/hir/schema/tests.rs:45: fn unsupported_schema_version_is_rejected()
+src/hir/schema/types.rs:9: impl ToJson for HirType
+src/hir/schema/types.rs:10: fn to_json(&self) -> Value
+src/hir/schema/types.rs:35: impl FromJson for HirType
+src/hir/schema/types.rs:36: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/types.rs:80: impl ToJson for HirLiteral
+src/hir/schema/types.rs:81: fn to_json(&self) -> Value
+src/hir/schema/types.rs:93: impl FromJson for HirLiteral
+src/hir/schema/types.rs:94: fn from_json(v: &Value) -> Result<Self>
 src/hir/stmt.rs:6: pub enum ContractKind
 src/hir/stmt.rs:12: impl ContractKind
 src/hir/stmt.rs:13: pub fn label(&self) -> &'static str
@@ -2781,6 +2962,7 @@ src/parser/mod.rs:7: pub mod parser;
 src/parser/mod.rs:8: pub mod ast;
 src/parser/mod.rs:15: pub fn parse_source(source: &str) -> Result<crate::parser::ast::program::Program>
 src/parser/mod.rs:25: pub fn parse_expression(source: &str) -> Result<crate::parser::ast::expr::Expr>
+src/parser/mod.rs:36: pub fn parse_attr_list(source: &str) -> Result<Vec<crate::parser::ast::Attr>>
 src/parser/parser/array_expr.rs:3: impl Parser
 src/parser/parser/array_expr.rs:5: pub(super) fn parse_array_expr(&mut self, bracket_span: Span) -> Result<Expr>
 src/parser/parser/asm.rs:5: impl Parser
@@ -2808,7 +2990,7 @@ src/parser/parser/core.rs:143: pub(super) fn expect_member_name(&mut self) -> Re
 src/parser/parser/core.rs:158: pub(super) fn is_member_name(kind: &TokenKind) -> bool
 src/parser/parser/core.rs:162: pub(super) fn expect_identifier(&mut self) -> Result<String>
 src/parser/parser/core.rs:180: pub fn parse_program(&mut self) -> Result<Program>
-src/parser/parser/core.rs:188: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
+src/parser/parser/core.rs:188: pub(crate) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
 src/parser/parser/core.rs:245: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
 src/parser/parser/core.rs:263: impl Parser
 src/parser/parser/core.rs:265: pub(super) fn matching_bracket(&self, start: usize) -> Option<usize>

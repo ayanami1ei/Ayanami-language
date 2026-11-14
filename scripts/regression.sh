@@ -283,6 +283,16 @@ EOF
 fi
 rm -rf "$pbase"
 
+# A5e/B0：HIR JSON schema identity roundtrip（代表性节点覆盖）
+for f in test_struct test_enum_boxed test_async_await test_pass test_iface_box test_match_destructure test_asm; do
+    if [ -f "example/$f.aya" ]; then
+        if ! AYANAMI_HIR_SCHEMA=1 "$BIN" check "example/$f.aya" >/dev/null 2>&1; then
+            echo "FAIL A5e/B0: HIR schema roundtrip failed for example/$f.aya"
+            fail=$((fail + 1))
+        fi
+    fi
+done
+
 # #106：零参函数不得发射裸符号（避免与 libc 冲突）
 if [ -f build/test_zero_arg_fn ]; then
     if nm build/test_zero_arg_fn 2>/dev/null | grep -qE ' T time$'; then

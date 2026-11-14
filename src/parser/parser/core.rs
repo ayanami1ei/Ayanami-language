@@ -185,7 +185,7 @@ impl Parser {
         Ok(Program::new(stmts))
     }
     /// 解析前导标注：`#[name]` 或 `#[name(arg, ...)]`
-    pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>> {
+    pub(crate) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>> {
         let mut attrs = Vec::new();
         loop {
             let is_hash = matches!(

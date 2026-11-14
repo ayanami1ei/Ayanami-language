@@ -115,7 +115,11 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
         None
     };
     let program = crate::hir::async_transform::expand(&program, types.as_ref())?;
-    lower_program_after(&program, false)
+    let mut hir = lower_program_after(&program, false)?;
+    if std::env::var_os("AYANAMI_HIR_SCHEMA").is_some() {
+        hir = crate::hir::schema::roundtrip(&hir)?;
+    }
+    Ok(hir)
 }
 
 /// 用一次“无 async 展开”的 HIR 降级收集局部类型（只读探针）。
