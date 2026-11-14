@@ -1725,12 +1725,14 @@ src/hir/stmt.rs:113: pub struct HirBlock
 src/hir/stmt.rs:117: impl HirBlock
 src/hir/stmt.rs:118: pub fn new(stmts: Vec<HirStmt>) -> Self
 src/hir/transform.rs:12: pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()>
-src/hir/transform.rs:40: fn collect_markers(
-src/hir/transform.rs:51: fn collect_item_markers(
-src/hir/transform.rs:68: fn collect_fn_markers(
-src/hir/transform.rs:85: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:92: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:105: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:41: fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:111: fn transform_attr<'a>(
+src/hir/transform.rs:123: fn collect_markers(
+src/hir/transform.rs:134: fn collect_item_markers(
+src/hir/transform.rs:151: fn collect_fn_markers(
+src/hir/transform.rs:168: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:175: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:188: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
 src/hir/ty.rs:4: pub struct VarId(pub usize);
 src/hir/ty.rs:9: pub struct FnId(pub usize);
 src/hir/ty.rs:19: pub enum HirType
