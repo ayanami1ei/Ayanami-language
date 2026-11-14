@@ -1,6 +1,6 @@
-//! A5d：导入包的注解表（宏 / 优化 pass / 只读检查）与裸名解析。
+//! A5d/A5f：导入包的注解表（宏 / pass / check / attr）与裸名解析。
 //!
-//! - 注解表来自各 import 的 `.lcl`：`macro=` / `pass=` / `check=`；
+//! - 注解表来自各 import 的 `.lcl`：`macro=` / `pass=` / `check=` / `attr=`；
 //! - 裸名自动作用域：`import "pkg"` 后该包导出的注解全部进入作用域；
 //!   重名时报错并提示全限定 `pkg::name`；
 //! - 全限定始终可用（要求包已 import）。

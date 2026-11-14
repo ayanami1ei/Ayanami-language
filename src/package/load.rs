@@ -134,7 +134,7 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
     Ok((symbols, sources, lir_binary, target_types))
 }
 
-/// A5d：加载侧校验——同包注解名跨类别唯一（拦截旧版本打出的重复包）。
+/// A5d/A5f：加载侧校验——同包注解名跨类别唯一（拦截旧版本打出的重复包）。
 fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()> {
     let mut seen: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
     for s in symbols {

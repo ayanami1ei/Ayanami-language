@@ -1,9 +1,9 @@
-//! A5d：包导出注解名唯一性（同一包内宏 / pass / check 跨类别唯一）。
+//! A5d/A5f：包导出注解名唯一性（同一包内宏 / pass / check / attr 跨类别唯一）。
 use super::*;
 use crate::error::{Error, Result};
 
 impl Package {
-    /// 同一包内注解名跨类别唯一（宏 / pass / check）。
+    /// 同一包内注解名跨类别唯一（宏 / pass / check / attr）。
     /// 跨包同名允许（用 `pkg::name` 消歧）；同包同名会让解析依赖顺序，必须拒绝。
     pub fn validate_annotation_names(&self) -> Result<()> {
         let mut seen: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();

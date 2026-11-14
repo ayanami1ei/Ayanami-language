@@ -134,7 +134,7 @@ graph LR
 | 实体 | 位置 | 状态 |
 |---|---|---|
 | `#[...]` 语法/AST | `parser/parser/core.rs`、`parser/ast` | A0 已完成 |
-| 属性注册表/校验 | `hir/attrs` | A0 已完成 |
+| 属性注册表/校验 | `hir/attrs` | A0 已完成；A5f `#[attr]` 属性插件 |
 | 标注携带（MIR/LIR/包） | `mir/ir.rs`、`lir/ir/nodes_d.rs`（`LirAttr`/`ExternDecl`）、`lir/serialize` | A1 已完成 |
 | LLVM 属性映射 | `lir/emit/functions.rs`（`llvm_attr_suffix`/`llvm_param_attrs`）、`lir/emit/mod.rs` | A1 函数级+形参级已完成 |
 | extern 真实签名 | `lir/lower/mod.rs`（`extern_decls`） | A1 已完成 |
