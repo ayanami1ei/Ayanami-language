@@ -1673,8 +1673,11 @@ impl Parser {
                 an_d2 = self.ast.push(st(ST::Assign._tag), self.ast.texts[e], -1, val, -1, -1, -1, line, col);
                 // 记录 LHS Ident 节点，供 D2 只写局部扫描排除自身
                 self.ast.cc[an_d2] = e;
-                if self.block_depth == 1 && val >= 0 && self.ast.tags[val] == et(ET::Binary._tag) && self.ast.tys[val] == bo(BinOp::Add._tag) {
-                    self.ast.bb[an_d2] = 2;
+                if self.block_depth == 1 && val >= 0 {
+                    vtag_d2 = self.ast.tags[val];
+                    if (vtag_d2 == et(ET::Binary._tag) && self.ast.tys[val] == bo(BinOp::Add._tag)) || vtag_d2 == et(ET::FnCall._tag) {
+                        self.ast.bb[an_d2] = 2;
+                    }
                 }
                 return an_d2;
             }

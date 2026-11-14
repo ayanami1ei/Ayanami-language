@@ -1,6 +1,6 @@
 # 自举通用堆释放 / Drop 设计
 
-> 状态：D0（设计）+ D1（首片）+ D2a/D2b（tracked allocator / 只写局部，受控开关）  
+> 状态：D0（设计）+ D1（首片）+ D2a/D2b/D2c 首片（tracked allocator / 只写局部 / 函数返回局部，受控开关）  
 > 目标分支：`selfhost` / `selfhost-drops`  
 > 相关：`docs/rust-selfhost-diff.md`、`std/runtime.c`、`selfhost/src/lir/emit.aya`
 
@@ -62,7 +62,9 @@
   tracked 登记；`release_owned` 可安全释放 tracked 普通缓冲。
 - [x] D2b 首片：函数体**顶层**、只写、RHS 为 String 拼接的局部；在尾表达式/
   默认返回前释放。只写检测排除 Assign 节点与 LHS Ident，文本级误报只保留。
-- [ ] D2c：被读取/移动的局部、结构体字段、枚举载荷；move/部分 move/重新赋值/循环覆盖。
+- [x] D2c 首片：顶层、只写、RHS 为按值返回 `String` 的 `FnCall` 的局部；同样在
+  尾/默认返回前释放。按值返回 `String` 的所有权转移给调用者。
+- [ ] D2c 完整：被读取/移动的局部、结构体字段、枚举载荷；move/部分 move/重新赋值/循环覆盖。
 - [ ] 借用中的值不释放；字符串字面量/全局/借用视图标记为非拥有。
 - [ ] D2 完整后评估默认开启（当前仍由 `AYANAMI_SELFHOST_DROP=1` 控制）。
 
@@ -89,6 +91,7 @@ D1：
 - [x] D1 运行时 `__ayanami_release_owned`
 - [x] D2a tracked allocator（`__ayanami_selfhost_alloc`，1<<22 表 + 满表快速退出）
 - [x] D2b 只写 String 拼接局部（仅尾/默认返回，opt-in）
-- [ ] D2c 被读取/移动局部 + 字段/枚举载荷
+- [x] D2c 首片 只写按值 String 返回局部
+- [ ] D2c 完整：被读取/移动局部 + 字段/枚举载荷
 - [ ] D3 完整 drop glue
 - [ ] D3 完整 drop glue（后续）

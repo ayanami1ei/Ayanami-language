@@ -187,7 +187,7 @@
   其余自举 `@malloc` 分配仍依赖进程退出回收（不计入 live_allocs）
 - 环境备注：`scripts/selfhost.sh` 开发构建优先 `/usr/bin/llc`（安装包 bundled LLVM 可能与
   系统 libLLVM 版本不匹配，M68k 符号缺失时 llc 启动失败）
-- 当前定点：stage-2 == stage-3（md5 `965531dfec0b94cb0f92fa90dd2e8f85`）
+- 当前定点：stage-2 == stage-3（md5 `789fe09dfdd55318a516b5bb351cba6c`）
 - 状态：已合并到主 `selfhost`（178/178）；下一步跑 `check_all`/发布；通用堆释放/drop 作为后续优化
 - 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
   （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
@@ -204,7 +204,8 @@
   借用视图不 free，避免误释放。
 - 开关 `AYANAMI_SELFHOST_DROP=1`；默认关闭保持 178/178，开关开启的 178 diff 也为
   178/178。std 运行时提交 `e843d30`（Ayanami-std `selfhost-rust-sync`）。
-- D2a/D2b 已落地：自举普通分配切换 tracked allocator（1<<22 表，满表快速退出）；
-  顶层的只写 String 拼接局部在尾/默认返回前释放。开关开启的 178 diff 仍为 178/178，
-  默认关闭；固定点更新为 `965531dfec0b94cb0f92fa90dd2e8f85`。
+- D2a/D2b/D2c 首片已落地：自举普通分配切换 tracked allocator（1<<22 表，满表快速退出）；
+  顶层的只写 String 拼接局部与按值返回 String 的函数调用局部在尾/默认返回前释放。
+  开关开启的 178 diff 仍为 178/178，默认关闭；固定点更新为
+  `789fe09dfdd55318a516b5bb351cba6c`。
 - 后续 D2c：被读取/移动的局部 + 结构体字段/枚举载荷；D3：完整递归 drop glue。
