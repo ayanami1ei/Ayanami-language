@@ -140,9 +140,11 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             | ImportedSymbol::Check { .. } | ImportedSymbol::Attr { .. }
             | ImportedSymbol::Transform { .. })
     });
+    let is_std_package = crate::compiler::find_std_dir()
+        .is_some_and(|dir| std::path::Path::new(path).starts_with(dir));
     match manifest {
         Some(ref m) => validate_manifest(m, path)?,
-        None if has_plugin_symbols => warn_missing_manifest(path),
+        None if has_plugin_symbols && !is_std_package => warn_missing_manifest(path),
         None => {}
     }
     validate_annotation_symbols(&symbols, path)?;

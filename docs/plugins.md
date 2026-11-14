@@ -168,7 +168,9 @@ pub fn identity(String hir_json) -> String {
   编译器把 HIR 编码为 JSON 调用插件，插件返回 JSON 后继续 MIR。
 - HIR schema 版本和节点格式见 [`docs/hir-transform.md`](hir-transform.md)。
 - v1 只支持函数上的 transform 标记；结构化修改 API（插入函数、改 body）在 B2。
-- 插件必须原样返回合法 HIR JSON 或返回同 schema 的修改结果；解析失败会拒绝编译。
+- 插件必须返回合法 HIR JSON；解析失败会拒绝编译。
+- 当前已跑通低层修改示例（见 `docs/hir-transform.md` 的 `bump`）；typed
+  `std/hir.aya` helper 仍在后续 B2。
 
 ### MIR pass `#[pass]` / check `#[check]`
 

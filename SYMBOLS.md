@@ -2859,13 +2859,13 @@ src/package/const_codec.rs:75: pub fn lit_from_str(ty: &HirType, s: &str) -> Opt
 src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:4: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:153: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
-src/package/load.rs:175: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:187: pub fn load_version(path: &str) -> Option<String>
-src/package/load.rs:200: pub fn warn_version_drift(path: &str, stem: &str)
-src/package/load.rs:202: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
-src/package/load.rs:220: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:254: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:155: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
+src/package/load.rs:177: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:189: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:202: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:204: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:222: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:256: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod annotate;
 src/package/mod.rs:7: mod bytes;

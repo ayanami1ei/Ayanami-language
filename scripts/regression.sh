@@ -240,6 +240,36 @@ EOF
                 echo "FAIL A5e/B1: transform consumer failed"
                 fail=$((fail + 1))
             fi
+            # B2：插件实际修改 HIR JSON（把字面量 7 改成 8）
+            cat > "$tdir/src/lib.aya" <<'EOF'
+import "text"
+
+#[transform]
+pub fn bump(String input) -> String {
+    old = "\"value\":7"
+    new = "\"value\":8"
+    return replace(ref input, ref old, ref new)
+}
+EOF
+            if ! "$BIN" plugin package "$tdir" >/dev/null 2>&1; then
+                echo "FAIL A5e/B2: mutating transform package failed"
+                fail=$((fail + 1))
+            else
+                cat > "$tconsumer" <<EOF
+import "$tdir/src/lib.lcl"
+
+#[lib::bump]
+fn main() -> int {
+    return 7
+}
+EOF
+                "$BIN" run "$tconsumer" >/dev/null 2>&1
+                got=$?
+                if [ "$got" != 8 ]; then
+                    echo "FAIL A5e/B2: mutated HIR exit $got, want 8"
+                    fail=$((fail + 1))
+                fi
+            fi
         fi
     fi
 

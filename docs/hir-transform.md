@@ -10,7 +10,8 @@
 
 B0 已完成：`HIR → JSON → HIR` 的 identity roundtrip。
 B1 已完成 identity 插件通路：`.lcl` `transform=`、函数上的 `#[pkg::name]` 触发、
-`fn(String json) -> String` 插件调用。可变 API 在 B2。
+`fn(String json) -> String` 插件调用。B2 已用低层 JSON 修改跑通首个变换
+（`"value":7` → `"value":8`）；结构化 `std/hir.aya` helper 仍待补。
 
 ## 为什么用 JSON
 
@@ -57,6 +58,35 @@ B1 已完成 identity 插件通路：`.lcl` `transform=`、函数上的 `#[pkg::
 
 效应：`effects`、`pure`、`no_error`、`throws`、`inferred` 分开保存。
 
+## B2 低层修改示例
+
+当前插件可以直接操作 HIR JSON 字符串。例如把字面量 7 改成 8：
+
+```ayanami
+import "text"
+
+#[transform]
+pub fn bump(String input) -> String {
+    old = "\"value\":7"
+    new = "\"value\":8"
+    return replace(ref input, ref old, ref new)
+}
+```
+
+消费方：
+
+```ayanami
+import "transform_lib"
+
+#[lib::bump]
+fn main() -> int {
+    return 7
+}
+```
+
+这证明插件可以修改 HIR 并影响后续 MIR/LIR。v1 不提供 typed JSON helper，
+因此复杂变换仍容易写错；B2 的下一小步是 `std/hir.aya` 访问器/构造器。
+
 ## Identity 调试开关
 
 设置：
@@ -94,7 +124,8 @@ schema 覆盖：
 
 - **B1（已完成 2026-11-14）**：`.lcl` `transform=` 表、`#[transform]` 声明、
   `fn(String json) -> String` 插件 ABI、identity 插件；
-- **B2**：`std/hir.aya` 视图/helper、插入函数/改 body/改调用点（未完成）、
+- **B2（低层 MVP 已完成）**：HIR JSON 字符串修改已跑通；`std/hir.aya` 视图/helper、
+  插入函数/改 body/改调用点尚未完成，
   变换后 FnId/VarId/类型/借用/效应校验；
 - **B3**：泛型、enum niche、vtable、async/sync 内建变换统一接口。
 
