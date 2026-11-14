@@ -1,6 +1,6 @@
 # 自举通用堆释放 / Drop 设计
 
-> 状态：D0（设计）+ D1（首片，受控开关）  
+> 状态：D0（设计）+ D1（首片）+ D2a/D2b（tracked allocator / 只写局部，受控开关）  
 > 目标分支：`selfhost` / `selfhost-drops`  
 > 相关：`docs/rust-selfhost-diff.md`、`std/runtime.c`、`selfhost/src/lir/emit.aya`
 
@@ -31,9 +31,10 @@
 
 - `std/runtime.c` 已有计数分配登记表：`__ayanami_unique_alloc` 登记指针，
   `__ayanami_unique_free` 对已释放指针幂等。
-- 新增 `__ayanami_release_owned(void *ptr)`：D1 只释放已登记（计数）缓冲；
-  计数指针走 `counted_take` + 递减 + free，未登记指针不 free（可能是字面量/
-  全局/借用视图）。只应在确定是该缓冲最后所有者时调用。
+- 新增 `__ayanami_selfhost_alloc`：自举发射器的普通分配统一登记到 tracked 表（不进入
+  live_allocs）；容量 1<<22，满表后停止登记（只影响后续释放，不影响分配）。
+- `__ayanami_release_owned(void *ptr)`：先查 tracked，再查 counted；未登记指针
+  （字面量/全局/借用视图）不 free。只应在确定是该缓冲最后所有者时调用。
 - 字符串字面量/全局常量不在登记表内；D1 的保守分析不得释放其指针。
 
 ## 4. 阶段
@@ -57,11 +58,13 @@
 
 ### D2 拥有型局部与字段
 
-- 跟踪 `String` 局部/结构体字段/枚举载荷的拥有来源，插入作用域/分支 drop。
-- 处理 move、部分 move、重新赋值、循环内覆盖；借用中的值不释放。
-- 字符串字面量/全局/借用视图标记为非拥有，不释放。
-- 需要把自举发射器的 `@malloc` 统一到一个可登记/可检查的分配入口，避免
-  释放全局或借用指针。
+- [x] D2a：自举发射器 `@malloc` 统一替换为 `__ayanami_selfhost_alloc`，运行时
+  tracked 登记；`release_owned` 可安全释放 tracked 普通缓冲。
+- [x] D2b 首片：函数体**顶层**、只写、RHS 为 String 拼接的局部；在尾表达式/
+  默认返回前释放。只写检测排除 Assign 节点与 LHS Ident，文本级误报只保留。
+- [ ] D2c：被读取/移动的局部、结构体字段、枚举载荷；move/部分 move/重新赋值/循环覆盖。
+- [ ] 借用中的值不释放；字符串字面量/全局/借用视图标记为非拥有。
+- [ ] D2 完整后评估默认开启（当前仍由 `AYANAMI_SELFHOST_DROP=1` 控制）。
 
 ### D3 完整 drop glue
 
@@ -84,5 +87,8 @@ D1：
 - [x] D1 解析期未使用形参标记
 - [x] D1 发射期 return/tail/default drop（`AYANAMI_SELFHOST_DROP=1`）
 - [x] D1 运行时 `__ayanami_release_owned`
-- [ ] D2 拥有型局部/字段（后续）
+- [x] D2a tracked allocator（`__ayanami_selfhost_alloc`，1<<22 表 + 满表快速退出）
+- [x] D2b 只写 String 拼接局部（仅尾/默认返回，opt-in）
+- [ ] D2c 被读取/移动局部 + 字段/枚举载荷
+- [ ] D3 完整 drop glue
 - [ ] D3 完整 drop glue（后续）

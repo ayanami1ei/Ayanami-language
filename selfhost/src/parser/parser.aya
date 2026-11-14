@@ -123,6 +123,7 @@ pub struct Parser {
     int err_line
     int err_col
     int no_struct
+    int block_depth
     String cur_impl
     int impl_args
     int tail_if
@@ -189,7 +190,7 @@ pub namespace Parser {
         t2 = lx.next_token();
         t3 = lx.next_token();
         t4 = lx.next_token();
-        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, la3 = t4, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, prev_line = 0, stmt_col = 0, last_pub = 0, no_cast = 0,
+        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, la3 = t4, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, block_depth = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, prev_line = 0, stmt_col = 0, last_pub = 0, no_cast = 0,
             attrs_text = [String; 256], attrs_line = [int; 256], attrs_eline = [int; 256], attrs_count = 0,
             env_caps = [String; 16], env_provs = [String; 16], env_count = 0,
             pend_env_caps = [String; 16], pend_env_provs = [String; 16], pend_env_count = 0,
@@ -1127,6 +1128,22 @@ impl Parser {
                 pu = self.ast.nexts[pu];
             }
         }
+        // D2：只写 String 拼接局部的保守标记（仅函数体顶层赋值；误报只保留）
+        iw0 = start_ast0;
+        while iw0 < self.ast.len {
+            if self.ast.tags[iw0] == st(ST::Assign._tag) && self.ast.bb[iw0] == 2 {
+                nm_w = self.ast.texts[iw0].copy();
+                cnt_w = 0;
+                jw = start_ast0;
+                lhsw = self.ast.cc[iw0];
+                while jw < self.ast.len {
+                    if jw != iw0 && jw != lhsw && self.ast.texts[jw] == nm_w { cnt_w = cnt_w + 1; }
+                    jw = jw + 1;
+                }
+                if cnt_w == 0 { self.ast.bb[iw0] = 1; } else { self.ast.bb[iw0] = 0; }
+            }
+            iw0 = iw0 + 1;
+        }
         // 本函数的环境值隐藏形参：__env_<cap>: E（E 为匹配的泛型参数）
         hk_e = 0;
         while hk_e < self.cur_env_cap_count {
@@ -1339,6 +1356,7 @@ impl Parser {
         bline = self.cur.line;
         bcol = self.cur.col;
         self.expect_delim(D::LBrace._tag, "expected { to start block");
+        self.block_depth = self.block_depth + 1;
         blk = self.ast.push(st(ST::Block._tag), "", -1, -1, -1, -1, -1, bline, bcol);
         head = -1;
         last_semi = 0;
@@ -1392,6 +1410,7 @@ impl Parser {
             }
         }
         self.ast.aa[blk] = head;
+        self.block_depth = self.block_depth - 1;
         return blk;
     }
 
@@ -1651,7 +1670,13 @@ impl Parser {
             val = self.parse_expr();
             etag = self.ast.tags[e];
             if etag == et(ET::Ident._tag) {
-                return self.ast.push(st(ST::Assign._tag), self.ast.texts[e], -1, val, -1, -1, -1, line, col);
+                an_d2 = self.ast.push(st(ST::Assign._tag), self.ast.texts[e], -1, val, -1, -1, -1, line, col);
+                // 记录 LHS Ident 节点，供 D2 只写局部扫描排除自身
+                self.ast.cc[an_d2] = e;
+                if self.block_depth == 1 && val >= 0 && self.ast.tags[val] == et(ET::Binary._tag) && self.ast.tys[val] == bo(BinOp::Add._tag) {
+                    self.ast.bb[an_d2] = 2;
+                }
+                return an_d2;
             }
             if etag == et(ET::FieldAccess._tag) {
                 return self.ast.push(st(ST::FieldAssign._tag), self.ast.texts[e], -1, self.ast.aa[e], val, -1, -1, self.ast.lines[e], self.ast.cols[e]);

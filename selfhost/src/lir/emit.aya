@@ -222,6 +222,9 @@ pub struct Emitter {
     // D1 drop：未使用按值 String 形参
     [String] drop_params
     int drop_param_count
+    // D2：只写 String 拼接局部
+    [String] drop_locals
+    int drop_local_count
 }
 
 pub namespace Emitter {
@@ -266,7 +269,7 @@ pub namespace Emitter {
             pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
             loop_ends = [String; 64], loop_conds = [String; 64], loop_depth = 0,
             sync_unlocks = [int; 64], sync_count = 0, sync_loop_marks = [int; 64],
-            terminated = 0, drop_params = [String; 64], drop_param_count = 0
+            terminated = 0, drop_params = [String; 64], drop_param_count = 0, drop_locals = [String; 64], drop_local_count = 0
         };
         ip_init = 0;
         while ip_init < 256 {
@@ -909,7 +912,7 @@ fn emit_str_concat(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val {
     e.buf.push_str("\n  ");
     buf = e.fresh();
     e.buf.push_str(buf);
-    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 ");
     e.buf.push_str(n);
     e.buf.push_str(")\n  call ptr @memcpy(ptr ");
     e.buf.push_str(buf);
@@ -946,7 +949,7 @@ fn emit_str_slice(ref Val sv, ref String start, ref String end, ref mut Emitter 
     e.buf.push_str("\n  ");
     buf = e.fresh();
     e.buf.push_str(buf);
-    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 ");
     e.buf.push_str(n);
     e.buf.push_str(")\n  ");
     src = e.fresh();
@@ -2157,7 +2160,7 @@ impl Emitter {
             c0 = self.fresh();
             self.buf.push_str("  ");
             self.buf.push_str(c0);
-            self.buf.push_str(" = call ptr @malloc(i64 8)\n  store i64 ");
+            self.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 8)\n  store i64 ");
             self.buf.push_str(v.a);
             self.buf.push_str(", ptr ");
             self.buf.push_str(c0);
@@ -2167,7 +2170,7 @@ impl Emitter {
             c6 = self.fresh();
             self.buf.push_str("  ");
             self.buf.push_str(c6);
-            self.buf.push_str(" = call ptr @malloc(i64 8)\n  store double ");
+            self.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 8)\n  store double ");
             self.buf.push_str(v.a);
             self.buf.push_str(", ptr ");
             self.buf.push_str(c6);
@@ -2177,7 +2180,7 @@ impl Emitter {
             c1 = self.fresh();
             self.buf.push_str("  ");
             self.buf.push_str(c1);
-            self.buf.push_str(" = call ptr @malloc(i64 16)\n  store ptr ");
+            self.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 16)\n  store ptr ");
             self.buf.push_str(v.a);
             self.buf.push_str(", ptr ");
             self.buf.push_str(c1);
@@ -2196,7 +2199,7 @@ impl Emitter {
         bx = self.fresh();
         self.buf.push_str("  ");
         self.buf.push_str(bx);
-        self.buf.push_str(" = call ptr @malloc(i64 16)\n  store ptr ");
+        self.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 16)\n  store ptr ");
         self.buf.push_str(data);
         self.buf.push_str(", ptr ");
         self.buf.push_str(bx);
@@ -4978,6 +4981,26 @@ impl Emitter {
         }
     }
 
+    /// D2：尾返回/默认返回前释放只写 String 拼接局部并置空
+    #[state]
+    fn emit_local_drops(ref mut self, ref Ast ast) {
+        i = 0;
+        while i < self.drop_local_count {
+            nm = self.drop_locals[i].copy();
+            dp = self.fresh();
+            self.buf.push_str("  ");
+            self.buf.push_str(dp);
+            self.buf.push_str(" = load ptr, ptr %v_");
+            self.buf.push_str(nm);
+            self.buf.push_str(".ptr\n  call void @__ayanami_release_owned(ptr ");
+            self.buf.push_str(dp);
+            self.buf.push_str(")\n  store ptr null, ptr %v_");
+            self.buf.push_str(nm);
+            self.buf.push_str(".ptr\n");
+            i = i + 1;
+        }
+    }
+
     /// 3tq：发射全部特化（worklist 动态增长，处理传递闭包）
     #[alloc]
     #[state]
@@ -6062,7 +6085,7 @@ fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> 
     t = e.fresh();
     e.buf.push_str("  ");
     e.buf.push_str(t);
-    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 ");
     e.buf.push_str(nb2.to_string());
     e.buf.push_str(")\n  call void @llvm.memset.p0.i64(ptr ");
     e.buf.push_str(t);
@@ -6816,7 +6839,7 @@ fn store_match_val(ref Val tv, ref String res, ref mut Emitter e) -> int {
         cell = e.fresh();
         e.buf.push_str("  ");
         e.buf.push_str(cell);
-        e.buf.push_str(" = call ptr @malloc(i64 16)\n  store ptr ");
+        e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 16)\n  store ptr ");
         e.buf.push_str(tv.a);
         e.buf.push_str(", ptr ");
         e.buf.push_str(cell);
@@ -7286,7 +7309,7 @@ fn emit_lambda_value(ref Ast ast, int id, ref mut Emitter e) -> Val {
     envp = e.fresh();
     e.buf.push_str("  ");
     e.buf.push_str(envp);
-    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 ");
     e.buf.push_int(sz);
     e.buf.push_str(")\n  store ptr @");
     e.buf.push_str(e.fn_sym(lname));
@@ -8485,7 +8508,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                     bx = e.fresh();
                     e.buf.push_str("  ");
                     e.buf.push_str(bx);
-                    e.buf.push_str(" = call ptr @malloc(i64 16)\n  ");
+                    e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 16)\n  ");
                     gb = e.fresh();
                     e.buf.push_str(gb);
                     e.buf.push_str(" = getelementptr i8, ptr ");
@@ -8514,7 +8537,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
                 bx2 = e.fresh();
                 e.buf.push_str("  ");
                 e.buf.push_str(bx2);
-                e.buf.push_str(" = call ptr @malloc(i64 8)\n  ");
+                e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 8)\n  ");
                 if vp.kind == 6 {
                     e.buf.push_str("store double ");
                     e.buf.push_str(vp.a);
@@ -8604,7 +8627,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
             e.buf.push_str(", 1\n  ");
             buf4 = e.fresh();
             e.buf.push_str(buf4);
-            e.buf.push_str(" = call ptr @malloc(i64 ");
+            e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 ");
             e.buf.push_str(n4);
             e.buf.push_str(")\n  call ptr @memcpy(ptr ");
             e.buf.push_str(buf4);
@@ -9133,7 +9156,7 @@ fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val {
         t = e.fresh();
         e.buf.push_str("  ");
         e.buf.push_str(t);
-        e.buf.push_str(" = call ptr @malloc(i64 ");
+        e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 ");
         e.buf.push_str(nb.to_string());
         e.buf.push_str(")\n  call void @llvm.memset.p0.i64(ptr ");
         e.buf.push_str(t);
@@ -11147,7 +11170,7 @@ fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitte
     raw = e.fresh();
     e.buf.push_str("  ");
     e.buf.push_str(raw);
-    e.buf.push_str(" = call ptr @malloc(i64 ");
+    e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 ");
     e.buf.push_str(z);
     e.buf.push_str(")\n");
     e.buf.push_str("  call void @llvm.memset.p0.i64(ptr ");
@@ -11197,7 +11220,7 @@ fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitte
             e.buf.push_int(n_e);
             e.buf.push_str(":\n  %ep.");
             e.buf.push_int(n_e);
-            e.buf.push_str(" = call ptr @malloc(i64 ");
+            e.buf.push_str(" = call ptr @__ayanami_selfhost_alloc(i64 ");
             e.buf.push_str(nb3.to_string());
             e.buf.push_str(")\n  call void @llvm.memset.p0.i64(ptr %ep.");
             e.buf.push_int(n_e);
@@ -11416,6 +11439,10 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         }
         if v.kind == 1 {
             e.declare_local(nm, 1);
+            if ast.bb[id] == 1 && env("AYANAMI_SELFHOST_DROP") == "1" && e.drop_local_count < 64 {
+                e.drop_locals[e.drop_local_count] = nm.copy();
+                e.drop_local_count = e.drop_local_count + 1;
+            }
             e.buf.push_str("  store ptr ");
             e.buf.push_str(v.a);
             e.buf.push_str(", ptr %v_");
@@ -12125,6 +12152,7 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
     e.tmp = 0;
     e.lv_count = 0;
     e.drop_param_count = 0;
+    e.drop_local_count = 0;
     e.cur_self_ty = prefix.copy();
     // 上一函数以 ret 结束会残留 terminated；新函数体必须复位，否则整段被跳过
     e.terminated = 0;
@@ -12532,6 +12560,7 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             if tail >= 0 {
                 tv = emit_expr(ast, tail, e);
                 e.emit_param_drops(ast);
+                e.emit_local_drops(ast);
                 if rkind == 5 {
                     if tv.kind == 6 {
                         e.buf.push_str("  ret double ");
@@ -12586,7 +12615,10 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             }
         }
     }
-    if e.terminated == 0 { e.emit_param_drops(ast); }
+    if e.terminated == 0 {
+        e.emit_param_drops(ast);
+        e.emit_local_drops(ast);
+    }
     if rkind == 1 {
         e.buf.push_str("  ret { ptr, i64 } { ptr null, i64 0 }\n}\n");
     } elif rkind == 5 {
@@ -12718,7 +12750,7 @@ pub fn emit_program_full(ref Ast ast, int prog, ref String file, ref mut SpecOut
     if e.decl_has("__ayanami_print_ln") == 0 { e.buf.push_str("declare void @__ayanami_print_ln()\n"); }
     if e.decl_has("__ayanami_print_str") == 0 { e.buf.push_str("declare void @__ayanami_print_str(ptr, i64)\n"); }
     // 数组分配/清零所需（M6a）：malloc + llvm.memset
-    if e.decl_has("malloc") == 0 { e.buf.push_str("declare ptr @malloc(i64)\n"); }
+    if e.decl_has("__ayanami_selfhost_alloc") == 0 { e.buf.push_str("declare ptr @__ayanami_selfhost_alloc(i64)\n"); }
     if e.decl_has("memcpy") == 0 { e.buf.push_str("declare ptr @memcpy(ptr, ptr, i64)\n"); }
     if e.decl_has("memcmp") == 0 { e.buf.push_str("declare i32 @memcmp(ptr, ptr, i64)\n"); }
     if e.decl_has("__ayanami_panic_at") == 0 { e.buf.push_str("declare void @__ayanami_panic_at(i64, i64, ptr, i64, ptr, i64)\n"); }
