@@ -356,7 +356,7 @@ EOF
                     if "$BIN" check "$bad" >/tmp/transform_bad.out 2>&1; then
                         echo "FAIL A5e/B2e: transform on struct was accepted"
                         fail=$((fail + 1))
-                    elif ! grep -q "only supported on functions and non-generic structs" /tmp/transform_bad.out; then
+                    elif ! grep -q "only supported on functions and structs" /tmp/transform_bad.out; then
                         echo "FAIL A5e/B2e: missing unsupported-target diagnostic"
                         fail=$((fail + 1))
                     fi
@@ -428,6 +428,27 @@ EOF
                         echo "FAIL A5e/B2g: generic specialization exit $got, want 8"
                         fail=$((fail + 1))
                     fi
+                fi
+                # B2h：泛型 struct 声明也可触发 transform
+                cat > "$tconsumer" <<EOF
+import "$tdir/src/lib.lcl"
+
+#[lib::bump]
+struct Pair[T] {
+    T x
+    T y
+}
+
+fn main() -> int {
+    p = Pair[int] { x = 1, y = 2 }
+    return p.x
+}
+EOF
+                "$BIN" run "$tconsumer" >/dev/null 2>&1
+                got=$?
+                if [ "$got" != 8 ]; then
+                    echo "FAIL A5e/B2h: generic struct exit $got, want 8"
+                    fail=$((fail + 1))
                 fi
             fi
         fi

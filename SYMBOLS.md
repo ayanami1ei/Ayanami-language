@@ -1726,15 +1726,15 @@ src/hir/stmt.rs:117: impl HirBlock
 src/hir/stmt.rs:118: pub fn new(stmts: Vec<HirStmt>) -> Self
 src/hir/transform.rs:12: pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()>
 src/hir/transform.rs:41: fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:96: fn transform_attr<'a>(
-src/hir/transform.rs:108: fn collect_markers(
-src/hir/transform.rs:119: fn collect_item_markers(
-src/hir/transform.rs:137: fn collect_attrs_markers(
-src/hir/transform.rs:154: fn collect_fn_markers(
-src/hir/transform.rs:171: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:178: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:192: fn strip_attrs(attrs: &mut Vec<crate::parser::ast::Attr>, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:204: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:91: fn transform_attr<'a>(
+src/hir/transform.rs:103: fn collect_markers(
+src/hir/transform.rs:114: fn collect_item_markers(
+src/hir/transform.rs:132: fn collect_attrs_markers(
+src/hir/transform.rs:149: fn collect_fn_markers(
+src/hir/transform.rs:166: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:173: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:187: fn strip_attrs(attrs: &mut Vec<crate::parser::ast::Attr>, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:199: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
 src/hir/ty.rs:4: pub struct VarId(pub usize);
 src/hir/ty.rs:9: pub struct FnId(pub usize);
 src/hir/ty.rs:19: pub enum HirType

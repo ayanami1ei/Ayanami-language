@@ -59,21 +59,16 @@ fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()> {
                     }
                 }
             }
-            Stmt::StructDef { attrs, generic_params, .. } => {
-                if let Some(attr) = transform_attr(attrs, tables)? {
-                    if !generic_params.is_empty() {
-                        return Err(Error::Hir(format!(
-                            "transform #[{}] is not supported on generic structs in v1 (at {}:{})",
-                            attr.path_str(), attr.span.start_line, attr.span.start_col
-                        )));
-                    }
-                }
+            Stmt::StructDef { attrs, .. } => {
+                // struct 声明（含泛型声明）本身就在 HIR；transform 能读取
+                // generic_struct_params / fields，按声明级执行。
+                let _ = transform_attr(attrs, tables)?;
             }
             Stmt::EnumDef { attrs, .. }
             | Stmt::InterfaceDef { attrs, .. } => {
                 if let Some(attr) = transform_attr(attrs, tables)? {
                     return Err(Error::Hir(format!(
-                        "transform #[{}] is only supported on functions and non-generic structs in v1 (at {}:{})",
+                        "transform #[{}] is only supported on functions and structs in v1 (at {}:{})",
                         attr.path_str(), attr.span.start_line, attr.span.start_col
                     )));
                 }
