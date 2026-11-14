@@ -635,7 +635,8 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] B2f：非泛型 struct 目标 + HirStructDef attrs 进 schema
 - [x] B2g：泛型函数在特化 HirFn 上触发（per-specialization）
 - [x] B2h：泛型 struct 声明级 transform 触发
-- [ ] B2 后续：完整借用效应校验
+- [x] B2i：VarId 范围 + SVar/local 类型一致性校验
+- [ ] B2 后续：完整借用效应/调用签名校验
 - [x] `#[sync(obj)] { ... }` 同步块（首个内建结构化变换，2026-10-24；见 `docs/sync-blocks.md`）
 - [ ] `#[async]`/`await`（A5e 第二个客户）
 

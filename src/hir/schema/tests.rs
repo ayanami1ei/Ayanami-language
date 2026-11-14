@@ -85,6 +85,16 @@ fn invalid_fn_id_is_rejected_before_decode() {
 }
 
 #[test]
+fn var_type_mismatch_is_rejected_before_decode() {
+    let source = "fn add(int a, int b) -> int { return a + b }\nfn main() -> int { return add(1, 2) }";
+    let hir = hir_for(source);
+    let mut value: serde_json::Value = serde_json::from_str(&to_json(&hir).unwrap()).unwrap();
+    let var = find_mut(&mut value, "var").expect("var node");
+    var.as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"bool"}));
+    assert!(from_json(&value.to_string()).is_err());
+}
+
+#[test]
 fn invalid_var_id_is_rejected_before_decode() {
     let source = "fn add(int a, int b) -> int { return a + b }\nfn main() -> int { return add(1, 2) }";
     let hir = hir_for(source);

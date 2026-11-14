@@ -1697,7 +1697,8 @@ src/hir/schema/tests.rs:26: fn main() -> int
 src/hir/schema/tests.rs:45: fn unsupported_schema_version_is_rejected()
 src/hir/schema/tests.rs:52: fn find_mut<'a>(value: &'a mut serde_json::Value, kind: &str) -> Option<&'a mut serde_json::Value>
 src/hir/schema/tests.rs:78: fn invalid_fn_id_is_rejected_before_decode()
-src/hir/schema/tests.rs:88: fn invalid_var_id_is_rejected_before_decode()
+src/hir/schema/tests.rs:88: fn var_type_mismatch_is_rejected_before_decode()
+src/hir/schema/tests.rs:98: fn invalid_var_id_is_rejected_before_decode()
 src/hir/schema/types.rs:9: impl ToJson for HirType
 src/hir/schema/types.rs:10: fn to_json(&self) -> Value
 src/hir/schema/types.rs:35: impl FromJson for HirType
@@ -1713,7 +1714,7 @@ src/hir/schema/validate.rs:84: fn validate_vtables(root: &Value, fn_ids: &HashSe
 src/hir/schema/validate.rs:102: fn validate_items(
 src/hir/schema/validate.rs:112: fn validate_item_list(
 src/hir/schema/validate.rs:138: fn walk_nodes(
-src/hir/schema/validate.rs:206: fn err(message: impl std::fmt::Display) -> Error
+src/hir/schema/validate.rs:214: fn err(message: impl std::fmt::Display) -> Error
 src/hir/stmt.rs:6: pub enum ContractKind
 src/hir/stmt.rs:12: impl ContractKind
 src/hir/stmt.rs:13: pub fn label(&self) -> &'static str

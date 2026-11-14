@@ -122,7 +122,7 @@ fn validate_item_list(
                 let locals = value.get("locals").and_then(Value::as_array)
                     .ok_or_else(|| err("fn has no locals array"))?;
                 let body = value.get("body").ok_or_else(|| err("fn has no body"))?;
-                walk_nodes(body, locals.len(), fn_ids, structs, "fn.body")?;
+                walk_nodes(body, locals, fn_ids, structs, "fn.body")?;
             }
             "namespace" => {
                 let nested = item.get("items").and_then(Value::as_array)
@@ -137,7 +137,7 @@ fn validate_item_list(
 
 fn walk_nodes(
     value: &Value,
-    local_count: usize,
+    locals: &[Value],
     fn_ids: &HashSet<u64>,
     structs: &HashSet<String>,
     path: &str,
@@ -145,7 +145,7 @@ fn walk_nodes(
     match value {
         Value::Array(items) => {
             for (i, item) in items.iter().enumerate() {
-                walk_nodes(item, local_count, fn_ids, structs, &format!("{}.{}", path, i))?;
+                walk_nodes(item, locals, fn_ids, structs, &format!("{}.{}", path, i))?;
             }
         }
         Value::Object(map) => {
@@ -164,10 +164,18 @@ fn walk_nodes(
                     "var" => {
                         let var = map.get("var").and_then(Value::as_u64)
                             .ok_or_else(|| err(format!("{}: var has invalid id", path)))?;
-                        if var >= local_count as u64 {
+                        if var >= locals.len() as u64 {
                             return Err(err(format!(
                                 "{}: var {} out of range (locals = {})",
-                                path, var, local_count
+                                path, var, locals.len()
+                            )));
+                        }
+                        let local_ty = locals[var as usize].get("ty").unwrap_or(&Value::Null);
+                        let node_ty = map.get("ty").unwrap_or(&Value::Null);
+                        if node_ty != local_ty {
+                            return Err(err(format!(
+                                "{}: var {} type mismatch (node {}, local {})",
+                                path, var, node_ty, local_ty
                             )));
                         }
                     }
@@ -195,7 +203,7 @@ fn walk_nodes(
                 }
             }
             for (key, child) in map {
-                walk_nodes(child, local_count, fn_ids, structs, &format!("{}.{}", path, key))?;
+                walk_nodes(child, locals, fn_ids, structs, &format!("{}.{}", path, key))?;
             }
         }
         _ => {}

@@ -109,7 +109,7 @@ v1 的 transform marker 可放在函数/方法和**非泛型 struct** 上。
 `from_json` 在重建 HIR 前检查：
 
 - `FnId`（调用/函数指针/vtable）必须存在；
-- `VarId` 必须在当前函数的 locals 范围内；
+- `VarId` 必须在当前函数的 locals 范围内，且 `SVar.ty` 必须与 `locals[var].ty` 一致；
 - struct / enum construct 引用的类型必须存在；
 - vtable 的 `-1` 只作为析构槽哨兵放行。
 
@@ -154,8 +154,8 @@ schema 覆盖：
 
 - **B1（已完成 2026-11-14）**：`.lcl` `transform=` 表、`#[transform]` 声明、
   `fn(String json) -> String` 插件 ABI、identity 插件；
-- **B2/B2c/B2d/B2e/B2f/B2g/B2h（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
-  clone/append 函数、调用点重定向、FnId/VarId/struct/vtable 校验、目标诊断、
+- **B2/B2c/B2d/B2e/B2f/B2g/B2h/B2i（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
+  clone/append 函数、调用点重定向、FnId/VarId/类型/struct/vtable 校验、目标诊断、
   struct/泛型 struct 与泛型函数特化触发已跑通；
   变换后 FnId/VarId/类型/借用/效应校验；
 - **B3**：泛型、enum niche、vtable、async/sync 内建变换统一接口。
