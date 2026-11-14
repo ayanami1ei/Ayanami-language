@@ -125,9 +125,32 @@ pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode)
         return lower_field_addr_of(ctx, &**inner);
     }
     if let Some((obj, idx)) = node.as_field_access() {
+        // N2：指针型字段（boxed 变体槽）——字段值（load 出的指针）即地址，
+        // 不能再取字段地址（否则把指针槽地址当作指针使用）
+        if matches!(node.expr_type(), HirType::Ref(..) | HirType::Unique(_) | HirType::RawPtr(_)) {
+            return Some(node.lower_to_lir(ctx));
+        }
         let base = lower_field_addr_of(ctx, &**obj)?;
+        // `ref Ptr[T]` 等含两层以上指针的对象：逐层 load 到字段所属结构体
+        let (base, final_ty, through_ptr) = chase_ptr_layers(ctx, base, &obj.expr_type());
+        let struct_ty = if through_ptr {
+            HirType::Ref(Box::new(final_ty), false)
+        } else {
+            final_ty
+        };
         let dest = ctx.next_tmp();
-        ctx.emit(SLirFieldAddr { dest, obj: base, field_index: idx, struct_ty: obj.expr_type() }.into());
+        ctx.emit(SLirFieldAddr { dest, obj: base, field_index: idx, struct_ty }.into());
+        return Some(LirValue::Tmp(dest));
+    }
+    if let Some((obj, idx)) = node.as_index() {
+        // 数组元素地址（嵌套字段移出/清零：`s.items[0].name`）
+        let obj_val = obj.lower_to_lir(ctx);
+        let idx_val = idx.lower_to_lir(ctx);
+        let arr_tmp = as_ptr_tmp(ctx, obj_val, &obj.expr_type());
+        let arr_tmp = array_base_through_ref(ctx, arr_tmp, &obj.expr_type());
+        let elem_ty = super::place::array_elem_ty(&obj.expr_type())?;
+        let dest = ctx.next_tmp();
+        ctx.emit(SLirIndexAddr { dest, arr_tmp, index: idx_val, elem_ty }.into());
         return Some(LirValue::Tmp(dest));
     }
     let ty = node.expr_type();
@@ -154,10 +177,16 @@ impl MirNode for SMirMove {
         // 字段移出：取地址 → load → 源字段清零（源结构 drop 不再重复释放）
         if let Some((obj, idx)) = self.expr.as_field_access() {
             if let Some(base) = lower_field_addr_of(ctx, &**obj) {
+                let (base, final_ty, through_ptr) = chase_ptr_layers(ctx, base, &obj.expr_type());
+                let struct_ty = if through_ptr {
+                    HirType::Ref(Box::new(final_ty), false)
+                } else {
+                    final_ty
+                };
                 let dest = ctx.next_tmp(); let gep = ctx.next_tmp();
                 ctx.emit(SLirFieldTake {
                     dest, gep_tmp: gep, obj: base, field_index: idx,
-                    field_ty: self.expr.expr_type(), struct_ty: obj.expr_type(),
+                    field_ty: self.expr.expr_type(), struct_ty,
                 }.into());
                 return LirValue::Tmp(dest);
             }

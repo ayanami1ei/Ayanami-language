@@ -18,7 +18,7 @@ pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, Int
         Type::ArraySized(inner, n, _) => format!("[{}; {}]", type_to_string_generic(inner, interfaces), n),
         Type::RawPtr(inner, _) => format!("*{}", type_to_string_generic(inner, interfaces)),
         Type::Ref(inner, mutable, _) => format!("ref{}{}",
-            if *mutable { " mut" } else { "" },
+            if *mutable { " mut " } else { " " },
             type_to_string_generic(inner, interfaces)),
         Type::Unique(inner, _) => format!("unique {}", type_to_string_generic(inner, interfaces)),
         Type::FnPtr(..) => "fn(...)".to_string(),

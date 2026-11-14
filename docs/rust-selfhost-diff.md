@@ -43,7 +43,7 @@
 | 宏 | `3fb8e68`/`bf9a2fe` | #215 仅声明 String input 的宏视为可变参数；#217 函数宏 input 传实参原文；std TokenStream API |
 | 增量 #35 | `201bfa4`/`6fad201` | 整程序增量缓存（默认开）、编译器指纹、std 内容入 key |
 | 缺陷修复 | `600585e`→`7c2ac77` | #200–#217（asm 效应/clobber、赋值类型、闭包装箱、裸指针写、unsafe 闭包捕获、void 泛型、ref self 泛型 enum、本地函数重名等） |
-| std | `ad1e6db` | 并发、allocator、TokenStream、asm 后端、`#[extern]` 语法迁移 |
+| std | `ad1e6db` + `selfhost-rust-sync` `72bf514` | 并发、allocator、TokenStream、asm 后端、`#[extern]` 语法迁移；计数释放幂等 + `fs.read_lines` 显式释放读缓冲 + Option 判定改 ref self |
 
 ## 3. std / example / test 差异
 
@@ -62,6 +62,7 @@
   - 既有 `test_asm.aya` 修改。
 - **tests**：`runtime_safety` 新增分支结果移出/ref graph/registry 等；
   `compile_fail` 新增 use-after-move 条件；`positive_exit.txt` +25 行。
+  - 本分支在 `ad1e6db` 上追加 std 分支 `selfhost-rust-sync`（`72bf514`）：计数释放幂等、`fs.read_lines` 释放读缓冲、Option 判定 ref self；未把 origin/main 上尚未同步的并发/path 等 13 个提交带入 178 快照。
 
 ## 4. 自举侧新增（Rust 分支没有）
 
@@ -75,13 +76,17 @@
 
 ## 5. 对齐阻塞（已验证/可判定）
 
-1. **`#[extern]` 语法**：std `core/string.aya`/`panic.aya`、`meta/macros.aya`/
-   `mir.aya` 已迁移为 `#[extern] fn ...;`；自举 parser 只有 `extern "C" fn`
-   （`parser.aya`），没有该属性的链接语义 → 合并 std 后无法通过解析/发射。
-2. **新 example 语法**：`#[async]`/`await`（lexer 无 `Await` token）、
-   `#[sync(...)] { ... }`、`env::<cap>`；自举 parser/checker 未实现。
-3. **布局 N1/N2/N3**：niche 枚举 8 字节、>16B 载荷装箱；自举 emitter 仍是
-   tag+载荷槽。会影响 `size_of`/`align_of`/`static_assert` 与 ABI 相关用例。
+1. **`#[extern]` 语法**：**已修复（2026-10-25）**。std `core/string.aya`/`panic.aya`、
+   `meta/macros.aya`/`mir.aya` 已迁移为 `#[extern] fn ...;`；自举 parser 支持关键字属性
+   `#[extern]`（无体声明），emitter 用 bit0 保留 pure/noreturn 位。
+2. **新 example 语法**：`#[async]`/`await` 已实现（2026-11-13，自举 **eager v1**：
+   `__f_Fut` + `__async_run_f` + poll impl，`await g(args)` 展开为 `__async_run_g(args)`；
+   stage-0 的 async 警告已复刻）。`#[sync(...)]` 已实现（2026-11-12）。
+   **env 已实现（2026-10-25）**：`#[env::<cap>(provider)]` 函数/块作用域、
+   `env::<cap>` 访问器、隐藏 env 形参 + 调用点注入、泛型 bound 推断。
+3. **布局 N1/N2/N3**：`size_of` 已按 Rust 布局（niche 8B / >16B 装箱 / 顺序载荷）计算，
+   `test_enum_boxed`/`test_niche_option` 均转正（Ptr/ref 载荷按 Ptr 值实例化与 match 绑定）；
+   自举实际枚举表示仍为 tag+载荷槽（仅 `size_of` 报告 Rust 布局）。
 4. **内存/借用模型**：A（禁止从借用移出）+ match ergonomics、#211 条件移动检查、
    分支结果移出；自举 checker/borrow 是另一套实现，接受/拒绝集合不同。
 5. **TokenStream 宏**：std `meta/macros` 用 ABI v6 TokenStream；自举宏引擎是
@@ -89,8 +94,9 @@
 6. **增量 #35**：Rust 主线整程序缓存；自举没有（不影响输出对齐，但影响工具链）。
 7. **MIR 缺失**：`#[pass]` 写回、async 状态机（HIR 层）、逐节点 MIR 视图；
    自举的 `#[check]` 是函数级聚合只读视图（`docs/check-plugins.md`）。
-8. **并发/asm/allocator std**：自举需支持 futex/atomic/内联汇编/分配器接口的新
-   std；当前 std 停在 `0bd1bfd` 的旧形态。
+8. **并发/asm/allocator std**：分配器接口、asm（early-clobber / ref 操作数取址）
+   与 `std/runtime.c` 的 C 后端 futex 均已可用；`sync_block` 的 `#[sync]` 已实现。
+   thread/channel 的 std 汇编 runtime 仍未接入自举链接。
 
 ## 6. 对齐路线
 
@@ -100,8 +106,8 @@
 
 1. **Phase 0**：`#[extern]` 属性（parse + 链接）+ 新 std 可编译；自举 CLI 能构建。
 2. **Phase 1**：原 154 example 回归（新 stage-0/布局/借用变化）；更新 IR 快照。
-3. **Phase 2**：A5e `#[sync]`、env 能力、niche/装箱枚举。
-4. **Phase 3**：async A1a/A1b（HIR 状态机）。
+3. **Phase 2**：env 能力、A5e `#[sync]` 块均已实现；niche/装箱枚举待做。
+4. **Phase 3**：async A1a/A1b 已实现（自举为 eager v1；完整 Pending/状态机挂起待后续）。
 5. **Phase 4**：并发/asm/TokenStream/allocator std；目标 178/178。
 
 每一步都以 `selfcompile + diff + check_all` 为门槛，保持固定点。
@@ -127,14 +133,62 @@
 - golden：tokens 154/154、AST 5/5、errs 8/8、check 29/29、e2e 19/19
 - 自举源 effect 告警：0；`check_all` 全过
 
-## 8. 同步实验分支（2026-10-25）
+## 8. 同步分支结果（2026-11-13，已合并到 `selfhost`）
 
-`selfhost-rust-sync`（worktree `selfhost-sync`，已推送到 origin）已完成：
-merge rust `133a5e4` + std `ad1e6db`；旧 154/154 保持、新快照 **164/178**；
-自举 golden 全绿（tokens 178/178、AST 5/5、errs 8/8、check 29/29、e2e 19/19）；
-固定点 stage-2 == stage-3，md5 `ba98d258`。
-主要修复：`#[extern]`、asm clobbers/无输出 asm、点限定变体、换行缩进规则、
-`ref` 的 `*r` 读写、裸指针形参 pointee 标记。
-剩余 14：async×3、env×5、closure_unsafe、enum_boxed、niche_option、
-ref_graph、ref_registry、sync_block。详见该分支的 `docs/rust-selfhost-diff.md`。
-主 `selfhost` 分支未合并本实验分支（仍 154/154）。
+分支 `selfhost-rust-sync`（worktree `selfhost-sync`，已合并到主 `selfhost`）：
+
+- merge `origin/rust` `133a5e4`；merge 曾丢 5 个 async 源文件，已用 `9b09394` 恢复
+- std `ad1e6db` + 同步分支 `72bf514`、example **178**
+- **旧 154/154 保持；新快照 178/178（100%）**
+- 自举 golden：test、tokens **178/178**、AST 5/5、errs 8/8、check 29/29、e2e 19/19
+- 固定点：stage-2 == stage-3，md5 `84d6ee812952e62684f67aa228b92a0e`
+- 交叉校验：Rust 主线回归 positive=171 / negative=102 / runtime=59，failures=0；
+  std 单测 golden 244/244，零告警（32 模块）
+- 已完成修复：`#[extern]`（关键字属性 + 无体声明 + emitter bit0）、asm `clobbers(rax)`/无输出 asm、
+  点限定变体模式、换行缩进规则、`ref`/`ref mut` 的 `*r` 读写、裸指针形参 pointee 标记、
+  **env E1/E2**（函数/块 provider 作用域、`env::<cap>`、隐藏 env 形参、调用点注入、
+  bound 驱动的泛型推断）、**裸块语句 + Attributed checker/emitter**、
+  **语句 match 的 Block 臂体发射**（此前被跳过；同时修复 struct 解构 `Ptr[T]` 绑定的
+  解引用标记，`test_ptr_match` 转正）、**A5e `#[sync]` 块**（lock → guard → 块体 → unlock；
+  return/break/continue 逆序解锁、guard 用 payload ref 本地；配套 asm `out(early reg)`、
+  asm ref 操作数取址、`ref <field> as *T` 取址、间接调用 ref 实参取址、
+  match 合并块 terminated 修正）、**async A1b eager v1**（每个 `#[async]` fn 生成
+  `__f_Fut{params,_done}` + 构造器 + `__async_run_f`（原体；`await g(args)` → `__async_run_g(args)`）
+  + `impl { poll }` 返回 `Poll::Ready(run(...))`；async 位 524288；生成 poll/run 的 effect 警告抑制；
+  stage-0 的 async 警告（接口/首个 async fn 的 alloc，生成 span）已复刻）、
+  **泛型枚举返回实例追踪**（`Poll[String]` 的 String 载荷 match）、**`fx_mask` 保留 async 位**、
+  **closure_unsafe**（unsafe 块内裸指针闭包捕获：raw pointer 按值捕获并保留 pointee 标记；
+  `Ptr.new(g)`/`q.get()` 的闭包 ftype 跨 Ptr 传播，`r()` 正确走间接调用）、
+  **枚举布局 size_of**（N1 niche 8B / N2 >16B 装箱 / 顺序载荷：Option[Ptr/ref] 8、
+  Option[int] 16、E 24、OptBig 8；`test_enum_boxed` 转正）与 **declare_local form 位掩码**
+  （同名 match 绑定跨 form 复用存储，修复重复 alloca）、
+  **多类型实参调用**（`HashMap::new[K, V]`：解析器把第 2/3 个类型实参存入 FnCall.cc/dd，
+  发射器按 4 实参特化）、**嵌套泛型字段替换**（`Registry[T] { Arena[T] arena }`：
+  实例字段按父实参替换并预建嵌套实例；字段表改为局部暂存后连续追加，避免递归建实例时
+  覆盖父实例布局）、**String ref self**（`impl String` 的 self 一律按 `{ptr,len}` 引用传递，
+  长度不再丢失）、**String 字典序比较**（`< > <= >=` 走 memcmp + 长度）、
+  **数组/结构体指针与 null 比较**（比较前 ptrtoint）
+- 因此转正：env×5（allocator/block/chain/custom/generic）、async_manual、
+  ptr_match、sync_block、async_sugar、async_await、closure_unsafe、enum_boxed、
+  niche_option
+- R3/R4 功能已落地：`test_ref_registry` 与 `test_ref_graph` 均 **SAME**（编译/运行/effect 警告/
+  退出码/输出全部一致）。`read_lines` 在 `lines()` 深拷贝完成后显式移出 fs 读缓冲并释放，
+  再把 String.data 置空；运行时把计数分配登记为集合，`__ayanami_unique_free` 对已释放指针
+  幂等，因此 stage-0 的自动 drop 与显式释放可以安全共存，`live_allocs` 收敛为 0。
+- 泛型 effect 警告按“被调特化先于调用特化”的后序回放，并按类型语义归并同类型的不同 AST
+  节点（保留 Arena[Node]/Arena[GNode] 等不同实例的重复警告），与 stage-0 的单态化诊断顺序一致。
+- niche_option 已对齐：size_of 8/8/16；`Ptr[Struct]` 载荷按 Ptr 值实例化
+  （`val_marker` 保留 Ptr 标记、ctor 实例复用显式 `Option[Ptr[T]]`），
+  `match Some(x)` 绑定 Ptr 值，`_data_V._i` 支持负标记载荷（Ptr/ref/struct/enum），
+  `ref` 载荷不拥有对象
+- 已知限制：自举 async 为 **eager 展开**（await 目标立即就绪；完整 Pending/状态机挂起待后续）；
+  async 警告 parity 采用生成 span 的 v1 复刻；自举仍未普遍发射堆释放/drop——本轮只对
+  `fs.read_lines` 的读缓冲做了显式所有权释放（其余自举 `@malloc` 分配仍依赖进程退出回收，
+  但不计入 live_allocs）
+- 环境备注：`scripts/selfhost.sh` 开发构建优先 `/usr/bin/llc`（安装包 bundled LLVM 可能与
+  系统 libLLVM 版本不匹配，M68k 符号缺失时 llc 启动失败）
+- 当前定点：stage-2 == stage-3（md5 `84d6ee812952e62684f67aa228b92a0e`）
+- 状态：已合并到主 `selfhost`（178/178）；下一步跑 `check_all`/发布；通用堆释放/drop 作为后续优化
+- 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
+  （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
+- 主 `selfhost` 已合并本分支，新基线 **178/178**

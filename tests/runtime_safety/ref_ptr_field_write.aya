@@ -1,0 +1,21 @@
+// ref Ptr[T] 字段写：先 load 出 Ptr 值，再对目标结构体 GEP 写入。
+struct Node {
+    int v
+}
+
+fn set(ref mut Ptr[Node] p, int x) {
+    p.v = x
+}
+
+fn bump(ref mut Ptr[Node] p) -> int {
+    p.v = p.v + 1
+    return p.v
+}
+
+fn main() -> int {
+    n = Ptr::new(Node { v = 1 })
+    set(ref mut n, 7)
+    if n.v != 7 { return 1 }
+    if bump(ref mut n) != 8 { return 2 }
+    return 0
+}

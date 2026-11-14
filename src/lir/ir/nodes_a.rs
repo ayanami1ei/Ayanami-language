@@ -6,6 +6,8 @@ impl LirNode for SLirAlloca {
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, _ctx: &mut LirEmitCtx) -> Vec<String> { Vec::new() }
     fn alloca_lines(&self, ctx: &LirEmitCtx) -> Vec<String> {
+        // #207：`void` 局部（泛型参数实例化为 void）不分配栈槽
+        if matches!(self.ty, HirType::Void) { return Vec::new(); }
         let llvm_ty = ctx.llvm_type(&self.ty);
         vec![format!("%v{} = alloca {}, align 8", self.var.0, llvm_ty)]
     }
@@ -24,6 +26,8 @@ impl LirNode for SLirStore {
     fn kind(&self) -> &'static str { "Store" }
     fn as_any(&self) -> &dyn std::any::Any { self }
     fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
+        // #207：void 值无可存储内容（泛型实例化为 void 的赋值）
+        if matches!(self.ty, HirType::Void) { return Vec::new(); }
         let mut lines = Vec::new();
         let llvm_ty = ctx.llvm_type(&self.ty);
         let src_str = match &self.src {
@@ -46,25 +50,6 @@ impl LirNode for SLirStore {
         buf.push(1);
         put_u32(buf, self.dest.0 as u32);
         put_value(buf, &self.src);
-        put_type(buf, &self.ty);
-    }
-}
-
-impl LirNode for SLirLoad {
-    fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-    fn kind(&self) -> &'static str { "Load" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String> {
-        let llvm_ty = ctx.llvm_type(&self.ty);
-        vec![format!("%t{} = load {}, ptr %v{}, align 8", self.dest, llvm_ty, self.src.0)]
-    }
-    fn display(&self, f: &mut dyn Write) -> std::fmt::Result {
-        writeln!(f, "    t{} = load v{} : {:?}", self.dest, self.src.0, self.ty)
-    }
-    fn serialize(&self, buf: &mut Vec<u8>) {
-        buf.push(2);
-        put_u64(buf, self.dest);
-        put_u32(buf, self.src.0 as u32);
         put_type(buf, &self.ty);
     }
 }

@@ -1,0 +1,13 @@
+struct B {
+    int v
+}
+
+fn main() -> int {
+    b = B { v = 1 }
+    x = 0
+    unsafe {
+        p = ref b as *B
+        x = *p
+    }
+    return x
+}

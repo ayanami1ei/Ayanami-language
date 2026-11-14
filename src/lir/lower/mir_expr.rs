@@ -172,7 +172,8 @@ impl MirNode for SMirToUnique {
     fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue {
         let inner_val = self.expr.lower_to_lir(ctx);
         let inner_ty = match &self.ty { HirType::Unique(i) => i.as_ref(), _ => &self.ty };
-        if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. }) {
+        // #202：闭包（{env, fn} 胖值）同样需要“栈槽 + memcpy”装箱
+        if matches!(inner_ty, HirType::Named(_) | HirType::FatPtr { .. } | HirType::Closure(..)) {
             let src = match inner_val {
                 // 字面量/参数已是值，直接进 conv（无需 load）
                 LirValue::Tmp(_) | LirValue::Literal(..) | LirValue::Param(_) => inner_val,

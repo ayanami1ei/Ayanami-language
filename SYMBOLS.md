@@ -5,6 +5,17 @@
 > 标准库（std/）符号由 [Ayanami-std](https://github.com/ayanami1ei/Ayanami-std) 子仓自行维护，见其 SYMBOLS.md。
 
 ## Rust
+src/annotation_table.rs:20: pub(crate) enum AnnKind
+src/annotation_table.rs:28: pub(crate) struct PkgAnnotations
+src/annotation_table.rs:38: pub(crate) struct AnnotationTables
+src/annotation_table.rs:42: impl AnnotationTables
+src/annotation_table.rs:43: pub fn is_empty(&self) -> bool
+src/annotation_table.rs:47: pub fn collect(stmts: &[Stmt]) -> Result<Self>
+src/annotation_table.rs:54: pub(crate) fn from_kind_maps(
+src/annotation_table.rs:81: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()>
+src/annotation_table.rs:117: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
+src/annotation_table.rs:163: pub(crate) fn resolve_kind(&self, a: &Attr) -> Result<Option<AnnKind>>
+src/annotation_table.rs:167: pub fn lcl_path(&self, pkg: &str) -> Option<String>
 src/cli/build.rs:3: pub(crate) fn cmd_build(args: &[String])
 src/cli/build.rs:28: pub(crate) fn cmd_run(args: &[String])
 src/cli/check.rs:3: fn do_check(path: &Path) -> ayanami::error::Result<()>
@@ -72,10 +83,11 @@ src/compiler/build/mod.rs:18: mod passes;
 src/compiler/build/mod.rs:19: mod target;
 src/compiler/build/mod.rs:26: pub fn build_source(src_path: &str, code: &str) -> Result<()>
 src/compiler/build/mod.rs:31: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
+src/compiler/build/mod.rs:36: pub(crate) fn cache_key(src_path: &str, code: &str) -> String
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
-src/compiler/build/package.rs:26: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:79: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
-src/compiler/build/package.rs:89: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:27: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
+src/compiler/build/package.rs:81: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
+src/compiler/build/package.rs:91: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/passes/apply.rs:18: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
 src/compiler/build/passes/apply.rs:35: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
 src/compiler/build/passes/apply.rs:42: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
@@ -115,13 +127,14 @@ src/compiler/build/passes/mod.rs:15: mod apply;
 src/compiler/build/passes/mod.rs:16: mod flat;
 src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<FnId, bool>
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
-src/compiler/build/passes/mod.rs:46: pub(super) fn apply_passes(
+src/compiler/build/passes/mod.rs:50: pub(super) fn apply_passes(
 src/compiler/build/target.rs:6: fn scan_source_deps(src_path: &Path) -> bool
-src/compiler/build/target.rs:30: pub fn build_source_with_target(
-src/compiler/build/target.rs:157: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:31: pub fn build_source_with_target(
+src/compiler/build/target.rs:54: fn build_source_with_target_inner(
+src/compiler/build/target.rs:181: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:33: fn has_return_in_item(item: &HirItem) -> bool
-src/compiler/check.rs:72: fn has_return_in_stmt(s: &HirStmt) -> bool
+src/compiler/check.rs:42: fn has_return_in_stmt(s: &HirStmt) -> bool
 src/compiler/debug/expr.rs:5: pub(super) fn write_expr(expr: &Expr, level: usize, w: &mut impl Write)
 src/compiler/debug/format.rs:3: pub(super) fn pad(n: usize) -> String
 src/compiler/debug/format.rs:7: pub(super) fn format_type(ty: &Type) -> String
@@ -137,15 +150,6 @@ src/compiler/debug/stmt.rs:13: pub(super) fn write_stmt(stmt: &Stmt, level: usiz
 src/compiler/import.rs:2: pub fn find_std_dir() -> Option<std::path::PathBuf>
 src/compiler/import.rs:20: pub fn resolve_import_path(
 src/compiler/import.rs:84: pub fn load_config_for_file(file_path: &std::path::Path, _out_dir: &std::path::Path) -> Option<String>
-src/compiler/macro_expand/annotations.rs:14: pub(super) struct PkgAnnotations
-src/compiler/macro_expand/annotations.rs:24: pub(crate) enum AnnKind
-src/compiler/macro_expand/annotations.rs:32: pub(crate) struct AnnotationTables
-src/compiler/macro_expand/annotations.rs:36: impl AnnotationTables
-src/compiler/macro_expand/annotations.rs:37: pub fn is_empty(&self) -> bool
-src/compiler/macro_expand/annotations.rs:41: pub fn collect(stmts: &[Stmt]) -> Result<Self>
-src/compiler/macro_expand/annotations.rs:47: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()>
-src/compiler/macro_expand/annotations.rs:83: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
-src/compiler/macro_expand/annotations.rs:127: pub fn lcl_path(&self, pkg: &str) -> Option<String>
 src/compiler/macro_expand/check_plugin.rs:13: type RunFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
 src/compiler/macro_expand/check_plugin.rs:14: type TakeFn = unsafe extern "C" fn() -> AyaBuf;
 src/compiler/macro_expand/check_plugin.rs:15: type FreeFn = unsafe extern "C" fn(AyaBuf);
@@ -156,29 +160,28 @@ src/compiler/macro_expand/check_plugin.rs:43: fn call_check(so_path: &Path, symb
 src/compiler/macro_expand/expand_util.rs:6: pub(super) fn trace_expansion(macro_name: &str, input: &str, output: &str)
 src/compiler/macro_expand/expand_util.rs:17: pub(super) fn parse_source(code: &str) -> Result<Program>
 src/compiler/macro_expand/expand_util.rs:27: pub(super) fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/expand_util.rs:38: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/expand_util.rs:49: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:46: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:57: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
 src/compiler/macro_expand/mod.rs:18: const MAX_DEPTH: usize = 32;
-src/compiler/macro_expand/mod.rs:20: mod annotations;
-src/compiler/macro_expand/mod.rs:21: mod expand_util;
-src/compiler/macro_expand/mod.rs:22: mod plugin_call;
-src/compiler/macro_expand/mod.rs:23: mod token_stream;
-src/compiler/macro_expand/mod.rs:26: mod check_plugin;
-src/compiler/macro_expand/mod.rs:27: mod pass_plugin;
-src/compiler/macro_expand/mod.rs:28: mod plugin;
-src/compiler/macro_expand/mod.rs:29: mod plugin_abi;
-src/compiler/macro_expand/mod.rs:32: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
-src/compiler/macro_expand/mod.rs:42: pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables>
-src/compiler/macro_expand/mod.rs:47: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
-src/compiler/macro_expand/mod.rs:52: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
-src/compiler/macro_expand/mod.rs:56: struct MacroCtx
-src/compiler/macro_expand/mod.rs:61: impl MacroCtx
-src/compiler/macro_expand/mod.rs:62: fn collect(program: &Program, src_path: &Path) -> Result<Self>
-src/compiler/macro_expand/mod.rs:70: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
-src/compiler/macro_expand/mod.rs:76: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:93: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
-src/compiler/macro_expand/mod.rs:207: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
-src/compiler/macro_expand/mod.rs:228: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:20: mod expand_util;
+src/compiler/macro_expand/mod.rs:21: mod plugin_call;
+src/compiler/macro_expand/mod.rs:22: mod token_stream;
+src/compiler/macro_expand/mod.rs:25: mod check_plugin;
+src/compiler/macro_expand/mod.rs:26: mod pass_plugin;
+src/compiler/macro_expand/mod.rs:27: mod plugin;
+src/compiler/macro_expand/mod.rs:28: mod plugin_abi;
+src/compiler/macro_expand/mod.rs:31: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
+src/compiler/macro_expand/mod.rs:41: pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables>
+src/compiler/macro_expand/mod.rs:46: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/mod.rs:51: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
+src/compiler/macro_expand/mod.rs:55: struct MacroCtx
+src/compiler/macro_expand/mod.rs:60: impl MacroCtx
+src/compiler/macro_expand/mod.rs:61: fn collect(program: &Program, src_path: &Path) -> Result<Self>
+src/compiler/macro_expand/mod.rs:69: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
+src/compiler/macro_expand/mod.rs:75: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:92: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
+src/compiler/macro_expand/mod.rs:206: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
+src/compiler/macro_expand/mod.rs:227: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 3;
 src/compiler/macro_expand/pass_plugin.rs:21: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
 src/compiler/macro_expand/pass_plugin.rs:47: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
@@ -197,12 +200,12 @@ src/compiler/macro_expand/pass_plugin.rs:225: type FreeFn = unsafe extern "C" fn
 src/compiler/macro_expand/pass_plugin.rs:227: fn call_pass(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<Vec<u8>>
 src/compiler/macro_expand/plugin.rs:16: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String], tokens: bool, line: usize, col: usize) -> Result<String>
 src/compiler/macro_expand/plugin.rs:42: pub(crate) fn invoke_macro_expr(
-src/compiler/macro_expand/plugin.rs:72: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
-src/compiler/macro_expand/plugin.rs:163: static AyaBuf dup_buf(AyaBuf b) {{\n\
-src/compiler/macro_expand/plugin.rs:171: static const char* id = \"{macro_id}\";\n\
-src/compiler/macro_expand/plugin.rs:180: static long diag_count = 0;\n\
-src/compiler/macro_expand/plugin.rs:181: static long diag_levels[DIAG_MAX];\n\
-src/compiler/macro_expand/plugin.rs:182: static AyaBuf diag_msgs[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:79: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
+src/compiler/macro_expand/plugin.rs:170: static AyaBuf dup_buf(AyaBuf b) {{\n\
+src/compiler/macro_expand/plugin.rs:178: static const char* id = \"{macro_id}\";\n\
+src/compiler/macro_expand/plugin.rs:187: static long diag_count = 0;\n\
+src/compiler/macro_expand/plugin.rs:188: static long diag_levels[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:189: static AyaBuf diag_msgs[DIAG_MAX];\n\
 src/compiler/macro_expand/plugin_abi.rs:11: pub(crate) const ABI_VERSION: u32 = 7;
 src/compiler/macro_expand/plugin_abi.rs:15: pub(crate) enum ParamKind
 src/compiler/macro_expand/plugin_abi.rs:26: pub(crate) mod dl
@@ -215,9 +218,9 @@ src/compiler/macro_expand/plugin_abi.rs:40: pub(crate) struct AyaBuf
 src/compiler/macro_expand/plugin_abi.rs:47: pub(crate) struct AyaBufList
 src/compiler/macro_expand/plugin_abi.rs:53: pub(crate) fn load_macro_fn(lcl_path: &str, macro_name: &str) -> Result<(crate::lir::ir::LirFn, crate::lir::ir::LirProgram)>
 src/compiler/macro_expand/plugin_abi.rs:65: pub(crate) fn plan_params(f: &crate::lir::ir::LirFn, args_len: usize, allow_reserved: bool) -> Result<Vec<ParamKind>>
-src/compiler/macro_expand/plugin_abi.rs:111: pub(crate) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
-src/compiler/macro_expand/plugin_abi.rs:127: pub(crate) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
-src/compiler/macro_expand/plugin_abi.rs:149: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
+src/compiler/macro_expand/plugin_abi.rs:114: pub(crate) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
+src/compiler/macro_expand/plugin_abi.rs:130: pub(crate) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
+src/compiler/macro_expand/plugin_abi.rs:152: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
 src/compiler/macro_expand/plugin_call.rs:7: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
 src/compiler/macro_expand/plugin_call.rs:8: type FreeFn = unsafe extern "C" fn(AyaBuf);
 src/compiler/macro_expand/plugin_call.rs:10: pub(super) fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Vec<u8>], line: i64, col: i64, file: &[u8]) -> Result<Vec<u8>>
@@ -295,18 +298,18 @@ src/driver/mod.rs:11: mod runtime;
 src/driver/mod.rs:16: pub(crate) fn find_llc() -> Result<(PathBuf, PathBuf)>
 src/driver/mod.rs:36: pub(super) fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)>
 src/driver/mod.rs:56: pub fn build_mode_key() -> String
-src/driver/mod.rs:66: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:126: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:131: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:139: pub fn objects_to_exe_with_runtime(
-src/driver/mod.rs:166: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:172: pub(crate) fn find_runtime_c() -> Result<String>
-src/driver/mod.rs:215: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:230: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:241: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:258: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
-src/driver/mod.rs:278: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
-src/driver/mod.rs:283: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:67: pub fn ir_to_object(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:127: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:132: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:140: pub fn objects_to_exe_with_runtime(
+src/driver/mod.rs:167: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:173: pub(crate) fn find_runtime_c() -> Result<String>
+src/driver/mod.rs:216: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:231: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:242: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:259: pub fn ir_to_library(llvm_ir: &str, lib_path: impl AsRef<Path>, lib_type: &str) -> Result<()>
+src/driver/mod.rs:279: pub fn ir_to_object_keep(llvm_ir: &str, obj_path: impl AsRef<Path>) -> Result<()>
+src/driver/mod.rs:284: pub fn ir_to_executable(llvm_ir: &str, exe_path: impl AsRef<Path>) -> Result<()>
 src/driver/runtime.rs:12: pub(crate) fn resolve_runtime(src_path: &Path) -> Result<Option<PathBuf>>
 src/error.rs:10: pub enum Error
 src/error.rs:61: pub type Result<T> = std::result::Result<T, Error>;
@@ -354,18 +357,47 @@ src/formatter/stmt.rs:7: pub(super) fn write_stmt(out: &mut String, stmt: &Stmt,
 src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
+src/hir/async_elif.rs:10: struct Branch
+src/hir/async_elif.rs:16: pub(crate) fn try_expand(
+src/hir/async_elif.rs:120: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_elif.rs:149: fn detect(body: &Block) -> Option<(Symbol, Vec<Branch>)>
+src/hir/async_elif.rs:165: fn branch_var(b: &Block) -> Option<Symbol>
+src/hir/async_elif.rs:170: fn branch_await(b: &Block) -> Option<(Symbol, Vec<Expr>)>
+src/hir/async_if.rs:11: pub(crate) fn try_expand(
+src/hir/async_if.rs:63: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_if.rs:114: fn detect(body: &Block) -> Option<(Symbol, Symbol, Vec<Expr>, Expr)>
+src/hir/async_if.rs:128: fn detect_else(body: &Block) -> Option<(Symbol, Symbol, Vec<Expr>, Symbol, Vec<Expr>, Expr)>
+src/hir/async_if.rs:141: fn awaited(e: &Expr) -> Option<(Symbol, Vec<Expr>)>
+src/hir/async_if.rs:149: fn expand_else(
+src/hir/async_if.rs:208: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:19: pub fn expand(program: &Program) -> Result<Program>
+src/hir/async_transform.rs:50: fn is_async(a: &crate::parser::ast::Attr) -> bool
+src/hir/async_transform.rs:54: fn stmt_has_direct_await(st: &Stmt) -> bool
+src/hir/async_transform.rs:64: fn stmt_has_nested_await(st: &Stmt) -> bool
+src/hir/async_transform.rs:78: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:88: fn expand_one(stmt: &Stmt, returns: &HashMap<Symbol, Type>, out: &mut Vec<Stmt>) -> Result<()>
+src/hir/async_transform.rs:136: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:161: fn await_prefix(body: &Block, span: &crate::span::Span) -> Result<Vec<(Symbol, Symbol, Vec<Expr>)>>
+src/hir/async_transform.rs:187: fn expand_await(
+src/hir/async_transform.rs:274: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform_util.rs:5: pub(crate) fn ty_src(ty: &Type) -> Option<String>
+src/hir/async_transform_util.rs:22: pub(crate) fn await_default(ty: &Type) -> Option<(&'static str, &'static str)>
+src/hir/async_transform_util.rs:32: pub(crate) fn type_name(ty: &Type) -> String
+src/hir/async_while.rs:11: pub(crate) fn try_expand(
+src/hir/async_while.rs:69: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_while.rs:123: fn detect(body: &Block) -> Option<(Symbol, Symbol, Vec<Expr>, Expr)>
 src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:38: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:42: pub struct Imports
-src/hir/attrs.rs:49: impl Imports
-src/hir/attrs.rs:50: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:58: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:81: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:91: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:39: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:43: pub struct Imports
+src/hir/attrs.rs:50: impl Imports
+src/hir/attrs.rs:51: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:59: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:82: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:92: pub fn has(attrs: &[Attr], name: &str) -> bool
 src/hir/attrs.rs:96: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
 src/hir/attrs.rs:104: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:139: fn validate_follow_with(a: &Attr) -> Result<()>
-src/hir/attrs.rs:159: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/attrs.rs:140: fn validate_follow_with(a: &Attr) -> Result<()>
+src/hir/attrs.rs:160: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
 src/hir/attrs.rs:166: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs.rs:178: pub fn validate_program(program: &Program) -> Result<()>
 src/hir/attrs.rs:186: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
@@ -375,12 +407,10 @@ src/hir/attrs_export.rs:15: pub(super) fn validate_fn_export(attrs: &[Attr], has
 src/hir/attrs_export.rs:28: pub(super) fn validate_compile_time(attrs: &[Attr], has_generics: bool) -> Result<()>
 src/hir/attrs_export.rs:41: pub(super) fn reject_compile_time(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_export.rs:52: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
-src/hir/attrs_macro.rs:16: fn is_compiler_attr(a: &Attr) -> bool
-src/hir/attrs_macro.rs:28: pub fn validate_macros(
-src/hir/attrs_macro.rs:43: enum AnnKind { Macro, Pass, Check }
-src/hir/attrs_macro.rs:47: fn lookup_annotation(
-src/hir/attrs_macro.rs:102: fn validate_macros_stmt(
-src/hir/attrs_macro.rs:177: fn validate_block(
+src/hir/attrs_macro.rs:18: fn is_compiler_attr(a: &Attr) -> bool
+src/hir/attrs_macro.rs:34: pub fn validate_macros(
+src/hir/attrs_macro.rs:49: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
+src/hir/attrs_macro.rs:118: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -431,31 +461,36 @@ src/hir/effects/infer.rs:198: fn for_each_fn_mut(items: &mut [HirItem], f: &mut 
 src/hir/effects/infer.rs:209: struct CallInfo
 src/hir/effects/infer.rs:216: fn walk_stmts(stmts: &[HirStmt], calls: &mut Vec<CallInfo>)
 src/hir/effects/infer.rs:269: fn state_marker() -> CallInfo
-src/hir/effects/infer.rs:273: fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool
-src/hir/effects/infer.rs:277: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
+src/hir/effects/infer.rs:275: fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>)
+src/hir/effects/infer_asm.rs:4: pub(super) fn asm_may_touch_memory(template: &str) -> bool
+src/hir/effects/infer_asm.rs:5: const STATE_INSN: &[&str] = &[
+src/hir/effects/infer_asm.rs:16: const PURE_INSN: &[&str] = &[
+src/hir/effects/infer_obs.rs:5: pub(super) fn is_observable_target(object: &HirNodeBox) -> bool
 src/hir/effects/mod.rs:15: pub const BUILTIN_EFFECTS: &[&str] = &["io", "state", "alloc"];
 src/hir/effects/mod.rs:18: pub(crate) const IO_NAMES: &[&str] = &[
 src/hir/effects/mod.rs:24: pub mod diag;
 src/hir/effects/mod.rs:25: pub mod infer;
-src/hir/effects/mod.rs:26: pub mod scan;
-src/hir/effects/mod.rs:31: static EXTRA_EFFECTS: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
-src/hir/effects/mod.rs:33: pub fn register_effect(name: &str)
-src/hir/effects/mod.rs:41: pub fn is_effect(name: &str) -> bool
-src/hir/effects/mod.rs:47: pub enum ThrowsDecl
-src/hir/effects/mod.rs:58: pub struct EffectDecl
-src/hir/effects/mod.rs:69: impl EffectDecl
-src/hir/effects/mod.rs:70: pub fn has_effect(&self, name: &str) -> bool
-src/hir/effects/mod.rs:75: pub fn no_effects(&self) -> bool
-src/hir/effects/mod.rs:80: pub fn no_throws(&self) -> bool
-src/hir/effects/mod.rs:87: pub struct EffectSummary
-src/hir/effects/mod.rs:92: impl EffectSummary
-src/hir/effects/mod.rs:94: pub fn tokens(&self) -> Vec<String>
-src/hir/effects/mod.rs:127: pub fn from_tokens(tokens: &[String]) -> Self
-src/hir/effects/mod.rs:162: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
-src/hir/effects/mod.rs:183: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
-src/hir/effects/mod.rs:204: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
-src/hir/effects/mod.rs:221: fn bad_throws(a: &Attr) -> Error
-src/hir/effects/mod.rs:230: pub(crate) fn is_synth_helper(name: &str) -> bool
+src/hir/effects/mod.rs:26: mod infer_asm;
+src/hir/effects/mod.rs:27: mod infer_obs;
+src/hir/effects/mod.rs:28: pub mod scan;
+src/hir/effects/mod.rs:33: static EXTRA_EFFECTS: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
+src/hir/effects/mod.rs:35: pub fn register_effect(name: &str)
+src/hir/effects/mod.rs:43: pub fn is_effect(name: &str) -> bool
+src/hir/effects/mod.rs:49: pub enum ThrowsDecl
+src/hir/effects/mod.rs:60: pub struct EffectDecl
+src/hir/effects/mod.rs:71: impl EffectDecl
+src/hir/effects/mod.rs:72: pub fn has_effect(&self, name: &str) -> bool
+src/hir/effects/mod.rs:77: pub fn no_effects(&self) -> bool
+src/hir/effects/mod.rs:82: pub fn no_throws(&self) -> bool
+src/hir/effects/mod.rs:89: pub struct EffectSummary
+src/hir/effects/mod.rs:94: impl EffectSummary
+src/hir/effects/mod.rs:96: pub fn tokens(&self) -> Vec<String>
+src/hir/effects/mod.rs:129: pub fn from_tokens(tokens: &[String]) -> Self
+src/hir/effects/mod.rs:164: pub fn parse(attrs: &[Attr]) -> Result<EffectDecl>
+src/hir/effects/mod.rs:185: fn parse_throws(a: &Attr) -> Result<ThrowsDecl>
+src/hir/effects/mod.rs:206: fn merge_throws(decl: &mut EffectDecl, new: ThrowsDecl)
+src/hir/effects/mod.rs:223: fn bad_throws(a: &Attr) -> Error
+src/hir/effects/mod.rs:232: pub(crate) fn is_synth_helper(name: &str) -> bool
 src/hir/effects/scan.rs:8: pub(super) enum Obs
 src/hir/effects/scan.rs:15: impl Obs
 src/hir/effects/scan.rs:17: pub(super) fn site_of(&self, kind: &str) -> Option<(usize, usize)>
@@ -485,6 +520,7 @@ src/hir/lower/body/block_lower.rs:8: pub(crate) fn lower_block(&mut self, block:
 src/hir/lower/body/block_lower.rs:14: pub(crate) fn lower_block_impl(&mut self, block: &Block, tail_as_value: bool) -> Result<(HirBlock, Option<HirNodeBox>)>
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
+src/hir/lower/body/collect_enum.rs:50: pub(crate) fn build_enum_items(&mut self, name: &Symbol, variants: &Vec<EnumVariant>) -> Vec<HirItem>
 src/hir/lower/body/collect_fns.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_fns.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
 src/hir/lower/body/collect_fns.rs:15: fn collect_const_fns(&mut self, stmts: &[Stmt], prefix: &str) -> Result<()>
@@ -509,10 +545,10 @@ src/hir/lower/body/const_fn.rs:4: const MAX_CONST_DEPTH: usize = 64;
 src/hir/lower/body/const_fn.rs:5: const MAX_CONST_ITERS: u64 = 1_000_000;
 src/hir/lower/body/const_fn.rs:7: pub(crate) enum Flow { Normal, Break, Continue, Return(HirType, HirLiteral) }
 src/hir/lower/body/const_fn.rs:9: impl crate::hir::lower::Ctx
-src/hir/lower/body/const_fn.rs:10: pub(crate) fn eval_const_fn(&self, name: Symbol, args: Vec<(HirType, HirLiteral)>, depth: usize) -> Result<(HirType, HirLiteral)>
-src/hir/lower/body/const_fn.rs:51: pub(crate) fn eval_const_block_value(&self, block: &Block, env: &HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<(HirType, HirLiteral)>
-src/hir/lower/body/const_fn.rs:66: fn exec_const_stmts(&self, stmts: &[Stmt], env: &mut HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<Flow>
-src/hir/lower/body/const_fn.rs:76: fn exec_const_stmt(&self, stmt: &Stmt, env: &mut HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<Flow>
+src/hir/lower/body/const_fn.rs:10: pub(crate) fn eval_const_fn(&mut self, name: Symbol, args: Vec<(HirType, HirLiteral)>, depth: usize) -> Result<(HirType, HirLiteral)>
+src/hir/lower/body/const_fn.rs:51: pub(crate) fn eval_const_block_value(&mut self, block: &Block, env: &HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<(HirType, HirLiteral)>
+src/hir/lower/body/const_fn.rs:66: fn exec_const_stmts(&mut self, stmts: &[Stmt], env: &mut HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<Flow>
+src/hir/lower/body/const_fn.rs:76: fn exec_const_stmt(&mut self, stmt: &Stmt, env: &mut HashMap<Symbol, (HirType, HirLiteral)>, depth: usize) -> Result<Flow>
 src/hir/lower/body/const_struct.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/const_struct.rs:5: pub(crate) fn eval_const_struct(
 src/hir/lower/body/ensure.rs:8: impl crate::hir::lower::Ctx
@@ -526,8 +562,8 @@ src/hir/lower/body/ensure.rs:139: fn default_literal(ty: &HirType) -> Option<Hir
 src/hir/lower/body/ensure.rs:150: fn append_default_return(
 src/hir/lower/body/expr_access.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_access.rs:4: pub(crate) fn lower_field_access(&mut self, object: &Box<Expr>, field: &Symbol, expr_span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:36: pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_access.rs:56: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:47: pub(crate) fn lower_array_literal(&mut self, elems: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_access.rs:67: pub(crate) fn lower_index(&mut self, object: &Box<Expr>, index: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_call.rs:5: pub(crate) fn lower_fn_call(&mut self, name: &Symbol, args: &Vec<Expr>, explicit: Option<&Vec<Type>>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_call_args.rs:5: impl crate::hir::lower::Ctx
@@ -543,11 +579,11 @@ src/hir/lower/body/expr_cast.rs:5: pub(crate) fn lower_cast(&mut self, inner: &B
 src/hir/lower/body/expr_cast.rs:60: fn is_array_like(t: &HirType) -> bool
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_enum.rs:79: fn monomorphize_enum_construct(
+src/hir/lower/body/expr_enum.rs:92: fn monomorphize_enum_construct(
 src/hir/lower/body/expr_layout.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_layout.rs:10: pub(crate) fn eval_layout_builtin_call(
-src/hir/lower/body/expr_layout.rs:61: pub(crate) fn lower_layout_builtin(
-src/hir/lower/body/expr_layout.rs:81: pub(crate) fn lower_offset_of(
+src/hir/lower/body/expr_layout.rs:63: pub(crate) fn lower_layout_builtin(
+src/hir/lower/body/expr_layout.rs:83: pub(crate) fn lower_offset_of(
 src/hir/lower/body/expr_logic.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_logic.rs:5: pub(super) fn lower_short_circuit(&mut self, op: BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_lower.rs:3: impl crate::hir::lower::Ctx
@@ -560,8 +596,8 @@ src/hir/lower/body/expr_method_arrays.rs:19: pub(crate) fn lower_get_unchecked(
 src/hir/lower/body/expr_method_ptr.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_method_ptr.rs:6: pub(crate) fn lower_rawptr_method(
 src/hir/lower/body/expr_misc.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_misc.rs:31: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Block) -> Result<HirNodeBox>
+src/hir/lower/body/expr_misc.rs:4: pub(crate) fn lower_asm(&mut self, template: &String, outputs: &Vec<(String, Box<Expr>)>, inputs: &Vec<(String, Box<Expr>)>, clobbers: &Vec<Symbol>, span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/expr_misc.rs:32: pub(crate) fn lower_lambda(&mut self, params: &Vec<(Symbol, Type)>, return_type: &Type, body: &Block) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_ops1.rs:4: pub(crate) fn lower_binary(&mut self, op: &BinaryOp, lhs: &Box<Expr>, rhs: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_ops1.rs:180: pub(crate) fn lower_try_op(&mut self, inner: &Box<Expr>, span: &Span) -> Result<HirNodeBox>
@@ -572,8 +608,8 @@ src/hir/lower/body/expr_static_assert.rs:6: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_static_assert.rs:8: pub(crate) fn lower_static_assert(&mut self, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_struct.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_struct.rs:5: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_struct.rs:155: fn infer_struct_literal_args(&self, type_name: &Symbol, raw_fields: &[(Symbol, HirNodeBox, Span)]) -> Vec<Type>
-src/hir/lower/body/expr_struct.rs:185: fn is_concrete_literal_type(&self, ty: &HirType) -> bool
+src/hir/lower/body/expr_struct.rs:158: fn infer_struct_literal_args(&self, type_name: &Symbol, raw_fields: &[(Symbol, HirNodeBox, Span)]) -> Vec<Type>
+src/hir/lower/body/expr_struct.rs:188: fn is_concrete_literal_type(&self, ty: &HirType) -> bool
 src/hir/lower/body/expr_unary.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_unary.rs:6: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
 src/hir/lower/body/generic_check.rs:13: pub(super) struct CheckCtx
@@ -592,7 +628,7 @@ src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_cal
 src/hir/lower/body/generic_specialize.rs:11: pub(crate) fn specialize_generic_method_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
 src/hir/lower/body/generic_specialize.rs:17: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
 src/hir/lower/body/generic_specialize.rs:39: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span, prefer_method: bool) -> Result<FnId>
-src/hir/lower/body/generic_specialize.rs:268: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
+src/hir/lower/body/generic_specialize.rs:282: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/generic_types.rs:10: pub(crate) enum GType
 src/hir/lower/body/generic_types.rs:19: pub(super) fn ast_is_concrete_primitive(ty: &Type) -> bool
 src/hir/lower/body/generic_types.rs:28: pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool
@@ -632,8 +668,8 @@ src/hir/lower/body/literal.rs:46: fn check_literal_range(n: i64, ty: &HirType, s
 src/hir/lower/body/lower_items.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/lower_items.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>>
 src/hir/lower/body/lower_items.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
-src/hir/lower/body/lower_items.rs:118: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
-src/hir/lower/body/lower_items.rs:146: pub(crate) fn lower_fn(
+src/hir/lower/body/lower_items.rs:96: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
+src/hir/lower/body/lower_items.rs:124: pub(crate) fn lower_fn(
 src/hir/lower/body/macro_call.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &[crate::parser::ast::expr::MacroArg], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_coverage.rs:8: pub(super) fn enum_exhaustive(total: usize, pats: &[&Pattern]) -> bool
@@ -653,17 +689,14 @@ src/hir/lower/body/match_lower.rs:69: fn lower_match_arms(
 src/hir/lower/body/match_lower.rs:94: fn is_exhaustive(&self, val_ty: &HirType, arms: &[MatchArm]) -> bool
 src/hir/lower/body/match_lower.rs:115: fn enum_variant_count(&self, name: &Symbol) -> usize
 src/hir/lower/body/match_lower.rs:122: fn build_match_stmts(
-src/hir/lower/body/match_lower.rs:186: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
-src/hir/lower/body/match_lower.rs:203: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
+src/hir/lower/body/match_lower.rs:192: pub(crate) fn lower_match_stmt(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirStmt>
+src/hir/lower/body/match_lower.rs:209: pub(crate) fn lower_match_expr(&mut self, value: &Expr, arms: &[MatchArm], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_pattern.rs:6: impl crate::hir::lower::Ctx
-src/hir/lower/body/match_pattern.rs:8: pub(super) fn variant_tag(&self, enum_name: &Symbol, variant: &Symbol) -> Option<i64>
-src/hir/lower/body/match_pattern.rs:17: pub(super) fn bare_variant_name(&self, scrutinee: &HirType, name: &Symbol) -> Symbol
-src/hir/lower/body/match_pattern.rs:29: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:44: pub(super) fn pattern_match(
-src/hir/lower/body/match_pattern.rs:55: fn pattern_match_in(
-src/hir/lower/body/match_pattern.rs:269: fn cmp_const(
-src/hir/lower/body/match_pattern.rs:285: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
-src/hir/lower/body/match_pattern.rs:289: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:8: pub(super) fn pattern_match(
+src/hir/lower/body/match_pattern.rs:27: fn pattern_match_in(
+src/hir/lower/body/match_pattern.rs:280: fn cmp_const(
+src/hir/lower/body/match_pattern.rs:295: fn and_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
+src/hir/lower/body/match_pattern.rs:298: fn or_cond(a: HirNodeBox, b: HirNodeBox) -> HirNodeBox
 src/hir/lower/body/match_setup.rs:5: fn is_match_place(node: &HirNodeBox) -> bool
 src/hir/lower/body/match_setup.rs:12: impl crate::hir::lower::Ctx
 src/hir/lower/body/match_setup.rs:14: pub(super) fn setup_match_value(&mut self, value: &Expr, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -671,6 +704,11 @@ src/hir/lower/body/match_util.rs:5: pub(super) fn check_scalar_pattern(base: &Hi
 src/hir/lower/body/match_util.rs:25: pub(super) fn hir_literal(l: &crate::parser::ast::Literal) -> HirLiteral
 src/hir/lower/body/match_util.rs:37: pub(super) fn match_result_type(a: &HirType, b: &HirType) -> HirType
 src/hir/lower/body/match_util.rs:53: pub(super) fn block_diverges(b: &HirBlock) -> bool
+src/hir/lower/body/match_util.rs:62: pub(super) fn place_root_hir(e: &dyn HirNode) -> Option<VarId>
+src/hir/lower/body/match_variant.rs:4: impl crate::hir::lower::Ctx
+src/hir/lower/body/match_variant.rs:6: pub(super) fn variant_tag(&self, enum_name: &Symbol, variant: &Symbol) -> Option<i64>
+src/hir/lower/body/match_variant.rs:22: pub(super) fn bare_variant_name(&self, scrutinee: &HirType, name: &Symbol) -> Symbol
+src/hir/lower/body/match_variant.rs:34: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
 src/hir/lower/body/mod.rs:10: mod collect_fns;
 src/hir/lower/body/mod.rs:11: mod collect_ns;
 src/hir/lower/body/mod.rs:12: mod vtables;
@@ -685,59 +723,62 @@ src/hir/lower/body/mod.rs:20: mod generic_specialize;
 src/hir/lower/body/mod.rs:21: mod generic_types;
 src/hir/lower/body/mod.rs:22: mod lower_items;
 src/hir/lower/body/mod.rs:23: mod stmt_lower;
-src/hir/lower/body/mod.rs:24: mod stmt_loops;
-src/hir/lower/body/mod.rs:25: mod ref_assign;
-src/hir/lower/body/mod.rs:26: mod ref_protocol;
-src/hir/lower/body/mod.rs:27: mod expr_method;
-src/hir/lower/body/mod.rs:28: mod expr_method_ptr;
-src/hir/lower/body/mod.rs:29: mod expr_layout;
-src/hir/lower/body/mod.rs:30: mod expr_static_assert;
-src/hir/lower/body/mod.rs:31: mod const_eval_binary;
-src/hir/lower/body/mod.rs:32: mod expr_struct;
-src/hir/lower/body/mod.rs:33: mod match_coverage;
-src/hir/lower/body/mod.rs:34: mod match_lower;
-src/hir/lower/body/mod.rs:35: mod match_pattern;
-src/hir/lower/body/mod.rs:36: mod match_setup;
-src/hir/lower/body/mod.rs:37: mod match_util;
-src/hir/lower/body/mod.rs:38: mod usage_infer;
-src/hir/lower/body/mod.rs:39: mod macro_call;
-src/hir/lower/body/mod.rs:40: mod expr_logic;
-src/hir/lower/body/mod.rs:41: mod expr_lower;
-src/hir/lower/body/mod.rs:42: mod if_expr;
-src/hir/lower/body/mod.rs:43: mod ensure;
-src/hir/lower/body/mod.rs:44: mod literal;
-src/hir/lower/body/mod.rs:45: mod collect_enum;
-src/hir/lower/body/mod.rs:46: mod const_coerce;
-src/hir/lower/body/mod.rs:47: mod const_array;
-src/hir/lower/body/mod.rs:48: mod const_struct;
-src/hir/lower/body/mod.rs:49: mod const_eval;
-src/hir/lower/body/mod.rs:50: mod const_fn;
-src/hir/lower/body/mod.rs:51: mod collect_import;
-src/hir/lower/body/mod.rs:52: mod collect_import_path;
-src/hir/lower/body/mod.rs:53: mod expr_access;
-src/hir/lower/body/mod.rs:54: mod expr_call;
-src/hir/lower/body/mod.rs:55: mod expr_call_builtins;
-src/hir/lower/body/mod.rs:56: mod expr_call_args;
-src/hir/lower/body/mod.rs:57: mod expr_call_extra;
-src/hir/lower/body/mod.rs:58: mod block_lower;
-src/hir/lower/body/mod.rs:59: mod expr_cast;
-src/hir/lower/body/mod.rs:60: mod expr_enum;
-src/hir/lower/body/mod.rs:61: mod expr_misc;
-src/hir/lower/body/mod.rs:62: mod expr_ops1;
-src/hir/lower/body/mod.rs:63: mod expr_unary;
-src/hir/lower/body/mod.rs:64: mod expr_method_arrays;
-src/hir/lower/body/mod.rs:65: mod return_check;
-src/hir/lower/body/mod.rs:66: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:24: mod stmt_sync;
+src/hir/lower/body/mod.rs:25: mod stmt_deref;
+src/hir/lower/body/mod.rs:26: mod stmt_loops;
+src/hir/lower/body/mod.rs:27: mod ref_assign;
+src/hir/lower/body/mod.rs:28: mod ref_protocol;
+src/hir/lower/body/mod.rs:29: mod expr_method;
+src/hir/lower/body/mod.rs:30: mod expr_method_ptr;
+src/hir/lower/body/mod.rs:31: mod expr_layout;
+src/hir/lower/body/mod.rs:32: mod expr_static_assert;
+src/hir/lower/body/mod.rs:33: mod const_eval_binary;
+src/hir/lower/body/mod.rs:34: mod expr_struct;
+src/hir/lower/body/mod.rs:35: mod match_coverage;
+src/hir/lower/body/mod.rs:36: mod match_variant;
+src/hir/lower/body/mod.rs:37: mod match_lower;
+src/hir/lower/body/mod.rs:38: mod match_pattern;
+src/hir/lower/body/mod.rs:39: mod match_setup;
+src/hir/lower/body/mod.rs:40: mod match_util;
+src/hir/lower/body/mod.rs:41: mod usage_infer;
+src/hir/lower/body/mod.rs:42: mod macro_call;
+src/hir/lower/body/mod.rs:43: mod expr_logic;
+src/hir/lower/body/mod.rs:44: mod expr_lower;
+src/hir/lower/body/mod.rs:45: mod if_expr;
+src/hir/lower/body/mod.rs:46: mod ensure;
+src/hir/lower/body/mod.rs:47: mod literal;
+src/hir/lower/body/mod.rs:48: mod collect_enum;
+src/hir/lower/body/mod.rs:49: mod const_coerce;
+src/hir/lower/body/mod.rs:50: mod const_array;
+src/hir/lower/body/mod.rs:51: mod const_struct;
+src/hir/lower/body/mod.rs:52: mod const_eval;
+src/hir/lower/body/mod.rs:53: mod const_fn;
+src/hir/lower/body/mod.rs:54: mod collect_import;
+src/hir/lower/body/mod.rs:55: mod collect_import_path;
+src/hir/lower/body/mod.rs:56: mod expr_access;
+src/hir/lower/body/mod.rs:57: mod expr_call;
+src/hir/lower/body/mod.rs:58: mod expr_call_builtins;
+src/hir/lower/body/mod.rs:59: mod expr_call_args;
+src/hir/lower/body/mod.rs:60: mod expr_call_extra;
+src/hir/lower/body/mod.rs:61: mod block_lower;
+src/hir/lower/body/mod.rs:62: mod expr_cast;
+src/hir/lower/body/mod.rs:63: mod expr_enum;
+src/hir/lower/body/mod.rs:64: mod expr_misc;
+src/hir/lower/body/mod.rs:65: mod expr_ops1;
+src/hir/lower/body/mod.rs:66: mod expr_unary;
+src/hir/lower/body/mod.rs:67: mod expr_method_arrays;
+src/hir/lower/body/mod.rs:68: mod return_check;
+src/hir/lower/body/mod.rs:69: mod expr_reinterpret;
 src/hir/lower/body/overload_method.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_method.rs:9: pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
 src/hir/lower/body/overload_method.rs:28: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
 src/hir/lower/body/overload_method.rs:36: pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:113: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
-src/hir/lower/body/overload_method.rs:160: pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:180: pub(crate) fn resolve_method_literals(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:203: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:208: pub(crate) fn resolve_method_only(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:212: fn resolve_method_impl(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], methods_only: bool) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:105: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
+src/hir/lower/body/overload_method.rs:152: pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:172: pub(crate) fn resolve_method_literals(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:195: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:200: pub(crate) fn resolve_method_only(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:204: fn resolve_method_impl(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], methods_only: bool) -> Option<FnId>
 src/hir/lower/body/overload_resolve.rs:4: pub(super) fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
@@ -752,6 +793,8 @@ src/hir/lower/body/ref_protocol.rs:149: fn ref_target_from_return(
 src/hir/lower/body/return_check.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/return_check.rs:10: pub(crate) fn check_return_type(&self, wrapped: &HirNodeBox, fn_ret: &HirType, span: &Span) -> Result<()>
 src/hir/lower/body/return_check.rs:37: fn return_types_compatible(got: &HirType, want: &HirType) -> bool
+src/hir/lower/body/stmt_deref.rs:4: impl crate::hir::lower::Ctx
+src/hir/lower/body/stmt_deref.rs:5: pub(crate) fn lower_deref_assign(
 src/hir/lower/body/stmt_loops.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/stmt_loops.rs:5: pub(crate) fn lower_while(
 src/hir/lower/body/stmt_loops.rs:47: pub(crate) fn lower_for(
@@ -760,6 +803,15 @@ src/hir/lower/body/stmt_loops.rs:193: fn for_bound_type(start: &HirNodeBox, end:
 src/hir/lower/body/stmt_loops.rs:222: fn coerce_for_bound(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/stmt_lower.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/stmt_lower.rs:4: pub(crate) fn lower_stmt(&mut self, stmt: &Stmt) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:6: impl Ctx
+src/hir/lower/body/stmt_sync.rs:9: pub(crate) fn lower_sync_block(&mut self, attr: &Attr, block: &Block) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:80: pub(crate) fn try_lower_sync(&mut self, attrs: &[Attr], inner: &Stmt) -> Option<Result<HirStmt>>
+src/hir/lower/body/stmt_sync.rs:92: pub(crate) fn sync_return_stmt(&mut self, hir_value: Option<HirNodeBox>, span: Span) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:115: pub(crate) fn sync_unlock_stmts(&mut self, from: usize, span: Span) -> Result<Vec<HirStmt>>
+src/hir/lower/body/stmt_sync.rs:125: pub(crate) fn lower_loop_exit(&mut self, exit: HirStmt, span: Span) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:136: pub(crate) fn lower_loop_body(&mut self, body: &Block) -> Result<HirBlock>
+src/hir/lower/body/stmt_sync.rs:143: fn sync_call_stmt(&mut self, obj: &Expr, method: &str, span: Span) -> Result<HirStmt>
+src/hir/lower/body/stmt_sync.rs:156: fn is_place_expr(e: &Expr) -> bool
 src/hir/lower/body/usage_infer.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/usage_infer.rs:10: pub(crate) fn collect_usage_hints(&self, stmts: &[Stmt]) -> HashMap<Symbol, Vec<Type>>
 src/hir/lower/body/usage_infer.rs:26: fn find_elem_usage_stmts(&self, var: &Symbol, stmts: &[Stmt]) -> Option<Type>
@@ -772,35 +824,49 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:102: impl Ctx
-src/hir/lower/ctx.rs:104: pub fn new() -> Self
-src/hir/lower/ctx.rs:161: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:164: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:167: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:172: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:181: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:186: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:194: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:204: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:217: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:223: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:229: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:116: pub struct SyncLock
+src/hir/lower/ctx.rs:120: impl Ctx
+src/hir/lower/ctx.rs:122: pub fn new() -> Self
+src/hir/lower/ctx.rs:185: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:188: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:191: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:196: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:205: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:210: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:218: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:228: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:241: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:249: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:255: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx_env.rs:4: impl Ctx
+src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
+src/hir/lower/ctx_env.rs:36: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
+src/hir/lower/ctx_env.rs:58: impl Ctx
+src/hir/lower/ctx_env.rs:61: pub(crate) fn inject_env_params(
+src/hir/lower/ctx_env.rs:83: impl Ctx
+src/hir/lower/ctx_env.rs:85: pub(crate) fn env_caps_from_attrs(
 src/hir/lower/ctx_fields.rs:5: impl Ctx
 src/hir/lower/ctx_fields.rs:7: pub fn find_field_index(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<usize>
 src/hir/lower/ctx_fields.rs:20: fn find_field_index_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<usize>
 src/hir/lower/ctx_fields.rs:40: pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx_fields.rs:58: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx_fields.rs:77: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
-src/hir/lower/ctx_fields.rs:99: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
-src/hir/lower/ctx_fields.rs:117: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Vec<Symbol>)>
+src/hir/lower/ctx_fields.rs:53: fn find_field_type_by_name(&self, type_name: &Symbol, field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx_fields.rs:72: pub fn variant_payload_type(&self, enum_ty: &HirType, data_field: &Symbol, span: &Span) -> Result<HirType>
+src/hir/lower/ctx_fields.rs:94: pub(crate) fn build_generic_subst(&self, type_name: &Symbol, base: &Symbol) -> HashMap<Symbol, HirType>
+src/hir/lower/ctx_fields.rs:112: pub fn collected_generic_params(&self, type_name: &Symbol) -> Vec<(Symbol, Vec<Symbol>)>
 src/hir/lower/ctx_mono.rs:6: fn rewrite_variant_name(ty: &HirType, base: Symbol, suffix: &str) -> HirType
 src/hir/lower/ctx_mono.rs:18: impl crate::hir::lower::Ctx
 src/hir/lower/ctx_mono.rs:20: pub fn instantiate_type(&mut self, ty: &HirType) -> Result<()>
 src/hir/lower/ctx_mono.rs:35: pub fn instantiate_named(&mut self, name: Symbol) -> Result<()>
-src/hir/lower/ctx_mono.rs:89: pub fn adapt_enum_args(
-src/hir/lower/ctx_mono.rs:109: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
-src/hir/lower/ctx_mono.rs:141: pub fn refine_enum_result_type(&self, ty: HirType) -> HirType
-src/hir/lower/ctx_mono.rs:156: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx_mono.rs:100: pub fn adapt_enum_args(
+src/hir/lower/ctx_mono.rs:120: pub fn instantiate_enum_value(&mut self, node: HirNodeBox, expected: &HirType) -> Result<HirNodeBox>
+src/hir/lower/ctx_mono.rs:158: pub fn refine_enum_result_type(&self, ty: HirType) -> HirType
+src/hir/lower/ctx_mono.rs:173: pub fn update_var_type(&mut self, var_id: VarId, new_ty: HirType)
+src/hir/lower/ctx_niche.rs:4: impl Ctx
+src/hir/lower/ctx_niche.rs:6: pub(crate) fn niche_info(&self, name: &Symbol) -> Option<crate::hir::niche::NicheInfo>
+src/hir/lower/ctx_niche.rs:12: pub(crate) fn is_niche_enum(&self, name: &Symbol) -> bool
+src/hir/lower/ctx_niche.rs:18: pub(crate) fn apply_boxing_rewrite(
+src/hir/lower/ctx_niche.rs:59: pub(crate) fn apply_niche_rewrite(&mut self, fields: Vec<HirStructField>) -> Vec<HirStructField>
+src/hir/lower/ctx_niche.rs:71: pub(crate) fn build_niche_tag_expr(
 src/hir/lower/helpers/bounds.rs:10: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/bounds.rs:12: pub(crate) fn ensure_bounds_helper(&mut self) -> FnId
 src/hir/lower/helpers/bounds.rs:62: pub(crate) fn check_array_index(&mut self, object: &HirNodeBox, index: HirNodeBox, span: &Span, is_write: bool) -> HirNodeBox
@@ -823,8 +889,8 @@ src/hir/lower/helpers/closure.rs:53: fn assign_name(
 src/hir/lower/helpers/closure.rs:72: fn ensure_capturable(name: &Symbol, ty: &HirType, span: &Span) -> Result<()>
 src/hir/lower/helpers/closure.rs:83: fn walk_block(
 src/hir/lower/helpers/closure.rs:100: fn walk_stmt(
-src/hir/lower/helpers/closure.rs:161: fn walk_match(
-src/hir/lower/helpers/closure.rs:185: fn walk_expr(
+src/hir/lower/helpers/closure.rs:163: fn walk_match(
+src/hir/lower/helpers/closure.rs:187: fn walk_expr(
 src/hir/lower/helpers/closure_checks.rs:11: pub(crate) fn find_capture_move_out(stmts: &[HirStmt], env_var: VarId) -> Option<Symbol>
 src/hir/lower/helpers/closure_checks.rs:15: fn stmt_move_out(stmt: &HirStmt, env_var: VarId) -> Option<Symbol>
 src/hir/lower/helpers/closure_checks.rs:47: fn node_move_out(node: &dyn HirNode, env_var: VarId) -> Option<Symbol>
@@ -860,6 +926,8 @@ src/hir/lower/helpers/coerce.rs:88: pub(crate) fn retype_int_literal(expr: HirNo
 src/hir/lower/helpers/coerce.rs:95: fn is_primitive(ty: &HirType) -> bool
 src/hir/lower/helpers/coerce.rs:103: pub(crate) fn coerce_expr(expr: HirNodeBox, target: &HirType, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/helpers/coerce.rs:164: pub(crate) fn retype_comparison_bool(expr: HirNodeBox) -> HirNodeBox
+src/hir/lower/helpers/coerce.rs:173: pub(crate) fn assign_compatible(src: &HirType, dst: &HirType) -> bool
+src/hir/lower/helpers/coerce.rs:205: pub(crate) fn ensure_assignable(
 src/hir/lower/helpers/convert.rs:3: pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type
 src/hir/lower/helpers/convert.rs:36: pub(crate) fn infer_generic_from_param(
 src/hir/lower/helpers/convert.rs:47: pub(crate) fn generic_inner(s: &str) -> Option<&str>
@@ -890,7 +958,7 @@ src/hir/lower/helpers/overflow.rs:21: pub(crate) fn lower_ovf_call(&mut self, op
 src/hir/lower/helpers/overflow.rs:29: pub(crate) fn ensure_ovf_helper(&mut self, op: &str, ty: &HirType) -> FnId
 src/hir/lower/helpers/substitute.rs:3: pub(crate) fn substitute_type_in_type(ty: &Type, subst: &HashMap<Symbol, Type>) -> Type
 src/hir/lower/helpers/substitute.rs:33: pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>) -> Expr
-src/hir/lower/helpers/substitute.rs:156: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
+src/hir/lower/helpers/substitute.rs:157: pub(crate) fn substitute_type_in_block(block: &Block, subst: &HashMap<Symbol, Type>) -> Block
 src/hir/lower/helpers/substitute_stmt.rs:5: pub(crate) fn substitute_type_in_stmt(stmt: &Stmt, subst: &HashMap<Symbol, Type>) -> Stmt
 src/hir/lower/helpers/substitute_stmt.rs:144: pub(crate) fn substitute_match_arm(a: &MatchArm, subst: &HashMap<Symbol, Type>) -> MatchArm
 src/hir/lower/helpers/types.rs:3: pub(crate) fn type_to_string_generic(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> String
@@ -907,32 +975,35 @@ src/hir/lower/helpers/types.rs:228: pub(crate) fn expr_type(expr: &HirNodeBox) -
 src/hir/lower/helpers/types.rs:233: pub(crate) fn is_null_literal(expr: &HirNodeBox) -> bool
 src/hir/lower/helpers/types.rs:238: pub(crate) fn is_pointer_type_for_cmp(ty: &HirType) -> bool
 src/hir/lower/helpers/types_sig.rs:4: pub(crate) fn sig_str_to_hir(s: &str) -> HirType
-src/hir/lower/helpers/types_sig.rs:77: pub(crate) fn normalize_generic_brackets(s: &str) -> String
+src/hir/lower/helpers/types_sig.rs:82: pub(crate) fn normalize_generic_brackets(s: &str) -> String
 src/hir/lower/helpers/unify.rs:8: pub(crate) fn unify(expected: &HirType, actual: &HirType, subst: &mut HashMap<Symbol, HirType>) -> bool
 src/hir/lower/helpers/unify.rs:44: fn unify_named(name: &Symbol, actual: &HirType, subst: &mut HashMap<Symbol, HirType>) -> bool
 src/hir/lower/helpers/wrap.rs:3: pub(crate) fn implicit_move(expr: HirNodeBox) -> HirNodeBox
 src/hir/lower/helpers/wrap.rs:14: fn wrap_arg_conversions(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:105: pub(crate) fn type_needs_drop(
-src/hir/lower/helpers/wrap.rs:122: pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:131: pub(crate) fn wrap_arg_borrowed(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:142: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
-src/hir/lower/helpers/wrap.rs:153: pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str>
-src/hir/lower/helpers/wrap.rs:177: pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str>
+src/hir/lower/helpers/wrap.rs:108: pub(crate) fn type_needs_drop(
+src/hir/lower/helpers/wrap.rs:125: pub(crate) fn wrap_arg_for_param(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
+src/hir/lower/helpers/wrap.rs:134: pub(crate) fn wrap_arg_borrowed(arg: HirNodeBox, param_ty: &HirType) -> HirNodeBox
+src/hir/lower/helpers/wrap.rs:145: pub(crate) fn wrap_for_unique_param(expr: HirNodeBox, param_ty: &HirType) -> HirNodeBox
+src/hir/lower/helpers/wrap.rs:156: pub(crate) fn binary_op_to_fn_name(op: &BinaryOp) -> Option<&'static str>
+src/hir/lower/helpers/wrap.rs:180: pub(crate) fn unary_op_to_fn_name(op: &UnaryOp) -> Option<&'static str>
+src/hir/lower/helpers/wrap.rs:191: fn generic_spelling_eq(a: &HirType, b: &HirType) -> bool
 src/hir/lower/mod.rs:1: pub mod body;
 src/hir/lower/mod.rs:2: mod collect_copy;
-src/hir/lower/mod.rs:3: pub mod helpers;
-src/hir/lower/mod.rs:4: pub mod to_mir;
-src/hir/lower/mod.rs:17: pub(super) fn variant_struct_name(enum_name: &Symbol, variant: &Symbol) -> Symbol
-src/hir/lower/mod.rs:27: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
-src/hir/lower/mod.rs:43: pub(crate) struct FnSig
-src/hir/lower/mod.rs:68: pub(crate) struct InterfaceReg
-src/hir/lower/mod.rs:75: mod ctx;
-src/hir/lower/mod.rs:76: mod ctx_mono;
-src/hir/lower/mod.rs:77: mod ctx_fields;
-src/hir/lower/mod.rs:94: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-src/hir/lower/mod.rs:96: pub fn set_source_path(path: &std::path::Path)
-src/hir/lower/mod.rs:100: pub(crate) fn source_path() -> String
-src/hir/lower/mod.rs:104: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:3: mod ctx_niche;
+src/hir/lower/mod.rs:4: mod ctx_env;
+src/hir/lower/mod.rs:5: pub mod helpers;
+src/hir/lower/mod.rs:6: pub mod to_mir;
+src/hir/lower/mod.rs:19: pub(super) fn variant_struct_name(enum_name: &Symbol, variant: &Symbol) -> Symbol
+src/hir/lower/mod.rs:29: pub(super) fn strip_generic_name(name: &Symbol) -> Symbol
+src/hir/lower/mod.rs:45: pub(crate) struct FnSig
+src/hir/lower/mod.rs:70: pub(crate) struct InterfaceReg
+src/hir/lower/mod.rs:77: mod ctx;
+src/hir/lower/mod.rs:78: mod ctx_mono;
+src/hir/lower/mod.rs:79: mod ctx_fields;
+src/hir/lower/mod.rs:96: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+src/hir/lower/mod.rs:98: pub fn set_source_path(path: &std::path::Path)
+src/hir/lower/mod.rs:102: pub(crate) fn source_path() -> String
+src/hir/lower/mod.rs:106: pub fn lower_program(program: &Program) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)>
@@ -1080,48 +1151,49 @@ src/hir/lower/to_mir/basic.rs:270: fn expr_type(&self) -> HirType { self.ty.clon
 src/hir/lower/to_mir/basic.rs:271: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
 src/hir/lower/to_mir/basic.rs:274: fn record_moves(&self, moved: &mut HashSet<VarId>)
 src/hir/lower/to_mir/call.rs:3: impl HirNode for SAsm
-src/hir/lower/to_mir/call.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/call.rs:5: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/call.rs:13: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/call.rs:25: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/call.rs:26: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/call.rs:32: impl HirNode for SVCall
-src/hir/lower/to_mir/call.rs:33: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/call.rs:34: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/call.rs:43: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/call.rs:50: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/call.rs:51: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/call.rs:57: impl HirNode for SMFP
-src/hir/lower/to_mir/call.rs:58: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/call.rs:59: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/call.rs:67: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/call.rs:72: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/call.rs:73: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/call.rs:78: impl HirNode for SFnPtr
-src/hir/lower/to_mir/call.rs:79: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/call.rs:80: fn lower_to_mir(&self, _moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/call.rs:83: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/call.rs:86: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/call.rs:87: fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/call.rs:91: impl HirNode for SCallP
-src/hir/lower/to_mir/call.rs:92: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/call.rs:93: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/call.rs:100: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/call.rs:103: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/call.rs:104: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/call.rs:110: impl HirNode for SEnumC
-src/hir/lower/to_mir/call.rs:111: fn enum_variant(&self) -> Option<Symbol> { Some(self.variant_name) }
-src/hir/lower/to_mir/call.rs:112: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/call.rs:113: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/call.rs:122: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/call.rs:125: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/call.rs:126: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
-src/hir/lower/to_mir/call.rs:131: impl HirNode for SEnumM
-src/hir/lower/to_mir/call.rs:132: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
-src/hir/lower/to_mir/call.rs:133: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
-src/hir/lower/to_mir/call.rs:140: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/hir/lower/to_mir/call.rs:146: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/hir/lower/to_mir/call.rs:147: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/call.rs:4: fn asm_template(&self) -> Option<&str> { Some(&self.template) }
+src/hir/lower/to_mir/call.rs:5: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/call.rs:6: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/call.rs:15: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/call.rs:27: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/call.rs:28: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/call.rs:34: impl HirNode for SVCall
+src/hir/lower/to_mir/call.rs:35: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/call.rs:36: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/call.rs:45: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/call.rs:52: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/call.rs:53: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/call.rs:59: impl HirNode for SMFP
+src/hir/lower/to_mir/call.rs:60: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/call.rs:61: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/call.rs:69: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/call.rs:74: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/call.rs:75: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/call.rs:80: impl HirNode for SFnPtr
+src/hir/lower/to_mir/call.rs:81: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/call.rs:82: fn lower_to_mir(&self, _moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/call.rs:85: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/call.rs:88: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/call.rs:89: fn for_each_child(&self, _f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/call.rs:93: impl HirNode for SCallP
+src/hir/lower/to_mir/call.rs:94: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/call.rs:95: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/call.rs:102: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/call.rs:105: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/call.rs:106: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/call.rs:112: impl HirNode for SEnumC
+src/hir/lower/to_mir/call.rs:113: fn enum_variant(&self) -> Option<Symbol> { Some(self.variant_name) }
+src/hir/lower/to_mir/call.rs:114: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/call.rs:115: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/call.rs:124: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/call.rs:127: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/call.rs:128: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
+src/hir/lower/to_mir/call.rs:133: impl HirNode for SEnumM
+src/hir/lower/to_mir/call.rs:134: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+src/hir/lower/to_mir/call.rs:135: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox
+src/hir/lower/to_mir/call.rs:142: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/hir/lower/to_mir/call.rs:148: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/hir/lower/to_mir/call.rs:149: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
 src/hir/lower/to_mir/mod.rs:11: mod access;
 src/hir/lower/to_mir/mod.rs:12: mod basic;
 src/hir/lower/to_mir/mod.rs:13: mod call;
@@ -1148,20 +1220,30 @@ src/hir/lower/to_mir/ptr_ops.rs:65: fn expr_type(&self) -> HirType { self.ty.clo
 src/hir/lower/to_mir/ptr_ops.rs:66: fn for_each_child(&self, f: &mut dyn FnMut(&dyn HirNode))
 src/hir/lower/to_mir/ptr_ops.rs:70: fn record_moves(&self, moved: &mut HashSet<VarId>)
 src/hir/mod.rs:1: pub mod attrs;
-src/hir/mod.rs:2: pub mod attrs_export;
-src/hir/mod.rs:3: pub mod attrs_macro;
-src/hir/mod.rs:4: pub mod cfg;
-src/hir/mod.rs:5: pub mod contracts;
-src/hir/mod.rs:6: pub mod effects;
-src/hir/mod.rs:7: pub mod ir;
-src/hir/mod.rs:8: pub mod layout;
-src/hir/mod.rs:9: pub mod ty;
-src/hir/mod.rs:10: pub mod node;
-src/hir/mod.rs:11: pub mod stmt;
-src/hir/mod.rs:12: pub mod item;
-src/hir/mod.rs:13: pub mod lower;
-src/hir/mod.rs:14: pub mod display;
-src/hir/mod.rs:31: pub struct $name
+src/hir/mod.rs:2: pub(crate) mod async_transform;
+src/hir/mod.rs:3: pub(crate) mod async_transform_util;
+src/hir/mod.rs:4: pub(crate) mod async_elif;
+src/hir/mod.rs:5: pub(crate) mod async_if;
+src/hir/mod.rs:6: pub(crate) mod async_while;
+src/hir/mod.rs:7: pub mod attrs_export;
+src/hir/mod.rs:8: pub mod attrs_macro;
+src/hir/mod.rs:9: pub mod cfg;
+src/hir/mod.rs:10: pub mod contracts;
+src/hir/mod.rs:11: pub mod effects;
+src/hir/mod.rs:12: pub mod ir;
+src/hir/mod.rs:13: pub mod layout;
+src/hir/mod.rs:14: pub(crate) mod niche;
+src/hir/mod.rs:15: pub mod ty;
+src/hir/mod.rs:16: pub mod node;
+src/hir/mod.rs:17: pub mod stmt;
+src/hir/mod.rs:18: pub mod item;
+src/hir/mod.rs:19: pub mod lower;
+src/hir/mod.rs:20: pub mod display;
+src/hir/mod.rs:37: pub struct $name
+src/hir/niche.rs:17: pub(crate) struct NicheInfo
+src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
+src/hir/niche.rs:45: pub(crate) fn niche_info_of(
+src/hir/niche.rs:81: pub(crate) fn niche_shape(
 src/hir/node.rs:9: pub trait HirNode: std::fmt::Debug
 src/hir/node.rs:10: fn clone_node(&self) -> Box<dyn HirNode>;
 src/hir/node.rs:11: fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox;
@@ -1184,19 +1266,20 @@ src/hir/node.rs:43: fn as_ref_expr(&self) -> Option<&HirNodeBox> { None }
 src/hir/node.rs:45: fn is_comparison(&self) -> bool { false }
 src/hir/node.rs:47: fn as_call(&self) -> Option<crate::hir::ty::FnId> { None }
 src/hir/node.rs:49: fn is_alloc(&self) -> bool { false }
-src/hir/node.rs:51: fn enum_variant(&self) -> Option<Symbol> { None }
-src/hir/node.rs:53: fn as_struct_cloned(&self) -> Option<crate::hir::SStruct> { None }
-src/hir/node.rs:55: fn with_type(&self, _ty: HirType) -> Option<HirNodeBox> { None }
-src/hir/node.rs:56: fn as_clone(&self) -> Option<&HirNodeBox> { None }
-src/hir/node.rs:61: pub struct HirNodeBox(pub Box<dyn HirNode>);
-src/hir/node.rs:62: impl Clone for HirNodeBox
-src/hir/node.rs:63: fn clone(&self) -> Self { HirNodeBox(self.0.clone_node()) }
-src/hir/node.rs:65: impl std::ops::Deref for HirNodeBox
-src/hir/node.rs:66: type Target = dyn HirNode;
-src/hir/node.rs:67: fn deref(&self) -> &Self::Target { &*self.0 }
-src/hir/node.rs:69: impl From<HirNodeBox> for Box<dyn HirNode>
-src/hir/node.rs:70: fn from(b: HirNodeBox) -> Self { b.0 }
-src/hir/node.rs:79: fn from(v: $ty) -> Self { HirNodeBox(Box::new(v) as Box<dyn HirNode>) }
+src/hir/node.rs:51: fn asm_template(&self) -> Option<&str> { None }
+src/hir/node.rs:53: fn enum_variant(&self) -> Option<Symbol> { None }
+src/hir/node.rs:55: fn as_struct_cloned(&self) -> Option<crate::hir::SStruct> { None }
+src/hir/node.rs:57: fn with_type(&self, _ty: HirType) -> Option<HirNodeBox> { None }
+src/hir/node.rs:58: fn as_clone(&self) -> Option<&HirNodeBox> { None }
+src/hir/node.rs:63: pub struct HirNodeBox(pub Box<dyn HirNode>);
+src/hir/node.rs:64: impl Clone for HirNodeBox
+src/hir/node.rs:65: fn clone(&self) -> Self { HirNodeBox(self.0.clone_node()) }
+src/hir/node.rs:67: impl std::ops::Deref for HirNodeBox
+src/hir/node.rs:68: type Target = dyn HirNode;
+src/hir/node.rs:69: fn deref(&self) -> &Self::Target { &*self.0 }
+src/hir/node.rs:71: impl From<HirNodeBox> for Box<dyn HirNode>
+src/hir/node.rs:72: fn from(b: HirNodeBox) -> Self { b.0 }
+src/hir/node.rs:81: fn from(v: $ty) -> Self { HirNodeBox(Box::new(v) as Box<dyn HirNode>) }
 src/hir/stmt.rs:6: pub enum ContractKind
 src/hir/stmt.rs:12: impl ContractKind
 src/hir/stmt.rs:13: pub fn label(&self) -> &'static str
@@ -1279,21 +1362,22 @@ src/lexer/token.rs:45: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 src/lexer/token_kind.rs:7: pub enum TokenKind
 src/lexer/token_kind.rs:19: impl fmt::Display for TokenKind
 src/lexer/token_kind.rs:20: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-src/lib.rs:17: pub mod compiler;
-src/lib.rs:18: pub mod diagnostics;
-src/lib.rs:19: pub mod driver;
-src/lib.rs:20: pub mod error;
-src/lib.rs:21: pub mod formatter;
-src/lib.rs:22: pub mod hir;
-src/lib.rs:23: pub mod intern;
-src/lib.rs:24: pub mod lexer;
-src/lib.rs:25: pub mod lir;
-src/lib.rs:26: pub mod mir;
-src/lib.rs:27: pub mod package;
-src/lib.rs:28: pub mod parser;
-src/lib.rs:29: pub mod span;
-src/lib.rs:32: mod test_parse
-src/lib.rs:34: fn test_struct_literal_parse()
+src/lib.rs:17: mod annotation_table;
+src/lib.rs:18: pub mod compiler;
+src/lib.rs:19: pub mod diagnostics;
+src/lib.rs:20: pub mod driver;
+src/lib.rs:21: pub mod error;
+src/lib.rs:22: pub mod formatter;
+src/lib.rs:23: pub mod hir;
+src/lib.rs:24: pub mod intern;
+src/lib.rs:25: pub mod lexer;
+src/lib.rs:26: pub mod lir;
+src/lib.rs:27: pub mod mir;
+src/lib.rs:28: pub mod package;
+src/lib.rs:29: pub mod parser;
+src/lib.rs:30: pub mod span;
+src/lib.rs:33: mod test_parse
+src/lib.rs:35: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
@@ -1312,9 +1396,9 @@ src/lir/emit/functions.rs:87: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:88: pub(super) fn emit_struct_defs(&mut self)
 src/lir/emit/functions.rs:117: pub(super) fn emit_string_globals(&mut self)
 src/lir/emit/functions.rs:137: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:240: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:257: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:271: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:245: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:262: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:276: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -1323,10 +1407,10 @@ src/lir/emit/mod.rs:49: fn finish(self) -> String
 src/lir/emit/mod.rs:53: fn wln(&mut self, s: &str)
 src/lir/emit/mod.rs:69: fn wln_fmt(&mut self, fmt: std::fmt::Arguments<'_>)
 src/lir/emit/mod.rs:78: fn emit(&mut self)
-src/lir/emit/mod.rs:183: mod consts;
-src/lir/emit/mod.rs:184: mod functions;
-src/lir/emit/mod.rs:185: mod types;
-src/lir/emit/mod.rs:186: mod vtable;
+src/lir/emit/mod.rs:188: mod consts;
+src/lir/emit/mod.rs:189: mod functions;
+src/lir/emit/mod.rs:190: mod types;
+src/lir/emit/mod.rs:191: mod vtable;
 src/lir/emit/types.rs:3: impl<'a> Emitter<'a>
 src/lir/emit/types.rs:4: pub(super) fn llvm_type(&self, ty: &HirType) -> String
 src/lir/emit/vtable.rs:3: impl<'a> Emitter<'a>
@@ -1381,97 +1465,91 @@ src/lir/ir/mod.rs:49: pub enum LirValue
 src/lir/ir/mod.rs:61: pub struct LirEmitCtx<'a>
 src/lir/ir/mod.rs:67: impl LirEmitCtx<'_>
 src/lir/ir/mod.rs:68: pub fn llvm_type(&self, ty: &HirType) -> String
-src/lir/ir/mod.rs:108: pub fn value_ref(&self, val: &LirValue, expected_ty: &HirType) -> String
-src/lir/ir/mod.rs:117: pub fn tmp(&mut self) -> u64
-src/lir/ir/mod.rs:123: pub fn struct_llvm_name(&self, name: &Symbol) -> Option<String>
-src/lir/ir/mod.rs:143: pub trait LirNode: std::fmt::Debug
-src/lir/ir/mod.rs:144: fn clone_node(&self) -> Box<dyn LirNode>;
-src/lir/ir/mod.rs:145: fn kind(&self) -> &'static str;
-src/lir/ir/mod.rs:146: fn as_any(&self) -> &dyn std::any::Any;
-src/lir/ir/mod.rs:147: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>;
-src/lir/ir/mod.rs:150: fn alloca_lines(&self, _ctx: &LirEmitCtx) -> Vec<String> { Vec::new() }
-src/lir/ir/mod.rs:151: fn display(&self, f: &mut dyn Write) -> std::fmt::Result;
-src/lir/ir/mod.rs:152: fn serialize(&self, buf: &mut Vec<u8>);
-src/lir/ir/mod.rs:160: pub struct LirNodeBox(pub Box<dyn LirNode>);
-src/lir/ir/mod.rs:162: impl Clone for LirNodeBox
-src/lir/ir/mod.rs:163: fn clone(&self) -> Self
-src/lir/ir/mod.rs:168: impl std::ops::Deref for LirNodeBox
-src/lir/ir/mod.rs:169: type Target = dyn LirNode;
-src/lir/ir/mod.rs:170: fn deref(&self) -> &Self::Target
-src/lir/ir/mod.rs:175: impl From<SLirCustom> for LirNodeBox
-src/lir/ir/mod.rs:176: fn from(v: SLirCustom) -> Self { LirNodeBox(Box::new(v)) }
-src/lir/ir/mod.rs:186: pub struct $name { $(pub $field: $ty),* }
-src/lir/ir/mod.rs:193: fn from(v: $ty) -> Self { LirNodeBox(Box::new(v) as Box<dyn LirNode>) }
-src/lir/ir/mod.rs:198: mod helpers;
-src/lir/ir/mod.rs:199: mod helpers_clone;
-src/lir/ir/mod.rs:200: mod helpers_drop;
-src/lir/ir/mod.rs:201: mod nodes;
-src/lir/ir/mod.rs:202: mod nodes_a;
-src/lir/ir/mod.rs:203: mod nodes_b;
-src/lir/ir/mod.rs:204: mod nodes_conv;
-src/lir/ir/mod.rs:205: mod nodes_c;
-src/lir/ir/mod.rs:206: mod nodes_structlit;
-src/lir/ir/mod.rs:207: mod nodes_d;
-src/lir/ir/mod.rs:208: mod nodes_e;
-src/lir/ir/mod.rs:209: mod nodes_f;
-src/lir/ir/mod.rs:210: mod nodes_volatile;
+src/lir/ir/mod.rs:110: pub fn value_ref(&self, val: &LirValue, expected_ty: &HirType) -> String
+src/lir/ir/mod.rs:119: pub fn tmp(&mut self) -> u64
+src/lir/ir/mod.rs:125: pub fn struct_llvm_name(&self, name: &Symbol) -> Option<String>
+src/lir/ir/mod.rs:145: pub trait LirNode: std::fmt::Debug
+src/lir/ir/mod.rs:146: fn clone_node(&self) -> Box<dyn LirNode>;
+src/lir/ir/mod.rs:147: fn kind(&self) -> &'static str;
+src/lir/ir/mod.rs:148: fn as_any(&self) -> &dyn std::any::Any;
+src/lir/ir/mod.rs:149: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>;
+src/lir/ir/mod.rs:152: fn alloca_lines(&self, _ctx: &LirEmitCtx) -> Vec<String> { Vec::new() }
+src/lir/ir/mod.rs:153: fn display(&self, f: &mut dyn Write) -> std::fmt::Result;
+src/lir/ir/mod.rs:154: fn serialize(&self, buf: &mut Vec<u8>);
+src/lir/ir/mod.rs:162: pub struct LirNodeBox(pub Box<dyn LirNode>);
+src/lir/ir/mod.rs:164: impl Clone for LirNodeBox
+src/lir/ir/mod.rs:165: fn clone(&self) -> Self
+src/lir/ir/mod.rs:170: impl std::ops::Deref for LirNodeBox
+src/lir/ir/mod.rs:171: type Target = dyn LirNode;
+src/lir/ir/mod.rs:172: fn deref(&self) -> &Self::Target
+src/lir/ir/mod.rs:177: impl From<SLirCustom> for LirNodeBox
+src/lir/ir/mod.rs:178: fn from(v: SLirCustom) -> Self { LirNodeBox(Box::new(v)) }
+src/lir/ir/mod.rs:188: pub struct $name { $(pub $field: $ty),* }
+src/lir/ir/mod.rs:195: fn from(v: $ty) -> Self { LirNodeBox(Box::new(v) as Box<dyn LirNode>) }
+src/lir/ir/mod.rs:200: mod helpers;
+src/lir/ir/mod.rs:201: mod helpers_clone;
+src/lir/ir/mod.rs:202: mod helpers_drop;
+src/lir/ir/mod.rs:203: mod nodes;
+src/lir/ir/mod.rs:204: mod nodes_a;
+src/lir/ir/mod.rs:205: mod nodes_load;
+src/lir/ir/mod.rs:206: mod nodes_b;
+src/lir/ir/mod.rs:207: mod nodes_conv;
+src/lir/ir/mod.rs:208: mod nodes_c;
+src/lir/ir/mod.rs:209: mod nodes_structlit;
+src/lir/ir/mod.rs:210: mod nodes_d;
+src/lir/ir/mod.rs:211: mod nodes_e;
+src/lir/ir/mod.rs:212: mod nodes_f;
+src/lir/ir/mod.rs:213: mod nodes_volatile;
 src/lir/ir/nodes_a.rs:3: impl LirNode for SLirAlloca
 src/lir/ir/nodes_a.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_a.rs:5: fn kind(&self) -> &'static str { "Alloca" }
 src/lir/ir/nodes_a.rs:6: fn as_any(&self) -> &dyn std::any::Any { self }
 src/lir/ir/nodes_a.rs:7: fn emit(&self, _ctx: &mut LirEmitCtx) -> Vec<String> { Vec::new() }
 src/lir/ir/nodes_a.rs:8: fn alloca_lines(&self, ctx: &LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:12: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:15: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:22: impl LirNode for SLirStore
-src/lir/ir/nodes_a.rs:23: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:24: fn kind(&self) -> &'static str { "Store" }
-src/lir/ir/nodes_a.rs:25: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:26: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:42: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:45: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:53: impl LirNode for SLirLoad
-src/lir/ir/nodes_a.rs:54: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:55: fn kind(&self) -> &'static str { "Load" }
-src/lir/ir/nodes_a.rs:56: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:57: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:61: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:64: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:72: impl LirNode for SLirBinOp
-src/lir/ir/nodes_a.rs:73: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:74: fn kind(&self) -> &'static str { "BinOp" }
-src/lir/ir/nodes_a.rs:75: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:76: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:166: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:169: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:180: impl LirNode for SLirUnaryOp
-src/lir/ir/nodes_a.rs:181: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:182: fn kind(&self) -> &'static str { "UnaryOp" }
-src/lir/ir/nodes_a.rs:183: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:184: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:200: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:203: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:212: impl LirNode for SLirCall
-src/lir/ir/nodes_a.rs:213: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:214: fn kind(&self) -> &'static str { "Call" }
-src/lir/ir/nodes_a.rs:215: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:216: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:233: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:238: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:248: impl LirNode for SLirCallPtr
-src/lir/ir/nodes_a.rs:249: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:250: fn kind(&self) -> &'static str { "CallPtr" }
-src/lir/ir/nodes_a.rs:251: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:252: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:264: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:268: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_a.rs:278: impl LirNode for SLirFnAddr
-src/lir/ir/nodes_a.rs:279: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_a.rs:280: fn kind(&self) -> &'static str { "FnAddr" }
-src/lir/ir/nodes_a.rs:281: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_a.rs:282: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_a.rs:286: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_a.rs:289: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:14: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:17: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:24: impl LirNode for SLirStore
+src/lir/ir/nodes_a.rs:25: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:26: fn kind(&self) -> &'static str { "Store" }
+src/lir/ir/nodes_a.rs:27: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:28: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:46: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:49: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:57: impl LirNode for SLirBinOp
+src/lir/ir/nodes_a.rs:58: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:59: fn kind(&self) -> &'static str { "BinOp" }
+src/lir/ir/nodes_a.rs:60: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:61: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:151: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:154: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:165: impl LirNode for SLirUnaryOp
+src/lir/ir/nodes_a.rs:166: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:167: fn kind(&self) -> &'static str { "UnaryOp" }
+src/lir/ir/nodes_a.rs:168: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:169: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:185: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:188: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:197: impl LirNode for SLirCall
+src/lir/ir/nodes_a.rs:198: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:199: fn kind(&self) -> &'static str { "Call" }
+src/lir/ir/nodes_a.rs:200: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:201: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:218: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:223: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:233: impl LirNode for SLirCallPtr
+src/lir/ir/nodes_a.rs:234: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:235: fn kind(&self) -> &'static str { "CallPtr" }
+src/lir/ir/nodes_a.rs:236: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:237: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:249: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:253: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_a.rs:263: impl LirNode for SLirFnAddr
+src/lir/ir/nodes_a.rs:264: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_a.rs:265: fn kind(&self) -> &'static str { "FnAddr" }
+src/lir/ir/nodes_a.rs:266: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_a.rs:267: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_a.rs:271: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_a.rs:274: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/ir/nodes_b.rs:3: impl LirNode for SLirBr
 src/lir/ir/nodes_b.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_b.rs:5: fn kind(&self) -> &'static str { "Br" }
@@ -1526,51 +1604,51 @@ src/lir/ir/nodes_c.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(sel
 src/lir/ir/nodes_c.rs:5: fn kind(&self) -> &'static str { "Asm" }
 src/lir/ir/nodes_c.rs:6: fn as_any(&self) -> &dyn std::any::Any { self }
 src/lir/ir/nodes_c.rs:7: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:48: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:51: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:70: impl LirNode for SLirArraySized
-src/lir/ir/nodes_c.rs:71: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:72: fn kind(&self) -> &'static str { "ArraySized" }
-src/lir/ir/nodes_c.rs:73: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:74: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:87: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:90: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:99: impl LirNode for SLirArrayLit
-src/lir/ir/nodes_c.rs:100: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:101: fn kind(&self) -> &'static str { "ArrayLit" }
-src/lir/ir/nodes_c.rs:102: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:103: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:119: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:122: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:133: impl LirNode for SLirIndexAccess
-src/lir/ir/nodes_c.rs:134: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:135: fn kind(&self) -> &'static str { "IndexAccess" }
-src/lir/ir/nodes_c.rs:136: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:137: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:156: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:159: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:167: impl LirNode for SLirVirtualCall
-src/lir/ir/nodes_c.rs:168: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:169: fn kind(&self) -> &'static str { "VirtualCall" }
-src/lir/ir/nodes_c.rs:170: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:171: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:192: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:196: fn serialize(&self, buf: &mut Vec<u8>)
-src/lir/ir/nodes_c.rs:208: impl LirNode for SLirFieldStore
-src/lir/ir/nodes_c.rs:209: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_c.rs:210: fn kind(&self) -> &'static str { "FieldStore" }
-src/lir/ir/nodes_c.rs:211: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_c.rs:212: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_c.rs:252: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_c.rs:255: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:50: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:53: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:74: impl LirNode for SLirArraySized
+src/lir/ir/nodes_c.rs:75: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:76: fn kind(&self) -> &'static str { "ArraySized" }
+src/lir/ir/nodes_c.rs:77: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:78: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:91: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:94: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:103: impl LirNode for SLirArrayLit
+src/lir/ir/nodes_c.rs:104: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:105: fn kind(&self) -> &'static str { "ArrayLit" }
+src/lir/ir/nodes_c.rs:106: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:107: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:123: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:126: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:137: impl LirNode for SLirIndexAccess
+src/lir/ir/nodes_c.rs:138: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:139: fn kind(&self) -> &'static str { "IndexAccess" }
+src/lir/ir/nodes_c.rs:140: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:141: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:160: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:163: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:171: impl LirNode for SLirVirtualCall
+src/lir/ir/nodes_c.rs:172: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:173: fn kind(&self) -> &'static str { "VirtualCall" }
+src/lir/ir/nodes_c.rs:174: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:175: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:196: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:200: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_c.rs:212: impl LirNode for SLirFieldStore
+src/lir/ir/nodes_c.rs:213: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_c.rs:214: fn kind(&self) -> &'static str { "FieldStore" }
+src/lir/ir/nodes_c.rs:215: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_c.rs:216: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_c.rs:256: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_c.rs:259: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/ir/nodes_conv.rs:5: impl LirNode for SLirConv
 src/lir/ir/nodes_conv.rs:6: fn alloca_lines(&self, ctx: &LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_conv.rs:18: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
-src/lir/ir/nodes_conv.rs:19: fn kind(&self) -> &'static str { "Conv" }
-src/lir/ir/nodes_conv.rs:20: fn as_any(&self) -> &dyn std::any::Any { self }
-src/lir/ir/nodes_conv.rs:21: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
-src/lir/ir/nodes_conv.rs:122: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
-src/lir/ir/nodes_conv.rs:125: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_conv.rs:20: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_conv.rs:21: fn kind(&self) -> &'static str { "Conv" }
+src/lir/ir/nodes_conv.rs:22: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_conv.rs:23: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_conv.rs:126: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_conv.rs:129: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/ir/nodes_d.rs:3: impl LirNode for SLirCustom
 src/lir/ir/nodes_d.rs:4: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_d.rs:5: fn kind(&self) -> &'static str { "Custom" }
@@ -1700,6 +1778,13 @@ src/lir/ir/nodes_f.rs:107: fn as_any(&self) -> &dyn std::any::Any { self }
 src/lir/ir/nodes_f.rs:108: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
 src/lir/ir/nodes_f.rs:118: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
 src/lir/ir/nodes_f.rs:121: fn serialize(&self, buf: &mut Vec<u8>)
+src/lir/ir/nodes_load.rs:4: impl LirNode for SLirLoad
+src/lir/ir/nodes_load.rs:5: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
+src/lir/ir/nodes_load.rs:6: fn kind(&self) -> &'static str { "Load" }
+src/lir/ir/nodes_load.rs:7: fn as_any(&self) -> &dyn std::any::Any { self }
+src/lir/ir/nodes_load.rs:8: fn emit(&self, ctx: &mut LirEmitCtx) -> Vec<String>
+src/lir/ir/nodes_load.rs:16: fn display(&self, f: &mut dyn Write) -> std::fmt::Result
+src/lir/ir/nodes_load.rs:19: fn serialize(&self, buf: &mut Vec<u8>)
 src/lir/ir/nodes_structlit.rs:4: impl LirNode for SLirStructLit
 src/lir/ir/nodes_structlit.rs:5: fn clone_node(&self) -> Box<dyn LirNode> { Box::new(self.clone()) }
 src/lir/ir/nodes_structlit.rs:6: fn kind(&self) -> &'static str { "StructLit" }
@@ -1833,23 +1918,23 @@ src/lir/lower/mir_expr.rs:169: fn for_each_child_mut(&mut self, f: &mut dyn FnMu
 src/lir/lower/mir_expr.rs:170: fn is_alloc(&self) -> bool { true }
 src/lir/lower/mir_expr.rs:171: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
 src/lir/lower/mir_expr.rs:172: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr.rs:186: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr.rs:191: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr.rs:192: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-src/lir/lower/mir_expr.rs:195: impl MirNode for SMirVirtualCall
-src/lir/lower/mir_expr.rs:196: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.receiver); for a in &mut self.args { f(a); } }
-src/lir/lower/mir_expr.rs:197: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr.rs:198: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr.rs:215: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr.rs:222: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr.rs:223: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.receiver); for a in &self.args { f(&**a); } }    fn is_call(&self) -> bool { true }
-src/lir/lower/mir_expr.rs:227: impl MirNode for SMirMakeFatPtr
-src/lir/lower/mir_expr.rs:228: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.value); }
-src/lir/lower/mir_expr.rs:229: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr.rs:230: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr.rs:244: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr.rs:249: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr.rs:250: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.value); }
+src/lir/lower/mir_expr.rs:187: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr.rs:192: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr.rs:193: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+src/lir/lower/mir_expr.rs:196: impl MirNode for SMirVirtualCall
+src/lir/lower/mir_expr.rs:197: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.receiver); for a in &mut self.args { f(a); } }
+src/lir/lower/mir_expr.rs:198: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr.rs:199: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr.rs:216: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr.rs:223: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr.rs:224: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.receiver); for a in &self.args { f(&**a); } }    fn is_call(&self) -> bool { true }
+src/lir/lower/mir_expr.rs:228: impl MirNode for SMirMakeFatPtr
+src/lir/lower/mir_expr.rs:229: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.value); }
+src/lir/lower/mir_expr.rs:230: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr.rs:231: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr.rs:245: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr.rs:250: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr.rs:251: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.value); }
 src/lir/lower/mir_expr2.rs:5: impl MirNode for SMirEnumConstruct
 src/lir/lower/mir_expr2.rs:6: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for a in &mut self.args { f(a); } }
 src/lir/lower/mir_expr2.rs:7: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
@@ -1881,51 +1966,51 @@ src/lir/lower/mir_expr2.rs:105: fn object_mut(&mut self) -> Option<&mut MirNodeB
 src/lir/lower/mir_expr2.rs:106: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); }
 src/lir/lower/mir_expr2.rs:107: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
 src/lir/lower/mir_expr2.rs:108: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr2.rs:118: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr2.rs:123: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr2.rs:124: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); }
-src/lir/lower/mir_expr2.rs:125: fn as_field_access(&self) -> Option<(&MirNodeBox, usize)> { Some((&self.object, self.field_index)) }
-src/lir/lower/mir_expr2.rs:128: impl MirNode for SMirStructLiteral
-src/lir/lower/mir_expr2.rs:129: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for (_, e) in &mut self.fields { f(e); } }
-src/lir/lower/mir_expr2.rs:130: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr2.rs:131: fn struct_literal_fields(&self) -> Option<&[(Symbol, MirNodeBox)]> { Some(&self.fields) }
-src/lir/lower/mir_expr2.rs:132: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr2.rs:141: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr2.rs:149: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr2.rs:150: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for (_, e) in &self.fields { f(&**e); } }
-src/lir/lower/mir_expr2.rs:153: impl MirNode for SMirArrayLiteral
-src/lir/lower/mir_expr2.rs:154: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for a in &mut self.elems { f(a); } }
-src/lir/lower/mir_expr2.rs:155: fn is_alloc(&self) -> bool { true }
-src/lir/lower/mir_expr2.rs:156: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr2.rs:157: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr2.rs:168: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr2.rs:173: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr2.rs:174: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for e in &self.elems { f(&**e); } }
-src/lir/lower/mir_expr2.rs:177: impl MirNode for SMirArraySized
-src/lir/lower/mir_expr2.rs:178: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.count); }
-src/lir/lower/mir_expr2.rs:179: fn is_alloc(&self) -> bool { true }
-src/lir/lower/mir_expr2.rs:180: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr2.rs:181: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr2.rs:189: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr2.rs:195: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr2.rs:196: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.count); }
-src/lir/lower/mir_expr2.rs:199: impl MirNode for SMirIndex
-src/lir/lower/mir_expr2.rs:200: fn as_index(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.index)) }
-src/lir/lower/mir_expr2.rs:201: fn object_mut(&mut self) -> Option<&mut MirNodeBox> { Some(&mut self.object) }
-src/lir/lower/mir_expr2.rs:202: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); }
-src/lir/lower/mir_expr2.rs:203: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr2.rs:204: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr2.rs:219: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr2.rs:227: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr2.rs:228: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.index); }
-src/lir/lower/mir_expr2.rs:231: impl MirNode for SMirAsm
-src/lir/lower/mir_expr2.rs:232: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for (_, e) in &mut self.outputs { f(e); } for (_, e) in &mut self.inputs { f(e); } }
-src/lir/lower/mir_expr2.rs:233: fn is_asm(&self) -> bool { true }
-src/lir/lower/mir_expr2.rs:234: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_expr2.rs:235: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_expr2.rs:249: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_expr2.rs:261: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_expr2.rs:262: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode))
+src/lir/lower/mir_expr2.rs:131: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr2.rs:136: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr2.rs:137: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); }
+src/lir/lower/mir_expr2.rs:138: fn as_field_access(&self) -> Option<(&MirNodeBox, usize)> { Some((&self.object, self.field_index)) }
+src/lir/lower/mir_expr2.rs:141: impl MirNode for SMirStructLiteral
+src/lir/lower/mir_expr2.rs:142: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for (_, e) in &mut self.fields { f(e); } }
+src/lir/lower/mir_expr2.rs:143: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr2.rs:144: fn struct_literal_fields(&self) -> Option<&[(Symbol, MirNodeBox)]> { Some(&self.fields) }
+src/lir/lower/mir_expr2.rs:145: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr2.rs:154: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr2.rs:162: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr2.rs:163: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for (_, e) in &self.fields { f(&**e); } }
+src/lir/lower/mir_expr2.rs:166: impl MirNode for SMirArrayLiteral
+src/lir/lower/mir_expr2.rs:167: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for a in &mut self.elems { f(a); } }
+src/lir/lower/mir_expr2.rs:168: fn is_alloc(&self) -> bool { true }
+src/lir/lower/mir_expr2.rs:169: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr2.rs:170: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr2.rs:181: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr2.rs:186: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr2.rs:187: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { for e in &self.elems { f(&**e); } }
+src/lir/lower/mir_expr2.rs:190: impl MirNode for SMirArraySized
+src/lir/lower/mir_expr2.rs:191: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.count); }
+src/lir/lower/mir_expr2.rs:192: fn is_alloc(&self) -> bool { true }
+src/lir/lower/mir_expr2.rs:193: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr2.rs:194: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr2.rs:202: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr2.rs:208: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr2.rs:209: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.count); }
+src/lir/lower/mir_expr2.rs:212: impl MirNode for SMirIndex
+src/lir/lower/mir_expr2.rs:213: fn as_index(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.index)) }
+src/lir/lower/mir_expr2.rs:214: fn object_mut(&mut self) -> Option<&mut MirNodeBox> { Some(&mut self.object) }
+src/lir/lower/mir_expr2.rs:215: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); }
+src/lir/lower/mir_expr2.rs:216: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr2.rs:217: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr2.rs:232: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr2.rs:240: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr2.rs:241: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.index); }
+src/lir/lower/mir_expr2.rs:244: impl MirNode for SMirAsm
+src/lir/lower/mir_expr2.rs:245: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { for (_, e) in &mut self.outputs { f(e); } for (_, e) in &mut self.inputs { f(e); } }
+src/lir/lower/mir_expr2.rs:246: fn is_asm(&self) -> bool { true }
+src/lir/lower/mir_expr2.rs:247: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_expr2.rs:248: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_expr2.rs:262: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_expr2.rs:274: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_expr2.rs:275: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode))
 src/lir/lower/mir_ptr_ops.rs:7: impl MirNode for SMirPtrOffset
 src/lir/lower/mir_ptr_ops.rs:8: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.ptr); f(&mut self.index); }
 src/lir/lower/mir_ptr_ops.rs:9: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
@@ -1978,15 +2063,15 @@ src/lir/lower/mir_ref.rs:105: fn display_stmt(&self, level: usize, w: &mut dyn s
 src/lir/lower/mir_ref.rs:113: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.target); f(&*self.value); }
 src/lir/lower/mir_ref.rs:114: fn deref_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.target, &self.value)) }
 src/lir/lower/mir_ref.rs:118: pub(super) fn lower_field_addr_of(ctx: &mut dyn LirLowerCtx, node: &dyn MirNode) -> Option<LirValue>
-src/lir/lower/mir_ref.rs:149: impl MirNode for SMirMove
-src/lir/lower/mir_ref.rs:150: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
-src/lir/lower/mir_ref.rs:151: fn move_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
-src/lir/lower/mir_ref.rs:152: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
-src/lir/lower/mir_ref.rs:153: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
-src/lir/lower/mir_ref.rs:200: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_ref.rs:205: fn expr_type(&self) -> HirType { self.ty.clone() }
-src/lir/lower/mir_ref.rs:206: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
-src/lir/lower/mir_ref.rs:210: pub(super) fn as_ptr_tmp(ctx: &mut dyn LirLowerCtx, val: LirValue, ty: &HirType) -> u64
+src/lir/lower/mir_ref.rs:172: impl MirNode for SMirMove
+src/lir/lower/mir_ref.rs:173: fn for_each_child_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
+src/lir/lower/mir_ref.rs:174: fn move_expr(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
+src/lir/lower/mir_ref.rs:175: fn clone_node(&self) -> Box<dyn MirNode> { Box::new(self.clone()) }
+src/lir/lower/mir_ref.rs:176: fn lower_to_lir(&self, ctx: &mut dyn LirLowerCtx) -> LirValue
+src/lir/lower/mir_ref.rs:229: fn display(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_ref.rs:234: fn expr_type(&self) -> HirType { self.ty.clone() }
+src/lir/lower/mir_ref.rs:235: fn for_each_child(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }
+src/lir/lower/mir_ref.rs:239: pub(super) fn as_ptr_tmp(ctx: &mut dyn LirLowerCtx, val: LirValue, ty: &HirType) -> u64
 src/lir/lower/mir_stmts.rs:6: impl MirStmtNode for SMirAssignStmt { fn span(&self) -> crate::span::Span { self.span }
 src/lir/lower/mir_stmts.rs:7: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.target); f(&mut self.value); }
 src/lir/lower/mir_stmts.rs:8: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
@@ -1997,51 +2082,51 @@ src/lir/lower/mir_stmts.rs:29: impl MirStmtNode for SMirFieldAssignStmt { fn spa
 src/lir/lower/mir_stmts.rs:30: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.value); }
 src/lir/lower/mir_stmts.rs:31: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
 src/lir/lower/mir_stmts.rs:32: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
-src/lir/lower/mir_stmts.rs:59: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_stmts.rs:67: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.value); }    fn field_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.value)) }
-src/lir/lower/mir_stmts.rs:71: impl MirStmtNode for SMirIndexAssignStmt { fn span(&self) -> crate::span::Span { self.span }
-src/lir/lower/mir_stmts.rs:72: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); f(&mut self.value); }
-src/lir/lower/mir_stmts.rs:73: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-src/lir/lower/mir_stmts.rs:74: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
-src/lir/lower/mir_stmts.rs:87: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_stmts.rs:97: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.index); f(&*self.value); }    fn index_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.index, &self.value)) }
-src/lir/lower/mir_stmts.rs:102: impl MirStmtNode for SMirReturnStmt { fn span(&self) -> crate::span::Span { self.span }
-src/lir/lower/mir_stmts.rs:103: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { if let Some(v) = &mut self.value { f(v); } }
-src/lir/lower/mir_stmts.rs:104: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-src/lir/lower/mir_stmts.rs:105: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
-src/lir/lower/mir_stmts.rs:113: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_stmts.rs:119: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode))
-src/lir/lower/mir_stmts.rs:122: fn is_return(&self) -> bool { true }
-src/lir/lower/mir_stmts.rs:123: fn return_value(&self) -> Option<&MirNodeBox> { self.value.as_ref() }
-src/lir/lower/mir_stmts.rs:126: impl MirStmtNode for SMirIfStmt { fn span(&self) -> crate::span::Span { self.span }
-src/lir/lower/mir_stmts.rs:127: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); for (c, _, _, _) in &mut self.elifs { f(c); } }
-src/lir/lower/mir_stmts.rs:128: fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.then_block { f(s); } for (_, pre, post, b) in &mut self.elifs { for s in pre { f(s); } for s in post { f(s); } for s in b { f(s); } } if let Some(b) = &mut self.else_block { for s in b { f(s); } } }
-src/lir/lower/mir_stmts.rs:129: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-src/lir/lower/mir_stmts.rs:130: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
-src/lir/lower/mir_stmts.rs:147: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_stmts.rs:167: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); for (c, _, _, _) in &self.elifs { f(&**c); } }
-src/lir/lower/mir_stmts.rs:168: fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode))
-src/lir/lower/mir_stmts.rs:176: pub(super) fn lower_elifs(ctx: &mut dyn LirLowerCtx, elifs: &[(MirNodeBox, Vec<MirStmtBox>, Vec<MirStmtBox>, Vec<MirStmtBox>)], else_block: &Option<Vec<MirStmtBox>>, merge_lbl: &str)
-src/lir/lower/mir_stmts.rs:199: impl MirStmtNode for SMirBreakStmt { fn span(&self) -> crate::span::Span { self.span }
-src/lir/lower/mir_stmts.rs:200: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-src/lir/lower/mir_stmts.rs:201: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
-src/lir/lower/mir_stmts.rs:206: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_stmts.rs:212: impl MirStmtNode for SMirContinueStmt { fn span(&self) -> crate::span::Span { self.span }
+src/lir/lower/mir_stmts.rs:72: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_stmts.rs:80: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.value); }    fn field_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.value)) }
+src/lir/lower/mir_stmts.rs:84: impl MirStmtNode for SMirIndexAssignStmt { fn span(&self) -> crate::span::Span { self.span }
+src/lir/lower/mir_stmts.rs:85: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.object); f(&mut self.index); f(&mut self.value); }
+src/lir/lower/mir_stmts.rs:86: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+src/lir/lower/mir_stmts.rs:87: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
+src/lir/lower/mir_stmts.rs:100: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_stmts.rs:110: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.object); f(&*self.index); f(&*self.value); }    fn index_assign_parts(&self) -> Option<(&MirNodeBox, &MirNodeBox, &MirNodeBox)> { Some((&self.object, &self.index, &self.value)) }
+src/lir/lower/mir_stmts.rs:115: impl MirStmtNode for SMirReturnStmt { fn span(&self) -> crate::span::Span { self.span }
+src/lir/lower/mir_stmts.rs:116: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { if let Some(v) = &mut self.value { f(v); } }
+src/lir/lower/mir_stmts.rs:117: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+src/lir/lower/mir_stmts.rs:118: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
+src/lir/lower/mir_stmts.rs:126: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_stmts.rs:132: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode))
+src/lir/lower/mir_stmts.rs:135: fn is_return(&self) -> bool { true }
+src/lir/lower/mir_stmts.rs:136: fn return_value(&self) -> Option<&MirNodeBox> { self.value.as_ref() }
+src/lir/lower/mir_stmts.rs:139: impl MirStmtNode for SMirIfStmt { fn span(&self) -> crate::span::Span { self.span }
+src/lir/lower/mir_stmts.rs:140: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); for (c, _, _, _) in &mut self.elifs { f(c); } }
+src/lir/lower/mir_stmts.rs:141: fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.then_block { f(s); } for (_, pre, post, b) in &mut self.elifs { for s in pre { f(s); } for s in post { f(s); } for s in b { f(s); } } if let Some(b) = &mut self.else_block { for s in b { f(s); } } }
+src/lir/lower/mir_stmts.rs:142: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+src/lir/lower/mir_stmts.rs:143: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
+src/lir/lower/mir_stmts.rs:160: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_stmts.rs:180: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.cond); for (c, _, _, _) in &self.elifs { f(&**c); } }
+src/lir/lower/mir_stmts.rs:181: fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode))
+src/lir/lower/mir_stmts.rs:189: pub(super) fn lower_elifs(ctx: &mut dyn LirLowerCtx, elifs: &[(MirNodeBox, Vec<MirStmtBox>, Vec<MirStmtBox>, Vec<MirStmtBox>)], else_block: &Option<Vec<MirStmtBox>>, merge_lbl: &str)
+src/lir/lower/mir_stmts.rs:212: impl MirStmtNode for SMirBreakStmt { fn span(&self) -> crate::span::Span { self.span }
 src/lir/lower/mir_stmts.rs:213: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
 src/lir/lower/mir_stmts.rs:214: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
 src/lir/lower/mir_stmts.rs:219: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_stmts.rs:225: impl MirStmtNode for SMirExprStmt { fn span(&self) -> crate::span::Span { self.span }
-src/lir/lower/mir_stmts.rs:226: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
-src/lir/lower/mir_stmts.rs:227: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-src/lir/lower/mir_stmts.rs:228: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
-src/lir/lower/mir_stmts.rs:231: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_stmts.rs:236: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }    fn expr_part(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
-src/lir/lower/mir_stmts.rs:240: impl MirStmtNode for SMirBlockStmt { fn span(&self) -> crate::span::Span { self.span }
-src/lir/lower/mir_stmts.rs:241: fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.stmts { f(s); } }
-src/lir/lower/mir_stmts.rs:242: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
-src/lir/lower/mir_stmts.rs:243: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
-src/lir/lower/mir_stmts.rs:246: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
-src/lir/lower/mir_stmts.rs:252: fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.stmts { f(&**s); } }    fn as_block(&self) -> Option<&[MirStmtBox]> { Some(&self.stmts) }
+src/lir/lower/mir_stmts.rs:225: impl MirStmtNode for SMirContinueStmt { fn span(&self) -> crate::span::Span { self.span }
+src/lir/lower/mir_stmts.rs:226: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+src/lir/lower/mir_stmts.rs:227: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
+src/lir/lower/mir_stmts.rs:232: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_stmts.rs:238: impl MirStmtNode for SMirExprStmt { fn span(&self) -> crate::span::Span { self.span }
+src/lir/lower/mir_stmts.rs:239: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.expr); }
+src/lir/lower/mir_stmts.rs:240: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+src/lir/lower/mir_stmts.rs:241: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
+src/lir/lower/mir_stmts.rs:244: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_stmts.rs:249: fn for_each_child_expr(&self, f: &mut dyn FnMut(&dyn MirNode)) { f(&*self.expr); }    fn expr_part(&self) -> Option<&MirNodeBox> { Some(&self.expr) }
+src/lir/lower/mir_stmts.rs:253: impl MirStmtNode for SMirBlockStmt { fn span(&self) -> crate::span::Span { self.span }
+src/lir/lower/mir_stmts.rs:254: fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.stmts { f(s); } }
+src/lir/lower/mir_stmts.rs:255: fn clone_stmt(&self) -> Box<dyn MirStmtNode> { Box::new(self.clone()) }
+src/lir/lower/mir_stmts.rs:256: fn lower_to_lir_stmt(&self, ctx: &mut dyn LirLowerCtx)
+src/lir/lower/mir_stmts.rs:259: fn display_stmt(&self, level: usize, w: &mut dyn std::fmt::Write) -> std::fmt::Result
+src/lir/lower/mir_stmts.rs:265: fn for_each_child_stmt(&self, f: &mut dyn FnMut(&dyn MirStmtNode)) { for s in &self.stmts { f(&**s); } }    fn as_block(&self) -> Option<&[MirStmtBox]> { Some(&self.stmts) }
 src/lir/lower/mir_stmts_loops.rs:5: impl MirStmtNode for SMirWhileStmt { fn span(&self) -> crate::span::Span { self.span }
 src/lir/lower/mir_stmts_loops.rs:6: fn for_each_child_expr_mut(&mut self, f: &mut dyn FnMut(&mut MirNodeBox)) { f(&mut self.cond); }
 src/lir/lower/mir_stmts_loops.rs:7: fn for_each_child_stmt_mut(&mut self, f: &mut dyn FnMut(&mut MirStmtBox)) { for s in &mut self.pre_cond { f(s); } for s in &mut self.post_cond { f(s); } for s in &mut self.body { f(s); } }
@@ -2086,8 +2171,8 @@ src/lir/lower/names.rs:46: pub(crate) fn mangle(prefix: &str, name: &str, params
 src/lir/lower/names.rs:65: pub(crate) fn type_to_mangle(ty: &HirType) -> String
 src/lir/lower/place.rs:8: fn load_ptr_value(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> LirValue
 src/lir/lower/place.rs:21: pub(super) fn place_ptr(expr: &MirNodeBox, ctx: &mut dyn LirLowerCtx) -> Option<LirValue>
-src/lir/lower/place.rs:81: pub(super) fn array_elem_ty(ty: &HirType) -> Option<HirType>
-src/lir/lower/place.rs:94: pub(super) fn array_base_through_ref(ctx: &mut dyn LirLowerCtx, base_tmp: u64, ty: &HirType) -> u64
+src/lir/lower/place.rs:87: pub(super) fn array_elem_ty(ty: &HirType) -> Option<HirType>
+src/lir/lower/place.rs:100: pub(super) fn array_base_through_ref(ctx: &mut dyn LirLowerCtx, base_tmp: u64, ty: &HirType) -> u64
 src/lir/lower/strings.rs:3: pub(super) fn collect_strings(mir: &MirProgram) -> Vec<String>
 src/lir/lower/strings.rs:11: pub(super) fn collect_strings_items(items: &[MirItem], out: &mut Vec<String>)
 src/lir/lower/strings.rs:21: pub(super) fn collect_strings_stmts(stmts: &[MirStmtBox], out: &mut Vec<String>)
@@ -2099,6 +2184,7 @@ src/lir/lower/util.rs:21: pub(super) fn lir_effects(
 src/lir/lower/util.rs:35: pub(super) fn attrs_to_lir(attrs: &[crate::parser::ast::Attr]) -> Vec<LirAttr>
 src/lir/lower/util.rs:43: pub(super) fn display_hir_type(ty: &HirType) -> String
 src/lir/lower/util.rs:47: pub(super) fn extract_var(val: &LirValue) -> VarId
+src/lir/lower/util.rs:58: pub(super) fn chase_ptr_layers(
 src/lir/mod.rs:12: pub mod ir;
 src/lir/mod.rs:13: pub mod lower;
 src/lir/mod.rs:14: pub mod display;
@@ -2106,7 +2192,7 @@ src/lir/mod.rs:15: pub mod emit;
 src/lir/mod.rs:16: pub mod serialize;
 src/lir/serialize/decode.rs:2: impl<'a> Reader<'a>
 src/lir/serialize/decode.rs:3: pub(super) fn inst(&mut self) -> Result<LirNodeBox>
-src/lir/serialize/decode.rs:213: pub(super) fn read_fn(&mut self) -> Result<LirFn>
+src/lir/serialize/decode.rs:216: pub(super) fn read_fn(&mut self) -> Result<LirFn>
 src/lir/serialize/decode_values.rs:5: impl<'a> Reader<'a>
 src/lir/serialize/decode_values.rs:6: pub(super) fn literal(&mut self) -> Result<HirLiteral>
 src/lir/serialize/decode_values.rs:29: pub(super) fn value(&mut self) -> Result<LirValue>
@@ -2142,7 +2228,7 @@ src/mir/borrow/cfg.rs:56: fn seq(&mut self, stmts: &'a [MirStmtBox], next: usize
 src/mir/borrow/cfg.rs:64: fn stmt(&mut self, s: &'a dyn MirStmtNode, next: usize, loops: &[(usize, usize)]) -> usize
 src/mir/borrow/cfg.rs:105: fn stmt_io(s: &dyn MirStmtNode, uses: &mut HashSet<VarId>) -> (HashSet<VarId>, HashSet<VarId>)
 src/mir/borrow/collect.rs:11: pub(super) fn collect(
-src/mir/borrow/collect.rs:229: fn deref_root_var(value: &MirNodeBox) -> Option<(VarId, bool)>
+src/mir/borrow/collect.rs:240: fn deref_root_var(value: &dyn MirNode) -> Option<(VarId, bool)>
 src/mir/borrow/follow.rs:12: pub fn match_source(
 src/mir/borrow/follow.rs:60: pub struct FollowInfo
 src/mir/borrow/follow.rs:65: pub fn build_table(mir: &MirProgram) -> HashMap<FnId, FollowInfo>
@@ -2259,7 +2345,11 @@ src/mir/lower/assign_field.rs:130: fn count_field_idx(
 src/mir/lower/checks.rs:5: impl Ctx
 src/mir/lower/checks.rs:9: pub(super) fn block_diverges(&self, stmts: &[HirStmt]) -> bool
 src/mir/lower/checks.rs:27: pub(super) fn check_use_after_move(&mut self, stmt: &HirStmt)
-src/mir/lower/checks.rs:55: fn walk_stmt_moves(&mut self, expr: &dyn HirNode, sp: Span)
+src/mir/lower/checks.rs:58: fn walk_stmt_moves(&mut self, expr: &dyn HirNode, sp: Span)
+src/mir/lower/checks.rs:92: fn place_root(e: &dyn HirNode) -> Option<VarId>
+src/mir/lower/checks.rs:100: fn type_maybe_generic(t: &HirType) -> bool
+src/mir/lower/checks.rs:111: impl Ctx
+src/mir/lower/checks.rs:112: fn check_move_from_borrow(&mut self, inner: &HirNodeBox, sp: Span)
 src/mir/lower/control.rs:5: impl Ctx
 src/mir/lower/control.rs:6: pub(super) fn lower_if(
 src/mir/lower/control.rs:124: pub(super) fn lower_while(&mut self, cond: &HirNodeBox, body: &HirBlock, span: crate::span::Span) -> Vec<MirStmtBox>
@@ -2314,6 +2404,11 @@ src/mir/mod.rs:8: pub mod lower;
 src/mir/mod.rs:9: pub mod display;
 src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
+src/package/annotate.rs:5: impl Package
+src/package/annotate.rs:8: pub fn validate_annotation_names(&self) -> Result<()>
+src/package/annotate.rs:30: mod tests
+src/package/annotate.rs:34: fn duplicate_annotation_names_across_kinds_rejected()
+src/package/annotate.rs:46: fn distinct_annotation_names_accepted()
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
 src/package/bytes.rs:102: pub fn write_to_file(&self, path: &str) -> Result<()>
@@ -2329,20 +2424,22 @@ src/package/const_codec.rs:75: pub fn lit_from_str(ty: &HirType, s: &str) -> Opt
 src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:133: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:145: pub fn load_version(path: &str) -> Option<String>
-src/package/load.rs:158: pub fn warn_version_drift(path: &str, stem: &str)
-src/package/load.rs:160: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
-src/package/load.rs:178: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:212: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:242: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:135: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
+src/package/load.rs:155: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:167: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:180: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:182: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:200: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:234: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:264: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
-src/package/mod.rs:6: mod bytes;
-src/package/mod.rs:7: pub(crate) mod const_codec;
-src/package/mod.rs:8: mod load;
-src/package/mod.rs:9: mod symbols;
-src/package/mod.rs:10: mod target;
-src/package/mod.rs:11: mod types;
+src/package/mod.rs:6: mod annotate;
+src/package/mod.rs:7: mod bytes;
+src/package/mod.rs:8: pub(crate) mod const_codec;
+src/package/mod.rs:9: mod load;
+src/package/mod.rs:10: mod symbols;
+src/package/mod.rs:11: mod target;
+src/package/mod.rs:12: mod types;
 src/package/symbols.rs:4: impl Package
 src/package/symbols.rs:5: pub fn new(name: String, version: String) -> Self
 src/package/symbols.rs:21: pub fn set_effect_summaries(
@@ -2364,9 +2461,9 @@ src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block
 src/parser/ast/block.rs:14: pub fn new(stmts: Vec<Stmt>, span: Span) -> Self
 src/parser/ast/expr.rs:10: pub enum Expr
-src/parser/ast/expr.rs:131: pub enum MacroArg
-src/parser/ast/expr.rs:136: impl Expr
-src/parser/ast/expr.rs:137: pub fn span(&self) -> Span
+src/parser/ast/expr.rs:133: pub enum MacroArg
+src/parser/ast/expr.rs:138: impl Expr
+src/parser/ast/expr.rs:139: pub fn span(&self) -> Span
 src/parser/ast/literal.rs:4: pub enum Literal
 src/parser/ast/literal.rs:12: impl Literal
 src/parser/ast/literal.rs:13: pub fn span(&self) -> Span
@@ -2435,16 +2532,17 @@ src/parser/parser/core.rs:42: pub(super) fn expect_delimiter(&mut self, d: Delim
 src/parser/parser/core.rs:53: pub(super) fn expect_operator(&mut self, op: &str) -> Result<()>
 src/parser/parser/core.rs:65: pub(super) fn is_stmt_only_keyword(kind: &TokenKind) -> bool
 src/parser/parser/core.rs:77: pub(super) fn is_stmt_start(kind: &TokenKind) -> bool
-src/parser/parser/core.rs:92: pub(super) fn try_semicolon(&mut self) -> Result<()>
-src/parser/parser/core.rs:103: pub(super) fn parse_visibility(&mut self) -> Visibility
-src/parser/parser/core.rs:126: pub(super) fn expect_member_name(&mut self) -> Result<String>
-src/parser/parser/core.rs:141: pub(super) fn is_member_name(kind: &TokenKind) -> bool
-src/parser/parser/core.rs:145: pub(super) fn expect_identifier(&mut self) -> Result<String>
-src/parser/parser/core.rs:163: pub fn parse_program(&mut self) -> Result<Program>
-src/parser/parser/core.rs:171: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
-src/parser/parser/core.rs:228: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
-src/parser/parser/core.rs:246: impl Parser
-src/parser/parser/core.rs:248: pub(super) fn matching_bracket(&self, start: usize) -> Option<usize>
+src/parser/parser/core.rs:93: pub(super) fn line_leading_deref_assign(&self) -> bool
+src/parser/parser/core.rs:109: pub(super) fn try_semicolon(&mut self) -> Result<()>
+src/parser/parser/core.rs:120: pub(super) fn parse_visibility(&mut self) -> Visibility
+src/parser/parser/core.rs:143: pub(super) fn expect_member_name(&mut self) -> Result<String>
+src/parser/parser/core.rs:158: pub(super) fn is_member_name(kind: &TokenKind) -> bool
+src/parser/parser/core.rs:162: pub(super) fn expect_identifier(&mut self) -> Result<String>
+src/parser/parser/core.rs:180: pub fn parse_program(&mut self) -> Result<Program>
+src/parser/parser/core.rs:188: pub(super) fn parse_attr_list(&mut self) -> Result<Vec<crate::parser::ast::Attr>>
+src/parser/parser/core.rs:245: fn parse_attr_arg(&mut self) -> Result<crate::parser::ast::AttrArg>
+src/parser/parser/core.rs:263: impl Parser
+src/parser/parser/core.rs:265: pub(super) fn matching_bracket(&self, start: usize) -> Option<usize>
 src/parser/parser/decl.rs:3: impl Parser
 src/parser/parser/decl.rs:5: pub(super) fn parse_fn_decl(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
 src/parser/parser/decl.rs:10: pub(super) fn parse_fn_decl_unsafe(&mut self, vis: Visibility, is_inline: bool, extern_c: bool, is_unsafe: bool, attrs: Vec<crate::parser::ast::Attr>) -> Result<Stmt>
@@ -2513,8 +2611,8 @@ src/parser/parser/pattern.rs:6: impl Parser
 src/parser/parser/pattern.rs:8: pub(super) fn parse_pattern(&mut self) -> Result<Pattern>
 src/parser/parser/pattern.rs:18: fn parse_pattern_literal(&mut self) -> Result<crate::parser::ast::literal::Literal>
 src/parser/parser/pattern.rs:41: fn parse_pattern_atom(&mut self) -> Result<Pattern>
-src/parser/parser/pattern.rs:121: impl Parser
-src/parser/parser/pattern.rs:123: pub(super) fn parse_match_arm_body(&mut self) -> Result<crate::parser::ast::stmt::MatchBody>
+src/parser/parser/pattern.rs:129: impl Parser
+src/parser/parser/pattern.rs:131: pub(super) fn parse_match_arm_body(&mut self) -> Result<crate::parser::ast::stmt::MatchBody>
 src/parser/parser/self_type.rs:4: pub(super) fn subst_self_in_type(ty: &Type, self_ty: &Type) -> Type
 src/parser/parser/stmt.rs:3: impl Parser
 src/parser/parser/stmt.rs:6: pub(super) fn parse_stmt(&mut self) -> Result<Stmt>
@@ -2527,11 +2625,11 @@ src/parser/parser/types.rs:30: pub(super) fn parse_base_type(&mut self) -> Resul
 src/parser/parser/types.rs:155: pub(super) fn handle_path_sep(&mut self, name_str: &mut String, name_sym: &mut Symbol) -> Result<()>
 src/parser/parser/unary.rs:3: impl Parser
 src/parser/parser/unary.rs:4: pub(super) fn parse_unary(&mut self) -> Result<Expr>
-src/parser/parser/unary.rs:77: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
-src/parser/parser/unary.rs:213: impl Parser
-src/parser/parser/unary.rs:219: pub(super) fn try_parse_generic_call_args(
-src/parser/parser/unary.rs:270: fn is_type_like_arg(t: &Type) -> bool
-src/parser/parser/unary.rs:287: fn is_lowercase_type_name(n: &str) -> bool
+src/parser/parser/unary.rs:87: pub(super) fn parse_postfix(&mut self) -> Result<Expr>
+src/parser/parser/unary.rs:223: impl Parser
+src/parser/parser/unary.rs:229: pub(super) fn try_parse_generic_call_args(
+src/parser/parser/unary.rs:280: fn is_type_like_arg(t: &Type) -> bool
+src/parser/parser/unary.rs:297: fn is_lowercase_type_name(n: &str) -> bool
 src/span.rs:5: pub struct Span
 src/span.rs:14: impl Span
 src/span.rs:15: pub fn new(
@@ -2606,9 +2704,50 @@ example/test_array_param.aya:1: fn sum([int] arr) -> int
 example/test_array_param.aya:5: fn main() -> int
 example/test_arraylist.aya:3: fn main() -> int
 example/test_asm.aya:2: fn main() -> int
+example/test_asm_effects.aya:3: pub fn wrapping_add(int a, int b) -> int
+example/test_asm_effects.aya:11: fn store_mem(*int p, int v) -> void
+example/test_asm_effects.aya:17: fn main() -> int
 example/test_assume.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_assume.aya:7: fn id(int x) -> int { return x }
 example/test_assume.aya:9: fn main() -> int
+example/test_async_await.aya:4: enum Poll[T] { Ready(T), Pending }
+example/test_async_await.aya:5: struct Waker { int id }
+example/test_async_await.aya:6: impl Waker { fn wake(ref self) { } }
+example/test_async_await.aya:7: struct Context { Waker waker }
+example/test_async_await.aya:8: interface Future[T] { fn poll(ref mut self, ref Context cx) -> Poll[T]; }
+example/test_async_await.aya:11: fn inc(int x) -> int
+example/test_async_await.aya:16: fn twice(int x) -> int
+example/test_async_await.aya:22: fn greet() -> String
+example/test_async_await.aya:27: fn exclaim() -> String
+example/test_async_await.aya:33: fn add2(int x) -> int
+example/test_async_await.aya:38: fn chain(int x) -> int
+example/test_async_await.aya:45: fn dep(int x) -> int
+example/test_async_await.aya:52: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_await.aya:66: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_await.aya:79: fn main() -> int
+example/test_async_manual.aya:4: enum Poll[T]
+example/test_async_manual.aya:9: struct Waker
+example/test_async_manual.aya:13: impl Waker
+example/test_async_manual.aya:15: fn wake(ref self)
+example/test_async_manual.aya:19: struct Context
+example/test_async_manual.aya:24: interface Future[T]
+example/test_async_manual.aya:25: fn poll(ref mut self, ref Context cx) -> Poll[T];
+example/test_async_manual.aya:29: struct Countdown
+example/test_async_manual.aya:33: impl Countdown
+example/test_async_manual.aya:35: fn poll(ref mut self, ref Context cx) -> Poll[int]
+example/test_async_manual.aya:46: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_manual.aya:62: fn main() -> int
+example/test_async_sugar.aya:4: enum Poll[T]
+example/test_async_sugar.aya:9: struct Waker
+example/test_async_sugar.aya:13: impl Waker
+example/test_async_sugar.aya:14: fn wake(ref self)
+example/test_async_sugar.aya:18: struct Context
+example/test_async_sugar.aya:22: interface Future[T]
+example/test_async_sugar.aya:23: fn poll(ref mut self, ref Context cx) -> Poll[T];
+example/test_async_sugar.aya:27: fn sum2(int a, int b) -> int
+example/test_async_sugar.aya:32: fn pick(int a, int b, int c) -> int
+example/test_async_sugar.aya:40: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_sugar.aya:53: fn main() -> int
 example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }
 example/test_attrs.aya:9: fn main() -> int
 example/test_bitwise.aya:2: fn shl_u8(u8 a, u8 b) -> u8 { return a << b }
@@ -2653,6 +2792,7 @@ example/test_closure_hof.aya:5: pub fn map[U](self, Fn(T) -> U f) -> Opt[U]
 example/test_closure_hof.aya:13: struct Holder
 example/test_closure_hof.aya:18: fn make_adder(int base) -> Fn(int) -> int
 example/test_closure_hof.aya:22: fn main() -> int
+example/test_closure_unsafe.aya:2: fn main() -> int
 example/test_collection_any.aya:5: enum E
 example/test_collection_any.aya:10: fn main() -> int
 example/test_comments.aya:3: fn main() -> int
@@ -2703,6 +2843,48 @@ example/test_ensures.aya:3: fn abs2(int x) -> int
 example/test_ensures.aya:9: fn inc(int n) -> int { return n + 1 }
 example/test_ensures.aya:12: fn fallthrough() -> int { }
 example/test_ensures.aya:14: fn main() -> int
+example/test_enum_boxed.aya:5: struct Big
+example/test_enum_boxed.aya:11: enum E
+example/test_enum_boxed.aya:16: enum OptBig
+example/test_enum_boxed.aya:23: fn sum(Big x) -> int
+example/test_enum_boxed.aya:27: fn run() -> int
+example/test_enum_boxed.aya:52: fn main() -> int
+example/test_env_allocator.aya:6: fn run() -> int
+example/test_env_allocator.aya:14: fn main() -> int
+example/test_env_block.aya:5: struct FailAlloc { }
+example/test_env_block.aya:7: impl FailAlloc
+example/test_env_block.aya:8: fn alloc(ref self, usize n) -> usize
+example/test_env_block.aya:11: fn free(ref self, usize addr)
+example/test_env_block.aya:15: fn inner[E: Allocator](usize n) -> usize
+example/test_env_block.aya:23: fn run() -> int
+example/test_env_block.aya:35: fn main() -> int
+example/test_env_chain.aya:6: fn inner[E: Allocator](usize n) -> usize
+example/test_env_chain.aya:13: fn middle[E: Allocator](usize n) -> usize
+example/test_env_chain.aya:18: fn run() -> int
+example/test_env_chain.aya:25: fn main() -> int
+example/test_env_custom.aya:6: interface Logger
+example/test_env_custom.aya:7: fn log(ref self, int code) -> int;
+example/test_env_custom.aya:10: struct StdLogger { }
+example/test_env_custom.aya:12: impl StdLogger
+example/test_env_custom.aya:13: fn log(ref self, int code) -> int
+example/test_env_custom.aya:18: struct MuteLogger { }
+example/test_env_custom.aya:20: impl MuteLogger
+example/test_env_custom.aya:21: fn log(ref self, int code) -> int
+example/test_env_custom.aya:27: fn alloc_and_log[E: Allocator, L: Logger](usize n, int code) -> int
+example/test_env_custom.aya:39: fn run() -> int
+example/test_env_custom.aya:53: fn main() -> int
+example/test_env_generic.aya:6: fn alloc_free[E: Allocator](usize n) -> usize
+example/test_env_generic.aya:14: fn run() -> int
+example/test_env_generic.aya:21: fn main() -> int
+example/test_env_pool.aya:5: struct FailAlloc { }
+example/test_env_pool.aya:7: impl FailAlloc
+example/test_env_pool.aya:8: fn alloc(ref self, usize n) -> usize
+example/test_env_pool.aya:11: fn free(ref self, usize addr)
+example/test_env_pool.aya:15: struct Pool[E: Allocator]
+example/test_env_pool.aya:19: impl[E: Allocator] Pool[E]
+example/test_env_pool.aya:20: fn alloc(ref self, usize n) -> usize
+example/test_env_pool.aya:23: fn free(ref self, usize addr)
+example/test_env_pool.aya:28: fn main() -> int
 example/test_extern_out_param.aya:4: fn main() -> int
 example/test_f32.aya:2: fn addf(f32 a, f32 b) -> f32 { return a + b }
 example/test_f32.aya:3: fn take32(f32 x) -> f32 { return x }
@@ -2728,6 +2910,8 @@ example/test_fn_once.aya:9: fn make(int base) -> FnOnce() -> int
 example/test_fn_once.aya:14: fn apply(FnOnce() -> int f) -> int
 example/test_fn_once.aya:18: fn run() -> int
 example/test_fn_once.aya:32: fn main() -> int
+example/test_fn_shadow.aya:4: fn add(int a, int b) -> int
+example/test_fn_shadow.aya:8: fn main() -> int
 example/test_fn_value.aya:2: fn seven() -> int
 example/test_fn_value.aya:6: fn call0(Fn() -> int f) -> int
 example/test_fn_value.aya:10: fn main() -> int
@@ -2928,6 +3112,8 @@ example/test_match_destructure.aya:26: fn destr_rename(Point p) -> int
 example/test_match_destructure.aya:32: fn ranged(int n) -> int
 example/test_match_destructure.aya:41: fn nested_struct(Opt[Point] o) -> int
 example/test_match_destructure.aya:48: fn main() -> int
+example/test_match_dot_variant.aya:4: fn pick(Option[int] o) -> int
+example/test_match_dot_variant.aya:11: fn main() -> int
 example/test_match_expr.aya:5: enum TokenType
 example/test_match_expr.aya:11: impl TokenType
 example/test_match_expr.aya:12: fn to_string(ref self) -> String
@@ -2943,6 +3129,9 @@ example/test_match_literals.aya:51: fn main() -> int
 example/test_match_qualified.aya:4: fn pick(Option[int] o) -> int
 example/test_match_qualified.aya:11: fn nested(Option[Option[int]] o) -> int
 example/test_match_qualified.aya:19: fn main() -> int
+example/test_match_ref_binding.aya:6: fn take_str(ref Option[String] o) -> int
+example/test_match_ref_binding.aya:13: fn take_local(Option[String] o) -> int
+example/test_match_ref_binding.aya:20: fn main() -> int
 example/test_memory.aya:5: fn make() -> int
 example/test_memory.aya:11: fn main() -> int
 example/test_memory_enum.aya:4: enum Maybe
@@ -2985,6 +3174,11 @@ example/test_never.aya:28: fn match_never(Opt[int] o) -> int
 example/test_never.aya:35: fn all_div(bool c) -> int
 example/test_never.aya:39: fn assign_never(bool c) -> int
 example/test_never.aya:44: fn main() -> int
+example/test_niche_option.aya:7: struct Node
+example/test_niche_option.aya:13: fn take_none(Option[Ptr[Node]] o) -> int
+example/test_niche_option.aya:18: fn find(ref Node n, bool ok) -> Option[ref Node]
+example/test_niche_option.aya:25: fn niche_checks() -> int
+example/test_niche_option.aya:56: fn main() -> int
 example/test_nll.aya:4: struct S
 example/test_nll.aya:8: fn f(ref S s) -> int { return s.v }
 example/test_nll.aya:10: fn g(ref mut S s) -> int
@@ -3044,6 +3238,10 @@ example/test_ptr_tree.aya:16: pub fn contains(ref self, int x) -> bool
 example/test_ptr_tree.aya:33: fn main() -> int
 example/test_rawptr.aya:2: struct Box
 example/test_rawptr.aya:8: fn main() -> int
+example/test_rawptr_effects.aya:2: struct Shared
+example/test_rawptr_effects.aya:6: fn write_via_raw(*Shared p) -> void
+example/test_rawptr_effects.aya:12: fn write_via_raw2(*int p) -> void
+example/test_rawptr_effects.aya:18: fn main() -> int
 example/test_rawptr_ops.aya:3: struct Pair
 example/test_rawptr_ops.aya:8: fn main() -> int
 example/test_ref_array.aya:2: fn sum(ref [int] a, int n) -> int
@@ -3057,6 +3255,24 @@ example/test_ref_auto.aya:20: fn via_value(ref mut int i) -> int
 example/test_ref_auto.aya:24: fn total(ref int i, ref mut int acc)
 example/test_ref_auto.aya:28: fn set_hi(ref mut String s)
 example/test_ref_auto.aya:32: fn main() -> int
+example/test_ref_deref.aya:2: fn get(ref int r) -> int
+example/test_ref_deref.aya:6: fn set(ref mut int r, int v) -> void
+example/test_ref_deref.aya:10: fn main() -> int
+example/test_ref_graph.aya:16: struct Idx
+example/test_ref_graph.aya:20: struct Arena[T]
+example/test_ref_graph.aya:27: pub fn with_capacity[T](usize cap) -> Arena[T]
+example/test_ref_graph.aya:32: impl[T] Arena[T]
+example/test_ref_graph.aya:33: pub fn alloc(ref mut self, T v) -> Idx
+example/test_ref_graph.aya:41: pub fn get(ref self, Idx i) -> ref T
+example/test_ref_graph.aya:48: pub fn get_mut(ref mut self, Idx i) -> ref mut T
+example/test_ref_graph.aya:55: pub fn len(ref self) -> usize
+example/test_ref_graph.aya:60: struct Node
+example/test_ref_graph.aya:68: struct Graph
+example/test_ref_graph.aya:74: fn link_id(ref Arena[Node] a, ref Option[Idx] o) -> int
+example/test_ref_graph.aya:84: fn serialize(ref Arena[Node] a) -> String
+example/test_ref_graph.aya:100: fn rebuild(ArrayList[String] lines) -> Graph
+example/test_ref_graph.aya:143: fn roundtrip() -> int
+example/test_ref_graph.aya:186: fn main() -> int
 example/test_ref_param.aya:2: struct Box2
 example/test_ref_param.aya:6: fn get(ref Box2 b) -> int
 example/test_ref_param.aya:10: fn main() -> int
@@ -3076,6 +3292,23 @@ example/test_ref_receiver.aya:15: fn via_ref_mut() -> int
 example/test_ref_receiver.aya:26: fn bare_value_auto_borrow() -> int
 example/test_ref_receiver.aya:32: fn loan_ends_after_last_use() -> int
 example/test_ref_receiver.aya:41: fn main() -> int
+example/test_ref_registry.aya:10: struct Idx
+example/test_ref_registry.aya:15: pub fn copy(Idx i) -> Idx
+example/test_ref_registry.aya:20: struct Arena[T]
+example/test_ref_registry.aya:27: pub fn with_capacity[T](usize cap) -> Arena[T]
+example/test_ref_registry.aya:32: impl[T] Arena[T]
+example/test_ref_registry.aya:33: pub fn alloc(ref mut self, T v) -> Idx
+example/test_ref_registry.aya:41: pub fn get(ref self, Idx i) -> ref T
+example/test_ref_registry.aya:48: pub fn get_mut(ref mut self, Idx i) -> ref mut T
+example/test_ref_registry.aya:57: struct Entry
+example/test_ref_registry.aya:62: struct Registry[T]
+example/test_ref_registry.aya:68: pub fn new[T](usize cap) -> Registry[T]
+example/test_ref_registry.aya:73: impl[T] Registry[T]
+example/test_ref_registry.aya:74: pub fn register(ref mut self, int id, T v) -> bool
+example/test_ref_registry.aya:78: pub fn contains(ref self, int id) -> bool
+example/test_ref_registry.aya:81: pub fn remove(ref mut self, int id) -> bool
+example/test_ref_registry.aya:85: pub fn resolve(ref self, int id) -> ref T
+example/test_ref_registry.aya:94: fn main() -> int
 example/test_ref_return.aya:3: struct S
 example/test_ref_return.aya:7: fn pick(ref S s) -> ref S
 example/test_ref_return.aya:11: fn main() -> int
@@ -3085,6 +3318,12 @@ example/test_ref_self.aya:7: fn get(ref self) -> int
 example/test_ref_self.aya:11: fn inc(ref mut self)
 example/test_ref_self.aya:14: fn into(self) -> int
 example/test_ref_self.aya:19: fn main() -> int
+example/test_ref_self_enum.aya:2: enum Opt2[T]
+example/test_ref_self_enum.aya:7: impl[T] Opt2[T]
+example/test_ref_self_enum.aya:8: fn is_none(ref self) -> bool
+example/test_ref_self_enum.aya:13: fn some(usize x) -> Opt2[usize]
+example/test_ref_self_enum.aya:17: fn none(usize x) -> Opt2[usize]
+example/test_ref_self_enum.aya:22: fn main() -> int
 example/test_release_opt.aya:2: fn sum_squares(int n) -> int
 example/test_release_opt.aya:12: fn bump(ref mut int x) -> int
 example/test_release_opt.aya:18: fn sum_ref(ref [int] a, int n) -> int
@@ -3094,6 +3333,8 @@ example/test_release_opt.aya:38: fn main() -> int
 example/test_requires.aya:3: fn dec(int n) -> int { return n - 1 }
 example/test_requires.aya:7: fn clamp100(int x) -> int { return x }
 example/test_requires.aya:9: fn main() -> int
+example/test_return_in_while.aya:2: fn recv(bool ready) -> int
+example/test_return_in_while.aya:10: fn main() -> int
 example/test_self.aya:1: fn main() -> int
 example/test_self_type.aya:2: interface Maker
 example/test_self_type.aya:3: fn make(ref self) -> Self;
@@ -3153,6 +3394,12 @@ example/test_struct_impl.aya:1: struct Point
 example/test_struct_impl.aya:6: impl Point
 example/test_struct_impl.aya:7: fn get_x(self) -> int
 example/test_struct_impl.aya:12: fn main() -> int
+example/test_sync_block.aya:5: fn normal(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:15: fn early(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:24: fn break_out(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:39: fn cont_out(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:56: fn guarded(ref mut Mutex[int] m) -> int
+example/test_sync_block.aya:66: fn main() -> int
 example/test_tail_expr.aya:2: enum E { A(int), B }
 example/test_tail_expr.aya:4: fn add(int a, int b) -> int
 example/test_tail_expr.aya:8: fn pick(int x) -> int
@@ -3195,6 +3442,8 @@ example/test_usize_index.aya:11: fn main() -> int
 example/test_utf8_string.aya:2: fn main() -> int
 example/test_vis.aya:1: pub fn main() -> int
 example/test_vis2.aya:6: pub fn main() -> int
+example/test_void_generic.aya:2: fn call[U](Fn() -> U f) -> U
+example/test_void_generic.aya:7: fn main() -> int
 example/test_void_return.aya:2: fn note(int v)
 example/test_void_return.aya:10: fn wrap(int x)
 example/test_void_return.aya:14: fn main() -> int
@@ -3203,25 +3452,25 @@ example/test_zero_arg_fn.aya:4: fn main() -> int
 
 ## Selfhost (selfhost/)
 selfhost/src/ast/ast.aya:14: pub enum ST
-selfhost/src/ast/ast.aya:45: pub enum ET
-selfhost/src/ast/ast.aya:77: pub enum TT
-selfhost/src/ast/ast.aya:98: pub enum XT
-selfhost/src/ast/ast.aya:112: pub enum LK
-selfhost/src/ast/ast.aya:121: pub enum BinOp
-selfhost/src/ast/ast.aya:142: pub enum UnOp
-selfhost/src/ast/ast.aya:151: pub fn st(int t) -> int { return 0 + t; }
-selfhost/src/ast/ast.aya:152: pub fn et(int t) -> int { return 100 + t; }
-selfhost/src/ast/ast.aya:153: pub fn xt(int t) -> int { return 200 + t; }
-selfhost/src/ast/ast.aya:154: pub fn tt(int t) -> int { return 300 + t; }
-selfhost/src/ast/ast.aya:155: pub fn lk(int t) -> int { return 400 + t; }
-selfhost/src/ast/ast.aya:156: pub fn bo(int t) -> int { return 500 + t; }
-selfhost/src/ast/ast.aya:157: pub fn uo(int t) -> int { return 600 + t; }
-selfhost/src/ast/ast.aya:159: pub struct Ast
-selfhost/src/ast/ast.aya:173: pub namespace Ast
-selfhost/src/ast/ast.aya:175: pub fn new() -> Ast
-selfhost/src/ast/ast.aya:193: impl Ast
-selfhost/src/ast/ast.aya:197: pub fn push(ref mut self, int tag, ref String text, int ty, int a, int b, int c, int d, int line, int col) -> int
-selfhost/src/ast/ast.aya:215: pub fn push_tail(ref mut self, int head, int node) -> int
+selfhost/src/ast/ast.aya:46: pub enum ET
+selfhost/src/ast/ast.aya:78: pub enum TT
+selfhost/src/ast/ast.aya:99: pub enum XT
+selfhost/src/ast/ast.aya:113: pub enum LK
+selfhost/src/ast/ast.aya:122: pub enum BinOp
+selfhost/src/ast/ast.aya:143: pub enum UnOp
+selfhost/src/ast/ast.aya:152: pub fn st(int t) -> int { return 0 + t; }
+selfhost/src/ast/ast.aya:153: pub fn et(int t) -> int { return 100 + t; }
+selfhost/src/ast/ast.aya:154: pub fn xt(int t) -> int { return 200 + t; }
+selfhost/src/ast/ast.aya:155: pub fn tt(int t) -> int { return 300 + t; }
+selfhost/src/ast/ast.aya:156: pub fn lk(int t) -> int { return 400 + t; }
+selfhost/src/ast/ast.aya:157: pub fn bo(int t) -> int { return 500 + t; }
+selfhost/src/ast/ast.aya:158: pub fn uo(int t) -> int { return 600 + t; }
+selfhost/src/ast/ast.aya:160: pub struct Ast
+selfhost/src/ast/ast.aya:174: pub namespace Ast
+selfhost/src/ast/ast.aya:176: pub fn new() -> Ast
+selfhost/src/ast/ast.aya:194: impl Ast
+selfhost/src/ast/ast.aya:198: pub fn push(ref mut self, int tag, ref String text, int ty, int a, int b, int c, int d, int line, int col) -> int
+selfhost/src/ast/ast.aya:216: pub fn push_tail(ref mut self, int head, int node) -> int
 selfhost/src/ast/dump.aya:8: fn is_digit_d(int c) -> bool
 selfhost/src/ast/dump.aya:13: fn digit_val(int c) -> int
 selfhost/src/ast/dump.aya:21: fn parse_int_text(ref String s) -> int
@@ -3403,85 +3652,85 @@ selfhost/src/driver/imports.aya:465: pub fn merge_source(ref String file) -> Str
 selfhost/src/driver/imports.aya:473: pub fn merge_source_map(ref String file, ref mut SrcMap map) -> String
 selfhost/src/hir/check.aya:14: pub struct CheckOut
 selfhost/src/hir/check.aya:20: pub struct Checker
-selfhost/src/hir/check.aya:103: pub namespace Checker
-selfhost/src/hir/check.aya:106: pub fn new(ref String file, SrcMap smap0) -> Checker
-selfhost/src/hir/check.aya:182: fn is_str_lit(ref Ast ast, int id) -> int
-selfhost/src/hir/check.aya:190: fn is_std_alloc_name(ref String name) -> int
-selfhost/src/hir/check.aya:207: fn is_std_src_path(ref String p) -> bool
-selfhost/src/hir/check.aya:229: fn is_std_state_name(ref String name) -> int
-selfhost/src/hir/check.aya:242: fn str_starts_with(ref String s, ref String prefix) -> bool
-selfhost/src/hir/check.aya:253: fn base_type(ref String t) -> String
-selfhost/src/hir/check.aya:271: fn fx_name_suffix(ref String full, ref String short) -> bool
-selfhost/src/hir/check.aya:278: fn op_method_name(int op) -> String
-selfhost/src/hir/check.aya:294: fn op_disp_name(int op) -> String
-selfhost/src/hir/check.aya:309: fn contains_dot(ref String s) -> bool
-selfhost/src/hir/check.aya:322: pub fn infer_init_ty(ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:358: pub fn type_name(ref Ast ast, int ty) -> String
-selfhost/src/hir/check.aya:412: fn suffix_type(ref String suf) -> String
-selfhost/src/hir/check.aya:420: fn num_rank(ref String t) -> int
-selfhost/src/hir/check.aya:428: fn num_lit_kind(ref Ast ast, int id) -> int
-selfhost/src/hir/check.aya:443: fn is_int_literal(ref Ast ast, int id) -> int
-selfhost/src/hir/check.aya:452: fn is_int_type(ref String t) -> bool
-selfhost/src/hir/check.aya:462: fn pat_variant_name(ref String v) -> String
-selfhost/src/hir/check.aya:485: fn is_prim_type(ref String t) -> bool
-selfhost/src/hir/check.aya:499: fn dec_val(ref String s) -> int
-selfhost/src/hir/check.aya:513: fn scalar_covers(ref String base, ref [int; 64] los, ref [int; 64] his, int n) -> int
-selfhost/src/hir/check.aya:575: fn strip_ref_ty(ref String t) -> String
-selfhost/src/hir/check.aya:582: fn convertible(ref String from, ref String to) -> bool
-selfhost/src/hir/check.aya:619: fn strip_generic(ref String t) -> String
-selfhost/src/hir/check.aya:631: fn is_implicit_param(ref String name) -> bool
-selfhost/src/hir/check.aya:639: fn is_float_ty(ref String t) -> bool
-selfhost/src/hir/check.aya:645: fn is_int_ty(ref String t) -> bool
-selfhost/src/hir/check.aya:659: impl Checker
-selfhost/src/hir/check.aya:663: fn map_pos(ref mut self, int line) -> String
-selfhost/src/hir/check.aya:672: fn err(ref mut self, ref String msg, int line, int col)
-selfhost/src/hir/check.aya:680: fn warn(ref mut self, ref String msg, int line, int col)
-selfhost/src/hir/check.aya:687: fn err_name(ref mut self, ref String prefix, ref String name, int line, int col)
-selfhost/src/hir/check.aya:695: fn find_fn(ref mut self, ref String name) -> int
-selfhost/src/hir/check.aya:707: fn add_fx(ref mut self, ref Ast ast, int id, ref String recv)
-selfhost/src/hir/check.aya:753: fn fx_note_call(ref mut self, ref String name)
-selfhost/src/hir/check.aya:769: fn fx_root_is_ref(ref mut self, ref Ast ast, int id) -> bool
-selfhost/src/hir/check.aya:802: fn fx_infer(ref mut self, ref Ast ast)
-selfhost/src/hir/check.aya:879: fn find_method(ref mut self, ref String recv, ref String name) -> int
-selfhost/src/hir/check.aya:894: fn find_free_fn_recv(ref mut self, ref String name, ref String base) -> int
-selfhost/src/hir/check.aya:908: fn find_struct(ref mut self, ref String name) -> int
-selfhost/src/hir/check.aya:918: fn find_interface(ref mut self, ref String name) -> int
-selfhost/src/hir/check.aya:927: fn has_if_method(ref mut self, int ifi, ref String name) -> bool
-selfhost/src/hir/check.aya:940: fn gp_bound(ref mut self, ref String name) -> String
-selfhost/src/hir/check.aya:949: fn is_gp(ref mut self, ref String name) -> bool
-selfhost/src/hir/check.aya:961: fn load_generics(ref mut self, ref Ast ast, int chain)
-selfhost/src/hir/check.aya:977: fn check_dup_generics(ref mut self, ref Ast ast, int chain, int line, int col)
-selfhost/src/hir/check.aya:996: fn find_field(ref mut self, int st, ref String name) -> int
-selfhost/src/hir/check.aya:1007: fn find_enum(ref mut self, ref String name) -> int
-selfhost/src/hir/check.aya:1018: fn collect_globals(ref mut self, ref Ast ast, int prog)
-selfhost/src/hir/check.aya:1034: fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix)
-selfhost/src/hir/check.aya:1054: fn add_global_ty(ref mut self, ref Ast ast, ref String name, int id)
-selfhost/src/hir/check.aya:1069: fn is_unknown_ty(ref mut self, ref String t) -> bool
-selfhost/src/hir/check.aya:1090: fn is_global(ref mut self, ref String name) -> bool
-selfhost/src/hir/check.aya:1101: fn global_ty(ref mut self, ref String name) -> String
-selfhost/src/hir/check.aya:1110: fn has_variant(ref mut self, int en, ref String name) -> bool
-selfhost/src/hir/check.aya:1123: fn local_type(ref mut self, ref String name) -> String
-selfhost/src/hir/check.aya:1132: fn has_local(ref mut self, ref String name) -> bool
-selfhost/src/hir/check.aya:1143: fn set_local(ref mut self, ref String name, ref String ty)
-selfhost/src/hir/check.aya:1153: fn seed_std(ref mut self)
-selfhost/src/hir/check.aya:1176: fn add_builtin(ref mut self, ref String name)
-selfhost/src/hir/check.aya:1189: fn collect(ref mut self, ref Ast ast, int prog)
-selfhost/src/hir/check.aya:1195: fn collect_recv(ref mut self, ref Ast ast, int prog, ref String recv)
-selfhost/src/hir/check.aya:1230: fn add_fn(ref mut self, ref Ast ast, int id, ref String recv)
-selfhost/src/hir/check.aya:1274: fn add_struct(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1296: fn add_interface(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1317: fn add_enum(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1346: fn check_fn(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1388: fn check_match(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:1587: fn arms_cover_variant(ref mut self, ref Ast ast, int arms, ref String vname) -> bool
-selfhost/src/hir/check.aya:1600: fn check_block(ref mut self, ref Ast ast, int blk)
-selfhost/src/hir/check.aya:1614: fn check_stmt(ref mut self, ref Ast ast, int id)
-selfhost/src/hir/check.aya:1787: fn convert_err(ref mut self, ref String from, ref String to, int line, int col)
-selfhost/src/hir/check.aya:1800: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
-selfhost/src/hir/check.aya:1822: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
-selfhost/src/hir/check.aya:1852: fn check_expr(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/hir/check.aya:2351: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
-selfhost/src/hir/check.aya:2359: pub fn check_program_full(ref Ast ast, int prog, ref String file, SrcMap smap, ref mut CheckOut co, int defer_gen) -> int
+selfhost/src/hir/check.aya:104: pub namespace Checker
+selfhost/src/hir/check.aya:107: pub fn new(ref String file, SrcMap smap0) -> Checker
+selfhost/src/hir/check.aya:184: fn is_str_lit(ref Ast ast, int id) -> int
+selfhost/src/hir/check.aya:192: fn is_std_alloc_name(ref String name) -> int
+selfhost/src/hir/check.aya:209: fn is_std_src_path(ref String p) -> bool
+selfhost/src/hir/check.aya:231: fn is_std_state_name(ref String name) -> int
+selfhost/src/hir/check.aya:244: fn str_starts_with(ref String s, ref String prefix) -> bool
+selfhost/src/hir/check.aya:255: fn base_type(ref String t) -> String
+selfhost/src/hir/check.aya:273: fn fx_name_suffix(ref String full, ref String short) -> bool
+selfhost/src/hir/check.aya:280: fn op_method_name(int op) -> String
+selfhost/src/hir/check.aya:296: fn op_disp_name(int op) -> String
+selfhost/src/hir/check.aya:311: fn contains_dot(ref String s) -> bool
+selfhost/src/hir/check.aya:324: pub fn infer_init_ty(ref Ast ast, int id) -> String
+selfhost/src/hir/check.aya:360: pub fn type_name(ref Ast ast, int ty) -> String
+selfhost/src/hir/check.aya:414: fn suffix_type(ref String suf) -> String
+selfhost/src/hir/check.aya:422: fn num_rank(ref String t) -> int
+selfhost/src/hir/check.aya:430: fn num_lit_kind(ref Ast ast, int id) -> int
+selfhost/src/hir/check.aya:445: fn is_int_literal(ref Ast ast, int id) -> int
+selfhost/src/hir/check.aya:454: fn is_int_type(ref String t) -> bool
+selfhost/src/hir/check.aya:464: fn pat_variant_name(ref String v) -> String
+selfhost/src/hir/check.aya:487: fn is_prim_type(ref String t) -> bool
+selfhost/src/hir/check.aya:501: fn dec_val(ref String s) -> int
+selfhost/src/hir/check.aya:515: fn scalar_covers(ref String base, ref [int; 64] los, ref [int; 64] his, int n) -> int
+selfhost/src/hir/check.aya:577: fn strip_ref_ty(ref String t) -> String
+selfhost/src/hir/check.aya:584: fn convertible(ref String from, ref String to) -> bool
+selfhost/src/hir/check.aya:621: fn strip_generic(ref String t) -> String
+selfhost/src/hir/check.aya:633: fn is_implicit_param(ref String name) -> bool
+selfhost/src/hir/check.aya:641: fn is_float_ty(ref String t) -> bool
+selfhost/src/hir/check.aya:647: fn is_int_ty(ref String t) -> bool
+selfhost/src/hir/check.aya:661: impl Checker
+selfhost/src/hir/check.aya:665: fn map_pos(ref mut self, int line) -> String
+selfhost/src/hir/check.aya:674: fn err(ref mut self, ref String msg, int line, int col)
+selfhost/src/hir/check.aya:682: fn warn(ref mut self, ref String msg, int line, int col)
+selfhost/src/hir/check.aya:689: fn err_name(ref mut self, ref String prefix, ref String name, int line, int col)
+selfhost/src/hir/check.aya:697: fn find_fn(ref mut self, ref String name) -> int
+selfhost/src/hir/check.aya:709: fn add_fx(ref mut self, ref Ast ast, int id, ref String recv)
+selfhost/src/hir/check.aya:755: fn fx_note_call(ref mut self, ref String name)
+selfhost/src/hir/check.aya:771: fn fx_root_is_ref(ref mut self, ref Ast ast, int id) -> bool
+selfhost/src/hir/check.aya:804: fn fx_infer(ref mut self, ref Ast ast)
+selfhost/src/hir/check.aya:881: fn find_method(ref mut self, ref String recv, ref String name) -> int
+selfhost/src/hir/check.aya:896: fn find_free_fn_recv(ref mut self, ref String name, ref String base) -> int
+selfhost/src/hir/check.aya:910: fn find_struct(ref mut self, ref String name) -> int
+selfhost/src/hir/check.aya:920: fn find_interface(ref mut self, ref String name) -> int
+selfhost/src/hir/check.aya:929: fn has_if_method(ref mut self, int ifi, ref String name) -> bool
+selfhost/src/hir/check.aya:942: fn gp_bound(ref mut self, ref String name) -> String
+selfhost/src/hir/check.aya:951: fn is_gp(ref mut self, ref String name) -> bool
+selfhost/src/hir/check.aya:963: fn load_generics(ref mut self, ref Ast ast, int chain)
+selfhost/src/hir/check.aya:979: fn check_dup_generics(ref mut self, ref Ast ast, int chain, int line, int col)
+selfhost/src/hir/check.aya:998: fn find_field(ref mut self, int st, ref String name) -> int
+selfhost/src/hir/check.aya:1009: fn find_enum(ref mut self, ref String name) -> int
+selfhost/src/hir/check.aya:1020: fn collect_globals(ref mut self, ref Ast ast, int prog)
+selfhost/src/hir/check.aya:1036: fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix)
+selfhost/src/hir/check.aya:1056: fn add_global_ty(ref mut self, ref Ast ast, ref String name, int id)
+selfhost/src/hir/check.aya:1071: fn is_unknown_ty(ref mut self, ref String t) -> bool
+selfhost/src/hir/check.aya:1092: fn is_global(ref mut self, ref String name) -> bool
+selfhost/src/hir/check.aya:1103: fn global_ty(ref mut self, ref String name) -> String
+selfhost/src/hir/check.aya:1112: fn has_variant(ref mut self, int en, ref String name) -> bool
+selfhost/src/hir/check.aya:1125: fn local_type(ref mut self, ref String name) -> String
+selfhost/src/hir/check.aya:1134: fn has_local(ref mut self, ref String name) -> bool
+selfhost/src/hir/check.aya:1145: fn set_local(ref mut self, ref String name, ref String ty)
+selfhost/src/hir/check.aya:1155: fn seed_std(ref mut self)
+selfhost/src/hir/check.aya:1178: fn add_builtin(ref mut self, ref String name)
+selfhost/src/hir/check.aya:1191: fn collect(ref mut self, ref Ast ast, int prog)
+selfhost/src/hir/check.aya:1197: fn collect_recv(ref mut self, ref Ast ast, int prog, ref String recv)
+selfhost/src/hir/check.aya:1232: fn add_fn(ref mut self, ref Ast ast, int id, ref String recv)
+selfhost/src/hir/check.aya:1276: fn add_struct(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1298: fn add_interface(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1319: fn add_enum(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1348: fn check_fn(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1390: fn check_match(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/hir/check.aya:1589: fn arms_cover_variant(ref mut self, ref Ast ast, int arms, ref String vname) -> bool
+selfhost/src/hir/check.aya:1602: fn check_block(ref mut self, ref Ast ast, int blk)
+selfhost/src/hir/check.aya:1616: fn check_stmt(ref mut self, ref Ast ast, int id)
+selfhost/src/hir/check.aya:1806: fn convert_err(ref mut self, ref String from, ref String to, int line, int col)
+selfhost/src/hir/check.aya:1819: fn arg_types_str(ref mut self, ref Ast ast, int args) -> String
+selfhost/src/hir/check.aya:1841: fn check_path(ref mut self, ref Ast ast, ref String full, int line, int col) -> bool
+selfhost/src/hir/check.aya:1871: fn check_expr(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/hir/check.aya:2373: pub fn check_program(ref Ast ast, int prog, ref String file, SrcMap smap) -> int
+selfhost/src/hir/check.aya:2381: pub fn check_program_full(ref Ast ast, int prog, ref String file, SrcMap smap, ref mut CheckOut co, int defer_gen) -> int
 selfhost/src/lexer/lexer.aya:8: pub struct Lexer
 selfhost/src/lexer/lexer.aya:17: pub namespace Lexer
 selfhost/src/lexer/lexer.aya:20: pub fn new(ref String src) -> Lexer
@@ -3512,253 +3761,260 @@ selfhost/src/lexer/token.aya:181: pub fn d_name(int k) -> String
 selfhost/src/lexer/token.aya:200: pub fn token_display(ref Token t) -> String
 selfhost/src/lir/emit.aya:8: pub struct Val
 selfhost/src/lir/emit.aya:15: pub struct Emitter
-selfhost/src/lir/emit.aya:213: pub namespace Emitter
-selfhost/src/lir/emit.aya:215: pub fn new() -> Emitter
-selfhost/src/lir/emit.aya:261: fn ty_name(ref Ast ast, int t) -> String
-selfhost/src/lir/emit.aya:289: fn unwrap_ty(ref Ast ast, int ty) -> int
-selfhost/src/lir/emit.aya:302: fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String
-selfhost/src/lir/emit.aya:357: fn fmin_text(ref String tn) -> String
-selfhost/src/lir/emit.aya:369: fn fmax_text(ref String tn) -> String
-selfhost/src/lir/emit.aya:380: fn int_ty_llvm(ref String tn) -> String
-selfhost/src/lir/emit.aya:388: fn int_ty_signed(ref String tn) -> int
-selfhost/src/lir/emit.aya:394: fn const_int(ref Ast ast, int id) -> String
-selfhost/src/lir/emit.aya:449: fn int_text_ok(ref String t) -> String
-selfhost/src/lir/emit.aya:456: fn str_to_int_ok(ref String t) -> int
-selfhost/src/lir/emit.aya:501: fn ptr_operand(ref String a) -> String
-selfhost/src/lir/emit.aya:506: fn int_str2(int v) -> String
-selfhost/src/lir/emit.aya:512: fn mk_int(ref String t) -> Val
-selfhost/src/lir/emit.aya:517: fn mk_arr(ref String ptr, int ety) -> Val
-selfhost/src/lir/emit.aya:521: fn mk_str(ref String ptr, int len) -> Val
-selfhost/src/lir/emit.aya:528: fn fn_type_params(ref Ast ast, int fty) -> int
-selfhost/src/lir/emit.aya:538: fn fn_type_ret(ref Ast ast, int fty) -> int
-selfhost/src/lir/emit.aya:548: fn float_operand(ref Val v, ref mut Emitter e) -> String
-selfhost/src/lir/emit.aya:560: fn fcmp_op(int op) -> String
-selfhost/src/lir/emit.aya:571: fn mk_float(ref String a) -> Val
-selfhost/src/lir/emit.aya:576: fn float_text(ref String t) -> String
-selfhost/src/lir/emit.aya:612: fn mk_str_tmp(ref String ptr, ref String len_tmp) -> Val
-selfhost/src/lir/emit.aya:617: fn emit_not(ref Val v, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:634: fn emit_str_eq(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:692: fn str_of_val(ref Val v, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:748: fn emit_str_concat(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:787: fn emit_str_slice(ref Val sv, ref String start, ref String end, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:817: impl Emitter
-selfhost/src/lir/emit.aya:820: fn fresh(ref mut self) -> String
-selfhost/src/lir/emit.aya:828: fn local_kind(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:838: fn find_elem(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:851: fn declare_array_local(ref mut self, ref String name, int ety)
-selfhost/src/lir/emit.aya:867: fn ref_string_temp(ref mut self, ref Val v) -> String
-selfhost/src/lir/emit.aya:898: fn subst_elem_ty(ref mut self, int ety) -> int
-selfhost/src/lir/emit.aya:904: fn record_etype(ref mut self, ref String name, int ety)
-selfhost/src/lir/emit.aya:915: fn elem_of_local(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:920: fn etype_of_local(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:934: fn declare_local(ref mut self, ref String name, int kind)
-selfhost/src/lir/emit.aya:968: fn emit_local_storage(ref mut self, ref String name, int form)
-selfhost/src/lir/emit.aya:1002: fn struct_of_local(ref mut self, ref String name) -> String
-selfhost/src/lir/emit.aya:1019: fn param_kind(ref mut self, ref Ast ast, int p) -> int
-selfhost/src/lir/emit.aya:1076: fn ret_kind(ref mut self, ref Ast ast, int rty) -> int
-selfhost/src/lir/emit.aya:1120: fn ret_info(ref mut self, ref Ast ast, int rty) -> int
-selfhost/src/lir/emit.aya:1154: fn ret_llvm_code(ref mut self, ref Ast ast, int rty) -> int
-selfhost/src/lir/emit.aya:1165: fn record_ftype(ref mut self, ref String name, int fty)
-selfhost/src/lir/emit.aya:1176: fn ftype_of_local(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1188: fn global_idx(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1198: fn decl_has(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1208: fn lam_index_of(ref mut self, int id) -> int
-selfhost/src/lir/emit.aya:1220: fn cap_add(ref mut self, int li, ref String name, int kind, int ety, int cid)
-selfhost/src/lir/emit.aya:1241: fn add_env_global(ref mut self, ref String prefix, ref String code_name) -> String
-selfhost/src/lir/emit.aya:1263: fn record_assign_ftype(ref mut self, ref Ast ast, ref String nm, int rhs)
-selfhost/src/lir/emit.aya:1317: fn pk_of_ty(ref mut self, ref Ast ast, int pt) -> int
-selfhost/src/lir/emit.aya:1366: fn closure_param_kind(ref mut self, ref Ast ast, int fty, int i) -> int
-selfhost/src/lir/emit.aya:1380: fn fn_first_id(ref mut self, ref String fname) -> int
-selfhost/src/lir/emit.aya:1389: fn fn_ret_llvm(ref mut self, ref String fname) -> int
-selfhost/src/lir/emit.aya:1401: fn fn_ret_type(ref mut self, ref String fname) -> int
-selfhost/src/lir/emit.aya:1413: fn method_ret_type(ref mut self, ref String ty, ref String name) -> int
-selfhost/src/lir/emit.aya:1429: fn lam_param_of(ref mut self, ref Ast ast, int li, ref String name) -> int
-selfhost/src/lir/emit.aya:1441: fn collect_lambdas(ref mut self, ref Ast ast)
-selfhost/src/lir/emit.aya:1458: fn collect_globals(ref mut self, ref Ast ast, int prog)
-selfhost/src/lir/emit.aya:1474: fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix)
-selfhost/src/lir/emit.aya:1494: fn const_eval_g(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/lir/emit.aya:1548: fn ct_set(ref mut self, ref String name, int v)
-selfhost/src/lir/emit.aya:1565: fn ct_get(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1574: fn ct_find(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1585: fn add_global(ref mut self, ref Ast ast, ref String name, int id)
-selfhost/src/lir/emit.aya:1720: fn global_kind(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1731: fn global_val(ref mut self, ref String name) -> String
-selfhost/src/lir/emit.aya:1740: fn find_struct_idx(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:1749: fn find_field_idx(ref mut self, ref String stname, ref String fname) -> int
-selfhost/src/lir/emit.aya:1762: fn fkind_at(ref mut self, int si, int idx) -> int
-selfhost/src/lir/emit.aya:1767: fn finfo_at(ref mut self, int si, int idx) -> int
-selfhost/src/lir/emit.aya:1772: fn fslot_at(ref mut self, int si, int idx) -> int
-selfhost/src/lir/emit.aya:1777: fn ftype_at(ref mut self, int si, int idx) -> int
-selfhost/src/lir/emit.aya:1782: fn find_method_id(ref mut self, ref String ty, ref String name) -> int
-selfhost/src/lir/emit.aya:1798: fn reg_iface(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:1821: fn iface_method_idx(ref mut self, int ii, ref String name) -> int
-selfhost/src/lir/emit.aya:1834: fn iface_method_node_at(ref mut self, int ii, int mi) -> int
-selfhost/src/lir/emit.aya:1843: fn iface_param_kind(ref mut self, ref Ast ast, int mnode, int i) -> int
-selfhost/src/lir/emit.aya:1857: fn iface_param_name(ref mut self, ref Ast ast, int mnode, int i) -> String
-selfhost/src/lir/emit.aya:1870: fn fn_piface_of(ref mut self, ref String fname, int i) -> int
-selfhost/src/lir/emit.aya:1884: fn type_impls_iface(ref mut self, ref String ty, int ii) -> int
-selfhost/src/lir/emit.aya:1900: fn concrete_impl_name(ref mut self, ref Val v, ref String iface) -> String
-selfhost/src/lir/emit.aya:1931: fn emit_box(ref mut self, ref Val v, ref String iface) -> String
-selfhost/src/lir/emit.aya:2007: fn reg_vtable(ref mut self, ref String ty, ref String iface)
-selfhost/src/lir/emit.aya:2024: fn emit_vtables(ref mut self)
-selfhost/src/lir/emit.aya:2062: fn find_iface_idx(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:2073: fn method_ty_of(ref mut self, int mid) -> String
-selfhost/src/lir/emit.aya:2084: fn find_method_any(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:2093: fn reg_struct(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:2108: fn fill_union(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:2173: fn fill_struct(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:2234: fn add_method(ref mut self, ref Ast ast, ref String ty, int fid)
-selfhost/src/lir/emit.aya:2245: fn find_enum_idx(ref mut self, ref String name) -> int
-selfhost/src/lir/emit.aya:2254: fn find_variant_idx(ref mut self, int ei, ref String vname) -> int
-selfhost/src/lir/emit.aya:2265: fn enum_max_arity(ref mut self, int ei) -> int
-selfhost/src/lir/emit.aya:2277: fn variant_arity(ref mut self, int ei, int vi) -> int
-selfhost/src/lir/emit.aya:2282: fn variant_ptype(ref mut self, int ei, int vi, int k) -> int
-selfhost/src/lir/emit.aya:2291: fn payload_slot(ref mut self, ref Ast ast, int ei, int vi, int k) -> int
-selfhost/src/lir/emit.aya:2309: fn add_enum(ref mut self, ref Ast ast, int id)
-selfhost/src/lir/emit.aya:2353: fn add_fn_sig(ref mut self, ref Ast ast, int id, ref String prefix)
-selfhost/src/lir/emit.aya:2402: fn fn_sym(ref mut self, ref String fname) -> String
-selfhost/src/lir/emit.aya:2417: fn elem_llvm_m(ref mut self, ref Ast ast, int ety) -> String
-selfhost/src/lir/emit.aya:2439: fn fn_pick_by_kind(ref mut self, ref String fname, int k0) -> int
-selfhost/src/lir/emit.aya:2461: fn fn_pick_by_tyname(ref mut self, ref Ast ast, ref String fname, ref String tname) -> int
-selfhost/src/lir/emit.aya:2486: fn fn_ord_at(ref mut self, int fi) -> int
-selfhost/src/lir/emit.aya:2499: fn fn_pk_at(ref mut self, int fi, int k) -> int
-selfhost/src/lir/emit.aya:2506: fn fn_rt_at(ref mut self, int fi) -> int
-selfhost/src/lir/emit.aya:2512: fn fn_count_name(ref mut self, ref String fname) -> int
-selfhost/src/lir/emit.aya:2523: fn fn_idx_of_node(ref mut self, ref String fname, int node) -> int
-selfhost/src/lir/emit.aya:2536: fn fn_sym_ord(ref mut self, ref String fname, int idx) -> String
-selfhost/src/lir/emit.aya:2549: fn fn_ord_of_node(ref mut self, ref String fname, int node) -> int
-selfhost/src/lir/emit.aya:2565: fn implicit_args_m(ref mut self, ref Ast ast, int id, int fnode, int start, int first) -> String
-selfhost/src/lir/emit.aya:2600: fn pointee_size(ref mut self, ref String tn) -> int
-selfhost/src/lir/emit.aya:2611: fn layout_builtin_val(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/lir/emit.aya:2664: fn struct_gparam(ref mut self, ref Ast ast, ref String nm) -> String
-selfhost/src/lir/emit.aya:2678: fn enum_gparam(ref mut self, ref Ast ast, int ei) -> String
-selfhost/src/lir/emit.aya:2705: fn is_union_name(ref mut self, ref Ast ast, ref String nm) -> bool
-selfhost/src/lir/emit.aya:2717: fn layout_enc(ref mut self, ref Ast ast, int ty) -> int
-selfhost/src/lir/emit.aya:2723: fn layout_enc_s(ref mut self, ref Ast ast, int ty, ref String pn, int pa) -> int
-selfhost/src/lir/emit.aya:2782: fn layout_struct_s(ref mut self, ref Ast ast, int si, ref String pn, int pa) -> int
-selfhost/src/lir/emit.aya:2812: fn layout_enum_s(ref mut self, ref Ast ast, int ei, ref String pn, int pa) -> int
-selfhost/src/lir/emit.aya:2844: fn fn_param_kind(ref mut self, ref String fname, int i) -> int
-selfhost/src/lir/emit.aya:2860: fn collect_decls(ref mut self, ref Ast ast, int prog)
-selfhost/src/lir/emit.aya:2937: fn marker_name(ref mut self, int m) -> String
-selfhost/src/lir/emit.aya:2951: fn marker_base(ref mut self, int m) -> String
-selfhost/src/lir/emit.aya:2960: fn marker_of_name(ref mut self, ref String nm) -> int
-selfhost/src/lir/emit.aya:2976: fn val_marker(ref mut self, ref Ast ast, ref Val v) -> int
-selfhost/src/lir/emit.aya:2997: fn note_local_src(ref mut self, ref String nm, ref String src)
-selfhost/src/lir/emit.aya:3014: fn local_src_of(ref mut self, ref String nm) -> String
-selfhost/src/lir/emit.aya:3025: fn arg_name_of(ref mut self, ref Ast ast, int arg) -> String
-selfhost/src/lir/emit.aya:3032: fn find_enum_inst(ref mut self, ref Ast ast, int ei_src, int arg) -> int
-selfhost/src/lir/emit.aya:3048: fn fill_enum_inst(ref mut self, ref Ast ast, int ei_src, int arg) -> int
-selfhost/src/lir/emit.aya:3110: fn type_has_gparam(ref mut self, ref Ast ast, int ty) -> bool
-selfhost/src/lir/emit.aya:3137: fn type_is_gparam(ref mut self, ref Ast ast, int arg) -> bool
-selfhost/src/lir/emit.aya:3149: fn is_gparam(ref mut self, ref String name) -> bool
-selfhost/src/lir/emit.aya:3161: fn add_inst(ref mut self, ref String key, int arg_ty)
-selfhost/src/lir/emit.aya:3179: fn add_inst2(ref mut self, ref String key, int arg_ty, int arg_ty2)
-selfhost/src/lir/emit.aya:3201: fn type_arg_name(ref mut self, ref Ast ast, int arg) -> String
-selfhost/src/lir/emit.aya:3231: fn note_type_inst(ref mut self, ref Ast ast, int ty)
-selfhost/src/lir/emit.aya:3261: fn collect_instances(ref mut self, ref Ast ast)
-selfhost/src/lir/emit.aya:3545: fn fill_struct_inst(ref mut self, ref Ast ast, int si_src, int arg_ty, int arg_ty2)
-selfhost/src/lir/emit.aya:3552: fn fill_struct_inst4(ref mut self, ref Ast ast, int si_src, int arg_ty, int arg_ty2, int arg_ty3, int arg_ty4)
-selfhost/src/lir/emit.aya:3741: fn string_ref_temp(ref mut self, ref String nm) -> String
-selfhost/src/lir/emit.aya:3784: fn flush_string_refs(ref mut self)
-selfhost/src/lir/emit.aya:3826: fn infer_static_ty(ref mut self, ref Ast ast, int id) -> int
-selfhost/src/lir/emit.aya:3884: fn infer_note_call(ref mut self, int node, int ty)
-selfhost/src/lir/emit.aya:3892: fn infer_call_ty_of(ref mut self, int node) -> int
-selfhost/src/lir/emit.aya:3904: fn infer_expr_ty(ref mut self, ref Ast ast, int id) -> int
-selfhost/src/lir/emit.aya:3996: fn infer_ptr_elem(ref mut self, ref Ast ast, int expr) -> int
-selfhost/src/lir/emit.aya:4017: fn infer_literal_inst(ref mut self, ref Ast ast, int id) -> String
-selfhost/src/lir/emit.aya:4075: fn infer_ctor_arg(ref mut self, ref Ast ast, int id) -> int
-selfhost/src/lir/emit.aya:4090: fn infer_through(ref mut self, ref Ast ast, int pty0, int arg, ref String gp) -> int
-selfhost/src/lir/emit.aya:4129: fn infer_call_arg(ref mut self, ref Ast ast, int fnode, int args) -> int
-selfhost/src/lir/emit.aya:4159: fn infer_call_all(ref mut self, ref Ast ast, int fnode, int args) -> int
-selfhost/src/lir/emit.aya:4226: fn infer_bound_propagate(ref mut self, ref Ast ast, int fnode, int gpnode, int marker) -> int
-selfhost/src/lir/emit.aya:4255: fn resolve_inf_arg(ref mut self, ref Ast ast, int t) -> int
-selfhost/src/lir/emit.aya:4275: fn infer_from_bound(ref mut self, ref Ast ast, int gpnode, int marker, ref String other_gp) -> int
-selfhost/src/lir/emit.aya:4326: fn impl_gparam(ref mut self, ref Ast ast, ref String prefix) -> String
-selfhost/src/lir/emit.aya:4342: fn ret_kind_with2(ref mut self, ref Ast ast, int rty, ref String p1, int a1, ref String p2, int a2) -> int
-selfhost/src/lir/emit.aya:4360: fn ret_kind_with(ref mut self, ref Ast ast, int rty, ref String pname, int arg_ty) -> int
-selfhost/src/lir/emit.aya:4374: fn impl_gparam2(ref mut self, ref Ast ast, ref String prefix) -> String
-selfhost/src/lir/emit.aya:4394: fn find_struct_inst_name(ref mut self, ref Ast ast, int si_src, int arg_ty) -> String
-selfhost/src/lir/emit.aya:4419: fn spec_register(ref mut self, ref Ast ast, int node, ref String prefix, int arg_ty, ref String self_ty) -> int
-selfhost/src/lir/emit.aya:4426: fn spec_register2(ref mut self, ref Ast ast, int node, ref String prefix, int arg_ty, int arg_ty2, ref String self_ty) -> int
-selfhost/src/lir/emit.aya:4433: fn spec_register4(ref mut self, ref Ast ast, int node, ref String prefix, int a1, int a2, int a3, int a4, ref String self_ty) -> int
-selfhost/src/lir/emit.aya:4483: fn impl_gparam_n(ref mut self, ref Ast ast, ref String prefix, int idx) -> String
-selfhost/src/lir/emit.aya:4506: fn emit_specializations(ref mut self, ref Ast ast)
-selfhost/src/lir/emit.aya:4546: fn add_str(ref mut self, ref String text) -> int
-selfhost/src/lir/emit.aya:4557: fn escape_ir(ref String s) -> String
-selfhost/src/lir/emit.aya:4586: fn hex_digit(int v) -> char
-selfhost/src/lir/emit.aya:4591: fn bin_llvm_op(int op) -> String
-selfhost/src/lir/emit.aya:4606: fn op_method_name(int op) -> String
-selfhost/src/lir/emit.aya:4628: fn emit_op_method_call(ref Ast ast, int id, ref Val lt, ref String mn, int mid, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:4713: fn find_fn_by_recv(ref mut Emitter e, ref Ast ast, ref String name, ref String recv_ty) -> int
-selfhost/src/lir/emit.aya:4734: fn emit_ufcs_call(ref Ast ast, int id, ref Val obj, ref String name, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:4897: fn emit_forin_next(ref Ast ast, ref String it_nm, int it_kind, ref String it_ty, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:5016: fn emit_variant_payload(ref Ast ast, ref String opt_a, ref String en_name, ref String variant, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:5090: fn emit_iface_dispatch(ref Ast ast, int args_head, ref Val obj, int ii, int mi, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:5239: fn cmp_llvm_op(int op) -> String
-selfhost/src/lir/emit.aya:5249: fn is_cmp(int op) -> bool
-selfhost/src/lir/emit.aya:5261: fn elem_slot(ref Ast ast, int ty) -> String
-selfhost/src/lir/emit.aya:5289: fn elem_llvm(ref Ast ast, int ty) -> String
-selfhost/src/lir/emit.aya:5294: fn elem_bytes(ref Ast ast, int ty) -> int
-selfhost/src/lir/emit.aya:5303: fn elem_stride(ref Ast ast, int ety) -> int
-selfhost/src/lir/emit.aya:5313: fn align_up(int x, int a) -> int
-selfhost/src/lir/emit.aya:5319: fn elem_addr(ref mut Emitter e, int stride, ref String base, ref String idx) -> String
-selfhost/src/lir/emit.aya:5340: fn elem_is_string(ref Ast ast, int ty) -> bool
-selfhost/src/lir/emit.aya:5353: fn elem_type_of(ref Ast ast, int id) -> int
-selfhost/src/lir/emit.aya:5369: impl Emitter
-selfhost/src/lir/emit.aya:5372: fn elem_type_of_m(ref mut self, ref Ast ast, int id) -> int
-selfhost/src/lir/emit.aya:5404: fn pat_name(ref String p) -> String
-selfhost/src/lir/emit.aya:5416: fn pat_binds(ref String p) -> String
-selfhost/src/lir/emit.aya:5428: fn pat_short(ref String p) -> String
-selfhost/src/lir/emit.aya:5442: fn pat_enum(ref String p) -> String
-selfhost/src/lir/emit.aya:5455: fn contains_dot2(ref String s) -> bool
-selfhost/src/lir/emit.aya:5464: fn label(ref mut Emitter e, ref String prefix) -> String
-selfhost/src/lir/emit.aya:5475: fn emit_protocol_deref(ref Ast ast, ref Val obj, ref String mn, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:5532: fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:5619: fn enum_store_payload(ref Ast ast, int ei, int vi, int k, ref String ename, ref String t, ref Val v, ref mut Emitter e)
-selfhost/src/lir/emit.aya:5678: fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:5843: fn emit_pat_inner_check(ref Ast ast, int arm, ref Val sc, ref String nxt, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:5908: fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e)
-selfhost/src/lir/emit.aya:6253: fn tail_is_float(ref Ast ast, int blk) -> int
-selfhost/src/lir/emit.aya:6270: fn emit_if_branch(ref Ast ast, int blk, ref String res, int want_float, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:6318: fn store_match_val(ref Val tv, ref String res, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:6371: fn unpack_str_res(ref String slot_i64, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:6397: fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:6499: fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val
-selfhost/src/lir/emit.aya:6667: fn emit_indirect_call(ref Ast ast, ref String fval, int fty, int args, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:6749: fn emit_lambda_value(ref Ast ast, int id, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:6874: fn cap_scan_list(ref Ast ast, int id, int li, ref mut Emitter e)
-selfhost/src/lir/emit.aya:6882: fn bb_is_child(int tag) -> int
-selfhost/src/lir/emit.aya:6891: fn ccdd_is_child(int tag) -> int
-selfhost/src/lir/emit.aya:6900: fn cap_scan_node(ref Ast ast, int id, int li, ref mut Emitter e)
-selfhost/src/lir/emit.aya:6937: fn emit_prelude_int1(ref String fname, ref String arg, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:6951: fn emit_prelude_str(ref String fname, ref Val s, ref Val arg, int has_arg, int rk, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:6994: fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:7118: fn emit_globals_init(ref Ast ast, ref mut Emitter e)
-selfhost/src/lir/emit.aya:7171: fn dec_val_e(ref String s) -> int
-selfhost/src/lir/emit.aya:7187: fn ct_binop(int op, int a, int b) -> int
-selfhost/src/lir/emit.aya:7210: fn ct_block(ref Ast ast, int stmts, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:7221: fn ct_if_value(ref Ast ast, int id, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:7243: fn ct_branch_value(ref Ast ast, int blk, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:7258: fn ct_stmt(ref Ast ast, int id, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:7321: fn ct_expr(ref Ast ast, int id, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:7377: fn ct_call(ref Ast ast, int fn_id, int nargs, ref mut Emitter e) -> int
-selfhost/src/lir/emit.aya:7404: fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:10241: fn emit_block_all(ref Ast ast, int blk, ref mut Emitter e)
-selfhost/src/lir/emit.aya:10252: fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e)
-selfhost/src/lir/emit.aya:10262: fn elem_is_leaf(ref String lty) -> bool
-selfhost/src/lir/emit.aya:10270: fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val)
-selfhost/src/lir/emit.aya:10325: fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v)
-selfhost/src/lir/emit.aya:10360: fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v)
-selfhost/src/lir/emit.aya:10414: fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:10449: fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val
-selfhost/src/lir/emit.aya:10563: fn emit_stmt(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:11323: fn emit_lambda(ref Ast ast, int lam_id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:11347: fn emit_fn(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:11352: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
-selfhost/src/lir/emit.aya:11392: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
-selfhost/src/lir/emit.aya:11838: pub struct SpecOut
-selfhost/src/lir/emit.aya:11846: pub fn emit_program(ref Ast ast, int prog, ref String file) -> String
-selfhost/src/lir/emit.aya:11853: pub fn emit_program_full(ref Ast ast, int prog, ref String file, ref mut SpecOut so) -> String
+selfhost/src/lir/emit.aya:223: pub namespace Emitter
+selfhost/src/lir/emit.aya:225: pub fn new() -> Emitter
+selfhost/src/lir/emit.aya:279: fn ty_name(ref Ast ast, int t) -> String
+selfhost/src/lir/emit.aya:307: fn unwrap_ty(ref Ast ast, int ty) -> int
+selfhost/src/lir/emit.aya:320: fn addr_of_arg(ref Ast ast, int id, ref mut Emitter e) -> String
+selfhost/src/lir/emit.aya:426: fn fmin_text(ref String tn) -> String
+selfhost/src/lir/emit.aya:438: fn fmax_text(ref String tn) -> String
+selfhost/src/lir/emit.aya:449: fn int_ty_llvm(ref String tn) -> String
+selfhost/src/lir/emit.aya:457: fn int_ty_signed(ref String tn) -> int
+selfhost/src/lir/emit.aya:463: fn const_int(ref Ast ast, int id) -> String
+selfhost/src/lir/emit.aya:518: fn int_text_ok(ref String t) -> String
+selfhost/src/lir/emit.aya:525: fn str_to_int_ok(ref String t) -> int
+selfhost/src/lir/emit.aya:570: fn ptr_operand(ref String a) -> String
+selfhost/src/lir/emit.aya:575: fn int_str2(int v) -> String
+selfhost/src/lir/emit.aya:581: fn mk_int(ref String t) -> Val
+selfhost/src/lir/emit.aya:586: fn mk_arr(ref String ptr, int ety) -> Val
+selfhost/src/lir/emit.aya:590: fn mk_str(ref String ptr, int len) -> Val
+selfhost/src/lir/emit.aya:597: fn fn_type_params(ref Ast ast, int fty) -> int
+selfhost/src/lir/emit.aya:607: fn fn_type_ret(ref Ast ast, int fty) -> int
+selfhost/src/lir/emit.aya:617: fn float_operand(ref Val v, ref mut Emitter e) -> String
+selfhost/src/lir/emit.aya:629: fn fcmp_op(int op) -> String
+selfhost/src/lir/emit.aya:640: fn mk_float(ref String a) -> Val
+selfhost/src/lir/emit.aya:645: fn float_text(ref String t) -> String
+selfhost/src/lir/emit.aya:681: fn mk_str_tmp(ref String ptr, ref String len_tmp) -> Val
+selfhost/src/lir/emit.aya:686: fn emit_not(ref Val v, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:703: fn emit_str_eq(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:762: fn emit_str_cmp(ref Val lt0, ref Val rt0, int op, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:839: fn str_of_val(ref Val v, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:895: fn emit_str_concat(ref Val lt0, ref Val rt0, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:934: fn emit_str_slice(ref Val sv, ref String start, ref String end, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:964: impl Emitter
+selfhost/src/lir/emit.aya:967: fn fresh(ref mut self) -> String
+selfhost/src/lir/emit.aya:975: fn local_kind(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:985: fn find_elem(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:998: fn declare_array_local(ref mut self, ref String name, int ety)
+selfhost/src/lir/emit.aya:1014: fn ref_string_temp(ref mut self, ref Val v) -> String
+selfhost/src/lir/emit.aya:1045: fn subst_elem_ty(ref mut self, int ety) -> int
+selfhost/src/lir/emit.aya:1051: fn record_etype(ref mut self, ref String name, int ety)
+selfhost/src/lir/emit.aya:1062: fn elem_of_local(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1067: fn etype_of_local(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1081: fn declare_local(ref mut self, ref String name, int kind)
+selfhost/src/lir/emit.aya:1121: fn emit_local_storage(ref mut self, ref String name, int form)
+selfhost/src/lir/emit.aya:1155: fn struct_of_local(ref mut self, ref String name) -> String
+selfhost/src/lir/emit.aya:1172: fn param_kind(ref mut self, ref Ast ast, int p) -> int
+selfhost/src/lir/emit.aya:1229: fn ret_kind(ref mut self, ref Ast ast, int rty) -> int
+selfhost/src/lir/emit.aya:1273: fn ret_info(ref mut self, ref Ast ast, int rty) -> int
+selfhost/src/lir/emit.aya:1324: fn ret_llvm_code(ref mut self, ref Ast ast, int rty) -> int
+selfhost/src/lir/emit.aya:1335: fn record_ftype(ref mut self, ref String name, int fty)
+selfhost/src/lir/emit.aya:1346: fn ftype_of_local(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1358: fn global_idx(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1368: fn decl_has(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1378: fn lam_index_of(ref mut self, int id) -> int
+selfhost/src/lir/emit.aya:1390: fn cap_add(ref mut self, int li, ref String name, int kind, int ety, int cid)
+selfhost/src/lir/emit.aya:1411: fn add_env_global(ref mut self, ref String prefix, ref String code_name) -> String
+selfhost/src/lir/emit.aya:1433: fn record_assign_ftype(ref mut self, ref Ast ast, ref String nm, int rhs)
+selfhost/src/lir/emit.aya:1534: fn pk_of_ty(ref mut self, ref Ast ast, int pt) -> int
+selfhost/src/lir/emit.aya:1585: fn closure_param_kind(ref mut self, ref Ast ast, int fty, int i) -> int
+selfhost/src/lir/emit.aya:1599: fn fn_first_id(ref mut self, ref String fname) -> int
+selfhost/src/lir/emit.aya:1608: fn fn_ret_llvm(ref mut self, ref String fname) -> int
+selfhost/src/lir/emit.aya:1620: fn fn_ret_type(ref mut self, ref String fname) -> int
+selfhost/src/lir/emit.aya:1632: fn method_ret_type(ref mut self, ref String ty, ref String name) -> int
+selfhost/src/lir/emit.aya:1648: fn lam_param_of(ref mut self, ref Ast ast, int li, ref String name) -> int
+selfhost/src/lir/emit.aya:1660: fn collect_lambdas(ref mut self, ref Ast ast)
+selfhost/src/lir/emit.aya:1677: fn collect_globals(ref mut self, ref Ast ast, int prog)
+selfhost/src/lir/emit.aya:1693: fn collect_globals_ns(ref mut self, ref Ast ast, int ns_id, ref String prefix)
+selfhost/src/lir/emit.aya:1713: fn const_eval_g(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/lir/emit.aya:1767: fn ct_set(ref mut self, ref String name, int v)
+selfhost/src/lir/emit.aya:1784: fn ct_get(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1793: fn ct_find(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1804: fn add_global(ref mut self, ref Ast ast, ref String name, int id)
+selfhost/src/lir/emit.aya:1939: fn global_kind(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1950: fn global_val(ref mut self, ref String name) -> String
+selfhost/src/lir/emit.aya:1959: fn find_struct_idx(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:1968: fn find_field_idx(ref mut self, ref String stname, ref String fname) -> int
+selfhost/src/lir/emit.aya:1981: fn fkind_at(ref mut self, int si, int idx) -> int
+selfhost/src/lir/emit.aya:1986: fn finfo_at(ref mut self, int si, int idx) -> int
+selfhost/src/lir/emit.aya:1991: fn fslot_at(ref mut self, int si, int idx) -> int
+selfhost/src/lir/emit.aya:1996: fn ftype_at(ref mut self, int si, int idx) -> int
+selfhost/src/lir/emit.aya:2001: fn find_method_id(ref mut self, ref String ty, ref String name) -> int
+selfhost/src/lir/emit.aya:2017: fn reg_iface(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:2040: fn iface_method_idx(ref mut self, int ii, ref String name) -> int
+selfhost/src/lir/emit.aya:2053: fn iface_method_node_at(ref mut self, int ii, int mi) -> int
+selfhost/src/lir/emit.aya:2062: fn iface_param_kind(ref mut self, ref Ast ast, int mnode, int i) -> int
+selfhost/src/lir/emit.aya:2076: fn iface_param_name(ref mut self, ref Ast ast, int mnode, int i) -> String
+selfhost/src/lir/emit.aya:2089: fn fn_piface_of(ref mut self, ref String fname, int i) -> int
+selfhost/src/lir/emit.aya:2103: fn type_impls_iface(ref mut self, ref String ty, int ii) -> int
+selfhost/src/lir/emit.aya:2119: fn concrete_impl_name(ref mut self, ref Val v, ref String iface) -> String
+selfhost/src/lir/emit.aya:2150: fn emit_box(ref mut self, ref Val v, ref String iface) -> String
+selfhost/src/lir/emit.aya:2226: fn reg_vtable(ref mut self, ref String ty, ref String iface)
+selfhost/src/lir/emit.aya:2243: fn emit_vtables(ref mut self)
+selfhost/src/lir/emit.aya:2281: fn find_iface_idx(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:2292: fn method_ty_of(ref mut self, int mid) -> String
+selfhost/src/lir/emit.aya:2303: fn find_method_any(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:2312: fn reg_struct(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:2327: fn fill_union(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:2392: fn fill_struct(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:2453: fn add_method(ref mut self, ref Ast ast, ref String ty, int fid)
+selfhost/src/lir/emit.aya:2464: fn find_enum_idx(ref mut self, ref String name) -> int
+selfhost/src/lir/emit.aya:2473: fn find_variant_idx(ref mut self, int ei, ref String vname) -> int
+selfhost/src/lir/emit.aya:2484: fn enum_max_arity(ref mut self, int ei) -> int
+selfhost/src/lir/emit.aya:2496: fn variant_arity(ref mut self, int ei, int vi) -> int
+selfhost/src/lir/emit.aya:2501: fn variant_ptype(ref mut self, int ei, int vi, int k) -> int
+selfhost/src/lir/emit.aya:2510: fn payload_slot(ref mut self, ref Ast ast, int ei, int vi, int k) -> int
+selfhost/src/lir/emit.aya:2528: fn add_enum(ref mut self, ref Ast ast, int id)
+selfhost/src/lir/emit.aya:2572: fn add_fn_sig(ref mut self, ref Ast ast, int id, ref String prefix)
+selfhost/src/lir/emit.aya:2621: fn fn_sym(ref mut self, ref String fname) -> String
+selfhost/src/lir/emit.aya:2636: fn elem_llvm_m(ref mut self, ref Ast ast, int ety) -> String
+selfhost/src/lir/emit.aya:2658: fn fn_pick_by_kind(ref mut self, ref String fname, int k0) -> int
+selfhost/src/lir/emit.aya:2680: fn fn_pick_by_tyname(ref mut self, ref Ast ast, ref String fname, ref String tname) -> int
+selfhost/src/lir/emit.aya:2705: fn fn_ord_at(ref mut self, int fi) -> int
+selfhost/src/lir/emit.aya:2718: fn fn_pk_at(ref mut self, int fi, int k) -> int
+selfhost/src/lir/emit.aya:2725: fn fn_rt_at(ref mut self, int fi) -> int
+selfhost/src/lir/emit.aya:2731: fn fn_count_name(ref mut self, ref String fname) -> int
+selfhost/src/lir/emit.aya:2742: fn fn_idx_of_node(ref mut self, ref String fname, int node) -> int
+selfhost/src/lir/emit.aya:2755: fn fn_sym_ord(ref mut self, ref String fname, int idx) -> String
+selfhost/src/lir/emit.aya:2768: fn fn_ord_of_node(ref mut self, ref String fname, int node) -> int
+selfhost/src/lir/emit.aya:2784: fn implicit_args_m(ref mut self, ref Ast ast, int id, int fnode, int start, int first) -> String
+selfhost/src/lir/emit.aya:2819: fn pointee_size(ref mut self, ref String tn) -> int
+selfhost/src/lir/emit.aya:2828: fn type_is_ptr_like(ref mut self, ref Ast ast, int ty) -> int
+selfhost/src/lir/emit.aya:2841: fn type_size_rust(ref mut self, ref Ast ast, int ty) -> int
+selfhost/src/lir/emit.aya:2852: fn enum_rust_size(ref mut self, ref Ast ast, int ty) -> int
+selfhost/src/lir/emit.aya:2912: fn layout_builtin_val(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/lir/emit.aya:2971: fn struct_gparam(ref mut self, ref Ast ast, ref String nm) -> String
+selfhost/src/lir/emit.aya:2985: fn enum_gparam(ref mut self, ref Ast ast, int ei) -> String
+selfhost/src/lir/emit.aya:3012: fn is_union_name(ref mut self, ref Ast ast, ref String nm) -> bool
+selfhost/src/lir/emit.aya:3024: fn layout_enc(ref mut self, ref Ast ast, int ty) -> int
+selfhost/src/lir/emit.aya:3030: fn layout_enc_s(ref mut self, ref Ast ast, int ty, ref String pn, int pa) -> int
+selfhost/src/lir/emit.aya:3091: fn layout_struct_s(ref mut self, ref Ast ast, int si, ref String pn, int pa) -> int
+selfhost/src/lir/emit.aya:3121: fn layout_enum_s(ref mut self, ref Ast ast, int ei, ref String pn, int pa) -> int
+selfhost/src/lir/emit.aya:3153: fn fn_param_kind(ref mut self, ref String fname, int i) -> int
+selfhost/src/lir/emit.aya:3169: fn collect_decls(ref mut self, ref Ast ast, int prog)
+selfhost/src/lir/emit.aya:3246: fn marker_name(ref mut self, int m) -> String
+selfhost/src/lir/emit.aya:3265: fn marker_base(ref mut self, int m) -> String
+selfhost/src/lir/emit.aya:3274: fn marker_of_name(ref mut self, ref String nm) -> int
+selfhost/src/lir/emit.aya:3290: fn val_marker(ref mut self, ref Ast ast, ref Val v) -> int
+selfhost/src/lir/emit.aya:3311: fn note_local_src(ref mut self, ref String nm, ref String src)
+selfhost/src/lir/emit.aya:3328: fn local_src_of(ref mut self, ref String nm) -> String
+selfhost/src/lir/emit.aya:3339: fn arg_name_of(ref mut self, ref Ast ast, int arg) -> String
+selfhost/src/lir/emit.aya:3346: fn find_enum_inst(ref mut self, ref Ast ast, int ei_src, int arg) -> int
+selfhost/src/lir/emit.aya:3362: fn fill_enum_inst(ref mut self, ref Ast ast, int ei_src, int arg) -> int
+selfhost/src/lir/emit.aya:3424: fn type_has_gparam(ref mut self, ref Ast ast, int ty) -> bool
+selfhost/src/lir/emit.aya:3451: fn type_is_gparam(ref mut self, ref Ast ast, int arg) -> bool
+selfhost/src/lir/emit.aya:3463: fn is_gparam(ref mut self, ref String name) -> bool
+selfhost/src/lir/emit.aya:3475: fn add_inst(ref mut self, ref String key, int arg_ty)
+selfhost/src/lir/emit.aya:3493: fn add_inst2(ref mut self, ref String key, int arg_ty, int arg_ty2)
+selfhost/src/lir/emit.aya:3515: fn type_arg_name(ref mut self, ref Ast ast, int arg) -> String
+selfhost/src/lir/emit.aya:3554: fn note_type_inst(ref mut self, ref Ast ast, int ty)
+selfhost/src/lir/emit.aya:3589: fn collect_instances(ref mut self, ref Ast ast)
+selfhost/src/lir/emit.aya:3873: fn fill_struct_inst(ref mut self, ref Ast ast, int si_src, int arg_ty, int arg_ty2)
+selfhost/src/lir/emit.aya:3880: fn fill_struct_inst4(ref mut self, ref Ast ast, int si_src, int arg_ty, int arg_ty2, int arg_ty3, int arg_ty4)
+selfhost/src/lir/emit.aya:4130: fn string_ref_temp(ref mut self, ref String nm) -> String
+selfhost/src/lir/emit.aya:4173: fn flush_string_refs(ref mut self)
+selfhost/src/lir/emit.aya:4215: fn infer_static_ty(ref mut self, ref Ast ast, int id) -> int
+selfhost/src/lir/emit.aya:4273: fn infer_note_call(ref mut self, int node, int ty)
+selfhost/src/lir/emit.aya:4281: fn infer_call_ty_of(ref mut self, int node) -> int
+selfhost/src/lir/emit.aya:4293: fn infer_expr_ty(ref mut self, ref Ast ast, int id) -> int
+selfhost/src/lir/emit.aya:4387: fn infer_ptr_elem(ref mut self, ref Ast ast, int expr) -> int
+selfhost/src/lir/emit.aya:4408: fn infer_literal_inst(ref mut self, ref Ast ast, int id) -> String
+selfhost/src/lir/emit.aya:4466: fn infer_ctor_arg(ref mut self, ref Ast ast, int id) -> int
+selfhost/src/lir/emit.aya:4481: fn infer_through(ref mut self, ref Ast ast, int pty0, int arg, ref String gp) -> int
+selfhost/src/lir/emit.aya:4520: fn infer_call_arg(ref mut self, ref Ast ast, int fnode, int args) -> int
+selfhost/src/lir/emit.aya:4550: fn infer_call_all(ref mut self, ref Ast ast, int fnode, int args) -> int
+selfhost/src/lir/emit.aya:4617: fn infer_bound_propagate(ref mut self, ref Ast ast, int fnode, int gpnode, int marker) -> int
+selfhost/src/lir/emit.aya:4646: fn resolve_inf_arg(ref mut self, ref Ast ast, int t) -> int
+selfhost/src/lir/emit.aya:4666: fn infer_from_bound(ref mut self, ref Ast ast, int gpnode, int marker, ref String other_gp) -> int
+selfhost/src/lir/emit.aya:4717: fn impl_gparam(ref mut self, ref Ast ast, ref String prefix) -> String
+selfhost/src/lir/emit.aya:4733: fn ret_kind_with2(ref mut self, ref Ast ast, int rty, ref String p1, int a1, ref String p2, int a2) -> int
+selfhost/src/lir/emit.aya:4751: fn ret_kind_with(ref mut self, ref Ast ast, int rty, ref String pname, int arg_ty) -> int
+selfhost/src/lir/emit.aya:4765: fn impl_gparam2(ref mut self, ref Ast ast, ref String prefix) -> String
+selfhost/src/lir/emit.aya:4785: fn find_struct_inst_name(ref mut self, ref Ast ast, int si_src, int arg_ty) -> String
+selfhost/src/lir/emit.aya:4810: fn spec_register(ref mut self, ref Ast ast, int node, ref String prefix, int arg_ty, ref String self_ty) -> int
+selfhost/src/lir/emit.aya:4817: fn spec_register2(ref mut self, ref Ast ast, int node, ref String prefix, int arg_ty, int arg_ty2, ref String self_ty) -> int
+selfhost/src/lir/emit.aya:4822: fn spec_arg_same(ref mut self, ref Ast ast, int x, int y) -> int
+selfhost/src/lir/emit.aya:4842: fn spec_register4(ref mut self, ref Ast ast, int node, ref String prefix, int a1, int a2, int a3, int a4, ref String self_ty) -> int
+selfhost/src/lir/emit.aya:4897: fn impl_gparam_n(ref mut self, ref Ast ast, ref String prefix, int idx) -> String
+selfhost/src/lir/emit.aya:4919: fn spec_order_dfs(ref mut self, int wi)
+selfhost/src/lir/emit.aya:4937: fn emit_specializations(ref mut self, ref Ast ast)
+selfhost/src/lir/emit.aya:4977: fn add_str(ref mut self, ref String text) -> int
+selfhost/src/lir/emit.aya:4988: fn escape_ir(ref String s) -> String
+selfhost/src/lir/emit.aya:5017: fn hex_digit(int v) -> char
+selfhost/src/lir/emit.aya:5022: fn bin_llvm_op(int op) -> String
+selfhost/src/lir/emit.aya:5037: fn op_method_name(int op) -> String
+selfhost/src/lir/emit.aya:5059: fn emit_op_method_call(ref Ast ast, int id, ref Val lt, ref String mn, int mid, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:5144: fn find_fn_by_recv(ref mut Emitter e, ref Ast ast, ref String name, ref String recv_ty) -> int
+selfhost/src/lir/emit.aya:5165: fn emit_ufcs_call(ref Ast ast, int id, ref Val obj, ref String name, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:5328: fn emit_forin_next(ref Ast ast, ref String it_nm, int it_kind, ref String it_ty, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:5447: fn emit_variant_payload(ref Ast ast, ref String opt_a, ref String en_name, ref String variant, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:5521: fn emit_iface_dispatch(ref Ast ast, int args_head, ref Val obj, int ii, int mi, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:5670: fn cmp_llvm_op(int op) -> String
+selfhost/src/lir/emit.aya:5680: fn is_cmp(int op) -> bool
+selfhost/src/lir/emit.aya:5692: fn elem_slot(ref Ast ast, int ty) -> String
+selfhost/src/lir/emit.aya:5720: fn elem_llvm(ref Ast ast, int ty) -> String
+selfhost/src/lir/emit.aya:5725: fn elem_bytes(ref Ast ast, int ty) -> int
+selfhost/src/lir/emit.aya:5734: fn elem_stride(ref Ast ast, int ety) -> int
+selfhost/src/lir/emit.aya:5744: fn align_up(int x, int a) -> int
+selfhost/src/lir/emit.aya:5750: fn elem_addr(ref mut Emitter e, int stride, ref String base, ref String idx) -> String
+selfhost/src/lir/emit.aya:5771: fn elem_is_string(ref Ast ast, int ty) -> bool
+selfhost/src/lir/emit.aya:5784: fn elem_type_of(ref Ast ast, int id) -> int
+selfhost/src/lir/emit.aya:5800: impl Emitter
+selfhost/src/lir/emit.aya:5803: fn elem_type_of_m(ref mut self, ref Ast ast, int id) -> int
+selfhost/src/lir/emit.aya:5835: fn pat_name(ref String p) -> String
+selfhost/src/lir/emit.aya:5847: fn pat_binds(ref String p) -> String
+selfhost/src/lir/emit.aya:5859: fn pat_short(ref String p) -> String
+selfhost/src/lir/emit.aya:5873: fn pat_enum(ref String p) -> String
+selfhost/src/lir/emit.aya:5886: fn contains_dot2(ref String s) -> bool
+selfhost/src/lir/emit.aya:5895: fn label(ref mut Emitter e, ref String prefix) -> String
+selfhost/src/lir/emit.aya:5906: fn emit_protocol_deref(ref Ast ast, ref Val obj, ref String mn, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:5963: fn emit_enum_ctor(ref Ast ast, ref String full, int args, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:6050: fn enum_store_payload(ref Ast ast, int ei, int vi, int k, ref String ename, ref String t, ref Val v, ref mut Emitter e)
+selfhost/src/lir/emit.aya:6109: fn emit_pat_cond(ref Ast ast, int arm, ref Val sc, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:6274: fn emit_pat_inner_check(ref Ast ast, int arm, ref Val sc, ref String nxt, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:6339: fn emit_pat_binds(ref Ast ast, int arm, ref Val sc, ref mut Emitter e)
+selfhost/src/lir/emit.aya:6702: fn tail_is_float(ref Ast ast, int blk) -> int
+selfhost/src/lir/emit.aya:6719: fn emit_if_branch(ref Ast ast, int blk, ref String res, int want_float, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:6767: fn store_match_val(ref Val tv, ref String res, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:6820: fn unpack_str_res(ref String slot_i64, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:6846: fn emit_if_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:6948: fn emit_match(ref Ast ast, int id, ref mut Emitter e, int want_value) -> Val
+selfhost/src/lir/emit.aya:7120: fn emit_indirect_call(ref Ast ast, ref String fval, int fty, int args, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:7209: fn emit_lambda_value(ref Ast ast, int id, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:7334: fn cap_scan_list(ref Ast ast, int id, int li, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7342: fn bb_is_child(int tag) -> int
+selfhost/src/lir/emit.aya:7351: fn ccdd_is_child(int tag) -> int
+selfhost/src/lir/emit.aya:7360: fn cap_scan_node(ref Ast ast, int id, int li, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7397: fn emit_prelude_int1(ref String fname, ref String arg, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:7411: fn emit_prelude_str(ref String fname, ref Val s, ref Val arg, int has_arg, int rk, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:7454: fn emit_index_read(ref Ast ast, ref Val base3, ref String idx, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:7578: fn emit_globals_init(ref Ast ast, ref mut Emitter e)
+selfhost/src/lir/emit.aya:7631: fn dec_val_e(ref String s) -> int
+selfhost/src/lir/emit.aya:7647: fn ct_binop(int op, int a, int b) -> int
+selfhost/src/lir/emit.aya:7670: fn ct_block(ref Ast ast, int stmts, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:7681: fn ct_if_value(ref Ast ast, int id, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:7703: fn ct_branch_value(ref Ast ast, int blk, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:7718: fn ct_stmt(ref Ast ast, int id, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:7781: fn ct_expr(ref Ast ast, int id, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:7837: fn ct_call(ref Ast ast, int fn_id, int nargs, ref mut Emitter e) -> int
+selfhost/src/lir/emit.aya:7864: fn emit_expr(ref Ast ast, int id, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:10861: fn emit_block_all(ref Ast ast, int blk, ref mut Emitter e)
+selfhost/src/lir/emit.aya:10872: fn emit_stmts(ref Ast ast, int stmts, ref mut Emitter e)
+selfhost/src/lir/emit.aya:10882: fn elem_is_leaf(ref String lty) -> bool
+selfhost/src/lir/emit.aya:10890: fn emit_array_fill(ref mut Emitter e, ref String lty, int stride, ref String base, ref String cnt, ref String val)
+selfhost/src/lir/emit.aya:10945: fn store_slot_i64(ref mut Emitter e, ref String gep, ref Val v)
+selfhost/src/lir/emit.aya:10980: fn store_elem(ref mut Emitter e, ref String lty, int two_char, ref String gep, ref Val v)
+selfhost/src/lir/emit.aya:11034: fn emit_index_assign(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:11069: fn emit_array_new(ref Ast ast, int id, int ety, ref String count, ref mut Emitter e) -> Val
+selfhost/src/lir/emit.aya:11184: fn emit_sync_unlocks(ref Ast ast, ref mut Emitter e, int from)
+selfhost/src/lir/emit.aya:11192: fn emit_stmt(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:12007: fn emit_lambda(ref Ast ast, int lam_id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:12031: fn emit_fn(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:12036: fn emit_decl(ref Ast ast, int id, ref mut Emitter e)
+selfhost/src/lir/emit.aya:12076: fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e)
+selfhost/src/lir/emit.aya:12555: pub struct SpecOut
+selfhost/src/lir/emit.aya:12563: pub fn emit_program(ref Ast ast, int prog, ref String file) -> String
+selfhost/src/lir/emit.aya:12570: pub fn emit_program_full(ref Ast ast, int prog, ref String file, ref mut SpecOut so) -> String
 selfhost/src/macro/expand.aya:13: pub struct MVal
 selfhost/src/macro/expand.aya:20: pub struct MEnv
 selfhost/src/macro/expand.aya:36: pub struct MLines
@@ -3794,73 +4050,80 @@ selfhost/src/main.aya:8: fn usage_ok(ref Cli c) -> int
 selfhost/src/main.aya:13: fn usage_unknown(ref Cli c) -> int
 selfhost/src/main.aya:20: fn dispatch(ref Cli c) -> int
 selfhost/src/main.aya:30: fn main() -> int
-selfhost/src/parser/parser.aya:8: fn is_digit_c(int c) -> bool
-selfhost/src/parser/parser.aya:13: fn is_hex_digit_c(int c) -> bool
-selfhost/src/parser/parser.aya:20: fn digit_val_p(int c) -> int
-selfhost/src/parser/parser.aya:28: fn parse_int_text(ref String s) -> int
-selfhost/src/parser/parser.aya:52: fn num_len(ref String s) -> int
-selfhost/src/parser/parser.aya:103: pub struct Parser
-selfhost/src/parser/parser.aya:137: pub namespace Parser
-selfhost/src/parser/parser.aya:140: pub fn new(ref String src) -> Parser
-selfhost/src/parser/parser.aya:153: impl Parser
-selfhost/src/parser/parser.aya:156: fn advance(ref mut self)
-selfhost/src/parser/parser.aya:163: fn la1_is_kw(ref mut self, int kw) -> bool
-selfhost/src/parser/parser.aya:168: fn la2_is_kw(ref mut self, int kw) -> bool
-selfhost/src/parser/parser.aya:177: fn mark(ref mut self)
-selfhost/src/parser/parser.aya:184: fn restore(ref mut self)
-selfhost/src/parser/parser.aya:202: fn la1_is_op(ref mut self, ref String op) -> bool
-selfhost/src/parser/parser.aya:207: fn la1_is_delim(ref mut self, int d) -> bool
-selfhost/src/parser/parser.aya:212: fn la3_is_delim(ref mut self, int d) -> bool
-selfhost/src/parser/parser.aya:217: fn la2_is_delim(ref mut self, int d) -> bool
-selfhost/src/parser/parser.aya:222: fn la1_is_ident(ref mut self) -> bool
-selfhost/src/parser/parser.aya:230: fn parse_generics(ref mut self) -> int
-selfhost/src/parser/parser.aya:265: fn skip_brackets(ref mut self)
-selfhost/src/parser/parser.aya:281: fn scan_attr_args(ref mut self)
-selfhost/src/parser/parser.aya:298: fn skip_attrs(ref mut self)
-selfhost/src/parser/parser.aya:325: fn record_attr(ref mut self, int a_start, int a_line)
-selfhost/src/parser/parser.aya:338: fn error_at(ref mut self, ref String msg, int line, int col)
-selfhost/src/parser/parser.aya:349: fn error(ref mut self, ref String msg)
-selfhost/src/parser/parser.aya:358: fn check_kw(ref mut self, int kw) -> bool
-selfhost/src/parser/parser.aya:363: fn check_delim(ref mut self, int d) -> bool
-selfhost/src/parser/parser.aya:368: fn check_op(ref mut self, ref String op) -> bool
-selfhost/src/parser/parser.aya:375: fn eat_kw(ref mut self, int kw) -> bool
-selfhost/src/parser/parser.aya:385: fn eat_delim(ref mut self, int d) -> bool
-selfhost/src/parser/parser.aya:395: fn eat_op(ref mut self, ref String op) -> bool
-selfhost/src/parser/parser.aya:405: fn expect_kw(ref mut self, int kw, ref String what)
-selfhost/src/parser/parser.aya:413: fn expect_delim(ref mut self, int d, ref String what)
-selfhost/src/parser/parser.aya:422: fn is_member_name(ref mut self) -> bool
-selfhost/src/parser/parser.aya:428: fn expect_member_name(ref mut self, ref String what) -> String
-selfhost/src/parser/parser.aya:438: fn expect_ident(ref mut self, ref String what) -> String
-selfhost/src/parser/parser.aya:448: fn at_end(ref mut self) -> bool
-selfhost/src/parser/parser.aya:456: fn parse_type(ref mut self) -> int
-selfhost/src/parser/parser.aya:614: pub fn parse_program(ref mut self) -> int
-selfhost/src/parser/parser.aya:631: fn parse_item(ref mut self) -> int
-selfhost/src/parser/parser.aya:723: fn parse_union(ref mut self) -> int
-selfhost/src/parser/parser.aya:744: fn parse_struct(ref mut self) -> int
-selfhost/src/parser/parser.aya:768: fn parse_namespace(ref mut self) -> int
-selfhost/src/parser/parser.aya:786: fn parse_impl(ref mut self) -> int
-selfhost/src/parser/parser.aya:837: fn parse_fn(ref mut self) -> int
-selfhost/src/parser/parser.aya:843: fn parse_fn_body(ref mut self, int with_body) -> int
-selfhost/src/parser/parser.aya:909: fn parse_enum(ref mut self) -> int
-selfhost/src/parser/parser.aya:966: fn parse_interface(ref mut self) -> int
-selfhost/src/parser/parser.aya:992: fn parse_const(ref mut self) -> int
-selfhost/src/parser/parser.aya:1008: fn parse_block(ref mut self) -> int
-selfhost/src/parser/parser.aya:1071: fn if_stmt_has_tail(ref mut self, int id) -> bool
-selfhost/src/parser/parser.aya:1093: fn collect_attrs(ref mut self) -> int
-selfhost/src/parser/parser.aya:1123: fn parse_stmt(ref mut self) -> int
-selfhost/src/parser/parser.aya:1139: fn parse_stmt_inner(ref mut self) -> int
-selfhost/src/parser/parser.aya:1254: fn parse_if_stmt(ref mut self) -> int
-selfhost/src/parser/parser.aya:1282: fn bin_tag(ref mut self, ref String op) -> int
-selfhost/src/parser/parser.aya:1305: fn op_level(ref mut self, ref String op) -> int
-selfhost/src/parser/parser.aya:1321: fn parse_expr(ref mut self) -> int
-selfhost/src/parser/parser.aya:1327: fn parse_bin(ref mut self, int min_level) -> int
-selfhost/src/parser/parser.aya:1345: fn apply_cast(ref mut self, int e, int line, int col) -> int
-selfhost/src/parser/parser.aya:1359: fn parse_asm(ref mut self) -> int
-selfhost/src/parser/parser.aya:1400: fn parse_unary(ref mut self) -> int
-selfhost/src/parser/parser.aya:1469: fn parse_postfix(ref mut self) -> int
-selfhost/src/parser/parser.aya:1598: fn parse_args(ref mut self) -> int
-selfhost/src/parser/parser.aya:1630: fn parse_number_literal(ref mut self, int neg, int line, int col) -> int
-selfhost/src/parser/parser.aya:1652: fn parse_primary(ref mut self) -> int
-selfhost/src/parser/parser.aya:1857: fn try_parse_lambda(ref mut self, int line, int col) -> int
-selfhost/src/parser/parser.aya:1889: fn parse_match_arms(ref mut self) -> int
-selfhost/src/parser/parser.aya:2105: fn parse_struct_literal(ref mut self, ref String name, int line, int col, int tyg) -> int
+selfhost/src/parser/parser.aya:8: fn lower_ascii_name(ref String s) -> String
+selfhost/src/parser/parser.aya:20: fn is_digit_c(int c) -> bool
+selfhost/src/parser/parser.aya:25: fn is_hex_digit_c(int c) -> bool
+selfhost/src/parser/parser.aya:32: fn digit_val_p(int c) -> int
+selfhost/src/parser/parser.aya:40: fn parse_int_text(ref String s) -> int
+selfhost/src/parser/parser.aya:64: fn num_len(ref String s) -> int
+selfhost/src/parser/parser.aya:115: pub struct Parser
+selfhost/src/parser/parser.aya:183: pub namespace Parser
+selfhost/src/parser/parser.aya:186: pub fn new(ref String src) -> Parser
+selfhost/src/parser/parser.aya:209: impl Parser
+selfhost/src/parser/parser.aya:212: fn env_find(ref mut self, ref String cap) -> String
+selfhost/src/parser/parser.aya:221: fn add_cur_env(ref mut self, ref String cap, ref String gp)
+selfhost/src/parser/parser.aya:235: fn append_env_args(ref mut self, ref String fname, int args, int line, int col) -> int
+selfhost/src/parser/parser.aya:273: fn advance(ref mut self)
+selfhost/src/parser/parser.aya:281: fn la1_is_kw(ref mut self, int kw) -> bool
+selfhost/src/parser/parser.aya:286: fn la2_is_kw(ref mut self, int kw) -> bool
+selfhost/src/parser/parser.aya:295: fn mark(ref mut self)
+selfhost/src/parser/parser.aya:302: fn restore(ref mut self)
+selfhost/src/parser/parser.aya:320: fn la1_is_op(ref mut self, ref String op) -> bool
+selfhost/src/parser/parser.aya:325: fn la1_is_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:330: fn la3_is_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:335: fn la2_is_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:340: fn la1_is_ident(ref mut self) -> bool
+selfhost/src/parser/parser.aya:348: fn parse_generics(ref mut self) -> int
+selfhost/src/parser/parser.aya:383: fn skip_brackets(ref mut self)
+selfhost/src/parser/parser.aya:399: fn scan_attr_args(ref mut self)
+selfhost/src/parser/parser.aya:416: fn skip_attrs(ref mut self)
+selfhost/src/parser/parser.aya:478: fn record_attr(ref mut self, int a_start, int a_line)
+selfhost/src/parser/parser.aya:491: fn error_at(ref mut self, ref String msg, int line, int col)
+selfhost/src/parser/parser.aya:502: fn error(ref mut self, ref String msg)
+selfhost/src/parser/parser.aya:511: fn check_kw(ref mut self, int kw) -> bool
+selfhost/src/parser/parser.aya:516: fn check_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:521: fn check_op(ref mut self, ref String op) -> bool
+selfhost/src/parser/parser.aya:528: fn eat_kw(ref mut self, int kw) -> bool
+selfhost/src/parser/parser.aya:538: fn eat_delim(ref mut self, int d) -> bool
+selfhost/src/parser/parser.aya:548: fn eat_op(ref mut self, ref String op) -> bool
+selfhost/src/parser/parser.aya:558: fn expect_kw(ref mut self, int kw, ref String what)
+selfhost/src/parser/parser.aya:566: fn expect_delim(ref mut self, int d, ref String what)
+selfhost/src/parser/parser.aya:575: fn is_member_name(ref mut self) -> bool
+selfhost/src/parser/parser.aya:581: fn expect_member_name(ref mut self, ref String what) -> String
+selfhost/src/parser/parser.aya:591: fn expect_ident(ref mut self, ref String what) -> String
+selfhost/src/parser/parser.aya:601: fn at_end(ref mut self) -> bool
+selfhost/src/parser/parser.aya:609: fn parse_type(ref mut self) -> int
+selfhost/src/parser/parser.aya:767: pub fn parse_program(ref mut self) -> int
+selfhost/src/parser/parser.aya:789: fn parse_item(ref mut self) -> int
+selfhost/src/parser/parser.aya:882: fn parse_union(ref mut self) -> int
+selfhost/src/parser/parser.aya:903: fn parse_struct(ref mut self) -> int
+selfhost/src/parser/parser.aya:927: fn parse_namespace(ref mut self) -> int
+selfhost/src/parser/parser.aya:945: fn parse_impl(ref mut self) -> int
+selfhost/src/parser/parser.aya:996: fn parse_fn(ref mut self) -> int
+selfhost/src/parser/parser.aya:1002: fn parse_fn_body(ref mut self, int with_body) -> int
+selfhost/src/parser/parser.aya:1126: fn async_add_extra(ref mut self, int nd)
+selfhost/src/parser/parser.aya:1133: fn is_async_fn(ref mut self, ref String nm) -> int
+selfhost/src/parser/parser.aya:1148: fn trans_async(ref mut self, ref String name, int head, int ret, int body, int line, int col)
+selfhost/src/parser/parser.aya:1216: fn parse_enum(ref mut self) -> int
+selfhost/src/parser/parser.aya:1273: fn parse_interface(ref mut self) -> int
+selfhost/src/parser/parser.aya:1299: fn parse_const(ref mut self) -> int
+selfhost/src/parser/parser.aya:1315: fn parse_block(ref mut self) -> int
+selfhost/src/parser/parser.aya:1378: fn if_stmt_has_tail(ref mut self, int id) -> bool
+selfhost/src/parser/parser.aya:1400: fn collect_attrs(ref mut self) -> int
+selfhost/src/parser/parser.aya:1476: fn parse_stmt(ref mut self) -> int
+selfhost/src/parser/parser.aya:1501: fn parse_stmt_inner(ref mut self) -> int
+selfhost/src/parser/parser.aya:1651: fn parse_if_stmt(ref mut self) -> int
+selfhost/src/parser/parser.aya:1679: fn bin_tag(ref mut self, ref String op) -> int
+selfhost/src/parser/parser.aya:1702: fn op_level(ref mut self, ref String op) -> int
+selfhost/src/parser/parser.aya:1718: fn parse_expr(ref mut self) -> int
+selfhost/src/parser/parser.aya:1724: fn parse_bin(ref mut self, int min_level) -> int
+selfhost/src/parser/parser.aya:1744: fn apply_cast(ref mut self, int e, int line, int col) -> int
+selfhost/src/parser/parser.aya:1758: fn parse_asm(ref mut self) -> int
+selfhost/src/parser/parser.aya:1820: fn parse_unary(ref mut self) -> int
+selfhost/src/parser/parser.aya:1901: fn parse_postfix(ref mut self) -> int
+selfhost/src/parser/parser.aya:2038: fn parse_args(ref mut self) -> int
+selfhost/src/parser/parser.aya:2070: fn parse_number_literal(ref mut self, int neg, int line, int col) -> int
+selfhost/src/parser/parser.aya:2092: fn parse_primary(ref mut self) -> int
+selfhost/src/parser/parser.aya:2328: fn try_parse_lambda(ref mut self, int line, int col) -> int
+selfhost/src/parser/parser.aya:2360: fn parse_match_arms(ref mut self) -> int
+selfhost/src/parser/parser.aya:2582: fn parse_struct_literal(ref mut self, ref String name, int line, int col, int tyg) -> int

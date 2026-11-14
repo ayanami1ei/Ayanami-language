@@ -106,6 +106,8 @@ impl crate::hir::lower::Ctx {
 
         let hidden = count_hidden_names(params);
         let visible = params.len().saturating_sub(hidden);
+        // E1a：环境需求（泛型 bound 基名命中调用方提供者键）
+        let env_needs = self.env_need_caps(gf_params);
         if visible != arg_types.len() {
             return Err(Error::Hir(format!(
                 "generic function `{}` takes {} argument(s) but {} given at {}:{}",
@@ -149,6 +151,13 @@ impl crate::hir::lower::Ctx {
         if generic_mappings.len() < gf_params.len() {
             self.infer_from_iface_constraints(gf_params, &generic_names, &mut generic_mappings);
         }
+        // E1a：环境需求绑定 E（来自调用点提供值的类型）
+        for (cap, gp) in &env_needs {
+            if generic_mappings.contains_key(gp) { continue; }
+            if let Some((_, ty)) = self.pending_env_args.iter().find(|(c, _)| c == cap) {
+                generic_mappings.insert(*gp, ty.clone());
+            }
+        }
         // Ensure all generic params were resolved
         for (gp_name, _) in gf_params {
             if !generic_mappings.contains_key(gp_name) {
@@ -172,9 +181,11 @@ impl crate::hir::lower::Ctx {
             .collect();
 
         // Step 3: Clone and substitute types in the AST
-        let new_params: Vec<(Symbol, Type)> = params.iter()
+        let mut new_params: Vec<(Symbol, Type)> = params.iter()
             .map(|(n, t)| (*n, substitute_type_in_type(t, &substitutions)))
             .collect();
+        // E1a：注入环境值形参（体降级据此注册局部）
+        self.inject_env_params(&mut new_params, &env_needs, &generic_mappings);
         let new_return_type = substitute_type_in_type(return_type, &substitutions);
         let new_body = substitute_type_in_block(body, &substitutions);
 
@@ -183,9 +194,7 @@ impl crate::hir::lower::Ctx {
         let hir_params: Vec<(Symbol, HirType)> = new_params.iter()
             .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
             .collect();
-
-
-
+        // E1a：环境值参数已在 new_params 注入（hir_params 随之包含）
         // 特化名：附加泛型实参（`sz[T]() -> int` 等 T 无关签名两次特化必须区分，
         // 否则会误复用首个特化并生成同名符号）
         let args_suffix: String = gf_params.iter()
@@ -223,14 +232,16 @@ impl crate::hir::lower::Ctx {
         });
         self.fn_map.entry(*name).or_default().push(fid);
         self.specialized_ids.insert(fid);
-
         // Step 5: Lower the specialized function body
         let saved_current_fn = self.current_fn;
         let saved_locals = std::mem::take(&mut self.locals);
         let saved_scopes = std::mem::take(&mut self.scopes);
+        // A5e：特化体不得继承调用方的同步块状态（否则 return 会误发 unlock）
+        let saved_sync = (std::mem::take(&mut self.sync_locks), std::mem::take(&mut self.loop_sync_marks));
 
         // A3a：泛型实例继承定义上的标注（含效应；此前 A1 标注在此丢失）
         let lowered = self.lower_fn(fid, *name, &new_params, &new_return_type, &new_body, *is_inline, *extern_c, *is_unsafe, Span::default(), attrs.clone(), param_attrs.clone(), vis.is_public());
+        (self.sync_locks, self.loop_sync_marks) = saved_sync;
         let mut hir_fn = match lowered {
             Ok(f) => f,
             Err(e) => {
@@ -243,15 +254,18 @@ impl crate::hir::lower::Ctx {
                 if self.fns.len() == fid.0 + 1 {
                     self.fns.pop();
                 }
+                // E1a 修复：失败路径同样恢复当前函数（此前泄漏到调用方，
+                // 导致后续调用的环境作用域错误）
+                self.current_fn = saved_current_fn;
+                self.locals = saved_locals;
+                self.scopes = saved_scopes;
                 return Err(e);
             }
         };
         hir_fn.is_specialized = true;
-
         self.current_fn = saved_current_fn;
         self.locals = saved_locals;
         self.scopes = saved_scopes;
-
         self.specialized_fns.push(hir_fn);
 
         Ok(fid)

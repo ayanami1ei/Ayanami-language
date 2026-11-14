@@ -1,0 +1,11 @@
+import "alloc"
+
+fn run() -> int {
+    p = env::allocator.alloc(8usize)
+    env::allocator.free(p)
+    return 0
+}
+
+fn main() -> int {
+    return run()
+}

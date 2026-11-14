@@ -38,20 +38,15 @@ impl Ctx {
 
     /// 查找结构体中某字段的类型
     pub fn find_field_type(&self, struct_ty: &HirType, field: &Symbol, span: &Span) -> Result<HirType> {
-        let type_name = match struct_ty {
-            HirType::Named(n) => *n,
+        match struct_ty {
+            HirType::Named(n) => self.find_field_type_by_name(n, field, span),
+            // `ref Ptr[T]` 等嵌套指针层逐层解引用（与 find_field_index 一致）
             HirType::Unique(inner) | HirType::Ref(inner, _) => {
-                let inner_name = match inner.as_ref() {
-                    HirType::Named(n) => *n,
-                    _ => return Err(Error::Hir(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
-                        hir_type_display(struct_ty), field, span.start_line, span.start_col))),
-                };
-                inner_name
+                self.find_field_type(inner, field, span)
             }
-            _ => return Err(Error::Hir(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
+            _ => Err(Error::Hir(format!("类型 {} 没有字段 `{}` (位置 {}:{})",
                 hir_type_display(struct_ty), field, span.start_line, span.start_col))),
-        };
-        self.find_field_type_by_name(&type_name, field, span)
+        }
     }
 
     /// 按类型名查找字段类型（含泛型回退与替换）

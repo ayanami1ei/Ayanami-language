@@ -3,7 +3,7 @@ use super::*;
 impl crate::hir::lower::Ctx {
     /// M6.2c：结构体常量求值（非泛型结构体；字段按声明顺序规范化，标量/嵌套数组/嵌套结构体）
     pub(crate) fn eval_const_struct(
-        &self,
+        &mut self,
         type_name: &Symbol,
         generic_args: &[Type],
         fields: &[(Symbol, Expr)],

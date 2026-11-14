@@ -27,7 +27,7 @@ impl<'a> Emitter<'a> {
                 "i8*".into()
             }
             HirType::Unique(inner) => {
-                if matches!(inner.as_ref(), HirType::Named(_) | HirType::FatPtr { .. }) {
+                if matches!(inner.as_ref(), HirType::Named(_) | HirType::FatPtr { .. } | HirType::Closure(..)) {
                     "ptr".into()
                 } else {
                     self.llvm_type(inner)

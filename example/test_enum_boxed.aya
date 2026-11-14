@@ -1,0 +1,59 @@
+// N2（docs/enum-layout.md §3.2）：大载荷变体装箱——载荷结构 > 16 字节 → Unique(E_V)
+// 与 N1 组合：boxed 载荷槽本身即指针 → 2 变体（1 空）枚举仍可 niche（8 字节）
+import "io"
+
+struct Big {
+    int a
+    int b
+    int c
+}
+
+enum E {
+    Small(int),
+    Big(Big),
+}
+
+enum OptBig {
+    Big(Big),
+    None,
+}
+
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn sum(Big x) -> int {
+    return x.a + x.b + x.c
+}
+
+fn run() -> int {
+    // 布局：E = tag(8) + Small(8) + Big(ptr 8) = 24（未装箱 40）；OptBig niche = 8
+    if size_of[E]() != 24 { return 1 }
+    if size_of[OptBig]() != 8 { return 2 }
+    // 构造 / 匹配 / 字段访问
+    e = E::Big(Big { a = 1, b = 2, c = 3 })
+    match e {
+        Small(_) => { return 3 }
+        Big(x) => { if sum(x) != 6 { return 4 } }
+    }
+    e2 = E::Small(7)
+    match e2 {
+        Small(x) => { if x != 7 { return 5 } }
+        Big(_) => { return 6 }
+    }
+    o = OptBig::Big(Big { a = 4, b = 5, c = 6 })
+    if o._tag != 0 { return 7 }
+    if sum(o._data_Big._0) != 15 { return 8 }
+    match o {
+        Big(x) => { if sum(x) != 15 { return 9 } }
+        None => { return 10 }
+    }
+    return 0
+}
+
+fn main() -> int {
+    rc = run()
+    if rc != 0 { return rc }
+    // drop：boxed 载荷（run 内局部）已释放
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 11 }
+    return 0
+}

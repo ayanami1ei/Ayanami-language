@@ -1,0 +1,91 @@
+// A1b-2 第一切片：单挂起点 await（目标为同程序 #[async] 函数）
+import "io"
+
+enum Poll[T] { Ready(T), Pending }
+struct Waker { int id }
+impl Waker { fn wake(ref self) { } }
+struct Context { Waker waker }
+interface Future[T] { fn poll(ref mut self, ref Context cx) -> Poll[T]; }
+
+#[async]
+fn inc(int x) -> int {
+    return x + 1
+}
+
+#[async]
+fn twice(int x) -> int {
+    y = await inc(x)
+    return y + 1
+}
+
+#[async]
+fn greet() -> String {
+    return "hi"
+}
+
+#[async]
+fn exclaim() -> String {
+    s = await greet()
+    return s + "!"
+}
+
+#[async]
+fn add2(int x) -> int {
+    return x + 2
+}
+
+#[async]
+fn chain(int x) -> int {
+    a = await inc(x)
+    b = await add2(x)
+    return a + b
+}
+
+#[async]
+fn dep(int x) -> int {
+    a = await inc(x)
+    b = await add2(a)
+    return b
+}
+
+#[state]
+fn block_on_s[F: Future[String]](ref mut F f) -> String {
+    w = Waker { id = 1 }
+    cx = Context { waker = w }
+    while true {
+        p = f.poll(ref cx)
+        match p {
+            Ready(v) => { return v }
+            Pending => { }
+        }
+    }
+    return ""
+}
+
+#[state]
+fn block_on[F: Future[int]](ref mut F f) -> int {
+    w = Waker { id = 1 }
+    cx = Context { waker = w }
+    while true {
+        p = f.poll(ref cx)
+        match p {
+            Ready(v) => { return v }
+            Pending => { }
+        }
+    }
+    return -1
+}
+
+fn main() -> int {
+    f = twice(1)
+    if block_on(ref mut f) != 3 { return 1 }
+    g = inc(5)
+    if block_on(ref mut g) != 6 { return 2 }
+    h = exclaim()
+    if block_on_s(ref mut h) != "hi!" { return 3 }
+    k = chain(1)
+    if block_on(ref mut k) != 5 { return 4 }
+    d = dep(1)
+    if block_on(ref mut d) != 4 { return 5 }
+    return 0
+}

@@ -1,0 +1,6 @@
+import "io"
+enum Poll[T] { Ready(T), Pending }
+struct Context { int x }
+#[async]
+fn noop() { }
+fn main() -> int { return 0 }

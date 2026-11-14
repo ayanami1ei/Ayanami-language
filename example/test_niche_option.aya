@@ -1,0 +1,64 @@
+// N1（docs/enum-layout.md §4）：niche 枚举——`Option[Ptr[T]]` / `Option[ref T]` 单指针表示
+// 判别由载荷槽空值承载（Some → 非空；None → null）；`_tag` / `_data_V._i` 访问形态不变。
+// 布局：8 字节（-50%）；drop 走零值判空（null 释放安全）。`*T` 不适用（null 是合法裸指针值）。
+import "io"
+import "option"
+
+struct Node {
+    int v
+}
+
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn take_none(Option[Ptr[Node]] o) -> int {
+    if o._tag == 1 { return 1 }
+    return 0
+}
+
+fn find(ref Node n, bool ok) -> Option[ref Node] {
+    if ok {
+        return Option::Some(ref n)
+    }
+    return Option::None()
+}
+
+fn niche_checks() -> int {
+    // 尺寸：niche（8）vs 非 niche（16）
+    if size_of[Option[Ptr[Node]]]() != 8 { return 1 }
+    if size_of[Option[ref Node]]() != 8 { return 2 }
+    if size_of[Option[int]]() != 16 { return 3 }
+    // 构造 / `_tag` / 载荷访问（形态不变）
+    mut p = Ptr::new(Node { v = 42 })
+    o = Option::Some(p)
+    if o._tag != 0 { return 4 }
+    if o._data_Some._0.get().v != 42 { return 5 }
+    // match 全路径
+    match o {
+        Some(x) => { if x.get().v != 42 { return 6 } }
+        None => { return 7 }
+    }
+    // None：空值 = null（含期望类型上下文）
+    if take_none(Option::None()) != 1 { return 8 }
+    // ref 载荷（不拥有对象）
+    n = Node { v = 7 }
+    r = find(ref n, true)
+    if r._tag != 0 { return 9 }
+    if r._data_Some._0.v != 7 { return 10 }
+    r2 = find(ref n, false)
+    if r2._tag != 1 { return 11 }
+    match r2 {
+        Some(_) => { return 12 }
+        None => {}
+    }
+    return 0
+}
+
+fn main() -> int {
+    rc = niche_checks()
+    if rc != 0 { return rc }
+    // Some 载荷（Ptr）经 drop 释放（null 释放安全）；ref 载荷不拥有对象
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 13 }
+    println("niche ok")
+    return 0
+}

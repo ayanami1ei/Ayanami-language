@@ -100,7 +100,14 @@ impl Package {
     }
 
     pub fn write_to_file(&self, path: &str) -> Result<()> {
-        std::fs::write(path, self.to_bytes())
+        let data = self.to_bytes();
+        // 内容未变时不重写：保留 mtime，让整程序增量缓存（#35）在 std 重建后仍能命中
+        if let Ok(old) = std::fs::read(path) {
+            if old == data {
+                return Ok(());
+            }
+        }
+        std::fs::write(path, data)
             .map_err(|e| Error::Package(format!("failed to write package: {}", e)))
     }
 }

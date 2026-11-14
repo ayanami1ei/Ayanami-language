@@ -14,6 +14,7 @@ impl Parser {
         };
         let mut outputs = Vec::new();
         let mut inputs = Vec::new();
+        let mut clobbers: Vec<Symbol> = Vec::new();
         loop {
             match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Delimiter(Delimiter::RParen)) | None => break,
@@ -56,12 +57,34 @@ impl Parser {
                             let input = self.parse_expr()?;
                             inputs.push((constraint, Box::new(input)));
                         }
+                        // #200：clobbers(rax, rcx, r11) —— 模板中被破坏的寄存器
+                        Some(TokenKind::Keyword(Keyword::Clobbers)) => {
+                            self.advance();
+                            self.expect_delimiter(Delimiter::LParen)?;
+                            loop {
+                                match self.peek().map(|t| &t.kind) {
+                                    Some(TokenKind::Identifier(r)) => {
+                                        clobbers.push(Symbol::intern(r));
+                                        self.advance();
+                                    }
+                                    _ => return Err(self.error("expected register name in asm clobbers")),
+                                }
+                                if matches!(self.peek().map(|t| &t.kind),
+                                    Some(TokenKind::Delimiter(Delimiter::Comma)))
+                                {
+                                    self.advance();
+                                    continue;
+                                }
+                                break;
+                            }
+                            self.expect_delimiter(Delimiter::RParen)?;
+                        }
                         _ => break,
                     }
                 }
             }
         }
         self.expect_delimiter(Delimiter::RParen)?;
-        Ok(Expr::Asm { template, outputs, inputs, span })
+        Ok(Expr::Asm { template, outputs, inputs, clobbers, span })
     }
 }

@@ -1,0 +1,79 @@
+// A5e：`#[sync(m)] { ... }` 同步块——正常出口 / 提前 return / break 都自动解锁
+import "io"
+import "sync"
+
+fn normal(ref mut Mutex[int] m) -> int {
+    #[sync(m)]
+    {
+        if m.state != 1 { return 1 }
+        d = m.data()
+        if d != 5 { return 2 }
+    }
+    return 0
+}
+
+fn early(ref mut Mutex[int] m) -> int {
+    #[sync(m)]
+    {
+        if m.state != 1 { return 1 }
+        return 7
+    }
+    return 0
+}
+
+fn break_out(ref mut Mutex[int] m) -> int {
+    i = 0
+    while i < 3 {
+        #[sync(m)]
+        {
+            if m.state != 1 { return 1 }
+            if i == 1 { break }
+        }
+        i = i + 1
+    }
+    if m.state != 0 { return 2 }
+    if i != 1 { return 3 }
+    return 0
+}
+
+fn cont_out(ref mut Mutex[int] m) -> int {
+    i = 0
+    n = 0
+    while i < 4 {
+        #[sync(m)]
+        {
+            if m.state != 1 { return 1 }
+            i = i + 1
+            if i == 2 { continue }
+            n = n + 1
+        }
+    }
+    if m.state != 0 { return 2 }
+    if n != 3 { return 3 }
+    return 0
+}
+
+fn guarded(ref mut Mutex[int] m) -> int {
+    #[sync(m, guard = d)]
+    {
+        if d != 5 { return 1 }
+        d = 9
+    }
+    if m.payload != 9 { return 2 }
+    return 0
+}
+
+fn main() -> int {
+    m = Mutex[int] { state = 0, payload = 5 }
+    if normal(ref mut m) != 0 { return 1 }
+    if m.state != 0 { return 2 }
+    if early(ref mut m) != 7 { return 3 }
+    if m.state != 0 { return 4 }
+    if break_out(ref mut m) != 0 { return 5 }
+    if m.state != 0 { return 6 }
+    if cont_out(ref mut m) != 0 { return 7 }
+    if m.state != 0 { return 8 }
+    if guarded(ref mut m) != 0 { return 9 }
+    if m.state != 0 { return 10 }
+    return 0
+}

@@ -13,6 +13,7 @@ pub(super) fn emit_lcl_package(
     let mut pkg = crate::package::Package::new(stem.to_string_lossy().into_owned(), env!("CARGO_PKG_VERSION").into());
     pkg.set_effect_summaries(lir_program.effect_summaries.clone());
     pkg.collect_all_symbols(&program.stmts);
+    pkg.validate_annotation_names()?;
     pkg.set_consts(consts);
     pkg.set_statics(statics, true);
     merge_symbols(&mut pkg, dep_lcl_paths);
@@ -61,6 +62,7 @@ pub fn package_source(src_path: &str, _code: &str) -> Result<()> {
     };
     pkg.set_effect_summaries(compiled.lir_program.effect_summaries.clone());
     pkg.collect_all_symbols(&compiled.program.stmts);
+    pkg.validate_annotation_names()?;
     pkg.set_consts(&compiled.consts);
     pkg.set_statics(&compiled.statics, true);
     merge_symbols(&mut pkg, &compiled.dep_lcl_paths);

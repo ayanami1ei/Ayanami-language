@@ -1,0 +1,67 @@
+// A1a：最小 Future 协议（Poll/Waker/Context）+ 单线程 executor + 手写状态机
+import "io"
+
+enum Poll[T] {
+    Ready(T),
+    Pending,
+}
+
+struct Waker {
+    int id
+}
+
+impl Waker {
+    /// 单线程执行器：唤醒即「下一轮继续轮询」
+    fn wake(ref self) {
+    }
+}
+
+struct Context {
+    Waker waker
+}
+
+/// 异步协议（结构化：具备 poll 即满足）
+interface Future[T] {
+    fn poll(ref mut self, ref Context cx) -> Poll[T];
+}
+
+/// 手写状态机：前两次 Pending，第三次 Ready(42)
+struct Countdown {
+    int left
+}
+
+impl Countdown {
+    #[state]
+    fn poll(ref mut self, ref Context cx) -> Poll[int] {
+        cx.waker.wake()
+        if self.left > 0 {
+            self.left = self.left - 1
+            return Poll::Pending()
+        }
+        return Poll::Ready(42)
+    }
+}
+
+#[state]
+fn block_on[F: Future[int]](ref mut F f) -> int {
+    w = Waker { id = 1 }
+    cx = Context { waker = w }
+    rounds = 0
+    while true {
+        p = f.poll(ref cx)
+        match p {
+            Ready(v) => { return v }
+            Pending => { rounds = rounds + 1 }
+        }
+        if rounds > 8 { return -1 }
+    }
+    return -1
+}
+
+#[state]
+fn main() -> int {
+    c = Countdown { left = 2 }
+    if block_on(ref mut c) != 42 { return 1 }
+    if c.left != 0 { return 2 }
+    return 0
+}

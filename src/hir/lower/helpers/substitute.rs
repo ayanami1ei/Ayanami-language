@@ -109,10 +109,11 @@ pub(crate) fn substitute_type_in_expr(expr: &Expr, subst: &HashMap<Symbol, Type>
             *mutable,
             *span,
         ),
-        Expr::Asm { template, outputs, inputs, span } => Expr::Asm {
+        Expr::Asm { template, outputs, inputs, clobbers, span } => Expr::Asm {
             template: template.clone(),
             outputs: outputs.iter().map(|(c, e)| (c.clone(), Box::new(substitute_type_in_expr(e, subst)))).collect(),
             inputs: inputs.iter().map(|(c, e)| (c.clone(), Box::new(substitute_type_in_expr(e, subst)))).collect(),
+            clobbers: clobbers.clone(),
             span: *span,
         },
         Expr::Index { object, index, span } => Expr::Index {

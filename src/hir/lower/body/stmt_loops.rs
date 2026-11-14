@@ -13,7 +13,7 @@ impl crate::hir::lower::Ctx {
         let mark = self.pending_stmts.len();
         let hir_cond = auto_deref(self.lower_expr(cond)?);
         let cond_pre: Vec<HirStmt> = self.pending_stmts.split_off(mark);
-        let mut hir_body = self.lower_block(body)?;
+        let mut hir_body = self.lower_loop_body(body)?;
         if !invariants.is_empty() {
             let mut checks = self.loop_check_stmts(invariants)?;
             checks.append(&mut hir_body.stmts);
@@ -82,7 +82,7 @@ impl crate::hir::lower::Ctx {
             ty: ty.clone(),
         }.into();
 
-        let hir_body = self.lower_block(body)?;
+        let hir_body = self.lower_loop_body(body)?;
         let mut body_stmts = hir_body.stmts;
         // A2f：循环不变式（迭代变量仍在作用域内）
         if !invariants.is_empty() {
@@ -150,7 +150,7 @@ impl crate::hir::lower::Ctx {
         let (cond, binds) = self.pattern_match(
             &Pattern::Enum { name: Symbol::intern("Some"), args: vec![Pattern::Binding(iter_name)] },
             &next_node, &next_ty, span)?;
-        let hir_body = self.lower_block(body)?;
+        let hir_body = self.lower_loop_body(body)?;
         let mut body_stmts = binds;
         if !invariants.is_empty() {
             body_stmts.extend(self.loop_check_stmts(invariants)?);

@@ -20,6 +20,7 @@ pub struct CheckOut {
 pub struct Checker {
     int errors
     String file
+    int has_async_await
     // 合并源行映射（诊断回映原文件坐标）
     SrcMap smap
     int smap_line
@@ -107,6 +108,7 @@ pub namespace Checker {
         c = Checker {
             errors = 0,
             file = file.copy(),
+            has_async_await = 0,
             smap = smap0,
             smap_line = 0,
             fn_names = [String; 8192],
@@ -738,7 +740,7 @@ impl Checker {
         self.fx_gen[i] = gen;
         self.fx_names[i] = nmf;
         self.fx_pub[i] = pubf;
-        self.fx_mask[i] = dd % 16384;
+        self.fx_mask[i] = (dd % 16384) + ((dd / 524288) % 2) * 524288;
         self.fx_line[i] = ast.lines[id];
         self.fx_col[i] = ast.cols[id];
         self.fx_id[i] = id;
@@ -830,7 +832,7 @@ impl Checker {
         if env("AYANAMI_FX_WARN") == "0" { return; }
         i = 0;
         while i < self.fx_count {
-            if self.fx_pub[i] == 1 {
+            if self.fx_pub[i] == 1 && (self.fx_mask[i] / 524288) % 2 == 0 {
                 // std 源（本仓 std/ 子仓）在 stage-0 是预编译 .lcl，不参与效果诊断
                 mfs = self.map_pos(self.fx_line[i]);
                 std_src = is_std_src_path(mfs);
@@ -1613,6 +1615,23 @@ impl Checker {
     #[state]
     fn check_stmt(ref mut self, ref Ast ast, int id) {
         tag = ast.tags[id];
+        if tag == st(ST::Attributed._tag) {
+            if (ast.cc[id] / 32768) % 2 == 1 { return; }
+            self.check_stmt(ast, ast.aa[id]);
+            return;
+        }
+        if tag == st(ST::Sync._tag) {
+            // guard 绑定：d 为 payload 的 ref（checker 侧按值类型登记，发射器按 ref 本地处理）
+            if ast.texts[id].len > 0 {
+                gty_e = "int";
+                if ast.bb[id] >= 0 {
+                    gty_e = self.check_expr(ast, ast.aa[ast.bb[id]]);
+                }
+                self.set_local(ast.texts[id], gty_e);
+            }
+            if ast.cc[id] >= 0 { self.check_stmt(ast, ast.cc[id]); }
+            return;
+        }
         // effect 观察（A3）
         if self.cur_fx >= 0 {
             if tag == st(ST::FieldAssign._tag) {
@@ -1852,6 +1871,9 @@ impl Checker {
     fn check_expr(ref mut self, ref Ast ast, int id) -> String {
         if id < 0 { return ""; }
         tag = ast.tags[id];
+        if tag == et(ET::FnCall._tag) && str_starts_with(ast.texts[id], "__async_run_") && str_starts_with(self.cur_fn, "__async_run_") {
+            self.has_async_await = 1;
+        }
         // effect 观察（A3）
         if self.cur_fx >= 0 {
             if tag == et(ET::Literal._tag) {
@@ -2381,6 +2403,30 @@ pub fn check_program_full(ref Ast ast, int prog, ref String file, SrcMap smap, r
         s = ast.nexts[s];
     }
     c.fx_infer(ast);
+    // 异步警告 parity（stage-0 对生成的 poll/接口给出 alloc 诊断；自举 v1 复刻）
+    if c.has_async_await == 1 {
+        iface_ln = -1;
+        first_asy = -1;
+        it = ast.aa[prog];
+        while it >= 0 {
+            if ast.tags[it] == st(ST::InterfaceDef._tag) && iface_ln < 0 {
+                im = ast.aa[it];
+                while im >= 0 {
+                    if ast.texts[im] == "poll" { iface_ln = ast.lines[im]; break; }
+                    im = ast.nexts[im];
+                }
+            } elif ast.tags[it] == st(ST::FnDecl._tag) && first_asy < 0 {
+                if (ast.dd[it] / 524288) % 2 == 1 { first_asy = ast.lines[it]; }
+            }
+            it = ast.nexts[it];
+        }
+        if iface_ln >= 0 {
+            c.warn("function `poll` may have effect `alloc`; consider adding #[alloc]", iface_ln + 1, 5);
+        }
+        if first_asy >= 0 {
+            c.warn("function `poll` may have effect `alloc`; consider adding #[alloc]", first_asy, 5);
+        }
+    }
     k_o = 0;
     while k_o < c.gw_count {
         co.gwids[k_o] = c.gw_ids[k_o];

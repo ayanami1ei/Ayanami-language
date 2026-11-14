@@ -22,7 +22,7 @@ pub(crate) fn type_layout(ty: &HirType, defs: &StructDefs) -> (u64, u64) {
         HirType::FatPtr { .. } | HirType::Closure(..) => (16, 8),
         HirType::Array(_) | HirType::ArraySized(_, _) => (8, 8),
         HirType::Unique(inner) => match &**inner {
-            HirType::Named(_) | HirType::FatPtr { .. }
+            HirType::Named(_) | HirType::FatPtr { .. } | HirType::Closure(..)
             | HirType::Array(_) | HirType::ArraySized(_, _) => (8, 8),
             _ => type_layout(inner, defs),
         },

@@ -1,0 +1,36 @@
+// E3：资源绑定——容器以泛型字段显式持有分配器（扩容/销毁使用原分配器）
+import "io"
+import "alloc"
+
+struct FailAlloc { }
+
+impl FailAlloc {
+    fn alloc(ref self, usize n) -> usize {
+        return 0usize
+    }
+    fn free(ref self, usize addr) {
+    }
+}
+
+struct Pool[E: Allocator] {
+    E e
+}
+
+impl[E: Allocator] Pool[E] {
+    fn alloc(ref self, usize n) -> usize {
+        return self.e.alloc(n)
+    }
+    fn free(ref self, usize addr) {
+        self.e.free(addr)
+    }
+}
+
+fn main() -> int {
+    p = Pool[DefaultAllocator] { e = DefaultAllocator { } }
+    a = p.alloc(8usize)
+    if a == 0usize { return 1 }
+    p.free(a)
+    q = Pool[FailAlloc] { e = FailAlloc { } }
+    if q.alloc(8usize) != 0usize { return 2 }
+    return 0
+}

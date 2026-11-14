@@ -9,6 +9,8 @@ impl LirNode for SLirAsm {
         let constraint_str = {
             let mut all = self.output_constraints.clone();
             all.extend(self.input_constraints.iter().cloned());
+            // #200：clobber → `~{reg}`（LLVM 不再假定这些寄存器保持不变）
+            for r in &self.clobbers { all.push(format!("~{{{}}}", r.as_str())); }
             all.join(",")
         };
         // 注意：LLVM 内联汇编的输出操作数不放进参数列表，仅通过返回值 + 回写
@@ -63,6 +65,8 @@ impl LirNode for SLirAsm {
         for (v, t) in &self.input_operands { put_value(buf, v); put_type(buf, t); }
         put_u32(buf, self.input_constraints.len() as u32);
         for c in &self.input_constraints { put_str(buf, c); }
+        put_u32(buf, self.clobbers.len() as u32);
+        for c in &self.clobbers { put_str(buf, &c.as_str()); }
         put_type(buf, &self.ret_ty);
     }
 }

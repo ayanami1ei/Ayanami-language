@@ -55,10 +55,11 @@ pub(super) fn find_opt(local_only: bool) -> Option<(PathBuf, PathBuf)> {
 /// 依赖 .o 缓存键：编译模式参与哈希，避免 debug/release/LTO 产物互相复用。
 pub fn build_mode_key() -> String {
     format!(
-        "release={};lto={};opt={}",
+        "release={};lto={};opt={};fp={}",
         crate::hir::contracts::is_release(),
         is_lto(),
         std::env::var("AYANAMI_OPT").unwrap_or_default(),
+        env!("AYANAMI_COMPILER_FP"),
     )
 }
 

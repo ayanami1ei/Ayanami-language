@@ -114,3 +114,92 @@ enum __Async_fetch {
 3. 零成本优先：poll 无分配；执行器开销在协议外、可见；
 4. 与泛型/弱链接/`.lcl` 重实例化一致（复用现有特化路径）；
 5. 测试口径：正/负例 + `runtime_safety` + IR 快照 + std 套件（同仓库约定）。
+
+## 7. 实现路线（2026-10-24 更新）
+
+- **A1a（已完成 2026-10-24）**：协议（`Future`/`Poll`/`Waker`/`Context`）+ 单线程 executor +
+  **手写**状态机正例：`example/test_async_manual.aya`（`block_on[F: Future[int]]` 泛型执行器，
+  `Countdown` 手写状态机，前两次 Pending 后 Ready(42)）；零编译器改动。
+  发现：`poll` 修改 `ref mut self` 会触发 `state` 效应告警 → 用 `#[state]` 显式声明（示例已加）；
+  协议类型仍位于示例本地（std 侧由用户仓维护，后续按方法形状识别接入）。
+- **A1b**：`#[async]`/`await` 作为 **A5e 结构化变换注解**（HIR 程序 → HIR 程序）内建实现：
+  编译器生成普通枚举 + `impl Future`/`poll`，产物只用既有构造；协议按**方法形状**识别
+  （`poll(ref mut self, ref Context) -> Poll[T]`），零名字耦合。
+- **A1c**：受限子集先落地——v1 禁止 `ref` 跨 await（自引用需堆钉住，后置）、禁止 `#[sync]` 内 await；
+  循环与提前 `return` 必须支持（状态机拆入口/恢复）。
+- **开放**：A5e 接口稳定后再按 A5d 模式对第三方 `.lcl` 开放 `#[transform]`，async 为参考实现。
+- 详见 `docs/annotations.md` §8.6（A5e 设计）与 ADR-19。
+
+### 7.1 A1b 第一切片（`#[async]` 无 await，2026-10-24 已完成）
+
+先不引入 `await` 语法，只做**协议接线**，把变换跑通：
+
+```ayanami
+#[async]
+fn add(int a, int b) -> int { return a + b }
+```
+
+编译器在 **AST 层**（HIR 之前）生成普通构造：
+
+```ayanami
+struct __add_Fut { int a, int b, int _done }
+fn add(int a, int b) -> __add_Fut { return __add_Fut { a = a, b = b, _done = 0 } }
+fn __async_run_add(int a, int b) -> int { return a + b }   // 原函数体原样搬移
+
+impl __add_Fut {
+    fn poll(ref mut self, ref Context cx) -> Poll[int] {
+        if self._done == 1 { return Poll::Pending() }
+        self._done = 1
+        return Poll::Ready(__async_run_add(self.a, self.b))
+    }
+}
+```
+
+- **约束（v1）**：仅顶层自由函数；非泛型；参数均为 Copy（字段拷贝）；暂不支持 `await`
+  （后续切片再引入挂起点）；`Poll`/`Context` 需在调用方作用域可见（先由示例/std 提供，
+  编译器不绑定名字，按方法形状与类型名解析）。
+- **为什么先拆 runner**：原函数体原样保留（含嵌套 `return`/循环），避免第一切片就做
+  变量提升与返回值改写；后续 `await` 切片再把 runner 内联进 `poll` 并引入状态枚举。
+- **管线位置**：解析后、HIR 降级前（与 `cfg` 过滤同层）；产物只使用既有 AST 构造。
+- **验收**：`example/test_async_sugar.aya`：`block_on(add(1, 2)) == 3`；
+  `#[async]` 用于泛型/方法/非 Copy 参数 → 明确报错；IR 快照无新增节点种类。
+
+后续切片：A1b-2 直线 `await`（单挂起点）→ A1b-3 循环/if 与 `ref` 跨 await 禁用 → A1b-4 高阶组合。
+
+**实现备注**：`src/hir/async_transform.rs`；`#[async]` 在 HIR 前消费（宏展开期由
+`expand_util::is_compiler_attr` 放行）。踩坑：示例最初用 `fn add`，与 std `io` 导入的
+`add(int,int)` 重载同名，签名查找命中导入版本（返回 int）→ 构造函数体报
+`return type mismatch`；**用户函数与导入重载同名时需换名**（既有解析行为，非本特性引入）。
+
+### 7.2 A1b-2（直线 `await`）实现约束（2026-10-24 更新）
+
+**结论：`await` 状态机必须在 HIR（类型检查后）做，AST 层不可行。**
+第一切片之所以能在 AST 层完成，是因为无挂起点、参数类型可直接抄写；一旦出现 `await`，
+状态结构体需要保存**被等待 future 的类型**与跨挂起点存活的局部变量类型，AST 层拿不到
+（宏/展开期也拿不到）。因此：
+
+1. `#[async]` 语法仍由 AST 变换识别并**标记**（保留函数体，不生成机器）；
+2. 新增 HIR 级变换（`lower_items` 之后、MIR 之前）：此时 `HirFn` 已带参数/局部/HIR 类型，
+   可生成 `enum __f_State` + 字段（被测 future、跨 await 局部）+ `poll`；
+3. `await e` 的降级：
+   - `e` 求值得到 future `f`（类型已知），存入状态字段；
+   - `match f.poll(cx) { Ready(v) => 绑定并继续, Pending => 置状态并 return Pending }`；
+   - 恢复入口按状态字段跳转（循环/if 需先做 CFG 拆分）。
+4. v1 限制：单挂起点、直线代码（无 await 跨循环/分支）；`ref` 跨 await 禁用。
+
+验收：`#[async] fn f() -> int { x = await g(); return x + 1 }` + `block_on(f())`；
+负例：两个 await / await 在循环内 / ref 跨 await → 明确错误。
+
+### 7.3 A1b-2 第一切片（已完成，2026-10-24）
+
+已落地最小直线 `await`（AST 层，语法糖 `await expr` → 内部 `__await(expr)`）：
+
+- 限制：`await` 必须是函数体开头的**连续赋值前缀**（0..N 个 `x = await g(args)`）；`g` 为同程序 `#[async]` 函数；
+  `args` 只能是本函数参数；await 载荷支持 `int`/`float`/`bool`/`String`（默认值初始化）；每个 await 一个状态段；后续 await 的实参可引用更早的 await 值（进入该状态时用真实值重建 future，构造器用默认值占位）。
+- 展开：构造 `__f_Fut`（参数 + `__g_Fut __w` + `y` + `_state`）；构造器立即创建内层 future；
+  `poll` 首次轮询内层，`Pending` 直接返回，`Ready(v)` 写 `y` 后调用 `__async_after_f(<params>, y)`
+  执行后置语句（参数名不变，无需重写函数体）。
+- 诊断：`await` 在 `#[async]` 外 / 目标非 async / 循环或分支内 await → 明确报错（`await_in_loop`）。
+- 用例 `example/test_async_await.aya`（`twice` = `await inc` + 1）；负例 `await_outside_async`、
+  `await_not_async`。
+- 后续：任意 await 位置（循环/分支内）→ 状态枚举 + CFG 拆分。

@@ -1,6 +1,6 @@
 # 统一环境注入（Environment Injection）设计提案
 
-> 状态：**设计提案（Proposed，未实现；语法与约定在实现开工时冻结）**（2026-10-18）。
+> 状态：**E1a 约定已冻结（2026-10-23）**；实现未开工（多阶段）。
 > 关联：bd `Ayanami-language-3c0`；原始规划记录：`docs/future-directions.md` §二。
 > 联动：异步（`docs/async.md`——运行时经 `env::runtime` ✓）、引用模型（解析器/注册表可经环境提供 ✓）、
 > 效应 A3、std 侧前置（`Alloc` 接口——std main 暂无，见 §4）。
@@ -91,6 +91,16 @@ interface Alloc {
 | **E3** | 覆盖（作用域最近者）+ 资源绑定（泛型字段） | 内层覆盖生效；容器持有分配器（扩容/销毁使用原分配器）用例 |
 | **E4** | 扩展能力：`env::Runtime`（联动 async ✓）、日志 / IO、用户自定义 `env::xxx` | 各能力一个正例；自定义能力的文档化流程 |
 
+### 5.1 自定义能力流程
+
+1. 定义能力接口：普通 `interface`（方法可用 `ref self` / `ref mut self`，返回值类型自定）；
+2. 提供：在函数上标注 `#[env::<cap>(值表达式)]`，可多条标注使多个能力并存；
+3. 需求：泛型 bound `[X: 接口名]`，能力键 = 接口名小写；也可在已有提供者的函数内直接用
+   `env::<cap>.<method>(...)`；
+4. 传播：上层函数只要可见该能力（注解或自身环境值参数），bound 链自动继续填充；
+5. 覆盖：`#[env::<cap>(v)] { ... }` 块，最近者胜，出块恢复。
+   （验收正例：`example/test_env_custom.aya`）
+
 ## 6. 非目标
 
 - 运行时全局环境栈 / 父对象查找（除策略明确要求）；
@@ -105,3 +115,66 @@ interface Alloc {
 3. 单态化零成本；运行时环境仅显式引用；
 4. std 侧前置：`Alloc` 接口 + 默认提供者（std main 暂无——由 std 侧按本文契约实现）；
 5. 测试口径同仓库（正/负例 + `runtime_safety` + IR 快照 + std 套件）。
+
+## 8. E1a 冻结约定（2026-10-23，实现开工第一步）
+
+std 契约已就绪：`std/src/system/alloc.aya` 的 `interface Allocator`
+（`alloc(ref self, usize) -> usize` / `free(ref self, usize)`）+ `pub struct DefaultAllocator {}`。
+
+| 概念 | 冻结形态 |
+|---|---|
+| 能力接口 | `Allocator`（std）；能力键 = 接口基名小写：`env::allocator` |
+| 环境需求 | 泛型参数 + 接口 bound：`fn load[E: Allocator](...)` |
+| 环境提供 | `#[env::allocator(v)]` 标注在**函数**上（作用域值，最近者优先）；`v` 为产生实现值的**位置表达式**（局部/字段/构造） |
+| 体内访问 | 具名访问器 `env::allocator`（类型为 `E`）——值级注入，不做“无名字魔法” |
+| 调用点 | 直接调用带环境 bound 的泛型函数时，用当前作用域提供者填 `E` 与隐式值参数；缺失 → 编译错误并提示标注 |
+| 传播（E1a 不做） | 中间函数**不继承**：要么声明同样的 bound，要么在各自入口标注（E2 再做继承） |
+| 显式优先 | 显式泛型实参 / 显式传值优先于环境提供 |
+
+**实现面（预估，改动点）**：
+1. 标注解析/校验（`hir/attrs*`）：`env::<cap>(expr)` → 能力键 + 提供值；
+2. `Ctx` 环境栈（函数作用域 push/pop）+ `env::<cap>` 访问器解析（`lower_expr` 的限定名路径）；
+3. 泛型 fn 的**隐式值参数**（`FnSig` 增加 env 参数，类似 `hidden` 但值来自提供者而非合成）；
+4. 调用点填充（值 + 类型进特化参数表）与缺失诊断；
+5. 示例：`[E: Allocator]` 库函数在 `DefaultAllocator` 与自定义分配器两种提供下工作；IR 零额外开销（静态派发/单态化）。
+
+**非目标（E1a）**：不做类型级能力（无值构造路径 ✗）、不做继承传播、不做运行时全局环境栈（§6 非目标）。
+
+**实现状态**：
+- [x] **第 1 步（2026-10-23）**：函数级提供者 + 内置访问器
+      - `#[env::<cap>(v)]`（编译器内置 `env` 命名空间，属性校验三处放行：`attrs::resolve` /
+        `attrs_macro::is_compiler_attr` / `passes::is_builtin_attr`）；
+      - `Ctx::env_providers`（fn_id → cap → 表达式）在 `lower_fn` 登记；
+      - `env::<cap>` 访问器在 `lower_expr` 解析为提供值（位置表达式，访问时重新求值）；
+      - 用例 `example/test_env_allocator.aya`（`DefaultAllocator` 分配/释放）、
+        负例 `tests/compile_fail/env_accessor_outside.aya`；
+- [x] **第 2 步（2026-10-23）**：泛型 bound 驱动的环境需求 + 调用点自动填充
+      - 需求判定：泛型 bound 基名小写命中「**调用方作用域提供者键**」→ 该泛型参数由环境提供
+        （实现口径：能力键取自当前函数可见的提供者，避免要求全程序预扫描；无提供者时
+        bound 不自动视为需求，体访问器会给出明确错误）
+      - 调用点：取当前函数作用域的提供值（`#[env::cap(v)]` 或本函数环境值参数），记入
+        `pending_env_args` 供特化绑定 `E`；并以隐含实参 `ref mut E` 插在可见实参之后、
+        位置隐藏实参之前；缺失 → `no environment provider` 错误
+      - 特化：`inject_env_params` 将 `__env_<cap>: ref mut <E 具体类型>` 注入形参表
+        （体降级的局部注册随之成立）；访问器优先注解、其次环境值参数
+      - 修复既有缺陷：特化**失败路径**未恢复 `current_fn`/locals/scopes（泄漏到调用方，
+        导致后续调用环境作用域错误）
+      - 用例 `example/test_env_generic.aya`（`fn alloc_free[E: Allocator]` 由调用方提供者自动填充）
+
+- [x] **E2（部分，2026-10-23）**：传播（显式 bound 链）
+      - 可用能力键 = 本函数提供者注解键 ∪ 本函数环境值参数（`__env_<cap>`）→ 泛型函数可把
+        环境继续传给下层（`middle[E]` → `inner[E]` 链路自动传递）
+      - 显式泛型实参优先于环境提供（`inner[DefaultAllocator](...)` 仍自动传值）
+      - 用例 `example/test_env_chain.aya`
+      - 块作用域覆盖（`#[env::cap(v)] { ... }`）：`env_blocks` 栈，最近者胜；用例 `example/test_env_block.aya`
+- [x] **E3（2026-10-23）**：资源绑定（泛型字段）
+      - 容器以泛型字段显式持有分配器：`struct Pool[E: Allocator] { E e }`，
+        `impl[E: Allocator] Pool[E]` 方法经 `self.e.alloc/free` 使用原分配器，无需环境注入
+      - 用例 `example/test_env_pool.aya`（`DefaultAllocator` 池分配非零并释放；`FailAlloc` 池返回 0）
+- [x] **E4（2026-10-24）**：扩展能力（用户自定义能力键）
+      - 能力键无需编译器内置名单：泛型 bound `[X: Interface]` 按「接口名小写 == `#[env::<cap>]` 键」匹配
+      - 用例 `example/test_env_custom.aya`：自定义 `Logger` + 内建 `Allocator` 并存于一个函数；
+        块内覆盖 `Logger`（`MuteLogger` 返回 0）而 `Allocator` 继续继承外层
+      - `env::Runtime`（联动 async）：机制同一规则，待 async A1 调度器接口落地后补正例
+      - 自定义能力流程见 §5.1
+      - 待做：跨包能力键、歧义诊断

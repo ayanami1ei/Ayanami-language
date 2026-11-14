@@ -1,0 +1,20 @@
+struct Node {
+    int v
+}
+
+struct S {
+    Ptr[Node] p
+}
+
+impl S {
+    fn take(self) -> int {
+        return self.p.get().v
+    }
+}
+
+fn main() -> int {
+    s = S { p = Ptr::new(Node { v = 7 }) }
+    if s.take() != 7 { return 1 }
+    if s.take() != 7 { return 2 }
+    return 0
+}

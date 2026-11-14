@@ -1,0 +1,9 @@
+import "sync"
+
+fn main() -> int {
+    m = Mutex[int] { state = 0, payload = 0 }
+    #[sync(m)]
+    if true {
+    }
+    return 0
+}

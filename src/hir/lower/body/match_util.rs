@@ -57,3 +57,12 @@ pub(super) fn block_diverges(b: &HirBlock) -> bool {
         _ => false,
     }
 }
+
+/// 位置的根局部（字段/下标/解引用回溯）。
+pub(super) fn place_root_hir(e: &dyn HirNode) -> Option<VarId> {
+    if let Some(id) = e.as_local() { return Some(id); }
+    if let Some((obj, _, _)) = e.as_field_access() { return place_root_hir(&**obj); }
+    if let Some((obj, _)) = e.as_index() { return place_root_hir(&**obj); }
+    if let Some(inner) = e.as_deref() { return place_root_hir(&**inner); }
+    None
+}

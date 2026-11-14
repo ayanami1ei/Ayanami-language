@@ -152,6 +152,8 @@ fn walk_stmt(
         Stmt::Match { value, arms, .. } => walk_match(ctx, value, arms, declared, caps)?,
         Stmt::ExprStmt { expr, .. } => walk_expr(ctx, expr, declared, caps)?,
         Stmt::Attributed { stmt, .. } => walk_stmt(ctx, stmt, declared, caps)?,
+        // #204：unsafe 块内的局部声明/使用同属闭包可见作用域
+        Stmt::Unsafe { block, .. } => walk_block(ctx, block, declared, caps)?,
         // 不引入捕获的语句（函数/类型声明等）：lambda body 中一般不可出现
         _ => {}
     }

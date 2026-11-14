@@ -270,14 +270,16 @@ fn state_marker() -> CallInfo {
     CallInfo { fn_id: crate::hir::ty::FnId(usize::MAX), try_unwrap: false, err_construct: None, effects: ["state".to_string()].into_iter().collect() }
 }
 
-fn is_observable_target(object: &crate::hir::HirNodeBox) -> bool {
-    matches!(object.expr_type(), crate::hir::HirType::Ref(..) | crate::hir::HirType::Unique(..))
-}
+use super::infer_obs::is_observable_target;
 
 fn walk_expr(e: &dyn HirNode, calls: &mut Vec<CallInfo>) {
     let mut info: Option<CallInfo> = None;
     if let Some(id) = e.as_call() {
         info = Some(CallInfo { fn_id: id, try_unwrap: false, err_construct: None, effects: BTreeSet::new() });
+    }
+    // #208：asm 按模板判定——纯寄存器算术无效应（`#[pure]` 包装成立），访存/特权指令计 state
+    if e.asm_template().map(super::infer_asm::asm_may_touch_memory).unwrap_or(false) {
+        calls.push(state_marker());
     }
     if e.is_alloc() {
         let i = info.get_or_insert_with(|| CallInfo { fn_id: crate::hir::ty::FnId(usize::MAX), try_unwrap: false, err_construct: None, effects: BTreeSet::new() });

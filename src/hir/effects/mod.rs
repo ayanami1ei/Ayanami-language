@@ -23,6 +23,8 @@ pub(crate) const IO_NAMES: &[&str] = &[
 
 pub mod diag;
 pub mod infer;
+mod infer_asm;
+mod infer_obs;
 pub mod scan;
 
 pub use infer::{analyze, set_verify_effects, verify_effects, EffectSet};

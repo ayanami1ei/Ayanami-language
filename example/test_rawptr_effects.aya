@@ -1,0 +1,30 @@
+// #206：经裸指针的写入计 state（函数不得标 memory(read)/memory(none)），写后读取到新值
+struct Shared {
+    int v
+}
+
+fn write_via_raw(*Shared p) -> void {
+    unsafe {
+        (*p).v = 42
+    }
+}
+
+fn write_via_raw2(*int p) -> void {
+    unsafe {
+        *p = 7
+    }
+}
+
+fn main() -> int {
+    s = Shared { v = 0 }
+    x = 0
+    unsafe {
+        p = ref mut s as *Shared
+        q = ref mut x as *int
+        write_via_raw(p)
+        write_via_raw2(q)
+    }
+    if s.v != 42 { return 1 }
+    if x != 7 { return 2 }
+    return 0
+}

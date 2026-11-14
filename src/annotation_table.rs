@@ -1,23 +1,19 @@
-//! A5d-1：导入包的注解表（宏 / 优化 pass）与裸名解析。
+//! A5d：导入包的注解表（宏 / 优化 pass / 只读检查）与裸名解析。
 //!
-//! - 注解表来自各 import 的 `.lcl`：`macro="name"` / `pass="name"`；
+//! - 注解表来自各 import 的 `.lcl`：`macro=` / `pass=` / `check=`；
 //! - 裸名自动作用域：`import "pkg"` 后该包导出的注解全部进入作用域；
 //!   重名时报错并提示全限定 `pkg::name`；
 //! - 全限定始终可用（要求包已 import）。
+//!
+//! 解析规则（宏展开与 HIR 校验共用，历史上两套实现曾漂移）：
+//! - 同一包内注解名跨类别唯一（打包/加载时校验，见 `package::symbols` / `package::load`）；
+//! - 跨包同名允许，裸名解析到多个包 → 歧义错误，必须全限定。
 
 use std::collections::HashMap;
-use crate::error::{Error, Result};
-use crate::parser::ast::{Attr, Stmt};
 
-/// 一个包导出的注解
-#[derive(Default, Clone)]
-pub(super) struct PkgAnnotations {
-    pub lcl_path: String,
-    /// (宏名, 是否 token 宏；mcl.1)
-    pub macros: Vec<(String, bool)>,
-    pub passes: Vec<String>,
-    pub checks: Vec<String>,
-}
+use crate::error::{Error, Result};
+use crate::intern::Symbol;
+use crate::parser::ast::{Attr, Stmt};
 
 /// 注解类别
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +21,16 @@ pub(crate) enum AnnKind {
     Macro,
     Pass,
     Check,
+}
+
+/// 一个包导出的注解
+#[derive(Default, Clone)]
+pub(crate) struct PkgAnnotations {
+    pub lcl_path: String,
+    /// (宏名, 是否 token 宏；mcl.1)
+    pub macros: Vec<(String, bool)>,
+    pub passes: Vec<String>,
+    pub checks: Vec<String>,
 }
 
 /// 已导入包的注解表
@@ -42,6 +48,34 @@ impl AnnotationTables {
         let mut t = Self::default();
         t.collect_stmts(stmts)?;
         Ok(t)
+    }
+
+    /// HIR 侧：从已收集的导入映射构造（只关心类别，token 宏标记在此不需要）。
+    pub(crate) fn from_kind_maps(
+        macros: &HashMap<Symbol, Vec<Symbol>>,
+        passes: &HashMap<Symbol, Vec<Symbol>>,
+        checks: &HashMap<Symbol, Vec<Symbol>>,
+    ) -> Self {
+        let mut pkgs: HashMap<String, PkgAnnotations> = HashMap::new();
+        for (pkg, names) in macros {
+            let p = pkgs.entry(pkg.as_str().to_string()).or_default();
+            for n in names {
+                p.macros.push((n.as_str().to_string(), false));
+            }
+        }
+        for (pkg, names) in passes {
+            let p = pkgs.entry(pkg.as_str().to_string()).or_default();
+            for n in names {
+                p.passes.push(n.as_str().to_string());
+            }
+        }
+        for (pkg, names) in checks {
+            let p = pkgs.entry(pkg.as_str().to_string()).or_default();
+            for n in names {
+                p.checks.push(n.as_str().to_string());
+            }
+        }
+        Self { pkgs }
     }
 
     fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()> {
@@ -88,16 +122,17 @@ impl AnnotationTables {
             let ann = if rest.is_empty() { name.clone() } else { format!("{}.{}", rest.join("."), name) };
             let Some(p) = self.pkgs.get(&pkg) else { return Ok(None) };
             if let Some((_, tokens)) = p.macros.iter().find(|(m, _)| *m == ann) {
-                return Ok(Some((pkg, ann, AnnKind::Macro, *tokens)));
+                return Ok(Some((pkg.to_string(), ann, AnnKind::Macro, *tokens)));
             }
             if p.passes.iter().any(|m| *m == ann) {
-                return Ok(Some((pkg, ann, AnnKind::Pass, false)));
+                return Ok(Some((pkg.to_string(), ann, AnnKind::Pass, false)));
             }
             if p.checks.iter().any(|m| *m == ann) {
-                return Ok(Some((pkg, ann, AnnKind::Check, false)));
+                return Ok(Some((pkg.to_string(), ann, AnnKind::Check, false)));
             }
             return Ok(None);
         }
+        // 每包最多一个命中（同包跨类别唯一由打包/加载校验保证）。
         let mut hits: Vec<(String, AnnKind, bool)> = Vec::new();
         for (pkg, p) in &self.pkgs {
             if let Some((_, tokens)) = p.macros.iter().find(|(m, _)| *m == name) {
@@ -122,6 +157,11 @@ impl AnnotationTables {
                 )))
             }
         }
+    }
+
+    /// 只要类别（HIR 校验用）。
+    pub(crate) fn resolve_kind(&self, a: &Attr) -> Result<Option<AnnKind>> {
+        Ok(self.resolve(a)?.map(|(_, _, k, _)| k))
     }
 
     pub fn lcl_path(&self, pkg: &str) -> Option<String> {

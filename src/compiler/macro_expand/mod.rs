@@ -12,12 +12,11 @@ use std::path::{Path, PathBuf};
 use crate::error::{Error, Result};
 use crate::parser::ast::{Attr, Block, Program, Stmt};
 
-pub(crate) use annotations::{AnnKind, AnnotationTables};
+pub(crate) use crate::annotation_table::{AnnKind, AnnotationTables};
 pub(crate) use plugin::invoke_macro_expr;
 
 const MAX_DEPTH: usize = 32;
 
-mod annotations;
 mod expand_util;
 mod plugin_call;
 mod token_stream;

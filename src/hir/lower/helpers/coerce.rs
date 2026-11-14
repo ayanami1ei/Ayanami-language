@@ -167,3 +167,53 @@ pub(crate) fn retype_comparison_bool(expr: HirNodeBox) -> HirNodeBox {
     }
     SBoolToNum { expr, ty: HirType::Bool }.into()
 }
+
+/// #201：赋值类型兼容判定（在 `coerce_expr` 等隐式转换之后仍不一致时调用）。
+/// 不兼容 → 上游报明确类型错误，避免结构体/聚合值进入基元槽位产生非法 IR。
+pub(crate) fn assign_compatible(src: &HirType, dst: &HirType) -> bool {
+    if src == dst {
+        return true;
+    }
+    match (src, dst) {
+        // 引用：自动解引用/重新借用由更早的转换处理，此处放行
+        (HirType::Ref(..), _) | (_, HirType::Ref(..)) => true,
+        // 基元：隐式数值转换已在 coerce_expr 处理
+        (a, b) if is_primitive(a) && is_primitive(b) => true,
+        // null 字面量 `0` 赋给指针/拥有指针（既有惯用法）
+        (HirType::Int, HirType::RawPtr(_)) | (HirType::Int, HirType::Unique(_)) => true,
+        (HirType::Unique(a), HirType::Unique(b)) => assign_compatible(a, b),
+        // 数组：定长/动态（`[T; n]` ↔ `[T]`）表示一致（同为堆指针），元素类型需兼容
+        (HirType::Array(a), HirType::Array(b))
+        | (HirType::ArraySized(a, _), HirType::ArraySized(b, _))
+        | (HirType::ArraySized(a, _), HirType::Array(b))
+        | (HirType::Array(a), HirType::ArraySized(b, _)) => assign_compatible(a, b),
+        // 基名相同的泛型实例化（基/具体名混用为既有行为）
+        (HirType::Named(a), HirType::Named(b)) => {
+            crate::hir::lower::strip_generic_name(a) == crate::hir::lower::strip_generic_name(b)
+        }
+        (HirType::FatPtr { name: a, .. }, HirType::FatPtr { name: b, .. }) => a == b,
+        (HirType::Closure(..), HirType::Closure(..))
+        | (HirType::FnPtr(..), HirType::FnPtr(..))
+        | (HirType::Closure(..), HirType::FatPtr { .. })
+        | (HirType::FnPtr(..), HirType::FatPtr { .. }) => true,
+        _ => false,
+    }
+}
+
+/// #201：赋值目标类型检查（赋值 / 字段写入 / 解引用写入共用）。
+/// 不兼容 → 明确类型错误（此前进入 llc 产生非法 IR）。
+pub(crate) fn ensure_assignable(
+    value: &HirNodeBox,
+    dst: &HirType,
+    span: &Span,
+    what: &str,
+) -> Result<()> {
+    let vty = if value.is_comparison() { HirType::Bool } else { value.expr_type() };
+    if assign_compatible(&vty, dst) {
+        return Ok(());
+    }
+    Err(Error::Hir(format!(
+        "type mismatch: cannot assign `{}` to {} (at {}:{})",
+        hir_type_display(&vty), what, span.start_line, span.start_col
+    )))
+}

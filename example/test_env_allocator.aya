@@ -1,0 +1,16 @@
+// E1a：函数级环境提供——`#[env::allocator(v)]` + 内置访问器 `env::allocator`
+import "io"
+import "alloc"
+
+#[env::allocator(a)]
+fn run() -> int {
+    a = DefaultAllocator { }
+    p = env::allocator.alloc(16usize)
+    if p == 0usize { return 1 }
+    env::allocator.free(p)
+    return 0
+}
+
+fn main() -> int {
+    return run()
+}

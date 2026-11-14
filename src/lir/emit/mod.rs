@@ -133,7 +133,12 @@ impl<'a> Emitter<'a> {
 
         // Extern declarations（真实签名 + LLVM 属性）；#195：同名去重（首个为准）
         let mut emitted_decls: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        // d5c/nsr：本地已有定义的同名符号不再发 declare（LLVM 拒绝 declare + internal define）
+        let defined_fns: std::collections::HashSet<&str> = self.prog.functions.iter()
+            .filter_map(|f| self.prog.fn_names.get(&f.fn_id).map(|n| n.as_str()))
+            .collect();
         for d in &self.prog.extern_decls {
+            if defined_fns.contains(d.name.as_str()) { continue; }
             if !emitted_decls.insert(d.name.as_str()) {
                 continue;
             }

@@ -1,0 +1,31 @@
+// ref 借用的数组元素字段移出：`s.items[0].name` 需按元素地址 + 字段清零
+// （或 clone），不能浅拷贝后让源容器再 drop 一次。
+import "io"
+import "string"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+struct P {
+    String name
+}
+
+struct S {
+    [P] items
+    usize len
+}
+
+fn take_name(ref S s) -> String {
+    return s.items[0].name
+}
+
+fn run() -> int {
+    s = S { items = [P { name = "hello" }], len = 1 }
+    n = take_name(ref s)
+    return n.len() as int
+}
+
+fn main() -> int {
+    if run() != 5 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

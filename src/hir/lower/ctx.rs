@@ -19,6 +19,18 @@ use super::*;
 /// - 泛型函数的 AST 与特化结果
 /// - 当前作用域中的变量绑定
 pub(crate) struct Ctx {
+    /// E1a：函数级环境提供者（fn_id → cap → (提供值表达式, 位置)）
+    pub env_providers: HashMap<FnId, HashMap<Symbol, (crate::parser::ast::Expr, Span)>>,
+    /// E1a：本次调用收集的环境实参类型（供泛型特化绑定 E；调用结束清空）
+    pub pending_env_args: Vec<(Symbol, HirType)>,
+    /// E2：块作用域环境提供者栈（最近者胜）
+    pub env_blocks: Vec<HashMap<Symbol, (crate::parser::ast::Expr, Span)>>,
+    /// match ergonomics：引用 scrutinee 下按引用绑定（None = 按值移动）
+    pub pattern_by_ref: Option<bool>,
+    /// A5e：`#[sync(obj)]` 块的活动锁（出口/提前返回补 unlock）
+    pub sync_locks: Vec<SyncLock>,
+    /// A5e：循环入口处的 `sync_locks.len()` 标记（break/continue 只解到该位置）
+    pub loop_sync_marks: Vec<usize>,
     /// 所有已注册的函数（按 FnId 索引）
     pub fns: Vec<FnSig>,
     /// 函数名到 FnId 列表的映射（支持重载同名函数）
@@ -99,6 +111,12 @@ pub(crate) struct Ctx {
     pub pending_ret_checks: Vec<(Span, HirType)>,
 }
 
+/// A5e：`#[sync(obj)]` 块的活动锁（位置表达式 + 标注位置）。
+#[derive(Clone)]
+pub struct SyncLock {
+    pub obj: crate::parser::ast::Expr,
+}
+
 impl Ctx {
     /// 创建新的降级上下文
     pub fn new() -> Self {
@@ -150,6 +168,12 @@ impl Ctx {
             cur_fn_unsafe: false,
             lambda_ret_pending: false,
             pending_ret_checks: Vec::new(),
+            env_providers: HashMap::new(),
+            pending_env_args: Vec::new(),
+            env_blocks: Vec::new(),
+            pattern_by_ref: None,
+            sync_locks: Vec::new(),
+            loop_sync_marks: Vec::new(),
         }
     }
 
@@ -215,8 +239,10 @@ impl Ctx {
     }
 
     pub fn is_enum_type(&self, type_name: &Symbol) -> bool {
-        self.struct_defs.get(type_name).and_then(|f| f.first())
-            .map(|f| f.name.as_str() == "_tag").unwrap_or(false)
+        // N1：niche 形态（无 `_tag` 的单指针槽表示）同样视为枚举
+        self.is_niche_enum(type_name)
+            || self.struct_defs.get(type_name).and_then(|f| f.first())
+                .map(|f| f.name.as_str() == "_tag").unwrap_or(false)
     }
 
     /// P3b：union 类型（首字段为保留名 `__union`；其后为真实字段列表）

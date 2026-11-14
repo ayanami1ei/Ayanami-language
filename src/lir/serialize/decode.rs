@@ -190,8 +190,11 @@ impl<'a> Reader<'a> {
                 let ic_count = self.u32()?;
                 let mut input_constraints = Vec::new();
                 for _ in 0..ic_count { input_constraints.push(self.str()?); }
+                let cl_count = self.u32()?;
+                let mut clobbers = Vec::new();
+                for _ in 0..cl_count { clobbers.push(crate::intern::Symbol::intern(&self.str()?)); }
                 let ret_ty = self.ty()?;
-                Ok(SLirAsm { dest, template, output_constraints, output_operands, input_operands, input_constraints, ret_ty }.into())
+                Ok(SLirAsm { dest, template, output_constraints, output_operands, input_operands, input_constraints, clobbers, ret_ty }.into())
             }
             25 => {
                 let d = self.u64()?;

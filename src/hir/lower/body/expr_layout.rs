@@ -8,7 +8,7 @@ use super::*;
 impl crate::hir::lower::Ctx {
     /// 布局内置统一求值：返回 `Some((Int, 值))`；非布局内置返回 `None`。
     pub(crate) fn eval_layout_builtin_call(
-        &self,
+        &mut self,
         name: &Symbol,
         generic_args: &Vec<Type>,
         args: &Vec<Expr>,
@@ -25,6 +25,8 @@ impl crate::hir::lower::Ctx {
             )));
         }
         let ty = ast_type_to_hir(&generic_args[0], &self.interfaces);
+        // N1：先实例化具体类型（niche 改写与变体结构体就位；否则落回基枚举的泛型布局）
+        self.instantiate_type(&ty)?;
         let defs: crate::hir::layout::StructDefs = self.struct_defs.iter()
             .map(|(k, fs)| (*k, fs.iter().map(|f| (f.name, f.ty.clone())).collect()))
             .collect();

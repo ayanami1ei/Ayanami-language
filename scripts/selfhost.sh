@@ -14,6 +14,8 @@
 #   ./scripts/selfhost.sh cli             # 用 stage-0 构建自举 CLI（selfhost/build/ayanami）
 #   ./scripts/selfhost.sh diff [GLOB]    # stage-0/stage-1 输出与退出码差分
 set -euo pipefail
+# 开发构建优先使用系统 llc/opt（安装包内 bundled LLVM 可能滞后于系统 libLLVM）
+export PATH="/usr/bin:$PATH"
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 # golden 中间产物目录（build/ 已是 gitignore 的构建目录；可用 AYANAMI_SELFHOST_WORK 覆盖）

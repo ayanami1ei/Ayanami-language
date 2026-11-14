@@ -6,6 +6,14 @@ impl crate::hir::lower::Ctx {
         let mut object_ty = hir_object.expr_type();
         // M4：先确保泛型实例（如 Option<Ptr[Tree]>）已单态化，字段查找才能取到特化类型
         self.instantiate_type(&object_ty)?;
+        // N1：niche 枚举 `_tag` → 空值判定（无 `_tag` 字段；docs/enum-layout.md §3.1）
+        if field.as_str() == "_tag" {
+            if let HirType::Named(n) = strip_ownership_ref(&object_ty) {
+                if self.is_niche_enum(&n) {
+                    return self.build_niche_tag_expr(hir_object, &object_ty, expr_span);
+                }
+            }
+        }
         // R1：协议回退——接收者本身上无此字段时，`get()` 解引用后重试
         // （docs/reference-model.md §2.1：任意含 get/get_mut 的类型自动解引用）
         if self.find_field_index(&object_ty, field, expr_span).is_err() {
@@ -19,6 +27,9 @@ impl crate::hir::lower::Ctx {
         }
         let field_index = self.find_field_index(&object_ty, field, expr_span)?;
         let field_ty = self.find_field_type(&object_ty, field, expr_span)?;
+        // 字段类型本身可能是泛型实例（如 struct 字段 `Option[Wrap]`）：先实例化，
+        // 后续匹配/字段访问需要具体变体结构体（否则 variant_tag 查不到，ebf 复现时发现）
+        self.instantiate_type(&field_ty)?;
         // P3b：union 字段读取需 unsafe（初始化/写入按 Rust 语义无需）
         if let HirType::Named(n) = strip_ownership_ref(&object_ty) {
             if self.is_union_type(n) {

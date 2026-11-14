@@ -30,7 +30,7 @@
 | `docs/refs-storage.md` | 引用存储（M4：阶段 1 `Ptr[T]` 已落地；阶段 2 Arena 语言能力 + 示例完成，std 移植待做） |
 | `docs/unsafe.md` | unsafe / FFI 安全边界（M5：P1/P2/P3 已落地；P4 extern 调用迁移待做） |
 | `docs/runtime-safety.md` | 运行时安全行为权威清单（UB/panic；`tests/runtime_safety/` 覆盖） |
-| `docs/enum-layout.md` | 枚举布局优化设计（niche / boxed variant / indirect payload；未实现） |
+| `docs/enum-layout.md` | 枚举布局优化（N1 niche + N2/N3 16 字节阈值装箱，均已实现） |
 | `docs/async.md` | 异步设计提案（最小 Future 协议 + `#[async]` 标注；tag 枚举状态机；运行时可换；未实现） |
 | `docs/reference-model.md` | 统一引用关系模型设计提案（纯接口无标注；`get`/`resolve` 协议形态；R1–R4；未实现） |
 | `docs/env-injection.md` | 环境注入设计提案（`env::` 可扩展；泛型需求 + 自动推导；E1–E4；未实现） |
@@ -88,12 +88,15 @@ graph TD
 | 默认移动 / Copy | `hir/ty.rs::is_copy`、`helpers/wrap.rs` | 非 Copy 赋值/传参移动；use-after-move 报错 |
 | 拥有堆值（内部 `HirType::Unique`） | `mir/mem/drop.rs`、`lir/ir/helpers.rs` | `[T]`/`[T; n]` 与拥有胖指针；递归释放；Copy 类型零开销（用户语法无 `unique`） |
 | 数组元素布局 | `lir/ir/helpers.rs::elem_layout_size` | 分配大小按 LLVM 布局递归计算（结构体/枚举含对齐填充） |
+| niche 枚举布局 | `hir/niche.rs` / `hir/lower/ctx_niche.rs` | N1：`Option[Ptr/ref/fn]` 去 `_tag` 单指针槽（8 字节）；判别=载荷槽空值 |
+| 枚举大载荷装箱 | `hir/lower/ctx_niche.rs::apply_boxing_rewrite` | N2/N3：载荷 > 16 字节 → 字段 `Unique(E_V)`（构造装箱/匹配经指针/drop 释放） |
 | `ref` / `ref mut` | `mir/borrow/` | NLL：最后一次使用后失效；可存局部变量、可返回（单引用参数省略） |
 | ref 自动解引用 | `hir/mod.rs::SDeref`、`hir/stmt.rs::DerefAssign` | 值上下文自动 load；`ref mut` 赋值穿透 store（LIR 复用 index-0 指针解引用） |
 | 两阶段借用 | `mir/borrow/loans.rs` | 接收者位置可变借用先 reserved（`s.add(s.v)`） |
 | 接口胖指针 | `hir/ty.rs::FatPtr`、`lir/ir/nodes_b.rs::MakeFatPtr` | `ref Shape` 借用 / `Shape` 拥有 |
 | `#[copy]` 结构体 | `hir/ty.rs`（注册表 + `is_copy`）、`hir/lower/collect_copy.rs`（校验/登记）、`.lcl` `struct=…,copy` | trivial Copy（句柄类类型自由复制；opt-in，不影响普通结构体移动语义） |
 | 赋值/字段覆盖旧值 drop | `mir/lower/assign.rs` | RHS 先求值到临时量，旧值 drop 后置；仅确有 drop 时建临时量 |
+| 模式绑定语义 | `hir/lower/body/match_pattern.rs` | 可克隆载荷 copy/clone（不破坏源，i90）；不可克隆载荷 move + 源置零（**ref 目标上等价 `mem::take`，ebf 已文档化：无 UB/双释放，但借用源被置零**）；不采用 match ergonomics（需独立设计） |
 | 借用临时量提升 | `mir/lower/temps.rs` | `f(ref "x")` 等拥有临时量提升为局部变量，语句后 drop |
 | match/if 表达式结果 | `hir/item.rs::HirLocal::result`、`match_lower.rs`/`if_expr.rs` | 条件赋值结果变量不参与覆盖/块末 drop，链后移出到最终临时量 |
 | 实参移动门控 | `helpers/wrap.rs::type_needs_drop`、`expr_call.rs` | 拥有堆数据的命名类型按值传参移动；extern 借用、POD 复制 |

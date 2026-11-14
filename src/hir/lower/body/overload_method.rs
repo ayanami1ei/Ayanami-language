@@ -34,15 +34,6 @@ impl crate::hir::lower::Ctx {
     }
 
     pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId> {
-        if name.as_str() == "is_none" {
-            eprintln!("DBG resolve_fn_call is_none args={:?} cands={:?}",
-                arg_types.iter().map(hir_type_display).collect::<Vec<_>>(),
-                self.fn_map.get(name).map(|v| v.iter().map(|id| {
-                    let sig = &self.fns[id.0];
-                    let vis = sig.params.len().saturating_sub(sig.hidden);
-                    format!("{}:{:?}", id.0, sig.params.iter().take(vis).map(|(_, t)| hir_type_display(t)).collect::<Vec<_>>())
-                }).collect::<Vec<_>>()));
-        }
         let candidates = self.fn_map.get(name);
         let candidates = match candidates {
             Some(c) => c,
@@ -64,7 +55,8 @@ impl crate::hir::lower::Ctx {
             return Some(matches[0]);
         }
         if matches.len() > 1 {
-            return None;
+            // d5c：本地函数优先于同名同签名的导入重载（导入签名 span 为默认 0）
+            return matches.iter().copied().find(|id| self.fns[id.0].span.start_line > 0);
         }
         // 隐式数值转换回退（char→int / int→float / char→float）：
         // 仅在无精确匹配时参与，避免与精确重载竞争

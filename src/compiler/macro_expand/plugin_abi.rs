@@ -99,7 +99,10 @@ pub(crate) fn plan_params(f: &crate::lir::ir::LirFn, args_len: usize, allow_rese
             )));
         }
     }
-    if next_arg != args_len {
+    // #215：只声明 `String input`（+ __line/__col/__file）的宏是可变参数宏——
+    // 实参原文已经在 input 中，个数由宏自行解析。
+    let variadic = next_arg == 0;
+    if !variadic && next_arg != args_len {
         return Err(Error::Compile(format!(
             "macro `{}` takes {} argument(s) but {} given", f.name, next_arg, args_len
         )));

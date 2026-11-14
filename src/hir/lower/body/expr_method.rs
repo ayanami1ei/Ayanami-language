@@ -127,8 +127,10 @@ impl crate::hir::lower::Ctx {
         // Enum method dispatch: e.method() → EnumMatch over all variants
         if let HirType::Named(type_name) = receiver_inner {
             if self.is_enum_type(type_name) {
+                let niche = self.is_niche_enum(type_name);
                 if let Some(enum_fields) = self.struct_defs.get(type_name).cloned() {
-                    let var_fields: Vec<_> = enum_fields.iter().skip(1)
+                    // N1：niche 形态无 `_tag`，变体从下标 0 起（下标即字段序）
+                    let var_fields: Vec<_> = enum_fields.iter().skip(if niche { 0 } else { 1 })
                         .filter(|f| f.name.as_str().starts_with("_data_")).collect();
                     if !var_fields.is_empty() {
                         let mut arms: Vec<(i64, HirNodeBox)> = Vec::new();
@@ -139,7 +141,9 @@ impl crate::hir::lower::Ctx {
                                 let data_expr: HirNodeBox = SRef {
                                     expr: SField {
                                         object: receiver.clone(),
-                                        field: vf.name, field_index: i + 1, ty: vf.ty.clone(),
+                                        field: vf.name,
+                                        field_index: if niche { i } else { i + 1 },
+                                        ty: vf.ty.clone(),
                                     }.into(),
                                     mutable: false,
                                     ty: ref_ty.clone(),

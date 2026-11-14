@@ -1,0 +1,28 @@
+// issue #218：ArrayList[String] 扩容从 ref self 数组搬出非 Copy 元素；
+// index/pop/set 读取或覆盖后元素各释放一次，无泄漏/双释放。
+import "io"
+import "string"
+import "arraylist"
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn run() -> int {
+    a = ArrayList::new[String]()
+    a.push("a")
+    a.push("b")
+    a.push("c") // 容量 1 → 2 → 4，两次 expand 搬移
+    if a.len() != 3 { return 1 }
+    s = a.index(1)
+    if s != "b" { return 2 }
+    p = a.pop()
+    if p != "c" { return 3 }
+    a.set(0, "z")
+    if a.index(0) != "z" { return 4 }
+    return 0
+}
+
+fn main() -> int {
+    if run() != 0 { return 1 }
+    live = __ayanami_live_allocs()
+    if live != 0 { println(live); return 2 }
+    return 0
+}

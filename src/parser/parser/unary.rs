@@ -5,6 +5,16 @@ impl Parser {
         let tok = self.peek().ok_or_else(|| self.error("expected expression"))?.clone();
         let span = tok.span();
         match &tok.kind {
+            TokenKind::Identifier(name) if name.as_str() == "await" => {
+                self.advance();
+                let expr = self.parse_unary()?;
+                Ok(Expr::FnCall {
+                    name: Symbol::intern("__await"),
+                    args: vec![expr],
+                    generic_args: Vec::new(),
+                    span,
+                })
+            }
             TokenKind::Operator(s) if s == "-" => {
                 self.advance();
                 let expr = self.parse_unary()?;

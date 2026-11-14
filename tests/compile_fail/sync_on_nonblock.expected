@@ -1,0 +1,1 @@
+#[sync] is only allowed on block statements

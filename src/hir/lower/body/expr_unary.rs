@@ -7,13 +7,17 @@ impl crate::hir::lower::Ctx {
         // M5 P2：裸指针解引用 `*p`（读需 unsafe；仅接受 `*T`）
         if matches!(op, UnaryOp::Deref) {
             let span = arg.span();
-            self.require_unsafe("dereference of a raw pointer", &span)?;
             let hir_arg = self.lower_expr(arg)?;
             let arg_ty = expr_type(&hir_arg);
+            // #205：`ref T` / `ref mut T` 解引用是安全操作（借用检查覆盖）；仅裸指针 `*T` 需 unsafe
+            if let HirType::Ref(inner, _) = &arg_ty {
+                return Ok(SDeref { expr: hir_arg, ty: inner.as_ref().clone() }.into());
+            }
+            self.require_unsafe("dereference of a raw pointer", &span)?;
             let pointee = match strip_ownership_ref(&arg_ty) {
                 HirType::RawPtr(inner) => inner.as_ref().clone(),
                 other => return Err(Error::Hir(format!(
-                    "cannot dereference `{}`: expected a raw pointer `*T` (at {}:{})",
+                    "cannot dereference `{}`: expected a reference or raw pointer `*T` (at {}:{})",
                     hir_type_display(other), span.start_line, span.start_col
                 ))),
             };

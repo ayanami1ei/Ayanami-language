@@ -5,6 +5,18 @@ import "aya_lexer";
 import "aya_ast";
 
 // 手写递归下降解析器（M3 子集，逐步扩展；对齐 rust 版 src/parser）
+fn lower_ascii_name(ref String s) -> String {
+    b = StringBuf::new();
+    i = 0;
+    while i < s.len as int {
+        c = char_code(s.index(i as usize));
+        if c >= 65 && c <= 90 { c = c + 32; }
+        b.push(c as char);
+        i = i + 1;
+    }
+    return b.to_string();
+}
+
 fn is_digit_c(int c) -> bool {
     if c >= 48 && c <= 57 { return true; }
     return false;
@@ -124,6 +136,40 @@ pub struct Parser {
     int lambda_count
     // 声明属性位掩码（alloc=1 state=2 io=4 pure=8 no_error=16 throws=32）与 pub 标志
     int attr_mask
+    int prev_line
+    int stmt_col
+    // env 作用域（cap -> provider 局部名）与待绑定到下一个 fn 的 env 注解
+    [String] env_caps
+    [String] env_provs
+    int env_count
+    [String] pend_env_caps
+    [String] pend_env_provs
+    int pend_env_count
+    // 当前函数的泛型 bound 能力（cap -> gp）与已收集的隐藏 env 需求
+    [String] fn_bound_caps
+    [String] fn_bound_gps
+    int fn_bound_count
+    [String] cur_env_caps
+    [String] cur_env_gps
+    int cur_env_cap_count
+    // 函数名 -> 隐藏 env caps（供调用点追加 provider 实参）
+    [String] fenv_fn
+    [String] fenv_caps
+    int fenv_count
+    // 语句级 env 块覆盖（待绑定到下一个 { ... }）
+    [String] pend_blk_caps
+    [String] pend_blk_provs
+    int pend_blk_count
+    // 语句级 #[sync(obj, guard=g)] 待绑定状态
+    int sync_obj
+    String sync_guard
+    // #[async] 展开：同程序 async 函数表 + 生成的 Fut/run/impl 额外项
+    [String] async_fns
+    int async_fn_count
+    [int] async_extra
+    int async_extra_count
+    int async_ctor_body
+    int async_ctor_ret
     // 注解原文（宏展开用）：#[...] 的源文本 / 起始行 / 结束行
     [String] attrs_text
     [int] attrs_line
@@ -143,8 +189,18 @@ pub namespace Parser {
         t2 = lx.next_token();
         t3 = lx.next_token();
         t4 = lx.next_token();
-        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, la3 = t4, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, last_pub = 0, no_cast = 0,
-            attrs_text = [String; 256], attrs_line = [int; 256], attrs_eline = [int; 256], attrs_count = 0 };
+        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, la3 = t4, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, prev_line = 0, stmt_col = 0, last_pub = 0, no_cast = 0,
+            attrs_text = [String; 256], attrs_line = [int; 256], attrs_eline = [int; 256], attrs_count = 0,
+            env_caps = [String; 16], env_provs = [String; 16], env_count = 0,
+            pend_env_caps = [String; 16], pend_env_provs = [String; 16], pend_env_count = 0,
+            fn_bound_caps = [String; 16], fn_bound_gps = [String; 16], fn_bound_count = 0,
+            cur_env_caps = [String; 16], cur_env_gps = [String; 16], cur_env_cap_count = 0,
+            fenv_fn = [String; 64], fenv_caps = [String; 64], fenv_count = 0,
+            pend_blk_caps = [String; 16], pend_blk_provs = [String; 16], pend_blk_count = 0,
+            sync_obj = -1, sync_guard = String::empty(),
+            async_fns = [String; 64], async_fn_count = 0,
+            async_extra = [int; 256], async_extra_count = 0,
+            async_ctor_body = -1, async_ctor_ret = -1 };
         return p;
     }
 }
@@ -153,7 +209,69 @@ pub namespace Parser {
 impl Parser {
     #[alloc]
     #[state]
+    fn env_find(ref mut self, ref String cap) -> String {
+        k = self.env_count - 1;
+        while k >= 0 {
+            if self.env_caps[k] == cap { return self.env_provs[k].copy(); }
+            k = k - 1;
+        }
+        return "";
+    }
+
+    fn add_cur_env(ref mut self, ref String cap, ref String gp) {
+        k = 0;
+        while k < self.cur_env_cap_count {
+            if self.cur_env_caps[k] == cap { return; }
+            k = k + 1;
+        }
+        if self.cur_env_cap_count < 16 {
+            self.cur_env_caps[self.cur_env_cap_count] = cap.copy();
+            self.cur_env_gps[self.cur_env_cap_count] = gp.copy();
+            self.cur_env_cap_count = self.cur_env_cap_count + 1;
+        }
+    }
+
+    /// 调用点：按被调函数的隐藏 env caps 追加 provider / 本函数隐藏参数实参
+    fn append_env_args(ref mut self, ref String fname, int args, int line, int col) -> int {
+        k = 0;
+        while k < self.fenv_count {
+            if self.fenv_fn[k] == fname {
+                cap = self.fenv_caps[k].copy();
+                pv = self.env_find(cap);
+                if pv.len == 0 {
+                    hk = 0;
+                    while hk < self.cur_env_cap_count {
+                        if self.cur_env_caps[hk] == cap {
+                            pv = "__env_" + cap;
+                            break;
+                        }
+                        hk = hk + 1;
+                    }
+                }
+                if pv.len == 0 {
+                    gk = 0;
+                    while gk < self.fn_bound_count {
+                        if self.fn_bound_caps[gk] == cap {
+                            self.add_cur_env(cap, self.fn_bound_gps[gk]);
+                            pv = "__env_" + cap;
+                            break;
+                        }
+                        gk = gk + 1;
+                    }
+                }
+                if pv.len > 0 {
+                    ix = self.ast.push(et(ET::Ident._tag), pv, -1, -1, -1, -1, -1, line, col);
+                    ag = self.ast.push(xt(XT::Arg._tag), "", -1, ix, -1, -1, -1, line, col);
+                    args = self.ast.push_tail(args, ag);
+                }
+            }
+            k = k + 1;
+        }
+        return args;
+    }
+
     fn advance(ref mut self) {
+        self.prev_line = self.cur.line;
         self.cur = self.la1;
         self.la1 = self.la2;
         self.la2 = self.la3;
@@ -313,9 +431,44 @@ impl Parser {
                 elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
                 elif an == "compile_time" { self.attr_mask = self.attr_mask | 131072; }
                 elif an == "macro" { self.attr_mask = self.attr_mask | 262144; }
+                elif an == "extern" { self.attr_mask = self.attr_mask | 1; }
+                elif an == "async" { self.attr_mask = self.attr_mask | 524288; }
+                if an == "env" {
+                    // E1a：#[env::<cap>(<provider>)] —— 记录到下一个 fn 的作用域
+                    self.advance();
+                    if self.check_op("::") {
+                        self.advance();
+                        ecap = self.expect_ident("expected env capability");
+                        eprov = "";
+                        if self.check_delim(D::LParen._tag) {
+                            self.advance();
+                            if self.cur.kind == Tk::Ident._tag {
+                                eprov = self.cur.text.copy();
+                                self.advance();
+                            }
+                            self.expect_delim(D::RParen._tag, "expected ) in env attr");
+                        }
+                        if ecap.len > 0 && eprov.len > 0 && self.pend_env_count < 16 {
+                            self.pend_env_caps[self.pend_env_count] = ecap.copy();
+                            self.pend_env_provs[self.pend_env_count] = eprov.copy();
+                            self.pend_env_count = self.pend_env_count + 1;
+                        }
+                        self.scan_attr_args();
+                    } else {
+                        self.scan_attr_args();
+                    }
+                } else {
+                    self.advance();
+                    self.scan_attr_args();
+                }
+            } elif self.cur.kind == Tk::Keyword._tag && self.cur.sub == Kw::Extern._tag {
+                // extern 是关键字：#[extern] 等价 extern "C"
+                self.attr_mask = self.attr_mask | 1;
                 self.advance();
+                self.scan_attr_args();
+            } else {
+                self.scan_attr_args();
             }
-            self.scan_attr_args();
             self.record_attr(a_start, a_line);
         }
     }
@@ -622,6 +775,11 @@ impl Parser {
                 head = self.ast.push_tail(head, item);
             }
         }
+        k_e = 0;
+        while k_e < self.async_extra_count {
+            head = self.ast.push_tail(head, self.async_extra[k_e]);
+            k_e = k_e + 1;
+        }
         self.ast.aa[prog] = head;
         return prog;
     }
@@ -631,6 +789,7 @@ impl Parser {
     fn parse_item(ref mut self) -> int {
         self.attr_mask = 0;
         self.last_pub = 0;
+        self.pend_env_count = 0;
         self.skip_attrs();
         pub_seen = self.eat_kw(Kw::Pub._tag);
         if pub_seen { self.last_pub = 1; }
@@ -849,6 +1008,22 @@ impl Parser {
         self.expect_kw(Kw::Fn._tag, "expected fn");
         name = self.expect_member_name("expected fn name");
         generics = self.parse_generics();
+        // env：记录本函数泛型 bound 的能力键（interface 基名小写）
+        self.fn_bound_count = 0;
+        self.cur_env_cap_count = 0;
+        gg_e = generics;
+        while gg_e >= 0 && self.fn_bound_count < 16 {
+            bnd_e = self.ast.tys[gg_e];
+            if bnd_e >= 0 {
+                bn_e = self.ast.texts[bnd_e].copy();
+                if bn_e.len > 0 {
+                    self.fn_bound_caps[self.fn_bound_count] = lower_ascii_name(bn_e);
+                    self.fn_bound_gps[self.fn_bound_count] = self.ast.texts[gg_e].copy();
+                    self.fn_bound_count = self.fn_bound_count + 1;
+                }
+            }
+            gg_e = self.ast.nexts[gg_e];
+        }
         self.expect_delim(D::LParen._tag, "expected ( after fn name");
         head = -1;
         while true {
@@ -896,12 +1071,144 @@ impl Parser {
         } else {
             ret = self.ast.push(tt(TT::Void._tag), "", -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
         }
+        env_mark = self.env_count;
+        ek = 0;
+        while ek < self.pend_env_count && self.env_count < 16 {
+            self.env_caps[self.env_count] = self.pend_env_caps[ek].copy();
+            self.env_provs[self.env_count] = self.pend_env_provs[ek].copy();
+            self.env_count = self.env_count + 1;
+            ek = ek + 1;
+        }
+        self.pend_env_count = 0;
+        asy_e = 0;
+        if (fn_mask0 / 524288) % 2 == 1 { asy_e = 1; }
+        if asy_e == 1 && with_body == 1 && self.cur_impl.len == 0 {
+            if self.async_fn_count < 64 {
+                self.async_fns[self.async_fn_count] = name.copy();
+                self.async_fn_count = self.async_fn_count + 1;
+            }
+        }
         body = -1;
         if with_body == 1 {
-            body = self.parse_block();
+            if (fn_mask0 % 2) == 1 && self.check_delim(D::Semicolon._tag) {
+                // #[extern] fn ...;：C 链接声明（等价 extern "C"）
+                self.advance();
+                body = self.ast.push(st(ST::Block._tag), "", -1, -1, -1, -1, -1, kline, kcol);
+            } else {
+                body = self.parse_block();
+            }
+        }
+        self.env_count = env_mark;
+        if asy_e == 1 && with_body == 1 && self.cur_impl.len == 0 {
+            self.trans_async(name, head, ret, body, kline, kcol);
+            body = self.async_ctor_body;
+            ret = self.async_ctor_ret;
+        }
+        // 本函数的环境值隐藏形参：__env_<cap>: E（E 为匹配的泛型参数）
+        hk_e = 0;
+        while hk_e < self.cur_env_cap_count {
+            hc_e = self.cur_env_caps[hk_e].copy();
+            hg_e = self.cur_env_gps[hk_e].copy();
+            hty_e = self.ast.push(tt(TT::Named._tag), hg_e, -1, -1, -1, -1, -1, kline, kcol);
+            hp_e = self.ast.push(xt(XT::Param._tag), "__env_" + hc_e, hty_e, -1, -1, -1, -1, kline, kcol);
+            head = self.ast.push_tail(head, hp_e);
+            if self.fenv_count < 64 {
+                self.fenv_fn[self.fenv_count] = name.copy();
+                self.fenv_caps[self.fenv_count] = hc_e.copy();
+                self.fenv_count = self.fenv_count + 1;
+            }
+            hk_e = hk_e + 1;
         }
         node = self.ast.push(st(ST::FnDecl._tag), name, ret, head, body, generics, fn_mask0 + fn_pub0 * 16384, kline, kcol);
         return node;
+    }
+
+    fn async_add_extra(ref mut self, int nd) {
+        if self.async_extra_count < 256 {
+            self.async_extra[self.async_extra_count] = nd;
+            self.async_extra_count = self.async_extra_count + 1;
+        }
+    }
+
+    fn is_async_fn(ref mut self, ref String nm) -> int {
+        k = 0;
+        while k < self.async_fn_count {
+            if self.async_fns[k] == nm { return 1; }
+            k = k + 1;
+        }
+        return 0;
+    }
+
+    /// #[async] 展开：
+    ///   struct __f_Fut { <params>, int _done }
+    ///   fn f(params) -> __f_Fut { return __f_Fut { <params>, _done = 0 } }
+    ///   fn __async_run_f(params) -> R { <原体> }
+    ///   impl __f_Fut { fn poll(ref mut self, ref Context cx) -> Poll[R] {
+    ///       return Poll::Ready(__async_run_f(self.<params>)) } }
+    fn trans_async(ref mut self, ref String name, int head, int ret, int body, int line, int col) {
+        fut_name = "__" + name + "_Fut";
+        run_name = "__async_run_" + name;
+        fut_ty = self.ast.push(tt(TT::Named._tag), fut_name, -1, -1, -1, -1, -1, line, col);
+        poll_arg = self.ast.push(xt(XT::GenericArg._tag), "", ret, -1, -1, -1, -1, line, col);
+        poll_ty = self.ast.push(tt(TT::Generic._tag), "Poll", -1, poll_arg, -1, -1, -1, line, col);
+        cx_in = self.ast.push(tt(TT::Named._tag), "Context", -1, -1, -1, -1, -1, line, col);
+        cx_ty = self.ast.push(tt(TT::Ref._tag), "", -1, cx_in, 0, -1, -1, line, col);
+        self_ty = self.ast.push(tt(TT::Ref._tag), "", -1, fut_ty, 1, -1, -1, line, col);
+        // Fut 字段
+        fields = -1;
+        p = head;
+        while p >= 0 {
+            fld = self.ast.push(xt(XT::StructField._tag), self.ast.texts[p], self.ast.tys[p], -1, -1, -1, -1, line, col);
+            fields = self.ast.push_tail(fields, fld);
+            p = self.ast.nexts[p];
+        }
+        done_ty = self.ast.push(tt(TT::Int._tag), "", -1, -1, -1, -1, -1, line, col);
+        done_fld = self.ast.push(xt(XT::StructField._tag), "_done", done_ty, -1, -1, -1, -1, line, col);
+        fields = self.ast.push_tail(fields, done_fld);
+        fut_def = self.ast.push(st(ST::StructDef._tag), fut_name, -1, fields, -1, -1, -1, line, col);
+        // run 函数（原体；await 已改写为 run 调用）
+        run_fn = self.ast.push(st(ST::FnDecl._tag), run_name, ret, head, body, -1, 524288, line, col);
+        // 构造函数体
+        lit_fields = -1;
+        p = head;
+        while p >= 0 {
+            pid = self.ast.push(et(ET::Ident._tag), self.ast.texts[p], -1, -1, -1, -1, -1, line, col);
+            fl = self.ast.push(xt(XT::StructLitField._tag), self.ast.texts[p], -1, pid, -1, -1, -1, line, col);
+            lit_fields = self.ast.push_tail(lit_fields, fl);
+            p = self.ast.nexts[p];
+        }
+        zero = self.ast.push(et(ET::Literal._tag), "0", -1, -1, lk(LK::Int._tag), -1, -1, line, col);
+        dl = self.ast.push(xt(XT::StructLitField._tag), "_done", -1, zero, -1, -1, -1, line, col);
+        lit_fields = self.ast.push_tail(lit_fields, dl);
+        lit = self.ast.push(et(ET::StructLiteral._tag), fut_name, -1, lit_fields, -1, -1, -1, line, col);
+        cret = self.ast.push(st(ST::Return._tag), "", -1, lit, -1, -1, -1, line, col);
+        ctor_body = self.ast.push(st(ST::Block._tag), "", -1, cret, -1, -1, -1, line, col);
+        // poll 体
+        self_id = self.ast.push(et(ET::Ident._tag), "self", -1, -1, -1, -1, -1, line, col);
+        run_args = -1;
+        p = head;
+        while p >= 0 {
+            fa = self.ast.push(et(ET::FieldAccess._tag), self.ast.texts[p], -1, self_id, -1, -1, -1, line, col);
+            ag = self.ast.push(xt(XT::Arg._tag), "", -1, fa, -1, -1, -1, line, col);
+            run_args = self.ast.push_tail(run_args, ag);
+            p = self.ast.nexts[p];
+        }
+        run_call = self.ast.push(et(ET::FnCall._tag), run_name, -1, run_args, -1, -1, -1, line, col);
+        ra = self.ast.push(xt(XT::Arg._tag), "", -1, run_call, -1, -1, -1, line, col);
+        // call 形态的枚举构造是 FnCall（"Poll.Ready"），EnumConstruct 仅用于 struct 形态
+        ready = self.ast.push(et(ET::FnCall._tag), "Poll.Ready", -1, ra, -1, -1, -1, line, col);
+        pret = self.ast.push(st(ST::Return._tag), "", -1, ready, -1, -1, -1, line, col);
+        poll_body = self.ast.push(st(ST::Block._tag), "", -1, pret, -1, -1, -1, line, col);
+        self_p = self.ast.push(xt(XT::Param._tag), "self", self_ty, -1, -1, -1, -1, line, col);
+        cx_p = self.ast.push(xt(XT::Param._tag), "cx", cx_ty, -1, -1, -1, -1, line, col);
+        poll_params = self.ast.push_tail(self_p, cx_p);
+        poll_fn = self.ast.push(st(ST::FnDecl._tag), "poll", poll_ty, poll_params, poll_body, -1, 524288, line, col);
+        impl_n = self.ast.push(st(ST::ImplBlock._tag), fut_name, -1, poll_fn, -1, -1, -1, line, col);
+        self.async_ctor_body = ctor_body;
+        self.async_ctor_ret = fut_ty;
+        self.async_add_extra(fut_def);
+        self.async_add_extra(run_fn);
+        self.async_add_extra(impl_n);
     }
 
     #[alloc]
@@ -1101,17 +1408,63 @@ impl Parser {
             self.advance();
             if self.cur.kind == Tk::Ident._tag {
                 an = self.cur.text;
-                if an == "alloc" { self.attr_mask = self.attr_mask | 256; }
-                elif an == "state" { self.attr_mask = self.attr_mask | 512; }
-                elif an == "io" { self.attr_mask = self.attr_mask | 1024; }
-                elif an == "pure" { self.attr_mask = self.attr_mask | 2048; }
-                elif an == "no_error" { self.attr_mask = self.attr_mask | 4096; }
-                elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
-                elif an == "compile_time" { self.attr_mask = self.attr_mask | 131072; }
-                elif an == "macro" { self.attr_mask = self.attr_mask | 262144; }
-                self.advance();
+                if an == "env" {
+                    // E2：块作用域环境覆盖 #[env::<cap>(<provider>)] { ... }
+                    self.advance();
+                    if self.check_op("::") {
+                        self.advance();
+                        ecap_b = self.expect_ident("expected env capability");
+                        eprov_b = "";
+                        if self.check_delim(D::LParen._tag) {
+                            self.advance();
+                            if self.cur.kind == Tk::Ident._tag {
+                                eprov_b = self.cur.text.copy();
+                                self.advance();
+                            }
+                            self.expect_delim(D::RParen._tag, "expected ) in env attr");
+                        }
+                        if ecap_b.len > 0 && eprov_b.len > 0 && self.pend_blk_count < 16 {
+                            self.pend_blk_caps[self.pend_blk_count] = ecap_b.copy();
+                            self.pend_blk_provs[self.pend_blk_count] = eprov_b.copy();
+                            self.pend_blk_count = self.pend_blk_count + 1;
+                        }
+                        self.scan_attr_args();
+                    } else {
+                        self.scan_attr_args();
+                    }
+                } elif an == "sync" {
+                    // A5e：#[sync(obj)] / #[sync(obj, guard = d)]
+                    self.advance();
+                    if self.check_delim(D::LParen._tag) {
+                        self.advance();
+                        self.sync_obj = self.parse_expr();
+                        self.sync_guard = "";
+                        if self.eat_delim(D::Comma._tag) {
+                            gk_e = self.expect_ident("expected guard");
+                            if gk_e != "guard" { self.error("expected guard = <name> in sync attr"); }
+                            if !self.eat_op("=") { self.error("expected = after guard"); }
+                            self.sync_guard = self.expect_ident("expected guard binding name");
+                        }
+                        self.expect_delim(D::RParen._tag, "expected ) in sync attr");
+                        self.scan_attr_args();
+                    } else {
+                        self.scan_attr_args();
+                    }
+                } else {
+                    if an == "alloc" { self.attr_mask = self.attr_mask | 256; }
+                    elif an == "state" { self.attr_mask = self.attr_mask | 512; }
+                    elif an == "io" { self.attr_mask = self.attr_mask | 1024; }
+                    elif an == "pure" { self.attr_mask = self.attr_mask | 2048; }
+                    elif an == "no_error" { self.attr_mask = self.attr_mask | 4096; }
+                    elif an == "throws" { self.attr_mask = self.attr_mask | 8192; }
+                    elif an == "compile_time" { self.attr_mask = self.attr_mask | 131072; }
+                    elif an == "macro" { self.attr_mask = self.attr_mask | 262144; }
+                    self.advance();
+                    self.scan_attr_args();
+                }
+            } else {
+                self.scan_attr_args();
             }
-            self.scan_attr_args();
             self.record_attr(a_start, a_line);
             n = n + 1;
         }
@@ -1122,10 +1475,19 @@ impl Parser {
     #[state]
     fn parse_stmt(ref mut self) -> int {
         self.attr_mask = 0;
+        self.pend_blk_count = 0;
+        self.sync_obj = -1;
+        self.sync_guard = "";
         // mut 局部声明前缀（局部默认可变，mut 仅作标注，跳过）
         self.eat_kw(Kw::Mut._tag);
         nattrs = self.collect_attrs();
         s = self.parse_stmt_inner();
+        if self.sync_obj >= 0 {
+            // #[sync] 只允许用于块语句
+            self.error("#[sync] is only allowed on block statements");
+            self.sync_obj = -1;
+            self.sync_guard = "";
+        }
         if nattrs > 0 {
             if s >= 0 {
                 return self.ast.push(st(ST::Attributed._tag), "", -1, s, nattrs, self.attr_mask, -1, self.cur.line, self.cur.col);
@@ -1137,6 +1499,41 @@ impl Parser {
     #[alloc]
     #[state]
     fn parse_stmt_inner(ref mut self) -> int {
+        self.stmt_col = self.cur.col;
+        if self.check_delim(D::LBrace._tag) {
+            // 裸块语句（含 #[env::cap(v)] { ... } 的块作用域覆盖）
+            bmark_e = self.env_count;
+            bk_e = 0;
+            while bk_e < self.pend_blk_count && self.env_count < 16 {
+                self.env_caps[self.env_count] = self.pend_blk_caps[bk_e].copy();
+                self.env_provs[self.env_count] = self.pend_blk_provs[bk_e].copy();
+                self.env_count = self.env_count + 1;
+                bk_e = bk_e + 1;
+            }
+            self.pend_blk_count = 0;
+            // 先捕获 sync 待绑定状态：块内语句的 parse_stmt 会重置 sync_obj
+            so_e = self.sync_obj;
+            sg_e = self.sync_guard.copy();
+            self.sync_obj = -1;
+            self.sync_guard = "";
+            blk_e = self.parse_block();
+            self.env_count = bmark_e;
+            if so_e >= 0 {
+                bl_e = self.ast.lines[blk_e];
+                bc_e = self.ast.cols[blk_e];
+                lk_m = self.ast.push(et(ET::MethodCall._tag), "lock", -1, so_e, -1, -1, -1, bl_e, bc_e);
+                lk_s = self.ast.push(st(ST::ExprStmt._tag), "", -1, lk_m, -1, -1, -1, bl_e, bc_e);
+                ul_m = self.ast.push(et(ET::MethodCall._tag), "unlock", -1, so_e, -1, -1, -1, bl_e, bc_e);
+                ul_s = self.ast.push(st(ST::ExprStmt._tag), "", -1, ul_m, -1, -1, -1, bl_e, bc_e);
+                ga_s = -1;
+                if sg_e.len > 0 {
+                    pf_e = self.ast.push(et(ET::FieldAccess._tag), "payload", -1, so_e, -1, -1, -1, bl_e, bc_e);
+                    ga_s = self.ast.push(st(ST::Assign._tag), sg_e, -1, pf_e, -1, -1, -1, bl_e, bc_e);
+                }
+                return self.ast.push(st(ST::Sync._tag), sg_e, -1, lk_s, ga_s, blk_e, ul_s, bl_e, bc_e);
+            }
+            return blk_e;
+        }
         if self.cur.kind == Tk::Ident._tag {
             if self.cur.text == "unsafe" && self.la1_is_delim(D::LBrace._tag) {
                 line = self.cur.line;
@@ -1327,6 +1724,8 @@ impl Parser {
     fn parse_bin(ref mut self, int min_level) -> int {
         lhs = self.parse_unary();
         while self.cur.kind == Tk::Op._tag && self.failed == 0 {
+            // 换行：行首运算符在语句缩进处视为新语句（如 *r = v）；更深缩进才是续行
+            if self.cur.line != self.prev_line && self.cur.col <= self.stmt_col { break; }
             op = self.cur.text.copy();
             lvl = self.op_level(op);
             if lvl == 0 || lvl < min_level { break; }
@@ -1368,6 +1767,7 @@ impl Parser {
         }
         outs = -1;
         ins = -1;
+        cls = -1;
         while true {
             if self.check_delim(D::RParen._tag) { break; }
             if self.at_end() { break; }
@@ -1376,10 +1776,18 @@ impl Parser {
             if self.check_kw(Kw::Out._tag) {
                 self.advance();
                 self.expect_delim(D::LParen._tag, "expected ( in asm out");
-                if self.check_kw(Kw::Reg._tag) { self.advance(); }
+                optxt = "out";
+                if self.check_kw(Kw::Reg._tag) {
+                    self.advance();
+                } elif self.cur.kind == Tk::Ident._tag && self.cur.text == "early" {
+                    // #198：early-clobber 输出（LLVM 约束 =&r）
+                    self.advance();
+                    self.expect_kw(Kw::Reg._tag, "expected reg after early in asm out");
+                    optxt = "out_early";
+                }
                 self.expect_delim(D::RParen._tag, "expected ) in asm out");
                 ex = self.parse_expr();
-                op = self.ast.push(xt(XT::AsmOperand._tag), "out", -1, ex, -1, -1, -1, self.cur.line, self.cur.col);
+                op = self.ast.push(xt(XT::AsmOperand._tag), optxt, -1, ex, -1, -1, -1, self.cur.line, self.cur.col);
                 outs = self.ast.push_tail(outs, op);
             } elif self.check_kw(Kw::In._tag) {
                 self.advance();
@@ -1389,17 +1797,41 @@ impl Parser {
                 ex2 = self.parse_expr();
                 op2 = self.ast.push(xt(XT::AsmOperand._tag), "in", -1, ex2, -1, -1, -1, self.cur.line, self.cur.col);
                 ins = self.ast.push_tail(ins, op2);
+            } elif self.check_kw(Kw::Clobbers._tag) {
+                self.advance();
+                self.expect_delim(D::LParen._tag, "expected ( in asm clobbers");
+                while true {
+                    if self.check_delim(D::RParen._tag) { break; }
+                    if self.at_end() || self.failed == 1 { break; }
+                    rgn = self.expect_ident("expected register name");
+                    op3 = self.ast.push(xt(XT::AsmOperand._tag), rgn, -1, -1, -1, -1, -1, self.cur.line, self.cur.col);
+                    cls = self.ast.push_tail(cls, op3);
+                    if !self.eat_delim(D::Comma._tag) { break; }
+                }
+                self.expect_delim(D::RParen._tag, "expected ) in asm clobbers");
             } else {
                 break;
             }
         }
         self.expect_delim(D::RParen._tag, "expected ) after asm");
-        return self.ast.push(et(ET::Asm._tag), tpl, -1, outs, ins, -1, -1, line, col);
+        return self.ast.push(et(ET::Asm._tag), tpl, -1, outs, ins, cls, -1, line, col);
     }
 
     fn parse_unary(ref mut self) -> int {
         line = self.cur.line;
         col = self.cur.col;
+        if self.cur.kind == Tk::Ident._tag && self.cur.text == "await" {
+            // A1b eager 展开：await g(args) -> __async_run_g(args)
+            self.advance();
+            e = self.parse_unary();
+            if e >= 0 && self.ast.tags[e] == et(ET::FnCall._tag) {
+                nm_e = self.ast.texts[e].copy();
+                if self.is_async_fn(nm_e) == 1 {
+                    self.ast.texts[e] = "__async_run_" + nm_e;
+                }
+            }
+            return e;
+        }
         if self.check_op("-") {
             self.advance();
             if self.cur.kind == Tk::IntLit._tag || self.cur.kind == Tk::FloatLit._tag {
@@ -1476,7 +1908,9 @@ impl Parser {
                 args = self.parse_args();
                 // FnCall 只对 Ident 目标；其他走 CallExpr
                 if self.ast.tags[e] == et(ET::Ident._tag) {
-                    e = self.ast.push(et(ET::FnCall._tag), self.ast.texts[e], -1, args, -1, -1, -1, self.ast.lines[e], self.ast.cols[e]);
+                    cnm_e = self.ast.texts[e].copy();
+                    args = self.append_env_args(cnm_e, args, self.ast.lines[e], self.ast.cols[e]);
+                    e = self.ast.push(et(ET::FnCall._tag), cnm_e, -1, args, -1, -1, -1, self.ast.lines[e], self.ast.cols[e]);
                 } else {
                     e = self.ast.push(et(ET::CallExpr._tag), "", -1, e, args, -1, -1, line, col);
                 }
@@ -1489,17 +1923,23 @@ impl Parser {
                 full = full + ".";
                 full = full + variant;
                 ty_g = -1;
+                ty_gx = -1;
+                ty_gx2 = -1;
                 if self.check_delim(D::LBracket._tag) {
-                    // 保留类型实参（bits::reinterpret[T] 等内建需要）
+                    // 保留类型实参（bits::reinterpret[T] 等内建需要；支持多实参 HashMap::new[K, V]）
                     self.advance();
                     ty_g = self.parse_type();
+                    while self.eat_delim(D::Comma._tag) {
+                        t_gt = self.parse_type();
+                        if ty_gx < 0 { ty_gx = t_gt; } elif ty_gx2 < 0 { ty_gx2 = t_gt; }
+                    }
                     self.expect_delim(D::RBracket._tag, "expected ] after type args");
                 }
                 targs = -1;
                 nargs = -1;
                 if self.check_delim(D::LParen._tag) {
                     targs = self.parse_args();
-                    e = self.ast.push(et(ET::FnCall._tag), full, ty_g, targs, -1, -1, -1, line, col);
+                    e = self.ast.push(et(ET::FnCall._tag), full, ty_g, targs, ty_gx, ty_gx2, -1, line, col);
                     continue;
                 } elif !self.check_delim(D::LBrace._tag) {
                     // 裸路径（math::PI2）当作 Ident
@@ -1566,7 +2006,7 @@ impl Parser {
                         self.advance();
                         ty_g2 = self.parse_type();
                         self.expect_delim(D::RBracket._tag, "expected ] after type args");
-                        args_g = self.parse_args();
+                        args_g = self.append_env_args(nm_b, self.parse_args(), line, col);
                         e = self.ast.push(et(ET::FnCall._tag), nm_b, ty_g2, args_g, -1, -1, -1, line, col);
                         continue;
                     }
@@ -1652,6 +2092,37 @@ impl Parser {
     fn parse_primary(ref mut self) -> int {
         line = self.cur.line;
         col = self.cur.col;
+        if self.cur.kind == Tk::Ident._tag && self.cur.text == "env" && self.la1_is_op("::") && self.la2.kind == Tk::Ident._tag {
+            ecap2 = self.la2.text.copy();
+            eprov2 = self.env_find(ecap2);
+            if eprov2.len == 0 {
+                hk2 = 0;
+                while hk2 < self.cur_env_cap_count {
+                    if self.cur_env_caps[hk2] == ecap2 {
+                        eprov2 = "__env_" + ecap2;
+                        break;
+                    }
+                    hk2 = hk2 + 1;
+                }
+            }
+            if eprov2.len == 0 {
+                gk2 = 0;
+                while gk2 < self.fn_bound_count {
+                    if self.fn_bound_caps[gk2] == ecap2 {
+                        self.add_cur_env(ecap2, self.fn_bound_gps[gk2]);
+                        eprov2 = "__env_" + ecap2;
+                        break;
+                    }
+                    gk2 = gk2 + 1;
+                }
+            }
+            if eprov2.len > 0 {
+                self.advance();
+                self.advance();
+                self.advance();
+                return self.ast.push(et(ET::Ident._tag), eprov2, -1, -1, -1, -1, -1, line, col);
+            }
+        }
         if self.cur.kind == Tk::IntLit._tag || self.cur.kind == Tk::FloatLit._tag {
             return self.parse_number_literal(0, line, col);
         }
@@ -1907,6 +2378,12 @@ impl Parser {
                         self.advance();
                         full = nm.copy();
                         if self.check_op("::") {
+                            self.advance();
+                            part = self.expect_member_name("expected variant name");
+                            full = full + ".";
+                            full = full + part;
+                        } elif self.check_delim(D::Dot._tag) && self.la1.kind == Tk::Ident._tag {
+                            // #209：点限定变体 Option.Some(v)（formatter 输出形式）
                             self.advance();
                             part = self.expect_member_name("expected variant name");
                             full = full + ".";

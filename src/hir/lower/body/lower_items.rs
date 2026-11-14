@@ -57,30 +57,8 @@ impl crate::hir::lower::Ctx {
                     items.push(HirItem::StructDef(HirStructDef { name: *name, fields: hir_fields }));
                 }
                 Stmt::EnumDef { name, variants, .. } => {
-                    for variant in variants {
-                        let var_struct_name = Symbol::intern(&format!("{}_{}", name, variant.name));
-                        let hir_fields: Vec<HirStructField> = match &variant.fields {
-                            crate::parser::ast::stmt::EnumFields::Named(fields) => {
-                                fields.iter()
-                                    .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
-                                    .collect()
-                            }
-                            crate::parser::ast::stmt::EnumFields::Tuple(tys) => {
-                                tys.iter().enumerate()
-                                    .map(|(i, t)| HirStructField { name: Symbol::intern(&format!("_{}", i)), ty: ast_type_to_hir(t, &self.interfaces) })
-                                    .collect()
-                            }
-                            crate::parser::ast::stmt::EnumFields::None => vec![],
-                        };
-                        items.push(HirItem::StructDef(HirStructDef { name: var_struct_name, fields: hir_fields }));
-                    }
-                    // Emit enum struct
-                    let mut enum_fields = vec![HirStructField { name: Symbol::intern("_tag"), ty: HirType::Int }];
-                    for variant in variants {
-                        let vsn = Symbol::intern(&format!("{}_{}", name, variant.name));
-                        enum_fields.push(HirStructField { name: Symbol::intern(&format!("_data_{}", variant.name)), ty: HirType::Named(vsn) });
-                    }
-                    items.push(HirItem::StructDef(HirStructDef { name: *name, fields: enum_fields }));
+                    let enum_items = self.build_enum_items(name, variants);
+                    items.extend(enum_items);
                 }
                 Stmt::Import { .. } => {} // already handled in collect_fns
                 Stmt::ConstDecl { .. } => {} // M6.1：常量在 collect_ns 求值，无运行时项
@@ -158,6 +136,24 @@ impl crate::hir::lower::Ctx {
         param_attrs: Vec<Vec<crate::parser::ast::Attr>>,
         is_pub: bool,
     ) -> Result<HirFn> {
+        // E1a：登记函数级环境提供者 `#[env::<cap>(v)]`（v 为位置表达式，访问时重新求值）
+        {
+            let mut caps: HashMap<Symbol, (crate::parser::ast::Expr, Span)> = HashMap::new();
+            for a in &attrs {
+                if a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env" {
+                    let Some(crate::parser::ast::AttrArg::Expr(e)) = a.args.first() else {
+                        return Err(Error::Hir(format!(
+                            "#[env::{}] expects a value argument, e.g. #[env::{}(alloc)] (at {}:{})",
+                            a.name.as_str(), a.name.as_str(), a.span.start_line, a.span.start_col
+                        )));
+                    };
+                    caps.insert(a.name, ((**e).clone(), a.span));
+                }
+            }
+            if !caps.is_empty() {
+                self.env_providers.insert(fn_id, caps);
+            }
+        }
         // #84 ③：`#[export]` 等价 `extern "C"` 定义（原始符号名 + C ABI）
         let extern_c = extern_c || crate::hir::attrs::has(&attrs, "export");
         // A1：`#[inline]`/`#[inline(always)]` 不再并入关键字标记，

@@ -194,7 +194,10 @@ impl crate::hir::lower::Ctx {
         let tag_field = Symbol::intern("_tag");
         let ok_field = Symbol::intern("_data_Ok");
         let payload_field = Symbol::intern("_0");
-        let tag_index = self.find_field_index(&inner_ty, &tag_field, span)?;
+        // N1：niche 形态无 `_tag` 字段（`Option[Ptr[T]]` 上的 `?`）
+        let niche = matches!(strip_ownership_ref(&inner_ty),
+            HirType::Named(n) if self.is_niche_enum(&n));
+        let tag_index = if niche { 0 } else { self.find_field_index(&inner_ty, &tag_field, span)? };
         let ok_index = self.find_field_index(&inner_ty, &ok_field, span)?;
         let data_ty = self.find_field_type(&inner_ty, &ok_field, span)?;
         let ok_ty = self.variant_payload_type(&inner_ty, &ok_field, span)?;
@@ -225,13 +228,17 @@ impl crate::hir::lower::Ctx {
         let ok_var = VarId(self.locals.len());
         self.locals.push(HirLocal::new(Symbol::intern("__try_ok"), ok_ty.clone(), true));
 
-        // 条件：__try_val._tag == 0（Ok 为声明序 0）
-        let tag_node: HirNodeBox = SField {
-            object: val_node.clone(),
-            field: tag_field,
-            field_index: tag_index,
-            ty: HirType::Int,
-        }.into();
+        // 条件：__try_val._tag == 0（Ok 为声明序 0）；N1：niche 形态 → 空值判定
+        let tag_node: HirNodeBox = if niche {
+            self.build_niche_tag_expr(val_node.clone(), &inner_ty, span)?
+        } else {
+            SField {
+                object: val_node.clone(),
+                field: tag_field,
+                field_index: tag_index,
+                ty: HirType::Int,
+            }.into()
+        };
         let zero: HirNodeBox = SConst { val: HirLiteral::Int(0), ty: HirType::Int }.into();
         let cond: HirNodeBox = SBin {
             op: BinaryOp::Eq,

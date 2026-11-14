@@ -1,0 +1,15 @@
+// #209：模式中的点限定变体（formatter 输出形式）可解析
+import "option"
+
+fn pick(Option[int] o) -> int {
+    match o {
+        Option.Some(v) => { return v }
+        Option.None => { return -1 }
+    }
+}
+
+fn main() -> int {
+    if pick(Option::Some(5)) != 5 { return 1 }
+    if pick(Option::None()) != -1 { return 2 }
+    return 0
+}

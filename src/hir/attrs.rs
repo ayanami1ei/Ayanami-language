@@ -13,6 +13,7 @@ pub const ALLOWED: &[&str] = &[
     "macro",
     "pass",
     "check",
+    "sync",
     "follow_with",
     "throws",
     "no_error",
@@ -91,7 +92,6 @@ pub use super::attrs_macro::validate_macros;
 pub fn has(attrs: &[Attr], name: &str) -> bool {
     attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == name)
 }
-
 /// 校验属性列表（A5a provider 解析）。
 pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()> {
     for a in attrs {
@@ -102,6 +102,7 @@ pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()> {
 
 /// 解析单个标注：内置白名单 / `core::` 别名 / 库宏（A5b 落地执行）。
 fn resolve(a: &Attr, imports: &Imports) -> Result<()> {
+    if a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env" { return Ok(()); } // E1a：环境提供
     let name = a.name.as_str();
     if a.is_builtin() {
         if ALLOWED.contains(&name.as_str()) || crate::hir::effects::is_effect(&name) {
@@ -162,7 +163,6 @@ fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()> {
     }
     Ok(())
 }
-
 fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()> {
     for a in attrs.iter().filter(|a| a.is_builtin() && a.name.as_str() == "follow_with") {
         return Err(Error::Hir(format!(

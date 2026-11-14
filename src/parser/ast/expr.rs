@@ -86,6 +86,8 @@ pub enum Expr {
         template: String,
         outputs: Vec<(String, Box<Expr>)>,  // constraint, place to store
         inputs: Vec<(String, Box<Expr>)>,   // constraint, value
+        /// #200：被模板破坏的寄存器（如 rax/rcx/r11）→ LLVM `~{reg}` 约束
+        clobbers: Vec<Symbol>,
         span: Span,
     },
     Index {

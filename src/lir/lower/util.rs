@@ -50,3 +50,34 @@ pub(super) fn extract_var(val: &LirValue) -> VarId {
         _ => panic!("expected Var, got {:?}", val),
     }
 }
+
+/// 指针层追踪：`base` 已表示第一层指针的值（`Ref`/`Unique`/`RawPtr` 的
+/// `lower_to_lir` 结果）；若类型还有额外指针层（如 `ref Ptr[T]` =
+/// `Ref(Unique(T))`），逐层 load 出下一层指针，直到指向最终实体。
+/// 返回 (指针值, 最终类型, 是否含指针层)。
+pub(super) fn chase_ptr_layers(
+    ctx: &mut dyn LirLowerCtx,
+    base: LirValue,
+    ty: &HirType,
+) -> (LirValue, HirType, bool) {
+    let mut base = base;
+    let mut ty = ty.clone();
+    let mut depth = 0usize;
+    loop {
+        let next = match &ty {
+            HirType::Ref(inner, _) | HirType::Unique(inner) | HirType::RawPtr(inner) => {
+                Some((**inner).clone())
+            }
+            _ => None,
+        };
+        let Some(next) = next else { break };
+        if depth > 0 {
+            let dest = ctx.next_tmp();
+            ctx.emit(SLirLoadPtr { dest, src: base.clone(), ty: ty.clone() }.into());
+            base = LirValue::Tmp(dest);
+        }
+        ty = next;
+        depth += 1;
+    }
+    (base, ty, depth > 0)
+}

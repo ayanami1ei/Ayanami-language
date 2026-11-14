@@ -1,0 +1,11 @@
+// 本地函数遮蔽 std 同名泛型实例（internal linkage + 本地优先）
+import "io"
+
+fn add(int a, int b) -> int {
+    return 99
+}
+
+fn main() -> int {
+    if add(1, 2) != 99 { return 1 }
+    return 0
+}
