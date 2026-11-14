@@ -343,6 +343,23 @@ EOF
                         echo "FAIL A5e/B2d: redirect call exit $got, want 2"
                         fail=$((fail + 1))
                     fi
+                    # B2e：transform 只能标注函数，标注 struct 必须有诊断
+                    bad="$pbase/transform_bad.aya"
+                    cat > "$bad" <<EOF
+import "$tdir/src/lib.lcl"
+
+#[lib::redirect]
+struct Bad { int x }
+
+fn main() -> int { return 0 }
+EOF
+                    if "$BIN" check "$bad" >/tmp/transform_bad.out 2>&1; then
+                        echo "FAIL A5e/B2e: transform on struct was accepted"
+                        fail=$((fail + 1))
+                    elif ! grep -q "only supported on function items" /tmp/transform_bad.out; then
+                        echo "FAIL A5e/B2e: missing unsupported-target diagnostic"
+                        fail=$((fail + 1))
+                    fi
                 fi
             fi
         fi

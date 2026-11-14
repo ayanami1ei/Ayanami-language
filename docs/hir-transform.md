@@ -95,6 +95,11 @@ fn main() -> int {
 这证明插件可以修改 HIR 并影响后续 MIR/LIR。v1 不提供 typed JSON helper，
 因此复杂变换仍容易写错；B2 的下一小步是 `std/hir.aya` 访问器/构造器。
 
+## 目标限制
+
+v1 的 transform marker 只能放在**非泛型函数/非泛型方法**上。struct/enum/interface/
+impl block、泛型函数和泛型 impl 方法会得到明确诊断，而不是被静默忽略。
+
 ## 返回结果校验
 
 `from_json` 在重建 HIR 前检查：
@@ -145,8 +150,8 @@ schema 覆盖：
 
 - **B1（已完成 2026-11-14）**：`.lcl` `transform=` 表、`#[transform]` 声明、
   `fn(String json) -> String` 插件 ABI、identity 插件；
-- **B2/B2c/B2d（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
-  clone/append 函数、调用点重定向、FnId/VarId/struct/vtable 校验已跑通；
+- **B2/B2c/B2d/B2e（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
+  clone/append 函数、调用点重定向、FnId/VarId/struct/vtable 校验、目标诊断已跑通；
   变换后 FnId/VarId/类型/借用/效应校验；
 - **B3**：泛型、enum niche、vtable、async/sync 内建变换统一接口。
 

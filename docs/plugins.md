@@ -167,7 +167,8 @@ pub fn identity(String hir_json) -> String {
 - 当前 B1 只开放 **identity HIR JSON 通路**：消费方在函数上写 `#[pkg::identity]`，
   编译器把 HIR 编码为 JSON 调用插件，插件返回 JSON 后继续 MIR。
 - HIR schema 版本和节点格式见 [`docs/hir-transform.md`](hir-transform.md)。
-- v1 只支持函数上的 transform 标记；结构化修改 API（插入函数、改 body）在 B2。
+- v1 只支持非泛型函数/方法上的 transform 标记；struct/enum/interface/impl/泛型目标
+  会报错。
 - 插件必须返回合法 HIR JSON；解析失败会拒绝编译。
 - `std/hir.aya` 提供 `parse_hir` / `render_hir` / `find_function` /
   `replace_function_body` / `clone_function` / `append_item` /

@@ -14,6 +14,7 @@ pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()> {
     if tables.is_empty() {
         return Ok(());
     }
+    validate_targets(stmts, &tables)?;
     let mut markers = Vec::new();
     collect_markers(program, &tables, &mut markers)?;
     if std::env::var_os("AYANAMI_TRANSFORM_TRACE").is_some() {
@@ -35,6 +36,88 @@ pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()> {
     }
     strip_transform_attrs(program, &tables)?;
     Ok(())
+}
+
+fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()> {
+    for stmt in stmts {
+        match stmt {
+            Stmt::FnDecl { attrs, generic_params, .. } => {
+                if let Some(attr) = transform_attr(attrs, tables)? {
+                    if !generic_params.is_empty() {
+                        return Err(Error::Hir(format!(
+                            "transform #[{}] is only supported on non-generic functions in v1 (at {}:{})",
+                            attr.path_str(), attr.span.start_line, attr.span.start_col
+                        )));
+                    }
+                }
+            }
+            Stmt::ImplBlock { attrs, generic_params: impl_generics, methods, .. } => {
+                if let Some(attr) = transform_attr(attrs, tables)? {
+                    return Err(Error::Hir(format!(
+                        "transform #[{}] must be placed on a function/method, not an impl block (at {}:{})",
+                        attr.path_str(), attr.span.start_line, attr.span.start_col
+                    )));
+                }
+                if !impl_generics.is_empty() {
+                    for method in methods {
+                        if let Stmt::FnDecl { attrs, .. } = method {
+                            if let Some(attr) = transform_attr(attrs, tables)? {
+                                return Err(Error::Hir(format!(
+                                    "transform #[{}] on a method of a generic impl is not supported in v1 (at {}:{})",
+                                    attr.path_str(), attr.span.start_line, attr.span.start_col
+                                )));
+                            }
+                        }
+                    }
+                }
+                for method in methods {
+                    if let Stmt::FnDecl { attrs, generic_params, .. } = method {
+                        if let Some(attr) = transform_attr(attrs, tables)? {
+                            if !generic_params.is_empty() {
+                                return Err(Error::Hir(format!(
+                                    "transform #[{}] is only supported on non-generic methods in v1 (at {}:{})",
+                                    attr.path_str(), attr.span.start_line, attr.span.start_col
+                                )));
+                            }
+                        }
+                    }
+                }
+            }
+            Stmt::StructDef { attrs, .. }
+            | Stmt::EnumDef { attrs, .. }
+            | Stmt::InterfaceDef { attrs, .. } => {
+                if let Some(attr) = transform_attr(attrs, tables)? {
+                    return Err(Error::Hir(format!(
+                        "transform #[{}] is only supported on function items in v1 (at {}:{})",
+                        attr.path_str(), attr.span.start_line, attr.span.start_col
+                    )));
+                }
+            }
+            Stmt::Namespace { items, .. } => validate_targets(items, tables)?,
+            Stmt::Attributed { attrs, .. } => {
+                if let Some(attr) = transform_attr(attrs, tables)? {
+                    return Err(Error::Hir(format!(
+                        "transform #[{}] is only supported on function items in v1 (at {}:{})",
+                        attr.path_str(), attr.span.start_line, attr.span.start_col
+                    )));
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn transform_attr<'a>(
+    attrs: &'a [crate::parser::ast::Attr],
+    tables: &AnnotationTables,
+) -> Result<Option<&'a crate::parser::ast::Attr>> {
+    for attr in attrs {
+        if matches!(tables.resolve_kind(attr)?, Some(AnnKind::Transform)) {
+            return Ok(Some(attr));
+        }
+    }
+    Ok(None)
 }
 
 fn collect_markers(
