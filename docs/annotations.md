@@ -451,6 +451,17 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - 收益：新增内建标注只需登记一次；工具可枚举标注类别；外部插件与内建标注共享
   解析/歧义/诊断路径。
 
+### 8.10 第三方插件作者工作流（A5h，2026-11-14）
+
+- `ayanami plugin new <name>`：生成 `ayanami.toml`、`src/lib.aya`、`README.md`；
+  项目无 `src/main.aya` 时，`check`/`build`/`package` 回退到 `src/lib.aya`。
+- `ayanami plugin package <project>`：校验至少一个 `#[macro]` / `#[pass]` / `#[check]` /
+  `#[attr]` 声明，再打包 `.lcl`（内含插件表/LIR；不随包分发 `.so`）。
+- 消费方 `import "plugin/src/lib.lcl"` 后使用 `#[pkg::annotation]`；插件 `.so`
+  由消费方编译器按目标平台构建并缓存。
+- 作者指南：`docs/plugins.md`；示例：`example/attr_lib.aya` / `example/test_attr.aya`。
+- 回归：`scripts/regression.sh` 用临时插件项目 + consumer 验证完整流程。
+
 ## 9. 实现接口（跨包与工具）
 
 | 层 | 载体 |
@@ -593,6 +604,12 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] 统一注解注册表：内建标注类别/声明标记 + effects 动态 provider
 - [x] 移除 `ALLOWED` 散落白名单；package 声明表统一走 `is_declaration_marker`
 - [ ] 内建 pass 的 handler trait 化 / 第三方 `#[transform]`（待 HIR schema 稳定）
+
+### A5h（2026-11-14）
+
+- [x] `ayanami plugin new` 第三方插件脚手架（`src/lib.aya` 入口）
+- [x] `ayanami plugin package` 注解声明校验 + `.lcl` 打包
+- [x] `docs/plugins.md` 作者指南；临时插件 + consumer 回归
 
 ### 已知问题
 

@@ -152,6 +152,40 @@ if [ -f example/test_macro_fn.aya ]; then
     rm -rf "$mrace"
 fi
 
+# A5h：第三方插件作者流程（plugin new → package → consumer）
+pbase=$(mktemp -d)
+pdir="$pbase/demo_plugin"
+if ! "$BIN" plugin new "$pdir" >/dev/null 2>&1; then
+    echo "FAIL A5h: plugin new failed"
+    fail=$((fail + 1))
+elif ! "$BIN" plugin package "$pdir" >/dev/null 2>&1; then
+    echo "FAIL A5h: plugin package failed"
+    fail=$((fail + 1))
+elif [ ! -f "$pdir/src/lib.lcl" ]; then
+    echo "FAIL A5h: plugin package did not produce src/lib.lcl"
+    fail=$((fail + 1))
+else
+    consumer="$pbase/consumer.aya"
+    cat > "$consumer" <<EOF
+import "$pdir/src/lib.lcl"
+
+#[lib::identity]
+fn marked() -> int {
+    return 7
+}
+
+fn main() -> int {
+    if marked() != 7 { return 1 }
+    return 0
+}
+EOF
+    if ! "$BIN" run "$consumer" >/dev/null 2>&1; then
+        echo "FAIL A5h: consumer could not run third-party plugin"
+        fail=$((fail + 1))
+    fi
+fi
+rm -rf "$pbase"
+
 # #106：零参函数不得发射裸符号（避免与 libc 冲突）
 if [ -f build/test_zero_arg_fn ]; then
     if nm build/test_zero_arg_fn 2>/dev/null | grep -qE ' T time$'; then

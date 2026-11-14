@@ -15,6 +15,7 @@ pub(crate) mod types;
 pub(crate) mod update;
 pub(crate) mod update_fetch;
 pub(crate) mod package_install;
+pub(crate) mod plugin;
 
 pub(crate) use build::{cmd_build, cmd_run};
 pub(crate) use check::cmd_check;
@@ -26,6 +27,7 @@ pub(crate) use new::cmd_new;
 pub(crate) use types::cmd_types;
 pub(crate) use update::{cmd_update, cmd_version};
 pub(crate) use package_install::{cmd_install, cmd_package};
+pub(crate) use plugin::cmd_plugin;
 
 /// 从源文件向上找 ayanami.toml（优先于 cwd），用于 arch/freestanding 等构建参数。
 pub(crate) fn project_config_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig> {

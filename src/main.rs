@@ -31,6 +31,7 @@ fn main() {
     eprintln!("  dump <stage> <file> 输出 IR 阶段文本（ast|hir|mir|lir|llvm）");
         eprintln!("  run [--release] [--verify-effects] [file/proj] 构建并运行");
         eprintln!("  clean              清除 build/ 目录");
+        eprintln!("  plugin new|package  第三方插件项目脚手架/打包");
         eprintln!("  update [--check] [--std-only] [--dir <path>]  联网更新编译器与 std（GitHub Release）");
         eprintln!("  --version          打印版本");
         std::process::exit(1);
@@ -49,6 +50,7 @@ fn main() {
         "dump" => cmd_dump(&args[2..]),
         "run" => cmd_run(&args[2..]),
         "clean" => cmd_clean(),
+        "plugin" => cmd_plugin(&args[2..]),
         "update" => cmd_update(&args[2..]),
         "--version" | "-V" | "version" => cmd_version(),
         _ => {
@@ -77,7 +79,12 @@ pub(crate) fn find_project(dir: &Path) -> Option<(PathBuf, String)> {
 /// 读取项目入口文件（默认 src/main.aya）
 pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBuf> {
     let main_aya = project_dir.join("src").join("main.aya");
-    if main_aya.exists() { Some(main_aya) } else { None }
+    if main_aya.exists() {
+        return Some(main_aya);
+    }
+    // 第三方插件/库项目使用 src/lib.aya
+    let lib_aya = project_dir.join("src").join("lib.aya");
+    if lib_aya.exists() { Some(lib_aya) } else { None }
 }
 
 /// 解析命令行路径参数：
@@ -92,7 +99,7 @@ pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf {
             let project_dir = Path::new(p);
             if let Some((_, _)) = find_project(project_dir) {
                 project_entry(project_dir).unwrap_or_else(|| {
-                    eprintln!("error: no src/main.aya in project '{}'", p);
+                    eprintln!("error: no src/main.aya or src/lib.aya in project '{}'", p);
                     std::process::exit(1);
                 })
             } else {
@@ -114,7 +121,7 @@ pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf {
 
 mod cli;
 
-pub(crate) use cli::{cmd_build, cmd_check, cmd_clean, cmd_defs, cmd_fmt, cmd_install, cmd_new, cmd_package, cmd_run, cmd_dump, cmd_types, cmd_update, cmd_version};
+pub(crate) use cli::{cmd_build, cmd_check, cmd_clean, cmd_defs, cmd_fmt, cmd_install, cmd_new, cmd_package, cmd_plugin, cmd_run, cmd_dump, cmd_types, cmd_update, cmd_version};
 
 pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)> {
     let cwd = std::env::current_dir().ok()?;

@@ -48,15 +48,22 @@ src/cli/mod.rs:14: pub(crate) mod types;
 src/cli/mod.rs:15: pub(crate) mod update;
 src/cli/mod.rs:16: pub(crate) mod update_fetch;
 src/cli/mod.rs:17: pub(crate) mod package_install;
-src/cli/mod.rs:31: pub(crate) fn project_config_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig>
-src/cli/mod.rs:43: pub(crate) fn configure_target_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig>
-src/cli/mod.rs:53: pub(crate) struct CliFlags
-src/cli/mod.rs:61: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
-src/cli/mod.rs:76: pub(crate) fn apply_mode(flags: &CliFlags)
-src/cli/mod.rs:86: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
+src/cli/mod.rs:18: pub(crate) mod plugin;
+src/cli/mod.rs:33: pub(crate) fn project_config_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig>
+src/cli/mod.rs:45: pub(crate) fn configure_target_for(path: &Path) -> Option<ayanami::package::config::ProjectConfig>
+src/cli/mod.rs:55: pub(crate) struct CliFlags
+src/cli/mod.rs:63: pub(crate) fn split_flags(args: &[String]) -> (Vec<String>, CliFlags)
+src/cli/mod.rs:78: pub(crate) fn apply_mode(flags: &CliFlags)
+src/cli/mod.rs:88: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
+src/cli/plugin.rs:8: pub(crate) fn cmd_plugin(args: &[String])
+src/cli/plugin.rs:21: fn plugin_new(args: &[String])
+src/cli/plugin.rs:49: pub fn identity(String input) -> String
+src/cli/plugin.rs:71: fn plugin_package(args: &[String])
+src/cli/plugin.rs:96: fn has_plugin_annotation(code: &str) -> bool
+src/cli/plugin.rs:101: fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool
 src/cli/types.rs:9: pub(crate) fn cmd_types(args: &[String])
 src/cli/types.rs:62: fn collect_items(items: &[HirItem], out: &mut Vec<(String, String, usize, usize)>)
 src/cli/types.rs:72: fn collect_fn(f: &HirFn, out: &mut Vec<(String, String, usize, usize)>)
@@ -2407,11 +2414,11 @@ src/lir/serialize/reader.rs:25: pub(super) fn ty(&mut self) -> Result<HirType>
 src/lir/serialize/write.rs:7: pub(super) fn put_inst(buf: &mut Vec<u8>, inst: &LirNodeBox)
 src/lir/serialize/write.rs:11: pub(super) fn put_fn(buf: &mut Vec<u8>, f: &LirFn)
 src/main.rs:18: fn main()
-src/main.rs:63: pub(crate) fn find_project(dir: &Path) -> Option<(PathBuf, String)>
-src/main.rs:78: pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBuf>
-src/main.rs:87: pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf
-src/main.rs:115: mod cli;
-src/main.rs:119: pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
+src/main.rs:65: pub(crate) fn find_project(dir: &Path) -> Option<(PathBuf, String)>
+src/main.rs:80: pub(crate) fn project_entry(project_dir: &Path) -> Option<PathBuf>
+src/main.rs:94: pub(crate) fn resolve_path(arg: Option<&str>) -> PathBuf
+src/main.rs:122: mod cli;
+src/main.rs:126: pub(crate) fn load_config() -> Option<(PathBuf, ayanami::package::config::ProjectConfig)>
 src/mir/borrow/cfg.rs:5: pub enum Payload<'a>
 src/mir/borrow/cfg.rs:14: pub struct Node<'a>
 src/mir/borrow/cfg.rs:25: pub struct Cfg<'a>

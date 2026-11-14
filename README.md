@@ -137,6 +137,30 @@ freestanding = true
 - `ayanami run` 拒绝 freestanding/交叉目标；请用自己的 linker script / loader 链接 `.o`。
 - 也可用 `target = "static-lib"` + `arch` 生成跨架构 `.a`（不链接 runtime）。
 
+## 第三方插件
+
+插件是普通 Ayanami 库，用 `#[macro]` / `#[pass]` / `#[check]` / `#[attr]` 声明能力，
+打包为 `.lcl` 供其他项目导入：
+
+```bash
+ayanami plugin new my_plugin
+cd my_plugin
+ayanami plugin package .        # -> src/lib.lcl
+```
+
+消费方：
+
+```ayanami
+import "path/to/my_plugin/src/lib.lcl"
+
+#[lib::identity]
+fn marked() -> int { return 7 }
+```
+
+插件在消费方编译期构建 `.so` 并执行（信任级同 proc-macro）。完整作者指南见
+[`docs/plugins.md`](docs/plugins.md)；宏/MIR pass/check/属性插件接口见
+[`docs/annotations.md`](docs/annotations.md) §8。
+
 ## Hello World
 
 ```ayanami
