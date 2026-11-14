@@ -88,6 +88,9 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             } else if let Some(rest) = line.strip_prefix("check=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Check { name: val });
+            } else if let Some(rest) = line.strip_prefix("attr=") {
+                let val = parse_ini_value(rest);
+                symbols.push(ImportedSymbol::Attr { name: val });
             } else if let Some(rest) = line.strip_prefix("const=") {
                 let val = parse_ini_value(rest);
                 if let Some((name, rest)) = val.split_once(',') {
@@ -139,6 +142,7 @@ fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result
             ImportedSymbol::Macro { name, .. } => (name.as_str(), "macro"),
             ImportedSymbol::Pass { name } => (name.as_str(), "pass"),
             ImportedSymbol::Check { name } => (name.as_str(), "check"),
+            ImportedSymbol::Attr { name } => (name.as_str(), "attr"),
             _ => continue,
         };
         if let Some(prev) = seen.insert(name, kind) {

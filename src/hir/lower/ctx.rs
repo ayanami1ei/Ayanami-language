@@ -87,6 +87,8 @@ pub(crate) struct Ctx {
     pub imported_passes: HashMap<Symbol, Vec<Symbol>>,
     /// A5d：导入包的只读检查注解表（check 名）
     pub imported_checks: HashMap<Symbol, Vec<Symbol>>,
+    /// A5f：导入包的属性插件表（attr 名）
+    pub imported_attrs: HashMap<Symbol, Vec<Symbol>>,
     /// 泛型特化产生的函数实例（重载解析的隐式转换回退不参与，避免串型）
     pub specialized_ids: std::collections::HashSet<crate::hir::ty::FnId>,
     /// 后续用法推断出的泛型实参：变量名 → 实参类型
@@ -158,6 +160,7 @@ impl Ctx {
             imported_macros: HashMap::new(),
             imported_passes: HashMap::new(),
             imported_checks: HashMap::new(),
+            imported_attrs: HashMap::new(),
             specialized_ids: std::collections::HashSet::new(),
             usage_hints: HashMap::new(),
             imported_macro_lcls: HashMap::new(),

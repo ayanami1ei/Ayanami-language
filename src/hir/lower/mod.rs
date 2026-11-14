@@ -151,7 +151,7 @@ fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgra
     ctx.async_probe = async_probe;
     ctx.collect_fns(&program.stmts)?;
     // A5b：导入加载完成后校验宏引用
-    crate::hir::attrs::validate_macros(&program, &ctx.imported_macros, &ctx.imported_passes, &ctx.imported_checks)?;
+    crate::hir::attrs::validate_macros(&program, &ctx.imported_macros, &ctx.imported_passes, &ctx.imported_checks, &ctx.imported_attrs)?;
     // #121：泛型体 eager 名称检查（未实例化的方法体不再完全静默）
     ctx.check_generic_bodies()?;
     ctx.build_vtables()?;

@@ -36,8 +36,9 @@ pub fn validate_macros(
     macros: &HashMap<Symbol, Vec<Symbol>>,
     passes: &HashMap<Symbol, Vec<Symbol>>,
     checks: &HashMap<Symbol, Vec<Symbol>>,
+    attrs: &HashMap<Symbol, Vec<Symbol>>,
 ) -> Result<()> {
-    let tables = AnnotationTables::from_kind_maps(macros, passes, checks);
+    let tables = AnnotationTables::from_kind_maps(macros, passes, checks, attrs);
     let mut out = Ok(());
     for stmt in &program.stmts {
         validate_macros_stmt(stmt, &tables, &mut out);
@@ -71,6 +72,13 @@ fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result
             }
             Ok(Some(AnnKind::Pass)) | Ok(Some(AnnKind::Check)) => {
                 // 优化/检查注解保留到 MIR 阶段执行
+            }
+            Ok(Some(AnnKind::Attr)) => {
+                *out = Err(Error::Hir(format!(
+                    "attribute plugin #[{}] was not expanded (unsupported target / internal error) (at {}:{})",
+                    a.path_str(), a.span.start_line, a.span.start_col
+                )));
+                return;
             }
             Ok(Some(AnnKind::Macro)) => {
                 // 宏展开应在 HIR 之前完成；这里出现说明展开遗漏

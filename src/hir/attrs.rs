@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-
 use crate::error::{Error, Result};
 use crate::parser::ast::{Attr, Program, Stmt};
 
@@ -13,6 +12,7 @@ pub const ALLOWED: &[&str] = &[
     "macro",
     "pass",
     "check",
+    "attr",
     "sync",
     "follow_with",
     "throws",

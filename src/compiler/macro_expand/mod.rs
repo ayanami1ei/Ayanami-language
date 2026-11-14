@@ -96,6 +96,12 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
             if attrs.iter().any(|a| !is_compiler_attr(a)) =>
         {
             let attr = attrs.iter().find(|a| !is_compiler_attr(a)).cloned().unwrap();
+            if let Some((_, _, AnnKind::Attr, _)) = ctx.tables.resolve(&attr)? {
+                return Err(Error::Compile(format!(
+                    "attribute plugin #[{}] is only supported on items (v1) (at {}:{})",
+                    attr.path_str(), attr.span.start_line, attr.span.start_col
+                )));
+            }
             let (lcl_path, macro_name, args, tokens) = resolve_macro_call(ctx, &attr)?;
             let remaining: Vec<Attr> = attrs.iter()
                 .filter(|a| a.path_str() != attr.path_str())
@@ -213,9 +219,15 @@ fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Ve
             Ok((lcl_path, macro_name, args, tokens))
         }
         Some((pkg, name, AnnKind::Pass, _)) | Some((pkg, name, AnnKind::Check, _)) => Err(Error::Compile(format!(
-            "`#[{}]` is a MIR annotation (`{}::{}`), not a macro (at {}:{})",
+            "`#[{}]` is a MIR annotation (`{}::{}`), not a macro/attr (at {}:{})",
             attr.path_str(), pkg, name, attr.span.start_line, attr.span.start_col
         ))),
+        Some((pkg, attr_name, AnnKind::Attr, _)) => {
+            let lcl_path = ctx.tables.lcl_path(&pkg).ok_or_else(|| Error::Compile(format!(
+                "package `{}` has no annotation table", pkg
+            )))?;
+            Ok((lcl_path, attr_name, args, false))
+        }
         None => Err(Error::Compile(format!(
             "macro #[{}] cannot be resolved (at {}:{})",
             attr.path_str(), attr.span.start_line, attr.span.start_col
@@ -225,11 +237,11 @@ fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Ve
 
 /// 展开单个 item：无宏标注则原样返回；有则调用插件并递归展开输出。
 fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
-    // 只挑「解析为宏」的标注展开；pass 注解与未知标注留给后续阶段/校验
+    // 只挑「解析为宏/属性插件」的标注展开；pass/check 与未知标注留给后续阶段/校验
     let mut macro_attr = None;
     if let Some(attrs) = attrs_of(stmt) {
         for a in attrs.iter().filter(|a| !is_compiler_attr(a)) {
-            if let Some((_, _, AnnKind::Macro, _)) = ctx.tables.resolve(a)? {
+            if let Some((_, _, AnnKind::Macro | AnnKind::Attr, _)) = ctx.tables.resolve(a)? {
                 macro_attr = Some(a.clone());
                 break;
             }

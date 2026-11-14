@@ -1,0 +1,18 @@
+// A5f：属性插件库——source→source，按 item 顺序叠加。
+import "string"
+
+#[alloc]
+#[state]
+#[attr]
+pub fn add_pure(String input) -> String {
+    return "#[pure]\n" + input
+}
+
+// 带实参的属性插件；返回 input 表示仅消费属性、不改写 item。
+#[attr]
+pub fn mark(String input, String tag) -> String {
+    if tag.len() >= 0 {
+        return input
+    }
+    return input
+}

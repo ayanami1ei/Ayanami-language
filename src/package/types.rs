@@ -46,6 +46,10 @@ pub enum PackageSymbol {
     Check {
         name: String,
     },
+    /// A5f：导出的属性插件（`#[attr]` 函数）
+    Attr {
+        name: String,
+    },
     /// 方法表（供编辑器补全/悬停；编译器导入忽略 `method=` 行）
     Method {
         type_name: String,
@@ -95,6 +99,10 @@ pub enum ImportedSymbol {
     },
     /// A5d：包导出的 MIR 只读检查注解
     Check {
+        name: String,
+    },
+    /// A5f：包导出的属性插件
+    Attr {
         name: String,
     },
     /// M6.1b：包导出的编译期常量

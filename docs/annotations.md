@@ -276,7 +276,8 @@ struct Holder {
      内置名保留，库不可覆盖；未知裸名报错并提示是否缺少 `import`。
   2. **库宏**：`<pkg>::<macro>`，必须由已 `import` 的包导出；
      导入后允许裸名引用，重名时报错并要求写全路径。
-  3. **插件属性**（远期）：插件注册的编译器扩展属性，独立命名空间（如 `plugin::attr`）。
+  3. **插件属性**（A5f MVP）：库用 `#[attr]` 导出 source→source 属性处理器，用户以 `#[pkg::name]` 使用；
+     独立类别、同一包跨类别唯一。
 - 宏只能展开出源码；若结果含内置标注，再由既有白名单与各 pass 处理。
   「编译器优化」与「宏」由此分层：前者是保留内置，后者是纯源码变换。
 - **A5a 已实现**：`Attr.qualifier` + `AttrPath`（`pkg::macro`）解析与 formatter 往返；
@@ -412,6 +413,28 @@ struct Holder {
   （`AnnotationTables::from_kind_maps`）共用 `resolve`，避免历史上「宏展开静默遮蔽 /
   HIR 报歧义」的漂移。
 
+### 8.8 属性插件（A5f MVP，2026-11-14）
+
+`#[macro]` 处理“替换 item”，但很多注解的需求是**在同一 item 上叠加/检查/改写**，
+并且可能同时存在多个自定义属性。A5f 增加第五类插件：
+
+| 类别 | 标记 | 接口 | 阶段 |
+|---|---|---|---|
+| 属性插件 | `#[attr]` | item 源码 → item 源码 | 宏展开阶段（HIR 前） |
+
+- **声明**：库函数 `#[attr] pub fn name(String input, String ...args) -> String`；
+  ABI、shim 与插件缓存复用宏插件（`plugin.rs`/ABI v5）。
+- **使用**：`#[pkg::name(args...)]` 标注 item（fn/struct/enum/interface/impl）。
+  `input` 是去掉**当前属性**后的 item 源码，其余属性保留；输出重新解析并递归展开。
+- **与宏的区别**：属性插件按 item 上书写的顺序逐个执行，可叠加；属性被消费后不进入 HIR。
+  宏仍是“声明替换”语义，二者共用 provider 解析与 `.lcl` 插件构建。
+- **包表**：`.lcl` 新增 `attr="name"`；`AnnotationTables` 增加 `AnnKind::Attr`；
+  `import` 自动作用域、`pkg::name` 全限定、跨包同名歧义规则与宏/pass/check 一致。
+- **限制（v1）**：仅 item 级；语句/表达式/字段级属性插件暂不支持；不支持 token 属性；
+  修改后仍需通过 HIR 结构与借用检查。信任模型同宏（编译期原生代码）。
+- **示例**：`example/attr_lib.aya` 的 `add_pure` 在 item 前注入 `#[pure]`；
+  `example/test_attr.aya` 验证叠加与实参。
+
 ## 9. 实现接口（跨包与工具）
 
 | 层 | 载体 |
@@ -542,6 +565,12 @@ struct Holder {
 - [ ] `#[transform]` 类别与 `StructuralPass` 接口（设计见 §8.6）
 - [x] `#[sync(obj)] { ... }` 同步块（首个内建结构化变换，2026-10-24；见 `docs/sync-blocks.md`）
 - [ ] `#[async]`/`await`（A5e 第二个客户）
+
+### A5f（MVP，2026-11-14）
+
+- [x] `#[attr]` 声明 + `.lcl` `attr=` 表 + `AnnKind::Attr` 解析/跨类别唯一
+- [x] item 级 source→source 属性插件（复用宏 ABI/shim/缓存；按书写顺序叠加）
+- [x] 示例 `attr_lib` / `test_attr`；语句/字段级与 token 属性列为后续
 
 ### 已知问题
 

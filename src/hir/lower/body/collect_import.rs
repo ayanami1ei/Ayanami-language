@@ -142,6 +142,10 @@ impl crate::hir::lower::Ctx {
                         let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
                         self.imported_checks.entry(stem).or_default().push(Symbol::intern(name));
                     }
+                    crate::package::ImportedSymbol::Attr { name } => {
+                        let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
+                        self.imported_attrs.entry(stem).or_default().push(Symbol::intern(name));
+                    }
                     crate::package::ImportedSymbol::Fn { name, sig, flags } => {
                         // nsr：非 pub（`private` 标记）为来源模块私有——不注册进导入方
                         // 符号表（此前与使用方同名私有函数冲突：重载歧义/llc 重定义）

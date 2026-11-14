@@ -1,0 +1,13 @@
+// A5f：自定义属性插件（#[pkg::attr]）——叠加、实参与插件执行。
+import "attr_lib.aya"
+
+#[attr_lib::add_pure]
+#[attr_lib::mark("x")]
+fn square(int x) -> int {
+    return x * x
+}
+
+fn main() -> int {
+    if square(3) != 9 { return 1 }
+    return 0
+}

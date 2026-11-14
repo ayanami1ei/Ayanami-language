@@ -12,6 +12,7 @@ impl Package {
                 PackageSymbol::Macro { name, .. } => (name.as_str(), "macro"),
                 PackageSymbol::Pass { name } => (name.as_str(), "pass"),
                 PackageSymbol::Check { name } => (name.as_str(), "check"),
+                PackageSymbol::Attr { name } => (name.as_str(), "attr"),
                 _ => continue,
             };
             if let Some(prev) = seen.insert(name, kind) {
@@ -40,6 +41,14 @@ mod tests {
             pkg.validate_annotation_names().is_err(),
             "same name exported as macro and pass must be rejected"
         );
+    }
+
+    #[test]
+    fn attr_collides_with_other_annotation_kinds() {
+        let mut pkg = Package::new("t".into(), "0".into());
+        pkg.symbols.push(PackageSymbol::Attr { name: "foo".into() });
+        pkg.symbols.push(PackageSymbol::Pass { name: "foo".into() });
+        assert!(pkg.validate_annotation_names().is_err());
     }
 
     #[test]

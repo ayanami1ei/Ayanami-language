@@ -21,6 +21,7 @@ pub(crate) enum AnnKind {
     Macro,
     Pass,
     Check,
+    Attr,
 }
 
 /// 一个包导出的注解
@@ -31,6 +32,7 @@ pub(crate) struct PkgAnnotations {
     pub macros: Vec<(String, bool)>,
     pub passes: Vec<String>,
     pub checks: Vec<String>,
+    pub attrs: Vec<String>,
 }
 
 /// 已导入包的注解表
@@ -55,6 +57,7 @@ impl AnnotationTables {
         macros: &HashMap<Symbol, Vec<Symbol>>,
         passes: &HashMap<Symbol, Vec<Symbol>>,
         checks: &HashMap<Symbol, Vec<Symbol>>,
+        attrs: &HashMap<Symbol, Vec<Symbol>>,
     ) -> Self {
         let mut pkgs: HashMap<String, PkgAnnotations> = HashMap::new();
         for (pkg, names) in macros {
@@ -75,6 +78,12 @@ impl AnnotationTables {
                 p.checks.push(n.as_str().to_string());
             }
         }
+        for (pkg, names) in attrs {
+            let p = pkgs.entry(pkg.as_str().to_string()).or_default();
+            for n in names {
+                p.attrs.push(n.as_str().to_string());
+            }
+        }
         Self { pkgs }
     }
 
@@ -91,6 +100,7 @@ impl AnnotationTables {
                             crate::package::ImportedSymbol::Macro { name, tokens } => pkg.macros.push((name, tokens)),
                             crate::package::ImportedSymbol::Pass { name } => pkg.passes.push(name),
                             crate::package::ImportedSymbol::Check { name } => pkg.checks.push(name),
+                            crate::package::ImportedSymbol::Attr { name } => pkg.attrs.push(name),
                             _ => {}
                         }
                     }
@@ -100,6 +110,7 @@ impl AnnotationTables {
                             existing.macros.extend(pkg.macros);
                             existing.passes.extend(pkg.passes);
                             existing.checks.extend(pkg.checks);
+                            existing.attrs.extend(pkg.attrs);
                         }
                         None => { self.pkgs.insert(stem, pkg); }
                     }
@@ -130,6 +141,9 @@ impl AnnotationTables {
             if p.checks.iter().any(|m| *m == ann) {
                 return Ok(Some((pkg.to_string(), ann, AnnKind::Check, false)));
             }
+            if p.attrs.iter().any(|m| *m == ann) {
+                return Ok(Some((pkg.to_string(), ann, AnnKind::Attr, false)));
+            }
             return Ok(None);
         }
         // 每包最多一个命中（同包跨类别唯一由打包/加载校验保证）。
@@ -141,6 +155,8 @@ impl AnnotationTables {
                 hits.push((pkg.clone(), AnnKind::Pass, false));
             } else if p.checks.iter().any(|m| *m == name) {
                 hits.push((pkg.clone(), AnnKind::Check, false));
+            } else if p.attrs.iter().any(|m| *m == name) {
+                hits.push((pkg.clone(), AnnKind::Attr, false));
             }
         }
         match hits.len() {
