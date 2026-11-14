@@ -258,35 +258,35 @@ src/compiler/macro_expand/plugin.rs:190: static AyaBuf diag_msgs[DIAG_MAX];\n\
 src/compiler/macro_expand/plugin_abi.rs:15: pub(super) fn plugin_ext() -> &'static str
 src/compiler/macro_expand/plugin_abi.rs:26: pub(super) fn plugin_path(dir: &Path, prefix: &str, stem: &str, hash: u64) -> PathBuf
 src/compiler/macro_expand/plugin_abi.rs:31: pub(super) fn shared_lib_command() -> Command
-src/compiler/macro_expand/plugin_abi.rs:48: pub(super) fn done_path(so: &Path) -> PathBuf
-src/compiler/macro_expand/plugin_abi.rs:53: pub(super) fn so_cached(so: &Path) -> bool
-src/compiler/macro_expand/plugin_abi.rs:58: pub(super) fn unique_tag() -> String
-src/compiler/macro_expand/plugin_abi.rs:67: pub(super) fn publish_so(tmp: &Path, so: &Path) -> Result<()>
-src/compiler/macro_expand/plugin_abi.rs:76: pub(crate) enum ParamKind
-src/compiler/macro_expand/plugin_abi.rs:87: pub(crate) mod dl
-src/compiler/macro_expand/plugin_abi.rs:93: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:94: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:95: pub fn dlclose(handle: *mut c_void) -> c_int;
-src/compiler/macro_expand/plugin_abi.rs:96: pub fn dlerror() -> *mut c_char;
-src/compiler/macro_expand/plugin_abi.rs:101: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:102: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:103: pub fn dlclose(handle: *mut c_void) -> c_int;
-src/compiler/macro_expand/plugin_abi.rs:104: pub fn dlerror() -> *mut c_char;
-src/compiler/macro_expand/plugin_abi.rs:110: fn LoadLibraryW(name: *const u16) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:111: fn GetProcAddress(handle: *mut c_void, name: *const u8) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:112: fn FreeLibrary(handle: *mut c_void) -> c_int;
-src/compiler/macro_expand/plugin_abi.rs:116: pub unsafe fn dlopen(filename: *const c_char, _flag: c_int) -> *mut c_void
-src/compiler/macro_expand/plugin_abi.rs:126: pub unsafe fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void
-src/compiler/macro_expand/plugin_abi.rs:131: pub unsafe fn dlclose(handle: *mut c_void) -> c_int
-src/compiler/macro_expand/plugin_abi.rs:136: pub unsafe fn dlerror() -> *mut c_char
-src/compiler/macro_expand/plugin_abi.rs:141: pub(crate) const RTLD_NOW: c_int = 2;
-src/compiler/macro_expand/plugin_abi.rs:145: pub(crate) struct AyaBuf
-src/compiler/macro_expand/plugin_abi.rs:152: pub(crate) struct AyaBufList
-src/compiler/macro_expand/plugin_abi.rs:158: pub(crate) fn load_macro_fn(lcl_path: &str, macro_name: &str) -> Result<(crate::lir::ir::LirFn, crate::lir::ir::LirProgram)>
-src/compiler/macro_expand/plugin_abi.rs:170: pub(crate) fn plan_params(f: &crate::lir::ir::LirFn, args_len: usize, allow_reserved: bool) -> Result<Vec<ParamKind>>
-src/compiler/macro_expand/plugin_abi.rs:219: pub(crate) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
-src/compiler/macro_expand/plugin_abi.rs:235: pub(crate) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
-src/compiler/macro_expand/plugin_abi.rs:257: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
+src/compiler/macro_expand/plugin_abi.rs:52: pub(super) fn done_path(so: &Path) -> PathBuf
+src/compiler/macro_expand/plugin_abi.rs:57: pub(super) fn so_cached(so: &Path) -> bool
+src/compiler/macro_expand/plugin_abi.rs:62: pub(super) fn unique_tag() -> String
+src/compiler/macro_expand/plugin_abi.rs:71: pub(super) fn publish_so(tmp: &Path, so: &Path) -> Result<()>
+src/compiler/macro_expand/plugin_abi.rs:80: pub(crate) enum ParamKind
+src/compiler/macro_expand/plugin_abi.rs:91: pub(crate) mod dl
+src/compiler/macro_expand/plugin_abi.rs:97: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:98: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:99: pub fn dlclose(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin_abi.rs:100: pub fn dlerror() -> *mut c_char;
+src/compiler/macro_expand/plugin_abi.rs:105: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:106: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:107: pub fn dlclose(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin_abi.rs:108: pub fn dlerror() -> *mut c_char;
+src/compiler/macro_expand/plugin_abi.rs:114: fn LoadLibraryW(name: *const u16) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:115: fn GetProcAddress(handle: *mut c_void, name: *const u8) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:116: fn FreeLibrary(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin_abi.rs:120: pub unsafe fn dlopen(filename: *const c_char, _flag: c_int) -> *mut c_void
+src/compiler/macro_expand/plugin_abi.rs:130: pub unsafe fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void
+src/compiler/macro_expand/plugin_abi.rs:135: pub unsafe fn dlclose(handle: *mut c_void) -> c_int
+src/compiler/macro_expand/plugin_abi.rs:140: pub unsafe fn dlerror() -> *mut c_char
+src/compiler/macro_expand/plugin_abi.rs:145: pub(crate) const RTLD_NOW: c_int = 2;
+src/compiler/macro_expand/plugin_abi.rs:149: pub(crate) struct AyaBuf
+src/compiler/macro_expand/plugin_abi.rs:156: pub(crate) struct AyaBufList
+src/compiler/macro_expand/plugin_abi.rs:162: pub(crate) fn load_macro_fn(lcl_path: &str, macro_name: &str) -> Result<(crate::lir::ir::LirFn, crate::lir::ir::LirProgram)>
+src/compiler/macro_expand/plugin_abi.rs:174: pub(crate) fn plan_params(f: &crate::lir::ir::LirFn, args_len: usize, allow_reserved: bool) -> Result<Vec<ParamKind>>
+src/compiler/macro_expand/plugin_abi.rs:223: pub(crate) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
+src/compiler/macro_expand/plugin_abi.rs:239: pub(crate) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
+src/compiler/macro_expand/plugin_abi.rs:261: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
 src/compiler/macro_expand/plugin_call.rs:7: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
 src/compiler/macro_expand/plugin_call.rs:8: type FreeFn = unsafe extern "C" fn(AyaBuf);
 src/compiler/macro_expand/plugin_call.rs:10: pub(super) fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Vec<u8>], line: i64, col: i64, file: &[u8]) -> Result<Vec<u8>>
@@ -357,11 +357,11 @@ src/diagnostics.rs:190: pub fn report_error(default_file: &Path, raw: &str)
 src/driver/link.rs:5: pub fn objects_to_exe(obj_paths: &[PathBuf], exe_path: impl AsRef<Path>) -> Result<()>
 src/driver/link.rs:10: pub fn objects_to_exe_with_flags(obj_paths: &[PathBuf], extra_flags: &[String], exe_path: impl AsRef<Path>) -> Result<()>
 src/driver/link.rs:18: pub fn objects_to_exe_with_runtime(
-src/driver/link.rs:45: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
-src/driver/link.rs:51: pub(crate) fn find_runtime_c() -> Result<String>
-src/driver/link.rs:94: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/link.rs:109: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
-src/driver/link.rs:120: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/link.rs:46: pub fn object_to_exe(obj_path: impl AsRef<Path>, exe_path: impl AsRef<Path>) -> Result<()>
+src/driver/link.rs:52: pub(crate) fn find_runtime_c() -> Result<String>
+src/driver/link.rs:95: pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/link.rs:110: pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()>
+src/driver/link.rs:122: pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()>
 src/driver/lto.rs:6: static LTO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 src/driver/lto.rs:7: pub fn set_lto(v: bool) { LTO.store(v, std::sync::atomic::Ordering::Relaxed); }
 src/driver/lto.rs:8: pub fn is_lto() -> bool { LTO.load(std::sync::atomic::Ordering::Relaxed) }
@@ -1588,17 +1588,17 @@ src/hir/schema/core.rs:145: fn to_json(&self) -> Value { json!(self.as_str()) }
 src/hir/schema/core.rs:147: impl FromJson for Symbol
 src/hir/schema/core.rs:148: fn from_json(v: &Value) -> Result<Self>
 src/hir/schema/core.rs:152: impl ToJson for FnId
-src/hir/schema/core.rs:153: fn to_json(&self) -> Value { json!(self.0) }
-src/hir/schema/core.rs:155: impl FromJson for FnId
-src/hir/schema/core.rs:156: fn from_json(v: &Value) -> Result<Self> { Ok(FnId(usize::from_json(v)?)) }
-src/hir/schema/core.rs:158: impl ToJson for VarId
-src/hir/schema/core.rs:159: fn to_json(&self) -> Value { json!(self.0) }
-src/hir/schema/core.rs:161: impl FromJson for VarId
-src/hir/schema/core.rs:162: fn from_json(v: &Value) -> Result<Self> { Ok(VarId(usize::from_json(v)?)) }
-src/hir/schema/core.rs:165: impl ToJson for Span
-src/hir/schema/core.rs:166: fn to_json(&self) -> Value
-src/hir/schema/core.rs:177: impl FromJson for Span
-src/hir/schema/core.rs:178: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/core.rs:153: fn to_json(&self) -> Value
+src/hir/schema/core.rs:159: impl FromJson for FnId
+src/hir/schema/core.rs:160: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/core.rs:167: impl ToJson for VarId
+src/hir/schema/core.rs:168: fn to_json(&self) -> Value
+src/hir/schema/core.rs:172: impl FromJson for VarId
+src/hir/schema/core.rs:173: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/core.rs:181: impl ToJson for Span
+src/hir/schema/core.rs:182: fn to_json(&self) -> Value
+src/hir/schema/core.rs:193: impl FromJson for Span
+src/hir/schema/core.rs:194: fn from_json(v: &Value) -> Result<Self>
 src/hir/schema/effects.rs:10: impl ToJson for EffectDecl
 src/hir/schema/effects.rs:11: fn to_json(&self) -> Value
 src/hir/schema/effects.rs:20: impl FromJson for EffectDecl
@@ -1713,12 +1713,12 @@ src/hir/stmt.rs:113: pub struct HirBlock
 src/hir/stmt.rs:117: impl HirBlock
 src/hir/stmt.rs:118: pub fn new(stmts: Vec<HirStmt>) -> Self
 src/hir/transform.rs:12: pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()>
-src/hir/transform.rs:34: fn collect_markers(
-src/hir/transform.rs:45: fn collect_item_markers(
-src/hir/transform.rs:62: fn collect_fn_markers(
-src/hir/transform.rs:79: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:86: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:99: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:40: fn collect_markers(
+src/hir/transform.rs:51: fn collect_item_markers(
+src/hir/transform.rs:68: fn collect_fn_markers(
+src/hir/transform.rs:85: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:92: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:105: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
 src/hir/ty.rs:4: pub struct VarId(pub usize);
 src/hir/ty.rs:9: pub struct FnId(pub usize);
 src/hir/ty.rs:19: pub enum HirType
@@ -2859,13 +2859,13 @@ src/package/const_codec.rs:75: pub fn lit_from_str(ty: &HirType, s: &str) -> Opt
 src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:4: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:155: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
-src/package/load.rs:177: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:189: pub fn load_version(path: &str) -> Option<String>
-src/package/load.rs:202: pub fn warn_version_drift(path: &str, stem: &str)
-src/package/load.rs:204: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
-src/package/load.rs:222: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:256: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:157: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
+src/package/load.rs:179: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:191: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:204: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:206: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:224: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:258: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod annotate;
 src/package/mod.rs:7: mod bytes;

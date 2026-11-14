@@ -33,6 +33,7 @@ pub fn objects_to_exe_with_runtime(
     }
     let mut cmd = Command::new("gcc");
     cmd.arg("-no-pie");
+    if cfg!(target_os = "linux") { cmd.arg("-Wl,--allow-multiple-definition"); }
     for o in obj_paths { cmd.arg(o); }
     for f in extra_flags { cmd.arg(f); }
     cmd.arg(&runtime_path).arg("-lm").arg("-o").arg(exe_path.as_ref());
@@ -109,6 +110,7 @@ pub fn object_to_static_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Pat
 pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) -> Result<()> {
     let mut cmd = Command::new("gcc");
     cmd.arg("-shared").arg("-fPIC");
+    if cfg!(target_os = "linux") { cmd.arg("-Wl,--allow-multiple-definition"); }
     for o in obj_paths { cmd.arg(o); }
     cmd.arg("-o").arg(lib_path.as_ref());
     let status = cmd.status().map_err(|e| Error::Driver(format!("failed to run gcc: {}", e)))?;
@@ -118,9 +120,10 @@ pub fn objects_to_shared_lib(obj_paths: &[PathBuf], lib_path: impl AsRef<Path>) 
 
 /// Link single object file → shared library (.so) via `gcc`.
 pub fn object_to_shared_lib(obj_path: impl AsRef<Path>, lib_path: impl AsRef<Path>) -> Result<()> {
-    let status = Command::new("gcc")
-        .arg("-shared")
-        .arg("-fPIC")
+    let mut cmd = Command::new("gcc");
+    cmd.arg("-shared").arg("-fPIC");
+    if cfg!(target_os = "linux") { cmd.arg("-Wl,--allow-multiple-definition"); }
+    let status = cmd
         .arg("-o")
         .arg(lib_path.as_ref())
         .arg(obj_path.as_ref())

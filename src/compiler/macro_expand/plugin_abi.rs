@@ -41,6 +41,10 @@ pub(super) fn shared_lib_command() -> Command {
     } else {
         cmd.arg("-Wl,--export-all-symbols");
     }
+    // package LIR 可能并入依赖函数；同一 std 依赖被递归链接时允许同定义。
+    if cfg!(target_os = "linux") {
+        cmd.arg("-Wl,--allow-multiple-definition");
+    }
     cmd
 }
 

@@ -628,8 +628,8 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [ ] `#[transform]` 类别与 `StructuralPass` 接口（设计见 §8.6）
 - [x] B0：HIR JSON schema v1 + identity roundtrip（`docs/hir-transform.md`）
 - [x] B1：transform 插件 ABI identity（`transform=` 表 + `fn(String)->String`）
-- [x] B2 低层 MVP：HIR JSON 字符串修改（首个 bump transform）已跑通
-- [ ] B2 结构化：`std/hir.aya` 视图/helper、插入函数/改 body/改调用点
+- [x] B2 MVP：HIR JSON 修改 + `std/hir.aya` 读取/替换函数体已跑通
+- [ ] B2 后续：插入函数/改调用点/transform 后 FnId/VarId 与借用效应完整校验
 - [x] `#[sync(obj)] { ... }` 同步块（首个内建结构化变换，2026-10-24；见 `docs/sync-blocks.md`）
 - [ ] `#[async]`/`await`（A5e 第二个客户）
 

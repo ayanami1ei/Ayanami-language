@@ -150,16 +150,32 @@ impl FromJson for Symbol {
     }
 }
 impl ToJson for FnId {
-    fn to_json(&self) -> Value { json!(self.0) }
+    fn to_json(&self) -> Value {
+        // usize::MAX 是 vtable 析构槽的哨兵；JSON/插件侧用 -1 表示，避免
+        // std JSON 的 i64 解析溢出。
+        if self.0 == usize::MAX { json!(-1) } else { json!(self.0) }
+    }
 }
 impl FromJson for FnId {
-    fn from_json(v: &Value) -> Result<Self> { Ok(FnId(usize::from_json(v)?)) }
+    fn from_json(v: &Value) -> Result<Self> {
+        if v.as_i64() == Some(-1) {
+            return Ok(FnId(usize::MAX));
+        }
+        Ok(FnId(usize::from_json(v)?))
+    }
 }
 impl ToJson for VarId {
-    fn to_json(&self) -> Value { json!(self.0) }
+    fn to_json(&self) -> Value {
+        if self.0 == usize::MAX { json!(-1) } else { json!(self.0) }
+    }
 }
 impl FromJson for VarId {
-    fn from_json(v: &Value) -> Result<Self> { Ok(VarId(usize::from_json(v)?)) }
+    fn from_json(v: &Value) -> Result<Self> {
+        if v.as_i64() == Some(-1) {
+            return Ok(VarId(usize::MAX));
+        }
+        Ok(VarId(usize::from_json(v)?))
+    }
 }
 
 impl ToJson for Span {

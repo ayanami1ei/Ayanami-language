@@ -16,6 +16,9 @@ pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()> {
     }
     let mut markers = Vec::new();
     collect_markers(program, &tables, &mut markers)?;
+    if std::env::var_os("AYANAMI_TRANSFORM_TRACE").is_some() {
+        eprintln!("transform trace: {} marker(s): {:?}", markers.len(), markers);
+    }
     if markers.is_empty() {
         return Ok(());
     }
@@ -23,6 +26,9 @@ pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()> {
     for (lcl_path, name) in markers {
         let input = crate::hir::schema::to_json(program)?;
         let output = crate::compiler::macro_expand::invoke_transform(&lcl_path, &name, &input)?;
+        if std::env::var_os("AYANAMI_TRANSFORM_TRACE").is_some() {
+            eprintln!("transform trace: plugin {} returned {} bytes", name, output.len());
+        }
         *program = crate::hir::schema::from_json(&output).map_err(|e| {
             Error::Hir(format!("transform `{}` returned invalid HIR schema: {}", name, e))
         })?;

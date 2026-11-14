@@ -10,8 +10,8 @@
 
 B0 已完成：`HIR → JSON → HIR` 的 identity roundtrip。
 B1 已完成 identity 插件通路：`.lcl` `transform=`、函数上的 `#[pkg::name]` 触发、
-`fn(String json) -> String` 插件调用。B2 已用低层 JSON 修改跑通首个变换
-（`"value":7` → `"value":8`）；结构化 `std/hir.aya` helper 仍待补。
+`fn(String json) -> String` 插件调用。B2 已用低层 JSON 修改跑通首个变换，并提供 `std/hir.aya` helper；
+`replace_function_body` 可直接替换函数体。
 
 ## 为什么用 JSON
 
@@ -63,15 +63,22 @@ B1 已完成 identity 插件通路：`.lcl` `transform=`、函数上的 `#[pkg::
 当前插件可以直接操作 HIR JSON 字符串。例如把字面量 7 改成 8：
 
 ```ayanami
-import "text"
+import "hir"
 
 #[transform]
+#[alloc]
+#[state]
 pub fn bump(String input) -> String {
-    old = "\"value\":7"
-    new = "\"value\":8"
-    return replace(ref input, ref old, ref new)
+    doc = parse_hir(ref input).unwrap()
+    body = single_body(make_return(make_int(8)))
+    result = replace_function_body(ref doc, ref "main", body).unwrap()
+    return render_hir(ref result)
 }
 ```
+
+`hir`（`std/src/meta/hir.aya`）提供 `parse_hir` / `render_hir` /
+`find_function` / `replace_function_body` / `append_item` / `clone_function` /
+`make_int` / `make_return` / `single_body`。
 
 消费方：
 
@@ -124,8 +131,8 @@ schema 覆盖：
 
 - **B1（已完成 2026-11-14）**：`.lcl` `transform=` 表、`#[transform]` 声明、
   `fn(String json) -> String` 插件 ABI、identity 插件；
-- **B2（低层 MVP 已完成）**：HIR JSON 字符串修改已跑通；`std/hir.aya` 视图/helper、
-  插入函数/改 body/改调用点尚未完成，
+- **B2（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 访问/替换函数体已跑通；
+  更完整的插入函数/改调用点/引用校验仍在后续，
   变换后 FnId/VarId/类型/借用/效应校验；
 - **B3**：泛型、enum niche、vtable、async/sync 内建变换统一接口。
 

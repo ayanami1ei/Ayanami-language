@@ -242,13 +242,16 @@ EOF
             fi
             # B2：插件实际修改 HIR JSON（把字面量 7 改成 8）
             cat > "$tdir/src/lib.aya" <<'EOF'
-import "text"
+import "hir"
 
 #[transform]
+#[alloc]
+#[state]
 pub fn bump(String input) -> String {
-    old = "\"value\":7"
-    new = "\"value\":8"
-    return replace(ref input, ref old, ref new)
+    doc = parse_hir(ref input).unwrap()
+    body = single_body(make_return(make_int(8)))
+    result = replace_function_body(ref doc, ref "main", body).unwrap()
+    return render_hir(ref result)
 }
 EOF
             if ! "$BIN" plugin package "$tdir" >/dev/null 2>&1; then

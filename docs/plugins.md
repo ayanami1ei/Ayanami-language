@@ -169,8 +169,8 @@ pub fn identity(String hir_json) -> String {
 - HIR schema 版本和节点格式见 [`docs/hir-transform.md`](hir-transform.md)。
 - v1 只支持函数上的 transform 标记；结构化修改 API（插入函数、改 body）在 B2。
 - 插件必须返回合法 HIR JSON；解析失败会拒绝编译。
-- 当前已跑通低层修改示例（见 `docs/hir-transform.md` 的 `bump`）；typed
-  `std/hir.aya` helper 仍在后续 B2。
+- `std/hir.aya` 提供 `parse_hir` / `render_hir` / `find_function` /
+  `replace_function_body` 等 helper；示例见 `docs/hir-transform.md` 的 `bump`。
 
 ### MIR pass `#[pass]` / check `#[check]`
 
