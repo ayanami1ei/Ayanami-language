@@ -196,6 +196,40 @@ fn rewrite_with(e: &Expr, subst: &mut dyn FnMut(&Symbol, Span) -> Option<Expr>) 
         Expr::Ref(inner, mutable, span) => {
             Expr::Ref(Box::new(rewrite_with(inner, subst)?), *mutable, *span)
         }
+        Expr::ToUnique(inner, span) => Expr::ToUnique(Box::new(rewrite_with(inner, subst)?), *span),
+        Expr::StructLiteral {
+            type_name,
+            generic_args,
+            fields,
+            span,
+        } => Expr::StructLiteral {
+            type_name: *type_name,
+            generic_args: generic_args.clone(),
+            fields: fields
+                .iter()
+                .map(|(n, e)| Some((*n, rewrite_with(e, subst)?)))
+                .collect::<Option<Vec<_>>>()?,
+            span: *span,
+        },
+        Expr::EnumConstruct {
+            enum_name,
+            variant_name,
+            tuple_args,
+            named_args,
+            span,
+        } => Expr::EnumConstruct {
+            enum_name: *enum_name,
+            variant_name: *variant_name,
+            tuple_args: tuple_args
+                .iter()
+                .map(|e| rewrite_with(e, subst))
+                .collect::<Option<Vec<_>>>()?,
+            named_args: named_args
+                .iter()
+                .map(|(n, e)| Some((*n, rewrite_with(e, subst)?)))
+                .collect::<Option<Vec<_>>>()?,
+            span: *span,
+        },
         _ => return None,
     })
 }

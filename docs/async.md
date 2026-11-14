@@ -272,10 +272,11 @@ impl __add_Fut {
 - 通用 CFG 默认启用；不支持时自动回退形状模块（`AYANAMI_ASYNC_CFG=0` 可强制回退）。
 - 表达式级 await 已支持赋值/返回/实参/字段或索引写值/if 主条件/elif 条件/while 条件中的子表达式；
   数值 `for (start, end, step)` 体内 await 也已支持（降为 while）；`for v in ident` 在元素类型可由
-  HIR 探针确定时支持（迭代器字段 + Option 解包）；`match <ident>` 的 arm 内 await
+  HIR 探针确定时支持（`Option[Iter]` 槽 + Option 解包）；`match <ident>` 的 arm 内 await
   （同步 helper 做模式分派、绑定写入字段）支持无 or-pattern、guard 只引用当前模式绑定的情况；
-  表达式 iterable、or-pattern、引用外层局部的 guard、表达式级 match/if/lambda 内 await、
-  `ref` 跨 await、`unsafe` 内 await、非默认初始化局部、泛型/方法上的 `#[async]` 仍未支持。
+  函数调用等无法直接推断类型的 iterable、or-pattern、引用外层局部的 guard、
+  表达式级 match/if/lambda 内 await、`ref` 跨 await、`unsafe` 内 await、
+  非默认初始化局部、泛型/方法上的 `#[async]` 仍未支持。
 - 下一阶段：HIR 原生 pass（字段裁剪/liveness、状态枚举、drop 语义），并删除已覆盖的形状模块。
 
 ### 7.4 A1b-3 一般 CFG（设计 2026-10-25；AST 实现已落地 2026-11-13）
@@ -299,7 +300,9 @@ impl __add_Fut {
   if/elif/else、while、break/continue 生成显式 PC 跳转。elif 条件 await 转为嵌套 if 链；
   while 条件 await 转为 `while true { <pre>; if cond { body } else { break } }`，保证每轮求值；
   数值 for 降为 `i = start; while i < end { body; i += step }`（边界按 HIR 探针类型 cast）；
-  `for v in ident` 降为 `while true { __next = ident.next(); if __next._tag == 0 { v = ...; body } else { break } }`；
+  `for v in iterable` 先用 `Option::Some(iterable)` 存入 `Option[Iter]` 槽，再降为
+  `while true { __next = slot._data_Some._0.next(); if __next._tag == 0 { v = ...; body } else { break } }`；
+  iterable 支持标识符与结构体字面量（函数调用等无法推断类型时仍回退）；
   match 内 await 生成同步 `__async_match_*` helper：模式分派 + `ref mut` 绑定输出 + selector 状态分支；
   顺带修复了块状 arm 的 body 在 guard 前执行的问题（`example/test_match_guard_block.aya`）。
 - 同步块：原样格式化进状态块；Copy 局部进入时读入、离开时写回，非 Copy 局部（String 等）
@@ -307,16 +310,17 @@ impl __add_Fut {
 - future 字段：每个 await 一个 `__wN`，构造器用目标 async 函数的参数默认值构造占位 future；
   进入 await 时用真实实参重建。
 - 状态：`int _state` + `while true { if self._state == n { ... } }`；入口 PC 由构造器写入。
-- 验证：`example/test_async_cfg.aya` 53 项断言覆盖嵌套 if/while/break/continue、提前 return、
+- 验证：`example/test_async_cfg.aya` 54 项断言覆盖嵌套 if/while/break/continue、提前 return、
   同步 match 赋值、表达式级 await、String 局部/参数/await 实参；原 8 个“形态不支持”负例转为正例；
   回归 positive=184 negative=110。
 
 #### 已知限制（v1）
 
 - 表达式 await 已支持赋值/返回/实参/字段或索引写值/if 主条件/elif 条件/while 条件；
-  数值 for、`for v in ident`、`match <ident>` 体内 await 已支持（含 break/continue、
-  无绑定字面量模式、仅引用模式绑定的 guard）；表达式 iterable 的 `for ... in`、
-  or-pattern/引用外层局部的 guard、`unsafe` 以及表达式级 if/match/lambda 内的 await 仍报错。
+  数值 for、`for v in iterable`（标识符/结构体字面量）、`match <ident>` 体内 await 已支持
+  （含 break/continue、无绑定字面量模式、仅引用模式绑定的 guard）；
+  函数调用等无法推断类型的 iterable、or-pattern/引用外层局部的 guard、`unsafe` 以及
+  表达式级 if/match/lambda 内的 await 仍报错。
 - 所有局部全量提升，无 liveness 裁剪；Copy 局部全量 load/store，代码体积偏大。
 - 非默认初始化类型（结构体/数组/引用）局部暂不提升，回退形状模块/报错；`ref` 跨 await 禁止。
 - 每个 await 的占位 future 在构造器急切构造；未来改为惰性槽/状态枚举后消除。
@@ -326,9 +330,9 @@ impl __add_Fut {
 
 - 目标：`x = await f(args)` 与任意同步语句交错；支持 `if/elif/else`、`while`、`break/continue`、
   提前 `return`、嵌套组合；跨 await 的局部/参数提升为状态字段；每个 await 一个挂起点。
-- 非目标（v1）：泛型/方法上的 `#[async]`；`ref` 跨 await；表达式 iterable 的 `for ... in`；
-  or-pattern/引用外层局部的 match guard、表达式级 if/match/lambda 内部 await；
-  自定义 Executor/多线程调度（仍由单线程 `block_on` 驱动）。
+- 非目标（v1）：泛型/方法上的 `#[async]`；`ref` 跨 await；函数调用等无法推断类型的
+  for-in iterable；or-pattern/引用外层局部的 match guard、表达式级 if/match/lambda
+  内部 await；自定义 Executor/多线程调度（仍由单线程 `block_on` 驱动）。
 
 #### 前端标记与节点
 

@@ -248,6 +248,15 @@ fn for_usize(usize n) -> int {
 }
 
 #[async]
+fn for_in_expr() -> int {
+    s = 0
+    for v in (RangeIter { cur = 0, end = 3 }) {
+        s = s + (await inc(v))
+    }
+    return s
+}
+
+#[async]
 fn match_arm(Option[int] v) -> int {
     y = 0
     match v {
@@ -533,5 +542,7 @@ fn main() -> int {
     if block_on(ref mut f46) != 99 { return 52 }
     f47 = match_guard(Option::None)
     if block_on(ref mut f47) != 7 { return 53 }
+    f48 = for_in_expr()
+    if block_on(ref mut f48) != 6 { return 54 }
     return 0
 }

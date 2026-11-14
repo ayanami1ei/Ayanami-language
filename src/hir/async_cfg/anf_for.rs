@@ -1,6 +1,7 @@
 //! 数值 for 体内 await：降为带迭代变量类型 cast 的 while。
 use crate::hir::async_mixed_types::hir_to_ast;
-use crate::parser::ast::{BinaryOp, Block, Expr, Literal, Stmt};
+use crate::intern::Symbol;
+use crate::parser::ast::{BinaryOp, Block, Expr, Literal, Stmt, Type};
 
 use super::anf::{Anf, expr_has_await, stmt_has_await_local};
 
@@ -73,6 +74,138 @@ impl Anf<'_> {
             span,
         };
         Some(Stmt::Block(Block::new(vec![init, while_stmt], span)))
+    }
+
+    pub(super) fn for_in_stmt(
+        &mut self,
+        iterator: Symbol,
+        iterable: &Expr,
+        body: &Block,
+        span: crate::span::Span,
+    ) -> Option<Stmt> {
+        let body_await = body.stmts.iter().any(stmt_has_await_local);
+        if expr_has_await(iterable) {
+            return None;
+        }
+        if !body_await {
+            return Some(Stmt::ForIn {
+                iterator,
+                iterable: iterable.clone(),
+                body: body.clone(),
+                span,
+            });
+        }
+        if body.tail.is_some() {
+            return None;
+        }
+        let elem_ty = self
+            .probe
+            .and_then(|m| m.get(&iterator))
+            .and_then(|t| hir_to_ast(t, span))?;
+        let iter_ty = self.iter_expr_type(iterable, span)?;
+        let body = self.block(body)?;
+        let idx = self.for_next;
+        self.for_next += 1;
+        let slot = Symbol::intern(&format!("__async_it{}", idx));
+        let next = Symbol::intern(&format!("__async_next{}", idx));
+        let option = |t: Type| Type::Generic(Symbol::intern("Option"), vec![t], span);
+        self.types.insert(slot, option(iter_ty.clone()));
+        self.types.insert(next, option(elem_ty.clone()));
+
+        let init = Stmt::Assign {
+            name: slot,
+            is_mut: false,
+            value: Expr::EnumConstruct {
+                enum_name: Symbol::intern("Option"),
+                variant_name: Symbol::intern("Some"),
+                tuple_args: vec![iterable.clone()],
+                named_args: Vec::new(),
+                span,
+            },
+            span,
+        };
+        let iter_expr = Expr::FieldAccess {
+            object: Box::new(Expr::FieldAccess {
+                object: Box::new(Expr::Ident(slot, span)),
+                field: Symbol::intern("_data_Some"),
+                span,
+            }),
+            field: Symbol::intern("_0"),
+            span,
+        };
+        let assign_next = Stmt::Assign {
+            name: next,
+            is_mut: false,
+            value: Expr::MethodCall {
+                object: Box::new(iter_expr),
+                method: Symbol::intern("next"),
+                args: Vec::new(),
+                span,
+            },
+            span,
+        };
+        let cond = Expr::Binary {
+            op: BinaryOp::Eq,
+            lhs: Box::new(Expr::FieldAccess {
+                object: Box::new(Expr::Ident(next, span)),
+                field: Symbol::intern("_tag"),
+                span,
+            }),
+            rhs: Box::new(Expr::Literal(Literal::Int(0, span))),
+            span,
+        };
+        let elem = Expr::FieldAccess {
+            object: Box::new(Expr::FieldAccess {
+                object: Box::new(Expr::Ident(next, span)),
+                field: Symbol::intern("_data_Some"),
+                span,
+            }),
+            field: Symbol::intern("_0"),
+            span,
+        };
+        let bind = Stmt::Assign {
+            name: iterator,
+            is_mut: false,
+            value: elem,
+            span,
+        };
+        let mut then_stmts = vec![bind];
+        then_stmts.extend(body.stmts);
+        let if_stmt = Stmt::If {
+            cond,
+            then_block: Block::new(then_stmts, span),
+            elifs: Vec::new(),
+            else_block: Some(Block::new(vec![Stmt::Break { span }], span)),
+            span,
+        };
+        let while_stmt = Stmt::While {
+            cond: Expr::Literal(Literal::Bool(true, span)),
+            body: Block::new(vec![assign_next, if_stmt], span),
+            span,
+        };
+        Some(Stmt::Block(Block::new(vec![init, while_stmt], span)))
+    }
+
+    fn iter_expr_type(&self, e: &Expr, span: crate::span::Span) -> Option<Type> {
+        match e {
+            Expr::Ident(n, _) => self
+                .types
+                .get(n)
+                .cloned()
+                .or_else(|| self.probe?.get(n).and_then(|t| hir_to_ast(t, span))),
+            Expr::StructLiteral {
+                type_name,
+                generic_args,
+                ..
+            } => {
+                if generic_args.is_empty() {
+                    Some(Type::Named(*type_name, span))
+                } else {
+                    Some(Type::Generic(*type_name, generic_args.clone(), span))
+                }
+            }
+            _ => None,
+        }
     }
 }
 
