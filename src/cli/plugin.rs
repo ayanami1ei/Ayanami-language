@@ -65,7 +65,7 @@ pub fn identity(String input) -> String {
         std::process::exit(1);
     });
     let readme = format!(
-        "# {}\n\nAyanami 第三方插件项目。\n\n```bash\nayanami plugin package .\nls src/lib.lcl\n```\n\n在消费方（`.lcl` 跨平台，动态库由消费方本机构建）：\n\n```bash\ncd <consumer-project>\nayanami plugin install <path-to-plugin>/src/lib.lcl {}\n# 会自动写入 ayanami.toml 的 [dependencies]\n```\n\n```ayanami\nimport \"{}\"\n\n#[{}::identity]\nfn marked() -> int {{ return 7 }}\n```\n\n支持 `#[macro]` / `#[pass]` / `#[check]` / `#[attr]` 四类插件，详见 `docs/plugins.md`。\n",
+        "# {}\n\nAyanami 第三方插件项目。\n\n```bash\nayanami plugin package .\nls src/lib.lcl\n```\n\n在消费方（`.lcl` 跨平台，动态库由消费方本机构建）：\n\n```bash\ncd <consumer-project>\nayanami plugin install <path-to-plugin>/src/lib.lcl {}\n# 会自动写入 ayanami.toml 的 [dependencies]\n```\n\n```ayanami\nimport \"{}\"\n\n#[{}::identity]\nfn marked() -> int {{ return 7 }}\n```\n\n支持 `#[macro]` / `#[transform]` / `#[pass]` / `#[check]` / `#[attr]` 五类插件，详见 `docs/plugins.md`。\n",
         pkg_name, pkg_name, pkg_name, pkg_name
     );
     fs::write(dir.join("README.md"), readme).unwrap_or_else(|e| {
@@ -89,7 +89,7 @@ fn plugin_package(args: &[String]) {
     };
     if !has_plugin_annotation(&code) {
         eprintln!(
-            "error: plugin source '{}' has no #[macro]/#[pass]/#[check]/#[attr] declaration",
+            "error: plugin source '{}' has no #[macro]/#[pass]/#[check]/#[attr]/#[transform] declaration",
             path.display()
         );
         std::process::exit(1);
@@ -133,7 +133,7 @@ fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool {
     match stmt {
         Stmt::FnDecl { attrs, .. } => attrs.iter().any(|a| {
             a.is_builtin()
-                && matches!(a.name.as_str().as_str(), "macro" | "pass" | "check" | "attr")
+                && matches!(a.name.as_str().as_str(), "macro" | "pass" | "check" | "attr" | "transform")
         }),
         Stmt::Namespace { items, .. } => items.iter().any(stmt_has_plugin_decl),
         Stmt::ImplBlock { methods, .. } => methods.iter().any(stmt_has_plugin_decl),

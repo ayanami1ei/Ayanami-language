@@ -181,6 +181,9 @@ pub(super) fn merge_symbols(
                     crate::package::ImportedSymbol::Attr { name } => {
                         PackageSymbol::Attr { name }
                     }
+                    crate::package::ImportedSymbol::Transform { name } => {
+                        PackageSymbol::Transform { name }
+                    }
                     crate::package::ImportedSymbol::Const { name, ty, value } => {
                         PackageSymbol::Const { name, ty, value }
                     }

@@ -93,6 +93,9 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             } else if let Some(rest) = line.strip_prefix("attr=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Attr { name: val });
+            } else if let Some(rest) = line.strip_prefix("transform=") {
+                let val = parse_ini_value(rest);
+                symbols.push(ImportedSymbol::Transform { name: val });
             } else if let Some(rest) = line.strip_prefix("const=") {
                 let val = parse_ini_value(rest);
                 if let Some((name, rest)) = val.split_once(',') {
@@ -134,7 +137,8 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
 
     let has_plugin_symbols = symbols.iter().any(|s| {
         matches!(s, ImportedSymbol::Macro { .. } | ImportedSymbol::Pass { .. }
-            | ImportedSymbol::Check { .. } | ImportedSymbol::Attr { .. })
+            | ImportedSymbol::Check { .. } | ImportedSymbol::Attr { .. }
+            | ImportedSymbol::Transform { .. })
     });
     match manifest {
         Some(ref m) => validate_manifest(m, path)?,
@@ -154,6 +158,7 @@ fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result
             ImportedSymbol::Pass { name } => (name.as_str(), "pass"),
             ImportedSymbol::Check { name } => (name.as_str(), "check"),
             ImportedSymbol::Attr { name } => (name.as_str(), "attr"),
+            ImportedSymbol::Transform { name } => (name.as_str(), "transform"),
             _ => continue,
         };
         if let Some(prev) = seen.insert(name, kind) {

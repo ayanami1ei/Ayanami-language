@@ -42,6 +42,11 @@ pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables> {
     AnnotationTables::collect(stmts)
 }
 
+/// A5e/B1：调用 HIR transform 插件（输入/输出均为 HIR JSON 字符串）。
+pub(crate) fn invoke_transform(lcl_path: &str, name: &str, input: &str) -> Result<String> {
+    plugin::invoke_plugin(lcl_path, name, input, &[], false, 0, 0)
+}
+
 /// A5d-2：调用 MIR pass 插件
 pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>> {
     pass_plugin::invoke_pass(lcl_path, name, blob)
@@ -218,6 +223,10 @@ fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Ve
             )))?;
             Ok((lcl_path, macro_name, args, tokens))
         }
+        Some((pkg, name, AnnKind::Transform, _)) => Err(Error::Compile(format!(
+            "`#[{}]` is a HIR transform annotation (`{}::{}`), not a macro/attr (at {}:{})",
+            attr.path_str(), pkg, name, attr.span.start_line, attr.span.start_col
+        ))),
         Some((pkg, name, AnnKind::Pass, _)) | Some((pkg, name, AnnKind::Check, _)) => Err(Error::Compile(format!(
             "`#[{}]` is a MIR annotation (`{}::{}`), not a macro/attr (at {}:{})",
             attr.path_str(), pkg, name, attr.span.start_line, attr.span.start_col

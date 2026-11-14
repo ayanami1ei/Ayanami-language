@@ -203,6 +203,46 @@ EOF
         fail=$((fail + 1))
     fi
 
+    # A5e/B1：第三方 #[transform] identity（JSON HIR 插件通路）
+    tdir="$pbase/transform_lib"
+    tconsumer="$pbase/transform_consumer.aya"
+    if ! "$BIN" plugin new "$tdir" >/dev/null 2>&1; then
+        echo "FAIL A5e/B1: transform plugin new failed"
+        fail=$((fail + 1))
+    else
+        cat > "$tdir/src/lib.aya" <<'EOF'
+#[transform]
+pub fn identity(String input) -> String {
+    return input
+}
+EOF
+        if ! "$BIN" plugin package "$tdir" >/dev/null 2>&1; then
+            echo "FAIL A5e/B1: transform plugin package failed"
+            fail=$((fail + 1))
+        elif ! grep -aq '^transform="identity"' "$tdir/src/lib.lcl"; then
+            echo "FAIL A5e/B1: transform table missing"
+            fail=$((fail + 1))
+        else
+            cat > "$tconsumer" <<EOF
+import "$tdir/src/lib.lcl"
+
+#[lib::identity]
+fn marked() -> int {
+    return 7
+}
+
+fn main() -> int {
+    if marked() != 7 { return 1 }
+    return 0
+}
+EOF
+            if ! "$BIN" run "$tconsumer" >/dev/null 2>&1; then
+                echo "FAIL A5e/B1: transform consumer failed"
+                fail=$((fail + 1))
+            fi
+        fi
+    fi
+
     # A5j-2：本地 registry + lockfile + 离线 cache
     reg="$pbase/registry"
     v2="$pbase/demo_plugin_v2"

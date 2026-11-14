@@ -19,6 +19,7 @@ use crate::parser::ast::{Attr, Stmt};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AnnKind {
     Macro,
+    Transform,
     Pass,
     Check,
     Attr,
@@ -33,6 +34,7 @@ pub(crate) struct PkgAnnotations {
     pub passes: Vec<String>,
     pub checks: Vec<String>,
     pub attrs: Vec<String>,
+    pub transforms: Vec<String>,
 }
 
 /// 已导入包的注解表
@@ -55,6 +57,7 @@ impl AnnotationTables {
     /// HIR 侧：从已收集的导入映射构造（只关心类别，token 宏标记在此不需要）。
     pub(crate) fn from_kind_maps(
         macros: &HashMap<Symbol, Vec<Symbol>>,
+        transforms: &HashMap<Symbol, Vec<Symbol>>,
         passes: &HashMap<Symbol, Vec<Symbol>>,
         checks: &HashMap<Symbol, Vec<Symbol>>,
         attrs: &HashMap<Symbol, Vec<Symbol>>,
@@ -64,6 +67,12 @@ impl AnnotationTables {
             let p = pkgs.entry(pkg.as_str().to_string()).or_default();
             for n in names {
                 p.macros.push((n.as_str().to_string(), false));
+            }
+        }
+        for (pkg, names) in transforms {
+            let p = pkgs.entry(pkg.as_str().to_string()).or_default();
+            for n in names {
+                p.transforms.push(n.as_str().to_string());
             }
         }
         for (pkg, names) in passes {
@@ -101,6 +110,7 @@ impl AnnotationTables {
                             crate::package::ImportedSymbol::Pass { name } => pkg.passes.push(name),
                             crate::package::ImportedSymbol::Check { name } => pkg.checks.push(name),
                             crate::package::ImportedSymbol::Attr { name } => pkg.attrs.push(name),
+                            crate::package::ImportedSymbol::Transform { name } => pkg.transforms.push(name),
                             _ => {}
                         }
                     }
@@ -111,6 +121,7 @@ impl AnnotationTables {
                             existing.passes.extend(pkg.passes);
                             existing.checks.extend(pkg.checks);
                             existing.attrs.extend(pkg.attrs);
+                            existing.transforms.extend(pkg.transforms);
                         }
                         None => { self.pkgs.insert(stem, pkg); }
                     }
@@ -135,6 +146,9 @@ impl AnnotationTables {
             if let Some((_, tokens)) = p.macros.iter().find(|(m, _)| *m == ann) {
                 return Ok(Some((pkg.to_string(), ann, AnnKind::Macro, *tokens)));
             }
+            if p.transforms.iter().any(|m| *m == ann) {
+                return Ok(Some((pkg.to_string(), ann, AnnKind::Transform, false)));
+            }
             if p.passes.iter().any(|m| *m == ann) {
                 return Ok(Some((pkg.to_string(), ann, AnnKind::Pass, false)));
             }
@@ -151,6 +165,8 @@ impl AnnotationTables {
         for (pkg, p) in &self.pkgs {
             if let Some((_, tokens)) = p.macros.iter().find(|(m, _)| *m == name) {
                 hits.push((pkg.clone(), AnnKind::Macro, *tokens));
+            } else if p.transforms.iter().any(|m| *m == name) {
+                hits.push((pkg.clone(), AnnKind::Transform, false));
             } else if p.passes.iter().any(|m| *m == name) {
                 hits.push((pkg.clone(), AnnKind::Pass, false));
             } else if p.checks.iter().any(|m| *m == name) {

@@ -66,6 +66,7 @@ pub const BUILTINS: &[Builtin] = &[
     b!("pass", Declaration, decl),
     b!("check", Declaration, decl),
     b!("attr", Declaration, decl),
+    b!("transform", Declaration, decl),
 ];
 
 pub fn builtin(name: &str) -> Option<&'static Builtin> {

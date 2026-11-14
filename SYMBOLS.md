@@ -8,25 +8,25 @@
 src/annotation_registry.rs:9: pub enum Category
 src/annotation_registry.rs:22: pub struct Builtin
 src/annotation_registry.rs:41: pub const BUILTINS: &[Builtin] = &[
-src/annotation_registry.rs:71: pub fn builtin(name: &str) -> Option<&'static Builtin>
-src/annotation_registry.rs:76: pub fn is_builtin_name(name: &str) -> bool
-src/annotation_registry.rs:80: pub fn is_declaration_marker(name: &str) -> bool
-src/annotation_registry.rs:85: pub fn is_compiler_attr(a: &Attr) -> bool
-src/annotation_registry.rs:100: mod tests
-src/annotation_registry.rs:104: fn declaration_markers_are_registered()
-src/annotation_registry.rs:112: fn effects_are_builtin_providers()
-src/annotation_registry.rs:119: fn compiler_attrs_accept_core_alias_and_env()
+src/annotation_registry.rs:72: pub fn builtin(name: &str) -> Option<&'static Builtin>
+src/annotation_registry.rs:77: pub fn is_builtin_name(name: &str) -> bool
+src/annotation_registry.rs:81: pub fn is_declaration_marker(name: &str) -> bool
+src/annotation_registry.rs:86: pub fn is_compiler_attr(a: &Attr) -> bool
+src/annotation_registry.rs:101: mod tests
+src/annotation_registry.rs:105: fn declaration_markers_are_registered()
+src/annotation_registry.rs:113: fn effects_are_builtin_providers()
+src/annotation_registry.rs:120: fn compiler_attrs_accept_core_alias_and_env()
 src/annotation_table.rs:20: pub(crate) enum AnnKind
-src/annotation_table.rs:29: pub(crate) struct PkgAnnotations
-src/annotation_table.rs:40: pub(crate) struct AnnotationTables
-src/annotation_table.rs:44: impl AnnotationTables
-src/annotation_table.rs:45: pub fn is_empty(&self) -> bool
-src/annotation_table.rs:49: pub fn collect(stmts: &[Stmt]) -> Result<Self>
-src/annotation_table.rs:56: pub(crate) fn from_kind_maps(
-src/annotation_table.rs:90: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()>
-src/annotation_table.rs:128: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
-src/annotation_table.rs:179: pub(crate) fn resolve_kind(&self, a: &Attr) -> Result<Option<AnnKind>>
-src/annotation_table.rs:183: pub fn lcl_path(&self, pkg: &str) -> Option<String>
+src/annotation_table.rs:30: pub(crate) struct PkgAnnotations
+src/annotation_table.rs:42: pub(crate) struct AnnotationTables
+src/annotation_table.rs:46: impl AnnotationTables
+src/annotation_table.rs:47: pub fn is_empty(&self) -> bool
+src/annotation_table.rs:51: pub fn collect(stmts: &[Stmt]) -> Result<Self>
+src/annotation_table.rs:58: pub(crate) fn from_kind_maps(
+src/annotation_table.rs:99: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()>
+src/annotation_table.rs:139: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
+src/annotation_table.rs:195: pub(crate) fn resolve_kind(&self, a: &Attr) -> Result<Option<AnnKind>>
+src/annotation_table.rs:199: pub fn lcl_path(&self, pkg: &str) -> Option<String>
 src/cli/build.rs:3: pub(crate) fn cmd_build(args: &[String])
 src/cli/build.rs:31: pub(crate) fn cmd_run(args: &[String])
 src/cli/check.rs:3: fn do_check(path: &Path) -> ayanami::error::Result<()>
@@ -220,16 +220,17 @@ src/compiler/macro_expand/mod.rs:27: mod plugin;
 src/compiler/macro_expand/mod.rs:28: mod plugin_abi;
 src/compiler/macro_expand/mod.rs:31: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
 src/compiler/macro_expand/mod.rs:41: pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables>
-src/compiler/macro_expand/mod.rs:46: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
-src/compiler/macro_expand/mod.rs:51: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
-src/compiler/macro_expand/mod.rs:55: struct MacroCtx
-src/compiler/macro_expand/mod.rs:60: impl MacroCtx
-src/compiler/macro_expand/mod.rs:61: fn collect(program: &Program, src_path: &Path) -> Result<Self>
-src/compiler/macro_expand/mod.rs:69: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
-src/compiler/macro_expand/mod.rs:75: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:92: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
-src/compiler/macro_expand/mod.rs:212: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
-src/compiler/macro_expand/mod.rs:239: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:46: pub(crate) fn invoke_transform(lcl_path: &str, name: &str, input: &str) -> Result<String>
+src/compiler/macro_expand/mod.rs:51: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/mod.rs:56: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
+src/compiler/macro_expand/mod.rs:60: struct MacroCtx
+src/compiler/macro_expand/mod.rs:65: impl MacroCtx
+src/compiler/macro_expand/mod.rs:66: fn collect(program: &Program, src_path: &Path) -> Result<Self>
+src/compiler/macro_expand/mod.rs:74: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
+src/compiler/macro_expand/mod.rs:80: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:97: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
+src/compiler/macro_expand/mod.rs:217: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
+src/compiler/macro_expand/mod.rs:248: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 3;
 src/compiler/macro_expand/pass_plugin.rs:21: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
 src/compiler/macro_expand/pass_plugin.rs:47: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
@@ -624,8 +625,8 @@ src/hir/attrs_export.rs:41: pub(super) fn reject_compile_time(attrs: &[Attr], pl
 src/hir/attrs_export.rs:52: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_macro.rs:18: fn is_compiler_attr(a: &Attr) -> bool
 src/hir/attrs_macro.rs:23: pub fn validate_macros(
-src/hir/attrs_macro.rs:39: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
-src/hir/attrs_macro.rs:115: fn validate_block(
+src/hir/attrs_macro.rs:40: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
+src/hir/attrs_macro.rs:119: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -1043,20 +1044,20 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:120: pub struct SyncLock
-src/hir/lower/ctx.rs:124: impl Ctx
-src/hir/lower/ctx.rs:126: pub fn new() -> Self
-src/hir/lower/ctx.rs:191: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:194: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:197: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:202: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:211: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:216: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:224: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:234: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:247: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:255: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:261: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:122: pub struct SyncLock
+src/hir/lower/ctx.rs:126: impl Ctx
+src/hir/lower/ctx.rs:128: pub fn new() -> Self
+src/hir/lower/ctx.rs:194: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:197: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:200: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:205: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:214: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:219: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:227: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:237: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:250: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:258: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:264: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_env.rs:4: impl Ctx
 src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
 src/hir/lower/ctx_env.rs:36: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -1224,9 +1225,9 @@ src/hir/lower/mod.rs:98: pub fn set_source_path(path: &std::path::Path)
 src/hir/lower/mod.rs:102: pub(crate) fn source_path() -> String
 src/hir/lower/mod.rs:107: pub(crate) type AsyncLocalTypes = HashMap<Symbol, HashMap<Symbol, HirType>>;
 src/hir/lower/mod.rs:109: pub fn lower_program(program: &Program) -> Result<HirProgram>
-src/hir/lower/mod.rs:126: fn probe_async_local_types(program: &Program) -> Result<AsyncLocalTypes>
-src/hir/lower/mod.rs:146: fn has_async_fn(program: &Program) -> bool
-src/hir/lower/mod.rs:151: fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgram>
+src/hir/lower/mod.rs:127: fn probe_async_local_types(program: &Program) -> Result<AsyncLocalTypes>
+src/hir/lower/mod.rs:147: fn has_async_fn(program: &Program) -> bool
+src/hir/lower/mod.rs:152: fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)>
@@ -1477,9 +1478,10 @@ src/hir/mod.rs:32: pub mod node;
 src/hir/mod.rs:33: pub mod stmt;
 src/hir/mod.rs:34: pub mod item;
 src/hir/mod.rs:35: pub mod schema;
-src/hir/mod.rs:36: pub mod lower;
-src/hir/mod.rs:37: pub mod display;
-src/hir/mod.rs:54: pub struct $name
+src/hir/mod.rs:36: pub(crate) mod transform;
+src/hir/mod.rs:37: pub mod lower;
+src/hir/mod.rs:38: pub mod display;
+src/hir/mod.rs:55: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
@@ -1710,6 +1712,13 @@ src/hir/stmt.rs:86: pub fn span(&self) -> Span
 src/hir/stmt.rs:113: pub struct HirBlock
 src/hir/stmt.rs:117: impl HirBlock
 src/hir/stmt.rs:118: pub fn new(stmts: Vec<HirStmt>) -> Self
+src/hir/transform.rs:12: pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()>
+src/hir/transform.rs:34: fn collect_markers(
+src/hir/transform.rs:45: fn collect_item_markers(
+src/hir/transform.rs:62: fn collect_fn_markers(
+src/hir/transform.rs:79: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:86: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:99: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
 src/hir/ty.rs:4: pub struct VarId(pub usize);
 src/hir/ty.rs:9: pub struct FnId(pub usize);
 src/hir/ty.rs:19: pub enum HirType
@@ -2829,13 +2838,13 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/annotate.rs:5: impl Package
 src/package/annotate.rs:8: pub fn validate_annotation_names(&self) -> Result<()>
-src/package/annotate.rs:31: mod tests
-src/package/annotate.rs:35: fn duplicate_annotation_names_across_kinds_rejected()
-src/package/annotate.rs:47: fn attr_collides_with_other_annotation_kinds()
-src/package/annotate.rs:55: fn distinct_annotation_names_accepted()
+src/package/annotate.rs:32: mod tests
+src/package/annotate.rs:36: fn duplicate_annotation_names_across_kinds_rejected()
+src/package/annotate.rs:48: fn attr_collides_with_other_annotation_kinds()
+src/package/annotate.rs:56: fn distinct_annotation_names_accepted()
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:117: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:120: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:23: impl ProjectConfig
 src/package/config.rs:24: pub fn load(toml_content: &str) -> Self
@@ -2850,13 +2859,13 @@ src/package/const_codec.rs:75: pub fn lit_from_str(ty: &HirType, s: &str) -> Opt
 src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:4: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:149: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
-src/package/load.rs:170: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:182: pub fn load_version(path: &str) -> Option<String>
-src/package/load.rs:195: pub fn warn_version_drift(path: &str, stem: &str)
-src/package/load.rs:197: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
-src/package/load.rs:215: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:249: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:153: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
+src/package/load.rs:175: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:187: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:200: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:202: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:220: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:254: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod annotate;
 src/package/mod.rs:7: mod bytes;
@@ -2904,8 +2913,8 @@ src/package/target.rs:11: pub fn as_str(&self) -> &'static str
 src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:21: pub enum PackageSymbol
-src/package/types.rs:77: pub enum ImportedSymbol
-src/package/types.rs:124: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/types.rs:81: pub enum ImportedSymbol
+src/package/types.rs:132: pub(super) fn type_to_string(ty: &Type) -> String
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block

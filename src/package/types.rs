@@ -52,6 +52,10 @@ pub enum PackageSymbol {
     Attr {
         name: String,
     },
+    /// A5e/B1：导出的 HIR transform（`#[transform]` 函数）
+    Transform {
+        name: String,
+    },
     /// 方法表（供编辑器补全/悬停；编译器导入忽略 `method=` 行）
     Method {
         type_name: String,
@@ -105,6 +109,10 @@ pub enum ImportedSymbol {
     },
     /// A5f：包导出的属性插件
     Attr {
+        name: String,
+    },
+    /// A5e/B1：包导出的 HIR transform
+    Transform {
         name: String,
     },
     /// M6.1b：包导出的编译期常量

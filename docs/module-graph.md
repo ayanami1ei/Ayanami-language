@@ -41,13 +41,13 @@ graph LR
     formatter --> intern
     formatter --> lexer
     formatter -->|2| parser
-    hir --> annotation_table
+    hir -->|2| annotation_table
     hir --> compiler
-    hir -->|40| error
+    hir -->|41| error
     hir -->|2| formatter
     hir -->|44| intern
     hir -->|2| mir
-    hir -->|54| parser
+    hir -->|55| parser
     hir -->|11| span
     lexer --> span
     lir --> error
@@ -77,9 +77,9 @@ graph LR
 
 | 来源 | 目标 | 引用数 |
 | --- | --- | ---: |
-| `hir` | `parser` | 54 |
+| `hir` | `parser` | 55 |
 | `hir` | `intern` | 44 |
-| `hir` | `error` | 40 |
+| `hir` | `error` | 41 |
 | `compiler` | `error` | 12 |
 | `hir` | `span` | 11 |
 | `compiler` | `parser` | 9 |
@@ -99,6 +99,7 @@ graph LR
 | `compiler` | `package` | 2 |
 | `driver` | `error` | 2 |
 | `formatter` | `parser` | 2 |
+| `hir` | `annotation_table` | 2 |
 | `hir` | `formatter` | 2 |
 | `hir` | `mir` | 2 |
 | `mir` | `span` | 2 |
@@ -115,7 +116,6 @@ graph LR
 | `driver` | `target` | 1 |
 | `formatter` | `intern` | 1 |
 | `formatter` | `lexer` | 1 |
-| `hir` | `annotation_table` | 1 |
 | `hir` | `compiler` | 1 |
 | `lexer` | `span` | 1 |
 | `lir` | `error` | 1 |

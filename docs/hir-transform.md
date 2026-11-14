@@ -8,8 +8,9 @@
 2. 返回修改后的 HIR；
 3. 编译器在 MIR 前应用，并重新执行后续检查。
 
-当前先完成 B0：`HIR → JSON → HIR` 的 identity roundtrip。插件执行（B1）和可变 API
-（B2）在后续切片接入。
+B0 已完成：`HIR → JSON → HIR` 的 identity roundtrip。
+B1 已完成 identity 插件通路：`.lcl` `transform=`、函数上的 `#[pkg::name]` 触发、
+`fn(String json) -> String` 插件调用。可变 API 在 B2。
 
 ## 为什么用 JSON
 
@@ -91,9 +92,9 @@ schema 覆盖：
 
 ## 后续
 
-- **B1**：`.lcl` `transform=` 表、`#[transform]` 声明、
+- **B1（已完成 2026-11-14）**：`.lcl` `transform=` 表、`#[transform]` 声明、
   `fn(String json) -> String` 插件 ABI、identity 插件；
-- **B2**：`std/hir.aya` 视图/helper、插入函数/改 body/改调用点、
+- **B2**：`std/hir.aya` 视图/helper、插入函数/改 body/改调用点（未完成）、
   变换后 FnId/VarId/类型/借用/效应校验；
 - **B3**：泛型、enum niche、vtable、async/sync 内建变换统一接口。
 

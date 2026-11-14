@@ -106,6 +106,7 @@ impl Package {
                             "pass" => self.symbols.push(PackageSymbol::Pass { name: full_name }),
                             "check" => self.symbols.push(PackageSymbol::Check { name: full_name }),
                             "attr" => self.symbols.push(PackageSymbol::Attr { name: full_name }),
+                            "transform" => self.symbols.push(PackageSymbol::Transform { name: full_name }),
                             _ => {}
                         }
                     }

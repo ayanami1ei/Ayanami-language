@@ -116,6 +116,7 @@ pub fn lower_program(program: &Program) -> Result<HirProgram> {
     };
     let program = crate::hir::async_transform::expand(&program, types.as_ref())?;
     let mut hir = lower_program_after(&program, false)?;
+    crate::hir::transform::apply(&mut hir, &program.stmts)?;
     if std::env::var_os("AYANAMI_HIR_SCHEMA").is_some() {
         hir = crate::hir::schema::roundtrip(&hir)?;
     }
@@ -155,7 +156,7 @@ fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgra
     ctx.async_probe = async_probe;
     ctx.collect_fns(&program.stmts)?;
     // A5b：导入加载完成后校验宏引用
-    crate::hir::attrs::validate_macros(&program, &ctx.imported_macros, &ctx.imported_passes, &ctx.imported_checks, &ctx.imported_attrs)?;
+    crate::hir::attrs::validate_macros(&program, &ctx.imported_macros, &ctx.imported_transforms, &ctx.imported_passes, &ctx.imported_checks, &ctx.imported_attrs)?;
     // #121：泛型体 eager 名称检查（未实例化的方法体不再完全静默）
     ctx.check_generic_bodies()?;
     ctx.build_vtables()?;

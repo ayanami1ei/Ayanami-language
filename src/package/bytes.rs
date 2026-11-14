@@ -75,6 +75,9 @@ impl Package {
                     PackageSymbol::Attr { name } => {
                         body.push_str(&format!("attr=\"{}\"\n", name));
                     }
+                    PackageSymbol::Transform { name } => {
+                        body.push_str(&format!("transform=\"{}\"\n", name));
+                    }
                     PackageSymbol::Method { type_name, name, signature } => {
                         body.push_str(&format!("method=\"{},{},{}\"\n", type_name, name, signature));
                     }

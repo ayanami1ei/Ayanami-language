@@ -400,7 +400,8 @@ struct Holder {
 - **开放策略**：v1 **只内建**（编译器内部 `StructuralPass` 接口），不对第三方 `.lcl` 开放；
   待 HIR schema 稳定后再按 A5d 的插件模式开放，届时 async 作为参考实现与验收；
   **2026-11-14 更新**：用户确认第三方 transform 为最高优先级，采用 HIR JSON schema +
-  字符串插件 ABI 的 B 路线；B0 identity schema 已落地，详见 `docs/hir-transform.md`；
+  字符串插件 ABI 的 B 路线；B0 identity schema、B1 identity transform 通路已落地，
+  详见 `docs/hir-transform.md`；
 - **命名与解析**：与宏/pass/check 共用一张注解表（`src/annotation_table.rs`），
   同一包内注解名跨类别唯一；跨包同名允许，裸名歧义须全限定。
 
@@ -626,7 +627,7 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] 修复解析漂移：同包同名不再出现「宏展开静默取宏 / HIR 报歧义」
 - [ ] `#[transform]` 类别与 `StructuralPass` 接口（设计见 §8.6）
 - [x] B0：HIR JSON schema v1 + identity roundtrip（`docs/hir-transform.md`）
-- [ ] B1：transform 插件 ABI identity
+- [x] B1：transform 插件 ABI identity（`transform=` 表 + `fn(String)->String`）
 - [ ] B2：HIR mutation API + 首个第三方 transform
 - [x] `#[sync(obj)] { ... }` 同步块（首个内建结构化变换，2026-10-24；见 `docs/sync-blocks.md`）
 - [ ] `#[async]`/`await`（A5e 第二个客户）

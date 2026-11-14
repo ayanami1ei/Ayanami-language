@@ -23,11 +23,12 @@ fn is_compiler_attr(a: &Attr) -> bool {
 pub fn validate_macros(
     program: &Program,
     macros: &HashMap<Symbol, Vec<Symbol>>,
+    transforms: &HashMap<Symbol, Vec<Symbol>>,
     passes: &HashMap<Symbol, Vec<Symbol>>,
     checks: &HashMap<Symbol, Vec<Symbol>>,
     attrs: &HashMap<Symbol, Vec<Symbol>>,
 ) -> Result<()> {
-    let tables = AnnotationTables::from_kind_maps(macros, passes, checks, attrs);
+    let tables = AnnotationTables::from_kind_maps(macros, transforms, passes, checks, attrs);
     let mut out = Ok(());
     for stmt in &program.stmts {
         validate_macros_stmt(stmt, &tables, &mut out);
@@ -58,6 +59,9 @@ fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result
                     a.path_str(), a.span.start_line, a.span.start_col
                 )));
                 return;
+            }
+            Ok(Some(AnnKind::Transform)) => {
+                // HIR transform 在降级后执行；这里仅保留标记
             }
             Ok(Some(AnnKind::Pass)) | Ok(Some(AnnKind::Check)) => {
                 // 优化/检查注解保留到 MIR 阶段执行

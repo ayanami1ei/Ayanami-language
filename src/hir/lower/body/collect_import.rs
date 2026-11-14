@@ -134,6 +134,10 @@ impl crate::hir::lower::Ctx {
                         self.imported_macro_lcls.entry(Symbol::intern(&qualified)).or_default().push(lcl);
                         self.imported_macro_kinds.insert(Symbol::intern(&qualified), *tokens);
                     }
+                    crate::package::ImportedSymbol::Transform { name } => {
+                        let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
+                        self.imported_transforms.entry(stem).or_default().push(Symbol::intern(name));
+                    }
                     crate::package::ImportedSymbol::Pass { name } => {
                         let stem = Symbol::intern(&crate::hir::attrs::pkg_stem(path));
                         self.imported_passes.entry(stem).or_default().push(Symbol::intern(name));

@@ -1,7 +1,7 @@
 # 第三方插件作者指南（A5h/A5j）
 
-Ayanami 插件是普通的 Ayanami 源码库：用 `#[macro]` / `#[pass]` / `#[check]` /
-`#[attr]` 声明能力，打包为 `.lcl` 供其他项目导入。插件代码在**使用方编译期**执行，
+Ayanami 插件是普通的 Ayanami 源码库：用 `#[macro]` / `#[transform]` / `#[pass]` /
+`#[check]` / `#[attr]` 声明能力，打包为 `.lcl` 供其他项目导入。插件代码在**使用方编译期**执行，
 不在运行时加载。
 
 ## 快速开始
@@ -129,7 +129,7 @@ built-with="0.6.8"
 
 详见 [`docs/plugin-manifest.md`](plugin-manifest.md)。
 
-## 四类插件
+## 五类插件
 
 ### 属性插件 `#[attr]`
 
@@ -155,6 +155,21 @@ pub fn answer() -> String {
 
 支持 item / 语句 / 表达式级；详见仓库 `docs/annotations.md` §8.2–8.5。
 
+### HIR transform `#[transform]`
+
+```ayanami
+#[transform]
+pub fn identity(String hir_json) -> String {
+    return hir_json
+}
+```
+
+- 当前 B1 只开放 **identity HIR JSON 通路**：消费方在函数上写 `#[pkg::identity]`，
+  编译器把 HIR 编码为 JSON 调用插件，插件返回 JSON 后继续 MIR。
+- HIR schema 版本和节点格式见 [`docs/hir-transform.md`](hir-transform.md)。
+- v1 只支持函数上的 transform 标记；结构化修改 API（插入函数、改 body）在 B2。
+- 插件必须原样返回合法 HIR JSON 或返回同 schema 的修改结果；解析失败会拒绝编译。
+
 ### MIR pass `#[pass]` / check `#[check]`
 
 - `#[pass] fn(ref mut MirFunction) -> void`：函数内 MIR 优化，可改效应；禁止改签名。
@@ -172,7 +187,8 @@ version = "0.1.0"
 target = "static-lib"
 ```
 
-`plugin package` 会校验源码至少包含一个插件声明，再调用正常打包流程；
+`plugin package` 会校验源码至少包含一个插件声明（macro/transform/pass/check/attr），
+再调用正常打包流程；
 插件名/版本来自 `[package]`（缺失时回退到入口 stem / `0.1.0`）。
 产物与消费方编译器版本/ABI 通过 `[plugin]` 清单校验；跨平台插件不随包分发 `.so`。
 
