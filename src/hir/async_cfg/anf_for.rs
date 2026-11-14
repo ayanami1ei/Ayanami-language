@@ -193,6 +193,9 @@ impl Anf<'_> {
                 .get(n)
                 .cloned()
                 .or_else(|| self.probe?.get(n).and_then(|t| hir_to_ast(t, span))),
+            Expr::FnCall {
+                name, generic_args, ..
+            } if generic_args.is_empty() => self.fn_returns.get(name).cloned(),
             Expr::StructLiteral {
                 type_name,
                 generic_args,

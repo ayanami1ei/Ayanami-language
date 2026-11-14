@@ -23,6 +23,7 @@ pub fn expand(
     // await 目标函数的返回类型表（仅同程序 #[async] 函数）
     let mut returns: HashMap<Symbol, Type> = HashMap::new();
     let mut async_fns: HashMap<Symbol, Vec<(Symbol, Type)>> = HashMap::new();
+    let mut fn_returns: HashMap<Symbol, Type> = HashMap::new();
     for stmt in &program.stmts {
         if let Stmt::FnDecl {
             attrs,
@@ -32,6 +33,7 @@ pub fn expand(
             ..
         } = stmt
         {
+            fn_returns.insert(*name, return_type.clone());
             if attrs.iter().any(is_async) {
                 returns.insert(*name, return_type.clone());
                 async_fns.insert(*name, params.clone());
@@ -42,7 +44,7 @@ pub fn expand(
     for stmt in &program.stmts {
         match stmt {
             Stmt::FnDecl { attrs, .. } if attrs.iter().any(is_async) => {
-                expand_one(stmt, &returns, &async_fns, &mut out, types)?
+                expand_one(stmt, &returns, &async_fns, &fn_returns, &mut out, types)?
             }
             Stmt::FnDecl { attrs, body, .. }
                 if !attrs.iter().any(is_async)
@@ -83,6 +85,7 @@ fn expand_one(
     stmt: &Stmt,
     returns: &HashMap<Symbol, Type>,
     async_fns: &HashMap<Symbol, Vec<(Symbol, Type)>>,
+    fn_returns: &HashMap<Symbol, Type>,
     out: &mut Vec<Stmt>,
     types: Option<&crate::hir::lower::AsyncLocalTypes>,
 ) -> Result<()> {
@@ -118,6 +121,7 @@ fn expand_one(
         stmt,
         returns,
         async_fns,
+        fn_returns,
         out,
         types.and_then(|m| m.get(name)),
     )? {

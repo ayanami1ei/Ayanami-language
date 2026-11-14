@@ -16,6 +16,10 @@ struct RangeIter {
     int end
 }
 
+fn make_iter() -> RangeIter {
+    return RangeIter { cur = 0, end = 3 }
+}
+
 impl RangeIter {
     #[state]
     fn next(ref mut self) -> Option[int] {
@@ -243,6 +247,15 @@ fn for_usize(usize n) -> int {
     s = 0
     for i in (0, n) {
         s = s + (await inc(i as int))
+    }
+    return s
+}
+
+#[async]
+fn for_in_call() -> int {
+    s = 0
+    for v in make_iter() {
+        s = s + (await inc(v))
     }
     return s
 }
@@ -576,5 +589,7 @@ fn main() -> int {
     if block_on(ref mut f53) != 2 { return 59 }
     f54 = match_or_bind(MatchE::B(1))
     if block_on(ref mut f54) != 2 { return 60 }
+    f55 = for_in_call()
+    if block_on(ref mut f55) != 6 { return 61 }
     return 0
 }

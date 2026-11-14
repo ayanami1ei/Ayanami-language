@@ -11,6 +11,7 @@ pub(super) struct Anf<'a> {
     pub(super) returns: &'a HashMap<Symbol, Type>,
     pub(super) probe: Option<&'a HashMap<Symbol, crate::hir::ir::HirType>>,
     pub(super) owner: Symbol,
+    pub(super) fn_returns: &'a HashMap<Symbol, Type>,
     pub(super) types: HashMap<Symbol, Type>,
     pub(super) next: usize,
     pub(super) for_next: usize,
@@ -24,11 +25,13 @@ impl<'a> Anf<'a> {
         returns: &'a HashMap<Symbol, Type>,
         probe: Option<&'a HashMap<Symbol, crate::hir::ir::HirType>>,
         owner: Symbol,
+        fn_returns: &'a HashMap<Symbol, Type>,
     ) -> Self {
         Self {
             returns,
             probe,
             owner,
+            fn_returns,
             types: HashMap::new(),
             next: 0,
             for_next: 0,

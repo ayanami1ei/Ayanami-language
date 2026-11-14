@@ -54,6 +54,7 @@ pub(crate) fn try_expand(
     stmt: &Stmt,
     returns: &HashMap<Symbol, Type>,
     async_fns: &HashMap<Symbol, Vec<(Symbol, Type)>>,
+    fn_returns: &HashMap<Symbol, Type>,
     out: &mut Vec<Stmt>,
     types: Option<&HashMap<Symbol, HirType>>,
 ) -> Result<bool> {
@@ -76,7 +77,7 @@ pub(crate) fn try_expand(
     }
     let fail = |m: String| Error::Hir(format!("#[async] `{}`: {}", name.as_str(), m));
     let span = body.span;
-    let mut anf = Anf::new(returns, types, *name);
+    let mut anf = Anf::new(returns, types, *name, fn_returns);
     let Some((stmts, tail)) = anf.normalize_body(body) else {
         return Ok(false);
     };

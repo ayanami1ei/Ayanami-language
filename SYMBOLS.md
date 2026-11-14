@@ -71,32 +71,34 @@ src/cli/update_fetch.rs:98: pub(super) fn download(src: &str, dest: &Path, limit
 src/cli/update_fetch.rs:126: pub(super) fn tar_listing(tar: &Path) -> Result<String>
 src/cli/update_fetch.rs:136: pub(super) fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
 src/compiler/build/compile.rs:6: pub fn compile_file(
-src/compiler/build/compile.rs:153: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
+src/compiler/build/compile.rs:156: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
-src/compiler/build/deps.rs:129: pub(super) fn merge_dep_struct_defs(
-src/compiler/build/deps.rs:146: pub(super) fn merge_symbols(
-src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<(
-src/compiler/build/lir.rs:34: pub(super) fn build_target_artifact(
-src/compiler/build/mod.rs:14: mod compile;
-src/compiler/build/mod.rs:15: mod deps;
-src/compiler/build/mod.rs:16: mod lir;
-src/compiler/build/mod.rs:17: mod package;
-src/compiler/build/mod.rs:18: mod passes;
-src/compiler/build/mod.rs:19: mod target;
-src/compiler/build/mod.rs:26: pub fn build_source(src_path: &str, code: &str) -> Result<()>
-src/compiler/build/mod.rs:31: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
-src/compiler/build/mod.rs:36: pub(crate) fn cache_key(src_path: &str, code: &str, target: &str) -> String
+src/compiler/build/deps.rs:146: pub(super) fn merge_dep_struct_defs(
+src/compiler/build/deps.rs:162: pub(super) fn merge_symbols(pkg: &mut crate::package::Package, dep_lcl_paths: &[PathBuf])
+src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(
+src/compiler/build/lir.rs:43: pub(super) fn build_target_artifact(
+src/compiler/build/mod.rs:13: mod compile;
+src/compiler/build/mod.rs:14: mod deps;
+src/compiler/build/mod.rs:15: mod lir;
+src/compiler/build/mod.rs:16: mod package;
+src/compiler/build/mod.rs:17: mod passes;
+src/compiler/build/mod.rs:18: mod target;
+src/compiler/build/mod.rs:25: pub fn build_source(src_path: &str, code: &str) -> Result<()>
+src/compiler/build/mod.rs:30: pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
+src/compiler/build/mod.rs:35: fn import_names(code: &str) -> Vec<String>
+src/compiler/build/mod.rs:54: fn hash_import_closure(
+src/compiler/build/mod.rs:82: pub(crate) fn cache_key(src_path: &str, code: &str, target: &str) -> String
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
-src/compiler/build/package.rs:27: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:81: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
-src/compiler/build/package.rs:91: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:40: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
+src/compiler/build/package.rs:101: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
+src/compiler/build/package.rs:112: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/passes/apply.rs:18: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
-src/compiler/build/passes/apply.rs:35: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
-src/compiler/build/passes/apply.rs:42: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
-src/compiler/build/passes/apply.rs:48: fn collect_clones(f: &MirFn, n: usize) -> Vec<Option<MirNodeBox>>
-src/compiler/build/passes/apply.rs:57: fn apply_expr(
-src/compiler/build/passes/apply.rs:140: fn apply_stmt(
-src/compiler/build/passes/apply.rs:179: pub(super) fn apply_edits(f: &mut MirFn, view: &FlatView, edits: &EditView, a: &Attr) -> Result<()>
+src/compiler/build/passes/apply.rs:37: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
+src/compiler/build/passes/apply.rs:44: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
+src/compiler/build/passes/apply.rs:50: fn collect_clones(f: &MirFn, n: usize) -> Vec<Option<MirNodeBox>>
+src/compiler/build/passes/apply.rs:59: fn apply_expr(
+src/compiler/build/passes/apply.rs:166: fn apply_stmt(
+src/compiler/build/passes/apply.rs:219: pub(super) fn apply_edits(
 src/compiler/build/passes/flat.rs:11: pub(super) const SCHEMA_VERSION: i64 = 3;
 src/compiler/build/passes/flat.rs:13: pub(super) const HEADER_WORDS: usize = 4;
 src/compiler/build/passes/flat.rs:15: pub(super) const ARRAY_COUNT: usize = 15;
@@ -107,33 +109,33 @@ src/compiler/build/passes/flat.rs:21: pub(super) const KIND_EXPR: i64 = 2;
 src/compiler/build/passes/flat.rs:23: pub(super) struct FlatView
 src/compiler/build/passes/flat.rs:28: impl FlatView
 src/compiler/build/passes/flat.rs:29: pub(super) fn new(purity: HashMap<FnId, bool>) -> Self
-src/compiler/build/passes/flat.rs:33: pub(super) fn len(&self) -> usize
-src/compiler/build/passes/flat.rs:40: fn push(&mut self, kind: i64, call: bool, callee_pure: bool, alloc: bool, asm: bool, store: bool, op: i64, lit_kind: i64, lit_i64: i64, lit_f64: i64, stmt_kind: i64, var_id: i64) -> usize
-src/compiler/build/passes/flat.rs:49: fn set_child_count(&mut self, idx: usize, n: i64)
-src/compiler/build/passes/flat.rs:54: fn op_code(op: BinaryOp) -> i64
-src/compiler/build/passes/flat.rs:65: fn unary_code(op: UnaryOp) -> i64
-src/compiler/build/passes/flat.rs:73: fn lit_kind(v: &HirLiteral) -> i64
-src/compiler/build/passes/flat.rs:84: fn lit_i64(v: &HirLiteral) -> i64
-src/compiler/build/passes/flat.rs:94: fn lit_f64(v: &HirLiteral) -> i64
-src/compiler/build/passes/flat.rs:101: fn walk_expr(e: &dyn MirNode, v: &mut FlatView) -> usize
-src/compiler/build/passes/flat.rs:125: fn stmt_kind(s: &dyn MirStmtNode) -> i64
-src/compiler/build/passes/flat.rs:141: fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize
-src/compiler/build/passes/flat.rs:151: fn push_i64(buf: &mut Vec<u8>, v: i64)
-src/compiler/build/passes/flat.rs:156: pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8>
-src/compiler/build/passes/flat.rs:179: pub(super) fn read_i64(buf: &[u8], off: usize) -> i64
-src/compiler/build/passes/flat.rs:185: pub(super) struct EditView
-src/compiler/build/passes/flat.rs:190: pub(super) struct PassOutput
-src/compiler/build/passes/flat.rs:197: pub(super) fn parse_output(input: &[u8], out: &[u8], a: &Attr) -> Result<PassOutput>
-src/compiler/build/passes/flat.rs:225: pub(super) fn deserialize_view(blob: &[u8]) -> FlatView
+src/compiler/build/passes/flat.rs:36: pub(super) fn len(&self) -> usize
+src/compiler/build/passes/flat.rs:43: fn push(
+src/compiler/build/passes/flat.rs:82: fn set_child_count(&mut self, idx: usize, n: i64)
+src/compiler/build/passes/flat.rs:87: fn op_code(op: BinaryOp) -> i64
+src/compiler/build/passes/flat.rs:110: fn unary_code(op: UnaryOp) -> i64
+src/compiler/build/passes/flat.rs:120: fn lit_kind(v: &HirLiteral) -> i64
+src/compiler/build/passes/flat.rs:131: fn lit_i64(v: &HirLiteral) -> i64
+src/compiler/build/passes/flat.rs:141: fn lit_f64(v: &HirLiteral) -> i64
+src/compiler/build/passes/flat.rs:148: fn walk_expr(e: &dyn MirNode, v: &mut FlatView) -> usize
+src/compiler/build/passes/flat.rs:190: fn stmt_kind(s: &dyn MirStmtNode) -> i64
+src/compiler/build/passes/flat.rs:220: fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize
+src/compiler/build/passes/flat.rs:251: fn push_i64(buf: &mut Vec<u8>, v: i64)
+src/compiler/build/passes/flat.rs:256: pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8>
+src/compiler/build/passes/flat.rs:279: pub(super) fn read_i64(buf: &[u8], off: usize) -> i64
+src/compiler/build/passes/flat.rs:285: pub(super) struct EditView
+src/compiler/build/passes/flat.rs:290: pub(super) struct PassOutput
+src/compiler/build/passes/flat.rs:297: pub(super) fn parse_output(input: &[u8], out: &[u8], a: &Attr) -> Result<PassOutput>
+src/compiler/build/passes/flat.rs:334: pub(super) fn deserialize_view(blob: &[u8]) -> FlatView
 src/compiler/build/passes/mod.rs:15: mod apply;
 src/compiler/build/passes/mod.rs:16: mod flat;
 src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<FnId, bool>
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
-src/compiler/build/passes/mod.rs:50: pub(super) fn apply_passes(
+src/compiler/build/passes/mod.rs:51: pub(super) fn apply_passes(
 src/compiler/build/target.rs:6: fn scan_source_deps(src_path: &Path) -> bool
-src/compiler/build/target.rs:31: pub fn build_source_with_target(
-src/compiler/build/target.rs:68: fn build_source_with_target_inner(
-src/compiler/build/target.rs:198: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:39: pub fn build_source_with_target(
+src/compiler/build/target.rs:87: fn build_source_with_target_inner(
+src/compiler/build/target.rs:220: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:37: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:46: fn has_return_in_stmt(s: &HirStmt) -> bool
@@ -366,22 +368,22 @@ src/formatter/stmt.rs:14: fn write_stmt_inner(out: &mut String, stmt: &Stmt, lev
 src/formatter/stmt_defs.rs:10: pub(super) fn write_def(out: &mut String, stmt: &Stmt, level: usize)
 src/formatter/types.rs:6: pub(super) fn write_type(ty: &Type) -> String
 src/hir/async_cfg/anf.rs:10: pub(super) struct Anf<'a>
-src/hir/async_cfg/anf.rs:22: impl<'a> Anf<'a>
-src/hir/async_cfg/anf.rs:23: pub(super) fn new(
-src/hir/async_cfg/anf.rs:41: pub(super) fn into_types(self) -> HashMap<Symbol, Type>
-src/hir/async_cfg/anf.rs:45: pub(super) fn forced_fields(&self) -> HashSet<Symbol>
-src/hir/async_cfg/anf.rs:49: pub(super) fn take_helpers(&mut self) -> Vec<String>
-src/hir/async_cfg/anf.rs:54: pub(super) fn normalize_body(&mut self, body: &Block) -> Option<(Vec<Stmt>, Option<Expr>)>
-src/hir/async_cfg/anf.rs:73: pub(super) fn block(&mut self, b: &Block) -> Option<Block>
-src/hir/async_cfg/anf.rs:92: pub(super) fn stmt_has_await_local(st: &Stmt) -> bool
-src/hir/async_cfg/anf.rs:96: pub(super) fn expr_has_await(e: &Expr) -> bool
+src/hir/async_cfg/anf.rs:23: impl<'a> Anf<'a>
+src/hir/async_cfg/anf.rs:24: pub(super) fn new(
+src/hir/async_cfg/anf.rs:44: pub(super) fn into_types(self) -> HashMap<Symbol, Type>
+src/hir/async_cfg/anf.rs:48: pub(super) fn forced_fields(&self) -> HashSet<Symbol>
+src/hir/async_cfg/anf.rs:52: pub(super) fn take_helpers(&mut self) -> Vec<String>
+src/hir/async_cfg/anf.rs:57: pub(super) fn normalize_body(&mut self, body: &Block) -> Option<(Vec<Stmt>, Option<Expr>)>
+src/hir/async_cfg/anf.rs:76: pub(super) fn block(&mut self, b: &Block) -> Option<Block>
+src/hir/async_cfg/anf.rs:95: pub(super) fn stmt_has_await_local(st: &Stmt) -> bool
+src/hir/async_cfg/anf.rs:99: pub(super) fn expr_has_await(e: &Expr) -> bool
 src/hir/async_cfg/anf_expr.rs:8: impl Anf<'_>
 src/hir/async_cfg/anf_expr.rs:9: pub(super) fn expr(&mut self, e: &Expr, pre: &mut Vec<Stmt>) -> Option<Expr>
 src/hir/async_cfg/anf_for.rs:8: impl Anf<'_>
 src/hir/async_cfg/anf_for.rs:9: pub(super) fn for_stmt(
 src/hir/async_cfg/anf_for.rs:79: pub(super) fn for_in_stmt(
 src/hir/async_cfg/anf_for.rs:189: fn iter_expr_type(&self, e: &Expr, span: crate::span::Span) -> Option<Type>
-src/hir/async_cfg/anf_for.rs:212: fn patch_continues(stmts: &mut [Stmt], step: &Stmt)
+src/hir/async_cfg/anf_for.rs:215: fn patch_continues(stmts: &mut [Stmt], step: &Stmt)
 src/hir/async_cfg/anf_guard.rs:7: pub(super) fn guard_ok(e: &Expr, binds: &HashSet<Symbol>) -> bool
 src/hir/async_cfg/anf_guard.rs:49: pub(super) fn pattern_bindings(p: &Pattern) -> Vec<Symbol>
 src/hir/async_cfg/anf_guard.rs:60: pub(super) fn or_consistent(p: &Pattern) -> bool
@@ -430,9 +432,9 @@ src/hir/async_cfg/mod.rs:30: pub(super) struct Local
 src/hir/async_cfg/mod.rs:39: pub(super) struct FutureField
 src/hir/async_cfg/mod.rs:46: fn enabled() -> bool
 src/hir/async_cfg/mod.rs:53: pub(crate) fn try_expand(
-src/hir/async_cfg/mod.rs:245: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context __async_cx) -> Poll[{ret}] {{\n\
-src/hir/async_cfg/mod.rs:265: pub(crate) fn expr_has_await_pub(e: &Expr) -> bool
-src/hir/async_cfg/mod.rs:269: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, Vec<Expr>)>
+src/hir/async_cfg/mod.rs:246: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context __async_cx) -> Poll[{ret}] {{\n\
+src/hir/async_cfg/mod.rs:266: pub(crate) fn expr_has_await_pub(e: &Expr) -> bool
+src/hir/async_cfg/mod.rs:270: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, Vec<Expr>)>
 src/hir/async_cfg/scan.rs:10: pub(super) fn body_has_await(body: &Block) -> bool
 src/hir/async_cfg/scan.rs:14: fn block_has_await(b: &Block) -> bool
 src/hir/async_cfg/scan.rs:18: pub(crate) fn stmt_has_await(st: &Stmt) -> bool
@@ -523,10 +525,10 @@ src/hir/async_mixed_types.rs:68: pub(super) fn type_default(t: &Type) -> Option<
 src/hir/async_mixed_types.rs:81: pub(super) fn hir_to_ast(t: &HirType, span: Span) -> Option<Type>
 src/hir/async_post_args.rs:10: pub(super) fn build_post_args(
 src/hir/async_transform.rs:19: pub fn expand(
-src/hir/async_transform.rs:69: fn is_async(a: &crate::parser::ast::Attr) -> bool
-src/hir/async_transform.rs:72: fn contains_async(stmt: &Stmt) -> bool
-src/hir/async_transform.rs:82: fn expand_one(
-src/hir/async_transform.rs:195: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:71: fn is_async(a: &crate::parser::ast::Attr) -> bool
+src/hir/async_transform.rs:74: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:84: fn expand_one(
+src/hir/async_transform.rs:199: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform_await.rs:10: pub(super) fn await_prefix(
 src/hir/async_transform_await.rs:50: pub(super) fn expand_await(
 src/hir/async_transform_await.rs:173: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
@@ -3029,55 +3031,57 @@ example/test_async_cfg.aya:9: interface Future[T] { fn poll(ref mut self, ref Co
 example/test_async_cfg.aya:11: enum MatchE { A(int), B(int) }
 example/test_async_cfg.aya:12: enum MatchS { A(String), B }
 example/test_async_cfg.aya:14: struct RangeIter
-example/test_async_cfg.aya:19: impl RangeIter
-example/test_async_cfg.aya:21: fn next(ref mut self) -> Option[int]
-example/test_async_cfg.aya:30: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_cfg.aya:42: fn block_on_s[F: Future[String]](ref mut F f) -> String
-example/test_async_cfg.aya:54: fn inc(int x) -> int { return x + 1 }
-example/test_async_cfg.aya:57: fn dec(int x) -> int { return x - 1 }
-example/test_async_cfg.aya:60: fn dbl(int x) -> int { return x * 2 }
-example/test_async_cfg.aya:63: fn greet() -> String { return "hi" }
-example/test_async_cfg.aya:66: fn mixed(int x) -> int
-example/test_async_cfg.aya:83: fn nested(int x) -> int
-example/test_async_cfg.aya:98: fn pick(int x) -> int
-example/test_async_cfg.aya:111: fn outer(int x) -> int
-example/test_async_cfg.aya:123: fn noelse(int x) -> int
-example/test_async_cfg.aya:133: fn nested_loops(int x) -> int
-example/test_async_cfg.aya:148: fn cont(int x) -> int
-example/test_async_cfg.aya:159: fn syncmix(int x) -> int
-example/test_async_cfg.aya:171: fn plus1(int x) -> int { return x + 1 }
-example/test_async_cfg.aya:174: fn expr_sum(int x) -> int
-example/test_async_cfg.aya:180: fn expr_ret(int x) -> int
-example/test_async_cfg.aya:185: fn expr_arg(int x) -> int
-example/test_async_cfg.aya:191: fn expr_product(int x) -> int
-example/test_async_cfg.aya:196: fn expr_call(int x) -> int
-example/test_async_cfg.aya:202: fn expr_if_cond(int x) -> int
-example/test_async_cfg.aya:213: fn for_body(int x) -> int
-example/test_async_cfg.aya:222: fn for_break(int x) -> int
-example/test_async_cfg.aya:232: fn for_continue(int x) -> int
-example/test_async_cfg.aya:242: fn for_usize(usize n) -> int
-example/test_async_cfg.aya:251: fn match_or(Option[int] v) -> int
-example/test_async_cfg.aya:262: fn match_or_bind(MatchE v) -> int
-example/test_async_cfg.aya:271: fn for_in_expr() -> int
-example/test_async_cfg.aya:280: fn match_arm(Option[int] v) -> int
-example/test_async_cfg.aya:290: fn match_ret(Option[int] v) -> int
-example/test_async_cfg.aya:299: fn match_enum(MatchE v) -> int
-example/test_async_cfg.aya:309: fn match_string(MatchS v) -> String
-example/test_async_cfg.aya:319: fn match_lit(int y) -> int
-example/test_async_cfg.aya:331: fn match_guard(Option[int] v) -> int
-example/test_async_cfg.aya:342: fn match_break(Option[int] v) -> int
-example/test_async_cfg.aya:355: fn match_local(int x) -> int
-example/test_async_cfg.aya:366: fn for_in(RangeIter it) -> int
-example/test_async_cfg.aya:375: fn expr_elif(int x) -> int
-example/test_async_cfg.aya:388: fn while_cond(int x) -> int
-example/test_async_cfg.aya:397: fn while_cond_continue(int x) -> int
-example/test_async_cfg.aya:408: fn loop_expr(int x) -> int
-example/test_async_cfg.aya:417: fn expr_string(int x) -> String
-example/test_async_cfg.aya:423: fn echo(String s) -> String { return s }
-example/test_async_cfg.aya:426: fn pass(int x, String s) -> String
-example/test_async_cfg.aya:433: fn choose_sync(int x) -> int
-example/test_async_cfg.aya:444: fn join(int x) -> String
-example/test_async_cfg.aya:457: fn main() -> int
+example/test_async_cfg.aya:19: fn make_iter() -> RangeIter
+example/test_async_cfg.aya:23: impl RangeIter
+example/test_async_cfg.aya:25: fn next(ref mut self) -> Option[int]
+example/test_async_cfg.aya:34: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_cfg.aya:46: fn block_on_s[F: Future[String]](ref mut F f) -> String
+example/test_async_cfg.aya:58: fn inc(int x) -> int { return x + 1 }
+example/test_async_cfg.aya:61: fn dec(int x) -> int { return x - 1 }
+example/test_async_cfg.aya:64: fn dbl(int x) -> int { return x * 2 }
+example/test_async_cfg.aya:67: fn greet() -> String { return "hi" }
+example/test_async_cfg.aya:70: fn mixed(int x) -> int
+example/test_async_cfg.aya:87: fn nested(int x) -> int
+example/test_async_cfg.aya:102: fn pick(int x) -> int
+example/test_async_cfg.aya:115: fn outer(int x) -> int
+example/test_async_cfg.aya:127: fn noelse(int x) -> int
+example/test_async_cfg.aya:137: fn nested_loops(int x) -> int
+example/test_async_cfg.aya:152: fn cont(int x) -> int
+example/test_async_cfg.aya:163: fn syncmix(int x) -> int
+example/test_async_cfg.aya:175: fn plus1(int x) -> int { return x + 1 }
+example/test_async_cfg.aya:178: fn expr_sum(int x) -> int
+example/test_async_cfg.aya:184: fn expr_ret(int x) -> int
+example/test_async_cfg.aya:189: fn expr_arg(int x) -> int
+example/test_async_cfg.aya:195: fn expr_product(int x) -> int
+example/test_async_cfg.aya:200: fn expr_call(int x) -> int
+example/test_async_cfg.aya:206: fn expr_if_cond(int x) -> int
+example/test_async_cfg.aya:217: fn for_body(int x) -> int
+example/test_async_cfg.aya:226: fn for_break(int x) -> int
+example/test_async_cfg.aya:236: fn for_continue(int x) -> int
+example/test_async_cfg.aya:246: fn for_usize(usize n) -> int
+example/test_async_cfg.aya:255: fn for_in_call() -> int
+example/test_async_cfg.aya:264: fn match_or(Option[int] v) -> int
+example/test_async_cfg.aya:275: fn match_or_bind(MatchE v) -> int
+example/test_async_cfg.aya:284: fn for_in_expr() -> int
+example/test_async_cfg.aya:293: fn match_arm(Option[int] v) -> int
+example/test_async_cfg.aya:303: fn match_ret(Option[int] v) -> int
+example/test_async_cfg.aya:312: fn match_enum(MatchE v) -> int
+example/test_async_cfg.aya:322: fn match_string(MatchS v) -> String
+example/test_async_cfg.aya:332: fn match_lit(int y) -> int
+example/test_async_cfg.aya:344: fn match_guard(Option[int] v) -> int
+example/test_async_cfg.aya:355: fn match_break(Option[int] v) -> int
+example/test_async_cfg.aya:368: fn match_local(int x) -> int
+example/test_async_cfg.aya:379: fn for_in(RangeIter it) -> int
+example/test_async_cfg.aya:388: fn expr_elif(int x) -> int
+example/test_async_cfg.aya:401: fn while_cond(int x) -> int
+example/test_async_cfg.aya:410: fn while_cond_continue(int x) -> int
+example/test_async_cfg.aya:421: fn loop_expr(int x) -> int
+example/test_async_cfg.aya:430: fn expr_string(int x) -> String
+example/test_async_cfg.aya:436: fn echo(String s) -> String { return s }
+example/test_async_cfg.aya:439: fn pass(int x, String s) -> String
+example/test_async_cfg.aya:446: fn choose_sync(int x) -> int
+example/test_async_cfg.aya:457: fn join(int x) -> String
+example/test_async_cfg.aya:470: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker
