@@ -2,6 +2,7 @@ import "string";
 import "aya_sb";
 import "aya_ast";
 import "aya_log";
+import "aya_sys";
 
 // M5b/M6a：AST -> LLVM IR 文本（int/bool/String/struct/数组 子集）
 // 值表示：Val { kind: 0=int, 1=String(ptr,len), 2=struct(ptr,类型名), 3=数组(ptr,元素类型 id) }
@@ -218,6 +219,9 @@ pub struct Emitter {
     int sync_count
     [int] sync_loop_marks
     int terminated
+    // D1 drop：未使用按值 String 形参
+    [String] drop_params
+    int drop_param_count
 }
 
 pub namespace Emitter {
@@ -262,7 +266,7 @@ pub namespace Emitter {
             pre_buf = StringBuf::new(), pre_active = 0, entry_pos = 0,
             loop_ends = [String; 64], loop_conds = [String; 64], loop_depth = 0,
             sync_unlocks = [int; 64], sync_count = 0, sync_loop_marks = [int; 64],
-            terminated = 0
+            terminated = 0, drop_params = [String; 64], drop_param_count = 0
         };
         ip_init = 0;
         while ip_init < 256 {
@@ -4928,6 +4932,49 @@ impl Emitter {
         if self.spec_wcount < 256 {
             self.spec_worder[self.spec_wcount] = self.spec_nodes[wi];
             self.spec_wcount = self.spec_wcount + 1;
+        }
+    }
+
+    /// D1 drop 首片：收集未使用、按值 String 形参（AYANAMI_SELFHOST_DROP=1 启用）
+    #[alloc]
+    #[state]
+    fn collect_drop_params(ref mut self, ref Ast ast, int id) {
+        self.drop_param_count = 0;
+        if env("AYANAMI_SELFHOST_DROP") != "1" { return; }
+        p = ast.aa[id];
+        while p >= 0 {
+            if ast.tags[p] == xt(XT::Param._tag) {
+                nm = ast.texts[p].copy();
+                if nm != "self" && !nm.starts_with("__env_") && ast.bb[p] == 1 {
+                    if self.param_kind(ast, p) == 1 {
+                        if self.drop_param_count < 64 {
+                            self.drop_params[self.drop_param_count] = nm;
+                            self.drop_param_count = self.drop_param_count + 1;
+                        }
+                    }
+                }
+            }
+            p = ast.nexts[p];
+        }
+    }
+
+    /// D1 drop 首片：返回前释放未使用按值 String 形参并置空
+    #[state]
+    fn emit_param_drops(ref mut self, ref Ast ast) {
+        i = 0;
+        while i < self.drop_param_count {
+            nm = self.drop_params[i].copy();
+            dp = self.fresh();
+            self.buf.push_str("  ");
+            self.buf.push_str(dp);
+            self.buf.push_str(" = load ptr, ptr %v_");
+            self.buf.push_str(nm);
+            self.buf.push_str(".ptr\n  call void @__ayanami_release_owned(ptr ");
+            self.buf.push_str(dp);
+            self.buf.push_str(")\n  store ptr null, ptr %v_");
+            self.buf.push_str(nm);
+            self.buf.push_str(".ptr\n");
+            i = i + 1;
         }
     }
 
@@ -11392,6 +11439,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         if ast.aa[id] >= 0 {
             v2 = emit_expr(ast, ast.aa[id], e);
             emit_sync_unlocks(ast, e, 0);
+            e.emit_param_drops(ast);
             if rk_ret == 5 {
                 if v2.kind == 6 {
                     e.buf.push_str("  ret double ");
@@ -12076,6 +12124,7 @@ fn emit_decl(ref Ast ast, int id, ref mut Emitter e) {
 fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
     e.tmp = 0;
     e.lv_count = 0;
+    e.drop_param_count = 0;
     e.cur_self_ty = prefix.copy();
     // 上一函数以 ret 结束会残留 terminated；新函数体必须复位，否则整段被跳过
     e.terminated = 0;
@@ -12470,6 +12519,7 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             }
         }
     }
+    e.collect_drop_params(ast, id);
     if name == "main" && e.need_ginit == 1 {
         e.buf.push_str("  call void @__aya_init_globals()\n");
     }
@@ -12481,6 +12531,7 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             tail = ast.bb[body_blk];
             if tail >= 0 {
                 tv = emit_expr(ast, tail, e);
+                e.emit_param_drops(ast);
                 if rkind == 5 {
                     if tv.kind == 6 {
                         e.buf.push_str("  ret double ");
@@ -12535,6 +12586,7 @@ fn emit_fn_named(ref Ast ast, int id, ref String prefix, ref mut Emitter e) {
             }
         }
     }
+    if e.terminated == 0 { e.emit_param_drops(ast); }
     if rkind == 1 {
         e.buf.push_str("  ret { ptr, i64 } { ptr null, i64 0 }\n}\n");
     } elif rkind == 5 {
@@ -12670,6 +12722,7 @@ pub fn emit_program_full(ref Ast ast, int prog, ref String file, ref mut SpecOut
     if e.decl_has("memcpy") == 0 { e.buf.push_str("declare ptr @memcpy(ptr, ptr, i64)\n"); }
     if e.decl_has("memcmp") == 0 { e.buf.push_str("declare i32 @memcmp(ptr, ptr, i64)\n"); }
     if e.decl_has("__ayanami_panic_at") == 0 { e.buf.push_str("declare void @__ayanami_panic_at(i64, i64, ptr, i64, ptr, i64)\n"); }
+    if e.decl_has("__ayanami_release_owned") == 0 { e.buf.push_str("declare void @__ayanami_release_owned(ptr)\n"); }
     e.buf.push_str("declare void @llvm.memset.p0.i64(ptr, i8, i64, i1)\n");
     // lambda 函数定义（非捕获；捕获留待后续）
     li = 0;

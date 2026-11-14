@@ -182,13 +182,26 @@
   `match Some(x)` 绑定 Ptr 值，`_data_V._i` 支持负标记载荷（Ptr/ref/struct/enum），
   `ref` 载荷不拥有对象
 - 已知限制：自举 async 为 **eager 展开**（await 目标立即就绪；完整 Pending/状态机挂起待后续）；
-  async 警告 parity 采用生成 span 的 v1 复刻；自举仍未普遍发射堆释放/drop——本轮只对
-  `fs.read_lines` 的读缓冲做了显式所有权释放（其余自举 `@malloc` 分配仍依赖进程退出回收，
-  但不计入 live_allocs）
+  async 警告 parity 采用生成 span 的 v1 复刻；自举仍未普遍发射堆释放/drop——本轮对
+  `fs.read_lines` 读缓冲做显式释放，并提供 D1 未使用按值 String 形参的可选释放；
+  其余自举 `@malloc` 分配仍依赖进程退出回收（不计入 live_allocs）
 - 环境备注：`scripts/selfhost.sh` 开发构建优先 `/usr/bin/llc`（安装包 bundled LLVM 可能与
   系统 libLLVM 版本不匹配，M68k 符号缺失时 llc 启动失败）
-- 当前定点：stage-2 == stage-3（md5 `84d6ee812952e62684f67aa228b92a0e`）
+- 当前定点：stage-2 == stage-3（md5 `e1505d5a4e310f33fdafaee2821073bd`）
 - 状态：已合并到主 `selfhost`（178/178）；下一步跑 `check_all`/发布；通用堆释放/drop 作为后续优化
 - 复现：`AYANAMI_NO_INCREMENTAL=1 ./scripts/selfhost.sh diff`
   （`example/math_lib.lcl` 是本地未跟踪 fixture；缺失时 test_import 的 stage-0 会 exit 1）
 - 主 `selfhost` 已合并本分支，新基线 **178/178**
+
+## 9. 通用 drop 首片（2026-11-14）
+
+设计见 `docs/selfhost-drops.md`。D1 已落地：
+
+- 解析期在函数 AST 范围内做文本级未使用形参标记（误报只保守保留）。
+- 发射期对未使用、按值 `String` 形参，在显式 return / 尾表达式 / 默认返回前发射
+  `__ayanami_release_owned` 并置空槽位。
+- 运行时 `__ayanami_release_owned` 只释放已登记（计数）缓冲；字符串字面量/全局/
+  借用视图不 free，避免误释放。
+- 开关 `AYANAMI_SELFHOST_DROP=1`；默认关闭保持 178/178，开关开启的 178 diff 也为
+  178/178。std 运行时提交 `e843d30`（Ayanami-std `selfhost-rust-sync`）。
+- 后续 D2：tracked allocator + 拥有型局部/字段；D3：完整递归 drop glue。

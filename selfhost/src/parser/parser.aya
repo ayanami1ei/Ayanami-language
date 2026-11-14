@@ -1002,6 +1002,8 @@ impl Parser {
     fn parse_fn_body(ref mut self, int with_body) -> int {
         kline = self.cur.line;
         kcol = self.cur.col;
+        // D1 drop 首片：记录本函数 AST 范围，用于未使用形参标记
+        start_ast0 = self.ast.len;
         // 函数自身属性掩码（体内语句的 collect_attrs 会覆盖 attr_mask，需先保存）
         fn_mask0 = self.attr_mask;
         fn_pub0 = self.last_pub;
@@ -1103,6 +1105,27 @@ impl Parser {
             self.trans_async(name, head, ret, body, kline, kcol);
             body = self.async_ctor_body;
             ret = self.async_ctor_ret;
+        }
+        // D1 drop 首片：文本级形参使用检测。误报（字段名/字面量同名）只会保留，不会误释放。
+        if with_body == 1 {
+            pu = head;
+            while pu >= 0 {
+                if self.ast.tags[pu] == xt(XT::Param._tag) {
+                    nm_u = self.ast.texts[pu].copy();
+                    if nm_u != "self" && !nm_u.starts_with("__env_") {
+                        used_u = 0;
+                        iu = start_ast0;
+                        while iu < self.ast.len {
+                            if self.ast.tags[iu] != xt(XT::Param._tag) && self.ast.texts[iu] == nm_u {
+                                used_u = 1;
+                            }
+                            iu = iu + 1;
+                        }
+                        self.ast.bb[pu] = 1 - used_u;
+                    }
+                }
+                pu = self.ast.nexts[pu];
+            }
         }
         // 本函数的环境值隐藏形参：__env_<cap>: E（E 为匹配的泛型参数）
         hk_e = 0;
