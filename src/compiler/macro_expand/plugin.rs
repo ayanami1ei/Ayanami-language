@@ -7,7 +7,7 @@ use std::process::Command;
 use crate::error::{Error, Result};
 
 pub(crate) use super::plugin_abi::{ABI_VERSION, AyaBuf, AyaBufList, ParamKind, RTLD_NOW, compile_pic, dl, resolve_dep_lcls};
-use super::plugin_abi::{load_macro_fn, plan_params};
+use super::plugin_abi::{load_macro_fn, plan_params, publish_so, so_cached, unique_tag};
 
 // ═══════════════════════════════════════════════════════════════════
 //  插件构建与调用
@@ -103,13 +103,15 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
     std::fs::create_dir_all(&dir).ok();
     let stem = symbol.replace(|c: char| !c.is_alphanumeric() && c != '_', "_");
     let so_path = dir.join(format!("mac_{}_{:x}.so", stem, hash));
-    if so_path.exists() {
+    if so_cached(&so_path) {
         return Ok(so_path);
     }
 
-    let ll_path = dir.join(format!("mac_{}_{:x}.ll", stem, hash));
-    let obj_path = dir.join(format!("mac_{}_{:x}.o", stem, hash));
-    let shim_path = dir.join(format!("mac_{}_{:x}.c", stem, hash));
+    let uniq = unique_tag();
+    let ll_path = dir.join(format!("mac_{}_{:x}.{uniq}.ll", stem, hash));
+    let obj_path = dir.join(format!("mac_{}_{:x}.{uniq}.o", stem, hash));
+    let shim_path = dir.join(format!("mac_{}_{:x}.{uniq}.c", stem, hash));
+    let tmp_so_path = dir.join(format!("mac_{}_{:x}.{uniq}.tmp", stem, hash));
     std::fs::write(&ll_path, &ir).map_err(|e| Error::Compile(format!("macro IR write: {}", e)))?;
 
     // llc（PIC）：主对象 + 依赖对象（依赖对象按 IR 内容哈希缓存）
@@ -119,13 +121,11 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
         let mut h = std::collections::hash_map::DefaultHasher::new();
         dep_ir.hash(&mut h);
         let dhash = h.finish();
-        let dep_obj = dir.join(format!("dep_{:x}.o", dhash));
-        if !dep_obj.exists() {
-            let dep_ll = dir.join(format!("dep_{:x}.ll", dhash));
-            std::fs::write(&dep_ll, dep_ir)
-                .map_err(|e| Error::Compile(format!("macro dep IR write: {}", e)))?;
-            compile_pic(&dep_ll, &dep_obj)?;
-        }
+        let dep_obj = dir.join(format!("dep_{:x}.{uniq}.o", dhash));
+        let dep_ll = dir.join(format!("dep_{:x}.{uniq}.ll", dhash));
+        std::fs::write(&dep_ll, dep_ir)
+            .map_err(|e| Error::Compile(format!("macro dep IR write: {}", e)))?;
+        compile_pic(&dep_ll, &dep_obj)?;
         link_objs.push(dep_obj);
     }
 
@@ -217,13 +217,22 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
     }
     let status = gcc
         .arg(&shim_path).arg(&runtime).arg("-lm")
-        .arg("-o").arg(&so_path)
+        .arg("-o").arg(&tmp_so_path)
         .status()
         .map_err(|e| Error::Compile(format!("macro gcc: {}", e)))?;
     if !status.success() {
+        let _ = std::fs::remove_file(&tmp_so_path);
         return Err(Error::Compile(format!(
             "macro plugin link failed for `{}`", symbol
         )));
+    }
+    publish_so(&tmp_so_path, &so_path)?;
+    for p in [&ll_path, &obj_path, &shim_path] {
+        let _ = std::fs::remove_file(p);
+    }
+    for p in &link_objs[1..] {
+        let _ = std::fs::remove_file(p);
+        let _ = std::fs::remove_file(p.with_extension("ll"));
     }
     Ok(so_path)
 }

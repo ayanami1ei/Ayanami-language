@@ -10,6 +10,33 @@ use crate::error::{Error, Result};
 /// 插件 ABI 版本：签名变化时必须递增（参与 .so 缓存键，避免复用旧 shim）。
 pub(crate) const ABI_VERSION: u32 = 7;
 
+/// 插件 .so 的完成标记路径；只有 .so 与标记都存在才算缓存命中。
+pub(super) fn done_path(so: &Path) -> PathBuf {
+    PathBuf::from(format!("{}.ok", so.display()))
+}
+
+/// 缓存命中：最终 .so 与完成标记均存在。
+pub(super) fn so_cached(so: &Path) -> bool {
+    so.is_file() && done_path(so).is_file()
+}
+
+/// 并发构建的唯一中间文件后缀。
+pub(super) fn unique_tag() -> String {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    format!("{}_{}", std::process::id(), nanos)
+}
+
+/// 原子发布：先构建到唯一临时文件，成功后 rename 到最终路径，再写完成标记。
+pub(super) fn publish_so(tmp: &Path, so: &Path) -> Result<()> {
+    std::fs::rename(tmp, so)
+        .map_err(|e| Error::Compile(format!("plugin publish: {}", e)))?;
+    let _ = std::fs::write(done_path(so), b"ok");
+    Ok(())
+}
+
 /// A5c-2：宏形参 → 调用值映射
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ParamKind {

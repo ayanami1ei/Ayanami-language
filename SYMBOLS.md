@@ -184,22 +184,22 @@ src/compiler/macro_expand/mod.rs:75: fn expand_stmts(stmts: &[Stmt], ctx: &Macro
 src/compiler/macro_expand/mod.rs:92: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
 src/compiler/macro_expand/mod.rs:206: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
 src/compiler/macro_expand/mod.rs:227: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 3;
-src/compiler/macro_expand/pass_plugin.rs:21: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
-src/compiler/macro_expand/pass_plugin.rs:47: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
-src/compiler/macro_expand/pass_plugin.rs:52: fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &[String]) -> Result<PathBuf>
-src/compiler/macro_expand/pass_plugin.rs:121: fn pass_shim(symbol: &str) -> String
-src/compiler/macro_expand/pass_plugin.rs:128: const long long *kinds, *is_call, *callee_pure, *is_alloc, *is_asm, *is_store, *child_counts,\n\
-src/compiler/macro_expand/pass_plugin.rs:133: static long long rd64(const char* p) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:138: static long long* rd_arr(const char* p, long* pos, long long n) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:144: static void wr64(char* p, long long v) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:148: static char* g_diag = 0;\n\
-src/compiler/macro_expand/pass_plugin.rs:149: static long g_diag_len = 0;\n\
-src/compiler/macro_expand/pass_plugin.rs:163: static MirFunction mir_decode(const char* p, long len) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:187: static AyaBuf mir_encode(MirFunction f) {{\n\
-src/compiler/macro_expand/pass_plugin.rs:224: type RunFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
-src/compiler/macro_expand/pass_plugin.rs:225: type FreeFn = unsafe extern "C" fn(AyaBuf);
-src/compiler/macro_expand/pass_plugin.rs:227: fn call_pass(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/pass_plugin.rs:18: const SCHEMA_VERSION: i64 = 3;
+src/compiler/macro_expand/pass_plugin.rs:22: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
+src/compiler/macro_expand/pass_plugin.rs:48: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/pass_plugin.rs:53: fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &[String]) -> Result<PathBuf>
+src/compiler/macro_expand/pass_plugin.rs:131: fn pass_shim(symbol: &str) -> String
+src/compiler/macro_expand/pass_plugin.rs:138: const long long *kinds, *is_call, *callee_pure, *is_alloc, *is_asm, *is_store, *child_counts,\n\
+src/compiler/macro_expand/pass_plugin.rs:143: static long long rd64(const char* p) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:148: static long long* rd_arr(const char* p, long* pos, long long n) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:154: static void wr64(char* p, long long v) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:158: static char* g_diag = 0;\n\
+src/compiler/macro_expand/pass_plugin.rs:159: static long g_diag_len = 0;\n\
+src/compiler/macro_expand/pass_plugin.rs:173: static MirFunction mir_decode(const char* p, long len) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:197: static AyaBuf mir_encode(MirFunction f) {{\n\
+src/compiler/macro_expand/pass_plugin.rs:234: type RunFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
+src/compiler/macro_expand/pass_plugin.rs:235: type FreeFn = unsafe extern "C" fn(AyaBuf);
+src/compiler/macro_expand/pass_plugin.rs:237: fn call_pass(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<Vec<u8>>
 src/compiler/macro_expand/plugin.rs:16: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String], tokens: bool, line: usize, col: usize) -> Result<String>
 src/compiler/macro_expand/plugin.rs:42: pub(crate) fn invoke_macro_expr(
 src/compiler/macro_expand/plugin.rs:79: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
@@ -209,20 +209,24 @@ src/compiler/macro_expand/plugin.rs:187: static long diag_count = 0;\n\
 src/compiler/macro_expand/plugin.rs:188: static long diag_levels[DIAG_MAX];\n\
 src/compiler/macro_expand/plugin.rs:189: static AyaBuf diag_msgs[DIAG_MAX];\n\
 src/compiler/macro_expand/plugin_abi.rs:11: pub(crate) const ABI_VERSION: u32 = 7;
-src/compiler/macro_expand/plugin_abi.rs:15: pub(crate) enum ParamKind
-src/compiler/macro_expand/plugin_abi.rs:26: pub(crate) mod dl
-src/compiler/macro_expand/plugin_abi.rs:30: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:31: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
-src/compiler/macro_expand/plugin_abi.rs:32: pub fn dlclose(handle: *mut c_void) -> c_int;
-src/compiler/macro_expand/plugin_abi.rs:33: pub fn dlerror() -> *mut c_char;
-src/compiler/macro_expand/plugin_abi.rs:36: pub(crate) const RTLD_NOW: c_int = 2;
-src/compiler/macro_expand/plugin_abi.rs:40: pub(crate) struct AyaBuf
-src/compiler/macro_expand/plugin_abi.rs:47: pub(crate) struct AyaBufList
-src/compiler/macro_expand/plugin_abi.rs:53: pub(crate) fn load_macro_fn(lcl_path: &str, macro_name: &str) -> Result<(crate::lir::ir::LirFn, crate::lir::ir::LirProgram)>
-src/compiler/macro_expand/plugin_abi.rs:65: pub(crate) fn plan_params(f: &crate::lir::ir::LirFn, args_len: usize, allow_reserved: bool) -> Result<Vec<ParamKind>>
-src/compiler/macro_expand/plugin_abi.rs:114: pub(crate) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
-src/compiler/macro_expand/plugin_abi.rs:130: pub(crate) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
-src/compiler/macro_expand/plugin_abi.rs:152: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
+src/compiler/macro_expand/plugin_abi.rs:14: pub(super) fn done_path(so: &Path) -> PathBuf
+src/compiler/macro_expand/plugin_abi.rs:19: pub(super) fn so_cached(so: &Path) -> bool
+src/compiler/macro_expand/plugin_abi.rs:24: pub(super) fn unique_tag() -> String
+src/compiler/macro_expand/plugin_abi.rs:33: pub(super) fn publish_so(tmp: &Path, so: &Path) -> Result<()>
+src/compiler/macro_expand/plugin_abi.rs:42: pub(crate) enum ParamKind
+src/compiler/macro_expand/plugin_abi.rs:53: pub(crate) mod dl
+src/compiler/macro_expand/plugin_abi.rs:57: pub fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:58: pub fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+src/compiler/macro_expand/plugin_abi.rs:59: pub fn dlclose(handle: *mut c_void) -> c_int;
+src/compiler/macro_expand/plugin_abi.rs:60: pub fn dlerror() -> *mut c_char;
+src/compiler/macro_expand/plugin_abi.rs:63: pub(crate) const RTLD_NOW: c_int = 2;
+src/compiler/macro_expand/plugin_abi.rs:67: pub(crate) struct AyaBuf
+src/compiler/macro_expand/plugin_abi.rs:74: pub(crate) struct AyaBufList
+src/compiler/macro_expand/plugin_abi.rs:80: pub(crate) fn load_macro_fn(lcl_path: &str, macro_name: &str) -> Result<(crate::lir::ir::LirFn, crate::lir::ir::LirProgram)>
+src/compiler/macro_expand/plugin_abi.rs:92: pub(crate) fn plan_params(f: &crate::lir::ir::LirFn, args_len: usize, allow_reserved: bool) -> Result<Vec<ParamKind>>
+src/compiler/macro_expand/plugin_abi.rs:141: pub(crate) fn compile_pic(ll_path: &Path, obj_path: &Path) -> Result<()>
+src/compiler/macro_expand/plugin_abi.rs:157: pub(crate) fn resolve_dep_lcls(lcl_path: &str) -> Result<Vec<String>>
+src/compiler/macro_expand/plugin_abi.rs:179: fn resolve_dep(stem: &str, dir: &Path) -> Option<PathBuf>
 src/compiler/macro_expand/plugin_call.rs:7: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
 src/compiler/macro_expand/plugin_call.rs:8: type FreeFn = unsafe extern "C" fn(AyaBuf);
 src/compiler/macro_expand/plugin_call.rs:10: pub(super) fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Vec<u8>], line: i64, col: i64, file: &[u8]) -> Result<Vec<u8>>

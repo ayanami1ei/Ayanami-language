@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::plugin::{compile_pic, dl, resolve_dep_lcls, AyaBuf, AyaBufList, ABI_VERSION, RTLD_NOW};
+use super::plugin_abi::{publish_so, so_cached, unique_tag};
 use crate::error::{Error, Result};
 use crate::intern::Symbol;
 
@@ -76,13 +77,15 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
     std::fs::create_dir_all(&dir).ok();
     let stem = symbol.replace(|c: char| !c.is_alphanumeric() && c != '_', "_");
     let so_path = dir.join(format!("pass_{}_{:x}.so", stem, hash));
-    if so_path.exists() {
+    if so_cached(&so_path) {
         return Ok(so_path);
     }
 
-    let ll_path = dir.join(format!("pass_{}_{:x}.ll", stem, hash));
-    let obj_path = dir.join(format!("pass_{}_{:x}.o", stem, hash));
-    let shim_path = dir.join(format!("pass_{}_{:x}.c", stem, hash));
+    let uniq = unique_tag();
+    let ll_path = dir.join(format!("pass_{}_{:x}.{uniq}.ll", stem, hash));
+    let obj_path = dir.join(format!("pass_{}_{:x}.{uniq}.o", stem, hash));
+    let shim_path = dir.join(format!("pass_{}_{:x}.{uniq}.c", stem, hash));
+    let tmp_so_path = dir.join(format!("pass_{}_{:x}.{uniq}.tmp", stem, hash));
     std::fs::write(&ll_path, &ir).map_err(|e| Error::Compile(format!("pass IR write: {}", e)))?;
 
     compile_pic(&ll_path, &obj_path)?;
@@ -90,13 +93,11 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
     for dep_ir in &dep_irs {
         let mut h = DefaultHasher::new();
         dep_ir.hash(&mut h);
-        let dep_obj = dir.join(format!("dep_{:x}.o", h.finish()));
-        if !dep_obj.exists() {
-            let dep_ll = dir.join(format!("dep_{:x}.ll", h.finish()));
-            std::fs::write(&dep_ll, dep_ir)
-                .map_err(|e| Error::Compile(format!("pass dep IR write: {}", e)))?;
-            compile_pic(&dep_ll, &dep_obj)?;
-        }
+        let dep_obj = dir.join(format!("dep_{:x}.{uniq}.o", h.finish()));
+        let dep_ll = dir.join(format!("dep_{:x}.{uniq}.ll", h.finish()));
+        std::fs::write(&dep_ll, dep_ir)
+            .map_err(|e| Error::Compile(format!("pass dep IR write: {}", e)))?;
+        compile_pic(&dep_ll, &dep_obj)?;
         link_objs.push(dep_obj);
     }
 
@@ -108,11 +109,20 @@ fn build_pass_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, dep_lcls: &
     for o in &link_objs { gcc.arg(o); }
     let status = gcc
         .arg(&shim_path).arg(&runtime).arg("-lm")
-        .arg("-o").arg(&so_path)
+        .arg("-o").arg(&tmp_so_path)
         .status()
         .map_err(|e| Error::Compile(format!("pass gcc: {}", e)))?;
     if !status.success() {
+        let _ = std::fs::remove_file(&tmp_so_path);
         return Err(Error::Compile(format!("pass plugin link failed for `{}`", symbol)));
+    }
+    publish_so(&tmp_so_path, &so_path)?;
+    for p in [&ll_path, &obj_path, &shim_path] {
+        let _ = std::fs::remove_file(p);
+    }
+    for p in &link_objs[1..] {
+        let _ = std::fs::remove_file(p);
+        let _ = std::fs::remove_file(p.with_extension("ll"));
     }
     Ok(so_path)
 }

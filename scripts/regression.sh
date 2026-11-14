@@ -134,6 +134,24 @@ if [ -f tests/incremental/incremental.aya ]; then
     rm -f "$inc_tmp" "$inc_lib" "$inc_stamp"
 fi
 
+# #214：并发宏插件缓存不得读到半写 .so
+if [ -f example/test_macro_fn.aya ]; then
+    mrace=$(mktemp -d)
+    for _ in 1 2 3; do
+        rm -rf "$mrace/ayanami-macros"
+        TMPDIR="$mrace" "$BIN" check example/test_macro_fn.aya >/dev/null 2>&1 & p1=$!
+        TMPDIR="$mrace" "$BIN" check example/test_macro_fn.aya >/dev/null 2>&1 & p2=$!
+        wait $p1; r1=$?
+        wait $p2; r2=$?
+        if [ "$r1" -ne 0 ] || [ "$r2" -ne 0 ]; then
+            echo "FAIL #214: concurrent macro plugin build ($r1/$r2)"
+            fail=$((fail + 1))
+            break
+        fi
+    done
+    rm -rf "$mrace"
+fi
+
 # #106：零参函数不得发射裸符号（避免与 libc 冲突）
 if [ -f build/test_zero_arg_fn ]; then
     if nm build/test_zero_arg_fn 2>/dev/null | grep -qE ' T time$'; then
