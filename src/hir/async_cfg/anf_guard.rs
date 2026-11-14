@@ -2,7 +2,7 @@
 use std::collections::HashSet;
 
 use crate::intern::Symbol;
-use crate::parser::ast::Expr;
+use crate::parser::ast::{Expr, Pattern};
 
 pub(super) fn guard_ok(e: &Expr, binds: &HashSet<Symbol>) -> bool {
     match e {
@@ -43,5 +43,29 @@ pub(super) fn guard_ok(e: &Expr, binds: &HashSet<Symbol>) -> bool {
         | Expr::Lambda { .. }
         | Expr::MacroCall { .. }
         | Expr::Asm { .. } => false,
+    }
+}
+
+pub(super) fn pattern_bindings(p: &Pattern) -> Vec<Symbol> {
+    let mut out = Vec::new();
+    for b in p.bindings() {
+        // 无参枚举变体在模式 AST 中是带点绑定名（如 Option.None），不是变量绑定。
+        if !b.as_str().contains('.') && !out.contains(&b) {
+            out.push(b);
+        }
+    }
+    out
+}
+
+pub(super) fn or_consistent(p: &Pattern) -> bool {
+    match p {
+        Pattern::Or(ps) => {
+            let Some(first) = ps.first() else { return true };
+            let want = pattern_bindings(first);
+            ps.iter().all(|q| pattern_bindings(q) == want) && ps.iter().all(or_consistent)
+        }
+        Pattern::Enum { args, .. } => args.iter().all(or_consistent),
+        Pattern::Struct { fields, .. } => fields.iter().all(|(_, p)| or_consistent(p)),
+        _ => true,
     }
 }

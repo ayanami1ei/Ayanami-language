@@ -383,12 +383,13 @@ src/hir/async_cfg/anf_for.rs:79: pub(super) fn for_in_stmt(
 src/hir/async_cfg/anf_for.rs:189: fn iter_expr_type(&self, e: &Expr, span: crate::span::Span) -> Option<Type>
 src/hir/async_cfg/anf_for.rs:212: fn patch_continues(stmts: &mut [Stmt], step: &Stmt)
 src/hir/async_cfg/anf_guard.rs:7: pub(super) fn guard_ok(e: &Expr, binds: &HashSet<Symbol>) -> bool
+src/hir/async_cfg/anf_guard.rs:49: pub(super) fn pattern_bindings(p: &Pattern) -> Vec<Symbol>
+src/hir/async_cfg/anf_guard.rs:60: pub(super) fn or_consistent(p: &Pattern) -> bool
 src/hir/async_cfg/anf_match.rs:17: struct Arm
 src/hir/async_cfg/anf_match.rs:24: impl Anf<'_>
 src/hir/async_cfg/anf_match.rs:25: pub(super) fn match_stmt(
-src/hir/async_cfg/anf_match.rs:276: fn probe_type(&self, n: Symbol, span: Span) -> Option<(Type, String)>
-src/hir/async_cfg/anf_match.rs:284: fn src_type(src: &str, span: Span) -> Type
-src/hir/async_cfg/anf_match.rs:288: fn pattern_has_or(p: &Pattern) -> bool
+src/hir/async_cfg/anf_match.rs:270: fn probe_type(&self, n: Symbol, span: Span) -> Option<(Type, String)>
+src/hir/async_cfg/anf_match.rs:278: fn src_type(src: &str, span: Span) -> Type
 src/hir/async_cfg/anf_stmt.rs:6: impl Anf<'_>
 src/hir/async_cfg/anf_stmt.rs:7: pub(super) fn stmt(&mut self, st: &Stmt, pre: &mut Vec<Stmt>) -> Option<Stmt>
 src/hir/async_cfg/anf_stmt.rs:148: pub(super) fn else_chain(
@@ -3055,26 +3056,28 @@ example/test_async_cfg.aya:213: fn for_body(int x) -> int
 example/test_async_cfg.aya:222: fn for_break(int x) -> int
 example/test_async_cfg.aya:232: fn for_continue(int x) -> int
 example/test_async_cfg.aya:242: fn for_usize(usize n) -> int
-example/test_async_cfg.aya:251: fn for_in_expr() -> int
-example/test_async_cfg.aya:260: fn match_arm(Option[int] v) -> int
-example/test_async_cfg.aya:270: fn match_ret(Option[int] v) -> int
-example/test_async_cfg.aya:279: fn match_enum(MatchE v) -> int
-example/test_async_cfg.aya:289: fn match_string(MatchS v) -> String
-example/test_async_cfg.aya:299: fn match_lit(int y) -> int
-example/test_async_cfg.aya:311: fn match_guard(Option[int] v) -> int
-example/test_async_cfg.aya:322: fn match_break(Option[int] v) -> int
-example/test_async_cfg.aya:335: fn match_local(int x) -> int
-example/test_async_cfg.aya:346: fn for_in(RangeIter it) -> int
-example/test_async_cfg.aya:355: fn expr_elif(int x) -> int
-example/test_async_cfg.aya:368: fn while_cond(int x) -> int
-example/test_async_cfg.aya:377: fn while_cond_continue(int x) -> int
-example/test_async_cfg.aya:388: fn loop_expr(int x) -> int
-example/test_async_cfg.aya:397: fn expr_string(int x) -> String
-example/test_async_cfg.aya:403: fn echo(String s) -> String { return s }
-example/test_async_cfg.aya:406: fn pass(int x, String s) -> String
-example/test_async_cfg.aya:413: fn choose_sync(int x) -> int
-example/test_async_cfg.aya:424: fn join(int x) -> String
-example/test_async_cfg.aya:437: fn main() -> int
+example/test_async_cfg.aya:251: fn match_or(Option[int] v) -> int
+example/test_async_cfg.aya:262: fn match_or_bind(MatchE v) -> int
+example/test_async_cfg.aya:271: fn for_in_expr() -> int
+example/test_async_cfg.aya:280: fn match_arm(Option[int] v) -> int
+example/test_async_cfg.aya:290: fn match_ret(Option[int] v) -> int
+example/test_async_cfg.aya:299: fn match_enum(MatchE v) -> int
+example/test_async_cfg.aya:309: fn match_string(MatchS v) -> String
+example/test_async_cfg.aya:319: fn match_lit(int y) -> int
+example/test_async_cfg.aya:331: fn match_guard(Option[int] v) -> int
+example/test_async_cfg.aya:342: fn match_break(Option[int] v) -> int
+example/test_async_cfg.aya:355: fn match_local(int x) -> int
+example/test_async_cfg.aya:366: fn for_in(RangeIter it) -> int
+example/test_async_cfg.aya:375: fn expr_elif(int x) -> int
+example/test_async_cfg.aya:388: fn while_cond(int x) -> int
+example/test_async_cfg.aya:397: fn while_cond_continue(int x) -> int
+example/test_async_cfg.aya:408: fn loop_expr(int x) -> int
+example/test_async_cfg.aya:417: fn expr_string(int x) -> String
+example/test_async_cfg.aya:423: fn echo(String s) -> String { return s }
+example/test_async_cfg.aya:426: fn pass(int x, String s) -> String
+example/test_async_cfg.aya:433: fn choose_sync(int x) -> int
+example/test_async_cfg.aya:444: fn join(int x) -> String
+example/test_async_cfg.aya:457: fn main() -> int
 example/test_async_manual.aya:4: enum Poll[T]
 example/test_async_manual.aya:9: struct Waker
 example/test_async_manual.aya:13: impl Waker

@@ -10,7 +10,7 @@ use crate::parser::ast::{Block, Expr, Literal, Pattern, Program, Stmt, Type};
 use crate::span::Span;
 
 use super::anf::{Anf, expr_has_await, stmt_has_await_local};
-use super::anf_guard::guard_ok;
+use super::anf_guard::{guard_ok, or_consistent, pattern_bindings};
 use super::scan::has_break_continue;
 use super::util::{field_name, source_ty};
 
@@ -56,15 +56,12 @@ impl Anf<'_> {
         let mut out: Vec<Arm> = Vec::with_capacity(arms.len());
         let mut bind_ty: HashMap<Symbol, Type> = HashMap::new();
         for arm in arms {
-            if pattern_has_or(&arm.pattern) {
+            if !or_consistent(&arm.pattern) {
                 return None;
             }
-            let mut bindings = Vec::new();
-            for b in arm.pattern.bindings() {
-                // 无参枚举变体在模式 AST 中是带点绑定名（如 Option.None），不是变量绑定。
-                if b.as_str().contains('.') {
-                    continue;
-                }
+            let bindings = pattern_bindings(&arm.pattern);
+            for b in &bindings {
+                let b = *b;
                 if b == *val_name {
                     return None;
                 }
@@ -81,9 +78,6 @@ impl Anf<'_> {
                     }
                 } else {
                     bind_ty.insert(b, ty);
-                }
-                if !bindings.contains(&b) {
-                    bindings.push(b);
                 }
             }
             let body = match &arm.body {
@@ -283,13 +277,4 @@ impl Anf<'_> {
 
 fn src_type(src: &str, span: Span) -> Type {
     Type::Named(Symbol::intern(src), span)
-}
-
-fn pattern_has_or(p: &Pattern) -> bool {
-    match p {
-        Pattern::Or(_) => true,
-        Pattern::Enum { args, .. } => args.iter().any(pattern_has_or),
-        Pattern::Struct { fields, .. } => fields.iter().any(|(_, p)| pattern_has_or(p)),
-        _ => false,
-    }
 }

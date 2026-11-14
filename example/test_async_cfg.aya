@@ -248,6 +248,26 @@ fn for_usize(usize n) -> int {
 }
 
 #[async]
+fn match_or(Option[int] v) -> int {
+    y = 0
+    match v {
+        Option::Some(1) | Option::Some(2) => { y = await inc(10) }
+        Option::Some(n) => { y = await inc(n) }
+        Option::None => { y = 7 }
+    }
+    return y
+}
+
+#[async]
+fn match_or_bind(MatchE v) -> int {
+    y = 0
+    match v {
+        MatchE::A(n) | MatchE::B(n) => { y = await inc(n) }
+    }
+    return y
+}
+
+#[async]
 fn for_in_expr() -> int {
     s = 0
     for v in (RangeIter { cur = 0, end = 3 }) {
@@ -544,5 +564,17 @@ fn main() -> int {
     if block_on(ref mut f47) != 7 { return 53 }
     f48 = for_in_expr()
     if block_on(ref mut f48) != 6 { return 54 }
+    f49 = match_or(Option::Some(1))
+    if block_on(ref mut f49) != 11 { return 55 }
+    f50 = match_or(Option::Some(2))
+    if block_on(ref mut f50) != 11 { return 56 }
+    f51 = match_or(Option::Some(5))
+    if block_on(ref mut f51) != 6 { return 57 }
+    f52 = match_or(Option::None)
+    if block_on(ref mut f52) != 7 { return 58 }
+    f53 = match_or_bind(MatchE::A(1))
+    if block_on(ref mut f53) != 2 { return 59 }
+    f54 = match_or_bind(MatchE::B(1))
+    if block_on(ref mut f54) != 2 { return 60 }
     return 0
 }
