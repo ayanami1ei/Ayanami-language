@@ -83,12 +83,21 @@ fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()> {
                     }
                 }
             }
-            Stmt::StructDef { attrs, .. }
-            | Stmt::EnumDef { attrs, .. }
+            Stmt::StructDef { attrs, generic_params, .. } => {
+                if let Some(attr) = transform_attr(attrs, tables)? {
+                    if !generic_params.is_empty() {
+                        return Err(Error::Hir(format!(
+                            "transform #[{}] is not supported on generic structs in v1 (at {}:{})",
+                            attr.path_str(), attr.span.start_line, attr.span.start_col
+                        )));
+                    }
+                }
+            }
+            Stmt::EnumDef { attrs, .. }
             | Stmt::InterfaceDef { attrs, .. } => {
                 if let Some(attr) = transform_attr(attrs, tables)? {
                     return Err(Error::Hir(format!(
-                        "transform #[{}] is only supported on function items in v1 (at {}:{})",
+                        "transform #[{}] is only supported on functions and non-generic structs in v1 (at {}:{})",
                         attr.path_str(), attr.span.start_line, attr.span.start_col
                     )));
                 }
@@ -144,8 +153,26 @@ fn collect_item_markers(
             }
             Ok(())
         }
-        HirItem::StructDef(_) | HirItem::InterfaceDef { .. } => Ok(()),
+        HirItem::StructDef(d) => collect_attrs_markers(&d.attrs, tables, out),
+        HirItem::InterfaceDef { .. } => Ok(()),
     }
+}
+
+fn collect_attrs_markers(
+    attrs: &[crate::parser::ast::Attr],
+    tables: &AnnotationTables,
+    out: &mut Vec<(String, String)>,
+) -> Result<()> {
+    for attr in attrs {
+        let Some((pkg, name, AnnKind::Transform, _)) = tables.resolve(attr)? else {
+            continue;
+        };
+        let lcl_path = tables.lcl_path(&pkg).ok_or_else(|| {
+            Error::Hir(format!("transform package `{}` has no .lcl path", pkg))
+        })?;
+        out.push((lcl_path, name));
+    }
+    Ok(())
 }
 
 fn collect_fn_markers(
@@ -181,8 +208,21 @@ fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
             }
             Ok(())
         }
-        HirItem::StructDef(_) | HirItem::InterfaceDef { .. } => Ok(()),
+        HirItem::StructDef(d) => strip_attrs(&mut d.attrs, tables),
+        HirItem::InterfaceDef { .. } => Ok(()),
     }
+}
+
+fn strip_attrs(attrs: &mut Vec<crate::parser::ast::Attr>, tables: &AnnotationTables) -> Result<()> {
+    let mut keep = Vec::with_capacity(attrs.len());
+    for attr in attrs.drain(..) {
+        match tables.resolve(&attr)? {
+            Some((_, _, AnnKind::Transform, _)) => {}
+            _ => keep.push(attr),
+        }
+    }
+    *attrs = keep;
+    Ok(())
 }
 
 fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()> {

@@ -349,15 +349,50 @@ EOF
 import "$tdir/src/lib.lcl"
 
 #[lib::redirect]
-struct Bad { int x }
+enum Bad { A, B }
 
 fn main() -> int { return 0 }
 EOF
                     if "$BIN" check "$bad" >/tmp/transform_bad.out 2>&1; then
                         echo "FAIL A5e/B2e: transform on struct was accepted"
                         fail=$((fail + 1))
-                    elif ! grep -q "only supported on function items" /tmp/transform_bad.out; then
+                    elif ! grep -q "only supported on functions and non-generic structs" /tmp/transform_bad.out; then
                         echo "FAIL A5e/B2e: missing unsupported-target diagnostic"
+                        fail=$((fail + 1))
+                    fi
+                fi
+                # B2f：非泛型 struct 目标可触发 transform
+                cat > "$tdir/src/lib.aya" <<'EOF'
+import "hir"
+
+#[transform]
+#[alloc]
+#[state]
+pub fn struct_bump(String input) -> String {
+    doc = parse_hir(ref input).unwrap()
+    body = single_body(make_return(make_int(8)))
+    result = replace_function_body(ref doc, ref "main", body).unwrap()
+    return render_hir(ref result)
+}
+EOF
+                if ! "$BIN" plugin package "$tdir" >/dev/null 2>&1; then
+                    echo "FAIL A5e/B2f: struct transform package failed"
+                    fail=$((fail + 1))
+                else
+                    cat > "$tconsumer" <<EOF
+import "$tdir/src/lib.lcl"
+
+#[lib::struct_bump]
+struct Point {
+    int x
+}
+
+fn main() -> int { return 7 }
+EOF
+                    "$BIN" run "$tconsumer" >/dev/null 2>&1
+                    got=$?
+                    if [ "$got" != 8 ]; then
+                        echo "FAIL A5e/B2f: struct transform exit $got, want 8"
                         fail=$((fail + 1))
                     fi
                 fi

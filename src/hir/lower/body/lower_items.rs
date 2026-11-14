@@ -50,11 +50,11 @@ impl crate::hir::lower::Ctx {
                     }).collect();
                     items.push(HirItem::InterfaceDef { name: *name, generic_params: generic_params.clone(), methods: hir_methods });
                 }
-                Stmt::StructDef { name, fields, .. } => {
+                Stmt::StructDef { name, fields, attrs, .. } => {
                     let hir_fields: Vec<HirStructField> = fields.iter()
                         .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
                         .collect();
-                    items.push(HirItem::StructDef(HirStructDef { name: *name, fields: hir_fields }));
+                    items.push(HirItem::StructDef(HirStructDef { name: *name, fields: hir_fields, attrs: attrs.clone() }));
                 }
                 Stmt::EnumDef { name, variants, .. } => {
                     let enum_items = self.build_enum_items(name, variants);

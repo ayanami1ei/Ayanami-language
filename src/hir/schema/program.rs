@@ -45,13 +45,20 @@ impl FromJson for HirStructField {
 }
 
 impl ToJson for HirStructDef {
-    fn to_json(&self) -> Value { jobj!({"name": self.name.to_json(), "fields": self.fields.to_json()}) }
+    fn to_json(&self) -> Value {
+        jobj!({"name": self.name.to_json(), "fields": self.fields.to_json(), "attrs": self.attrs.to_json()})
+    }
 }
 impl FromJson for HirStructDef {
     fn from_json(v: &Value) -> Result<Self> {
         Ok(HirStructDef {
             name: FromJson::from_json(field(v, "name")?)?,
             fields: Vec::from_json(field(v, "fields")?)?,
+            // B2f 新字段：旧 transform 插件返回的 schema 1 包没有 attrs，按空处理。
+            attrs: match field(v, "attrs") {
+                Ok(value) => Vec::from_json(value)?,
+                Err(_) => Vec::new(),
+            },
         })
     }
 }

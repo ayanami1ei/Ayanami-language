@@ -13,6 +13,8 @@ pub struct HirStructField {
 pub struct HirStructDef {
     pub name: Symbol,
     pub fields: Vec<HirStructField>,
+    /// A5e/B2f：声明属性透传（struct 级 transform 目标）
+    pub attrs: Vec<crate::parser::ast::Attr>,
 }
 
 #[derive(Debug, Clone)]

@@ -717,17 +717,17 @@ src/hir/effects/scan.rs:62: fn scan_body(stmt: &crate::parser::ast::Stmt, obs: &
 src/hir/effects/scan.rs:123: fn scan_expr(e: &crate::parser::ast::Expr, obs: &mut Vec<Obs>)
 src/hir/item.rs:7: pub struct HirStructField
 src/hir/item.rs:13: pub struct HirStructDef
-src/hir/item.rs:19: pub struct HirLocal
-src/hir/item.rs:27: impl HirLocal
-src/hir/item.rs:28: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
-src/hir/item.rs:31: pub fn result(name: Symbol, ty: HirType, mutable: bool) -> Self
-src/hir/item.rs:39: pub struct VtableEntry
-src/hir/item.rs:47: pub struct HirInterfaceMethod
-src/hir/item.rs:55: pub struct HirFn
-src/hir/item.rs:84: pub enum HirItem
-src/hir/item.rs:100: pub struct ImportedFnSig
-src/hir/item.rs:117: pub struct HirStatic
-src/hir/item.rs:129: pub struct HirProgram
+src/hir/item.rs:21: pub struct HirLocal
+src/hir/item.rs:29: impl HirLocal
+src/hir/item.rs:30: pub fn new(name: Symbol, ty: HirType, mutable: bool) -> Self
+src/hir/item.rs:33: pub fn result(name: Symbol, ty: HirType, mutable: bool) -> Self
+src/hir/item.rs:41: pub struct VtableEntry
+src/hir/item.rs:49: pub struct HirInterfaceMethod
+src/hir/item.rs:57: pub struct HirFn
+src/hir/item.rs:86: pub enum HirItem
+src/hir/item.rs:102: pub struct ImportedFnSig
+src/hir/item.rs:119: pub struct HirStatic
+src/hir/item.rs:131: pub struct HirProgram
 src/hir/layout.rs:8: pub(crate) type StructDefs = HashMap<Symbol, Vec<(Symbol, HirType)>>;
 src/hir/layout.rs:15: pub(crate) fn type_layout(ty: &HirType, defs: &StructDefs) -> (u64, u64)
 src/hir/layout.rs:64: pub(crate) fn field_offset(ty: &HirType, field: Symbol, defs: &StructDefs) -> Option<u64>
@@ -1639,35 +1639,35 @@ src/hir/schema/program.rs:36: fn to_json(&self) -> Value { jobj!({"name": self.n
 src/hir/schema/program.rs:38: impl FromJson for HirStructField
 src/hir/schema/program.rs:39: fn from_json(v: &Value) -> Result<Self>
 src/hir/schema/program.rs:47: impl ToJson for HirStructDef
-src/hir/schema/program.rs:48: fn to_json(&self) -> Value { jobj!({"name": self.name.to_json(), "fields": self.fields.to_json()}) }
-src/hir/schema/program.rs:50: impl FromJson for HirStructDef
-src/hir/schema/program.rs:51: fn from_json(v: &Value) -> Result<Self>
-src/hir/schema/program.rs:59: impl ToJson for HirInterfaceMethod
-src/hir/schema/program.rs:60: fn to_json(&self) -> Value
-src/hir/schema/program.rs:64: impl FromJson for HirInterfaceMethod
-src/hir/schema/program.rs:65: fn from_json(v: &Value) -> Result<Self>
-src/hir/schema/program.rs:75: impl ToJson for VtableEntry
-src/hir/schema/program.rs:76: fn to_json(&self) -> Value
-src/hir/schema/program.rs:80: impl FromJson for VtableEntry
-src/hir/schema/program.rs:81: fn from_json(v: &Value) -> Result<Self>
-src/hir/schema/program.rs:90: impl ToJson for ImportedFnSig
-src/hir/schema/program.rs:91: fn to_json(&self) -> Value
-src/hir/schema/program.rs:99: impl FromJson for ImportedFnSig
-src/hir/schema/program.rs:100: fn from_json(v: &Value) -> Result<Self>
-src/hir/schema/program.rs:114: impl ToJson for HirStatic
-src/hir/schema/program.rs:115: fn to_json(&self) -> Value
-src/hir/schema/program.rs:122: impl FromJson for HirStatic
-src/hir/schema/program.rs:123: fn from_json(v: &Value) -> Result<Self>
-src/hir/schema/program.rs:135: impl ToJson for HirFn
-src/hir/schema/program.rs:136: fn to_json(&self) -> Value
-src/hir/schema/program.rs:148: impl FromJson for HirFn
-src/hir/schema/program.rs:149: fn from_json(v: &Value) -> Result<Self>
-src/hir/schema/program.rs:172: impl ToJson for HirItem
-src/hir/schema/program.rs:173: fn to_json(&self) -> Value
-src/hir/schema/program.rs:184: impl FromJson for HirItem
-src/hir/schema/program.rs:185: fn from_json(v: &Value) -> Result<Self>
-src/hir/schema/program.rs:203: pub fn encode_program(program: &HirProgram) -> Value
-src/hir/schema/program.rs:222: pub fn decode_program(value: &Value) -> Result<HirProgram>
+src/hir/schema/program.rs:48: fn to_json(&self) -> Value
+src/hir/schema/program.rs:52: impl FromJson for HirStructDef
+src/hir/schema/program.rs:53: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:66: impl ToJson for HirInterfaceMethod
+src/hir/schema/program.rs:67: fn to_json(&self) -> Value
+src/hir/schema/program.rs:71: impl FromJson for HirInterfaceMethod
+src/hir/schema/program.rs:72: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:82: impl ToJson for VtableEntry
+src/hir/schema/program.rs:83: fn to_json(&self) -> Value
+src/hir/schema/program.rs:87: impl FromJson for VtableEntry
+src/hir/schema/program.rs:88: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:97: impl ToJson for ImportedFnSig
+src/hir/schema/program.rs:98: fn to_json(&self) -> Value
+src/hir/schema/program.rs:106: impl FromJson for ImportedFnSig
+src/hir/schema/program.rs:107: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:121: impl ToJson for HirStatic
+src/hir/schema/program.rs:122: fn to_json(&self) -> Value
+src/hir/schema/program.rs:129: impl FromJson for HirStatic
+src/hir/schema/program.rs:130: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:142: impl ToJson for HirFn
+src/hir/schema/program.rs:143: fn to_json(&self) -> Value
+src/hir/schema/program.rs:155: impl FromJson for HirFn
+src/hir/schema/program.rs:156: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:179: impl ToJson for HirItem
+src/hir/schema/program.rs:180: fn to_json(&self) -> Value
+src/hir/schema/program.rs:191: impl FromJson for HirItem
+src/hir/schema/program.rs:192: fn from_json(v: &Value) -> Result<Self>
+src/hir/schema/program.rs:210: pub fn encode_program(program: &HirProgram) -> Value
+src/hir/schema/program.rs:229: pub fn decode_program(value: &Value) -> Result<HirProgram>
 src/hir/schema/stmt.rs:18: impl ToJson for HirBlock
 src/hir/schema/stmt.rs:19: fn to_json(&self) -> Value { self.stmts.to_json() }
 src/hir/schema/stmt.rs:21: impl FromJson for HirBlock
@@ -1726,13 +1726,15 @@ src/hir/stmt.rs:117: impl HirBlock
 src/hir/stmt.rs:118: pub fn new(stmts: Vec<HirStmt>) -> Self
 src/hir/transform.rs:12: pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()>
 src/hir/transform.rs:41: fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:111: fn transform_attr<'a>(
-src/hir/transform.rs:123: fn collect_markers(
-src/hir/transform.rs:134: fn collect_item_markers(
-src/hir/transform.rs:151: fn collect_fn_markers(
-src/hir/transform.rs:168: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:175: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:188: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:120: fn transform_attr<'a>(
+src/hir/transform.rs:132: fn collect_markers(
+src/hir/transform.rs:143: fn collect_item_markers(
+src/hir/transform.rs:161: fn collect_attrs_markers(
+src/hir/transform.rs:178: fn collect_fn_markers(
+src/hir/transform.rs:195: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:202: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:216: fn strip_attrs(attrs: &mut Vec<crate::parser::ast::Attr>, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:228: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
 src/hir/ty.rs:4: pub struct VarId(pub usize);
 src/hir/ty.rs:9: pub struct FnId(pub usize);
 src/hir/ty.rs:19: pub enum HirType

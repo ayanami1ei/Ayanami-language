@@ -60,7 +60,7 @@ impl crate::hir::lower::Ctx {
                     .collect(),
                 crate::parser::ast::stmt::EnumFields::None => vec![],
             };
-            items.push(HirItem::StructDef(HirStructDef { name: var_struct_name, fields: hir_fields }));
+            items.push(HirItem::StructDef(HirStructDef { name: var_struct_name, fields: hir_fields, attrs: Vec::new() }));
         }
         let mut enum_fields = vec![HirStructField { name: Symbol::intern("_tag"), ty: HirType::Int }];
         for variant in variants {
@@ -70,7 +70,7 @@ impl crate::hir::lower::Ctx {
         let is_generic = self.generic_struct_params.get(name).map(|g| !g.is_empty()).unwrap_or(false);
         let enum_fields = self.apply_boxing_rewrite(enum_fields, is_generic);
         let enum_fields = self.apply_niche_rewrite(enum_fields);
-        items.push(HirItem::StructDef(HirStructDef { name: *name, fields: enum_fields }));
+        items.push(HirItem::StructDef(HirStructDef { name: *name, fields: enum_fields, attrs: Vec::new() }));
         items
     }
 }

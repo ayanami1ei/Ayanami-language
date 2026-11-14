@@ -632,7 +632,8 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] B2c：clone/append 函数 + FnId/VarId/struct/vtable 引用校验
 - [x] B2d：`function_id` + `replace_call_targets` 调用点重定向
 - [x] B2e：非函数/泛型 transform 目标诊断
-- [ ] B2 后续：借用效应/泛型边界完整校验
+- [x] B2f：非泛型 struct 目标 + HirStructDef attrs 进 schema
+- [ ] B2 后续：泛型支持/借用效应完整校验
 - [x] `#[sync(obj)] { ... }` 同步块（首个内建结构化变换，2026-10-24；见 `docs/sync-blocks.md`）
 - [ ] `#[async]`/`await`（A5e 第二个客户）
 
