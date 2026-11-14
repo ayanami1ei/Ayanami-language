@@ -5,6 +5,17 @@
 > 标准库（std/）符号由 [Ayanami-std](https://github.com/ayanami1ei/Ayanami-std) 子仓自行维护，见其 SYMBOLS.md。
 
 ## Rust
+src/annotation_registry.rs:9: pub enum Category
+src/annotation_registry.rs:22: pub struct Builtin
+src/annotation_registry.rs:41: pub const BUILTINS: &[Builtin] = &[
+src/annotation_registry.rs:71: pub fn builtin(name: &str) -> Option<&'static Builtin>
+src/annotation_registry.rs:76: pub fn is_builtin_name(name: &str) -> bool
+src/annotation_registry.rs:80: pub fn is_declaration_marker(name: &str) -> bool
+src/annotation_registry.rs:85: pub fn is_compiler_attr(a: &Attr) -> bool
+src/annotation_registry.rs:100: mod tests
+src/annotation_registry.rs:104: fn declaration_markers_are_registered()
+src/annotation_registry.rs:112: fn effects_are_builtin_providers()
+src/annotation_registry.rs:119: fn compiler_attrs_accept_core_alias_and_env()
 src/annotation_table.rs:20: pub(crate) enum AnnKind
 src/annotation_table.rs:29: pub(crate) struct PkgAnnotations
 src/annotation_table.rs:40: pub(crate) struct AnnotationTables
@@ -164,8 +175,8 @@ src/compiler/macro_expand/check_plugin.rs:43: fn call_check(so_path: &Path, symb
 src/compiler/macro_expand/expand_util.rs:6: pub(super) fn trace_expansion(macro_name: &str, input: &str, output: &str)
 src/compiler/macro_expand/expand_util.rs:17: pub(super) fn parse_source(code: &str) -> Result<Program>
 src/compiler/macro_expand/expand_util.rs:27: pub(super) fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/expand_util.rs:46: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/expand_util.rs:57: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:31: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:42: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
 src/compiler/macro_expand/mod.rs:18: const MAX_DEPTH: usize = 32;
 src/compiler/macro_expand/mod.rs:20: mod expand_util;
 src/compiler/macro_expand/mod.rs:21: mod plugin_call;
@@ -545,31 +556,30 @@ src/hir/async_while_util.rs:69: pub(super) fn detect(body: &Block) -> Option<Sha
 src/hir/async_while_util.rs:109: pub(super) fn awaited_assignment(st: &Stmt) -> Option<(Symbol, Symbol, Vec<Expr>)>
 src/hir/async_while_util.rs:117: fn ctrl_of(st: &Stmt) -> Option<(Expr, Ctrl)>
 src/hir/async_while_util.rs:128: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, &[Expr])>
-src/hir/attrs.rs:7: pub const ALLOWED: &[&str] = &[
-src/hir/attrs.rs:39: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
-src/hir/attrs.rs:43: pub struct Imports
-src/hir/attrs.rs:50: impl Imports
-src/hir/attrs.rs:51: pub fn collect(program: &Program) -> Self
-src/hir/attrs.rs:59: fn collect_stmt(&mut self, stmt: &Stmt)
-src/hir/attrs.rs:82: pub fn pkg_stem(path: &str) -> String
-src/hir/attrs.rs:92: pub fn has(attrs: &[Attr], name: &str) -> bool
-src/hir/attrs.rs:96: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
-src/hir/attrs.rs:104: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
-src/hir/attrs.rs:140: fn validate_follow_with(a: &Attr) -> Result<()>
-src/hir/attrs.rs:160: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
-src/hir/attrs.rs:166: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
-src/hir/attrs.rs:178: pub fn validate_program(program: &Program) -> Result<()>
-src/hir/attrs.rs:186: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
-src/hir/attrs.rs:209: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:6: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
+src/hir/attrs.rs:10: pub struct Imports
+src/hir/attrs.rs:17: impl Imports
+src/hir/attrs.rs:18: pub fn collect(program: &Program) -> Self
+src/hir/attrs.rs:26: fn collect_stmt(&mut self, stmt: &Stmt)
+src/hir/attrs.rs:49: pub fn pkg_stem(path: &str) -> String
+src/hir/attrs.rs:59: pub fn has(attrs: &[Attr], name: &str) -> bool
+src/hir/attrs.rs:63: pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()>
+src/hir/attrs.rs:71: fn resolve(a: &Attr, imports: &Imports) -> Result<()>
+src/hir/attrs.rs:107: fn validate_follow_with(a: &Attr) -> Result<()>
+src/hir/attrs.rs:127: fn validate_follow_with_attrs(attrs: &[Attr]) -> Result<()>
+src/hir/attrs.rs:133: fn reject_follow_with(attrs: &[Attr], place: &str) -> Result<()>
+src/hir/attrs.rs:145: pub fn validate_program(program: &Program) -> Result<()>
+src/hir/attrs.rs:153: fn validate_param(attrs: &[Attr], ty: &crate::parser::ast::Type) -> Result<()>
+src/hir/attrs.rs:176: fn validate_stmt(stmt: &Stmt, imports: &Imports) -> Result<()>
 src/hir/attrs_export.rs:6: fn find_export(attrs: &[Attr]) -> Option<&Attr>
 src/hir/attrs_export.rs:15: pub(super) fn validate_fn_export(attrs: &[Attr], has_generics: bool) -> Result<()>
 src/hir/attrs_export.rs:28: pub(super) fn validate_compile_time(attrs: &[Attr], has_generics: bool) -> Result<()>
 src/hir/attrs_export.rs:41: pub(super) fn reject_compile_time(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_export.rs:52: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
-src/hir/attrs_macro.rs:19: fn is_compiler_attr(a: &Attr) -> bool
-src/hir/attrs_macro.rs:35: pub fn validate_macros(
-src/hir/attrs_macro.rs:51: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
-src/hir/attrs_macro.rs:127: fn validate_block(
+src/hir/attrs_macro.rs:18: fn is_compiler_attr(a: &Attr) -> bool
+src/hir/attrs_macro.rs:23: pub fn validate_macros(
+src/hir/attrs_macro.rs:39: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
+src/hir/attrs_macro.rs:115: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -1545,23 +1555,24 @@ src/lexer/token.rs:45: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 src/lexer/token_kind.rs:7: pub enum TokenKind
 src/lexer/token_kind.rs:19: impl fmt::Display for TokenKind
 src/lexer/token_kind.rs:20: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
-src/lib.rs:17: mod annotation_table;
-src/lib.rs:18: pub mod compiler;
-src/lib.rs:19: pub mod diagnostics;
-src/lib.rs:20: pub mod driver;
-src/lib.rs:21: pub mod target;
-src/lib.rs:22: pub mod error;
-src/lib.rs:23: pub mod formatter;
-src/lib.rs:24: pub mod hir;
-src/lib.rs:25: pub mod intern;
-src/lib.rs:26: pub mod lexer;
-src/lib.rs:27: pub mod lir;
-src/lib.rs:28: pub mod mir;
-src/lib.rs:29: pub mod package;
-src/lib.rs:30: pub mod parser;
-src/lib.rs:31: pub mod span;
-src/lib.rs:34: mod test_parse
-src/lib.rs:36: fn test_struct_literal_parse()
+src/lib.rs:17: mod annotation_registry;
+src/lib.rs:18: mod annotation_table;
+src/lib.rs:19: pub mod compiler;
+src/lib.rs:20: pub mod diagnostics;
+src/lib.rs:21: pub mod driver;
+src/lib.rs:22: pub mod target;
+src/lib.rs:23: pub mod error;
+src/lib.rs:24: pub mod formatter;
+src/lib.rs:25: pub mod hir;
+src/lib.rs:26: pub mod intern;
+src/lib.rs:27: pub mod lexer;
+src/lib.rs:28: pub mod lir;
+src/lib.rs:29: pub mod mir;
+src/lib.rs:30: pub mod package;
+src/lib.rs:31: pub mod parser;
+src/lib.rs:32: pub mod span;
+src/lib.rs:35: mod test_parse
+src/lib.rs:37: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result

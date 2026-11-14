@@ -5,6 +5,7 @@
 
 ```mermaid
 graph LR
+    annotation_registry
     annotation_table
     cli
     compiler
@@ -21,6 +22,7 @@ graph LR
     parser
     span
     target
+    annotation_registry --> parser
     annotation_table --> error
     annotation_table --> intern
     annotation_table --> parser
@@ -95,6 +97,7 @@ graph LR
 | `mir` | `span` | 2 |
 | `package` | `error` | 2 |
 | `parser` | `error` | 2 |
+| `annotation_registry` | `parser` | 1 |
 | `annotation_table` | `error` | 1 |
 | `annotation_table` | `intern` | 1 |
 | `annotation_table` | `parser` | 1 |
@@ -116,4 +119,4 @@ graph LR
 | `package` | `parser` | 1 |
 | `parser` | `lexer` | 1 |
 
-共 17 个顶层模块、44 条依赖边。
+共 18 个顶层模块、45 条依赖边。

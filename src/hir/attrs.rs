@@ -2,39 +2,6 @@ use std::collections::{HashMap, HashSet};
 use crate::error::{Error, Result};
 use crate::parser::ast::{Attr, Program, Stmt};
 
-/// A0 属性白名单（编译器内置）。A1 起逐个接入 LLVM 语义；未知属性一律报错（ADR-2）。
-/// A5a 起内置名保留裸名，`core::name` 为等价别名；库宏走 `pkg::macro`（provider 解析）。
-pub const ALLOWED: &[&str] = &[
-    "assume",
-    "requires",
-    "ensures",
-    "invariant",
-    "macro",
-    "pass",
-    "check",
-    "attr",
-    "sync",
-    "follow_with",
-    "throws",
-    "no_error",
-    "cfg",
-    "inline",
-    "cold",
-    "noreturn",
-    "pure",
-    "readonly",
-    "nounwind",
-    "willreturn",
-    "noalias",
-    "nonnull",
-    // #84 ③：导出 C 符号（等价 `extern "C"` 定义）
-    "export",
-    // `#[extern]`：C ABI 标注（等价 `extern "C"`，含无体声明）
-    "extern",
-    "copy", // dld：trivial Copy 结构体（句柄类类型）
-    "compile_time", // M6.3：编译期求值函数（常量上下文解释执行）
-];
-
 /// 形参位置允许的属性（A1b）。
 pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
 
@@ -100,12 +67,12 @@ pub fn validate(attrs: &[Attr], imports: &Imports) -> Result<()> {
     Ok(())
 }
 
-/// 解析单个标注：内置白名单 / `core::` 别名 / 库宏（A5b 落地执行）。
+/// 解析单个标注：统一注册表 / `core::` 别名 / 库宏（A5b 落地执行）。
 fn resolve(a: &Attr, imports: &Imports) -> Result<()> {
     if a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env" { return Ok(()); } // E1a：环境提供
     let name = a.name.as_str();
     if a.is_builtin() {
-        if ALLOWED.contains(&name.as_str()) || crate::hir::effects::is_effect(&name) {
+        if crate::annotation_registry::is_builtin_name(&name) {
             return Ok(());
         }
         // 裸名库注解（宏/pass）：import 自动作用域，存在性在导入加载后校验

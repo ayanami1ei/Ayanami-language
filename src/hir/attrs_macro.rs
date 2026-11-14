@@ -13,22 +13,10 @@ use crate::error::{Error, Result};
 use crate::intern::Symbol;
 use crate::parser::ast::{Attr, Program, Stmt};
 
-use super::attrs::ALLOWED;
 
-/// 是否为编译器内置属性（白名单或注册效应；含 `core::` 别名）。
+/// 是否为编译器内置属性（统一注册表；含 effects / `core::` / `env::`）。
 fn is_compiler_attr(a: &Attr) -> bool {
-    let name = a.name.as_str();
-    if crate::hir::effects::is_effect(&name) {
-        return true;
-    }
-    if a.qualifier.is_empty() || (a.qualifier.len() == 1 && a.qualifier[0].as_str() == "core") {
-        return ALLOWED.contains(&name.as_str());
-    }
-    // E1a：环境提供标注（编译器内置命名空间）
-    if a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env" {
-        return true;
-    }
-    false
+    crate::annotation_registry::is_compiler_attr(a)
 }
 
 /// 导入加载完成后校验库注解引用。

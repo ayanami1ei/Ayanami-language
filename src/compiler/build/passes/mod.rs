@@ -43,7 +43,7 @@ fn is_builtin_attr(a: &Attr) -> bool {
     }
     let name = a.name.as_str();
     (a.is_builtin() || (a.qualifier.len() == 1 && a.qualifier[0].as_str() == "core"))
-        && (crate::hir::attrs::ALLOWED.contains(&name.as_str()) || crate::hir::effects::is_effect(&name))
+        && crate::annotation_registry::is_builtin_name(&name)
 }
 
 /// 对 MIR 程序应用所有 `#[pass]` 注解

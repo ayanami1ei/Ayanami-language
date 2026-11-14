@@ -80,53 +80,33 @@ impl Package {
                     }
                     return;
                 }
-                // A5b：宏单独入宏表，不作为普通函数导出
-                if let Some(macro_attr) = attrs.iter().find(|a| a.is_builtin() && a.name.as_str() == "macro") {
+                let full_name = if ns_prefix.is_empty() {
+                    name.as_str().to_string()
+                } else {
+                    format!("{}.{}", ns_prefix, name)
+                };
+                // A5b/A5d/A5f：声明标记统一走注解注册表（宏/pass/check/attr）
+                let marker = attrs.iter().find(|a| {
+                    a.is_builtin()
+                        && crate::annotation_registry::is_declaration_marker(&a.name.as_str())
+                });
+                if let Some(marker) = marker {
                     if all || vis.is_public() {
-                        let full_name = if ns_prefix.is_empty() {
-                            name.as_str().to_string()
-                        } else {
-                            format!("{}.{}", ns_prefix, name)
-                        };
-                        // mcl.1：`#[macro(tokens)]` → token 宏（输入/输出为 TokenStream 编码）
-                        let tokens = macro_attr.args.iter().any(|arg| matches!(
-                            arg,
-                            crate::parser::ast::AttrArg::Expr(e)
-                                if matches!(&**e, crate::parser::ast::Expr::Ident(s, _) if s.as_str() == "tokens")
-                        ));
-                        self.symbols.push(PackageSymbol::Macro { name: full_name, tokens });
-                    }
-                    return;
-                }
-                // A5d：优化注解单独入 pass 表，不作为普通函数导出
-                if attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "pass") {
-                    if all || vis.is_public() {
-                        let full_name = if ns_prefix.is_empty() {
-                            name.as_str().to_string()
-                        } else {
-                            format!("{}.{}", ns_prefix, name)
-                        };
-                        self.symbols.push(PackageSymbol::Pass { name: full_name });
-                    }
-                    return;
-                }
-                // A5f：属性插件入 attr 表
-                if attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "attr") {
-                    if all || vis.is_public() {
-                        let full_name = if ns_prefix.is_empty() { name.as_str().to_string() } else { format!("{}.{}", ns_prefix, name) };
-                        self.symbols.push(PackageSymbol::Attr { name: full_name });
-                    }
-                    return;
-                }
-                // A5d：只读检查注解入 check 表
-                if attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "check") {
-                    if all || vis.is_public() {
-                        let full_name = if ns_prefix.is_empty() {
-                            name.as_str().to_string()
-                        } else {
-                            format!("{}.{}", ns_prefix, name)
-                        };
-                        self.symbols.push(PackageSymbol::Check { name: full_name });
+                        match marker.name.as_str().as_str() {
+                            "macro" => {
+                                // mcl.1：`#[macro(tokens)]` → token 宏
+                                let tokens = marker.args.iter().any(|arg| matches!(
+                                    arg,
+                                    crate::parser::ast::AttrArg::Expr(e)
+                                        if matches!(&**e, crate::parser::ast::Expr::Ident(s, _) if s.as_str() == "tokens")
+                                ));
+                                self.symbols.push(PackageSymbol::Macro { name: full_name, tokens });
+                            }
+                            "pass" => self.symbols.push(PackageSymbol::Pass { name: full_name }),
+                            "check" => self.symbols.push(PackageSymbol::Check { name: full_name }),
+                            "attr" => self.symbols.push(PackageSymbol::Attr { name: full_name }),
+                            _ => {}
+                        }
                     }
                     return;
                 }

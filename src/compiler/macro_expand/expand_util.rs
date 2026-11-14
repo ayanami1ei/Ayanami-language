@@ -25,22 +25,7 @@ pub(super) fn parse_source(code: &str) -> Result<Program> {
 }
 
 pub(super) fn is_compiler_attr(a: &Attr) -> bool {
-    // A1b：`#[async]` 由 HIR 前的 async_transform 消费
-    if a.qualifier.is_empty() && a.name.as_str() == "async" {
-        return true;
-    }
-    // E1a/E2：环境提供标注为编译器内置命名空间
-    if a.qualifier.len() == 1 && a.qualifier[0].as_str() == "env" {
-        return true;
-    }
-    let name = a.name.as_str();
-    if crate::hir::effects::is_effect(&name) {
-        return true;
-    }
-    if a.is_builtin() {
-        return crate::hir::attrs::ALLOWED.contains(&name.as_str());
-    }
-    false
+    crate::annotation_registry::is_compiler_attr(a)
 }
 
 pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>> {

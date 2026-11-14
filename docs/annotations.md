@@ -11,7 +11,7 @@
 
 设计原则（按优先级）：
 
-1. **白名单**：只有属性注册表内的标注有编译器语义；未知标注**报错**（带位置）。
+1. **统一注册表**：内建标注与外部插件都经 provider 解析；未知标注**报错**（带位置）。
 2. **类型系统优先**：能用类型表达的语义不要用标注。例如生命周期用类型参数 `'a`，
    不用 `#[lifetime(...)]`。
 3. **默认信任**：`#[pure]`、`#[noalias]` 等优化承诺等同 `unsafe`——
@@ -435,6 +435,22 @@ struct Holder {
 - **示例**：`example/attr_lib.aya` 的 `add_pure` 在 item 前注入 `#[pure]`；
   `example/test_attr.aya` 验证叠加与实参。
 
+### 8.9 统一注解注册表（A5g，2026-11-14）
+
+A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保留标注**也纳入同一 provider 模型：
+
+- `src/annotation_registry.rs` 登记全部内建标注（类别、是否声明标记），替代散落的
+  `ALLOWED` 白名单；动态 effects 仍由 `EffectRegistry` 提供。
+- 解析优先内建 provider（含 `core::` 别名与 `env::` 命名空间），否则查已导入包的
+  `.lcl` 注解表；未知/歧义规则不分内建或外部。
+- `package/symbols` 用 `is_declaration_marker` 统一识别 `#[macro]` / `#[pass]` /
+  `#[check]` / `#[attr]` 声明并写入对应表，避免四套硬编码判断。
+- 现阶段内建标注的**执行**仍在各编译器 pass 中（cfg/契约/效应/优化等）；
+  注册表统一的是身份、类别、目标与 provider 解析。`#[transform]`（A5e）仍为内建接口，
+  待稳定后再开放第三方 HIR 插件。
+- 收益：新增内建标注只需登记一次；工具可枚举标注类别；外部插件与内建标注共享
+  解析/歧义/诊断路径。
+
 ## 9. 实现接口（跨包与工具）
 
 | 层 | 载体 |
@@ -571,6 +587,12 @@ struct Holder {
 - [x] `#[attr]` 声明 + `.lcl` `attr=` 表 + `AnnKind::Attr` 解析/跨类别唯一
 - [x] item 级 source→source 属性插件（复用宏 ABI/shim/缓存；按书写顺序叠加）
 - [x] 示例 `attr_lib` / `test_attr`；语句/字段级与 token 属性列为后续
+
+### A5g（2026-11-14）
+
+- [x] 统一注解注册表：内建标注类别/声明标记 + effects 动态 provider
+- [x] 移除 `ALLOWED` 散落白名单；package 声明表统一走 `is_declaration_marker`
+- [ ] 内建 pass 的 handler trait 化 / 第三方 `#[transform]`（待 HIR schema 稳定）
 
 ### 已知问题
 
