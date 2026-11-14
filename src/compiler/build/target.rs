@@ -38,14 +38,24 @@ pub fn build_source_with_target(
         return Err(Error::Compile(
             "freestanding mode only supports object artifacts; use [build] target = \"object\"".into()));
     }
-    // 默认关闭：std 测试脚本每次重装 .lcl，需按安装目录内容建键后再默认开启
-    let cacheable = target == Some("executable") && std::env::var("AYANAMI_NO_INCREMENTAL").is_err();
     let stem = std::path::Path::new(src_path).file_stem()
         .map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-    let exe = std::path::Path::new(out_dir).join(&stem);
-    let stamp = std::path::Path::new(out_dir).join(format!("{}.stamp", stem));
-    let key = crate::compiler::build::cache_key(src_path, code);
-    if cacheable && exe.exists()
+    // 未显式指定 target 时与下面 inner 的默认规则保持一致。
+    let effective_target = target.unwrap_or_else(|| {
+        if stem == "main" { "executable" } else { "static-lib" }
+    });
+    let artifact = match effective_target {
+        "executable" => Some(std::path::Path::new(out_dir).join(&stem)),
+        "static-lib" => Some(std::path::Path::new(out_dir).join(format!("lib{}.a", stem))),
+        "dynamic-lib" => Some(std::path::Path::new(out_dir).join(format!("lib{}.so", stem))),
+        "object" => Some(std::path::Path::new(out_dir).join(format!("{}.o", stem))),
+        _ => None,
+    };
+    // 每个 target 独立 stamp，避免同一 stem 的 executable/static-lib 互相误命中。
+    let stamp = std::path::Path::new(out_dir).join(format!("{}.{}.stamp", stem, effective_target));
+    let cacheable = artifact.is_some() && std::env::var("AYANAMI_NO_INCREMENTAL").is_err();
+    let key = crate::compiler::build::cache_key(src_path, code, effective_target);
+    if cacheable && artifact.as_ref().is_some_and(|p| p.exists())
         && std::fs::read_to_string(&stamp).ok().as_deref() == Some(key.as_str())
     {
         return Ok(());

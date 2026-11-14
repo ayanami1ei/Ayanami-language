@@ -103,6 +103,37 @@ if [ -d tests/cfg_arch ]; then
     fi
 fi
 
+# #213：static-lib 粗粒度增量缓存（源码不变复用；源码变化失效）
+if [ -f tests/incremental/incremental.aya ]; then
+    inc_tmp=$(mktemp /tmp/ayanami-incr-XXXXXX.aya)
+    cp tests/incremental/incremental.aya "$inc_tmp"
+    inc_stem=$(basename "$inc_tmp" .aya)
+    inc_lib="build/lib${inc_stem}.a"
+    inc_stamp="build/${inc_stem}.static-lib.stamp"
+    rm -f "$inc_lib" "$inc_stamp"
+    if ! "$BIN" build "$inc_tmp" >/dev/null 2>&1; then
+        echo "FAIL #213: first static-lib build failed"
+        fail=$((fail + 1))
+    else
+        t1=$(stat -c %Y "$inc_lib" 2>/dev/null || echo "")
+        sleep 1
+        "$BIN" build "$inc_tmp" >/dev/null 2>&1
+        t2=$(stat -c %Y "$inc_lib" 2>/dev/null || echo "")
+        if [ -z "$t1" ] || [ "$t1" != "$t2" ]; then
+            echo "FAIL #213: unchanged source did not reuse static-lib"
+            fail=$((fail + 1))
+        fi
+        printf '\n// cache bust\n' >> "$inc_tmp"
+        "$BIN" build "$inc_tmp" >/dev/null 2>&1
+        t3=$(stat -c %Y "$inc_lib" 2>/dev/null || echo "")
+        if [ -n "$t2" ] && [ "$t2" = "$t3" ]; then
+            echo "FAIL #213: changed source did not invalidate cache"
+            fail=$((fail + 1))
+        fi
+    fi
+    rm -f "$inc_tmp" "$inc_lib" "$inc_stamp"
+fi
+
 # #106：零参函数不得发射裸符号（避免与 libc 冲突）
 if [ -f build/test_zero_arg_fn ]; then
     if nm build/test_zero_arg_fn 2>/dev/null | grep -qE ' T time$'; then

@@ -33,12 +33,16 @@ pub fn build_source_to(src_path: &str, _code: &str, out_dir: &str) -> Result<()>
 }
 
 /// #35 增量键：源码内容 + 编译器指纹 + 构建模式 + 编译期环境 + 源祖先目录 .aya/.lcl/.c 最新 mtime。
-pub(crate) fn cache_key(src_path: &str, code: &str) -> String {
+pub(crate) fn cache_key(src_path: &str, code: &str, target: &str) -> String {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
     code.hash(&mut h);
     env!("AYANAMI_COMPILER_FP").hash(&mut h);
     crate::driver::build_mode_key().hash(&mut h);
+    // 目标类型/三元组/裸机模式都会改变产物语义，必须进入缓存键。
+    target.hash(&mut h);
+    crate::target::target_triple().hash(&mut h);
+    crate::target::freestanding().hash(&mut h);
     // 影响代码生成的编译期环境/工作目录（cfg feature、自定义 runtime 等）
     for k in ["AYANAMI_FEATURES", "AYANAMI_RUNTIME", "AYANAMI_CHECKS", "AYANAMI_LTO", "AYANAMI_BUILD_ID", "AYANAMI_ASYNC_CFG"] {
         std::env::var(k).unwrap_or_default().hash(&mut h);

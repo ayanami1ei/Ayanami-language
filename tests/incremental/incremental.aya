@@ -1,0 +1,4 @@
+// 增量缓存回归：源码/依赖不变时 build 应复用产物。
+pub fn value() -> int {
+    return 41 + 1
+}
