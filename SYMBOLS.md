@@ -6,16 +6,16 @@
 
 ## Rust
 src/annotation_table.rs:20: pub(crate) enum AnnKind
-src/annotation_table.rs:28: pub(crate) struct PkgAnnotations
-src/annotation_table.rs:38: pub(crate) struct AnnotationTables
-src/annotation_table.rs:42: impl AnnotationTables
-src/annotation_table.rs:43: pub fn is_empty(&self) -> bool
-src/annotation_table.rs:47: pub fn collect(stmts: &[Stmt]) -> Result<Self>
-src/annotation_table.rs:54: pub(crate) fn from_kind_maps(
-src/annotation_table.rs:81: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()>
-src/annotation_table.rs:117: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
-src/annotation_table.rs:163: pub(crate) fn resolve_kind(&self, a: &Attr) -> Result<Option<AnnKind>>
-src/annotation_table.rs:167: pub fn lcl_path(&self, pkg: &str) -> Option<String>
+src/annotation_table.rs:29: pub(crate) struct PkgAnnotations
+src/annotation_table.rs:40: pub(crate) struct AnnotationTables
+src/annotation_table.rs:44: impl AnnotationTables
+src/annotation_table.rs:45: pub fn is_empty(&self) -> bool
+src/annotation_table.rs:49: pub fn collect(stmts: &[Stmt]) -> Result<Self>
+src/annotation_table.rs:56: pub(crate) fn from_kind_maps(
+src/annotation_table.rs:90: fn collect_stmts(&mut self, stmts: &[Stmt]) -> Result<()>
+src/annotation_table.rs:128: pub fn resolve(&self, a: &Attr) -> Result<Option<(String, String, AnnKind, bool)>>
+src/annotation_table.rs:179: pub(crate) fn resolve_kind(&self, a: &Attr) -> Result<Option<AnnKind>>
+src/annotation_table.rs:183: pub fn lcl_path(&self, pkg: &str) -> Option<String>
 src/cli/build.rs:3: pub(crate) fn cmd_build(args: &[String])
 src/cli/build.rs:31: pub(crate) fn cmd_run(args: &[String])
 src/cli/check.rs:3: fn do_check(path: &Path) -> ayanami::error::Result<()>
@@ -71,12 +71,12 @@ src/cli/update_fetch.rs:98: pub(super) fn download(src: &str, dest: &Path, limit
 src/cli/update_fetch.rs:126: pub(super) fn tar_listing(tar: &Path) -> Result<String>
 src/cli/update_fetch.rs:136: pub(super) fn ensure_target_ok(target: &Path, force: bool) -> Result<()>
 src/compiler/build/compile.rs:6: pub fn compile_file(
-src/compiler/build/compile.rs:156: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
+src/compiler/build/compile.rs:153: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
-src/compiler/build/deps.rs:146: pub(super) fn merge_dep_struct_defs(
-src/compiler/build/deps.rs:162: pub(super) fn merge_symbols(pkg: &mut crate::package::Package, dep_lcl_paths: &[PathBuf])
-src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(
-src/compiler/build/lir.rs:43: pub(super) fn build_target_artifact(
+src/compiler/build/deps.rs:129: pub(super) fn merge_dep_struct_defs(
+src/compiler/build/deps.rs:146: pub(super) fn merge_symbols(
+src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<(
+src/compiler/build/lir.rs:34: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:13: mod compile;
 src/compiler/build/mod.rs:14: mod deps;
 src/compiler/build/mod.rs:15: mod lir;
@@ -89,16 +89,16 @@ src/compiler/build/mod.rs:35: fn import_names(code: &str) -> Vec<String>
 src/compiler/build/mod.rs:54: fn hash_import_closure(
 src/compiler/build/mod.rs:82: pub(crate) fn cache_key(src_path: &str, code: &str, target: &str) -> String
 src/compiler/build/package.rs:4: pub(super) fn emit_lcl_package(
-src/compiler/build/package.rs:40: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
-src/compiler/build/package.rs:101: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
-src/compiler/build/package.rs:112: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
+src/compiler/build/package.rs:27: pub fn package_source(src_path: &str, _code: &str) -> Result<()>
+src/compiler/build/package.rs:81: fn dep_stems(paths: &[PathBuf]) -> Vec<String>
+src/compiler/build/package.rs:91: pub fn install_package(lcl_path: &str, target_type: Option<&str>) -> Result<()>
 src/compiler/build/passes/apply.rs:18: fn compute_sizes(child_counts: &[i64]) -> Vec<usize>
-src/compiler/build/passes/apply.rs:37: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
-src/compiler/build/passes/apply.rs:44: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
-src/compiler/build/passes/apply.rs:50: fn collect_clones(f: &MirFn, n: usize) -> Vec<Option<MirNodeBox>>
-src/compiler/build/passes/apply.rs:59: fn apply_expr(
-src/compiler/build/passes/apply.rs:166: fn apply_stmt(
-src/compiler/build/passes/apply.rs:219: pub(super) fn apply_edits(
+src/compiler/build/passes/apply.rs:35: fn collect_expr(e: &dyn MirNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
+src/compiler/build/passes/apply.rs:42: fn collect_stmt(s: &dyn MirStmtNode, out: &mut Vec<Option<MirNodeBox>>, idx: &mut usize)
+src/compiler/build/passes/apply.rs:48: fn collect_clones(f: &MirFn, n: usize) -> Vec<Option<MirNodeBox>>
+src/compiler/build/passes/apply.rs:57: fn apply_expr(
+src/compiler/build/passes/apply.rs:140: fn apply_stmt(
+src/compiler/build/passes/apply.rs:179: pub(super) fn apply_edits(f: &mut MirFn, view: &FlatView, edits: &EditView, a: &Attr) -> Result<()>
 src/compiler/build/passes/flat.rs:11: pub(super) const SCHEMA_VERSION: i64 = 3;
 src/compiler/build/passes/flat.rs:13: pub(super) const HEADER_WORDS: usize = 4;
 src/compiler/build/passes/flat.rs:15: pub(super) const ARRAY_COUNT: usize = 15;
@@ -109,33 +109,33 @@ src/compiler/build/passes/flat.rs:21: pub(super) const KIND_EXPR: i64 = 2;
 src/compiler/build/passes/flat.rs:23: pub(super) struct FlatView
 src/compiler/build/passes/flat.rs:28: impl FlatView
 src/compiler/build/passes/flat.rs:29: pub(super) fn new(purity: HashMap<FnId, bool>) -> Self
-src/compiler/build/passes/flat.rs:36: pub(super) fn len(&self) -> usize
-src/compiler/build/passes/flat.rs:43: fn push(
-src/compiler/build/passes/flat.rs:82: fn set_child_count(&mut self, idx: usize, n: i64)
-src/compiler/build/passes/flat.rs:87: fn op_code(op: BinaryOp) -> i64
-src/compiler/build/passes/flat.rs:110: fn unary_code(op: UnaryOp) -> i64
-src/compiler/build/passes/flat.rs:120: fn lit_kind(v: &HirLiteral) -> i64
-src/compiler/build/passes/flat.rs:131: fn lit_i64(v: &HirLiteral) -> i64
-src/compiler/build/passes/flat.rs:141: fn lit_f64(v: &HirLiteral) -> i64
-src/compiler/build/passes/flat.rs:148: fn walk_expr(e: &dyn MirNode, v: &mut FlatView) -> usize
-src/compiler/build/passes/flat.rs:190: fn stmt_kind(s: &dyn MirStmtNode) -> i64
-src/compiler/build/passes/flat.rs:220: fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize
-src/compiler/build/passes/flat.rs:251: fn push_i64(buf: &mut Vec<u8>, v: i64)
-src/compiler/build/passes/flat.rs:256: pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8>
-src/compiler/build/passes/flat.rs:279: pub(super) fn read_i64(buf: &[u8], off: usize) -> i64
-src/compiler/build/passes/flat.rs:285: pub(super) struct EditView
-src/compiler/build/passes/flat.rs:290: pub(super) struct PassOutput
-src/compiler/build/passes/flat.rs:297: pub(super) fn parse_output(input: &[u8], out: &[u8], a: &Attr) -> Result<PassOutput>
-src/compiler/build/passes/flat.rs:334: pub(super) fn deserialize_view(blob: &[u8]) -> FlatView
+src/compiler/build/passes/flat.rs:33: pub(super) fn len(&self) -> usize
+src/compiler/build/passes/flat.rs:40: fn push(&mut self, kind: i64, call: bool, callee_pure: bool, alloc: bool, asm: bool, store: bool, op: i64, lit_kind: i64, lit_i64: i64, lit_f64: i64, stmt_kind: i64, var_id: i64) -> usize
+src/compiler/build/passes/flat.rs:49: fn set_child_count(&mut self, idx: usize, n: i64)
+src/compiler/build/passes/flat.rs:54: fn op_code(op: BinaryOp) -> i64
+src/compiler/build/passes/flat.rs:65: fn unary_code(op: UnaryOp) -> i64
+src/compiler/build/passes/flat.rs:73: fn lit_kind(v: &HirLiteral) -> i64
+src/compiler/build/passes/flat.rs:84: fn lit_i64(v: &HirLiteral) -> i64
+src/compiler/build/passes/flat.rs:94: fn lit_f64(v: &HirLiteral) -> i64
+src/compiler/build/passes/flat.rs:101: fn walk_expr(e: &dyn MirNode, v: &mut FlatView) -> usize
+src/compiler/build/passes/flat.rs:125: fn stmt_kind(s: &dyn MirStmtNode) -> i64
+src/compiler/build/passes/flat.rs:141: fn walk_stmt(s: &dyn MirStmtNode, v: &mut FlatView) -> usize
+src/compiler/build/passes/flat.rs:151: fn push_i64(buf: &mut Vec<u8>, v: i64)
+src/compiler/build/passes/flat.rs:156: pub(super) fn serialize_fn(f: &MirFn, purity: &HashMap<FnId, bool>) -> Vec<u8>
+src/compiler/build/passes/flat.rs:179: pub(super) fn read_i64(buf: &[u8], off: usize) -> i64
+src/compiler/build/passes/flat.rs:185: pub(super) struct EditView
+src/compiler/build/passes/flat.rs:190: pub(super) struct PassOutput
+src/compiler/build/passes/flat.rs:197: pub(super) fn parse_output(input: &[u8], out: &[u8], a: &Attr) -> Result<PassOutput>
+src/compiler/build/passes/flat.rs:225: pub(super) fn deserialize_view(blob: &[u8]) -> FlatView
 src/compiler/build/passes/mod.rs:15: mod apply;
 src/compiler/build/passes/mod.rs:16: mod flat;
 src/compiler/build/passes/mod.rs:22: fn purity_map(hir: &HirProgram) -> HashMap<FnId, bool>
 src/compiler/build/passes/mod.rs:39: fn is_builtin_attr(a: &Attr) -> bool
-src/compiler/build/passes/mod.rs:51: pub(super) fn apply_passes(
+src/compiler/build/passes/mod.rs:50: pub(super) fn apply_passes(
 src/compiler/build/target.rs:6: fn scan_source_deps(src_path: &Path) -> bool
-src/compiler/build/target.rs:39: pub fn build_source_with_target(
-src/compiler/build/target.rs:87: fn build_source_with_target_inner(
-src/compiler/build/target.rs:220: pub fn run_executable(exe_name: &str) -> Result<i32>
+src/compiler/build/target.rs:31: pub fn build_source_with_target(
+src/compiler/build/target.rs:68: fn build_source_with_target_inner(
+src/compiler/build/target.rs:198: pub fn run_executable(exe_name: &str) -> Result<i32>
 src/compiler/check.rs:5: pub fn check_hir_returns(hir: &HirProgram, _src_path: &Path) -> Result<()>
 src/compiler/check.rs:37: fn has_return_in_item(item: &HirItem) -> bool
 src/compiler/check.rs:46: fn has_return_in_stmt(s: &HirStmt) -> bool
@@ -184,8 +184,8 @@ src/compiler/macro_expand/mod.rs:61: fn collect(program: &Program, src_path: &Pa
 src/compiler/macro_expand/mod.rs:69: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
 src/compiler/macro_expand/mod.rs:75: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/mod.rs:92: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
-src/compiler/macro_expand/mod.rs:206: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
-src/compiler/macro_expand/mod.rs:227: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:212: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
+src/compiler/macro_expand/mod.rs:239: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/pass_plugin.rs:18: const SCHEMA_VERSION: i64 = 3;
 src/compiler/macro_expand/pass_plugin.rs:22: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
 src/compiler/macro_expand/pass_plugin.rs:48: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
@@ -545,7 +545,7 @@ src/hir/async_while_util.rs:69: pub(super) fn detect(body: &Block) -> Option<Sha
 src/hir/async_while_util.rs:109: pub(super) fn awaited_assignment(st: &Stmt) -> Option<(Symbol, Symbol, Vec<Expr>)>
 src/hir/async_while_util.rs:117: fn ctrl_of(st: &Stmt) -> Option<(Expr, Ctrl)>
 src/hir/async_while_util.rs:128: pub(super) fn await_parts(value: &Expr) -> Option<(Symbol, &[Expr])>
-src/hir/attrs.rs:8: pub const ALLOWED: &[&str] = &[
+src/hir/attrs.rs:7: pub const ALLOWED: &[&str] = &[
 src/hir/attrs.rs:39: pub const PARAM_ALLOWED: &[&str] = &["noalias", "nonnull"];
 src/hir/attrs.rs:43: pub struct Imports
 src/hir/attrs.rs:50: impl Imports
@@ -568,8 +568,8 @@ src/hir/attrs_export.rs:41: pub(super) fn reject_compile_time(attrs: &[Attr], pl
 src/hir/attrs_export.rs:52: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_macro.rs:18: fn is_compiler_attr(a: &Attr) -> bool
 src/hir/attrs_macro.rs:34: pub fn validate_macros(
-src/hir/attrs_macro.rs:49: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
-src/hir/attrs_macro.rs:118: fn validate_block(
+src/hir/attrs_macro.rs:50: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
+src/hir/attrs_macro.rs:126: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
@@ -987,20 +987,20 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:118: pub struct SyncLock
-src/hir/lower/ctx.rs:122: impl Ctx
-src/hir/lower/ctx.rs:124: pub fn new() -> Self
-src/hir/lower/ctx.rs:188: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:191: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:194: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:199: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:208: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:213: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:221: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:231: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:244: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:252: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:258: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:120: pub struct SyncLock
+src/hir/lower/ctx.rs:124: impl Ctx
+src/hir/lower/ctx.rs:126: pub fn new() -> Self
+src/hir/lower/ctx.rs:191: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:194: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:197: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:202: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:211: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:216: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:224: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:234: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:247: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:255: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:261: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_env.rs:4: impl Ctx
 src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
 src/hir/lower/ctx_env.rs:36: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -2590,12 +2590,13 @@ src/mir/mod.rs:10: pub mod mem;
 src/mir/mod.rs:11: pub mod borrow;
 src/package/annotate.rs:5: impl Package
 src/package/annotate.rs:8: pub fn validate_annotation_names(&self) -> Result<()>
-src/package/annotate.rs:30: mod tests
-src/package/annotate.rs:34: fn duplicate_annotation_names_across_kinds_rejected()
-src/package/annotate.rs:46: fn distinct_annotation_names_accepted()
+src/package/annotate.rs:31: mod tests
+src/package/annotate.rs:35: fn duplicate_annotation_names_across_kinds_rejected()
+src/package/annotate.rs:47: fn attr_collides_with_other_annotation_kinds()
+src/package/annotate.rs:55: fn distinct_annotation_names_accepted()
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:102: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:105: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:21: impl ProjectConfig
 src/package/config.rs:22: pub fn load(toml_content: &str) -> Self
@@ -2610,14 +2611,14 @@ src/package/const_codec.rs:75: pub fn lit_from_str(ty: &HirType, s: &str) -> Opt
 src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
 src/package/load.rs:3: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:135: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
-src/package/load.rs:155: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:167: pub fn load_version(path: &str) -> Option<String>
-src/package/load.rs:180: pub fn warn_version_drift(path: &str, stem: &str)
-src/package/load.rs:182: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
-src/package/load.rs:200: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:234: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
-src/package/load.rs:264: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/load.rs:138: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
+src/package/load.rs:159: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:171: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:184: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:186: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:204: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:238: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:268: pub(super) fn type_to_string(ty: &Type) -> String
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod annotate;
 src/package/mod.rs:7: mod bytes;
@@ -2641,7 +2642,7 @@ src/package/target.rs:11: pub fn as_str(&self) -> &'static str
 src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:19: pub enum PackageSymbol
-src/package/types.rs:71: pub enum ImportedSymbol
+src/package/types.rs:75: pub enum ImportedSymbol
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block
@@ -2839,6 +2840,8 @@ src/target.rs:76: pub fn target_is_unix() -> bool
 src/target.rs:84: pub fn is_cross_target(triple: &str) -> bool
 
 ## Ayanami (.aya)
+example/attr_lib.aya:7: pub fn add_pure(String input) -> String
+example/attr_lib.aya:13: pub fn mark(String input, String tag) -> String
 example/await_elif_mixed_stmt.aya:2: enum Poll[T] { Ready(T), Pending }
 example/await_elif_mixed_stmt.aya:3: struct Context { int x }
 example/await_elif_mixed_stmt.aya:5: fn g(int x) -> int { return x + 1 }
@@ -3105,6 +3108,8 @@ example/test_async_sugar.aya:27: fn sum2(int a, int b) -> int
 example/test_async_sugar.aya:32: fn pick(int a, int b, int c) -> int
 example/test_async_sugar.aya:40: fn block_on[F: Future[int]](ref mut F f) -> int
 example/test_async_sugar.aya:53: fn main() -> int
+example/test_attr.aya:6: fn square(int x) -> int
+example/test_attr.aya:10: fn main() -> int
 example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }
 example/test_attrs.aya:9: fn main() -> int
 example/test_bitwise.aya:2: fn shl_u8(u8 a, u8 b) -> u8 { return a << b }
