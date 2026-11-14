@@ -566,10 +566,10 @@ src/hir/attrs_export.rs:15: pub(super) fn validate_fn_export(attrs: &[Attr], has
 src/hir/attrs_export.rs:28: pub(super) fn validate_compile_time(attrs: &[Attr], has_generics: bool) -> Result<()>
 src/hir/attrs_export.rs:41: pub(super) fn reject_compile_time(attrs: &[Attr], place: &str) -> Result<()>
 src/hir/attrs_export.rs:52: pub(super) fn reject_export(attrs: &[Attr], place: &str) -> Result<()>
-src/hir/attrs_macro.rs:18: fn is_compiler_attr(a: &Attr) -> bool
-src/hir/attrs_macro.rs:34: pub fn validate_macros(
-src/hir/attrs_macro.rs:50: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
-src/hir/attrs_macro.rs:126: fn validate_block(
+src/hir/attrs_macro.rs:19: fn is_compiler_attr(a: &Attr) -> bool
+src/hir/attrs_macro.rs:35: pub fn validate_macros(
+src/hir/attrs_macro.rs:51: fn validate_macros_stmt(stmt: &Stmt, tables: &AnnotationTables, out: &mut Result<()>)
+src/hir/attrs_macro.rs:127: fn validate_block(
 src/hir/cfg.rs:14: pub fn filter_program(program: &Program) -> Result<Program>
 src/hir/cfg.rs:19: pub fn filter_stmts(stmts: &[Stmt]) -> Result<Vec<Stmt>>
 src/hir/cfg.rs:29: fn filter_one(stmt: &Stmt) -> Result<Option<Stmt>>
