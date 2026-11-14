@@ -1,4 +1,4 @@
-# 第三方插件作者指南（A5h）
+# 第三方插件作者指南（A5h/A5j）
 
 Ayanami 插件是普通的 Ayanami 源码库：用 `#[macro]` / `#[pass]` / `#[check]` /
 `#[attr]` 声明能力，打包为 `.lcl` 供其他项目导入。插件代码在**使用方编译期**执行，
@@ -67,6 +67,28 @@ my_plugin = "plugins/my_plugin.lcl"
 之后即可 `import "my_plugin"` 并使用 `#[my_plugin::identity]`。也支持手动把 `.lcl`
 放到任意位置并在 `[dependencies]` 写相对/绝对路径；`import` 使用依赖别名即可。
 同名依赖已存在但路径不同时，安装会报错而不是覆盖。
+
+## 本地 registry
+
+除了传 `.lcl` 路径，也可以按名字/版本安装：
+
+```bash
+# registry 目录里有 index.toml + .lcl
+AYANAMI_PLUGIN_REGISTRY=vendor/registry ayanami plugin install my_plugin@0.1.0
+ayanami plugin install my_plugin        # 选择 registry 最高版本
+ayanami plugin verify                   # 校验 ayanami.lock 的 SHA-256
+```
+
+也可以在项目配置里写：
+
+```toml
+[plugins]
+registry = "vendor/registry"
+```
+
+安装会写入 `ayanami.lock`，重复安装命中锁定版本；`--update` 才允许换版本。
+registry 不可用时，之前安装过的版本可从 `$AYANAMI_PLUGIN_HOME/cache/plugins` 离线恢复。
+完整格式/错误规则见 [`docs/plugin-registry.md`](plugin-registry.md)。
 
 ## 跨平台
 

@@ -165,6 +165,8 @@ fn marked() -> int { return 7 }
 
 也可以手动复制 `.lcl` 并写 `[dependencies] my_plugin = "plugins/my_plugin.lcl"`。
 `.lcl` 自带 `[plugin]` 清单，安装/导入时会校验插件 ABI 与最低编译器版本。
+也可以配置本地 registry，用 `ayanami plugin install my_plugin@0.1.0` 并按
+`ayanami.lock` 固定版本和 SHA-256。
 插件在消费方编译期构建本机动态库并执行（信任级同 proc-macro）；Linux 用 `.so`，
 macOS 用 `.dylib`，Windows 用 `.dll`。当前 runtime 仍以 Linux 为主，其他平台的
 runtime 端口属于编译器整体平台化工作。完整作者/安装/跨平台指南见

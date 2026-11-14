@@ -9,7 +9,7 @@ pub(crate) mod const_codec;
 mod load;
 mod plugin;
 pub use plugin::{load_checked_manifest, PluginManifest};
-pub(crate) use plugin::PLUGIN_ABI_VERSION;
+pub(crate) use plugin::{parse_version, PLUGIN_ABI_VERSION};
 mod symbols;
 mod target;
 mod types;

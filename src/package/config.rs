@@ -16,6 +16,8 @@ pub struct ProjectConfig {
     pub runtime: Option<String>,
     /// M8：启用 feature 列表（`features = ["a", "b"]`，供 `#[cfg(feature = "a")]`）
     pub features: Vec<String>,
+    /// A5j-2：本地插件 registry 目录（`[plugins] registry`），相对项目根
+    pub plugin_registry: Option<String>,
 }
 
 impl ProjectConfig {
@@ -30,7 +32,9 @@ impl ProjectConfig {
         let mut in_targets = false;
         let mut in_deps = false;
         let mut in_runtime = false;
+        let mut in_plugins = false;
         let mut runtime: Option<String> = None;
+        let mut plugin_registry: Option<String> = None;
         let mut dependencies = HashMap::new();
         let mut features: Vec<String> = Vec::new();
 
@@ -41,6 +45,7 @@ impl ProjectConfig {
                 in_targets = line.starts_with("[build.targets]");
                 in_deps = line.starts_with("[dependencies]");
                 in_runtime = line.starts_with("[runtime]");
+                in_plugins = line.starts_with("[plugins]");
                 continue;
             }
             if line.is_empty() || line.starts_with('#') { continue; }
@@ -53,6 +58,8 @@ impl ProjectConfig {
                     dependencies.insert(k.trim_matches('"').to_string(), v.to_string());
                 } else if in_runtime {
                     if k == "path" { runtime = Some(v.to_string()); }
+                } else if in_plugins {
+                    if k == "registry" { plugin_registry = Some(v.to_string()); }
                 } else if in_build {
                     match k {
                         "target" => default_target = Some(v.to_string()),
@@ -74,7 +81,7 @@ impl ProjectConfig {
                 }
             }
         }
-        ProjectConfig { name, version, default_target, arch, freestanding, file_targets, dependencies, runtime, features }
+        ProjectConfig { name, version, default_target, arch, freestanding, file_targets, dependencies, runtime, features, plugin_registry }
     }
 
     /// Resolve an import path using the [dependencies] aliases.

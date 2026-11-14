@@ -202,6 +202,80 @@ EOF
         echo "FAIL A5h: consumer could not run installed third-party plugin"
         fail=$((fail + 1))
     fi
+
+    # A5j-2：本地 registry + lockfile + 离线 cache
+    reg="$pbase/registry"
+    v2="$pbase/demo_plugin_v2"
+    rproj="$pbase/registry_consumer"
+    phome="$pbase/plugin-home"
+    mkdir -p "$reg"
+    cp "$pdir/src/lib.lcl" "$reg/demo_plugin-0.1.0.lcl"
+    cp -r "$pdir" "$v2"
+    sed -i 's/version = "0.1.0"/version = "0.2.0"/' "$v2/ayanami.toml"
+    "$BIN" plugin package "$v2" >/dev/null 2>&1 || true
+    cp "$v2/src/lib.lcl" "$reg/demo_plugin-0.2.0.lcl"
+    cat > "$reg/index.toml" <<'EOF'
+[demo_plugin]
+0.2.0 = "demo_plugin-0.2.0.lcl"
+0.1.0 = "demo_plugin-0.1.0.lcl"
+EOF
+    if ! "$BIN" new "$rproj" >/dev/null 2>&1; then
+        echo "FAIL A5j-2: registry consumer creation failed"
+        fail=$((fail + 1))
+    elif ! printf '\n[plugins]\nregistry = "%s"\n' "$reg" >> "$rproj/ayanami.toml"; then
+        echo "FAIL A5j-2: could not configure registry"
+        fail=$((fail + 1))
+    elif ! (cd "$rproj" && env AYANAMI_PLUGIN_HOME="$phome" "$bin_abs" plugin install demo_plugin@0.1.0 >/dev/null 2>&1); then
+        echo "FAIL A5j-2: registry install failed"
+        fail=$((fail + 1))
+    elif ! grep -q 'version="0.1.0"' "$rproj/ayanami.lock"; then
+        echo "FAIL A5j-2: lockfile did not record 0.1.0"
+        fail=$((fail + 1))
+    elif (cd "$rproj" && env AYANAMI_PLUGIN_HOME="$phome" "$bin_abs" plugin install demo_plugin@0.2.0 >/dev/null 2>&1); then
+        echo "FAIL A5j-2: locked 0.1.0 was silently replaced by 0.2.0"
+        fail=$((fail + 1))
+    elif ! (cd "$rproj" && env AYANAMI_PLUGIN_HOME="$phome" "$bin_abs" plugin install demo_plugin@0.2.0 --update >/dev/null 2>&1); then
+        echo "FAIL A5j-2: --update install failed"
+        fail=$((fail + 1))
+    elif ! grep -q 'version="0.2.0"' "$rproj/ayanami.lock"; then
+        echo "FAIL A5j-2: lockfile did not record 0.2.0 after --update"
+        fail=$((fail + 1))
+    else
+        cat > "$rproj/src/main.aya" <<'EOF'
+import "demo_plugin"
+
+#[demo_plugin::identity]
+fn marked() -> int { return 7 }
+
+fn main() -> int {
+    if marked() != 7 { return 1 }
+    return 0
+}
+EOF
+        if ! "$BIN" run "$rproj" >/dev/null 2>&1; then
+            echo "FAIL A5j-2: registry-installed plugin could not run"
+            fail=$((fail + 1))
+        fi
+        if ! (cd "$rproj" && env AYANAMI_PLUGIN_HOME="$phome" "$bin_abs" plugin verify >/dev/null 2>&1); then
+            echo "FAIL A5j-2: plugin verify failed"
+            fail=$((fail + 1))
+        fi
+        printf 'x' >> "$rproj/plugins/demo_plugin.lcl"
+        if (cd "$rproj" && env AYANAMI_PLUGIN_HOME="$phome" "$bin_abs" plugin verify >/dev/null 2>&1); then
+            echo "FAIL A5j-2: plugin verify accepted a tampered .lcl"
+            fail=$((fail + 1))
+        fi
+        mv "$reg" "$pbase/registry.offline"
+        rm -f "$rproj/plugins/demo_plugin.lcl"
+        if ! (cd "$rproj" && env AYANAMI_PLUGIN_HOME="$phome" AYANAMI_PLUGIN_REGISTRY="$reg" "$bin_abs" plugin install demo_plugin >/dev/null 2>&1); then
+            echo "FAIL A5j-2: offline cache restore failed"
+            fail=$((fail + 1))
+        fi
+        if ! (cd "$rproj" && env AYANAMI_PLUGIN_HOME="$phome" "$bin_abs" plugin verify >/dev/null 2>&1); then
+            echo "FAIL A5j-2: restored plugin verify failed"
+            fail=$((fail + 1))
+        fi
+    fi
 fi
 rm -rf "$pbase"
 

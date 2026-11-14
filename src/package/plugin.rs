@@ -31,7 +31,7 @@ impl PluginManifest {
     }
 }
 
-fn parse_version(s: &str) -> Option<(u64, u64, u64)> {
+pub(crate) fn parse_version(s: &str) -> Option<(u64, u64, u64)> {
     let mut parts = s.split(&['-', '+']);
     let core = parts.next()?;
     let mut nums = core.split('.');

@@ -5,16 +5,21 @@
 
 use super::*;
 
+mod install;
+use install::{plugin_install, plugin_verify};
+
 pub(crate) fn cmd_plugin(args: &[String]) {
     match args.first().map(|s| s.as_str()) {
         Some("new") => plugin_new(&args[1..]),
         Some("package") => plugin_package(&args[1..]),
         Some("install") => plugin_install(&args[1..]),
+        Some("verify") => plugin_verify(&args[1..]),
         _ => {
-            eprintln!("usage: ayanami plugin <new|package|install> ...");
+            eprintln!("usage: ayanami plugin <new|package|install|verify> ...");
             eprintln!("  new <name>        创建第三方插件项目");
             eprintln!("  package <project> 校验注解声明并打包 .lcl");
-            eprintln!("  install <lcl> [alias] 安装到当前项目 plugins/ 并写入依赖");
+            eprintln!("  install <lcl|name[@version]> [alias] [--update] 安装并写依赖");
+            eprintln!("  verify            校验 ayanami.lock 中插件的 SHA-256");
             std::process::exit(1);
         }
     }
@@ -114,126 +119,6 @@ fn plugin_package(args: &[String]) {
     println!("plugin package: {}", lcl.display());
 }
 
-fn plugin_install(args: &[String]) {
-    let Some(src) = args.first() else {
-        eprintln!("usage: ayanami plugin install <plugin.lcl> [alias]");
-        std::process::exit(1);
-    };
-    let src = Path::new(src);
-    if src.extension().and_then(|e| e.to_str()) != Some("lcl") || !src.is_file() {
-        eprintln!("error: plugin install requires an existing .lcl file");
-        std::process::exit(1);
-    }
-    let src_s = src.to_string_lossy();
-    match ayanami::package::load_checked_manifest(&src_s) {
-        Ok(Some(m)) => println!("plugin: {} {} (abi {}, min compiler {})", m.name, m.version, m.abi, m.min_compiler),
-        Ok(None) => {}
-        Err(e) => {
-            eprintln!("error: incompatible plugin: {}", e);
-            std::process::exit(1);
-        }
-    }
-    let cwd = std::env::current_dir().unwrap_or_default();
-    let Some((project, _)) = crate::find_project(&cwd) else {
-        eprintln!("error: plugin install must run inside a project (no ayanami.toml found)");
-        std::process::exit(1);
-    };
-    let alias = args.get(1).cloned().unwrap_or_else(|| {
-        src.file_stem().unwrap_or_default().to_string_lossy().into_owned()
-    });
-    if alias.is_empty() || !alias.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
-        eprintln!("error: invalid plugin alias '{}'", alias);
-        std::process::exit(1);
-    }
-    let dep_path = format!("plugins/{}.lcl", alias);
-    let config_path = project.join("ayanami.toml");
-    let toml = match fs::read_to_string(&config_path) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("error: failed to read '{}': {}", config_path.display(), e);
-            std::process::exit(1);
-        }
-    };
-    let updated = match add_dependency(&toml, &alias, &dep_path) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("error: {}", e);
-            std::process::exit(1);
-        }
-    };
-    let dir = project.join("plugins");
-    if let Err(e) = fs::create_dir_all(&dir) {
-        eprintln!("error: failed to create '{}': {}", dir.display(), e);
-        std::process::exit(1);
-    }
-    let dst = dir.join(format!("{}.lcl", alias));
-    if let Err(e) = fs::copy(src, &dst) {
-        eprintln!("error: failed to install plugin to '{}': {}", dst.display(), e);
-        std::process::exit(1);
-    }
-    if updated != toml {
-        if let Err(e) = fs::write(&config_path, updated) {
-            eprintln!("error: failed to update '{}': {}", config_path.display(), e);
-            std::process::exit(1);
-        }
-        println!("dependency added: {} = \"{}\"", alias, dep_path);
-    } else {
-        println!("dependency already configured: {} = \"{}\"", alias, dep_path);
-    }
-    println!("installed plugin: {}", dst.display());
-    println!("then: import \"{}\"", alias);
-}
-
-/// 在 `[dependencies]` 中新增/校验一条依赖，保留其余配置文本。
-fn add_dependency(toml: &str, alias: &str, path: &str) -> Result<String, String> {
-    let mut lines: Vec<String> = toml.lines().map(str::to_string).collect();
-    let mut in_deps = false;
-    let mut header = None;
-    for (i, line) in lines.iter().enumerate() {
-        let t = line.trim();
-        if t.starts_with('[') {
-            in_deps = t.starts_with("[dependencies]");
-            if in_deps { header = Some(i); }
-            continue;
-        }
-        if !in_deps { continue; }
-        if let Some((k, v)) = t.split_once('=') {
-            if k.trim() == alias {
-                let existing = v.trim().trim_matches('"');
-                return if existing == path {
-                    Ok(toml.to_string())
-                } else {
-                    Err(format!(
-                        "dependency '{}' already exists in ayanami.toml as '{}'",
-                        alias, existing
-                    ))
-                };
-            }
-        }
-    }
-    let entry = format!("{} = \"{}\"", alias, path);
-    if let Some(i) = header {
-        let mut end = lines[i + 1..]
-            .iter()
-            .position(|l| l.trim_start().starts_with('['))
-            .map(|p| i + 1 + p)
-            .unwrap_or(lines.len());
-        while end > i + 1 && lines[end - 1].trim().is_empty() {
-            end -= 1;
-        }
-        lines.insert(end, entry);
-    } else {
-        if lines.iter().any(|l| !l.trim().is_empty()) {
-            lines.push(String::new());
-        }
-        lines.push("[dependencies]".to_string());
-        lines.push(entry);
-    }
-    let mut out = lines.join("\n");
-    if toml.ends_with('\n') { out.push('\n'); }
-    Ok(out)
-}
-
 fn has_plugin_annotation(code: &str) -> bool {
     let Ok(program) = ayanami::parser::parse_source(code) else { return false };
     program.stmts.iter().any(stmt_has_plugin_decl)
@@ -249,30 +134,5 @@ fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool {
         Stmt::Namespace { items, .. } => items.iter().any(stmt_has_plugin_decl),
         Stmt::ImplBlock { methods, .. } => methods.iter().any(stmt_has_plugin_decl),
         _ => false,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::add_dependency;
-
-    #[test]
-    fn adds_dependency_section() {
-        let out = add_dependency("[package]\nname = \"demo\"\n", "demo", "plugins/demo.lcl").unwrap();
-        assert!(out.contains("[dependencies]\ndemo = \"plugins/demo.lcl\""));
-    }
-
-    #[test]
-    fn inserts_into_existing_section() {
-        let src = "[package]\nname = \"demo\"\n\n[dependencies]\nfoo = \"foo.lcl\"\n\n[build]\ntarget = \"exe\"\n";
-        let out = add_dependency(src, "bar", "plugins/bar.lcl").unwrap();
-        assert!(out.contains("[dependencies]\nfoo = \"foo.lcl\"\nbar = \"plugins/bar.lcl\"\n\n[build]"));
-    }
-
-    #[test]
-    fn keeps_identical_and_rejects_conflict() {
-        let src = "[dependencies]\ndemo = \"plugins/demo.lcl\"\n";
-        assert_eq!(add_dependency(src, "demo", "plugins/demo.lcl").unwrap(), src);
-        assert!(add_dependency(src, "demo", "plugins/other.lcl").is_err());
     }
 }

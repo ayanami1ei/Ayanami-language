@@ -20,6 +20,7 @@ graph LR
     mir
     package
     parser
+    plugin_registry
     span
     target
     annotation_registry --> parser
@@ -67,6 +68,8 @@ graph LR
     parser -->|5| intern
     parser --> lexer
     parser -->|6| span
+    plugin_registry -->|3| error
+    plugin_registry -->|2| package
 ```
 
 ## 边统计
@@ -91,6 +94,7 @@ graph LR
 | `lir` | `parser` | 3 |
 | `mir` | `intern` | 3 |
 | `package` | `error` | 3 |
+| `plugin_registry` | `error` | 3 |
 | `compiler` | `package` | 2 |
 | `driver` | `error` | 2 |
 | `formatter` | `parser` | 2 |
@@ -98,6 +102,7 @@ graph LR
 | `hir` | `mir` | 2 |
 | `mir` | `span` | 2 |
 | `parser` | `error` | 2 |
+| `plugin_registry` | `package` | 2 |
 | `annotation_registry` | `parser` | 1 |
 | `annotation_table` | `error` | 1 |
 | `annotation_table` | `intern` | 1 |
@@ -119,4 +124,4 @@ graph LR
 | `package` | `parser` | 1 |
 | `parser` | `lexer` | 1 |
 
-共 18 个顶层模块、45 条依赖边。
+共 19 个顶层模块、47 条依赖边。

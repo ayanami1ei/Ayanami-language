@@ -16,7 +16,7 @@
 
 本切片不做：
 
-- 中心化 registry、版本解析、lockfile；
+- 中心化/远程 registry、插件发布协议（A5j-2 先做本地目录 registry）；
 - 权限声明、沙箱、WASM 后端；
 - 第三方 `#[transform]` 的 HIR schema。
 
@@ -113,4 +113,4 @@ plugin 'my_plugin' 0.1.0 requires ayanami >= 0.7.0, current 0.6.8
 
 - A5j-1 已实现（2026-11-14）：`.lcl` `[plugin]` 序列化、加载/安装校验、旧插件一次性
   warning、`plugin package` 自动写入清单；单测与回归见 `scripts/regression.sh`。
-- A5j-2 registry / A5j-3 沙箱 / A5j-4 runtime 端口仍未实现。
+- A5j-2 本地 registry/lockfile 已实现；A5j-3 沙箱 / A5j-4 runtime 端口仍未实现。

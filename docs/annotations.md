@@ -484,6 +484,17 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - 旧 `.lcl` 无清单时保持兼容，但导出插件注解的包会打印一次重建 warning。
 - 设计/验收：`docs/plugin-manifest.md`；bd：`Ayanami-language-jwp5.1`。
 
+### 8.13 本地插件 registry 与 lockfile（A5j-2，2026-11-14）
+
+- 本地目录 registry：`index.toml` + `.lcl`；按 `name` / `name@version` 安装，
+  支持精确版本与最高版本（远程 registry 暂不做）。
+- 项目 `ayanami.lock` 固定 `version/path/sha256`；`plugin verify` 校验完整性；
+  锁定版本变化需显式 `--update`。
+- 安装顺序：项目锁定文件 → `$AYANAMI_PLUGIN_HOME/cache` → registry；
+  registry 缺失时 cache 可离线恢复。
+- `[plugins] registry` 或 `AYANAMI_PLUGIN_REGISTRY` 指定 registry；
+  设计/验收见 `docs/plugin-registry.md`。
+
 ## 9. 实现接口（跨包与工具）
 
 | 层 | 载体 |
@@ -638,14 +649,20 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] `ayanami plugin install <lcl> [alias]` 安装到项目 `plugins/`
 - [x] 交付物固定 `.lcl`；本机缓存按 Linux/macOS/Windows 选择扩展名与加载方式
 - [x] `$CC` 链接器覆盖；macOS `-dynamiclib`、Windows `--export-all-symbols`
-- [ ] macOS/Windows runtime.c 端口与验证；插件注册表与版本约束
+- [ ] macOS/Windows runtime.c 端口与验证；远程 registry
 
 ### A5j-1（2026-11-14）
 
 - [x] `.lcl` `[plugin]` 清单（schema/name/version/abi/min-compiler/built-with）
 - [x] `plugin package` 自动写清单；加载/安装校验 ABI 与最低编译器版本
 - [x] 旧插件无清单兼容 + 一次性重建 warning；单测/回归
-- [ ] A5j-2 registry/lockfile；A5j-3 沙箱；A5j-4 跨平台 runtime
+
+### A5j-2（2026-11-14）
+
+- [x] 本地 registry `index.toml` + 精确/最高版本选择
+- [x] `ayanami.lock` / SHA-256 / 离线 cache / `plugin verify`
+- [ ] 远程 registry、semver 范围求解、`plugin publish`（暂不做远程）
+- [ ] A5j-3 沙箱；A5j-4 跨平台 runtime
 
 ### 已知问题
 

@@ -28,6 +28,7 @@ pub mod lexer;
 pub mod lir;
 pub mod mir;
 pub mod package;
+pub mod plugin_registry;
 pub mod parser;
 pub mod span;
 

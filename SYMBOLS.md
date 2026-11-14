@@ -58,18 +58,34 @@ src/cli/mod.rs:88: pub(crate) fn unique_tmp_dir(tag: &str) -> std::path::PathBuf
 src/cli/new.rs:3: pub(crate) fn cmd_new(args: &[String])
 src/cli/package_install.rs:3: pub(crate) fn cmd_package(args: &[String])
 src/cli/package_install.rs:22: pub(crate) fn cmd_install(args: &[String])
-src/cli/plugin.rs:8: pub(crate) fn cmd_plugin(args: &[String])
-src/cli/plugin.rs:23: fn plugin_new(args: &[String])
-src/cli/plugin.rs:50: pub fn identity(String input) -> String
-src/cli/plugin.rs:72: fn plugin_package(args: &[String])
-src/cli/plugin.rs:117: fn plugin_install(args: &[String])
-src/cli/plugin.rs:188: fn add_dependency(toml: &str, alias: &str, path: &str) -> Result<String, String>
-src/cli/plugin.rs:237: fn has_plugin_annotation(code: &str) -> bool
-src/cli/plugin.rs:242: fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool
-src/cli/plugin.rs:256: mod tests
-src/cli/plugin.rs:260: fn adds_dependency_section()
-src/cli/plugin.rs:266: fn inserts_into_existing_section()
-src/cli/plugin.rs:273: fn keeps_identical_and_rejects_conflict()
+src/cli/plugin/install/registry.rs:16: pub(super) fn registry_install(target: &str, alias_arg: Option<&str>, update: bool)
+src/cli/plugin/install/registry.rs:171: fn split_target(target: &str) -> (&str, Option<&str>)
+src/cli/plugin/install/registry.rs:185: fn version_matches(version: &str, requested: &str) -> bool
+src/cli/plugin/install/registry.rs:189: fn cache_for(name: &str, version: &str) -> Option<PathBuf>
+src/cli/plugin/install/registry.rs:194: fn cache_valid(cache: &Path, expected: Option<&str>) -> bool
+src/cli/plugin/install/registry.rs:206: fn manifest_matches(path: &Path, name: &str, version: &str) -> bool
+src/cli/plugin/install/registry.rs:211: fn registry_root(project: &Path, config: &ProjectConfig) -> PathBuf
+src/cli/plugin/install/tests.rs:4: fn adds_dependency_section()
+src/cli/plugin/install/tests.rs:10: fn inserts_into_existing_section()
+src/cli/plugin/install/tests.rs:17: fn keeps_identical_and_rejects_conflict()
+src/cli/plugin/install.rs:9: mod registry;
+src/cli/plugin/install.rs:13: pub(super) fn plugin_install(args: &[String])
+src/cli/plugin/install.rs:34: pub(super) fn plugin_verify(_args: &[String])
+src/cli/plugin/install.rs:70: fn path_install(src: &Path, alias_arg: Option<&str>)
+src/cli/plugin/install.rs:96: pub(super) fn current_project() -> PathBuf
+src/cli/plugin/install.rs:104: pub(super) fn ensure_dependency(project: &Path, alias: &str, dep_path: &str)
+src/cli/plugin/install.rs:124: pub(super) fn sha256_file(path: &Path) -> Result<String, String>
+src/cli/plugin/install.rs:129: pub(super) fn validate_alias(alias: &str)
+src/cli/plugin/install.rs:135: pub(super) fn fail(message: impl std::fmt::Display) -> !
+src/cli/plugin/install.rs:141: pub(super) fn add_dependency(toml: &str, alias: &str, path: &str) -> Result<String, String>
+src/cli/plugin/install.rs:191: mod tests;
+src/cli/plugin.rs:8: mod install;
+src/cli/plugin.rs:11: pub(crate) fn cmd_plugin(args: &[String])
+src/cli/plugin.rs:28: fn plugin_new(args: &[String])
+src/cli/plugin.rs:55: pub fn identity(String input) -> String
+src/cli/plugin.rs:77: fn plugin_package(args: &[String])
+src/cli/plugin.rs:122: fn has_plugin_annotation(code: &str) -> bool
+src/cli/plugin.rs:127: fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool
 src/cli/types.rs:9: pub(crate) fn cmd_types(args: &[String])
 src/cli/types.rs:62: fn collect_items(items: &[HirItem], out: &mut Vec<(String, String, usize, usize)>)
 src/cli/types.rs:72: fn collect_fn(f: &HirFn, out: &mut Vec<(String, String, usize, usize)>)
@@ -1596,10 +1612,11 @@ src/lib.rs:27: pub mod lexer;
 src/lib.rs:28: pub mod lir;
 src/lib.rs:29: pub mod mir;
 src/lib.rs:30: pub mod package;
-src/lib.rs:31: pub mod parser;
-src/lib.rs:32: pub mod span;
-src/lib.rs:35: mod test_parse
-src/lib.rs:37: fn test_struct_literal_parse()
+src/lib.rs:31: pub mod plugin_registry;
+src/lib.rs:32: pub mod parser;
+src/lib.rs:33: pub mod span;
+src/lib.rs:36: mod test_parse
+src/lib.rs:38: fn test_struct_literal_parse()
 src/lir/display.rs:5: pub fn lir_program_to_string(prog: &LirProgram) -> String
 src/lir/display.rs:19: fn write_fn(f: &LirFn, w: &mut impl Write) -> std::fmt::Result
 src/lir/display.rs:34: fn write_inst(inst: &LirNodeBox, w: &mut impl Write) -> std::fmt::Result
@@ -2636,12 +2653,12 @@ src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
 src/package/bytes.rs:117: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
-src/package/config.rs:21: impl ProjectConfig
-src/package/config.rs:22: pub fn load(toml_content: &str) -> Self
-src/package/config.rs:83: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
-src/package/config.rs:100: pub fn resolve_target(&self, file_path: &Path) -> &str
-src/package/config.rs:114: mod tests
-src/package/config.rs:118: fn parses_target_arch()
+src/package/config.rs:23: impl ProjectConfig
+src/package/config.rs:24: pub fn load(toml_content: &str) -> Self
+src/package/config.rs:90: pub fn resolve_import<'a>(&'a self, import_path: &str, base_dir: &Path) -> Option<String>
+src/package/config.rs:107: pub fn resolve_target(&self, file_path: &Path) -> &str
+src/package/config.rs:121: mod tests
+src/package/config.rs:125: fn parses_target_arch()
 src/package/const_codec.rs:9: pub fn type_str(ty: &HirType) -> Option<String>
 src/package/const_codec.rs:30: pub fn type_from_str(s: &str) -> Option<HirType>
 src/package/const_codec.rs:64: pub fn lit_str(lit: &HirLiteral) -> Option<String>
@@ -2679,7 +2696,7 @@ src/package/plugin.rs:9: pub(crate) const PLUGIN_MANIFEST_SCHEMA: u32 = 1;
 src/package/plugin.rs:12: pub struct PluginManifest
 src/package/plugin.rs:21: impl PluginManifest
 src/package/plugin.rs:22: pub fn new(name: String, version: String, min_compiler: String, built_with: String) -> Self
-src/package/plugin.rs:34: fn parse_version(s: &str) -> Option<(u64, u64, u64)>
+src/package/plugin.rs:34: pub(crate) fn parse_version(s: &str) -> Option<(u64, u64, u64)>
 src/package/plugin.rs:47: fn version_at_least(current: &str, required: &str) -> bool
 src/package/plugin.rs:53: pub(crate) fn parse_manifest(body: &str, path: &str) -> Result<Option<PluginManifest>>
 src/package/plugin.rs:129: pub(crate) fn load_manifest(path: &str) -> Result<Option<PluginManifest>>
@@ -2879,6 +2896,63 @@ src/parser/parser/unary.rs:223: impl Parser
 src/parser/parser/unary.rs:229: pub(super) fn try_parse_generic_call_args(
 src/parser/parser/unary.rs:280: fn is_type_like_arg(t: &Type) -> bool
 src/parser/parser/unary.rs:297: fn is_lowercase_type_name(n: &str) -> bool
+src/plugin_registry/lockfile/tests.rs:4: fn temp_path(tag: &str) -> PathBuf
+src/plugin_registry/lockfile/tests.rs:17: fn missing_file_is_empty()
+src/plugin_registry/lockfile/tests.rs:23: fn roundtrip_two_entries()
+src/plugin_registry/lockfile/tests.rs:49: fn wrong_header_rejected()
+src/plugin_registry/lockfile/tests.rs:57: fn leading_comments_before_header_allowed()
+src/plugin_registry/lockfile/tests.rs:65: fn missing_sha256_rejected()
+src/plugin_registry/lockfile/tests.rs:77: fn invalid_sha256_rejected()
+src/plugin_registry/lockfile/tests.rs:89: fn duplicate_section_rejected()
+src/plugin_registry/lockfile/tests.rs:101: fn path_traversal_rejected()
+src/plugin_registry/lockfile/tests.rs:113: fn escaping_roundtrip()
+src/plugin_registry/lockfile.rs:10: pub struct LockEntry
+src/plugin_registry/lockfile.rs:17: pub struct Lockfile
+src/plugin_registry/lockfile.rs:21: impl Lockfile
+src/plugin_registry/lockfile.rs:23: pub fn load(path: &Path) -> Result<Self>
+src/plugin_registry/lockfile.rs:118: pub fn save(&self, path: &Path) -> Result<()>
+src/plugin_registry/lockfile.rs:137: pub fn get(&self, name: &str) -> Option<&LockEntry>
+src/plugin_registry/lockfile.rs:141: pub fn insert(&mut self, name: String, mut entry: LockEntry)
+src/plugin_registry/lockfile.rs:147: fn empty_entry() -> LockEntry
+src/plugin_registry/lockfile.rs:151: fn close_entry(
+src/plugin_registry/lockfile.rs:193: fn validate_name(name: &str, path: &Path) -> Result<()>
+src/plugin_registry/lockfile.rs:204: fn parse_value(value: &str) -> String
+src/plugin_registry/lockfile.rs:212: fn is_sha256(value: &str) -> bool
+src/plugin_registry/lockfile.rs:216: fn escape(value: &str) -> String
+src/plugin_registry/lockfile.rs:220: fn unescape(value: &str) -> String
+src/plugin_registry/lockfile.rs:248: mod tests;
+src/plugin_registry/mod.rs:6: pub mod lockfile;
+src/plugin_registry/mod.rs:7: mod registry;
+src/plugin_registry/mod.rs:8: pub mod sha256;
+src/plugin_registry/mod.rs:19: pub fn plugin_home() -> Result<PathBuf>
+src/plugin_registry/mod.rs:30: pub fn default_registry_root() -> Result<PathBuf>
+src/plugin_registry/mod.rs:35: pub fn cache_path(name: &str, version: &str) -> Result<PathBuf>
+src/plugin_registry/mod.rs:50: pub fn normalize_version(value: &str) -> Option<String>
+src/plugin_registry/mod.rs:55: pub fn versions_equal(a: &str, b: &str) -> bool
+src/plugin_registry/mod.rs:62: fn safe_component(value: &str) -> bool
+src/plugin_registry/mod.rs:72: pub fn copy_plugin(src: &std::path::Path, dst: &std::path::Path) -> Result<()>
+src/plugin_registry/registry/tests.rs:5: fn temp_dir(tag: &str) -> PathBuf
+src/plugin_registry/registry/tests.rs:19: fn touch_lcl(root: &std::path::Path, name: &str)
+src/plugin_registry/registry/tests.rs:24: fn resolve_exact_by_numeric_version()
+src/plugin_registry/registry/tests.rs:35: fn resolve_latest()
+src/plugin_registry/registry/tests.rs:51: fn missing_version_lists_available()
+src/plugin_registry/registry/tests.rs:67: fn duplicate_semver_tuple_rejected()
+src/plugin_registry/registry/tests.rs:78: fn duplicate_section_rejected()
+src/plugin_registry/registry/tests.rs:89: fn path_traversal_rejected()
+src/plugin_registry/registry/tests.rs:96: fn absolute_path_rejected()
+src/plugin_registry/registry/tests.rs:103: fn missing_target_file_error()
+src/plugin_registry/registry.rs:9: pub struct RegistryVersion
+src/plugin_registry/registry.rs:15: pub struct RegistryIndex
+src/plugin_registry/registry.rs:20: pub struct ResolvedPlugin
+src/plugin_registry/registry.rs:26: impl RegistryIndex
+src/plugin_registry/registry.rs:28: pub fn load(root: &Path) -> Result<Self>
+src/plugin_registry/registry.rs:107: pub fn resolve(&self, root: &Path, name: &str, requested: Option<&str>) -> Result<ResolvedPlugin>
+src/plugin_registry/registry.rs:148: pub fn versions(&self, name: &str) -> Vec<&str>
+src/plugin_registry/registry.rs:166: mod tests;
+src/plugin_registry/sha256.rs:2: const K: [u32; 64] = [
+src/plugin_registry/sha256.rs:13: pub fn sha256_hex(data: &[u8]) -> String
+src/plugin_registry/sha256.rs:98: mod tests
+src/plugin_registry/sha256.rs:102: fn test_sha256()
 src/span.rs:5: pub struct Span
 src/span.rs:14: impl Span
 src/span.rs:15: pub fn new(
