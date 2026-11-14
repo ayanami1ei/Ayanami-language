@@ -396,6 +396,39 @@ EOF
                         fail=$((fail + 1))
                     fi
                 fi
+                # B2g：泛型函数只在特化 HirFn 上触发（per-specialization）
+                cat > "$tdir/src/lib.aya" <<'EOF'
+import "hir"
+
+#[transform]
+#[alloc]
+#[state]
+pub fn bump(String input) -> String {
+    doc = parse_hir(ref input).unwrap()
+    body = single_body(make_return(make_int(8)))
+    result = replace_function_body(ref doc, ref "main", body).unwrap()
+    return render_hir(ref result)
+}
+EOF
+                if ! "$BIN" plugin package "$tdir" >/dev/null 2>&1; then
+                    echo "FAIL A5e/B2g: generic transform package failed"
+                    fail=$((fail + 1))
+                else
+                    cat > "$tconsumer" <<EOF
+import "$tdir/src/lib.lcl"
+
+#[lib::bump]
+fn identity[T](T x) -> T { return x }
+
+fn main() -> int { return identity(7) }
+EOF
+                    "$BIN" run "$tconsumer" >/dev/null 2>&1
+                    got=$?
+                    if [ "$got" != 8 ]; then
+                        echo "FAIL A5e/B2g: generic specialization exit $got, want 8"
+                        fail=$((fail + 1))
+                    fi
+                fi
             fi
         fi
     fi

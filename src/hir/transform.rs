@@ -1,7 +1,7 @@
 //! A5e/B1：在 HIR 降级后、MIR 前执行第三方 `#[transform]` 插件。
 //!
-//! v1 语义：标注在函数上的 `#[pkg::name]`（name 由 `.lcl` 的 `transform=` 导出）
-//! 触发一次程序级变换；插件接收 HIR JSON，返回新的 HIR JSON。当前只完成 identity
+//! v1 语义：标注在函数/struct 上的 `#[pkg::name]`（name 由 `.lcl` 的 `transform=` 导出）
+//! 触发程序级变换；泛型函数在其特化 HirFn 上触发。插件接收 HIR JSON，返回新的 HIR JSON。当前只完成 identity
 //! 通路，结构化 mutation API 见 B2。
 
 use crate::annotation_table::{AnnKind, AnnotationTables};
@@ -42,44 +42,20 @@ fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()> {
     for stmt in stmts {
         match stmt {
             Stmt::FnDecl { attrs, generic_params, .. } => {
-                if let Some(attr) = transform_attr(attrs, tables)? {
-                    if !generic_params.is_empty() {
-                        return Err(Error::Hir(format!(
-                            "transform #[{}] is only supported on non-generic functions in v1 (at {}:{})",
-                            attr.path_str(), attr.span.start_line, attr.span.start_col
-                        )));
-                    }
-                }
+                // 泛型函数没有独立 HirFn；其特化实例会携带 attrs 并在这里触发。
+                let _ = (attrs, generic_params, tables);
             }
-            Stmt::ImplBlock { attrs, generic_params: impl_generics, methods, .. } => {
+            Stmt::ImplBlock { attrs, methods, .. } => {
                 if let Some(attr) = transform_attr(attrs, tables)? {
                     return Err(Error::Hir(format!(
                         "transform #[{}] must be placed on a function/method, not an impl block (at {}:{})",
                         attr.path_str(), attr.span.start_line, attr.span.start_col
                     )));
                 }
-                if !impl_generics.is_empty() {
-                    for method in methods {
-                        if let Stmt::FnDecl { attrs, .. } = method {
-                            if let Some(attr) = transform_attr(attrs, tables)? {
-                                return Err(Error::Hir(format!(
-                                    "transform #[{}] on a method of a generic impl is not supported in v1 (at {}:{})",
-                                    attr.path_str(), attr.span.start_line, attr.span.start_col
-                                )));
-                            }
-                        }
-                    }
-                }
                 for method in methods {
-                    if let Stmt::FnDecl { attrs, generic_params, .. } = method {
-                        if let Some(attr) = transform_attr(attrs, tables)? {
-                            if !generic_params.is_empty() {
-                                return Err(Error::Hir(format!(
-                                    "transform #[{}] is only supported on non-generic methods in v1 (at {}:{})",
-                                    attr.path_str(), attr.span.start_line, attr.span.start_col
-                                )));
-                            }
-                        }
+                    if let Stmt::FnDecl { attrs, .. } = method {
+                        // 泛型方法同样只在特化 HirFn 上触发。
+                        let _ = transform_attr(attrs, tables)?;
                     }
                 }
             }
