@@ -124,6 +124,7 @@ pub struct Parser {
     int err_col
     int no_struct
     int block_depth
+    int expr_ctx
     String cur_impl
     int impl_args
     int tail_if
@@ -190,7 +191,7 @@ pub namespace Parser {
         t2 = lx.next_token();
         t3 = lx.next_token();
         t4 = lx.next_token();
-        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, la3 = t4, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, block_depth = 0, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, prev_line = 0, stmt_col = 0, last_pub = 0, no_cast = 0,
+        p = Parser { lex = lx, ast = Ast::new(), cur = t1, la1 = t2, la2 = t3, la3 = t4, failed = 0, err = "", err_line = 0, err_col = 0, no_struct = 0, block_depth = 0, expr_ctx = 1, cur_impl = "", impl_args = -1, tail_if = 0, save_pos = 0, save_line = 1, save_col = 1, save_byte = 0, save_ast_len = 0, lambda_count = 0, attr_mask = 0, prev_line = 0, stmt_col = 0, last_pub = 0, no_cast = 0,
             attrs_text = [String; 256], attrs_line = [int; 256], attrs_eline = [int; 256], attrs_count = 0,
             env_caps = [String; 16], env_provs = [String; 16], env_count = 0,
             pend_env_caps = [String; 16], pend_env_provs = [String; 16], pend_env_count = 0,
@@ -633,7 +634,7 @@ impl Parser {
             self.advance();
             inner = self.parse_type();
             if self.eat_delim(D::Semicolon._tag) {
-                cnt = self.parse_expr();
+                cnt = self.parse_expr_ctx(1);
                 cval = 0;
                 if cnt >= 0 {
                     if self.ast.tags[cnt] == et(ET::Literal._tag) {
@@ -1128,19 +1129,36 @@ impl Parser {
                 pu = self.ast.nexts[pu];
             }
         }
-        // D2：只写 String 拼接局部的保守标记（仅函数体顶层赋值；误报只保留）
+        // D2：顶层拥有型局部候选。默认 Ident 上下文 1=移动/不安全，2=安全读。
+        // lambda / 重复赋值 / 与形参同名 / 任一不安全使用 -> 跳过（保守）。
         iw0 = start_ast0;
         while iw0 < self.ast.len {
             if self.ast.tags[iw0] == st(ST::Assign._tag) && self.ast.bb[iw0] == 2 {
                 nm_w = self.ast.texts[iw0].copy();
-                cnt_w = 0;
-                jw = start_ast0;
                 lhsw = self.ast.cc[iw0];
+                unsafe_w = 0;
+                safe_w = 0;
+                param_w = 0;
+                other_assign_w = 0;
+                lambda_w = 0;
+                jw = start_ast0;
                 while jw < self.ast.len {
-                    if jw != iw0 && jw != lhsw && self.ast.texts[jw] == nm_w { cnt_w = cnt_w + 1; }
+                    tg_w = self.ast.tags[jw];
+                    if tg_w == et(ET::Lambda._tag) { lambda_w = 1; }
+                    if tg_w == st(ST::Assign._tag) && jw != iw0 && self.ast.texts[jw] == nm_w { other_assign_w = 1; }
+                    if tg_w == xt(XT::Param._tag) && self.ast.texts[jw] == nm_w { param_w = 1; }
+                    if tg_w == et(ET::Ident._tag) && jw != lhsw && self.ast.texts[jw] == nm_w {
+                        if self.ast.bb[jw] == 2 { safe_w = 1; } else { unsafe_w = 1; }
+                    }
                     jw = jw + 1;
                 }
-                if cnt_w == 0 { self.ast.bb[iw0] = 1; } else { self.ast.bb[iw0] = 0; }
+                if lambda_w == 1 || param_w == 1 || other_assign_w == 1 || unsafe_w == 1 {
+                    self.ast.bb[iw0] = 0;
+                } elif safe_w == 1 {
+                    self.ast.bb[iw0] = 2;
+                } else {
+                    self.ast.bb[iw0] = 1;
+                }
             }
             iw0 = iw0 + 1;
         }
@@ -1647,7 +1665,7 @@ impl Parser {
             // 迭代器形式 for x in expr
             self.no_struct = 1;
             if self.check_delim(D::LParen._tag) { self.no_struct = 0; }
-            iterable = self.parse_expr();
+            iterable = self.parse_expr_ctx(1);
             self.no_struct = 0;
             body = self.parse_block();
             return self.ast.push(st(ST::ForIn._tag), it, -1, iterable, body, -1, -1, line, col);
@@ -1657,7 +1675,7 @@ impl Parser {
             col = self.cur.col;
             self.advance();
             self.no_struct = 1;
-            val = self.parse_expr();
+            val = self.parse_expr_ctx(1);
             self.no_struct = 0;
             arms = self.parse_match_arms();
             return self.ast.push(st(ST::Match._tag), "", -1, val, arms, -1, -1, line, col);
@@ -1766,6 +1784,15 @@ impl Parser {
 
     #[alloc]
     #[state]
+    fn parse_expr_ctx(ref mut self, int ctx) -> int {
+        old = self.expr_ctx;
+        self.expr_ctx = ctx;
+        r = self.parse_expr();
+        self.expr_ctx = old;
+        return r;
+    }
+
+    #[state]
     fn parse_expr(ref mut self) -> int {
         return self.parse_bin(1);
     }
@@ -1773,7 +1800,10 @@ impl Parser {
     #[alloc]
     #[state]
     fn parse_bin(ref mut self, int min_level) -> int {
+        outer_ctx = self.expr_ctx;
+        self.expr_ctx = 2;
         lhs = self.parse_unary();
+        consumed = 0;
         while self.cur.kind == Tk::Op._tag && self.failed == 0 {
             // 换行：行首运算符在语句缩进处视为新语句（如 *r = v）；更深缩进才是续行
             if self.cur.line != self.prev_line && self.cur.col <= self.stmt_col { break; }
@@ -1783,16 +1813,22 @@ impl Parser {
             line = self.cur.line;
             col = self.cur.col;
             self.advance();
+            consumed = 1;
             rhs = self.parse_bin(lvl + 1);
             tag = self.bin_tag(op);
             lhs = self.ast.push(et(ET::Binary._tag), "", tag, lhs, rhs, -1, -1, line, col);
         }
+        if consumed == 0 && lhs >= 0 && self.ast.tags[lhs] == et(ET::Ident._tag) {
+            self.ast.bb[lhs] = outer_ctx;
+        }
+        self.expr_ctx = outer_ctx;
         return lhs;
     }
 
     #[alloc]
     #[state]
     fn apply_cast(ref mut self, int e, int line, int col) -> int {
+        if e >= 0 && self.ast.tags[e] == et(ET::Ident._tag) { self.ast.bb[e] = 1; }
         while self.check_kw(Kw::As._tag) {
             self.advance();
             ty = self.parse_type();
@@ -1837,7 +1873,7 @@ impl Parser {
                     optxt = "out_early";
                 }
                 self.expect_delim(D::RParen._tag, "expected ) in asm out");
-                ex = self.parse_expr();
+                ex = self.parse_expr_ctx(1);
                 op = self.ast.push(xt(XT::AsmOperand._tag), optxt, -1, ex, -1, -1, -1, self.cur.line, self.cur.col);
                 outs = self.ast.push_tail(outs, op);
             } elif self.check_kw(Kw::In._tag) {
@@ -1845,7 +1881,7 @@ impl Parser {
                 self.expect_delim(D::LParen._tag, "expected ( in asm in");
                 if self.check_kw(Kw::Reg._tag) { self.advance(); }
                 self.expect_delim(D::RParen._tag, "expected ) in asm in");
-                ex2 = self.parse_expr();
+                ex2 = self.parse_expr_ctx(1);
                 op2 = self.ast.push(xt(XT::AsmOperand._tag), "in", -1, ex2, -1, -1, -1, self.cur.line, self.cur.col);
                 ins = self.ast.push_tail(ins, op2);
             } elif self.check_kw(Kw::Clobbers._tag) {
@@ -1931,12 +1967,14 @@ impl Parser {
             self.no_cast = 1;
             arg = self.parse_postfix();
             self.no_cast = 0;
+            if arg >= 0 && self.ast.tags[arg] == et(ET::Ident._tag) { self.ast.bb[arg] = 1; }
             e = self.ast.push(et(ET::Ref._tag), "", -1, arg, mutable, -1, -1, line, col);
             return self.apply_cast(e, line, col);
         }
         if self.check_kw(Kw::Move._tag) {
             self.advance();
             arg = self.parse_unary();
+            if arg >= 0 && self.ast.tags[arg] == et(ET::Ident._tag) { self.ast.bb[arg] = 1; }
             return self.ast.push(et(ET::Move._tag), "", -1, arg, -1, -1, -1, line, col);
         }
         if self.check_kw(Kw::Clone._tag) {
@@ -2007,7 +2045,7 @@ impl Parser {
                             self.error("expected = in enum ctor");
                             break;
                         }
-                        v = self.parse_expr();
+                        v = self.parse_expr_ctx(1);
                         n = self.ast.push(xt(XT::StructLitField._tag), "", -1, v, -1, -1, -1, self.cur.line, self.cur.col);
                         nargs = self.ast.push_tail(nargs, n);
                         if !self.eat_delim(D::Comma._tag) { break; }
@@ -2021,9 +2059,13 @@ impl Parser {
                 self.advance();
                 name = self.expect_member_name("expected field or method name");
                 if self.check_delim(D::LParen._tag) {
+                    if e >= 0 && self.ast.tags[e] == et(ET::Ident._tag) { self.ast.bb[e] = 1; }
                     args = self.parse_args();
                     e = self.ast.push(et(ET::MethodCall._tag), name, -1, e, args, -1, -1, line, col);
                 } else {
+                    if e >= 0 && self.ast.tags[e] == et(ET::Ident._tag) {
+                        if name == "len" { self.ast.bb[e] = 2; } else { self.ast.bb[e] = 1; }
+                    }
                     e = self.ast.push(et(ET::FieldAccess._tag), name, -1, e, -1, -1, -1, line, col);
                 }
             } elif self.check_delim(D::LBracket._tag) {
@@ -2062,8 +2104,9 @@ impl Parser {
                         continue;
                     }
                 }
+                if e >= 0 && self.ast.tags[e] == et(ET::Ident._tag) { self.ast.bb[e] = 2; }
                 self.advance();
-                idx = self.parse_expr();
+                idx = self.parse_expr_ctx(1);
                 self.expect_delim(D::RBracket._tag, "expected ] after index");
                 e = self.ast.push(et(ET::Index._tag), "", -1, e, idx, -1, -1, line, col);
             } elif self.check_op(qmark) {
@@ -2105,7 +2148,7 @@ impl Parser {
                 }
                 a = self.ast.push(et(ET::MacroBlock._tag), "", -1, self.ast.aa[blk], cnt, -1, -1, self.ast.lines[blk], self.ast.cols[blk]);
             } else {
-                a = self.parse_expr();
+                a = self.parse_expr_ctx(1);
             }
             an = self.ast.push(xt(XT::Arg._tag), "", -1, a, -1, -1, -1, self.cur.line, self.cur.col);
             head = self.ast.push_tail(head, an);
@@ -2228,7 +2271,7 @@ impl Parser {
         if self.check_kw(Kw::Match._tag) {
             self.advance();
             self.no_struct = 1;
-            val = self.parse_expr();
+            val = self.parse_expr_ctx(1);
             self.no_struct = 0;
             arms = self.parse_match_arms();
             return self.ast.push(et(ET::Match._tag), "", -1, val, arms, -1, -1, line, col);
@@ -2294,7 +2337,7 @@ impl Parser {
                 ety_t = self.parse_type();
                 if ety_t >= 0 && self.check_delim(D::Semicolon._tag) {
                     self.advance();
-                    cnt = self.parse_expr();
+                    cnt = self.parse_expr_ctx(1);
                     self.expect_delim(D::RBracket._tag, "expected ] in array expr");
                     return self.ast.push(et(ET::ArraySized._tag), "", ety_t, cnt, -1, -1, -1, line, col);
                 }
@@ -2307,12 +2350,12 @@ impl Parser {
                 if self.check_delim(D::RBracket._tag) { break; }
                 if self.at_end() { break; }
                 if self.failed == 1 { break; }
-                a = self.parse_expr();
+                a = self.parse_expr_ctx(1);
                 if head < 0 { first = a; }
                 if self.check_delim(D::Semicolon._tag) {
                     // [expr; n] 重复字面量
                     self.advance();
-                    cnt = self.parse_expr();
+                    cnt = self.parse_expr_ctx(1);
                     self.expect_delim(D::RBracket._tag, "expected ] in array repeat");
                     return self.ast.push(et(ET::ArrayRepeat._tag), "", -1, first, cnt, -1, -1, line, col);
                 }
@@ -2367,7 +2410,9 @@ impl Parser {
             if self.check_delim(D::LBrace._tag) && self.no_struct == 0 {
                 return self.parse_struct_literal(name, line, col, -1);
             }
-            return self.ast.push(et(ET::Ident._tag), name, -1, -1, -1, -1, -1, line, col);
+            id_i = self.ast.push(et(ET::Ident._tag), name, -1, -1, -1, -1, -1, line, col);
+            self.ast.bb[id_i] = self.expr_ctx;
+            return id_i;
         }
         self.error("expected expression");
         return -1;
@@ -2645,7 +2690,7 @@ impl Parser {
                 self.error_at("expected expression", line, col);
                 break;
             }
-            val = self.parse_expr();
+            val = self.parse_expr_ctx(1);
             fnode = self.ast.push(xt(XT::StructLitField._tag), fname, -1, val, -1, -1, -1, self.cur.line, self.cur.col);
             head = self.ast.push_tail(head, fnode);
             if !self.eat_delim(D::Comma._tag) { break; }

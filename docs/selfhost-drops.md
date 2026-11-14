@@ -1,6 +1,6 @@
 # 自举通用堆释放 / Drop 设计
 
-> 状态：D0（设计）+ D1（首片）+ D2a/D2b/D2c 首片（tracked allocator / 只写局部 / 函数返回局部，受控开关）  
+> 状态：D0（设计）+ D1（首片）+ D2a/D2b/D2c（tracked allocator / 只写局部 / 安全读局部，受控开关）  
 > 目标分支：`selfhost` / `selfhost-drops`  
 > 相关：`docs/rust-selfhost-diff.md`、`std/runtime.c`、`selfhost/src/lir/emit.aya`
 
@@ -64,7 +64,11 @@
   默认返回前释放。只写检测排除 Assign 节点与 LHS Ident，文本级误报只保留。
 - [x] D2c 首片：顶层、只写、RHS 为按值返回 `String` 的 `FnCall` 的局部；同样在
   尾/默认返回前释放。按值返回 `String` 的所有权转移给调用者。
-- [ ] D2c 完整：被读取/移动的局部、结构体字段、枚举载荷；move/部分 move/重新赋值/循环覆盖。
+- [x] D2c 安全读局部：解析期为每个 `Ident` 标注上下文（默认 1=移动/不安全，2=安全读）。
+  二元运算数、`.len` 字段、索引基址为安全读；调用实参、结构/数组/枚举字面量、
+  match 值、for 可迭代、asm 操作数为移动；整个函数含 lambda 时跳过局部候选。
+  安全读/只写局部在显式 `return`、尾返回、默认返回前释放。
+- [ ] D2d：结构体字段、枚举载荷、被移动局部的字段级 move/部分 move/重新赋值/循环覆盖。
 - [ ] 借用中的值不释放；字符串字面量/全局/借用视图标记为非拥有。
 - [ ] D2 完整后评估默认开启（当前仍由 `AYANAMI_SELFHOST_DROP=1` 控制）。
 
@@ -92,6 +96,7 @@ D1：
 - [x] D2a tracked allocator（`__ayanami_selfhost_alloc`，1<<22 表 + 满表快速退出）
 - [x] D2b 只写 String 拼接局部（仅尾/默认返回，opt-in）
 - [x] D2c 首片 只写按值 String 返回局部
-- [ ] D2c 完整：被读取/移动局部 + 字段/枚举载荷
+- [x] D2c 安全读局部（Ident 上下文 + 显式 return 释放）
+- [ ] D2d 字段/枚举载荷 + move/部分 move/循环覆盖
 - [ ] D3 完整 drop glue
 - [ ] D3 完整 drop glue（后续）

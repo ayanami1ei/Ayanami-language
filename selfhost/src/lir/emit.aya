@@ -11439,7 +11439,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
         }
         if v.kind == 1 {
             e.declare_local(nm, 1);
-            if ast.bb[id] == 1 && env("AYANAMI_SELFHOST_DROP") == "1" && e.drop_local_count < 64 {
+            if ast.bb[id] >= 1 && env("AYANAMI_SELFHOST_DROP") == "1" && e.drop_local_count < 64 {
                 e.drop_locals[e.drop_local_count] = nm.copy();
                 e.drop_local_count = e.drop_local_count + 1;
             }
@@ -11467,6 +11467,7 @@ fn emit_stmt(ref Ast ast, int id, ref mut Emitter e) {
             v2 = emit_expr(ast, ast.aa[id], e);
             emit_sync_unlocks(ast, e, 0);
             e.emit_param_drops(ast);
+            e.emit_local_drops(ast);
             if rk_ret == 5 {
                 if v2.kind == 6 {
                     e.buf.push_str("  ret double ");
