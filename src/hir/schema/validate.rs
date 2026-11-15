@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 use crate::error::{Error, Result};
 
 use super::validate_call::validate_call;
+use super::validate_fields::{validate_enum_node, validate_field_node, validate_struct_node};
 
 pub(crate) fn validate(root: &Value) -> Result<()> {
     let schema = root.get("schema").and_then(Value::as_u64).unwrap_or(0);
@@ -22,10 +23,18 @@ pub(crate) fn validate(root: &Value) -> Result<()> {
     let mut fn_ids = HashSet::new();
     let mut structs = HashSet::new();
     let mut sigs = HashMap::new();
-    collect_program(root, &mut fn_ids, &mut structs, &mut sigs)?;
+    let mut field_map = HashMap::new();
+    collect_program(root, &mut fn_ids, &mut structs, &mut sigs, &mut field_map)?;
     validate_vtables(root, &fn_ids)?;
-    validate_items(root, &fn_ids, &structs, &sigs)?;
+    validate_items(root, &fn_ids, &structs, &sigs, &field_map)?;
     Ok(())
+}
+
+#[derive(Clone)]
+#[allow(dead_code)]
+pub(super) struct FieldSig {
+    pub(super) name: String,
+    pub(super) ty: Value,
 }
 
 #[derive(Clone)]
@@ -40,6 +49,7 @@ fn collect_program(
     fn_ids: &mut HashSet<u64>,
     structs: &mut HashSet<String>,
     sigs: &mut HashMap<u64, FnSig>,
+    field_map: &mut HashMap<String, Vec<FieldSig>>,
 ) -> Result<()> {
     let items = root.get("items").and_then(Value::as_array)
         .ok_or_else(|| err("missing items array"))?;
@@ -58,6 +68,13 @@ fn collect_program(
         for def in defs {
             if let Some(name) = def.get(0).and_then(Value::as_str) {
                 structs.insert(name.to_string());
+                let fields = def.get(1).and_then(Value::as_array).cloned().unwrap_or_default();
+                let sigs = fields.iter().filter_map(|f| {
+                    let name = f.get("name")?.as_str()?.to_string();
+                    let ty = f.get("ty")?.clone();
+                    Some(FieldSig { name, ty })
+                }).collect();
+                field_map.insert(name.to_string(), sigs);
             }
         }
     }
@@ -134,10 +151,11 @@ fn validate_items(
     fn_ids: &HashSet<u64>,
     structs: &HashSet<String>,
     sigs: &HashMap<u64, FnSig>,
+    field_map: &HashMap<String, Vec<FieldSig>>,
 ) -> Result<()> {
     let items = root.get("items").and_then(Value::as_array)
         .ok_or_else(|| err("missing items array"))?;
-    validate_item_list(items, fn_ids, structs, sigs)
+    validate_item_list(items, fn_ids, structs, sigs, field_map)
 }
 
 fn validate_item_list(
@@ -145,6 +163,7 @@ fn validate_item_list(
     fn_ids: &HashSet<u64>,
     structs: &HashSet<String>,
     sigs: &HashMap<u64, FnSig>,
+    field_map: &HashMap<String, Vec<FieldSig>>,
 ) -> Result<()> {
     for item in items {
         let Some(kind) = item.get("kind").and_then(Value::as_str) else { continue };
@@ -154,12 +173,12 @@ fn validate_item_list(
                 let locals = value.get("locals").and_then(Value::as_array)
                     .ok_or_else(|| err("fn has no locals array"))?;
                 let body = value.get("body").ok_or_else(|| err("fn has no body"))?;
-                walk_nodes(body, locals, fn_ids, structs, sigs, "fn.body")?;
+                walk_nodes(body, locals, fn_ids, structs, sigs, field_map, "fn.body")?;
             }
             "namespace" => {
                 let nested = item.get("items").and_then(Value::as_array)
                     .ok_or_else(|| err("namespace has no items"))?;
-                validate_item_list(nested, fn_ids, structs, sigs)?;
+                validate_item_list(nested, fn_ids, structs, sigs, field_map)?;
             }
             _ => {}
         }
@@ -173,28 +192,38 @@ fn walk_nodes(
     fn_ids: &HashSet<u64>,
     structs: &HashSet<String>,
     sigs: &HashMap<u64, FnSig>,
+    field_map: &HashMap<String, Vec<FieldSig>>,
     path: &str,
 ) -> Result<()> {
     match value {
         Value::Array(items) => {
             for (i, item) in items.iter().enumerate() {
-                walk_nodes(item, locals, fn_ids, structs, sigs, &format!("{}.{}", path, i))?;
+                walk_nodes(item, locals, fn_ids, structs, sigs, field_map, &format!("{}.{}", path, i))?;
             }
         }
         Value::Object(map) => {
             if let Some(kind) = map.get("kind").and_then(Value::as_str) {
                 match kind {
                     "call" | "fn_ptr" => {
-                        let id = map.get("fn_id").and_then(Value::as_u64)
-                            .ok_or_else(|| err(format!("{}: {} has invalid fn_id", path, kind)))?;
-                        if !fn_ids.contains(&id) {
-                            return Err(err(format!(
-                                "{}: {} references unknown FnId {}",
-                                path, kind, id
-                            )));
-                        }
-                        if kind == "call" {
-                            validate_call(map, id, sigs, path)?;
+                        // fn_ptr 的 -1 是未绑定/哨兵；call 必须指向真实函数。
+                        let raw = map.get("fn_id");
+                        if kind == "fn_ptr"
+                            && (raw.is_none() || raw.and_then(Value::as_i64) == Some(-1))
+                        {
+                            // 允许未绑定函数指针。
+                        } else {
+                            let id = raw.and_then(Value::as_u64).ok_or_else(|| {
+                                err(format!("{}: {} has invalid fn_id", path, kind))
+                            })?;
+                            if !fn_ids.contains(&id) {
+                                return Err(err(format!(
+                                    "{}: {} references unknown FnId {}",
+                                    path, kind, id
+                                )));
+                            }
+                            if kind == "call" {
+                                validate_call(map, id, sigs, path)?;
+                            }
                         }
                     }
                     "var" => {
@@ -208,7 +237,7 @@ fn walk_nodes(
                         }
                         let local_ty = locals[var as usize].get("ty").unwrap_or(&Value::Null);
                         let node_ty = map.get("ty").unwrap_or(&Value::Null);
-                        if node_ty != local_ty {
+                        if !loose_type_eq(node_ty, local_ty) {
                             return Err(err(format!(
                                 "{}: var {} type mismatch (node {}, local {})",
                                 path, var, node_ty, local_ty
@@ -224,6 +253,7 @@ fn walk_nodes(
                                 path, name
                             )));
                         }
+                        validate_struct_node(map, field_map, path)?;
                     }
                     "enum_construct" => {
                         let name = map.get("variant_struct").and_then(Value::as_str)
@@ -234,17 +264,33 @@ fn walk_nodes(
                                 path, name
                             )));
                         }
+                        validate_enum_node(map, field_map, path)?;
                     }
+                    "field" => validate_field_node(map, field_map, path)?,
                     _ => {}
                 }
             }
             for (key, child) in map {
-                walk_nodes(child, locals, fn_ids, structs, sigs, &format!("{}.{}", path, key))?;
+                walk_nodes(child, locals, fn_ids, structs, sigs, field_map, &format!("{}.{}", path, key))?;
             }
         }
         _ => {}
     }
     Ok(())
+}
+
+fn loose_type_eq(actual: &Value, expected: &Value) -> bool {
+    if actual == expected {
+        return true;
+    }
+    if actual.get("kind").and_then(Value::as_str) == Some("named")
+        && expected.get("kind").and_then(Value::as_str) == Some("named")
+    {
+        let a = actual.get("name").and_then(Value::as_str).unwrap_or("");
+        let e = expected.get("name").and_then(Value::as_str).unwrap_or("");
+        return a == e || a.split(['<', '[']).next() == e.split(['<', '[']).next();
+    }
+    false
 }
 
 fn err(message: impl std::fmt::Display) -> Error {

@@ -126,3 +126,13 @@ fn call_arity_and_type_mismatch_rejected() {
     call.as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"bool"}));
     assert!(from_json(&value.to_string()).is_err());
 }
+
+#[test]
+fn field_index_out_of_range_is_rejected() {
+    let source = "struct P { int x }\nfn main() -> int { p = P { x = 1 }\n return p.x }";
+    let hir = hir_for(source);
+    let mut value: serde_json::Value = serde_json::from_str(&to_json(&hir).unwrap()).unwrap();
+    let field = find_mut(&mut value, "field").expect("field node");
+    field.as_object_mut().unwrap().insert("field_index".into(), serde_json::json!(999));
+    assert!(from_json(&value.to_string()).is_err());
+}

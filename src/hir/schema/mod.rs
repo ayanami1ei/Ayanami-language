@@ -15,6 +15,7 @@ mod syntax;
 mod types;
 mod validate;
 mod validate_call;
+mod validate_fields;
 
 pub use core::{FromJson, ToJson};
 pub use program::{decode_program, encode_program};

@@ -1620,11 +1620,12 @@ src/hir/schema/mod.rs:14: mod syntax;
 src/hir/schema/mod.rs:15: mod types;
 src/hir/schema/mod.rs:16: mod validate;
 src/hir/schema/mod.rs:17: mod validate_call;
-src/hir/schema/mod.rs:26: pub const HIR_SCHEMA_VERSION: u32 = 1;
-src/hir/schema/mod.rs:29: pub fn to_json(program: &HirProgram) -> Result<String>
-src/hir/schema/mod.rs:35: pub fn from_json(text: &str) -> Result<HirProgram>
-src/hir/schema/mod.rs:43: pub fn roundtrip(program: &HirProgram) -> Result<HirProgram>
-src/hir/schema/mod.rs:56: mod tests;
+src/hir/schema/mod.rs:18: mod validate_fields;
+src/hir/schema/mod.rs:27: pub const HIR_SCHEMA_VERSION: u32 = 1;
+src/hir/schema/mod.rs:30: pub fn to_json(program: &HirProgram) -> Result<String>
+src/hir/schema/mod.rs:36: pub fn from_json(text: &str) -> Result<HirProgram>
+src/hir/schema/mod.rs:44: pub fn roundtrip(program: &HirProgram) -> Result<HirProgram>
+src/hir/schema/mod.rs:57: mod tests;
 src/hir/schema/nodes.rs:13: impl HirSchemaNode for $ty
 src/hir/schema/nodes.rs:14: fn schema_json(&self) -> Value
 src/hir/schema/nodes.rs:55: impl ToJson for HirNodeBox
@@ -1701,6 +1702,7 @@ src/hir/schema/tests.rs:78: fn invalid_fn_id_is_rejected_before_decode()
 src/hir/schema/tests.rs:88: fn var_type_mismatch_is_rejected_before_decode()
 src/hir/schema/tests.rs:98: fn invalid_var_id_is_rejected_before_decode()
 src/hir/schema/tests.rs:108: fn call_arity_and_type_mismatch_rejected()
+src/hir/schema/tests.rs:131: fn field_index_out_of_range_is_rejected()
 src/hir/schema/types.rs:9: impl ToJson for HirType
 src/hir/schema/types.rs:10: fn to_json(&self) -> Value
 src/hir/schema/types.rs:35: impl FromJson for HirType
@@ -1709,19 +1711,30 @@ src/hir/schema/types.rs:80: impl ToJson for HirLiteral
 src/hir/schema/types.rs:81: fn to_json(&self) -> Value
 src/hir/schema/types.rs:93: impl FromJson for HirLiteral
 src/hir/schema/types.rs:94: fn from_json(v: &Value) -> Result<Self>
-src/hir/schema/validate.rs:13: pub(crate) fn validate(root: &Value) -> Result<()>
-src/hir/schema/validate.rs:32: pub(super) struct FnSig
-src/hir/schema/validate.rs:38: fn collect_program(
-src/hir/schema/validate.rs:67: fn fn_sig(value: &Value) -> Option<FnSig>
-src/hir/schema/validate.rs:79: fn collect_items(
-src/hir/schema/validate.rs:114: fn validate_vtables(root: &Value, fn_ids: &HashSet<u64>) -> Result<()>
-src/hir/schema/validate.rs:132: fn validate_items(
-src/hir/schema/validate.rs:143: fn validate_item_list(
-src/hir/schema/validate.rs:170: fn walk_nodes(
-src/hir/schema/validate.rs:250: fn err(message: impl std::fmt::Display) -> Error
+src/hir/schema/validate.rs:14: pub(crate) fn validate(root: &Value) -> Result<()>
+src/hir/schema/validate.rs:35: pub(super) struct FieldSig
+src/hir/schema/validate.rs:41: pub(super) struct FnSig
+src/hir/schema/validate.rs:47: fn collect_program(
+src/hir/schema/validate.rs:84: fn fn_sig(value: &Value) -> Option<FnSig>
+src/hir/schema/validate.rs:96: fn collect_items(
+src/hir/schema/validate.rs:131: fn validate_vtables(root: &Value, fn_ids: &HashSet<u64>) -> Result<()>
+src/hir/schema/validate.rs:149: fn validate_items(
+src/hir/schema/validate.rs:161: fn validate_item_list(
+src/hir/schema/validate.rs:189: fn walk_nodes(
+src/hir/schema/validate.rs:282: fn loose_type_eq(actual: &Value, expected: &Value) -> bool
+src/hir/schema/validate.rs:296: fn err(message: impl std::fmt::Display) -> Error
 src/hir/schema/validate_call.rs:10: pub(super) fn validate_call(
 src/hir/schema/validate_call.rs:49: fn types_compatible(actual: &Value, expected: &Value) -> bool
-src/hir/schema/validate_call.rs:65: fn err(message: impl std::fmt::Display) -> crate::error::Error
+src/hir/schema/validate_call.rs:108: fn named_base(name: &str) -> &str
+src/hir/schema/validate_call.rs:112: fn err(message: impl std::fmt::Display) -> crate::error::Error
+src/hir/schema/validate_call.rs:117: mod tests
+src/hir/schema/validate_call.rs:121: fn unique_sized_array_matches_array()
+src/hir/schema/validate_call.rs:134: fn unique_sized_array_matches_plain_array()
+src/hir/schema/validate_fields.rs:10: pub(super) fn validate_struct_node(
+src/hir/schema/validate_fields.rs:20: pub(super) fn validate_enum_node(
+src/hir/schema/validate_fields.rs:28: pub(super) fn validate_field_node(
+src/hir/schema/validate_fields.rs:48: fn named_type(value: &Value) -> Option<&str>
+src/hir/schema/validate_fields.rs:58: fn err(message: impl std::fmt::Display) -> crate::error::Error
 src/hir/stmt.rs:6: pub enum ContractKind
 src/hir/stmt.rs:12: impl ContractKind
 src/hir/stmt.rs:13: pub fn label(&self) -> &'static str
