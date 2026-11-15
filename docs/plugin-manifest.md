@@ -38,6 +38,7 @@ version="0.1.0"
 abi=8
 min-compiler="0.6.8"
 built-with="0.6.8"
+transform-schema=1
 ```
 
 字段：
@@ -50,6 +51,7 @@ built-with="0.6.8"
 | `abi` | 插件 ABI；必须与消费方编译器的插件 ABI 完全一致 |
 | `min-compiler` | 最低编译器版本，简单 semver（`major.minor.patch`，缺省段按 0） |
 | `built-with` | 打出该 `.lcl` 的编译器版本，仅用于诊断 |
+| `transform-schema` | 可选；含 `#[transform]` 的插件写入 HIR schema 版本，加载/安装时校验 |
 
 `[pakage-info] name/version` 保持 `.lcl` 现有语义：`version` 仍记录打包该包的编译器
 版本，避免破坏 `warn_version_drift`；插件自身版本以 `[plugin]` 为准。
@@ -79,7 +81,7 @@ built-with="0.6.8"
 - 从项目 `ayanami.toml` 的 `[package] name/version` 读取插件名/版本；
 - 缺少时回退到入口文件 stem 和 `0.1.0`；
 - 自动写入当前 `manifest=1`、插件 ABI、`min-compiler=当前编译器版本`、
-  `built-with=当前编译器版本`；
+  `built-with=当前编译器版本`；含 transform 时写 `transform-schema=HIR_SCHEMA_VERSION`；
 - 普通 `ayanami package` 不写 `[plugin]`，行为不变。
 
 ## 错误示例

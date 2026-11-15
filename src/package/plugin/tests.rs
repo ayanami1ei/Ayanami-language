@@ -51,6 +51,7 @@ fn test_validate_wrong_abi() {
         abi: 7,
         min_compiler: "0.6.8".to_string(),
         built_with: "0.6.8".to_string(),
+        transform_schema: None,
     };
     assert!(validate_manifest(&manifest, "test").is_err());
 }
@@ -64,6 +65,7 @@ fn test_validate_too_new_min_compiler() {
         abi: 8,
         min_compiler: "999.0.0".to_string(),
         built_with: "0.6.8".to_string(),
+        transform_schema: None,
     };
     assert!(validate_manifest(&manifest, "test").is_err());
 }
@@ -77,6 +79,7 @@ fn test_validate_invalid_min_compiler() {
         abi: 8,
         min_compiler: "not-a-version".to_string(),
         built_with: "0.6.8".to_string(),
+        transform_schema: None,
     };
     assert!(validate_manifest(&manifest, "test").is_err());
 }
@@ -120,4 +123,36 @@ built-with="0.6.8"
 "#;
     let manifest = parse_manifest(body, "test").unwrap().unwrap();
     assert_eq!(manifest.name, "my_plugin");
+}
+
+#[test]
+fn transform_schema_mismatch_rejected() {
+    let body = r#"
+[plugin]
+manifest=1
+name="my_plugin"
+version="0.1.0"
+abi=8
+min-compiler="0.6.8"
+built-with="0.6.8"
+transform-schema=999
+"#;
+    let manifest = parse_manifest(body, "test").unwrap().unwrap();
+    assert!(validate_manifest(&manifest, "test").is_err());
+}
+
+#[test]
+fn transform_schema_current_accepted() {
+    let body = r#"
+[plugin]
+manifest=1
+name="my_plugin"
+version="0.1.0"
+abi=8
+min-compiler="0.6.8"
+built-with="0.6.8"
+transform-schema=1
+"#;
+    let manifest = parse_manifest(body, "test").unwrap().unwrap();
+    assert!(validate_manifest(&manifest, "test").is_ok());
 }

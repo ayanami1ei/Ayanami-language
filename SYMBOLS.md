@@ -87,8 +87,10 @@ src/cli/plugin.rs:13: pub(crate) fn cmd_plugin(args: &[String])
 src/cli/plugin.rs:32: fn plugin_new(args: &[String])
 src/cli/plugin.rs:59: pub fn identity(String input) -> String
 src/cli/plugin.rs:81: fn plugin_package(args: &[String])
-src/cli/plugin.rs:126: fn has_plugin_annotation(code: &str) -> bool
-src/cli/plugin.rs:131: fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool
+src/cli/plugin.rs:129: fn has_plugin_annotation(code: &str) -> bool
+src/cli/plugin.rs:134: fn has_transform_annotation(code: &str) -> bool
+src/cli/plugin.rs:139: fn stmt_has_transform_decl(stmt: &ayanami::parser::ast::Stmt) -> bool
+src/cli/plugin.rs:151: fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool
 src/cli/types.rs:9: pub(crate) fn cmd_types(args: &[String])
 src/cli/types.rs:62: fn collect_items(items: &[HirItem], out: &mut Vec<(String, String, usize, usize)>)
 src/cli/types.rs:72: fn collect_fn(f: &HirFn, out: &mut Vec<(String, String, usize, usize)>)
@@ -2884,7 +2886,7 @@ src/package/annotate.rs:48: fn attr_collides_with_other_annotation_kinds()
 src/package/annotate.rs:56: fn distinct_annotation_names_accepted()
 src/package/bytes.rs:3: impl Package
 src/package/bytes.rs:6: pub fn to_bytes(&self) -> Vec<u8>
-src/package/bytes.rs:120: pub fn write_to_file(&self, path: &str) -> Result<()>
+src/package/bytes.rs:123: pub fn write_to_file(&self, path: &str) -> Result<()>
 src/package/config.rs:5: pub struct ProjectConfig
 src/package/config.rs:23: impl ProjectConfig
 src/package/config.rs:24: pub fn load(toml_content: &str) -> Self
@@ -2919,25 +2921,28 @@ src/package/plugin/tests.rs:4: fn test_parse_valid_manifest()
 src/package/plugin/tests.rs:24: fn test_no_plugin_section()
 src/package/plugin/tests.rs:33: fn test_missing_abi()
 src/package/plugin/tests.rs:46: fn test_validate_wrong_abi()
-src/package/plugin/tests.rs:59: fn test_validate_too_new_min_compiler()
-src/package/plugin/tests.rs:72: fn test_validate_invalid_min_compiler()
-src/package/plugin/tests.rs:85: fn test_version_at_least()
-src/package/plugin/tests.rs:92: fn test_plugin_section_before_later_sections()
-src/package/plugin/tests.rs:110: fn test_parse_manifest_ignores_symbols()
+src/package/plugin/tests.rs:60: fn test_validate_too_new_min_compiler()
+src/package/plugin/tests.rs:74: fn test_validate_invalid_min_compiler()
+src/package/plugin/tests.rs:88: fn test_version_at_least()
+src/package/plugin/tests.rs:95: fn test_plugin_section_before_later_sections()
+src/package/plugin/tests.rs:113: fn test_parse_manifest_ignores_symbols()
+src/package/plugin/tests.rs:129: fn transform_schema_mismatch_rejected()
+src/package/plugin/tests.rs:145: fn transform_schema_current_accepted()
 src/package/plugin.rs:8: pub(crate) const PLUGIN_ABI_VERSION: u32 = 8;
 src/package/plugin.rs:9: pub(crate) const PLUGIN_MANIFEST_SCHEMA: u32 = 1;
 src/package/plugin.rs:12: pub struct PluginManifest
-src/package/plugin.rs:21: impl PluginManifest
-src/package/plugin.rs:22: pub fn new(name: String, version: String, min_compiler: String, built_with: String) -> Self
-src/package/plugin.rs:34: pub(crate) fn parse_version(s: &str) -> Option<(u64, u64, u64)>
-src/package/plugin.rs:47: fn version_at_least(current: &str, required: &str) -> bool
-src/package/plugin.rs:53: pub(crate) fn parse_manifest(body: &str, path: &str) -> Result<Option<PluginManifest>>
-src/package/plugin.rs:129: pub(crate) fn load_manifest(path: &str) -> Result<Option<PluginManifest>>
-src/package/plugin.rs:146: pub(crate) fn validate_manifest(manifest: &PluginManifest, path: &str) -> Result<()>
-src/package/plugin.rs:185: pub fn load_checked_manifest(path: &str) -> Result<Option<PluginManifest>>
-src/package/plugin.rs:193: static WARNED_PATHS: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-src/package/plugin.rs:195: pub(crate) fn warn_missing_manifest(path: &str)
-src/package/plugin.rs:208: mod tests;
+src/package/plugin.rs:23: impl PluginManifest
+src/package/plugin.rs:24: pub fn new(name: String, version: String, min_compiler: String, built_with: String) -> Self
+src/package/plugin.rs:36: pub fn with_transform_schema(mut self, schema: u32) -> Self
+src/package/plugin.rs:42: pub(crate) fn parse_version(s: &str) -> Option<(u64, u64, u64)>
+src/package/plugin.rs:55: fn version_at_least(current: &str, required: &str) -> bool
+src/package/plugin.rs:61: pub(crate) fn parse_manifest(body: &str, path: &str) -> Result<Option<PluginManifest>>
+src/package/plugin.rs:140: pub(crate) fn load_manifest(path: &str) -> Result<Option<PluginManifest>>
+src/package/plugin.rs:157: pub(crate) fn validate_manifest(manifest: &PluginManifest, path: &str) -> Result<()>
+src/package/plugin.rs:204: pub fn load_checked_manifest(path: &str) -> Result<Option<PluginManifest>>
+src/package/plugin.rs:212: static WARNED_PATHS: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+src/package/plugin.rs:214: pub(crate) fn warn_missing_manifest(path: &str)
+src/package/plugin.rs:227: mod tests;
 src/package/symbols.rs:4: impl Package
 src/package/symbols.rs:5: pub fn new(name: String, version: String) -> Self
 src/package/symbols.rs:22: pub fn set_effect_summaries(

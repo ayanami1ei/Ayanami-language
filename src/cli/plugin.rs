@@ -109,12 +109,15 @@ fn plugin_package(args: &[String]) {
         .unwrap_or_else(|| {
             (path.file_stem().unwrap_or_default().to_string_lossy().into_owned(), "0.1.0".to_string())
         });
-    let manifest = ayanami::package::PluginManifest::new(
+    let mut manifest = ayanami::package::PluginManifest::new(
         pkg_name,
         pkg_version,
         env!("CARGO_PKG_VERSION").to_string(),
         env!("CARGO_PKG_VERSION").to_string(),
     );
+    if has_transform_annotation(&code) {
+        manifest = manifest.with_transform_schema(ayanami::hir::schema::HIR_SCHEMA_VERSION);
+    }
     if let Err(e) = ayanami::compiler::package_source_with_manifest(&path_s, &code, Some(manifest)) {
         eprintln!("error: plugin package failed: {}", e);
         std::process::exit(1);
@@ -126,6 +129,23 @@ fn plugin_package(args: &[String]) {
 fn has_plugin_annotation(code: &str) -> bool {
     let Ok(program) = ayanami::parser::parse_source(code) else { return false };
     program.stmts.iter().any(stmt_has_plugin_decl)
+}
+
+fn has_transform_annotation(code: &str) -> bool {
+    let Ok(program) = ayanami::parser::parse_source(code) else { return false };
+    program.stmts.iter().any(stmt_has_transform_decl)
+}
+
+fn stmt_has_transform_decl(stmt: &ayanami::parser::ast::Stmt) -> bool {
+    use ayanami::parser::ast::Stmt;
+    match stmt {
+        Stmt::FnDecl { attrs, .. } => attrs.iter().any(|a| {
+            a.is_builtin() && a.name.as_str() == "transform"
+        }),
+        Stmt::Namespace { items, .. } => items.iter().any(stmt_has_transform_decl),
+        Stmt::ImplBlock { methods, .. } => methods.iter().any(stmt_has_transform_decl),
+        _ => false,
+    }
 }
 
 fn stmt_has_plugin_decl(stmt: &ayanami::parser::ast::Stmt) -> bool {

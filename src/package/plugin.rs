@@ -16,6 +16,8 @@ pub struct PluginManifest {
     pub abi: u32,
     pub min_compiler: String,
     pub built_with: String,
+    /// B2n：transform 插件要求的 HIR schema 版本（非 transform 插件为 None）
+    pub transform_schema: Option<u32>,
 }
 
 impl PluginManifest {
@@ -27,7 +29,13 @@ impl PluginManifest {
             abi: PLUGIN_ABI_VERSION,
             min_compiler,
             built_with,
+            transform_schema: None,
         }
+    }
+
+    pub fn with_transform_schema(mut self, schema: u32) -> Self {
+        self.transform_schema = Some(schema);
+        self
     }
 }
 
@@ -57,6 +65,7 @@ pub(crate) fn parse_manifest(body: &str, path: &str) -> Result<Option<PluginMani
     let mut abi = None;
     let mut min_compiler = None;
     let mut built_with = None;
+    let mut transform_schema = None;
 
     let mut in_plugin_section = false;
     let mut found_plugin = false;
@@ -97,6 +106,7 @@ pub(crate) fn parse_manifest(body: &str, path: &str) -> Result<Option<PluginMani
             "abi" => abi = Some(value.parse().map_err(|_| Error::Package(format!("plugin manifest in '{}': invalid ABI version", path)))?),
             "min-compiler" => min_compiler = Some(value),
             "built-with" => built_with = Some(value),
+            "transform-schema" => transform_schema = Some(value.parse().map_err(|_| Error::Package(format!("plugin manifest in '{}': invalid transform schema", path)))?),
             _ => continue,
         }
     }
@@ -123,6 +133,7 @@ pub(crate) fn parse_manifest(body: &str, path: &str) -> Result<Option<PluginMani
         abi,
         min_compiler,
         built_with,
+        transform_schema,
     }))
 }
 
@@ -149,6 +160,14 @@ pub(crate) fn validate_manifest(manifest: &PluginManifest, path: &str) -> Result
             "plugin '{}' {} uses manifest schema {}, compiler supports {} (at '{}')",
             manifest.name, manifest.version, manifest.schema, PLUGIN_MANIFEST_SCHEMA, path
         )));
+    }
+    if let Some(schema) = manifest.transform_schema {
+        if schema != crate::hir::schema::HIR_SCHEMA_VERSION {
+            return Err(Error::Package(format!(
+                "plugin '{}' {} requires HIR transform schema {}, compiler supports {}",
+                manifest.name, manifest.version, schema, crate::hir::schema::HIR_SCHEMA_VERSION
+            )));
+        }
     }
     if manifest.abi != PLUGIN_ABI_VERSION {
         return Err(Error::Package(format!(

@@ -222,6 +222,9 @@ EOF
         elif ! grep -aq '^transform="identity"' "$tdir/src/lib.lcl"; then
             echo "FAIL A5e/B1: transform table missing"
             fail=$((fail + 1))
+        elif ! grep -aq '^transform-schema=1' "$tdir/src/lib.lcl"; then
+            echo "FAIL A5e/B2n: transform-schema missing from manifest"
+            fail=$((fail + 1))
         else
             cat > "$tconsumer" <<EOF
 import "$tdir/src/lib.lcl"

@@ -168,9 +168,9 @@ schema 覆盖：
 
 - **B1（已完成 2026-11-14）**：`.lcl` `transform=` 表、`#[transform]` 声明、
   `fn(String json) -> String` 插件 ABI、identity 插件；
-- **B2/B2c/B2d/B2e/B2f/B2g/B2h/B2i/B2j/B2k/B2l/B2m（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
+- **B2/B2c/B2d/B2e/B2f/B2g/B2h/B2i/B2j/B2k/B2l/B2m/B2n（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
   clone/append 函数、调用点重定向、FnId/VarId/类型/调用签名/return 类型/字段索引/struct/vtable 校验、目标诊断、
-  struct/泛型 struct 与泛型函数特化触发已跑通；
+  struct/泛型 struct 与泛型函数特化触发、transform-schema 清单校验已跑通；
   变换后 FnId/VarId/类型/借用/效应校验；
 - **B3**：泛型、enum niche、vtable、async/sync 内建变换统一接口。
 

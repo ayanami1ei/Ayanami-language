@@ -26,6 +26,9 @@ impl Package {
             body.push_str(&format!("abi={}\n", m.abi));
             body.push_str(&format!("min-compiler=\"{}\"\n", m.min_compiler));
             body.push_str(&format!("built-with=\"{}\"\n", m.built_with));
+            if let Some(schema) = m.transform_schema {
+                body.push_str(&format!("transform-schema={}\n", schema));
+            }
             body.push_str("\n");
         }
 
