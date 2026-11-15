@@ -90,7 +90,7 @@ fn var_type_mismatch_is_rejected_before_decode() {
     let hir = hir_for(source);
     let mut value: serde_json::Value = serde_json::from_str(&to_json(&hir).unwrap()).unwrap();
     let var = find_mut(&mut value, "var").expect("var node");
-    var.as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"bool"}));
+    var.as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"named","name":"String"}));
     assert!(from_json(&value.to_string()).is_err());
 }
 
@@ -118,12 +118,12 @@ fn call_arity_and_type_mismatch_rejected() {
     let mut value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
     let call = find_mut(&mut value, "call").expect("call node");
     let args = call.get_mut("args").unwrap().as_array_mut().unwrap();
-    args[0].as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"bool"}));
+    args[0].as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"named","name":"String"}));
     assert!(from_json(&value.to_string()).is_err());
 
     let mut value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
     let call = find_mut(&mut value, "call").expect("call node");
-    call.as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"bool"}));
+    call.as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"named","name":"String"}));
     assert!(from_json(&value.to_string()).is_err());
 }
 
@@ -134,5 +134,16 @@ fn field_index_out_of_range_is_rejected() {
     let mut value: serde_json::Value = serde_json::from_str(&to_json(&hir).unwrap()).unwrap();
     let field = find_mut(&mut value, "field").expect("field node");
     field.as_object_mut().unwrap().insert("field_index".into(), serde_json::json!(999));
+    assert!(from_json(&value.to_string()).is_err());
+}
+
+#[test]
+fn return_type_mismatch_is_rejected() {
+    let source = "fn main() -> int { return 1 }";
+    let hir = hir_for(source);
+    let mut value: serde_json::Value = serde_json::from_str(&to_json(&hir).unwrap()).unwrap();
+    let ret = find_mut(&mut value, "return").expect("return node");
+    let ret_value = ret.get_mut("value").unwrap();
+    ret_value.as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"named","name":"String"}));
     assert!(from_json(&value.to_string()).is_err());
 }

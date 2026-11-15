@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 use crate::error::{Error, Result};
 
 use super::validate_call::validate_call;
-use super::validate_fields::{validate_enum_node, validate_field_node, validate_struct_node};
+use super::validate_fields::{loose_type_eq, validate_enum_node, validate_field_node, validate_return, validate_struct_node};
 
 pub(crate) fn validate(root: &Value) -> Result<()> {
     let schema = root.get("schema").and_then(Value::as_u64).unwrap_or(0);
@@ -173,7 +173,8 @@ fn validate_item_list(
                 let locals = value.get("locals").and_then(Value::as_array)
                     .ok_or_else(|| err("fn has no locals array"))?;
                 let body = value.get("body").ok_or_else(|| err("fn has no body"))?;
-                walk_nodes(body, locals, fn_ids, structs, sigs, field_map, "fn.body")?;
+                let return_ty = value.get("return_type").unwrap_or(&Value::Null);
+                walk_nodes(body, locals, return_ty, fn_ids, structs, sigs, field_map, "fn.body")?;
             }
             "namespace" => {
                 let nested = item.get("items").and_then(Value::as_array)
@@ -189,6 +190,7 @@ fn validate_item_list(
 fn walk_nodes(
     value: &Value,
     locals: &[Value],
+    return_ty: &Value,
     fn_ids: &HashSet<u64>,
     structs: &HashSet<String>,
     sigs: &HashMap<u64, FnSig>,
@@ -198,7 +200,7 @@ fn walk_nodes(
     match value {
         Value::Array(items) => {
             for (i, item) in items.iter().enumerate() {
-                walk_nodes(item, locals, fn_ids, structs, sigs, field_map, &format!("{}.{}", path, i))?;
+                walk_nodes(item, locals, return_ty, fn_ids, structs, sigs, field_map, &format!("{}.{}", path, i))?;
             }
         }
         Value::Object(map) => {
@@ -267,30 +269,21 @@ fn walk_nodes(
                         validate_enum_node(map, field_map, path)?;
                     }
                     "field" => validate_field_node(map, field_map, path)?,
+                    "return" => {
+                        if let Some(value) = map.get("value") {
+                            validate_return(value, return_ty, path)?;
+                        }
+                    }
                     _ => {}
                 }
             }
             for (key, child) in map {
-                walk_nodes(child, locals, fn_ids, structs, sigs, field_map, &format!("{}.{}", path, key))?;
+                walk_nodes(child, locals, return_ty, fn_ids, structs, sigs, field_map, &format!("{}.{}", path, key))?;
             }
         }
         _ => {}
     }
     Ok(())
-}
-
-fn loose_type_eq(actual: &Value, expected: &Value) -> bool {
-    if actual == expected {
-        return true;
-    }
-    if actual.get("kind").and_then(Value::as_str) == Some("named")
-        && expected.get("kind").and_then(Value::as_str) == Some("named")
-    {
-        let a = actual.get("name").and_then(Value::as_str).unwrap_or("");
-        let e = expected.get("name").and_then(Value::as_str).unwrap_or("");
-        return a == e || a.split(['<', '[']).next() == e.split(['<', '[']).next();
-    }
-    false
 }
 
 fn err(message: impl std::fmt::Display) -> Error {

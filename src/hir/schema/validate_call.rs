@@ -46,13 +46,17 @@ pub(super) fn validate_call(
     Ok(())
 }
 
-fn types_compatible(actual: &Value, expected: &Value) -> bool {
+pub(super) fn types_compatible(actual: &Value, expected: &Value) -> bool {
     if actual == expected {
         return true;
     }
     let ak = actual.get("kind").and_then(Value::as_str);
     let ek = expected.get("kind").and_then(Value::as_str);
     if ak == Some("never") {
+        return true;
+    }
+    let scalar = |k: Option<&str>| matches!(k, Some("int"|"bool"|"char"|"float"|"f32"|"int_n"));
+    if scalar(ak) && scalar(ek) {
         return true;
     }
     match (ak, ek) {
@@ -94,7 +98,6 @@ fn types_compatible(actual: &Value, expected: &Value) -> bool {
             ap.len() == ep.len()
                 && ap.iter().zip(ep).all(|(a, b)| types_compatible(a, b))
                 && types_compatible(actual.get("return").unwrap_or(&Value::Null), expected.get("return").unwrap_or(&Value::Null))
-                && actual.get("once") == expected.get("once")
         }
         (Some("named"), Some("named")) => {
             let an = actual.get("name").and_then(Value::as_str).unwrap_or("");

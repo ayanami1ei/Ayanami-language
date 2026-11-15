@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use crate::error::Result;
 
 use super::validate::FieldSig;
+use super::validate_call::types_compatible;
 
 pub(super) fn validate_struct_node(
     _node: &serde_json::Map<String, Value>,
@@ -43,6 +44,34 @@ pub(super) fn validate_field_node(
     // union/niche 布局的名字可能与声明字段名不同；只校验索引范围。
     let _ = (&def.ty, node.get("field_ty"));
     Ok(())
+}
+
+pub(super) fn validate_return(value: &Value, return_ty: &Value, path: &str) -> Result<()> {
+    if value.is_null() {
+        return Ok(());
+    }
+    let ty = value.get("ty").unwrap_or(&Value::Null);
+    if !types_compatible(ty, return_ty) {
+        return Err(err(format!(
+            "{}: return type mismatch (value {}, function {})",
+            path, ty, return_ty
+        )));
+    }
+    Ok(())
+}
+
+pub(super) fn loose_type_eq(actual: &Value, expected: &Value) -> bool {
+    if actual == expected {
+        return true;
+    }
+    if actual.get("kind").and_then(Value::as_str) == Some("named")
+        && expected.get("kind").and_then(Value::as_str) == Some("named")
+    {
+        let a = actual.get("name").and_then(Value::as_str).unwrap_or("");
+        let e = expected.get("name").and_then(Value::as_str).unwrap_or("");
+        return a == e || a.split(['<', '[']).next() == e.split(['<', '[']).next();
+    }
+    false
 }
 
 fn named_type(value: &Value) -> Option<&str> {
