@@ -450,6 +450,19 @@ EOF
                     echo "FAIL A5e/B2h: generic struct exit $got, want 8"
                     fail=$((fail + 1))
                 fi
+                # B2l：async 展开后的 wrapper 保留外部 transform 属性
+                async_src="$pbase/async_transform.aya"
+                {
+                    echo "import \"$tdir/src/lib.lcl\""
+                    cat example/test_async_sugar.aya
+                } > "$async_src"
+                sed -i '0,/^#\[async\]$/s//#[async]\n#[lib::bump]/' "$async_src"
+                "$BIN" run "$async_src" >/dev/null 2>&1
+                got=$?
+                if [ "$got" != 8 ]; then
+                    echo "FAIL A5e/B2l: async transform exit $got, want 8"
+                    fail=$((fail + 1))
+                fi
             fi
         fi
     fi

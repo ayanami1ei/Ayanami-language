@@ -583,10 +583,11 @@ src/hir/async_mixed_types.rs:68: pub(super) fn type_default(t: &Type) -> Option<
 src/hir/async_mixed_types.rs:81: pub(super) fn hir_to_ast(t: &HirType, span: Span) -> Option<Type>
 src/hir/async_post_args.rs:10: pub(super) fn build_post_args(
 src/hir/async_transform.rs:19: pub fn expand(
-src/hir/async_transform.rs:71: fn is_async(a: &crate::parser::ast::Attr) -> bool
-src/hir/async_transform.rs:74: fn contains_async(stmt: &Stmt) -> bool
-src/hir/async_transform.rs:84: fn expand_one(
-src/hir/async_transform.rs:199: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:73: fn attach_qualified_attrs(out: &mut [Stmt], name: Symbol, attrs: &[Attr])
+src/hir/async_transform.rs:91: fn is_async(a: &crate::parser::ast::Attr) -> bool
+src/hir/async_transform.rs:94: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:104: fn expand_one(
+src/hir/async_transform.rs:219: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform_await.rs:10: pub(super) fn await_prefix(
 src/hir/async_transform_await.rs:50: pub(super) fn expand_await(
 src/hir/async_transform_await.rs:173: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\

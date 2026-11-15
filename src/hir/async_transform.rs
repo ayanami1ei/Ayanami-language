@@ -13,7 +13,7 @@ use crate::error::{Error, Result};
 use crate::hir::async_transform_util::ty_src;
 use crate::intern::Symbol;
 use crate::parser::ast::vis::Visibility;
-use crate::parser::ast::{Program, Stmt, Type};
+use crate::parser::ast::{Attr, Program, Stmt, Type};
 use std::collections::HashMap;
 /// 展开程序中的 `#[async]` 函数（cfg 过滤之后、HIR 降级之前）。
 pub fn expand(
@@ -43,8 +43,10 @@ pub fn expand(
     let mut out = Vec::with_capacity(program.stmts.len());
     for stmt in &program.stmts {
         match stmt {
-            Stmt::FnDecl { attrs, .. } if attrs.iter().any(is_async) => {
-                expand_one(stmt, &returns, &async_fns, &fn_returns, &mut out, types)?
+            Stmt::FnDecl { attrs, name, .. } if attrs.iter().any(is_async) => {
+                let start = out.len();
+                expand_one(stmt, &returns, &async_fns, &fn_returns, &mut out, types)?;
+                attach_qualified_attrs(&mut out[start..], *name, attrs);
             }
             Stmt::FnDecl { attrs, body, .. }
                 if !attrs.iter().any(is_async)
@@ -68,6 +70,24 @@ pub fn expand(
     }
     Ok(Program::new(out))
 }
+fn attach_qualified_attrs(out: &mut [Stmt], name: Symbol, attrs: &[Attr]) {
+    let keep: Vec<Attr> = attrs.iter()
+        .filter(|a| !a.qualifier.is_empty())
+        .cloned()
+        .collect();
+    if keep.is_empty() {
+        return;
+    }
+    for stmt in out {
+        if let Stmt::FnDecl { name: n, attrs: a, .. } = stmt {
+            if *n == name {
+                *a = keep;
+                return;
+            }
+        }
+    }
+}
+
 fn is_async(a: &crate::parser::ast::Attr) -> bool {
     a.qualifier.is_empty() && a.name.as_str() == "async"
 }
