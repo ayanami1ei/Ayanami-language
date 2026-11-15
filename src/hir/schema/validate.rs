@@ -4,9 +4,11 @@
 //! 或非法 vtable。这里在 HIR 重建前做一层引用检查，避免后续 pass panic。
 
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::error::{Error, Result};
+
+use super::validate_call::validate_call;
 
 pub(crate) fn validate(root: &Value) -> Result<()> {
     let schema = root.get("schema").and_then(Value::as_u64).unwrap_or(0);
@@ -19,24 +21,36 @@ pub(crate) fn validate(root: &Value) -> Result<()> {
 
     let mut fn_ids = HashSet::new();
     let mut structs = HashSet::new();
-    collect_program(root, &mut fn_ids, &mut structs)?;
+    let mut sigs = HashMap::new();
+    collect_program(root, &mut fn_ids, &mut structs, &mut sigs)?;
     validate_vtables(root, &fn_ids)?;
-    validate_items(root, &fn_ids, &structs)?;
+    validate_items(root, &fn_ids, &structs, &sigs)?;
     Ok(())
+}
+
+#[derive(Clone)]
+pub(super) struct FnSig {
+    pub(super) params: Vec<Value>,
+    pub(super) ret: Value,
+    pub(super) extern_c: bool,
 }
 
 fn collect_program(
     root: &Value,
     fn_ids: &mut HashSet<u64>,
     structs: &mut HashSet<String>,
+    sigs: &mut HashMap<u64, FnSig>,
 ) -> Result<()> {
     let items = root.get("items").and_then(Value::as_array)
         .ok_or_else(|| err("missing items array"))?;
-    collect_items(items, fn_ids, structs)?;
+    collect_items(items, fn_ids, structs, sigs)?;
     if let Some(imported) = root.get("imported_fns").and_then(Value::as_array) {
         for item in imported {
             if let Some(id) = item.get("fn_id").and_then(Value::as_u64) {
                 fn_ids.insert(id);
+                if let Some(sig) = fn_sig(item) {
+                    sigs.entry(id).or_insert(sig);
+                }
             }
         }
     }
@@ -50,10 +64,23 @@ fn collect_program(
     Ok(())
 }
 
+fn fn_sig(value: &Value) -> Option<FnSig> {
+    let params = value.get("params")?.as_array()?
+        .iter()
+        .map(|p| p.get(1).cloned().unwrap_or(Value::Null))
+        .collect();
+    Some(FnSig {
+        params,
+        ret: value.get("return_type")?.clone(),
+        extern_c: value.get("extern_c").and_then(Value::as_bool).unwrap_or(false),
+    })
+}
+
 fn collect_items(
     items: &[Value],
     fn_ids: &mut HashSet<u64>,
     structs: &mut HashSet<String>,
+    sigs: &mut HashMap<u64, FnSig>,
 ) -> Result<()> {
     for item in items {
         let Some(kind) = item.get("kind").and_then(Value::as_str) else { continue };
@@ -62,6 +89,9 @@ fn collect_items(
                 let value = item.get("value").ok_or_else(|| err("fn item has no value"))?;
                 if let Some(id) = value.get("fn_id").and_then(Value::as_u64) {
                     fn_ids.insert(id);
+                    if let Some(sig) = fn_sig(value) {
+                        sigs.entry(id).or_insert(sig);
+                    }
                 }
             }
             "struct" => {
@@ -73,7 +103,7 @@ fn collect_items(
             "namespace" => {
                 let nested = item.get("items").and_then(Value::as_array)
                     .ok_or_else(|| err("namespace has no items"))?;
-                collect_items(nested, fn_ids, structs)?;
+                collect_items(nested, fn_ids, structs, sigs)?;
             }
             _ => {}
         }
@@ -103,16 +133,18 @@ fn validate_items(
     root: &Value,
     fn_ids: &HashSet<u64>,
     structs: &HashSet<String>,
+    sigs: &HashMap<u64, FnSig>,
 ) -> Result<()> {
     let items = root.get("items").and_then(Value::as_array)
         .ok_or_else(|| err("missing items array"))?;
-    validate_item_list(items, fn_ids, structs)
+    validate_item_list(items, fn_ids, structs, sigs)
 }
 
 fn validate_item_list(
     items: &[Value],
     fn_ids: &HashSet<u64>,
     structs: &HashSet<String>,
+    sigs: &HashMap<u64, FnSig>,
 ) -> Result<()> {
     for item in items {
         let Some(kind) = item.get("kind").and_then(Value::as_str) else { continue };
@@ -122,12 +154,12 @@ fn validate_item_list(
                 let locals = value.get("locals").and_then(Value::as_array)
                     .ok_or_else(|| err("fn has no locals array"))?;
                 let body = value.get("body").ok_or_else(|| err("fn has no body"))?;
-                walk_nodes(body, locals, fn_ids, structs, "fn.body")?;
+                walk_nodes(body, locals, fn_ids, structs, sigs, "fn.body")?;
             }
             "namespace" => {
                 let nested = item.get("items").and_then(Value::as_array)
                     .ok_or_else(|| err("namespace has no items"))?;
-                validate_item_list(nested, fn_ids, structs)?;
+                validate_item_list(nested, fn_ids, structs, sigs)?;
             }
             _ => {}
         }
@@ -140,12 +172,13 @@ fn walk_nodes(
     locals: &[Value],
     fn_ids: &HashSet<u64>,
     structs: &HashSet<String>,
+    sigs: &HashMap<u64, FnSig>,
     path: &str,
 ) -> Result<()> {
     match value {
         Value::Array(items) => {
             for (i, item) in items.iter().enumerate() {
-                walk_nodes(item, locals, fn_ids, structs, &format!("{}.{}", path, i))?;
+                walk_nodes(item, locals, fn_ids, structs, sigs, &format!("{}.{}", path, i))?;
             }
         }
         Value::Object(map) => {
@@ -159,6 +192,9 @@ fn walk_nodes(
                                 "{}: {} references unknown FnId {}",
                                 path, kind, id
                             )));
+                        }
+                        if kind == "call" {
+                            validate_call(map, id, sigs, path)?;
                         }
                     }
                     "var" => {
@@ -203,7 +239,7 @@ fn walk_nodes(
                 }
             }
             for (key, child) in map {
-                walk_nodes(child, locals, fn_ids, structs, &format!("{}.{}", path, key))?;
+                walk_nodes(child, locals, fn_ids, structs, sigs, &format!("{}.{}", path, key))?;
             }
         }
         _ => {}

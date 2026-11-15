@@ -14,6 +14,7 @@ mod stmt;
 mod syntax;
 mod types;
 mod validate;
+mod validate_call;
 
 pub use core::{FromJson, ToJson};
 pub use program::{decode_program, encode_program};

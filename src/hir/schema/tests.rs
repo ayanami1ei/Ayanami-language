@@ -103,3 +103,26 @@ fn invalid_var_id_is_rejected_before_decode() {
     var.as_object_mut().unwrap().insert("var".into(), serde_json::json!(999999));
     assert!(from_json(&value.to_string()).is_err());
 }
+
+#[test]
+fn call_arity_and_type_mismatch_rejected() {
+    let source = "fn add(int a, int b) -> int { return 0 }\nfn main() -> int { return add(1, 2) }";
+    let hir = hir_for(source);
+    let encoded = to_json(&hir).unwrap();
+
+    let mut value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+    let call = find_mut(&mut value, "call").expect("call node");
+    call.as_object_mut().unwrap().insert("args".into(), serde_json::json!([]));
+    assert!(from_json(&value.to_string()).is_err());
+
+    let mut value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+    let call = find_mut(&mut value, "call").expect("call node");
+    let args = call.get_mut("args").unwrap().as_array_mut().unwrap();
+    args[0].as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"bool"}));
+    assert!(from_json(&value.to_string()).is_err());
+
+    let mut value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+    let call = find_mut(&mut value, "call").expect("call node");
+    call.as_object_mut().unwrap().insert("ty".into(), serde_json::json!({"kind":"bool"}));
+    assert!(from_json(&value.to_string()).is_err());
+}
