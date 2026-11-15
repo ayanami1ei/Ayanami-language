@@ -373,6 +373,11 @@ import "hir"
 #[state]
 pub fn struct_bump(String input) -> String {
     doc = parse_hir(ref input).unwrap()
+    sig = function_signature(ref doc, ref "main")
+    fields = struct_fields(ref doc, ref "Point")
+    if sig.is_none() || fields.is_none() {
+        return input
+    }
     body = single_body(make_return(make_int(8)))
     result = replace_function_body(ref doc, ref "main", body).unwrap()
     return render_hir(ref result)

@@ -78,8 +78,8 @@ pub fn bump(String input) -> String {
 
 `hir`（`std/src/meta/hir.aya`）提供 `parse_hir` / `render_hir` /
 `find_function` / `replace_function_body` / `append_item` / `clone_function` /
-`max_fn_id` / `function_id` / `replace_call_targets` / `make_int` /
-`make_return` / `single_body`。
+`max_fn_id` / `function_id` / `function_signature` / `struct_fields` /
+`replace_call_targets` / `make_int` / `make_string` / `make_return` / `single_body`。
 
 消费方：
 
@@ -168,9 +168,10 @@ schema 覆盖：
 
 - **B1（已完成 2026-11-14）**：`.lcl` `transform=` 表、`#[transform]` 声明、
   `fn(String json) -> String` 插件 ABI、identity 插件；
-- **B2/B2c/B2d/B2e/B2f/B2g/B2h/B2i/B2j/B2k/B2l/B2m/B2n（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
+- **B2/B2c/B2d/B2e/B2f/B2g/B2h/B2i/B2j/B2k/B2l/B2m/B2n/B2o（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
   clone/append 函数、调用点重定向、FnId/VarId/类型/调用签名/return 类型/字段索引/struct/vtable 校验、目标诊断、
-  struct/泛型 struct 与泛型函数特化触发、transform-schema 清单校验已跑通；
+  struct/泛型 struct 与泛型函数特化触发、transform-schema 清单校验、
+  function_signature/struct_fields introspection 已跑通；
   变换后 FnId/VarId/类型/借用/效应校验；
 - **B3**：泛型、enum niche、vtable、async/sync 内建变换统一接口。
 
