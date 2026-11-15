@@ -637,6 +637,11 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] B2h：泛型 struct 声明级 transform 触发
 - [x] B2i：VarId 范围 + SVar/local 类型一致性校验
 - [x] B2j：非 extern SCall 实参数/类型/返回类型校验
+- [x] B2k：SField.field_index 范围校验（完整布局由 MIR 裁定）
+- [x] B2l：async wrapper 保留外部 transform 属性
+- [x] B2m：return 值类型与函数 return_type 校验
+- [x] B2n：transform-schema 清单写入/校验
+- [x] B2o：function_signature / struct_fields introspection helper
 - [ ] B2 后续：完整借用效应校验
 - [x] `#[sync(obj)] { ... }` 同步块（首个内建结构化变换，2026-10-24；见 `docs/sync-blocks.md`）
 - [ ] `#[async]`/`await`（A5e 第二个客户）
