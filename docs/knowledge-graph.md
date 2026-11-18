@@ -28,7 +28,7 @@
 | `docs/pattern-matching.md` | 模式匹配增强（Phase 1.3：atb.1/2/3 已实现——字面量/`_`/`|`/guard、嵌套/解构/range、穷尽检查） |
 | `docs/closures.md` | 闭包与捕获（M2 完成：`Fn(T)->U`/`FnOnce` 类型、按值/可变捕获、接口机制复用） |
 | `docs/iterators.md` | 迭代器与 for（M3：for-in 协议 + 泛型接口虚调用；std 适配器已落地） |
-| `docs/refs-storage.md` | 引用存储（M4：阶段 1 `Ptr[T]` 已落地；阶段 2 Arena 语言能力 + 示例完成，std 移植待做） |
+| `docs/refs-storage.md` | 引用存储（M4：阶段 1 `Ptr[T]`、阶段 2 Arena/Idx 语言能力、示例与 std 移植均已完成） |
 | `docs/unsafe.md` | unsafe / FFI 安全边界（M5：P1–P4 已落地；无体 extern C 调用需 unsafe，std 在高层安全包装内建立边界） |
 | `docs/runtime-safety.md` | 运行时安全行为权威清单（UB/panic；`tests/runtime_safety/` 覆盖） |
 | `docs/enum-layout.md` | 枚举布局优化（N1 niche + N2/N3 16 字节阈值装箱，均已实现） |
