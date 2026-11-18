@@ -1,0 +1,29 @@
+enum Poll[T] {
+    Ready(T),
+    Pending,
+}
+
+struct Context {
+    int id
+}
+
+#[async]
+fn target(int x) -> int {
+    return x
+}
+
+struct Box {
+    int n
+}
+
+impl Box {
+    #[async]
+    pub fn next(ref self) -> int {
+        x = await target(self.n);
+        return x
+    }
+}
+
+fn main() -> int {
+    return 0
+}

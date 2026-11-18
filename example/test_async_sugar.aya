@@ -41,6 +41,24 @@ fn identity[T](T v) -> T {
     return v
 }
 
+struct Counter {
+    int n
+}
+
+impl Counter {
+    #[async]
+    fn add(ref self, int x) -> int {
+        return self.n + x
+    }
+
+    #[async]
+    #[state]
+    fn bump(ref mut self) -> int {
+        self.n = self.n + 1;
+        return self.n
+    }
+}
+
 #[state]
 fn block_on[F: Future[int]](ref mut F f) -> int {
     w = Waker { id = 1 }
@@ -75,5 +93,8 @@ fn main() -> int {
     if block_on(pick(2, 1, 3)) != 5 { return 3 }
     if block_on(identity(7)) != 7 { return 4 }
     if block_on_bool(identity(true)) != true { return 5 }
+    mut c = Counter { n = 10 }
+    if block_on(c.add(5)) != 15 { return 6 }
+    if block_on(c.bump()) != 11 { return 7 }
     return 0
 }

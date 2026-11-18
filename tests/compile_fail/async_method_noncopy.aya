@@ -1,0 +1,14 @@
+struct Box {
+    int n
+}
+
+impl Box {
+    #[async]
+    pub fn name(ref self) -> String {
+        return "box"
+    }
+}
+
+fn main() -> int {
+    return 0
+}

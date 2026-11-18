@@ -60,6 +60,9 @@ pub fn expand(
                     "`await` is only allowed inside #[async] functions".into(),
                 ));
             }
+            Stmt::ImplBlock { methods, .. } if methods.iter().any(contains_async) => {
+                crate::hir::async_transform_impl::expand_impl(stmt, &mut out)?;
+            }
             _ if contains_async(stmt) => {
                 return Err(Error::Hir(
                     "#[async] v1 is only supported on top-level free functions".into(),
@@ -88,7 +91,7 @@ fn attach_qualified_attrs(out: &mut [Stmt], name: Symbol, attrs: &[Attr]) {
     }
 }
 
-fn is_async(a: &crate::parser::ast::Attr) -> bool {
+pub(super) fn is_async(a: &crate::parser::ast::Attr) -> bool {
     a.qualifier.is_empty() && a.name.as_str() == "async"
 }
 fn contains_async(stmt: &Stmt) -> bool {
