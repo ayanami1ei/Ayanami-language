@@ -399,7 +399,9 @@ selfhost/
 1. **单元自测**：`selfhost/tests/*_test.aya` 用 `assert 风格`（返回非 0 报错），由 stage-0 运行；
     入口 `./scripts/selfhost.sh test`，失败即退出（当前 10 个全过）。
 2. **差分测试**：`./scripts/selfhost.sh diff <glob>` 同跑 stage-0/stage-1，比较 stdout（剔除双方进度行）
-   与退出码；当前 `tests/e2e/*.aya` 17/17 一致。
+   与退出码；当前 `tests/e2e/*.aya` 17/17 一致。每个用例都会清理 stage-0 根产物，
+   stage-1 使用独立 `build/diff-stage1/` 输出目录，避免两个编译器命中对方增量缓存后
+   跳过检查，造成警告输出或多阶段结果出现假差异。
 3. **IR 快照**：M5 起对同一 .aya 比较两版的 LLVM IR 语义等价（先按文本 diff 报告，人工确认）。
 4. **回归门禁**：在 `selfhost` 分支上不破坏 Rust 主线检查（`./scripts/check_all.sh` 仍须过），
    自举代码不进 Rust 编译单元。

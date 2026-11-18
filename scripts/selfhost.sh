@@ -277,15 +277,30 @@ cmd_diff() {
     fi
     local s0 s1 fail=0 total=0
     s0=$(stage0_ready); s1="$ROOT/selfhost/build/ayanami"
+    local s0_out="$ROOT/build" s1_out="$WORK/diff-stage1"
+    mkdir -p "$s1_out"
     # stage-1（自举 CLI）需要 std 包做导入解析；stage-0 自带 target/release/std
     export AYANAMI_STD="${AYANAMI_STD:-$ROOT/target/release/std}"
     export AYANAMI_SELFHOST_WORK="${AYANAMI_SELFHOST_WORK:-$WORK}"
+    clear_case() {
+        local dir="$1" stem="$2"
+        local suffix
+        for suffix in "" .o .ll .lcl .stamp .static-lib.stamp; do
+            if [[ -e "$dir/$stem$suffix" ]]; then
+                unlink "$dir/$stem$suffix"
+            fi
+        done
+    }
     shopt -s nullglob
     for f in $pattern; do
         total=$((total + 1))
+        stem=$(basename "$f" .aya)
+        # 两个编译器使用不同指纹；任一侧命中对方产物都会跳过检查，污染 stdout 差分。
+        clear_case "$s0_out" "$stem"
         "$s0" run "$f" >$WORK/diff.s0 2>&1 || c0=$?
         c0=${c0:-0}
-        "$s1" run "$f" >$WORK/diff.s1 2>&1 || c1=$?
+        clear_case "$s1_out" "$stem"
+        AYANAMI_OUT_DIR="$s1_out" "$s1" run "$f" >$WORK/diff.s1 2>&1 || c1=$?
         c1=${c1:-0}
         # 两边都会打印自身进度行，比较时剔除（只留程序输出）；
         # stage-0 在子进程非 0 退出时还会打印 "error: process didn't exit successfully"，一并剔除
