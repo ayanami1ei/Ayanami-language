@@ -52,6 +52,45 @@ namespace __ayanami_scope_<package> {
 - 泛型函数互相调用仍按现有泛型表解析，尚未做来源包重载隔离；
 - 这些缺口应保守地保持明确诊断，不能退化为消费方同名函数。
 
+## 完整作用域设计（wwy4）
+
+完整 bundle 使用一个统一的来源命名空间，而不是为每个调用名单独猜测：
+
+```ayanami
+namespace __ayanami_scope_<package> {
+    struct Hidden { ... }
+    const OFFSET = ...
+    static BASE = ...
+    fn helper(...) { ... }
+    fn generic_helper[T](...) { ... }
+    namespace Deep { ... }
+    impl[T] Box[T] { ... }
+}
+```
+
+依赖收集与符号分类规则：
+
+1. 任何跨包泛型函数或泛型方法体中的裸调用先视为潜在来源依赖；
+2. 自由函数、泛型函数、类型、const/static、namespace 与 impl 均进入候选表；
+3. 函数依赖沿函数体递归，类型依赖沿字段、签名和字面量递归；
+4. 选中的声明整体克隆到保留 namespace，非泛型函数/方法带 `#[inline]`（`linkonce_odr`）；
+5. 来源包泛型函数互调时，被调泛型也复制到同一 namespace，避免消费方同名泛型截获。
+
+导入与解析规则：
+
+- `current_module` 是当前函数/impl 的来源 namespace；
+- 裸值名先查 `current_module.name`，再查普通表；
+- 方法分派先查 `current_module.method`，再查普通方法；
+- 类型名在来源函数签名与 body 中按同样规则限定；
+- 限定名中的 `current_module` 仅在目标表确实存在时生效，普通本地调用不受影响；
+- 消费方同名声明仍可正常使用，但不会改变已注入包体内部的解析。
+
+链接规则保持不变：
+
+- 无依赖的 debug 构建可使用普通外部符号；
+- 多模块/依赖构建对包私有实现使用 `internal`；
+- 注入的泛型依赖函数/方法使用 `linkonce_odr`，重复包不会产生强符号冲突。
+
 ## 验收
 
 `tests/lcl_nsr` 覆盖：
@@ -63,5 +102,6 @@ namespace __ayanami_scope_<package> {
 
 ## 实现状态
 
-顶层自由函数依赖闭包、eager/HIR 两阶段来源解析和包别名场景已实现。其余限制作为
-M6 跨模块符号表的后续工作。
+顶层自由函数依赖闭包、eager/HIR 两阶段来源解析和包别名场景已实现。
+wwy4 扩展方法、namespace、类型、const/static 和来源包泛型互调；实现完成后本节
+将更新为完整状态。
