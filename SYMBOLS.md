@@ -258,8 +258,13 @@ src/compiler/macro_expand/plugin.rs:100: fn build_plugin(lir: &crate::lir::ir::L
 src/compiler/macro_expand/plugin.rs:193: static AyaBuf dup_buf(AyaBuf b) {{\n\
 src/compiler/macro_expand/plugin.rs:201: static const char* id = \"{macro_id}\";\n\
 src/compiler/macro_expand/plugin.rs:210: static long long diag_count = 0;\n\
-src/compiler/macro_expand/plugin.rs:211: static long long diag_levels[DIAG_MAX];\n\
-src/compiler/macro_expand/plugin.rs:212: static AyaBuf diag_msgs[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:211: static long long macro_line = 0;\n\
+src/compiler/macro_expand/plugin.rs:212: static long long macro_col = 0;\n\
+src/compiler/macro_expand/plugin.rs:213: static long long diag_levels[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:214: static long long diag_lines[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:215: static long long diag_cols[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:216: static AyaBuf diag_msgs[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:217: static void diag_push(long long level, AyaBuf msg, long long dline, long long dcol) {{\n\
 src/compiler/macro_expand/plugin_abi.rs:15: pub(super) fn plugin_ext() -> &'static str
 src/compiler/macro_expand/plugin_abi.rs:26: pub(super) fn plugin_path(dir: &Path, prefix: &str, stem: &str, hash: u64) -> PathBuf
 src/compiler/macro_expand/plugin_abi.rs:31: pub(super) fn shared_lib_command() -> Command
@@ -2966,7 +2971,7 @@ src/package/plugin/tests.rs:95: fn test_plugin_section_before_later_sections()
 src/package/plugin/tests.rs:113: fn test_parse_manifest_ignores_symbols()
 src/package/plugin/tests.rs:129: fn transform_schema_mismatch_rejected()
 src/package/plugin/tests.rs:145: fn transform_schema_current_accepted()
-src/package/plugin.rs:8: pub(crate) const PLUGIN_ABI_VERSION: u32 = 8;
+src/package/plugin.rs:8: pub(crate) const PLUGIN_ABI_VERSION: u32 = 9;
 src/package/plugin.rs:9: pub(crate) const PLUGIN_MANIFEST_SCHEMA: u32 = 1;
 src/package/plugin.rs:12: pub struct PluginManifest
 src/package/plugin.rs:23: impl PluginManifest
@@ -3338,11 +3343,12 @@ example/macro_lib.aya:50: pub fn my_line(String input, int __line, int __col) ->
 example/macro_lib.aya:56: pub fn block_len(String input, String block) -> String
 example/macro_lib.aya:65: pub fn tok_keep(String input) -> String { return input }
 example/macro_lib.aya:71: pub fn tok_twice(String input) -> String { return input + input }
-example/macro_lib.aya:81: pub fn hygienic_fn(String input, String name) -> String
-example/macro_lib.aya:93: pub fn warn_me(String input) -> String
-example/macro_lib.aya:103: pub fn err_me(String input) -> String
-example/macro_lib.aya:114: pub fn broken(String input) -> String { return "fn broken( {" }
-example/macro_lib.aya:118: pub fn tok_expr(String input, String a) -> String { return a }
+example/macro_lib.aya:82: pub fn hygienic_fn(String input, String name) -> String
+example/macro_lib.aya:94: pub fn warn_me(String input) -> String
+example/macro_lib.aya:104: pub fn err_me(String input) -> String
+example/macro_lib.aya:113: pub fn err_at(String input) -> String
+example/macro_lib.aya:124: pub fn broken(String input) -> String { return "fn broken( {" }
+example/macro_lib.aya:128: pub fn tok_expr(String input, String a) -> String { return a }
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/pass_lib.aya:5: pub fn auto_pure(ref mut MirFunction f)
 example/test.aya:1: fn main()->int

@@ -1,0 +1,9 @@
+// 负例：宏可使用显式 span 定位诊断。
+import "../../example/macro_lib.aya";
+
+#[err_at]
+fn bad() -> int { return 0 }
+
+fn main() -> int {
+    return 0
+}

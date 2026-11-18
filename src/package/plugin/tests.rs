@@ -7,7 +7,7 @@ fn test_parse_valid_manifest() {
 manifest=1
 name="my_plugin"
 version="0.1.0"
-abi=8
+abi=9
 min-compiler="0.6.8"
 built-with="0.6.8"
 "#;
@@ -15,7 +15,7 @@ built-with="0.6.8"
     assert_eq!(manifest.schema, 1);
     assert_eq!(manifest.name, "my_plugin");
     assert_eq!(manifest.version, "0.1.0");
-    assert_eq!(manifest.abi, 8);
+    assert_eq!(manifest.abi, 9);
     assert_eq!(manifest.min_compiler, "0.6.8");
     assert_eq!(manifest.built_with, "0.6.8");
 }
@@ -62,7 +62,7 @@ fn test_validate_too_new_min_compiler() {
         schema: 1,
         name: "test".to_string(),
         version: "0.1.0".to_string(),
-        abi: 8,
+        abi: 9,
         min_compiler: "999.0.0".to_string(),
         built_with: "0.6.8".to_string(),
         transform_schema: None,
@@ -76,7 +76,7 @@ fn test_validate_invalid_min_compiler() {
         schema: 1,
         name: "test".to_string(),
         version: "0.1.0".to_string(),
-        abi: 8,
+        abi: 9,
         min_compiler: "not-a-version".to_string(),
         built_with: "0.6.8".to_string(),
         transform_schema: None,
@@ -98,7 +98,7 @@ fn test_plugin_section_before_later_sections() {
 manifest=1
 name="my_plugin"
 version="0.1.0"
-abi=8
+abi=9
 min-compiler="0.6.8"
 built-with="0.6.8"
 
@@ -106,7 +106,7 @@ built-with="0.6.8"
 attr="identity"
 "#;
     let manifest = parse_manifest(body, "test").unwrap().unwrap();
-    assert_eq!(manifest.abi, 8);
+    assert_eq!(manifest.abi, 9);
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn test_parse_manifest_ignores_symbols() {
 manifest=1
 name="my_plugin"
 version="0.1.0"
-abi=8
+abi=9
 min-compiler="0.6.8"
 built-with="0.6.8"
 "#;
@@ -132,7 +132,7 @@ fn transform_schema_mismatch_rejected() {
 manifest=1
 name="my_plugin"
 version="0.1.0"
-abi=8
+abi=9
 min-compiler="0.6.8"
 built-with="0.6.8"
 transform-schema=999
@@ -148,7 +148,7 @@ fn transform_schema_current_accepted() {
 manifest=1
 name="my_plugin"
 version="0.1.0"
-abi=8
+abi=9
 min-compiler="0.6.8"
 built-with="0.6.8"
 transform-schema=1

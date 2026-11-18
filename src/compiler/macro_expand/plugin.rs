@@ -208,19 +208,33 @@ fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[Param
          /* mcl.2：诊断通道（level: 1=warn, 2=error；编译器在调用后读取） */\n\
          #define DIAG_MAX 32\n\
          static long long diag_count = 0;\n\
+         static long long macro_line = 0;\n\
+         static long long macro_col = 0;\n\
          static long long diag_levels[DIAG_MAX];\n\
+         static long long diag_lines[DIAG_MAX];\n\
+         static long long diag_cols[DIAG_MAX];\n\
          static AyaBuf diag_msgs[DIAG_MAX];\n\
-         void __ayanami_macro_diag(long long level, AyaBuf msg) {{\n\
+         static void diag_push(long long level, AyaBuf msg, long long dline, long long dcol) {{\n\
              if (diag_count >= DIAG_MAX) return;\n\
              diag_levels[diag_count] = level;\n\
+             diag_lines[diag_count] = dline;\n\
+             diag_cols[diag_count] = dcol;\n\
              diag_msgs[diag_count] = dup_buf(msg);\n\
              diag_count++;\n\
          }}\n\
+         void __ayanami_macro_diag(long long level, AyaBuf msg) {{\n\
+             diag_push(level, msg, macro_line, macro_col);\n\
+         }}\n\
+         void __ayanami_macro_diag_at(long long level, AyaBuf msg, long long dline, long long dcol) {{\n\
+             diag_push(level, msg, dline, dcol);\n\
+         }}\n\
          long long __ayanami_macro_diag_count(void) {{ return diag_count; }}\n\
          long long __ayanami_macro_diag_level(long long i) {{ return (i >= 0 && i < diag_count) ? diag_levels[i] : 0; }}\n\
+         long long __ayanami_macro_diag_line(long long i) {{ return (i >= 0 && i < diag_count) ? diag_lines[i] : 0; }}\n\
+         long long __ayanami_macro_diag_col(long long i) {{ return (i >= 0 && i < diag_count) ? diag_cols[i] : 0; }}\n\
          AyaBuf __ayanami_macro_diag_msg(long long i) {{ AyaBuf e; e.data = 0; e.len = 0; return (i >= 0 && i < diag_count) ? dup_buf(diag_msgs[i]) : e; }}\n\
          AyaBuf __ayanami_macro_expand(AyaBuf input, AyaBufList args, long long line, long long col, AyaBuf file) {{\n\
-             (void)args; (void)line; (void)col; (void)file;\n\
+             (void)args; (void)file; macro_line = line; macro_col = col;\n\
          {locals}\
              return {symbol}({call_args});\n\
          }}\n\

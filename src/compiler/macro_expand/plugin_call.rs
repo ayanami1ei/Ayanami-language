@@ -49,17 +49,23 @@ pub(super) fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Ve
             free(out);
         }
         // mcl.2：读取宏诊断（warn/error）
-        let mut diags: Vec<(i64, String)> = Vec::new();
+        let mut diags: Vec<(i64, String, i64, i64)> = Vec::new();
         let cnt_ptr = dl::dlsym(handle, CString::new("__ayanami_macro_diag_count").unwrap().as_ptr());
         if !cnt_ptr.is_null() {
             let count_fn: unsafe extern "C" fn() -> i64 = std::mem::transmute(cnt_ptr);
             let level_ptr = dl::dlsym(handle, CString::new("__ayanami_macro_diag_level").unwrap().as_ptr());
             let msg_ptr = dl::dlsym(handle, CString::new("__ayanami_macro_diag_msg").unwrap().as_ptr());
+            let line_ptr = dl::dlsym(handle, CString::new("__ayanami_macro_diag_line").unwrap().as_ptr());
+            let col_ptr = dl::dlsym(handle, CString::new("__ayanami_macro_diag_col").unwrap().as_ptr());
             let level_fn: Option<unsafe extern "C" fn(i64) -> i64> = (!level_ptr.is_null()).then(|| std::mem::transmute(level_ptr));
             let msg_fn: Option<unsafe extern "C" fn(i64) -> AyaBuf> = (!msg_ptr.is_null()).then(|| std::mem::transmute(msg_ptr));
+            let line_fn: Option<unsafe extern "C" fn(i64) -> i64> = (!line_ptr.is_null()).then(|| std::mem::transmute(line_ptr));
+            let col_fn: Option<unsafe extern "C" fn(i64) -> i64> = (!col_ptr.is_null()).then(|| std::mem::transmute(col_ptr));
             let n = count_fn();
             for i in 0..n {
                 let level = level_fn.map(|f| f(i)).unwrap_or(0);
+                let dline = line_fn.map(|f| f(i)).filter(|v| *v > 0).unwrap_or(line);
+                let dcol = if dline > 0 { col_fn.map(|f| f(i)).unwrap_or(col) } else { col };
                 let msg = msg_fn.map(|f| f(i)).unwrap_or(AyaBuf { data: std::ptr::null_mut(), len: 0 });
                 let text = if msg.data.is_null() {
                     String::new()
@@ -71,13 +77,13 @@ pub(super) fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Ve
                     }
                     t
                 };
-                diags.push((level, text));
+                diags.push((level, text, dline, dcol));
             }
         }
         dl::dlclose(handle);
-        // mcl.2：诊断带调用点位置（line/col 为 0 时省略）
-        let at = if line > 0 { format!(" at {}:{}", line, col) } else { String::new() };
-        for (level, msg) in &diags {
+        // mcl.2：诊断位置优先使用宏显式 span，否则回退调用点。
+        for (level, msg, dline, dcol) in &diags {
+            let at = if *dline > 0 { format!(" at {}:{}", dline, dcol) } else { String::new() };
             if *level >= 2 {
                 return Err(Error::Compile(format!("{} (in macro `{}`{})", msg, symbol, at)));
             }

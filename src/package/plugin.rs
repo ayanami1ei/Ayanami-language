@@ -5,7 +5,7 @@ use crate::error::{Error, Result};
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 
-pub(crate) const PLUGIN_ABI_VERSION: u32 = 8;
+pub(crate) const PLUGIN_ABI_VERSION: u32 = 9;
 pub(crate) const PLUGIN_MANIFEST_SCHEMA: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

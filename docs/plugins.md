@@ -116,7 +116,7 @@ registry 不可用时，之前安装过的版本可从 `$AYANAMI_PLUGIN_HOME/cac
 manifest=1
 name="my_plugin"
 version="0.1.0"
-abi=8
+abi=9
 min-compiler="0.6.8"
 built-with="0.6.8"
 ```

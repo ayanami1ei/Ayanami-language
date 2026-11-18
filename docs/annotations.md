@@ -504,7 +504,7 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 | HIR | `HirFn.attrs`、`HirStructField.attrs` 等，供各 pass 读取 |
 | 包 | `.lcl` 的 `generic_sources`（formatter 输出包含标注）+ `defs` JSON；A5b 已实现宏表（`macro=`）与依赖表（`[deps]`） |
 | 工具 | `defs` JSON 带属性字段；LSP/VSCode 插件、未来的代码设计平台消费 |
-| 宏 | 已实现：`AttrPath` 解析 → 宏表（`.lcl`）→ 本机动态库（`/tmp/ayanami-macros`，ABI v8；Linux `.so`/macOS `.dylib`/Windows `.dll`） |
+| 宏 | 已实现：`AttrPath` 解析 → 宏表（`.lcl`）→ 本机动态库（`/tmp/ayanami-macros`，ABI v9；Linux `.so`/macOS `.dylib`/Windows `.dll`） |
 
 ## 10. 决策记录（ADR）
 

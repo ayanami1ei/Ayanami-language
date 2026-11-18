@@ -180,7 +180,7 @@ elif [ ! -f "$cproj/plugins/demo.lcl" ]; then
     fail=$((fail + 1))
 else
     # A5j-1：不兼容 ABI 必须在 install 阶段被拒绝
-    { head -c 512 "$pdir/src/lib.lcl" | sed 's/abi=8/abi=999/'; tail -c +513 "$pdir/src/lib.lcl"; } > "$pbase/bad_abi.lcl"
+    { head -c 512 "$pdir/src/lib.lcl" | sed 's/abi=[0-9][0-9]*/abi=999/'; tail -c +513 "$pdir/src/lib.lcl"; } > "$pbase/bad_abi.lcl"
     if (cd "$cproj" && "$bin_abs" plugin install "$pbase/bad_abi.lcl" bad >/dev/null 2>&1); then
         echo "FAIL A5j-1: incompatible plugin ABI was installed"
         fail=$((fail + 1))

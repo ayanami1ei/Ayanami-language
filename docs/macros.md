@@ -1,6 +1,6 @@
 # Phase 6：宏系统升级（文本 → AST/HIR）设计
 
-> 状态：**mcl.1 完成；mcl.2 / mcl.3 部分实现**（TokenStream 编解码（含分组）+ std TokenStream/Span/Token API + token 宏（item/语句/表达式）+ hygiene 原语 + 诊断通道（含调用点）+ `dump expanded` / 展开追踪 / 错误包装；token span 归属与自动改名待做）（2026-11-18）。关联：bd `Ayanami-language-mcl`（epic）与
+> 状态：**mcl.1 / mcl.2 / mcl.3 完成**（TokenStream 编解码（含分组）+ std TokenStream/Span/Token API + token 宏（item/语句/表达式）+ opt-in hygiene + 调用点/显式 span 诊断 + `dump expanded` / `dump macros` / token 映射链 / 错误包装）（2026-11-18）。关联：bd `Ayanami-language-mcl`（epic）与
 > `mcl.1`（TokenStream/Span/Diagnostic）/ `mcl.2`（hygiene 与错误定位）/ `mcl.3`（展开调试与 IDE）；
 > GitHub #43 / #42 / #45 / #62。现状（A5 已落地部分）见 `docs/annotations.md` §A5。
 
@@ -48,8 +48,9 @@
 - 宏库可直接 `extern "C" fn __ayanami_macro_hygienic(String) -> String;` 声明使用
   （std 侧按 §4 契约包装为 `hygienic_ident` 等 API）；编译器对 `__ayanami_macro_*`
   声明发射 `extern_weak`（宏库作为模块编入可执行文件时允许未定义——调用只存在于插件路径）；
-- 待做（mcl.2 剩余）：token 级 span 归属（透传 vs 宏内新写）与自动改名；
-- 不追求 Rust 级完整 hygiene；边界在文档明示，不做隐式魔法。
+- `Span::new` / `Token::span` / `TokenStream::push_*_at` 允许宏作者给新 token 显式归属位置；
+  `dump macros` 同时输出 input/output token spans 与 LCS 映射供 IDE 使用。
+- 不追求 Rust 级完整 hygiene；采用显式 hygiene 原语，不做隐式自动改名。
 
 ### 3.3 Diagnostic 通道（mcl.2 已实现基础）
 
@@ -59,7 +60,8 @@
 - 宏库可直接 `extern "C" fn __ayanami_macro_diag(int, String) -> void;` 声明使用；
 - 生成代码错误包装：宏输出解析失败 → `in macro `<name>` expansion: … (at 调用点)`；
 - 位置：`__ayanami_macro_diag` 产生的 warn/error 附带调用点（`at l:c`，编译器在调用时注入）；
-- 待做：span 参数（错误指向宏内位置的区分，随 span 归属一起做）、与 `#[check]` 渲染路径统一。
+- `diag_warn_at` / `diag_error_at(msg, Span)` 可把诊断定位到宏内显式 line/col；未指定时
+  回退宏调用点。
 
 ### 3.4 与现有 A5 的关系
 
@@ -94,7 +96,7 @@ pub fn diag_warn(String msg, Span span)
 | 阶段 | 内容 | 验收 |
 |---|---|---|
 | **mcl.1**（完成） | ABI v6/v7：TokenStream 编解码（分组 token 已支持）+ 编译器侧桥（字节通道）+ 宏分类（`#[macro(tokens)]`；item/语句/表达式三形态）+ std `Span`/`Token`/`TokenStream` 字节 API | 正例：`example/test_macro_tokens.aya`（`tok_keep` 往返 / `tok_twice` 拼接 / `#tok_expr` 表达式）+ 编译器/std 编解码单测；回归全绿 |
-| **mcl.2**（部分 ✓） | hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ Diagnostic 通道（warn/error + 宏名 + 调用点 `at l:c`） | 正例：`example/test_macro_hygiene.aya`（生成名不捕获用户同名函数 + warn 带位置）；负例：`macro_diag_error.aya`；**待做**：token span 归属/自动改名、`#[check]` 渲染统一 |
+| **mcl.2**（完成） | 显式 hygiene 原语 + token span 构造/读取 + Diagnostic 通道（调用点及显式 span） | 正例：`test_macro_hygiene`、`macros_test::test_token_span_attribution`；负例：`macro_diag_error`、`macro_diag_span`；采用设计约定的 opt-in hygiene，不做隐式自动改名 |
 | **mcl.3**（完成） | `ayanami dump expanded` + `ayanami dump macros` 结构化 JSON + `AYANAMI_MACRO_TRACE=1` | 记录覆盖 item/statement/expression、调用位置、token mode、input/output token spans，以及 LCS output→input 映射；新生成 token 以调用点定位兜底 |
 | 远期 | 其它语言插件 / WASM 沙箱 / 插件清单与权限 | — |
 

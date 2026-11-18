@@ -74,6 +74,7 @@ pub fn tok_twice(String input) -> String { return input + input }
 // 编译器 shim 提供（宏内可直接声明 extern 使用）：
 extern "C" fn __ayanami_macro_hygienic(String name) -> String;
 extern "C" fn __ayanami_macro_diag(int level, String msg) -> void;
+extern "C" fn __ayanami_macro_diag_at(int level, String msg, int line, int col) -> void;
 
 #[alloc]
 #[state]
@@ -103,6 +104,15 @@ pub fn warn_me(String input) -> String {
 pub fn err_me(String input) -> String {
     unsafe {
         __ayanami_macro_diag(2, "err_me: demo error")
+    }
+    return input
+}
+
+#[alloc]
+#[macro]
+pub fn err_at(String input) -> String {
+    unsafe {
+        __ayanami_macro_diag_at(2, "err_at: explicit span", 123, 9)
     }
     return input
 }
