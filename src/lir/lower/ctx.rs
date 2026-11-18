@@ -5,6 +5,7 @@ pub(super) struct LowerCtx<'a> {
     pub(super) block_id: u64,
     pub(super) current_label: String,
     pub(super) current_insts: Vec<LirNodeBox>,
+    pub(super) current_span: Option<crate::span::Span>,
     pub(super) blocks: Vec<LirBlock>,
     pub(super) str_map: &'a HashMap<String, u64>,
     pub(super) struct_defs: &'a HashMap<Symbol, Vec<(Symbol, HirType)>>,
@@ -21,6 +22,7 @@ impl<'a> LowerCtx<'a> {
             block_id: 0,
             current_label: "entry".into(),
             current_insts: Vec::new(),
+            current_span: None,
             blocks: Vec::new(),
             str_map,
             struct_defs,
@@ -67,7 +69,12 @@ impl LirLowerCtx for LowerCtx<'_> {
         t
     }
     fn emit(&mut self, inst: LirNodeBox) {
+        let mut inst = inst;
+        inst.span = self.current_span;
         self.current_insts.push(inst);
+    }
+    fn set_span(&mut self, span: crate::span::Span) {
+        self.current_span = Some(span);
     }
     fn str_map(&self) -> &HashMap<String, u64> {
         self.str_map

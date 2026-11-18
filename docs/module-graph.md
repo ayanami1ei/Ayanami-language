@@ -51,10 +51,11 @@ graph LR
     hir -->|11| span
     lexer --> span
     lir --> error
-    lir -->|5| hir
+    lir -->|6| hir
     lir -->|3| intern
     lir -->|3| mir
     lir -->|3| parser
+    lir --> span
     mir -->|4| error
     mir -->|8| hir
     mir -->|3| intern
@@ -84,8 +85,8 @@ graph LR
 | `hir` | `span` | 11 |
 | `compiler` | `parser` | 9 |
 | `mir` | `hir` | 8 |
+| `lir` | `hir` | 6 |
 | `parser` | `span` | 6 |
-| `lir` | `hir` | 5 |
 | `parser` | `intern` | 5 |
 | `compiler` | `hir` | 4 |
 | `mir` | `error` | 4 |
@@ -121,9 +122,10 @@ graph LR
 | `hir` | `compiler` | 1 |
 | `lexer` | `span` | 1 |
 | `lir` | `error` | 1 |
+| `lir` | `span` | 1 |
 | `mir` | `lir` | 1 |
 | `mir` | `parser` | 1 |
 | `package` | `hir` | 1 |
 | `parser` | `lexer` | 1 |
 
-共 19 个顶层模块、48 条依赖边。
+共 19 个顶层模块、49 条依赖边。

@@ -18,4 +18,4 @@ pub mod serialize;
 pub use ir::LirProgram;
 pub use lower::lower_program;
 pub use display::lir_program_to_string;
-pub use emit::emit_program;
+pub use emit::{debug_info_enabled, emit_program, emit_program_with_source};

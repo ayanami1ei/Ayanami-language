@@ -71,7 +71,7 @@ pub fn compile_file(
 
     merge_dep_struct_defs(&mut lir_program, &dep_lcl_paths);
 
-    let llvm_ir = crate::lir::emit_program(&lir_program);
+    let llvm_ir = crate::lir::emit_program_with_source(&lir_program, Some(&canonical));
 
     let stem = src_path.file_stem().unwrap_or(std::ffi::OsStr::new("a"));
     let own_obj = out_dir.join(stem).with_extension("o");

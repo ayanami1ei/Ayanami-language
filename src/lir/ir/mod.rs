@@ -159,23 +159,27 @@ pub trait LirNode: std::fmt::Debug {
 // ═══════════════════════════════════════════════════════════════════
 
 #[derive(Debug)]
-pub struct LirNodeBox(pub Box<dyn LirNode>);
+pub struct LirNodeBox {
+    pub node: Box<dyn LirNode>,
+    /// M7 debug：生成该指令的 MIR 语句位置；合成指令可为空。
+    pub span: Option<crate::span::Span>,
+}
 
 impl Clone for LirNodeBox {
     fn clone(&self) -> Self {
-        LirNodeBox(self.0.clone_node())
+        Self { node: self.node.clone_node(), span: self.span }
     }
 }
 
 impl std::ops::Deref for LirNodeBox {
     type Target = dyn LirNode;
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &*self.node
     }
 }
 
 impl From<SLirCustom> for LirNodeBox {
-    fn from(v: SLirCustom) -> Self { LirNodeBox(Box::new(v)) }
+    fn from(v: SLirCustom) -> Self { Self { node: Box::new(v), span: None } }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -192,7 +196,9 @@ macro_rules! s_lir {
 macro_rules! impl_into_lir_node_box {
     ($($ty:ident),* $(,)?) => {
         $(impl From<$ty> for LirNodeBox {
-            fn from(v: $ty) -> Self { LirNodeBox(Box::new(v) as Box<dyn LirNode>) }
+            fn from(v: $ty) -> Self {
+                Self { node: Box::new(v) as Box<dyn LirNode>, span: None }
+            }
         })*
     };
 }

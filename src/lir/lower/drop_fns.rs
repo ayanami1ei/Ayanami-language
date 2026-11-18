@@ -50,6 +50,7 @@ pub(super) fn synthesize_named_drop_fns(
         functions.push(LirFn {
             fn_id: fid,
             name: Symbol::intern(&fname),
+            span: crate::span::Span::default(),
             is_inline: false,
             extern_c: false,
             is_pub: false,

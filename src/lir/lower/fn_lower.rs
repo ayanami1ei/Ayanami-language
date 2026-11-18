@@ -27,6 +27,7 @@ pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>, struct_defs: &
         return LirFn {
             fn_id: f.fn_id,
             name: f.name,
+            span: f.span,
             is_inline: f.is_inline,
             extern_c: f.extern_c,
             is_pub: f.is_pub,
@@ -70,6 +71,7 @@ pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>, struct_defs: &
     LirFn {
         fn_id: f.fn_id,
         name: f.name,
+        span: f.span,
         is_inline: f.is_inline,
         extern_c: f.extern_c,
         is_pub: f.is_pub,
@@ -87,6 +89,7 @@ pub(super) fn lower_fn(f: &MirFn, str_map: &HashMap<String, u64>, struct_defs: &
 pub(super) fn lower_stmts(ctx: &mut LowerCtx, stmts: &[MirStmtBox]) {
     let mut i = 0;
     while i < stmts.len() {
+        ctx.set_span(stmts[i].span());
         if stmts[i].is_return() {
             let ret_val = stmts[i].return_value().and_then(|v| {
                 let val = lower_expr(ctx, v);
@@ -96,6 +99,7 @@ pub(super) fn lower_stmts(ctx: &mut LowerCtx, stmts: &[MirStmtBox]) {
             i += 1;
             while i < stmts.len() {
                 if let Some((id, ty)) = stmts[i].as_drop() {
+                    ctx.set_span(stmts[i].span());
                     ctx.emit(SLirDropValue { var: id, ty: ty.clone() }.into());
                     i += 1;
                 } else {

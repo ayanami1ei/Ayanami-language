@@ -266,6 +266,6 @@ impl<'a> Reader<'a> {
         }
         // M-opt.2：LIR4 起带 is_pub；旧格式默认 true（保守：不内部化）
         let is_pub = if self.has_pub { self.read(1)?[0] != 0 } else { true };
-        Ok(LirFn { fn_id: fid, is_inline, extern_c, is_pub, name, params, return_type: ret, locals, attrs, param_attrs, effects: LirEffects { no_throws, no_effects }, blocks, custom: Vec::new() })
+        Ok(LirFn { fn_id: fid, name, span: crate::span::Span::default(), is_inline, extern_c, is_pub, params, return_type: ret, locals, attrs, param_attrs, effects: LirEffects { no_throws, no_effects }, blocks, custom: Vec::new() })
     }
 }

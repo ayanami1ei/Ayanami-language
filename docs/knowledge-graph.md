@@ -34,6 +34,7 @@
 | `docs/enum-layout.md` | 枚举布局优化（N1 niche + N2/N3 16 字节阈值装箱，均已实现） |
 | `docs/async.md` | 异步：A1b-2 AST 形状状态机（直线 / if / if-else / elif / while + break/continue + 分支多 await）已落地；§7.4 为 HIR 级一般 CFG 设计（未实现） |
 | `docs/concurrency-model.md` | M7 并发所有权/效应模型：线程捕获边界、`cross_thread`/`thread_safe`/`atomic`/`blocking` 与内存序 |
+| `docs/debug-info.md` | M7 DWARF/GDB/LLDB：Span→LIR→DILocation、局部变量、debug/release 行表与边界 |
 | `docs/reference-model.md` | 统一引用关系模型设计提案（纯接口无标注；`get`/`resolve` 协议形态；R1–R4；未实现） |
 | `docs/env-injection.md` | 环境注入设计提案（`env::` 可扩展；泛型需求 + 自动推导；E1–E4；未实现） |
 | `docs/macros.md` | Phase 6 宏系统升级（TokenStream/Span/Diagnostic，ABI v6；mcl.1 部分实现） |
@@ -122,6 +123,7 @@ graph TD
 | M5 数组越界检查 | `helpers/bounds.rs`（`insert_bounds_check`/`ensure_bounds_helper`）、`expr_access.rs`（`arr[i]` 插检查）、`expr_method_arrays.rs`（`get_unchecked`） | P3b（Rust 方式）：`[T; n]` 默认检查（panic 101）；`get_unchecked` 需 unsafe；动态 `[T]` 保持原语 |
 | M5 union | `parser/parser/decl.rs`（`union U { ... }`）、`collect_ns.rs`（`__union` 标记 + 字段 drop-free 检查）、`ctx_fields.rs`（字段索引恒 0）、`nodes_b/c.rs`（共享存储 load/store）、`helpers.rs`/`functions.rs`（max 布局/单槽类型） | P3b：字段共享存储；读取需 unsafe，写入/初始化无需；限无 drop 字段；裸指针 `==`/`!=` 地址比较 |
 | M7 线程边界 | `hir/lower/body/concurrency.rs`、`expr_call.rs`、`ctx.rs`/`stmt_lower.rs`、`hir/effects/mod.rs` | `#[cross_thread]` 调用边界递归检查闭包捕获；拥有值可移动，引用/裸指针/未知胖指针在安全上下文拒绝，`unsafe` 显式放行；设计见 docs/concurrency-model.md |
+| M7 调试信息 | `lir/ir/mod.rs`（LirNodeBox span）、`lir/lower/fn_lower.rs`、`lir/emit/debug.rs`、`driver/mod.rs`、`scripts/check_debug_info.sh` | MIR 语句 Span → LIR → LLVM DWARF 5；debug/release 行表、局部变量、GDB/LLDB 断点；`AYANAMI_DEBUG_INFO=0` 可关闭 |
 
 ## 3. 标注系统路线（设计见 `docs/annotations.md`）
 
@@ -209,6 +211,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 - static：`static [mut] NAME = expr` —求值→ `const_eval.rs` —HIR→ `SGlobal`（地址）—MIR→ `SMirGlobal` —LIR→ `SLirGlobalAddr` + `LirProgram.globals` —发射→ `@name = global`
 - 效应：`#[pure]/#[no_error]/#[throws]` —推断→ `hir/effects/infer.rs`（调用图不动点）—发射→ `nounwind`/`memory(none|read)`；合成位置串（`SFileArg`）与标记不计入（#117）
 - 并发：`Thread::spawn` —标注→ `#[cross_thread]` —检查→ `body/concurrency.rs`（闭包环境递归）—允许→ 拥有值移动 —拒绝→ `ref`/`*T`/未知胖指针（安全上下文）—逃生口→ `unsafe`；内存序→ std `Ordering`
+- 调试：MIR `Span` —附着→ `LirNodeBox.span` —发射→ `DICompileUnit`/`DISubprogram`/`DILocation`/`#dbg_declare` —验证→ readelf/GDB/LLDB；debug 使用 llc 默认级别，release 保留元数据
 - 位运算：`& | ^ << >> ~` —文法→ operator（prec 6–9 / 前缀）—HIR→ `lower_binary`/`lower_unary` —发射→ `and/or/xor/shl/ashr/lshr` —折叠→ `example/constfold_lib.aya`
 - 显式转换：`expr as T` —解析→ `parse_cast` / 运算符表 prec:12 —HIR→ `lower_cast`/`SCast` —发射→ `sext/zext/trunc/sitofp/uitofp/fptosi.sat/fptoui.sat`
 - 泛型推断：约束收集 → `helpers/unify.rs`（统一结构匹配/泛型参数绑定）—应用→ `substitute_hir_type` —特化→ `generic_specialize.rs`（冲突诊断 P4d/失败回滚）；见 docs/generic-inference.md

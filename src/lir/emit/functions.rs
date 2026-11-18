@@ -197,9 +197,11 @@ impl<'a> Emitter<'a> {
             ""
         };
         let dso = if crate::target::static_codegen() && linkage.is_empty() { "dso_local " } else { "" };
+        let debug_scope = self.start_debug_function(&fn_name, f.span);
+        let debug_attach = debug_scope.map(|id| format!(" !dbg !{}", id)).unwrap_or_default();
         self.wln_fmt(format_args!(
-            "define {}{}{}{} @{}({}){} {{",
-            linkage, dso, ret_attr, ret_ty, fn_name, param_list, inline_attr
+            "define {}{}{}{} @{}({}){}{} {{",
+            linkage, dso, ret_attr, ret_ty, fn_name, param_list, inline_attr, debug_attach
         ));
         self.indent += 1;
 
@@ -217,7 +219,11 @@ impl<'a> Emitter<'a> {
             }
         }
         self.load_tmp = actx.load_tmp;
+        let entry_loc = self.debug_location(f.span);
         for line in alloca_lines {
+            self.wln_debug(&line, entry_loc);
+        }
+        for line in self.debug_local_declares(f) {
             self.wln(&line);
         }
 
@@ -228,20 +234,22 @@ impl<'a> Emitter<'a> {
             }
 
             for inst in &block.insts {
-                self.emit_inst(inst);
+                self.emit_inst(inst, f.span);
             }
         }
 
         self.indent -= 1;
         self.wln("}");
         self.wln("");
+        self.finish_debug_function();
     }
 
     // ----------------------------------------------------------------
     //  Instruction emission — simplified to trait dispatch
     // ----------------------------------------------------------------
 
-    pub(super) fn emit_inst(&mut self, inst: &LirNodeBox) {
+    pub(super) fn emit_inst(&mut self, inst: &LirNodeBox, fallback_span: crate::span::Span) {
+        let loc = self.debug_location(inst.span.unwrap_or(fallback_span));
         let mut ctx = LirEmitCtx {
             prog: self.prog,
             load_tmp: self.load_tmp,
@@ -250,7 +258,7 @@ impl<'a> Emitter<'a> {
         let lines = inst.emit(&mut ctx);
         self.load_tmp = ctx.load_tmp;
         for line in lines {
-            self.wln(&line);
+            self.wln_debug(&line, loc);
         }
     }
 

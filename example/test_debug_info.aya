@@ -1,0 +1,5 @@
+fn main() -> int {
+    a = 40
+    b = 2
+    return a + b
+}

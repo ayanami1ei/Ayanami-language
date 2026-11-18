@@ -172,6 +172,7 @@ pub fn lower_program(mir: &MirProgram) -> LirProgram {
                 functions.push(LirFn {
                     fn_id: id,
                     name: Symbol::intern(&name),
+                    span: crate::span::Span::default(),
                     is_inline: false,
                     extern_c: false,
                     is_pub: false,

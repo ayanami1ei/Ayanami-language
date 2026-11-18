@@ -6,6 +6,7 @@
 #   2. src/ 下文件行数（默认 ≤300）
 #   3. SYMBOLS.md 符号地图是否过期
 #   4. cargo check 零告警
+#   5. 语言回归、DWARF/GDB/LLDB 与 IR 快照
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -16,6 +17,7 @@ cd "$(dirname "$0")/.."
 
 if [ "${AYANAMI_SKIP_REGRESSION:-0}" != "1" ]; then
     ./scripts/regression.sh
+    ./scripts/check_debug_info.sh
     ./scripts/ir_snapshot.sh
 fi
 

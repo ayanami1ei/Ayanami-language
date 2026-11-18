@@ -56,6 +56,8 @@ pub struct LirEffects {
 pub struct LirFn {
     pub fn_id: FnId,
     pub name: Symbol,
+    /// M7 debug：函数声明位置（DWARF subprogram line）。
+    pub span: crate::span::Span,
     pub is_inline: bool,
     pub extern_c: bool,
     /// M-opt.2：pub 导出（release 内部化非导出函数）
@@ -199,6 +201,8 @@ pub(crate) fn put_literal(buf: &mut Vec<u8>, lit: &HirLiteral) {
 /// Trait interface for LIR lowering context — allows SMir* nodes to lower themselves.
 pub trait LirLowerCtx {
     fn next_tmp(&mut self) -> u64;
+    /// M7 debug：设置随后 emit 指令的源码位置。
+    fn set_span(&mut self, span: crate::span::Span);
     /// 结构体定义（clone/take 决策等 lowering 期需要）
     fn struct_defs(&self) -> &HashMap<Symbol, Vec<(Symbol, HirType)>>;
     fn emit(&mut self, inst: LirNodeBox);

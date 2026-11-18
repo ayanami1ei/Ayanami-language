@@ -9,16 +9,28 @@
 //  6. 结构体和数组的内存布局与存取
 // ============================================================
 
+use std::collections::HashMap;
+use std::path::Path;
+
 use crate::hir::ir::{FnId, HirType};
 
-
 use super::ir::*;
+use debug::DebugSource;
 
 /// 将 LIR 程序发射为 LLVM IR 文本
 pub fn emit_program(prog: &LirProgram) -> String {
-    let mut e = Emitter::new(prog);
+    emit_program_with_source(prog, None)
+}
+
+/// M7：带源文件路径的 LLVM IR 发射，供 DWARF/GDB 行表使用。
+pub fn emit_program_with_source(prog: &LirProgram, source_path: Option<&Path>) -> String {
+    let mut e = Emitter::new(prog, source_path);
     e.emit();
     e.finish()
+}
+
+pub fn debug_info_enabled() -> bool {
+    debug::enabled()
 }
 
 // ----------------------------------------------------------------
@@ -31,11 +43,17 @@ struct Emitter<'a> {
     indent: usize,
     load_tmp: u64,
     current_fn_ret_ty: HirType,
+    debug_source: Option<DebugSource>,
+    debug_nodes: Vec<String>,
+    next_debug_id: u32,
+    current_debug_fn: Option<u32>,
+    debug_loc_cache: HashMap<(usize, usize), u32>,
+    debug_type_cache: HashMap<String, u32>,
 }
 
 impl<'a> Emitter<'a> {
-    fn new(prog: &'a LirProgram) -> Self {
-        Self {
+    fn new(prog: &'a LirProgram, source_path: Option<&Path>) -> Self {
+        let mut e = Self {
             out: String::new(),
             prog,
             indent: 0,
@@ -43,7 +61,15 @@ impl<'a> Emitter<'a> {
             // 从高位起编避免 %tN 冲突
             load_tmp: 1_000_000,
             current_fn_ret_ty: HirType::Void,
-        }
+            debug_source: None,
+            debug_nodes: Vec::new(),
+            next_debug_id: 5,
+            current_debug_fn: None,
+            debug_loc_cache: HashMap::new(),
+            debug_type_cache: HashMap::new(),
+        };
+        e.init_debug_source(source_path);
+        e
     }
 
     fn finish(self) -> String {
@@ -78,6 +104,7 @@ impl<'a> Emitter<'a> {
     fn emit(&mut self) {
         // Header
         self.wln("; ModuleID = 'ayanami'");
+        self.emit_debug_source_filename();
         if let Some(t) = crate::target::target_triple() {
             // 交叉目标：只写 triple，datalayout 由 llc 的目标默认提供
             self.wln(&format!("target triple = \"{}\"", t));
@@ -186,11 +213,13 @@ impl<'a> Emitter<'a> {
         for func in &self.prog.functions {
             self.emit_fn(func);
         }
+        self.emit_debug_footer();
     }
 
 }
 
 mod consts;
+mod debug;
 mod functions;
 mod types;
 mod vtable;
