@@ -14,6 +14,7 @@
 | `docs/module-graph.md` | 生成物：顶层模块依赖图（Mermaid） |
 | `docs/bootstrap.md` | Compiler Bootstrap / self-hosting 路线（Phase 0.4） |
 | `docs/annotations.md` | 标注系统（标注式编程）设计：A0–A5 路线 |
+| `docs/module-scope.md` | 跨包泛型源码的来源作用域、私有 helper 依赖闭包与多模块链接规则 |
 | `docs/generic-monomorphization.md` | 泛型结构体/枚举单态化（最小实现完成） |
 | `docs/generic-inference.md` | 泛型推断统一化（Phase 4：P4a–P4d 已落地，统一 `unify`；P4e 接口见 const-eval） |
 | `docs/lifetimes.md` | 注解式生命周期 `#[follow_with]` 设计（A4） |
@@ -140,7 +141,7 @@ graph LR
 | extern 真实签名 | `lir/lower/mod.rs`（`extern_decls`） | A1 已完成 |
 | cfg 条件裁剪 | `hir/cfg.rs`、`package/symbols.rs` | A2b 已完成（A2f 起含语句级）；M8：`feature = "x"` 键 + `features`/`AYANAMI_FEATURES` 配置 |
 | 契约标注（assume/requires/ensures/invariant） | `hir/contracts.rs`、`hir/lower/body/ensure.rs`、`HirStmt::{Assume,Contract}` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d/A2e/A2f 已完成 |
-| 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs*.rs`（Imports/注解校验）、`.lcl` 宏/pass/依赖表、`compiler/macro_expand/{mod,plugin,pass_plugin}.rs`（本机 .so/.dylib/.dll + dlopen/LoadLibrary）、`compiler/build/passes.rs` + `std/mir.aya`（MIR pass，A5d-2）、`cli/plugin.rs`（new/package）、`cli/plugin/install.rs`（install/verify/registry） | A5a–A5d-2 已完成（MVP）；mcl.1：`#[macro(tokens)]` token 宏（`token_stream.rs` 编解码 + `plugin.rs` 字节通道，ABI v8）；mcl.2：hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ 诊断通道（`__ayanami_macro_diag`；`extern_weak` 发射）；mcl.3 部分：`dump expanded` + `AYANAMI_MACRO_TRACE` 追踪 + 生成代码错误包装；A5i：`.lcl` 分发 + 平台化动态库；A5j-1：`[plugin]` 清单 + ABI/最低编译器校验；A5j-2：本地 registry + lockfile + SHA-256；A5j-2b：plugin publish；A5e/B0-B1：HIR JSON schema + identity transform |
+| 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs*.rs`（Imports/注解校验）、`.lcl` 宏/pass/依赖表、`compiler/macro_expand/{mod,plugin,pass_plugin}.rs`（本机 .so/.dylib/.dll + dlopen/LoadLibrary）、`compiler/build/passes.rs` + `std/mir.aya`（MIR pass，A5d-2）、`cli/plugin.rs`（new/package）、`cli/plugin/install.rs`（install/verify/registry） | A5a–A5d-2 已完成（MVP）；mcl.1：`#[macro(tokens)]` token 宏（`token_stream.rs` 编解码 + `plugin.rs` 字节通道，ABI v8）；mcl.2：hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ 诊断通道（`__ayanami_macro_diag`；`extern_weak` 发射）；mcl.3 部分：`dump expanded` + `AYANAMI_MACRO_TRACE` 追踪 + 生成代码错误包装；A5i：`.lcl` 分发 + 平台化动态库；A5j-1：`[plugin]` 清单 + ABI/最低编译器校验；A5j-2：本地 registry + lockfile + SHA-256；A5j-2b：plugin publish；A5e/B0-B2p：第三方 HIR transform schema、mutation、校验与回归 |
 | 效应系统 | `hir/effects/{mod,infer,diag,scan}.rs`（注册表/推断/诊断）、`LirEffects` 自动属性、`.lcl` 效应 tokens（声明+推断+承诺） | A3 重构完成（Stage 1–3） |
 | 错误传播 `?` | `hir/lower/body/expr_ops1.rs`（pending 语句内联 + 早退）、`ctx.{variant_payload_type,instantiate_*}` | A3d 已完成（含泛型 Result 最小单态化） |
 | 生命周期 `#[follow_with]` | 计划：字段属性文法 + `mir/borrow/` 来源标记 | A4 设计（docs/lifetimes.md） |
@@ -193,7 +194,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 语法：手写递归下降 `src/parser/parser/` —AST→ `src/parser/ast`（唯一解析路径）
 - 包：`hir` —序列化→ `lir/serialize` —封装→ `package` —导入→ `compiler/import`（解析顺序：本地精确 → `.aya` → 配置别名 → std 目录 `.aya`/`.lcl`；依赖闭包缺失 → `resolve_package_deps` 清晰诊断；版本漂移 → `warn_version_drift` 告警，夹具 `tests/lcl_version_drift`）
 - 布局：`size_of[T]()`/`align_of[T]()`/`offset_of[T](field)` —拦截→ `body/expr_layout.rs` —布局→ `hir/layout.rs::{type_layout,field_offset}`（自然对齐，与 `%struct.*` 一致；LIR 数组元素布局 `elem_layout_size` 共用）
-- 模块私有（nsr 可见性层）：非 pub 自由函数 —导出→ `.lcl` `private` 标记（`package/symbols.rs`）—导入→ 不注册进导入方符号表（`collect_import.rs`；extern `"C"`/`#[export]` 豁免）；private static —多模块→ `internal`（`lir/emit/consts.rs`）；来源作用域解析/模块限定名属 M6 后续
+- 模块私有（nsr 可见性层）：非 pub 自由函数 —导出→ `.lcl` `private` 标记（`package/symbols.rs`）—导入→ 不注册进导入方普通符号表（`collect_import.rs`；extern `"C"`/`#[export]` 豁免）；private static —多模块→ `internal`（`lir/emit/consts.rs`）；跨包泛型源码的来源 helper 闭包 —打包→ `package/generic_scope.rs` + linkonce 命名空间 —导入→ `compiler/build/deps.rs` 注入 —解析→ `ctx_scope.rs` + `generic_check*.rs`，详见 `docs/module-scope.md`
 - 工具链：`check_all` ⊃ `check_version` + `check_file_sizes` + `gen_symbols --check` + `check_warnings` + `regression` + `ir_snapshot`
 - 标注：`#[...]` —校验→ `hir/attrs` —携带→ MIR/LIR(`LirAttr`/`ExternDecl`) —映射→ LLVM 属性（A1 函数级）—计划→ 效应（A3）/生命周期（A4）
 - 泛型/内联：定义以**源码**随 `.lcl` 导出（`source=`）→ 导入方本地重新实例化 → 发射 `linkonce_odr` 弱链接去重（#100 设计）；特化名附泛型实参（`f$int`，`generic_specialize.rs`）——T 无关签名（如 `sz[T]() -> int`）两次特化不误复用同一符号（2026-10-18）

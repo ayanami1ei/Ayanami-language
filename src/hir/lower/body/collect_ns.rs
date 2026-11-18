@@ -28,7 +28,7 @@ impl crate::hir::lower::Ctx {
                         check_unique_generic_params(generic_params, span)?;
                         // Store generic function AST for later monomorphization;
                         // do NOT register it as a normal callable function.
-                        self.generic_fns.push((full_name, generic_params.clone(), stmt.clone(), false));
+                        self.generic_fns.push((full_name, generic_params.clone(), stmt.clone(), false, None));
                         continue;
                     }
                     let is_extern = *extern_c || crate::hir::attrs::has(attrs, "export");
@@ -191,7 +191,7 @@ impl crate::hir::lower::Ctx {
                             };
                             check_unique_generic_params(&combined_gp, method_span)?;
                             if !combined_gp.is_empty() {
-                                self.generic_fns.push((*name, combined_gp, method.clone(), true));
+                                self.generic_fns.push((*name, combined_gp, method.clone(), true, None));
                                 continue;
                             }
                             let hir_return = ast_type_to_hir(return_type, &self.interfaces);

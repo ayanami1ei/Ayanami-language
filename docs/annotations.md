@@ -397,11 +397,9 @@ struct Holder {
 - **顺序**：在类型检查完成后、MIR 降级前；变换后重跑结构/借用/效应检查（与 A5d 一致）；
 - **首个客户**：`#[async]` + `await`（CPS 状态机）与 `#[sync]` 块（出口解锁），见
   `docs/async.md`、`docs/sync-blocks.md`；
-- **开放策略**：v1 **只内建**（编译器内部 `StructuralPass` 接口），不对第三方 `.lcl` 开放；
-  待 HIR schema 稳定后再按 A5d 的插件模式开放，届时 async 作为参考实现与验收；
-  **2026-11-14 更新**：用户确认第三方 transform 为最高优先级，采用 HIR JSON schema +
-  字符串插件 ABI 的 B 路线；B0 identity schema、B1 identity transform 通路已落地，
-  详见 `docs/hir-transform.md`；
+- **开放策略**：内建 async/sync 保持编译器内部实现；第三方 `.lcl` 通过版本化
+  HIR JSON schema + `String -> String` 插件 ABI 开放（B0–B2），详见
+  `docs/hir-transform.md`；
 - **命名与解析**：与宏/pass/check 共用一张注解表（`src/annotation_table.rs`），
   同一包内注解名跨类别唯一；跨包同名允许，裸名歧义须全限定。
 
@@ -449,8 +447,8 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - `package/symbols` 用 `is_declaration_marker` 统一识别 `#[macro]` / `#[pass]` /
   `#[check]` / `#[attr]` 声明并写入对应表，避免四套硬编码判断。
 - 现阶段内建标注的**执行**仍在各编译器 pass 中（cfg/契约/效应/优化等）；
-  注册表统一的是身份、类别、目标与 provider 解析。`#[transform]`（A5e）仍为内建接口，
-  待稳定后再开放第三方 HIR 插件。
+  注册表统一的是身份、类别、目标与 provider 解析。第三方 `#[transform]` 已在
+  HIR JSON schema v1 上开放，后续重点是更丰富的 typed mutation API 与跨版本迁移。
 - 收益：新增内建标注只需登记一次；工具可枚举标注类别；外部插件与内建标注共享
   解析/歧义/诊断路径。
 
@@ -625,7 +623,7 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] 同包注解名跨类别唯一：打包侧 `Package::validate_annotation_names` +
       加载侧 `validate_annotation_symbols`（拦截旧包），单测覆盖
 - [x] 修复解析漂移：同包同名不再出现「宏展开静默取宏 / HIR 报歧义」
-- [ ] `#[transform]` 类别与 `StructuralPass` 接口（设计见 §8.6）
+- [x] `#[transform]` 类别与第三方 HIR JSON 插件 ABI（B0–B2）
 - [x] B0：HIR JSON schema v1 + identity roundtrip（`docs/hir-transform.md`）
 - [x] B1：transform 插件 ABI identity（`transform=` 表 + `fn(String)->String`）
 - [x] B2 MVP：HIR JSON 修改 + `std/hir.aya` 读取/替换函数体已跑通
@@ -642,9 +640,9 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 - [x] B2m：return 值类型与函数 return_type 校验
 - [x] B2n：transform-schema 清单写入/校验
 - [x] B2o：function_signature / struct_fields introspection helper
-- [ ] B2 后续：完整借用效应校验
+- [x] B2p：transform 后借用与效应校验回归
 - [x] `#[sync(obj)] { ... }` 同步块（首个内建结构化变换，2026-10-24；见 `docs/sync-blocks.md`）
-- [ ] `#[async]`/`await`（A5e 第二个客户）
+- [x] `#[async]`/`await`（A5e 第二个客户；受限状态机，见 `docs/async.md`）
 
 ### A5f（MVP，2026-11-14）
 
@@ -656,7 +654,8 @@ A5f 后，外部注解已有 macro/pass/check/attr 四类；A5g 把**内建保�
 
 - [x] 统一注解注册表：内建标注类别/声明标记 + effects 动态 provider
 - [x] 移除 `ALLOWED` 散落白名单；package 声明表统一走 `is_declaration_marker`
-- [ ] 内建 pass 的 handler trait 化 / 第三方 `#[transform]`（待 HIR schema 稳定）
+- [x] 第三方 `#[transform]` 的 HIR JSON ABI（B0–B2）
+- [ ] 内建 pass 的统一 handler trait 化
 
 ### A5h（2026-11-14）
 

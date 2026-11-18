@@ -1,4 +1,5 @@
 use super::*;
+use super::generic_infer::types_infer_conflict;
 
 impl crate::hir::lower::Ctx {
     /// Try to resolve a call by specializing a generic function.
@@ -19,7 +20,7 @@ impl crate::hir::lower::Ctx {
             HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
             _ => return false,
         };
-        self.generic_fns.iter().any(|(gf_name, _, gf_stmt, is_method)| {
+        self.generic_fns.iter().any(|(gf_name, _, gf_stmt, is_method, _)| {
             if gf_name != method || !*is_method { return false; }
             let Stmt::FnDecl { params, .. } = gf_stmt else { return false; };
             let visible = params.len().saturating_sub(count_hidden_names(params));
@@ -49,7 +50,7 @@ impl crate::hir::lower::Ctx {
         // #189：首参是候选自身泛型参数（如自由函数 map 的 I）时可绑定任意接收者，
         // 作为次级候选——精确基名匹配（如 Option.map）优先，避免自由调用被同名方法抢占
         let mut gp_self_idx = None;
-        for (i, (gf_name, gf_params, gf_stmt, gf_is_method)) in self.generic_fns.iter().enumerate() {
+        for (i, (gf_name, gf_params, gf_stmt, gf_is_method, _)) in self.generic_fns.iter().enumerate() {
             if gf_name != name || (prefer_method && !*gf_is_method) { continue; }
             if let Stmt::FnDecl { params, .. } = gf_stmt {
                 let visible = params.len().saturating_sub(count_hidden_names(params));
@@ -78,7 +79,7 @@ impl crate::hir::lower::Ctx {
             Some(i) => i,
             None => {
                 // Fallback: 同名且可见参数个数一致
-                if let Some(i) = self.generic_fns.iter().position(|(gf_name, _, gf_stmt, gf_is_method)| {
+                if let Some(i) = self.generic_fns.iter().position(|(gf_name, _, gf_stmt, gf_is_method, _)| {
                     gf_name == name && (!prefer_method || *gf_is_method) && match gf_stmt {
                         Stmt::FnDecl { params, .. } => {
                             params.len().saturating_sub(count_hidden_names(params)) == arg_types.len()
@@ -99,7 +100,7 @@ impl crate::hir::lower::Ctx {
             }
         };
 
-        let (gf_name, gf_params, gf_stmt, _gf_is_method) = &self.generic_fns[gf_idx];
+        let (gf_name, gf_params, gf_stmt, _gf_is_method, gf_scope) = &self.generic_fns[gf_idx];
         let Stmt::FnDecl { params, return_type, body, is_inline, extern_c, is_unsafe, param_attrs, attrs, vis, .. } = gf_stmt else {
             return Err(Error::Hir(format!("internal error: generic function `{}` is not a FnDecl at {}:{}", gf_name, span.start_line, span.start_col)));
         };
@@ -202,7 +203,13 @@ impl crate::hir::lower::Ctx {
             .map(crate::lir::lower::type_to_mangle)
             .collect::<Vec<_>>()
             .join("_");
-        let specialized_name = Symbol::intern(&format!("{}${}", name.as_str(), args_suffix));
+        let scope_prefix = gf_scope.map(|s| format!("{}__", s.as_str())).unwrap_or_default();
+        let specialized_name = Symbol::intern(&format!(
+            "{}{}${}",
+            scope_prefix,
+            name.as_str(),
+            args_suffix
+        ));
 
         // 去重：签名 + 特化名（含泛型实参）都一致才复用
         if let Some(existing) = self.fn_map.get(name).and_then(|ids| {
@@ -236,6 +243,8 @@ impl crate::hir::lower::Ctx {
         let saved_current_fn = self.current_fn;
         let saved_locals = std::mem::take(&mut self.locals);
         let saved_scopes = std::mem::take(&mut self.scopes);
+        let saved_module = self.current_module;
+        self.current_module = *gf_scope;
         // A5e：特化体不得继承调用方的同步块状态（否则 return 会误发 unlock）
         let saved_sync = (std::mem::take(&mut self.sync_locks), std::mem::take(&mut self.loop_sync_marks));
 
@@ -257,6 +266,7 @@ impl crate::hir::lower::Ctx {
                 // E1a 修复：失败路径同样恢复当前函数（此前泄漏到调用方，
                 // 导致后续调用的环境作用域错误）
                 self.current_fn = saved_current_fn;
+                self.current_module = saved_module;
                 self.locals = saved_locals;
                 self.scopes = saved_scopes;
                 return Err(e);
@@ -264,6 +274,7 @@ impl crate::hir::lower::Ctx {
         };
         hir_fn.is_specialized = true;
         self.current_fn = saved_current_fn;
+        self.current_module = saved_module;
         self.locals = saved_locals;
         self.scopes = saved_scopes;
         self.specialized_fns.push(hir_fn);
@@ -275,26 +286,4 @@ impl crate::hir::lower::Ctx {
     //  阶段 2：降级顶层项（函数、结构体、命名空间等）
     //  将 AST 中声明级别的节点递归降级为 HIR 节点
     // ----------------------------------------------------------------
-}
-
-/// 泛型实参推断冲突：两侧都具体且类别不同。
-/// 数值互转与所有权包装差异放行（交由后续 coerce），单字母大写未解参数放行。
-fn types_infer_conflict(a: &HirType, b: &HirType) -> bool {
-    let a = strip_ownership_ref(a);
-    let b = strip_ownership_ref(b);
-    if a == b {
-        return false;
-    }
-    let numeric = |t: &HirType| matches!(t, HirType::Int | HirType::IntN { .. } | HirType::Float | HirType::F32);
-    if numeric(a) && numeric(b) {
-        return false;
-    }
-    let bare_param = |t: &HirType| matches!(t, HirType::Named(n)
-        if n.as_str().len() == 1 && n.as_str().chars().all(|c| c.is_uppercase()));
-    if bare_param(a) || bare_param(b) {
-        return false;
-    }
-    // 一侧为命名类型、另一侧不是 → 冲突（如 `int` vs `String`）；命名类型之间不同也冲突
-    matches!((a, b), (HirType::Named(_), HirType::Named(_)))
-        || matches!(a, HirType::Named(_)) != matches!(b, HirType::Named(_))
 }

@@ -17,7 +17,7 @@ fn scan_source_deps(src_path: &Path) -> bool {
             let name = rest.trim().trim_end_matches(';').trim().trim_matches('"');
             if name.is_empty() { continue; }
             if let Some(cand) = resolve_import_path(name, base) {
-                if cand.extension().map(|e| e == "aya").unwrap_or(false) {
+                if cand.extension().map(|e| e == "aya" || e == "lcl").unwrap_or(false) {
                     return true;
                 }
                 stack.push(cand);

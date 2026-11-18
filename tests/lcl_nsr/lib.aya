@@ -3,6 +3,14 @@ fn helper(int x) -> int {
     return x + 10
 }
 
+fn helper2(int x) -> int {
+    return helper(x) + 1
+}
+
 pub fn from_lib(int x) -> int {
     return helper(x)
+}
+
+pub fn generic_from_lib[T](T x) -> int {
+    return helper2(1)
 }

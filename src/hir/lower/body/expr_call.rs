@@ -58,11 +58,12 @@ impl crate::hir::lower::Ctx {
 
         // Step 2: extract arg types（引用实参另存解引用类型，用于回退解析）
         let arg_types: Vec<HirType> = hir_args.iter().map(expr_type).collect();
+        let lookup_name = self.scoped_fn_name(*name);
         // E1a：被调泛型自由函数的环境需求 → 当前函数作用域的提供值（类型供特化绑定 E）
         let mut env_nodes: Vec<HirNodeBox> = Vec::new();
         self.pending_env_args.clear();
-        if let Some((_, gps, decl, is_method)) = self.generic_fns.iter()
-            .find(|(n, ..)| n == name).cloned()
+        if let Some((_, gps, decl, is_method, _)) = self.generic_fns.iter()
+            .find(|(n, ..)| n == &lookup_name).cloned()
         {
             if !is_method && matches!(decl, Stmt::FnDecl { .. }) {
                 for (cap, _) in self.env_need_caps(&gps) {
@@ -77,7 +78,7 @@ impl crate::hir::lower::Ctx {
         // Step 3：显式泛型实参优先（零参构造函数特化后参数表相同，
         // 重载解析无法区分返回类型，必须先按显式实参特化）
         let explicit_id = match explicit {
-            Some(types) => self.specialize_generic_call_with(name, &arg_types, Some(types), span, false).ok(),
+            Some(types) => self.specialize_generic_call_with(&lookup_name, &arg_types, Some(types), span, false).ok(),
             None => None,
         };
         let lit_mask: Vec<bool> = hir_args.iter().map(is_numeric_literal).collect();
@@ -100,10 +101,10 @@ impl crate::hir::lower::Ctx {
             Some(fid) => fid,
             None => {
                 // Step 3b: try generic specialization
-                let spec = self.specialize_generic_call_with(name, &arg_types, explicit, span, false);
+                let spec = self.specialize_generic_call_with(&lookup_name, &arg_types, explicit, span, false);
                 let spec = match spec {
                     Ok(fid) => Ok(fid),
-                    Err(_) => self.specialize_generic_call_with(name, &deref_arg_types, explicit, span, false),
+                    Err(_) => self.specialize_generic_call_with(&lookup_name, &deref_arg_types, explicit, span, false),
                 };
                 match spec {
                     Ok(fid) => fid,

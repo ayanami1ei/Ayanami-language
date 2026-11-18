@@ -22,6 +22,7 @@ impl crate::hir::lower::Ctx {
                 return Ok(());
             }
             Expr::FnCall { name, args, generic_args, span } => {
+                let lookup_name = self.scoped_fn_name_in(cx.module, *name);
                 // Phase 7：size_of/align_of 为编译期内置（仅显式类型实参形态）
                 let layout_builtin = matches!(name.as_str().as_str(), "size_of" | "align_of" | "offset_of")
                     && !generic_args.is_empty();
@@ -29,8 +30,8 @@ impl crate::hir::lower::Ctx {
                     || name.as_str() == "static_assert"
                     || layout_builtin
                     || cx.known.contains(name)
-                    || self.fn_map.contains_key(name)
-                    || self.generic_fns.iter().any(|(n, ..)| n == name);
+                    || self.fn_map.contains_key(&lookup_name)
+                    || self.generic_fns.iter().any(|(n, ..)| *n == lookup_name);
                 if !known {
                     return Err(Error::Hir(format!(
                         "undefined function `{}` (at {}:{})",
@@ -39,7 +40,7 @@ impl crate::hir::lower::Ctx {
                 }
                 // C3a：单候选自由函数实参——T 流入具体基元形参
                 if !cx.env.contains_key(name) {
-                    if let Some(ids) = self.fn_map.get(name) {
+                    if let Some(ids) = self.fn_map.get(&lookup_name) {
                         let mut cands = ids.iter()
                             .map(|id| &self.fns[id.0])
                             .filter(|s| s.params.len().saturating_sub(s.hidden) == args.len());

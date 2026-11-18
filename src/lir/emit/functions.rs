@@ -171,10 +171,8 @@ impl<'a> Emitter<'a> {
         };
         self.current_fn_ret_ty = f.return_type.clone();
 
-        // M-opt.2：release 下非导出定义标 internal（opt 可内联/DCE、免 PLT）；
-        // main / extern "C" / pub / 弱特化保持外部链接。
-        // 多模块构建：非 pub 也必须 internal——各模块对象同名私有函数（如各模块
-        // 自己的 op_method_name）强符号重复定义冲突（#M6 跨模块符号表前的最小修复）。
+        // release / 多模块构建下非 pub 定义 internal：各模块可以有同名私有函数，
+        // 且包内调用必须绑定自己的实现。main / extern "C" / pub / 弱特化例外。
         // M2：编译器生成的闭包函数（__lambda_N / __closure_drop_N）总是 internal。
         let is_synth = fn_name.starts_with("__lambda_")
             || fn_name.starts_with("__closure_drop_")

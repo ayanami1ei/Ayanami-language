@@ -136,6 +136,10 @@ impl crate::hir::lower::Ctx {
         param_attrs: Vec<Vec<crate::parser::ast::Attr>>,
         is_pub: bool,
     ) -> Result<HirFn> {
+        let saved_module = self.current_module;
+        if let Some((scope, _)) = name.as_str().rsplit_once('.') {
+            self.current_module = Some(Symbol::intern(scope));
+        }
         // E1a：登记函数级环境提供者 `#[env::<cap>(v)]`（v 为位置表达式，访问时重新求值）
         {
             let mut caps: HashMap<Symbol, (crate::parser::ast::Expr, Span)> = HashMap::new();
@@ -266,6 +270,7 @@ impl crate::hir::lower::Ctx {
         self.pending_stmts = saved_pending;
         self.usage_hints = saved_hints;
         let locals = std::mem::take(&mut self.locals);
+        self.current_module = saved_module;
         Ok(HirFn {
             span,
             attrs,

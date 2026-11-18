@@ -118,8 +118,8 @@ src/cli/update_fetch.rs:136: pub(super) fn ensure_target_ok(target: &Path, force
 src/compiler/build/compile.rs:6: pub fn compile_file(
 src/compiler/build/compile.rs:153: pub(super) fn parse_and_check(code: &str, src_path: &Path) -> Result<Program>
 src/compiler/build/deps.rs:3: pub(super) fn resolve_dependencies(
-src/compiler/build/deps.rs:129: pub(super) fn merge_dep_struct_defs(
-src/compiler/build/deps.rs:146: pub(super) fn merge_symbols(
+src/compiler/build/deps.rs:159: pub(super) fn merge_dep_struct_defs(
+src/compiler/build/deps.rs:176: pub(super) fn merge_symbols(
 src/compiler/build/lir.rs:3: pub(super) fn lower_to_lir(program: &Program, src_path: &Path) -> Result<(
 src/compiler/build/lir.rs:34: pub(super) fn build_target_artifact(
 src/compiler/build/mod.rs:13: mod compile;
@@ -746,6 +746,9 @@ src/hir/lower/body/collect_fns.rs:15: fn collect_const_fns(&mut self, stmts: &[S
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_import.rs:4: pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str, stmt_span: crate::span::Span) -> Result<()>
 src/hir/lower/body/collect_import_path.rs:4: pub(crate) fn resolve_import_pkg_path(path: &str) -> String
+src/hir/lower/body/collect_import_source.rs:4: impl crate::hir::lower::Ctx
+src/hir/lower/body/collect_import_source.rs:5: pub(super) fn ingest_generic_sources(
+src/hir/lower/body/collect_import_source.rs:53: fn ingest_source_stmt(
 src/hir/lower/body/collect_ns.rs:4: pub(super) fn check_unique_generic_params(gp: &[(Symbol, Vec<Symbol>)], span: &Span) -> Result<()>
 src/hir/lower/body/collect_ns.rs:17: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_ns.rs:18: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
@@ -835,22 +838,22 @@ src/hir/lower/body/expr_struct.rs:188: fn is_concrete_literal_type(&self, ty: &H
 src/hir/lower/body/expr_unary.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_unary.rs:6: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
 src/hir/lower/body/generic_check.rs:13: pub(super) struct CheckCtx
-src/hir/lower/body/generic_check.rs:24: impl crate::hir::lower::Ctx
-src/hir/lower/body/generic_check.rs:26: pub(crate) fn check_generic_bodies(&self) -> Result<()>
-src/hir/lower/body/generic_check.rs:47: pub(super) fn check_block_names(&self, block: &Block, cx: &mut CheckCtx) -> Result<()>
-src/hir/lower/body/generic_check.rs:57: pub(super) fn check_stmt_names(&self, stmt: &Stmt, cx: &mut CheckCtx) -> Result<()>
+src/hir/lower/body/generic_check.rs:26: impl crate::hir::lower::Ctx
+src/hir/lower/body/generic_check.rs:28: pub(crate) fn check_generic_bodies(&self) -> Result<()>
+src/hir/lower/body/generic_check.rs:50: pub(super) fn check_block_names(&self, block: &Block, cx: &mut CheckCtx) -> Result<()>
+src/hir/lower/body/generic_check.rs:60: pub(super) fn check_stmt_names(&self, stmt: &Stmt, cx: &mut CheckCtx) -> Result<()>
 src/hir/lower/body/generic_check_expr.rs:6: impl crate::hir::lower::Ctx
 src/hir/lower/body/generic_check_expr.rs:8: fn receiver_decl_is_ptr_field(&self, expr: &Expr, cx: &CheckCtx) -> bool
 src/hir/lower/body/generic_check_expr.rs:17: pub(super) fn check_expr_names(&self, expr: &Expr, cx: &mut CheckCtx) -> Result<()>
+src/hir/lower/body/generic_infer.rs:5: pub(super) fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/generic_locals.rs:5: pub(super) fn collect_local_names_block(block: &Block, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_locals.rs:14: pub(super) fn collect_local_names_stmt(stmt: &Stmt, out: &mut Vec<Symbol>)
 src/hir/lower/body/generic_locals.rs:74: pub(super) fn collect_local_names_expr(expr: &Expr, out: &mut Vec<Symbol>)
-src/hir/lower/body/generic_specialize.rs:3: impl crate::hir::lower::Ctx
-src/hir/lower/body/generic_specialize.rs:6: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
-src/hir/lower/body/generic_specialize.rs:11: pub(crate) fn specialize_generic_method_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
-src/hir/lower/body/generic_specialize.rs:17: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
-src/hir/lower/body/generic_specialize.rs:39: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span, prefer_method: bool) -> Result<FnId>
-src/hir/lower/body/generic_specialize.rs:282: fn types_infer_conflict(a: &HirType, b: &HirType) -> bool
+src/hir/lower/body/generic_specialize.rs:4: impl crate::hir::lower::Ctx
+src/hir/lower/body/generic_specialize.rs:7: pub(crate) fn specialize_generic_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
+src/hir/lower/body/generic_specialize.rs:12: pub(crate) fn specialize_generic_method_call(&mut self, name: &Symbol, arg_types: &[HirType], span: &crate::span::Span) -> Result<FnId>
+src/hir/lower/body/generic_specialize.rs:18: pub(crate) fn has_generic_method_candidate(&self, method: &Symbol, receiver_ty: &HirType, argc: usize) -> bool
+src/hir/lower/body/generic_specialize.rs:40: pub(crate) fn specialize_generic_call_with(&mut self, name: &Symbol, arg_types: &[HirType], explicit: Option<&Vec<Type>>, span: &crate::span::Span, prefer_method: bool) -> Result<FnId>
 src/hir/lower/body/generic_types.rs:10: pub(crate) enum GType
 src/hir/lower/body/generic_types.rs:19: pub(super) fn ast_is_concrete_primitive(ty: &Type) -> bool
 src/hir/lower/body/generic_types.rs:28: pub(super) fn hir_is_concrete_primitive(ty: &HirType) -> bool
@@ -940,68 +943,70 @@ src/hir/lower/body/mod.rs:15: mod overload_resolve;
 src/hir/lower/body/mod.rs:16: mod overload_method;
 src/hir/lower/body/mod.rs:17: mod generic_check;
 src/hir/lower/body/mod.rs:18: mod generic_check_expr;
-src/hir/lower/body/mod.rs:19: mod generic_locals;
-src/hir/lower/body/mod.rs:20: mod generic_specialize;
-src/hir/lower/body/mod.rs:21: mod generic_types;
-src/hir/lower/body/mod.rs:22: mod lower_items;
-src/hir/lower/body/mod.rs:23: mod stmt_lower;
-src/hir/lower/body/mod.rs:24: mod stmt_sync;
-src/hir/lower/body/mod.rs:25: mod stmt_deref;
-src/hir/lower/body/mod.rs:26: mod stmt_loops;
-src/hir/lower/body/mod.rs:27: mod ref_assign;
-src/hir/lower/body/mod.rs:28: mod ref_protocol;
-src/hir/lower/body/mod.rs:29: mod expr_method;
-src/hir/lower/body/mod.rs:30: mod expr_method_ptr;
-src/hir/lower/body/mod.rs:31: mod expr_layout;
-src/hir/lower/body/mod.rs:32: mod expr_static_assert;
-src/hir/lower/body/mod.rs:33: mod const_eval_binary;
-src/hir/lower/body/mod.rs:34: mod expr_struct;
-src/hir/lower/body/mod.rs:35: mod match_coverage;
-src/hir/lower/body/mod.rs:36: mod match_variant;
-src/hir/lower/body/mod.rs:37: mod match_lower;
-src/hir/lower/body/mod.rs:38: mod match_pattern;
-src/hir/lower/body/mod.rs:39: mod match_setup;
-src/hir/lower/body/mod.rs:40: mod match_util;
-src/hir/lower/body/mod.rs:41: mod usage_infer;
-src/hir/lower/body/mod.rs:42: mod macro_call;
-src/hir/lower/body/mod.rs:43: mod expr_logic;
-src/hir/lower/body/mod.rs:44: mod expr_lower;
-src/hir/lower/body/mod.rs:45: mod if_expr;
-src/hir/lower/body/mod.rs:46: mod ensure;
-src/hir/lower/body/mod.rs:47: mod literal;
-src/hir/lower/body/mod.rs:48: mod collect_enum;
-src/hir/lower/body/mod.rs:49: mod const_coerce;
-src/hir/lower/body/mod.rs:50: mod const_array;
-src/hir/lower/body/mod.rs:51: mod const_struct;
-src/hir/lower/body/mod.rs:52: mod const_eval;
-src/hir/lower/body/mod.rs:53: mod const_fn;
-src/hir/lower/body/mod.rs:54: mod collect_import;
-src/hir/lower/body/mod.rs:55: mod collect_import_path;
-src/hir/lower/body/mod.rs:56: mod expr_access;
-src/hir/lower/body/mod.rs:57: mod expr_call;
-src/hir/lower/body/mod.rs:58: mod expr_call_builtins;
-src/hir/lower/body/mod.rs:59: mod expr_call_args;
-src/hir/lower/body/mod.rs:60: mod expr_call_extra;
-src/hir/lower/body/mod.rs:61: mod block_lower;
-src/hir/lower/body/mod.rs:62: mod expr_cast;
-src/hir/lower/body/mod.rs:63: mod expr_enum;
-src/hir/lower/body/mod.rs:64: mod expr_misc;
-src/hir/lower/body/mod.rs:65: mod expr_ops1;
-src/hir/lower/body/mod.rs:66: mod expr_unary;
-src/hir/lower/body/mod.rs:67: mod expr_method_arrays;
-src/hir/lower/body/mod.rs:68: mod return_check;
-src/hir/lower/body/mod.rs:69: mod divergence;
-src/hir/lower/body/mod.rs:70: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:19: mod generic_infer;
+src/hir/lower/body/mod.rs:20: mod generic_locals;
+src/hir/lower/body/mod.rs:21: mod generic_specialize;
+src/hir/lower/body/mod.rs:22: mod generic_types;
+src/hir/lower/body/mod.rs:23: mod lower_items;
+src/hir/lower/body/mod.rs:24: mod stmt_lower;
+src/hir/lower/body/mod.rs:25: mod stmt_sync;
+src/hir/lower/body/mod.rs:26: mod stmt_deref;
+src/hir/lower/body/mod.rs:27: mod stmt_loops;
+src/hir/lower/body/mod.rs:28: mod ref_assign;
+src/hir/lower/body/mod.rs:29: mod ref_protocol;
+src/hir/lower/body/mod.rs:30: mod expr_method;
+src/hir/lower/body/mod.rs:31: mod expr_method_ptr;
+src/hir/lower/body/mod.rs:32: mod expr_layout;
+src/hir/lower/body/mod.rs:33: mod expr_static_assert;
+src/hir/lower/body/mod.rs:34: mod const_eval_binary;
+src/hir/lower/body/mod.rs:35: mod expr_struct;
+src/hir/lower/body/mod.rs:36: mod match_coverage;
+src/hir/lower/body/mod.rs:37: mod match_variant;
+src/hir/lower/body/mod.rs:38: mod match_lower;
+src/hir/lower/body/mod.rs:39: mod match_pattern;
+src/hir/lower/body/mod.rs:40: mod match_setup;
+src/hir/lower/body/mod.rs:41: mod match_util;
+src/hir/lower/body/mod.rs:42: mod usage_infer;
+src/hir/lower/body/mod.rs:43: mod macro_call;
+src/hir/lower/body/mod.rs:44: mod expr_logic;
+src/hir/lower/body/mod.rs:45: mod expr_lower;
+src/hir/lower/body/mod.rs:46: mod if_expr;
+src/hir/lower/body/mod.rs:47: mod ensure;
+src/hir/lower/body/mod.rs:48: mod literal;
+src/hir/lower/body/mod.rs:49: mod collect_enum;
+src/hir/lower/body/mod.rs:50: mod const_coerce;
+src/hir/lower/body/mod.rs:51: mod const_array;
+src/hir/lower/body/mod.rs:52: mod const_struct;
+src/hir/lower/body/mod.rs:53: mod const_eval;
+src/hir/lower/body/mod.rs:54: mod const_fn;
+src/hir/lower/body/mod.rs:55: mod collect_import;
+src/hir/lower/body/mod.rs:56: mod collect_import_source;
+src/hir/lower/body/mod.rs:57: mod collect_import_path;
+src/hir/lower/body/mod.rs:58: mod expr_access;
+src/hir/lower/body/mod.rs:59: mod expr_call;
+src/hir/lower/body/mod.rs:60: mod expr_call_builtins;
+src/hir/lower/body/mod.rs:61: mod expr_call_args;
+src/hir/lower/body/mod.rs:62: mod expr_call_extra;
+src/hir/lower/body/mod.rs:63: mod block_lower;
+src/hir/lower/body/mod.rs:64: mod expr_cast;
+src/hir/lower/body/mod.rs:65: mod expr_enum;
+src/hir/lower/body/mod.rs:66: mod expr_misc;
+src/hir/lower/body/mod.rs:67: mod expr_ops1;
+src/hir/lower/body/mod.rs:68: mod expr_unary;
+src/hir/lower/body/mod.rs:69: mod expr_method_arrays;
+src/hir/lower/body/mod.rs:70: mod return_check;
+src/hir/lower/body/mod.rs:71: mod divergence;
+src/hir/lower/body/mod.rs:72: mod expr_reinterpret;
 src/hir/lower/body/overload_method.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_method.rs:9: pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
 src/hir/lower/body/overload_method.rs:28: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
 src/hir/lower/body/overload_method.rs:36: pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:105: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
-src/hir/lower/body/overload_method.rs:152: pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:172: pub(crate) fn resolve_method_literals(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:195: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:200: pub(crate) fn resolve_method_only(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:204: fn resolve_method_impl(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], methods_only: bool) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:106: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
+src/hir/lower/body/overload_method.rs:153: pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:174: pub(crate) fn resolve_method_literals(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:197: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:202: pub(crate) fn resolve_method_only(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:206: fn resolve_method_impl(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], methods_only: bool) -> Option<FnId>
 src/hir/lower/body/overload_resolve.rs:4: pub(super) fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
@@ -1047,20 +1052,20 @@ src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
 src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:122: pub struct SyncLock
-src/hir/lower/ctx.rs:126: impl Ctx
-src/hir/lower/ctx.rs:128: pub fn new() -> Self
-src/hir/lower/ctx.rs:194: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:197: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:200: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:205: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:214: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:219: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:227: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:237: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:250: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:258: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:264: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:124: pub struct SyncLock
+src/hir/lower/ctx.rs:128: impl Ctx
+src/hir/lower/ctx.rs:130: pub fn new() -> Self
+src/hir/lower/ctx.rs:197: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:200: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:203: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:208: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:217: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:222: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:230: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:240: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:253: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:261: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:267: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_env.rs:4: impl Ctx
 src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
 src/hir/lower/ctx_env.rs:36: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -1090,6 +1095,9 @@ src/hir/lower/ctx_niche.rs:12: pub(crate) fn is_niche_enum(&self, name: &Symbol)
 src/hir/lower/ctx_niche.rs:18: pub(crate) fn apply_boxing_rewrite(
 src/hir/lower/ctx_niche.rs:59: pub(crate) fn apply_niche_rewrite(&mut self, fields: Vec<HirStructField>) -> Vec<HirStructField>
 src/hir/lower/ctx_niche.rs:71: pub(crate) fn build_niche_tag_expr(
+src/hir/lower/ctx_scope.rs:3: impl Ctx
+src/hir/lower/ctx_scope.rs:4: pub(crate) fn scoped_fn_name(&self, name: Symbol) -> Symbol
+src/hir/lower/ctx_scope.rs:8: pub(crate) fn scoped_fn_name_in(
 src/hir/lower/helpers/bounds.rs:10: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/bounds.rs:12: pub(crate) fn ensure_bounds_helper(&mut self) -> FnId
 src/hir/lower/helpers/bounds.rs:62: pub(crate) fn check_array_index(&mut self, object: &HirNodeBox, index: HirNodeBox, span: &Span, is_write: bool) -> HirNodeBox
@@ -1221,16 +1229,17 @@ src/hir/lower/mod.rs:29: pub(super) fn strip_generic_name(name: &Symbol) -> Symb
 src/hir/lower/mod.rs:45: pub(crate) struct FnSig
 src/hir/lower/mod.rs:70: pub(crate) struct InterfaceReg
 src/hir/lower/mod.rs:77: mod ctx;
-src/hir/lower/mod.rs:78: mod ctx_mono;
-src/hir/lower/mod.rs:79: mod ctx_fields;
-src/hir/lower/mod.rs:96: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-src/hir/lower/mod.rs:98: pub fn set_source_path(path: &std::path::Path)
-src/hir/lower/mod.rs:102: pub(crate) fn source_path() -> String
-src/hir/lower/mod.rs:107: pub(crate) type AsyncLocalTypes = HashMap<Symbol, HashMap<Symbol, HirType>>;
-src/hir/lower/mod.rs:109: pub fn lower_program(program: &Program) -> Result<HirProgram>
-src/hir/lower/mod.rs:127: fn probe_async_local_types(program: &Program) -> Result<AsyncLocalTypes>
-src/hir/lower/mod.rs:147: fn has_async_fn(program: &Program) -> bool
-src/hir/lower/mod.rs:152: fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgram>
+src/hir/lower/mod.rs:78: mod ctx_scope;
+src/hir/lower/mod.rs:79: mod ctx_mono;
+src/hir/lower/mod.rs:80: mod ctx_fields;
+src/hir/lower/mod.rs:97: static SOURCE_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+src/hir/lower/mod.rs:99: pub fn set_source_path(path: &std::path::Path)
+src/hir/lower/mod.rs:103: pub(crate) fn source_path() -> String
+src/hir/lower/mod.rs:108: pub(crate) type AsyncLocalTypes = HashMap<Symbol, HashMap<Symbol, HirType>>;
+src/hir/lower/mod.rs:110: pub fn lower_program(program: &Program) -> Result<HirProgram>
+src/hir/lower/mod.rs:128: fn probe_async_local_types(program: &Program) -> Result<AsyncLocalTypes>
+src/hir/lower/mod.rs:148: fn has_async_fn(program: &Program) -> bool
+src/hir/lower/mod.rs:153: fn lower_program_after(program: &Program, async_probe: bool) -> Result<HirProgram>
 src/hir/lower/to_mir/access.rs:3: impl HirNode for SField
 src/hir/lower/to_mir/access.rs:4: fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
 src/hir/lower/to_mir/access.rs:5: fn as_field_access(&self) -> Option<(&HirNodeBox, Symbol, usize)>
@@ -1870,9 +1879,9 @@ src/lir/emit/functions.rs:87: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:88: pub(super) fn emit_struct_defs(&mut self)
 src/lir/emit/functions.rs:117: pub(super) fn emit_string_globals(&mut self)
 src/lir/emit/functions.rs:137: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:246: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
-src/lir/emit/functions.rs:263: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:277: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:244: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox)
+src/lir/emit/functions.rs:261: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:275: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:18: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:28: struct Emitter<'a>
 src/lir/emit/mod.rs:36: impl<'a> Emitter<'a>
@@ -2900,6 +2909,17 @@ src/package/const_codec.rs:64: pub fn lit_str(lit: &HirLiteral) -> Option<String
 src/package/const_codec.rs:75: pub fn lit_from_str(ty: &HirType, s: &str) -> Option<HirLiteral>
 src/package/const_codec.rs:86: pub fn encode(ty: &HirType, lit: &HirLiteral) -> Option<(String, String)>
 src/package/const_codec.rs:91: pub fn decode(ty: &str, value: &str) -> Option<(HirType, HirLiteral)>
+src/package/generic_scope/walk.rs:6: pub(super) fn calls_in_block(
+src/package/generic_scope/walk.rs:18: fn calls_in_stmt(stmt: &Stmt, out: &mut HashSet<Symbol>)
+src/package/generic_scope/walk.rs:97: fn calls_in_expr(expr: &Expr, out: &mut HashSet<Symbol>)
+src/package/generic_scope.rs:16: mod walk;
+src/package/generic_scope.rs:18: pub(crate) const SCOPE_PREFIX: &str = "__ayanami_scope_";
+src/package/generic_scope.rs:20: pub(crate) fn scope_name(package: &str) -> String
+src/package/generic_scope.rs:28: impl super::Package
+src/package/generic_scope.rs:29: pub(crate) fn add_generic_scope_source(&mut self, stmts: &[Stmt])
+src/package/generic_scope.rs:81: fn collect_free_fns(stmts: &[Stmt]) -> (Vec<Stmt>, HashMap<Symbol, Vec<usize>>)
+src/package/generic_scope.rs:96: fn collect_generic_calls(stmts: &[Stmt], out: &mut HashSet<Symbol>) -> usize
+src/package/generic_scope.rs:124: fn make_linkonce(stmt: &Stmt) -> Stmt
 src/package/load.rs:4: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
 src/package/load.rs:157: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
 src/package/load.rs:179: fn parse_ini_value(s: &str) -> String
@@ -2912,11 +2932,12 @@ src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod annotate;
 src/package/mod.rs:7: mod bytes;
 src/package/mod.rs:8: pub(crate) mod const_codec;
-src/package/mod.rs:9: mod load;
-src/package/mod.rs:10: mod plugin;
-src/package/mod.rs:13: mod symbols;
-src/package/mod.rs:14: mod target;
-src/package/mod.rs:15: mod types;
+src/package/mod.rs:9: mod generic_scope;
+src/package/mod.rs:10: mod load;
+src/package/mod.rs:11: mod plugin;
+src/package/mod.rs:15: mod symbols;
+src/package/mod.rs:16: mod target;
+src/package/mod.rs:17: mod types;
 src/package/plugin/tests.rs:4: fn test_parse_valid_manifest()
 src/package/plugin/tests.rs:24: fn test_no_plugin_section()
 src/package/plugin/tests.rs:33: fn test_missing_abi()
@@ -2950,8 +2971,8 @@ src/package/symbols.rs:30: pub fn set_consts(&mut self, consts: &[(crate::intern
 src/package/symbols.rs:43: pub fn set_statics(&mut self, statics: &[crate::hir::HirStatic], all: bool)
 src/package/symbols.rs:56: pub fn collect_symbols(&mut self, stmts: &[Stmt])
 src/package/symbols.rs:61: pub fn collect_all_symbols(&mut self, stmts: &[Stmt])
-src/package/symbols.rs:65: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
-src/package/symbols.rs:72: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
+src/package/symbols.rs:66: fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str)
+src/package/symbols.rs:73: fn collect_stmt_symbols(&mut self, stmt: &Stmt, all: bool, ns_prefix: &str)
 src/package/target.rs:4: pub enum TargetType
 src/package/target.rs:10: impl TargetType
 src/package/target.rs:11: pub fn as_str(&self) -> &'static str

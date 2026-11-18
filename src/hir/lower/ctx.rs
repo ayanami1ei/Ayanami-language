@@ -47,9 +47,9 @@ pub(crate) struct Ctx {
     pub struct_defs: HashMap<Symbol, Vec<HirStructField>>,
     /// 泛型结构体参数：结构体名 → [(参数名, 约束接口)]
     pub generic_struct_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
-    /// 泛型函数 AST：(函数名, 泛型参数列表, FnDecl 语句)
-    /// 泛型函数表：(名字, 泛型参数, 声明, 是否 impl 方法)——方法调用解析优先方法候选（bd 8yn）
-    pub generic_fns: Vec<(Symbol, Vec<(Symbol, Vec<Symbol>)>, Stmt, bool)>,
+    /// 泛型函数表：(名字, 泛型参数, 声明, 是否 impl 方法, 来源作用域)。
+    /// 来源作用域用于跨包泛型体优先解析来源模块的自由函数。
+    pub generic_fns: Vec<(Symbol, Vec<(Symbol, Vec<Symbol>)>, Stmt, bool, Option<Symbol>)>,
     /// 降级过程中特化（单态化）产生的泛型函数
     pub specialized_fns: Vec<HirFn>,
     /// M1.7：合成的外部运行时助手（溢出检查等）
@@ -73,6 +73,8 @@ pub(crate) struct Ctx {
     pub lambda_fns: Vec<HirFn>,
     /// 当前正在降级的函数 ID
     pub current_fn: FnId,
+    /// 当前词法作用域（命名空间/来源包）；用于解析同作用域自由函数。
+    pub current_module: Option<Symbol>,
     /// 当前函数的局部变量列表
     pub locals: Vec<HirLocal>,
     /// 作用域栈：每层作用域是 变量名 → (VarId, 类型, 是否可变)
@@ -155,6 +157,7 @@ impl Ctx {
             lambda_counter: 0, for_iter_counter: 0,
             lambda_fns: Vec::new(),
             current_fn: FnId(0),
+            current_module: None,
             locals: Vec::new(),
             scopes: Vec::new(),
             allow_bare_array: false,

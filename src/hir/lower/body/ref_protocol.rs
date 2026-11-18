@@ -50,7 +50,7 @@ impl crate::hir::lower::Ctx {
             }
         }
         // 泛型 impl 方法（AST 签名 → HirType）
-        for (n, _, stmt, is_method) in &self.generic_fns {
+        for (n, _, stmt, is_method, _) in &self.generic_fns {
             if !*is_method || n.as_str() != name {
                 continue;
             }
@@ -77,7 +77,7 @@ impl crate::hir::lower::Ctx {
     ) -> Result<HirNodeBox> {
         let name = Symbol::intern(if mutable { "get_mut" } else { "get" });
         // 泛型方法 → 调用点特化；非泛型 → 方法表形状匹配取 FnId
-        let fid = if self.generic_fns.iter().any(|(n, _, _, is_method)| *is_method && n.as_str() == name.as_str()) {
+        let fid = if self.generic_fns.iter().any(|(n, _, _, is_method, _)| *is_method && n.as_str() == name.as_str()) {
             self.specialize_generic_method_call(&name, &[receiver_ty.clone()], span)?
         } else {
             let base = match strip_ownership_ref(receiver_ty) {

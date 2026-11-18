@@ -59,7 +59,8 @@ impl Package {
 
     /// Collect ALL symbols (including private), used for .aya→.lcl compilation.
     pub fn collect_all_symbols(&mut self, stmts: &[Stmt]) {
-        self.collect_symbols_with_prefix(stmts, true, "")
+        self.collect_symbols_with_prefix(stmts, true, "");
+        self.add_generic_scope_source(stmts);
     }
 
     fn collect_symbols_with_prefix(&mut self, stmts: &[Stmt], all: bool, ns_prefix: &str) {
@@ -244,6 +245,9 @@ impl Package {
                 self.generic_sources.push(src);
             }
             Stmt::Namespace { vis, name, items, .. } => {
+                if name.as_str().starts_with(super::SCOPE_PREFIX) {
+                    return;
+                }
                 if all || vis.is_public() {
                     self.symbols.push(PackageSymbol::Namespace {
                         name: name.as_str().to_string(),
@@ -278,4 +282,3 @@ impl Package {
         }
     }
 }
-

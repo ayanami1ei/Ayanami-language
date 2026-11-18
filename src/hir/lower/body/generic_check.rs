@@ -19,18 +19,21 @@ pub(super) struct CheckCtx {
     pub(super) known: Vec<Symbol>,
     /// 变量 → 浅层类型
     pub(super) env: HashMap<Symbol, GType>,
+    /// 来源包/命名空间；裸自由函数优先在该作用域解析。
+    pub(super) module: Option<Symbol>,
 }
 
 impl crate::hir::lower::Ctx {
     /// 对全部泛型函数/泛型 impl 方法体做未定义函数名与 T 上方法约束检查。
     pub(crate) fn check_generic_bodies(&self) -> Result<()> {
-        for (_, gp, stmt, _) in &self.generic_fns {
+        for (_, gp, stmt, _, module) in &self.generic_fns {
             if let Stmt::FnDecl { params, return_type, body, .. } = stmt {
                 let mut cx = CheckCtx {
                     gp: gp.clone(),
                     ret_ty: return_type.clone(),
                     known: gp.iter().map(|(n, _)| *n).collect(),
                     env: HashMap::new(),
+                    module: *module,
                 };
                 for (n, t) in params {
                     cx.known.push(*n);

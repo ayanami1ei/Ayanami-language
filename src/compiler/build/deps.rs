@@ -123,6 +123,36 @@ pub(super) fn resolve_dependencies(
         }
     }
 
+    // M6：把依赖包里为泛型源码准备的来源作用域定义注入当前模块。
+    // 这些命名空间的函数带 #[inline]，发射为 linkonce_odr，因此多模块重复安全。
+    let mut injected_scopes = HashSet::new();
+    for lcl_path in &dep_lcl_paths {
+        let Ok((_, sources, _, _)) = crate::package::load_package(&lcl_path.to_string_lossy()) else {
+            continue;
+        };
+        for source in sources {
+            let tokens = crate::lexer::Lexer::new(&source).tokenize_all();
+            let filtered: Vec<_> = tokens
+                .into_iter()
+                .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
+                .collect();
+            let mut parser = crate::parser::Parser::new(filtered);
+            let Ok(parsed) = parser.parse_program() else { continue };
+            for stmt in parsed.stmts {
+                if let Stmt::Namespace { name, .. } = &stmt {
+                    if name.as_str().starts_with(crate::package::SCOPE_PREFIX)
+                        && injected_scopes.insert(*name)
+                    {
+                        if std::env::var_os("AYANAMI_MODULE_TRACE").is_some() {
+                            eprintln!("module trace: injected generic scope {}", name);
+                        }
+                        new_stmts.push(stmt);
+                    }
+                }
+            }
+        }
+    }
+
     Ok((dep_obj_paths, dep_link_flags, dep_lcl_paths, new_stmts))
 }
 

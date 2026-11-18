@@ -75,6 +75,7 @@ pub(crate) struct InterfaceReg {
 }
 
 mod ctx;
+mod ctx_scope;
 mod ctx_mono;
 mod ctx_fields;
 pub(crate) use ctx::Ctx;

@@ -45,81 +45,8 @@ impl crate::hir::lower::Ctx {
                 }
             }
 
-            // bd 8yn：包源码里的 impl 方法名（非泛型）——签名表无方法标记，
-            // 用源码集合在注册导入函数时补记 method_fn_ids（方法解析优先方法候选）
-            let mut imported_method_names: std::collections::HashSet<Symbol> = std::collections::HashSet::new();
-            for src in &sources {
-                let mut lexer = crate::lexer::Lexer::new(src);
-                let tokens = lexer.tokenize_all();
-                let filtered: Vec<_> = tokens.into_iter()
-                    .filter(|t| !matches!(t.kind, crate::lexer::TokenKind::EOF))
-                    .collect();
-                if filtered.is_empty() { continue; }
-                let mut parser = crate::parser::Parser::new(filtered);
-                // M2：旧包源码可能仍写 `fn(...)` 类型；导入侧统一降级为 `Fn`
-                parser.allow_legacy_fn_types();
-                let parsed = match parser.parse_program() {
-                    Ok(p) => p,
-                    // #209：包内泛型源码解析失败时不能静默丢弃（否则导入侧方法全部消失）
-                    Err(e) => {
-                        eprintln!("warning: failed to re-parse package source for '{}': {}", path, e);
-                        continue;
-                    }
-                };
-                    for stmt in &parsed.stmts {
-                        match stmt {
-                            Stmt::FnDecl { name, generic_params, span, .. } if !generic_params.is_empty() => {
-                                super::collect_ns::check_unique_generic_params(generic_params, span)?;
-                                self.generic_fns.push((*name, generic_params.clone(), stmt.clone(), false));
-                            }
-                            Stmt::ImplBlock { methods, generic_params: impl_gp, span, .. } => {
-                                super::collect_ns::check_unique_generic_params(impl_gp, span)?;
-                                for m in methods {
-                                    if let Stmt::FnDecl { name, generic_params, span: m_span, .. } = m {
-                                        let combined: Vec<(Symbol, Vec<Symbol>)> = {
-                                            let mut all = impl_gp.clone();
-                                            all.extend(generic_params.iter().cloned());
-                                            all
-                                        };
-                                        super::collect_ns::check_unique_generic_params(&combined, m_span)?;
-                                        if !combined.is_empty() {
-                                            self.generic_fns.push((*name, combined, m.clone(), true));
-                                        } else {
-                                            imported_method_names.insert(*name);
-                                        }
-                                    }
-                                }
-                            }
-                            Stmt::Namespace { name, items, .. } => {
-                                let prefix = name.as_str();
-                                for it in items {
-                                    if let Stmt::FnDecl { name: fn_name, generic_params, span, .. } = it {
-                                        super::collect_ns::check_unique_generic_params(generic_params, span)?;
-                                        if !generic_params.is_empty() {
-                                            let full = Symbol::intern(&format!("{}.{}", prefix, fn_name));
-                                            self.generic_fns.push((full, generic_params.clone(), it.clone(), false));
-                                        }
-                                    }
-                                }
-                            }
-                            Stmt::InterfaceDef { name, methods, generic_params, span, .. } => {
-                                super::collect_ns::check_unique_generic_params(generic_params, span)?;
-                                let hir_methods = methods.iter().map(|m| {
-                                    crate::hir::ir::HirInterfaceMethod {
-                                        name: m.name,
-                                        self_keyword: m.self_keyword,
-                                        params: m.params.iter()
-                                            .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
-                                            .collect(),
-                                        return_type: ast_type_to_hir(&m.return_type, &self.interfaces),
-                                    }
-                                }).collect();
-                                self.interfaces.insert(*name, InterfaceReg { generic_params: generic_params.clone(), methods: hir_methods });
-                            }
-                            _ => {}
-                        }
-                    }
-            }
+            // bd 8yn + M6：包源码重建泛型表、接口与来源作用域。
+            let imported_method_names = self.ingest_generic_sources(path, &sources)?;
             for sym in &imported_syms {
                 match sym {
                     crate::package::ImportedSymbol::Macro { name, tokens } => {

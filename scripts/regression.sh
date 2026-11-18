@@ -471,6 +471,113 @@ EOF
                     echo "FAIL A5e/B2l: async transform exit $got, want 8"
                     fail=$((fail + 1))
                 fi
+                # B2p：transform 产物仍必须经过借用与效应检查
+                cat > "$tdir/src/lib.aya" <<'EOF'
+import "hir"
+import "text"
+
+#[alloc]
+#[state]
+fn local_index(ref Json program, ref String fn_name, ref String want) -> int {
+    item = find_function(ref program, ref fn_name).unwrap()
+    value = field(ref item, "value").unwrap()
+    locals = field(ref value, "locals").unwrap()
+    i = 0usize
+    while i < locals.len() {
+        local = locals._data_Array._0.index_ref(i)
+        name = local.get_str("name").unwrap_or("")
+        if name == want {
+            return i as int
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+#[transform]
+#[alloc]
+#[state]
+pub fn inject_borrow(String input) -> String {
+    doc = parse_hir(ref input).unwrap()
+    from = local_index(ref doc, ref "marked", ref "b")
+    to = local_index(ref doc, ref "marked", ref "a")
+    rendered = render_hir(ref doc)
+    old = "\"var\":" + from.to_string()
+    new = "\"var\":" + to.to_string()
+    return replace(ref rendered, ref old, ref new)
+}
+EOF
+                if ! "$BIN" plugin package "$tdir" >/dev/null 2>&1; then
+                    echo "FAIL A5e/B2p: borrow transform package failed"
+                    fail=$((fail + 1))
+                else
+                    borrow_src="$pbase/transform_borrow_bad.aya"
+                    cat > "$borrow_src" <<EOF
+import "$tdir/src/lib.lcl"
+
+struct P { int v }
+
+#[lib::inject_borrow]
+fn marked() -> int {
+    a = P { v = 1 }
+    b = P { v = 2 }
+    r = ref a
+    s = ref mut b
+    return r.v + s.v
+}
+
+fn main() -> int { return marked() }
+EOF
+                    if "$BIN" check "$borrow_src" >/tmp/transform_borrow.out 2>&1; then
+                        echo "FAIL A5e/B2p: transform introduced borrow conflict was accepted"
+                        fail=$((fail + 1))
+                    elif ! grep -q "because it is also borrowed" /tmp/transform_borrow.out; then
+                        echo "FAIL A5e/B2p: missing post-transform borrow diagnostic"
+                        fail=$((fail + 1))
+                    fi
+                fi
+
+                cat > "$tdir/src/lib.aya" <<'EOF'
+import "hir"
+
+#[transform]
+#[alloc]
+#[state]
+pub fn inject_effect(String input) -> String {
+    doc = parse_hir(ref input).unwrap()
+    from = function_id(ref doc, ref "pure2").unwrap()
+    to = function_id(ref doc, ref "stateful2").unwrap()
+    return render_hir(ref replace_call_targets(ref doc, from, to))
+}
+EOF
+                if ! "$BIN" plugin package "$tdir" >/dev/null 2>&1; then
+                    echo "FAIL A5e/B2p: effect transform package failed"
+                    fail=$((fail + 1))
+                else
+                    effect_src="$pbase/transform_effect_bad.aya"
+                    cat > "$effect_src" <<EOF
+import "$tdir/src/lib.lcl"
+
+#[pure]
+#[lib::inject_effect]
+fn marked() -> int { return pure2() }
+
+fn pure2() -> int { return 7 }
+fn stateful2() -> int {
+    s = "effect"
+    return 7
+}
+
+fn main() -> int { return marked() }
+EOF
+                    if "$BIN" check --verify-effects "$effect_src" >/tmp/transform_effect.out 2>&1; then
+                        echo "FAIL A5e/B2p: transform introduced pure-function effect was accepted"
+                        fail=$((fail + 1))
+                    elif ! grep -q "effect verification failed" /tmp/transform_effect.out; then
+                        echo "FAIL A5e/B2p: missing post-transform effect diagnostic"
+                        fail=$((fail + 1))
+                    fi
+                fi
             fi
         fi
     fi
@@ -822,6 +929,16 @@ if [ -d tests/lcl_nsr ]; then
     got=$?
     if [ "$got" != 0 ]; then
         echo "FAIL $ndir/entry.aya: exit $got, want 0（nsr 跨模块同名私有函数）"
+        fail=$((fail + 1))
+    fi
+    # 包文件可被改名/别名安装；来源作用域必须从包内容恢复，而不是取 import stem。
+    cp "$ndir/lib.lcl" "$(dirname "$BIN")/std/lib_alias.lcl" 2>/dev/null || true
+    timeout 120 "$BIN" run "$ndir/alias_entry.aya" >/dev/null 2>&1
+    got=$?
+    rm -f "$(dirname "$BIN")/std/lib_alias.lcl" \
+        "$(dirname "$BIN")/std/lib.lcl"
+    if [ "$got" != 0 ]; then
+        echo "FAIL $ndir: renamed package lost generic source scope (exit $got)"
         fail=$((fail + 1))
     fi
 

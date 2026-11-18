@@ -1,0 +1,14 @@
+// 同一个 lib.lcl 以别名安装后，来源作用域必须仍由包内容恢复。
+import "lib_alias"
+
+fn helper(int x) -> int {
+    return x + 20
+}
+
+fn main() -> int {
+    a = from_lib(1)
+    b = generic_from_lib[int](1)
+    if a != 11 { return a }
+    if b != 12 { return b }
+    return 0
+}

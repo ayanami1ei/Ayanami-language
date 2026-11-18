@@ -34,7 +34,8 @@ impl crate::hir::lower::Ctx {
     }
 
     pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId> {
-        let candidates = self.fn_map.get(name);
+        let name = self.scoped_fn_name(*name);
+        let candidates = self.fn_map.get(&name);
         let candidates = match candidates {
             Some(c) => c,
             None => {
@@ -150,7 +151,8 @@ impl crate::hir::lower::Ctx {
 
     /// 重载解析（允许整数字面量适配任意整数形参；歧义返回 None）
     pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId> {
-        let candidates = self.fn_map.get(name)?;
+        let name = self.scoped_fn_name(*name);
+        let candidates = self.fn_map.get(&name)?;
         let mut found: Option<FnId> = None;
         for &fn_id in candidates {
             let sig = &self.fns[fn_id.0];

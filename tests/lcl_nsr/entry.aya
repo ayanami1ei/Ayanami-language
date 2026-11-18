@@ -8,7 +8,9 @@ fn helper(int x) -> int {
 fn main() -> int {
     a = from_lib(1)
     b = helper(1)
+    c = generic_from_lib[int](1)
     if a != 11 { return a }        // lib 内部解析到 lib 的 helper
     if b != 21 { return b + 100 }  // 使用方解析到自己的 helper
+    if c != 12 { return c + 200 }  // 泛型实例化后仍解析到来源包 helper2/helper
     return 0
 }

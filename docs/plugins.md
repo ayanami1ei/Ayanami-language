@@ -200,6 +200,7 @@ target = "static-lib"
 
 - 原生插件在编译期执行，信任级等同 proc-macro；不要运行不可信插件。
 - 插件清单与 ABI/最低编译器校验已实现（A5j-1）；WASM 沙箱、权限模型为后续工作。
-- 第三方 `#[transform]`（HIR 程序级变换）尚未开放；当前 `#[async]`/`#[sync]`
-  是内建结构化变换。
+- 第三方 `#[transform]` 已开放 HIR JSON ABI（v1），限制与 helper 见
+  [`docs/hir-transform.md`](hir-transform.md)；`#[async]`/`#[sync]` 仍是编译器
+  内建结构化变换，先于第三方 transform 执行。
 - 属性插件当前仅 item 级；语句/字段/表达式/token 属性为后续。

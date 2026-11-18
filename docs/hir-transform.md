@@ -92,8 +92,9 @@ fn main() -> int {
 }
 ```
 
-这证明插件可以修改 HIR 并影响后续 MIR/LIR。v1 不提供 typed JSON helper，
-因此复杂变换仍容易写错；B2 的下一小步是 `std/hir.aya` 访问器/构造器。
+这证明插件可以修改 HIR 并影响后续 MIR/LIR。`std/hir.aya` 现提供函数体替换、
+函数签名/字段 introspection、FnId 查询与调用点重定向等 helper；更完整的类型化
+编辑面仍在扩展。
 
 ## 执行顺序
 
@@ -107,7 +108,7 @@ fn main() -> int {
 
 ## 目标限制
 
-v1 的 transform marker 可放在函数/方法和**非泛型 struct** 上。
+v1 的 transform marker 可放在函数/方法、struct（含泛型 struct）上。
 
 - 泛型函数/泛型方法：在单态化产生的 `HirFn` attrs 上触发，即 **per-specialization**；
   没有被调用/特化的泛型不会产生 HIR 目标。
@@ -168,11 +169,11 @@ schema 覆盖：
 
 - **B1（已完成 2026-11-14）**：`.lcl` `transform=` 表、`#[transform]` 声明、
   `fn(String json) -> String` 插件 ABI、identity 插件；
-- **B2/B2c/B2d/B2e/B2f/B2g/B2h/B2i/B2j/B2k/B2l/B2m/B2n/B2o（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
+- **B2/B2c/B2d/B2e/B2f/B2g/B2h/B2i/B2j/B2k/B2l/B2m/B2n/B2o/B2p（MVP 已完成）**：HIR JSON 修改、`std/hir.aya` 函数体替换、
   clone/append 函数、调用点重定向、FnId/VarId/类型/调用签名/return 类型/字段索引/struct/vtable 校验、目标诊断、
   struct/泛型 struct 与泛型函数特化触发、transform-schema 清单校验、
-  function_signature/struct_fields introspection 已跑通；
-  变换后 FnId/VarId/类型/借用/效应校验；
+  function_signature/struct_fields introspection 已跑通；变换后的效应分析位于
+  MIR 降级前，借用检查位于 MIR 降级后，并有注入借用冲突/副作用的负例回归；
 - **B3**：泛型、enum niche、vtable、async/sync 内建变换统一接口。
 
 ## 非目标
