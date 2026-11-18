@@ -58,6 +58,7 @@ impl HirNode for SVCall {
 
 impl HirNode for SMFP {
     fn clone_node(&self) -> Box<dyn HirNode> { Box::new(self.clone()) }
+    fn as_mfp_cloned(&self) -> Option<SMFP> { Some(self.clone()) }
     fn lower_to_mir(&self, moved: &HashSet<VarId>) -> MirNodeBox {
         SMirMakeFatPtr {
             value: self.value.lower_to_mir(moved),

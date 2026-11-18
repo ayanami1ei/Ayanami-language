@@ -71,6 +71,7 @@ impl crate::hir::lower::Ctx {
                 // #132：比较运算在 HIR 中保留操作数类型（Bool 由 MIR 决定）→ 变量类型按 Bool
                 let value_ty = if hir_value.is_comparison() { HirType::Bool } else { expr_type(&hir_value) };
                 let (var_id, ty, _) = self.register_or_lookup(*name, value_ty);
+                self.record_closure_captures(var_id, &hir_value);
                 Ok(HirStmt::Assign {
                     target: SVar { var: var_id, ty: ty.clone() }.into(),
                     value: hir_value,

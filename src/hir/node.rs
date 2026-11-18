@@ -58,6 +58,8 @@ pub trait HirNode: std::fmt::Debug + HirSchemaNode {
     fn enum_variant(&self) -> Option<Symbol> { None }
     /// 泛型单态化：结构体字面量的可克隆视图（仅 SStruct）。
     fn as_struct_cloned(&self) -> Option<crate::hir::SStruct> { None }
+    /// M7：闭包胖指针的可克隆视图（仅 SMFP）。
+    fn as_mfp_cloned(&self) -> Option<crate::hir::SMFP> { None }
     /// 泛型单态化：以新类型重建常量（仅 SConst）。
     fn with_type(&self, _ty: HirType) -> Option<HirNodeBox> { None }
     fn as_clone(&self) -> Option<&HirNodeBox> { None }

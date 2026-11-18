@@ -1,0 +1,15 @@
+import "thread";
+
+fn spawn_raw(*int p) {
+    task = () -> void {
+        unsafe {
+            v = *p
+        }
+    }
+    t = Thread::spawn(task)
+    t.join()
+}
+
+fn main() -> int {
+    return 0
+}

@@ -195,6 +195,7 @@ impl crate::hir::lower::Ctx {
             }
         } };
 
+        self.check_cross_thread_call(fn_id, &hir_args, span)?;
         self.pending_env_args.clear();
         // M5：unsafe fn 与无体 extern C 声明都只能在 unsafe 上下文调用。
         let extern_call = self.extern_fn_ids.contains(&fn_id);

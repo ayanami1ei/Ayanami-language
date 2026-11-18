@@ -60,6 +60,7 @@ mod expr_call;
 mod expr_call_builtins;
 mod expr_call_args;
 mod expr_call_extra;
+mod concurrency;
 mod block_lower;
 mod expr_cast;
 mod expr_enum;

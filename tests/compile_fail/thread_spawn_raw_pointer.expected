@@ -1,0 +1,1 @@
+thread entry captures non-Send `*int`

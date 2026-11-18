@@ -12,7 +12,15 @@ use crate::intern::Symbol;
 use crate::parser::ast::{Attr, AttrArg, Expr};
 
 /// 内置效应（注册表初始项）。
-pub const BUILTIN_EFFECTS: &[&str] = &["io", "state", "alloc"];
+pub const BUILTIN_EFFECTS: &[&str] = &[
+    "io",
+    "state",
+    "alloc",
+    "cross_thread",
+    "thread_safe",
+    "atomic",
+    "blocking",
+];
 
 /// runtime / libc 中已知的 IO 函数（推断用）。
 pub(crate) const IO_NAMES: &[&str] = &[
