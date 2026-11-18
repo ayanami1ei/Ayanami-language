@@ -235,7 +235,7 @@ src/compiler/macro_expand/mod.rs:78: fn collect(program: &Program, src_path: &Pa
 src/compiler/macro_expand/mod.rs:86: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
 src/compiler/macro_expand/mod.rs:92: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/mod.rs:109: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
-src/compiler/macro_expand/mod.rs:238: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:247: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 3;
 src/compiler/macro_expand/pass_plugin.rs:21: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
 src/compiler/macro_expand/pass_plugin.rs:47: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
@@ -252,14 +252,14 @@ src/compiler/macro_expand/pass_plugin.rs:197: static AyaBuf mir_encode(MirFuncti
 src/compiler/macro_expand/pass_plugin.rs:234: type RunFn = unsafe extern "C" fn(AyaBuf, AyaBufList) -> AyaBuf;
 src/compiler/macro_expand/pass_plugin.rs:235: type FreeFn = unsafe extern "C" fn(AyaBuf);
 src/compiler/macro_expand/pass_plugin.rs:237: fn call_pass(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<Vec<u8>>
-src/compiler/macro_expand/plugin.rs:15: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String], tokens: bool, line: usize, col: usize) -> Result<String>
-src/compiler/macro_expand/plugin.rs:41: pub(crate) fn invoke_macro_expr(
-src/compiler/macro_expand/plugin.rs:89: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
-src/compiler/macro_expand/plugin.rs:182: static AyaBuf dup_buf(AyaBuf b) {{\n\
-src/compiler/macro_expand/plugin.rs:190: static const char* id = \"{macro_id}\";\n\
-src/compiler/macro_expand/plugin.rs:199: static long long diag_count = 0;\n\
-src/compiler/macro_expand/plugin.rs:200: static long long diag_levels[DIAG_MAX];\n\
-src/compiler/macro_expand/plugin.rs:201: static AyaBuf diag_msgs[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:15: pub(super) fn invoke_plugin(
+src/compiler/macro_expand/plugin.rs:52: pub(crate) fn invoke_macro_expr(
+src/compiler/macro_expand/plugin.rs:100: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
+src/compiler/macro_expand/plugin.rs:193: static AyaBuf dup_buf(AyaBuf b) {{\n\
+src/compiler/macro_expand/plugin.rs:201: static const char* id = \"{macro_id}\";\n\
+src/compiler/macro_expand/plugin.rs:210: static long long diag_count = 0;\n\
+src/compiler/macro_expand/plugin.rs:211: static long long diag_levels[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:212: static AyaBuf diag_msgs[DIAG_MAX];\n\
 src/compiler/macro_expand/plugin_abi.rs:15: pub(super) fn plugin_ext() -> &'static str
 src/compiler/macro_expand/plugin_abi.rs:26: pub(super) fn plugin_path(dir: &Path, prefix: &str, stem: &str, hash: u64) -> PathBuf
 src/compiler/macro_expand/plugin_abi.rs:31: pub(super) fn shared_lib_command() -> Command

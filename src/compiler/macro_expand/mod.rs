@@ -56,7 +56,7 @@ pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables> {
 
 /// A5e/B1：调用 HIR transform 插件（输入/输出均为 HIR JSON 字符串）。
 pub(crate) fn invoke_transform(lcl_path: &str, name: &str, input: &str) -> Result<String> {
-    plugin::invoke_plugin(lcl_path, name, input, &[], false, 0, 0)
+    plugin::invoke_plugin(lcl_path, name, input, &[], false, 0, 0, "")
 }
 
 /// A5d-2：调用 MIR pass 插件
@@ -133,7 +133,16 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
                     span,
                 }]))
             };
-            let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens, attr.span.start_line, attr.span.start_col)?;
+            let output = plugin::invoke_plugin(
+                &lcl_path,
+                &macro_name,
+                &input,
+                &args,
+                tokens,
+                attr.span.start_line,
+                attr.span.start_col,
+                &ctx.src_path.to_string_lossy(),
+            )?;
             trace_expansion(
                 "statement",
                 &macro_name,
@@ -256,7 +265,16 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     }
     let input = crate::formatter::format_program(&Program::new(vec![input_stmt]));
 
-    let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens, attr.span.start_line, attr.span.start_col)?;
+    let output = plugin::invoke_plugin(
+        &lcl_path,
+        &macro_name,
+        &input,
+        &args,
+        tokens,
+        attr.span.start_line,
+        attr.span.start_col,
+        &ctx.src_path.to_string_lossy(),
+    )?;
     trace_expansion(
         "item",
         &macro_name,

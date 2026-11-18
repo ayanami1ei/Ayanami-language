@@ -12,10 +12,19 @@ use super::plugin_abi::{load_macro_fn, plan_params, plugin_path, publish_so, sha
 //  插件构建与调用
 // ═══════════════════════════════════════════════════════════════════
 
-pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String], tokens: bool, line: usize, col: usize) -> Result<String> {
+pub(super) fn invoke_plugin(
+    lcl_path: &str,
+    macro_name: &str,
+    input: &str,
+    args: &[String],
+    tokens: bool,
+    line: usize,
+    col: usize,
+    file: &str,
+) -> Result<String> {
     let (f, lir) = load_macro_fn(lcl_path, macro_name)?;
-    // attribute 宏：全部 String 形参（input + args），不支持保留参数
-    let mapping = plan_params(&f, args.len(), false)?;
+    // text/item/attribute 宏支持 input + String 实参 + 保留调用点参数。
+    let mapping = plan_params(&f, args.len(), true)?;
     let dep_lcls = resolve_dep_lcls(lcl_path)?;
     let symbol = lir.fn_names.get(&f.fn_id)
         .ok_or_else(|| Error::Compile(format!("macro `{}` has no symbol", macro_name)))?
@@ -28,7 +37,9 @@ pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args:
     } else {
         (input.as_bytes().to_vec(), args.iter().map(|a| a.as_bytes().to_vec()).collect())
     };
-    let out = super::plugin_call::call_plugin(&so_path, &symbol, &in_bytes, &arg_bytes, line as i64, col as i64, b"")?;
+    let out = super::plugin_call::call_plugin(
+        &so_path, &symbol, &in_bytes, &arg_bytes, line as i64, col as i64, file.as_bytes()
+    )?;
     if tokens {
         let toks = super::token_stream::decode(&out)?;
         Ok(super::token_stream::to_source(&toks))

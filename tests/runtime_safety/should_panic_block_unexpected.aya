@@ -1,0 +1,10 @@
+// 块没有 panic 时，`#[should_panic]` 的父进程必须失败。
+import "test"
+
+fn main() -> int {
+    #[should_panic]
+    {
+        #assert(true)
+    }
+    return 0
+}

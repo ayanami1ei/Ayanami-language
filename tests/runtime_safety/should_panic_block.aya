@@ -1,13 +1,14 @@
 import "alloc";
 
-// #88：语句块级标注 `#[should_panic] { ... }`（std identity 宏；运行时捕获语义待 Ayanami-std）
+// #88：语句块级标注 `#[should_panic] { ... }` 由子进程捕获 panic。
 import "io"
 import "test"
 
 fn main() -> int {
+    captured = 0
     #[should_panic]
     {
-        x = 1
+        #assert_eq(captured, 1)
     }
     {
         y = 2
