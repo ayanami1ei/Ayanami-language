@@ -33,6 +33,7 @@
 | `docs/runtime-safety.md` | 运行时安全行为权威清单（UB/panic；`tests/runtime_safety/` 覆盖） |
 | `docs/enum-layout.md` | 枚举布局优化（N1 niche + N2/N3 16 字节阈值装箱，均已实现） |
 | `docs/async.md` | 异步：A1b-2 AST 形状状态机（直线 / if / if-else / elif / while + break/continue + 分支多 await）已落地；§7.4 为 HIR 级一般 CFG 设计（未实现） |
+| `docs/concurrency-model.md` | M7 并发所有权/效应模型：线程捕获边界、`cross_thread`/`thread_safe`/`atomic`/`blocking` 与内存序 |
 | `docs/reference-model.md` | 统一引用关系模型设计提案（纯接口无标注；`get`/`resolve` 协议形态；R1–R4；未实现） |
 | `docs/env-injection.md` | 环境注入设计提案（`env::` 可扩展；泛型需求 + 自动推导；E1–E4；未实现） |
 | `docs/macros.md` | Phase 6 宏系统升级（TokenStream/Span/Diagnostic，ABI v6；mcl.1 部分实现） |
@@ -120,6 +121,7 @@ graph TD
 | M5 reinterpret / 指针算术 / volatile | `expr_call.rs`（`bits::reinterpret` 拦截 + 尺寸检查）、`expr_method.rs`（`offset`/`read_volatile`/`write_volatile`）、`nodes_volatile.rs`（LLVM volatile 发射）、`mir_ptr_ops.rs` | P3a：同尺寸位重解释 + 元素步长指针算术 + volatile 读写；全部需 unsafe |
 | M5 数组越界检查 | `helpers/bounds.rs`（`insert_bounds_check`/`ensure_bounds_helper`）、`expr_access.rs`（`arr[i]` 插检查）、`expr_method_arrays.rs`（`get_unchecked`） | P3b（Rust 方式）：`[T; n]` 默认检查（panic 101）；`get_unchecked` 需 unsafe；动态 `[T]` 保持原语 |
 | M5 union | `parser/parser/decl.rs`（`union U { ... }`）、`collect_ns.rs`（`__union` 标记 + 字段 drop-free 检查）、`ctx_fields.rs`（字段索引恒 0）、`nodes_b/c.rs`（共享存储 load/store）、`helpers.rs`/`functions.rs`（max 布局/单槽类型） | P3b：字段共享存储；读取需 unsafe，写入/初始化无需；限无 drop 字段；裸指针 `==`/`!=` 地址比较 |
+| M7 线程边界 | `hir/lower/body/concurrency.rs`、`expr_call.rs`、`ctx.rs`/`stmt_lower.rs`、`hir/effects/mod.rs` | `#[cross_thread]` 调用边界递归检查闭包捕获；拥有值可移动，引用/裸指针/未知胖指针在安全上下文拒绝，`unsafe` 显式放行；设计见 docs/concurrency-model.md |
 
 ## 3. 标注系统路线（设计见 `docs/annotations.md`）
 
@@ -142,7 +144,7 @@ graph LR
 | cfg 条件裁剪 | `hir/cfg.rs`、`package/symbols.rs` | A2b 已完成（A2f 起含语句级）；M8：`feature = "x"` 键 + `features`/`AYANAMI_FEATURES` 配置 |
 | 契约标注（assume/requires/ensures/invariant） | `hir/contracts.rs`、`hir/lower/body/ensure.rs`、`HirStmt::{Assume,Contract}` → `SMir*` → `SLir*`、`runtime.c` | A2c/A2d/A2e/A2f 已完成 |
 | 标注 provider/宏 | `parser`（AttrPath）、`hir/attrs*.rs`（Imports/注解校验）、`.lcl` 宏/pass/依赖表、`compiler/macro_expand/{mod,plugin,pass_plugin}.rs`（本机 .so/.dylib/.dll + dlopen/LoadLibrary）、`compiler/build/passes.rs` + `std/mir.aya`（MIR pass，A5d-2）、`cli/plugin.rs`（new/package）、`cli/plugin/install.rs`（install/verify/registry） | A5a–A5d-2 已完成（MVP）；mcl.1：`#[macro(tokens)]` token 宏（`token_stream.rs` 编解码 + `plugin.rs` 字节通道，ABI v9）；mcl.2：hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ 诊断通道（`__ayanami_macro_diag`；`extern_weak` 发射）；mcl.3 部分：`dump expanded` + `AYANAMI_MACRO_TRACE` 追踪 + 生成代码错误包装；A5i：`.lcl` 分发 + 平台化动态库；A5j-1：`[plugin]` 清单 + ABI/最低编译器校验；A5j-2：本地 registry + lockfile + SHA-256；A5j-2b：plugin publish；A5e/B0-B2p：第三方 HIR transform schema、mutation、校验与回归 |
-| 效应系统 | `hir/effects/{mod,infer,diag,scan}.rs`（注册表/推断/诊断）、`LirEffects` 自动属性、`.lcl` 效应 tokens（声明+推断+承诺） | A3 重构完成（Stage 1–3） |
+| 效应系统 | `hir/effects/{mod,infer,diag,scan}.rs`（注册表/推断/诊断）、`LirEffects` 自动属性、`.lcl` 效应 tokens（声明+推断+承诺） | A3 重构完成（Stage 1–3）；M7 新增 `cross_thread`/`thread_safe`/`atomic`/`blocking` 并发效应 |
 | 错误传播 `?` | `hir/lower/body/expr_ops1.rs`（pending 语句内联 + 早退）、`ctx.{variant_payload_type,instantiate_*}` | A3d 已完成（含泛型 Result 最小单态化） |
 | 生命周期 `#[follow_with]` | 计划：字段属性文法 + `mir/borrow/` 来源标记 | A4 设计（docs/lifetimes.md） |
 
@@ -206,6 +208,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 优化模式：`--release` —关溢出/契约检查→ 回绕/assume —推断属性→ `noalias`（`ref mut`/owned）/`nounwind` —内部化→ 非导出函数/全局/vtable wrapper `internal`（LIR4 `is_pub`）—中端→ `opt -O3` + `llc -O3`；debug 跳过 opt
 - static：`static [mut] NAME = expr` —求值→ `const_eval.rs` —HIR→ `SGlobal`（地址）—MIR→ `SMirGlobal` —LIR→ `SLirGlobalAddr` + `LirProgram.globals` —发射→ `@name = global`
 - 效应：`#[pure]/#[no_error]/#[throws]` —推断→ `hir/effects/infer.rs`（调用图不动点）—发射→ `nounwind`/`memory(none|read)`；合成位置串（`SFileArg`）与标记不计入（#117）
+- 并发：`Thread::spawn` —标注→ `#[cross_thread]` —检查→ `body/concurrency.rs`（闭包环境递归）—允许→ 拥有值移动 —拒绝→ `ref`/`*T`/未知胖指针（安全上下文）—逃生口→ `unsafe`；内存序→ std `Ordering`
 - 位运算：`& | ^ << >> ~` —文法→ operator（prec 6–9 / 前缀）—HIR→ `lower_binary`/`lower_unary` —发射→ `and/or/xor/shl/ashr/lshr` —折叠→ `example/constfold_lib.aya`
 - 显式转换：`expr as T` —解析→ `parse_cast` / 运算符表 prec:12 —HIR→ `lower_cast`/`SCast` —发射→ `sext/zext/trunc/sitofp/uitofp/fptosi.sat/fptoui.sat`
 - 泛型推断：约束收集 → `helpers/unify.rs`（统一结构匹配/泛型参数绑定）—应用→ `substitute_hir_type` —特化→ `generic_specialize.rs`（冲突诊断 P4d/失败回滚）；见 docs/generic-inference.md
