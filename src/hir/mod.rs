@@ -1,6 +1,7 @@
 pub mod attrs;
 pub(crate) mod async_transform;
 mod async_transform_await;
+mod async_transform_generic_await;
 mod async_transform_impl;
 pub(crate) mod async_mixed;
 pub(crate) mod async_cfg;

@@ -1,9 +1,9 @@
 # 异步（async）设计与实现
 
-> 状态：**A1a/A1b、A1c-1、A1c-3 已实现；A1c-2/A1d/A2/A3 分批推进**（2026-11-18）。
+> 状态：**A1a/A1b、A1c-1/2/3 已实现；A1d/A2/A3 分批推进**（2026-11-18）。
 > 当前 `#[async]`/`await` 已覆盖直线、分支、循环、数值/迭代 for、match 语句与嵌套 Future；
-> 泛型无挂起函数和无挂起 impl 方法已生成 Future；泛型 await、await 方法、跨 await 引用、
-> HIR 原生状态机优化和多线程 runtime 仍待完成。
+> 泛型无挂起函数、单挂起泛型函数和无挂起 impl 方法已生成 Future；多挂起/泛型目标、
+> await 方法、跨 await 引用、HIR 原生状态机优化和多线程 runtime 仍待完成。
 
 > 关联：bd `Ayanami-language-038.5`–`038.8`、GitHub #63。
 > 联动：M7 并发（原语与 Send/Sync 已完成）、效应系统 A3（A3a–c 与 `?` U2 已落地）、
@@ -183,6 +183,13 @@ impl __add_Fut {
 wrapper 立即调用私有 runner 并把结果存入 `__value`，首次 poll 返回 Ready。
 这样 Future 不保存 `ref self`/`ref mut self`，不会让 receiver 借用逃逸。
 当前支持 `ref self` 与 `ref mut self`；带 await、generic impl 和非 Copy 返回均有明确诊断。
+
+### 7.1c A1c-2：泛型单挂起 await（2026-11-18 已完成切片）
+
+支持泛型函数体恰好为 `y = await target(args); return y`，target 为同程序非泛型 async
+函数。生成的泛型 Future 保存参数、一个内层 target future 和状态；构造器建立内层 future，
+poll 直接转发其 Pending/Ready。该形态不需要为未知 `T` 创建默认值，已覆盖 int/bool 两种
+泛型特殊化。多挂起点、泛型 await 目标和非此形状仍明确诊断。
 
 **实现备注**：`src/hir/async_transform.rs`；`#[async]` 在 HIR 前消费（宏展开期由
 `expand_util::is_compiler_attr` 放行）。踩坑：示例最初用 `fn add`，与 std `io` 导入的

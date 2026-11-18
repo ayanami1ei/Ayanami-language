@@ -41,6 +41,17 @@ fn identity[T](T v) -> T {
     return v
 }
 
+#[async]
+fn concrete_target(int x) -> int {
+    return x + 1
+}
+
+#[async]
+fn generic_wait[T](T tag, int x) -> int {
+    y = await concrete_target(x);
+    return y
+}
+
 struct Counter {
     int n
 }
@@ -96,5 +107,7 @@ fn main() -> int {
     mut c = Counter { n = 10 }
     if block_on(c.add(5)) != 15 { return 6 }
     if block_on(c.bump()) != 11 { return 7 }
+    if block_on(generic_wait(0, 4)) != 5 { return 8 }
+    if block_on(generic_wait(false, 5)) != 6 { return 9 }
     return 0
 }

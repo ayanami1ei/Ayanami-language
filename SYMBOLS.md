@@ -611,22 +611,26 @@ src/hir/async_mixed_types.rs:68: pub(super) fn type_default(t: &Type) -> Option<
 src/hir/async_mixed_types.rs:81: pub(super) fn hir_to_ast(t: &HirType, span: Span) -> Option<Type>
 src/hir/async_post_args.rs:10: pub(super) fn build_post_args(
 src/hir/async_transform.rs:19: pub fn expand(
-src/hir/async_transform.rs:76: fn attach_qualified_attrs(out: &mut [Stmt], name: Symbol, attrs: &[Attr])
-src/hir/async_transform.rs:94: pub(super) fn is_async(a: &crate::parser::ast::Attr) -> bool
-src/hir/async_transform.rs:97: fn contains_async(stmt: &Stmt) -> bool
-src/hir/async_transform.rs:107: fn expand_one(
-src/hir/async_transform.rs:251: impl{generic_decl} {future_ty} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:89: pub(super) fn is_async(a: &crate::parser::ast::Attr) -> bool
+src/hir/async_transform.rs:92: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:102: fn expand_one(
+src/hir/async_transform.rs:250: impl{generic_decl} {future_ty} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform_await.rs:10: pub(super) fn await_prefix(
 src/hir/async_transform_await.rs:50: pub(super) fn expand_await(
 src/hir/async_transform_await.rs:173: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform_generic_await.rs:11: pub(super) fn expand(
+src/hir/async_transform_generic_await.rs:72: impl{gdecl} {future_ty} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform_generic_await.rs:101: fn match_single_await(body: &Block) -> Option<(Symbol, Symbol, String)>
+src/hir/async_transform_generic_await.rs:132: fn generic_decl(params: &[(Symbol, Vec<Symbol>)]) -> String
 src/hir/async_transform_impl.rs:12: pub(super) fn expand_impl(stmt: &Stmt, out: &mut Vec<Stmt>) -> Result<()>
 src/hir/async_transform_impl.rs:80: fn expand_method(
 src/hir/async_transform_impl.rs:131: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform_impl.rs:193: fn is_copy_return(ty: &Type) -> bool
 src/hir/async_transform_impl.rs:206: fn sanitize(s: String) -> String
-src/hir/async_transform_util.rs:5: pub(crate) fn ty_src(ty: &Type) -> Option<String>
-src/hir/async_transform_util.rs:27: pub(crate) fn await_default(ty: &Type) -> Option<(&'static str, &'static str)>
-src/hir/async_transform_util.rs:37: pub(crate) fn type_name(ty: &Type) -> String
+src/hir/async_transform_util.rs:6: pub(crate) fn ty_src(ty: &Type) -> Option<String>
+src/hir/async_transform_util.rs:28: pub(crate) fn await_default(ty: &Type) -> Option<(&'static str, &'static str)>
+src/hir/async_transform_util.rs:38: pub(crate) fn type_name(ty: &Type) -> String
+src/hir/async_transform_util.rs:50: pub(crate) fn attach_qualified_attrs(out: &mut [Stmt], name: Symbol, attrs: &[Attr])
 src/hir/async_while.rs:12: struct PostAwait
 src/hir/async_while.rs:23: pub(crate) fn try_expand(
 src/hir/async_while.rs:218: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
@@ -1518,43 +1522,44 @@ src/hir/lower/to_mir/ptr_ops.rs:70: fn record_moves(&self, moved: &mut HashSet<V
 src/hir/mod.rs:1: pub mod attrs;
 src/hir/mod.rs:2: pub(crate) mod async_transform;
 src/hir/mod.rs:3: mod async_transform_await;
-src/hir/mod.rs:4: mod async_transform_impl;
-src/hir/mod.rs:5: pub(crate) mod async_mixed;
-src/hir/mod.rs:6: pub(crate) mod async_cfg;
-src/hir/mod.rs:7: pub(crate) mod async_mixed_types;
-src/hir/mod.rs:8: pub(crate) mod async_mixed_expr;
-src/hir/mod.rs:9: pub(crate) mod async_post_args;
-src/hir/mod.rs:10: pub(crate) mod async_transform_util;
-src/hir/mod.rs:11: pub(crate) mod async_elif;
-src/hir/mod.rs:12: pub(crate) mod async_elif_multi;
-src/hir/mod.rs:13: pub(crate) mod async_elif_multi_post;
-src/hir/mod.rs:14: pub(crate) mod async_elif_post;
-src/hir/mod.rs:15: pub(crate) mod async_if;
-src/hir/mod.rs:16: pub(crate) mod async_if_multi;
-src/hir/mod.rs:17: pub(crate) mod async_if_multi_post;
-src/hir/mod.rs:18: pub(crate) mod async_if_post;
-src/hir/mod.rs:19: pub(crate) mod async_if_else_post;
-src/hir/mod.rs:20: pub(crate) mod async_if_else_multi;
-src/hir/mod.rs:21: pub(crate) mod async_if_else_multi_post;
-src/hir/mod.rs:22: pub(crate) mod async_while;
-src/hir/mod.rs:23: pub(crate) mod async_while_util;
-src/hir/mod.rs:24: pub mod attrs_export;
-src/hir/mod.rs:25: pub mod attrs_macro;
-src/hir/mod.rs:26: pub mod cfg;
-src/hir/mod.rs:27: pub mod contracts;
-src/hir/mod.rs:28: pub mod effects;
-src/hir/mod.rs:29: pub mod ir;
-src/hir/mod.rs:30: pub mod layout;
-src/hir/mod.rs:31: pub(crate) mod niche;
-src/hir/mod.rs:32: pub mod ty;
-src/hir/mod.rs:33: pub mod node;
-src/hir/mod.rs:34: pub mod stmt;
-src/hir/mod.rs:35: pub mod item;
-src/hir/mod.rs:36: pub mod schema;
-src/hir/mod.rs:37: pub(crate) mod transform;
-src/hir/mod.rs:38: pub mod lower;
-src/hir/mod.rs:39: pub mod display;
-src/hir/mod.rs:56: pub struct $name
+src/hir/mod.rs:4: mod async_transform_generic_await;
+src/hir/mod.rs:5: mod async_transform_impl;
+src/hir/mod.rs:6: pub(crate) mod async_mixed;
+src/hir/mod.rs:7: pub(crate) mod async_cfg;
+src/hir/mod.rs:8: pub(crate) mod async_mixed_types;
+src/hir/mod.rs:9: pub(crate) mod async_mixed_expr;
+src/hir/mod.rs:10: pub(crate) mod async_post_args;
+src/hir/mod.rs:11: pub(crate) mod async_transform_util;
+src/hir/mod.rs:12: pub(crate) mod async_elif;
+src/hir/mod.rs:13: pub(crate) mod async_elif_multi;
+src/hir/mod.rs:14: pub(crate) mod async_elif_multi_post;
+src/hir/mod.rs:15: pub(crate) mod async_elif_post;
+src/hir/mod.rs:16: pub(crate) mod async_if;
+src/hir/mod.rs:17: pub(crate) mod async_if_multi;
+src/hir/mod.rs:18: pub(crate) mod async_if_multi_post;
+src/hir/mod.rs:19: pub(crate) mod async_if_post;
+src/hir/mod.rs:20: pub(crate) mod async_if_else_post;
+src/hir/mod.rs:21: pub(crate) mod async_if_else_multi;
+src/hir/mod.rs:22: pub(crate) mod async_if_else_multi_post;
+src/hir/mod.rs:23: pub(crate) mod async_while;
+src/hir/mod.rs:24: pub(crate) mod async_while_util;
+src/hir/mod.rs:25: pub mod attrs_export;
+src/hir/mod.rs:26: pub mod attrs_macro;
+src/hir/mod.rs:27: pub mod cfg;
+src/hir/mod.rs:28: pub mod contracts;
+src/hir/mod.rs:29: pub mod effects;
+src/hir/mod.rs:30: pub mod ir;
+src/hir/mod.rs:31: pub mod layout;
+src/hir/mod.rs:32: pub(crate) mod niche;
+src/hir/mod.rs:33: pub mod ty;
+src/hir/mod.rs:34: pub mod node;
+src/hir/mod.rs:35: pub mod stmt;
+src/hir/mod.rs:36: pub mod item;
+src/hir/mod.rs:37: pub mod schema;
+src/hir/mod.rs:38: pub(crate) mod transform;
+src/hir/mod.rs:39: pub mod lower;
+src/hir/mod.rs:40: pub mod display;
+src/hir/mod.rs:57: pub struct $name
 src/hir/niche.rs:17: pub(crate) struct NicheInfo
 src/hir/niche.rs:29: pub(crate) fn is_nicheable(ty: &HirType) -> bool
 src/hir/niche.rs:45: pub(crate) fn niche_info_of(
@@ -3596,13 +3601,15 @@ example/test_async_sugar.aya:23: fn poll(ref mut self, ref Context cx) -> Poll[T
 example/test_async_sugar.aya:27: fn sum2(int a, int b) -> int
 example/test_async_sugar.aya:32: fn pick(int a, int b, int c) -> int
 example/test_async_sugar.aya:40: fn identity[T](T v) -> T
-example/test_async_sugar.aya:44: struct Counter
-example/test_async_sugar.aya:48: impl Counter
-example/test_async_sugar.aya:50: fn add(ref self, int x) -> int
-example/test_async_sugar.aya:56: fn bump(ref mut self) -> int
-example/test_async_sugar.aya:63: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_sugar.aya:77: fn block_on_bool[F: Future[bool]](ref mut F f) -> bool
-example/test_async_sugar.aya:90: fn main() -> int
+example/test_async_sugar.aya:45: fn concrete_target(int x) -> int
+example/test_async_sugar.aya:50: fn generic_wait[T](T tag, int x) -> int
+example/test_async_sugar.aya:55: struct Counter
+example/test_async_sugar.aya:59: impl Counter
+example/test_async_sugar.aya:61: fn add(ref self, int x) -> int
+example/test_async_sugar.aya:67: fn bump(ref mut self) -> int
+example/test_async_sugar.aya:74: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_sugar.aya:88: fn block_on_bool[F: Future[bool]](ref mut F f) -> bool
+example/test_async_sugar.aya:101: fn main() -> int
 example/test_attr.aya:6: fn square(int x) -> int
 example/test_attr.aya:10: fn main() -> int
 example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }

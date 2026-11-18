@@ -8,7 +8,8 @@ fn target(int x) -> int { return x }
 #[async]
 fn gen[T](T v) -> int {
     x = await target(1);
-    return x
+    y = await target(2);
+    return y
 }
 
 fn main() -> int { return 0 }

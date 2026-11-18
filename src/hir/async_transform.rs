@@ -10,11 +10,11 @@
 //! 宏展开期由 macro_expand::expand_util::is_compiler_attr 放行。
 use super::async_transform_await::{await_prefix, expand_await};
 use crate::error::{Error, Result};
-use crate::hir::async_transform_util::ty_src;
+use crate::hir::async_transform_util::{attach_qualified_attrs, ty_src};
 use crate::intern::Symbol;
 use crate::parser::ast::vis::Visibility;
-use crate::parser::ast::{Attr, Program, Stmt, Type};
-use std::collections::HashMap;
+use crate::parser::ast::{Program, Stmt, Type};
+use std::collections::{HashMap, HashSet};
 /// 展开程序中的 `#[async]` 函数（cfg 过滤之后、HIR 降级之前）。
 pub fn expand(
     program: &Program,
@@ -23,11 +23,13 @@ pub fn expand(
     // await 目标函数的返回类型表（仅同程序 #[async] 函数）
     let mut returns: HashMap<Symbol, Type> = HashMap::new();
     let mut async_fns: HashMap<Symbol, Vec<(Symbol, Type)>> = HashMap::new();
+    let mut generic_async_fns: HashSet<Symbol> = HashSet::new();
     let mut fn_returns: HashMap<Symbol, Type> = HashMap::new();
     for stmt in &program.stmts {
         if let Stmt::FnDecl {
             attrs,
             name,
+            generic_params,
             return_type,
             params,
             ..
@@ -37,6 +39,9 @@ pub fn expand(
             if attrs.iter().any(is_async) {
                 returns.insert(*name, return_type.clone());
                 async_fns.insert(*name, params.clone());
+                if !generic_params.is_empty() {
+                    generic_async_fns.insert(*name);
+                }
             }
         }
     }
@@ -45,7 +50,15 @@ pub fn expand(
         match stmt {
             Stmt::FnDecl { attrs, name, .. } if attrs.iter().any(is_async) => {
                 let start = out.len();
-                expand_one(stmt, &returns, &async_fns, &fn_returns, &mut out, types)?;
+                expand_one(
+                    stmt,
+                    &returns,
+                    &async_fns,
+                    &generic_async_fns,
+                    &fn_returns,
+                    &mut out,
+                    types,
+                )?;
                 attach_qualified_attrs(&mut out[start..], *name, attrs);
             }
             Stmt::FnDecl { attrs, body, .. }
@@ -73,24 +86,6 @@ pub fn expand(
     }
     Ok(Program::new(out))
 }
-fn attach_qualified_attrs(out: &mut [Stmt], name: Symbol, attrs: &[Attr]) {
-    let keep: Vec<Attr> = attrs.iter()
-        .filter(|a| !a.qualifier.is_empty())
-        .cloned()
-        .collect();
-    if keep.is_empty() {
-        return;
-    }
-    for stmt in out {
-        if let Stmt::FnDecl { name: n, attrs: a, .. } = stmt {
-            if *n == name {
-                *a = keep;
-                return;
-            }
-        }
-    }
-}
-
 pub(super) fn is_async(a: &crate::parser::ast::Attr) -> bool {
     a.qualifier.is_empty() && a.name.as_str() == "async"
 }
@@ -108,6 +103,7 @@ fn expand_one(
     stmt: &Stmt,
     returns: &HashMap<Symbol, Type>,
     async_fns: &HashMap<Symbol, Vec<(Symbol, Type)>>,
+    generic_async_fns: &HashSet<Symbol>,
     fn_returns: &HashMap<Symbol, Type>,
     out: &mut Vec<Stmt>,
     types: Option<&crate::hir::lower::AsyncLocalTypes>,
@@ -134,9 +130,12 @@ fn expand_one(
             .as_ref()
             .is_some_and(|e| crate::hir::async_cfg::expr_has_await_pub(e));
     if !generic_params.is_empty() && has_await {
-        return Err(fail(
-            "generic functions with `await` are not supported in this slice".into(),
-        ));
+        return crate::hir::async_transform_generic_await::expand(
+            stmt,
+            returns,
+            generic_async_fns,
+            out,
+        );
     }
     if *extern_c || *is_unsafe {
         return Err(fail(

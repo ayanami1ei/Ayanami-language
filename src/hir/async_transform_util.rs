@@ -1,5 +1,6 @@
 //! A1b：async 展开用的类型串/默认值辅助。
-use crate::parser::ast::Type;
+use crate::intern::Symbol;
+use crate::parser::ast::{Attr, Stmt, Type};
 
 /// 生成源码用的类型串（crate 内可见）（仅 v1 允许的类型）。
 pub(crate) fn ty_src(ty: &Type) -> Option<String> {
@@ -43,5 +44,23 @@ pub(crate) fn type_name(ty: &Type) -> String {
         Type::Named(s, _) => s.as_str().to_string(),
         Type::Generic(n, _, _) => format!("{}[...]", n.as_str()),
         _ => "?".into(),
+    }
+}
+
+pub(crate) fn attach_qualified_attrs(out: &mut [Stmt], name: Symbol, attrs: &[Attr]) {
+    let keep: Vec<Attr> = attrs.iter()
+        .filter(|a| !a.qualifier.is_empty())
+        .cloned()
+        .collect();
+    if keep.is_empty() {
+        return;
+    }
+    for stmt in out {
+        if let Stmt::FnDecl { name: n, attrs: a, .. } = stmt {
+            if *n == name {
+                *a = keep;
+                return;
+            }
+        }
     }
 }
