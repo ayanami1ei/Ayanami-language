@@ -1,10 +1,10 @@
-//! `ayanami dump <ast|expanded|hir|mir|lir|llvm> <file.aya>` — 输出各阶段 IR 文本（回归快照用）。
+//! `ayanami dump <ast|expanded|macros|hir|mir|lir|llvm> <file.aya>` — 输出各阶段 IR 文本（回归快照用）。
 //! `expanded`：宏展开后的源码（mcl.3 调试视图）。
 use super::*;
 
 pub(crate) fn cmd_dump(args: &[String]) {
     if args.len() < 2 {
-        eprintln!("usage: ayanami dump <ast|expanded|hir|mir|lir|llvm> <file.aya>");
+        eprintln!("usage: ayanami dump <ast|expanded|macros|hir|mir|lir|llvm> <file.aya>");
         std::process::exit(1);
     }
     let stage = args[0].as_str();
@@ -19,6 +19,9 @@ pub(crate) fn cmd_dump(args: &[String]) {
     let base = path.parent().unwrap_or(std::path::Path::new("."));
     let mut compiling = std::collections::HashSet::new();
     let mut cache = std::collections::HashMap::new();
+    if stage == "macros" {
+        ayanami::compiler::macro_expand::begin_trace();
+    }
     let cf = match ayanami::compiler::compile_file(&path, base, &tmp, &mut compiling, &mut cache, None, None) {
         Ok(c) => c,
         Err(e) => {
@@ -36,6 +39,10 @@ pub(crate) fn cmd_dump(args: &[String]) {
             Ok(p) => ayanami::formatter::format_program(&p),
             Err(e) => { ayanami::diagnostics::error(&format!("dump expanded failed: {}", e)); std::process::exit(1); }
         },
+        "macros" => match ayanami::compiler::macro_expand::finish_trace() {
+            Ok(json) => json,
+            Err(e) => { ayanami::diagnostics::error(&format!("dump macros failed: {}", e)); std::process::exit(1); }
+        },
         "hir" => match expanded().and_then(|p| ayanami::hir::lower_program(&p).map_err(|e| e.to_string())) {
             Ok(hir) => ayanami::hir::hir_program_to_string(&hir),
             Err(e) => { ayanami::diagnostics::error(&format!("dump hir failed: {}", e)); std::process::exit(1); }
@@ -49,7 +56,7 @@ pub(crate) fn cmd_dump(args: &[String]) {
         },
         "lir" => ayanami::lir::lir_program_to_string(&cf.lir_program),
         "llvm" => cf.llvm_ir.clone(),
-        _ => { eprintln!("error: unknown stage `{}` (ast|expanded|hir|mir|lir|llvm)", stage); std::process::exit(1); }
+        _ => { eprintln!("error: unknown stage `{}` (ast|expanded|macros|hir|mir|lir|llvm)", stage); std::process::exit(1); }
     };
     print!("{}", out);
     let _ = fs::remove_dir_all(&tmp);

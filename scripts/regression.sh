@@ -672,6 +672,21 @@ for f in test_struct test_enum_boxed test_async_await test_pass test_iface_box t
     fi
 done
 
+# mcl.3：结构化宏展开记录（IDE/调试 JSON 视图）
+macro_trace=$(mktemp)
+if ! "$BIN" dump macros example/test_macro_tokens.aya >"$macro_trace" 2>/dev/null; then
+    echo "FAIL mcl.3: dump macros failed"
+    fail=$((fail + 1))
+elif ! grep -q '"schema": 1' "$macro_trace" \
+    || ! grep -q '"kind": "item"' "$macro_trace" \
+    || ! grep -q '"kind": "statement"' "$macro_trace" \
+    || ! grep -q '"kind": "expression"' "$macro_trace" \
+    || ! grep -q '"name": "tok_keep"' "$macro_trace"; then
+    echo "FAIL mcl.3: structured macro trace is incomplete"
+    fail=$((fail + 1))
+fi
+rm -f "$macro_trace"
+
 # #106：零参函数不得发射裸符号（避免与 libc 冲突）
 if [ -f build/test_zero_arg_fn ]; then
     if nm build/test_zero_arg_fn 2>/dev/null | grep -qE ' T time$'; then

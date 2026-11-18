@@ -2,13 +2,32 @@
 use crate::error::{Error, Result};
 use crate::parser::ast::{Attr, Program, Stmt};
 
-/// mcl.3：展开追踪（`AYANAMI_MACRO_TRACE=1` 时打印到 stderr；调试/IDE 用）。
-pub(super) fn trace_expansion(macro_name: &str, input: &str, output: &str) {
+/// mcl.3：展开追踪（环境变量打印 + 可选结构化记录）。
+pub(super) fn trace_expansion(
+    kind: &str,
+    macro_name: &str,
+    file: &str,
+    line: usize,
+    col: usize,
+    token_mode: bool,
+    input: &str,
+    output: &str,
+) {
+    super::trace::record(
+        kind,
+        macro_name,
+        file,
+        line,
+        col,
+        token_mode,
+        input,
+        output,
+    );
     let on = std::env::var("AYANAMI_MACRO_TRACE")
         .map(|v| v == "1" || v == "true")
         .unwrap_or(false);
     if on {
-        eprintln!("── macro trace: `{}`", macro_name);
+        eprintln!("── macro trace: `{}` ({}:{})", macro_name, line, col);
         eprintln!("   input:  {}", input.replace('\n', "\\n"));
         eprintln!("   output: {}", output.replace('\n', "\\n"));
     }

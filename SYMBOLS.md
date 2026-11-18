@@ -207,11 +207,11 @@ src/compiler/macro_expand/check_plugin.rs:17: pub(super) fn invoke_check(lcl_pat
 src/compiler/macro_expand/check_plugin.rs:22: fn read_i64(buf: &[u8], off: usize) -> i64
 src/compiler/macro_expand/check_plugin.rs:28: fn parse_diags(buf: &[u8]) -> Vec<(i64, String)>
 src/compiler/macro_expand/check_plugin.rs:43: fn call_check(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
-src/compiler/macro_expand/expand_util.rs:6: pub(super) fn trace_expansion(macro_name: &str, input: &str, output: &str)
-src/compiler/macro_expand/expand_util.rs:17: pub(super) fn parse_source(code: &str) -> Result<Program>
-src/compiler/macro_expand/expand_util.rs:27: pub(super) fn is_compiler_attr(a: &Attr) -> bool
-src/compiler/macro_expand/expand_util.rs:31: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
-src/compiler/macro_expand/expand_util.rs:42: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:6: pub(super) fn trace_expansion(
+src/compiler/macro_expand/expand_util.rs:36: pub(super) fn parse_source(code: &str) -> Result<Program>
+src/compiler/macro_expand/expand_util.rs:46: pub(super) fn is_compiler_attr(a: &Attr) -> bool
+src/compiler/macro_expand/expand_util.rs:50: pub(super) fn attrs_of(stmt: &Stmt) -> Option<&Vec<Attr>>
+src/compiler/macro_expand/expand_util.rs:61: pub(super) fn attrs_of_mut(stmt: &mut Stmt) -> Option<&mut Vec<Attr>>
 src/compiler/macro_expand/mod.rs:18: const MAX_DEPTH: usize = 32;
 src/compiler/macro_expand/mod.rs:20: mod expand_util;
 src/compiler/macro_expand/mod.rs:21: mod plugin_call;
@@ -220,19 +220,22 @@ src/compiler/macro_expand/mod.rs:25: mod check_plugin;
 src/compiler/macro_expand/mod.rs:26: mod pass_plugin;
 src/compiler/macro_expand/mod.rs:27: mod plugin;
 src/compiler/macro_expand/mod.rs:28: mod plugin_abi;
-src/compiler/macro_expand/mod.rs:31: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
-src/compiler/macro_expand/mod.rs:41: pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables>
-src/compiler/macro_expand/mod.rs:46: pub(crate) fn invoke_transform(lcl_path: &str, name: &str, input: &str) -> Result<String>
-src/compiler/macro_expand/mod.rs:51: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
-src/compiler/macro_expand/mod.rs:56: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
-src/compiler/macro_expand/mod.rs:60: struct MacroCtx
-src/compiler/macro_expand/mod.rs:65: impl MacroCtx
-src/compiler/macro_expand/mod.rs:66: fn collect(program: &Program, src_path: &Path) -> Result<Self>
-src/compiler/macro_expand/mod.rs:74: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
-src/compiler/macro_expand/mod.rs:80: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
-src/compiler/macro_expand/mod.rs:97: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
-src/compiler/macro_expand/mod.rs:217: fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)>
-src/compiler/macro_expand/mod.rs:248: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:29: mod resolve;
+src/compiler/macro_expand/mod.rs:30: mod trace;
+src/compiler/macro_expand/mod.rs:34: pub fn begin_trace()
+src/compiler/macro_expand/mod.rs:38: pub fn finish_trace() -> Result<String>
+src/compiler/macro_expand/mod.rs:43: pub fn expand(program: &Program, src_path: &Path) -> Result<Program>
+src/compiler/macro_expand/mod.rs:53: pub(crate) fn annotation_tables(stmts: &[Stmt]) -> Result<AnnotationTables>
+src/compiler/macro_expand/mod.rs:58: pub(crate) fn invoke_transform(lcl_path: &str, name: &str, input: &str) -> Result<String>
+src/compiler/macro_expand/mod.rs:63: pub(crate) fn invoke_pass(lcl_path: &str, name: &str, blob: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/mod.rs:68: pub(crate) fn invoke_check(lcl_path: &str, name: &str, blob: &[u8]) -> Result<(Vec<u8>, Vec<(i64, String)>)>
+src/compiler/macro_expand/mod.rs:72: struct MacroCtx
+src/compiler/macro_expand/mod.rs:77: impl MacroCtx
+src/compiler/macro_expand/mod.rs:78: fn collect(program: &Program, src_path: &Path) -> Result<Self>
+src/compiler/macro_expand/mod.rs:86: fn expand_block(block: Block, ctx: &MacroCtx, depth: usize) -> Result<Block>
+src/compiler/macro_expand/mod.rs:92: fn expand_stmts(stmts: &[Stmt], ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
+src/compiler/macro_expand/mod.rs:109: fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) -> Result<()>
+src/compiler/macro_expand/mod.rs:238: fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>>
 src/compiler/macro_expand/pass_plugin.rs:17: const SCHEMA_VERSION: i64 = 3;
 src/compiler/macro_expand/pass_plugin.rs:21: pub(super) fn build_for(lcl_path: &str, ann_name: &str, want_mut: bool) -> Result<(PathBuf, String)>
 src/compiler/macro_expand/pass_plugin.rs:47: pub(super) fn invoke_pass(lcl_path: &str, pass_name: &str, blob: &[u8]) -> Result<Vec<u8>>
@@ -251,12 +254,12 @@ src/compiler/macro_expand/pass_plugin.rs:235: type FreeFn = unsafe extern "C" fn
 src/compiler/macro_expand/pass_plugin.rs:237: fn call_pass(so_path: &Path, symbol: &str, blob: &[u8]) -> Result<Vec<u8>>
 src/compiler/macro_expand/plugin.rs:15: pub(super) fn invoke_plugin(lcl_path: &str, macro_name: &str, input: &str, args: &[String], tokens: bool, line: usize, col: usize) -> Result<String>
 src/compiler/macro_expand/plugin.rs:41: pub(crate) fn invoke_macro_expr(
-src/compiler/macro_expand/plugin.rs:78: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
-src/compiler/macro_expand/plugin.rs:171: static AyaBuf dup_buf(AyaBuf b) {{\n\
-src/compiler/macro_expand/plugin.rs:179: static const char* id = \"{macro_id}\";\n\
-src/compiler/macro_expand/plugin.rs:188: static long long diag_count = 0;\n\
-src/compiler/macro_expand/plugin.rs:189: static long long diag_levels[DIAG_MAX];\n\
-src/compiler/macro_expand/plugin.rs:190: static AyaBuf diag_msgs[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:89: fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf>
+src/compiler/macro_expand/plugin.rs:182: static AyaBuf dup_buf(AyaBuf b) {{\n\
+src/compiler/macro_expand/plugin.rs:190: static const char* id = \"{macro_id}\";\n\
+src/compiler/macro_expand/plugin.rs:199: static long long diag_count = 0;\n\
+src/compiler/macro_expand/plugin.rs:200: static long long diag_levels[DIAG_MAX];\n\
+src/compiler/macro_expand/plugin.rs:201: static AyaBuf diag_msgs[DIAG_MAX];\n\
 src/compiler/macro_expand/plugin_abi.rs:15: pub(super) fn plugin_ext() -> &'static str
 src/compiler/macro_expand/plugin_abi.rs:26: pub(super) fn plugin_path(dir: &Path, prefix: &str, stem: &str, hash: u64) -> PathBuf
 src/compiler/macro_expand/plugin_abi.rs:31: pub(super) fn shared_lib_command() -> Command
@@ -292,6 +295,7 @@ src/compiler/macro_expand/plugin_abi.rs:261: fn resolve_dep(stem: &str, dir: &Pa
 src/compiler/macro_expand/plugin_call.rs:7: type ExpandFn = unsafe extern "C" fn(AyaBuf, AyaBufList, i64, i64, AyaBuf) -> AyaBuf;
 src/compiler/macro_expand/plugin_call.rs:8: type FreeFn = unsafe extern "C" fn(AyaBuf);
 src/compiler/macro_expand/plugin_call.rs:10: pub(super) fn call_plugin(so_path: &Path, symbol: &str, input: &[u8], args: &[Vec<u8>], line: i64, col: i64, file: &[u8]) -> Result<Vec<u8>>
+src/compiler/macro_expand/resolve.rs:4: pub(super) fn resolve_macro_call(
 src/compiler/macro_expand/token_stream.rs:8: pub(crate) const TOK_IDENT: u8 = 0;
 src/compiler/macro_expand/token_stream.rs:9: pub(crate) const TOK_LITERAL: u8 = 1;
 src/compiler/macro_expand/token_stream.rs:10: pub(crate) const TOK_PUNCT: u8 = 2;
@@ -311,6 +315,13 @@ src/compiler/macro_expand/token_stream.rs:215: fn roundtrip_encode_decode()
 src/compiler/macro_expand/token_stream.rs:225: fn decode_rejects_truncated()
 src/compiler/macro_expand/token_stream.rs:232: fn group_roundtrip()
 src/compiler/macro_expand/token_stream.rs:246: fn binary_safe_string_literal()
+src/compiler/macro_expand/trace.rs:10: static ENABLED: Cell<bool> = const { Cell::new(false) };
+src/compiler/macro_expand/trace.rs:11: static RECORDS: RefCell<Vec<Value>> = const { RefCell::new(Vec::new()) };
+src/compiler/macro_expand/trace.rs:14: pub(crate) fn begin()
+src/compiler/macro_expand/trace.rs:19: pub(crate) fn record(
+src/compiler/macro_expand/trace.rs:46: pub(crate) fn finish() -> Result<String>
+src/compiler/macro_expand/trace.rs:57: mod tests
+src/compiler/macro_expand/trace.rs:61: fn structured_trace_roundtrip()
 src/compiler/mod.rs:1: pub mod build;
 src/compiler/mod.rs:2: pub mod check;
 src/compiler/mod.rs:3: pub mod debug;

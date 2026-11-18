@@ -28,7 +28,7 @@ fn main() {
         eprintln!("  install <lcl>      从 .lcl 构建目标产物");
         eprintln!("  defs <file>        输出符号定义列表（JSON 格式）");
     eprintln!("  types <file>       输出变量类型列表（JSON，供编辑器 inlay hints）");
-    eprintln!("  dump <stage> <file> 输出 IR 阶段文本（ast|hir|mir|lir|llvm）");
+    eprintln!("  dump <stage> <file> 输出阶段文本（ast|expanded|macros|hir|mir|lir|llvm）");
         eprintln!("  run [--release] [--verify-effects] [file/proj] 构建并运行");
         eprintln!("  clean              清除 build/ 目录");
         eprintln!("  plugin new|package|publish|install|verify  第三方插件脚手架/发布/安装/校验");

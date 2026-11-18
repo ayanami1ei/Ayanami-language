@@ -65,14 +65,25 @@ pub(crate) fn invoke_macro_expr(
     let in_bytes: Vec<u8> = if tokens {
         super::token_stream::encode(&super::token_stream::lex_to_tokens(&input_src))
     } else {
-        input_src.into_bytes()
+        input_src.as_bytes().to_vec()
     };
     let out = super::plugin_call::call_plugin(&so_path, &symbol, &in_bytes, &arg_bytes, line as i64, col as i64, file.as_bytes())?;
-    if tokens {
+    let output = if tokens {
         Ok(super::token_stream::to_source(&super::token_stream::decode(&out)?))
     } else {
         String::from_utf8(out).map_err(|e| Error::Compile(format!("macro output not UTF-8: {}", e)))
-    }
+    }?;
+    super::trace::record(
+        "expression",
+        macro_name,
+        file,
+        line,
+        col,
+        tokens,
+        &input_src,
+        &output,
+    );
+    Ok(output)
 }
 
 fn build_plugin(lir: &crate::lir::ir::LirProgram, symbol: &str, mapping: &[ParamKind], dep_lcls: &[String]) -> Result<PathBuf> {

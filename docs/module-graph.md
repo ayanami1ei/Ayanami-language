@@ -28,7 +28,7 @@ graph LR
     annotation_table --> intern
     annotation_table --> parser
     compiler --> annotation_table
-    compiler -->|12| error
+    compiler -->|13| error
     compiler -->|4| hir
     compiler --> intern
     compiler --> lexer
@@ -80,7 +80,7 @@ graph LR
 | `hir` | `parser` | 55 |
 | `hir` | `error` | 44 |
 | `hir` | `intern` | 44 |
-| `compiler` | `error` | 12 |
+| `compiler` | `error` | 13 |
 | `hir` | `span` | 11 |
 | `compiler` | `parser` | 9 |
 | `mir` | `hir` | 8 |

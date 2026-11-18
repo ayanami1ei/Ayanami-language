@@ -26,6 +26,18 @@ mod check_plugin;
 mod pass_plugin;
 mod plugin;
 mod plugin_abi;
+mod resolve;
+mod trace;
+
+use resolve::resolve_macro_call;
+
+pub fn begin_trace() {
+    trace::begin();
+}
+
+pub fn finish_trace() -> Result<String> {
+    trace::finish()
+}
 
 /// 展开入口：在 HIR 降级前调用（此时 import 已重写为 .lcl 绝对路径）。
 pub fn expand(program: &Program, src_path: &Path) -> Result<Program> {
@@ -107,7 +119,7 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
                     attr.path_str(), attr.span.start_line, attr.span.start_col
                 )));
             }
-            let (lcl_path, macro_name, args, tokens) = resolve_macro_call(ctx, &attr)?;
+            let (lcl_path, macro_name, args, tokens) = resolve_macro_call(&ctx.tables, &attr)?;
             let remaining: Vec<Attr> = attrs.iter()
                 .filter(|a| a.path_str() != attr.path_str())
                 .cloned()
@@ -122,7 +134,16 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
                 }]))
             };
             let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens, attr.span.start_line, attr.span.start_col)?;
-            trace_expansion(&macro_name, &input, &output);
+            trace_expansion(
+                "statement",
+                &macro_name,
+                &ctx.src_path.to_string_lossy(),
+                attr.span.start_line,
+                attr.span.start_col,
+                tokens,
+                &input,
+                &output,
+            );
             let parsed = parse_source(&output).map_err(|e| Error::Compile(format!(
                 "in macro `{}` expansion: {} (at {}:{})",
                 macro_name, e, attr.span.start_line, attr.span.start_col
@@ -213,37 +234,6 @@ fn expand_nested(stmt: Stmt, out: &mut Vec<Stmt>, ctx: &MacroCtx, depth: usize) 
     }
 }
 
-/// 解析并校验宏标注 → (lcl 路径, 宏名, 实参源码文本, 是否 token 宏)
-fn resolve_macro_call(ctx: &MacroCtx, attr: &Attr) -> Result<(String, String, Vec<String>, bool)> {
-    let args: Vec<String> = attr.args.iter().map(crate::formatter::format_attr_arg).collect();
-    match ctx.tables.resolve(attr)? {
-        Some((pkg, macro_name, AnnKind::Macro, tokens)) => {
-            let lcl_path = ctx.tables.lcl_path(&pkg).ok_or_else(|| Error::Compile(format!(
-                "package `{}` has no annotation table", pkg
-            )))?;
-            Ok((lcl_path, macro_name, args, tokens))
-        }
-        Some((pkg, name, AnnKind::Transform, _)) => Err(Error::Compile(format!(
-            "`#[{}]` is a HIR transform annotation (`{}::{}`), not a macro/attr (at {}:{})",
-            attr.path_str(), pkg, name, attr.span.start_line, attr.span.start_col
-        ))),
-        Some((pkg, name, AnnKind::Pass, _)) | Some((pkg, name, AnnKind::Check, _)) => Err(Error::Compile(format!(
-            "`#[{}]` is a MIR annotation (`{}::{}`), not a macro/attr (at {}:{})",
-            attr.path_str(), pkg, name, attr.span.start_line, attr.span.start_col
-        ))),
-        Some((pkg, attr_name, AnnKind::Attr, _)) => {
-            let lcl_path = ctx.tables.lcl_path(&pkg).ok_or_else(|| Error::Compile(format!(
-                "package `{}` has no annotation table", pkg
-            )))?;
-            Ok((lcl_path, attr_name, args, false))
-        }
-        None => Err(Error::Compile(format!(
-            "macro #[{}] cannot be resolved (at {}:{})",
-            attr.path_str(), attr.span.start_line, attr.span.start_col
-        ))),
-    }
-}
-
 /// 展开单个 item：无宏标注则原样返回；有则调用插件并递归展开输出。
 fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     // 只挑「解析为宏/属性插件」的标注展开；pass/check 与未知标注留给后续阶段/校验
@@ -257,7 +247,7 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
         }
     }
     let Some(attr) = macro_attr else { return Ok(vec![stmt.clone()]); };
-    let (lcl_path, macro_name, args, tokens) = resolve_macro_call(ctx, &attr)?;
+    let (lcl_path, macro_name, args, tokens) = resolve_macro_call(&ctx.tables, &attr)?;
 
     // 去掉被调用的宏标注后格式化 item 源码
     let mut input_stmt = stmt.clone();
@@ -267,7 +257,16 @@ fn expand_one(stmt: &Stmt, ctx: &MacroCtx, depth: usize) -> Result<Vec<Stmt>> {
     let input = crate::formatter::format_program(&Program::new(vec![input_stmt]));
 
     let output = plugin::invoke_plugin(&lcl_path, &macro_name, &input, &args, tokens, attr.span.start_line, attr.span.start_col)?;
-    trace_expansion(&macro_name, &input, &output);
+    trace_expansion(
+        "item",
+        &macro_name,
+        &ctx.src_path.to_string_lossy(),
+        attr.span.start_line,
+        attr.span.start_col,
+        tokens,
+        &input,
+        &output,
+    );
 
     let parsed = parse_source(&output).map_err(|e| Error::Compile(format!(
         "in macro `{}` expansion: {} (at {}:{})",
