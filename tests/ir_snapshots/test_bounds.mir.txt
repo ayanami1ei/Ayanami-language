@@ -65,7 +65,7 @@ MIR Program
       Return
         Local(v0 : Named(ArrayList<int>))
 │ │ }
-│ Fn expand (self: ref mut Named(ArrayList<int>)) -> Void [locals: 9]
+│ Fn __ayanami_scope_arraylist.expand (self: ref mut Named(ArrayList<int>)) -> Void [locals: 9]
 │   local self: ref mut Named(ArrayList<int>)
 │   local tmp: unique [Int]
 │   local i: Int
@@ -126,8 +126,8 @@ MIR Program
                   FieldAccess capability ty=u64
                     Local(v0 : ref mut Named(ArrayList<int>))
                   Literal(Int(2))
-                  Literal(Int(9))
-                  Literal(Int(39))
+                  Literal(Int(30))
+                  Literal(Int(43))
                   Literal(String("example/test_bounds.aya"))
           Assign
             target:
@@ -169,8 +169,8 @@ MIR Program
                 Block {
                   Expr
                     Call(fn(N), ty: Void)
-                      Literal(Int(11))
-                      Literal(Int(35))
+                      Literal(Int(32))
+                      Literal(Int(39))
                       Literal(String("example/test_bounds.aya"))
                       Local(v3 : Int)
                       Local(v4 : Int)
@@ -224,8 +224,8 @@ MIR Program
               FieldAccess capability ty=u64
                 Local(v0 : ref mut Named(ArrayList<int>))
               Literal(Int(2))
-              Literal(Int(14))
-              Literal(Int(47))
+              Literal(Int(35))
+              Literal(Int(51))
               Literal(String("example/test_bounds.aya"))
           Drop(v1 : unique [Int])
         }

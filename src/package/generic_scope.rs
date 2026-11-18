@@ -15,7 +15,7 @@ use self::walk::calls_in_block;
 
 mod walk;
 
-pub(crate) const SCOPE_PREFIX: &str = "__ayanami_scope_";
+pub const SCOPE_PREFIX: &str = "__ayanami_scope_";
 
 pub(crate) fn scope_name(package: &str) -> String {
     let safe: String = package

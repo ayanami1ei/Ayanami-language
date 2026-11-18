@@ -1,6 +1,38 @@
 LIR Program
-Strings: 1 entries
+Strings: 32 entries
   @__str_0 = "example/macro_lib.aya"
+  @__str_1 = "fn answer() -> int { return 42 }"
+  @__str_2 = "fn "
+  @__str_3 = "() -> int { return "
+  @__str_4 = " }"
+  @__str_5 = "fn shown() -> String { return "
+  @__str_6 = "if "
+  @__str_7 = " {"
+  @__str_8 = "}"
+  @__str_9 = "("
+  @__str_10 = " + "
+  @__str_11 = ")"
+  @__str_12 = ""
+  @__str_13 = "() -> int { return 9 }
+fn hygienic_call() -> int { return "
+  @__str_14 = "() }"
+  @__str_15 = "warn_me: demo warning"
+  @__str_16 = "err_me: demo error"
+  @__str_17 = "err_at: explicit span"
+  @__str_18 = "fn broken( {"
+  @__str_19 = "0"
+  @__str_20 = "0123456789abcdef"
+  @__str_21 = "0123456789ABCDEF"
+  @__str_22 = "01"
+  @__str_23 = "01234567"
+  @__str_24 = "nan"
+  @__str_25 = "inf"
+  @__str_26 = "-inf"
+  @__str_27 = "."
+  @__str_28 = "e+"
+  @__str_29 = "e-"
+  @__str_30 = "-"
+  @__str_31 = "e+00"
 
 fn main (fn_id=N) -> Int [10 blocks]
   local x: Int
@@ -74,6 +106,28 @@ ifcont8:
     store Literal(Int(0), Int) -> v7 : Int
     t34 = load v7 : Int
     ret Tmp(34)
+fn add (fn_id=N) -> Named(Symbol(N)) [1 blocks]
+  local self: Ref(Named(Symbol(N)), false)
+  local a: Int
+  local str: Named(Symbol(N))
+  local __ret: Named(Symbol(N))
+entry:
+    alloca v0 : Ref(Named(Symbol(N)), false)
+    alloca v1 : Int
+    alloca v2 : Named(Symbol(N))
+    alloca v3 : Named(Symbol(N))
+    store Param(0) -> v0 : Ref(Named(Symbol(N)), false)
+    store Param(1) -> v1 : Int
+    t0 = ref_v1 : Ref(Int, false)
+    t1 = call fn(N) (Tmp(0):Ref(Int, false)) : Named(Symbol(N))
+    store Tmp(1) -> v2 : Named(Symbol(N))
+    t2 = load v0 : Ref(Named(Symbol(N)), false)
+    t3 = ref_v2 : Ref(Named(Symbol(N)), false)
+    t4 = call fn(N) (Tmp(2):Ref(Named(Symbol(N)), false), Tmp(3):Ref(Named(Symbol(N)), false)) : Named(Symbol(N))
+    store Tmp(4) -> v3 : Named(Symbol(N))
+    drop v2 : Named(Symbol(N))
+    t5 = load v3 : Named(Symbol(N))
+    ret Tmp(5)
 fn __iface_drop_String (fn_id=N) -> Void [1 blocks]
 entry:
     drop_ptr : Named(Symbol(N))

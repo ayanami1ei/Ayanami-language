@@ -1,7 +1,21 @@
 LIR Program
-Strings: 2 entries
+Strings: 16 entries
   @__str_0 = "example/test_ref_auto.aya"
   @__str_1 = "hi"
+  @__str_2 = "0"
+  @__str_3 = "0123456789abcdef"
+  @__str_4 = "0123456789ABCDEF"
+  @__str_5 = "01"
+  @__str_6 = "01234567"
+  @__str_7 = ""
+  @__str_8 = "nan"
+  @__str_9 = "inf"
+  @__str_10 = "-inf"
+  @__str_11 = "."
+  @__str_12 = "e+"
+  @__str_13 = "e-"
+  @__str_14 = "-"
+  @__str_15 = "e+00"
 
 fn bump (fn_id=N) -> Void [1 blocks]
   local i: Ref(Int, true)

@@ -9,6 +9,7 @@ use super::{FnSig, InterfaceReg, Ctx};
 
 mod collect_fns;
 mod collect_ns;
+mod collect_struct;
 mod vtables;
 mod iface_args;
 mod iface_match;

@@ -143,6 +143,11 @@ impl crate::hir::lower::Ctx {
                 }
                 Stmt::InterfaceDef { name, methods, generic_params, span, .. } => {
                     check_unique_generic_params(generic_params, span)?;
+                    if ns_prefix.is_empty() {
+                        self.source_declared_types.insert(*name);
+                    } else if self.source_declared_types.contains(name) {
+                        continue;
+                    }
                     let type_name = self.scoped_type_symbol(ns_prefix, *name);
                     let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
                     let hir_methods: Vec<HirInterfaceMethod> = methods.iter().map(|m| {
@@ -158,61 +163,24 @@ impl crate::hir::lower::Ctx {
                     self.interfaces.insert(type_name, InterfaceReg { generic_params: generic_params.clone(), methods: hir_methods });
                 }
                 Stmt::StructDef { vis, name, fields, generic_params, is_union, span, .. } => {
-                    check_unique_generic_params(generic_params, span)?;
-                    let type_name = self.scoped_type_symbol(ns_prefix, *name);
-                    if ns_prefix.is_empty() {
-                        self.source_declared_types.insert(type_name);
-                    }
-                    let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
-                    let hir_fields: Vec<HirStructField> = fields.iter()
-                        .map(|(n, t)| HirStructField {
-                            name: *n,
-                            ty: self.ast_type_to_hir_scoped(t, module),
-                        })
-                        .collect();
-                    if *is_union {
-                        // P3b：union —— 泛型暂不支持；字段限无 drop 类型（共享存储别名）
-                        if !generic_params.is_empty() {
-                            return Err(Error::Hir(format!(
-                                "generic unions are not supported yet (`{}`) (at {}:{})",
-                                name.as_str(), span.start_line, span.start_col
-                            )));
-                        }
-                        for f in &hir_fields {
-                            if !self.union_field_ok(&f.ty) {
-                                return Err(Error::Hir(format!(
-                                    "union `{}` field `{}` has type `{}` which may own heap data; union fields must be drop-free (at {}:{})",
-                                    name.as_str(), f.name.as_str(), hir_type_display(&f.ty),
-                                    span.start_line, span.start_col
-                                )));
-                            }
-                        }
-                        // 首字段保留为存储标记 `__union`（类型占位为第一个真实字段；
-                        // 实际布局与 LLVM 类型按最大字段在 LIR 决定）
-                        let mut def = vec![HirStructField {
-                            name: Symbol::intern("__union"),
-                            ty: hir_fields.first().map(|f| f.ty.clone()).unwrap_or(HirType::Int),
-                        }];
-                        def.extend(hir_fields);
-                        self.struct_defs.insert(type_name, def);
-                    } else {
-                        self.struct_defs.insert(type_name, hir_fields);
-                        if !generic_params.is_empty() {
-                            self.generic_struct_params.insert(type_name, generic_params.clone());
-                        }
-                    }
-                    if ns_prefix.starts_with(crate::package::SCOPE_PREFIX)
-                        && !vis.is_public()
-                        && !self.source_declared_types.contains(name)
-                        && !Self::is_scope_shared_type(name)
-                    {
-                        self.struct_defs.remove(name);
-                        self.generic_struct_params.remove(name);
-                        self.type_ifaces.remove(name);
-                    }
+                    self.collect_struct_def(
+                        vis,
+                        name,
+                        fields,
+                        generic_params,
+                        *is_union,
+                        span,
+                        ns_prefix,
+                    )?;
                 }
                 Stmt::EnumDef { vis, name, variants, generic_params, span, .. } => {
                     check_unique_generic_params(generic_params, span)?;
+                    if ns_prefix.starts_with(crate::package::SCOPE_PREFIX)
+                        && vis.is_public()
+                        && self.source_declared_types.contains(name)
+                    {
+                        continue;
+                    }
                     let type_name = self.scoped_type_symbol(ns_prefix, *name);
                     if ns_prefix.is_empty() {
                         self.source_declared_types.insert(type_name);

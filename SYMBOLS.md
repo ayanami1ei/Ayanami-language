@@ -36,6 +36,10 @@ src/cli/clean.rs:3: pub(crate) fn cmd_clean()
 src/cli/defs.rs:3: pub(crate) fn cmd_defs(args: &[String])
 src/cli/defs.rs:43: fn resolve_import_defs(stmts: &[ayanami::parser::ast::Stmt], base_path: &str, visited: &mut std::collections::HashSet<std::path::PathBuf>, defs: &mut Vec<ayanami::compiler::SymDef>)
 src/cli/dump.rs:5: pub(crate) fn cmd_dump(args: &[String])
+src/cli/dump.rs:70: fn is_scope_name(name: &ayanami::intern::Symbol) -> bool
+src/cli/dump.rs:74: fn without_scope_items(program: &ayanami::parser::ast::Program) -> ayanami::parser::ast::Program
+src/cli/dump.rs:85: fn lower_visible_hir(
+src/cli/dump.rs:95: fn lower_visible_mir(
 src/cli/fmt.rs:3: pub(crate) fn cmd_fmt(args: &[String])
 src/cli/mod.rs:7: pub(crate) mod build;
 src/cli/mod.rs:8: pub(crate) mod check;
@@ -776,6 +780,9 @@ src/hir/lower/body/collect_import_source.rs:132: fn qualified_name(prefix: &str,
 src/hir/lower/body/collect_ns.rs:4: pub(super) fn check_unique_generic_params(gp: &[(Symbol, Vec<Symbol>)], span: &Span) -> Result<()>
 src/hir/lower/body/collect_ns.rs:17: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_ns.rs:18: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
+src/hir/lower/body/collect_struct.rs:4: impl crate::hir::lower::Ctx
+src/hir/lower/body/collect_struct.rs:5: pub(super) fn collect_struct_def(
+src/hir/lower/body/collect_struct.rs:56: fn collect_union_def(
 src/hir/lower/body/concurrency.rs:7: impl crate::hir::lower::Ctx
 src/hir/lower/body/concurrency.rs:9: pub(super) fn check_cross_thread_call(
 src/hir/lower/body/concurrency.rs:48: pub(super) fn record_closure_captures(&mut self, var: VarId, value: &HirNodeBox)
@@ -964,68 +971,69 @@ src/hir/lower/body/match_variant.rs:22: pub(super) fn bare_variant_name(&self, s
 src/hir/lower/body/match_variant.rs:34: pub(super) fn tag_cond(val_node: &HirNodeBox, tag: usize) -> HirNodeBox
 src/hir/lower/body/mod.rs:10: mod collect_fns;
 src/hir/lower/body/mod.rs:11: mod collect_ns;
-src/hir/lower/body/mod.rs:12: mod vtables;
-src/hir/lower/body/mod.rs:13: mod iface_args;
-src/hir/lower/body/mod.rs:14: mod iface_match;
-src/hir/lower/body/mod.rs:15: mod overload_resolve;
-src/hir/lower/body/mod.rs:16: mod overload_method;
-src/hir/lower/body/mod.rs:17: mod generic_check;
-src/hir/lower/body/mod.rs:18: mod generic_check_expr;
-src/hir/lower/body/mod.rs:19: mod generic_infer;
-src/hir/lower/body/mod.rs:20: mod generic_locals;
-src/hir/lower/body/mod.rs:21: mod generic_specialize;
-src/hir/lower/body/mod.rs:22: mod generic_types;
-src/hir/lower/body/mod.rs:23: mod lower_items;
-src/hir/lower/body/mod.rs:24: mod stmt_lower;
-src/hir/lower/body/mod.rs:25: mod stmt_sync;
-src/hir/lower/body/mod.rs:26: mod stmt_deref;
-src/hir/lower/body/mod.rs:27: mod stmt_loops;
-src/hir/lower/body/mod.rs:28: mod ref_assign;
-src/hir/lower/body/mod.rs:29: mod ref_protocol;
-src/hir/lower/body/mod.rs:30: mod expr_method;
-src/hir/lower/body/mod.rs:31: mod expr_method_ptr;
-src/hir/lower/body/mod.rs:32: mod expr_layout;
-src/hir/lower/body/mod.rs:33: mod expr_static_assert;
-src/hir/lower/body/mod.rs:34: mod const_eval_binary;
-src/hir/lower/body/mod.rs:35: mod expr_struct;
-src/hir/lower/body/mod.rs:36: mod match_coverage;
-src/hir/lower/body/mod.rs:37: mod match_variant;
-src/hir/lower/body/mod.rs:38: mod match_lower;
-src/hir/lower/body/mod.rs:39: mod match_pattern;
-src/hir/lower/body/mod.rs:40: mod match_setup;
-src/hir/lower/body/mod.rs:41: mod match_util;
-src/hir/lower/body/mod.rs:42: mod usage_infer;
-src/hir/lower/body/mod.rs:43: mod macro_call;
-src/hir/lower/body/mod.rs:44: mod expr_logic;
-src/hir/lower/body/mod.rs:45: mod expr_lower;
-src/hir/lower/body/mod.rs:46: mod if_expr;
-src/hir/lower/body/mod.rs:47: mod ensure;
-src/hir/lower/body/mod.rs:48: mod literal;
-src/hir/lower/body/mod.rs:49: mod collect_enum;
-src/hir/lower/body/mod.rs:50: mod const_coerce;
-src/hir/lower/body/mod.rs:51: mod const_array;
-src/hir/lower/body/mod.rs:52: mod const_struct;
-src/hir/lower/body/mod.rs:53: mod const_eval;
-src/hir/lower/body/mod.rs:54: mod const_fn;
-src/hir/lower/body/mod.rs:55: mod collect_import;
-src/hir/lower/body/mod.rs:56: mod collect_import_source;
-src/hir/lower/body/mod.rs:57: mod collect_import_path;
-src/hir/lower/body/mod.rs:58: mod expr_access;
-src/hir/lower/body/mod.rs:59: mod expr_call;
-src/hir/lower/body/mod.rs:60: mod expr_call_builtins;
-src/hir/lower/body/mod.rs:61: mod expr_call_args;
-src/hir/lower/body/mod.rs:62: mod expr_call_extra;
-src/hir/lower/body/mod.rs:63: mod concurrency;
-src/hir/lower/body/mod.rs:64: mod block_lower;
-src/hir/lower/body/mod.rs:65: mod expr_cast;
-src/hir/lower/body/mod.rs:66: mod expr_enum;
-src/hir/lower/body/mod.rs:67: mod expr_misc;
-src/hir/lower/body/mod.rs:68: mod expr_ops1;
-src/hir/lower/body/mod.rs:69: mod expr_unary;
-src/hir/lower/body/mod.rs:70: mod expr_method_arrays;
-src/hir/lower/body/mod.rs:71: mod return_check;
-src/hir/lower/body/mod.rs:72: mod divergence;
-src/hir/lower/body/mod.rs:73: mod expr_reinterpret;
+src/hir/lower/body/mod.rs:12: mod collect_struct;
+src/hir/lower/body/mod.rs:13: mod vtables;
+src/hir/lower/body/mod.rs:14: mod iface_args;
+src/hir/lower/body/mod.rs:15: mod iface_match;
+src/hir/lower/body/mod.rs:16: mod overload_resolve;
+src/hir/lower/body/mod.rs:17: mod overload_method;
+src/hir/lower/body/mod.rs:18: mod generic_check;
+src/hir/lower/body/mod.rs:19: mod generic_check_expr;
+src/hir/lower/body/mod.rs:20: mod generic_infer;
+src/hir/lower/body/mod.rs:21: mod generic_locals;
+src/hir/lower/body/mod.rs:22: mod generic_specialize;
+src/hir/lower/body/mod.rs:23: mod generic_types;
+src/hir/lower/body/mod.rs:24: mod lower_items;
+src/hir/lower/body/mod.rs:25: mod stmt_lower;
+src/hir/lower/body/mod.rs:26: mod stmt_sync;
+src/hir/lower/body/mod.rs:27: mod stmt_deref;
+src/hir/lower/body/mod.rs:28: mod stmt_loops;
+src/hir/lower/body/mod.rs:29: mod ref_assign;
+src/hir/lower/body/mod.rs:30: mod ref_protocol;
+src/hir/lower/body/mod.rs:31: mod expr_method;
+src/hir/lower/body/mod.rs:32: mod expr_method_ptr;
+src/hir/lower/body/mod.rs:33: mod expr_layout;
+src/hir/lower/body/mod.rs:34: mod expr_static_assert;
+src/hir/lower/body/mod.rs:35: mod const_eval_binary;
+src/hir/lower/body/mod.rs:36: mod expr_struct;
+src/hir/lower/body/mod.rs:37: mod match_coverage;
+src/hir/lower/body/mod.rs:38: mod match_variant;
+src/hir/lower/body/mod.rs:39: mod match_lower;
+src/hir/lower/body/mod.rs:40: mod match_pattern;
+src/hir/lower/body/mod.rs:41: mod match_setup;
+src/hir/lower/body/mod.rs:42: mod match_util;
+src/hir/lower/body/mod.rs:43: mod usage_infer;
+src/hir/lower/body/mod.rs:44: mod macro_call;
+src/hir/lower/body/mod.rs:45: mod expr_logic;
+src/hir/lower/body/mod.rs:46: mod expr_lower;
+src/hir/lower/body/mod.rs:47: mod if_expr;
+src/hir/lower/body/mod.rs:48: mod ensure;
+src/hir/lower/body/mod.rs:49: mod literal;
+src/hir/lower/body/mod.rs:50: mod collect_enum;
+src/hir/lower/body/mod.rs:51: mod const_coerce;
+src/hir/lower/body/mod.rs:52: mod const_array;
+src/hir/lower/body/mod.rs:53: mod const_struct;
+src/hir/lower/body/mod.rs:54: mod const_eval;
+src/hir/lower/body/mod.rs:55: mod const_fn;
+src/hir/lower/body/mod.rs:56: mod collect_import;
+src/hir/lower/body/mod.rs:57: mod collect_import_source;
+src/hir/lower/body/mod.rs:58: mod collect_import_path;
+src/hir/lower/body/mod.rs:59: mod expr_access;
+src/hir/lower/body/mod.rs:60: mod expr_call;
+src/hir/lower/body/mod.rs:61: mod expr_call_builtins;
+src/hir/lower/body/mod.rs:62: mod expr_call_args;
+src/hir/lower/body/mod.rs:63: mod expr_call_extra;
+src/hir/lower/body/mod.rs:64: mod concurrency;
+src/hir/lower/body/mod.rs:65: mod block_lower;
+src/hir/lower/body/mod.rs:66: mod expr_cast;
+src/hir/lower/body/mod.rs:67: mod expr_enum;
+src/hir/lower/body/mod.rs:68: mod expr_misc;
+src/hir/lower/body/mod.rs:69: mod expr_ops1;
+src/hir/lower/body/mod.rs:70: mod expr_unary;
+src/hir/lower/body/mod.rs:71: mod expr_method_arrays;
+src/hir/lower/body/mod.rs:72: mod return_check;
+src/hir/lower/body/mod.rs:73: mod divergence;
+src/hir/lower/body/mod.rs:74: mod expr_reinterpret;
 src/hir/lower/body/overload_method.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_method.rs:9: pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
 src/hir/lower/body/overload_method.rs:39: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
@@ -2982,7 +2990,7 @@ src/package/generic_scope/walk.rs:6: pub(super) fn calls_in_block(
 src/package/generic_scope/walk.rs:18: fn calls_in_stmt(stmt: &Stmt, out: &mut HashSet<Symbol>)
 src/package/generic_scope/walk.rs:97: fn calls_in_expr(expr: &Expr, out: &mut HashSet<Symbol>)
 src/package/generic_scope.rs:16: mod walk;
-src/package/generic_scope.rs:18: pub(crate) const SCOPE_PREFIX: &str = "__ayanami_scope_";
+src/package/generic_scope.rs:18: pub const SCOPE_PREFIX: &str = "__ayanami_scope_";
 src/package/generic_scope.rs:20: pub(crate) fn scope_name(package: &str) -> String
 src/package/generic_scope.rs:28: impl super::Package
 src/package/generic_scope.rs:29: pub(crate) fn add_generic_scope_source(&mut self, stmts: &[Stmt])
@@ -3005,9 +3013,9 @@ src/package/mod.rs:8: pub(crate) mod const_codec;
 src/package/mod.rs:9: mod generic_scope;
 src/package/mod.rs:10: mod load;
 src/package/mod.rs:11: mod plugin;
-src/package/mod.rs:15: mod symbols;
-src/package/mod.rs:16: mod target;
-src/package/mod.rs:17: mod types;
+src/package/mod.rs:16: mod symbols;
+src/package/mod.rs:17: mod target;
+src/package/mod.rs:18: mod types;
 src/package/plugin/tests.rs:4: fn test_parse_valid_manifest()
 src/package/plugin/tests.rs:24: fn test_no_plugin_section()
 src/package/plugin/tests.rs:33: fn test_missing_abi()

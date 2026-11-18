@@ -29,11 +29,12 @@ pub(crate) fn cmd_dump(args: &[String]) {
             std::process::exit(1);
         }
     };
+    let visible_program = without_scope_items(&cf.program);
     let expanded = || -> std::result::Result<ayanami::parser::ast::Program, String> {
-        ayanami::compiler::macro_expand::expand(&cf.program, &path).map_err(|e| e.to_string())
+        ayanami::compiler::macro_expand::expand(&visible_program, &path).map_err(|e| e.to_string())
     };
     let out = match stage {
-        "ast" => ayanami::compiler::format_program(&cf.program),
+        "ast" => ayanami::compiler::format_program(&visible_program),
         // mcl.3：宏展开后的源码（调试/IDE 视图）
         "expanded" => match expanded() {
             Ok(p) => ayanami::formatter::format_program(&p),
@@ -43,21 +44,60 @@ pub(crate) fn cmd_dump(args: &[String]) {
             Ok(json) => json,
             Err(e) => { ayanami::diagnostics::error(&format!("dump macros failed: {}", e)); std::process::exit(1); }
         },
-        "hir" => match expanded().and_then(|p| ayanami::hir::lower_program(&p).map_err(|e| e.to_string())) {
+        "hir" => match expanded().and_then(|p| lower_visible_hir(&p)) {
             Ok(hir) => ayanami::hir::hir_program_to_string(&hir),
             Err(e) => { ayanami::diagnostics::error(&format!("dump hir failed: {}", e)); std::process::exit(1); }
         },
         "mir" => match expanded()
-            .and_then(|p| ayanami::hir::lower_program(&p).map_err(|e| e.to_string()))
-            .and_then(|hir| ayanami::mir::lower_program(&hir).map_err(|e| e.to_string()))
+            .and_then(|p| lower_visible_hir(&p))
+            .and_then(|hir| lower_visible_mir(&hir))
         {
             Ok(mir) => ayanami::mir::mir_program_to_string(&mir),
             Err(e) => { ayanami::diagnostics::error(&format!("dump mir failed: {}", e)); std::process::exit(1); }
         },
-        "lir" => ayanami::lir::lir_program_to_string(&cf.lir_program),
+        "lir" => {
+            let mut lir = cf.lir_program.clone();
+            lir.functions.retain(|f| !is_scope_name(&f.name));
+            ayanami::lir::lir_program_to_string(&lir)
+        }
         "llvm" => cf.llvm_ir.clone(),
         _ => { eprintln!("error: unknown stage `{}` (ast|expanded|macros|hir|mir|lir|llvm)", stage); std::process::exit(1); }
     };
     print!("{}", out);
     let _ = fs::remove_dir_all(&tmp);
+}
+
+fn is_scope_name(name: &ayanami::intern::Symbol) -> bool {
+    name.as_str().starts_with(ayanami::package::SCOPE_PREFIX)
+}
+
+fn without_scope_items(program: &ayanami::parser::ast::Program) -> ayanami::parser::ast::Program {
+    let mut visible = program.clone();
+    visible.stmts.retain(|stmt| {
+        !matches!(
+            stmt,
+            ayanami::parser::ast::Stmt::Namespace { name, .. } if is_scope_name(name)
+        )
+    });
+    visible
+}
+
+fn lower_visible_hir(
+    program: &ayanami::parser::ast::Program,
+) -> std::result::Result<ayanami::hir::HirProgram, String> {
+    let mut hir = ayanami::hir::lower_program(program).map_err(|e| e.to_string())?;
+    hir.items.retain(|item| {
+        !matches!(item, ayanami::hir::HirItem::Namespace { name, .. } if is_scope_name(name))
+    });
+    Ok(hir)
+}
+
+fn lower_visible_mir(
+    hir: &ayanami::hir::HirProgram,
+) -> std::result::Result<ayanami::mir::MirProgram, String> {
+    let mut mir = ayanami::mir::lower_program(hir).map_err(|e| e.to_string())?;
+    mir.items.retain(|item| {
+        !matches!(item, ayanami::mir::MirItem::Namespace { name, .. } if is_scope_name(name))
+    });
+    Ok(mir)
 }

@@ -46,7 +46,7 @@ HIR Program
             capability:
             Literal(Int(0))
 │ │ }
-│ Fn expand (self: ref mut Named(ArrayList<int>)) -> Void [locals: 5]
+│ Fn __ayanami_scope_arraylist.expand (self: ref mut Named(ArrayList<int>)) -> Void [locals: 5]
 │   local self: ref mut Named(ArrayList<int>)
 │   local tmp: unique [Int]
 │   local i: Int
@@ -90,8 +90,8 @@ HIR Program
                   FieldAccess capability ty=u64
                     Local(v0 : ref mut Named(ArrayList<int>))
                   Literal(Int(2))
-                  Literal(Int(9))
-                  Literal(Int(39))
+                  Literal(Int(30))
+                  Literal(Int(43))
                   FileArg("example/test_bounds.aya")
 │ │ │ │ │ Block {
 │ │ │ │ │ │ Assign
@@ -134,8 +134,8 @@ HIR Program
 │ │ │ │ │ │ │ │ │ Block {
 │ │ │ │ │ │ │ │ │ │ Expr
                       Call(fn(N), ty: Void)
-                        Literal(Int(11))
-                        Literal(Int(35))
+                        Literal(Int(32))
+                        Literal(Int(39))
                         FileArg("example/test_bounds.aya")
                         Local(v3 : Int)
                         Local(v4 : Int)
@@ -177,8 +177,8 @@ HIR Program
               FieldAccess capability ty=u64
                 Local(v0 : ref mut Named(ArrayList<int>))
               Literal(Int(2))
-              Literal(Int(14))
-              Literal(Int(47))
+              Literal(Int(35))
+              Literal(Int(51))
               FileArg("example/test_bounds.aya")
 │ │ │ │ }
 │ │ }
