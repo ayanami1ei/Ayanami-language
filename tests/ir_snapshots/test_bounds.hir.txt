@@ -255,14 +255,12 @@ HIR Program
           Literal(Int(29))
           FileArg("example/test_bounds.aya")
 │ │ }
-│ Fn index (self: ref Named(ArrayList<int>), index: u64, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 7]
+│ Fn index (self: ref Named(ArrayList<int>), index: u64, __line: Int, __col: Int, __file: Named(String)) -> Int [locals: 5]
 │   local self: ref Named(ArrayList<int>)
 │   local index: u64
 │   local __line: Int
 │   local __col: Int
 │   local __file: Named(String)
-│   local __idx: Int
-│   local __len: Int
 │ │ Block {
 │ │ │ If
 │ │ │   cond:
@@ -284,42 +282,14 @@ HIR Program
               FieldAccess len ty=u64
                 Local(v0 : ref Named(ArrayList<int>))
 │ │ │ │ }
-│ │ │ Assign
-│ │ │   target:
-        Local(v5 : Int)
-│ │ │   value:
-        Cast(ty: Int)
-          Local(v1 : u64)
-│ │ │ Assign
-│ │ │   target:
-        Local(v6 : Int)
-│ │ │   value:
-        FieldAccess capability ty=Int
-          Local(v0 : ref Named(ArrayList<int>))
-│ │ │ If
-│ │ │   cond:
-        Binary { op: Ge, ty: u64 }
-          lhs:
-          Cast(ty: u64)
-            Local(v5 : Int)
-          rhs:
-          Cast(ty: u64)
-            Local(v6 : Int)
-│ │ │   then:
-│ │ │ │ Block {
-│ │ │ │ │ Expr
-            Call(fn(N), ty: Void)
-              Literal(Int(36))
-              Literal(Int(25))
-              FileArg("example/test_bounds.aya")
-              Local(v5 : Int)
-              Local(v6 : Int)
-│ │ │ │ }
-│ │ │ Return
-        Index ty=Int
-          object:
-          FieldAccess data ty=unique [Int]
-            Local(v0 : ref Named(ArrayList<int>))
-          index:
-          Local(v5 : Int)
+│ │ │ Block {
+│ │ │ │ Return
+          Index ty=Int
+            object:
+            FieldAccess data ty=unique [Int]
+              Local(v0 : ref Named(ArrayList<int>))
+            index:
+            Cast(ty: Int)
+              Local(v1 : u64)
+│ │ │ }
 │ │ }
