@@ -1,8 +1,11 @@
-# 异步（async）设计提案
+# 异步（async）设计与实现
 
-> 状态：**设计提案（Proposed，未实现；语法与约定在实现开工时冻结）**（2026-10-18）。
-> 关联：bd `Ayanami-language-038.4`、GitHub #63。
-> 联动：M7 并发（`038`，未开工）、效应系统 A3（`docs/annotations.md`；A3a–c 已落地，A3d 待做）、
+> 状态：**A1a/A1b 已实现；A1c/A1d/A2/A3 分批推进**（2026-11-18）。
+> 当前 `#[async]`/`await` 已覆盖直线、分支、循环、数值/迭代 for、match 语句与嵌套 Future；
+> 泛型/方法 async、跨 await 引用、HIR 原生状态机优化和多线程 runtime 仍待完成。
+
+> 关联：bd `Ayanami-language-038.5`–`038.8`、GitHub #63。
+> 联动：M7 并发（原语与 Send/Sync 已完成）、效应系统 A3（A3a–c 与 `?` U2 已落地）、
 > 闭包 M2 ✓、环境注入（`docs/env-injection.md`——异步运行时经 `env::runtime` 提供）。
 > 原始规划记录：`docs/future-directions.md`。
 
@@ -20,12 +23,12 @@
 
 | 能力 | 现状 |
 |---|---|
-| 协程 / async | 无 |
+| 协程 / async | A1a/A1b ✓（受限 AST-CFG 状态机）；A1c/A1d/A2/A3 待续 |
 | 枚举（状态机载体） | tag + 每变体载荷结构（`collect_enum.rs`）✓ |
 | 闭包 / 接口虚调用 | M2 ✓（胖指针 + vtable） |
 | 泛型单态化 / 弱链接去重 | ✓（`.lcl` 源码重实例化 + `linkonce_odr`） |
-| 效应 | A3a–c ✓；A3d（`?` 空效应消除）待做 |
-| 并发原语 | 无（M7 `038` 未开工） |
+| 效应 | A3a–c ✓；A3d U2（`?` 空效应消除）✓ |
+| 并发原语 | Atomic/Mutex/RwLock/Barrier/Once/Condvar/Channel/Thread ✓（M7） |
 
 ## 3. 设计
 
@@ -444,4 +447,3 @@ fn mixed(int x) -> int {
 - 编译器临时量（match/if 结果、借用临时）也要提升或保证不跨 await。
 - 状态机 drop 与现有 move 清零/drop 插入的交互需要专门回归（参考 #184/#216）。
 - HIR 重写会改变 IR 快照，需要逐阶段更新并人工核对。
-
