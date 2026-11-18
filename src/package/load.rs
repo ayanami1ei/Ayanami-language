@@ -141,9 +141,13 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             | ImportedSymbol::Transform { .. })
     });
     let path_ref = std::path::Path::new(path);
+    let in_std_workspace = std::env::current_dir().ok().is_some_and(|dir| {
+        dir.components().any(|c| c.as_os_str() == "std")
+    });
     let is_std_package = crate::compiler::find_std_dir()
         .is_some_and(|dir| path_ref.starts_with(dir))
         || path_ref.components().any(|c| c.as_os_str() == "std");
+    let is_std_package = is_std_package || in_std_workspace;
     match manifest {
         Some(ref m) => validate_manifest(m, path)?,
         None if has_plugin_symbols && !is_std_package => warn_missing_manifest(path),

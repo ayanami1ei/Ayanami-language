@@ -2921,13 +2921,13 @@ src/package/generic_scope.rs:81: fn collect_free_fns(stmts: &[Stmt]) -> (Vec<Stm
 src/package/generic_scope.rs:96: fn collect_generic_calls(stmts: &[Stmt], out: &mut HashSet<Symbol>) -> usize
 src/package/generic_scope.rs:124: fn make_linkonce(stmt: &Stmt) -> Stmt
 src/package/load.rs:4: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:157: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
-src/package/load.rs:179: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:191: pub fn load_version(path: &str) -> Option<String>
-src/package/load.rs:204: pub fn warn_version_drift(path: &str, stem: &str)
-src/package/load.rs:206: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
-src/package/load.rs:224: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:258: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:161: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
+src/package/load.rs:183: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:195: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:208: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:210: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:228: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:262: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod annotate;
 src/package/mod.rs:7: mod bytes;
@@ -3778,6 +3778,7 @@ example/test_if_expr.aya:2: fn pick(int x) -> int
 example/test_if_expr.aya:7: fn pick2(bool c) -> int
 example/test_if_expr.aya:15: fn classify(int x) -> int
 example/test_if_expr.aya:20: fn main() -> int
+example/test_if_expr_temp_receiver.aya:6: fn main() -> int
 example/test_iface_box.aya:5: interface It[T]
 example/test_iface_box.aya:6: fn next(ref mut self) -> Option[T];
 example/test_iface_box.aya:9: struct ArrIt
