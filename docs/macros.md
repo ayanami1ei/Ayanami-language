@@ -1,6 +1,6 @@
 # Phase 6：宏系统升级（文本 → AST/HIR）设计
 
-> 状态：**mcl.1 / mcl.2 / mcl.3 部分实现**（TokenStream 编解码（含分组）+ token 宏（item/语句/表达式）+ hygiene 原语 + 诊断通道（含调用点）+ `dump expanded` / 展开追踪 / 错误包装；std API / span 归属与自动改名待做）（2026-10-18）。关联：bd `Ayanami-language-mcl`（epic）与
+> 状态：**mcl.1 完成；mcl.2 / mcl.3 部分实现**（TokenStream 编解码（含分组）+ std TokenStream/Span/Token API + token 宏（item/语句/表达式）+ hygiene 原语 + 诊断通道（含调用点）+ `dump expanded` / 展开追踪 / 错误包装；token span 归属与自动改名待做）（2026-11-18）。关联：bd `Ayanami-language-mcl`（epic）与
 > `mcl.1`（TokenStream/Span/Diagnostic）/ `mcl.2`（hygiene 与错误定位）/ `mcl.3`（展开调试与 IDE）；
 > GitHub #43 / #42 / #45 / #62。现状（A5 已落地部分）见 `docs/annotations.md` §A5。
 
@@ -93,7 +93,7 @@ pub fn diag_warn(String msg, Span span)
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| **mcl.1**（部分 ✓） | ABI v6/v7：TokenStream 编解码（分组 token 已支持）+ 编译器侧桥（字节通道）+ 宏分类（`#[macro(tokens)]`；item/语句/表达式三形态） | 正例：`example/test_macro_tokens.aya`（`tok_keep` 往返 / `tok_twice` 拼接 / `#tok_expr` 表达式）+ 编解码单测 ×3；回归全绿；**待做**：std `TokenStream` API |
+| **mcl.1**（完成） | ABI v6/v7：TokenStream 编解码（分组 token 已支持）+ 编译器侧桥（字节通道）+ 宏分类（`#[macro(tokens)]`；item/语句/表达式三形态）+ std `Span`/`Token`/`TokenStream` 字节 API | 正例：`example/test_macro_tokens.aya`（`tok_keep` 往返 / `tok_twice` 拼接 / `#tok_expr` 表达式）+ 编译器/std 编解码单测；回归全绿 |
 | **mcl.2**（部分 ✓） | hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ Diagnostic 通道（warn/error + 宏名 + 调用点 `at l:c`） | 正例：`example/test_macro_hygiene.aya`（生成名不捕获用户同名函数 + warn 带位置）；负例：`macro_diag_error.aya`；**待做**：token span 归属/自动改名、`#[check]` 渲染统一 |
 | **mcl.3**（部分 ✓） | `ayanami dump expanded <file>`（展开后源码）+ `AYANAMI_MACRO_TRACE=1` 追踪 | `dump expanded` 输出展开后源码（宏替换可见）；**待做**：span 映射链（IDE 视图） |
 | 远期 | 其它语言插件 / WASM 沙箱 / 插件清单与权限 | — |
