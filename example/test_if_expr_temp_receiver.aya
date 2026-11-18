@@ -1,0 +1,16 @@
+// #211：if 表达式/赋值表达式中的链式临时接收者必须保持到方法调用结束
+import "convert";
+
+import "option";
+
+fn main() -> int {
+    bad = if "-1".try_parse_uint().is_none() { 0 } else { 1 }
+    if bad != 0 { return bad }
+
+    good = if "42".try_parse_uint().is_none() { 2 } else { 0 }
+    if good != 0 { return good }
+
+    assigned = if "-7".try_parse_uint().is_none() { 0 } else { 3 }
+    if assigned != 0 { return assigned }
+    return 0
+}
