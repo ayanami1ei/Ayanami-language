@@ -91,6 +91,7 @@ impl crate::hir::lower::Ctx {
         }
         // #168：按推断出的返回类型补校验待定 return
         check_pending_returns(name_sym, &inferred_ret, &ret_checks)?;
+        check_bare_returns(name_sym, &inferred_ret, &hir_fn.body.stmts)?;
         self.lambda_fns.push(hir_fn);
 
         let param_tys: Vec<HirType> = hir_params.iter().map(|(_, t)| t.clone()).collect();

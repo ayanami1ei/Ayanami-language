@@ -1,0 +1,8 @@
+fn main() -> int {
+    captured = 1
+    f = (bool c) {
+        if c { return }
+        return captured
+    }
+    return f(true)
+}

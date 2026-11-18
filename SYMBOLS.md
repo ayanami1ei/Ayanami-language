@@ -1152,12 +1152,14 @@ src/hir/lower/helpers/closure_lower.rs:26: impl LambdaEnv
 src/hir/lower/helpers/closure_lower.rs:27: pub fn lookup(&self, name: &Symbol) -> Option<(usize, HirType)>
 src/hir/lower/helpers/closure_lower.rs:33: pub(crate) fn closure_iface_name(params: &[HirType], ret: &HirType) -> Symbol
 src/hir/lower/helpers/closure_lower.rs:45: pub(crate) fn mangle_for_symbol(ty: &HirType) -> String
-src/hir/lower/helpers/closure_lower.rs:65: pub(crate) fn find_return_type(stmts: &[crate::hir::HirStmt]) -> Option<HirType>
-src/hir/lower/helpers/closure_lower.rs:93: pub(crate) fn check_pending_returns(
-src/hir/lower/helpers/closure_lower.rs:120: impl crate::hir::lower::Ctx
-src/hir/lower/helpers/closure_lower.rs:122: pub(crate) fn lower_closure_lambda(
-src/hir/lower/helpers/closure_lower.rs:245: fn lower_closure_drop_fn(&mut self, fn_id: FnId, name: Symbol, params: &Vec<(Symbol, Type)>) -> Result<()>
-src/hir/lower/helpers/closure_lower.rs:261: fn capture_source_expr(&mut self, name: &Symbol) -> Result<HirNodeBox>
+src/hir/lower/helpers/closure_lower.rs:64: impl crate::hir::lower::Ctx
+src/hir/lower/helpers/closure_lower.rs:66: pub(crate) fn lower_closure_lambda(
+src/hir/lower/helpers/closure_lower.rs:190: fn lower_closure_drop_fn(&mut self, fn_id: FnId, name: Symbol, params: &Vec<(Symbol, Type)>) -> Result<()>
+src/hir/lower/helpers/closure_lower.rs:206: fn capture_source_expr(&mut self, name: &Symbol) -> Result<HirNodeBox>
+src/hir/lower/helpers/closure_return.rs:5: pub(crate) fn find_return_type(stmts: &[crate::hir::HirStmt]) -> Option<HirType>
+src/hir/lower/helpers/closure_return.rs:31: pub(crate) fn check_pending_returns(
+src/hir/lower/helpers/closure_return.rs:59: pub(crate) fn check_bare_returns(
+src/hir/lower/helpers/closure_return.rs:67: fn find(stmts: &[crate::hir::HirStmt]) -> Option<Span>
 src/hir/lower/helpers/closure_static.rs:15: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/closure_static.rs:17: pub(crate) fn make_static_closure(
 src/hir/lower/helpers/closure_static.rs:33: fn ensure_closure_tramp(&mut self, ps: &[HirType], ret: &HirType) -> (Symbol, Symbol)
@@ -1194,17 +1196,18 @@ src/hir/lower/helpers/mod.rs:19: mod caller;
 src/hir/lower/helpers/mod.rs:20: mod closure;
 src/hir/lower/helpers/mod.rs:21: mod closure_checks;
 src/hir/lower/helpers/mod.rs:22: mod closure_lower;
-src/hir/lower/helpers/mod.rs:23: mod closure_static;
-src/hir/lower/helpers/mod.rs:24: mod coerce;
-src/hir/lower/helpers/mod.rs:25: mod overflow;
-src/hir/lower/helpers/mod.rs:26: mod convert;
-src/hir/lower/helpers/mod.rs:27: mod fn_type;
-src/hir/lower/helpers/mod.rs:28: mod substitute;
-src/hir/lower/helpers/mod.rs:29: mod substitute_stmt;
-src/hir/lower/helpers/mod.rs:30: mod types;
-src/hir/lower/helpers/mod.rs:31: mod types_sig;
-src/hir/lower/helpers/mod.rs:32: mod unify;
-src/hir/lower/helpers/mod.rs:33: mod wrap;
+src/hir/lower/helpers/mod.rs:23: mod closure_return;
+src/hir/lower/helpers/mod.rs:24: mod closure_static;
+src/hir/lower/helpers/mod.rs:25: mod coerce;
+src/hir/lower/helpers/mod.rs:26: mod overflow;
+src/hir/lower/helpers/mod.rs:27: mod convert;
+src/hir/lower/helpers/mod.rs:28: mod fn_type;
+src/hir/lower/helpers/mod.rs:29: mod substitute;
+src/hir/lower/helpers/mod.rs:30: mod substitute_stmt;
+src/hir/lower/helpers/mod.rs:31: mod types;
+src/hir/lower/helpers/mod.rs:32: mod types_sig;
+src/hir/lower/helpers/mod.rs:33: mod unify;
+src/hir/lower/helpers/mod.rs:34: mod wrap;
 src/hir/lower/helpers/overflow.rs:10: pub(crate) fn ovf_op_name(op: &BinaryOp) -> Option<&'static str>
 src/hir/lower/helpers/overflow.rs:19: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/overflow.rs:21: pub(crate) fn lower_ovf_call(&mut self, op_name: &str, ty: &HirType, lhs: HirNodeBox, rhs: HirNodeBox, span: &Span) -> HirNodeBox

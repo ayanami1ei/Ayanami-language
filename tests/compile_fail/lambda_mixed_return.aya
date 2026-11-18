@@ -1,0 +1,7 @@
+fn main() -> int {
+    f = (bool c) {
+        if c { return }
+        return 1
+    }
+    return f(true)
+}

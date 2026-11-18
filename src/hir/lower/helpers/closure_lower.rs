@@ -61,62 +61,6 @@ pub(crate) fn mangle_for_symbol(ty: &HirType) -> String {
     out
 }
 
-/// #119：从 lambda body 的 return 值推断返回类型（递归，取第一个带值 return）。
-pub(crate) fn find_return_type(stmts: &[crate::hir::HirStmt]) -> Option<HirType> {
-    for s in stmts {
-        match s {
-            // 比较运算在 HIR 中保留操作数类型（Bool 由 MIR 决定）→ 按 Bool 推断
-            crate::hir::HirStmt::Return { value: Some(v), .. } => {
-                return Some(if v.is_comparison() { HirType::Bool } else { v.expr_type() });
-            }
-            crate::hir::HirStmt::If { then_block, elifs, else_block, .. } => {
-                if let Some(t) = find_return_type(&then_block.stmts) { return Some(t); }
-                for (_, b) in elifs {
-                    if let Some(t) = find_return_type(&b.stmts) { return Some(t); }
-                }
-                if let Some(b) = else_block {
-                    if let Some(t) = find_return_type(&b.stmts) { return Some(t); }
-                }
-            }
-            crate::hir::HirStmt::While { body, .. } => {
-                if let Some(t) = find_return_type(&body.stmts) { return Some(t); }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-/// #168：无标注 lambda 的返回类型推断完成后，校验此前登记的带值 `return`：
-/// 推断结果为 void 时按「void 函数不能返回值」报错；首个返回值若为 void，则后续非 void 返回值也不合法。
-/// （`!` 发散表达式是任意类型的子类型，不在此列。）
-pub(crate) fn check_pending_returns(
-    name: Symbol,
-    inferred_ret: &HirType,
-    checks: &[(Span, HirType)],
-) -> Result<()> {
-    let mut first_void_reported = false;
-    for (span, src_ty) in checks {
-        let src_is_void = matches!(super::strip_ownership_ref(src_ty), HirType::Void);
-        if matches!(inferred_ret, HirType::Void) {
-            if first_void_reported {
-                return Err(Error::Hir(format!(
-                    "function `{}` returns no value, but `return` has a value of type `{}` (at {}:{})",
-                    name, hir_type_display(src_ty), span.start_line, span.start_col
-                )));
-            }
-            first_void_reported = true;
-        } else if src_is_void {
-            return Err(Error::Hir(format!(
-                "function `{}` returns `{}`, but `return` has no value (`{}` call) (at {}:{})",
-                name, hir_type_display(inferred_ret), hir_type_display(src_ty),
-                span.start_line, span.start_col
-            )));
-        }
-    }
-    Ok(())
-}
-
 impl crate::hir::lower::Ctx {
     /// M2：有捕获 lambda → 闭包值（env + vtable + drop glue）。
     pub(crate) fn lower_closure_lambda(
@@ -216,6 +160,7 @@ impl crate::hir::lower::Ctx {
         }
         // #168：按推断出的返回类型补校验待定 return（此处才可能判定 void 与非 void 不匹配）
         check_pending_returns(name_sym, &inferred_ret, &ret_checks)?;
+        check_bare_returns(name_sym, &inferred_ret, &code_hir.body.stmts)?;
         // M2/FnOnce：体内移出捕获 → FnOnce（调用消费闭包；env 由被调用方释放）
         // 体内移出捕获 → FnOnce（调用方以临时变量持有并在作用域结束释放环境）
         let once = super::closure_checks::find_capture_move_out(&code_hir.body.stmts, VarId(0)).is_some();

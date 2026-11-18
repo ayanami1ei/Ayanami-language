@@ -1,0 +1,2 @@
+returns no value, but `return` has a value
+returns `int`, but `return;` has no value

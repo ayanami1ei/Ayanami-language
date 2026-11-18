@@ -41,6 +41,8 @@ thread 'main' panicked at <file>:<line>:<col>:
 - 引用存入字段/数组：`references cannot be stored ...`
 - 向不可变引用赋值：`cannot assign through an immutable reference`
 - 非 void 函数 `return;`：`returns \`T\` but \`return;\` has no value`
+- 未标注返回类型的 lambda 同时含裸 `return;` 与带值 `return`：推断为非 void 后，
+  裸 `return;` 在 HIR 阶段报错（#168 / 44f）
 
 ## 测试
 
