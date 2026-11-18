@@ -57,6 +57,7 @@ pub fn aya_str_contains(String s, String needle) -> bool {
 
 /// 重复 times 次
 #[alloc]
+#[state]
 pub fn aya_str_repeat(String s, int times) -> String {
     n = s.len as int * times;
     buf = [char; n];
@@ -74,6 +75,7 @@ pub fn aya_str_repeat(String s, int times) -> String {
 
 /// ASCII 大写
 #[alloc]
+#[state]
 pub fn aya_str_to_upper(String s) -> String {
     n = s.len as int;
     buf = [char; n];
@@ -89,6 +91,7 @@ pub fn aya_str_to_upper(String s) -> String {
 
 /// ASCII 小写
 #[alloc]
+#[state]
 pub fn aya_str_to_lower(String s) -> String {
     n = s.len as int;
     buf = [char; n];
@@ -198,6 +201,7 @@ fn aya_ch_to_lower(char k) -> char {
 
 /// int -> String（十进制；对应 std int.to_string）
 #[alloc]
+#[state]
 pub fn aya_int_to_string(int v) -> String {
     if v == 0 {
         z = [char; 1];
@@ -262,6 +266,7 @@ impl[T] Option[T] {
 
 /// char -> 单字符 String（String 拼接用；对应 rust 侧 char 参与 concat）
 #[alloc]
+#[state]
 pub fn aya_ch_to_string(char c) -> String {
     buf = [char; 1];
     buf[0] = c;

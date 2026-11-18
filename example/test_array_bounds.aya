@@ -2,6 +2,12 @@
 // #174：用户/std 显式声明运行时符号时不得重复 declare
 extern "C" fn __ayanami_panic_bounds_at(int line, int col, String file, int index, int len) -> void;
 
+pub fn local_array_state_probe() -> int {
+    x = [int; 2];
+    x[0] = 7;
+    return x[0]
+}
+
 fn main() -> int {
     a = [10, 20, 30, 40]
     i = 2
@@ -22,5 +28,6 @@ fn main() -> int {
     // 索引写入（同样越界检查）
     a[1] = 21
     if a[1] != 21 { return 7 }
+    if local_array_state_probe() != 7 { return 8 }
     return 0
 }

@@ -256,6 +256,9 @@ stage-1 只能用当前 Ayanami 已有的能力（见 `book/` 与 `README.md`）
     - 泛型单态化实例的 span=0 → 效果警告**无位置**（`raw_warn`）；`test_multi_constraint` 转正。
     - `String.add/to_string/substring/...` 的实现带 `#[alloc] #[state]`，调用点要同时标记
       alloc+state（`is_std_state_name`）；`Ptr.new`/`Box.new` 仅 alloc。
+    - `IndexAssign` 的 state 规则与 rust `is_observable_target` 对齐：先由 checker 推断目标类型，
+      `[T]`/`[T; n]`（拥有数组）或引用/指针根上的元素写计 state；prelude 参与 effect 传播，
+      但与预编译 std 一样不回放“缺少注解”警告。`test_array_bounds` 的 public 数组写探针覆盖该差异。
     - stage-0 按**单态化实例数**重复警告，自举已对齐（2026-10-25）：
       checker 的 `CheckOut` 按 FnDecl node 记录泛型 pub 警告（defer 模式下不打印）；
       emitter 的 `SpecOut` 暴露 `spec_nodes` 顺序；driver 在 `emit_program` 后按 spec 顺序回放

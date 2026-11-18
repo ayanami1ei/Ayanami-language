@@ -227,6 +227,16 @@ fn is_std_src_path(ref String p) -> bool {
     return false;
 }
 
+/// 自举 prelude 等价于 stage-0 的预编译 std 实现：参与推断，但不向用户回放
+/// “缺少 effect 注解”提示。兼容相对/绝对路径。
+fn is_selfhost_prelude_path(ref String p) -> bool {
+    if p.len == 0 { return false; }
+    if p.index_of("/base/prelude.aya") >= 0 { return true; }
+    if p == "src/base/prelude.aya" { return true; }
+    if p == "prelude.aya" { return true; }
+    return false;
+}
+
 /// 上述 std 分配名中实现带 #[state] 的子集（String 缓冲构造；Ptr/Box.new 仅 alloc）
 fn is_std_state_name(ref String name) -> int {
     if name == "String.add" { return 1; }
@@ -836,7 +846,8 @@ impl Checker {
                 // std 源（本仓 std/ 子仓）在 stage-0 是预编译 .lcl，不参与效果诊断
                 mfs = self.map_pos(self.fx_line[i]);
                 std_src = is_std_src_path(mfs);
-                if std_src == false && (self.fx_mask[i] / 2048) % 2 == 0 {
+                internal_src = is_selfhost_prelude_path(mfs);
+                if std_src == false && internal_src == false && (self.fx_mask[i] / 2048) % 2 == 0 {
                     // 非 pure：检查缺失声明
                     if self.fx_alloc[i] == 1 && (self.fx_mask[i] / 256) % 2 == 0 {
                         w = StringBuf::new();
@@ -1638,10 +1649,6 @@ impl Checker {
                 if self.fx_root_is_ref(ast, ast.aa[id]) {
                     self.fx_state[self.cur_fx] = 1;
                 }
-            } elif tag == st(ST::IndexAssign._tag) {
-                if self.fx_root_is_ref(ast, ast.aa[id]) {
-                    self.fx_state[self.cur_fx] = 1;
-                }
             } elif tag == st(ST::Assign._tag) {
                 if ast.aa[id] >= 0 {
                     if ast.tags[ast.aa[id]] == et(ET::Ref._tag) {
@@ -1786,9 +1793,20 @@ impl Checker {
                 }
             }
         } elif tag == st(ST::IndexAssign._tag) {
-            self.check_expr(ast, ast.aa[id]);
+            ot_i = self.check_expr(ast, ast.aa[id]);
             self.check_expr(ast, ast.bb[id]);
             self.check_expr(ast, ast.cc[id]);
+            // 与 rust is_observable_target 对齐：拥有数组（[T]/[T; n]）的元素写
+            // 会写入堆缓冲区；引用/指针链同样按外部可见写计 state。
+            if self.cur_fx >= 0 {
+                arr_i = 0;
+                if ot_i.len > 0 {
+                    if ot_i.index(0) == '[' { arr_i = 1; }
+                }
+                if arr_i == 1 || self.fx_root_is_ref(ast, ast.aa[id]) {
+                    self.fx_state[self.cur_fx] = 1;
+                }
+            }
         } elif tag == st(ST::DerefAssign._tag) {
             self.check_expr(ast, ast.aa[id]);
             self.check_expr(ast, ast.bb[id]);
@@ -2350,6 +2368,23 @@ impl Checker {
                 a = ast.nexts[a];
             }
             return "";
+        }
+        if tag == et(ET::ArraySized._tag) {
+            self.check_expr(ast, ast.bb[id]);
+            b_sz = StringBuf::new();
+            b_sz.push_str("[");
+            b_sz.push_str(type_name(ast, ast.tys[id]));
+            b_sz.push_str("]");
+            return b_sz.to_string();
+        }
+        if tag == et(ET::ArrayRepeat._tag) {
+            et_r = self.check_expr(ast, ast.aa[id]);
+            self.check_expr(ast, ast.bb[id]);
+            b_r = StringBuf::new();
+            b_r.push_str("[");
+            b_r.push_str(et_r);
+            b_r.push_str("]");
+            return b_r.to_string();
         }
         if tag == et(ET::ArrayLiteral._tag) {
             a = ast.aa[id];
