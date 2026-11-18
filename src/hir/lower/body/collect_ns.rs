@@ -19,6 +19,7 @@ impl crate::hir::lower::Ctx {
         for stmt in stmts {
             match stmt {
                 Stmt::FnDecl { name, params, return_type, generic_params, extern_c, is_unsafe, span, attrs, body, .. } => {
+                    let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
                     let full_name = if ns_prefix.is_empty() {
                         *name
                     } else {
@@ -28,20 +29,21 @@ impl crate::hir::lower::Ctx {
                         check_unique_generic_params(generic_params, span)?;
                         // Store generic function AST for later monomorphization;
                         // do NOT register it as a normal callable function.
-                        self.generic_fns.push((full_name, generic_params.clone(), stmt.clone(), false, None));
+                        let scope = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
+                        self.generic_fns.push((full_name, generic_params.clone(), stmt.clone(), false, scope));
                         continue;
                     }
                     let is_extern = *extern_c || crate::hir::attrs::has(attrs, "export");
                     let hir_return = if is_extern {
-                        ast_type_to_hir_extern(return_type, &self.interfaces)
+                        self.ast_type_to_hir_extern_scoped(return_type, module)
                     } else {
-                        ast_type_to_hir(return_type, &self.interfaces)
+                        self.ast_type_to_hir_scoped(return_type, module)
                     };
                     let hir_params: Vec<(Symbol, crate::hir::ty::HirType)> = params.iter()
                         .map(|(n, t)| (*n, if is_extern {
-                            ast_type_to_hir_extern(t, &self.interfaces)
+                            self.ast_type_to_hir_extern_scoped(t, module)
                         } else {
-                            ast_type_to_hir(t, &self.interfaces)
+                            self.ast_type_to_hir_scoped(t, module)
                         }))
                         .collect();
                     // extern 声明若与已导入的同签名函数重复，直接复用（避免重载歧义；
@@ -84,6 +86,8 @@ impl crate::hir::lower::Ctx {
                     self.collect_fns_with_ns(items, &nested)?;
                 }
                 Stmt::ConstDecl { vis, name, ty, value, span, .. } => {
+                    let source_scope = ns_prefix.starts_with(crate::package::SCOPE_PREFIX);
+                    let saved_visible = source_scope.then(|| self.consts.get(name).cloned()).flatten();
                     self.collect_const_decl(*name, ty.as_ref(), value, span, vis.is_public())?;
                     // M6.3b：数组/结构体常量走常量表（statics）——命名空间限定名与 static 一致
                     if self.statics.contains_key(name) {
@@ -111,8 +115,16 @@ impl crate::hir::lower::Ctx {
                             }
                         }
                     }
+                    if source_scope {
+                        match saved_visible {
+                            Some(v) => { self.consts.insert(*name, v); }
+                            None => { self.consts.remove(name); }
+                        }
+                    }
                 }
                 Stmt::StaticDecl { vis, name, is_mut, ty, value, span, .. } => {
+                    let source_scope = ns_prefix.starts_with(crate::package::SCOPE_PREFIX);
+                    let saved_visible = source_scope.then(|| self.statics.get(name).cloned()).flatten();
                     self.collect_static_decl(*name, *is_mut, vis.is_public(), ty.as_ref(), value, span)?;
                     // M6.2b：命名空间 static：限定名 `ns.NAME` 为发射符号；裸名是同符号别名
                     if !ns_prefix.is_empty() {
@@ -122,25 +134,41 @@ impl crate::hir::lower::Ctx {
                             self.statics.insert(qualified, crate::hir::HirStatic { name: qualified, ..st });
                         }
                     }
+                    if source_scope {
+                        match saved_visible {
+                            Some(v) => { self.statics.insert(*name, v); }
+                            None => { self.statics.remove(name); }
+                        }
+                    }
                 }
                 Stmt::InterfaceDef { name, methods, generic_params, span, .. } => {
                     check_unique_generic_params(generic_params, span)?;
+                    let type_name = self.scoped_type_symbol(ns_prefix, *name);
+                    let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
                     let hir_methods: Vec<HirInterfaceMethod> = methods.iter().map(|m| {
                         HirInterfaceMethod {
                             name: m.name,
                             self_keyword: m.self_keyword,
                             params: m.params.iter()
-                                .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+                                .map(|(n, t)| (*n, self.ast_type_to_hir_scoped(t, module)))
                                 .collect(),
-                            return_type: ast_type_to_hir(&m.return_type, &self.interfaces),
+                            return_type: self.ast_type_to_hir_scoped(&m.return_type, module),
                         }
                     }).collect();
-                    self.interfaces.insert(*name, InterfaceReg { generic_params: generic_params.clone(), methods: hir_methods });
+                    self.interfaces.insert(type_name, InterfaceReg { generic_params: generic_params.clone(), methods: hir_methods });
                 }
-                Stmt::StructDef { name, fields, generic_params, is_union, span, .. } => {
+                Stmt::StructDef { vis, name, fields, generic_params, is_union, span, .. } => {
                     check_unique_generic_params(generic_params, span)?;
+                    let type_name = self.scoped_type_symbol(ns_prefix, *name);
+                    if ns_prefix.is_empty() {
+                        self.source_declared_types.insert(type_name);
+                    }
+                    let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
                     let hir_fields: Vec<HirStructField> = fields.iter()
-                        .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
+                        .map(|(n, t)| HirStructField {
+                            name: *n,
+                            ty: self.ast_type_to_hir_scoped(t, module),
+                        })
                         .collect();
                     if *is_union {
                         // P3b：union —— 泛型暂不支持；字段限无 drop 类型（共享存储别名）
@@ -166,21 +194,44 @@ impl crate::hir::lower::Ctx {
                             ty: hir_fields.first().map(|f| f.ty.clone()).unwrap_or(HirType::Int),
                         }];
                         def.extend(hir_fields);
-                        self.struct_defs.insert(*name, def);
+                        self.struct_defs.insert(type_name, def);
                     } else {
-                        self.struct_defs.insert(*name, hir_fields);
+                        self.struct_defs.insert(type_name, hir_fields);
                         if !generic_params.is_empty() {
-                            self.generic_struct_params.insert(*name, generic_params.clone());
+                            self.generic_struct_params.insert(type_name, generic_params.clone());
                         }
                     }
+                    if ns_prefix.starts_with(crate::package::SCOPE_PREFIX)
+                        && !vis.is_public()
+                        && !self.source_declared_types.contains(name)
+                        && !Self::is_scope_shared_type(name)
+                    {
+                        self.struct_defs.remove(name);
+                        self.generic_struct_params.remove(name);
+                        self.type_ifaces.remove(name);
+                    }
                 }
-                Stmt::EnumDef { name, variants, generic_params, span, .. } => {
+                Stmt::EnumDef { vis, name, variants, generic_params, span, .. } => {
                     check_unique_generic_params(generic_params, span)?;
-                    self.collect_enum_def(name, variants, generic_params, ns_prefix)?
+                    let type_name = self.scoped_type_symbol(ns_prefix, *name);
+                    if ns_prefix.is_empty() {
+                        self.source_declared_types.insert(type_name);
+                    }
+                    self.collect_enum_def(&type_name, variants, generic_params, ns_prefix)?;
+                    if ns_prefix.starts_with(crate::package::SCOPE_PREFIX)
+                        && !vis.is_public()
+                        && !self.source_declared_types.contains(name)
+                        && !Self::is_scope_shared_type(name)
+                    {
+                        self.struct_defs.remove(name);
+                        self.generic_struct_params.remove(name);
+                        self.type_ifaces.remove(name);
+                    }
                 }
             Stmt::Import { path, span, .. } => self.collect_import(path, ns_prefix, *span)?,
                 Stmt::ImplBlock { methods, generic_params: impl_gp, span, .. } => {
                     check_unique_generic_params(impl_gp, span)?;
+                    let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
                     for method in methods {
                         if let Stmt::FnDecl { name, params, return_type, generic_params: method_gp, span: method_span, attrs: method_attrs, .. } = method {
                             // 合并 impl 级和方法级泛型参数：impl[T] LinkedList[T] { fn push[T: Ord](...) }
@@ -191,19 +242,30 @@ impl crate::hir::lower::Ctx {
                             };
                             check_unique_generic_params(&combined_gp, method_span)?;
                             if !combined_gp.is_empty() {
-                                self.generic_fns.push((*name, combined_gp, method.clone(), true, None));
+                                let method_name = if ns_prefix.is_empty() {
+                                    *name
+                                } else {
+                                    Symbol::intern(&format!("{}.{}", ns_prefix, name))
+                                };
+                                let scope = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
+                                self.generic_fns.push((method_name, combined_gp, method.clone(), true, scope));
                                 continue;
                             }
-                            let hir_return = ast_type_to_hir(return_type, &self.interfaces);
+                            let hir_return = self.ast_type_to_hir_scoped(return_type, module);
                             let hir_params: Vec<(Symbol, HirType)> = params.iter()
-                                .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+                                .map(|(n, t)| (*n, self.ast_type_to_hir_scoped(t, module)))
                                 .collect();
                             let fn_id = FnId(self.fns.len());
+                            let method_name = if ns_prefix.is_empty() {
+                                *name
+                            } else {
+                                Symbol::intern(&format!("{}.{}", ns_prefix, name))
+                            };
                             let hidden = count_hidden_params(&hir_params);
                             let is_noreturn = crate::hir::attrs::has(method_attrs, "noreturn")
                                 || matches!(hir_return, HirType::Never);
                             self.fns.push(FnSig {
-                                name: *name,
+                                name: method_name,
                                 params: hir_params,
                                 return_type: hir_return,
                                 span: *method_span,
@@ -214,7 +276,7 @@ impl crate::hir::lower::Ctx {
                                 extern_c: false,
                                 is_unsafe: false,
                             });
-                            self.fn_map.entry(*name).or_default().push(fn_id);
+                            self.fn_map.entry(method_name).or_default().push(fn_id);
                             self.method_fn_ids.insert(fn_id);
                         } else {
                             let s = method.span();

@@ -946,6 +946,12 @@ if [ -d tests/lcl_nsr ]; then
         echo "FAIL $ndir/entry.aya: exit $got, want 0（nsr 跨模块同名私有函数）"
         fail=$((fail + 1))
     fi
+    timeout 120 "$BIN" check "$ndir/private_entry.aya" >/dev/null 2>&1
+    got=$?
+    if [ "$got" = 0 ]; then
+        echo "FAIL $ndir/private_entry.aya: private source type leaked into consumer"
+        fail=$((fail + 1))
+    fi
     # 包文件可被改名/别名安装；来源作用域必须从包内容恢复，而不是取 import stem。
     cp "$ndir/lib.lcl" "$(dirname "$BIN")/std/lib_alias.lcl" 2>/dev/null || true
     timeout 120 "$BIN" run "$ndir/alias_entry.aya" >/dev/null 2>&1

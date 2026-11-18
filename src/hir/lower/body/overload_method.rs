@@ -8,19 +8,30 @@ impl crate::hir::lower::Ctx {
     /// 接收者为首参的兼容用法）。
     pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
         arg_types: &[HirType], deref_arg_types: &[HirType], lit_mask: &[bool], span: &Span) -> Option<FnId> {
-        self.resolve_method_only(receiver_ty, method, arg_types)
-            .or_else(|| {
-                let mut all_param_types = vec![receiver_ty.clone()];
-                all_param_types.extend(deref_arg_types.iter().cloned());
-                if self.has_generic_method_candidate(method, receiver_ty, all_param_types.len()) {
-                    self.specialize_generic_method_call(method, &all_param_types, span).ok()
-                } else {
-                    None
-                }
-            })
-            .or_else(|| self.resolve_method(receiver_ty, method, arg_types))
-            .or_else(|| self.resolve_method_literals(receiver_ty, method, arg_types, lit_mask))
-            .or_else(|| self.resolve_method(receiver_ty, method, deref_arg_types))
+        let scoped = self.scoped_fn_name(*method);
+        let mut names = vec![scoped];
+        if scoped != *method {
+            names.push(*method);
+        }
+        for method in names {
+            if let Some(id) = self.resolve_method_only(receiver_ty, &method, arg_types)
+                .or_else(|| {
+                    let mut all_param_types = vec![receiver_ty.clone()];
+                    all_param_types.extend(deref_arg_types.iter().cloned());
+                    if self.has_generic_method_candidate(&method, receiver_ty, all_param_types.len()) {
+                        self.specialize_generic_method_call(&method, &all_param_types, span).ok()
+                    } else {
+                        None
+                    }
+                })
+                .or_else(|| self.resolve_method(receiver_ty, &method, arg_types))
+                .or_else(|| self.resolve_method_literals(receiver_ty, &method, arg_types, lit_mask))
+                .or_else(|| self.resolve_method(receiver_ty, &method, deref_arg_types))
+            {
+                return Some(id);
+            }
+        }
+        None
     }
 
     /// bd 8yn：方法调用候选顺序——impl 方法在前（自由函数同名时不抢占），

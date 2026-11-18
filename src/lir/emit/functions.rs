@@ -182,7 +182,11 @@ impl<'a> Emitter<'a> {
         // 该函数必须 internal，避免链接期重复定义；其余保持 debug 外部链接（M-opt.2）。
         let collides_with_import = self.prog.extern_decls.iter()
             .any(|d| d.name.as_str() == fn_name.as_str());
-        let linkage = if self.prog.specialized_fns.contains(&f.fn_id) || f.is_inline {
+        let has_inline_attr = f.attrs.iter().any(|a| a.name == "inline");
+        let linkage = if self.prog.specialized_fns.contains(&f.fn_id)
+            || f.is_inline
+            || has_inline_attr
+        {
             "linkonce_odr "
         } else if is_synth
             || (collides_with_import && !f.is_pub && !f.extern_c && fn_name != "main")
@@ -273,12 +277,6 @@ impl<'a> Emitter<'a> {
     }
 
 }
-
-// ----------------------------------------------------------------
-//  Utilities
-// ----------------------------------------------------------------
-
-
 
 fn escape_llvm_string(s: &str) -> String {
     // #122：按 UTF-8 字节转义（此前按 char 取低 8 位，非 ASCII 会截断且字节数不符）；

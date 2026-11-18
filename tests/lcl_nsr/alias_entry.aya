@@ -8,7 +8,9 @@ fn helper(int x) -> int {
 fn main() -> int {
     a = from_lib(1)
     b = generic_from_lib[int](1)
+    c = generic_complete[int](7)
     if a != 11 { return a }
     if b != 12 { return b }
+    if c != 35 { return c + 100 }
     return 0
 }

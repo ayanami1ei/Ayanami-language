@@ -44,7 +44,7 @@ impl crate::hir::lower::Ctx {
         let mut methods = HashSet::new();
         for program in &programs {
             for stmt in &program.stmts {
-                self.ingest_source_stmt(stmt, origin_scope, &mut methods)?;
+                self.ingest_source_stmt(stmt, origin_scope, "", &mut methods)?;
             }
         }
         Ok(methods)
@@ -54,13 +54,15 @@ impl crate::hir::lower::Ctx {
         &mut self,
         stmt: &Stmt,
         origin_scope: Symbol,
+        ns_prefix: &str,
         methods: &mut HashSet<Symbol>,
     ) -> Result<()> {
         match stmt {
             Stmt::FnDecl { name, generic_params, span, .. } if !generic_params.is_empty() => {
                 super::collect_ns::check_unique_generic_params(generic_params, span)?;
+                let full = qualified_name(ns_prefix, *name);
                 self.generic_fns.push((
-                    *name,
+                    full,
                     generic_params.clone(),
                     stmt.clone(),
                     false,
@@ -81,10 +83,10 @@ impl crate::hir::lower::Ctx {
                         combined.extend(generic_params.iter().cloned());
                         super::collect_ns::check_unique_generic_params(&combined, method_span)?;
                         if combined.is_empty() {
-                            methods.insert(*name);
+                            methods.insert(qualified_name(ns_prefix, *name));
                         } else {
                             self.generic_fns.push((
-                                *name,
+                                qualified_name(ns_prefix, *name),
                                 combined,
                                 method.clone(),
                                 true,
@@ -95,26 +97,13 @@ impl crate::hir::lower::Ctx {
                 }
             }
             Stmt::Namespace { name, items, .. } => {
+                let nested = if ns_prefix.is_empty() {
+                    name.as_str().to_string()
+                } else {
+                    format!("{}.{}", ns_prefix, name)
+                };
                 for item in items {
-                    if let Stmt::FnDecl {
-                        name: fn_name,
-                        generic_params,
-                        span,
-                        ..
-                    } = item
-                    {
-                        super::collect_ns::check_unique_generic_params(generic_params, span)?;
-                        if !generic_params.is_empty() {
-                            let full = Symbol::intern(&format!("{}.{}", name, fn_name));
-                            self.generic_fns.push((
-                                full,
-                                generic_params.clone(),
-                                item.clone(),
-                                false,
-                                Some(origin_scope),
-                            ));
-                        }
-                    }
+                    self.ingest_source_stmt(item, origin_scope, &nested, methods)?;
                 }
             }
             Stmt::InterfaceDef { name, methods: items, generic_params, span, .. } => {
@@ -137,5 +126,13 @@ impl crate::hir::lower::Ctx {
             _ => {}
         }
         Ok(())
+    }
+}
+
+fn qualified_name(prefix: &str, name: Symbol) -> Symbol {
+    if prefix.is_empty() {
+        name
+    } else {
+        Symbol::intern(&format!("{}.{}", prefix, name))
     }
 }

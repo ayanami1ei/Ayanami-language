@@ -41,9 +41,9 @@ impl crate::hir::lower::Ctx {
 
         // Synthesize a unique function name for the lambda
         let hir_params: Vec<(Symbol, HirType)> = params.iter()
-            .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+            .map(|(n, t)| (*n, self.ast_type_to_hir_scoped(t, self.current_module)))
             .collect();
-        let hir_ret = ast_type_to_hir(return_type, &self.interfaces);
+        let hir_ret = self.ast_type_to_hir_scoped(return_type, self.current_module);
 
         let fn_id = FnId(self.fns.len());
         self.fns.push(FnSig {

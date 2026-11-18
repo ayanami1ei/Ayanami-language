@@ -25,17 +25,70 @@ pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()> {
     }
 
     for (lcl_path, name) in markers {
-        let input = crate::hir::schema::to_json(program)?;
+        // 来源包 scope 是编译器注入的实现细节，插件按用户 HIR 变换即可。
+        // 输入中剔除这些大 namespace，避免 std JSON parser 因递归体量失败。
+        let mut transform_program = program.clone();
+        let mut injected_scopes = Vec::new();
+        let mut injected_fns = Vec::new();
+        let mut visible_items = Vec::new();
+        for item in std::mem::take(&mut transform_program.items) {
+            let is_scope = matches!(
+                &item,
+                HirItem::Namespace { name, .. }
+                    if name.as_str().starts_with(crate::package::SCOPE_PREFIX)
+            );
+            if is_scope {
+                injected_scopes.push(item.clone());
+                continue;
+            }
+            // 依赖包泛型特化是编译器实现细节；用户书写/标注的函数仍有 span 或 marker。
+            if let HirItem::Fn(f) = &item {
+                if f.span.start_line == 0
+                    && !fn_has_transform_marker(f, &tables)?
+                    && !is_transform_runtime_helper(&f.name)
+                {
+                    injected_fns.push(item.clone());
+                    continue;
+                }
+            }
+            visible_items.push(item);
+        }
+        transform_program.items = visible_items;
+        let input = crate::hir::schema::to_json(&transform_program)?;
         let output = crate::compiler::macro_expand::invoke_transform(&lcl_path, &name, &input)?;
         if std::env::var_os("AYANAMI_TRANSFORM_TRACE").is_some() {
             eprintln!("transform trace: plugin {} returned {} bytes", name, output.len());
         }
-        *program = crate::hir::schema::from_json(&output).map_err(|e| {
+        let mut transformed = crate::hir::schema::from_json(&output).map_err(|e| {
             Error::Hir(format!("transform `{}` returned invalid HIR schema: {}", name, e))
         })?;
+        transformed.items.extend(injected_scopes);
+        transformed.items.extend(injected_fns);
+        *program = transformed;
     }
     strip_transform_attrs(program, &tables)?;
     Ok(())
+}
+
+fn fn_has_transform_marker(f: &HirFn, tables: &AnnotationTables) -> Result<bool> {
+    for attr in &f.attrs {
+        if matches!(tables.resolve_kind(attr)?, Some(AnnKind::Transform)) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn is_transform_runtime_helper(name: &crate::intern::Symbol) -> bool {
+    let name = name.as_str();
+    crate::hir::effects::is_synth_helper(&name)
+        || name.starts_with("__ayanami_ovf_")
+        || matches!(
+            name.as_str(),
+            "__ayanami_require_fail"
+                | "__ayanami_ensure_fail"
+                | "__ayanami_invariant_fail"
+        )
 }
 
 fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()> {

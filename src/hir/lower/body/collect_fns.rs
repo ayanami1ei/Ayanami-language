@@ -6,6 +6,7 @@ impl crate::hir::lower::Ctx {
     // ----------------------------------------------------------------
 
     pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()> {
+        self.collect_scoped_type_names(stmts, "");
         // M6.3：先收集全部 `const fn`（常量初始化可能引用后声明者）
         self.collect_const_fns(stmts, "")?;
         self.collect_fns_with_ns(stmts, "")

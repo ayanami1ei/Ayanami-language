@@ -10,17 +10,24 @@ impl crate::hir::lower::Ctx {
         generic_params: &Vec<(Symbol, Vec<Symbol>)>,
         _ns_prefix: &str,
     ) -> Result<()> {
+            let module = (!_ns_prefix.is_empty()).then(|| Symbol::intern(_ns_prefix));
             for variant in variants {
                 let var_struct_name = Symbol::intern(&format!("{}_{}", name, variant.name));
                 let hir_fields: Vec<HirStructField> = match &variant.fields {
                     crate::parser::ast::stmt::EnumFields::Named(fields) => {
                         fields.iter()
-                            .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
+                            .map(|(n, t)| HirStructField {
+                                name: *n,
+                                ty: self.ast_type_to_hir_scoped(t, module),
+                            })
                             .collect()
                     }
                     crate::parser::ast::stmt::EnumFields::Tuple(tys) => {
                         tys.iter().enumerate()
-                            .map(|(i, t)| HirStructField { name: Symbol::intern(&format!("_{}", i)), ty: ast_type_to_hir(t, &self.interfaces) })
+                            .map(|(i, t)| HirStructField {
+                                name: Symbol::intern(&format!("_{}", i)),
+                                ty: self.ast_type_to_hir_scoped(t, module),
+                            })
                             .collect()
                     }
                     crate::parser::ast::stmt::EnumFields::None => vec![],
@@ -47,16 +54,28 @@ impl crate::hir::lower::Ctx {
     }
 
     /// 枚举的程序项（变体结构体 + 枚举结构体；N1 niche 改写：docs/enum-layout.md §3.1）。
-    pub(crate) fn build_enum_items(&mut self, name: &Symbol, variants: &Vec<EnumVariant>) -> Vec<HirItem> {
+    pub(crate) fn build_enum_items(
+        &mut self,
+        name: &Symbol,
+        variants: &Vec<EnumVariant>,
+        ns_prefix: &str,
+    ) -> Vec<HirItem> {
+        let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
         let mut items = Vec::new();
         for variant in variants {
             let var_struct_name = Symbol::intern(&format!("{}_{}", name, variant.name));
             let hir_fields: Vec<HirStructField> = match &variant.fields {
                 crate::parser::ast::stmt::EnumFields::Named(fields) => fields.iter()
-                    .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
+                    .map(|(n, t)| HirStructField {
+                        name: *n,
+                        ty: self.ast_type_to_hir_scoped(t, module),
+                    })
                     .collect(),
                 crate::parser::ast::stmt::EnumFields::Tuple(tys) => tys.iter().enumerate()
-                    .map(|(i, t)| HirStructField { name: Symbol::intern(&format!("_{}", i)), ty: ast_type_to_hir(t, &self.interfaces) })
+                    .map(|(i, t)| HirStructField {
+                        name: Symbol::intern(&format!("_{}", i)),
+                        ty: self.ast_type_to_hir_scoped(t, module),
+                    })
                     .collect(),
                 crate::parser::ast::stmt::EnumFields::None => vec![],
             };

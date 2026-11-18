@@ -1,0 +1,6 @@
+import "lib"
+
+fn main() -> int {
+    x = LibOnly { v = 1 }
+    return x.v
+}

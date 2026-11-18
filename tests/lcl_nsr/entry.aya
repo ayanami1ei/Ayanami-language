@@ -5,12 +5,49 @@ fn helper(int x) -> int {
     return x + 20
 }
 
+const OFFSET = 100
+
+static BASE = 200
+
+namespace Deep {
+    fn value() -> int {
+        return 1000
+    }
+}
+
+struct Hidden {
+    int v
+}
+
+impl Hidden {
+    fn value(ref self) -> int {
+        return self.v + 1000
+    }
+}
+
+struct Holder[T] {
+    int v
+}
+
+impl[T] Holder[T] {
+    fn value(ref self, T x) -> int {
+        return self.v + 1000
+    }
+}
+
+fn generic_second[T](T x) -> int {
+    return 500
+}
+
 fn main() -> int {
     a = from_lib(1)
     b = helper(1)
     c = generic_from_lib[int](1)
+    d = generic_complete[int](7)
     if a != 11 { return a }        // lib 内部解析到 lib 的 helper
     if b != 21 { return b + 100 }  // 使用方解析到自己的 helper
     if c != 12 { return c + 200 }  // 泛型实例化后仍解析到来源包 helper2/helper
+    // lib: Holder.value=11 + Hidden.value()=5 + generic_second()=19 = 35
+    if d != 35 { return d + 300 }
     return 0
 }

@@ -36,7 +36,13 @@ impl crate::hir::lower::Ctx {
             Literal::Int(n, _) => Ok(SConst { val: HirLiteral::Int(*n), ty: HirType::Int }.into()),
             Literal::Float(n, _) => Ok(SConst { val: HirLiteral::Float(*n), ty: HirType::Float }.into()),
             Literal::Char(c, _) => Ok(SConst { val: HirLiteral::Char(*c), ty: HirType::Char }.into()),
-            Literal::String(s, _) => Ok(SConst { val: HirLiteral::String(s.clone()), ty: HirType::Named(Symbol::intern("String")) }.into()),
+            Literal::String(s, _) => {
+                let ty = self.qualify_hir_type(
+                    HirType::Named(Symbol::intern("String")),
+                    self.current_module,
+                );
+                Ok(SConst { val: HirLiteral::String(s.clone()), ty }.into())
+            }
             Literal::Bool(b, _) => Ok(SConst { val: HirLiteral::Bool(*b), ty: HirType::Bool }.into()),
         }
     }

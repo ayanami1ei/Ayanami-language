@@ -5,7 +5,7 @@
 //! 符号。这里把实际依赖闭包收进包私有命名空间；导入侧注入该命名空间，泛型
 //! 特化时优先解析来源作用域。
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::intern::Symbol;
 use crate::parser::ast::vis::Visibility;
@@ -32,25 +32,9 @@ impl super::Package {
             return;
         }
 
-        let (free_fns, by_name) = collect_free_fns(stmts);
-        let mut pending: Vec<Symbol> = roots.into_iter().collect();
-        let mut selected = HashSet::new();
-        while let Some(name) = pending.pop() {
-            let Some(indices) = by_name.get(&name) else { continue };
-            for &idx in indices {
-                if !selected.insert(idx) {
-                    continue;
-                }
-                if let Stmt::FnDecl { body, .. } = &free_fns[idx] {
-                    let mut calls = HashSet::new();
-                    calls_in_block(body, &mut calls);
-                    pending.extend(calls);
-                }
-            }
-        }
-
-        let mut items: Vec<Stmt> = selected.into_iter()
-            .map(|idx| make_linkonce(&free_fns[idx]))
+        let mut items: Vec<Stmt> = stmts.iter()
+            .filter(|stmt| scope_item(stmt))
+            .map(make_linkonce)
             .collect();
         items.sort_by_key(|s| s.span().start_byte);
         if items.is_empty() {
@@ -60,7 +44,7 @@ impl super::Package {
         let scope = scope_name(&self.name);
         if std::env::var_os("AYANAMI_MODULE_TRACE").is_some() {
             eprintln!(
-                "module trace: package {} embeds {} generic dependency function(s) in {}",
+                "module trace: package {} embeds {} scoped declaration(s) in {}",
                 self.name,
                 items.len(),
                 scope
@@ -76,21 +60,6 @@ impl super::Package {
             self.generic_sources.push(source);
         }
     }
-}
-
-fn collect_free_fns(stmts: &[Stmt]) -> (Vec<Stmt>, HashMap<Symbol, Vec<usize>>) {
-    let mut fns = Vec::new();
-    let mut by_name: HashMap<Symbol, Vec<usize>> = HashMap::new();
-    for stmt in stmts {
-        if let Stmt::FnDecl { name, generic_params, extern_c, .. } = stmt {
-            if generic_params.is_empty() && !*extern_c {
-                let idx = fns.len();
-                fns.push(stmt.clone());
-                by_name.entry(*name).or_default().push(idx);
-            }
-        }
-    }
-    (fns, by_name)
 }
 
 fn collect_generic_calls(stmts: &[Stmt], out: &mut HashSet<Symbol>) -> usize {
@@ -121,18 +90,54 @@ fn collect_generic_calls(stmts: &[Stmt], out: &mut HashSet<Symbol>) -> usize {
     count
 }
 
+fn scope_item(stmt: &Stmt) -> bool {
+    match stmt {
+        Stmt::Import { .. } => false,
+        Stmt::ConstDecl { vis, .. } | Stmt::StaticDecl { vis, .. }
+            if vis.is_public() => false,
+        Stmt::Namespace { name, .. }
+            if name.as_str().starts_with(super::SCOPE_PREFIX) => false,
+        Stmt::FnDecl { body, attrs, extern_c, .. }
+            if body.stmts.is_empty()
+                && body.tail.is_none()
+                && (*extern_c
+                    || crate::hir::attrs::has(attrs, "extern")
+                    || crate::hir::attrs::has(attrs, "export")) => false,
+        Stmt::Attributed { stmt, .. } => scope_item(stmt),
+        _ => true,
+    }
+}
+
 fn make_linkonce(stmt: &Stmt) -> Stmt {
     let mut stmt = stmt.clone();
-    if let Stmt::FnDecl { attrs, is_inline, .. } = &mut stmt {
-        *is_inline = true;
-        if !attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "inline") {
-            attrs.push(crate::parser::ast::Attr {
-                qualifier: Vec::new(),
-                name: Symbol::intern("inline"),
-                args: Vec::new(),
-                span: crate::span::Span::default(),
-            });
-        }
-    }
+    make_item_linkonce(&mut stmt);
     stmt
+}
+
+fn make_item_linkonce(stmt: &mut Stmt) {
+    match stmt {
+        Stmt::FnDecl { attrs, .. } => {
+            if !attrs.iter().any(|a| a.is_builtin() && a.name.as_str() == "inline") {
+                attrs.push(crate::parser::ast::Attr {
+                    qualifier: Vec::new(),
+                    name: Symbol::intern("inline"),
+                    args: Vec::new(),
+                    span: crate::span::Span::default(),
+                });
+            }
+        }
+        Stmt::ImplBlock { methods, .. } => {
+            for method in methods {
+                make_item_linkonce(method);
+            }
+        }
+        Stmt::Namespace { items, .. } => {
+            items.retain(scope_item);
+            for item in items {
+                make_item_linkonce(item);
+            }
+        }
+        Stmt::Attributed { stmt, .. } => make_item_linkonce(stmt),
+        _ => {}
+    }
 }

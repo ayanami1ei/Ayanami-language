@@ -7,10 +7,54 @@ fn helper2(int x) -> int {
     return helper(x) + 1
 }
 
+const OFFSET = 3
+
+static BASE = 4
+
+namespace Deep {
+    fn value() -> int {
+        return OFFSET
+    }
+}
+
+struct Hidden {
+    int v
+}
+
+struct LibOnly {
+    int v
+}
+
+impl Hidden {
+    fn value(ref self) -> int {
+        return Deep::value() + self.v
+    }
+}
+
+struct Holder[T] {
+    int v
+}
+
+impl[T] Holder[T] {
+    fn value(ref self, T x) -> int {
+        return helper(self.v)
+    }
+}
+
+fn generic_second[T](T x) -> int {
+    return helper(2) + Deep::value() + BASE
+}
+
 pub fn from_lib(int x) -> int {
     return helper(x)
 }
 
 pub fn generic_from_lib[T](T x) -> int {
     return helper2(1)
+}
+
+pub fn generic_complete[T](T x) -> int {
+    h = Holder[int] { v = 1 }
+    hidden = Hidden { v = 2 }
+    return h.value(x) + hidden.value() + generic_second(x)
 }

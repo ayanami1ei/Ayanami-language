@@ -28,10 +28,10 @@ impl crate::hir::lower::Ctx {
         }
 
         // Also add generic_fns methods for interface matching
-        for (gf_name, _, gf_stmt, ..) in &self.generic_fns {
+        for (gf_name, _, gf_stmt, _, gf_scope) in &self.generic_fns {
             if let Stmt::FnDecl { params, return_type, .. } = gf_stmt {
                 if params.is_empty() { continue; }
-                let param_ty = ast_type_to_hir(&params[0].1, &self.interfaces);
+                let param_ty = self.ast_type_to_hir_scoped(&params[0].1, *gf_scope);
                 let inner_ty = match &param_ty {
                     HirType::Unique(inner) | HirType::Ref(inner, _) => inner.as_ref(),
                     other => other,
@@ -39,9 +39,9 @@ impl crate::hir::lower::Ctx {
                 if let HirType::Named(n) = inner_ty {
                     let base = crate::hir::lower::strip_generic_name(n);
                     let hir_params: Vec<(Symbol, HirType)> = params.iter()
-                        .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+                        .map(|(n, t)| (*n, self.ast_type_to_hir_scoped(t, *gf_scope)))
                         .collect();
-                    let hir_return = ast_type_to_hir(return_type, &self.interfaces);
+                    let hir_return = self.ast_type_to_hir_scoped(return_type, *gf_scope);
                     let hidden = count_hidden_params(&hir_params);
                     impl_methods.entry(base).or_default().push(FnSig {
                         name: *gf_name,
@@ -64,6 +64,9 @@ impl crate::hir::lower::Ctx {
             .collect();
         for (iface_name, iface_gp, iface_methods) in &iface_list {
             for (type_name, methods) in &impl_methods {
+                if !interface_matches_type_scope(iface_name, type_name) {
+                    continue;
+                }
                 let reg = InterfaceReg { generic_params: iface_gp.clone(), methods: iface_methods.clone() };
                 if !iface_gp.is_empty() {
                     self.try_match_generic_interface(iface_name, &reg, type_name, methods)?;
@@ -83,7 +86,9 @@ impl crate::hir::lower::Ctx {
         vtable_fns.push(FnId(usize::MAX));
         let mut all_match = true;
         for iface_method in &iface_reg.methods {
-            let found = methods.iter().find(|m| m.name == iface_method.name);
+            let wanted = scoped_interface_method_name(iface_name, iface_method.name);
+            let found = methods.iter().find(|m| m.name == wanted)
+                .or_else(|| methods.iter().find(|m| m.name == iface_method.name));
             match found {
                 Some(fsig) => {
                     let fsig_visible = fsig.params.len().saturating_sub(fsig.hidden);
@@ -146,7 +151,10 @@ impl crate::hir::lower::Ctx {
 
         for iface_method in &iface_reg.methods {
             let mut next_results = Vec::new();
-            for impl_method in methods.iter().filter(|m| m.name == iface_method.name) {
+            let wanted = scoped_interface_method_name(iface_name, iface_method.name);
+            for impl_method in methods.iter().filter(|m| {
+                m.name == wanted || m.name == iface_method.name
+            }) {
                 if iface_method.params.len() != impl_method.params.len() - 1 { continue; }
                 for subst in &results {
                     let mut local = subst.clone();
@@ -209,7 +217,10 @@ impl crate::hir::lower::Ctx {
             for iface_method in &iface_reg.methods {
                 let substituted_params: Vec<HirType> = iface_method.params.iter().map(|(_, t)| Self::substitute_iface_type(t, subst, &gp_names)).collect();
                 let substituted_ret = Self::substitute_iface_type(&iface_method.return_type, subst, &gp_names);
-                let found = methods.iter().filter(|m| m.name == iface_method.name).find(|m| {
+                let wanted = scoped_interface_method_name(iface_name, iface_method.name);
+                let found = methods.iter().filter(|m| {
+                    m.name == wanted || m.name == iface_method.name
+                }).find(|m| {
                     m.params.len() - 1 == substituted_params.len()
                     && m.params[1..].iter().zip(&substituted_params).all(|((_, pt), st)| pt == st)
                     && Self::type_matches(&m.return_type, &substituted_ret)
@@ -231,4 +242,36 @@ impl crate::hir::lower::Ctx {
         }
         Ok(())
     }
+}
+
+fn scoped_interface_method_name(iface: &Symbol, method: Symbol) -> Symbol {
+    let base = iface.as_str();
+    let base = base.split('<').next().unwrap_or(&base);
+    match base.rsplit_once('.') {
+        Some((scope, _)) => Symbol::intern(&format!("{}.{}", scope, method.as_str())),
+        None => method,
+    }
+}
+
+fn interface_matches_type_scope(iface: &Symbol, ty: &Symbol) -> bool {
+    let iface_name = iface.as_str();
+    let iface_base = iface_name.split('<').next().unwrap_or(&iface_name);
+    let iface_scope = scope_prefix(iface_base);
+    let ty_name = ty.as_str();
+    let type_scope = scope_prefix(&ty_name);
+    match (iface_scope, type_scope) {
+        (Some(a), Some(b)) => a == b,
+        (None, Some(_)) => false,
+        (Some(_), None) => matches!(
+            ty.as_str().as_str(),
+            "int" | "float" | "char" | "bool"
+        ),
+        (None, None) => true,
+    }
+}
+
+fn scope_prefix(name: &str) -> Option<&str> {
+    let base = name.split('<').next().unwrap_or(name);
+    let (scope, _) = base.rsplit_once('.')?;
+    scope.contains(crate::package::SCOPE_PREFIX).then_some(scope)
 }

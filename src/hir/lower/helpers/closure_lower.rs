@@ -88,9 +88,9 @@ impl crate::hir::lower::Ctx {
         let mut code_params: Vec<(Symbol, Type)> = vec![(env_param, env_ast_ty)];
         code_params.extend(params.iter().cloned());
         let hir_code_params: Vec<(Symbol, HirType)> = code_params.iter()
-            .map(|(pn, pt)| (*pn, ast_type_to_hir(pt, &self.interfaces)))
+            .map(|(pn, pt)| (*pn, self.ast_type_to_hir_scoped(pt, self.current_module)))
             .collect();
-        let hir_ret = ast_type_to_hir(return_type, &self.interfaces);
+        let hir_ret = self.ast_type_to_hir_scoped(return_type, self.current_module);
         let code_fn_id = FnId(self.fns.len());
         self.fns.push(FnSig {
             name: name_sym,

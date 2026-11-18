@@ -19,14 +19,12 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
     let body_str = std::str::from_utf8(ini_bytes)
         .map_err(|e| Error::Package(format!("invalid UTF-8 in package INI: {}", e)))?;
     let manifest = parse_manifest(body_str, path)?;
-
     let mut symbols = Vec::new();
     let mut sources = Vec::new();
     let mut target_types = Vec::new();
     let mut in_symbols = false;
     let mut in_generics = false;
     let mut in_target = false;
-
     for line in body_str.lines() {
         let line = line.trim();
         if line.starts_with('[') {
@@ -76,6 +74,17 @@ pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec
             } else if let Some(rest) = line.strip_prefix("interface=") {
                 let val = parse_ini_value(rest);
                 symbols.push(ImportedSymbol::Interface { name: val });
+            } else if let Some(rest) = line.strip_prefix("method=") {
+                let val = parse_ini_value(rest);
+                if let Some((type_name, rest)) = val.split_once(',') {
+                    if let Some((name, signature)) = rest.split_once(',') {
+                        symbols.push(ImportedSymbol::Method {
+                            type_name: type_name.to_string(),
+                            name: name.to_string(),
+                            signature: signature.to_string(),
+                        });
+                    }
+                }
             } else if let Some(rest) = line.strip_prefix("macro=") {
                 let val = parse_ini_value(rest);
                 // mcl.1：`name,tokens`（旧格式无后缀 → 文本宏）

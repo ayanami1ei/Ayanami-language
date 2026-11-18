@@ -116,9 +116,9 @@ impl crate::hir::lower::Ctx {
                             crate::hir::lower::helpers::split_generic_args(params_str)
                         };
                         let hir_params: Vec<(Symbol, HirType)> = param_tys.iter()
-                            .map(|s| (Symbol::intern(""), sig_str_to_hir(s)))
+                            .map(|s| (Symbol::intern(""), import_owned_type(sig_str_to_hir(s))))
                             .collect();
-                        let hir_ret = sig_str_to_hir(ret_str);
+                        let hir_ret = import_owned_type(sig_str_to_hir(ret_str));
                         // Dedup: skip if a FnSig with same name and param types already exists
                         let sym_name = Symbol::intern(name);
                         let already = self.fns.iter().any(|existing| {
@@ -216,8 +216,19 @@ impl crate::hir::lower::Ctx {
                     crate::package::ImportedSymbol::Interface { .. } => {
                         // Interface definition is loaded from generic sources above
                     }
+                    crate::package::ImportedSymbol::Method { .. } => {}
                 }
             }
         Ok(())
+    }
+}
+
+fn import_owned_type(ty: HirType) -> HirType {
+    match ty {
+        HirType::Array(inner) => HirType::Unique(Box::new(HirType::Array(inner))),
+        HirType::ArraySized(inner, n) => {
+            HirType::Unique(Box::new(HirType::ArraySized(inner, n)))
+        }
+        other => other,
     }
 }

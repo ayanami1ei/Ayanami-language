@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::HashSet;
 
 // ============================================================
 //  Ctx —— HIR 降级上下文
@@ -75,6 +76,10 @@ pub(crate) struct Ctx {
     pub current_fn: FnId,
     /// 当前词法作用域（命名空间/来源包）；用于解析同作用域自由函数。
     pub current_module: Option<Symbol>,
+    /// M6：namespace 内声明的类型名；用于来源作用域类型限定。
+    pub scoped_type_names: HashMap<Symbol, HashSet<Symbol>>,
+    /// 消费方源码顶层类型；防止导入包私有类型清理误删同名本地声明。
+    pub source_declared_types: HashSet<Symbol>,
     /// 当前函数的局部变量列表
     pub locals: Vec<HirLocal>,
     /// 作用域栈：每层作用域是 变量名 → (VarId, 类型, 是否可变)
@@ -136,7 +141,10 @@ impl Ctx {
             Symbol::intern("String"),
             vec![
                 HirStructField { name: Symbol::intern("data"), ty: HirType::Unique(Box::new(HirType::Array(Box::new(HirType::Char)))) },
-                HirStructField { name: Symbol::intern("len"), ty: HirType::Int },
+                HirStructField {
+                    name: Symbol::intern("len"),
+                    ty: HirType::IntN { bits: 64, signed: false },
+                },
             ],
         );
         Self {
@@ -160,6 +168,8 @@ impl Ctx {
             lambda_fns: Vec::new(),
             current_fn: FnId(0),
             current_module: None,
+            scoped_type_names: HashMap::new(),
+            source_declared_types: HashSet::new(),
             locals: Vec::new(),
             scopes: Vec::new(),
             allow_bare_array: false,

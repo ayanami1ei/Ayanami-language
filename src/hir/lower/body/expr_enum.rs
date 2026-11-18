@@ -2,6 +2,8 @@ use super::*;
 
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox> {
+        let scoped_enum = self.scoped_fn_name(*enum_name);
+        let enum_name = &scoped_enum;
         if !named_args.is_empty() {
             return Err(Error::Hir(format!("named fields in enum construct not yet supported at {}:{}", span.start_line, span.start_col)));
         }

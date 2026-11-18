@@ -198,7 +198,7 @@ rg -n "TODO|FIXME" src docs     # 待办
 - 语法：手写递归下降 `src/parser/parser/` —AST→ `src/parser/ast`（唯一解析路径）
 - 包：`hir` —序列化→ `lir/serialize` —封装→ `package` —导入→ `compiler/import`（解析顺序：本地精确 → `.aya` → 配置别名 → std 目录 `.aya`/`.lcl`；依赖闭包缺失 → `resolve_package_deps` 清晰诊断；版本漂移 → `warn_version_drift` 告警，夹具 `tests/lcl_version_drift`）
 - 布局：`size_of[T]()`/`align_of[T]()`/`offset_of[T](field)` —拦截→ `body/expr_layout.rs` —布局→ `hir/layout.rs::{type_layout,field_offset}`（自然对齐，与 `%struct.*` 一致；LIR 数组元素布局 `elem_layout_size` 共用）
-- 模块私有（nsr 可见性层）：非 pub 自由函数 —导出→ `.lcl` `private` 标记（`package/symbols.rs`）—导入→ 不注册进导入方普通符号表（`collect_import.rs`；extern `"C"`/`#[export]` 豁免）；private static —多模块→ `internal`（`lir/emit/consts.rs`）；跨包泛型源码的来源 helper 闭包 —打包→ `package/generic_scope.rs` + linkonce 命名空间 —导入→ `compiler/build/deps.rs` 注入 —解析→ `ctx_scope.rs` + `generic_check*.rs`，详见 `docs/module-scope.md`
+- 模块私有与来源作用域（nsr/wwy4）：非 pub 函数 —导出→ `.lcl private` —导入→ 不注册；完整包声明 bundle（方法/namespace/类型/const/static/泛型互调）—打包→ `package/generic_scope.rs` —注入→ `build/deps.rs` —父作用域解析→ `ctx_scope.rs`、`collect_ns.rs`、`vtables.rs`；私有类型/函数不泄漏，详见 `docs/module-scope.md`
 - 工具链：`check_all` ⊃ `check_version` + `check_file_sizes` + `gen_symbols --check` + `check_warnings` + `regression` + `ir_snapshot`
 - 标注：`#[...]` —校验→ `hir/attrs` —携带→ MIR/LIR(`LirAttr`/`ExternDecl`) —映射→ LLVM 属性（A1 函数级）—计划→ 效应（A3）/生命周期（A4）
 - 泛型/内联：定义以**源码**随 `.lcl` 导出（`source=`）→ 导入方本地重新实例化 → 发射 `linkonce_odr` 弱链接去重（#100 设计）；特化名附泛型实参（`f$int`，`generic_specialize.rs`）——T 无关签名（如 `sz[T]() -> int`）两次特化不误复用同一符号（2026-10-18）

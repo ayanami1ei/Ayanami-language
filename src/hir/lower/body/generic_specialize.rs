@@ -20,14 +20,14 @@ impl crate::hir::lower::Ctx {
             HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
             _ => return false,
         };
-        self.generic_fns.iter().any(|(gf_name, _, gf_stmt, is_method, _)| {
+        self.generic_fns.iter().any(|(gf_name, _, gf_stmt, is_method, gf_scope)| {
             if gf_name != method || !*is_method { return false; }
             let Stmt::FnDecl { params, .. } = gf_stmt else { return false; };
             let visible = params.len().saturating_sub(count_hidden_names(params));
             if visible != argc { return false; }
             match params.first() {
                 Some((_, t)) => {
-                    let self_hir = ast_type_to_hir(t, &self.interfaces);
+                    let self_hir = self.ast_type_to_hir_scoped(t, *gf_scope);
                     matches!(strip_ownership_ref(&self_hir), HirType::Named(n)
                         if crate::hir::lower::strip_generic_name(n) == recv_base)
                 }
@@ -50,14 +50,14 @@ impl crate::hir::lower::Ctx {
         // #189：首参是候选自身泛型参数（如自由函数 map 的 I）时可绑定任意接收者，
         // 作为次级候选——精确基名匹配（如 Option.map）优先，避免自由调用被同名方法抢占
         let mut gp_self_idx = None;
-        for (i, (gf_name, gf_params, gf_stmt, gf_is_method, _)) in self.generic_fns.iter().enumerate() {
+        for (i, (gf_name, gf_params, gf_stmt, gf_is_method, gf_scope)) in self.generic_fns.iter().enumerate() {
             if gf_name != name || (prefer_method && !*gf_is_method) { continue; }
             if let Stmt::FnDecl { params, .. } = gf_stmt {
                 let visible = params.len().saturating_sub(count_hidden_names(params));
                 if visible != arg_types.len() { continue; }
                 if let Some(ab) = &arg_base {
                     if let Some(first) = params.first() {
-                        let self_hir = ast_type_to_hir(&first.1, &self.interfaces);
+                        let self_hir = self.ast_type_to_hir_scoped(&first.1, *gf_scope);
                         let self_base = match strip_ownership_ref(&self_hir) {
                             HirType::Named(n) => crate::hir::lower::strip_generic_name(n),
                             _ => continue,
@@ -127,11 +127,12 @@ impl crate::hir::lower::Ctx {
                 )));
             }
             for ((gp_name, _), ty) in gf_params.iter().zip(types.iter()) {
-                generic_mappings.insert(*gp_name, ast_type_to_hir(ty, &self.interfaces));
+                generic_mappings.insert(*gp_name, self.ast_type_to_hir_scoped(ty, *gf_scope));
             }
         } else {
             for ((_, param_ty), arg_ty) in params.iter().take(visible).zip(arg_types.iter()) {
-                for (gp_name, hir_concrete) in infer_generic_from_param(param_ty, arg_ty, &self.interfaces) {
+                let param_ty = self.ast_type_to_hir_scoped(param_ty, *gf_scope);
+                for (gp_name, hir_concrete) in infer_generic_from_param(&param_ty, arg_ty) {
                     if !generic_names.contains(&gp_name) { continue; }
                     match generic_mappings.get(&gp_name) {
                         None => { generic_mappings.insert(gp_name, hir_concrete); }
@@ -191,9 +192,9 @@ impl crate::hir::lower::Ctx {
         let new_body = substitute_type_in_block(body, &substitutions);
 
         // Step 4: Create specialized function signature and register it
-        let hir_return = ast_type_to_hir(&new_return_type, &self.interfaces);
+        let hir_return = self.ast_type_to_hir_scoped(&new_return_type, *gf_scope);
         let hir_params: Vec<(Symbol, HirType)> = new_params.iter()
-            .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+            .map(|(n, t)| (*n, self.ast_type_to_hir_scoped(t, *gf_scope)))
             .collect();
         // E1a：环境值参数已在 new_params 注入（hir_params 随之包含）
         // 特化名：附加泛型实参（`sz[T]() -> int` 等 T 无关签名两次特化必须区分，

@@ -30,16 +30,15 @@ pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type {
     }
 }
 
-/// 给定 AST 形参类型与实参 HirType，收集全部泛型参数绑定。
-/// P4c：AST 形参编码为 HirType 后交给统一 `unify`（helpers/unify.rs）——嵌套泛型匹配
+/// 给定 HIR 形参类型与实参 HirType，收集全部泛型参数绑定。
+/// P4c：交给统一 `unify`（helpers/unify.rs）——嵌套泛型匹配
 /// 的唯一实现；wrapper（Unique/Ref/数组/闭包）穿透由 unify 承担。
 pub(crate) fn infer_generic_from_param(
-    param_ty: &Type,
+    param_ty: &HirType,
     arg_ty: &HirType,
-    interfaces: &HashMap<Symbol, InterfaceReg>,
 ) -> Vec<(Symbol, HirType)> {
     let mut subst = HashMap::new();
-    let _ = unify(&ast_type_to_hir(param_ty, interfaces), arg_ty, &mut subst);
+    let _ = unify(param_ty, arg_ty, &mut subst);
     subst.into_iter().collect()
 }
 
@@ -138,4 +137,3 @@ pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>
         _ => ty.clone(),
     }
 }
-

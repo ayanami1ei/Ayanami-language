@@ -47,10 +47,10 @@ namespace __ayanami_scope_<package> {
 
 ## 当前限制
 
-- 自动依赖收集覆盖顶层非泛型自由函数及其 `FnCall` 闭包；
-- 方法、命名空间内声明、类型、const/static 和宏展开产生的调用尚未自动复制；
-- 泛型函数互相调用仍按现有泛型表解析，尚未做来源包重载隔离；
-- 这些缺口应保守地保持明确诊断，不能退化为消费方同名函数。
+- 来源 bundle 目前复制包内所有声明；后续可收紧为按依赖闭包裁剪；
+- 宏展开结果若生成新的裸调用，仍依赖展开后普通 HIR 解析路径；
+- 私有类型若直接出现在 C ABI 边界，需要在语言层引入显式 ABI 类型，不能跨包暴露；
+- 消费方不能直接使用来源包私有类型或私有自由函数。
 
 ## 完整作用域设计（wwy4）
 
@@ -99,9 +99,15 @@ namespace __ayanami_scope_<package> {
 - `helper(1) == 21`：消费方仍能调用自己的私有 helper；
 - `generic_from_lib[int](1) == 12`：泛型源码经两级 helper 仍绑定来源包；
 - 同一 `.lcl` 改名为 `lib_alias.lcl` 后结果不变。
+- `generic_complete[int](7) == 35`：来源包私有类型、const/static、namespace、
+  impl 方法、private helper 和来源包泛型互调均绑定来源作用域；
+- 消费方可用同名的 `Hidden`/`Holder`、`Deep`、`OFFSET`/`BASE`、
+  `helper`/`generic_second`，不会截获包体调用；
+- `private_entry.aya` 直接使用来源包私有 `LibOnly` 必须编译失败。
 
 ## 实现状态
 
 顶层自由函数依赖闭包、eager/HIR 两阶段来源解析和包别名场景已实现。
-wwy4 扩展方法、namespace、类型、const/static 和来源包泛型互调；实现完成后本节
-将更新为完整状态。
+wwy4 已将完整包声明 bundle（方法、namespace、类型、const/static、来源包泛型）
+纳入作用域，并补充 `.lcl method=` 导入分类、类型/闭包/字段限定和父 namespace
+逐层查找。std 全量与主仓回归作为验收门禁。

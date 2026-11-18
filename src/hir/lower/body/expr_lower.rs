@@ -27,9 +27,10 @@ impl crate::hir::lower::Ctx {
                 // `Enum::Variant`（无参数）被解析器合并为 `Enum.Variant`
                 if let Some((enum_name, variant_name)) = name.as_str().split_once('.') {
                     let enum_sym = Symbol::intern(enum_name);
-                    if self.is_enum_type(&enum_sym) {
+                    let scoped_enum = self.scoped_fn_name(enum_sym);
+                    if self.is_enum_type(&scoped_enum) {
                         return self.lower_enum_construct(
-                            &enum_sym,
+                            &scoped_enum,
                             &Symbol::intern(variant_name),
                             &vec![],
                             &vec![],
@@ -47,12 +48,13 @@ impl crate::hir::lower::Ctx {
                 if let Some((var_id, ty, _)) = self.lookup_var(name) {
                     return Ok(SVar { var: var_id, ty }.into());
                 }
+                let scoped_name = self.scoped_fn_name(*name);
                 // M6.1：编译期常量（局部变量优先，const 次之）
-                if let Some((ty, val)) = self.consts.get(name) {
+                if let Some((ty, val)) = self.consts.get(&scoped_name) {
                     return Ok(SConst { val: val.clone(), ty: ty.clone() }.into());
                 }
                 // M6.2：全局变量读取（SGlobal 取址 + SDeref 载入）
-                if let Some(st) = self.statics.get(name).cloned() {
+                if let Some(st) = self.statics.get(&scoped_name).cloned() {
                     // M5/#143：static mut 读取需 unsafe
                     if st.is_mut {
                         self.require_unsafe(&format!("read of mutable static `{}`", name.as_str()), span)?;
@@ -60,7 +62,7 @@ impl crate::hir::lower::Ctx {
                     let addr: HirNodeBox = SGlobal { name: st.name, ty: st.ty.clone(), mutable: st.is_mut }.into();
                     return Ok(SDeref { expr: addr, ty: st.ty.clone() }.into());
                 }
-                if let Some(candidates) = self.fn_map.get(name) {
+                if let Some(candidates) = self.fn_map.get(&scoped_name) {
                     if let Some(&first) = candidates.first() {
                         let (params, ret) = {
                             let sig = &self.fns[first.0];
@@ -146,7 +148,8 @@ impl crate::hir::lower::Ctx {
             Expr::Ref(inner, mutable, span) => {
                 // M6.2：`ref NAME`（static）→ 全局地址本身
                 if let Expr::Ident(name, _) = inner.as_ref() {
-                    if let Some(st) = self.statics.get(name).cloned() {
+                    let scoped_name = self.scoped_fn_name(*name);
+                    if let Some(st) = self.statics.get(&scoped_name).cloned() {
                         if *mutable && !st.is_mut {
                             return Err(Error::Hir(format!(
                                 "cannot take a mutable reference to immutable static `{}` (at {}:{})",

@@ -3,6 +3,8 @@ use super::*;
 
 impl crate::hir::lower::Ctx {
     pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox> {
+        let scoped_type = self.scoped_fn_name(*type_name);
+        let type_name = &scoped_type;
         // 字段先降级（原始值）；字段类型转换在具体名（concrete_name）确定后做。
         // #153：字面量字段必须存在于结构体定义（否则 codegen GEP 越界）
         let base_fields = self.struct_defs.get(type_name).cloned();
@@ -67,7 +69,7 @@ impl crate::hir::lower::Ctx {
                     }
                     let mut subst: HashMap<Symbol, HirType> = HashMap::new();
                     for ((gp_name, _), concrete_ty) in generic_params.iter().zip(effective_args.iter()) {
-                        let hir_ty = ast_type_to_hir(concrete_ty, &self.interfaces);
+                        let hir_ty = self.ast_type_to_hir_scoped(concrete_ty, self.current_module);
                         subst.insert(*gp_name, hir_ty);
                     }
                     // Substitute field types

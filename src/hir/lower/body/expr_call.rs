@@ -14,9 +14,10 @@ impl crate::hir::lower::Ctx {
         // `Enum::Variant(args)` 被解析器合并为 `Enum.Variant`，按前缀类型分流
         if let Some((enum_name, variant_name)) = name.as_str().split_once('.') {
             let enum_sym = Symbol::intern(enum_name);
-            if self.is_enum_type(&enum_sym) {
+            let scoped_enum = self.scoped_fn_name(enum_sym);
+            if self.is_enum_type(&scoped_enum) {
                 return self.lower_enum_construct(
-                    &enum_sym,
+                    &scoped_enum,
                     &Symbol::intern(variant_name),
                     args,
                     &vec![],

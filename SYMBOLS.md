@@ -761,16 +761,18 @@ src/hir/lower/body/block_lower.rs:8: pub(crate) fn lower_block(&mut self, block:
 src/hir/lower/body/block_lower.rs:14: pub(crate) fn lower_block_impl(&mut self, block: &Block, tail_as_value: bool) -> Result<(HirBlock, Option<HirNodeBox>)>
 src/hir/lower/body/collect_enum.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_enum.rs:6: pub(crate) fn collect_enum_def(
-src/hir/lower/body/collect_enum.rs:50: pub(crate) fn build_enum_items(&mut self, name: &Symbol, variants: &Vec<EnumVariant>) -> Vec<HirItem>
+src/hir/lower/body/collect_enum.rs:57: pub(crate) fn build_enum_items(
 src/hir/lower/body/collect_fns.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_fns.rs:8: pub(crate) fn collect_fns(&mut self, stmts: &[Stmt]) -> Result<()>
-src/hir/lower/body/collect_fns.rs:15: fn collect_const_fns(&mut self, stmts: &[Stmt], prefix: &str) -> Result<()>
+src/hir/lower/body/collect_fns.rs:16: fn collect_const_fns(&mut self, stmts: &[Stmt], prefix: &str) -> Result<()>
 src/hir/lower/body/collect_import.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_import.rs:4: pub(crate) fn collect_import(&mut self, path: &String, _ns_prefix: &str, stmt_span: crate::span::Span) -> Result<()>
+src/hir/lower/body/collect_import.rs:226: fn import_owned_type(ty: HirType) -> HirType
 src/hir/lower/body/collect_import_path.rs:4: pub(crate) fn resolve_import_pkg_path(path: &str) -> String
 src/hir/lower/body/collect_import_source.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_import_source.rs:5: pub(super) fn ingest_generic_sources(
 src/hir/lower/body/collect_import_source.rs:53: fn ingest_source_stmt(
+src/hir/lower/body/collect_import_source.rs:132: fn qualified_name(prefix: &str, name: Symbol) -> Symbol
 src/hir/lower/body/collect_ns.rs:4: pub(super) fn check_unique_generic_params(gp: &[(Symbol, Vec<Symbol>)], span: &Span) -> Result<()>
 src/hir/lower/body/collect_ns.rs:17: impl crate::hir::lower::Ctx
 src/hir/lower/body/collect_ns.rs:18: pub(super) fn collect_fns_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<()>
@@ -831,7 +833,7 @@ src/hir/lower/body/expr_cast.rs:5: pub(crate) fn lower_cast(&mut self, inner: &B
 src/hir/lower/body/expr_cast.rs:60: fn is_array_like(t: &HirType) -> bool
 src/hir/lower/body/expr_enum.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_enum.rs:4: pub(crate) fn lower_enum_construct(&mut self, enum_name: &Symbol, variant_name: &Symbol, tuple_args: &Vec<Expr>, named_args: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_enum.rs:92: fn monomorphize_enum_construct(
+src/hir/lower/body/expr_enum.rs:94: fn monomorphize_enum_construct(
 src/hir/lower/body/expr_layout.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_layout.rs:10: pub(crate) fn eval_layout_builtin_call(
 src/hir/lower/body/expr_layout.rs:63: pub(crate) fn lower_layout_builtin(
@@ -860,8 +862,8 @@ src/hir/lower/body/expr_static_assert.rs:6: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_static_assert.rs:8: pub(crate) fn lower_static_assert(&mut self, args: &Vec<Expr>, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/expr_struct.rs:4: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_struct.rs:5: pub(crate) fn lower_struct_literal(&mut self, type_name: &Symbol, generic_args: &Vec<Type>, fields: &Vec<(Symbol, Expr)>, span: &Span) -> Result<HirNodeBox>
-src/hir/lower/body/expr_struct.rs:158: fn infer_struct_literal_args(&self, type_name: &Symbol, raw_fields: &[(Symbol, HirNodeBox, Span)]) -> Vec<Type>
-src/hir/lower/body/expr_struct.rs:188: fn is_concrete_literal_type(&self, ty: &HirType) -> bool
+src/hir/lower/body/expr_struct.rs:160: fn infer_struct_literal_args(&self, type_name: &Symbol, raw_fields: &[(Symbol, HirNodeBox, Span)]) -> Vec<Type>
+src/hir/lower/body/expr_struct.rs:190: fn is_concrete_literal_type(&self, ty: &HirType) -> bool
 src/hir/lower/body/expr_unary.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/expr_unary.rs:6: pub(crate) fn lower_unary(&mut self, op: &UnaryOp, arg: &Box<Expr>) -> Result<HirNodeBox>
 src/hir/lower/body/generic_check.rs:13: pub(super) struct CheckCtx
@@ -916,12 +918,11 @@ src/hir/lower/body/iface_match.rs:265: pub(crate) fn register_generic_vtable(
 src/hir/lower/body/literal.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/literal.rs:5: pub(crate) fn lower_suffixed(&mut self, lit: &Literal, suffix: &Symbol, span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/literal.rs:34: pub(crate) fn lower_literal(&mut self, lit: &Literal) -> Result<HirNodeBox>
-src/hir/lower/body/literal.rs:46: fn check_literal_range(n: i64, ty: &HirType, span: &Span) -> Result<()>
+src/hir/lower/body/literal.rs:52: fn check_literal_range(n: i64, ty: &HirType, span: &Span) -> Result<()>
 src/hir/lower/body/lower_items.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/lower_items.rs:4: pub(crate) fn lower_items(&mut self, stmts: &[Stmt]) -> Result<Vec<HirItem>>
 src/hir/lower/body/lower_items.rs:8: pub(crate) fn lower_items_with_ns(&mut self, stmts: &[Stmt], ns_prefix: &str) -> Result<Vec<HirItem>>
-src/hir/lower/body/lower_items.rs:96: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
-src/hir/lower/body/lower_items.rs:124: pub(crate) fn lower_fn(
+src/hir/lower/body/lower_items.rs:119: pub(crate) fn lower_fn(
 src/hir/lower/body/macro_call.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/macro_call.rs:6: pub(crate) fn lower_macro_call(&mut self, name: &Symbol, args: &[crate::parser::ast::expr::MacroArg], span: &Span) -> Result<HirNodeBox>
 src/hir/lower/body/match_coverage.rs:8: pub(super) fn enum_exhaustive(total: usize, pats: &[&Pattern]) -> bool
@@ -1027,14 +1028,14 @@ src/hir/lower/body/mod.rs:72: mod divergence;
 src/hir/lower/body/mod.rs:73: mod expr_reinterpret;
 src/hir/lower/body/overload_method.rs:5: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_method.rs:9: pub(crate) fn resolve_method_dispatch(&mut self, receiver_ty: &HirType, method: &Symbol,
-src/hir/lower/body/overload_method.rs:28: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
-src/hir/lower/body/overload_method.rs:36: pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:106: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
-src/hir/lower/body/overload_method.rs:153: pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:174: pub(crate) fn resolve_method_literals(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:197: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:202: pub(crate) fn resolve_method_only(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
-src/hir/lower/body/overload_method.rs:206: fn resolve_method_impl(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], methods_only: bool) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:39: fn ordered_method_candidates(&self, name: &Symbol) -> Option<Vec<FnId>>
+src/hir/lower/body/overload_method.rs:47: pub(crate) fn resolve_fn_call(&self, name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:117: pub(crate) fn receiver_matches_param(receiver: &HirType, param: &HirType) -> bool
+src/hir/lower/body/overload_method.rs:164: pub(crate) fn resolve_fn_call_literals(&self, name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:185: pub(crate) fn resolve_method_literals(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], lit_mask: &[bool]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:208: pub(crate) fn resolve_method(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:213: pub(crate) fn resolve_method_only(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType]) -> Option<FnId>
+src/hir/lower/body/overload_method.rs:217: fn resolve_method_impl(&self, receiver_type: &HirType, method_name: &Symbol, arg_types: &[HirType], methods_only: bool) -> Option<FnId>
 src/hir/lower/body/overload_resolve.rs:4: pub(super) fn same_base_name(a: &HirType, b: &HirType) -> bool
 src/hir/lower/body/overload_resolve.rs:14: impl crate::hir::lower::Ctx
 src/hir/lower/body/overload_resolve.rs:15: pub(crate) fn param_compatible(&self, param_ty: &HirType, arg_ty: &HirType) -> bool
@@ -1075,25 +1076,28 @@ src/hir/lower/body/usage_infer.rs:51: fn find_elem_usage(&self, var: &Symbol, st
 src/hir/lower/body/usage_infer.rs:69: fn infer_expr_type_ast(&self, e: &Expr) -> Option<Type>
 src/hir/lower/body/vtables.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/vtables.rs:6: pub(crate) fn build_vtables(&mut self) -> Result<()>
-src/hir/lower/body/vtables.rs:78: pub(crate) fn try_match_interface(
-src/hir/lower/body/vtables.rs:140: pub(crate) fn try_match_generic_interface(
+src/hir/lower/body/vtables.rs:81: pub(crate) fn try_match_interface(
+src/hir/lower/body/vtables.rs:145: pub(crate) fn try_match_generic_interface(
+src/hir/lower/body/vtables.rs:247: fn scoped_interface_method_name(iface: &Symbol, method: Symbol) -> Symbol
+src/hir/lower/body/vtables.rs:256: fn interface_matches_type_scope(iface: &Symbol, ty: &Symbol) -> bool
+src/hir/lower/body/vtables.rs:273: fn scope_prefix(name: &str) -> Option<&str>
 src/hir/lower/collect_copy.rs:9: pub(crate) fn register_copy_structs(stmts: &[Stmt]) -> Result<()>
 src/hir/lower/collect_copy.rs:43: fn is_copy_attr(a: &Attr) -> bool
-src/hir/lower/ctx.rs:21: pub(crate) struct Ctx
-src/hir/lower/ctx.rs:126: pub struct SyncLock
-src/hir/lower/ctx.rs:130: impl Ctx
-src/hir/lower/ctx.rs:132: pub fn new() -> Self
-src/hir/lower/ctx.rs:200: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
-src/hir/lower/ctx.rs:203: pub fn pop_scope(&mut self) { self.scopes.pop(); }
-src/hir/lower/ctx.rs:206: pub fn in_unsafe(&self) -> bool
-src/hir/lower/ctx.rs:211: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
-src/hir/lower/ctx.rs:220: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
-src/hir/lower/ctx.rs:225: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
-src/hir/lower/ctx.rs:233: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
-src/hir/lower/ctx.rs:243: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
-src/hir/lower/ctx.rs:256: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:264: pub fn is_union_type(&self, type_name: &Symbol) -> bool
-src/hir/lower/ctx.rs:270: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:22: pub(crate) struct Ctx
+src/hir/lower/ctx.rs:131: pub struct SyncLock
+src/hir/lower/ctx.rs:135: impl Ctx
+src/hir/lower/ctx.rs:137: pub fn new() -> Self
+src/hir/lower/ctx.rs:210: pub fn push_scope(&mut self) { self.scopes.push(HashMap::new()); }
+src/hir/lower/ctx.rs:213: pub fn pop_scope(&mut self) { self.scopes.pop(); }
+src/hir/lower/ctx.rs:216: pub fn in_unsafe(&self) -> bool
+src/hir/lower/ctx.rs:221: pub fn require_unsafe(&self, what: &str, span: &Span) -> Result<()>
+src/hir/lower/ctx.rs:230: pub fn bind_var(&mut self, name: Symbol, id: VarId, ty: HirType, mutable: bool)
+src/hir/lower/ctx.rs:235: pub fn lookup_var(&self, name: &Symbol) -> Option<(VarId, HirType, bool)>
+src/hir/lower/ctx.rs:243: pub fn register_or_lookup(&mut self, name: Symbol, inferred_ty: HirType) -> (VarId, HirType, bool)
+src/hir/lower/ctx.rs:253: pub(crate) fn receiver_type_known(&self, ty: &HirType) -> bool
+src/hir/lower/ctx.rs:266: pub fn is_enum_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:274: pub fn is_union_type(&self, type_name: &Symbol) -> bool
+src/hir/lower/ctx.rs:280: pub(crate) fn union_field_ok(&self, ty: &HirType) -> bool
 src/hir/lower/ctx_env.rs:4: impl Ctx
 src/hir/lower/ctx_env.rs:6: pub(crate) fn env_need_caps(&self, gf_params: &[(Symbol, Vec<Symbol>)]) -> Vec<(Symbol, Symbol)>
 src/hir/lower/ctx_env.rs:36: pub(crate) fn env_provider_node(&mut self, cap: &Symbol, span: &Span) -> Result<(HirNodeBox, HirType)>
@@ -1124,8 +1128,17 @@ src/hir/lower/ctx_niche.rs:18: pub(crate) fn apply_boxing_rewrite(
 src/hir/lower/ctx_niche.rs:59: pub(crate) fn apply_niche_rewrite(&mut self, fields: Vec<HirStructField>) -> Vec<HirStructField>
 src/hir/lower/ctx_niche.rs:71: pub(crate) fn build_niche_tag_expr(
 src/hir/lower/ctx_scope.rs:3: impl Ctx
-src/hir/lower/ctx_scope.rs:4: pub(crate) fn scoped_fn_name(&self, name: Symbol) -> Symbol
-src/hir/lower/ctx_scope.rs:8: pub(crate) fn scoped_fn_name_in(
+src/hir/lower/ctx_scope.rs:4: pub(crate) fn is_scope_shared_type(name: &Symbol) -> bool
+src/hir/lower/ctx_scope.rs:9: pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>)
+src/hir/lower/ctx_scope.rs:33: pub(crate) fn collect_scoped_type_names(&mut self, stmts: &[Stmt], prefix: &str)
+src/hir/lower/ctx_scope.rs:70: pub(crate) fn scoped_type_symbol(&self, prefix: &str, name: Symbol) -> Symbol
+src/hir/lower/ctx_scope.rs:82: pub(crate) fn ast_type_to_hir_scoped(&self, ty: &Type, module: Option<Symbol>) -> HirType
+src/hir/lower/ctx_scope.rs:87: pub(crate) fn ast_type_to_hir_extern_scoped(&self, ty: &Type, module: Option<Symbol>) -> HirType
+src/hir/lower/ctx_scope.rs:92: pub(crate) fn ast_type_to_hir_param_scoped(
+src/hir/lower/ctx_scope.rs:103: pub(crate) fn qualify_hir_type(&self, ty: HirType, module: Option<Symbol>) -> HirType
+src/hir/lower/ctx_scope.rs:140: fn qualify_named_type(&self, module: Symbol, name: Symbol) -> Symbol
+src/hir/lower/ctx_scope.rs:194: pub(crate) fn scoped_fn_name(&self, name: Symbol) -> Symbol
+src/hir/lower/ctx_scope.rs:198: pub(crate) fn scoped_fn_name_in(
 src/hir/lower/helpers/bounds.rs:10: impl crate::hir::lower::Ctx
 src/hir/lower/helpers/bounds.rs:12: pub(crate) fn ensure_bounds_helper(&mut self) -> FnId
 src/hir/lower/helpers/bounds.rs:62: pub(crate) fn check_array_index(&mut self, object: &HirNodeBox, index: HirNodeBox, span: &Span, is_write: bool) -> HirNodeBox
@@ -1191,9 +1204,9 @@ src/hir/lower/helpers/coerce.rs:173: pub(crate) fn assign_compatible(src: &HirTy
 src/hir/lower/helpers/coerce.rs:205: pub(crate) fn ensure_assignable(
 src/hir/lower/helpers/convert.rs:3: pub(crate) fn hir_type_to_ast_type(ty: &HirType) -> Type
 src/hir/lower/helpers/convert.rs:36: pub(crate) fn infer_generic_from_param(
-src/hir/lower/helpers/convert.rs:47: pub(crate) fn generic_inner(s: &str) -> Option<&str>
-src/hir/lower/helpers/convert.rs:66: pub(crate) fn split_generic_args(s: &str) -> Vec<&str>
-src/hir/lower/helpers/convert.rs:86: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
+src/hir/lower/helpers/convert.rs:46: pub(crate) fn generic_inner(s: &str) -> Option<&str>
+src/hir/lower/helpers/convert.rs:65: pub(crate) fn split_generic_args(s: &str) -> Vec<&str>
+src/hir/lower/helpers/convert.rs:85: pub(crate) fn substitute_hir_type(ty: &HirType, subst: &HashMap<Symbol, HirType>) -> HirType
 src/hir/lower/helpers/fn_type.rs:9: pub(crate) fn ast_type_to_hir_extern(ty: &Type, interfaces: &HashMap<Symbol, InterfaceReg>) -> HirType
 src/hir/lower/helpers/fn_type.rs:20: pub(crate) fn ast_type_to_hir_param(
 src/hir/lower/helpers/fn_type.rs:34: pub(crate) fn unify_legacy_fn_type(ty: &HirType) -> HirType
@@ -1793,16 +1806,18 @@ src/hir/stmt.rs:113: pub struct HirBlock
 src/hir/stmt.rs:117: impl HirBlock
 src/hir/stmt.rs:118: pub fn new(stmts: Vec<HirStmt>) -> Self
 src/hir/transform.rs:12: pub(crate) fn apply(program: &mut HirProgram, stmts: &[Stmt]) -> Result<()>
-src/hir/transform.rs:41: fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:91: fn transform_attr<'a>(
-src/hir/transform.rs:103: fn collect_markers(
-src/hir/transform.rs:114: fn collect_item_markers(
-src/hir/transform.rs:132: fn collect_attrs_markers(
-src/hir/transform.rs:149: fn collect_fn_markers(
-src/hir/transform.rs:166: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:173: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:187: fn strip_attrs(attrs: &mut Vec<crate::parser::ast::Attr>, tables: &AnnotationTables) -> Result<()>
-src/hir/transform.rs:199: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:73: fn fn_has_transform_marker(f: &HirFn, tables: &AnnotationTables) -> Result<bool>
+src/hir/transform.rs:82: fn is_transform_runtime_helper(name: &crate::intern::Symbol) -> bool
+src/hir/transform.rs:94: fn validate_targets(stmts: &[Stmt], tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:144: fn transform_attr<'a>(
+src/hir/transform.rs:156: fn collect_markers(
+src/hir/transform.rs:167: fn collect_item_markers(
+src/hir/transform.rs:185: fn collect_attrs_markers(
+src/hir/transform.rs:202: fn collect_fn_markers(
+src/hir/transform.rs:219: fn strip_transform_attrs(program: &mut HirProgram, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:226: fn strip_item_attrs(item: &mut HirItem, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:240: fn strip_attrs(attrs: &mut Vec<crate::parser::ast::Attr>, tables: &AnnotationTables) -> Result<()>
+src/hir/transform.rs:252: fn strip_fn_attrs(f: &mut HirFn, tables: &AnnotationTables) -> Result<()>
 src/hir/ty.rs:4: pub struct VarId(pub usize);
 src/hir/ty.rs:9: pub struct FnId(pub usize);
 src/hir/ty.rs:19: pub enum HirType
@@ -1928,9 +1943,9 @@ src/lir/emit/functions.rs:87: impl<'a> Emitter<'a>
 src/lir/emit/functions.rs:88: pub(super) fn emit_struct_defs(&mut self)
 src/lir/emit/functions.rs:117: pub(super) fn emit_string_globals(&mut self)
 src/lir/emit/functions.rs:137: pub(super) fn emit_fn(&mut self, f: &LirFn)
-src/lir/emit/functions.rs:251: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox, fallback_span: crate::span::Span)
-src/lir/emit/functions.rs:269: pub(super) fn tmp(&mut self) -> u64
-src/lir/emit/functions.rs:283: fn escape_llvm_string(s: &str) -> String
+src/lir/emit/functions.rs:255: pub(super) fn emit_inst(&mut self, inst: &LirNodeBox, fallback_span: crate::span::Span)
+src/lir/emit/functions.rs:273: pub(super) fn tmp(&mut self) -> u64
+src/lir/emit/functions.rs:281: fn escape_llvm_string(s: &str) -> String
 src/lir/emit/mod.rs:21: pub fn emit_program(prog: &LirProgram) -> String
 src/lir/emit/mod.rs:26: pub fn emit_program_with_source(prog: &LirProgram, source_path: Option<&Path>) -> String
 src/lir/emit/mod.rs:32: pub fn debug_info_enabled() -> bool
@@ -2971,17 +2986,18 @@ src/package/generic_scope.rs:18: pub(crate) const SCOPE_PREFIX: &str = "__ayanam
 src/package/generic_scope.rs:20: pub(crate) fn scope_name(package: &str) -> String
 src/package/generic_scope.rs:28: impl super::Package
 src/package/generic_scope.rs:29: pub(crate) fn add_generic_scope_source(&mut self, stmts: &[Stmt])
-src/package/generic_scope.rs:81: fn collect_free_fns(stmts: &[Stmt]) -> (Vec<Stmt>, HashMap<Symbol, Vec<usize>>)
-src/package/generic_scope.rs:96: fn collect_generic_calls(stmts: &[Stmt], out: &mut HashSet<Symbol>) -> usize
-src/package/generic_scope.rs:124: fn make_linkonce(stmt: &Stmt) -> Stmt
+src/package/generic_scope.rs:65: fn collect_generic_calls(stmts: &[Stmt], out: &mut HashSet<Symbol>) -> usize
+src/package/generic_scope.rs:93: fn scope_item(stmt: &Stmt) -> bool
+src/package/generic_scope.rs:111: fn make_linkonce(stmt: &Stmt) -> Stmt
+src/package/generic_scope.rs:117: fn make_item_linkonce(stmt: &mut Stmt)
 src/package/load.rs:4: pub fn load_package(path: &str) -> Result<(Vec<ImportedSymbol>, Vec<String>, Vec<u8>, Vec<TargetType>)>
-src/package/load.rs:161: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
-src/package/load.rs:183: fn parse_ini_value(s: &str) -> String
-src/package/load.rs:195: pub fn load_version(path: &str) -> Option<String>
-src/package/load.rs:208: pub fn warn_version_drift(path: &str, stem: &str)
-src/package/load.rs:210: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
-src/package/load.rs:228: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
-src/package/load.rs:262: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
+src/package/load.rs:170: fn validate_annotation_symbols(symbols: &[ImportedSymbol], path: &str) -> Result<()>
+src/package/load.rs:192: fn parse_ini_value(s: &str) -> String
+src/package/load.rs:204: pub fn load_version(path: &str) -> Option<String>
+src/package/load.rs:217: pub fn warn_version_drift(path: &str, stem: &str)
+src/package/load.rs:219: static WARNED: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+src/package/load.rs:237: pub fn resolve_package_deps(path: &str) -> Result<Vec<std::path::PathBuf>>
+src/package/load.rs:271: pub fn load_package_deps(path: &str) -> Result<Vec<String>>
 src/package/mod.rs:1: pub mod config;
 src/package/mod.rs:6: mod annotate;
 src/package/mod.rs:7: mod bytes;
@@ -3034,7 +3050,7 @@ src/package/target.rs:19: pub fn from_str(s: &str) -> Option<Self>
 src/package/types.rs:5: pub struct Package
 src/package/types.rs:21: pub enum PackageSymbol
 src/package/types.rs:81: pub enum ImportedSymbol
-src/package/types.rs:132: pub(super) fn type_to_string(ty: &Type) -> String
+src/package/types.rs:138: pub(super) fn type_to_string(ty: &Type) -> String
 src/parser/ast/binary_op.rs:2: pub enum BinaryOp
 src/parser/ast/block.rs:6: pub struct Block
 src/parser/ast/block.rs:13: impl Block

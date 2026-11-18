@@ -19,8 +19,9 @@ impl crate::hir::lower::Ctx {
                     } else {
                         Symbol::intern(&format!("{}.{}", ns_prefix, name))
                     };
+                    let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
                     let ptypes: Vec<HirType> = params.iter()
-                        .map(|(_, t)| ast_type_to_hir_param(t, *extern_c, attrs, &self.interfaces))
+                        .map(|(_, t)| self.ast_type_to_hir_param_scoped(t, *extern_c, attrs, module))
                         .collect();
                     let fn_id = self.find_fn_by_sig(full_name, &ptypes)
                         .ok_or_else(|| Error::Hir(format!("internal error: function `{}` not found at {}:{}", full_name, span.start_line, span.start_col)))?;
@@ -38,26 +39,43 @@ impl crate::hir::lower::Ctx {
                     items.push(HirItem::Namespace { name: *name, items: inner });
                 }
                 Stmt::InterfaceDef { name, methods, generic_params, .. } => {
+                    let type_name = self.scoped_type_symbol(ns_prefix, *name);
+                    if !ns_prefix.is_empty() && type_name == *name {
+                        continue;
+                    }
+                    let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
                     let hir_methods: Vec<HirInterfaceMethod> = methods.iter().map(|m| {
                         HirInterfaceMethod {
                             name: m.name,
                             self_keyword: m.self_keyword,
                             params: m.params.iter()
-                                .map(|(n, t)| (*n, ast_type_to_hir(t, &self.interfaces)))
+                                .map(|(n, t)| (*n, self.ast_type_to_hir_scoped(t, module)))
                                 .collect(),
-                            return_type: ast_type_to_hir(&m.return_type, &self.interfaces),
+                            return_type: self.ast_type_to_hir_scoped(&m.return_type, module),
                         }
                     }).collect();
-                    items.push(HirItem::InterfaceDef { name: *name, generic_params: generic_params.clone(), methods: hir_methods });
+                    items.push(HirItem::InterfaceDef { name: type_name, generic_params: generic_params.clone(), methods: hir_methods });
                 }
                 Stmt::StructDef { name, fields, attrs, .. } => {
+                    let type_name = self.scoped_type_symbol(ns_prefix, *name);
+                    if !ns_prefix.is_empty() && type_name == *name {
+                        continue;
+                    }
+                    let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
                     let hir_fields: Vec<HirStructField> = fields.iter()
-                        .map(|(n, t)| HirStructField { name: *n, ty: ast_type_to_hir(t, &self.interfaces) })
+                        .map(|(n, t)| HirStructField {
+                            name: *n,
+                            ty: self.ast_type_to_hir_scoped(t, module),
+                        })
                         .collect();
-                    items.push(HirItem::StructDef(HirStructDef { name: *name, fields: hir_fields, attrs: attrs.clone() }));
+                    items.push(HirItem::StructDef(HirStructDef { name: type_name, fields: hir_fields, attrs: attrs.clone() }));
                 }
                 Stmt::EnumDef { name, variants, .. } => {
-                    let enum_items = self.build_enum_items(name, variants);
+                    let type_name = self.scoped_type_symbol(ns_prefix, *name);
+                    if !ns_prefix.is_empty() && type_name == *name {
+                        continue;
+                    }
+                    let enum_items = self.build_enum_items(&type_name, variants, ns_prefix);
                     items.extend(enum_items);
                 }
                 Stmt::Import { .. } => {} // already handled in collect_fns
@@ -70,15 +88,21 @@ impl crate::hir::lower::Ctx {
                             if !generic_params.is_empty() || !impl_gp.is_empty() {
                                 continue; // generic methods are lowered during specialization
                             }
+                            let module = (!ns_prefix.is_empty()).then(|| Symbol::intern(ns_prefix));
                             let ptypes: Vec<HirType> = params.iter()
-                                .map(|(_, t)| ast_type_to_hir(t, &self.interfaces))
+                                .map(|(_, t)| self.ast_type_to_hir_scoped(t, module))
                                 .collect();
-                            let fn_id = self.find_fn_by_sig(*name, &ptypes)
+                            let full_name = if ns_prefix.is_empty() {
+                                *name
+                            } else {
+                                Symbol::intern(&format!("{}.{}", ns_prefix, name))
+                            };
+                            let fn_id = self.find_fn_by_sig(full_name, &ptypes)
                                 .ok_or_else(|| {
                                     let s = method_stmt.span();
-                                    Error::Hir(format!("internal error: method `{}` not found at {}:{}", name, s.start_line, s.start_col))
+                                    Error::Hir(format!("internal error: method `{}` not found at {}:{}", full_name, s.start_line, s.start_col))
                                 })?;
-                            let hir_fn = self.lower_fn(fn_id, *name, params, return_type, body, false, false, false, method_stmt.span(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
+                            let hir_fn = self.lower_fn(fn_id, full_name, params, return_type, body, false, false, false, method_stmt.span(), attrs.clone(), param_attrs.clone(), vis.is_public())?;
                             items.push(HirItem::Fn(hir_fn));
                         }
                     }
@@ -90,35 +114,6 @@ impl crate::hir::lower::Ctx {
             }
         }
         Ok(items)
-    }
-
-    /// 从 HirType 中递归收集泛型参数名（如 T，含编码名 LinkedListNode[T] 里的 T）
-    pub(crate) fn collect_gp_from_type(ty: &HirType, out: &mut Vec<Symbol>) {
-        match ty {
-            HirType::Named(n) => {
-                let s = n.as_str();
-                // 裸泛型参数名：T
-                if s.len() == 1 && s.chars().all(|c| c.is_uppercase()) {
-                    out.push(*n);
-                }
-                // 编码名中的泛型参数：LinkedListNode[T] → T
-                if s.contains(['<', '[']) {
-                    if let Some(inner) = generic_inner(&s) {
-                        for part in split_generic_args(inner) {
-                            let pty = sig_str_to_hir(part.trim());
-                            Self::collect_gp_from_type(&pty, out);
-                        }
-                    }
-                }
-            }
-            HirType::Unique(inner) => {
-                Self::collect_gp_from_type(inner, out);
-            }
-            HirType::Array(inner) => Self::collect_gp_from_type(inner, out),
-            HirType::Ref(inner, _) => Self::collect_gp_from_type(inner, out),
-            HirType::FatPtr { kind, .. } => Self::collect_gp_from_type(kind, out),
-            _ => {}
-        }
     }
 
     pub(crate) fn lower_fn(
@@ -192,7 +187,12 @@ impl crate::hir::lower::Ctx {
 
         let mut hir_params = Vec::new();
         for (param_name, param_type) in ast_params {
-            let hir_ty = ast_type_to_hir_param(param_type, extern_c, &[], &self.interfaces);
+            let hir_ty = self.ast_type_to_hir_param_scoped(
+                param_type,
+                extern_c,
+                &[],
+                self.current_module,
+            );
             self.instantiate_type(&hir_ty)?;
             let var_id = VarId(self.locals.len());
             self.locals.push(HirLocal::new(*param_name, hir_ty.clone(), false));

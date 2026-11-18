@@ -94,6 +94,12 @@ pub enum ImportedSymbol {
     Interface {
         name: String,
     },
+    /// 方法归属（编译器用于导入方法候选分类）。
+    Method {
+        type_name: String,
+        name: String,
+        signature: String,
+    },
     /// A5b：包导出的宏
     Macro {
         name: String,
