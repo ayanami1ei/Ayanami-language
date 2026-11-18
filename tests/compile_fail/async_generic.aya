@@ -1,6 +1,14 @@
 import "io"
 enum Poll[T] { Ready(T), Pending }
 struct Context { int x }
+
 #[async]
-fn gen[T](T v) -> int { return 0 }
+fn target(int x) -> int { return x }
+
+#[async]
+fn gen[T](T v) -> int {
+    x = await target(1);
+    return x
+}
+
 fn main() -> int { return 0 }

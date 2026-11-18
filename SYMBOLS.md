@@ -615,7 +615,7 @@ src/hir/async_transform.rs:73: fn attach_qualified_attrs(out: &mut [Stmt], name:
 src/hir/async_transform.rs:91: fn is_async(a: &crate::parser::ast::Attr) -> bool
 src/hir/async_transform.rs:94: fn contains_async(stmt: &Stmt) -> bool
 src/hir/async_transform.rs:104: fn expand_one(
-src/hir/async_transform.rs:219: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:248: impl{generic_decl} {future_ty} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform_await.rs:10: pub(super) fn await_prefix(
 src/hir/async_transform_await.rs:50: pub(super) fn expand_await(
 src/hir/async_transform_await.rs:173: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
@@ -3589,8 +3589,10 @@ example/test_async_sugar.aya:22: interface Future[T]
 example/test_async_sugar.aya:23: fn poll(ref mut self, ref Context cx) -> Poll[T];
 example/test_async_sugar.aya:27: fn sum2(int a, int b) -> int
 example/test_async_sugar.aya:32: fn pick(int a, int b, int c) -> int
-example/test_async_sugar.aya:40: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_sugar.aya:53: fn main() -> int
+example/test_async_sugar.aya:40: fn identity[T](T v) -> T
+example/test_async_sugar.aya:45: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_sugar.aya:59: fn block_on_bool[F: Future[bool]](ref mut F f) -> bool
+example/test_async_sugar.aya:72: fn main() -> int
 example/test_attr.aya:6: fn square(int x) -> int
 example/test_attr.aya:10: fn main() -> int
 example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }

@@ -1,8 +1,9 @@
 # 异步（async）设计与实现
 
-> 状态：**A1a/A1b 已实现；A1c/A1d/A2/A3 分批推进**（2026-11-18）。
+> 状态：**A1a/A1b 与 A1c-1 已实现；A1c-2/A1d/A2/A3 分批推进**（2026-11-18）。
 > 当前 `#[async]`/`await` 已覆盖直线、分支、循环、数值/迭代 for、match 语句与嵌套 Future；
-> 泛型/方法 async、跨 await 引用、HIR 原生状态机优化和多线程 runtime 仍待完成。
+> 泛型无挂起函数已生成泛型 Future；泛型 await、方法 async、跨 await 引用、HIR 原生状态机优化
+> 和多线程 runtime 仍待完成。
 
 > 关联：bd `Ayanami-language-038.5`–`038.8`、GitHub #63。
 > 联动：M7 并发（原语与 Send/Sync 已完成）、效应系统 A3（A3a–c 与 `?` U2 已落地）、
@@ -168,6 +169,13 @@ impl __add_Fut {
   `#[async]` 用于泛型/方法/非 Copy 参数 → 明确报错；IR 快照无新增节点种类。
 
 后续切片：A1b-2 直线 `await`（单挂起点）→ A1b-3 循环/if 与 `ref` 跨 await 禁用 → A1b-4 高阶组合。
+
+### 7.1a A1c-1：泛型无挂起函数（2026-11-18 已完成）
+
+`#[async] fn identity[T](T v) -> T` 生成带同一泛型参数表的结构、wrapper、runner 与
+`impl[T] __identity_Fut[T]` poll。Future 布局随现有泛型单态化实例化，不新增状态表示。
+`identity[int]` 与 `identity[bool]` 分别可作为 `Future[int]`/`Future[bool]` 传给执行器。
+带 `await` 的泛型函数在当前切片仍明确诊断，拆分给 A1c-2。
 
 **实现备注**：`src/hir/async_transform.rs`；`#[async]` 在 HIR 前消费（宏展开期由
 `expand_util::is_compiler_attr` 放行）。踩坑：示例最初用 `fn add`，与 std `io` 导入的

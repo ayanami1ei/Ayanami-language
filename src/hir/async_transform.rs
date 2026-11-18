@@ -125,8 +125,15 @@ fn expand_one(
         unreachable!()
     };
     let fail = |msg: String| Error::Hir(format!("#[async] `{}`: {}", name.as_str(), msg));
-    if !generic_params.is_empty() {
-        return Err(fail("generic functions are not supported (v1)".into()));
+    let has_await = body.stmts.iter().any(crate::hir::async_cfg::stmt_has_await)
+        || body
+            .tail
+            .as_ref()
+            .is_some_and(|e| crate::hir::async_cfg::expr_has_await_pub(e));
+    if !generic_params.is_empty() && has_await {
+        return Err(fail(
+            "generic functions with `await` are not supported in this slice".into(),
+        ));
     }
     if *extern_c || *is_unsafe {
         return Err(fail(
@@ -164,12 +171,7 @@ fn expand_one(
     if !awaits.is_empty() {
         return expand_await(stmt, &awaits, returns, out);
     }
-    if body.stmts.iter().any(crate::hir::async_cfg::stmt_has_await)
-        || body
-            .tail
-            .as_ref()
-            .map_or(false, |e| crate::hir::async_cfg::expr_has_await_pub(e))
-    {
+    if has_await {
         return Err(fail(
             "awaits inside loops/branches are not supported here \
              (v1: assignment await in if/while/block)"
@@ -190,6 +192,33 @@ fn expand_one(
     let fut = format!("__{}_Fut", name.as_str());
     let run = format!("__async_run_{}", name.as_str());
     let vis_s = if vis.is_public() { "pub " } else { "" };
+    let generic_names: Vec<String> = generic_params.iter().map(|(n, _)| n.as_str()).collect();
+    let generic_args = if generic_names.is_empty() {
+        String::new()
+    } else {
+        format!("[{}]", generic_names.join(", "))
+    };
+    let generic_decl = if generic_params.is_empty() {
+        String::new()
+    } else {
+        let params = generic_params.iter().map(|(n, bounds)| {
+            if bounds.is_empty() {
+                n.as_str().to_string()
+            } else {
+                format!(
+                    "{}: {}",
+                    n.as_str(),
+                    bounds.iter().map(|b| b.as_str()).collect::<Vec<_>>().join(" + ")
+                )
+            }
+        });
+        format!("[{}]", params.collect::<Vec<_>>().join(", "))
+    };
+    let future_ty = if generic_args.is_empty() {
+        fut.clone()
+    } else {
+        format!("{}{}", fut, generic_args)
+    };
     let plist: Vec<String> = params
         .iter()
         .zip(&ptypes)
@@ -214,9 +243,9 @@ fn expand_one(
         format!("{}\n    int _done", fields.join("\n    "))
     };
     let src = format!(
-        "{vis_s}struct {fut} {{\n    {field_decl}\n}}\n\
-         {vis_s}fn {name}({plist}) -> {fut} {{\n    return {fut} {{ {inits}{isep}_done = 0 }}\n}}\n\
-         impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+        "{vis_s}struct {fut}{generic_decl} {{\n    {field_decl}\n}}\n\
+         {vis_s}fn {name}{generic_decl}({plist}) -> {future_ty} {{\n    return {future_ty} {{ {inits}{isep}_done = 0 }}\n}}\n\
+         impl{generic_decl} {future_ty} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
          \x20       if self._done == 1 {{ return Poll::Pending() }}\n\
          \x20       self._done = 1\n\
          \x20       return Poll::Ready({run}({args}))\n    }}\n}}\n",
