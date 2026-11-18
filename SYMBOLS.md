@@ -315,13 +315,19 @@ src/compiler/macro_expand/token_stream.rs:215: fn roundtrip_encode_decode()
 src/compiler/macro_expand/token_stream.rs:225: fn decode_rejects_truncated()
 src/compiler/macro_expand/token_stream.rs:232: fn group_roundtrip()
 src/compiler/macro_expand/token_stream.rs:246: fn binary_safe_string_literal()
-src/compiler/macro_expand/trace.rs:10: static ENABLED: Cell<bool> = const { Cell::new(false) };
-src/compiler/macro_expand/trace.rs:11: static RECORDS: RefCell<Vec<Value>> = const { RefCell::new(Vec::new()) };
-src/compiler/macro_expand/trace.rs:14: pub(crate) fn begin()
-src/compiler/macro_expand/trace.rs:19: pub(crate) fn record(
-src/compiler/macro_expand/trace.rs:46: pub(crate) fn finish() -> Result<String>
-src/compiler/macro_expand/trace.rs:57: mod tests
-src/compiler/macro_expand/trace.rs:61: fn structured_trace_roundtrip()
+src/compiler/macro_expand/trace.rs:10: struct TraceToken
+src/compiler/macro_expand/trace.rs:18: static ENABLED: Cell<bool> = const { Cell::new(false) };
+src/compiler/macro_expand/trace.rs:19: static RECORDS: RefCell<Vec<Value>> = const { RefCell::new(Vec::new()) };
+src/compiler/macro_expand/trace.rs:22: pub(crate) fn begin()
+src/compiler/macro_expand/trace.rs:27: pub(crate) fn record(
+src/compiler/macro_expand/trace.rs:60: fn flat_tokens(source: &str) -> Vec<TraceToken>
+src/compiler/macro_expand/trace.rs:66: fn flatten(tokens: &[super::token_stream::Token], out: &mut Vec<TraceToken>)
+src/compiler/macro_expand/trace.rs:92: fn token_json(token: &TraceToken) -> Value
+src/compiler/macro_expand/trace.rs:101: fn map_tokens(input: &[TraceToken], output: &[TraceToken]) -> Vec<Value>
+src/compiler/macro_expand/trace.rs:127: fn same_token(a: &TraceToken, b: &TraceToken) -> bool
+src/compiler/macro_expand/trace.rs:131: pub(crate) fn finish() -> Result<String>
+src/compiler/macro_expand/trace.rs:142: mod tests
+src/compiler/macro_expand/trace.rs:146: fn structured_trace_roundtrip()
 src/compiler/mod.rs:1: pub mod build;
 src/compiler/mod.rs:2: pub mod check;
 src/compiler/mod.rs:3: pub mod debug;

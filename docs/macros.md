@@ -95,7 +95,7 @@ pub fn diag_warn(String msg, Span span)
 |---|---|---|
 | **mcl.1**（完成） | ABI v6/v7：TokenStream 编解码（分组 token 已支持）+ 编译器侧桥（字节通道）+ 宏分类（`#[macro(tokens)]`；item/语句/表达式三形态）+ std `Span`/`Token`/`TokenStream` 字节 API | 正例：`example/test_macro_tokens.aya`（`tok_keep` 往返 / `tok_twice` 拼接 / `#tok_expr` 表达式）+ 编译器/std 编解码单测；回归全绿 |
 | **mcl.2**（部分 ✓） | hygiene 原语（`__ayanami_macro_hygienic` 后缀）+ Diagnostic 通道（warn/error + 宏名 + 调用点 `at l:c`） | 正例：`example/test_macro_hygiene.aya`（生成名不捕获用户同名函数 + warn 带位置）；负例：`macro_diag_error.aya`；**待做**：token span 归属/自动改名、`#[check]` 渲染统一 |
-| **mcl.3**（部分 ✓） | `ayanami dump expanded <file>`（展开后源码）+ `ayanami dump macros <file>`（结构化 JSON 记录）+ `AYANAMI_MACRO_TRACE=1` 追踪 | 结构化记录覆盖 item/statement/expression、宏名、调用位置、token mode、输入和输出；**待做**：逐 token span 映射链 |
+| **mcl.3**（完成） | `ayanami dump expanded` + `ayanami dump macros` 结构化 JSON + `AYANAMI_MACRO_TRACE=1` | 记录覆盖 item/statement/expression、调用位置、token mode、input/output token spans，以及 LCS output→input 映射；新生成 token 以调用点定位兜底 |
 | 远期 | 其它语言插件 / WASM 沙箱 / 插件清单与权限 | — |
 
 ## 6. 非目标
