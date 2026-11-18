@@ -14,7 +14,7 @@ use crate::hir::async_transform_util::{attach_qualified_attrs, ty_src};
 use crate::intern::Symbol;
 use crate::parser::ast::vis::Visibility;
 use crate::parser::ast::{Program, Stmt, Type};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 /// 展开程序中的 `#[async]` 函数（cfg 过滤之后、HIR 降级之前）。
 pub fn expand(
     program: &Program,
@@ -23,7 +23,7 @@ pub fn expand(
     // await 目标函数的返回类型表（仅同程序 #[async] 函数）
     let mut returns: HashMap<Symbol, Type> = HashMap::new();
     let mut async_fns: HashMap<Symbol, Vec<(Symbol, Type)>> = HashMap::new();
-    let mut generic_async_fns: HashSet<Symbol> = HashSet::new();
+    let mut async_generic_params: HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>> = HashMap::new();
     let mut fn_returns: HashMap<Symbol, Type> = HashMap::new();
     for stmt in &program.stmts {
         if let Stmt::FnDecl {
@@ -39,9 +39,7 @@ pub fn expand(
             if attrs.iter().any(is_async) {
                 returns.insert(*name, return_type.clone());
                 async_fns.insert(*name, params.clone());
-                if !generic_params.is_empty() {
-                    generic_async_fns.insert(*name);
-                }
+                async_generic_params.insert(*name, generic_params.clone());
             }
         }
     }
@@ -54,7 +52,7 @@ pub fn expand(
                     stmt,
                     &returns,
                     &async_fns,
-                    &generic_async_fns,
+                    &async_generic_params,
                     &fn_returns,
                     &mut out,
                     types,
@@ -103,7 +101,7 @@ fn expand_one(
     stmt: &Stmt,
     returns: &HashMap<Symbol, Type>,
     async_fns: &HashMap<Symbol, Vec<(Symbol, Type)>>,
-    generic_async_fns: &HashSet<Symbol>,
+    async_generic_params: &HashMap<Symbol, Vec<(Symbol, Vec<Symbol>)>>,
     fn_returns: &HashMap<Symbol, Type>,
     out: &mut Vec<Stmt>,
     types: Option<&crate::hir::lower::AsyncLocalTypes>,
@@ -133,7 +131,8 @@ fn expand_one(
         return crate::hir::async_transform_generic_await::expand(
             stmt,
             returns,
-            generic_async_fns,
+            async_fns,
+            async_generic_params,
             out,
         );
     }

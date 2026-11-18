@@ -186,10 +186,11 @@ wrapper 立即调用私有 runner 并把结果存入 `__value`，首次 poll 返
 
 ### 7.1c A1c-2：泛型单挂起 await（2026-11-18 已完成切片）
 
-支持泛型函数体恰好为 `y = await target(args); return y`，target 为同程序非泛型 async
-函数。生成的泛型 Future 保存参数、一个内层 target future 和状态；构造器建立内层 future，
-poll 直接转发其 Pending/Ready。该形态不需要为未知 `T` 创建默认值，已覆盖 int/bool 两种
-泛型特殊化。多挂起点、泛型 await 目标和非此形状仍明确诊断。
+支持泛型函数体恰好为 `y = await target(args); return y`，target 为同程序 async 函数。
+target 自身也可带泛型参数：首版从 target 形参与实参做浅层推导，支持 caller 参数/字面量
+及显式后缀类型；生成的 Future 写出 `__target_Fut[T]` 等具体内层类型。构造器建立内层
+future，poll 直接转发其 Pending/Ready。已覆盖 int/bool 两种 caller 泛型 specializations
+以及 caller 泛型流转到 generic target。多挂起点、复杂目标类型推断和非此形状仍明确诊断。
 
 **实现备注**：`src/hir/async_transform.rs`；`#[async]` 在 HIR 前消费（宏展开期由
 `expand_util::is_compiler_attr` 放行）。踩坑：示例最初用 `fn add`，与 std `io` 导入的

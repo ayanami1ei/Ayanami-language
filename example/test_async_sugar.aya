@@ -52,6 +52,12 @@ fn generic_wait[T](T tag, int x) -> int {
     return y
 }
 
+#[async]
+fn generic_target_wait[T](T v) -> T {
+    y = await identity(v);
+    return y
+}
+
 struct Counter {
     int n
 }
@@ -109,5 +115,7 @@ fn main() -> int {
     if block_on(c.bump()) != 11 { return 7 }
     if block_on(generic_wait(0, 4)) != 5 { return 8 }
     if block_on(generic_wait(false, 5)) != 6 { return 9 }
+    if block_on(generic_target_wait(8)) != 8 { return 10 }
+    if block_on_bool(generic_target_wait(true)) != true { return 11 }
     return 0
 }

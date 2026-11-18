@@ -1,0 +1,27 @@
+enum Poll[T] {
+    Ready(T),
+    Pending,
+}
+
+struct Context {
+    int id
+}
+
+#[async]
+fn identity[T](T v) -> T {
+    return v
+}
+
+fn make() -> int {
+    return 1
+}
+
+#[async]
+fn wait[T](T tag) -> int {
+    y = await identity(make());
+    return y
+}
+
+fn main() -> int {
+    return 0
+}

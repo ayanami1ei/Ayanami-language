@@ -611,17 +611,19 @@ src/hir/async_mixed_types.rs:68: pub(super) fn type_default(t: &Type) -> Option<
 src/hir/async_mixed_types.rs:81: pub(super) fn hir_to_ast(t: &HirType, span: Span) -> Option<Type>
 src/hir/async_post_args.rs:10: pub(super) fn build_post_args(
 src/hir/async_transform.rs:19: pub fn expand(
-src/hir/async_transform.rs:89: pub(super) fn is_async(a: &crate::parser::ast::Attr) -> bool
-src/hir/async_transform.rs:92: fn contains_async(stmt: &Stmt) -> bool
-src/hir/async_transform.rs:102: fn expand_one(
-src/hir/async_transform.rs:250: impl{generic_decl} {future_ty} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform.rs:87: pub(super) fn is_async(a: &crate::parser::ast::Attr) -> bool
+src/hir/async_transform.rs:90: fn contains_async(stmt: &Stmt) -> bool
+src/hir/async_transform.rs:100: fn expand_one(
+src/hir/async_transform.rs:249: impl{generic_decl} {future_ty} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
 src/hir/async_transform_await.rs:10: pub(super) fn await_prefix(
 src/hir/async_transform_await.rs:50: pub(super) fn expand_await(
 src/hir/async_transform_await.rs:173: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_transform_generic_await.rs:11: pub(super) fn expand(
-src/hir/async_transform_generic_await.rs:72: impl{gdecl} {future_ty} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
-src/hir/async_transform_generic_await.rs:101: fn match_single_await(body: &Block) -> Option<(Symbol, Symbol, String)>
-src/hir/async_transform_generic_await.rs:132: fn generic_decl(params: &[(Symbol, Vec<Symbol>)]) -> String
+src/hir/async_transform_generic_await.rs:12: pub(super) fn expand(
+src/hir/async_transform_generic_await.rs:106: impl{gdecl} {future_ty} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
+src/hir/async_transform_generic_await.rs:135: fn match_single_await(body: &Block) -> Option<(Symbol, Symbol, Vec<Expr>)>
+src/hir/async_transform_generic_await.rs:162: fn infer_arg_type(expr: &Expr, caller_types: &HashMap<Symbol, String>) -> Option<String>
+src/hir/async_transform_generic_await.rs:175: fn specialize_type(ty: &Type, subst: &HashMap<Symbol, String>) -> Option<String>
+src/hir/async_transform_generic_await.rs:193: fn generic_decl(params: &[(Symbol, Vec<Symbol>)]) -> String
 src/hir/async_transform_impl.rs:12: pub(super) fn expand_impl(stmt: &Stmt, out: &mut Vec<Stmt>) -> Result<()>
 src/hir/async_transform_impl.rs:80: fn expand_method(
 src/hir/async_transform_impl.rs:131: impl {fut} {{\n    #[state]\n    fn poll(ref mut self, ref Context cx) -> Poll[{ret}] {{\n\
@@ -3603,13 +3605,14 @@ example/test_async_sugar.aya:32: fn pick(int a, int b, int c) -> int
 example/test_async_sugar.aya:40: fn identity[T](T v) -> T
 example/test_async_sugar.aya:45: fn concrete_target(int x) -> int
 example/test_async_sugar.aya:50: fn generic_wait[T](T tag, int x) -> int
-example/test_async_sugar.aya:55: struct Counter
-example/test_async_sugar.aya:59: impl Counter
-example/test_async_sugar.aya:61: fn add(ref self, int x) -> int
-example/test_async_sugar.aya:67: fn bump(ref mut self) -> int
-example/test_async_sugar.aya:74: fn block_on[F: Future[int]](ref mut F f) -> int
-example/test_async_sugar.aya:88: fn block_on_bool[F: Future[bool]](ref mut F f) -> bool
-example/test_async_sugar.aya:101: fn main() -> int
+example/test_async_sugar.aya:56: fn generic_target_wait[T](T v) -> T
+example/test_async_sugar.aya:61: struct Counter
+example/test_async_sugar.aya:65: impl Counter
+example/test_async_sugar.aya:67: fn add(ref self, int x) -> int
+example/test_async_sugar.aya:73: fn bump(ref mut self) -> int
+example/test_async_sugar.aya:80: fn block_on[F: Future[int]](ref mut F f) -> int
+example/test_async_sugar.aya:94: fn block_on_bool[F: Future[bool]](ref mut F f) -> bool
+example/test_async_sugar.aya:107: fn main() -> int
 example/test_attr.aya:6: fn square(int x) -> int
 example/test_attr.aya:10: fn main() -> int
 example/test_attrs.aya:3: fn add(int a, int b) -> int { return a + b }
