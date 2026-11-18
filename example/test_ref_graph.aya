@@ -1,3 +1,13 @@
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn test_live_allocs() -> int {
+    result = 0
+    unsafe {
+        result = __ayanami_live_allocs()
+    }
+    return result;
+}
+
 // R4：引用字段的序列化表示（ID / 句柄）与对象图重建（文件往返）
 // - 序列化：引用字段只写“目标身份”（节点 ID），不写地址；每节点 4 行（id / v / prev_id / next_id，-1 = None）
 // - 重建：先把文本解析为整数序列，再两趟建图——先分配并建立 id→Idx 映射，再连边（支持循环与前向引用）
@@ -10,7 +20,6 @@ import "convert"
 import "hashmap"
 import "arraylist"
 
-extern "C" fn __ayanami_live_allocs() -> int;
 
 #[copy]
 struct Idx {
@@ -186,7 +195,7 @@ fn roundtrip() -> int {
 fn main() -> int {
     rc = roundtrip()
     if rc != 0 { return rc }
-    live = __ayanami_live_allocs()
+    live = test_live_allocs()
     if live != 0 { println(live); return 10 }
     println("ref graph roundtrip ok")
     return 0

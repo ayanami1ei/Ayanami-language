@@ -3,7 +3,10 @@ extern "C" fn time(ref int t) -> int;
 
 fn main() -> int {
     t = 0
-    r = time(t)
+    r = 0
+    unsafe {
+        r = time(t)
+    }
     // time 返回与写入相同的值：t == r
     return t - r
 }

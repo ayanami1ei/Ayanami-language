@@ -1,6 +1,7 @@
+import "alloc";
+
 // P1 内存管理验证：拥有数组离开作用域后必须释放
 // 退出码 = 存活分配数，期望为 0
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn make() -> int {
     q = [1, 2]
@@ -10,5 +11,5 @@ fn make() -> int {
 
 fn main() -> int {
     v = make()
-    return __ayanami_live_allocs()
+    return live_allocs()
 }

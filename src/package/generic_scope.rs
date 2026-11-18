@@ -82,8 +82,8 @@ fn collect_free_fns(stmts: &[Stmt]) -> (Vec<Stmt>, HashMap<Symbol, Vec<usize>>) 
     let mut fns = Vec::new();
     let mut by_name: HashMap<Symbol, Vec<usize>> = HashMap::new();
     for stmt in stmts {
-        if let Stmt::FnDecl { name, generic_params, .. } = stmt {
-            if generic_params.is_empty() {
+        if let Stmt::FnDecl { name, generic_params, extern_c, .. } = stmt {
+            if generic_params.is_empty() && !*extern_c {
                 let idx = fns.len();
                 fns.push(stmt.clone());
                 by_name.entry(*name).or_default().push(idx);

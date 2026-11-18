@@ -5,8 +5,10 @@ extern "C" fn __ayanami_unique_alloc(usize size) -> *u8;
 extern "C" fn __ayanami_unique_free(*u8 p);
 
 fn main() -> int {
-    p = __ayanami_unique_alloc(8usize)
-    __ayanami_unique_free(p)
+    unsafe {
+        p = __ayanami_unique_alloc(8usize)
+        __ayanami_unique_free(p)
+    }
     println(1)
     return 0
 }

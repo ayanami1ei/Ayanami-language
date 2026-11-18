@@ -1,6 +1,7 @@
+import "alloc";
+
 // #165：拥有字段/枚举载荷读取多次（clone 非破坏性），无泄漏
 import "io"
-extern "C" fn __ayanami_live_allocs() -> int;
 
 struct S {
     String v
@@ -23,7 +24,7 @@ fn run() -> int {
 
 fn main() -> int {
     if run() != 0 { return 1 }
-    live = __ayanami_live_allocs()
+    live = live_allocs()
     if live != 0 { println(live); return 2 }
     return 0
 }

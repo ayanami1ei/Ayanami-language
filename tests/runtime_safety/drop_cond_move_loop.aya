@@ -1,8 +1,9 @@
+import "alloc";
+
 // #184：循环内条件移动的拥有型本地在未移动路径须 drop（此前泄漏）
 import "io"
 import "string"
 
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn h() -> int {
     k = 0
@@ -19,8 +20,8 @@ fn h() -> int {
 }
 
 fn main() -> int {
-    b = __ayanami_live_allocs()
+    b = live_allocs()
     h()
-    println(__ayanami_live_allocs() - b)
+    println(live_allocs() - b)
     return 0
 }

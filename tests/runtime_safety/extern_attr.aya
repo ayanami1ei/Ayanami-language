@@ -10,7 +10,10 @@ fn exported_add(int a, int b) -> int {
 }
 
 fn main() -> int {
-    live = __ayanami_live_allocs()
+    live = 0
+    unsafe {
+        live = __ayanami_live_allocs()
+    }
     if live < 0 { return 1 }
     if exported_add(2, 3) != 5 { return 2 }
     println(1)

@@ -29,7 +29,7 @@
 | `docs/closures.md` | 闭包与捕获（M2 完成：`Fn(T)->U`/`FnOnce` 类型、按值/可变捕获、接口机制复用） |
 | `docs/iterators.md` | 迭代器与 for（M3：for-in 协议 + 泛型接口虚调用；std 适配器已落地） |
 | `docs/refs-storage.md` | 引用存储（M4：阶段 1 `Ptr[T]` 已落地；阶段 2 Arena 语言能力 + 示例完成，std 移植待做） |
-| `docs/unsafe.md` | unsafe / FFI 安全边界（M5：P1/P2/P3 已落地；P4 extern 调用迁移待做） |
+| `docs/unsafe.md` | unsafe / FFI 安全边界（M5：P1–P4 已落地；无体 extern C 调用需 unsafe，std 在高层安全包装内建立边界） |
 | `docs/runtime-safety.md` | 运行时安全行为权威清单（UB/panic；`tests/runtime_safety/` 覆盖） |
 | `docs/enum-layout.md` | 枚举布局优化（N1 niche + N2/N3 16 字节阈值装箱，均已实现） |
 | `docs/async.md` | 异步：A1b-2 AST 形状状态机（直线 / if / if-else / elif / while + break/continue + 分支多 await）已落地；§7.4 为 HIR 级一般 CFG 设计（未实现） |

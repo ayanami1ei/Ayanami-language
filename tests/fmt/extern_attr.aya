@@ -2,7 +2,9 @@
 extern "C" fn g(usize x);
 
 extern "C" fn f(usize x) {
-    g(x)
+    unsafe {
+        g(x)
+    }
 }
 
 fn main() -> int {

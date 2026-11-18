@@ -1,0 +1,5 @@
+extern "C" fn getpid() -> int;
+
+fn main() -> int {
+    return getpid()
+}

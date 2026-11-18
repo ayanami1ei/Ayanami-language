@@ -1,6 +1,7 @@
+import "alloc";
+
 // P1 块级作用域释放验证：循环内每轮分配的拥有数组必须在当轮释放
 // 退出码 = 存活分配数，期望为 0
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn loop_allocs() -> int {
     i = 0;
@@ -13,5 +14,5 @@ fn loop_allocs() -> int {
 
 fn main() -> int {
     loop_allocs();
-    return __ayanami_live_allocs();
+    return live_allocs();
 }

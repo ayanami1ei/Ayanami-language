@@ -14,7 +14,12 @@ fn id[T](T x) -> T { return x }
 
 // 推断一致：内部调用 putchar，声明了 io → 无提醒
 #[io]
-fn declared_io() -> int { putchar(65); return 0 }
+fn declared_io() -> int {
+    unsafe {
+        putchar(65);
+    }
+    return 0
+}
 
 // A3b（修正后）：#[pure]/#[no_error] 才产生优化承诺
 #[no_error]

@@ -3317,15 +3317,15 @@ example/macro_lib.aya:23: pub fn show(String input, String arg) -> String
 example/macro_lib.aya:31: pub fn twice(String input) -> String { return input + input }
 example/macro_lib.aya:36: pub fn guarded(String input, String cond) -> String
 example/macro_lib.aya:44: pub fn double(String input, String x) -> String { return "(" + x + " + " + x + ")" }
-example/macro_lib.aya:48: pub fn my_line(String input, int __line, int __col) -> String { return "" + __line }
-example/macro_lib.aya:54: pub fn block_len(String input, String block) -> String
-example/macro_lib.aya:61: pub fn tok_keep(String input) -> String { return input }
-example/macro_lib.aya:65: pub fn tok_twice(String input) -> String { return input + input }
-example/macro_lib.aya:75: pub fn hygienic_fn(String input, String name) -> String
-example/macro_lib.aya:82: pub fn warn_me(String input) -> String
-example/macro_lib.aya:88: pub fn err_me(String input) -> String
-example/macro_lib.aya:95: pub fn broken(String input) -> String { return "fn broken( {" }
-example/macro_lib.aya:99: pub fn tok_expr(String input, String a) -> String { return a }
+example/macro_lib.aya:50: pub fn my_line(String input, int __line, int __col) -> String { return "" + __line }
+example/macro_lib.aya:56: pub fn block_len(String input, String block) -> String
+example/macro_lib.aya:65: pub fn tok_keep(String input) -> String { return input }
+example/macro_lib.aya:71: pub fn tok_twice(String input) -> String { return input + input }
+example/macro_lib.aya:81: pub fn hygienic_fn(String input, String name) -> String
+example/macro_lib.aya:93: pub fn warn_me(String input) -> String
+example/macro_lib.aya:103: pub fn err_me(String input) -> String
+example/macro_lib.aya:114: pub fn broken(String input) -> String { return "fn broken( {" }
+example/macro_lib.aya:118: pub fn tok_expr(String input, String a) -> String { return a }
 example/math_lib.aya:1: pub fn add(int a, int b) -> int
 example/pass_lib.aya:5: pub fn auto_pure(ref mut MirFunction f)
 example/test.aya:1: fn main()->int
@@ -3336,22 +3336,23 @@ example/test_aggregate_array.aya:11: enum E
 example/test_aggregate_array.aya:17: fn main() -> int
 example/test_annotation_scope.aya:5: fn placeholder() -> int { return 0 }
 example/test_annotation_scope.aya:7: fn main() -> int { return answer() - 42 }
-example/test_arena.aya:9: struct Idx
-example/test_arena.aya:15: pub fn copy(Idx i) -> Idx
-example/test_arena.aya:20: struct Arena[T]
-example/test_arena.aya:27: pub fn with_capacity[T](usize cap) -> Arena[T]
-example/test_arena.aya:32: impl[T] Arena[T]
-example/test_arena.aya:33: pub fn alloc(ref mut self, T v) -> Idx
-example/test_arena.aya:41: pub fn get(ref self, Idx i) -> ref T
-example/test_arena.aya:48: pub fn get_mut(ref mut self, Idx i) -> ref mut T
-example/test_arena.aya:55: pub fn len(ref self) -> usize
-example/test_arena.aya:60: struct Node
-example/test_arena.aya:66: struct GNode
-example/test_arena.aya:73: fn dfs(ref mut Arena[GNode] a, Idx start) -> int
-example/test_arena.aya:89: fn demo_list() -> int
-example/test_arena.aya:123: fn demo_graph() -> int
-example/test_arena.aya:143: fn demo() -> int
-example/test_arena.aya:151: fn main() -> int
+example/test_arena.aya:3: fn test_live_allocs() -> int
+example/test_arena.aya:18: struct Idx
+example/test_arena.aya:24: pub fn copy(Idx i) -> Idx
+example/test_arena.aya:29: struct Arena[T]
+example/test_arena.aya:36: pub fn with_capacity[T](usize cap) -> Arena[T]
+example/test_arena.aya:41: impl[T] Arena[T]
+example/test_arena.aya:42: pub fn alloc(ref mut self, T v) -> Idx
+example/test_arena.aya:50: pub fn get(ref self, Idx i) -> ref T
+example/test_arena.aya:57: pub fn get_mut(ref mut self, Idx i) -> ref mut T
+example/test_arena.aya:64: pub fn len(ref self) -> usize
+example/test_arena.aya:69: struct Node
+example/test_arena.aya:75: struct GNode
+example/test_arena.aya:82: fn dfs(ref mut Arena[GNode] a, Idx start) -> int
+example/test_arena.aya:98: fn demo_list() -> int
+example/test_arena.aya:132: fn demo_graph() -> int
+example/test_arena.aya:152: fn demo() -> int
+example/test_arena.aya:160: fn main() -> int
 example/test_array.aya:1: fn main() -> int
 example/test_array_bounds.aya:5: fn main() -> int
 example/test_array_elem_field.aya:2: struct Inner { int a }
@@ -3544,8 +3545,8 @@ example/test_cfg.aya:14: fn main() -> int
 example/test_check.aya:6: fn allocs() -> int
 example/test_check.aya:12: fn pure_ok(int a, int b) -> int
 example/test_check.aya:16: fn main() -> int
-example/test_closure_capture.aya:4: fn run() -> int
-example/test_closure_capture.aya:15: fn main() -> int
+example/test_closure_capture.aya:5: fn run() -> int
+example/test_closure_capture.aya:16: fn main() -> int
 example/test_closure_collections.aya:4: fn main() -> int
 example/test_closure_field_call.aya:5: struct Holder[T, U]
 example/test_closure_field_call.aya:9: impl[T, U] Holder[T, U]
@@ -3601,20 +3602,20 @@ example/test_eff_import.aya:4: fn main() -> int
 example/test_effects.aya:6: fn parse(int x) -> int { return x }
 example/test_effects.aya:10: fn pure_fn() -> int { return 0 }
 example/test_effects.aya:13: fn id[T](T x) -> T { return x }
-example/test_effects.aya:17: fn declared_io() -> int { putchar(65); return 0 }
-example/test_effects.aya:23: fn main() -> int
+example/test_effects.aya:17: fn declared_io() -> int
+example/test_effects.aya:28: fn main() -> int
 example/test_elif_string.aya:4: fn f(ref String s) -> int
 example/test_elif_string.aya:11: fn main() -> int
 example/test_ensures.aya:3: fn abs2(int x) -> int
 example/test_ensures.aya:9: fn inc(int n) -> int { return n + 1 }
 example/test_ensures.aya:12: fn fallthrough() -> int { }
 example/test_ensures.aya:14: fn main() -> int
-example/test_enum_boxed.aya:5: struct Big
-example/test_enum_boxed.aya:11: enum E
-example/test_enum_boxed.aya:16: enum OptBig
-example/test_enum_boxed.aya:23: fn sum(Big x) -> int
-example/test_enum_boxed.aya:27: fn run() -> int
-example/test_enum_boxed.aya:52: fn main() -> int
+example/test_enum_boxed.aya:7: struct Big
+example/test_enum_boxed.aya:13: enum E
+example/test_enum_boxed.aya:18: enum OptBig
+example/test_enum_boxed.aya:24: fn sum(Big x) -> int
+example/test_enum_boxed.aya:28: fn run() -> int
+example/test_enum_boxed.aya:53: fn main() -> int
 example/test_env_allocator.aya:6: fn run() -> int
 example/test_env_allocator.aya:14: fn main() -> int
 example/test_env_block.aya:5: struct FailAlloc { }
@@ -3666,17 +3667,17 @@ example/test_ffi_attrs.aya:25: fn fast() -> int { return 2 }
 example/test_ffi_attrs.aya:28: fn always_returns() -> int { return 3 }
 example/test_ffi_attrs.aya:30: fn touch(#[nonnull] ref int x) -> int { return 0 }
 example/test_ffi_attrs.aya:32: fn main() -> int
-example/test_field_move.aya:4: struct S { [int] data }
-example/test_field_move.aya:6: fn run() -> int
-example/test_field_move.aya:12: fn main() -> int
+example/test_field_move.aya:5: struct S { [int] data }
+example/test_field_move.aya:7: fn run() -> int
+example/test_field_move.aya:13: fn main() -> int
 example/test_float_nan_cmp.aya:4: fn main() -> int
 example/test_fn_fold.aya:5: fn fold_str(String acc, String item, Fn(String, String) -> String f) -> String
 example/test_fn_fold.aya:15: fn main() -> int
-example/test_fn_once.aya:5: struct Holder
-example/test_fn_once.aya:9: fn make(int base) -> FnOnce() -> int
-example/test_fn_once.aya:14: fn apply(FnOnce() -> int f) -> int
-example/test_fn_once.aya:18: fn run() -> int
-example/test_fn_once.aya:32: fn main() -> int
+example/test_fn_once.aya:6: struct Holder
+example/test_fn_once.aya:10: fn make(int base) -> FnOnce() -> int
+example/test_fn_once.aya:15: fn apply(FnOnce() -> int f) -> int
+example/test_fn_once.aya:19: fn run() -> int
+example/test_fn_once.aya:33: fn main() -> int
 example/test_fn_shadow.aya:4: fn add(int a, int b) -> int
 example/test_fn_shadow.aya:8: fn main() -> int
 example/test_fn_value.aya:2: fn seven() -> int
@@ -3901,13 +3902,13 @@ example/test_match_qualified.aya:19: fn main() -> int
 example/test_match_ref_binding.aya:6: fn take_str(ref Option[String] o) -> int
 example/test_match_ref_binding.aya:13: fn take_local(Option[String] o) -> int
 example/test_match_ref_binding.aya:20: fn main() -> int
-example/test_memory.aya:5: fn make() -> int
-example/test_memory.aya:11: fn main() -> int
-example/test_memory_enum.aya:4: enum Maybe
-example/test_memory_enum.aya:9: fn make() -> int
-example/test_memory_enum.aya:15: fn main() -> int
-example/test_memory_loop.aya:5: fn loop_allocs() -> int
-example/test_memory_loop.aya:14: fn main() -> int
+example/test_memory.aya:6: fn make() -> int
+example/test_memory.aya:12: fn main() -> int
+example/test_memory_enum.aya:5: enum Maybe
+example/test_memory_enum.aya:10: fn make() -> int
+example/test_memory_enum.aya:16: fn main() -> int
+example/test_memory_loop.aya:6: fn loop_allocs() -> int
+example/test_memory_loop.aya:15: fn main() -> int
 example/test_multi_constraint.aya:5: struct Box[T: ToString + Eq]
 example/test_multi_constraint.aya:9: impl[T: ToString + Eq] Box[T]
 example/test_multi_constraint.aya:10: pub fn describe(ref self) -> String
@@ -3946,11 +3947,11 @@ example/test_never.aya:52: fn match_never(Opt[int] o) -> int
 example/test_never.aya:59: fn all_div(bool c) -> int
 example/test_never.aya:63: fn assign_never(bool c) -> int
 example/test_never.aya:68: fn main() -> int
-example/test_niche_option.aya:7: struct Node
-example/test_niche_option.aya:13: fn take_none(Option[Ptr[Node]] o) -> int
-example/test_niche_option.aya:18: fn find(ref Node n, bool ok) -> Option[ref Node]
-example/test_niche_option.aya:25: fn niche_checks() -> int
-example/test_niche_option.aya:56: fn main() -> int
+example/test_niche_option.aya:9: struct Node
+example/test_niche_option.aya:14: fn take_none(Option[Ptr[Node]] o) -> int
+example/test_niche_option.aya:19: fn find(ref Node n, bool ok) -> Option[ref Node]
+example/test_niche_option.aya:26: fn niche_checks() -> int
+example/test_niche_option.aya:57: fn main() -> int
 example/test_nll.aya:4: struct S
 example/test_nll.aya:8: fn f(ref S s) -> int { return s.v }
 example/test_nll.aya:10: fn g(ref mut S s) -> int
@@ -4030,21 +4031,22 @@ example/test_ref_auto.aya:32: fn main() -> int
 example/test_ref_deref.aya:2: fn get(ref int r) -> int
 example/test_ref_deref.aya:6: fn set(ref mut int r, int v) -> void
 example/test_ref_deref.aya:10: fn main() -> int
-example/test_ref_graph.aya:16: struct Idx
-example/test_ref_graph.aya:20: struct Arena[T]
-example/test_ref_graph.aya:27: pub fn with_capacity[T](usize cap) -> Arena[T]
-example/test_ref_graph.aya:32: impl[T] Arena[T]
-example/test_ref_graph.aya:33: pub fn alloc(ref mut self, T v) -> Idx
-example/test_ref_graph.aya:41: pub fn get(ref self, Idx i) -> ref T
-example/test_ref_graph.aya:48: pub fn get_mut(ref mut self, Idx i) -> ref mut T
-example/test_ref_graph.aya:55: pub fn len(ref self) -> usize
-example/test_ref_graph.aya:60: struct Node
-example/test_ref_graph.aya:68: struct Graph
-example/test_ref_graph.aya:74: fn link_id(ref Arena[Node] a, ref Option[Idx] o) -> int
-example/test_ref_graph.aya:84: fn serialize(ref Arena[Node] a) -> String
-example/test_ref_graph.aya:100: fn rebuild(ArrayList[String] lines) -> Graph
-example/test_ref_graph.aya:143: fn roundtrip() -> int
-example/test_ref_graph.aya:186: fn main() -> int
+example/test_ref_graph.aya:3: fn test_live_allocs() -> int
+example/test_ref_graph.aya:25: struct Idx
+example/test_ref_graph.aya:29: struct Arena[T]
+example/test_ref_graph.aya:36: pub fn with_capacity[T](usize cap) -> Arena[T]
+example/test_ref_graph.aya:41: impl[T] Arena[T]
+example/test_ref_graph.aya:42: pub fn alloc(ref mut self, T v) -> Idx
+example/test_ref_graph.aya:50: pub fn get(ref self, Idx i) -> ref T
+example/test_ref_graph.aya:57: pub fn get_mut(ref mut self, Idx i) -> ref mut T
+example/test_ref_graph.aya:64: pub fn len(ref self) -> usize
+example/test_ref_graph.aya:69: struct Node
+example/test_ref_graph.aya:77: struct Graph
+example/test_ref_graph.aya:83: fn link_id(ref Arena[Node] a, ref Option[Idx] o) -> int
+example/test_ref_graph.aya:93: fn serialize(ref Arena[Node] a) -> String
+example/test_ref_graph.aya:109: fn rebuild(ArrayList[String] lines) -> Graph
+example/test_ref_graph.aya:152: fn roundtrip() -> int
+example/test_ref_graph.aya:195: fn main() -> int
 example/test_ref_param.aya:2: struct Box2
 example/test_ref_param.aya:6: fn get(ref Box2 b) -> int
 example/test_ref_param.aya:10: fn main() -> int

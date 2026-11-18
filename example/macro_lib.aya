@@ -44,6 +44,8 @@ pub fn guarded(String input, String cond) -> String {
 pub fn double(String input, String x) -> String { return "(" + x + " + " + x + ")" }
 
 // 调用点信息（Rust 风格 line/column/file 的等价物：保留参数 __line/__col/__file）
+#[alloc]
+#[state]
 #[macro]
 pub fn my_line(String input, int __line, int __col) -> String { return "" + __line }
 
@@ -57,10 +59,14 @@ pub fn block_len(String input, String block) -> String {
 
 // mcl.1：token 宏（`#[macro(tokens)]`）——输入/输出为 TokenStream 编码字节
 // （String 承载，二进制安全；宏侧可直接拼接/切片）
+#[alloc]
+#[state]
 #[macro(tokens)]
 pub fn tok_keep(String input) -> String { return input }
 
 // 语句级：输入 token 流重复两遍（`v = v + 1;` → 两条语句）
+#[alloc]
+#[state]
 #[macro(tokens)]
 pub fn tok_twice(String input) -> String { return input + input }
 
@@ -73,24 +79,37 @@ extern "C" fn __ayanami_macro_diag(int level, String msg) -> void;
 #[state]
 #[macro]
 pub fn hygienic_fn(String input, String name) -> String {
-    h = __ayanami_macro_hygienic(name)
+    h = ""
+    unsafe {
+        h = __ayanami_macro_hygienic(name)
+    }
     return "fn " + h + "() -> int { return 9 }\nfn hygienic_call() -> int { return " + h + "() }"
 }
 
 // mcl.2：诊断通道（1=warn 编译继续；2=error 编译失败）
+#[alloc]
+#[state]
 #[macro]
 pub fn warn_me(String input) -> String {
-    __ayanami_macro_diag(1, "warn_me: demo warning")
+    unsafe {
+        __ayanami_macro_diag(1, "warn_me: demo warning")
+    }
     return input
 }
 
+#[alloc]
+#[state]
 #[macro]
 pub fn err_me(String input) -> String {
-    __ayanami_macro_diag(2, "err_me: demo error")
+    unsafe {
+        __ayanami_macro_diag(2, "err_me: demo error")
+    }
     return input
 }
 
 // mcl.2：生成非法代码（负例——错误应带宏名与调用点）
+#[alloc]
+#[state]
 #[macro]
 pub fn broken(String input) -> String { return "fn broken( {" }
 

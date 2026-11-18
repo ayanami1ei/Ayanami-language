@@ -33,6 +33,10 @@ fn main() -> int {
     s = "hello"
     t = "hello"
     n = 1
-    return strlen(s.data) - 5 + memcmp(s.data, t.data, 5) + fast() - 2
+    calls = 0
+    unsafe {
+        calls = strlen(s.data) - 5 + memcmp(s.data, t.data, 5)
+    }
+    return calls + fast() - 2
         + always_returns() - 3 + touch(ref n)
 }

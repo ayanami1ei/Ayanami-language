@@ -1,3 +1,5 @@
+import "alloc";
+
 // #170：拥有动态数组字段的结构体 clone（ArrayList 经 Option 返回后字段读取）
 // clone 只分配 len 槽，目标 capability 必须改写为 len，否则 drop 越界释放
 import "arraylist"
@@ -5,7 +7,6 @@ import "option"
 import "string"
 import "io"
 
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn make() -> Option[ArrayList[String]] {
     res = ArrayList::new[String]()
@@ -33,7 +34,7 @@ fn run() -> int {
 fn main() -> int {
     r = run()
     if r != 0 { return r }
-    live = __ayanami_live_allocs()
+    live = live_allocs()
     if live != 0 { println(live); return 4 }
     return 0
 }

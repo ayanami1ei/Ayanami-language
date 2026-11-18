@@ -196,17 +196,23 @@ impl crate::hir::lower::Ctx {
         } };
 
         self.pending_env_args.clear();
-        // M5：调用 unsafe fn 需 unsafe 上下文
-        if self.fns[fn_id.0].is_unsafe && self.unsafe_depth == 0 && !self.cur_fn_unsafe {
+        // M5：unsafe fn 与无体 extern C 声明都只能在 unsafe 上下文调用。
+        let extern_call = self.extern_fn_ids.contains(&fn_id);
+        let requires_unsafe = self.fns[fn_id.0].is_unsafe || extern_call;
+        if requires_unsafe && self.unsafe_depth == 0 && !self.cur_fn_unsafe {
+            let what = if extern_call {
+                format!("extern C function `{}`", name.as_str())
+            } else {
+                format!("`unsafe fn {}`", name.as_str())
+            };
             return Err(Error::Hir(format!(
-                "call to `unsafe fn {}` requires an `unsafe` block (at {}:{})",
-                name.as_str(), span.start_line, span.start_col
+                "call to {} requires an `unsafe` block (at {}:{})",
+                what, span.start_line, span.start_col
             )));
         }
 
         // Step 4: wrap args into fat pointers where needed, apply implicit moves
         // extern "C" 声明：实参按借用传递（C 侧不消费所有权）
-        let extern_call = self.extern_fn_ids.contains(&fn_id);
         // Pre-register vtables for generic impl → interface (before the closure that can't use ?)
         let param_tys: Vec<HirType> = self.fns[fn_id.0].params.iter()
             .map(|(_, t)| t.clone())

@@ -2,5 +2,9 @@
 extern "C" fn strlen([char] s) -> int;
 
 pub fn run([char] s) -> int {
-    return strlen(s)
+    result = 0
+    unsafe {
+        result = strlen(s)
+    }
+    return result
 }

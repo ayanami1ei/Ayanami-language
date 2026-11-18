@@ -1,7 +1,8 @@
+import "alloc";
+
 // 回归：拥有元素数组的读取/覆盖——元素读取按 clone（非破坏）、remove/remove_at 位移不泄漏
 import "io"
 import "arraylist"
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn run_arr() -> int {
     a = ["x", "y", "z"]
@@ -27,7 +28,7 @@ fn run_list() -> int {
 fn main() -> int {
     n = run_arr() + run_list()
     if n != 1 + 2 + 1 + 1 { return 1 }
-    live = __ayanami_live_allocs()
+    live = live_allocs()
     if live != 0 { println(live); return 2 }
     return 0
 }

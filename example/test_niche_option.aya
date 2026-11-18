@@ -1,3 +1,5 @@
+import "alloc";
+
 // N1（docs/enum-layout.md §4）：niche 枚举——`Option[Ptr[T]]` / `Option[ref T]` 单指针表示
 // 判别由载荷槽空值承载（Some → 非空；None → null）；`_tag` / `_data_V._i` 访问形态不变。
 // 布局：8 字节（-50%）；drop 走零值判空（null 释放安全）。`*T` 不适用（null 是合法裸指针值）。
@@ -8,7 +10,6 @@ struct Node {
     int v
 }
 
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn take_none(Option[Ptr[Node]] o) -> int {
     if o._tag == 1 { return 1 }
@@ -57,7 +58,7 @@ fn main() -> int {
     rc = niche_checks()
     if rc != 0 { return rc }
     // Some 载荷（Ptr）经 drop 释放（null 释放安全）；ref 载荷不拥有对象
-    live = __ayanami_live_allocs()
+    live = live_allocs()
     if live != 0 { println(live); return 13 }
     println("niche ok")
     return 0

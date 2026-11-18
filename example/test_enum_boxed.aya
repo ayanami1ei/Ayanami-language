@@ -1,3 +1,5 @@
+import "alloc";
+
 // N2（docs/enum-layout.md §3.2）：大载荷变体装箱——载荷结构 > 16 字节 → Unique(E_V)
 // 与 N1 组合：boxed 载荷槽本身即指针 → 2 变体（1 空）枚举仍可 niche（8 字节）
 import "io"
@@ -18,7 +20,6 @@ enum OptBig {
     None,
 }
 
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn sum(Big x) -> int {
     return x.a + x.b + x.c
@@ -53,7 +54,7 @@ fn main() -> int {
     rc = run()
     if rc != 0 { return rc }
     // drop：boxed 载荷（run 内局部）已释放
-    live = __ayanami_live_allocs()
+    live = live_allocs()
     if live != 0 { println(live); return 11 }
     return 0
 }

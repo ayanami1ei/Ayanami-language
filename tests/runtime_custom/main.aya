@@ -2,5 +2,9 @@
 extern "C" fn aya_marker() -> int;
 
 fn main() -> int {
-    return aya_marker()
+    marker = 0
+    unsafe {
+        marker = aya_marker()
+    }
+    return marker
 }

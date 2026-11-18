@@ -1,8 +1,9 @@
+import "alloc";
+
 // #171：结构体 String 字段 clone（char 数组 1 字节/元素）——大字符串不越界/段错误
 import "string";
 import "io";
 
-extern "C" fn __ayanami_live_allocs() -> int;
 
 struct W {
     String s
@@ -35,7 +36,7 @@ fn run() -> int {
 fn main() -> int {
     r = run()
     if r != 0 { return r }
-    live = __ayanami_live_allocs()
+    live = live_allocs()
     if live != 0 { println(live); return 8 }
     return 0
 }

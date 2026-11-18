@@ -1,6 +1,7 @@
+import "alloc";
+
 // M2/FnOnce：体内移出捕获 → FnOnce（调用消费闭包；环境由被调用方释放）
 // 只读捕获仍是 Fn（可多次调用）；未调用的 FnOnce 在作用域结束释放环境。
-extern "C" fn __ayanami_live_allocs() -> int;
 
 struct Holder {
     FnOnce() -> int f
@@ -31,5 +32,5 @@ fn run() -> int {
 
 fn main() -> int {
     r = run()
-    return r + __ayanami_live_allocs() * 100 - 227
+    return r + live_allocs() * 100 - 227
 }

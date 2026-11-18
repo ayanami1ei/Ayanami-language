@@ -1,9 +1,18 @@
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn test_live_allocs() -> int {
+    result = 0
+    unsafe {
+        result = __ayanami_live_allocs()
+    }
+    return result;
+}
+
 // M4 阶段 2：Arena[T] + Idx 双向链表 —— 句柄互连 + 批量释放（live_allocs 归零）
 import "io"
 import "option"
 import "panic"
 
-extern "C" fn __ayanami_live_allocs() -> int;
 
 struct Idx {
     usize v
@@ -103,7 +112,7 @@ fn build() -> int {
 fn main() -> int {
     s = build()
     if s != 150 { return 1 }
-    live = __ayanami_live_allocs()
+    live = test_live_allocs()
     if live != 0 { println(live); return 2 }
     return 0
 }

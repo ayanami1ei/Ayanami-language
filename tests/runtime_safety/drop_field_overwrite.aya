@@ -1,7 +1,8 @@
+import "alloc";
+
 // 回归：字段覆盖（ArrayList::expand 的 self.data = tmp）释放旧缓冲，无泄漏
 import "io"
 import "arraylist"
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn run() -> int {
     a = ArrayList::new[int]()
@@ -14,7 +15,7 @@ fn run() -> int {
 fn main() -> int {
     n = run()
     if n != 3 { return 1 }
-    live = __ayanami_live_allocs()
+    live = live_allocs()
     if live != 0 { println(live); return 2 }
     return 0
 }

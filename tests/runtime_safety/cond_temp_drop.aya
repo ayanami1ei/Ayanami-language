@@ -1,6 +1,7 @@
+import "alloc";
+
 // 回归：while/elif 条件内借用临时量每轮求值后 drop（不泄漏、不提升到循环外）
 import "io"
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn f_ref(ref String s) -> int { return s.len() as int }
 
@@ -24,7 +25,7 @@ fn run() -> int {
 fn main() -> int {
     n = run()
     if n != 102 { return 1 }
-    live = __ayanami_live_allocs()
+    live = live_allocs()
     if live != 0 { println(live); return 2 }
     return 0
 }

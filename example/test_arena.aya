@@ -1,10 +1,19 @@
+extern "C" fn __ayanami_live_allocs() -> int;
+
+fn test_live_allocs() -> int {
+    result = 0
+    unsafe {
+        result = __ayanami_live_allocs()
+    }
+    return result;
+}
+
 // M4 阶段 2：Arena[T] + Idx —— 稳定地址分配与批量释放（双向链表 + 图 DFS，无泄漏检查）
 // Arena 内部用 [Ptr[T]] 持有节点（地址稳定）；Idx 为不拥有节点的轻量句柄。
 import "io"
 import "option"
 import "panic"
 
-extern "C" fn __ayanami_live_allocs() -> int;
 
 struct Idx {
     usize v
@@ -151,7 +160,7 @@ fn demo() -> int {
 fn main() -> int {
     rc = demo()
     if rc != 0 { return rc }
-    live = __ayanami_live_allocs()
+    live = test_live_allocs()
     if live != 0 { println(live); return 9 }
     return 0
 }

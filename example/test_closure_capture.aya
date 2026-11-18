@@ -1,5 +1,6 @@
+import "alloc";
+
 // M2 闭包：按值捕获 / 可变捕获（FnMut）/ 拥有类型捕获 + 环境释放
-extern "C" fn __ayanami_live_allocs() -> int;
 
 fn run() -> int {
     a = [1, 2, 3]
@@ -15,5 +16,5 @@ fn run() -> int {
 fn main() -> int {
     r = run()
     // run 返回后环境与数组缓冲都应释放：live_allocs = 0
-    return r + __ayanami_live_allocs() * 100 - 19
+    return r + live_allocs() * 100 - 19
 }

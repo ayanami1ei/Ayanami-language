@@ -1,6 +1,6 @@
 # M5：unsafe / FFI 安全边界（设计）
 
-> 状态：**设计完成；P1/P2/P3 已落地；P4（extern/asm 调用迁移，std 协作）待做**（2026-10-07 / 2026-10-18）
+> 状态：**设计完成；P1/P2/P3/P4 已落地**（2026-10-07 / 2026-11-18）
 > 关联：bd `Ayanami-language-576`（epic）、GitHub #6；联动 #143（static mut）、#71（指针↔int）
 > 依赖说明：bd 中 M5 链接了 Phase 4（泛型推断统一化），但 P1 的语法与检查与泛型推断无耦合，
 > 可先行；P2+ 的 raw pointer 泛型化再与 Phase 4 对齐。
@@ -36,7 +36,7 @@ safe 代码的健全性不因 unsafe 存在而削弱（unsafe 块内的违规不
 | volatile 读/写 | **P3a** | 已实现：`read_volatile`/`write_volatile`（LLVM volatile）；需 unsafe |
 | union | **P3b** | 已实现：字段共享存储、读取需 unsafe；字段限无 drop 类型 |
 | 裸指针比较 `==`/`!=` | **P3b** | 已实现：地址比较（ptrtoint+icmp），无需 unsafe |
-| `extern "C"` 调用 | P4（迁移） | std 大量使用；需 std 侧 `unsafe` 包装迁移后再门控 |
+| `extern "C"` 调用 | **P4** | 无体 extern C 声明仅在 unsafe 上下文调用；std 高层包装在内部建立 unsafe 边界 |
 
 ## 3. 语法
 
@@ -51,6 +51,7 @@ fn main() -> int {
         asm("mov $1, $0", in(reg) 1, out(reg) r)
     }
     unsafe { read_reg(1) }   // 调用 unsafe fn 需 unsafe 上下文
+    unsafe { c_helper(1) }   // 无体 extern C 声明同样需 unsafe
     return 0
 }
 ```
@@ -127,7 +128,7 @@ fn main() -> int {
 ## 4. 语义与检查
 
 - HIR 降级期维护 `unsafe_depth`（块）+ 当前函数 `is_unsafe`；
-- 违规（asm / 调用 unsafe fn / `static mut` 访问）在 safe 上下文报错，带 span；
+- 违规（asm / 调用 unsafe fn / 无体 extern C 声明 / `static mut` 访问）在 safe 上下文报错，带 span；
 - 错误信息：`` `asm` requires an `unsafe` block (at l:c) `` / `` call to `unsafe fn f` requires an `unsafe` block (at l:c) `` / `` read of mutable static `X` requires an `unsafe` block ``；
 - `.lcl` 导出（formatter）保留 `unsafe`（generic source round-trip）；
 - 不改变类型/ABI；`unsafe fn` 与普通 fn 同一调用约定。
@@ -139,7 +140,7 @@ fn main() -> int {
 | **P1（576.1）** | `unsafe {}` / `unsafe fn` 语法 + asm / unsafe-call / `static mut` 门控 | 正例：unsafe 内 asm、unsafe fn 调用、static mut 读写；负例：safe 中 asm / 调用 unsafe fn / static mut 访问报错；formatter round-trip |
 | P2（576.2） | `*T` 裸指针：`Ptr.as_ptr()`、`as *T`（int/Ptr/ref ↔ `*T`）、`*p` 解引用读写、`(*p).field` | 正例：as_ptr/解引用读写/指针↔int 往返；负例：safe 中解引用或 `*T` 转换报错；`*T` 可用于签名/局部/结构体字段；#71 关闭 |
 | P3（576.3） | unchecked indexing、union、reinterpret、volatile | 各自正/负例 |
-| P4 | extern/asm 调用迁移（std 协作，逐步） | std 全部经 unsafe 包装 |
+| P4 | extern C 调用门控与 std 迁移 | 普通函数调用无体 extern 报错；unsafe 内通过；std/示例全量回归 |
 
 ## 6. 实现状态
 
@@ -179,5 +180,8 @@ fn main() -> int {
       - 用例：`example/test_array_bounds.aya`；运行时 `bounds_check_array`/`bounds_check_negative`（101）；负例 `get_unchecked_requires_unsafe`
       - #174：extern 声明按名去重（用户/std 显式声明运行时符号不再重复 `declare`）
       - #175：动态数组字段（`s.data`）按兄弟边界字段检查 —— **容量优先**（`capability`/`capacity`/`cap`，可增长缓冲如 ArrayList/HashMap），无容量字段才用 `len`/`length`/`size`/`count`（如 `String.data`）；无边界字段的裸 `[T]` 字段保持未检查原语
-- [ ] P4：extern 调用迁移
-- [ ] P4：extern 调用迁移
+- [x] **P4（2026-11-18）**：无体 extern C 声明默认形成 unsafe 调用边界
+      - HIR 调用检查同时覆盖 `unsafe fn` 与 `extern_fn_ids`；带函数体的 `extern "C"` / `#[export]` 定义按普通已知函数调用
+      - 编译器合成 runtime helper（溢出检查等）不经 `extern_fn_ids`，不会被误门控
+      - std 的 alloc/io/fs/env/process/time/rand/sync/thread/channel/panic/macros/mir 等高层包装在内部使用 unsafe 块，对外保留原有安全 API
+      - 正例：现有 FFI/out-param/runtime/custom allocator 用例；负例：`extern_call_requires_unsafe.aya`

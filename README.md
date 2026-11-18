@@ -438,6 +438,8 @@ fn c_helper(int x) -> int;                          // 空体 = 导入 C 符号�
 ```
 
 - 导出函数保留原始符号名；`int` = `int64_t`、`ref mut T` = `T*`，类型映射见 `docs/c-interop.md`。
+- 空体 `#[extern]` / `extern "C"` 声明是不可验证的外部调用，只能在
+  `unsafe { ... }` 或 `unsafe fn` 内调用；std 已提供安全高层包装。
 - 项目可用 `[runtime] path` 或 `AYANAMI_RUNTIME` 指定自定义 runtime（.c/.a/.o），
   替代内置 `runtime.c`，支持用 Ayanami 自写 runtime 产出 `libruntime.a`。
 
