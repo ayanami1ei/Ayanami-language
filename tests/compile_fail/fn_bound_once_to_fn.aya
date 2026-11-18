@@ -1,0 +1,12 @@
+fn need[T: Fn() -> int](T f) -> int {
+    return f()
+}
+
+fn main() -> int {
+    s = "abc";
+    eat = () -> int {
+        taken = s;
+        return taken.len as int
+    };
+    return need(eat)
+}

@@ -46,9 +46,9 @@ fn main() -> int {
 
 ## 3. 非目标（C3 / M5）
 
-- `T: Fn(...)` 泛型约束、引用捕获、环境栈分配优化（FnOnce 已实现）。
+- 引用捕获、环境栈分配优化（FnOnce 与 `T: Fn(...)` 泛型约束已实现）。
 - unsafe 裸函数指针的完整语义（转换、回调变量、FFI 泛化）。
-- 数组/集合对拥有元素（闭包、String 等）的递归 drop（需长度元数据，语言级后续）。
+- 无长度元数据的裸动态 `[T]` 对拥有元素自动递归 drop；定长数组和带兄弟长度字段的集合已支持。
 
 ## 4. 实现位置
 
@@ -64,6 +64,7 @@ fn main() -> int {
 | `src/hir/lower/body/expr_misc.rs` / `expr_lower.rs` | lambda 降级、函数名作值 → 静态闭包 |
 | `src/hir/lower/body/expr_call.rs` | `Fn` 调用（`SVCall`）、`ref Fn` 解引用调用、extern 裸实参 |
 | `src/hir/lower/body/overload_resolve.rs` | 静态→拥有 / 静态→裸 FnPtr 兼容 |
+| `src/parser/parser/mod.rs` + `hir/lower/body/iface_args.rs` | `T: Fn(...)` 签名约束编码、特化校验与 Fn→FnOnce 子类型 |
 | `src/mir/lower/checks.rs` | 语句内按求值顺序的 use-after-move 检查（修复重复移动双释放） |
 | `src/lir/ir/helpers.rs` / `emit/functions.rs` | Closure drop（vtable slot 0）；生成函数 internal 链接 |
 | `src/lir/serialize/*` | `.lcl` 类型 tag 16（含 owns 标志） |
@@ -84,9 +85,9 @@ fn main() -> int {
   `FnOnce(...)`；调用消费闭包（`use of moved value` 防止二次调用），环境由调用方临时变量在
   作用域结束释放；移出字段在源结构/环境中清零（`SLirFieldTake`），drop 不再双重释放。
   `Fn` 值可隐式传给 `FnOnce` 形参；`FnOnce` 不能传给 `Fn`；`ref FnOnce` 不可调用。
-- 拥有闭包放进**数组/集合**时，元素环境不释放（数组 `[T]` 无长度元数据、drop 只释放缓冲——
-  语言级既有局限，`[String]` 等同理）；静态闭包（Copy、无 env）不受影响，可安全入集合
-  （`example/test_closure_collections.aya`）。
+- 定长数组按静态长度、带 `len`/`cap` 兄弟字段的动态集合按计数递归释放拥有元素；捕获闭包存入
+  `ArrayList`/`HashMap` 后 env 只 drop 一次（`tests/runtime_safety/closure_in_collection.aya`）。
+  无长度元数据的裸 `[T]` 仍只能释放缓冲区，无法枚举元素。
 - `extern "C"` 回调实参目前只支持直接函数名；静态闭包变量/裸指针变量留待 unsafe。
 - `extern "C"` 声明（无体）的实参按**借用**传递（不移动/清零）——C 侧不消费所有权。
 - 捕获 std 导入类型的拥有字段（如 `String`）依赖导入 struct_defs 的所有权信息；
@@ -100,3 +101,19 @@ fn main() -> int {
   残余：`while`/`elif` 条件内的借用临时量仍每次求值泄漏一次分配（bd `Ayanami-language-*`）。
 - match / if 表达式非 Copy 结果：结果变量仅在分支内条件赋值（`is_result`，不参与覆盖/块末
   drop），链后显式移出到最终临时量，避免条件初始化被 drop 或重复释放。
+
+## 7. C3a：`T: Fn(...)` 泛型闭包约束
+
+泛型参数的约束表允许闭包签名，而不是仅允许接口名：
+
+```ayanami
+fn apply[T: Fn(int) -> int](T f, int x) -> int {
+    return f(x)
+}
+```
+
+- 约束文本保留 `Fn`/`FnOnce` 的完整参数与返回类型；泛型体中的 `f(args)` 可直接调用。
+- 特化时把推断出的具体闭包类型与约束逐项匹配；`owns_env` 不参与签名匹配。
+- `Fn` 可满足 `FnOnce`，`FnOnce` 不可满足 `Fn`。
+- 非闭包类型、参数数量/类型或返回类型不匹配时，给出“不满足闭包约束”的 HIR 诊断。
+- 该能力作用于泛型参数；普通 `Fn(...)` 形参语义不变。

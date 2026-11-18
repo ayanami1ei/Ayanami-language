@@ -905,8 +905,10 @@ src/hir/lower/body/if_expr.rs:6: pub(crate) fn lower_if_expr(
 src/hir/lower/body/iface_args.rs:8: impl crate::hir::lower::Ctx
 src/hir/lower/body/iface_args.rs:10: pub(crate) fn infer_iface_args_for_concrete(
 src/hir/lower/body/iface_args.rs:74: pub(crate) fn check_generic_constraint(
-src/hir/lower/body/iface_args.rs:168: pub(crate) fn coerce_iface_value(
-src/hir/lower/body/iface_args.rs:194: pub(crate) fn infer_from_iface_constraints(
+src/hir/lower/body/iface_args.rs:181: pub(crate) fn coerce_iface_value(
+src/hir/lower/body/iface_args.rs:207: pub(crate) fn infer_from_iface_constraints(
+src/hir/lower/body/iface_args.rs:246: fn closure_bound(name: &Symbol) -> Option<HirType>
+src/hir/lower/body/iface_args.rs:257: fn closure_bound_matches(actual: &HirType, expected: &HirType) -> bool
 src/hir/lower/body/iface_match.rs:3: impl crate::hir::lower::Ctx
 src/hir/lower/body/iface_match.rs:4: pub(crate) fn infer_iface_generic(expected: &HirType, actual: &HirType,
 src/hir/lower/body/iface_match.rs:33: pub(crate) fn substitute_iface_type(ty: &HirType, subst: &HashMap<Symbol, HirType>, gp_names: &[Symbol]) -> HirType
@@ -3193,24 +3195,24 @@ src/parser/parser/macro_call.rs:3: impl Parser
 src/parser/parser/macro_call.rs:5: pub(super) fn parse_macro_call(&mut self) -> Result<Expr>
 src/parser/parser/mod.rs:8: pub struct Parser
 src/parser/parser/mod.rs:18: fn ast_type_text(ty: &Type) -> String
-src/parser/parser/mod.rs:40: mod array_expr;
-src/parser/parser/mod.rs:41: mod asm;
-src/parser/parser/mod.rs:42: mod atom;
-src/parser/parser/mod.rs:43: mod const_decl;
-src/parser/parser/mod.rs:44: mod self_type;
-src/parser/parser/mod.rs:45: mod core;
-src/parser/parser/mod.rs:46: mod decl;
-src/parser/parser/mod.rs:47: mod enum_iface;
-src/parser/parser/mod.rs:48: mod expr;
-src/parser/parser/mod.rs:49: mod generic_params;
-src/parser/parser/mod.rs:50: mod impls;
-src/parser/parser/mod.rs:51: mod literal_text;
-src/parser/parser/mod.rs:52: mod macro_call;
-src/parser/parser/mod.rs:53: mod for_stmt;
-src/parser/parser/mod.rs:54: mod pattern;
-src/parser/parser/mod.rs:55: mod stmt;
-src/parser/parser/mod.rs:56: mod types;
-src/parser/parser/mod.rs:57: mod unary;
+src/parser/parser/mod.rs:49: mod array_expr;
+src/parser/parser/mod.rs:50: mod asm;
+src/parser/parser/mod.rs:51: mod atom;
+src/parser/parser/mod.rs:52: mod const_decl;
+src/parser/parser/mod.rs:53: mod self_type;
+src/parser/parser/mod.rs:54: mod core;
+src/parser/parser/mod.rs:55: mod decl;
+src/parser/parser/mod.rs:56: mod enum_iface;
+src/parser/parser/mod.rs:57: mod expr;
+src/parser/parser/mod.rs:58: mod generic_params;
+src/parser/parser/mod.rs:59: mod impls;
+src/parser/parser/mod.rs:60: mod literal_text;
+src/parser/parser/mod.rs:61: mod macro_call;
+src/parser/parser/mod.rs:62: mod for_stmt;
+src/parser/parser/mod.rs:63: mod pattern;
+src/parser/parser/mod.rs:64: mod stmt;
+src/parser/parser/mod.rs:65: mod types;
+src/parser/parser/mod.rs:66: mod unary;
 src/parser/parser/pattern.rs:6: impl Parser
 src/parser/parser/pattern.rs:8: pub(super) fn parse_pattern(&mut self) -> Result<Pattern>
 src/parser/parser/pattern.rs:18: fn parse_pattern_literal(&mut self) -> Result<crate::parser::ast::literal::Literal>
@@ -3751,6 +3753,11 @@ example/test_field_move.aya:5: struct S { [int] data }
 example/test_field_move.aya:7: fn run() -> int
 example/test_field_move.aya:13: fn main() -> int
 example/test_float_nan_cmp.aya:4: fn main() -> int
+example/test_fn_bound.aya:2: fn inc(int x) -> int
+example/test_fn_bound.aya:6: fn one() -> int
+example/test_fn_bound.aya:10: fn apply[T: Fn(int) -> int](T f, int x) -> int
+example/test_fn_bound.aya:14: fn apply_once[T: FnOnce() -> int](T f) -> int
+example/test_fn_bound.aya:18: fn main() -> int
 example/test_fn_fold.aya:5: fn fold_str(String acc, String item, Fn(String, String) -> String f) -> String
 example/test_fn_fold.aya:15: fn main() -> int
 example/test_fn_once.aya:6: struct Holder

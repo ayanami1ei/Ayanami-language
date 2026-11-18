@@ -78,6 +78,19 @@ impl crate::hir::lower::Ctx {
 
                 let concrete_ty = generic_mappings.get(gp_name)
                     .ok_or_else(|| Error::Hir(format!("internal error: generic param `{}` not resolved at {}:{}", gp_name, span.start_line, span.start_col)))?;
+                if let Some(expected) = closure_bound(iface_name) {
+                    if closure_bound_matches(strip_ownership_ref(concrete_ty), &expected) {
+                        return Ok(());
+                    }
+                    return Err(Error::Hir(format!(
+                        "type `{}` does not satisfy closure bound `{}` for generic parameter `{}` at {}:{}",
+                        hir_type_display(concrete_ty),
+                        iface_name.as_str(),
+                        gp_name.as_str(),
+                        span.start_line,
+                        span.start_col
+                    )));
+                }
                 // 递归剥离所有权包装（Unique/Shared/Weak），
                 // 处理多层包装如 Unique(Shared(LinkedList)) → LinkedList
                 let mut concrete_inner = concrete_ty;
@@ -227,5 +240,30 @@ impl crate::hir::lower::Ctx {
                 }
             }
         }
+    }
+}
+
+fn closure_bound(name: &Symbol) -> Option<HirType> {
+    let text = name.as_str();
+    if !text.starts_with("Fn(") && !text.starts_with("FnOnce(") {
+        return None;
+    }
+    match sig_str_to_hir(&text) {
+        ty @ HirType::Closure(..) => Some(ty),
+        _ => None,
+    }
+}
+
+fn closure_bound_matches(actual: &HirType, expected: &HirType) -> bool {
+    match (actual, expected) {
+        (
+            HirType::Closure(actual_params, actual_ret, _, actual_once),
+            HirType::Closure(expected_params, expected_ret, _, expected_once),
+        ) => {
+            (!*actual_once || *expected_once)
+                && actual_params == expected_params
+                && actual_ret == expected_ret
+        }
+        _ => false,
     }
 }

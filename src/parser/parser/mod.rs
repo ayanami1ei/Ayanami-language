@@ -32,8 +32,17 @@ fn ast_type_text(ty: &Type) -> String {
         Type::Unique(inner, _) => ast_type_text(inner),
         Type::RawPtr(inner, _) => format!("*{}", ast_type_text(inner)),
         Type::Self_(_) => "Self".into(),
-        Type::FnPtr(..) => "fn".into(),
-        Type::Closure(..) => "Fn".into(),
+        Type::FnPtr(params, ret, _) => format!(
+            "fn({})->{}",
+            params.iter().map(ast_type_text).collect::<Vec<_>>().join(","),
+            ast_type_text(ret)
+        ),
+        Type::Closure(params, ret, _, once) => format!(
+            "{}({})->{}",
+            if *once { "FnOnce" } else { "Fn" },
+            params.iter().map(ast_type_text).collect::<Vec<_>>().join(","),
+            ast_type_text(ret)
+        ),
     }
 }
 

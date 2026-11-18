@@ -1,0 +1,11 @@
+fn need[T: Fn(int) -> int](T f) -> int {
+    return f(1)
+}
+
+fn wrong(int x) -> String {
+    return "wrong"
+}
+
+fn main() -> int {
+    return need(wrong)
+}
